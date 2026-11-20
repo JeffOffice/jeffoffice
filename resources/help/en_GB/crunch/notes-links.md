@@ -18,7 +18,7 @@ Each of these is one step you can undo. A note goes with its cell when rows or c
 
 A cell can also hold a conversation of **comments**, with replies. See the next part.
 
-Notes can be saved in an .xlsx workbook. A workbook opened from an older kind of file, or from a text file, keeps its notes only after you save it as an .xlsx workbook.
+Notes can be saved in an .xlsx workbook, an .ods workbook, and an .xls workbook. A workbook opened from an .ods file or an .xls file has its notes shown, and you can add, change, move, and delete them as in an .xlsx workbook. The date of an .ods note is not kept when JeffCrunch saves. A conversation of comments saved as an .ods or .xls file becomes a plain note with its words, and stays a plain note when that file is opened. An .xls file holds a box's distance into a cell in a fixed size, so a box that sits far into a wide cell can move a little. A workbook opened from a text file does not take notes.
 
 ## Comments
 

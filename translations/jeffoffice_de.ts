@@ -14921,7 +14921,7 @@ Open it in your email program, add recipients and send.</source>
     </message>
     <message>
         <location line="-54"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="+485"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="+508"/>
         <source>The workbook has more names than any real file has.</source>
         <translation type="unfinished">Die Arbeitsmappe enthält mehr Namen als jede echte Datei.</translation>
     </message>
@@ -14966,7 +14966,7 @@ Open it in your email program, add recipients and send.</source>
     </message>
     <message>
         <location line="+127"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="+1365"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="+1534"/>
         <source>The sheet has more merged ranges than any real file has.</source>
         <translation type="unfinished">Das Blatt enthält mehr verbundene Bereiche als jede echte Datei.</translation>
     </message>
@@ -15006,15 +15006,15 @@ Open it in your email program, add recipients and send.</source>
         <location line="+83"/>
         <location line="+238"/>
         <location line="+171"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="-624"/>
-        <location line="+583"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="-719"/>
+        <location line="+678"/>
         <source>The read was stopped.</source>
         <translation type="unfinished">Der Lesevorgang wurde abgebrochen.</translation>
     </message>
     <message>
         <location filename="../libs/office/sheet/chartembed.cpp" line="+0"/>
         <location filename="../libs/office/sheet/sheetreader.cpp" line="-417"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="-589"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="-684"/>
         <source>The sheet has more cells than any real file has.</source>
         <translation type="unfinished">Das Blatt enthält mehr Zellen als jede echte Datei.</translation>
     </message>
@@ -15141,7 +15141,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">Diese Datei ist eine Verbunddatei, enthält aber keine Arbeitsmappe.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xls.cpp" line="-1155"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="-1229"/>
         <location line="+2"/>
         <location line="+5"/>
         <location line="+10"/>
@@ -15150,7 +15150,7 @@ Open it in your email program, add recipients and send.</source>
     </message>
     <message>
         <location filename="../libs/office/sheet/sheetreader.cpp" line="+1141"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="+1804"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="+1973"/>
         <source>There is no such sheet.</source>
         <translation type="unfinished">Dieses Blatt gibt es nicht.</translation>
     </message>
@@ -15161,7 +15161,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">Der Teil des Blatts ist nicht in der Datei enthalten.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xls.cpp" line="-1818"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="-1987"/>
         <location line="+13"/>
         <source>This workbook is in a file format older than this program reads.</source>
         <translation type="unfinished">Diese Arbeitsmappe liegt in einem Dateiformat vor, das älter ist, als dieses Programm lesen kann.</translation>
@@ -15173,12 +15173,12 @@ Open it in your email program, add recipients and send.</source>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+606"/>
+        <location line="+614"/>
         <source>A sheet is nested more deeply than any real file&apos;s.</source>
         <translation type="unfinished">Ein Blatt ist tiefer verschachtelt als in jeder echten Datei.</translation>
     </message>
     <message>
-        <location line="-597"/>
+        <location line="-605"/>
         <source>This file is protected with a password, and it was not opened with one.</source>
         <translation type="unfinished">Diese Datei ist kennwortgeschützt, und beim Öffnen wurde kein Kennwort angegeben.</translation>
     </message>
@@ -15208,17 +15208,17 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">Die Arbeitsmappe enthält mehr Zeichenfolgen als jede echte Datei.</translation>
     </message>
     <message>
-        <location line="+36"/>
+        <location line="+42"/>
         <source>The workbook has no sheets.</source>
         <translation type="unfinished">Die Arbeitsmappe enthält keine Blätter.</translation>
     </message>
     <message>
-        <location line="+507"/>
+        <location line="+509"/>
         <source>The workbook&apos;s sheets share data, which no real file&apos;s do.</source>
         <translation type="unfinished">Die Blätter der Arbeitsmappe teilen sich Daten, was bei keiner echten Datei vorkommt.</translation>
     </message>
     <message>
-        <location line="+93"/>
+        <location line="+110"/>
         <source>Two sheets of the workbook share data, which no real file&apos;s do.</source>
         <translation type="unfinished">Zwei Blätter der Arbeitsmappe teilen sich Daten, was bei keiner echten Datei vorkommt.</translation>
     </message>
@@ -15228,7 +15228,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">Teile von Diagrammen</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/oldsavecommon.cpp" line="+69"/>
+        <location filename="../libs/office/sheet/oldsavecommon.cpp" line="+70"/>
         <source>%1 sheets past the first %2 that the format holds</source>
         <translation type="unfinished">%1 Blätter über die ersten %2 hinaus, die das Format aufnehmen kann</translation>
     </message>
@@ -15243,7 +15243,12 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">%1: %2</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+7"/>
+        <source>the dates of notes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
         <source>data validation</source>
         <translation type="unfinished">Datenüberprüfung</translation>
     </message>
@@ -15283,20 +15288,30 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">Drucktitel und Seitenumbrüche zwischen Spalten</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <location line="+64"/>
+        <location line="+8"/>
+        <location line="+67"/>
         <source>formatting inside a text</source>
         <translation type="unfinished">Formatierung innerhalb eines Textes</translation>
     </message>
     <message>
-        <location line="-66"/>
-        <location line="+46"/>
+        <location line="-18"/>
+        <source>conversations of comments (each is kept as a plain note)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>formatting inside the words of a note</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-57"/>
+        <location line="+52"/>
         <location filename="../libs/office/sheet/xls.cpp" line="-1"/>
         <source>charts</source>
         <translation type="unfinished">Diagramme</translation>
     </message>
     <message>
-        <location line="-113"/>
+        <location line="-124"/>
         <source>chart sheets (%1): this format has no sheet that is a chart, so the chart on each is left out; move it onto a worksheet to keep it</source>
         <translation type="unfinished">Diagrammblätter (%1): Dieses Format kennt kein Blatt, das ein Diagramm ist, daher wird das Diagramm auf jedem dieser Blätter weggelassen. Verschieben Sie es auf ein Arbeitsblatt, um es zu behalten.</translation>
     </message>
@@ -15306,7 +15321,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">Blätter, die Dialoge oder Makros sind (%1)</translation>
     </message>
     <message>
-        <location line="+74"/>
+        <location line="+84"/>
         <source>formulas that fill the cells beside them (each is saved with the values it gave)</source>
         <translation type="unfinished">Formeln, die die daneben liegenden Zellen füllen (jede wird mit dem Wert gespeichert, den sie ergeben hat)</translation>
     </message>
@@ -15316,25 +15331,20 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">Die Funktion LET (die Formel behält den Wert, den sie ergeben hat)</translation>
     </message>
     <message>
-        <location line="+36"/>
+        <location line="+37"/>
         <location filename="../libs/office/sheet/xls.cpp" line="+2"/>
         <source>pictures and other drawing objects</source>
         <translation type="unfinished">Bilder und andere Zeichnungsobjekte</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+12"/>
+        <location line="+14"/>
         <location filename="../libs/office/sheet/xls.cpp" line="+1"/>
         <source>pivot tables</source>
         <translation type="unfinished">Pivot-Tabellen</translation>
     </message>
     <message>
-        <location line="-11"/>
-        <source>notes</source>
-        <translation type="unfinished">Notizen</translation>
-    </message>
-    <message>
-        <location line="+2"/>
+        <location line="-9"/>
         <source>links to other workbooks (the formulas and the addresses stay, but the copy does not keep the values they last read from the linked files)</source>
         <translation type="unfinished"></translation>
     </message>
@@ -15399,14 +15409,22 @@ Open it in your email program, add recipients and send.</source>
         <source>The sheet is nested more deeply than any real file&apos;s.</source>
         <translation type="unfinished">Das Blatt ist tiefer verschachtelt als in jeder echten Datei.</translation>
     </message>
+    <message numerus="yes">
+        <location line="+152"/>
+        <source>%n note(s) in the file could not be read, and were left out.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
     <message>
-        <location line="+117"/>
+        <location line="+14"/>
         <source>The formulas of the sheet are more work to read than any real file&apos;s.</source>
         <translation type="unfinished">Die Formeln des Blatts sind aufwendiger zu lesen als in jeder echten Datei.</translation>
     </message>
     <message>
         <location line="+17"/>
-        <location line="+629"/>
+        <location line="+724"/>
         <source>The sheet is larger than any real file&apos;s.</source>
         <translation type="unfinished">Das Blatt ist größer als in jeder echten Datei.</translation>
     </message>
@@ -15442,7 +15460,7 @@ Open it in your email program, add recipients and send.</source>
     </message>
     <message>
         <location filename="../libs/office/sheet/odssave.cpp" line="+231"/>
-        <location filename="../libs/office/sheet/xlssave.cpp" line="+220"/>
+        <location filename="../libs/office/sheet/xlssave.cpp" line="+231"/>
         <source>%1 formulas the format cannot hold (they keep the value they came to)</source>
         <translation type="unfinished">%1 Formeln, die das Format nicht aufnehmen kann (sie behalten ihren berechneten Wert)</translation>
     </message>
@@ -15456,7 +15474,7 @@ Open it in your email program, add recipients and send.</source>
         <location line="+240"/>
         <location line="+44"/>
         <location filename="../libs/office/sheet/xlssave.cpp" line="-36"/>
-        <location line="+670"/>
+        <location line="+817"/>
         <location line="+14"/>
         <source>The save was stopped.</source>
         <translation type="unfinished">Das Speichern wurde abgebrochen.</translation>
@@ -15473,7 +15491,7 @@ Open it in your email program, add recipients and send.</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../libs/office/sheet/xlssave.cpp" line="+131"/>
+        <location filename="../libs/office/sheet/xlssave.cpp" line="+138"/>
         <source>%1 cells past the limit on cells in a copy</source>
         <translation type="unfinished">%1 Zellen über die Zellenobergrenze einer Kopie hinaus</translation>
     </message>
@@ -15499,16 +15517,26 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">%1 Texte auf 32.767 Zeichen gekürzt</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlscompile.cpp" line="+267"/>
-        <location line="+15"/>
-        <location line="+30"/>
-        <location filename="../libs/office/sheet/xlssave.cpp" line="-360"/>
-        <location line="+510"/>
+        <location filename="../libs/office/sheet/xlscompile.cpp" line="+268"/>
+        <location line="+23"/>
+        <location line="+54"/>
+        <location filename="../libs/office/sheet/xlssave.cpp" line="-498"/>
+        <location line="+648"/>
         <source>The formula is longer than the old format allows.</source>
         <translation type="unfinished">Die Formel ist länger, als das alte Format zulässt.</translation>
     </message>
     <message>
-        <location line="+36"/>
+        <location line="-68"/>
+        <source>The formula has more than 8 functions inside one another, which the old format can&apos;t hold.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The formula holds more than 40 values at once, which the old format can&apos;t hold.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+103"/>
         <location line="+178"/>
         <location line="+14"/>
         <location line="+22"/>
@@ -15521,45 +15549,45 @@ Open it in your email program, add recipients and send.</source>
         <location line="+11"/>
         <location line="+5"/>
         <location line="+2"/>
-        <location line="+308"/>
+        <location line="+313"/>
         <location line="+84"/>
         <source>The formula has something the old format can&apos;t write.</source>
         <translation type="unfinished">Die Formel enthält etwas, das das alte Format nicht schreiben kann.</translation>
     </message>
     <message>
-        <location line="-723"/>
+        <location line="-728"/>
         <location line="+98"/>
         <location line="+55"/>
-        <location line="+614"/>
+        <location line="+619"/>
         <source>The formula is nested more deeply than the old format allows.</source>
         <translation type="unfinished">Die Formel ist tiefer verschachtelt, als das alte Format zulässt.</translation>
     </message>
     <message>
-        <location line="-585"/>
+        <location line="-590"/>
         <location line="+323"/>
         <location line="+2"/>
-        <location line="+135"/>
+        <location line="+140"/>
         <source>The formula refers to another workbook, which the old format cannot do here.</source>
         <translation type="unfinished">Die Formel verweist auf eine andere Arbeitsmappe, was das alte Format hier nicht unterstützt.</translation>
     </message>
     <message>
-        <location line="-438"/>
+        <location line="-443"/>
         <source>The formula has a text of more than 255 characters, which the old format can&apos;t hold.</source>
         <translation type="unfinished">Die Formel enthält einen Text mit mehr als 255 Zeichen, den das alte Format nicht aufnehmen kann.</translation>
     </message>
     <message>
         <location line="+36"/>
-        <location line="+307"/>
+        <location line="+312"/>
         <source>The formula has a row past the old format&apos;s last one.</source>
         <translation type="unfinished">Die Formel enthält eine Zeile nach der letzten Zeile des alten Formats.</translation>
     </message>
     <message>
-        <location line="-39"/>
+        <location line="-44"/>
         <source>The formula names a sheet that is not in the workbook.</source>
         <translation type="unfinished">Die Formel nennt ein Blatt, das nicht in der Arbeitsmappe enthalten ist.</translation>
     </message>
     <message>
-        <location line="+68"/>
+        <location line="+73"/>
         <source>The formula has a column past the old format&apos;s last one.</source>
         <translation type="unfinished">Die Formel enthält eine Spalte nach der letzten Spalte des alten Formats.</translation>
     </message>
@@ -15616,7 +15644,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlssave.cpp" line="-951"/>
+        <location filename="../libs/office/sheet/xlssave.cpp" line="-1105"/>
         <source>The workbook is larger than the old format can hold.</source>
         <translation type="unfinished">Die Arbeitsmappe ist größer, als das alte Format aufnehmen kann.</translation>
     </message>
@@ -15626,7 +15654,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">Die Arbeitsmappe konnte nicht mit dem Kennwort geschützt werden.</translation>
     </message>
     <message>
-        <location line="+119"/>
+        <location line="+129"/>
         <source>colors past the 56 the format holds (each is the nearest of the first 56)</source>
         <translation type="unfinished">Farben über die 56 hinaus, die das Format aufnehmen kann (jede wird durch die ähnlichste der ersten 56 ersetzt)</translation>
     </message>
@@ -15646,7 +15674,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">Zellformate über die %1 hinaus, die das Format aufnehmen kann (die Zellen erhalten das übliche Aussehen)</translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="+36"/>
         <source>The formula reads another workbook that has no link with an address in the workbook.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -15657,16 +15685,16 @@ Open it in your email program, add recipients and send.</source>
     </message>
     <message>
         <location line="+1"/>
-        <source>A link&apos;s address is longer than 1,000 characters, which the old format can&apos;t hold.</source>
+        <source>A link&apos;s address is longer than 255 characters, which the old format can&apos;t hold.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>The formula names a sheet of another workbook with a name longer than 255 characters, which the old format can&apos;t hold.</source>
+        <source>The formula names a sheet of another workbook with no name or a name longer than 31 characters, which the old format can&apos;t hold.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+10"/>
         <source>The formulas name more than 255 sheets of one other workbook, which the old format can&apos;t hold.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -15680,8 +15708,48 @@ Open it in your email program, add recipients and send.</source>
         <source>the name %1 (%2)</source>
         <translation type="unfinished">der Name %1 (%2)</translation>
     </message>
+    <message numerus="yes">
+        <location line="+84"/>
+        <source>%n note(s) outside the old format&apos;s sheet size (past row 65,536 or column IV), which were left out</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n note(s) with no words, which were left out</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n note(s) past the first %1 of a sheet, which were left out</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n note(s) cut to %1 characters</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n author name(s) cut to %1 characters</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
     <message>
-        <location line="+300"/>
+        <location line="+350"/>
         <source>%1 merged ranges the format cannot hold</source>
         <translation type="unfinished">%1 verbundene Bereiche, die das Format nicht aufnehmen kann</translation>
     </message>
@@ -22849,7 +22917,7 @@ Quelle: %3</translation>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="+187"/>
         <location line="+125"/>
         <location line="+5"/>
-        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="+136"/>
+        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="+137"/>
         <location line="+22"/>
         <location line="+28"/>
         <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="+99"/>
@@ -22905,7 +22973,7 @@ Quelle: %3</translation>
         <location line="+77"/>
         <location line="+73"/>
         <location line="+3"/>
-        <location filename="../apps/crunch/app/crunchwindow_recover.cpp" line="+235"/>
+        <location filename="../apps/crunch/app/crunchwindow_recover.cpp" line="+236"/>
         <location filename="../apps/crunch/app/crunchwindow_text.cpp" line="+22"/>
         <source>Open</source>
         <translation type="unfinished">Öffnen</translation>
@@ -23077,10 +23145,10 @@ Quelle: %3</translation>
     <message>
         <location line="+7"/>
         <location line="+492"/>
-        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-150"/>
+        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-151"/>
         <location line="+6"/>
         <location line="+14"/>
-        <location line="+101"/>
+        <location line="+102"/>
         <location line="+14"/>
         <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="-25"/>
         <location line="+6"/>
@@ -26507,7 +26575,7 @@ Die Datei ist nicht vorhanden.</translation>
         <translation type="unfinished">Als .xlsx speichern…</translation>
     </message>
     <message>
-        <location line="-135"/>
+        <location line="-136"/>
         <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="+40"/>
         <source>The workbook is still being read. Save it when the status bar says Ready.</source>
         <translation type="unfinished">Die Arbeitsmappe wird noch gelesen. Speichern Sie sie, wenn in der Statusleiste „Bereit“ angezeigt wird.</translation>
@@ -26520,7 +26588,7 @@ Die Datei ist nicht vorhanden.</translation>
         <translation type="unfinished">Speichern nach Abschluss der Berechnung…</translation>
     </message>
     <message>
-        <location line="+60"/>
+        <location line="+61"/>
         <location line="+7"/>
         <location line="+23"/>
         <location line="+5"/>
@@ -31333,12 +31401,12 @@ Die Datei kann nicht gelesen werden.</translation>
         <translation>Kommentare</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_recover.cpp" line="-184"/>
+        <location filename="../apps/crunch/app/crunchwindow_recover.cpp" line="-185"/>
         <source>This workbook is protected with a password, so no recovery copy is kept of it. Save it to keep your work.</source>
         <translation type="unfinished">Diese Arbeitsmappe ist mit einem Kennwort geschützt, daher wird keine Wiederherstellungskopie davon gespeichert. Speichern Sie sie, um Ihre Arbeit zu sichern.</translation>
     </message>
     <message>
-        <location line="+61"/>
+        <location line="+62"/>
         <source>The workbook could not be read again for its copy: %1</source>
         <translation type="unfinished">Die Arbeitsmappe konnte für ihre Kopie nicht erneut gelesen werden: %1</translation>
     </message>
@@ -62826,7 +62894,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Dieses Blatt enthält keine Zellen, die geändert werden können.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editnotes.cpp" line="+36"/>
+        <location filename="../apps/crunch/core/editnotes.cpp" line="+37"/>
         <source>This sheet has more notes than JeffCrunch changes (%1). It shows them, and keeps them, but doesn&apos;t put notes on it or take them off.</source>
         <translation type="unfinished">Dieses Blatt enthält mehr Notizen, als JeffCrunch ändern kann (%1). Sie werden angezeigt und beibehalten, aber es können keine Notizen hinzugefügt oder entfernt werden.</translation>
     </message>
@@ -62838,7 +62906,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     <message>
         <location line="+46"/>
         <location filename="../apps/crunch/core/editnotes.cpp" line="+8"/>
-        <location line="+123"/>
+        <location line="+124"/>
         <location filename="../apps/crunch/core/editsession.cpp" line="+11"/>
         <location filename="../apps/crunch/core/editsheets.cpp" line="+243"/>
         <source>That cell is outside the sheet.</source>
@@ -62911,19 +62979,19 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Eine Arbeitsmappe kann bis zu %1 Kommentare in Threads haben.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editnotes.cpp" line="-132"/>
-        <source>Notes can&apos;t be added or changed yet in a workbook opened from this kind of file. The notes it has are shown, and are kept when it is saved as an .xlsx or an .ods file.</source>
+        <location filename="../apps/crunch/core/editnotes.cpp" line="-133"/>
+        <source>Notes can&apos;t be added to a workbook opened from this kind of file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+11"/>
-        <location line="+31"/>
+        <location line="+32"/>
         <location line="+64"/>
         <source>This sheet is protected, so its notes can&apos;t be changed. Take the protection off first.</source>
         <translation type="unfinished">Dieses Blatt ist geschützt, daher können seine Notizen nicht geändert werden. Heben Sie zuerst den Schutz auf.</translation>
     </message>
     <message>
-        <location line="-94"/>
+        <location line="-95"/>
         <source>A note needs some words. To take a note away, delete it.</source>
         <translation type="unfinished">Eine Notiz muss Text enthalten. Um eine Notiz zu entfernen, löschen Sie sie.</translation>
     </message>
@@ -62934,18 +63002,18 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+44"/>
+        <location line="+45"/>
         <location line="+51"/>
         <source>This note is a conversation of comments. Change it with the commands in Comments, on the Review tab.</source>
         <translation type="unfinished">Diese Notiz ist ein Kommentarverlauf. Ändern Sie sie mit den Befehlen unter Kommentare auf der Registerkarte Überprüfen.</translation>
     </message>
     <message>
-        <location line="-94"/>
+        <location line="-95"/>
         <source>A sheet can have up to %1 notes.</source>
         <translation type="unfinished">Ein Blatt kann höchstens %1 Notizen enthalten.</translation>
     </message>
     <message>
-        <location line="+92"/>
+        <location line="+93"/>
         <source>There is no note on that cell.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -63721,11 +63789,6 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <location line="+15"/>
         <source>This sheet has no cells to protect.</source>
         <translation type="unfinished">Dieses Blatt enthält keine Zellen, die geschützt werden können.</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editslice.cpp" line="+196"/>
-        <source>A workbook opened from an older kind of file, or from a text file, has its notes in a form JeffCrunch does not search. Save it as an .xlsx workbook, and look again.</source>
-        <translation type="unfinished">Bei einer Arbeitsmappe, die aus einem älteren Dateityp oder aus einer Textdatei geöffnet wurde, liegen die Notizen in einer Form vor, die JeffCrunch nicht durchsucht. Speichern Sie sie als .xlsx-Arbeitsmappe, und suchen Sie erneut.</translation>
     </message>
     <message>
         <location filename="../apps/crunch/core/editsort.cpp" line="+97"/>
@@ -64935,6 +64998,11 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <location line="+2"/>
         <source>The cells were changed while the rounding was being worked out, so it was not made. Try it again.</source>
         <translation type="unfinished">Die Zellen wurden geändert, während das Runden berechnet wurde, daher wurde es nicht durchgeführt. Versuchen Sie es erneut.</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editslice.cpp" line="+197"/>
+        <source>A workbook opened from a text or web page file has no notes to search.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -71573,11 +71641,11 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <location line="+47"/>
         <location line="+261"/>
         <location line="+97"/>
-        <location filename="../libs/office/sheet/xlsxbase.cpp" line="+1036"/>
-        <location line="+99"/>
-        <location line="+16"/>
+        <location filename="../libs/office/sheet/xlsxbase.cpp" line="+1049"/>
+        <location line="+96"/>
+        <location line="+25"/>
         <location filename="../libs/office/sheet/xlsxsave.cpp" line="+2469"/>
-        <location line="+1653"/>
+        <location line="+1657"/>
         <location line="+61"/>
         <source>The save was stopped.</source>
         <translation type="unfinished">Das Speichern wurde abgebrochen.</translation>
@@ -71611,7 +71679,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Das Tabellenblatt konnte nicht gespeichert werden.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-3960"/>
+        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-3964"/>
         <location line="+21"/>
         <source>The shared strings part is not in the form this program changes.</source>
         <translation type="unfinished">Der Teil mit den gemeinsamen Zeichenfolgen liegt nicht in der Form vor, die dieses Programm ändert.</translation>
@@ -71624,7 +71692,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     <message>
         <location line="+365"/>
         <location line="+120"/>
-        <location line="+3086"/>
+        <location line="+3090"/>
         <location line="+5"/>
         <location line="+5"/>
         <location line="+5"/>
@@ -71633,18 +71701,18 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Der Arbeitsmappenteil liegt nicht in der Form vor, die dieses Programm ändert.</translation>
     </message>
     <message>
-        <location line="-2437"/>
+        <location line="-2441"/>
         <source>The workbook was not opened from a file this program can save over.</source>
         <translation type="unfinished">Die Arbeitsmappe wurde nicht aus einer Datei geöffnet, die dieses Programm überschreiben kann.</translation>
     </message>
     <message>
         <location line="+795"/>
-        <location line="+1759"/>
+        <location line="+1763"/>
         <source>The file this workbook was opened from is damaged.</source>
         <translation type="unfinished">Die Datei, aus der diese Arbeitsmappe geöffnet wurde, ist beschädigt.</translation>
     </message>
     <message>
-        <location line="-2544"/>
+        <location line="-2548"/>
         <location line="+461"/>
         <location line="+273"/>
         <location line="+71"/>
@@ -71657,7 +71725,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Ein geändertes Tabellenblatt hat keinen Teil in der Datei.</translation>
     </message>
     <message>
-        <location line="+1241"/>
+        <location line="+1245"/>
         <source>The shared strings part is not in the file.</source>
         <translation type="unfinished">Der Teil mit den gemeinsamen Zeichenfolgen fehlt in der Datei.</translation>
     </message>
@@ -71672,15 +71740,15 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Eine geänderte Tabelle hat keinen Teil in der Datei.</translation>
     </message>
     <message>
-        <location line="-1222"/>
+        <location line="-1226"/>
         <location line="+6"/>
         <location line="+7"/>
-        <location line="+1677"/>
+        <location line="+1681"/>
         <source>A sheet of the file could not be read to be saved.</source>
         <translation type="unfinished">Ein Tabellenblatt der Datei konnte zum Speichern nicht gelesen werden.</translation>
     </message>
     <message>
-        <location line="-2532"/>
+        <location line="-2536"/>
         <source>Objects were put on a sheet this program can&apos;t put them on.</source>
         <translation type="unfinished">Objekte wurden auf einem Tabellenblatt platziert, auf dem dieses Programm sie nicht platzieren kann.</translation>
     </message>
@@ -71743,12 +71811,12 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <location line="+77"/>
         <location line="+75"/>
         <location line="+141"/>
-        <location line="+256"/>
+        <location line="+260"/>
         <source>The file&apos;s list of part types is not in it.</source>
         <translation type="unfinished">Die Liste der Teiletypen fehlt in der Datei.</translation>
     </message>
     <message>
-        <location line="-864"/>
+        <location line="-868"/>
         <location line="+143"/>
         <source>A drawing of the file is not in the form this program changes.</source>
         <translation type="unfinished">Eine Zeichnung der Datei liegt nicht in der Form vor, die dieses Programm ändert.</translation>
@@ -71799,7 +71867,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Ein Teil der Datei mit Notizen liegt nicht in der Form vor, die dieses Programm ändert.</translation>
     </message>
     <message>
-        <location line="+42"/>
+        <location line="+46"/>
         <location line="+12"/>
         <source>The notes of a sheet could not be saved.</source>
         <translation type="unfinished">Die Notizen eines Tabellenblatts konnten nicht gespeichert werden.</translation>
@@ -71848,8 +71916,8 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Die Beziehungen der Arbeitsmappe fehlen in der Datei.</translation>
     </message>
     <message>
-        <location line="-1248"/>
-        <location line="+1271"/>
+        <location line="-1252"/>
+        <location line="+1275"/>
         <location line="+5"/>
         <source>The workbook&apos;s relationships are not in the form this program changes.</source>
         <translation type="unfinished">Die Beziehungen der Arbeitsmappe liegen nicht in der Form vor, die dieses Programm ändern kann.</translation>
@@ -71881,7 +71949,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Die Datei konnte nicht geschrieben werden: %1</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlsxbase.cpp" line="-154"/>
+        <location filename="../libs/office/sheet/xlsxbase.cpp" line="-173"/>
         <source>The workbook is not one that was read from a file of another form.</source>
         <translation type="unfinished">Die Arbeitsmappe wurde nicht aus einer Datei eines anderen Formats gelesen.</translation>
     </message>
@@ -71891,17 +71959,17 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">eingebettete Objekte aus einer anderen Dateiart (als Bilder beibehalten)</translation>
     </message>
     <message>
-        <location line="+116"/>
+        <location line="+126"/>
         <source>A sheet of the workbook could not be read to be saved.</source>
         <translation type="unfinished">Ein Tabellenblatt der Arbeitsmappe konnte zum Speichern nicht gelesen werden.</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+23"/>
         <source>A sheet&apos;s charts changed while the workbook was being saved.</source>
         <translation type="unfinished">Die Diagramme einer Tabelle wurden geändert, während die Arbeitsmappe gespeichert wurde.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/notesave.cpp" line="+68"/>
+        <location filename="../libs/office/sheet/notesave.cpp" line="+70"/>
         <location line="+211"/>
         <location filename="../libs/office/sheet/threadsave.cpp" line="+112"/>
         <source>There are more changes to notes than a sheet&apos;s notes are saved with.</source>
@@ -71931,7 +71999,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Der Notizenteil der Datei liegt nicht in der Form vor, die dieses Programm ändern kann.</translation>
     </message>
     <message>
-        <location line="+165"/>
+        <location line="+166"/>
         <location line="+11"/>
         <source>The drawing of the notes in the file is not in the form this program changes.</source>
         <translation type="unfinished">Die Zeichnung der Notizen in der Datei liegt nicht in der Form vor, die dieses Programm ändern kann.</translation>
@@ -71955,8 +72023,16 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <source>The drawing of a sheet&apos;s controls could not be changed.</source>
         <translation type="unfinished">Die Zeichnung der Steuerelemente eines Blatts konnte nicht geändert werden.</translation>
     </message>
+    <message numerus="yes">
+        <location filename="../libs/office/sheet/notes.cpp" line="+519"/>
+        <source>%n note(s) left out, because the workbook has more note text than this program keeps.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
     <message>
-        <location filename="../libs/office/sheet/notes.cpp" line="+513"/>
+        <location line="+41"/>
         <source>The workbook has more note text than this program keeps; the rest was left out.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -72083,7 +72159,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
 <context>
     <name>jp::office::sheet::Xls</name>
     <message>
-        <location filename="../libs/office/sheet/xls.cpp" line="-635"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="-779"/>
         <source>The file is too large to repair.</source>
         <translation type="unfinished">Die Datei ist zu groß, um sie zu reparieren.</translation>
     </message>

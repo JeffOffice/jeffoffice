@@ -111,6 +111,57 @@
     </message>
 </context>
 <context>
+    <name>Sheet</name>
+    <message numerus="yes">
+        <location filename="../libs/office/sheet/xls.cpp" line="+1593"/>
+        <source>%n note(s) in the file could not be read, and were left out.</source>
+        <translation>
+            <numerusform>%n note in the file could not be read and was left out.</numerusform>
+            <numerusform>%n notes in the file could not be read and were left out.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../libs/office/sheet/xlssave.cpp" line="+772"/>
+        <source>%n note(s) outside the old format&apos;s sheet size (past row 65,536 or column IV), which were left out</source>
+        <translation>
+            <numerusform>%n note is outside the old format&apos;s sheet size (past row 65,536 or column IV) and was left out.</numerusform>
+            <numerusform>%n notes are outside the old format&apos;s sheet size (past row 65,536 or column IV) and were left out.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n note(s) with no words, which were left out</source>
+        <translation>
+            <numerusform>%n note has no words and was left out.</numerusform>
+            <numerusform>%n notes have no words and were left out.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n note(s) past the first %1 of a sheet, which were left out</source>
+        <translation>
+            <numerusform>%n note is past the first %1 of a sheet and was left out.</numerusform>
+            <numerusform>%n notes are past the first %1 of a sheet and were left out.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n note(s) cut to %1 characters</source>
+        <translation>
+            <numerusform>%n note was cut to %1 characters.</numerusform>
+            <numerusform>%n notes were cut to %1 characters.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n author name(s) cut to %1 characters</source>
+        <translation>
+            <numerusform>%n author name was cut to %1 characters.</numerusform>
+            <numerusform>%n author names were cut to %1 characters.</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>UserDictionary</name>
     <message numerus="yes">
         <location filename="../libs/page/app/userdictionarydialog.cpp" line="+151"/>
@@ -518,6 +569,17 @@
         <translation>
             <numerusform>%n formula the program could not convert, which keeps the value the file stored</numerusform>
             <numerusform>%n formulas the program could not convert, which keep the value the file stored</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
+    <name>jp::office::sheet::Save</name>
+    <message numerus="yes">
+        <location filename="../libs/office/sheet/notes.cpp" line="+519"/>
+        <source>%n note(s) left out, because the workbook has more note text than this program keeps.</source>
+        <translation>
+            <numerusform>%n note was left out, because the workbook has more note text than this program keeps.</numerusform>
+            <numerusform>%n notes were left out, because the workbook has more note text than this program keeps.</numerusform>
         </translation>
     </message>
 </context>

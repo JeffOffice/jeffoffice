@@ -14921,7 +14921,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
     </message>
     <message>
         <location line="-54"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="+485"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="+508"/>
         <source>The workbook has more names than any real file has.</source>
         <translation type="unfinished">De werkmap bevat meer namen dan een echt bestand.</translation>
     </message>
@@ -14966,7 +14966,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
     </message>
     <message>
         <location line="+127"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="+1365"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="+1534"/>
         <source>The sheet has more merged ranges than any real file has.</source>
         <translation type="unfinished">Het blad bevat meer samengevoegde bereiken dan een echt bestand.</translation>
     </message>
@@ -15006,15 +15006,15 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <location line="+83"/>
         <location line="+238"/>
         <location line="+171"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="-624"/>
-        <location line="+583"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="-719"/>
+        <location line="+678"/>
         <source>The read was stopped.</source>
         <translation type="unfinished">Het lezen is gestopt.</translation>
     </message>
     <message>
         <location filename="../libs/office/sheet/chartembed.cpp" line="+0"/>
         <location filename="../libs/office/sheet/sheetreader.cpp" line="-417"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="-589"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="-684"/>
         <source>The sheet has more cells than any real file has.</source>
         <translation type="unfinished">Het blad bevat meer cellen dan een echt bestand.</translation>
     </message>
@@ -15141,7 +15141,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <translation type="unfinished">Dit bestand is een samengesteld bestand, maar er zit geen werkmap in.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xls.cpp" line="-1155"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="-1229"/>
         <location line="+2"/>
         <location line="+5"/>
         <location line="+10"/>
@@ -15150,7 +15150,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
     </message>
     <message>
         <location filename="../libs/office/sheet/sheetreader.cpp" line="+1141"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="+1804"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="+1973"/>
         <source>There is no such sheet.</source>
         <translation type="unfinished">Dit blad bestaat niet.</translation>
     </message>
@@ -15161,7 +15161,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <translation type="unfinished">Het onderdeel van het blad staat niet in het bestand.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xls.cpp" line="-1818"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="-1987"/>
         <location line="+13"/>
         <source>This workbook is in a file format older than this program reads.</source>
         <translation type="unfinished">Deze werkmap heeft een bestandsindeling die ouder is dan dit programma kan lezen.</translation>
@@ -15173,12 +15173,12 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
     </message>
     <message>
         <location line="+2"/>
-        <location line="+606"/>
+        <location line="+614"/>
         <source>A sheet is nested more deeply than any real file&apos;s.</source>
         <translation type="unfinished">Een blad is dieper genest dan in enig echt bestand.</translation>
     </message>
     <message>
-        <location line="-597"/>
+        <location line="-605"/>
         <source>This file is protected with a password, and it was not opened with one.</source>
         <translation type="unfinished">Dit bestand is beveiligd met een wachtwoord en is zonder wachtwoord geopend.</translation>
     </message>
@@ -15208,17 +15208,17 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <translation type="unfinished">De werkmap bevat meer tekenreeksen dan enig echt bestand.</translation>
     </message>
     <message>
-        <location line="+36"/>
+        <location line="+42"/>
         <source>The workbook has no sheets.</source>
         <translation type="unfinished">De werkmap bevat geen bladen.</translation>
     </message>
     <message>
-        <location line="+507"/>
+        <location line="+509"/>
         <source>The workbook&apos;s sheets share data, which no real file&apos;s do.</source>
         <translation type="unfinished">De bladen van de werkmap delen gegevens, wat in geen enkel echt bestand voorkomt.</translation>
     </message>
     <message>
-        <location line="+93"/>
+        <location line="+110"/>
         <source>Two sheets of the workbook share data, which no real file&apos;s do.</source>
         <translation type="unfinished">Twee bladen van de werkmap delen gegevens, wat in geen enkel echt bestand voorkomt.</translation>
     </message>
@@ -15228,7 +15228,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <translation type="unfinished">onderdelen van grafieken</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/oldsavecommon.cpp" line="+69"/>
+        <location filename="../libs/office/sheet/oldsavecommon.cpp" line="+70"/>
         <source>%1 sheets past the first %2 that the format holds</source>
         <translation type="unfinished">%1 bladen na de eerste %2 die de indeling kan bevatten</translation>
     </message>
@@ -15243,7 +15243,12 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <translation type="unfinished">%1: %2</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+7"/>
+        <source>the dates of notes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
         <source>data validation</source>
         <translation type="unfinished">gegevensvalidatie</translation>
     </message>
@@ -15283,20 +15288,30 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <translation type="unfinished">afdruktitels en pagina-einden tussen kolommen</translation>
     </message>
     <message>
-        <location line="+3"/>
-        <location line="+64"/>
+        <location line="+8"/>
+        <location line="+67"/>
         <source>formatting inside a text</source>
         <translation type="unfinished">opmaak binnen een tekst</translation>
     </message>
     <message>
-        <location line="-66"/>
-        <location line="+46"/>
+        <location line="-18"/>
+        <source>conversations of comments (each is kept as a plain note)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>formatting inside the words of a note</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-57"/>
+        <location line="+52"/>
         <location filename="../libs/office/sheet/xls.cpp" line="-1"/>
         <source>charts</source>
         <translation type="unfinished">grafieken</translation>
     </message>
     <message>
-        <location line="-113"/>
+        <location line="-124"/>
         <source>chart sheets (%1): this format has no sheet that is a chart, so the chart on each is left out; move it onto a worksheet to keep it</source>
         <translation type="unfinished">grafiekbladen (%1): deze indeling heeft geen blad dat een grafiek is, dus de grafiek op elk blad wordt weggelaten; verplaats de grafiek naar een werkblad om hem te behouden</translation>
     </message>
@@ -15306,7 +15321,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <translation type="unfinished">bladen die dialoogvensters of macro&apos;s zijn (%1)</translation>
     </message>
     <message>
-        <location line="+74"/>
+        <location line="+84"/>
         <source>formulas that fill the cells beside them (each is saved with the values it gave)</source>
         <translation type="unfinished">formules die de cellen ernaast vullen (elk wordt opgeslagen met de waarden die het heeft opgeleverd)</translation>
     </message>
@@ -15316,25 +15331,20 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <translation type="unfinished">de functie LET (de formule behoudt de waarde die hij heeft opgeleverd)</translation>
     </message>
     <message>
-        <location line="+36"/>
+        <location line="+37"/>
         <location filename="../libs/office/sheet/xls.cpp" line="+2"/>
         <source>pictures and other drawing objects</source>
         <translation type="unfinished">afbeeldingen en andere tekenobjecten</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+12"/>
+        <location line="+14"/>
         <location filename="../libs/office/sheet/xls.cpp" line="+1"/>
         <source>pivot tables</source>
         <translation type="unfinished">draaitabellen</translation>
     </message>
     <message>
-        <location line="-11"/>
-        <source>notes</source>
-        <translation type="unfinished">notities</translation>
-    </message>
-    <message>
-        <location line="+2"/>
+        <location line="-9"/>
         <source>links to other workbooks (the formulas and the addresses stay, but the copy does not keep the values they last read from the linked files)</source>
         <translation type="unfinished"></translation>
     </message>
@@ -15399,14 +15409,22 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <source>The sheet is nested more deeply than any real file&apos;s.</source>
         <translation type="unfinished">Het blad is dieper genest dan in enig echt bestand.</translation>
     </message>
+    <message numerus="yes">
+        <location line="+152"/>
+        <source>%n note(s) in the file could not be read, and were left out.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
     <message>
-        <location line="+117"/>
+        <location line="+14"/>
         <source>The formulas of the sheet are more work to read than any real file&apos;s.</source>
         <translation type="unfinished">De formules van het blad kosten meer werk om te lezen dan in enig echt bestand.</translation>
     </message>
     <message>
         <location line="+17"/>
-        <location line="+629"/>
+        <location line="+724"/>
         <source>The sheet is larger than any real file&apos;s.</source>
         <translation type="unfinished">Het blad is groter dan in enig echt bestand.</translation>
     </message>
@@ -15442,7 +15460,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
     </message>
     <message>
         <location filename="../libs/office/sheet/odssave.cpp" line="+231"/>
-        <location filename="../libs/office/sheet/xlssave.cpp" line="+220"/>
+        <location filename="../libs/office/sheet/xlssave.cpp" line="+231"/>
         <source>%1 formulas the format cannot hold (they keep the value they came to)</source>
         <translation type="unfinished">%1 formules die de indeling niet kan bevatten (ze behouden hun berekende waarde)</translation>
     </message>
@@ -15456,7 +15474,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <location line="+240"/>
         <location line="+44"/>
         <location filename="../libs/office/sheet/xlssave.cpp" line="-36"/>
-        <location line="+670"/>
+        <location line="+817"/>
         <location line="+14"/>
         <source>The save was stopped.</source>
         <translation type="unfinished">Het opslaan is gestopt.</translation>
@@ -15473,7 +15491,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../libs/office/sheet/xlssave.cpp" line="+131"/>
+        <location filename="../libs/office/sheet/xlssave.cpp" line="+138"/>
         <source>%1 cells past the limit on cells in a copy</source>
         <translation type="unfinished">%1 cellen boven de limiet voor cellen in een kopie</translation>
     </message>
@@ -15499,16 +15517,26 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <translation type="unfinished">%1 teksten ingekort tot 32.767 tekens</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlscompile.cpp" line="+267"/>
-        <location line="+15"/>
-        <location line="+30"/>
-        <location filename="../libs/office/sheet/xlssave.cpp" line="-360"/>
-        <location line="+510"/>
+        <location filename="../libs/office/sheet/xlscompile.cpp" line="+268"/>
+        <location line="+23"/>
+        <location line="+54"/>
+        <location filename="../libs/office/sheet/xlssave.cpp" line="-498"/>
+        <location line="+648"/>
         <source>The formula is longer than the old format allows.</source>
         <translation type="unfinished">De formule is langer dan de oude indeling toestaat.</translation>
     </message>
     <message>
-        <location line="+36"/>
+        <location line="-68"/>
+        <source>The formula has more than 8 functions inside one another, which the old format can&apos;t hold.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The formula holds more than 40 values at once, which the old format can&apos;t hold.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+103"/>
         <location line="+178"/>
         <location line="+14"/>
         <location line="+22"/>
@@ -15521,45 +15549,45 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <location line="+11"/>
         <location line="+5"/>
         <location line="+2"/>
-        <location line="+308"/>
+        <location line="+313"/>
         <location line="+84"/>
         <source>The formula has something the old format can&apos;t write.</source>
         <translation type="unfinished">De formule bevat iets wat de oude indeling niet kan schrijven.</translation>
     </message>
     <message>
-        <location line="-723"/>
+        <location line="-728"/>
         <location line="+98"/>
         <location line="+55"/>
-        <location line="+614"/>
+        <location line="+619"/>
         <source>The formula is nested more deeply than the old format allows.</source>
         <translation type="unfinished">De formule is dieper genest dan de oude indeling toestaat.</translation>
     </message>
     <message>
-        <location line="-585"/>
+        <location line="-590"/>
         <location line="+323"/>
         <location line="+2"/>
-        <location line="+135"/>
+        <location line="+140"/>
         <source>The formula refers to another workbook, which the old format cannot do here.</source>
         <translation type="unfinished">De formule verwijst naar een andere werkmap, wat de oude indeling hier niet ondersteunt.</translation>
     </message>
     <message>
-        <location line="-438"/>
+        <location line="-443"/>
         <source>The formula has a text of more than 255 characters, which the old format can&apos;t hold.</source>
         <translation type="unfinished">De formule bevat een tekst van meer dan 255 tekens, wat de oude indeling niet kan bevatten.</translation>
     </message>
     <message>
         <location line="+36"/>
-        <location line="+307"/>
+        <location line="+312"/>
         <source>The formula has a row past the old format&apos;s last one.</source>
         <translation type="unfinished">De formule bevat een rij na de laatste rij van de oude indeling.</translation>
     </message>
     <message>
-        <location line="-39"/>
+        <location line="-44"/>
         <source>The formula names a sheet that is not in the workbook.</source>
         <translation type="unfinished">De formule noemt een blad dat niet in de werkmap staat.</translation>
     </message>
     <message>
-        <location line="+68"/>
+        <location line="+73"/>
         <source>The formula has a column past the old format&apos;s last one.</source>
         <translation type="unfinished">De formule bevat een kolom na de laatste kolom van de oude indeling.</translation>
     </message>
@@ -15616,7 +15644,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlssave.cpp" line="-951"/>
+        <location filename="../libs/office/sheet/xlssave.cpp" line="-1105"/>
         <source>The workbook is larger than the old format can hold.</source>
         <translation type="unfinished">De werkmap is groter dan de oude indeling kan bevatten.</translation>
     </message>
@@ -15626,7 +15654,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <translation type="unfinished">De werkmap kon niet met het wachtwoord worden beveiligd.</translation>
     </message>
     <message>
-        <location line="+119"/>
+        <location line="+129"/>
         <source>colors past the 56 the format holds (each is the nearest of the first 56)</source>
         <translation type="unfinished">kleuren boven de 56 die de indeling kan bevatten (elk wordt de dichtstbijzijnde van de eerste 56)</translation>
     </message>
@@ -15646,7 +15674,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <translation type="unfinished">celopmaak boven de %1 die de indeling kan bevatten (de cellen krijgen de standaardopmaak)</translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="+36"/>
         <source>The formula reads another workbook that has no link with an address in the workbook.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -15657,16 +15685,16 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
     </message>
     <message>
         <location line="+1"/>
-        <source>A link&apos;s address is longer than 1,000 characters, which the old format can&apos;t hold.</source>
+        <source>A link&apos;s address is longer than 255 characters, which the old format can&apos;t hold.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>The formula names a sheet of another workbook with a name longer than 255 characters, which the old format can&apos;t hold.</source>
+        <source>The formula names a sheet of another workbook with no name or a name longer than 31 characters, which the old format can&apos;t hold.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+10"/>
         <source>The formulas name more than 255 sheets of one other workbook, which the old format can&apos;t hold.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -15680,8 +15708,48 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <source>the name %1 (%2)</source>
         <translation type="unfinished">de naam %1 (%2)</translation>
     </message>
+    <message numerus="yes">
+        <location line="+84"/>
+        <source>%n note(s) outside the old format&apos;s sheet size (past row 65,536 or column IV), which were left out</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n note(s) with no words, which were left out</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n note(s) past the first %1 of a sheet, which were left out</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n note(s) cut to %1 characters</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n author name(s) cut to %1 characters</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
     <message>
-        <location line="+300"/>
+        <location line="+350"/>
         <source>%1 merged ranges the format cannot hold</source>
         <translation type="unfinished">%1 samengevoegde bereiken die de indeling niet kan bevatten</translation>
     </message>
@@ -22849,7 +22917,7 @@ Bron: %3</translation>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="+187"/>
         <location line="+125"/>
         <location line="+5"/>
-        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="+136"/>
+        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="+137"/>
         <location line="+22"/>
         <location line="+28"/>
         <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="+99"/>
@@ -22905,7 +22973,7 @@ Bron: %3</translation>
         <location line="+77"/>
         <location line="+73"/>
         <location line="+3"/>
-        <location filename="../apps/crunch/app/crunchwindow_recover.cpp" line="+235"/>
+        <location filename="../apps/crunch/app/crunchwindow_recover.cpp" line="+236"/>
         <location filename="../apps/crunch/app/crunchwindow_text.cpp" line="+22"/>
         <source>Open</source>
         <translation type="unfinished">Openen</translation>
@@ -23077,10 +23145,10 @@ Bron: %3</translation>
     <message>
         <location line="+7"/>
         <location line="+492"/>
-        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-150"/>
+        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-151"/>
         <location line="+6"/>
         <location line="+14"/>
-        <location line="+101"/>
+        <location line="+102"/>
         <location line="+14"/>
         <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="-25"/>
         <location line="+6"/>
@@ -26507,7 +26575,7 @@ Het bestand bestaat niet.</translation>
         <translation type="unfinished">Opslaan als .xlsx…</translation>
     </message>
     <message>
-        <location line="-135"/>
+        <location line="-136"/>
         <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="+40"/>
         <source>The workbook is still being read. Save it when the status bar says Ready.</source>
         <translation type="unfinished">De werkmap wordt nog gelezen. Sla deze op wanneer op de statusbalk Gereed staat.</translation>
@@ -26520,7 +26588,7 @@ Het bestand bestaat niet.</translation>
         <translation type="unfinished">Opslaan zodra de berekening klaar is…</translation>
     </message>
     <message>
-        <location line="+60"/>
+        <location line="+61"/>
         <location line="+7"/>
         <location line="+23"/>
         <location line="+5"/>
@@ -31333,12 +31401,12 @@ Het bestand kan niet worden gelezen.</translation>
         <translation>Opmerkingen</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_recover.cpp" line="-184"/>
+        <location filename="../apps/crunch/app/crunchwindow_recover.cpp" line="-185"/>
         <source>This workbook is protected with a password, so no recovery copy is kept of it. Save it to keep your work.</source>
         <translation type="unfinished">Deze werkmap is beveiligd met een wachtwoord, dus er wordt geen herstelkopie van bewaard. Sla het op om uw werk te bewaren.</translation>
     </message>
     <message>
-        <location line="+61"/>
+        <location line="+62"/>
         <source>The workbook could not be read again for its copy: %1</source>
         <translation type="unfinished">De werkmap kon voor de kopie niet opnieuw worden gelezen: %1</translation>
     </message>
@@ -62826,7 +62894,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Dit werkblad heeft geen cellen om te wijzigen.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editnotes.cpp" line="+36"/>
+        <location filename="../apps/crunch/core/editnotes.cpp" line="+37"/>
         <source>This sheet has more notes than JeffCrunch changes (%1). It shows them, and keeps them, but doesn&apos;t put notes on it or take them off.</source>
         <translation type="unfinished">Dit werkblad heeft meer notities dan JeffCrunch kan wijzigen (%1). Ze worden weergegeven en behouden, maar er kunnen geen notities worden toegevoegd of verwijderd.</translation>
     </message>
@@ -62838,7 +62906,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+46"/>
         <location filename="../apps/crunch/core/editnotes.cpp" line="+8"/>
-        <location line="+123"/>
+        <location line="+124"/>
         <location filename="../apps/crunch/core/editsession.cpp" line="+11"/>
         <location filename="../apps/crunch/core/editsheets.cpp" line="+243"/>
         <source>That cell is outside the sheet.</source>
@@ -62911,19 +62979,19 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Een werkmap kan maximaal %1 opmerkingen in threads bevatten.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editnotes.cpp" line="-132"/>
-        <source>Notes can&apos;t be added or changed yet in a workbook opened from this kind of file. The notes it has are shown, and are kept when it is saved as an .xlsx or an .ods file.</source>
+        <location filename="../apps/crunch/core/editnotes.cpp" line="-133"/>
+        <source>Notes can&apos;t be added to a workbook opened from this kind of file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+11"/>
-        <location line="+31"/>
+        <location line="+32"/>
         <location line="+64"/>
         <source>This sheet is protected, so its notes can&apos;t be changed. Take the protection off first.</source>
         <translation type="unfinished">Dit werkblad is beveiligd, dus de notities kunnen niet worden gewijzigd. Hef eerst de beveiliging op.</translation>
     </message>
     <message>
-        <location line="-94"/>
+        <location line="-95"/>
         <source>A note needs some words. To take a note away, delete it.</source>
         <translation type="unfinished">Een notitie moet tekst bevatten. Verwijder de notitie als u deze wilt weghalen.</translation>
     </message>
@@ -62934,18 +63002,18 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+44"/>
+        <location line="+45"/>
         <location line="+51"/>
         <source>This note is a conversation of comments. Change it with the commands in Comments, on the Review tab.</source>
         <translation type="unfinished">Deze notitie is een gesprek van opmerkingen. Wijzig die met de opdrachten onder Opmerkingen op het tabblad Controleren.</translation>
     </message>
     <message>
-        <location line="-94"/>
+        <location line="-95"/>
         <source>A sheet can have up to %1 notes.</source>
         <translation type="unfinished">Een werkblad kan maximaal %1 notities bevatten.</translation>
     </message>
     <message>
-        <location line="+92"/>
+        <location line="+93"/>
         <source>There is no note on that cell.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -63721,11 +63789,6 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location line="+15"/>
         <source>This sheet has no cells to protect.</source>
         <translation type="unfinished">Dit werkblad heeft geen cellen om te beveiligen.</translation>
-    </message>
-    <message>
-        <location filename="../apps/crunch/core/editslice.cpp" line="+196"/>
-        <source>A workbook opened from an older kind of file, or from a text file, has its notes in a form JeffCrunch does not search. Save it as an .xlsx workbook, and look again.</source>
-        <translation type="unfinished">In een werkmap die is geopend vanuit een ouder bestandstype of een tekstbestand, staan de notities in een vorm die JeffCrunch niet doorzoekt. Sla de werkmap op als .xlsx-werkmap en zoek opnieuw.</translation>
     </message>
     <message>
         <location filename="../apps/crunch/core/editsort.cpp" line="+97"/>
@@ -64935,6 +64998,11 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location line="+2"/>
         <source>The cells were changed while the rounding was being worked out, so it was not made. Try it again.</source>
         <translation type="unfinished">De cellen zijn gewijzigd terwijl het afronden werd berekend, dus het is niet uitgevoerd. Probeer het opnieuw.</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editslice.cpp" line="+197"/>
+        <source>A workbook opened from a text or web page file has no notes to search.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -71573,11 +71641,11 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location line="+47"/>
         <location line="+261"/>
         <location line="+97"/>
-        <location filename="../libs/office/sheet/xlsxbase.cpp" line="+1036"/>
-        <location line="+99"/>
-        <location line="+16"/>
+        <location filename="../libs/office/sheet/xlsxbase.cpp" line="+1049"/>
+        <location line="+96"/>
+        <location line="+25"/>
         <location filename="../libs/office/sheet/xlsxsave.cpp" line="+2469"/>
-        <location line="+1653"/>
+        <location line="+1657"/>
         <location line="+61"/>
         <source>The save was stopped.</source>
         <translation type="unfinished">Het opslaan is gestopt.</translation>
@@ -71611,7 +71679,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Het blad kan niet worden opgeslagen.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-3960"/>
+        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-3964"/>
         <location line="+21"/>
         <source>The shared strings part is not in the form this program changes.</source>
         <translation type="unfinished">Het onderdeel met gedeelde tekenreeksen heeft niet de vorm die dit programma kan wijzigen.</translation>
@@ -71624,7 +71692,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+365"/>
         <location line="+120"/>
-        <location line="+3086"/>
+        <location line="+3090"/>
         <location line="+5"/>
         <location line="+5"/>
         <location line="+5"/>
@@ -71633,18 +71701,18 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Het werkmaponderdeel heeft niet de vorm die dit programma kan wijzigen.</translation>
     </message>
     <message>
-        <location line="-2437"/>
+        <location line="-2441"/>
         <source>The workbook was not opened from a file this program can save over.</source>
         <translation type="unfinished">De werkmap is niet geopend vanuit een bestand dat dit programma kan overschrijven.</translation>
     </message>
     <message>
         <location line="+795"/>
-        <location line="+1759"/>
+        <location line="+1763"/>
         <source>The file this workbook was opened from is damaged.</source>
         <translation type="unfinished">Het bestand waaruit deze werkmap is geopend, is beschadigd.</translation>
     </message>
     <message>
-        <location line="-2544"/>
+        <location line="-2548"/>
         <location line="+461"/>
         <location line="+273"/>
         <location line="+71"/>
@@ -71657,7 +71725,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Een gewijzigd blad heeft geen onderdeel in het bestand.</translation>
     </message>
     <message>
-        <location line="+1241"/>
+        <location line="+1245"/>
         <source>The shared strings part is not in the file.</source>
         <translation type="unfinished">Het onderdeel met gedeelde tekenreeksen ontbreekt in het bestand.</translation>
     </message>
@@ -71672,15 +71740,15 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Een gewijzigde tabel heeft geen onderdeel in het bestand.</translation>
     </message>
     <message>
-        <location line="-1222"/>
+        <location line="-1226"/>
         <location line="+6"/>
         <location line="+7"/>
-        <location line="+1677"/>
+        <location line="+1681"/>
         <source>A sheet of the file could not be read to be saved.</source>
         <translation type="unfinished">Een blad van het bestand kan niet worden gelezen om op te slaan.</translation>
     </message>
     <message>
-        <location line="-2532"/>
+        <location line="-2536"/>
         <source>Objects were put on a sheet this program can&apos;t put them on.</source>
         <translation type="unfinished">Er zijn objecten op een blad geplaatst waarop dit programma ze niet kan plaatsen.</translation>
     </message>
@@ -71743,12 +71811,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location line="+77"/>
         <location line="+75"/>
         <location line="+141"/>
-        <location line="+256"/>
+        <location line="+260"/>
         <source>The file&apos;s list of part types is not in it.</source>
         <translation type="unfinished">De lijst met onderdeeltypen ontbreekt in het bestand.</translation>
     </message>
     <message>
-        <location line="-864"/>
+        <location line="-868"/>
         <location line="+143"/>
         <source>A drawing of the file is not in the form this program changes.</source>
         <translation type="unfinished">Een tekening in het bestand heeft niet de vorm die dit programma kan wijzigen.</translation>
@@ -71799,7 +71867,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Een onderdeel van het bestand met notities heeft niet de vorm die dit programma kan wijzigen.</translation>
     </message>
     <message>
-        <location line="+42"/>
+        <location line="+46"/>
         <location line="+12"/>
         <source>The notes of a sheet could not be saved.</source>
         <translation type="unfinished">De notities van een blad kunnen niet worden opgeslagen.</translation>
@@ -71848,8 +71916,8 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">De relaties van de werkmap ontbreken in het bestand.</translation>
     </message>
     <message>
-        <location line="-1248"/>
-        <location line="+1271"/>
+        <location line="-1252"/>
+        <location line="+1275"/>
         <location line="+5"/>
         <source>The workbook&apos;s relationships are not in the form this program changes.</source>
         <translation type="unfinished">De relaties van de werkmap hebben niet de vorm die dit programma kan wijzigen.</translation>
@@ -71881,7 +71949,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Het bestand kan niet worden geschreven: %1</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlsxbase.cpp" line="-154"/>
+        <location filename="../libs/office/sheet/xlsxbase.cpp" line="-173"/>
         <source>The workbook is not one that was read from a file of another form.</source>
         <translation type="unfinished">De werkmap is niet gelezen uit een bestand met een andere indeling.</translation>
     </message>
@@ -71891,17 +71959,17 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">ingesloten objecten die in een ander soort bestand zijn gemaakt (als afbeeldingen bewaard)</translation>
     </message>
     <message>
-        <location line="+116"/>
+        <location line="+126"/>
         <source>A sheet of the workbook could not be read to be saved.</source>
         <translation type="unfinished">Een werkblad van de werkmap kan niet worden gelezen om op te slaan.</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+23"/>
         <source>A sheet&apos;s charts changed while the workbook was being saved.</source>
         <translation type="unfinished">De grafieken van een werkblad zijn gewijzigd terwijl de werkmap werd opgeslagen.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/notesave.cpp" line="+68"/>
+        <location filename="../libs/office/sheet/notesave.cpp" line="+70"/>
         <location line="+211"/>
         <location filename="../libs/office/sheet/threadsave.cpp" line="+112"/>
         <source>There are more changes to notes than a sheet&apos;s notes are saved with.</source>
@@ -71931,7 +71999,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Het notitiegedeelte van het bestand heeft niet de vorm die dit programma kan wijzigen.</translation>
     </message>
     <message>
-        <location line="+165"/>
+        <location line="+166"/>
         <location line="+11"/>
         <source>The drawing of the notes in the file is not in the form this program changes.</source>
         <translation type="unfinished">De tekening van de notities in het bestand heeft niet de vorm die dit programma kan wijzigen.</translation>
@@ -71955,8 +72023,16 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <source>The drawing of a sheet&apos;s controls could not be changed.</source>
         <translation type="unfinished">De tekening van de besturingselementen van een werkblad kon niet worden gewijzigd.</translation>
     </message>
+    <message numerus="yes">
+        <location filename="../libs/office/sheet/notes.cpp" line="+519"/>
+        <source>%n note(s) left out, because the workbook has more note text than this program keeps.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
     <message>
-        <location filename="../libs/office/sheet/notes.cpp" line="+513"/>
+        <location line="+41"/>
         <source>The workbook has more note text than this program keeps; the rest was left out.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -72083,7 +72159,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
 <context>
     <name>jp::office::sheet::Xls</name>
     <message>
-        <location filename="../libs/office/sheet/xls.cpp" line="-635"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="-779"/>
         <source>The file is too large to repair.</source>
         <translation type="unfinished">Het bestand is te groot om te herstellen.</translation>
     </message>

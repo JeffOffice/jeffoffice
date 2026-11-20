@@ -2298,10 +2298,6 @@ No se pudo aplicar la contraseña al fichero.</translation>
         <translation type="unfinished">Este libro no se abrió desde un fichero que JeffCrunch pueda sobrescribir.</translation>
     </message>
     <message>
-        <source>A workbook opened from an older kind of file, or from a text file, has its notes in a form JeffCrunch does not search. Save it as an .xlsx workbook, and look again.</source>
-        <translation type="unfinished">Un libro abierto desde un tipo de fichero antiguo, o desde un fichero de texto, tiene sus notas en un formato en el que JeffCrunch no busca. Guárdelo como libro .xlsx y vuelva a buscar.</translation>
-    </message>
-    <message>
         <source>The data of this pivot table is in another workbook, which JeffCrunch does not open, so it can't be read again here. The table keeps the values the file has. To read it from this workbook, use Change Data Source.</source>
         <translation type="unfinished">Los datos de esta tabla dinámica están en otro libro, que JeffCrunch no abre, por lo que no se pueden volver a leer aquí. La tabla conserva los valores que tiene el fichero. Para leerlos de este libro, use Cambiar origen de datos.</translation>
     </message>
