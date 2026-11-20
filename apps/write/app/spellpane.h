@@ -4,9 +4,10 @@
 #include "app/grammarcheck.h"
 #include "core/spellcheck.h"
 
-#include <map>
+#include <vector>
 #include <QPair>
 #include <QPointer>
+#include <QTextCursor>
 #include <QTimer>
 #include <QWidget>
 #include <memory>
@@ -30,7 +31,9 @@ bool addSpellingSuggestions(QMenu &menu, PageView *view);
 bool addGrammarSuggestions(QMenu &menu, PageView *view);
 
 // The Spelling pane: shows the first misspelled word from the caret (selected in the text) with the dictionary's suggestions, and goes on to the next as each
-// is changed, ignored, or added to the dictionary. It begins where the caret is, goes to the end, then from the top to where it began.
+// is changed, ignored, or added to the dictionary. It begins where the caret is (in the text, a text box, a note, a header, or a footer), goes through the rest of that place, then the
+// places after it (the text, its text boxes, the notes, the headers and footers), then from the top to where it began. Change All changes the word in the places the pane goes through
+// (not a header or footer no page uses), as one step that undoes.
 class SpellPane : public QWidget {
     Q_OBJECT
 public:
@@ -52,9 +55,22 @@ protected:
     void showEvent(QShowEvent *e) override;
 
 private:
+    // A place the check goes through: the text, a text box, a note, or a header or footer. A text box's words are a copy the pane made (the box's own are in the drawing, until it is
+    // opened for typing); `box` follows the box's place in the text as the text changes.
+    struct Part {
+        QPointer<QTextDocument> story;
+        std::unique_ptr<QTextDocument> owned;
+        QTextCursor box;
+        bool isBox = false;
+        std::unique_ptr<SpellCheck> check;   // the pane's own check of it (the text's is the view's)
+    };
     void collectStories();
-    SpellCheck *checkFor(QTextDocument *story);
-    bool reveal(QTextDocument *story);
+    SpellCheck *checkFor(Part &part);
+    bool reveal(Part &part);
+    bool visits(Part &part);
+    QTextDocument *liveStory();
+    void refreshBox(Part &part);
+    void commitBox(Part &part);
     bool nextStory();
     void refreshChecks();
     void find(int from);
@@ -73,11 +89,10 @@ private:
     PageView *m_view;
     QPair<int, int> m_range{-1, -1};
     QString m_word;
-    // The stories the check goes through (the text, the notes, the headers and footers), the one it is in and the one it began in, the pane's own checks of them, and the story of
-    // the word shown.
-    QVector<QPointer<QTextDocument>> m_order;
+    // The places the check goes through (the text, its text boxes, the notes, the headers and footers), the one it is in and the one it began in (by number: a place is found by its
+    // pointer to the story, which can be freed and the memory used again), and the story of the word shown.
+    std::vector<Part> m_parts;
     int m_idx = 0, m_startIdx = 0;
-    std::map<QTextDocument *, std::unique_ptr<SpellCheck>> m_checks;
     QPointer<QTextDocument> m_story;
     int m_start = 0;                  // where the check began (the caret's place in its story, as the text changes)
     int m_pos = 0;                    // where the search is
@@ -85,7 +100,7 @@ private:
     bool m_grammarPhase = false, m_grammarRan = false;
     GrammarCheck::Issue m_issue;
     QTimer m_timer;
-    QLabel *m_status = nullptr, *m_wordLabel = nullptr, *m_context = nullptr;
+    QLabel *m_status = nullptr, *m_wordLabel = nullptr, *m_context = nullptr, *m_result = nullptr;
     QListWidget *m_list = nullptr;
     QPushButton *m_change = nullptr, *m_changeAll = nullptr, *m_ignore = nullptr, *m_ignoreAll = nullptr, *m_add = nullptr;
 };

@@ -6,8 +6,11 @@
 #include "app/spelling.h"
 #include "app/grammarcheck.h"
 #include "core/editops.h"
+#include "app/shapetextedit.h"
+#include "core/pictureops.h"
 #include "core/spellcheck.h"
 #include "core/writedoc.h"
+#include "core/writeprops.h"
 #include "text/textprops.h"
 
 #include <QAction>
@@ -143,6 +146,11 @@ SpellPane::SpellPane(PageView *view, QWidget *parent) : QWidget(parent), m_view(
     m_status->setObjectName(QStringLiteral("spellStatus"));
     m_status->setWordWrap(true);
     v->addWidget(m_status);
+    m_result = plainLabel(new QLabel(this));
+    m_result->setObjectName(QStringLiteral("spellResult"));
+    m_result->setWordWrap(true);
+    m_result->hide();
+    v->addWidget(m_result);
     m_wordLabel = plainLabel(new QLabel(this));
     m_wordLabel->setObjectName(QStringLiteral("spellWord"));
     QFont f = m_wordLabel->font();
@@ -189,14 +197,36 @@ SpellPane::SpellPane(PageView *view, QWidget *parent) : QWidget(parent), m_view(
     m_status->clear();
 }
 
-// The stories the pane goes through: the text, then the footnotes, then the headers and footers (the stories that the review code, WriteDoc::storiesWithChanges, goes through).
+// The places the pane goes through: the text, then the text boxes of the text (in the order of the text), then the footnotes, then the headers and footers (the stories that the review
+// code, WriteDoc::storiesWithChanges, goes through).
 void SpellPane::collectStories()
 {
-    m_order.clear();
-    m_checks.clear();
+    m_parts.clear();
     WriteDoc *doc = m_view->document();
     QTextDocument *body = doc->story();
-    m_order.push_back(body);
+    Part text;
+    text.story = body;
+    m_parts.push_back(std::move(text));
+    for (QTextBlock b = body->begin(); b.isValid(); b = b.next())
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            const QTextFragment f = it.fragment();
+            if (!f.charFormat().hasProperty(prop::Atom)) continue;
+            for (int i = 0; i < int(f.length()); ++i) {
+                const int at = f.position() + i;
+                if (!isDrawnObjectAt(body, at)) continue;
+                const PictureInfo info = pictureAt(*doc, body, at);
+                if (!info.valid || !info.editable || (info.kind != DrawnKind::Shape && info.kind != DrawnKind::TextBox)) continue;
+                std::unique_ptr<QTextDocument> words = textBoxStory(*doc, at);
+                if (!words || words->toPlainText().trimmed().isEmpty()) continue;
+                Part box;
+                box.owned = std::move(words);
+                box.story = box.owned.get();
+                box.isBox = true;
+                box.box = QTextCursor(body);
+                box.box.setPosition(at);
+                m_parts.push_back(std::move(box));
+            }
+        }
     struct Key {
         int part, a, b, c;
         QTextDocument *story;
@@ -210,25 +240,74 @@ void SpellPane::collectStories()
         else if (doc->headerFooterSlotOf(d, &section, &footer, &slot)) keys.push_back({1, section, footer ? 1 : 0, slot, d});
     }
     std::stable_sort(keys.begin(), keys.end(), [](const Key &x, const Key &y) { return std::tie(x.part, x.a, x.b, x.c) < std::tie(y.part, y.a, y.b, y.c); });
-    for (const Key &k : keys)
-        if (!m_order.contains(k.story)) m_order.push_back(k.story);
-}
-
-// The check of a story: the text's is the view's own, the others are the pane's (made when first asked for).
-SpellCheck *SpellPane::checkFor(QTextDocument *story)
-{
-    if (story == m_view->document()->story()) return m_view->spelling();
-    auto &check = m_checks[story];
-    if (!check) {
-        check = std::make_unique<SpellCheck>(story);
-        check->setDefaultLanguage(m_view->document()->proofingLanguage());
+    for (const Key &k : keys) {
+        const bool seen = std::any_of(m_parts.begin(), m_parts.end(), [&](const Part &p) { return p.story == k.story; });
+        if (seen) continue;
+        Part side;
+        side.story = k.story;
+        m_parts.push_back(std::move(side));
     }
-    return check.get();
 }
 
-// Shows a story for the pane's word: the text, or the header, footer, or note edited in place. False where no page shows it (it is passed over).
-bool SpellPane::reveal(QTextDocument *story)
+// The check of a place: the text's is the view's own, the others are the pane's (made when first asked for).
+SpellCheck *SpellPane::checkFor(Part &part)
 {
+    if (!part.isBox && part.story == m_view->document()->story()) return m_view->spelling();
+    if (!part.check && part.story) {
+        part.check = std::make_unique<SpellCheck>(part.story);
+        part.check->setDefaultLanguage(m_view->document()->proofingLanguage());
+    }
+    return part.check.get();
+}
+
+// Whether the pane goes to this place: the text and the text boxes, and a header, footer, or note that a page shows. (Change All changes the same places.)
+bool SpellPane::visits(Part &part)
+{
+    if (!part.story) return false;
+    if (part.isBox) return isDrawnObjectAt(m_view->document()->story(), part.box.position());
+    if (part.story == m_view->document()->story()) return true;
+    return m_view->showsSideStory(part.story);
+}
+
+// The words of a text box as they stand: the editor's while the box is open for typing, else the pane's copy. For any other place, its story.
+QTextDocument *SpellPane::liveStory()
+{
+    if (m_idx >= 0 && m_idx < int(m_parts.size()) && m_parts[m_idx].isBox && m_view->editingShapeText() && m_view->shapeEditorAt() == m_parts[m_idx].box.position() && m_view->shapeEditor())
+        return m_view->shapeEditor()->story();
+    return m_story;
+}
+
+// The pane's copy of a text box's words, made again from the document (after the words were put in it).
+void SpellPane::refreshBox(Part &part)
+{
+    const int at = part.box.position();
+    part.check.reset();
+    part.owned = at >= 0 && isDrawnObjectAt(m_view->document()->story(), at) ? textBoxStory(*m_view->document(), at) : nullptr;
+    part.story = part.owned.get();
+}
+
+// The words typed in a text box that is open are put in the document (one step that undoes), and the copy is made again from them.
+void SpellPane::commitBox(Part &part)
+{
+    m_view->commitShapeText(false);
+    refreshBox(part);
+}
+
+// Shows a place for the pane's word: the text, a text box opened for typing, or the header, footer, or note edited in place. False where nothing can show it (it is passed over).
+bool SpellPane::reveal(Part &part)
+{
+    QTextDocument *story = part.story;
+    if (part.isBox) {
+        const int at = part.box.position();
+        if (at < 0 || !isDrawnObjectAt(m_view->document()->story(), at)) return false;
+        if (m_view->inHeaderFooter()) m_view->leaveHeaderFooter();
+        if (m_view->inNote()) m_view->leaveNote();
+        if (m_view->editingShapeText() && m_view->shapeEditorAt() == at) return true;
+        if (m_view->editingShapeText() && !m_view->endShapeTextEdit(true)) return false;
+        m_view->selectPicture(at);
+        return m_view->beginShapeTextEdit();
+    }
+    if (m_view->editingShapeText()) m_view->endShapeTextEdit(true);
     if (story == m_view->document()->story()) {
         if (m_view->inHeaderFooter()) m_view->leaveHeaderFooter();
         if (m_view->inNote()) m_view->leaveNote();
@@ -238,11 +317,11 @@ bool SpellPane::reveal(QTextDocument *story)
     return m_view->enterSideStory(story);
 }
 
-// On to the next story of the ring (the text again, from the top to where the check began, when it comes round); false when the check has been all the way round.
+// On to the next place of the ring (the text again, from the top to where the check began, when it comes round); false when the check has been all the way round.
 bool SpellPane::nextStory()
 {
     if (m_wrapped) return false;
-    m_idx = (m_idx + 1) % int(m_order.size());
+    m_idx = (m_idx + 1) % int(m_parts.size());
     m_pos = 0;
     if (m_idx == m_startIdx) {
         if (m_start <= 0) return false;
@@ -255,22 +334,36 @@ void SpellPane::start()
 {
     m_timer.stop();
     m_searching = false;
+    m_result->clear();
+    m_result->hide();
     if (!m_view->document() || !m_view->spelling()) {
         finish();
         return;
     }
     collectStories();
-    // (From the caret: in the text, or in the header, footer, or note that is being edited.)
+    // (From the caret: in the text, or in the header, footer, note, or text box that is being edited.)
     const QTextDocument *edited = m_view->editedSideStory();
-    m_startIdx = edited ? int(m_order.indexOf(const_cast<QTextDocument *>(edited))) : 0;
+    m_startIdx = 0;
+    int boxStart = -1;
+    if (edited) {
+        m_startIdx = -1;
+        for (int k = 0; k < int(m_parts.size()); ++k)
+            if (m_parts[k].story == edited) m_startIdx = k;
+    } else if (m_view->editingShapeText() && m_view->shapeEditor()) {
+        for (int k = 0; k < int(m_parts.size()); ++k)
+            if (m_parts[k].isBox && m_parts[k].box.position() == m_view->shapeEditorAt()) {
+                m_startIdx = k;
+                boxStart = m_view->shapeEditor()->textCursor().selectionStart();
+            }
+    }
     if (m_startIdx < 0) {
         m_view->leaveHeaderFooter();
         m_view->leaveNote();
         m_startIdx = 0;
     }
     m_idx = m_startIdx;
-    m_story = m_order[m_idx];
-    m_start = m_view->cursor().selectionStart();
+    m_story = m_parts[m_idx].story;
+    m_start = boxStart >= 0 ? boxStart : m_view->cursor().selectionStart();
     m_grammarPhase = false;
     m_grammarRan = false;
     m_issue = GrammarCheck::Issue();
@@ -294,21 +387,19 @@ void SpellPane::search()
     }
     // (From the caret to the end of its story, then the other stories, then the top to where it began: a few slices at most before the pane says anything.)
     for (int turn = 0; turn < 8; ++turn) {
-        QTextDocument *story = m_order.value(m_idx);
-        if (!story) {
-            spellingDone();
-            return;
-        }
+        Part &part = m_parts[m_idx];
+        QTextDocument *story = part.story;
         QPair<int, int> found;
         int next = m_pos;
         bool onward = false;
-        switch (checkFor(story)->search(m_pos, kSliceMs, &found, &next)) {
+        // (A place that is gone, a note that was taken out while the pane was open, is passed over.)
+        switch (story ? checkFor(part)->search(m_pos, kSliceMs, &found, &next) : SpellCheck::Step::None) {
         case SpellCheck::Step::Found:
             if (m_wrapped && m_idx == m_startIdx && found.first >= m_start) {   // (back to where it began)
                 spellingDone();
                 return;
             }
-            if (reveal(story)) {
+            if (reveal(part)) {
                 show(story, found);
                 return;
             }
@@ -345,6 +436,7 @@ void SpellPane::spellingDone()
         return;
     }
     // (The grammar is of the text: its caret is the text's, and the check begins at the text's caret.)
+    if (m_view->editingShapeText()) m_view->endShapeTextEdit(true);
     m_view->leaveHeaderFooter();
     m_view->leaveNote();
     m_story = m_view->document()->story();
@@ -462,10 +554,20 @@ void SpellPane::show(QTextDocument *story, const QPair<int, int> &range)
     m_word = c.selectedText();
     m_complete = false;
     m_searching = false;
-    m_view->setCursor(c);
+    Part &part = m_parts[m_idx];
+    if (part.isBox && m_view->shapeEditor()) {
+        // (The word is selected in the words of the text box, which are open for typing.)
+        QTextCursor inBox(m_view->shapeEditor()->story());
+        inBox.setPosition(range.first);
+        inBox.setPosition(range.second, QTextCursor::KeepAnchor);
+        m_view->shapeEditor()->setTextCursor(inBox);
+    } else {
+        m_view->setCursor(c);
+    }
     int section = 0, slot = 0;
     bool footer = false;
-    if (story == m_view->document()->story()) m_status->setText(tr("Not in dictionary"));
+    if (part.isBox) m_status->setText(tr("Not in dictionary, in a text box"));
+    else if (story == m_view->document()->story()) m_status->setText(tr("Not in dictionary"));
     else if (m_view->document()->headerFooterSlotOf(story, &section, &footer, &slot)) m_status->setText(footer ? tr("Not in dictionary, in a footer") : tr("Not in dictionary, in a header"));
     else m_status->setText(tr("Not in dictionary, in a note"));
     m_wordLabel->setText(m_word);
@@ -480,11 +582,11 @@ void SpellPane::show(QTextDocument *story, const QPair<int, int> &range)
     QTextCursor look(story);
     look.setPosition(range.first + 1);
     const QString language = look.charFormat().stringProperty(tp::Language);
-    m_list->addItems(spellingSuggestions(m_word, language.isEmpty() ? checkFor(story)->defaultLanguage() : language).mid(0, 12));
+    m_list->addItems(spellingSuggestions(m_word, language.isEmpty() ? checkFor(part)->defaultLanguage() : language).mid(0, 12));
     if (m_list->count() > 0) m_list->setCurrentRow(0);
     for (QPushButton *b : {m_ignore, m_ignoreAll, m_add}) b->setEnabled(true);
     // (A word of the endnotes the pages set is not changed anywhere: it can be ignored or added, not changed.)
-    for (QPushButton *b : {m_change, m_changeAll}) b->setEnabled(m_list->count() > 0 && !touchesEndnotes(story, range.first, range.second));
+    for (QPushButton *b : {m_change, m_changeAll}) b->setEnabled(m_list->count() > 0 && canReplaceWord(story, range.first, range.second));
 }
 
 void SpellPane::finish()
@@ -505,9 +607,10 @@ void SpellPane::finish()
 // Whether the word shown is still where it was (the text may have been edited while the pane was open); if not, the check goes on from the caret.
 bool SpellPane::stillThere()
 {
-    if (m_range.first >= 0 && m_view->document() && m_story) {
-        QTextCursor c(m_story);
-        if (m_range.second <= m_story->characterCount() - 1) {
+    QTextDocument *live = liveStory();
+    if (m_range.first >= 0 && m_view->document() && live) {
+        QTextCursor c(live);
+        if (m_range.second <= live->characterCount() - 1) {
             c.setPosition(m_range.first);
             c.setPosition(m_range.second, QTextCursor::KeepAnchor);
             if (c.selectedText() == m_word) return true;
@@ -520,8 +623,10 @@ bool SpellPane::stillThere()
 void SpellPane::change(bool all)
 {
     if (m_complete || m_searching || !m_list->currentItem() || m_view->readOnly() || !stillThere()) return;   // (a document open for reading only is not changed by a correction)
-    QTextDocument *story = m_story;
-    if (!m_grammarPhase && touchesEndnotes(story, m_range.first, m_range.second)) return;
+    m_result->clear();
+    m_result->hide();
+    QTextDocument *story = liveStory();
+    if (!m_grammarPhase && !canReplaceWord(story, m_range.first, m_range.second)) return;
     const QString chosen = m_grammarPhase ? m_list->currentItem()->data(Qt::UserRole).toString() : m_list->currentItem()->text(), word = m_word;
     if (m_grammarPhase) {
         if (all) return;
@@ -535,45 +640,63 @@ void SpellPane::change(bool all)
     int resume = first + int(chosen.size());
     if (!all) {
         replaceWord(story, m_range.first, m_range.second, chosen);
+        if (m_parts[m_idx].isBox) commitBox(m_parts[m_idx]);
         if (m_wrapped && m_idx == m_startIdx) m_start += delta;   // (the word is before where the check began)
     } else {
-        // Every misspelling of the same word, in every story the pane goes through, from the last, in one step that undoes: the places the word is in the text, those the check
-        // calls misspelled whole.
+        // Every misspelling of the same word in the places the pane goes through (the text, its text boxes, and the notes, headers, and footers that a page shows), from the last, in one
+        // step that undoes: the places the word is in the text, those the check calls misspelled whole, and that can be changed (not a word of the endnotes the pages set).
+        // (A text box that is open for typing is put in the document first, so that its words are the document's.)
+        if (m_view->editingShapeText() && !m_view->endShapeTextEdit(true)) return;
         struct Same {
+            int part;
             QTextDocument *story;
             QVector<QPair<int, int>> places;
         };
         QVector<Same> found;
         int before = 0, beforeStart = 0;
-        for (int k = 0; k < m_order.size(); ++k) {
-            QTextDocument *where = m_order[k];
-            if (!where) continue;
-            Same one{where, {}};
-            SpellCheck *check = checkFor(where);
+        for (int k = 0; k < int(m_parts.size()); ++k) {
+            Part &p = m_parts[k];
+            if (p.isBox) refreshBox(p);   // (as the document has the words now)
+            QTextDocument *where = p.story;
+            if (!where || !visits(p)) continue;
+            Same one{k, where, {}};
+            SpellCheck *check = checkFor(p);
             for (QTextBlock b = where->begin(); b.isValid(); b = b.next()) {
                 const QString text = b.text();
                 for (int at = int(text.indexOf(word)); at >= 0; at = int(text.indexOf(word, at + 1))) {
                     const int pos = b.position() + at;
                     const QPair<int, int> w = check->misspellingAt(pos);
-                    if (w.first == pos && w.second == pos + int(word.size())) one.places << w;
+                    if (w.first == pos && w.second == pos + int(word.size()) && canReplaceWord(where, w.first, w.second)) one.places << w;
                 }
             }
             // What changed length before the word, and before where the check began, moved them.
             for (const auto &w : std::as_const(one.places)) {
-                if (where == story && w.first < first) ++before;
+                if (k == m_idx && w.first < first) ++before;
                 if (k == m_startIdx && w.first < m_start) ++beforeStart;
             }
             if (!one.places.isEmpty()) found << one;
         }
-        const WriteDoc::StepGroup together(*m_view->document());
-        for (const Same &one : std::as_const(found)) {
-            QTextCursor block(one.story);
-            block.beginEditBlock();
-            for (int i = int(one.places.size()) - 1; i >= 0; --i) replaceWord(one.story, one.places[i].first, one.places[i].second, chosen);
-            block.endEditBlock();
+        int words = 0, places = 0;
+        {
+            const WriteDoc::StepGroup together(*m_view->document());
+            for (const Same &one : std::as_const(found)) {
+                QTextCursor block(one.story);
+                block.beginEditBlock();
+                for (int i = int(one.places.size()) - 1; i >= 0; --i) replaceWord(one.story, one.places[i].first, one.places[i].second, chosen);
+                block.endEditBlock();
+                Part &p = m_parts[one.part];
+                // (The words of a text box go into its drawing, and are read again from it.)
+                if (p.isBox && !setTextBoxStory(*m_view->document(), p.box.position(), one.story)) continue;
+                words += int(one.places.size());
+                ++places;
+            }
         }
+        for (Part &p : m_parts)
+            if (p.isBox) refreshBox(p);
         resume += before * delta;
         m_start += beforeStart * delta;
+        m_result->setText(tr("%n word changed.", nullptr, words) + QLatin1Char(' ') + tr("Found in %n place.", nullptr, places));
+        m_result->show();
     }
     find(resume);
 }
@@ -588,6 +711,7 @@ void SpellPane::refreshChecks()
 void SpellPane::ignore(bool all)
 {
     if (m_complete || m_searching || !stillThere()) return;
+    m_result->hide();
     const int to = m_range.second;
     if (all && m_grammarPhase) {
         m_view->grammar()->ignoreAll(m_issue);
@@ -601,6 +725,7 @@ void SpellPane::ignore(bool all)
 void SpellPane::addToDictionary()
 {
     if (m_complete || m_searching || m_grammarPhase || !stillThere()) return;
+    m_result->hide();
     const int to = m_range.second;
     QString failure;
     if (!spellingAdd(m_word, &failure)) spellingReportFailure(this, failure);

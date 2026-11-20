@@ -95,5 +95,7 @@ private:
 
 // Puts `text` in place of the words [from, to) of the story, in the look of their first letter, as one step that undoes.
 void replaceWord(QTextDocument *story, int from, int to, const QString &text);
+// Whether replaceWord would change the word at [from, to): not past the end of what is editable, and not one of the endnotes the pages set.
+bool canReplaceWord(const QTextDocument *story, int from, int to);
 
 } // namespace jp::write

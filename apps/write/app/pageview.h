@@ -140,6 +140,10 @@ public:
     // Collapses or opens the heading whose paragraph holds the position (what the little triangle by a heading does); false where there is no such heading.
     bool toggleHeadingCollapsed(int position);
     bool enterSideStory(QTextDocument *story, int *page = nullptr);
+    // Whether a page shows the header, footer, or note, so that enterSideStory can take the view there (not in the Web and Draft views, and not for one no page uses).
+    bool showsSideStory(QTextDocument *story);
+    // Where in the text the text box whose words are being typed in is (-1 when no box is).
+    int shapeEditorAt() const { return m_shapeEditorAt; }
     // The faint edges of the cells of tables that have no lines (View Gridlines).
     void setShowGridlines(bool on);
     bool showGridlines() const { return m_gridlines; }

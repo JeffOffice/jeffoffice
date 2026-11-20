@@ -286,9 +286,14 @@ qint64 SpellCheck::keptBytes() const
     return bytes;
 }
 
+bool canReplaceWord(const QTextDocument *story, int from, int to)
+{
+    return from < editableEnd(story) && to <= editableEnd(story) && !touchesEndnotes(story, from, to);   // (a word of the endnotes the pages set is not changed)
+}
+
 void replaceWord(QTextDocument *story, int from, int to, const QString &text)
 {
-    if (from >= editableEnd(story) || to > editableEnd(story) || touchesEndnotes(story, from, to)) return;   // (a word of the endnotes the pages set is not changed)
+    if (!canReplaceWord(story, from, to)) return;
     QTextCursor look(story);
     look.setPosition(from + 1);
     const QTextCharFormat format = look.charFormat();

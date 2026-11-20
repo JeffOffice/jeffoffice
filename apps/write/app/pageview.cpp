@@ -1906,6 +1906,16 @@ bool PageView::enterSideStory(QTextDocument *story, int *page)
     return ok;
 }
 
+bool PageView::showsSideStory(QTextDocument *story)
+{
+    if (!m_doc || !story || m_web || m_draft) return false;
+    int id = 0, section = 0, slot = 0;
+    bool footer = false;
+    if (m_doc->footnoteIdOf(story, &id)) return pageShowingNote(story) >= 0;
+    if (m_doc->headerFooterSlotOf(story, &section, &footer, &slot)) return pageShowing(section, footer, slot) >= 0;
+    return false;
+}
+
 bool PageView::enterNote(QTextDocument *story, int id, int page, int number)
 {
     if (!m_doc || !story) return false;
