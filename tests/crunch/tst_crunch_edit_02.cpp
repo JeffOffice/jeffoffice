@@ -327,10 +327,17 @@ void CrunchEditTests::aFormulaOfAnOlderFileShowsItsImplicitIntersection()
     e.select(QStringLiteral("A1"));
     e.enter(QStringLiteral("5"));
     EditSession *s = e.win.w.session();
-    Calculation *calc = const_cast<Calculation *>(s->calculation());
-    QVERIFY(calc->setFormula(0, 1, 0, QStringLiteral("A1:A3*2"), Calculation::Marking::Now, nullptr, false));
-    QVERIFY(calc->setFormula(0, 1, 1, QStringLiteral("SUM(A1:A3)"), Calculation::Marking::Now, nullptr, false));
-    QVERIFY(calc->setFormula(0, 1, 2, QStringLiteral("FILTER(A1:A3,A1:A3>0)"), Calculation::Marking::Now, nullptr, false));
+    // (the worker may still be working out the 5: the cells are changed with it held back, as the window does, never beside it)
+    QVERIFY(e.settle());
+    const Calculation *calc = s->calculation();
+    {
+        auto hold = e.win.w.workbookLoader().hold();
+        QVERIFY(hold);
+        QVERIFY(hold->calculation()->setFormula(0, 1, 0, QStringLiteral("A1:A3*2"), Calculation::Marking::Now, nullptr, false));
+        QVERIFY(hold->calculation()->setFormula(0, 1, 1, QStringLiteral("SUM(A1:A3)"), Calculation::Marking::Now, nullptr, false));
+        QVERIFY(hold->calculation()->setFormula(0, 1, 2, QStringLiteral("FILTER(A1:A3,A1:A3>0)"), Calculation::Marking::Now, nullptr, false));
+        hold->changed();
+    }
     QVERIFY(e.settle());
     QCOMPARE(s->barText(0, 1, 0, QStringLiteral("=A1:A3*2")), QStringLiteral("=@A1:A3*2"));
     QCOMPARE(s->barText(0, 1, 1, QStringLiteral("=SUM(A1:A3)")), QStringLiteral("=SUM(A1:A3)"));
