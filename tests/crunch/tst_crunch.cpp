@@ -41,6 +41,11 @@
 using namespace jp;
 using namespace crunchtest;
 
+// Every crunch test runs with the rule of the worker checked: a cell changed by a thread that is not the worker and has not held it back ends the program (MutationGuard in sheet/sheetmodel.h).
+namespace {
+const bool g_strictMutation = (jp::office::sheet::MutationGuard::setStrict(true), true);
+}
+
 class CrunchWindowTests : public QObject {
     Q_OBJECT
 

@@ -1752,6 +1752,9 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts, con
         return refuse(tr("Some of this workbook could not be read whole, so JeffCrunch does not save it."));
     // (a workbook read from the older binary form has no package yet: the first save makes one)
     if (!m_book->book->package().isLazy() && !m_book->book->isConverted()) return refuse(tr("This workbook was not opened from a file JeffCrunch can save over."));
+    // (the snapshot is of one moment: the worker, which writes results, flags, and the cells of spills while it works, is held back until the whole of it is read)
+    std::unique_ptr<WorkbookLoader::Hold> held;
+    if (m_loader->canHold() && !m_loader->holdingHere()) held = m_loader->hold();
     const Calculation *calc = m_book->calc.get();
     Workbook &book = *m_book->book;
     *out = Snapshot();

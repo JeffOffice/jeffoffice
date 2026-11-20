@@ -5,6 +5,8 @@
 
 #include <algorithm>
 
+#include <QThread>
+
 namespace jp::office::sheet {
 
 namespace {
@@ -15,6 +17,49 @@ constexpr int kKnownErrors = int(sizeof(kErrorTexts) / sizeof(kErrorTexts[0]));
 bool before(const Cell &a, const Cell &b) { return a.rowId != b.rowId ? a.rowId < b.rowId : a.colId < b.colId; }
 
 } // namespace
+
+namespace {
+
+// The guards whose worker this thread has held back.
+thread_local std::vector<const MutationGuard *> t_held;
+
+#ifdef NDEBUG
+std::atomic<bool> g_strict{false};
+#else
+std::atomic<bool> g_strict{true};
+#endif
+std::atomic<void (*)(const char *)> g_handler{nullptr};
+
+} // namespace
+
+void MutationGuard::setStrict(bool on) { g_strict.store(on, std::memory_order_relaxed); }
+
+bool MutationGuard::strict() { return g_strict.load(std::memory_order_relaxed); }
+
+void MutationGuard::setViolationHandler(void (*handler)(const char *what)) { g_handler.store(handler); }
+
+void MutationGuard::check(const char *what) const
+{
+    if (g_strict.load(std::memory_order_relaxed)) checkNow(what);
+}
+
+void MutationGuard::enter() { t_held.push_back(this); }
+
+void MutationGuard::leave()
+{
+    if (const auto at = std::find(t_held.rbegin(), t_held.rend(), this); at != t_held.rend()) t_held.erase(at.base() - 1);
+}
+
+bool MutationGuard::heldHere() const { return std::find(t_held.begin(), t_held.end(), this) != t_held.end(); }
+
+void MutationGuard::checkNow(const char *what) const
+{
+    const quintptr worker = m_worker.load(std::memory_order_acquire);
+    if (worker == 0 || worker == quintptr(QThread::currentThreadId())) return;
+    if (heldHere()) return;
+    if (const auto handler = g_handler.load()) return handler(what);
+    qFatal("%s called by a thread that is not the calculation worker and has not held it back (see WorkbookLoader::hold)", what);
+}
 
 QString errorText(CellError error)
 {
@@ -100,6 +145,7 @@ const Cell *CellStore::findById(quint32 rowId, quint32 colId) const
 
 Cell *CellStore::findMutable(quint32 row, quint32 col)
 {
+    guardCheck("CellStore::findMutable");
     const quint32 rowId = rowIdOf(row), colId = colIdOf(col);
     noteWrite(rowId, colId);
     return const_cast<Cell *>(find(row, col));
@@ -107,6 +153,7 @@ Cell *CellStore::findMutable(quint32 row, quint32 col)
 
 Cell *CellStore::set(quint32 row, quint32 col, const Cell &placed)
 {
+    guardCheck("CellStore::set");
     const quint32 rowId = rowIdOf(row), colId = colIdOf(col);
     noteWrite(rowId, colId);
     if (rowId == kNoLine || colId == kNoLine) return nullptr;
@@ -127,6 +174,7 @@ Cell *CellStore::set(quint32 row, quint32 col, const Cell &placed)
 
 bool CellStore::erase(quint32 row, quint32 col)
 {
+    guardCheck("CellStore::erase");
     const quint32 rowId = rowIdOf(row), colId = colIdOf(col);
     noteWrite(rowId, colId);
     if (rowId == kNoLine || colId == kNoLine) return false;
@@ -291,6 +339,7 @@ qint64 CellStore::purgeCells(bool rows, const std::vector<jp::calc::IdRun> &runs
 
 jp::calc::LineStatus CellStore::insertLines(bool rows, quint32 at, quint32 count, LineEdits *edits, LineShift *shift, std::vector<Cell> *deadFormulas)
 {
+    guardCheck("CellStore::insertLines");
     bumpAll();
     using jp::calc::LineStatus;
     jp::calc::LineMapCore &map = rows ? m_rows.core() : m_cols.core();
@@ -311,6 +360,7 @@ jp::calc::LineStatus CellStore::insertLines(bool rows, quint32 at, quint32 count
 
 jp::calc::LineStatus CellStore::deleteLines(bool rows, quint32 at, quint32 count, LineEdits *edits, LineShift *shift, std::vector<Cell> *deadFormulas, bool keepFormulas)
 {
+    guardCheck("CellStore::deleteLines");
     bumpAll();
     using jp::calc::LineStatus;
     jp::calc::LineMapCore &map = rows ? m_rows.core() : m_cols.core();
@@ -353,6 +403,7 @@ bool CellStore::needsCompaction(bool rows, quint32 count) const
 
 jp::calc::LineStatus CellStore::undoLines(bool rows, LineEdits &e, LineShift *shift, std::vector<Cell> *deadFormulas)
 {
+    guardCheck("CellStore::undoLines");
     bumpAll();
     using jp::calc::LineStatus;
     using Kind = jp::calc::LineEdit::Kind;
@@ -382,6 +433,7 @@ jp::calc::LineStatus CellStore::undoLines(bool rows, LineEdits &e, LineShift *sh
 
 jp::calc::LineStatus CellStore::redoLines(bool rows, LineEdits &e, LineShift *shift, std::vector<Cell> *deadFormulas, bool keepFormulas)
 {
+    guardCheck("CellStore::redoLines");
     bumpAll();
     using jp::calc::LineStatus;
     using Kind = jp::calc::LineEdit::Kind;
@@ -410,6 +462,7 @@ jp::calc::LineStatus CellStore::redoLines(bool rows, LineEdits &e, LineShift *sh
 
 void CellStore::forgetLines(bool rows, LineEdits *edits, bool keepDead)
 {
+    guardCheck("CellStore::forgetLines");
     bumpAll();
     using Kind = jp::calc::LineEdit::Kind;
     LineEdits &e = *edits;
@@ -494,6 +547,7 @@ qint64 CellStore::cellsInDeadRowsOfColumns(const std::vector<jp::calc::IdRun> &s
 
 void CellStore::finishForgetLines(bool rows, LineEdits *edits, bool keepDead)
 {
+    guardCheck("CellStore::finishForgetLines");
     bumpAll();
     using Kind = jp::calc::LineEdit::Kind;
     LineEdits &e = *edits;
@@ -512,6 +566,7 @@ quint32 CellStore::renumberLine(const std::vector<jp::calc::LineMapCore::Renumbe
 
 jp::calc::LineStatus CellStore::rebaseLines(bool rows, std::vector<jp::calc::LineMapCore::Renumber> *out)
 {
+    guardCheck("CellStore::rebaseLines");
     bumpAll();
     using jp::calc::LineStatus;
     jp::calc::LineMapCore &map = rows ? m_rows.core() : m_cols.core();
@@ -562,6 +617,7 @@ qint64 CellStore::deadCountByScan() const
 
 void CellStore::setLineLimits(const jp::calc::LineLimits &rows, const jp::calc::LineLimits &cols)
 {
+    guardCheck("CellStore::setLineLimits");
     bumpAll();
     if (!plain()) return;
     m_rows = jp::calc::RowMap(rows, rows.capacity);

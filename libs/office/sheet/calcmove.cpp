@@ -144,6 +144,7 @@ CellRange Calculation::arrayMeeting(int sheet, quint32 row1, quint32 col1, quint
 // The array the cell is part of is taken apart: its cells are ordinary ones, to be cleared or written over (the first cell keeps its formula until it is).
 void Calculation::dissolveArrayAt(int sheet, quint32 row, quint32 col)
 {
+    m_guard.check("Calculation::dissolveArrayAt");
     if (sheet < 0 || sheet >= int(m_sheets.size())) return;
     const Sheet &s = m_sheets[size_t(sheet)];
     const Cell *c = s.cells.find(row, col);
@@ -154,6 +155,7 @@ void Calculation::dissolveArrayAt(int sheet, quint32 row, quint32 col)
 
 bool Calculation::putArray(int sheet, quint32 row, quint32 col, const CellContent &c, Marking marking)
 {
+    m_guard.check("Calculation::putArray");
     if (!c.isFormula || !c.arrayRange.valid || c.dynamic || c.dataTable) return false;
     const CellRange &r = c.arrayRange;
     if (r.row1 != row || r.col1 != col || r.row2 < r.row1 || r.col2 < r.col1 || r.row2 >= kGridRows || r.col2 >= kMaxColumns) return false;
@@ -208,6 +210,7 @@ void Calculation::markArrayMembers(int sheet, quint32 row, quint32 col)
 
 bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
 {
+    m_guard.check("Calculation::applyMove");
     ++m_structStamp;
     abandonNow();
     BulkEdit bulk(this);
@@ -509,6 +512,7 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
 
 bool Calculation::undoMove(const EditRecord &rec, EditRecord *done)
 {
+    m_guard.check("Calculation::undoMove");
     ++m_structStamp;
     const StructEdit &e = rec.edit;
     ++m_state[size_t(e.sheet)].epoch;

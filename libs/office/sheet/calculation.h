@@ -118,6 +118,14 @@ public:
     // A flag that stops the calculation wherever it is: a load that is registering formulas, a recalculation between formulas, and a formula that is being worked out (the
     // evaluator looks at it as it takes its steps). The flag is only read; it must stay where it is as long as the calculation is used.
     void setCancel(const std::atomic<bool> *cancel) { m_cancel = cancel; }
+    // The rule of the worker (see MutationGuard in sheet/sheetmodel.h): while a worker serves (its thread is given here; 0 when none does), the cells and the shape of the sheets are changed only by
+    // that thread, or by one that has the worker held back (the worker's Hold notes itself with the guard). Strict mode (MutationGuard::setStrict) ends the program when another thread does.
+    void setWorkerThread(quintptr thread)
+    {
+        for (Sheet &s : m_sheets) s.cells.guardWith(&m_guard);
+        m_guard.setWorker(thread);
+    }
+    MutationGuard &mutationGuard() { return m_guard; }
     // Called with each result a recalculation gives a cell: the value of a formula (and of each cell of an array it made), where the grid can show it. Not with the result of a formula
     // that is kept apart (the file's value is what is shown then). Called on the thread that recalculates.
     // Told each value as it is worked out (on the worker): the sheet and the ids of the cell's row and column (see CellStore::rowIdAt), which are the cell's wherever an edit of rows or columns has put it.
@@ -1041,6 +1049,7 @@ private:
     mutable jp::calc::LookupCache m_lookupCache;
     bool m_lookupIndexes = true;
     const std::atomic<bool> *m_cancel = nullptr;
+    MutationGuard m_guard;
     ResultSink m_sink;
     struct RuleIndex;
     mutable std::vector<std::shared_ptr<RuleIndex>> m_ruleIndex;   // by sheet: where the rules of validation are (made when first asked, and again after the rules change); the window's thread only

@@ -1440,6 +1440,7 @@ int Calculation::addSheet(const QString &name, int copyOf)
     content.frame = this;
     content.frameIndex = index;
     m_sheets.push_back(std::move(content));
+    m_sheets.back().cells.guardWith(&m_guard);
     m_rows.push_back(0);
     m_cols.push_back(0);
     m_subtotalTexts.emplace_back();
@@ -3311,6 +3312,7 @@ void Calculation::queueDependents(const CellArea &area)
 
 bool Calculation::setValue(int sheet, quint32 row, quint32 col, const Value &v, Marking marking, qint32 sharedString, bool keepDate)
 {
+    m_guard.check("Calculation::setValue");
     if (sheet < 0 || sheet >= int(m_sheets.size()) || col >= kMaxColumns || row >= kGridRows || v.isArray()) return false;
     Sheet &s = m_sheets[size_t(sheet)];
     const Cell *found = s.cells.find(row, col);
@@ -3371,6 +3373,7 @@ bool Calculation::setValue(int sheet, quint32 row, quint32 col, const Value &v, 
 
 bool Calculation::setFormula(int sheet, quint32 row, quint32 col, const QString &formula, Marking marking, const Value *stored, bool dynamic)
 {
+    m_guard.check("Calculation::setFormula");
     if (sheet < 0 || sheet >= int(m_sheets.size()) || col >= kMaxColumns || row >= kGridRows) return false;
     ParseOptions po;
     const ParseResult parsed = parseFormula(formula, po);
@@ -3466,6 +3469,7 @@ bool Calculation::formulasNameSheets(int sheet, const QStringList &names) const
 // same when the ids from one to the other are consecutive, which an edit of rows leaves as it finds them in a run. Else (a run ends between them, a line it reads is dead) the text goes the long way.
 bool Calculation::rebaseCopy(int sheet, quint32 row, quint32 col, const CellContent &c, Marking marking)
 {
+    m_guard.check("Calculation::rebaseCopy");
     if (!c.hasHeld || c.heldSheet != sheet || c.heldStamp != m_structStamp) return false;
     if (sheet < 0 || sheet >= int(m_sheets.size()) || col >= kMaxColumns || row >= kGridRows) return false;
     if (row == c.heldRow && col == c.heldCol) return false;
@@ -3541,6 +3545,7 @@ bool Calculation::rebaseCopy(int sheet, quint32 row, quint32 col, const CellCont
 
 bool Calculation::setStyle(int sheet, quint32 row, quint32 col, quint32 style)
 {
+    m_guard.check("Calculation::setStyle");
     if (sheet < 0 || sheet >= int(m_sheets.size()) || col >= kMaxColumns || row >= kGridRows) return false;
     Sheet &s = m_sheets[size_t(sheet)];
     Cell *found = s.cells.findMutable(row, col);

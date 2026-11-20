@@ -132,6 +132,31 @@ private:
     bool m_onHeap = false;
 };
 
+// The rule of a calculation worker (apps/crunch/core/loader.h): while it serves, the cells and the shape of a sheet are changed by the worker's own thread, or by a thread that has the worker
+// held back (WorkbookLoader::hold), and by no other. Strict mode (on in the crunch tests and in debug builds, off in a release: a flag test per change) ends the program, naming the change,
+// when another thread changes them. The calculation says which thread is the worker (setWorker; 0: none serves, nothing is checked) and notes the holds (enter, leave); its stores are given the guard
+// (CellStore::guardWith). A copy or a move of a store has none.
+class MutationGuard {
+public:
+    MutationGuard() = default;
+    MutationGuard(const MutationGuard &) {}
+    MutationGuard &operator=(const MutationGuard &) { return *this; }
+    // (the flag and the handler are in sheetmodel.cpp, not inline here: with the layers in a shared library, an inline static would be one copy for the library and another for the program that sets it)
+    static void setStrict(bool on);
+    static bool strict();
+    // What is done about a change by a thread that may not make it: the program ends, naming the change (null, the default); a test gives a function to count them instead.
+    static void setViolationHandler(void (*handler)(const char *what));
+    void setWorker(quintptr thread) { m_worker.store(thread, std::memory_order_release); }
+    void enter();   // the calling thread has the worker held
+    void leave();   // (another thread may let a hold go than took it: then nothing is noted of it)
+    bool heldHere() const;   // whether the calling thread has the worker held (a second hold on one thread would wait for the first for ever)
+    void check(const char *what) const;   // one flag test when strict mode is off
+
+private:
+    void checkNow(const char *what) const;
+    std::atomic<quintptr> m_worker{0};
+};
+
 // The cells of one sheet, kept in blocks of rows: a block holds the cells of
 // kBlockRows row ids, in order of row id and then column id, and only blocks
 // that have a cell exist. Cells may be added in any order; finish() puts each
@@ -196,6 +221,8 @@ public:
         return *this;
     }
 
+    // The guard of the rule of the worker for this store (null: none; Calculation gives its own to the stores it holds).
+    void guardWith(const MutationGuard *guard) { m_guard = guard; }
     // The order of the sheet's rows and of its columns, as ids (see calc/linemap.h).
     const jp::calc::RowMap &rows() const { return m_rows; }
     const jp::calc::ColMap &cols() const { return m_cols; }
@@ -224,6 +251,7 @@ public:
     const Cell *findById(quint32 rowId, quint32 colId) const;
     Cell *findMutableById(quint32 rowId, quint32 colId)
     {
+        guardCheck("CellStore::findMutableById");
         noteWrite(rowId, colId);
         return const_cast<Cell *>(findById(rowId, colId));
     }
@@ -676,6 +704,7 @@ public:
     template <class F>
     bool purgeSome(bool rows, const std::vector<jp::calc::IdRun> &runs, PurgeCursor *cursor, qint64 budget, qint64 *work, F onCell)
     {
+        guardCheck("CellStore::purgeSome");
         bumpAll();
         if (cursor->done || runs.empty()) {
             cursor->done = true;
@@ -1133,6 +1162,11 @@ private:
     qint64 m_dead = 0;
     qint64 m_purged = 0;
     Block *m_last = nullptr;
+    const MutationGuard *m_guard = nullptr;
+    void guardCheck(const char *what) const
+    {
+        if (m_guard) m_guard->check(what);
+    }
     quint32 m_lastKey = 0;
     jp::calc::RowMap m_rows{jp::calc::LineLimits::rows(), jp::calc::LineLimits::rows().capacity};
     jp::calc::ColMap m_cols{jp::calc::LineLimits::cols(), jp::calc::LineLimits::cols().capacity};

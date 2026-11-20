@@ -203,6 +203,7 @@ WorkbookLoader::Hold::Hold(std::shared_ptr<State> state, jp::office::sheet::Calc
     ++m_state->holdsMade;
     m_state->updateHalt();
     m_state->model.lock();
+    m_calc->mutationGuard().enter();
 }
 
 WorkbookLoader::Hold::~Hold()
@@ -215,9 +216,15 @@ WorkbookLoader::Hold::~Hold()
     }
     --m_state->holds;
     m_state->updateHalt();
+    m_calc->mutationGuard().leave();
     m_state->model.unlock();
-    m_state->wake.notify_all();
+    if (m_changed) {   // (a hold that changed nothing gives the worker nothing to wake for)
+        ++m_state->holdWakes;
+        m_state->wake.notify_all();
+    }
 }
+
+bool WorkbookLoader::holdingHere() const { return m_result && m_result->calc && m_result->calc->mutationGuard().heldHere(); }
 
 bool WorkbookLoader::canHold() const { return m_result && m_state && m_result->calc && !m_state->cancel.load() && m_state->serving.load(); }
 
@@ -576,6 +583,7 @@ void WorkbookLoader::serve(const std::shared_ptr<LoadedBook> &result, const std:
         while (state->holds.load() > 0 && !state->cancel.load()) QThread::usleep(20);
         lock.lock();
     }
+    calc->setWorkerThread(0);
     calc->setResultSink(nullptr);
     calc->setCancel(nullptr);
 }
@@ -607,6 +615,7 @@ void WorkbookLoader::run(const QString &path, const std::shared_ptr<const jp::of
     // (a workbook that is worked out by hand is shown with the results its file holds, unless the file asks for them to be worked out when it is opened)
     if (const int word = state->tablesAutomatic.load(); word >= 0 && result->calc) result->calc->setDataTablesAutomatic(word != 0);   // (said while the file was being read)
     state->manual = state->manualAllowed.load() && result->book && result->book->info().calcMode == jp::office::sheet::CalcMode::Manual && !result->book->info().fullCalcOnLoad && !result->book->info().calcUnfinished;
+    if (result->calc) result->calc->setWorkerThread(quintptr(QThread::currentThreadId()));   // (from here on, a cell is changed by this thread or with it held back)
     state->serving = true;
     send([self] { if (self) Q_EMIT self->finished(true, QString()); });
     // and the formulas are worked out, here, as the window shows what it has; then the worker stays, to work out what the window changes

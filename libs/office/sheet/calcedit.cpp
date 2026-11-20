@@ -295,6 +295,7 @@ QString Calculation::linesRefusal(const StructEdit &e) const
 
 bool Calculation::compactLines(int sheet, bool rows, std::vector<jp::calc::LineMapCore::Renumber> *out)
 {
+    m_guard.check("Calculation::compactLines");
     ++m_structStamp;
     if (sheet < 0 || sheet >= int(m_sheets.size())) return false;
     finishPurges(sheet);   // (the dead cells that are waiting to be let go of, and their nodes, are numbered by the ids that are renumbered below)
@@ -550,6 +551,7 @@ void Calculation::setLineLimitsForTest(int sheet, const jp::calc::LineLimits &ro
 
 void Calculation::forgetLines(EditRecord *rec)
 {
+    m_guard.check("Calculation::forgetLines");
     bool rows = false;
     std::vector<EditRecord::GoneCell>().swap(rec->gone);   // (the copy of the cells it deleted: nothing can bring them back now)
     if (!wholeLines(rec->edit, &rows)) return;
@@ -590,6 +592,7 @@ bool Calculation::applyEdit(const StructEdit &e, EditRecord *rec) { return apply
 // ---- letting go of the dead cells (and the nodes of their formulas) of a delete that kept them: when its step is forgotten, a few blocks at a time
 void Calculation::forgetLinesLater(EditRecord *rec)
 {
+    m_guard.check("Calculation::forgetLinesLater");
     bool rows = false;
     if (!rec->dormant || !wholeLines(rec->edit, &rows) || !rec->lines.made) {
         forgetLines(rec);
@@ -625,6 +628,7 @@ qint64 Calculation::purgeWaiting() const
 
 bool Calculation::purgeSome(qint64 budget, PurgeStep *step)
 {
+    m_guard.check("Calculation::purgeSome");
     *step = PurgeStep();
     if (m_purges.empty()) return false;
     PurgeJob &job = m_purges.front();
@@ -686,6 +690,7 @@ void Calculation::finishPurges(int sheet)
 
 bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const EditRecord *undoOf)
 {
+    m_guard.check("Calculation::applyEdit");
     ++m_structStamp;
     using K = StructEdit::Kind;
     const StructEdit e = edit;   // (a copy: it may be the edit of the record, which is made again below)
@@ -1488,6 +1493,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
 
 bool Calculation::rewriteArrayText(int sheet, quint32 row, quint32 col, const QString &text)
 {
+    m_guard.check("Calculation::rewriteArrayText");
     Sheet &s = m_sheets[size_t(sheet)];
     Cell *c = s.cells.findMutable(row, col);
     if (!c || !(c->flags & (ArrayFormula | DataTable)) || c->formula < 0) return false;
@@ -1614,6 +1620,7 @@ void Calculation::restoreHeldFormula(int sheet, quint32 row, quint32 col, const 
 
 bool Calculation::undoEdit(const EditRecord &rec, EditRecord *done)
 {
+    m_guard.check("Calculation::undoEdit");
     if (rec.edit.kind == StructEdit::Kind::Move) return undoMove(rec, done);
     EditRecord local;
     EditRecord &throwaway = done ? *done : local;
@@ -1939,6 +1946,7 @@ std::vector<RowSpec> Calculation::rowSpecsIn(int sheet, quint32 first, quint32 l
 
 void Calculation::setColumnRuns(int sheet, quint32 first, quint32 last, const std::vector<ColumnSpan> &runs)
 {
+    m_guard.check("Calculation::setColumnRuns");
     if (sheet < 0 || sheet >= int(m_sheets.size())) return;
     Sheet &S = m_sheets[size_t(sheet)];
     QVector<ColumnSpan> now;
@@ -1966,6 +1974,7 @@ void Calculation::setColumnRuns(int sheet, quint32 first, quint32 last, const st
 
 void Calculation::setRowSpecs(int sheet, quint32 first, quint32 last, const std::vector<RowSpec> &specs)
 {
+    m_guard.check("Calculation::setRowSpecs");
     if (sheet < 0 || sheet >= int(m_sheets.size())) return;
     Sheet &S = m_sheets[size_t(sheet)];
     QVector<RowSpec> now;

@@ -1,6 +1,10 @@
 #include "tst_crunch_edit.h"
 #include "../cardchecks.h"
 #include "core/sortspec.h"
+#include <algorithm>
+#include <mutex>
+#include <string>
+#include <vector>
 using jp::crunch::EditSession;
 using jp::crunch::SortSpec;
 using jp::crunch::SortLevel;
@@ -358,6 +362,128 @@ void CrunchEditTests::aFormulaOfAnOlderFileShowsItsImplicitIntersection()
     e.enter(QStringLiteral("=A1:A3*2"));
     QVERIFY(e.settle());
     QVERIFY(calc->isSpillAnchor(0, 0, 4));
+}
+
+namespace {
+std::mutex g_violationLock;
+std::vector<std::string> g_violations;
+void recordViolation(const char *what)
+{
+    const std::lock_guard<std::mutex> lock(g_violationLock);
+    g_violations.emplace_back(what);
+}
+} // namespace
+
+// The rule of the worker: a change to the cells made by a thread that is not the worker and has not held it back is named by strict mode, for every way in (the cell edits, the edits of rows and
+// columns, the sizes of columns and rows, arrays, and the store itself; the private ones, rebaseCopy and rewriteArrayText, check too); with the worker held, none is. Fails when a check is taken out: its name is missing.
+void CrunchEditTests::everyChangeToTheCellsChecksThatTheWorkerIsHeld()
+{
+    using jp::office::sheet::MutationGuard;
+    using jp::office::sheet::StructEdit;
+    EditWindow e;
+    QVERIFY(e.open(editBook()));
+    QVERIFY(e.settle());
+    auto &loader = e.win.w.workbookLoader();
+    Calculation *calc = const_cast<Calculation *>(e.win.w.session()->calculation());   // (the session gives it const: a test changes it, with and without the hold)
+    jp::office::sheet::CellStore store;   // (a store of its own, given the calculation's guard, to change it directly)
+    store.guardWith(&calc->mutationGuard());
+    // (all of them name a sheet that is not there, a cell that is not there, or an edit that is not valid: they check first, and change nothing)
+    StructEdit edit;
+    edit.sheet = 99;
+    Calculation::EditRecord record;
+    record.edit = edit;
+    const Calculation::CellContent none;
+    auto all = [&] {
+        calc->setValue(99, 0, 0, jp::calc::Value::number(1));
+        calc->setFormula(99, 0, 0, QStringLiteral("1"));
+        calc->setStyle(99, 0, 0, 0);
+        calc->applyEdit(edit, &record);
+        calc->undoEdit(record, nullptr);
+        calc->setColumnRuns(99, 0, 0, {});
+        calc->setRowSpecs(99, 0, 0, {});
+        calc->putArray(99, 0, 0, none, Calculation::Marking::Now);
+        calc->dissolveArrayAt(99, 0, 0);
+        store.set(0, 0, jp::office::sheet::Cell());
+        store.erase(0, 0);
+    };
+    const std::vector<std::string> expected = {"Calculation::setValue", "Calculation::setFormula", "Calculation::setStyle", "Calculation::applyEdit", "Calculation::undoEdit",
+                                               "Calculation::setColumnRuns", "Calculation::setRowSpecs", "Calculation::putArray", "Calculation::dissolveArrayAt",
+                                               "CellStore::set", "CellStore::erase"};
+    MutationGuard::setViolationHandler(recordViolation);
+    {
+        const std::lock_guard<std::mutex> lock(g_violationLock);
+        g_violations.clear();
+    }
+    all();
+    std::vector<std::string> unheld;
+    {
+        const std::lock_guard<std::mutex> lock(g_violationLock);
+        unheld = g_violations;
+        g_violations.clear();
+    }
+    {
+        auto hold = loader.hold();
+        QVERIFY(hold);
+        all();
+    }
+    std::vector<std::string> held;
+    {
+        const std::lock_guard<std::mutex> lock(g_violationLock);
+        held = g_violations;
+    }
+    MutationGuard::setViolationHandler(nullptr);
+    for (const std::string &name : expected) QVERIFY2(std::find(unheld.begin(), unheld.end(), name) != unheld.end(), name.c_str());
+    QVERIFY(held.empty());
+}
+
+// A save, a copy, and a recovery copy write what takeSnapshot reads, which is one moment of the workbook only if the worker is held back for the whole read; a thread that has the worker held
+// already does not hold it again (it would wait for itself). Fails when takeSnapshot does not hold the worker (no hold is taken).
+void CrunchEditTests::aSnapshotHoldsTheWorkerForItsWholeRead()
+{
+    EditWindow e;
+    QVERIFY(e.open(editBook()));
+    QVERIFY(e.settle());
+    auto &loader = e.win.w.workbookLoader();
+    EditSession *session = e.win.w.session();
+    const qint64 holds = loader.holdsTaken();
+    EditSession::Snapshot snapshot;
+    QString why;
+    QVERIFY2(session->takeSnapshot(&snapshot, &why), qPrintable(why));
+    QCOMPARE(loader.holdsTaken(), holds + 1);
+    QVERIFY(!loader.holdingHere());
+    {
+        auto hold = loader.hold();
+        QVERIFY(hold);
+        QVERIFY(loader.holdingHere());
+        const qint64 now = loader.holdsTaken();
+        EditSession::Snapshot inside;
+        QVERIFY2(session->takeSnapshot(&inside, &why), qPrintable(why));
+        QCOMPARE(loader.holdsTaken(), now);
+    }
+    QVERIFY(!loader.holdingHere());
+}
+
+// A hold that changed nothing has nothing for the worker to work out when it is let go: it is not woken (a hold taken to read is not a change). Fails when every hold wakes it.
+void CrunchEditTests::aHoldThatChangedNothingDoesNotWakeTheWorker()
+{
+    EditWindow e;
+    QVERIFY(e.open(editBook()));
+    QVERIFY(e.settle());
+    auto &loader = e.win.w.workbookLoader();
+    const qint64 wakes = loader.holdWakes();
+    {
+        auto hold = loader.hold();
+        QVERIFY(hold);
+    }
+    QCOMPARE(loader.holdWakes(), wakes);
+    {
+        auto hold = loader.hold();
+        QVERIFY(hold);
+        QVERIFY(hold->calculation()->setValue(0, 0, 0, jp::calc::Value::number(7)));
+        hold->changed();
+    }
+    QCOMPARE(loader.holdWakes(), wakes + 1);
+    QVERIFY(e.settle());
 }
 
 // A delete that takes the row or the column of a formula that spills takes its block with it: no cell is left filling nothing; Undo brings the block back.

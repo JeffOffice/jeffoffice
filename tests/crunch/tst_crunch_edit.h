@@ -150,6 +150,9 @@ private Q_SLOTS:
     void aSpillIsCheckedAgainWhenWhatBlockedItIsEmptied();
     void aSpillRangeWorksInFunctionsNamesValidationsAndFormats();
     void aFormulaOfAnOlderFileShowsItsImplicitIntersection();
+    void everyChangeToTheCellsChecksThatTheWorkerIsHeld();
+    void aSnapshotHoldsTheWorkerForItsWholeRead();
+    void aHoldThatChangedNothingDoesNotWakeTheWorker();
     void aSpillBlockIsClearedWhenTheCellOfItsFormulaIsDeleted();
     void aSortOfPartOfASpillBlockIsRefused();
     void aSpillRangeOfAnotherSheetFollowsTheBlock();

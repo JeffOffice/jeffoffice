@@ -144,8 +144,9 @@ public:
     void setManualAllowed(bool allowed) { m_manualAllowed = allowed; }
 
     // ---- changing the cells, on the window's thread
-    // The calculation and the cells are the worker's while it works the formulas out; the window reads the cells directly to draw them (reading beside the worker is no
-    // trouble), so a change to them is made by the window with the worker held back: it leaves the formula it is on (the evaluator looks at a flag as it takes its steps, so that is
+    // The calculation and the cells are the worker's while it works the formulas out. The window reads cells and Calculation::content directly beside it, which is a KNOWN DATA RACE (the worker's
+    // spill writes change the store's structure; thread-check families R1 and R2), tolerated until the buffered-spill work removes it: new window code takes hold() before it reads spill
+    // results or node content where correctness matters. A change to them is always made with the worker held back (strict mode enforces it): it leaves the formula it is on (the evaluator looks at a flag as it takes its steps, so that is
     // a few microseconds, or the one search for the readers of a cell, which is a millisecond or so for a cell that two hundred thousand formulas read) and waits until the hold is
     // let go. The hold is for the change only; the work it makes (finding what reads the cells, working it out) is the worker's, and its results come back in batches like any.
     class Hold {
@@ -169,10 +170,14 @@ public:
     std::unique_ptr<Hold> hold();
     // Whether hold() would give one.
     bool canHold() const;
+    // Whether this thread has the worker held (a second hold on the same thread would wait for the first for ever).
+    bool holdingHere() const;
     // For tests: the next `count` calls of hold() give null, as when the worker is not serving for a moment (a large count: for as long as the test wants).
     void refuseHolds(int count);
     // How many holds have been taken (for tests: a read that needs the worker held back says so by taking one).
     qint64 holdsTaken() const;
+    // How many holds let go woke the worker (those that made a change; for tests).
+    qint64 holdWakes() const { return m_state ? m_state->holdWakes.load() : 0; }
     // How many changes have been made (holds let go with a change, and requests to work everything out again): a last batch whose epoch is this many has all of them worked out.
     qint64 changesMade() const;
     // For tests: how long the worker waits (in microseconds) at each step of its work (every 4,096 cells read, and between slices of the calculation), so that a test can do what it does
@@ -211,6 +216,7 @@ private:
         std::atomic<int> holds{0};            // the window wants the model: the worker lets go of it at once and keeps off it
         std::atomic<bool> halt{false};        // the calculation's flag to stop: set while it is stopped (stopCalc) or a hold is wanted (holds)
         std::atomic<qint64> changes{0};       // changes made (see changesMade)
+        std::atomic<qint64> holdWakes{0};     // holds let go with a change, which woke the worker (see holdWakes)
         std::atomic<qint64> holdsMade{0};     // holds taken (see holdsTaken)
         std::atomic<int> refuse{0};           // holds to refuse (see refuseHolds)
         std::atomic<bool> manual{false};      // the workbook is worked out by hand
