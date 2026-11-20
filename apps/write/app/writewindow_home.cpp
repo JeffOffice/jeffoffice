@@ -116,7 +116,7 @@ void WriteWindow::createHomeActions()
     mk("edit.pasteTableColumns", tr("Insert as New Columns"), "table", QKeySequence(), [this] {
         if (!m_doc || refuseIfReadOnly()) return;
         if (!m_view->canPasteCellsAsColumns()) {
-            statusBar()->showMessage(tr("Put the caret in a table that has room for the columns to paste the cells as new columns."), 5000);
+            statusBar()->showMessage(m_view->columnsRefusal(), 5000);
             return;
         }
         m_view->pasteCellsAsColumns();

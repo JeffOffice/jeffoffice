@@ -2632,16 +2632,29 @@ private Q_SLOTS:
             putCells({QStringLiteral("a|b")});
             QVERIFY(!w.view()->canPasteCellsAsColumns());
         }
+        // The limits are Merge Table's: 256 columns in all (255 and one more is the last), and nothing is done, and the table says why, past them.
         {
             WriteWindow w;
-            tableWindow(w, 1, 62);
+            tableWindow(w, 1, 63);
+            QTextCursor grow = w.view()->cursor();
+            for (int i = 0; i < 192; ++i) insertTableColumn(*w.document(), grow, true);
+            QCOMPARE(count(w, "<w:gridCol "), 255);
+            toFirstCell(w);
             putCells({QStringLiteral("a|b")});
             QVERIFY(!w.view()->canPasteCellsAsColumns());
             const QString before = w.document()->story()->toPlainText();
+            w.document()->tableNotice = QStringLiteral("stale");
+            QSignalSpy notices(w.view(), &PageView::notice);
             w.view()->pasteCellsAsColumns();
-            QCOMPARE(count(w, "<w:gridCol "), 62);
+            QCOMPARE(count(w, "<w:gridCol "), 255);
             QCOMPARE(w.document()->story()->toPlainText(), before);
             QVERIFY(!w.view()->pasteOptionsAvailable());
+            QCOMPARE(notices.count(), 1);
+            QCOMPARE(notices.first().first().toString(), QStringLiteral("A table can have at most 256 columns."));
+            putCells({QStringLiteral("a"), QStringLiteral("b")});
+            QVERIFY(w.view()->canPasteCellsAsColumns());
+            w.view()->pasteCellsAsColumns();
+            QCOMPARE(count(w, "<w:gridCol "), 256);
         }
         // From the Paste Options button after Ctrl+V: the change is one step, so one Undo takes it all back to before the paste.
         {
@@ -2665,7 +2678,146 @@ private Q_SLOTS:
         }
     }
 
-    // The keyboard: Ctrl tapped after a paste opens the options, the arrows and Enter choose, Esc ends the offer; a key between is no tap.
+    static QList<int> cellsPerRow(WriteWindow &w)
+    {
+        QList<int> out;
+        const QByteArray xml = bodyXml(w.document()->toDocx());
+        qsizetype at = 0;
+        while ((at = xml.indexOf("<w:tr>", at)) >= 0) {
+            const qsizetype end = xml.indexOf("</w:tr>", at);
+            out << int(xml.mid(at, end - at).count("<w:tc>"));
+            at = end;
+        }
+        return out;
+    }
+
+    static void toCell(WriteWindow &w, int n)
+    {
+        QTextCursor c(w.document()->story());
+        int i = 0;
+        for (QTextBlock b = w.document()->story()->begin(); b.isValid(); b = b.next())
+            if (cellKeyOf(b) && i++ == n) {
+                c.setPosition(b.position());
+                break;
+            }
+        w.view()->setCursor(c);
+    }
+
+    // New columns: every limit is looked at before anything goes in; joined cells and the last row are not in the way; one step; the notice is the refusal's own.
+    void newColumnsAreAllOrNothingAndTheirRefusalsSayWhy()
+    {
+        // A tall table at the cells limit: nothing changes, the cells stay, and the notice is about the cells.
+        {
+            WriteWindow w;
+            tableWindow(w, 500, 63);   // (31,500 cells: 63 more columns would be 63,000)
+            toCell(w, 0);
+            QStringList wide;
+            for (int i = 0; i < 63; ++i) wide << QString::number(i);
+            putCells({wide.join(QLatin1Char('|'))});
+            const QString before = w.document()->story()->toPlainText();
+            w.document()->tableNotice = QStringLiteral("stale");
+            QVERIFY(!w.view()->canPasteCellsAsColumns());
+            QSignalSpy notices(w.view(), &PageView::notice);
+            w.view()->pasteCellsAsColumns();
+            QCOMPARE(w.document()->story()->toPlainText(), before);
+            QCOMPARE(count(w, "<w:gridCol "), 63);
+            QCOMPARE(notices.count(), 1);
+            QCOMPARE(notices.first().first().toString(), QStringLiteral("A table can have at most 50,000 cells."));
+        }
+        // A joined cell across the place the columns go, in a row the cells fill: refused, and said; in a row they do not reach, it is no matter.
+        {
+            WriteWindow w;
+            tableWindow(w, 2, 3);
+            QTextCursor join(w.document()->story());
+            int i = 0;
+            for (QTextBlock b = w.document()->story()->begin(); b.isValid(); b = b.next())
+                if (cellKeyOf(b)) {
+                    if (i == 3) join.setPosition(b.position());
+                    if (i == 4) join.setPosition(b.position(), QTextCursor::KeepAnchor);
+                    ++i;
+                }
+            QVERIFY(mergeCells(*w.document(), join));
+            toCell(w, 0);
+            putCells({QStringLiteral("a"), QStringLiteral("b")});
+            const QString before = w.document()->story()->toPlainText();
+            QVERIFY(!w.view()->canPasteCellsAsColumns());
+            QSignalSpy notices(w.view(), &PageView::notice);
+            w.view()->pasteCellsAsColumns();
+            QCOMPARE(w.document()->story()->toPlainText(), before);
+            QCOMPARE(count(w, "<w:gridCol "), 3);
+            QCOMPARE(notices.count(), 1);
+            QVERIFY(notices.first().first().toString().contains(QStringLiteral("joined cells")));
+            putCells({QStringLiteral("a|b")});   // (one row: the joined row is not filled)
+            QVERIFY(w.view()->canPasteCellsAsColumns());
+            w.view()->pasteCellsAsColumns();
+            QCOMPARE(count(w, "<w:gridCol "), 5);
+        }
+        // The caret in the last row: no row is added, and the words go where the caret is.
+        {
+            WriteWindow w;
+            tableWindow(w, 2, 2);
+            toCell(w, 2);
+            putCells({QStringLiteral("x|y")});
+            w.view()->pasteCellsAsColumns();
+            QCOMPARE(count(w, "<w:tr>"), 2);
+            QCOMPARE(cellsPerRow(w), (QList<int>{4, 4}));
+            QCOMPARE(cellTexts(w), (QStringList{QString(), QString(), QString(), QString(), QString(), QStringLiteral("x"), QStringLiteral("y"), QString()}));
+        }
+        // With the caret below the first row: the rows above get empty cells, every row has as many cells as the grid, and Undo and Redo go all the way.
+        {
+            WriteWindow w;
+            tableWindow(w, 3, 2);
+            toCell(w, 2);
+            putCells({QStringLiteral("p|q"), QStringLiteral("r|s")});
+            w.view()->pasteCellsAsColumns();
+            QCOMPARE(count(w, "<w:gridCol "), 4);
+            QCOMPARE(cellsPerRow(w), (QList<int>{4, 4, 4}));
+            QVERIFY(cellTexts(w).contains(QStringLiteral("s")));
+            QVERIFY(w.document()->undo());
+            QCOMPARE(cellsPerRow(w), (QList<int>{2, 2, 2}));
+            QVERIFY(w.document()->redo());
+            QCOMPARE(cellsPerRow(w), (QList<int>{4, 4, 4}));
+            QVERIFY(cellTexts(w).contains(QStringLiteral("s")));
+        }
+        // Outside a table the refusal is the caret's.
+        {
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.show();
+            w.setDocument(open(makeDocx(para(run("plain")))), QString());
+            putCells({QStringLiteral("a|b")});
+            w.document()->tableNotice = QStringLiteral("stale");
+            QSignalSpy notices(w.view(), &PageView::notice);
+            w.view()->pasteCellsAsColumns();
+            QCOMPARE(w.document()->tableNotice, QStringLiteral("To paste cells as new columns, click in a table that has room for them."));
+        }
+    }
+
+    // Track Changes on: what a paste as new columns records today. The columns are not tracked (no marks on the cells); the words in them are one insertion each.
+    void newColumnsWithTrackedChangesRecordTheWordsOnly()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocx(para(run("top")), "<w:trackRevisions/>")), QString());
+        QTextCursor at(w.document()->story());
+        at.setPosition(0);
+        NewTable t;
+        t.rows = 1;
+        t.columns = 1;
+        QVERIFY(insertTable(*w.document(), at, t));
+        w.view()->setCursor(at);
+        const QByteArray plain = bodyXml(w.document()->toDocx());
+        putCells({QStringLiteral("a|b")});
+        w.view()->pasteCellsAsColumns();
+        const QByteArray xml = bodyXml(w.document()->toDocx());
+        QCOMPARE(count(w, "<w:gridCol "), 3);
+        QCOMPARE(xml.count("<w:del "), 0);
+        QCOMPARE(xml.count("<w:cellIns"), plain.count("<w:cellIns"));
+        QCOMPARE(xml.count("<w:ins "), 2);
+    }
+
+    // The keyboard: Ctrl tapped after a paste opens the options, the arrows and Enter choose, Esc ends the offer. Each way a tap is spoilt is checked against a tap that works in the same state.
     void thePasteOptionsOpenWithACtrlTapAndEndWithEsc()
     {
         auto pasteBold = [](WriteWindow &w) {
@@ -2681,25 +2833,66 @@ private Q_SLOTS:
             w.view()->paste();
             w.view()->setFocus();
         };
-        auto key = [](QWidget *to, QEvent::Type type, int k) {
-            QKeyEvent e(type, k, Qt::NoModifier);
+        auto key = [](QWidget *to, QEvent::Type type, int k, Qt::KeyboardModifiers m = Qt::NoModifier) {
+            QKeyEvent e(type, k, m);
             QApplication::sendEvent(to, &e);
         };
+        auto closePopup = [] {
+            if (QWidget *p = QApplication::activePopupWidget()) p->close();
+            QTRY_VERIFY(!QApplication::activePopupWidget());
+        };
+        const int ctrl = PageView::pasteOptionsKey();
         {
             WriteWindow w;
             pasteBold(w);
             QVERIFY(w.view()->pasteOptionsAvailable());
             QSignalSpy notices(w.view(), &PageView::notice);
-            key(w.view(), QEvent::KeyPress, Qt::Key_Control);
-            key(w.view(), QEvent::KeyPress, Qt::Key_Shift);   // (another key first: no tap)
-            key(w.view(), QEvent::KeyRelease, Qt::Key_Shift);
-            key(w.view(), QEvent::KeyRelease, Qt::Key_Control);
+            auto tap = [&](const std::function<void()> &between) {
+                const int before = notices.count();
+                key(w.view(), QEvent::KeyPress, ctrl);
+                if (between) between();
+                key(w.view(), QEvent::KeyRelease, ctrl);
+                return notices.count() - before;
+            };
+            // A plain tap opens it (and announces it); each spoilt tap, in the same state, does not.
+            QCOMPARE(tap(nullptr), 1);
+            QTRY_VERIFY(QApplication::activePopupWidget());
+            closePopup();
+            QCOMPARE(tap([&] { key(w.view(), QEvent::KeyPress, Qt::Key_Shift); key(w.view(), QEvent::KeyRelease, Qt::Key_Shift); }), 0);
+            QCOMPARE(tap([&] { QKeyEvent e(QEvent::ShortcutOverride, Qt::Key_V, Qt::ControlModifier); QApplication::sendEvent(w.view(), &e); }), 0);   // (Ctrl+V, Ctrl+C, and so on: an action takes the key)
+            QCOMPARE(tap([&] { QWheelEvent e(QPointF(5, 5), QPointF(5, 5), QPoint(), QPoint(0, 120), Qt::NoButton, Qt::ControlModifier, Qt::NoScrollPhase, false); QApplication::sendEvent(w.view()->viewport(), &e); }), 0);
+            QCOMPARE(tap([&] { QMouseEvent e(QEvent::MouseButtonPress, QPointF(5, 5), QPointF(5, 5), Qt::LeftButton, Qt::LeftButton, Qt::ControlModifier); QApplication::sendEvent(w.view()->viewport(), &e); }), 0);
+        }
+        {
+            WriteWindow w;
+            pasteBold(w);
+            QSignalSpy notices(w.view(), &PageView::notice);
+            key(w.view(), QEvent::KeyPress, ctrl);
+            QFocusEvent out(QEvent::FocusOut, Qt::OtherFocusReason);
+            QApplication::sendEvent(w.view(), &out);
+            key(w.view(), QEvent::KeyRelease, ctrl);
             QCOMPARE(notices.count(), 0);
-            QVERIFY(w.view()->pasteOptionsAvailable());
-            // A tap: the options are announced, and the menu opens; Down three times and Enter choose Keep Text Only.
-            key(w.view(), QEvent::KeyPress, Qt::Key_Control);
-            key(w.view(), QEvent::KeyRelease, Qt::Key_Control);
-            QCOMPARE(notices.count(), 1);
+            key(w.view(), QEvent::KeyPress, ctrl);
+            key(w.view(), QEvent::KeyRelease, ctrl);
+            QCOMPARE(notices.count(), 1);   // (the same state: a plain tap works)
+            closePopup();
+        }
+        {
+            WriteWindow w;
+            pasteBold(w);
+            QSignalSpy notices(w.view(), &PageView::notice);
+            key(w.view(), QEvent::KeyPress, ctrl);
+            QInputMethodEvent im(QStringLiteral("x"), {});
+            QApplication::sendEvent(w.view(), &im);
+            key(w.view(), QEvent::KeyRelease, ctrl);
+            QCOMPARE(notices.count(), 0);
+        }
+        {
+            // Down three times and Enter choose Keep Text Only, as one step.
+            WriteWindow w;
+            pasteBold(w);
+            key(w.view(), QEvent::KeyPress, ctrl);
+            key(w.view(), QEvent::KeyRelease, ctrl);
             QTRY_VERIFY(QApplication::activePopupWidget());
             auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
             QVERIFY(menu);
@@ -2711,29 +2904,60 @@ private Q_SLOTS:
             QVERIFY(w.document()->undo());   // one Undo: before the paste
             QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("plain "));
         }
+        // The key that opens them is one function, which tests can force: on a Mac it is the key named Control (Qt calls it Meta), and the name follows.
         {
             WriteWindow w;
             pasteBold(w);
-            const QString text = w.document()->story()->toPlainText();
-            key(w.view(), QEvent::KeyPress, Qt::Key_Escape);
-            QVERIFY(!w.view()->pasteOptionsAvailable());
-            auto *button = w.view()->findChild<QToolButton *>(QStringLiteral("pasteOptionsButton"));
-            QVERIFY(button && !button->isVisible());
-            QCOMPARE(w.document()->story()->toPlainText(), text);   // (Esc takes nothing back)
+            PageView::setPasteOptionsKeyForTest(Qt::Key_Meta);
             QSignalSpy notices(w.view(), &PageView::notice);
             key(w.view(), QEvent::KeyPress, Qt::Key_Control);
             key(w.view(), QEvent::KeyRelease, Qt::Key_Control);
             QCOMPARE(notices.count(), 0);
+            key(w.view(), QEvent::KeyPress, Qt::Key_Meta);
+            key(w.view(), QEvent::KeyRelease, Qt::Key_Meta);
+            QCOMPARE(notices.count(), 1);
+            QCOMPARE(PageView::pasteOptionsKeyName(), QStringLiteral("Control"));
+            closePopup();
+            PageView::setPasteOptionsKeyForTest(0);
+            QCOMPARE(PageView::pasteOptionsKey(), ctrl);
+        }
+        // Esc ends the offer (and takes nothing back); the tap before it opened them, the tap after it does not.
+        {
+            WriteWindow w;
+            pasteBold(w);
+            const QString text = w.document()->story()->toPlainText();
+            QSignalSpy notices(w.view(), &PageView::notice);
+            key(w.view(), QEvent::KeyPress, ctrl);
+            key(w.view(), QEvent::KeyRelease, ctrl);
+            QCOMPARE(notices.count(), 1);
+            closePopup();
+            key(w.view(), QEvent::KeyPress, Qt::Key_Escape);
+            QVERIFY(!w.view()->pasteOptionsAvailable());
+            auto *button = w.view()->findChild<QToolButton *>(QStringLiteral("pasteOptionsButton"));
+            QVERIFY(button && !button->isVisible());
+            QCOMPARE(w.document()->story()->toPlainText(), text);
+            key(w.view(), QEvent::KeyPress, ctrl);
+            key(w.view(), QEvent::KeyRelease, ctrl);
+            QCOMPARE(notices.count(), 1);
             QVERIFY(!w.view()->changeLastPaste(PageView::PasteKind::TextOnly));
         }
-        // The button has a name and a description for a screen reader.
+        // Esc with the table pen in hand ends the offer and puts the pen down, both.
+        {
+            WriteWindow w;
+            pasteBold(w);
+            w.view()->setTableTool(PageView::TableTool::Draw);
+            key(w.view(), QEvent::KeyPress, Qt::Key_Escape);
+            QVERIFY(!w.view()->pasteOptionsAvailable());
+            QVERIFY(w.view()->tableTool() == PageView::TableTool::None);
+        }
+        // The button has a name and a description for a screen reader, and the description names the key.
         {
             WriteWindow w;
             pasteBold(w);
             auto *button = w.view()->findChild<QToolButton *>(QStringLiteral("pasteOptionsButton"));
             QVERIFY(button);
             QVERIFY(!button->accessibleName().isEmpty());
-            QVERIFY(!button->accessibleDescription().isEmpty());
+            QVERIFY(button->accessibleDescription().contains(PageView::pasteOptionsKeyName()));
         }
     }
 

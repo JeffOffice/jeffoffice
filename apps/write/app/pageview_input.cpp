@@ -340,7 +340,7 @@ void PageView::paste()
     if (m_choice.table >= 0 || m_choice.columns) {
         const auto &cells = cellsOf(src);
         const TablePaste how = m_choice.columns ? TablePaste::Overwrite : TablePaste(m_choice.table);
-        if (!cells || !canPasteCells(*m_doc, m_cursor, how)) return;
+        if (!cells || (!m_choice.columns && !canPasteCells(*m_doc, m_cursor, how))) return;
         const bool done = m_choice.columns ? write::pasteCellsAsColumns(*m_doc, m_cursor, *cells) : pasteCells(*m_doc, m_cursor, *cells, how);   // (one step of its own; it looks at every limit first, and a refusal has changed nothing)
         if (!m_doc->tableNotice.isEmpty()) Q_EMIT notice(m_doc->tableNotice);
         if (!done) return;
@@ -407,11 +407,17 @@ void PageView::pasteCellsAs(TablePaste how)
     m_choice = PasteChoice();
 }
 
+QString PageView::columnsRefusal() const
+{
+    if (!m_doc || m_shapeEditor) return QCoreApplication::translate("jp::write::Tables", "To paste cells as new columns, click in a table that has room for them.");
+    const auto &cells = cellsOf(clipboardSource());
+    if (!cells || cells->rows.isEmpty()) return QCoreApplication::translate("jp::write::Tables", "There are no cells to paste.");
+    return whyNotPasteCellsAsColumns(*m_doc, m_cursor, int(cells->rows[0].size()), int(cells->rows.size()));
+}
+
 bool PageView::canPasteCellsAsColumns() const
 {
-    if (!m_doc || m_shapeEditor) return false;
-    const auto &cells = cellsOf(clipboardSource());
-    return cells && !cells->rows.isEmpty() && write::canPasteCellsAsColumns(*m_doc, m_cursor, int(cells->rows[0].size()));
+    return columnsRefusal().isEmpty();
 }
 
 void PageView::pasteCellsAsColumns()
@@ -565,7 +571,7 @@ bool PageView::changeLastPasteColumns()
     const auto &cells = cellsOf(*m_lastPaste.source);
     QTextCursor there(m_doc->story());
     there.setPosition(m_lastPaste.from);
-    if (!cells || cells->rows.isEmpty() || !write::canPasteCellsAsColumns(*m_doc, there, int(cells->rows[0].size()))) return false;
+    if (!cells || cells->rows.isEmpty() || !whyNotPasteCellsAsColumns(*m_doc, there, int(cells->rows[0].size()), int(cells->rows.size())).isEmpty()) return false;
     return redoLastPaste([this] { pasteCellsAsColumns(); });
 }
 
@@ -608,7 +614,7 @@ void PageView::fillPasteMenu()
             const office::wml::ClipTable *parsed = m_lastPaste.source && cellsOf(*m_lastPaste.source) ? &*cellsOf(*m_lastPaste.source) : nullptr;
             QTextCursor there(m_doc->story());
             there.setPosition(m_lastPaste.from);
-            if (parsed && !parsed->rows.isEmpty() && write::canPasteCellsAsColumns(*m_doc, there, int(parsed->rows[0].size())))
+            if (parsed && !parsed->rows.isEmpty() && whyNotPasteCellsAsColumns(*m_doc, there, int(parsed->rows[0].size()), int(parsed->rows.size())).isEmpty())
                 add(QT_TRANSLATE_NOOP("jp::write::PageView", "Insert as New Columns"), "pasteColumns", 0, [this] { changeLastPasteColumns(); });
             add(QT_TRANSLATE_NOOP("jp::write::PageView", "Overwrite Cells"), "pasteCells", int(TablePaste::Overwrite), [this] { changeLastPasteCells(TablePaste::Overwrite); });
         } else {
@@ -624,7 +630,7 @@ void PageView::updatePasteButton()
         m_pasteButton->setObjectName(QStringLiteral("pasteOptionsButton"));
         m_pasteButton->setText(QCoreApplication::translate("jp::write::PageView", "Paste Options"));
         m_pasteButton->setAccessibleName(QCoreApplication::translate("jp::write::PageView", "Paste Options"));
-        m_pasteButton->setAccessibleDescription(QCoreApplication::translate("jp::write::PageView", "How the pasted content is kept. Tap the Ctrl key after a paste to open it."));
+        m_pasteButton->setAccessibleDescription(QCoreApplication::translate("jp::write::PageView", "How the pasted content is kept. Tap the %1 key after a paste to open it.").arg(pasteOptionsKeyName()));
         m_pasteButton->setToolButtonStyle(Qt::ToolButtonTextOnly);
         m_pasteButton->setPopupMode(QToolButton::InstantPopup);
         m_pasteButton->setFocusPolicy(Qt::NoFocus);
@@ -810,6 +816,34 @@ void PageView::typeKey(int key, Qt::KeyboardModifiers m)
     }
 }
 
+static int s_pasteOptionsKey = 0;
+void PageView::setPasteOptionsKeyForTest(int key) { s_pasteOptionsKey = key; }
+int PageView::pasteOptionsKey()
+{
+    if (s_pasteOptionsKey) return s_pasteOptionsKey;
+#ifdef Q_OS_MACOS
+    return Qt::Key_Meta;   // (Qt's Key_Control is the Command key there: the key by that name on the keyboard is Key_Meta)
+#else
+    return Qt::Key_Control;
+#endif
+}
+
+QString PageView::pasteOptionsKeyName()
+{
+    return pasteOptionsKey() == Qt::Key_Meta ? QCoreApplication::translate("jp::write::PageView", "Control") : QCoreApplication::translate("jp::write::PageView", "Ctrl");
+}
+
+bool PageView::event(QEvent *e)
+{
+    // A shortcut, or the window losing the keyboard, is something between the press of the key and its release.
+    if (e->type() == QEvent::WindowDeactivate || e->type() == QEvent::FocusOut) m_ctrlTap = false;
+    if (e->type() == QEvent::ShortcutOverride) {
+        const int k = static_cast<QKeyEvent *>(e)->key();
+        if (k != Qt::Key_Control && k != Qt::Key_Meta && k != Qt::Key_Shift && k != Qt::Key_Alt) m_ctrlTap = false;
+    }
+    return QAbstractScrollArea::event(e);
+}
+
 bool PageView::openPasteOptions()
 {
     if (!pasteOptionsAvailable() || !m_pasteButton || !m_pasteButton->isVisible()) return false;
@@ -829,7 +863,7 @@ bool PageView::endPasteOptions()
 
 void PageView::keyReleaseEvent(QKeyEvent *e)
 {
-    const bool tap = m_ctrlTap && e->key() == Qt::Key_Control && !e->isAutoRepeat();
+    const bool tap = m_ctrlTap && e->key() == pasteOptionsKey() && !e->isAutoRepeat();
     m_ctrlTap = false;
     if (tap && openPasteOptions()) {
         e->accept();
@@ -844,12 +878,9 @@ void PageView::keyPressEvent(QKeyEvent *e)
         e->ignore();
         return;
     }
-    // The Ctrl key tapped by itself after a paste opens the Paste Options (any other key first, and it is no tap); Esc ends the offer.
-    m_ctrlTap = e->key() == Qt::Key_Control && !e->isAutoRepeat() && pasteOptionsAvailable();
-    if (e->key() == Qt::Key_Escape && e->modifiers() == Qt::NoModifier && !m_cursor.hasSelection() && endPasteOptions()) {
-        e->accept();
-        return;
-    }
+    // The Ctrl key tapped by itself after a paste opens the Paste Options (anything else between its press and release, and it is no tap); Esc ends the offer, and then does what it does besides.
+    m_ctrlTap = e->key() == pasteOptionsKey() && !e->isAutoRepeat() && pasteOptionsAvailable();
+    if (e->key() == Qt::Key_Escape && e->modifiers() == Qt::NoModifier) endPasteOptions();
     if (e->key() == Qt::Key_Escape && m_linkFrom >= 0) {
         m_linkFrom = -1;
         viewport()->unsetCursor();
@@ -954,6 +985,7 @@ void PageView::keyPressEvent(QKeyEvent *e)
 
 void PageView::inputMethodEvent(QInputMethodEvent *e)
 {
+    m_ctrlTap = false;
     if (!m_doc || m_readOnly) return;
     if (!e->commitString().isEmpty()) insertText(e->commitString());
     e->accept();

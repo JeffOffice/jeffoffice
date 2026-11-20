@@ -202,11 +202,16 @@ public:
     void pasteCellsAs(TablePaste how);
     // The cells as new columns of the table the caret is in (after the caret's cell, filled from its row down).
     bool canPasteCellsAsColumns() const;
+    QString columnsRefusal() const;   // why not, in words (empty when they can)
     void pasteCellsAsColumns();
     bool changeLastPasteColumns();
     // Opens the menu of the Paste Options button (the Ctrl key tapped after a paste does this); false when there is no offer. Esc ends the offer (false when there is none).
     bool openPasteOptions();
     bool endPasteOptions();
+    // The key whose tap opens them: Ctrl (on a Mac the key named Control, which Qt calls Meta); tests can force another (0: the system's).
+    static int pasteOptionsKey();
+    static QString pasteOptionsKeyName();
+    static void setPasteOptionsKeyForTest(int key);
     bool changeLastPasteList(ListPaste how);
     bool changeLastPasteCells(TablePaste how);
     // What the last paste has choices for.
@@ -425,6 +430,7 @@ protected:
     void wheelEvent(QWheelEvent *e) override;
     void keyPressEvent(QKeyEvent *e) override;
     void keyReleaseEvent(QKeyEvent *e) override;
+    bool event(QEvent *e) override;
     void mousePressEvent(QMouseEvent *e) override;
     void mouseMoveEvent(QMouseEvent *e) override;
     void mouseReleaseEvent(QMouseEvent *e) override;

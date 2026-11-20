@@ -46,8 +46,9 @@ int sortParagraphs(WriteDoc &doc, QTextCursor &c, const SortOptions &options);
 void pasteMerged(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fragment);
 
 // Spreadsheet cells as new columns of the table the caret is in: as many columns as the cells have go in after the caret's cell, and the cells fill them from the caret's row down (what is past the
-// table's last row is left out, and the table's notice says so). One step. Where the table cannot take that many columns, false and nothing done.
-bool canPasteCellsAsColumns(WriteDoc &doc, const QTextCursor &c, int columns);
+// table's last row is left out, and the table's notice says so). One step. Every limit of a table is looked at first (256 columns, 50,000 cells), and so are the rows that get cells: a row where a
+// joined cell runs across the new columns, or has no cell there, is a refusal. False, nothing done, and the table's notice says why. The text of a refusal, empty when it fits:
+QString whyNotPasteCellsAsColumns(WriteDoc &doc, const QTextCursor &c, int columns, int rows);
 bool pasteCellsAsColumns(WriteDoc &doc, QTextCursor &c, const office::wml::ClipTable &cells);
 
 // ---- Horizontal line

@@ -4,6 +4,7 @@
 #include "core/wordformat.h"
 #include "core/styleops.h"
 #include "core/tableops.h"
+#include "flow/tableflow.h"
 #include "core/writeprops.h"
 #include "flow/flowdocument.h"
 #include "text/textprops.h"
@@ -15,6 +16,7 @@
 #include <QTextBlock>
 #include <QTextDocumentFragment>
 #include <algorithm>
+#include <memory>
 
 namespace jp::write {
 
@@ -459,42 +461,132 @@ QVector<QPair<QString, QString>> describeFormatting(WriteDoc &doc, const QTextCu
     return out;
 }
 
-bool canPasteCellsAsColumns(WriteDoc &doc, const QTextCursor &c, int columns)
+namespace {
+
+// The table the position is in, laid out as it is now (what tableops looks at to make a change, read the same way: the paragraphs' places, then the table's cells).
+struct TableSight {
+    flow::TableIndex index;
+    std::shared_ptr<flow::TableLayout> layout;
+};
+
+std::unique_ptr<TableSight> sightOf(WriteDoc &doc, int position)
 {
-    if (columns < 1 || columns > office::wml::kMostClipColumns || !canPasteCells(doc, c, TablePaste::Overwrite)) return false;
-    const CellPlace at = cellPlace(doc, c);
-    return at.inTable && at.columns + columns <= office::wml::kMostClipColumns;
+    QTextDocument *story = doc.story();
+    const QTextBlock b = story->findBlock(std::clamp(position, 0, std::max(0, story->characterCount() - 1)));
+    const int key = cellKeyOf(b);
+    if (!key) return nullptr;
+    auto out = std::make_unique<TableSight>();
+    out->index.rebuild(story, doc.flow().tables);
+    const QVector<const flow::CellRecord *> &chain = out->index.chain(key);
+    if (chain.isEmpty()) return nullptr;
+    const int depth = int(chain.size()) - 1;
+    const flow::TableData *table = chain.last()->table.get();
+    const std::vector<flow::BlockRef> &refs = out->index.refs();
+    const auto found = std::lower_bound(refs.begin(), refs.end(), b.position(), [](const flow::BlockRef &r, int p) { return r.pos < p; });
+    if (found == refs.end() || found->pos != b.position()) return nullptr;
+    const int at = int(found - refs.begin());
+    auto inThis = [&](int i) {
+        const QVector<const flow::CellRecord *> &c = out->index.chain(refs[size_t(i)].key);
+        return int(c.size()) > depth && c[depth]->table.get() == table;
+    };
+    int i0 = at, i1 = at + 1;
+    while (i0 > 0 && inThis(i0 - 1)) --i0;
+    while (i1 < int(refs.size()) && inThis(i1)) ++i1;
+    flow::TableContext ctx;
+    ctx.doc = &doc.flow();
+    ctx.index = &out->index;
+    ctx.live = std::make_shared<flow::TableContext::Live>();
+    ctx.at = 0;
+    out->layout = flow::TableLayout::make(ctx, i0, i1, depth);
+    if (!out->layout) return nullptr;
+    return out;
+}
+
+int gridColumnsOf(const flow::TableLayout &t)
+{
+    int n = 0;
+    for (int i = 0; i < t.cellCount(); ++i) n = std::max(n, t.cell(i).col + t.cell(i).span);
+    return n;
+}
+
+QString columnsText(const char *text) { return QCoreApplication::translate("jp::write::Tables", text); }
+
+// Whether `columns` new columns can go after the caret's cell for cells of `rows` rows: every limit a column has is looked at here, so that nothing is inserted that cannot be filled. A reason (empty
+// when it fits) says why not. The same limits as Merge Table: 256 columns, and the cells of a table.
+QString whyNotColumns(WriteDoc &doc, const QTextCursor &c, int columns, int rows, int *row = nullptr, int *gridColumn = nullptr)
+{
+    const auto sight = sightOf(doc, c.selectionStart());
+    const int i = sight ? sight->layout->cellOfPosition(c.selectionStart()) : -1;
+    if (i < 0 || doc.story() != c.document())
+        return columnsText(QT_TRANSLATE_NOOP("jp::write::Tables", "To paste cells as new columns, click in a table that has room for them."));
+    const flow::TableLayout &t = *sight->layout;
+    const flow::TableLayout::Cell &at = t.cell(i);
+    const int gc = at.col + at.span, was = gridColumnsOf(t);
+    if (row) *row = at.row;
+    if (gridColumn) *gridColumn = gc;
+    if (was + columns > office::wml::kMaxTableColumns) return columnsText(QT_TRANSLATE_NOOP("jp::write::Tables", "A table can have at most 256 columns."));
+    if (t.cellCount() + qint64(columns) * t.rowCount() > office::wml::kMaxTableCellsEach) return columnsText(QT_TRANSLATE_NOOP("jp::write::Tables", "A table can have at most 50,000 cells."));
+    // The rows the cells go in must each get a cell of its own where the columns go: not one that a joined cell runs across, and not one in a gap that a row leaves.
+    for (int r = at.row; r < std::min(t.rowCount(), at.row + rows); ++r) {
+        const flow::RowData &rd = *t.row(r).data;
+        if ((rd.before > 0 && gc < rd.before) || (rd.after > 0 && gc > was - rd.after))
+            return columnsText(QT_TRANSLATE_NOOP("jp::write::Tables", "New columns cannot go there: a row has no cell where they would be."));
+        const flow::TableLayout::Row &row = t.row(r);
+        for (int k = row.cell0; k < row.cell0 + row.cells; ++k)
+            if (t.cell(k).col < gc && gc < t.cell(k).col + t.cell(k).span)
+                return columnsText(QT_TRANSLATE_NOOP("jp::write::Tables", "New columns cannot go there: joined cells run across the place where they would be."));
+    }
+    return QString();
+}
+
+} // namespace
+
+QString whyNotPasteCellsAsColumns(WriteDoc &doc, const QTextCursor &c, int columns, int rows)
+{
+    if (columns < 1 || columns > office::wml::kMostClipColumns || rows < 1 || rows > office::wml::kMostClipRows) return QCoreApplication::translate("jp::write::Tables", "There are no cells to paste.");
+    return whyNotColumns(doc, c, columns, rows);
 }
 
 bool pasteCellsAsColumns(WriteDoc &doc, QTextCursor &c, const office::wml::ClipTable &cells)
 {
-    if (cells.rows.isEmpty() || cells.rows[0].isEmpty() || int(cells.rows.size()) > office::wml::kMostClipRows) return false;
-    const int columns = int(cells.rows[0].size());
-    if (!canPasteCellsAsColumns(doc, c, columns)) return false;
-    const CellPlace at = cellPlace(doc, c);
+    doc.tableNotice.clear();
+    const int rows = int(cells.rows.size()), columns = rows ? int(cells.rows[0].size()) : 0;
+    int row = 0, gridColumn = 0;
+    QString why = columns < 1 || columns > office::wml::kMostClipColumns || rows > office::wml::kMostClipRows ? QCoreApplication::translate("jp::write::Tables", "There are no cells to paste.") : whyNotColumns(doc, c, columns, rows, &row, &gridColumn);
+    if (why.isEmpty() && !canPasteCells(doc, c, TablePaste::Overwrite)) why = columnsText(QT_TRANSLATE_NOOP("jp::write::Tables", "To paste cells as new columns, click in a table that has room for them."));
+    if (!why.isEmpty()) {
+        doc.tableNotice = why;
+        return false;
+    }
     QTextCursor edit(doc.story());
     edit.setPosition(c.selectionStart());
     c.beginEditBlock();
     int made = 0;
     for (; made < columns; ++made) {
         const int before = cellPlace(doc, edit).columns;
-        insertTableColumn(doc, edit, true);   // (it looks at every limit of a table first; a refusal changes nothing)
+        insertTableColumn(doc, edit, true);
         if (cellPlace(doc, edit).columns <= before) break;
     }
-    if (made == 0) {
+    // (The limits were looked at first, so this does not happen; if it does, what went in is taken back, and nothing is left half done.)
+    const auto sight = made == columns ? sightOf(doc, c.selectionStart()) : nullptr;
+    const int i = sight ? sight->layout->cellOfPosition(c.selectionStart()) : -1;
+    int target = -1;
+    if (i >= 0) {
+        const flow::TableLayout &t = *sight->layout;
+        const flow::TableLayout::Row &r = t.row(t.cell(i).row);
+        for (int k = r.cell0; k < r.cell0 + r.cells; ++k)
+            if (t.cell(k).col == gridColumn && !t.cell(k).covered) target = t.cell(k).from;
+    }
+    if (target < 0) {
         c.endEditBlock();
+        if (made > 0) doc.story()->undo();
+        doc.tableNotice = columnsText(QT_TRANSLATE_NOOP("jp::write::Tables", "New columns cannot go there: joined cells run across the place where they would be."));
         return false;
     }
-    // The first new cell: the next one in the caret's row.
     QTextCursor first(doc.story());
-    first.setPosition(c.selectionStart());
-    bool there = tabThroughCells(doc, first, false);
-    const CellPlace now = cellPlace(doc, first);
-    there = there && now.inTable && now.row == at.row && now.column > at.column;
-    if (there) {
-        pasteCells(doc, first, cells, TablePaste::Overwrite);
-        c.setPosition(first.position());
-    }
+    first.setPosition(target);
+    pasteCells(doc, first, cells, TablePaste::Overwrite);
+    c.setPosition(first.position());
     c.endEditBlock();
     return true;
 }

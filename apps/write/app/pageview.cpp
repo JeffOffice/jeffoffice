@@ -240,6 +240,8 @@ void PageView::setCursor(const QTextCursor &c)
 
 bool PageView::viewportEvent(QEvent *e)
 {
+    // (A click, or the wheel, with the Ctrl key down is no tap of the key.)
+    if (e->type() == QEvent::MouseButtonPress || e->type() == QEvent::MouseButtonDblClick || e->type() == QEvent::Wheel) m_ctrlTap = false;
     if (e->type() == QEvent::Leave && m_collapseHover >= 0) {
         m_collapseHover = -1;
         viewport()->update();
@@ -1488,6 +1490,7 @@ void PageView::focusInEvent(QFocusEvent *e)
 void PageView::focusOutEvent(QFocusEvent *e)
 {
     QAbstractScrollArea::focusOutEvent(e);
+    m_ctrlTap = false;
     m_columnDrag.active = m_columnDrag.pending = false;   // (a pull that was going on is let go)
     m_blink.stop();
     viewport()->update();
