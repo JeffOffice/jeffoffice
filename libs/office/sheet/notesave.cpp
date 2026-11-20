@@ -239,11 +239,17 @@ QByteArray anchorText(const NoteOp &op)
     return at(col + b.col1) + ", " + px(b.x1) + ", " + at(row + b.row1) + ", " + px(b.y1) + ", " + at(col + b.col2) + ", " + px(b.x2) + ", " + at(row + b.row2) + ", " + px(b.y2);
 }
 
+// The anchor of a note's box that is not its own: beside the cell, as large as the usual.
+QByteArray defaultAnchorText(const NoteOp &op)
+{
+    const int row = int(op.row), col = int(op.col);
+    return QByteArray::number(col + 1) + ", 15, " + QByteArray::number(std::max(0, row - 1)) + ", 10, " + QByteArray::number(col + 3) + ", 15, " + QByteArray::number(std::max(0, row - 1) + 3) + ", 4";
+}
+
 QByteArray shapeXml(const NoteOp &op, int id)
 {
     const int row = int(op.row), col = int(op.col);
-    const QByteArray anchor = op.box.set ? anchorText(op)
-                                         : QByteArray::number(col + 1) + ", 15, " + QByteArray::number(std::max(0, row - 1)) + ", 10, " + QByteArray::number(col + 3) + ", 15, " + QByteArray::number(std::max(0, row - 1) + 3) + ", 4";
+    const QByteArray anchor = op.box.set ? anchorText(op) : defaultAnchorText(op);
     return "<v:shape id=\"_x0000_s" + QByteArray::number(id) + "\" type=\"#_x0000_t202\" style=\"position:absolute;margin-left:80pt;margin-top:2pt;width:108pt;height:59.25pt;z-index:" + QByteArray::number(id % 1000000)
            + ";visibility:" + (op.shown ? "visible" : "hidden") + "\" fillcolor=\"#ffffe1\" o:insetmode=\"auto\"><v:fill color2=\"#ffffe1\"/><v:shadow on=\"t\" color=\"black\" obscured=\"t\"/><v:path o:connecttype=\"none\"/>"
            + "<v:textbox style=\"mso-direction-alt:auto\"><div style=\"text-align:left\"></div></v:textbox><x:ClientData ObjectType=\"Note\"><x:MoveWithCells/><x:SizeWithCells/><x:Anchor>"
@@ -291,8 +297,9 @@ bool applyNoteOpsToDrawing(const QByteArray &vml, const std::vector<NoteOp> &ops
         at = shape.end;
         if (op->second->remove) continue;
         QByteArray piece = vml.mid(shape.start, shape.end - shape.start);
-        if (op->second->box.set && !(shapeBox(vml, shape, row, col) == op->second->box)) {
-            // the box was moved or sized: the anchor's numbers (the shape keeps the rest as it has it)
+        const NoteBox was = shapeBox(vml, shape, row, col);
+        if (was.set && (op->second->box.set ? !(was == op->second->box) : !op->second->remove)) {
+            // the box was moved or sized, or put back to the default: the anchor's numbers (the shape keeps the rest as it has it)
             Tag t;
             qsizetype pos = 0;
             while (xmlscan::nextTag(piece, pos, &t)) {
@@ -300,7 +307,7 @@ bool applyNoteOpsToDrawing(const QByteArray &vml, const std::vector<NoteOp> &ops
                 if (t.closing || t.local != "Anchor" || t.selfClosing) continue;
                 const qsizetype close = piece.indexOf('<', t.end);
                 if (close < 0) break;
-                piece.replace(t.end, close - t.end, anchorText(*op->second));
+                piece.replace(t.end, close - t.end, op->second->box.set ? anchorText(*op->second) : defaultAnchorText(*op->second));
                 break;
             }
         }
