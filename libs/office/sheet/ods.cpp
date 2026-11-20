@@ -1974,7 +1974,7 @@ private:
                 if (raw.ok) n.box = noteBoxFromOds(raw.x, raw.y, raw.w, raw.h, n.row, n.col, grid);
             }
         }
-        if (m_notesOver) m_s.notKept << QCoreApplication::translate("jp::office::sheet::Ods", "Only the first %1 note(s) on a sheet are kept.", nullptr, int(kMaxNotes)).arg(QLocale().toString(kMaxNotes));
+        if (m_notesOver) m_s.notKept << QCoreApplication::translate("jp::office::sheet::Ods", "Only the first %1 notes on a sheet are kept.").arg(QLocale().toString(kMaxNotes));
         const int cut = int(qMin(m_notesCut, qint64(1000000000)));
         if (cut > 0) m_s.notKept << QCoreApplication::translate("jp::office::sheet::Ods", "%n note(s) cut to %1 characters", nullptr, cut).arg(QLocale().toString(kMaxOdsNoteChars));
     }
