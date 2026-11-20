@@ -890,11 +890,21 @@ public:
     // The outline of the rows or columns changed (see outline.h): the levels, which lines are hidden, and which summary lines say their group is collapsed; one step.
     Outcome changeOutline(int sheet, bool columns, const std::vector<OutlineChange> &changes, const QString &text);
     // Auto Outline: the rows and the columns get the groups the formulas of the sheet call for (a formula that reads two lines or more of cells that lie wholly before or after its own line
-    // makes them a group), replacing the outline there is, as one step. At most `maxFormulas` formulas are read (more is refused, with nothing done). Clear Outline takes the outline of
-    // both away, as one step. Both leave the sheet as it was when either part is refused.
-    Outcome autoOutline(int sheet, qint64 maxFormulas = kMaxAutoOutlineFormulas);
+    // makes them a group; a block of both kinds makes one, in the direction the formula lies from it), replacing the outline there is, as one step. The formulas are read with the worker held
+    // back. A sheet that has an outline is not changed until `replace` says to (the same call is made again with it): it is refused with `confirm`, and `problem` asks. At most `maxFormulas`
+    // formulas are read (more is refused, with nothing done). Clear Outline takes the outline of both away, as one step. Both leave the sheet as it was when either part is refused.
+    struct AutoOutlineReport {
+        bool groupsFound = false;     // some formula called for a group (else nothing is changed, whatever outline the sheet has)
+        bool changed = false;         // the outline is now different (a step was made)
+        bool tooDeep = false;         // groups lay inside others deeper than an outline holds: the deepest are one level
+        int tooLong = 0;              // groups left out for covering too many lines
+        qint64 cellsRead = 0;         // the cells whose content was looked at: the cells that hold a formula, not every cell of the sheet
+    };
+    Outcome autoOutline(int sheet, AutoOutlineReport *report = nullptr, bool replace = false, qint64 maxFormulas = kMaxAutoOutlineFormulas);
     Outcome clearOutline(int sheet);
-    static constexpr qint64 kMaxAutoOutlineFormulas = 200000;
+    static constexpr qint64 kMaxAutoOutlineFormulas = 1000000;
+    // The most lines a group made by Auto Outline may have (a longer run, as one that reads to the bottom of the sheet, is not a group a person made).
+    static constexpr qint64 kMaxAutoOutlineLines = 100000;
     // The outline the rows (or the columns) of a sheet have now.
     Outline outlineOf(int sheet, bool columns) const;
     // How many outlines have been made so far (counted, for tests), and a number that changes whenever the rows' or columns' sizes, hiding, or outline, or their places, may have (a step

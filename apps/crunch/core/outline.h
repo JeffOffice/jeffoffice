@@ -62,7 +62,8 @@ public:
 
     // The changes that make the outline the formulas call for: each of `runs` (first and last line, both in the lines) is a group, deeper where runs lie inside others (to the 7 levels), and
     // whatever outline there is now is replaced; lines that were hidden by it are shown. No change at all when the outline is already that.
-    std::vector<OutlineChange> replaceWith(const std::vector<std::pair<quint32, quint32>> &runs) const;
+    // `deeper` is set when runs lay inside others deeper than the outline's levels go (the deepest ones are then the last level).
+    std::vector<OutlineChange> replaceWith(const std::vector<std::pair<quint32, quint32>> &runs, bool *deeper = nullptr) const;
     // The changes that take the whole outline away (every level, every collapsed mark, and the lines it hid).
     std::vector<OutlineChange> clearAll() const;
 

@@ -411,8 +411,9 @@ private Q_SLOTS:
         QVERIFY(!e.win.told.isEmpty());
     }
 
-    // A group that was collapsed is shown again, and what the formulas do not call for is no longer in a group.
-    void autoOutlineReplacesTheOutlineThereIs()
+    // A sheet that has an outline is asked about before Auto Outline replaces it: Replace makes the groups the formulas call for (a group that was collapsed is shown again, and what the formulas do
+    // not call for is no longer in a group); Cancel changes nothing, adds no step of Undo, and says nothing.
+    void autoOutlineAsksBeforeItReplacesTheOutlineThereIs()
     {
         EditWindow e;
         QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "A3==SUM(A1:A2)", "A6=1", "A7=2"})));
@@ -421,7 +422,25 @@ private Q_SLOTS:
         QVERIFY(s->changeOutline(0, false, s->outlineOf(0, false).group(5, 6), QStringLiteral("Group")).ok);
         QVERIFY(s->changeOutline(0, false, s->outlineOf(0, false).collapse(s->outlineOf(0, false).groups(5, 6).front()), QStringLiteral("Hide")).ok);
         QVERIFY(rowState(e, 5).hidden);
+        int asked = 0;
+        bool answer = false;
+        e.win.w.setOutlineReplaceAsker([&] {
+            ++asked;
+            return answer;
+        });
+        // (Cancel: nothing is changed, nothing is said, no step is made)
+        const int steps = e.win.w.undoStack()->count();
         e.win.w.act(QStringLiteral("outline.auto"))->trigger();
+        QCOMPARE(asked, 1);
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        QVERIFY(e.win.told.isEmpty());
+        QCOMPARE(rowState(e, 0).level, 0);
+        QVERIFY(rowState(e, 5).hidden && rowState(e, 6).hidden && rowState(e, 6).level == 1);
+        // (Replace)
+        answer = true;
+        e.win.w.act(QStringLiteral("outline.auto"))->trigger();
+        QCOMPARE(asked, 2);
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
         QCOMPARE(rowState(e, 0).level, 1);
         QCOMPARE(rowState(e, 1).level, 1);
         for (quint32 r = 2; r < 8; ++r) {
@@ -429,6 +448,175 @@ private Q_SLOTS:
             QVERIFY(!rowState(e, r).hidden);
             QVERIFY(!rowState(e, r).collapsed);
         }
+        // (a sheet with no outline is not asked about, and neither is one the formulas leave as it is)
+        e.win.w.act(QStringLiteral("outline.auto"))->trigger();
+        QCOMPARE(asked, 2);
+    }
+
+    // Auto Outline reads the formulas with the worker held back (the worker is working in the calculation), and refuses in words, with nothing done, when it cannot be held.
+    void autoOutlineHoldsTheWorkerWhileItReadsTheFormulas()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "A3=3", "A4==SUM(A1:A3)", "A5=10", "A6==SUM(A1:A5)"})));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        w.setWorkerPace(-1);   // (the worker stays where it waits, in the middle of working the formulas out)
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("100"));
+        QVERIFY(w.isCalculating());
+        const qint64 holds = w.workbookLoader().holdsTaken();
+        const int steps = w.undoStack()->count();
+        w.act(QStringLiteral("outline.auto"))->trigger();
+        QVERIFY(w.workbookLoader().holdsTaken() > holds);
+        QCOMPARE(w.undoStack()->count(), steps + 1);
+        for (quint32 r = 0; r < 3; ++r) QCOMPARE(rowState(e, r).level, 2);
+        QCOMPARE(rowState(e, 3).level, 1);
+        QCOMPARE(rowState(e, 4).level, 1);
+        QCOMPARE(rowState(e, 5).level, 0);
+        // (the same again changes nothing, so the only hold is the one the reading of the formulas takes)
+        const qint64 beforeAgain = w.workbookLoader().holdsTaken();
+        crunch::EditSession::AutoOutlineReport again;
+        QVERIFY(w.session()->autoOutline(0, &again, true).ok);
+        QVERIFY(again.groupsFound && !again.changed);
+        QVERIFY(w.workbookLoader().holdsTaken() > beforeAgain);
+        // (a worker that cannot be held: the same answer as other changes give, and nothing done)
+        w.undoStack()->undo();
+        for (quint32 r = 0; r < 6; ++r) QCOMPARE(rowState(e, r).level, 0);
+        w.workbookLoader().refuseHolds(1000);
+        const int before = w.undoStack()->count();
+        w.act(QStringLiteral("outline.auto"))->trigger();
+        w.workbookLoader().refuseHolds(0);
+        QCOMPARE(w.undoStack()->count(), before);
+        QVERIFY(!e.win.told.isEmpty());
+        QCOMPARE(rowState(e, 0).level, 0);
+        w.setWorkerPace(0);
+        QVERIFY(e.settle());
+    }
+
+    // Nothing the formulas call for: the status says no totals were found and nothing is changed, whatever outline the sheet has (a hand outline is not cleared, and no step is made).
+    void autoOutlineThatFindsNoTotalsChangesNothingAndSaysSo()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "A3=3", "A4==A1+A2"})));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->changeOutline(0, false, s->outlineOf(0, false).group(0, 1), QStringLiteral("Group")).ok);
+        e.win.w.setOutlineReplaceAsker([] {
+            return true;
+        });
+        const int steps = e.win.w.undoStack()->count();
+        e.win.w.act(QStringLiteral("outline.auto"))->trigger();
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        QCOMPARE(rowState(e, 0).level, 1);
+        QCOMPARE(rowState(e, 1).level, 1);
+        QCOMPARE(e.win.told.size(), 1);
+        QVERIFY2(e.win.told.last().contains(QLatin1String("No totals were found")), qPrintable(e.win.told.last()));
+        QVERIFY(!e.win.w.statusText().contains(QLatin1String("Outline made")));
+        // (the same at the session: nothing found, and nothing done)
+        crunch::EditSession::AutoOutlineReport report;
+        QVERIFY(s->autoOutline(0, &report, true).ok);
+        QVERIFY(!report.groupsFound && !report.changed);
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+    }
+
+    // Totals far apart (a thousand rows or a hundred thousand) are not refused for the span between them: the groups are made in pieces under one step of Undo, and one Undo takes all of them back.
+    void autoOutlineOfTotalsFarApartMakesAllTheGroupsAsOneStep()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "A3==SUM(A1:A2)", "A250001=1", "A250002=2", "A250003==SUM(A250001:A250002)"})));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        const int steps = e.win.w.undoStack()->count();
+        crunch::EditSession::AutoOutlineReport report;
+        const auto made = s->autoOutline(0, &report, false);
+        QVERIFY2(made.ok, qPrintable(made.problem));
+        QVERIFY(report.groupsFound && report.changed);
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        QCOMPARE(e.win.w.undoStack()->undoText(), QStringLiteral("Auto Outline"));
+        for (quint32 r : {0u, 1u, 250000u, 250001u}) QCOMPARE(rowState(e, r).level, 1);
+        QCOMPARE(rowState(e, 2).level, 0);
+        QCOMPARE(rowState(e, 250002).level, 0);
+        e.win.w.undoStack()->undo();
+        for (quint32 r : {0u, 1u, 250000u, 250001u}) QCOMPARE(rowState(e, r).level, 0);
+        QCOMPARE(e.win.w.undoStack()->index(), steps);
+        // (a run that is longer than a group is made for is left out, and said: nothing else is lost)
+        EditWindow f;
+        QVERIFY(f.open(sheetOf({"A1==SUM(A3:A150002)", "A2=1", "A3=1", "A4==SUM(A2:A3)"})));
+        QVERIFY(f.settle());
+        crunch::EditSession::AutoOutlineReport longer;
+        QVERIFY(f.win.w.session()->autoOutline(0, &longer, false).ok);
+        QCOMPARE(longer.tooLong, 1);
+        QVERIFY(longer.groupsFound);
+        QCOMPARE(rowState(f, 1).level, 1);
+        QCOMPARE(rowState(f, 2).level, 1);
+        QCOMPARE(rowState(f, 100).level, 0);
+        f.win.w.act(QStringLiteral("outline.clear"))->trigger();
+        f.win.w.act(QStringLiteral("outline.auto"))->trigger();
+        QVERIFY(f.win.w.statusText().contains(QLatin1String("were left out")));
+    }
+
+    // Groups inside groups deeper than an outline goes are the last level, and the status says so once with the real limit.
+    void autoOutlineClampsTheLevelsAndSaysSo()
+    {
+        QStringList specs;
+        for (int i = 1; i <= 12; ++i) specs << QStringLiteral("A%1=1").arg(i);
+        // (each total reads from the top down to a row further than the one before: twelve groups inside one another from row 1)
+        for (int k = 0; k < 10; ++k) specs << QStringLiteral("B%1==SUM(A1:A%2)").arg(20 + k).arg(2 + k);
+        EditWindow e;
+        QVERIFY(e.open(sheetOf(specs)));
+        QVERIFY(e.settle());
+        e.win.w.act(QStringLiteral("outline.auto"))->trigger();
+        QCOMPARE(rowState(e, 0).level, crunch::kMaxOutlineLevel);
+        QVERIFY2(e.win.w.statusText().contains(QStringLiteral("at most %1 levels").arg(crunch::kMaxOutlineLevel)), qPrintable(e.win.w.statusText()));
+        QCOMPARE(e.win.w.statusText().count(QLatin1String("at most")), 1);
+        // (a sheet whose groups all fit says nothing of the kind)
+        EditWindow f;
+        QVERIFY(f.open(sheetOf({"A1=1", "A2=2", "A3==SUM(A1:A2)"})));
+        QVERIFY(f.settle());
+        f.win.w.act(QStringLiteral("outline.auto"))->trigger();
+        QVERIFY(!f.win.w.statusText().contains(QLatin1String("at most")));
+    }
+
+    // A formula that adds up a block (rows and columns both) makes one group, in the direction the total lies from it: below or above, rows; left or right, columns; in a corner, the nearer way.
+    void autoOutlineMakesOneGroupForABlock()
+    {
+        auto colLevel = [](EditWindow &e, quint32 c) {
+            for (const auto &s : e.win.w.session()->calculation()->columnRuns(0, c, c))
+                if (s.first <= c && c <= s.last) return int(s.outline);
+            return 0;
+        };
+        const QStringList block{"A1=1", "B1=2", "C1=3", "A2=4", "B2=5", "C2=6", "A3=7", "B3=8", "C3=9"};
+        struct Case {
+            const char *total;
+            bool rows;
+        };
+        // (below the block; to its right, level with a row of it; in a corner, nearer in rows; in a corner, nearer in columns)
+        for (const Case &c : {Case{"B6==SUM(A1:C3)", true}, Case{"F2==SUM(A1:C3)", false}, Case{"E4==SUM(A1:C3)", true}, Case{"D7==SUM(A1:C3)", false}}) {
+            EditWindow e;
+            QVERIFY(e.open(sheetOf(block + QStringList{QString::fromLatin1(c.total)})));
+            QVERIFY(e.settle());
+            e.win.w.act(QStringLiteral("outline.auto"))->trigger();
+            for (quint32 i = 0; i < 3; ++i) {
+                QCOMPARE(rowState(e, i).level, c.rows ? 1 : 0);
+                QCOMPARE(colLevel(e, i), c.rows ? 0 : 1);
+            }
+            QCOMPARE(e.win.w.undoStack()->undoText(), QStringLiteral("Auto Outline"));
+        }
+    }
+
+    // The formulas are looked at, not every cell: only a cell that holds a formula has its content read.
+    void autoOutlineReadsTheFormulasAndNotEveryCell()
+    {
+        QStringList specs;
+        for (int r = 1; r <= 60; ++r)
+            for (const char *col : {"A", "B", "C", "D"}) specs << QStringLiteral("%1%2=%2").arg(QLatin1String(col)).arg(r);
+        specs << "E1==SUM(A1:A60)" << "E2==SUM(B1:B60)" << "E3==A1+B1";
+        EditWindow e;
+        QVERIFY(e.open(sheetOf(specs)));
+        QVERIFY(e.settle());
+        crunch::EditSession::AutoOutlineReport report;
+        QVERIFY(e.win.w.session()->autoOutline(0, &report, true).ok);
+        QCOMPARE(report.cellsRead, qint64(3));
     }
 
     // A protected sheet refuses both, in words, with nothing done; a sheet with more formulas than the limit is refused whole, not outlined in part.
@@ -446,10 +634,10 @@ private Q_SLOTS:
         QVERIFY(f.open(sheetOf({"A1=1", "A2=2", "A3==SUM(A1:A2)", "A4==A3+1", "A5==A4+1"})));
         QVERIFY(f.settle());
         crunch::EditSession *s = f.win.w.session();
-        const auto refused = s->autoOutline(0, 2);
+        const auto refused = s->autoOutline(0, nullptr, false, 2);
         QVERIFY(!refused.ok && !refused.problem.isEmpty());
         QCOMPARE(f.win.w.undoStack()->count(), steps);
-        QVERIFY(s->autoOutline(0, 3).ok);
+        QVERIFY(s->autoOutline(0, nullptr, false, 3).ok);
         QCOMPARE(rowState(f, 0).level, 1);
     }
 

@@ -6,6 +6,8 @@
 #include <algorithm>
 #include <map>
 
+#include <QThread>
+
 namespace jp::crunch {
 
 using namespace jp::office::sheet;
@@ -230,14 +232,21 @@ EditSession::Outcome EditSession::changeOutline(int sheet, bool columns, const s
     return resize(e, text);
 }
 
-// Both outlines of a sheet changed as one step: when the second part is refused the first is taken back and the history keeps nothing of either.
+// Both outlines of a sheet changed as one step, the rows in pieces that each stay within what one change of rows takes (a sheet whose groups lie far apart has changes far apart): when a
+// part is refused what was done is taken back and the history keeps nothing of either.
 static EditSession::Outcome bothOutlines(EditSession *s, QUndoStack *undo, int sheet, const std::vector<OutlineChange> &rows, const std::vector<OutlineChange> &columns, const QString &text)
 {
     EditSession::Outcome out;
     if (rows.empty() && columns.empty()) return out;
     const int start = undo->index();
     undo->beginMacro(text);
-    EditSession::Outcome done = s->changeOutline(sheet, false, rows, text);
+    EditSession::Outcome done;
+    for (size_t at = 0; at < rows.size() && done.ok;) {
+        size_t end = at + 1;
+        while (end < rows.size() && qint64(rows[end].index) - rows[at].index + 1 <= EditSession::kMaxRowsPerResize) ++end;
+        done = s->changeOutline(sheet, false, std::vector<OutlineChange>(rows.begin() + qint64(at), rows.begin() + qint64(end)), text);
+        at = end;
+    }
     if (done.ok) done = s->changeOutline(sheet, true, columns, text);
     undo->endMacro();
     if (!done.ok) {
@@ -251,46 +260,98 @@ static EditSession::Outcome bothOutlines(EditSession *s, QUndoStack *undo, int s
     return out;
 }
 
-EditSession::Outcome EditSession::autoOutline(int sheet, qint64 maxFormulas)
+static bool hasGroups(const Outline &o)
+{
+    return std::any_of(o.lines().begin(), o.lines().end(), [](const OutlineLine &l) { return l.level > 0 || l.collapsed; });
+}
+
+EditSession::Outcome EditSession::autoOutline(int sheet, AutoOutlineReport *report, bool replace, qint64 maxFormulas)
 {
     Outcome out;
+    AutoOutlineReport none;
+    AutoOutlineReport &rep = report ? *report : none;
+    rep = AutoOutlineReport();
     QString why;
     if (!canEdit(&why) || !canEditSheet(sheet, &why) || !allows(sheet, Allow::FormatRows, &why) || !allows(sheet, Allow::FormatColumns, &why)) {
         out.ok = false;
         out.problem = why;
         return out;
     }
-    const Calculation *calc = m_book->calc.get();
     const QString name = m_book->book->info().sheets[sheet].name;
     std::vector<std::pair<quint32, quint32>> rowRuns, columnRuns;
+    Outline rowsNow(std::vector<OutlineLine>(), 0, true), columnsNow(std::vector<OutlineLine>(), 0, true);
     qint64 seen = 0;
     bool tooMany = false;
-    calc->sheet(sheet).cells.forEachInRange(0, 0, kMaxRows - 1, kMaxColumns - 1, [&](quint32 row, quint32 col, const Cell &) {
-        if (!calc->content(sheet, row, col).isFormula) return true;
-        if (++seen > maxFormulas) {
-            tooMany = true;
-            return false;
+    {
+        // (the formulas are read in the calculation, which the worker is working in: it is held back while they are read)
+        std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+        for (int waited = 0; !hold && waited < 30; waited += 10) {
+            QThread::msleep(10);
+            hold = m_loader->hold();
         }
-        const QString text = editText(sheet, row, col);
-        for (const FormulaRef &r : findReferences(text)) {
-            if (r.kind != FormulaRef::Kind::Range || (!r.sheet.isEmpty() && r.sheet.compare(name, Qt::CaseInsensitive) != 0)) continue;
-            // (a run of a hundred thousand lines or more is not a group a person made: it is left out, which also bounds the lines changed)
-            if (r.row2 > r.row1 && r.row2 - r.row1 < kMaxRowsPerResize && (r.row2 < row || r.row1 > row)) rowRuns.emplace_back(r.row1, r.row2);
-            if (r.col2 > r.col1 && (r.col2 < col || r.col1 > col)) columnRuns.emplace_back(r.col1, r.col2);
+        if (!hold) {
+            out.ok = false;
+            out.problem = tr("The workbook is busy. Try again in a moment.");
+            return out;
         }
-        return true;
-    });
+        const Calculation *calc = hold->calculation();
+        const jp::office::sheet::Sheet &sh = calc->sheet(sheet);
+        const quint32 lastRow = std::min<quint32>(sh.extentRows, kMaxRows), lastCol = std::min<quint32>(sh.extentCols, kMaxColumns);
+        if (lastRow > 0 && lastCol > 0)
+            sh.cells.forEachInRange(0, 0, lastRow - 1, lastCol - 1, [&](quint32 row, quint32 col, const Cell &cell) {
+                if (!cell.hasFormula()) return true;
+                ++rep.cellsRead;
+                const Calculation::CellContent content = calc->content(sheet, row, col);
+                if (!content.isFormula) return true;
+                if (++seen > maxFormulas) {
+                    tooMany = true;
+                    return false;
+                }
+                for (const FormulaRef &r : findReferences(content.formula)) {
+                    if (r.kind != FormulaRef::Kind::Range || (!r.sheet.isEmpty() && r.sheet.compare(name, Qt::CaseInsensitive) != 0)) continue;
+                    // (a block that lies wholly before or after the formula in both directions is one group, in the direction it is nearer in: a total below it makes rows, beside it columns)
+                    const bool above = r.row2 < row, below = r.row1 > row, left = r.col2 < col, right = r.col1 > col;
+                    const bool rowGroup = r.row2 > r.row1 && (above || below), colGroup = r.col2 > r.col1 && (left || right);
+                    const qint64 rowGap = above ? qint64(row) - r.row2 : qint64(r.row1) - row, colGap = left ? qint64(col) - r.col2 : qint64(r.col1) - col;
+                    if (rowGroup && (!colGroup || rowGap <= colGap)) {
+                        if (qint64(r.row2) - r.row1 + 1 > kMaxAutoOutlineLines) ++rep.tooLong;
+                        else rowRuns.emplace_back(r.row1, r.row2);
+                    } else if (colGroup) {
+                        columnRuns.emplace_back(r.col1, r.col2);
+                    }
+                }
+                return true;
+            });
+        if (!tooMany) {
+            rowsNow = outlineOf(sheet, false);
+            columnsNow = outlineOf(sheet, true);
+        }
+    }
     if (tooMany) {
         out.ok = false;
         out.problem = tr("This sheet has more formulas than Auto Outline reads (%1).").arg(QLocale().toString(maxFormulas));
         return out;
     }
+    rep.groupsFound = !rowRuns.empty() || !columnRuns.empty();
+    // (no formula calls for a group: the outline the sheet has is left as it is)
+    if (!rep.groupsFound) return out;
     std::sort(rowRuns.begin(), rowRuns.end());
     rowRuns.erase(std::unique(rowRuns.begin(), rowRuns.end()), rowRuns.end());
     std::sort(columnRuns.begin(), columnRuns.end());
     columnRuns.erase(std::unique(columnRuns.begin(), columnRuns.end()), columnRuns.end());
-    const auto rows = outlineOf(sheet, false).replaceWith(rowRuns), columns = outlineOf(sheet, true).replaceWith(columnRuns);
-    return bothOutlines(this, &m_undo, sheet, rows, columns, tr("Auto Outline"));
+    bool deeperRows = false, deeperColumns = false;
+    const auto rows = rowsNow.replaceWith(rowRuns, &deeperRows), columns = columnsNow.replaceWith(columnRuns, &deeperColumns);
+    rep.tooDeep = deeperRows || deeperColumns;
+    if (rows.empty() && columns.empty()) return out;
+    if (!replace && (hasGroups(rowsNow) || hasGroups(columnsNow))) {
+        out.ok = false;
+        out.confirm = true;
+        out.problem = tr("This sheet has an outline. Replace it with one made from the formulas?");
+        return out;
+    }
+    out = bothOutlines(this, &m_undo, sheet, rows, columns, tr("Auto Outline"));
+    rep.changed = out.ok;
+    return out;
 }
 
 EditSession::Outcome EditSession::clearOutline(int sheet)

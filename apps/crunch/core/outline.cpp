@@ -168,7 +168,7 @@ std::vector<OutlineChange> Outline::ungroup(quint32 first, quint32 last) const
     return out;
 }
 
-std::vector<OutlineChange> Outline::replaceWith(const std::vector<std::pair<quint32, quint32>> &runs) const
+std::vector<OutlineChange> Outline::replaceWith(const std::vector<std::pair<quint32, quint32>> &runs, bool *deeper) const
 {
     std::map<quint32, int> edges;   // where the number of runs over a line changes
     for (const auto &r : runs) {
@@ -182,6 +182,7 @@ std::vector<OutlineChange> Outline::replaceWith(const std::vector<std::pair<quin
     quint32 at = 0;
     for (auto it = edges.begin(); it != edges.end(); ++it) {
         const int level = std::min(depth, kMaxOutlineLevel);
+        if (deeper && depth > kMaxOutlineLevel) *deeper = true;
         if (level > 0) covered.emplace_back(at, it->first);
         if (level > 0)
             for (quint32 i = at; i < it->first; ++i) {

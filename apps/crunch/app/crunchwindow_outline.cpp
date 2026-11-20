@@ -4,12 +4,16 @@
 #include "app/crunchwindow.h"
 
 #include "app/outlinegutter.h"
+#include "app/uistyle.h"
 #include "core/editsession.h"
+#include "core/outline.h"
 #include "grid/gridview.h"
 #include "grid/pagelayoutview.h"
 
 #include <QAction>
 #include <QGridLayout>
+#include <QMessageBox>
+#include <QPushButton>
 #include <QUndoStack>
 
 #include <algorithm>
@@ -121,23 +125,54 @@ void CrunchWindow::groupSelected(bool columns, bool group)
     if (!o.ok) notice(tr("Outline"), o.problem);
 }
 
-// Auto Outline (the groups the sheet's formulas call for) or Clear Outline (all of the sheet's groups taken away), for rows and columns together, as one step.
+// Auto Outline (the groups the sheet's formulas call for) or Clear Outline (all of the sheet's groups taken away), for rows and columns together, as one step. An outline the sheet has is
+// replaced only when the person says so; when no formula calls for a group nothing is changed.
 void CrunchWindow::autoOutlineSheet(bool make)
 {
     if (m_edit.active) commitEdit(CellEditor::Way::Stay);
     if (m_edit.active || !editingAllowed()) return;
-    const int steps = m_session->undoStack()->count();
-    const crunch::EditSession::Outcome o = make ? m_session->autoOutline(m_sheet) : m_session->clearOutline(m_sheet);
+    if (!make) {
+        const int steps = m_session->undoStack()->count();
+        const crunch::EditSession::Outcome o = m_session->clearOutline(m_sheet);
+        if (!o.ok) notice(tr("Outline"), o.problem);
+        else if (m_session->undoStack()->count() == steps) notice(tr("Outline"), tr("This sheet has no outline to clear."));
+        else setStatus(tr("Outline cleared."));
+        return;
+    }
+    crunch::EditSession::AutoOutlineReport report;
+    crunch::EditSession::Outcome o = m_session->autoOutline(m_sheet, &report, false);
+    if (!o.ok && o.confirm) {
+        if (!askReplaceOutline()) return;   // (nothing is done, and nothing is said: it was the person's answer)
+        o = m_session->autoOutline(m_sheet, &report, true);
+    }
     if (!o.ok) {
         notice(tr("Outline"), o.problem);
         return;
     }
-    if (m_session->undoStack()->count() == steps) {
-        notice(tr("Outline"), make ? tr("No outline to make: no formula here adds up two or more rows or columns that lie wholly above, below, left of, or right of it, or the sheet's outline is already that.")
-                                   : tr("This sheet has no outline to clear."));
+    if (!report.groupsFound) {
+        notice(tr("Outline"), report.tooLong > 0 ? tr("The groups the formulas call for are longer than %1 rows, and were left out. Nothing was changed.").arg(QLocale().toString(crunch::EditSession::kMaxAutoOutlineLines))
+                                                 : tr("No totals were found: no formula here adds up two or more rows or columns that lie wholly above, below, left of, or right of it. Nothing was changed."));
         return;
     }
-    setStatus(make ? tr("Outline made from the formulas.") : tr("Outline cleared."));
+    if (!report.changed) {
+        notice(tr("Outline"), tr("The outline of this sheet is already the one its formulas call for. Nothing was changed."));
+        return;
+    }
+    QString said = tr("Outline made from the formulas.");
+    if (report.tooDeep) said += QLatin1Char(' ') + tr("Some groups were left out because an outline has at most %1 levels.").arg(crunch::kMaxOutlineLevel);
+    if (report.tooLong > 0) said += QLatin1Char(' ') + tr("Groups of more than %1 rows were left out.").arg(QLocale().toString(crunch::EditSession::kMaxAutoOutlineLines));
+    setStatus(said);
+}
+
+bool CrunchWindow::askReplaceOutline()
+{
+    if (m_outlineReplaceAsker) return m_outlineReplaceAsker();
+    jp::MessageBox box(QMessageBox::Question, tr("Auto Outline"), tr("This sheet has an outline. Replace it with one made from the formulas?"), QMessageBox::NoButton, this);
+    box.setTextFormat(Qt::PlainText);
+    QPushButton *replace = box.addButton(tr("Replace"), QMessageBox::AcceptRole);
+    box.addButton(QMessageBox::Cancel);
+    box.exec();
+    return box.clickedButton() == replace;
 }
 
 } // namespace jp
