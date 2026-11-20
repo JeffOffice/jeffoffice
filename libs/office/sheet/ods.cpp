@@ -85,6 +85,7 @@ struct Found {
     QString tableQName;
     QVector<NamedItem> names;
     QHash<QString, QHash<QString, QString>> sheetViews;   // by sheet name: the items of its view settings
+    QMap<int, QString> externalLinks;                    // the workbooks the formulas read, by their numbers (the settings of a file of ours keep them)
     QHash<QString, QString> viewItems;                    // the view's own (ActiveTable, ShowGrid)
     qint64 oleObjectCount = 0;   // the draw:object-ole elements of the document
     bool charts = false, oleObjects = false, drawings = false, comments = false, pivots = false, macros = false, conditional = false, validation = false, hyperlinks = false;
@@ -481,7 +482,12 @@ private:
             if (name == QLatin1String("config-item")) {
                 if (m_inConfigItem) {
                     const QString sheet = configSheet();
-                    if (!sheet.isEmpty() && (m_f.sheetViews.size() < 4000 || m_f.sheetViews.contains(sheet))) {
+                    bool inLinks = false;
+                    for (const auto &e : m_config) inLinks = inLinks || (e.first == QLatin1String("config-item-set") && e.second == QLatin1String("jo:external-links"));
+                    if (inLinks) {
+                        const int number = m_configItem.toInt();
+                        if (number >= 1 && number <= 4000 && m_f.externalLinks.size() < 4000 && m_text.size() < 8192) m_f.externalLinks.insert(number, m_text);
+                    } else if (!sheet.isEmpty() && (m_f.sheetViews.size() < 4000 || m_f.sheetViews.contains(sheet))) {
                         auto &items = m_f.sheetViews[sheet];
                         if (items.size() < 200) items.insert(m_configItem, m_text);
                     } else if (configInViewEntry() && m_f.viewItems.size() < 200) {
@@ -767,6 +773,21 @@ struct OdsBook::Impl {
     double nullShift = 0;                // days to add to a number shown as a date, when the document counts from another null date
     QSet<quint32> dateXf;                // the cell formats that show a date or a time
     QHash<QString, QString> renames;     // the sheets whose names were changed to be valid in the .xlsx form, by the name the document gave
+    // The number of the workbook at an address that formulas read (from 1): the number the file gave it, or the next one if it names none.
+    int linkNumber(const QString &address) const
+    {
+        const QMutexLocker guard(&lock);
+        for (auto it = found.externalLinks.cbegin(); it != found.externalLinks.cend(); ++it)
+            if (it.value() == address) return it.key();
+        for (auto it = madeLinks.cbegin(); it != madeLinks.cend(); ++it)
+            if (it.value() == address) return it.key();
+        if (found.externalLinks.size() + madeLinks.size() >= 4000) return 0;
+        int number = 1;
+        while (found.externalLinks.contains(number) || madeLinks.contains(number)) ++number;
+        madeLinks.insert(number, address);
+        return number;
+    }
+    mutable QMap<int, QString> madeLinks;
     int renamedSheets = 0;
     int droppedNames = 0;                // the names whose expression could not be converted: they are left out
     mutable QMutex lock;                       // (the count below is set by whatever thread reads a sheet)
@@ -1019,9 +1040,10 @@ std::shared_ptr<const OdsBook> OdsBook::open(const QByteArray &file, bool flat, 
         m.shapes.append(shape);
     }
     // names
+    const std::function<int(const QString &)> links = [&m](const QString &address) { return m.linkNumber(address); };
     for (const NamedItem &n : std::as_const(m.found.names)) {
         bool ok = false;
-        const QString ref = n.isRange ? odfRangeToText(n.text, &ok, &m.renames) : odfFormulaToText(n.text, &ok, &m.renames);
+        const QString ref = n.isRange ? odfRangeToText(n.text, &ok, &m.renames) : odfFormulaToText(n.text, &ok, &m.renames, &links);
         if (!ok) {
             ++m.droppedNames;
             continue;
@@ -1533,7 +1555,8 @@ private:
         // ---- the formula
         if (!formula.isEmpty()) {
             bool good = false;
-            const QString converted = odfFormulaToText(formula, &good, &m_m.renames);
+            const std::function<int(const QString &)> links = [this](const QString &address) { return m_m.linkNumber(address); };
+            const QString converted = odfFormulaToText(formula, &good, &m_m.renames, &links);
             if (good && qint64(converted.size()) <= m_limits.formulaChars) {
                 p.hasFormula = true;
                 p.formula = converted;
@@ -1713,6 +1736,10 @@ private:
                 if (w > 0) {
                     span.width = w * 96.0 / 72.0 / m_m.maxDigitWidth;
                     span.customWidth = true;
+                } else if (r.hidden && hasZeroWidth(r)) {
+                    // (a column hidden by a width of nothing is a column with that width: the form of the other format)
+                    span.width = 0;
+                    span.customWidth = true;
                 }
                 if (!m_s.columns.isEmpty()) {
                     ColumnSpan &last = m_s.columns.last();
@@ -1888,6 +1915,13 @@ private:
         const ods::Props p = m_m.found.store.resolve(QStringLiteral("table-column"), r.style);
         if (ods::lengthPoints(p.value(QStringLiteral("col:style:column-width")), &pt) && pt > 0) return std::min(pt, odsdraw::kMaxSizePoints);
         return -1;
+    }
+
+    bool hasZeroWidth(const ColRun &r) const
+    {
+        double pt = -1;
+        const ods::Props p = m_m.found.store.resolve(QStringLiteral("table-column"), r.style);
+        return ods::lengthPoints(p.value(QStringLiteral("col:style:column-width")), &pt) && pt == 0;
     }
 
     double heightOf(const RowRun &r) const

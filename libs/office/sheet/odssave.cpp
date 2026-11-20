@@ -14,12 +14,14 @@
 #include "sheet/odsdraw.h"
 #include "sheet/odsformat.h"
 #include "sheet/headerfooter.h"
+#include "sheet/externalbooks.h"
 #include "sheet/odsformula.h"
 #include "sheet/oldsavecommon.h"
 
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QHash>
+#include <QMap>
 #include <QSet>
 
 #include <algorithm>
@@ -602,7 +604,14 @@ private:
         x += item(QStringLiteral("ActiveTable"), "string", m_views.isEmpty() ? QString() : m_views[active].name);
         x += item(QStringLiteral("ShowGrid"), "boolean", !m_views.isEmpty() && !m_views[active].view.showGridLines ? QStringLiteral("false") : QStringLiteral("true"));
         x += item(QStringLiteral("ShowZeroValues"), "boolean", !m_views.isEmpty() && !m_views[active].view.showZeros ? QStringLiteral("false") : QStringLiteral("true"));
-        x += QStringLiteral("</config:config-item-map-entry></config:config-item-map-indexed></config:config-item-set></office:settings></office:document-settings>");
+        x += QStringLiteral("</config:config-item-map-entry></config:config-item-map-indexed></config:config-item-set>");
+        // (the numbers the formulas of this file give to the workbooks they read, so that they are read back with the same numbers)
+        if (!m_linksWritten.isEmpty()) {
+            x += QStringLiteral("<config:config-item-set config:name=\"jo:external-links\">");
+            for (auto it = m_linksWritten.cbegin(); it != m_linksWritten.cend(); ++it) x += item(QString::number(it.key()), "string", it.value());
+            x += QStringLiteral("</config:config-item-set>");
+        }
+        x += QStringLiteral("</office:settings></office:document-settings>");
         return x;
     }
 
@@ -729,9 +738,9 @@ private:
     // ---- names
 
     // A reference as the document writes it inside brackets.
-    QString odfRef(const jp::calc::RefLit &r, const QString &s1, const QString &s2, bool hasSheet, bool area) const
+    QString odfRef(const jp::calc::RefLit &r, const QString &s1, const QString &s2, bool hasSheet, bool area, bool external = false) const
     {
-        auto sheetPart = [&](const QString &name) { return QLatin1Char('$') + quoteSheet(m_nameOfFormula.value(name, name)) + QLatin1Char('.'); };
+        auto sheetPart = [&](const QString &name) { return QLatin1Char('$') + quoteSheet(external ? name : m_nameOfFormula.value(name, name)) + QLatin1Char('.'); };
         auto cell = [&](quint32 row, quint32 col, bool rowAbs, bool colAbs) {
             return QString(colAbs ? QStringLiteral("$") : QString()) + jp::calc::columnLetters(col) + (rowAbs ? QStringLiteral("$") : QString()) + QString::number(row + 1);
         };
@@ -750,9 +759,79 @@ private:
         return out;
     }
 
-    // The formula in OpenFormula ("of:=..."): references in brackets, arguments joined by semicolons, the names of the standard's functions. False if the text has something it cannot say.
-    bool toOpenFormula(const QString &text, QString *out) const
+    // The formula's text without the numbers of links in front of sheet names; where each reference that had one now starts, by the number.
+    static QString withoutLinkNumbers(const QString &text, QHash<int, int> *at)
     {
+        if (!text.contains(QLatin1Char('['))) return text;
+        QString out;
+        const int n = text.size();
+        for (int i = 0; i < n;) {
+            const QChar c = text[i];
+            if (c == QLatin1Char('"')) {
+                int j = i + 1;
+                while (j < n && !(text[j] == QLatin1Char('"') && !(j + 1 < n && text[j + 1] == QLatin1Char('"')))) j += text[j] == QLatin1Char('"') ? 2 : 1;
+                j = std::min(j + 1, n);
+                out += text.mid(i, j - i);
+                i = j;
+                continue;
+            }
+            const bool quoted = c == QLatin1Char('\'') && i + 1 < n && text[i + 1] == QLatin1Char('[');
+            const int open = quoted ? i + 1 : i;
+            if (text[open] == QLatin1Char('[') && (quoted || i == 0 || !(text[i - 1].isLetterOrNumber() || text[i - 1] == QLatin1Char('_') || text[i - 1] == QLatin1Char('.') || text[i - 1] == QLatin1Char(']')))) {
+                int j = open + 1;
+                while (j < n && text[j].isDigit() && j - open < 6) ++j;
+                if (j > open + 1 && j < n && text[j] == QLatin1Char(']') && j + 1 < n && (text[j + 1].isLetter() || text[j + 1] == QLatin1Char('_') || text[j + 1] == QLatin1Char('\'') || quoted)) {
+                    at->insert(int(out.size()), text.mid(open + 1, j - open - 1).toInt());
+                    if (quoted) {
+                        // (the name goes on to its closing quote: kept whole, so that the quote is not taken for the start of another)
+                        int k = j + 1;
+                        while (k < n && !(text[k] == QLatin1Char('\'') && !(k + 1 < n && text[k + 1] == QLatin1Char('\'')))) k += text[k] == QLatin1Char('\'') ? 2 : 1;
+                        k = std::min(k + 1, n);
+                        out += QLatin1Char('\'') + text.mid(j + 1, k - j - 1);
+                        i = k;
+                    } else {
+                        i = j + 1;
+                    }
+                    continue;
+                }
+            }
+            if (c == QLatin1Char('\'') ) {
+                // (a quoted name: kept as it is, up to its end)
+                int j = i + 1;
+                while (j < n && !(text[j] == QLatin1Char('\'') && !(j + 1 < n && text[j + 1] == QLatin1Char('\'')))) j += text[j] == QLatin1Char('\'') ? 2 : 1;
+                j = std::min(j + 1, n);
+                out += text.mid(i, j - i);
+                i = j;
+                continue;
+            }
+            out += c;
+            ++i;
+        }
+        return out;
+    }
+
+    // The address of the workbook a link (counted from 1) points to, and the links written, for the settings that give the numbers back.
+    QString linkTarget(int number) const
+    {
+        if (!m_externalsRead) {
+            m_externalsRead = true;
+            m_externals = ExternalBooks::read(m_book, QString());
+        }
+        const QString target = m_externals ? m_externals->target(number) : QString();
+        if (!target.isEmpty()) m_linksWritten.insert(number, target);
+        return target;
+    }
+    mutable bool m_externalsRead = false;
+    mutable std::shared_ptr<ExternalBooks> m_externals;
+    mutable QMap<int, QString> m_linksWritten;
+
+    // The formula in OpenFormula ("of:=..."): references in brackets, arguments joined by semicolons, the names of the standard's functions. False if the text has something it cannot say.
+    bool toOpenFormula(const QString &written, QString *out) const
+    {
+        // A cell of another workbook is `[3]Sheet1!A1` (or `'[3]My Sheet'!A1`): the number is the workbook's place in the list of links. The numbers are taken out here and put back as the workbook's address.
+        QHash<int, int> externalAt;
+        const QString text = withoutLinkNumbers(written, &externalAt);
+        int externalsWritten = 0;
         std::vector<jp::calc::ReferenceAt> refs;
         jp::calc::ParseOptions opts;
         opts.limits = jp::calc::ParseLimits::grid();
@@ -769,6 +848,15 @@ private:
             if (next < refs.size() && refs[next].start == i) {
                 const jp::calc::ReferenceAt &r = refs[next++];
                 if (r.afterWorkbook) return false;
+                if (const auto link = externalAt.constFind(r.start); link != externalAt.cend()) {
+                    ++externalsWritten;
+                    const QString target = linkTarget(link.value());
+                    if (target.isEmpty() || r.sheet1.isEmpty()) return false;
+                    res += QStringLiteral("['") + QString(target).replace(QLatin1Char('\''), QStringLiteral("''")) + QStringLiteral("'#")
+                           + odfRef(r.ref, r.sheet1, r.sheet2, true, r.ref.row1 != r.ref.row2 || r.ref.col1 != r.ref.col2 || (r.ref.flags & jp::calc::kRefArea), true) + QLatin1Char(']');
+                    i = r.end;
+                    continue;
+                }
                 res += QLatin1Char('[') + odfRef(r.ref, r.sheet1, r.sheet2, !r.sheet1.isEmpty(), r.ref.row1 != r.ref.row2 || r.ref.col1 != r.ref.col2 || (r.ref.flags & jp::calc::kRefArea)) + QLatin1Char(']');
                 i = r.end;
                 continue;
@@ -842,6 +930,7 @@ private:
                 ++i;
             }
         }
+        if (externalsWritten != externalAt.size()) return false;   // (a link number in front of something that is not cells: a name of the other workbook)
         *out = QStringLiteral("of:=") + res;
         return true;
     }

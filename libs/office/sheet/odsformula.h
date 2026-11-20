@@ -10,11 +10,15 @@
 #include <QHash>
 #include <QString>
 
+#include <functional>
+
 namespace jp::office::sheet {
 
 // `formula` as the attribute holds it (with its "of:" or "oooc:" namespace prefix and "=", or without either). The converted text, or an empty one and `ok` false.
 // `sheetNames`, if given, is the sheets whose names were changed (the document's name to the new one): a reference to one is written with the new name.
-QString odfFormulaToText(const QString &formula, bool *ok = nullptr, const QHash<QString, QString> *sheetNames = nullptr);
+// `links`, if given, is asked for the number (from 1) of the workbook a reference to another file's cells names by its address ("file:///x.xlsx"): such a reference is written
+// `[2]Sheet1!A1` (`'[2]My Sheet'!A1`), as the .xlsx form writes it. Without it, a formula that reads another file's cells is not converted.
+QString odfFormulaToText(const QString &formula, bool *ok = nullptr, const QHash<QString, QString> *sheetNames = nullptr, const std::function<int(const QString &)> *links = nullptr);
 
 // A cell range as the attributes of a named range write it: "$Sheet1.$A$1:.$B$2" or "$'My Sheet'.A1" gives "Sheet1!$A$1:$B$2" or "'My Sheet'!A1". `ok` false if it is no range.
 QString odfRangeToText(const QString &address, bool *ok = nullptr, const QHash<QString, QString> *sheetNames = nullptr);

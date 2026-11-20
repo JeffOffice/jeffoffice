@@ -402,6 +402,21 @@ private Q_SLOTS:
         QCOMPARE(shown(wb, s, QStringLiteral("D2")), QStringLiteral("n:2"));
     }
 
+    // A column that is hidden by a width of nothing keeps that width (as a hidden column of the XML form has one), so that a copy of a workbook has the widths the workbook had.
+    void aHiddenColumnOfNoWidthKeepsItsWidth()
+    {
+        const QString styles = QStringLiteral("<style:style style:name=\"co1\" style:family=\"table-column\"><style:table-column-properties style:column-width=\"1in\"/></style:style>"
+                                              "<style:style style:name=\"co0\" style:family=\"table-column\"><style:table-column-properties style:column-width=\"0in\"/></style:style>");
+        const QString cols = QStringLiteral("<table:table-column table:style-name=\"co1\" table:number-columns-repeated=\"3\"/><table:table-column table:style-name=\"co0\" table:visibility=\"collapse\"/><table:table-column table:style-name=\"co1\"/>");
+        Workbook wb = open(simple(table(QStringLiteral("S"), cols + row(floatCell(1))), styles));
+        const Sheet s = readSheet(wb);
+        QCOMPARE(s.columns.size(), 1);
+        QCOMPARE(s.columns[0].first, 3u);
+        QVERIFY(s.columns[0].hidden);
+        QVERIFY(s.columns[0].customWidth);
+        QCOMPARE(s.columns[0].width, 0.0);
+    }
+
     // Column widths and row heights (in the document's units), hidden and filtered rows and columns, and the sizes most columns and rows share becoming the sheet's own.
     void sizesAndHiddenRowsAndColumns()
     {
@@ -469,6 +484,62 @@ private Q_SLOTS:
         QCOMPARE(wb.info().sheets[0].name, QStringLiteral(" Lead"));
         QCOMPARE(wb.info().sheets[1].name, QStringLiteral("Trail  "));
         QCOMPARE(wb.info().sheets[2].name, QStringLiteral("Sheet3"));
+    }
+
+    // A workbook of the XML form that links to two other workbooks (the second is the only one its formulas read): its cells are `rows`.
+    static QByteArray twoLinksXlsx(const QString &rows)
+    {
+        QMap<QString, QByteArray> parts;
+        jp::readZip(sheettest::buildXlsx({sheettest::worksheet(rows)}), parts);
+        QString references;
+        for (int n = 1; n <= 2; ++n) {
+            const QString part = QStringLiteral("xl/externalLinks/externalLink%1.xml").arg(n);
+            parts[part] = "<externalLink xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><externalBook r:id=\"rId1\">"
+                          "<sheetNames><sheetName val=\"Sheet1\"/></sheetNames><sheetDataSet><sheetData sheetId=\"0\"><row r=\"1\"><c r=\"A1\"><v>5</v></c></row></sheetData></sheetDataSet></externalBook></externalLink>";
+            parts[QStringLiteral("xl/externalLinks/_rels/externalLink%1.xml.rels").arg(n)] =
+                QStringLiteral("<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/externalLinkPath\" Target=\"file:///dir/book%1.xlsx\" TargetMode=\"External\"/></Relationships>")
+                    .arg(n).toUtf8();
+            parts[QStringLiteral("[Content_Types].xml")].replace("</Types>", "<Override PartName=\"/" + part.toUtf8() + "\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.externalLink+xml\"/></Types>");
+            parts[QStringLiteral("xl/_rels/workbook.xml.rels")].replace("</Relationships>", "<Relationship Id=\"rIdEx" + QByteArray::number(n) + "\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/externalLink\" Target=\"externalLinks/externalLink" + QByteArray::number(n) + ".xml\"/></Relationships>");
+            references += QStringLiteral("<externalReference r:id=\"rIdEx%1\"/>").arg(n);
+        }
+        parts[QStringLiteral("xl/workbook.xml")].replace("</sheets>", ("</sheets><externalReferences>" + references + "</externalReferences>").toUtf8());
+        jp::ZipWriter z;
+        for (auto it = parts.begin(); it != parts.end(); ++it) z.add(it.key(), it.value(), true);
+        return z.finish();
+    }
+
+    // A formula that reads another workbook's cells (`[2]Sheet1!A1`, `'[2]My Sheet'!B2:C3`) is written with that workbook's address, kept as a formula, and read back with the same number: a copy of a workbook is
+    // the workbook, not its values.
+    void aFormulaThatReadsAnotherWorkbookKeepsItsLink()
+    {
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><f>[2]Sheet1!A1*2</f><v>10</v></c><c r=\"B1\"><f>SUM('[2]My Sheet'!B2:C3)+'[2]My Sheet'!D1</f><v>4</v></c><c r=\"C1\"><f>A1+1</f><v>11</v></c></row>");
+        Package package;
+        Workbook wb;
+        QString why;
+        QVERIFY2(package.readLazy(twoLinksXlsx(rows), &why) && wb.open(package, &why), qPrintable(why));
+        QByteArray ods;
+        CopyReport report;
+        QVERIFY2(saveOds(wb, &ods, &report, &why), qPrintable(why));
+        QCOMPARE(report.formulas, qint64(3));
+        QCOMPARE(report.formulasAsValues, qint64(0));
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(ods, parts));
+        QVERIFY2(parts.value(QStringLiteral("content.xml")).contains("['file:///dir/book2.xlsx'#$Sheet1.A1]"), parts.value(QStringLiteral("content.xml")).constData());
+        Workbook back = open(ods);
+        QCOMPARE(back.info().sheets.size(), 1);
+        const Sheet s = readSheet(back);
+        QCOMPARE(formulaOf(s, QStringLiteral("A1")), QStringLiteral("[2]Sheet1!A1*2"));
+        QCOMPARE(formulaOf(s, QStringLiteral("B1")), QStringLiteral("SUM('[2]My Sheet'!B2:C3)+'[2]My Sheet'!D1"));
+        QCOMPARE(formulaOf(s, QStringLiteral("C1")), QStringLiteral("A1+1"));
+    }
+
+    // A file that gives no numbers to the workbooks its formulas read (one made by another program) gets them in the order the addresses are met.
+    void workbooksReadByFormulasAreNumberedInTheOrderMet()
+    {
+        Workbook wb = open(simple(table(QStringLiteral("S"), row(cell(QStringLiteral("table:formula=\"of:=['file:///x/b.ods'#$Sheet1.A1]+['file:///x/a.ods'#$Sheet1.A1]+['file:///x/b.ods'#$Sheet1.B2]\" office:value-type=\"float\" office:value=\"3\""), QStringLiteral("<text:p>3</text:p>"))))));
+        const Sheet s = readSheet(wb);
+        QCOMPARE(formulaOf(s, QStringLiteral("A1")), QStringLiteral("[1]Sheet1!A1+[2]Sheet1!A1+[1]Sheet1!B2"));
     }
 
     // A split that is not held (mode 1: the bars are at a place in pixels) is read and written again: the bars in twentieths of a point, and the cells the lower right part begins at.

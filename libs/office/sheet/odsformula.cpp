@@ -37,6 +37,8 @@ QString quoted(const QString &name)
 // The names of the sheets that were changed to be valid in the .xlsx form (by the name the document gave); a reference to one is written with the new name. Set for the length of one
 // conversion by the callers below.
 thread_local const QHash<QString, QString> *t_renames = nullptr;
+// The numbers of the other files' workbooks, when the caller keeps them.
+thread_local const std::function<int(const QString &)> *t_links = nullptr;
 
 QString renamed(const QString &sheet)
 {
@@ -299,9 +301,26 @@ private:
         if (j >= n) return false;
         const QString inner = m_f.mid(m_i + 1, j - m_i - 1).trimmed();
         // another file's cells: 'file:///x.ods'#$Sheet1.A1
-        if (inner.startsWith(QLatin1Char('\'')) && inner.contains(QLatin1String("'#"))) return false;
         QString text;
-        if (!referenceText(inner, &text)) return false;
+        if (inner.startsWith(QLatin1Char('\'')) && inner.contains(QLatin1String("'#"))) {
+            if (!t_links) return false;
+            QString url;
+            int k = 1;
+            for (; k < inner.size(); ++k) {
+                if (inner[k] == QLatin1Char('\'')) {
+                    if (k + 1 < inner.size() && inner[k + 1] == QLatin1Char('\'')) ++k;
+                    else break;
+                }
+                url += inner[k];
+            }
+            if (k + 1 >= inner.size() || inner[k + 1] != QLatin1Char('#') || url.isEmpty() || !referenceText(inner.mid(k + 2), &text)) return false;
+            const int number = (*t_links)(url);
+            if (number < 1) return false;
+            const QString mark = QLatin1Char('[') + QString::number(number) + QLatin1Char(']');
+            text = text.startsWith(QLatin1Char('\'')) ? QLatin1Char('\'') + mark + text.mid(1) : mark + text;
+        } else if (!referenceText(inner, &text)) {
+            return false;
+        }
         m_levels.back().operandStart = m_out.size();
         m_out += text;
         m_i = j + 1;
@@ -417,9 +436,14 @@ struct RenameScope {
 };
 } // namespace
 
-QString odfFormulaToText(const QString &formula, bool *ok, const QHash<QString, QString> *sheetNames)
+QString odfFormulaToText(const QString &formula, bool *ok, const QHash<QString, QString> *sheetNames, const std::function<int(const QString &)> *links)
 {
     RenameScope scope(sheetNames);
+    struct LinkScope {
+        explicit LinkScope(const std::function<int(const QString &)> *l) : old(t_links) { t_links = l; }
+        ~LinkScope() { t_links = old; }
+        const std::function<int(const QString &)> *old;
+    } linkScope(links);
     auto fail = [&]() {
         if (ok) *ok = false;
         return QString();
