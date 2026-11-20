@@ -10,6 +10,9 @@
 #include <QHash>
 #include <QString>
 
+#include <QStringList>
+
+#include <atomic>
 #include <functional>
 
 namespace jp::office::sheet {
@@ -22,6 +25,28 @@ QString odfFormulaToText(const QString &formula, bool *ok = nullptr, const QHash
 
 // A cell range as the attributes of a named range write it: "$Sheet1.$A$1:.$B$2" or "$'My Sheet'.A1" gives "Sheet1!$A$1:$B$2" or "'My Sheet'!A1". `ok` false if it is no range.
 QString odfRangeToText(const QString &address, bool *ok = nullptr, const QHash<QString, QString> *sheetNames = nullptr);
+
+// The address a workbook's file is named by in a formula, in the standard's file address form: a path with backslashes or spaces ("C:\\my dir\\b.xlsx") is "file:///C:/my%20dir/b.xlsx",
+// and a character an address may not hold ("]", "#", "%" of a path) is percent-encoded. (Apostrophes stay: the formula doubles them where it quotes the address.) The same text gives the same address.
+QString odfLinkAddress(const QString &target);
+
+// The workbooks formulas read, numbered from 1 (the numbers the .xlsx form gives its links): each is kept as its file named it (`target`) and found by the address formulas name it by.
+// Filled before any sheet is read and not changed after, so that the numbers do not depend on which sheet is read first, and asked from any thread.
+class OdsLinkTable {
+public:
+    static constexpr int kMost = 4000;
+    // The number of the workbook at `address` (the next number if it is new, with `target` as its file); 0 if there are already the most.
+    int add(const QString &target, const QString &address);
+    int numberOf(const QString &address) const;   // 0 if none
+    QStringList targets() const { return m_targets; }
+    // The entries looked at by all the asks of numberOf: one for each (a test counts it: it must not grow with the number of workbooks).
+    qint64 entriesExamined() const { return m_examined.load(); }
+
+private:
+    QHash<QString, int> m_byAddress;
+    QStringList m_targets;
+    mutable std::atomic<qint64> m_examined{0};
+};
 
 // A cell address without sheet ("B3", "$B$3") as a row and column (from 0); false if it is none.
 bool odfCellOf(const QString &text, quint32 *row, quint32 *col);

@@ -1,5 +1,6 @@
 #include "core/loader.h"
 #include "sheet/externalbooks.h"
+#include "sheet/foreignbook.h"
 #include "sheet/drawing.h"
 #include "sheet/xlsxbase.h"
 #include "io/crypto.h"
@@ -321,6 +322,11 @@ bool loadWhole(LoadedBook *out, const std::function<bool()> &cancelled, const st
         out->externals = jp::office::sheet::ExternalBooks::read(*out->book, out->path.isEmpty() ? QString() : QFileInfo(out->path).absolutePath(), out->path.isEmpty() ? QDateTime() : QFileInfo(out->path).lastModified());
         // (a workbook with no links has the list too: a formula typed with the name of an open workbook makes the first)
         if (!out->externals) out->externals = std::make_shared<jp::office::sheet::ExternalBooks>();
+    } else if (const jp::office::sheet::ForeignBook *foreign = out->book->foreignBook(); foreign && !foreign->externalTargets().isEmpty()) {
+        // (a workbook read from an OpenDocument file has its links listed as an .xlsx one does: the same numbers, and saved again with them)
+        out->externals = std::make_shared<jp::office::sheet::ExternalBooks>();
+        if (!out->path.isEmpty()) out->externals->setBaseDir(QFileInfo(out->path).absolutePath());
+        for (const QString &target : foreign->externalTargets()) out->externals->addLink(target);
     }
     options.externals = out->externals;
     auto calc = std::make_unique<Calculation>(*out->book, options);

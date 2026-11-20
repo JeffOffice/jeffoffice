@@ -21,6 +21,8 @@ public:
     virtual QStringList skipped() const = 0;
     // What was changed to fit the model, in words with counts ("3 sheet names", "12 formulas"): known in full once the sheets are read.
     virtual QStringList changed() const { return QStringList(); }
+    // The addresses of the other workbooks the formulas read, by their numbers (the first is number 1): the links of the workbook, as the .xlsx form lists them.
+    virtual QStringList externalTargets() const { return QStringList(); }
     // Whether sheet `index` may have drawing objects (a quick look; they are in Sheet::importedDrawing once the sheet is read, and written to the .xlsx a save makes).
     virtual bool mayHaveDrawings(int index) const
     {

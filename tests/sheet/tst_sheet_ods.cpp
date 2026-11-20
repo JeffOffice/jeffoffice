@@ -6,6 +6,9 @@
 #include "calc/numfmt.h"
 #include "io/zip.h"
 #include "sheet/ods.h"
+#include "sheet/externalbooks.h"
+#include "sheet/foreignbook.h"
+#include "sheet/odsformula.h"
 #include "sheet/oldsave.h"
 #include "sheet/xlsxbase.h"
 
@@ -487,18 +490,20 @@ private Q_SLOTS:
     }
 
     // A workbook of the XML form that links to two other workbooks (the second is the only one its formulas read): its cells are `rows`.
-    static QByteArray twoLinksXlsx(const QString &rows)
+    static QByteArray twoLinksXlsx(const QString &rows) { return linksXlsx(rows, {QStringLiteral("file:///dir/book1.xlsx"), QStringLiteral("file:///dir/book2.xlsx")}); }
+    // ... and one that links to the workbooks at these addresses.
+    static QByteArray linksXlsx(const QString &rows, const QStringList &targets)
     {
         QMap<QString, QByteArray> parts;
         jp::readZip(sheettest::buildXlsx({sheettest::worksheet(rows)}), parts);
         QString references;
-        for (int n = 1; n <= 2; ++n) {
+        for (int n = 1; n <= int(targets.size()); ++n) {
             const QString part = QStringLiteral("xl/externalLinks/externalLink%1.xml").arg(n);
             parts[part] = "<externalLink xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><externalBook r:id=\"rId1\">"
                           "<sheetNames><sheetName val=\"Sheet1\"/></sheetNames><sheetDataSet><sheetData sheetId=\"0\"><row r=\"1\"><c r=\"A1\"><v>5</v></c></row></sheetData></sheetDataSet></externalBook></externalLink>";
             parts[QStringLiteral("xl/externalLinks/_rels/externalLink%1.xml.rels").arg(n)] =
-                QStringLiteral("<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/externalLinkPath\" Target=\"file:///dir/book%1.xlsx\" TargetMode=\"External\"/></Relationships>")
-                    .arg(n).toUtf8();
+                QStringLiteral("<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\"><Relationship Id=\"rId1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/externalLinkPath\" Target=\"%1\" TargetMode=\"External\"/></Relationships>")
+                    .arg(QString(targets[n - 1]).toHtmlEscaped()).toUtf8();
             parts[QStringLiteral("[Content_Types].xml")].replace("</Types>", "<Override PartName=\"/" + part.toUtf8() + "\" ContentType=\"application/vnd.openxmlformats-officedocument.spreadsheetml.externalLink+xml\"/></Types>");
             parts[QStringLiteral("xl/_rels/workbook.xml.rels")].replace("</Relationships>", "<Relationship Id=\"rIdEx" + QByteArray::number(n) + "\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/externalLink\" Target=\"externalLinks/externalLink" + QByteArray::number(n) + ".xml\"/></Relationships>");
             references += QStringLiteral("<externalReference r:id=\"rIdEx%1\"/>").arg(n);
@@ -540,6 +545,120 @@ private Q_SLOTS:
         Workbook wb = open(simple(table(QStringLiteral("S"), row(cell(QStringLiteral("table:formula=\"of:=['file:///x/b.ods'#$Sheet1.A1]+['file:///x/a.ods'#$Sheet1.A1]+['file:///x/b.ods'#$Sheet1.B2]\" office:value-type=\"float\" office:value=\"3\""), QStringLiteral("<text:p>3</text:p>"))))));
         const Sheet s = readSheet(wb);
         QCOMPARE(formulaOf(s, QStringLiteral("A1")), QStringLiteral("[1]Sheet1!A1+[2]Sheet1!A1+[1]Sheet1!B2"));
+    }
+
+    // The links of a workbook read from an .ods file are the workbook's own, as an .xlsx workbook's are: saved again (as an .ods or as an .xlsx), the formulas, the addresses, and the numbers are what they were, and the
+    // .xlsx has the parts of its links.
+    void theLinksOfAnOdsWorkbookAreKeptThroughEverySave()
+    {
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><f>[1]Sheet1!A1+[2]Sheet1!A1</f><v>10</v></c><c r=\"B1\"><f>SUM('[2]My Sheet'!B2:C3)</f><v>4</v></c></row>");
+        Package package;
+        Workbook wb;
+        QString why;
+        QVERIFY2(package.readLazy(twoLinksXlsx(rows), &why) && wb.open(package, &why), qPrintable(why));
+        QByteArray first;
+        CopyReport report;
+        QVERIFY2(saveOds(wb, &first, &report, &why), qPrintable(why));
+        Workbook once = open(first);
+        QVERIFY(once.foreignBook());
+        QCOMPARE(once.foreignBook()->externalTargets(), (QStringList{QStringLiteral("file:///dir/book1.xlsx"), QStringLiteral("file:///dir/book2.xlsx")}));
+        // saved as an .ods again
+        QByteArray second;
+        CopyReport again;
+        QVERIFY2(saveOds(once, &second, &again, &why), qPrintable(why));
+        QCOMPARE(again.formulas, qint64(2));
+        QCOMPARE(again.formulasAsValues, qint64(0));
+        Workbook twice = open(second);
+        QCOMPARE(twice.foreignBook()->externalTargets(), once.foreignBook()->externalTargets());
+        QCOMPARE(formulaOf(readSheet(twice), QStringLiteral("A1")), QStringLiteral("[1]Sheet1!A1+[2]Sheet1!A1"));
+        QCOMPARE(formulaOf(readSheet(twice), QStringLiteral("B1")), QStringLiteral("SUM('[2]My Sheet'!B2:C3)"));
+        // saved as an .xlsx: the formulas name the links, and the links are there
+        QByteArray xlsx;
+        QVERIFY2(saveXlsx(once, SaveChanges(), &xlsx, &why), qPrintable(why));
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(xlsx, parts));
+        QVERIFY(parts.contains(QStringLiteral("xl/externalLinks/externalLink1.xml")));
+        QVERIFY(parts.contains(QStringLiteral("xl/externalLinks/externalLink2.xml")));
+        QVERIFY(!parts.contains(QStringLiteral("xl/externalLinks/externalLink3.xml")));
+        QVERIFY(parts.value(QStringLiteral("xl/externalLinks/_rels/externalLink2.xml.rels")).contains("Target=\"file:///dir/book2.xlsx\""));
+        QVERIFY(parts.value(QStringLiteral("xl/workbook.xml")).contains("externalReference"));
+        Package xp;
+        Workbook xb;
+        QVERIFY2(xp.readLazy(xlsx, &why) && xb.open(xp, &why), qPrintable(why));
+        QCOMPARE(formulaOf(readSheet(xb), QStringLiteral("A1")), QStringLiteral("[1]Sheet1!A1+[2]Sheet1!A1"));
+        const std::shared_ptr<ExternalBooks> links = ExternalBooks::read(xb, QString());
+        QVERIFY(links);
+        QCOMPARE(links->count(), 2);
+        QCOMPARE(links->target(1), QStringLiteral("file:///dir/book1.xlsx"));
+        QCOMPARE(links->target(2), QStringLiteral("file:///dir/book2.xlsx"));
+    }
+
+    // The numbers of the workbooks a file's formulas read (a file that gives none) do not depend on which sheet is read first: they are those of the order of the sheets in the document.
+    void linkNumbersDoNotDependOnWhichSheetIsReadFirst()
+    {
+        const auto link = [](const char *file) { return QStringLiteral("table:formula=\"of:=['file:///x/%1'#$Sheet1.A1]\" office:value-type=\"float\" office:value=\"1\"").arg(QLatin1String(file)); };
+        const QByteArray ods = simple(table(QStringLiteral("S1"), row(floatCell(1))) + table(QStringLiteral("S2"), row(cell(link("b.ods"), QStringLiteral("<text:p>1</text:p>")) + cell(link("a.ods"), QStringLiteral("<text:p>1</text:p>"))))
+                                      + table(QStringLiteral("S3"), row(cell(link("a.ods"), QStringLiteral("<text:p>1</text:p>")) + cell(link("c.ods"), QStringLiteral("<text:p>1</text:p>")))));
+        Workbook inOrder = open(ods), lastFirst = open(ods);
+        const Sheet third = readSheet(lastFirst, 2);
+        const Sheet second = readSheet(lastFirst, 1);
+        const Sheet a2 = readSheet(inOrder, 1), a3 = readSheet(inOrder, 2);
+        QCOMPARE(formulaOf(third, QStringLiteral("A1")), QStringLiteral("[2]Sheet1!A1"));
+        QCOMPARE(formulaOf(third, QStringLiteral("B1")), QStringLiteral("[3]Sheet1!A1"));
+        QCOMPARE(formulaOf(second, QStringLiteral("A1")), QStringLiteral("[1]Sheet1!A1"));
+        QCOMPARE(formulaOf(second, QStringLiteral("B1")), QStringLiteral("[2]Sheet1!A1"));
+        QCOMPARE(formulaOf(a2, QStringLiteral("A1")), QStringLiteral("[1]Sheet1!A1"));
+        QCOMPARE(formulaOf(a3, QStringLiteral("B1")), QStringLiteral("[3]Sheet1!A1"));
+        QCOMPARE(lastFirst.foreignBook()->externalTargets(), (QStringList{QStringLiteral("file:///x/b.ods"), QStringLiteral("file:///x/a.ods"), QStringLiteral("file:///x/c.ods")}));
+    }
+
+    // Asking for a workbook's number is one look in a table, however many workbooks there are (not a search through them): the entries looked at are the asks, and no more.
+    void aLinkNumberIsLookedUpNotSearchedFor()
+    {
+        OdsLinkTable table;
+        QStringList addresses;
+        for (int i = 1; i <= OdsLinkTable::kMost; ++i) {
+            addresses << QStringLiteral("file:///x/book%1.ods").arg(i);
+            QCOMPARE(table.add(addresses.last(), addresses.last()), i);
+        }
+        QCOMPARE(table.add(QStringLiteral("one more"), QStringLiteral("one more")), 0);
+        QCOMPARE(table.add(addresses[7], addresses[7]), 8);   // (known: its number)
+        for (int i = 0; i < addresses.size(); ++i) QCOMPARE(table.numberOf(addresses[i]), i + 1);
+        QCOMPARE(table.numberOf(QStringLiteral("not there")), 0);
+        QCOMPARE(table.entriesExamined(), qint64(addresses.size() + 1));
+    }
+
+    // The address a workbook is written with in a formula is a valid one: a path with backslashes or spaces is the file address form, a character an address may not hold is escaped, an apostrophe is doubled; and it
+    // is read back as the same workbook, the file address the workbook has being what it was.
+    void aLinkAddressIsWrittenInTheFileAddressForm()
+    {
+        const QStringList targets{QStringLiteral("C:\\my dir\\it's [v2].xlsx"), QStringLiteral("\\\\srv\\share\\a b.xlsx"), QStringLiteral("sub\\a b#1.xlsx"), QStringLiteral("file:///dir/my book%20x.xlsx"),
+                                  QStringLiteral("https://host/a/b.xlsx?x=1")};
+        QString formula;
+        for (int i = 1; i <= int(targets.size()); ++i) formula += (i > 1 ? QStringLiteral("+") : QString()) + QStringLiteral("[%1]Sheet1!A1").arg(i);
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><f>%1</f><v>25</v></c></row>").arg(formula);
+        Package package;
+        Workbook wb;
+        QString why;
+        QVERIFY2(package.readLazy(linksXlsx(rows, targets), &why) && wb.open(package, &why), qPrintable(why));
+        QByteArray ods;
+        CopyReport report;
+        QVERIFY2(saveOds(wb, &ods, &report, &why), qPrintable(why));
+        QCOMPARE(report.formulasAsValues, qint64(0));
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(ods, parts));
+        const QByteArray content = parts.value(QStringLiteral("content.xml"));
+        for (const char *address : {"['file:///C:/my%20dir/it''s%20%5Bv2%5D.xlsx'#$Sheet1.A1]", "['file://srv/share/a%20b.xlsx'#$Sheet1.A1]", "['sub/a%20b%231.xlsx'#$Sheet1.A1]", "['file:///dir/my%20book%20x.xlsx'#$Sheet1.A1]",
+                                    "['https://host/a/b.xlsx?x=1'#$Sheet1.A1]"})
+            QVERIFY2(content.contains(address), address);
+        QVERIFY2(!content.contains("\\"), content.constData());
+        Workbook back = open(ods);
+        QCOMPARE(back.foreignBook()->externalTargets(), targets);
+        QCOMPARE(formulaOf(readSheet(back), QStringLiteral("A1")), formula);
+        // (written again, it is the same file's links)
+        QByteArray again;
+        QVERIFY2(saveOds(back, &again, &report, &why), qPrintable(why));
+        QCOMPARE(open(again).foreignBook()->externalTargets(), targets);
     }
 
     // A split that is not held (mode 1: the bars are at a place in pixels) is read and written again: the bars in twentieths of a point, and the cells the lower right part begins at.

@@ -43,6 +43,7 @@ public:
     bool readSheet(int index, const Limits &limits, const std::function<bool(qint64)> &progress, qint64 stopAfterRow, qint64 screenRows, Sheet *out) const override;
     QStringList skipped() const override { return m_skipped; }
     QStringList changed() const override;
+    QStringList externalTargets() const override;
     bool mayHaveDrawings(int index) const override;
     QString kind() const override { return m_flat ? QStringLiteral(".fods") : QStringLiteral(".ods"); }
     ~OdsBook() override;

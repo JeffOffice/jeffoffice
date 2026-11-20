@@ -541,6 +541,29 @@ struct Range {
     qsizetype from = 0, to = 0;
 };
 
+// The addresses of the workbooks that the formulas in a piece of content.xml read, in the order they are met: each formula that has one (`['file:///x.xlsx'#$Sheet1.A1]`) is
+// handed to `register` as the reading of a cell is (so that what is found here is what the reading finds).
+void scanLinks(QByteArrayView piece, const std::function<int(const QString &)> &registerAddress, const QHash<QString, QString> *renames)
+{
+    qsizetype at = 0;
+    while (true) {
+        at = piece.indexOf("formula=", at);
+        if (at < 0) return;
+        at += 8;
+        if (at >= piece.size()) return;
+        const char quote = piece[at];
+        if (quote != '"' && quote != '\'') continue;
+        const qsizetype end = piece.indexOf(quote, at + 1);
+        if (end < 0) return;
+        const QByteArrayView value = piece.mid(at + 1, end - at - 1);
+        at = end + 1;
+        if (value.indexOf("'#") < 0 && value.indexOf("&apos;#") < 0 && value.indexOf("&#39;#") < 0) continue;
+        bool ok = false;
+        odfFormulaToText(xmlscan::unescape(value), &ok, renames, &registerAddress);
+    }
+}
+
+
 // The byte ranges of the elements of this name that are not inside one another, in the XML held whole: found by searching, so that a sheet is read by itself, from a piece of the
 // bytes, with no need to read the sheets before it again. Empty, with `ok` false, if the start tags and end tags do not pair up.
 QVector<Range> findElements(const QByteArray &data, const QByteArray &qname, bool *ok)
@@ -773,21 +796,9 @@ struct OdsBook::Impl {
     double nullShift = 0;                // days to add to a number shown as a date, when the document counts from another null date
     QSet<quint32> dateXf;                // the cell formats that show a date or a time
     QHash<QString, QString> renames;     // the sheets whose names were changed to be valid in the .xlsx form, by the name the document gave
-    // The number of the workbook at an address that formulas read (from 1): the number the file gave it, or the next one if it names none.
-    int linkNumber(const QString &address) const
-    {
-        const QMutexLocker guard(&lock);
-        for (auto it = found.externalLinks.cbegin(); it != found.externalLinks.cend(); ++it)
-            if (it.value() == address) return it.key();
-        for (auto it = madeLinks.cbegin(); it != madeLinks.cend(); ++it)
-            if (it.value() == address) return it.key();
-        if (found.externalLinks.size() + madeLinks.size() >= 4000) return 0;
-        int number = 1;
-        while (found.externalLinks.contains(number) || madeLinks.contains(number)) ++number;
-        madeLinks.insert(number, address);
-        return number;
-    }
-    mutable QMap<int, QString> madeLinks;
+    // The workbooks formulas read, numbered (made once, before any sheet is read).
+    OdsLinkTable links;
+    int linkNumber(const QString &address) const { return links.numberOf(address); }
     int renamedSheets = 0;
     int droppedNames = 0;                // the names whose expression could not be converted: they are left out
     mutable QMutex lock;                       // (the count below is set by whatever thread reads a sheet)
@@ -802,6 +813,11 @@ struct OdsBook::Impl {
 };
 
 OdsBook::OdsBook() = default;
+
+QStringList OdsBook::externalTargets() const
+{
+    return m->links.targets();
+}
 OdsBook::~OdsBook() = default;
 
 bool looksLikeOpenDocumentZip(const QByteArray &zip)
@@ -1040,6 +1056,16 @@ std::shared_ptr<const OdsBook> OdsBook::open(const QByteArray &file, bool flat, 
         m.shapes.append(shape);
     }
     // names
+    // (the workbooks the formulas read are numbered here, before any sheet is read: the numbers the file gave them, then the others in the order the sheets are, and the names after them)
+    {
+        for (auto it = m.found.externalLinks.cbegin(); it != m.found.externalLinks.cend(); ++it) m.links.add(it.value(), odfLinkAddress(it.value()));
+        const std::function<int(const QString &)> make = [&m](const QString &address) { return m.links.add(address, address); };
+        for (const Range &r : std::as_const(m.slices)) scanLinks(QByteArrayView(m.content).mid(r.from, r.to - r.from), make, &m.renames);
+        for (const NamedItem &n : std::as_const(m.found.names)) {
+            bool ok = false;
+            if (!n.isRange && n.text.contains(QLatin1String("'#"))) odfFormulaToText(n.text, &ok, &m.renames, &make);
+        }
+    }
     const std::function<int(const QString &)> links = [&m](const QString &address) { return m.linkNumber(address); };
     for (const NamedItem &n : std::as_const(m.found.names)) {
         bool ok = false;

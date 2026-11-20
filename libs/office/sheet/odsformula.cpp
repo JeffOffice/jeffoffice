@@ -531,3 +531,58 @@ bool odfCellOf(const QString &text, quint32 *row, quint32 *col)
 }
 
 } // namespace jp::office::sheet
+
+namespace jp::office::sheet {
+
+QString odfLinkAddress(const QString &target)
+{
+    QString t = target;
+    t.replace(QLatin1Char('\\'), QLatin1Char('/'));
+    int scheme = 0;
+    while (scheme < t.size() && ((t[scheme].isLetterOrNumber() && t[scheme].unicode() < 128) || t[scheme] == QLatin1Char('+') || t[scheme] == QLatin1Char('-') || t[scheme] == QLatin1Char('.'))) ++scheme;
+    const bool schemed = scheme >= 2 && scheme < t.size() && t[scheme] == QLatin1Char(':') && t[0].isLetter();
+    QString prefix;
+    if (!schemed) {
+        const bool drive = t.size() >= 3 && t[0].isLetter() && t[0].unicode() < 128 && t[1] == QLatin1Char(':') && t[2] == QLatin1Char('/');
+        if (drive) prefix = QStringLiteral("file:///");
+        else if (t.startsWith(QLatin1String("//"))) {
+            prefix = QStringLiteral("file:");
+        } else if (t.startsWith(QLatin1Char('/'))) {
+            prefix = QStringLiteral("file://");
+        }
+    }
+    const auto hex = [](QChar c) { return c.unicode() < 128 && (c.isDigit() || (c.toLower() >= QLatin1Char('a') && c.toLower() <= QLatin1Char('f'))); };
+    QString out = prefix;
+    for (int i = 0; i < t.size(); ++i) {
+        const QChar c = t[i];
+        const ushort u = c.unicode();
+        const bool plain = (u < 128 && (c.isLetterOrNumber() || QLatin1String("-._~/:@!$&'()*+,;=").contains(c))) || u >= 128 || (schemed && c == QLatin1Char('?'));
+        // (a percent sign that begins an escape of an address that has them already is kept)
+        const bool escape = c == QLatin1Char('%') && schemed && i + 2 < t.size() && hex(t[i + 1]) && hex(t[i + 2]);
+        if (plain || escape) {
+            out += c;
+            continue;
+        }
+        const QByteArray bytes = QString(c).toUtf8();
+        for (const char b : bytes) out += QLatin1Char('%') + QString::number(uchar(b), 16).toUpper().rightJustified(2, QLatin1Char('0'));
+    }
+    return out;
+}
+
+int OdsLinkTable::add(const QString &target, const QString &address)
+{
+    const auto it = m_byAddress.constFind(address);
+    if (it != m_byAddress.constEnd()) return it.value();
+    if (m_targets.size() >= kMost) return 0;
+    m_targets.append(target);
+    m_byAddress.insert(address, int(m_targets.size()));
+    return int(m_targets.size());
+}
+
+int OdsLinkTable::numberOf(const QString &address) const
+{
+    m_examined.fetch_add(1, std::memory_order_relaxed);
+    return m_byAddress.value(address, 0);
+}
+
+} // namespace jp::office::sheet

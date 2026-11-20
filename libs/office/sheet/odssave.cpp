@@ -15,6 +15,7 @@
 #include "sheet/odsformat.h"
 #include "sheet/headerfooter.h"
 #include "sheet/externalbooks.h"
+#include "sheet/foreignbook.h"
 #include "sheet/odsformula.h"
 #include "sheet/oldsavecommon.h"
 
@@ -606,9 +607,11 @@ private:
         x += item(QStringLiteral("ShowZeroValues"), "boolean", !m_views.isEmpty() && !m_views[active].view.showZeros ? QStringLiteral("false") : QStringLiteral("true"));
         x += QStringLiteral("</config:config-item-map-entry></config:config-item-map-indexed></config:config-item-set>");
         // (the numbers the formulas of this file give to the workbooks they read, so that they are read back with the same numbers)
-        if (!m_linksWritten.isEmpty()) {
+        const QStringList links = linkTargets();
+        if (!links.isEmpty()) {
             x += QStringLiteral("<config:config-item-set config:name=\"jo:external-links\">");
-            for (auto it = m_linksWritten.cbegin(); it != m_linksWritten.cend(); ++it) x += item(QString::number(it.key()), "string", it.value());
+            for (int i = 0; i < links.size(); ++i)
+                if (!links[i].isEmpty()) x += item(QString::number(i + 1), "string", links[i]);
             x += QStringLiteral("</config:config-item-set>");
         }
         x += QStringLiteral("</office:settings></office:document-settings>");
@@ -810,20 +813,22 @@ private:
         return out;
     }
 
-    // The address of the workbook a link (counted from 1) points to, and the links written, for the settings that give the numbers back.
-    QString linkTarget(int number) const
+    // The addresses of the workbooks the links (counted from 1) point to: those of the workbook read from an .ods file, or of an .xlsx one's own list.
+    const QStringList &linkTargets() const
     {
         if (!m_externalsRead) {
             m_externalsRead = true;
-            m_externals = ExternalBooks::read(m_book, QString());
+            if (const ForeignBook *foreign = m_book.foreignBook()) {
+                m_linkTargets = foreign->externalTargets();
+            } else if (const std::shared_ptr<ExternalBooks> links = ExternalBooks::read(m_book, QString())) {
+                for (int i = 1; i <= links->count(); ++i) m_linkTargets.append(links->target(i));
+            }
         }
-        const QString target = m_externals ? m_externals->target(number) : QString();
-        if (!target.isEmpty()) m_linksWritten.insert(number, target);
-        return target;
+        return m_linkTargets;
     }
+    QString linkTarget(int number) const { return linkTargets().value(number - 1); }
     mutable bool m_externalsRead = false;
-    mutable std::shared_ptr<ExternalBooks> m_externals;
-    mutable QMap<int, QString> m_linksWritten;
+    mutable QStringList m_linkTargets;
 
     // The formula in OpenFormula ("of:=..."): references in brackets, arguments joined by semicolons, the names of the standard's functions. False if the text has something it cannot say.
     bool toOpenFormula(const QString &written, QString *out) const
@@ -852,7 +857,7 @@ private:
                     ++externalsWritten;
                     const QString target = linkTarget(link.value());
                     if (target.isEmpty() || r.sheet1.isEmpty()) return false;
-                    res += QStringLiteral("['") + QString(target).replace(QLatin1Char('\''), QStringLiteral("''")) + QStringLiteral("'#")
+                    res += QStringLiteral("['") + odfLinkAddress(target).replace(QLatin1Char('\''), QStringLiteral("''")) + QStringLiteral("'#")
                            + odfRef(r.ref, r.sheet1, r.sheet2, true, r.ref.row1 != r.ref.row2 || r.ref.col1 != r.ref.col2 || (r.ref.flags & jp::calc::kRefArea), true) + QLatin1Char(']');
                     i = r.end;
                     continue;

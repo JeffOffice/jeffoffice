@@ -3,6 +3,7 @@
 // does not allow, and plain words in every message. Every document is built in memory by odshelpers.
 #include "odshelpers.h"
 
+#include "sheet/foreignbook.h"
 #include "sheet/odsformula.h"
 #include "sheet/xlsxbase.h"
 
@@ -264,6 +265,19 @@ private Q_SLOTS:
         QCOMPARE(withNames.info().definedNames.size(), 1);
         const QStringList namesChanged = withNames.changedFeatures();
         QVERIFY2(!namesChanged.filter(QStringLiteral("1 name")).isEmpty(), qPrintable(namesChanged.join(QLatin1Char('|'))));
+        // a reference to another file that the program cannot number (one past the most workbooks it numbers) is reported as it was before such references were converted: the formula keeps its value, the name is
+        // left out, and the notice says how many
+        QString cells;
+        for (int i = 1; i <= OdsLinkTable::kMost + 1; ++i)
+            cells += cell(QStringLiteral("table:formula=\"of:=['file:///x/book%1.ods'#$S.A1]\" office:value-type=\"float\" office:value=\"1\"").arg(i), QStringLiteral("<text:p>1</text:p>"));
+        const QString pastNames = QStringLiteral("<table:named-expressions><table:named-expression table:name=\"Past\" table:base-cell-address=\"$S.$A$1\" table:expression=\"['file:///x/past.ods'#$S.A1]\"/></table:named-expressions>");
+        Workbook past;
+        QVERIFY2(openIt(simple(table(QStringLiteral("S"), row(cells)) + pastNames), &past, &why), qPrintable(why));
+        QCOMPARE(past.info().definedNames.size(), 0);
+        QVERIFY(past.readSheet(0, &s));
+        QCOMPARE(past.foreignBook()->externalTargets().size(), OdsLinkTable::kMost);
+        const QStringList pastChanged = past.changedFeatures();
+        QVERIFY2(!pastChanged.filter(QStringLiteral("1 formula")).isEmpty() && !pastChanged.filter(QStringLiteral("1 name")).isEmpty(), qPrintable(pastChanged.join(QLatin1Char('|'))));
         // merged cells in every copy of a repeated row
         const QString merged = row(stringCell(QStringLiteral("m"), QStringLiteral("table:number-columns-spanned=\"2\"")) + QStringLiteral("<table:covered-table-cell/>") + floatCell(1), QStringLiteral("table:number-rows-repeated=\"3\""));
         Workbook rep;
