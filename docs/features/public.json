@@ -4638,8 +4638,9 @@
          "text": "cb0c4275143581137ce684697c4e92504edcc566d7fa60923422eff47790a9e7"
         },
         {
-         "status": "partly",
-         "text": "7bd6a91efb0e5f86ecd45185d8a24bd1e678c5ba8eb65c98bc426c83be3ffc77"
+         "hide_soon": true,
+         "status": "done",
+         "text": "b05d39bdfe139e19c43764e89fa301446a3129da6c80621e372a25997139895a"
         },
         {
          "hide_soon": true,
@@ -5549,11 +5550,12 @@
       },
       {
        "status": "partly",
-       "text": "3b2b239b4e477eba04e308b7f682df58375e1578c16676750a595cf4216c4730"
+       "text": "6dda3aa7f4e0791fdc06e4b1342311de9c3288b7a16ea41985f0c1c861dc730b"
       },
       {
-       "status": "partly",
-       "text": "b1551553bbe9853b1718bda2a81932feb1ea083bce19990e68b29a31f5d0de18"
+       "hide_soon": true,
+       "status": "done",
+       "text": "ea24c6e0e2d733e69c66535088d5e7b0bdae1cf31e76fa1418aea0e7788c5eae"
       }
      ]
     },
@@ -5654,7 +5656,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "40e64b20e2747df4daaec35f296eaa764f2d8753b002ad65d72c2830ecd3946c"
+         "text": "4ff4aaddd091aca3ec496b5852fcbb460c818c8ecb636c725e0815884037bb8e"
         },
         {
          "hide_soon": true,
@@ -12270,18 +12272,6 @@
     "fr": ""
    }
   },
-  "3b2b239b4e477eba04e308b7f682df58375e1578c16676750a595cf4216c4730": {
-   "drop": false,
-   "en": "Opens damaged `.pub` files as far as it can.",
-   "es": "Abre archivos `.pub` dañados hasta donde sea posible.",
-   "fr": "Ouvre les fichiers `.pub` endommagés autant que possible.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "3b3a73bdc8b51d91fe4073c0df1531c2476e8dfa4de77b9ac210f92df267316c": {
    "drop": false,
    "en": "A table’s buttons filter and sort its rows only, and the filter is kept in the table.",
@@ -12755,18 +12745,6 @@
    "en": "Saving a `.pptx` keeps what the app can't edit: charts, diagrams, equations, some animation and transition effects, and compatibility markup. Links in diagrams keep working.",
    "es": "Al guardar un `.pptx` se conserva lo que la aplicación no puede editar: gráficos, diagramas, ecuaciones, algunos efectos de animación y transición, y marcado de compatibilidad. Los vínculos de los diagramas siguen funcionando.",
    "fr": "L’enregistrement d’un `.pptx` conserve ce que l’application ne peut pas modifier : graphiques, diagrammes, équations, certains effets d’animation et de transition, et balisage de compatibilité. Les liens des diagrammes continuent de fonctionner.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "40e64b20e2747df4daaec35f296eaa764f2d8753b002ad65d72c2830ecd3946c": {
-   "drop": false,
-   "en": "Insert a `.txt`, `.rtf`, `.html`, `.htm`, `.docx`, or `.md` file into a text box.",
-   "es": "Inserte un archivo `.txt`, `.rtf`, `.html`, `.htm`, `.docx` o `.md` en un cuadro de texto.",
-   "fr": "Insérez un fichier `.txt`, `.rtf`, `.html`, `.htm`, `.docx` ou `.md` dans une zone de texte.",
    "soon": {
     "drop": true,
     "en": "",
@@ -13811,6 +13789,18 @@
    "en": "",
    "es": "",
    "fr": "",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "4ff4aaddd091aca3ec496b5852fcbb460c818c8ecb636c725e0815884037bb8e": {
+   "drop": false,
+   "en": "Insert `.txt`, `.rtf`, `.html`, `.htm`, `.docx`, and `.md` files into a text box. A file that is too large or can't be read is refused with a message that names the file, and nothing changes.",
+   "es": "Inserte archivos `.txt`, `.rtf`, `.html`, `.htm`, `.docx` y `.md` en un cuadro de texto. Un archivo demasiado grande o que no se puede leer se rechaza con un mensaje que indica su nombre, y no se cambia nada.",
+   "fr": "Insérez des fichiers `.txt`, `.rtf`, `.html`, `.htm`, `.docx` et `.md` dans une zone de texte. Un fichier trop volumineux ou illisible est refusé avec un message qui indique son nom, et rien n’est modifié.",
    "soon": {
     "drop": true,
     "en": "",
@@ -16422,6 +16412,18 @@
     "fr": ""
    }
   },
+  "6dda3aa7f4e0791fdc06e4b1342311de9c3288b7a16ea41985f0c1c861dc730b": {
+   "drop": false,
+   "en": "Opens damaged `.pub` files as far as it can.",
+   "es": "Abre los archivos `.pub` dañados hasta donde sea posible.",
+   "fr": "Ouvre les fichiers `.pub` endommagés autant que possible.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "6ddec3351d3989e71923ca52b67bb61a43695ed0abc4b6c327aaf2d2a0beb621": {
    "drop": false,
    "en": "Zoom with a dialog (percent, page width, text width, whole page, many pages), 100%, One Page, Multiple Pages, Page Width, a slider in the status bar, or `Ctrl`+wheel.",
@@ -17195,18 +17197,6 @@
    "en": "Set margin guide presets or custom margins, orientation, and page size (presets, your saved custom sizes, Create New Page Size, and editing or deleting saved sizes). The Page Setup dialog sets the layout type (one page per sheet, booklet, envelope, folded card, multiple pages per sheet, labels); for several pages per sheet it sets the sheet’s side and top margins and the gaps between pages, kept apart from the margin guides, with how many fit. A new page size scales nothing: every object moves by half the change so it keeps its distance from the page center, ruler guides keep their share of the page, objects left wholly off a smaller page go to the scratch area, and Undo restores it all.",
    "es": "Defina preajustes de guías de margen o márgenes personalizados, la orientación y el tamaño de página (preajustes, sus tamaños personalizados guardados, Crear nuevo tamaño de página, y edición o eliminación de tamaños guardados). El cuadro de diálogo Configurar página define el tipo de diseño (una página por hoja, folleto, sobre, tarjeta plegada, varias páginas por hoja, etiquetas); para varias páginas por hoja define los márgenes laterales y superior de la hoja y los espacios entre páginas, independientes de las guías de margen, con cuántas caben. Un nuevo tamaño de página no escala nada: cada objeto se mueve la mitad del cambio para mantener su distancia al centro de la página, las guías de regla conservan su proporción de la página, los objetos que quedan totalmente fuera de una página más pequeña pasan al área de trabajo, y Deshacer lo restaura todo.",
    "fr": "Définissez des préréglages de repères de marge ou des marges personnalisées, l’orientation et le format de page (préréglages, vos formats personnalisés enregistrés, Créer un format de page, et modification ou suppression des formats enregistrés). La boîte de dialogue Mise en page définit le type de mise en page (une page par feuille, livret, enveloppe, carte pliée, plusieurs pages par feuille, étiquettes) ; pour plusieurs pages par feuille, elle règle les marges latérales et supérieure de la feuille et les espaces entre les pages, distincts des repères de marge, avec le nombre de pages qui tiennent. Un nouveau format de page ne met rien à l’échelle : chaque objet se déplace de la moitié du changement pour garder sa distance au centre de la page, les repères de règle conservent leur part de la page, les objets entièrement hors d’une page plus petite vont dans la zone de travail, et Annuler rétablit le tout.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "7bd6a91efb0e5f86ecd45185d8a24bd1e678c5ba8eb65c98bc426c83be3ffc77": {
-   "drop": false,
-   "en": "Options has a Security page. Macros are kept in the file and never run. A link that would start a program is always refused. Files from the internet or another computer open as read-only first or normally. Linked pictures in the publication’s folder are updated when it opens or never. A bar under a held-back file offers Enable Editing for that one file.",
-   "es": "Options tiene una página de seguridad. Las macros se conservan en el archivo y nunca se ejecutan. Un vínculo que iniciaría un programa siempre se rechaza. Los archivos de internet o de otro equipo se abren primero en modo de solo lectura o de forma normal. Las imágenes vinculadas de la carpeta de la publicación se actualizan al abrirla o nunca. Una barra bajo un archivo retenido ofrece Enable Editing para ese único archivo.",
-   "fr": "Options comporte une page Sécurité. Les macros sont conservées dans le fichier et ne sont jamais exécutées. Un lien qui lancerait un programme est toujours refusé. Les fichiers provenant d’internet ou d’un autre ordinateur s’ouvrent d’abord en lecture seule ou normalement. Les images liées du dossier de la publication sont mises à jour à l’ouverture ou jamais. Une barre sous un fichier retenu propose Enable Editing pour ce seul fichier.",
    "soon": {
     "drop": true,
     "en": "",
@@ -20646,6 +20636,18 @@
     "fr": ""
    }
   },
+  "b05d39bdfe139e19c43764e89fa301446a3129da6c80621e372a25997139895a": {
+   "drop": false,
+   "en": "Choose what happens with linked files and linked pictures on the Security page. Macros are never run, and files from the internet or another computer open as read-only first.",
+   "es": "Elija en la página de seguridad qué sucede con los archivos vinculados y las imágenes vinculadas. Las macros nunca se ejecutan, y los archivos de internet o de otro equipo se abren primero en modo de solo lectura.",
+   "fr": "Choisissez sur la page Sécurité ce qui se passe avec les fichiers liés et les images liées. Les macros ne sont jamais exécutées, et les fichiers provenant d’internet ou d’un autre ordinateur s’ouvrent d’abord en lecture seule.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "b06e867f989c89d6eb47e188b6048686882fbf7d8e170df8255d7b8f6d4830b1": {
    "drop": false,
    "en": "Options > Advanced sets measurement units (inches, centimeters, millimeters, points, or picas), used by the ruler and the dialogs.",
@@ -20699,18 +20701,6 @@
    "en": "Copy cell formatting once, or lock it with a double-click to apply it several times.",
    "es": "Copie el formato de las celdas una vez o bloquéelo con un doble clic para aplicarlo varias veces.",
    "fr": "Copiez la mise en forme des cellules une fois, ou verrouillez-la par un double-clic pour l’appliquer plusieurs fois.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "b1551553bbe9853b1718bda2a81932feb1ea083bce19990e68b29a31f5d0de18": {
-   "drop": false,
-   "en": "Opens a damaged file as far as it can and says what it left out.",
-   "es": "Abre un archivo dañado hasta donde sea posible e indica lo que omitió.",
-   "fr": "Ouvre un fichier endommagé autant que possible et indique ce qu’il a laissé de côté.",
    "soon": {
     "drop": true,
     "en": "",
@@ -24779,6 +24769,18 @@
    "en": "Customize the keyboard in `Options > Customize > Keyboard`: search a list of every command by ribbon tab, add or remove keys, and see which command already uses a key and take it over. Reset One and Reset All restore the defaults, and the system's own keys (copy, paste, undo, select all, `Tab`, and others) stay reserved.",
    "es": "Personalice el teclado en `Options > Customize > Keyboard`: busque en una lista de todos los comandos por pestaña de la cinta de opciones, agregue o quite teclas, y vea qué comando ya usa una tecla para reasignarla. Reset One y Reset All restablecen los valores predeterminados, y las teclas propias del sistema (copiar, pegar, deshacer, seleccionar todo, `Tab` y otras) permanecen reservadas.",
    "fr": "Personnalisez le clavier dans `Options > Customize > Keyboard` : recherchez dans une liste de toutes les commandes par onglet du ruban, ajoutez ou retirez des touches, et voyez quelle commande utilise déjà une touche pour la reprendre. Reset One et Reset All rétablissent les valeurs par défaut, et les touches propres au système (copier, coller, annuler, tout sélectionner, `Tab` et autres) restent réservées.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "ea24c6e0e2d733e69c66535088d5e7b0bdae1cf31e76fa1418aea0e7788c5eae": {
+   "drop": false,
+   "en": "Opens a damaged file as far as it can and says what it left out.",
+   "es": "Abre un archivo dañado hasta donde sea posible e indica qué omitió.",
+   "fr": "Ouvre un fichier endommagé autant que possible et indique ce qu’il a laissé de côté.",
    "soon": {
     "drop": true,
     "en": "",
