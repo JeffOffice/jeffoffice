@@ -6,6 +6,7 @@
 // the memory it takes to hold its XML is read in the memory its cells take.
 
 #include "office/package.h"
+#include "office/theme.h"
 #include "calc/dates.h"
 #include "sheet/csvimport.h"
 #include "sheet/pivotbook.h"
@@ -410,8 +411,14 @@ public:
     QVector<QPair<QString, QString>> fontTextRenames() const { return m_fontTextRenames; }
     // The theme's heading (major) and body (minor) fonts: the fonts that say "major" or "minor" mean these. Renaming one changes the theme part when the workbook is saved (themePartNow).
     void setThemeFont(bool major, const QString &name);
-    // The theme part as it is written now (the file's own with the two names put in), by its name; empty when the names are the file's or the workbook has no theme.
+    // The theme part as it is written now (the file's own, or the one a theme was set with, with the two names put in), by its name; empty when it is the file's or the workbook has no theme.
     QByteArray themePartNow(QString *name) const;
+    // The workbook's theme as a whole (the twelve colors, the fonts, and the part's own xml, which the other parts of it ride on). A workbook has one when its file has a theme part that can
+    // be read (a blank one has the default theme; a file converted from another format has none, and can't take one). theme() is the empty theme where there is none.
+    bool hasTheme() const { return !m_themePartName.isEmpty() && !m_themeXml.isEmpty(); }
+    jp::office::Theme theme() const;
+    // Takes the theme given: the colors the styles name by place, the heading and body fonts, and the part written at the next save. False (nothing changed) when there is no theme to replace.
+    bool setTheme(const jp::office::Theme &theme);
     // The fonts of the file whose names are not what the file has (by place), for saving.
     std::map<quint32, QString> renamedFonts() const;
     // The place of the differential format that is only a fill of this color (or, with `font`, only a font of it): one the workbook has, else one added at the end (the file's `dxfs`).
@@ -574,7 +581,10 @@ private:
     std::unordered_multimap<quint64, quint32> m_fontIndex, m_fillIndex, m_borderIndex;   // the fonts, fills, and borders by a hash of what they are (made when first needed)
     bool m_fontIndexMade = false, m_fillIndexMade = false, m_borderIndexMade = false;
     QVector<QPair<QString, QString>> m_fontTextRenames;   // the renames of the fonts in parts' text that the file does not have yet, in order
-    QString m_themePartName, m_themeMajorInFile, m_themeMinorInFile;   // the theme part, and the two fonts it names (as the file has them)
+    QString m_themePartName, m_themeMajorInFile, m_themeMinorInFile;   // the theme part, and the two fonts its xml names (m_themeXml)
+    QByteArray m_themeXml;                                            // the part as the workbook has it now (a theme set here changes it); empty: none, or too large to keep
+    jp::office::Theme m_theme;                                        // what m_themeXml says (names and the fonts of other scripts; the colors and fonts in use are the styles')
+    QByteArray themeXmlNow() const;                                   // m_themeXml with the heading and body fonts the styles have now put in
     std::map<quint32, QString> m_fontFileNames;   // the names the file has for the fonts renamed since it was opened or saved (by place)
     struct HeaderImages {
         QMutex mutex;

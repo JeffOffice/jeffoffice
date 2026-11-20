@@ -31,9 +31,10 @@ const CellFormat &Styles::format(quint32 xf) const
 
 QString Styles::fontNameOf(const FontSpec &font) const
 {
-    if (!font.name.isEmpty()) return font.name;
+    // (a font that belongs to the font scheme follows it; its own name is what the scheme said when the file was made, section 18.8.35 of the first part of the standard)
     if (font.scheme == QLatin1String("major") && !majorFont.isEmpty()) return majorFont;
     if (font.scheme == QLatin1String("minor") && !minorFont.isEmpty()) return minorFont;
+    if (!font.name.isEmpty()) return font.name;
     if (!fonts.isEmpty() && !fonts.first().name.isEmpty()) return fonts.first().name;
     return minorFont;
 }
@@ -90,6 +91,8 @@ static quint32 tinted(quint32 rgb, double tint)
     auto byte = [](double v) { return quint32(std::lround(std::min(1.0, std::max(0.0, v)) * 255)); };
     return byte(out[0]) << 16 | byte(out[1]) << 8 | byte(out[2]);
 }
+
+quint32 tintedRgb(quint32 rgb, double tint) { return tinted(rgb, tint); }
 
 quint32 Styles::resolve(const ColorSpec &color, quint32 automatic) const
 {

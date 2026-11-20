@@ -1007,6 +1007,13 @@ public:
     };
     bool setFontNames(const QVector<QPair<quint32, QString>> &fonts, const QString &from, const QString &to, bool doing, const FontText *text = nullptr);
     bool setThemeFontName(bool major, const QString &name);
+    // The workbook's theme (its colors, fonts, and the part they ride on); hasTheme is false for a workbook that has no theme part (a file converted from another format), which can't take one.
+    bool hasTheme() const;
+    jp::office::Theme theme() const;
+    // Gives the workbook this theme as one step of Undo: the cells, cell styles, table styles, shapes, and charts that name the theme's colors and fonts follow it. Nothing is changed (and no step
+    // is made) where the workbook has no theme or already has it; `problem` says why not.
+    Outcome applyTheme(const jp::office::Theme &theme, const QString &text);
+    bool setThemeNow(const jp::office::Theme &theme);   // the step's own work (and Undo's, and Redo's)
     // The fonts the cells use, by name (a theme font by the typeface it means), each with the names of the sheets whose cells use it, in the order first met (the missing-fonts bar's list).
     struct FontUse {
         QString family;
@@ -1314,6 +1321,8 @@ public:
 Q_SIGNALS:
     // The styles changed where they stand (fonts renamed, by a step, Undo, or Redo): the window makes the looks again and draws.
     void stylesChanged();
+    // The workbook's theme changed (by a step, Undo, or Redo): what is made from its colors and fonts (shapes, charts, the colors the pickers offer) is made again.
+    void themeChanged();
     // The parts that name fonts in their text (shapes, charts, comments), or the runs of rich text, got other fonts, by a step, Undo, or Redo: `parts` are the parts' names.
     void fontTextChanged(const QStringList &parts);
     // The sheets were changed (added, deleted, renamed, moved, shown, hidden, or given a color) by a step, Undo, or Redo: the window makes its tabs again.
@@ -1351,6 +1360,7 @@ private:
     friend class StyleHidden;
     friend class FontsRenamed;
     friend class ThemeFontRenamed;
+    friend class ThemeChanged;
     // A step could not be undone or done again: every step is forgotten (the workbook is not as the stack says), and `stepFailed` says so.
     void giveUpUndo(const QString &stepText, bool redoing);
     // Forgets every step that is done (and what each holds): Undo does not go back over them.

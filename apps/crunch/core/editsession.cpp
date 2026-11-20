@@ -2203,6 +2203,11 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts, con
         changes.iterateDelta = m_calcNow.delta;
     }
     out->strings = int(changes.newSharedStrings.size());
+    // (the theme part, when its colors or fonts were changed here, whatever else the workbook has)
+    {
+        QString themeName;
+        if (const QByteArray theme = book.themePartNow(&themeName); !theme.isEmpty()) changes.replacedParts[themeName] = theme;
+    }
     if (hasStyles) {
         for (const Workbook::AddedNumberFormat &f : book.addedNumberFormats()) changes.newNumberFormats.append({f.id, f.code});
         for (const Workbook::AddedCellFormat &f : book.addedCellFormats()) changes.newCellFormats.append({f.base, f.format.numFmtId, true, f.format});
@@ -2213,8 +2218,6 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts, con
         if (!changes.fontTextRenames.isEmpty() && m_book && m_book->calc)
             for (int i = 0; i < m_book->calc->sheetCount(); ++i)
                 if (!m_book->calc->sheet(i).richFonts.isEmpty()) changes.richTextSheets.insert(i);
-        QString themeName;
-        if (const QByteArray theme = book.themePartNow(&themeName); !theme.isEmpty()) changes.replacedParts[themeName] = theme;
         changes.fontsBefore = book.fontsInFile();
         changes.newFills = book.addedFills();
         changes.fillsBefore = book.fillsInFile();

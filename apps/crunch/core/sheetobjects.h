@@ -140,6 +140,12 @@ public:
     // Parts that name fonts in their text (drawings, charts) have other bytes in the package now (Replace Fonts, Undo, Redo): the letters of the shapes the file gave, and the charts the file
     // gave, are made again from them (an object a person changed is left as it is), and the sheet is drawn again.
     void partsChanged(const QStringList &parts);
+    // The workbook's theme changed (a step, Undo, or Redo): the shapes the file gave and the charts the file gave are made again with its colors and fonts (a chart or shape made or changed here
+    // has the colors it was given), and the sheet is drawn again.
+    void themeChanged();
+    // For the tests of a theme change: the solid color a shape of the sheet is filled with as it is made now (invalid for none), and the color of the first series of a chart as it is made now.
+    QColor shapeFillOf(int sheet, int id);
+    QColor chartColorOf(int sheet, int id);
     // The font the first run of the words of a shape or text box is set in, as it is made now (for a test of what Replace Fonts shows); empty for an object with no words.
     QString textFontOf(int sheet, int id);
     // Sheets were added, copied, renamed, or deleted (or that was undone): there is room for the sheets there are, and the charts' references name the sheets as they are called now (a
@@ -401,6 +407,7 @@ private:
     void ensureBuilt(int sheet, Object &o);
     jp::ItemPtr diagramItem(Sheet &s, Object &o);
     void readContext();
+    void loadTheme();
     std::function<QImage()> prepareChart(int sheet, Object &o, const jp::grid::RenderRequest &q);
     QImage renderItem(int sheet, Object &o, const jp::grid::RenderRequest &q);
     jp::grid::LayerObject layerObject(int sheet, const std::shared_ptr<Object> &o);

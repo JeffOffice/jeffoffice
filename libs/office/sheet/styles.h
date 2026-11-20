@@ -206,6 +206,8 @@ struct FormatChange {
 
 // The colors of the theme in the order the styles name them by number: light 1, dark 1, light 2, dark 2, accent 1 to 6, hyperlink, followed hyperlink.
 constexpr int kThemeColors = 12;
+// A color (0xRRGGBB) with a tint, -1 (darker) to 1 (lighter): its lightness moved as a file's tint says (section 18.8.19 of the first part of the standard).
+quint32 tintedRgb(quint32 rgb, double tint);
 
 // A differential format (a `dxf`): what a rule of conditional formatting changes of a cell's look. Each part is set only if the format says it.
 struct DifferentialFormat {
@@ -266,7 +268,7 @@ struct Styles {
     const FontSpec &font(quint32 index) const;
     const FillSpec &fill(quint32 index) const;
     const BorderSpec &border(quint32 index) const;
-    // The typeface a font is set in: its own name; for one with no name that is the theme's (its scheme says which), the theme's; else the first font's (the workbook's usual); else empty.
+    // The typeface a font is set in: the theme's heading or body font for one that belongs to the font scheme (its scheme says which); else its own name; else the first font's (the workbook's usual); else empty.
     QString fontNameOf(const FontSpec &font) const;
 
     // The color as 0xRRGGBB: a theme color with its tint, an indexed color through the palette, an RGB as it is. `automatic` is what the "automatic" color (and

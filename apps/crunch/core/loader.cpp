@@ -402,6 +402,9 @@ QByteArray blankWorkbookBytes(const BlankDefaults &defaults)
                      "<cellStyles count=\"1\"><cellStyle name=\"Normal\" xfId=\"0\" builtinId=\"0\"/></cellStyles></styleSheet>",
               QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.styles+xml"));
     w.addRelationship(QStringLiteral("/xl/workbook.xml"), rel + QStringLiteral("styles"), QStringLiteral("/xl/styles.xml"));
+    // (a workbook starts with the default theme: its colors and fonts, as a file keeps them, section 20.1.6 of the first part of the standard)
+    w.addPart(QStringLiteral("/xl/theme/theme1.xml"), office::writeTheme(office::defaultTheme()), QStringLiteral("application/vnd.openxmlformats-officedocument.theme+xml"));
+    w.addRelationship(QStringLiteral("/xl/workbook.xml"), rel + QStringLiteral("theme"), QStringLiteral("/xl/theme/theme1.xml"));
     w.addPart(QStringLiteral("/xl/workbook.xml"),
               head + "<workbook xmlns=\"" + main.toUtf8() + "\" xmlns:r=\"" + rel.chopped(1).toUtf8() + "\"><bookViews><workbookView/></bookViews><sheets>"
                      + sheetList.toUtf8() + "</sheets><calcPr calcId=\"191029\"/></workbook>",

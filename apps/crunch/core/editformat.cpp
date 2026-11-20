@@ -433,6 +433,90 @@ private:
     bool m_first = true;
 };
 
+// The workbook's theme given another, as a step: Undo and Redo give the whole theme as it was and is (the first Redo is a no-op: the step is pushed after the theme is set).
+class ThemeChanged : public QUndoCommand {
+public:
+    ThemeChanged(EditSession *session, jp::office::Theme before, jp::office::Theme after, const QString &text)
+        : QUndoCommand(text), m_session(session), m_before(std::move(before)), m_after(std::move(after)) {}
+    void redo() override
+    {
+        if (m_first) {
+            m_first = false;
+            return;
+        }
+        if (!m_session->setThemeNow(m_after)) m_session->giveUpUndo(text(), true);
+    }
+    void undo() override
+    {
+        if (!m_session->setThemeNow(m_before)) m_session->giveUpUndo(text(), false);
+    }
+
+private:
+    EditSession *m_session;
+    jp::office::Theme m_before, m_after;
+    bool m_first = true;
+};
+
+bool EditSession::hasTheme() const { return m_book && m_book->book && m_book->book->hasTheme(); }
+
+jp::office::Theme EditSession::theme() const
+{
+    if (!m_book || !m_book->book) return jp::office::Theme();
+    std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+    return hold ? m_book->book->theme() : jp::office::Theme();
+}
+
+bool EditSession::setThemeNow(const jp::office::Theme &theme)
+{
+    {
+        std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+        if (!hold || !m_book->book->setTheme(theme)) return false;
+    }
+    Q_EMIT themeChanged();
+    Q_EMIT stylesChanged();
+    return true;
+}
+
+EditSession::Outcome EditSession::applyTheme(const jp::office::Theme &theme, const QString &text)
+{
+    Outcome out;
+    QString why;
+    if (!canEdit(&why)) {
+        out.ok = false;
+        out.problem = why;
+        return out;
+    }
+    if (!m_book || !m_book->book || !m_book->calc) return out;
+    jp::office::Theme was;
+    {
+        std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+        if (!hold) {
+            out.ok = false;
+            out.problem = tr("The workbook is busy. Try again in a moment.");
+            return out;
+        }
+        if (!m_book->book->hasTheme()) {
+            out.ok = false;
+            out.problem = tr("This workbook has no theme part, so it can't take a theme. Nothing was changed.");
+            return out;
+        }
+        was = m_book->book->theme();
+        bool same = was.xml == theme.xml && was.majorLatin == theme.majorLatin && was.minorLatin == theme.minorLatin;
+        for (int i = 0; same && i < jp::office::Theme::ColorCount; ++i) same = was.colors[i] == theme.colors[i];
+        if (same) return out;
+        if (!m_book->book->setTheme(theme)) {
+            out.ok = false;
+            out.problem = tr("The theme could not be applied to this workbook. Nothing was changed.");
+            return out;
+        }
+    }
+    m_lastCalculated = false;
+    m_undo.push(new ThemeChanged(this, was, theme, text));
+    Q_EMIT themeChanged();
+    Q_EMIT stylesChanged();
+    return out;
+}
+
 bool EditSession::setThemeFontName(bool major, const QString &name)
 {
     std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();

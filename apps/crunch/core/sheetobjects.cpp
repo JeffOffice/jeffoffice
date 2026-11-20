@@ -341,17 +341,75 @@ void SheetObjects::readContext()
     m_budget.left[B::Paragraphs] = kBudgetParagraphs;
     m_budget.left[B::Runs] = kBudgetRuns;
     m_budget.left[B::Letters] = kBudgetLetters;
-    const Package &package = m_book->objectPackage();
-    for (const Relationship &rel : package.relationshipsOfType(m_book->mainPart(), QStringLiteral("/theme"))) {
-        if (rel.external || !package.hasPart(rel.target)) continue;
-        const QByteArray xml = package.part(rel.target);
-        Theme t;
-        if (!readTheme(xml, &t)) break;
-        m_theme = t;
-        if (parseXml(xml, &m_themeDoc)) m_formats = child(child(m_themeDoc.documentElement(), ns::A, QStringLiteral("themeElements")), ns::A, QStringLiteral("fmtScheme"));
-        break;
+    loadTheme();
+}
+
+// The workbook's theme as it is now (a theme set here is not in the package until the workbook is saved): the colors, the fonts, and the format scheme the shapes take their effects from.
+void SheetObjects::loadTheme()
+{
+    m_theme = defaultTheme();
+    m_formats = QDomElement();
+    m_themeDoc = QDomDocument();
+    if (m_book->hasTheme()) {
+        const Theme t = m_book->theme();
+        // (the theme has the colors and fonts in use; its part says the rest)
+        if (!t.xml.isEmpty() && parseXml(t.xml, &m_themeDoc)) {
+            m_theme = t;
+            m_formats = child(child(m_themeDoc.documentElement(), ns::A, QStringLiteral("themeElements")), ns::A, QStringLiteral("fmtScheme"));
+        } else {
+            m_themeDoc = QDomDocument();
+        }
     }
     m_doc->fonts = {m_theme.name, m_theme.majorLatin, m_theme.minorLatin};
+}
+
+void SheetObjects::themeChanged()
+{
+    // (not read yet: it is read as it is when the first object needs it)
+    if (!m_book || !m_contextRead) return;
+    loadTheme();
+    for (size_t si = 0; si < m_sheets.size(); ++si) {
+        Sheet &s = m_sheets[si];
+        const bool shown = int(si) == m_shown;
+        if (s.context) {
+            s.context->theme = m_theme;
+            s.context->formats = m_formats;
+        }
+        // (the charts read are read again with the colors the theme has now)
+        s.parsed.clear();
+        QHash<QString, std::shared_ptr<const Chart>> again;
+        for (const std::shared_ptr<Object> &o : s.objects) {
+            if (!o->built || o->deleted) continue;
+            if (o->meta.kind == ObjectKind::Chart) {
+                if (!o->chart || o->chart != o->fileChart) continue;   // (a chart made or changed here has the colors it was given)
+                std::shared_ptr<const Chart> chart = again.value(o->meta.chartPart);
+                if (!chart) {
+                    auto parsed = std::make_shared<Chart>();
+                    QString error;
+                    if (!readChart(m_book->objectPackage().part(o->meta.chartPart), m_theme, ColorMap(), parsed.get(), &error)) continue;
+                    chart = parsed;
+                    again.insert(o->meta.chartPart, chart);
+                    s.parsed.insert(o->meta.chartPart, chart);
+                }
+                o->chart = o->fileChart = chart;
+                o->drawnKey = 0;
+                if (shown) m_layer.invalidate(o->id);
+            } else if (o->meta.kind == ObjectKind::Diagram) {
+                if (const jp::ItemPtr again2 = diagramItem(s, *o)) {
+                    o->item = again2;
+                    if (shown) m_layer.invalidate(o->id);
+                }
+            } else if (o->item && !o->ownDoc && !o->madeHere) {
+                if (o->textLinked && o->linkShownValid) setShapeLinkText(o->meta.element, o->linkShown);
+                if (const jp::ItemPtr again2 = readShape(o->meta.element, o->ownContext ? *o->ownContext : *s.context)) {
+                    o->item = again2;
+                    o->linkStale = false;
+                    if (shown) m_layer.invalidate(o->id);
+                }
+            }
+        }
+    }
+    m_layer.layoutChanged();
 }
 
 const jp::office::Theme &SheetObjects::theme()
@@ -1209,6 +1267,24 @@ void SheetObjects::partsChanged(const QStringList &parts)
         }
     }
     m_layer.layoutChanged();
+}
+
+QColor SheetObjects::shapeFillOf(int sheet, int id)
+{
+    Object *o = find(sheet, id);
+    if (!o || o->deleted) return {};
+    ensureBuilt(sheet, *o);
+    if (!o->item || o->item->fill.type != jp::Fill::Solid || o->item->fill.color.kind() != jp::ColorRef::Rgb) return {};
+    return o->item->fill.color.rgbValue();
+}
+
+QColor SheetObjects::chartColorOf(int sheet, int id)
+{
+    Object *o = find(sheet, id);
+    if (!o || o->deleted) return {};
+    ensureBuilt(sheet, *o);
+    if (!o->chart || o->chart->plots.isEmpty() || o->chart->plots.first().series.isEmpty()) return {};
+    return o->chart->plots.first().series.first().color;
 }
 
 QString SheetObjects::textFontOf(int sheet, int id)

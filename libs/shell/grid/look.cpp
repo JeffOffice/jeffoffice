@@ -159,7 +159,7 @@ CellLook LookTable::make(quint32 xf) const
     const Styles &s = *m_styles;
     const jp::office::sheet::CellFormat &f = s.format(xf);
     const jp::office::sheet::FontSpec &font = s.font(f.font);
-    l.family = font.name;
+    l.family = font.scheme.isEmpty() ? font.name : s.fontNameOf(font);   // (a font of the font scheme is set in the theme's heading or body font)
     l.pointSize = font.size;
     l.bold = font.bold;
     l.italic = font.italic;

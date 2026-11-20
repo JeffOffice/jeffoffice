@@ -14,6 +14,7 @@
 #include "sheet/rowskip.h"
 
 #include "office/theme.h"
+#include "office/themelib.h"
 #include "office/xml.h"
 #include "io/zipindex.h"
 #include "office/xmlstream.h"
@@ -2495,6 +2496,12 @@ bool readSheetPart(QIODevice *in, const ReadOptions &options, Sheet *out)
 
 // ---- the workbook
 
+namespace {
+// The theme's colors in the order the styles count them: light 1 and dark 1, then light 2 and dark 2 (the other way round from the theme's own order), the accents, the hyperlinks.
+constexpr Theme::Color kStyleThemeOrder[kThemeColors] = {Theme::Light1, Theme::Dark1, Theme::Light2, Theme::Dark2, Theme::Accent1, Theme::Accent2,
+                                                         Theme::Accent3, Theme::Accent4, Theme::Accent5, Theme::Accent6, Theme::Hyperlink, Theme::FollowedHyperlink};
+} // namespace
+
 bool Workbook::open(const Package &package, QString *error, const Limits &limits)
 {
     *this = Workbook();
@@ -2558,17 +2565,21 @@ bool Workbook::open(const Package &package, QString *error, const Limits &limits
     for (const Relationship &rel : themes) {
         if (rel.external || !package.hasPart(rel.target)) continue;
         Theme theme;
-        if (!readTheme(package.part(rel.target), &theme)) break;
-        // (the styles count light 1 and dark 1, then light 2 and dark 2: the other way round from the theme's own order)
-        static const Theme::Color order[kThemeColors] = {Theme::Light1, Theme::Dark1, Theme::Light2, Theme::Dark2, Theme::Accent1, Theme::Accent2,
-                                                         Theme::Accent3, Theme::Accent4, Theme::Accent5, Theme::Accent6, Theme::Hyperlink, Theme::FollowedHyperlink};
+        const QByteArray part = package.part(rel.target);
+        if (!readTheme(part, &theme)) break;
         for (int i = 0; i < kThemeColors; ++i)
-            if (theme.colors[order[i]].isValid()) m_styles.theme[i] = theme.colors[order[i]].rgb() & 0xFFFFFF;
+            if (theme.colors[kStyleThemeOrder[i]].isValid()) m_styles.theme[i] = theme.colors[kStyleThemeOrder[i]].rgb() & 0xFFFFFF;
         m_styles.majorFont = theme.majorLatin;
         m_styles.minorFont = theme.minorLatin;
         m_themePartName = rel.target;
         m_themeMajorInFile = theme.majorLatin;
         m_themeMinorInFile = theme.minorLatin;
+        // (kept whole to be changed and written, unless it is more than a theme part may be: the file's own is then left as it is)
+        if (part.size() <= kMaxThemePartBytes) {
+            m_themeXml = part;
+            theme.xml.clear();
+            m_theme = theme;
+        }
         break;
     }
     return true;
@@ -3237,10 +3248,9 @@ void Workbook::setThemeFont(bool major, const QString &name)
     m_fontIndexMade = false;
 }
 
-QByteArray Workbook::themePartNow(QString *name) const
+QByteArray Workbook::themeXmlNow() const
 {
-    if (m_themePartName.isEmpty() || (m_styles.majorFont == m_themeMajorInFile && m_styles.minorFont == m_themeMinorInFile)) return QByteArray();
-    QString xml = QString::fromUtf8(m_package.part(m_themePartName));
+    QString xml = QString::fromUtf8(m_themeXml);
     if (xml.isEmpty()) return QByteArray();
     auto put = [&](const char *kind, const QString &now, const QString &was) {
         if (now == was) return;
@@ -3250,8 +3260,45 @@ QByteArray Workbook::themePartNow(QString *name) const
     };
     put("majorFont", m_styles.majorFont, m_themeMajorInFile);
     put("minorFont", m_styles.minorFont, m_themeMinorInFile);
-    if (name) *name = m_themePartName;
     return xml.toUtf8();
+}
+
+QByteArray Workbook::themePartNow(QString *name) const
+{
+    if (!hasTheme()) return QByteArray();
+    const QByteArray now = themeXmlNow();
+    if (now.isEmpty() || now == m_package.part(m_themePartName)) return QByteArray();
+    if (name) *name = m_themePartName;
+    return now;
+}
+
+jp::office::Theme Workbook::theme() const
+{
+    if (!hasTheme()) return Theme();
+    Theme t = m_theme;
+    for (int i = 0; i < kThemeColors; ++i) t.colors[kStyleThemeOrder[i]] = QColor::fromRgb(QRgb(0xFF000000u | m_styles.theme[i]));
+    t.majorLatin = m_styles.majorFont;
+    t.minorLatin = m_styles.minorFont;
+    t.xml = themeXmlNow();
+    return t;
+}
+
+bool Workbook::setTheme(const jp::office::Theme &theme)
+{
+    if (!hasTheme() || theme.xml.isEmpty() || theme.xml.size() > kMaxThemePartBytes) return false;
+    Theme inPart;
+    if (!readTheme(theme.xml, &inPart)) return false;
+    m_themeXml = theme.xml;
+    m_theme = theme;
+    m_theme.xml.clear();
+    m_themeMajorInFile = inPart.majorLatin;
+    m_themeMinorInFile = inPart.minorLatin;
+    for (int i = 0; i < kThemeColors; ++i)
+        if (theme.colors[kStyleThemeOrder[i]].isValid()) m_styles.theme[i] = theme.colors[kStyleThemeOrder[i]].rgb() & 0xFFFFFF;
+    m_styles.majorFont = theme.majorLatin;
+    m_styles.minorFont = theme.minorLatin;
+    m_fontIndexMade = false;
+    return true;
 }
 
 std::map<quint32, QString> Workbook::renamedFonts() const
@@ -3977,6 +4024,7 @@ void Workbook::savedTo(const Package &package, const SavedCounts &counts)
     m_fontTextRenames.clear();
     m_themeMajorInFile = m_styles.majorFont;
     m_themeMinorInFile = m_styles.minorFont;
+    if (hasTheme()) m_themeXml = m_package.part(m_themePartName);
     m_fillsAdded = m_fillsAdded.mid(counts.fills);
     m_bordersAdded = m_bordersAdded.mid(counts.borders);
     m_stylesAdded = m_stylesAdded.mid(counts.styles);
