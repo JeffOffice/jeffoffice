@@ -179,12 +179,19 @@
   ],
   "print": [
    "printer",
-   "paper"
+   "paper",
+   "printer properties",
+   "drag margins",
+   "drag column widths",
+   "print preview"
   ],
   "export": [
    "pdf",
    "convert",
-   "save as"
+   "save as",
+   "pdf links",
+   "document properties",
+   "open the pdf"
   ],
   "close": [
    "exit"

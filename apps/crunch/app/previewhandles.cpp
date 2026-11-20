@@ -1,5 +1,7 @@
 #include "app/previewhandles.h"
 
+#include "app/plaintext.h"
+
 #include <QCoreApplication>
 #include <QKeyEvent>
 #include <QMouseEvent>
@@ -150,7 +152,7 @@ void PreviewHandles::place(const QRectF &page, const QSizeF &points, const std::
         }
         h->spec = s;
         h->setAccessibleName(s.name);
-        h->setToolTip(s.name);
+        h->setToolTip(plainToolTip(s.name));
         h->setAccessibleDescription(QCoreApplication::translate("jp::PreviewHandles", "Drag, or press the arrow keys, to move it."));
         h->follow();
         h->raise();

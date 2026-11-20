@@ -1,5 +1,5 @@
 # Print and make a PDF
-<!-- keywords: grayscale, black and white, last page first, reverse, pages on a sheet, several pages per sheet, n-up, odd pages, even pages, both sides, duplex, print, printer, preview, pdf, export, copies, collate, pages, page range, selection, entire workbook, scaling, fit, email, page breaks, dashed lines, save as pdf, scale to paper, paper size, sheet preview, password, encrypt, protect with a password, greyscale -->
+<!-- keywords: margins, drag margins, column width, drag column width, hyperlinks, links in a pdf, document properties, printer properties, open the pdf after saving, grayscale, black and white, last page first, reverse, pages on a sheet, several pages per sheet, n-up, odd pages, even pages, both sides, duplex, print, printer, preview, pdf, export, copies, collate, pages, page range, selection, entire workbook, scaling, fit, email, page breaks, dashed lines, save as pdf, scale to paper, paper size, sheet preview, password, encrypt, protect with a password, greyscale -->
 
 Choose **File > Print** (or press **Ctrl+P**). The page opens with a preview of the pages that will come out, one at a time. Use the arrows under it to go from page to page, and **Fit page** or the zoom buttons to see more or less of a page. The preview is drawn the way the printer and the PDF are, so what you see is what you get.
 
@@ -28,15 +28,31 @@ Under the preview, JeffCrunch says when something needs your attention: a sheet 
 
 **Pages on a sheet** puts 2, 4, 6, 9, or 16 pages on each sheet of paper, each one smaller and in a frame. The preview shows the whole sheet, and the label under it says which sheet you are looking at, such as **Sheet 1 of 2**. Use **Next** and **Previous** to look at the other sheets.
 
+## Move the margins and the column widths on the preview
+
+On a page of the preview, dashed lines mark the four margins, and a thin line marks the right edge of each column that is on the page (the first 64 of them). Drag a margin line to move that margin, or drag a column's line to make the column wider or narrower. The sheet changes as you let go, as one step, so **Undo** takes it back, and the preview is made again.
+
+To do it with the keyboard, press **Tab** until the line you want has the focus, then press the arrow keys, left and right for the sides and for the columns, up and down for the top and the bottom. A screen reader says the name of each line, such as **Left margin** or **Width of column B**. Each key press moves it a little and is a step of its own.
+
+You can also use **Page Layout > Margins > Custom Margins** for the margins and **Home > Format > Column Width** for the columns. The lines are not drawn for the margins while you have chosen **Margins** for this print (Narrow, Standard, or Wide), because those are not the sheet's own, and they are not drawn while several pages share a sheet of paper.
+
 ## The printer
 
-Pick a printer from the list, or **Save as PDF**. **Printer settings** opens your system's own dialog for the printer's other choices, such as paper trays. **Print** sends the pages.
+Pick a printer from the list, or **Save as PDF**. **Printer Properties** opens your system's own window for the printer, for choices such as paper trays. What you set there (the printer, the copies, collate, and color) is put on this page. The button is hidden when **Save as PDF** is chosen, or when your computer has no such window. **Print** sends the pages.
+
+With **Save as PDF** chosen, the box **Open the PDF after saving** opens the file in the program your computer uses for PDF files as soon as it is saved. It is off at first, and the choice is kept for the next time.
 
 ## Export to PDF
 
 **File > Export** makes a PDF of the sheet you are on, or of the whole workbook, without choosing a printer. The letters stay letters (not pictures), so they can be searched and stay sharp when you zoom.
 
 Each sheet gets a **bookmark**, an entry in the list that a PDF reader shows beside the pages. Click a bookmark to jump to the first page of its sheet.
+
+A cell that has a link is a clickable box in the PDF, on every page the cell is on. A cell in a title row that repeats at the top of every page is a link on each of those pages. A link to a web address (http or https) or to an email address opens it. A link to a place in the workbook, such as Sheet2!A1, goes to that cell on its page, or to the first page of that sheet when the cell's page is not in the PDF. A link to a file, to any other kind of address, or to a sheet that has no page in the PDF is left out.
+
+The PDF's own properties, the ones a PDF reader shows, are the title, author, subject, and keywords of the workbook (see **File > Info**). When the personal information is removed, or **Remove personal information** is on in the options, the PDF has no author, and no title made from the file's name.
+
+The box **Open the PDF after saving** on this page opens the PDF after it is saved. It is the same choice as the one on the Print page.
 
 The box **Add document structure tags for accessibility to every PDF** is checked at first, and it is kept for the next time. It adds a map of each page for people who listen to a PDF with a screen reader. The map says that the cells of a page are a table, so the reader can say them row by row, from left to right. Backgrounds, lines, headings, headers, footers, and charts are left out of what is read. Uncheck the box if you don't want the map.
 
