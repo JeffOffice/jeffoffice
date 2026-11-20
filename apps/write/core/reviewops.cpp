@@ -1211,7 +1211,7 @@ QVector<PlacedTableChange> tableChangesOf(const QTextDocument *story)
     const QVariant store = story->property(kTableStoreProperty);
     if (!store.isValid()) return out;
     static const Revision::Kind kinds[] = {Revision::RowInserted, Revision::RowDeleted, Revision::CellInserted, Revision::CellDeleted, Revision::CellMerged, Revision::TableFormat, Revision::RowFormat, Revision::CellFormat};
-    int perKind[16] = {};
+    int perKind[Revision::CellFormat + 1] = {};   // (every kind: the table kinds are the last of them, and a smaller array was written past its end)
     QVector<TableChange> now;
     for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
         if (!b.blockFormat().hasProperty(flow::fp::Cell)) continue;
