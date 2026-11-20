@@ -203,6 +203,8 @@ public:
     struct ShownNote {
         qint64 row = 0, col = 0;
         QString text;
+        bool placed = false;   // `box` is where the box is (else it is drawn beside the cell, as large as its words need)
+        QRect box;             // from the cell's top left, in pixels at 100%: where the box is and how large
     };
     // The cells that have notes (sorted by row, then column; each is `(row << 32) | col`): a small mark is drawn in the corner of each that is in view.
     void setNoteCells(std::vector<quint64> sortedKeys);
@@ -214,6 +216,15 @@ public:
     qint64 hoverRow() const { return m_hoverRow; }
     qint64 hoverCol() const { return m_hoverCol; }
     QRect cellRectAt(qint64 row, qint64 col) const { return cellRect(row, col); }
+    // The box of a shown note as it is drawn now (in the viewport's pixels; empty if the note is not shown or its cell is out of sight), and the one picked (clicked: it has handles to
+    // size it by, and is moved by dragging it; -1 for none).
+    QRect shownNoteRect(qint64 row, qint64 col) const;
+    void pickShownNote(qint64 row, qint64 col);
+    bool hasPickedNote() const { return m_pickRow >= 0; }
+    qint64 pickedNoteRow() const { return m_pickRow; }
+    qint64 pickedNoteCol() const { return m_pickCol; }
+    // The handles of the picked note's box (eight, numbered from the top left corner round the box: corner, edge, corner, edge, ...), in the viewport's pixels.
+    QRect noteHandleRect(int handle) const;
 
     // Several ranges selected (Ctrl with a click or a drag adds one): the selection's own range is the last one added (where the cursor is), and these are the ones before it. Any other change of
     // the selection leaves one range. A command that works on the selection but not on several ranges asks `hasSeveralRanges`.
@@ -348,6 +359,10 @@ Q_SIGNALS:
     void fillHandleDoubleClicked(const jp::grid::GridRange &source);
     // The selection's border was dragged and let go: the block, where it was dropped (the same size), and whether Ctrl was held (a copy, not a move).
     void moveRequested(const jp::grid::GridRange &source, const jp::grid::GridRange &target, bool copy);
+    // The same with Shift held: the block is to be put between the cells (those in the way move over) and not on them.
+    void moveInsertRequested(const jp::grid::GridRange &source, const jp::grid::GridRange &target);
+    // A shown note's box was dragged (moved, or sized by a handle) and let go: its cell, and where the box is now (from the cell's top left, in pixels at 100%).
+    void noteBoxRequested(qint64 row, qint64 col, const QRect &box);
     // The button of a list was clicked, or Alt+Down was pressed on a cell that has one.
     void dropDownRequested();
     // Esc took away the dashed border of the cells that were copied or cut.
@@ -457,7 +472,7 @@ private:
     QByteArray m_backgroundBytes;
     double m_backgroundScale = 1;
     // the mouse
-    enum class Drag { None, Cells, Rows, Columns, Fill, MoveCells, Resize, BreakLine, BreakEdge, Point, MarkMove, MarkResize, SplitBar } m_drag = Drag::None;
+    enum class Drag { None, Cells, Rows, Columns, Fill, MoveCells, NoteMove, NoteResize, Resize, BreakLine, BreakEdge, Point, MarkMove, MarkResize, SplitBar } m_drag = Drag::None;
     bool m_splitDragCols = false, m_splitDragRows = false;   // the bars being dragged: the vertical one (the columns' split), the horizontal, or both at their crossing
     PointSpan::Kind m_pointKind = PointSpan::Kind::Cells;
     qint64 m_pointRow = 0, m_pointCol = 0;   // where a drag that points began
@@ -479,6 +494,18 @@ private:
     bool m_adding = false;            // a press with Ctrl: the drag that follows makes one more range
     std::vector<quint64> m_noteCells;
     std::vector<ShownNote> m_shownNotes;
+    qint64 m_pickRow = -1, m_pickCol = -1;   // the note picked
+    int m_noteHandle = -1;                   // the handle being dragged (-1: the box itself)
+    QPoint m_noteFrom;                       // where the press was
+    QRect m_noteRect0, m_noteRectNow;        // the box as it was at the press, and as the drag has it (viewport pixels)
+    bool m_noteMoved = false;
+    bool m_moveInsert = false;               // the block being dragged goes between cells (Shift was held at the press)
+    int shownIndexAt(qint64 row, qint64 col) const;
+    bool shownBoxRect(size_t index, QRect *out) const;
+    QSize shownSize(size_t index) const;
+    bool noteBoxPress(const QPoint &lp);
+    void noteBoxDrag(const QPoint &lp);
+    void noteBoxRelease();
     mutable std::vector<QSize> m_shownSizes;
     mutable double m_shownZoom = 0;
     mutable qint64 m_shownLayouts = 0;

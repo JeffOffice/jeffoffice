@@ -644,6 +644,9 @@ public:
     Outcome setNote(int sheet, quint32 row, quint32 col, const QString &text, const QString &author, bool shown, const QString &stepText);
     Outcome deleteNotes(int sheet, const std::vector<std::pair<quint32, quint32>> &cells, const QString &stepText);
     // Shows or hides the notes on the cells (those of them that have one): one step.
+    // Puts a note's box (where it sits and how large it is, as the file's anchor has it) somewhere else: one step. Not ok, with the reason, for a sheet whose notes can't be changed, a cell with no note,
+    // and a note of a conversation of comments.
+    Outcome setNoteBox(int sheet, quint32 row, quint32 col, const jp::office::sheet::NoteBox &box, const QString &stepText);
     Outcome showNotes(int sheet, const std::vector<std::pair<quint32, quint32>> &cells, bool shown, const QString &stepText);
     // ---- comments: threads on cells (editcomments.cpp); each is one step. `author` is the name of the person who writes (a person of that name in the workbook's threads is reused).
     // New Comment starts a thread on a cell that has no note and no thread; Reply adds to the thread; Edit changes the words of comment `index` (0 is the first); Resolve marks the thread
@@ -863,6 +866,10 @@ public:
     Outcome pasteText(int sheet, const jp::office::sheet::CellRange &target, const QVector<QStringList> &table, const PasteOptions &options);
     // Cut and paste: the cells of the block go to the other place over what is there, and what refers to them follows. One step.
     Outcome moveCells(int sheet, const jp::office::sheet::CellRange &source, int toSheet, quint32 toRow, quint32 toCol);
+    // The same, but the cells in the way are not written over: room is made for the block first (the cells at its place move down, or right), and the block goes there. One step; what points at
+    // the cells follows. Not ok, and nothing changed, if either part is refused (a protected sheet, a merged range or an array that would be cut, a pivot table), or the block is in its own way
+    // (some of its cells would be shifted and some would not).
+    Outcome moveCellsInserting(int sheet, const jp::office::sheet::CellRange &source, quint32 toRow, quint32 toCol, bool shiftDown);
 
     // The width of columns and the height of rows: one step. A `SizeChange` sets the size (the width in characters of the widest digit, with the padding; the height in points), hides or
     // shows, or both; `custom` says that a person set the size (a fit to the contents is not custom, and a column that is not custom is widened to fit a number typed in it).

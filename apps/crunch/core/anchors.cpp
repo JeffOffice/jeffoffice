@@ -441,6 +441,7 @@ void CellAnchors::addToSave(SaveChanges *changes) const
                 op.author = n->second.author;
                 op.text = n->second.text;
                 op.shown = n->second.shown;
+                op.box = n->second.box;
                 if (n->second.threaded) {
                     // (a thread the person did not change is kept by the file as it is; one they changed is written whole, with the older note that stands for it)
                     if (!n->second.threadEdited || !n->second.thread || n->second.thread->empty() || n->second.threadCut) continue;

@@ -9,6 +9,7 @@
 #include "app/icons.h"
 #include "app/ribbon.h"
 #include "core/anchors.h"
+#include "core/notebox.h"
 
 #include <QAction>
 #include <QApplication>
@@ -81,6 +82,7 @@ void CrunchWindow::createNoteActions()
     connect(&m_hoverTimer, &QTimer::timeout, this, &CrunchWindow::showHoverTip);
     connect(m_view, &grid::GridView::hoverCellChanged, this, &CrunchWindow::hoverCell);
     connect(m_view, &grid::GridView::cellClicked, this, &CrunchWindow::cellClicked);
+    connect(m_view, &grid::GridView::noteBoxRequested, this, [this](qint64 row, qint64 col, const QRect &box) { noteBoxDragged(row, col, box); });
     connect(m_view, &grid::GridView::selectionChanged, this, &CrunchWindow::updateNoteActions);
     connect(m_view, &grid::GridView::viewChanged, this, [this] { hideHoverTip(); });
 }
@@ -108,12 +110,29 @@ void CrunchWindow::refreshAnchors()
     std::vector<grid::GridView::ShownNote> shown;
     for (const auto &n : a.notes(m_sheet)) {
         if (!n.second.shown) continue;
-        shown.push_back({qint64(n.first >> 32), qint64(n.first & 0xFFFFFFFFu), n.second.text});
+        grid::GridView::ShownNote sn{qint64(n.first >> 32), qint64(n.first & 0xFFFFFFFFu), n.second.text, false, QRect()};
+        if (n.second.box.set) {
+            sn.placed = true;
+            sn.box = crunch::noteBoxPixels(n.second.box, m_view->sheet().layout().rows, m_view->sheet().layout().cols, quint32(sn.row), quint32(sn.col));
+        }
+        shown.push_back(std::move(sn));
         if (shown.size() >= 5000) break;
     }
     m_view->setShownNotes(std::move(shown));
     updateNoteActions();
     fillComments();
+}
+
+// A shown note's box was moved or sized with the pointer: one step of Undo.
+void CrunchWindow::noteBoxDragged(qint64 row, qint64 col, const QRect &box)
+{
+    if (!m_session || m_sheet < 0 || row < 0 || col < 0) return;
+    const jp::office::sheet::NoteBox place = crunch::noteBoxFromPixels(box, m_view->sheet().layout().rows, m_view->sheet().layout().cols, quint32(row), quint32(col));
+    const crunch::EditSession::Outcome o = m_session->setNoteBox(m_sheet, quint32(row), quint32(col), place, tr("Move or Size Note"));
+    if (!o.ok) {
+        notice(tr("Note"), o.problem);
+        refreshAnchors();   // (the box goes back to where it was)
+    }
 }
 
 void CrunchWindow::updateNoteActions()

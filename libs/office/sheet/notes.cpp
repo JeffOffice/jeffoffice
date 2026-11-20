@@ -301,6 +301,69 @@ bool shapeNote(const QByteArray &vml, const DrawingShape &shape, quint32 *row, q
     return true;
 }
 
+NoteBox shapeBox(const QByteArray &vml, const DrawingShape &shape, quint32 row, quint32 col)
+{
+    NoteBox box;
+    const QByteArrayView body = QByteArrayView(vml).sliced(shape.start, shape.end - shape.start);
+    xmlscan::Tag t;
+    qsizetype pos = 0;
+    qint64 tags = 0;
+    while (xmlscan::nextTag(body, pos, &t)) {
+        pos = t.end;
+        if (++tags > 4096) break;
+        if (t.closing || t.local != "Anchor" || t.selfClosing) continue;
+        const qsizetype close = body.indexOf('<', t.end);
+        const QByteArrayView text = body.sliced(t.end, (close < 0 ? body.size() : close) - t.end);
+        qint64 v[8];
+        int n = 0;
+        qsizetype i = 0;
+        while (i < text.size() && n < 8) {
+            while (i < text.size() && (text[i] == ' ' || text[i] == ',' || text[i] == '\n' || text[i] == '\r' || text[i] == '\t')) ++i;
+            bool neg = false;
+            if (i < text.size() && text[i] == '-') {
+                neg = true;
+                ++i;
+            }
+            qint64 x = 0;
+            int digits = 0;
+            while (i < text.size() && text[i] >= '0' && text[i] <= '9') {
+                if (digits++ < 9) x = x * 10 + (text[i] - '0');
+                ++i;
+            }
+            if (digits == 0) break;
+            v[n++] = neg ? -x : x;
+        }
+        if (n < 8) break;
+        auto clamp = [](qint64 x, int most) { return int(std::clamp<qint64>(x, -most, most)); };
+        box.col1 = clamp(v[0] - qint64(col), kMaxNoteBoxCells);
+        box.x1 = clamp(v[1], kMaxNoteBoxPixels);
+        box.row1 = clamp(v[2] - qint64(row), kMaxNoteBoxCells);
+        box.y1 = clamp(v[3], kMaxNoteBoxPixels);
+        box.col2 = clamp(v[4] - qint64(col), kMaxNoteBoxCells);
+        box.x2 = clamp(v[5], kMaxNoteBoxPixels);
+        box.row2 = clamp(v[6] - qint64(row), kMaxNoteBoxCells);
+        box.y2 = clamp(v[7], kMaxNoteBoxPixels);
+        box.set = true;
+        break;
+    }
+    return box;
+}
+
+std::map<quint64, NoteBox> noteBoxes(const QByteArray &vml)
+{
+    std::map<quint64, NoteBox> out;
+    qint64 seen = 0;
+    for (const DrawingShape &s : drawingShapes(vml)) {
+        quint32 row = 0, col = 0;
+        bool shown = false;
+        if (!shapeNote(vml, s, &row, &col, &shown)) continue;
+        if (++seen > kMaxNotes) break;
+        const NoteBox box = shapeBox(vml, s, row, col);
+        if (box.set) out[noteKey(row, col)] = box;
+    }
+    return out;
+}
+
 std::map<quint64, bool> noteShapes(const QByteArray &vml)
 {
     std::map<quint64, bool> out;
@@ -500,9 +563,12 @@ std::map<quint64, NoteInfo> readSheetNoteInfos(const Workbook &book, int sheet, 
     QByteArray vml;
     if (!notesDrawingPart(book.package(), info.sheets[sheet].part, &vml).isEmpty()) {
         const std::map<quint64, bool> shown = noteShapes(vml);
+        const std::map<quint64, NoteBox> boxes = noteBoxes(vml);
         for (auto &n : out) {
             const auto s = shown.find(n.first);
             n.second.shown = s != shown.end() && s->second;
+            const auto b = boxes.find(n.first);
+            if (b != boxes.end()) n.second.box = b->second;
         }
     }
     return out;

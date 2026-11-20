@@ -92,6 +92,8 @@ struct PrintChoices {
 struct PrintNote {
     quint32 row = 0, col = 0;
     QString author, text;
+    bool shown = false;                     // the note is shown on the sheet (its box prints with the cells when the comments print as displayed)
+    jp::office::sheet::NoteBox box;         // where its box is, if the file says
 };
 
 // A link on cells, for the PDF: the cells, and where it goes (an address outside the workbook, or a place in it such as "Sheet2!B5").
@@ -250,6 +252,7 @@ private:
         jp::grid::Axis rows;                    // the rows as they are on paper, the same way
         int firstNumber = 1;
         int firstPage = 0;
+        std::vector<PrintNote> shownNotes;      // the notes shown on the sheet, for comments printed as displayed: their boxes are drawn over the cells
         std::vector<QStringList> notePages;     // the lines of the pages of notes after the sheet's pages (comments printed at the end)
     };
     struct Context {

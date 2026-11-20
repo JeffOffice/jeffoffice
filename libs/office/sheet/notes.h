@@ -34,9 +34,25 @@ constexpr int kMaxPersonChars = 200;
 struct NoteInfo;
 struct NoteReadContext;
 
+// Where a note's box sits when the file says so: the corners as the file's anchor has them, a cell (counted from the note's own cell) and a distance from its top left in pixels, for the
+// box's top left and for its bottom right. A note with none (`set` false) is drawn where the program puts it.
+struct NoteBox {
+    bool set = false;
+    int row1 = 0, col1 = 0, y1 = 0, x1 = 0;
+    int row2 = 0, col2 = 0, y2 = 0, x2 = 0;
+    bool operator==(const NoteBox &o) const
+    {
+        return set == o.set && (!set || (row1 == o.row1 && col1 == o.col1 && y1 == o.y1 && x1 == o.x1 && row2 == o.row2 && col2 == o.col2 && y2 == o.y2 && x2 == o.x2));
+    }
+};
+// The most cells and pixels a corner of the box may be from the note's cell.
+constexpr int kMaxNoteBoxCells = 100000;
+constexpr int kMaxNoteBoxPixels = 100000;
+
 struct NoteInfo {
     QString author;
     QString text;
+    NoteBox box;             // where the box is, if the file says
     bool shown = false;      // the file shows the note all the time (not only when the pointer is on its cell)
     bool threaded = false;   // the text is that of a thread of comments (`thread` holds them)
     ThreadPtr thread;        // the thread's comments, for a note that is one
@@ -44,7 +60,7 @@ struct NoteInfo {
     bool threadEdited = false;   // the thread is not what the file has (the next save writes it whole)
     ThreadPtr fileThread;        // the thread as the file has it (null for none); `fileSaves` is the number of saves it was true at, so that a copy kept by Undo can tell it is out of date
     int fileSaves = 0;
-    bool operator==(const NoteInfo &o) const { return author == o.author && text == o.text && shown == o.shown && threaded == o.threaded && threadCut == o.threadCut && sameThread(thread, o.thread); }
+    bool operator==(const NoteInfo &o) const { return author == o.author && text == o.text && shown == o.shown && threaded == o.threaded && threadCut == o.threadCut && sameThread(thread, o.thread) && box == o.box; }
 };
 
 struct NoteReadContext {
@@ -92,5 +108,9 @@ struct DrawingShape {
 std::vector<DrawingShape> drawingShapes(const QByteArray &vml, qint64 most = kMaxNotes * 4);
 // What a shape's bytes say of a note: the cell (from 0) its `ClientData` of the kind Note names, and whether it is shown all the time. False for a shape that is not a note's.
 bool shapeNote(const QByteArray &vml, const DrawingShape &shape, quint32 *row, quint32 *col, bool *shown);
+// The box a shape's anchor gives (the eight numbers of its `Anchor`, made relative to the cell the shape names); `set` false if it has none that can be read.
+NoteBox shapeBox(const QByteArray &vml, const DrawingShape &shape, quint32 row, quint32 col);
+// The boxes of a drawing's notes, by cell (only those that have one).
+std::map<quint64, NoteBox> noteBoxes(const QByteArray &vml);
 
 } // namespace jp::office::sheet

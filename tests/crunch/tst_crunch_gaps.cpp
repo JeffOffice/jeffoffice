@@ -4,6 +4,7 @@
 #include "app/anchordialogs.h"
 #include "app/finddialog.h"
 #include "core/editsession.h"
+#include "core/notebox.h"
 #include "core/printjob.h"
 #include "crunchbooks.h"
 #include "crunchwindowhelpers.h"
@@ -11,8 +12,11 @@
 #include "grid/gridview.h"
 #include "office/package.h"
 #include "savedok.h"
+#include "sheet/notes.h"
+#include "sheet/pagesetup.h"
 
 #include <QAction>
+#include <QImage>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QSignalSpy>
@@ -43,6 +47,62 @@ QPoint middleOf(EditWindow &e, const QString &ref)
 }
 
 void clickCell(EditWindow &e, const QString &ref, Qt::KeyboardModifiers m = Qt::NoModifier) { QTest::mouseClick(e.view()->viewport(), Qt::LeftButton, m, middleOf(e, ref)); }
+
+// Presses at `from`, moves to `to`, and lets go (a drag), with the modifiers held at the press.
+void dragFromTo(EditWindow &e, const QPoint &from, const QPoint &to, Qt::KeyboardModifiers m = Qt::NoModifier)
+{
+    QWidget *vp = e.view()->viewport();
+    QTest::mousePress(vp, Qt::LeftButton, m, from);
+    QTest::mouseMove(vp, to);
+    QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, to);
+}
+
+// A point on the border of a cell's block: just inside its left edge, halfway down.
+QPoint onLeftBorder(EditWindow &e, const QString &ref)
+{
+    quint32 r = 0, c = 0;
+    parseCellRef(ref, &r, &c);
+    const QRect rect = e.view()->sheet().layout().cellRect(r, c);
+    return QPoint(rect.left() + 1, rect.center().y());
+}
+
+const char *kBoxComments =
+    "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<comments xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><authors><author>Ann</author></authors><commentList>"
+    "<comment ref=\"C3\" authorId=\"0\" shapeId=\"0\"><text><t>Check the total, please, and say so</t></text></comment>"
+    "<comment ref=\"A1\" authorId=\"0\" shapeId=\"0\"><text><t>Plain</t></text></comment></commentList></comments>";
+
+const char *kBoxVml =
+    "<xml xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" xmlns:x=\"urn:schemas-microsoft-com:office:excel\">"
+    "<v:shapetype id=\"_x0000_t202\" coordsize=\"21600,21600\" o:spt=\"202\" path=\"m,l,21600r21600,l21600,xe\"><v:stroke joinstyle=\"miter\"/><v:path gradientshapeok=\"t\" o:connecttype=\"rect\"/></v:shapetype>"
+    "<v:shape id=\"_x0000_s1025\" type=\"#_x0000_t202\" style=\"position:absolute;width:108pt;height:59pt;z-index:1;visibility:hidden\"><x:ClientData ObjectType=\"Note\"><x:Anchor>1, 15, 0, 2, 3, 15, 3, 16</x:Anchor>"
+    "<x:Row>0</x:Row><x:Column>0</x:Column></x:ClientData></v:shape>"
+    "<v:shape id=\"_x0000_s1026\" type=\"#_x0000_t202\" style=\"position:absolute;width:108pt;height:59pt;z-index:2;visibility:visible\"><x:ClientData ObjectType=\"Note\"><x:Anchor>3, 15, 1, 2, 5, 15, 4, 16</x:Anchor>"
+    "<x:Row>2</x:Row><x:Column>2</x:Column><x:Visible/></x:ClientData></v:shape></xml>";
+
+// A1:C3 hold numbers; a note on A1 (hidden) and one on C3 (shown, its box from D2 to F5).
+QByteArray bookWithBoxes()
+{
+    QVector<ExtraPart> parts;
+    parts.push_back({QStringLiteral("xl/comments1.xml"), QByteArray(kBoxComments), QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.comments+xml"), 0, QStringLiteral("rId11"),
+                     QStringLiteral("comments"), QStringLiteral("../comments1.xml")});
+    parts.push_back({QStringLiteral("xl/drawings/vmlDrawing1.vml"), QByteArray(kBoxVml), QStringLiteral("application/vnd.openxmlformats-officedocument.vmlDrawing"), 0, QStringLiteral("rId12"),
+                     QStringLiteral("vmlDrawing"), QStringLiteral("../drawings/vmlDrawing1.vml")});
+    QMap<QString, QByteArray> all;
+    jp::readZip(withParts(editBook(), parts), all);
+    QByteArray sheet = all.value(QStringLiteral("xl/worksheets/sheet1.xml"));
+    sheet.replace("</worksheet>", "<legacyDrawing r:id=\"rId12\"/></worksheet>");
+    all[QStringLiteral("xl/worksheets/sheet1.xml")] = sheet;
+    jp::ZipWriter z;
+    for (auto it = all.begin(); it != all.end(); ++it) z.add(it.key(), it.value(), true);
+    return z.finish();
+}
+
+QByteArray savedPart(const QString &path, const QString &name)
+{
+    jp::office::Package p;
+    QString why;
+    return p.readLazyFile(path, &why) ? p.part(name) : QByteArray();
+}
 
 }   // namespace
 
@@ -593,6 +653,251 @@ private Q_SLOTS:
         QTest::keyClick(e.view(), Qt::Key_Escape);
         QVERIFY(!e.view()->endMode());
         QCOMPARE(e.selected(), QStringLiteral("A3"));
+    }
+
+    // Shift with a drag of a selected block's border puts the block between the cells (those in the way move down), not over them: one step of Undo, and formulas that point at cells that
+    // moved keep pointing at them. The same drag without Shift writes over what is there.
+    void shiftDragOfTheBorderInsertsAndAPlainDragWritesOver()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "A3=3", "C1==A3*10", "C2==A1"})));
+        QVERIFY(e.settle());
+        e.select(QStringLiteral("A3"));
+        const QPoint from = onLeftBorder(e, QStringLiteral("A3")), to(from.x(), middleOf(e, QStringLiteral("A1")).y());
+        const int steps = e.win.w.undoStack()->count();
+        dragFromTo(e, from, to, Qt::ShiftModifier);
+        QVERIFY(e.settle());
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:3"));
+        QCOMPARE(e.valueAt(QStringLiteral("A2")), QStringLiteral("n:1"));
+        QCOMPARE(e.valueAt(QStringLiteral("A3")), QStringLiteral("n:2"));
+        QCOMPARE(e.valueAt(QStringLiteral("C1")), QStringLiteral("n:30"));   // (it pointed at the cell that moved)
+        QCOMPARE(e.valueAt(QStringLiteral("C2")), QStringLiteral("n:1"));    // (and this at the cell that was pushed down)
+        QCOMPARE(e.selected(), QStringLiteral("A1"));
+        e.win.w.undoStack()->undo();
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:1"));
+        QCOMPARE(e.valueAt(QStringLiteral("A3")), QStringLiteral("n:3"));
+        QCOMPARE(e.valueAt(QStringLiteral("C2")), QStringLiteral("n:1"));
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);   // (one step, not two)
+        QCOMPARE(e.win.w.undoStack()->index(), steps);
+        // a plain drag writes over the cell
+        e.select(QStringLiteral("A3"));
+        dragFromTo(e, from, to);
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("A1")), QStringLiteral("n:3"));
+        QCOMPARE(e.valueAt(QStringLiteral("A2")), QStringLiteral("n:2"));
+        QCOMPARE(e.valueAt(QStringLiteral("A3")), QStringLiteral("-"));
+    }
+
+    // Dragged across, the cells in the way move right; a block of two cells makes room for two.
+    void shiftDragAcrossMovesTheCellsInTheWayRight()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "B1=7", "B2=8", "D1=4", "D2=5"})));
+        QVERIFY(e.settle());
+        e.view()->selectRange(0, 3, 1, 3);   // D1:D2
+        const QRect d = e.view()->sheet().layout().cellRect(0, 3);
+        const QPoint from(d.left() + 1, d.center().y()), to(middleOf(e, QStringLiteral("B1")).x() - 4, from.y());
+        dragFromTo(e, from, to, Qt::ShiftModifier);
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("B1")), QStringLiteral("n:4"));
+        QCOMPARE(e.valueAt(QStringLiteral("B2")), QStringLiteral("n:5"));
+        QCOMPARE(e.valueAt(QStringLiteral("C1")), QStringLiteral("n:7"));
+        QCOMPARE(e.valueAt(QStringLiteral("C2")), QStringLiteral("n:8"));
+        QCOMPARE(e.valueAt(QStringLiteral("D1")), QStringLiteral("-"));
+    }
+
+    // A protected sheet, a merged range the room would cut, and a block that is in its own way refuse in words, and leave nothing done and nothing to redo.
+    void insertingMovedCellsRefusesCleanly()
+    {
+        QString rows;
+        for (int r = 1; r <= 5; ++r) rows += QStringLiteral("<row r=\"%1\"><c r=\"A%1\"><v>%1</v></c></row>").arg(r);
+        const QByteArray merged = buildXlsx({worksheet(rows, QStringLiteral("<mergeCells count=\"1\"><mergeCell ref=\"A1:A2\"/></mergeCells>"))}, QByteArray(), QString(), QString(), QByteArray());
+        const QByteArray locked = buildXlsx({worksheet(rows, QStringLiteral("<sheetProtection sheet=\"1\"/>"))}, QByteArray(), QString(), QString(), QByteArray());
+        for (int which = 0; which < 3; ++which) {
+            EditWindow e;
+            QVERIFY(e.open(which == 0 ? merged : which == 1 ? locked : merged));
+            QVERIFY(e.settle());
+            crunch::EditSession *s = e.win.w.session();
+            const jp::office::sheet::CellRange from = rangeOf(which == 2 ? QStringLiteral("A3:A4") : QStringLiteral("A4"));
+            // (the second goes to A2, cutting the merged range A1:A2 and, for the third, over its own cells)
+            const crunch::EditSession::Outcome o = s->moveCellsInserting(0, from, which == 2 ? 3 : 1, 0, true);
+            QVERIFY2(!o.ok && !o.problem.isEmpty(), qPrintable(QString::number(which)));
+            QCOMPARE(e.win.w.undoStack()->count(), 0);
+            QVERIFY(!e.win.w.undoStack()->canRedo());
+            QCOMPARE(e.valueAt(QStringLiteral("A4")), QStringLiteral("n:4"));
+        }
+    }
+
+    // A note's box is read from the file's anchor (as cells and pixels from the note's own cell) and drawn there.
+    void aNoteBoxIsReadFromTheFileAndDrawnThere()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithBoxes()));
+        QVERIFY(e.settle());
+        const jp::office::sheet::NoteInfo *n = e.win.w.session()->anchors().noteAt(0, 2, 2);
+        QVERIFY(n && n->shown && n->box.set);
+        QCOMPARE(n->box.col1, 1);
+        QCOMPARE(n->box.x1, 15);
+        QCOMPARE(n->box.row1, -1);
+        QCOMPARE(n->box.y1, 2);
+        QCOMPARE(n->box.col2, 3);
+        QCOMPARE(n->box.row2, 2);
+        QCOMPARE(n->box.y2, 16);
+        QVERIFY(!e.win.w.session()->anchors().noteAt(0, 0, 0)->shown);
+        const QRect box = e.view()->shownNoteRect(2, 2);
+        const QRect c3 = e.view()->sheet().layout().cellRect(2, 2), d2 = e.view()->sheet().layout().cellRect(1, 3);
+        QVERIFY(!box.isEmpty());
+        QCOMPARE(box.left(), d2.left() + 15);
+        QCOMPARE(box.top(), d2.top() + 2);
+        QVERIFY(box.width() > c3.width() * 2 - 30);
+        QVERIFY(box.left() > c3.right());
+    }
+
+    // Dragging a shown note's box moves it, and a handle sizes it; each is one step of Undo, and the file keeps the new anchor (and the note that was not touched as it was).
+    void aNoteBoxIsMovedAndSizedWithThePointerAndSavedInTheFile()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithBoxes()));
+        QVERIFY(e.settle());
+        e.win.w.resize(1100, 640);
+        e.win.w.show();
+        crunch::EditSession *s = e.win.w.session();
+        const jp::office::sheet::NoteBox first = s->anchors().noteAt(0, 2, 2)->box;
+        const QRect was = e.view()->shownNoteRect(2, 2);
+        const int steps = e.win.w.undoStack()->count();
+        // a click only picks the box (and shows its handles), nothing is changed
+        QTest::mouseClick(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, was.center());
+        QVERIFY(e.view()->hasPickedNote());
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        // moved
+        dragFromTo(e, was.center(), was.center() + QPoint(40, 30));
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        const jp::office::sheet::NoteBox moved = s->anchors().noteAt(0, 2, 2)->box;
+        QVERIFY(!(moved == first));
+        const QRect after = e.view()->shownNoteRect(2, 2);
+        QVERIFY(qAbs(after.left() - (was.left() + 40)) <= 1);
+        QVERIFY(qAbs(after.top() - (was.top() + 30)) <= 1);
+        QCOMPARE(after.size(), was.size());
+        // sized by the corner handle at the bottom right
+        const QRect handle = e.view()->noteHandleRect(4);
+        QVERIFY(!handle.isEmpty());
+        dragFromTo(e, handle.center(), handle.center() + QPoint(25, 20));
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 2);
+        const QRect sized = e.view()->shownNoteRect(2, 2);
+        QVERIFY(qAbs(sized.width() - (after.width() + 25)) <= 1);
+        QVERIFY(qAbs(sized.height() - (after.height() + 20)) <= 1);
+        QCOMPARE(sized.topLeft(), after.topLeft());
+        // Undo and Redo
+        e.win.w.undoStack()->undo();
+        QCOMPARE(e.view()->shownNoteRect(2, 2), after);
+        e.win.w.undoStack()->undo();
+        QVERIFY(s->anchors().noteAt(0, 2, 2)->box == first);
+        QCOMPARE(e.view()->shownNoteRect(2, 2), was);
+        e.win.w.undoStack()->redo();
+        e.win.w.undoStack()->redo();
+        QCOMPARE(e.view()->shownNoteRect(2, 2), sized);
+        // saved, and read again
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved), "the save failed");
+        const QByteArray vml = savedPart(e.path, QStringLiteral("xl/drawings/vmlDrawing1.vml"));
+        QVERIFY(!vml.isEmpty());
+        const jp::office::sheet::NoteBox now = s->anchors().noteAt(0, 2, 2)->box;
+        QVERIFY(vml.contains("<x:Anchor>" + QByteArray::number(2 + now.col1) + ", " + QByteArray::number(now.x1) + ", " + QByteArray::number(2 + now.row1) + ", " + QByteArray::number(now.y1) + ", "));
+        QVERIFY(vml.contains("<x:Anchor>1, 15, 0, 2, 3, 15, 3, 16</x:Anchor>"));   // (the other note, as the file had it)
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        QVERIFY(second.w.session()->anchors().noteAt(0, 2, 2)->box == now);
+        QVERIFY(second.w.session()->anchors().noteAt(0, 0, 0)->box.set);
+    }
+
+    // A box that follows its cell: rows put in above carry it, and Undo brings it back.
+    void aNoteBoxStaysWithItsCellWhenRowsAreInserted()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithBoxes()));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        const jp::office::sheet::NoteBox before = s->anchors().noteAt(0, 2, 2)->box;
+        QVERIFY(s->insertRows(0, 0, 2).ok);
+        const jp::office::sheet::NoteInfo *moved = s->anchors().noteAt(0, 4, 2);
+        QVERIFY(moved && moved->box == before);
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved), "the save failed");
+        Window second;
+        QVERIFY(second.open(e.copyOfFile()));
+        const jp::office::sheet::NoteInfo *again = second.w.session()->anchors().noteAt(0, 4, 2);
+        QVERIFY(again && again->box == before);
+    }
+
+    // A protected sheet's notes can't be moved or sized (the window says so, and the box goes back), and a cell with no note has no box.
+    void aNoteBoxOnAProtectedSheetIsRefused()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithBoxes()));
+        QVERIFY(e.settle());
+        e.win.w.resize(1100, 640);
+        e.win.w.show();
+        crunch::EditSession *s = e.win.w.session();
+        jp::office::sheet::NoteBox b = s->anchors().noteAt(0, 2, 2)->box;
+        b.x1 += 10;
+        b.x2 += 10;
+        QVERIFY(!s->setNoteBox(0, 1, 1, b, QStringLiteral("Move")).ok);   // (no note there)
+        jp::office::sheet::SheetProtection locked;
+        locked.enabled = true;
+        locked.objects = true;
+        QVERIFY(s->setSheetProtection(0, locked, QStringLiteral("Protect")).ok);
+        const int steps = e.win.w.undoStack()->count();
+        const QRect was = e.view()->shownNoteRect(2, 2);
+        const jp::office::sheet::NoteBox first = s->anchors().noteAt(0, 2, 2)->box;
+        e.win.told.clear();
+        dragFromTo(e, was.center(), was.center() + QPoint(40, 30));
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        QVERIFY(s->anchors().noteAt(0, 2, 2)->box == first);
+        QVERIFY2(!e.win.told.isEmpty() && e.win.told.last().contains(QLatin1String("protected")), qPrintable(e.win.told.join('|')));
+        QCOMPARE(e.view()->shownNoteRect(2, 2), was);
+    }
+
+    // Comments set to print as displayed draw the boxes of the notes that are shown over the page's cells; at the end, or not at all, they do not.
+    void notesPrintAsDisplayedOnTheSheet()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        crunch::EditSession *s = w.session();
+        QVERIFY(s->setNote(0, 1, 0, QStringLiteral("Look here"), QStringLiteral("Ann"), true, QStringLiteral("Add Note")).ok);
+        QVERIFY(s->setNote(0, 2, 2, QStringLiteral("Hidden one"), QStringLiteral("Ann"), false, QStringLiteral("Add Note")).ok);
+        QString why;
+        auto yellow = [&](jp::office::sheet::PrintComments how, QRect *where) {
+            jp::office::sheet::PageSetup p = s->pages().sheet(0);
+            p.comments = how;
+            if (!s->setPageSetup(0, p, QStringLiteral("Comments")).ok) return -1;
+            const std::unique_ptr<crunch::PrintJob> job = w.makePrintJob(crunch::PrintJobOptions(), &why);
+            if (!job) return -1;
+            const QImage page = job->preview(0, 900);
+            int count = 0;
+            QRect box;
+            for (int y = 0; y < page.height(); ++y)
+                for (int x = 0; x < page.width(); ++x)
+                    if (QColor(page.pixel(x, y)).red() > 250 && QColor(page.pixel(x, y)).green() > 250 && QColor(page.pixel(x, y)).blue() > 215 && QColor(page.pixel(x, y)).blue() < 235) {
+                        ++count;
+                        box = box.isNull() ? QRect(x, y, 1, 1) : box.united(QRect(x, y, 1, 1));
+                    }
+            if (where) *where = box;
+            return count;
+        };
+        QRect where;
+        QVERIFY(yellow(jp::office::sheet::PrintComments::None, nullptr) == 0);
+        QVERIFY(yellow(jp::office::sheet::PrintComments::AtEnd, nullptr) == 0);
+        const int shown = yellow(jp::office::sheet::PrintComments::AsDisplayed, &where);
+        QVERIFY2(shown > 400, qPrintable(why + QString::number(shown)));
+        // (one box: the note that is hidden has none; it is to the right of the note's cell, A2)
+        QVERIFY(where.width() < 450 && where.height() < 250);
+        QVERIFY(where.left() > 0);
     }
 };
 

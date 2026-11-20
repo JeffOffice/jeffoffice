@@ -53,6 +53,7 @@ void CrunchWindow::createOpsActions()
     connect(m_view, &grid::GridView::fillRequested, this, [this](const grid::GridRange &source, const grid::GridRange &extent, bool ctrl) { fillDragged(source, extent, ctrl); });
     connect(m_view, &grid::GridView::fillHandleDoubleClicked, this, [this](const grid::GridRange &source) { fillHandleDoubleClicked(source); });
     connect(m_view, &grid::GridView::moveRequested, this, [this](const grid::GridRange &source, const grid::GridRange &target, bool copy) { moveDragged(source, target, copy); });
+    connect(m_view, &grid::GridView::moveInsertRequested, this, [this](const grid::GridRange &source, const grid::GridRange &target) { moveInsertDragged(source, target); });
     m_opsActions << QStringLiteral("edit.autosum") << QStringLiteral("edit.autosum.sum") << QStringLiteral("edit.autosum.average") << QStringLiteral("edit.autosum.count")
                  << QStringLiteral("edit.autosum.max") << QStringLiteral("edit.autosum.min");
     updateEditActions();
@@ -198,6 +199,34 @@ void CrunchWindow::moveDragged(const grid::GridRange &source, const grid::GridRa
         return;
     }
     if (m_loader.changesMade() != before) m_calculating = true;
+    widenForCells(m_sheet, to);
+    m_view->selectRange(target.row1, target.col1, target.row2, target.col2);
+}
+
+void CrunchWindow::moveInsertDragged(const grid::GridRange &source, const grid::GridRange &target)
+{
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active || !editingAllowed() || !m_session || m_sheet < 0) return;
+    CellRange from;
+    from.valid = true;
+    from.row1 = quint32(source.row1);
+    from.col1 = quint32(source.col1);
+    from.row2 = quint32(source.row2);
+    from.col2 = quint32(source.col2);
+    // (the cells in the way move down when the block went more up or down than across, else right)
+    const bool down = std::abs(target.row1 - source.row1) > std::abs(target.col1 - source.col1);
+    const qint64 before = m_loader.changesMade();
+    const crunch::EditSession::Outcome o = doStructural([&] { return m_session->moveCellsInserting(m_sheet, from, quint32(target.row1), quint32(target.col1), down); });
+    if (!o.ok) {
+        if (!o.confirm) notice(tr("Move"), o.problem);
+        return;
+    }
+    if (m_loader.changesMade() != before) m_calculating = true;
+    CellRange to = from;
+    to.row1 = quint32(target.row1);
+    to.col1 = quint32(target.col1);
+    to.row2 = quint32(target.row2);
+    to.col2 = quint32(target.col2);
     widenForCells(m_sheet, to);
     m_view->selectRange(target.row1, target.col1, target.row2, target.col2);
 }

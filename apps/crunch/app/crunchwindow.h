@@ -847,6 +847,7 @@ public:
 private:
     void fillHandleDoubleClicked(const grid::GridRange &source);
     void moveDragged(const grid::GridRange &source, const grid::GridRange &target, bool copy);
+    void moveInsertDragged(const grid::GridRange &source, const grid::GridRange &target);
     void fillDragged(const jp::grid::GridRange &source, const jp::grid::GridRange &extent, bool ctrl);
     void fillSeriesDialog();
     // inserting and deleting rows, columns, and cells (crunchwindow_cells.cpp)
@@ -1900,6 +1901,7 @@ private:
     void toggleNoteShown();
     void showAllNotes();
     void goToNote(bool next);
+    void noteBoxDragged(qint64 row, qint64 col, const QRect &box);
     // ---- comments: threads (crunchwindow_comments.cpp)
     void createCommentActions();
     void updateCommentActions();

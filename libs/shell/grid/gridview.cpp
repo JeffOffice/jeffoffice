@@ -1442,6 +1442,7 @@ void GridView::mousePressEvent(QMouseEvent *e)
     }
     if (e->button() != Qt::LeftButton) return;
     if (headerButtonPress(lp)) return;
+    if (noteBoxPress(lp)) return;
     if (dropDownRectInLayout().contains(lp)) {
         Q_EMIT dropDownRequested();
         return;
@@ -1467,11 +1468,12 @@ void GridView::mousePressEvent(QMouseEvent *e)
         m_lastMouse = lp;
         return;
     }
-    if (h.kind == Hit::Kind::Cell && m_cellsEnabled && m_dragEditing && !shift && !(e->modifiers() & Qt::AltModifier) && h.row >= m_selection.range.row1 && h.row <= m_selection.range.row2
+    if (h.kind == Hit::Kind::Cell && m_cellsEnabled && m_dragEditing && !(e->modifiers() & Qt::AltModifier) && h.row >= m_selection.range.row1 && h.row <= m_selection.range.row2
         && h.col >= m_selection.range.col1 && h.col <= m_selection.range.col2 && selectionBorderAtInLayout(lp)) {
         m_drag = Drag::MoveCells;
         m_moveSource = m_moveTarget = m_selection.range;
         m_moveCopy = e->modifiers() & Qt::ControlModifier;
+        m_moveInsert = shift && !m_moveCopy;
         m_pressRow = h.row;
         m_pressCol = h.col;
         m_lastMouse = lp;
@@ -1538,6 +1540,10 @@ void GridView::mouseMoveEvent(QMouseEvent *e)
     m_lastMouse = lp;
     if (m_drag == Drag::SplitBar) {
         moveSplitBar(lp);
+        return;
+    }
+    if (m_drag == Drag::NoteMove || m_drag == Drag::NoteResize) {
+        noteBoxDrag(lp);
         return;
     }
     if (m_drag == Drag::Resize) {
@@ -1630,6 +1636,10 @@ void GridView::mouseReleaseEvent(QMouseEvent *e)
         return;
     }
     if (breakRelease()) return;
+    if (m_drag == Drag::NoteMove || m_drag == Drag::NoteResize) {
+        noteBoxRelease();
+        return;
+    }
     if (m_drag == Drag::Resize) {
         m_drag = Drag::None;
         viewport()->update();
@@ -1654,8 +1664,11 @@ void GridView::mouseReleaseEvent(QMouseEvent *e)
         m_drag = Drag::None;
         m_autoScroll.stop();
         viewport()->update();
+        const bool insert = m_moveInsert && !copy;
+        m_moveInsert = false;
         if (!(target == source)) {
-            Q_EMIT moveRequested(source, target, copy);
+            if (insert) Q_EMIT moveInsertRequested(source, target);
+            else Q_EMIT moveRequested(source, target, copy);
         } else {
             // (not moved: a click on the border changes nothing, and a selection of several cells stays)
             (void)pressRow;

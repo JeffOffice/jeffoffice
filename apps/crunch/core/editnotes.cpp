@@ -53,6 +53,7 @@ EditSession::Outcome EditSession::setNote(int sheet, quint32 row, quint32 col, c
     now.text = text;
     now.shown = shown;
     now.author = was ? was->author : author;
+    if (was) now.box = was->box;
     if (was && *was == now) return Outcome();   // (nothing to change)
     SideEdit edit;
     edit.sheet = sheet;
@@ -116,6 +117,33 @@ EditSession::Outcome EditSession::showNotes(int sheet, const std::vector<std::pa
         edit.notes.push_back(std::move(n));
     }
     if (edit.notes.empty()) return Outcome();
+    Step step;
+    step.sides.push_back(std::move(edit));
+    pushStep(std::move(step), stepText);
+    return Outcome();
+}
+
+EditSession::Outcome EditSession::setNoteBox(int sheet, quint32 row, quint32 col, const jp::office::sheet::NoteBox &box, const QString &stepText)
+{
+    QString why;
+    if (!canEditNotes(sheet, &why)) return refused(why);
+    const jp::office::sheet::Sheet &model = m_book->calc->sheet(sheet);
+    if (model.isProtected && model.protection.objects) return refused(tr("This sheet is protected, so its notes can't be changed. Take the protection off first."));
+    const NoteInfo *was = m_anchors.noteAt(sheet, row, col);
+    if (!was) return refused(tr("There is no note on that cell."));
+    if (!box.set) return refused(tr("A note's box needs a place."));
+    if (was->threaded) return refused(tr("This note is a conversation of comments. Change it with the commands in Comments, on the Review tab."));
+    NoteInfo now = *was;
+    now.box = box;
+    if (*was == now) return Outcome();   // (nothing to change)
+    SideEdit edit;
+    edit.sheet = sheet;
+    SideEdit::Note n;
+    n.row = row;
+    n.col = col;
+    n.before = *was;
+    n.after = now;
+    edit.notes.push_back(std::move(n));
     Step step;
     step.sides.push_back(std::move(edit));
     pushStep(std::move(step), stepText);

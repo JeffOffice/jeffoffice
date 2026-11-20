@@ -1,5 +1,7 @@
 #include "core/printjob.h"
 
+#include "core/notebox.h"
+
 #include "grid/hfpicturecache.h"
 #include "io/pdftransparency.h"
 
@@ -94,6 +96,8 @@ std::vector<PrintNote> BookPrintSource::notes(int sheet) const
         n.col = quint32(kv.first & 0xFFFFFFFFu);
         n.author = kv.second.author;
         n.text = kv.second.text;
+        n.shown = kv.second.shown;
+        n.box = kv.second.box;
         out.push_back(std::move(n));
     }
     return out;
@@ -181,6 +185,33 @@ void applyChoices(PageSetup *s, const PrintJobOptions &o)
 
 // What a build in slices holds between the slices: the sheets to cut, the one being cut, and the pieces of its cut.
 namespace {
+
+// The boxes of the notes that are shown, on the cells of one page: where the file puts each (from its cell's top left), else beside its cell as large as the usual box.
+void paintShownNotes(QPainter *p, const jp::grid::GridLayout &layout, const jp::grid::PageCut &cut, const std::vector<PrintNote> &notes, const jp::grid::Axis &rows, const jp::grid::Axis &cols)
+{
+    const double z = layout.zoom();
+    p->save();
+    QFont font = p->font();
+    font.setPixelSize(std::max(1, int(std::lround(12 * z))));
+    p->setFont(font);
+    for (const PrintNote &n : notes) {
+        if (qint64(n.row) < cut.row1 || qint64(n.row) > cut.row2 || qint64(n.col) < cut.col1 || qint64(n.col) > cut.col2) continue;
+        const QRect cell = layout.cellRect(n.row, n.col);
+        if (cell.isEmpty()) continue;
+        QRect rel(int(cell.width() / std::max(z, 0.001)) + 6, 0, 144, 79);
+        if (n.box.set) rel = jp::crunch::noteBoxPixels(n.box, rows, cols, n.row, n.col);
+        const QRect box(cell.left() + int(std::lround(rel.x() * z)), cell.top() + int(std::lround(rel.y() * z)), std::max(1, int(std::lround(rel.width() * z))), std::max(1, int(std::lround(rel.height() * z))));
+        p->setPen(QPen(QColor(0x80, 0x80, 0x60), std::max(1.0, z)));
+        p->setBrush(QColor(0xFF, 0xFF, 0xE1));
+        p->drawRect(box);
+        p->setPen(QColor(0x20, 0x20, 0x20));
+        p->save();
+        p->setClipRect(box.adjusted(1, 1, -1, -1), Qt::IntersectClip);
+        p->drawText(box.adjusted(int(5 * z), int(4 * z), -int(5 * z), -int(4 * z)), Qt::TextWordWrap, n.text.left(4000));
+        p->restore();
+    }
+    p->restore();
+}
 
 // The pages of notes of a sheet: every note as "Cell A1: author: words" (its lines kept), a blank line between them, broken into lines as wide as the page's room in the font the sheet's text is
 // in, and into pages by the room it has down. (The text is laid out in eighths of a point, as the headers are.)
@@ -408,6 +439,10 @@ PrintJob::BuildState PrintJob::buildStep(jp::grid::Work &work, QString *why)
                     b.room -= qint64(info.notePages.size());
                 }
             }
+            // the notes that are shown print with the cells, when the sheet's comments are to print as displayed
+            if (info.setup.comments == jp::office::sheet::PrintComments::AsDisplayed && !info.chart)
+                for (PrintNote &n : m_source->notes(sheet))
+                    if (n.shown) info.shownNotes.push_back(std::move(n));
             m_sheets.push_back(std::move(info));
             if (b.room <= 0) {
                 if (b.at < b.sheets.size()) m_messages << QCoreApplication::translate("jp::crunch::PrintJob", "The job is cut short at %1 pages.").arg(m_options.maxPages);
@@ -714,6 +749,13 @@ bool PrintJob::paintColors(QPainter *painter, int page)
     }
     jp::grid::PageObjects objects;
     if (c.objects && c.objects->count() > 0) objects = [&c, &cut, under](QPainter *p, const jp::grid::GridLayout &layout, const QRect &) { c.objects->paint(p, cut, layout.zoom(), under); };
+    if (!info.shownNotes.empty()) {
+        // (the boxes of the notes that are shown, over the cells and the objects)
+        objects = [&info, &cut, objects](QPainter *p, const jp::grid::GridLayout &layout, const QRect &cells) {
+            if (objects) objects(p, layout, cells);
+            paintShownNotes(p, layout, cut, info.shownNotes, info.rows, info.cols);
+        };
+    }
     c.painter->paint(painter, info.print, cut, info.setup, labels, pg.index == 0, objects);
     m_lastStats = c.painter->stats();
     m_lastMissed = c.painter->missedPictures();

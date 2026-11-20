@@ -516,6 +516,60 @@ EditSession::Outcome EditSession::moveCells(int sheet, const CellRange &source, 
     return structure(StructEdit::move(sheet, source, toSheet, toRow, toCol), tr("Moving cells"));
 }
 
+EditSession::Outcome EditSession::moveCellsInserting(int sheet, const CellRange &source, quint32 toRow, quint32 toCol, bool shiftDown)
+{
+    Outcome out;
+    auto refuse = [&](const QString &why) {
+        out.ok = false;
+        out.problem = why;
+        return out;
+    };
+    if (!source.valid || sheet < 0) return refuse(tr("There is nothing to move."));
+    const quint32 rows = source.row2 - source.row1 + 1, cols = source.col2 - source.col1 + 1;
+    if (qint64(toRow) + rows > jp::office::sheet::kMaxRows || qint64(toCol) + cols > jp::office::sheet::kMaxColumns) return refuse(tr("That would put cells outside the sheet."));
+    CellRange target = source;
+    target.row1 = toRow;
+    target.row2 = toRow + rows - 1;
+    target.col1 = toCol;
+    target.col2 = toCol + cols - 1;
+    // where the block is once room is made: cells below (or right of) the place, in the columns (rows) of the block, move by its size
+    CellRange from = source;
+    if (shiftDown) {
+        const bool sameColumns = source.col1 == target.col1 && source.col2 == target.col2;
+        if (sameColumns && source.row2 >= target.row1) {
+            if (source.row1 < target.row1) return refuse(tr("The cells can't be put in their own way. Drag them somewhere else."));
+            from.row1 += rows;
+            from.row2 += rows;
+        } else if (!sameColumns && source.col1 <= target.col2 && source.col2 >= target.col1 && source.row2 >= target.row1) {
+            return refuse(tr("The cells can't be put in their own way. Drag them somewhere else."));
+        }
+    } else {
+        const bool sameRows = source.row1 == target.row1 && source.row2 == target.row2;
+        if (sameRows && source.col2 >= target.col1) {
+            if (source.col1 < target.col1) return refuse(tr("The cells can't be put in their own way. Drag them somewhere else."));
+            from.col1 += cols;
+            from.col2 += cols;
+        } else if (!sameRows && source.row1 <= target.row2 && source.row2 >= target.row1 && source.col2 >= target.col1) {
+            return refuse(tr("The cells can't be put in their own way. Drag them somewhere else."));
+        }
+    }
+    QString why;
+    // (both parts are asked about first, as the edits stand now: a refusal leaves nothing done, and nothing to redo)
+    const StructEdit insert = shiftDown ? StructEdit::insertCellsDown(sheet, target) : StructEdit::insertCellsRight(sheet, target);
+    if (!canMove(insert, &why) || !canMove(StructEdit::move(sheet, source, sheet, toRow, toCol), &why)) return refuse(why);
+    const int start = m_undo.index();
+    m_undo.beginMacro(tr("Inserting cells"));
+    Outcome done = structure(insert, tr("Inserting cells"));
+    if (done.ok && !done.confirm) done = structure(StructEdit::move(sheet, from, sheet, toRow, toCol), tr("Moving cells"));
+    m_undo.endMacro();
+    if (!done.ok) {
+        // (what was done is taken back; the step is dropped from the redo list by the macro being empty or undone)
+        while (m_undo.index() > start) m_undo.undo();
+        return done;
+    }
+    return out;
+}
+
 // The threads of comments of a clip put on the target, tiled as the cells are: each is made again as a thread of its own (new ids for its comments, the people as they were). A cell that has a
 // thread with more comments than are read keeps it, and a sheet whose notes can't be changed gets none; nothing here refuses the paste.
 QString EditSession::pasteThreads(int sheet, const CellRange &target, const ClipData &clip, quint32 blockRows, quint32 blockCols)
