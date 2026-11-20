@@ -1,5 +1,7 @@
 #include "tst_write.h"
 #include "app/passworddialogs.h"
+#include "core/inspectops.h"
+#include <memory>
 
 // The run's settings are its own, and none reached the person's (checked at the end).
 void WriteTests::cleanupTestCase() { QVERIFY(jptest::settingsStayInTheRunsFolder()); }
@@ -777,6 +779,113 @@ void WriteTests::whatAnOldFileHoldsThatCannotBeShownIsSaid()
     QCOMPARE(notices.size(), 1);
     QVERIFY2(notices[0].contains(QLatin1String("left out")), qPrintable(notices[0]));
     QVERIFY(w.document()->leftSomethingOut());
+}
+
+
+// Opens an old binary file made by the test, with what the window says about it.
+static std::unique_ptr<WriteWindow> openOldFile(QTemporaryDir &dir, const dochelp::DocWriter &doc, QStringList *notices)
+{
+    const QString path = dir.filePath(QStringLiteral("old.doc"));
+    QFile f(path);
+    if (!f.open(QIODevice::WriteOnly)) return nullptr;
+    f.write(doc.build());
+    f.close();
+    std::unique_ptr<WriteWindow> w(new WriteWindow());
+    w->setNotifier([notices](const QString &, const QString &text) { if (notices) *notices << text; });
+    if (!w->openFile(path)) return nullptr;
+    return w;
+}
+
+void WriteTests::theCommentsOfAnOldFileAreComments()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    using namespace dochelp;
+    DocWriter doc;
+    doc.text = QStringLiteral("Hello brave\x05 new world.\r");
+    doc.comments = {{11, QStringLiteral("Ann Author"), QStringLiteral("AA"), QStringLiteral("Is this the right word?"), dttm(2003, 4, 7, 9, 30), 6, 11}};
+    QStringList notices;
+    auto w = openOldFile(dir, doc, &notices);
+    QVERIFY(w);
+    const QVector<Comment> all = comments(*w->document());
+    QCOMPARE(all.size(), 1);
+    QCOMPARE(all[0].author, QStringLiteral("Ann Author"));
+    QCOMPARE(all[0].initials, QStringLiteral("AA"));
+    QCOMPARE(all[0].text, QStringLiteral("Is this the right word?"));
+    QCOMPARE(all[0].date, QDateTime(QDate(2003, 4, 7), QTime(9, 30), QTimeZone::UTC));
+    QCOMPARE(w->document()->story()->toPlainText().mid(all[0].from, all[0].to - all[0].from).remove(QChar::ObjectReplacementCharacter), QStringLiteral("brave"));   // (the range's marks stand in it)
+    // (Nothing is said to have been left out: the comments are there.)
+    for (const QString &n : notices) QVERIFY2(!n.contains(QLatin1String("omment")), qPrintable(n));
+}
+
+void WriteTests::thePropertiesOfAnOldFileAreWhereRemovingPersonalInformationLooks()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    using namespace dochelp;
+    DocWriter doc;
+    doc.text = QStringLiteral("body\r");
+    doc.summaryInformation = propertySetStream(summaryFormat(), 1252, {{2, 0x1E, QString(), "The Title", 0}, {4, 0x1E, QString(), "Ann Author", 0}, {8, 0x1E, QString(), "Bob Editor", 0}});
+    doc.documentSummaryInformation = propertySetStream(documentSummaryFormat(), 1252, {{14, 0x1E, QString(), "Carol Chief", 0}, {15, 0x1E, QString(), "Example Works", 0}}, true);
+    auto w = openOldFile(dir, doc, nullptr);
+    QVERIFY(w);
+    const office::PackageProps p = w->document()->packageProps();
+    QCOMPARE(p.title, QStringLiteral("The Title"));
+    QCOMPARE(p.creator, QStringLiteral("Ann Author"));
+    QCOMPARE(p.company, QStringLiteral("Example Works"));
+    // The code that takes personal information out finds the four names, and takes them out.
+    QCOMPARE(personalInfoCount(*w->document()), 4);
+    QCOMPARE(w->removePersonalInformation(), 4);
+    QVERIFY(w->document()->packageProps().creator.isEmpty());
+    QCOMPARE(w->document()->packageProps().title, QStringLiteral("The Title"));
+}
+
+void WriteTests::theFormFieldsOfAnOldFileShowTheirChoices()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    using namespace dochelp;
+    DocWriter doc;
+    doc.text = QStringLiteral("Box \x13 FORMCHECKBOX \x01\x14\x15 and pick \x13 FORMDROPDOWN \x01\x14\x15.\r");
+    FormFieldSpec box, pick;
+    box.type = 1;
+    box.state = 1;
+    pick.type = 2;
+    pick.entries = {QStringLiteral("red"), QStringLiteral("green")};
+    pick.state = 1;
+    const int first = int(doc.text.indexOf(QChar(1))), second = int(doc.text.indexOf(QChar(1), first + 1));
+    const int boxAt = doc.addFormFieldData(formFieldData(box)), pickAt = doc.addFormFieldData(formFieldData(pick));
+    doc.chars = {{first, first + 1, sprm1(sprm::special, 1) + sprm1(0x0806, 1) + sprm4(sprm::picture, quint32(boxAt))},
+                 {second, second + 1, sprm1(sprm::special, 1) + sprm1(0x0806, 1) + sprm4(sprm::picture, quint32(pickAt))}};
+    auto w = openOldFile(dir, doc, nullptr);
+    QVERIFY(w);
+    const QStringList lines = boxLines(*w->document());   // (the page's own lines, with each field as it is drawn)
+    QCOMPARE(lines.size(), 1);
+    QVERIFY2(lines[0].contains(QChar(0x2612)), qPrintable(lines[0]));   // (the checked box)
+    QVERIFY2(lines[0].contains(QLatin1String("green")), qPrintable(lines[0]));   // (the entry chosen)
+}
+
+void WriteTests::anEmbeddedObjectOfAnOldFileIsShownAsAPictureAndSaid()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    using namespace dochelp;
+    DocWriter doc;
+    doc.text = QStringLiteral("A\x13 EMBED X \x14\x15 B\r");
+    const int sep = int(doc.text.indexOf(QChar(0x14)));
+    doc.chars = {{sep, sep + 1, sprm1(sprm::special, 1) + sprm1(0x080A, 1) + sprm1(0x0856, 1) + sprm4(sprm::picture, 7)}};
+    QStringList notices;
+    auto w = openOldFile(dir, doc, &notices);
+    QVERIFY(w);
+    QCOMPARE(notices.size(), 1);
+    QVERIFY2(notices[0].contains(QLatin1String("embedded object")), qPrintable(notices[0]));
+    QVERIFY(w->document()->leftSomethingOut());
+    // (A picture stands in the text where the object was.)
+    int atoms = 0;
+    for (QTextBlock b = w->document()->story()->begin(); b.isValid(); b = b.next())
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it)
+            if (it.fragment().charFormat().isImageFormat() || it.fragment().text().contains(QChar::ObjectReplacementCharacter)) ++atoms;
+    QVERIFY(atoms >= 1);
 }
 
 

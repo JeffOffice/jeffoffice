@@ -848,6 +848,10 @@ private Q_SLOTS:
     void anOldBinaryFileWithAPasswordOpensWithItAndSavesAsDocxProtected();
     void savingAnOldBinaryFileAsksForADocxName();
     void whatAnOldFileHoldsThatCannotBeShownIsSaid();
+    void theCommentsOfAnOldFileAreComments();
+    void thePropertiesOfAnOldFileAreWhereRemovingPersonalInformationLooks();
+    void theFormFieldsOfAnOldFileShowTheirChoices();
+    void anEmbeddedObjectOfAnOldFileIsShownAsAPictureAndSaid();
     void trackedChangesOfAnOldFileComeInWithTheirAuthorsAndDates();
     void anOldTemplateOpensAsANewDocumentMadeFromIt();
     void aFileThatIsNotADocumentSaysSoAndOpensNothing();
