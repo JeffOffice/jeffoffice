@@ -2,12 +2,17 @@
 // Spelling in the window: the help the right-click menu gives on a misspelled word, and the Spelling pane that steps through the misspellings.
 
 #include "app/grammarcheck.h"
+#include "core/spellcheck.h"
 
+#include <map>
 #include <QPair>
+#include <QPointer>
 #include <QTimer>
 #include <QWidget>
+#include <memory>
 
 class QLabel;
+class QTextDocument;
 class QListWidget;
 class QMenu;
 class QPushButton;
@@ -47,10 +52,15 @@ protected:
     void showEvent(QShowEvent *e) override;
 
 private:
+    void collectStories();
+    SpellCheck *checkFor(QTextDocument *story);
+    bool reveal(QTextDocument *story);
+    bool nextStory();
+    void refreshChecks();
     void find(int from);
     void search();
     void checking();
-    void show(const QPair<int, int> &range);
+    void show(QTextDocument *story, const QPair<int, int> &range);
     void spellingDone();
     void searchGrammar();
     void showIssue(const GrammarCheck::Issue &issue);
@@ -63,7 +73,13 @@ private:
     PageView *m_view;
     QPair<int, int> m_range{-1, -1};
     QString m_word;
-    int m_start = 0;                  // where the check began (the caret's place, as the text changes)
+    // The stories the check goes through (the text, the notes, the headers and footers), the one it is in and the one it began in, the pane's own checks of them, and the story of
+    // the word shown.
+    QVector<QPointer<QTextDocument>> m_order;
+    int m_idx = 0, m_startIdx = 0;
+    std::map<QTextDocument *, std::unique_ptr<SpellCheck>> m_checks;
+    QPointer<QTextDocument> m_story;
+    int m_start = 0;                  // where the check began (the caret's place in its story, as the text changes)
     int m_pos = 0;                    // where the search is
     bool m_wrapped = false, m_complete = false, m_searching = false;
     bool m_grammarPhase = false, m_grammarRan = false;

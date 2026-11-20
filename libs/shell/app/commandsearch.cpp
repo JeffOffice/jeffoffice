@@ -337,7 +337,7 @@ QList<Entry> collect(AppWindow *win, const Words &words)
     };
     const QString customize = QCoreApplication::translate("Dialogs", "Customize");
     QList<Page> pages = {{QStringLiteral("General"), QCoreApplication::translate("Dialogs", "General"), QString(), {QStringLiteral("user name"), QStringLiteral("initials"), QStringLiteral("theme"), QStringLiteral("dark mode"), QStringLiteral("language"), QStringLiteral("updates")}},
-                         {QStringLiteral("Proofing"), QCoreApplication::translate("Dialogs", "Proofing"), QString(), {QStringLiteral("spelling"), QStringLiteral("autocorrect"), QStringLiteral("grammar"), QStringLiteral("smart quotes")}},
+                         {QStringLiteral("Proofing"), QCoreApplication::translate("Dialogs", "Proofing"), QString(), {QStringLiteral("spelling"), QStringLiteral("autocorrect"), QStringLiteral("grammar"), QStringLiteral("smart quotes"), QStringLiteral("custom dictionary"), QStringLiteral("excluded words"), QStringLiteral("added words"), QStringLiteral("detect language")}},
                          {QStringLiteral("Customize/Ribbon"), QCoreApplication::translate("Dialogs", "Ribbon"), customize, {QStringLiteral("tabs"), QStringLiteral("groups"), QStringLiteral("customize ribbon")}},
                          {QStringLiteral("Customize/Quick Toolbar"), QCoreApplication::translate("Dialogs", "Quick Toolbar"), customize, {QStringLiteral("quick access"), QStringLiteral("toolbar")}},
                          {QStringLiteral("Customize/Keyboard"), QCoreApplication::translate("Dialogs", "Keyboard"), customize, {QStringLiteral("shortcuts"), QStringLiteral("keys"), QStringLiteral("hotkeys")}}};

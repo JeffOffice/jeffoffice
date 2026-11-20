@@ -9,6 +9,7 @@
 #include <QFile>
 #include <QMessageBox>
 #include <QRegularExpression>
+#include <QSaveFile>
 #include <QStandardPaths>
 #include <QTextBlock>
 #include <QTextDocument>
@@ -59,14 +60,22 @@ bool Speller::check(const QString &code, const QString &w) { return check(code, 
 
 bool Speller::check(const QString &code, const QString &w, const Rules &r)
 {
-    if (w.isEmpty() || isOwnName(w)) return true;
+    if (w.isEmpty()) return true;
+    if (!m_excluded.isEmpty() && m_excluded.contains(w.toLower())) return false;   // (the person's own say beats every list that accepts)
+    if (isOwnName(w)) return true;
     if (m_ignore.contains(w.toLower()) || m_custom.contains(w) || m_custom.contains(w.toLower())) return true;
     if (r.ignoreUpper && w == w.toUpper() && w.size() > 1) return true;
     if (r.ignoreNumbers && std::any_of(w.cbegin(), w.cend(), [](QChar c) { return c.isDigit(); })) return true;
     return dict::spell(code, w);
 }
 
-QStringList Speller::suggest(const QString &code, const QString &w) { return dict::suggest(code, w); }
+QStringList Speller::suggest(const QString &code, const QString &w)
+{
+    QStringList found = dict::suggest(code, w);
+    if (!m_excluded.isEmpty())
+        found.erase(std::remove_if(found.begin(), found.end(), [this](const QString &s) { return m_excluded.contains(s.toLower()); }), found.end());
+    return found;
+}
 
 void Speller::ignore(const QString &w)
 {
@@ -132,6 +141,12 @@ bool Speller::add(const QString &w, QString *error)
     m_custom.insert(w);
     ++m_revision;
     QString reason;
+    // (A word added is no longer one the person wants flagged.)
+    if (m_excluded.remove(w.toLower())) {
+        QStringList rest = m_excluded.values();
+        rest.sort();
+        writeWordListFile(excludedDict(), rest, nullptr);
+    }
     if (addToUserDictionary(userDict(), w, &reason)) {
         m_saveFailed = false;
         return true;
@@ -146,6 +161,171 @@ void Speller::setUserDictionaryPath(const QString &path) { s_userDictionaryPath 
 Speller::Speller()
 {
     for (const QString &w : userDictionaryWords(userDict())) m_custom.insert(w);
+    for (const QString &w : readWordListFile(excludedDict()).words) m_excluded.insert(w.toLower());
+}
+
+namespace {
+
+// Whether a line is fit to be a word of a list: not empty, not long, no space or control character in it (nor a stray byte of a text that was not UTF-8).
+bool fitWord(const QString &w)
+{
+    if (w.isEmpty() || w.size() > kMaxWordLength) return false;
+    for (const QChar c : w)
+        if (c.isSpace() || c.category() == QChar::Other_Control || c.category() == QChar::Other_Surrogate || c == QChar(0xFFFD) || c == QChar(0x2028) || c == QChar(0x2029)) return false;
+    return true;
+}
+
+// Each fit word once, as far as a file of kMaxWordListBytes holds them.
+QStringList boundedWords(const QStringList &in, bool *truncated)
+{
+    QStringList out;
+    QSet<QString> seen;
+    qint64 used = 0;
+    for (const QString &raw : in) {
+        const QString w = raw.trimmed();
+        if (!fitWord(w) || seen.contains(w)) continue;
+        used += w.toUtf8().size() + 1;
+        if (used > kMaxWordListBytes) {
+            if (truncated) *truncated = true;
+            break;
+        }
+        seen.insert(w);
+        out << w;
+    }
+    return out;
+}
+
+} // namespace
+
+bool userWordIsFit(const QString &word) { return fitWord(word); }
+
+WordList parseWordList(const QByteArray &input)
+{
+    WordList list;
+    QByteArray bytes = input;
+    if (bytes.size() > kMaxWordListBytes) {
+        bytes.truncate(kMaxWordListBytes);
+        // (Cut in the middle of a word: that word goes.)
+        const qsizetype end = bytes.lastIndexOf('\n');
+        bytes.truncate(end < 0 ? 0 : end);
+        list.truncated = true;
+    }
+    if (bytes.startsWith("\xEF\xBB\xBF")) bytes.remove(0, 3);
+    QSet<QString> seen;
+    qint64 used = 0;
+    qsizetype at = 0;
+    while (at < bytes.size()) {
+        qsizetype end = bytes.indexOf('\n', at);
+        if (end < 0) end = bytes.size();
+        const QString w = QString::fromUtf8(bytes.constData() + at, end - at).trimmed();
+        at = end + 1;
+        if (w.isEmpty()) continue;
+        if (!fitWord(w)) {
+            ++list.skipped;
+            continue;
+        }
+        if (seen.contains(w)) continue;
+        used += w.toUtf8().size() + 1;
+        if (used > kMaxWordListBytes) {
+            list.truncated = true;
+            break;
+        }
+        seen.insert(w);
+        list.words << w;
+    }
+    return list;
+}
+
+WordList readWordListFile(const QString &path, QString *error)
+{
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly)) {
+        if (error && f.exists()) *error = f.errorString();
+        return WordList();
+    }
+    return parseWordList(f.read(kMaxWordListBytes + 1));
+}
+
+bool writeWordListFile(const QString &path, const QStringList &words, QString *error)
+{
+    QSaveFile f(path);
+    if (!f.open(QIODevice::WriteOnly)) {
+        if (error) *error = f.errorString();
+        return false;
+    }
+    for (const QString &w : words) {
+        const QByteArray line = w.toUtf8() + '\n';
+        if (f.write(line) != line.size()) {
+            if (error) *error = f.errorString();
+            f.cancelWriting();
+            return false;
+        }
+    }
+    if (!f.commit()) {
+        if (error) *error = f.errorString();
+        return false;
+    }
+    return true;
+}
+
+QStringList Speller::customWords(bool reload)
+{
+    if (reload) {
+        m_custom.clear();
+        for (const QString &w : userDictionaryWords(userDict())) m_custom.insert(w);
+        m_excluded.clear();
+        for (const QString &w : readWordListFile(excludedDict()).words) m_excluded.insert(w.toLower());
+    }
+    QStringList out = m_custom.values();
+    out.sort();
+    return out;
+}
+
+QStringList Speller::excludedWords()
+{
+    QStringList out = m_excluded.values();
+    out.sort();
+    return out;
+}
+
+bool Speller::isExcluded(const QString &w) const { return m_excluded.contains(w.toLower()); }
+
+bool Speller::setWordLists(const QStringList &customIn, const QStringList &excludedIn, QString *error)
+{
+    QStringList excluded = boundedWords(excludedIn, nullptr);
+    QSet<QString> lower;
+    for (QString &w : excluded) {
+        w = w.toLower();
+        lower.insert(w);
+    }
+    excluded = lower.values();
+    excluded.sort();
+    QStringList custom;
+    for (const QString &w : boundedWords(customIn, nullptr))
+        if (!lower.contains(w.toLower())) custom << w;   // (a word is in one list: the excluded one wins)
+    // (The excluded list first: if the next write fails, a word that is in both is excluded, and none is lost.)
+    QString reason;
+    if (!writeWordListFile(excludedDict(), excluded, &reason)) {
+        if (error) *error = reason;
+        return false;
+    }
+    m_excluded = lower;
+    ++m_revision;
+    if (!writeWordListFile(userDict(), custom, &reason)) {
+        if (error) *error = reason;
+        return false;
+    }
+    m_custom = QSet<QString>(custom.begin(), custom.end());
+    m_saveFailed = false;
+    return true;
+}
+
+QString Speller::excludedDict()
+{
+    if (!s_userDictionaryPath.isEmpty()) return s_userDictionaryPath + QStringLiteral(".excluded");
+    const QString dir = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    QDir().mkpath(dir);
+    return dir + "/excluded.dic";
 }
 
 QString Speller::userDict()

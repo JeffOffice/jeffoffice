@@ -7,6 +7,7 @@ namespace jp { class ShapeTextEdit; }
 // the story through the commands of core/editops.h.
 
 #include "app/pagepaint.h"
+#include "core/autoops.h"
 #include "core/contentcontrolops.h"
 #include "core/editops.h"
 #include "core/pictureops.h"
@@ -218,6 +219,13 @@ public:
     bool lastPasteHasListItems() const { return m_lastPaste.lists; }
     bool lastPasteWasCells() const { return m_lastPaste.cells; }
     bool lastPasteStartedInTable() const { return m_lastPaste.inTable; }
+    // After AutoCorrect changes a word as it is typed, a button offers three things: take the change back (one step that undoes; the word stays as typed), stop making that change (it is taken
+    // back, and the list or switch it came from is changed), and open the AutoCorrect settings. The offer holds until anything else changes the text or the caret moves; Alt+Shift+F10 opens the menu.
+    bool autoFixAvailable() const;
+    const write::AutoFix &autoFix() const { return m_autoFix; }
+    bool undoAutoFix();
+    bool stopAutoFix();
+    void openAutoCorrectOptions();
     void selectAll();
     void insertText(const QString &text);
     void typeKey(int key, Qt::KeyboardModifiers modifiers);   // the keys that edit and move, as the keyboard sends them
@@ -748,6 +756,13 @@ private:
     void notePaste(int from, int selectionEnd, const PasteSource &from_, bool startedInTable, bool asCells = false);
     void updatePasteButton();
     bool m_ctrlTap = false;   // Ctrl went down and nothing else since
+    write::AutoFix m_autoFix;
+    int m_autoFixCaret = -1;
+    QPointer<QTextDocument> m_autoFixStory;
+    QToolButton *m_autoFixButton = nullptr;
+    void noteAutoFix();
+    void updateAutoFixButton();
+    void fillAutoFixMenu();
     bool m_gridlines = false;
     bool m_shadeFields = false;
     bool m_caretWithoutFocus = false;

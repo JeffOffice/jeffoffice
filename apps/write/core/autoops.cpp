@@ -72,6 +72,7 @@ Visible beforeSeparator(const QTextCursor &c) { return visibleBefore(c.block(), 
 
 void typeText(WriteDoc &doc, QTextCursor &c, const QString &text, const AutoOptions &options)
 {
+    if (options.record) *options.record = AutoFix();
     const bool any = options.correct || options.quotes || options.format || options.links;
     if (!any || text.size() != 1 || c.document() != doc.story()) {
         insertText(doc, c, text);
@@ -109,9 +110,14 @@ void typeText(WriteDoc &doc, QTextCursor &c, const QString &text, const AutoOpti
     const WriteDoc::StepGroup group(doc);
     if (options.correct) {
         const Visible before = beforeSeparator(c);
-        if (const auto fix = autotext::correctWord(before.text, int(before.text.size()), options.quotes, autoCorrectConfig(languageAt(doc, c)), inTable(c.block()))) {
+        const QString language = languageAt(doc, c);
+        if (const auto fix = autotext::correctWord(before.text, int(before.text.size()), options.quotes, autoCorrectConfig(language), inTable(c.block()))) {
             QTextCursor r = before.range(story, fix->from, fix->to);
+            const QString typedWord = r.selectedText();
+            const int start = r.selectionStart();
             insertText(doc, r, fix->with);
+            if (options.record && fix->kind != autotext::Fix::Kind::None && r.document() == story && story->characterAt(start) != QChar::ObjectReplacementCharacter)
+                *options.record = AutoFix{true, typedWord, fix->with, language, fix->kind, fix->entry, start, start + int(fix->with.size()), int(story->revision())};
         }
     }
     if (options.format) {

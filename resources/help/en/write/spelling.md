@@ -13,7 +13,7 @@ To fix a word, **right-click** it. The menu shows these choices above the usual 
 
 - Up to six **suggestions**, the best one first, in bold. Click one to put it in place of the word. It is one step, so **Ctrl+Z** takes it back.
 - **Ignore All** leaves that word alone, wherever it appears, until you close JeffWrite.
-- **Add to Dictionary** teaches JeffWrite the word for good. The word goes in a small file in JeffWrite's own folder, so you can read or edit your list of added words there.
+- **Add to Dictionary** teaches JeffWrite the word for good. The word goes in a small file in your own JeffOffice folder, and every JeffOffice app uses it. To see or change your list of words, see Your own words, below.
 
 If the dictionary has no suggestion, the menu says so.
 
@@ -26,7 +26,26 @@ Press **F7**, or click **Review > Spelling**. The Spelling pane opens on the rig
 - **Ignore** passes this word by. Its red line stays.
 - **Ignore All** and **Add to Dictionary** work as they do in the right-click menu.
 
-The pane goes to the end of the document, then continues from the top, up to the place where it began. When no more are left, it says that the spelling check is complete. The pane goes on to grammar and style issues when the spelling is done (see Check grammar, below).
+The pane goes through the text of the document first, tables included, then the footnotes, then the headers and footers. When a word is in a footnote, header, or footer, JeffWrite opens it for editing, as Find does, so you see the word where it is. A header or footer that no page shows is passed by. From the caret it goes to the end of the document, then continues from the top, up to the place where it began. **Change** is one step that undoes, and **Change All** looks in every one of those places and is one step too. A word in an endnote can be ignored or added, but not changed. When no more are left, the pane says that the spelling check is complete. It goes on to grammar and style issues when the spelling is done (see Check grammar, below).
+
+## Your own words
+
+Click **File > Options > Proofing > Custom Dictionary** to see and change your words. The dialog has two lists, each with a **Find** box to narrow it:
+
+- **Added Words** are words you taught JeffWrite. They are accepted in every language.
+- **Excluded Words** are words you want marked as misspelled even though a dictionary accepts them, such as a word you always mistype. They are marked wherever they appear, in any capitals, and are never offered as a suggestion.
+
+Type a word and click **Add**, or select words and click **Remove**. A word is in one list at a time: adding it to one takes it out of the other. **Import** takes the words from a plain text file with one word a line, and **Export** writes the list as the same kind of file (UTF-8). A line with a space or a control character in it, or longer than 100 letters, is left out, and the dialog tells you how many. A list can be as long as 1 MB of text. Nothing changes until you click **OK**. The lists are yours, are the same in every JeffOffice app, and are never saved in a document.
+
+## When AutoCorrect changes a word
+
+When AutoCorrect changes a word as you type, a small **AutoCorrect Options** button appears below the caret. It has three choices. You can also press **Alt+Shift+F10** to open them.
+
+- **Undo Automatic Correction** puts back the word as you typed it. It is one step, so **Redo** makes the change again.
+- A choice that stops the change. It depends on what changed the word: **Stop Replacing** takes the entry off your replacement list, **Keep As Typed** adds a word with two capitals ("THursday") to the words that keep them, and **Stop Capitalizing** turns off the capital for names of days, the first letter of sentences, or the first letter of table cells. It also puts the word back as you typed it.
+- **AutoCorrect Options...** opens the AutoCorrect dialog.
+
+The button goes away when you type, edit, or move the caret.
 
 ## Turn the red lines off or on
 
@@ -74,7 +93,7 @@ The 31 dictionaries are English (American, British, Canadian, and Australian), S
 
 ## What is not checked yet
 
-Red lines show in the text and in the cells of tables. They do not show in headers, footers, notes, or text boxes yet, and the Spelling pane does not check them.
+Red lines show in the text, in the cells of tables, and in a header, footer, or footnote while you edit it. They do not show in text boxes yet, and the Spelling pane does not check them.
 
 ## Related
 

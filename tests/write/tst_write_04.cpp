@@ -694,6 +694,158 @@ void WriteTests::theSpellingPaneWithAHeaderOpenLeavesTheHeader()
 }
 
 
+// A document of a misspelled word in each place: the text, a table, a footnote, a header, and a footer (the words are in the order the pane goes through them).
+QByteArray WriteTests::spellingDocx(const QByteArray &body, const QByteArray &note, const QByteArray &head, const QByteArray &foot)
+{
+    const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"3000\"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:w=\"3000\" w:type=\"dxa\"/></w:tcPr>"
+                             "<w:p><w:r><w:t>zzcell</w:t></w:r></w:p></w:tc></w:tr></w:tbl>";
+    const QByteArray text = "<w:p><w:r><w:t>" + body + "</w:t></w:r></w:p>" + table + citing("Cited", 2);
+    return makeDocxWithParts(text, sectionNaming({{"default", "rIdheader1"}, {"f-default", "rIdfooter1"}}),
+                             {{QStringLiteral("/word/header1.xml"), headerPart("hdr", {"<w:r><w:t>" + head + "</w:t></w:r>"})},
+                              {QStringLiteral("/word/footer1.xml"), headerPart("ftr", {"<w:r><w:t>" + foot + "</w:t></w:r>"})},
+                              {QStringLiteral("/word/footnotes.xml"), footnotesPart({{2, plainRun(note)}})}},
+                             QByteArray(), noteStyles());
+}
+
+
+// The Spelling pane goes through the text (its tables too), then the footnotes, then the headers and footers, showing each word where it is (a note or a header is opened to show
+// it, as Find does), and the check is complete when it has been through them all.
+void WriteTests::theSpellingPaneGoesThroughTablesNotesHeadersAndFootersInOrder()
+{
+    const SettingGuard asType(QStringLiteral("proof/checkAsYouType"), true, true);
+    WriteWindow w;
+    w.resize(1100, 800);
+    w.setDocument(open(spellingDocx()), QString());
+    w.show();
+    w.view()->paginateAll();
+    w.act("review.spelling")->trigger();
+    auto *pane = w.findChild<SpellPane *>();
+    QVERIFY(pane);
+    auto ignore = [&] { pane->findChild<QPushButton *>(QStringLiteral("spellIgnore"))->click(); };
+    QStringList seen;
+    for (int i = 0; i < 8; ++i) {
+        QTRY_VERIFY(!pane->searching());
+        if (pane->complete()) break;
+        seen << pane->word();
+        // The word is selected where it is: in the text, or in the header, footer, or note that is open.
+        QCOMPARE(w.view()->cursor().selectedText(), pane->word());
+        if (pane->word() == QLatin1String("zznote")) QVERIFY(w.view()->inNote());
+        else if (pane->word() == QLatin1String("zzhead") || pane->word() == QLatin1String("zzfoot")) QVERIFY(w.view()->inHeaderFooter());
+        else QVERIFY(!w.view()->inNote() && !w.view()->inHeaderFooter());
+        ignore();
+    }
+    QCOMPARE(seen, (QStringList{QStringLiteral("zzbody"), QStringLiteral("zzcell"), QStringLiteral("zznote"), QStringLiteral("zzhead"), QStringLiteral("zzfoot")}));
+    QVERIFY(pane->complete());
+}
+
+
+// Change in a header, a footer, or a note is one step that undoes; Change All reaches the same word in every story, in one step.
+void WriteTests::changeAndChangeAllInTheStoriesBesidesTheTextAreOneUndoStepEach()
+{
+    const SettingGuard asType(QStringLiteral("proof/checkAsYouType"), true, true);
+    WriteWindow w;
+    w.resize(1100, 800);
+    w.setDocument(open(spellingDocx("zzsame here", " zzsame note", "zzsame head", "zzsame foot")), QString());
+    w.show();
+    w.view()->paginateAll();
+    WriteDoc *doc = w.document();
+    QTextDocument *header = doc->headerFooterStory(0, false, 0), *footer = doc->headerFooterStory(0, true, 0), *note = doc->editableFootnote(2);
+    QVERIFY(header && footer && note);
+    w.act("review.spelling")->trigger();
+    auto *pane = w.findChild<SpellPane *>();
+    QVERIFY(pane);
+    QTRY_VERIFY(!pane->searching());
+    QCOMPARE(pane->word(), QStringLiteral("zzsame"));
+    // Ignore the text's, the cell's, and the note's words to come to the header's.
+    auto button = [&](const char *name) { return pane->findChild<QPushButton *>(QString::fromLatin1(name)); };
+    button("spellIgnore")->click();   // (the text's; zzcell is next)
+    QTRY_VERIFY(!pane->searching());
+    QCOMPARE(pane->word(), QStringLiteral("zzcell"));
+    button("spellIgnore")->click();
+    QTRY_VERIFY(!pane->searching());
+    QCOMPARE(pane->word(), QStringLiteral("zzsame"));
+    QVERIFY(w.view()->inNote());
+    button("spellIgnore")->click();
+    QTRY_VERIFY(!pane->searching());
+    QCOMPARE(pane->word(), QStringLiteral("zzsame"));
+    QVERIFY(w.view()->inHeaderFooter());
+    QCOMPARE(w.view()->cursor().document(), header);
+    // Change: the header's word only, as one step.
+    auto *suggestions = pane->findChild<QListWidget *>(QStringLiteral("spellSuggestions"));
+    QVERIFY(suggestions->count() > 0);
+    const QString chosen = suggestions->currentItem()->text();
+    button("spellChange")->click();
+    QTRY_VERIFY(!pane->searching());
+    QCOMPARE(header->toPlainText(), QStringLiteral("%1 head").arg(chosen));
+    QVERIFY(footer->toPlainText().startsWith(QStringLiteral("zzsame")));
+    QVERIFY(note->toPlainText().contains(QStringLiteral("zzsame")));
+    QCOMPARE(doc->undo(), header);
+    QCOMPARE(header->toPlainText(), QStringLiteral("zzsame head"));
+    // Change All: every story, one step.
+    w.view()->leaveHeaderFooter();
+    QTextCursor top(doc->story());
+    w.view()->setCursor(top);
+    w.act("review.spelling")->trigger();
+    QTRY_VERIFY(!pane->searching());
+    QVERIFY2(pane->word() == QStringLiteral("zzsame"), qPrintable(pane->word()));
+    const QString all = suggestions->currentItem()->text();
+    button("spellChangeAll")->click();
+    QTRY_VERIFY(!pane->searching());
+    QCOMPARE(header->toPlainText(), QStringLiteral("%1 head").arg(all));
+    QCOMPARE(footer->toPlainText(), QStringLiteral("%1 foot").arg(all));
+    QVERIFY(note->toPlainText().contains(all));
+    QVERIFY(doc->story()->toPlainText().startsWith(all));
+    doc->undo();
+    QCOMPARE(header->toPlainText(), QStringLiteral("zzsame head"));
+    QCOMPARE(footer->toPlainText(), QStringLiteral("zzsame foot"));
+    QVERIFY(note->toPlainText().contains(QStringLiteral("zzsame")));
+    QVERIFY(doc->story()->toPlainText().startsWith(QStringLiteral("zzsame")));
+}
+
+
+// Ignore All and Add to Dictionary take the word out in every story, and Add keeps it in the person's dictionary.
+void WriteTests::ignoreAllAndAddToDictionaryWorkInTheStoriesBesidesTheText()
+{
+    const SettingGuard asType(QStringLiteral("proof/checkAsYouType"), true, true);
+    QTemporaryDir dir;
+    struct Restore {
+        ~Restore() { Speller::setUserDictionaryPath(QString()); }
+    } restore;
+    Speller::setUserDictionaryPath(dir.filePath(QStringLiteral("custom.dic")));
+    WriteWindow w;
+    w.resize(1100, 800);
+    w.setDocument(open(spellingDocx("fine", " zzaddnote", "zzignorehead", "zzaddfoot")), QString());
+    w.show();
+    w.view()->paginateAll();
+    w.act("review.spelling")->trigger();
+    auto *pane = w.findChild<SpellPane *>();
+    QVERIFY(pane);
+    auto button = [&](const char *name) { return pane->findChild<QPushButton *>(QString::fromLatin1(name)); };
+    QTRY_VERIFY(!pane->searching());
+    QCOMPARE(pane->word(), QStringLiteral("zzcell"));
+    button("spellIgnoreAll")->click();
+    QTRY_VERIFY(!pane->searching());
+    QCOMPARE(pane->word(), QStringLiteral("zzaddnote"));
+    QVERIFY(w.view()->inNote());
+    button("spellAdd")->click();
+    QTRY_VERIFY(!pane->searching());
+    QCOMPARE(pane->word(), QStringLiteral("zzignorehead"));
+    button("spellIgnoreAll")->click();
+    QTRY_VERIFY(!pane->searching());
+    QCOMPARE(pane->word(), QStringLiteral("zzaddfoot"));
+    QVERIFY(w.view()->inHeaderFooter());
+    button("spellAdd")->click();
+    QTRY_VERIFY(!pane->searching());
+    QVERIFY(pane->complete());
+    QCOMPARE(userDictionaryWords(dir.filePath(QStringLiteral("custom.dic"))), (QStringList{QStringLiteral("zzaddnote"), QStringLiteral("zzaddfoot")}));
+    QVERIFY(Speller::get().check(QStringLiteral("en-US"), QStringLiteral("zzaddfoot")));
+    // The pane starts again from the top: nothing is left.
+    w.act("review.spelling")->trigger();
+    QTRY_VERIFY(!pane->searching());
+    QVERIFY(pane->complete());
+}
+
+
 // ---- what a header takes of the text's commands
 
 // A section break, a page break, and a note's reference are not made in a header or footer: the commands do nothing there, and what is pasted into one loses them.

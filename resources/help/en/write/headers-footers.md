@@ -65,7 +65,7 @@ When you turn on a different first page or different odd and even pages, the new
 
 ## Find and spelling
 
-- **Find and Replace** and the **Spelling** pane (F7) look through the text of the document, not its headers and footers. If you open them while a header is open, JeffWrite closes the header first.
+- **Find and Replace** and the **Spelling** pane (F7) look through the headers and footers too. They open the header or footer that holds a match, and a page has to show it. The Spelling pane begins at the caret in the text.
 - While you edit a header or footer, misspelled words get a red wavy line, as they do on the page.
 
 ## Undo

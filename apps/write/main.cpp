@@ -12,6 +12,7 @@
 #include "app/focusring.h"
 #include "app/i18n.h"
 #include "app/icons.h"
+#include "app/languagedetect.h"
 #include "app/navpane.h"
 #include "app/pageview.h"
 #include "app/ribbon.h"
@@ -81,6 +82,7 @@ int main(int argc, char **argv)
     QApplication::setApplicationVersion(jp::versionText());
     QApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
     QApplication app(argc, argv);
+    jp::setLanguageDetectionOffered(true);
     jp::keepSettingsApart();   // (a test run or a screenshot never changes the person's own settings)
     jp::startupMark("QApplication built");
     jp::crash::install(jp::crash::reportPath());   // sent with the statistics on the next start, if they're on

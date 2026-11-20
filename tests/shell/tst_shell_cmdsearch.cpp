@@ -867,6 +867,18 @@ private Q_SLOTS:
         QCOMPARE(n, kMaxGalleryItems);
     }
 
+    void theProofingOptionsAreFoundByTheWordsOfTheCustomDictionary()
+    {
+        CmdWindow w;
+        bool found = false;
+        for (const Entry &e : collect(&w, Words()))
+            if (e.id == QLatin1String("options:Proofing")) {
+                found = true;
+                for (const char *word : {"custom dictionary", "excluded words", "added words", "detect language"}) QVERIFY2(e.extra.contains(QString::fromLatin1(word)), word);
+            }
+        QVERIFY(found);
+    }
+
     void theWordsFileIsReadForCommandsFileEntriesAndOptions()
     {
         const Words words = parseWords(QByteArray(kWords));

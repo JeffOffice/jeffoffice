@@ -1089,6 +1089,9 @@ private Q_SLOTS:
     void findNextWithAHeaderOpenLeavesTheHeader();
     void aCursorInTheTextGivenToTheViewLeavesTheHeader();
     void theSpellingPaneWithAHeaderOpenLeavesTheHeader();
+    void theSpellingPaneGoesThroughTablesNotesHeadersAndFootersInOrder();
+    void changeAndChangeAllInTheStoriesBesidesTheTextAreOneUndoStepEach();
+    void ignoreAllAndAddToDictionaryWorkInTheStoriesBesidesTheText();
     void aHeaderTakesNoSectionBreakPageBreakOrNote();
     void theBreakCommandsAreGrayedWhileAHeaderIsEdited();
     void copyingHeaderTextKeepsWhatItsFieldsShow();
@@ -1098,6 +1101,7 @@ private Q_SLOTS:
     static QByteArray footnotesPart(const QList<std::pair<int, QByteArray>> &notes);
     static QByteArray plainRun(const QByteArray &text);
     static QByteArray citing(const QByteArray &text, int id);
+    static QByteArray spellingDocx(const QByteArray &body = "zzbody", const QByteArray &note = " zznote", const QByteArray &head = "zzhead", const QByteArray &foot = "zzfoot");
     static QByteArray pageSection();
     static QByteArray notesDocx(const QByteArray &body, const QByteArray &notes, const QByteArray &settings = QByteArray());
     static QByteArray threeNotesBody();
@@ -1753,6 +1757,10 @@ private Q_SLOTS:
     void typingMakesDashesFractionsAndRaisedOrdinalsAndOneUndoTakesJustThat();
     void theReplacementListHasArrowsAndEllipsesAndIsTheStoredListOfTheLanguage();
     void eachAutoCorrectCapitalizationSwitchTurnsItsOwnRuleOnAndOff();
+    void theOptionsAfterAnAutoCorrectChangeUndoItAndGoAwayOnTheNextEdit();
+    void aParagraphIsGivenItsLanguageWhenItsTwelfthWordIsTypedAndTheChoiceIsOn();
+    void stoppingAnAutoCorrectChangeKeepsTheWordAsTypedAndTheSettingThatMadeIt();
+    void theAutoCorrectOptionsAreReachedFromTheKeyboardAndOpenTheSettings();
     void theFirstLetterOfATableCellIsCapitalizedWhenThatSwitchIsOn();
     void quotesFollowTheLanguageOfTheText();
     void typingALetterAndAParenthesisAndASpaceStartsANumberedListAndTheSwitchesTurnTheRulesOff();

@@ -13,9 +13,14 @@ namespace jp::autotext {
 
 // A change to make to the paragraph's text: [from, to) is replaced by `with`; or, with `superscript`, the letters of [from, to) are raised and nothing is replaced.
 struct Fix {
+    // What made AutoCorrect change a word (for the options offered after it): an entry of the replacement list (`entry` is its "Replace" text), two initial capitals, the caps lock key, the name of a day, or
+    // the capital at the start of a sentence (or of a table cell); None for the fixes of AutoFormat.
+    enum class Kind { None, Replacement, TwoInitials, CapsLock, Day, Sentence, Cell };
     int from = 0, to = 0;
     QString with;
     bool superscript = false;
+    Kind kind = Kind::None;
+    QString entry;
 };
 
 // What AutoCorrect does, and what it does it with: the replacement list and the two exception lists are the person's (kept in the settings, one list for each language).

@@ -3,6 +3,7 @@
 #include "app/spellpane.h"
 #include "app/grammarcheck.h"
 #include "core/linkops.h"
+#include "core/proofops.h"
 #include "text/autocorrect.h"
 #include "app/autocorrectconfig.h"
 #include "app/autocorrectdialog.h"
@@ -10,7 +11,12 @@
 #include <QComboBox>
 #include <QLineEdit>
 #include <QPushButton>
+#include <QMenu>
 #include <QTableWidget>
+#include <QTimer>
+#include <QShortcut>
+#include <QSignalSpy>
+#include <QToolButton>
 
 namespace {
 struct Typer {
@@ -159,6 +165,207 @@ void WriteTests::eachAutoCorrectCapitalizationSwitchTurnsItsOwnRuleOnAndOff()
         QCOMPARE(z.text(), QStringLiteral("A teh -> "));
     }
 }
+
+// After AutoCorrect changes a word as it is typed, the AutoCorrect Options button offers to take the change back, stop it, or open the settings.
+namespace {
+QToolButton *autoFixButton(PageView &view) { return view.findChild<QToolButton *>(QStringLiteral("autoCorrectOptionsButton")); }
+QStringList autoFixMenu(PageView &view)
+{
+    QToolButton *b = autoFixButton(view);
+    if (!b) return {};
+    Q_EMIT b->menu()->aboutToShow();
+    QStringList names;
+    for (QAction *a : b->menu()->actions())
+        if (!a->isSeparator()) names << a->objectName();
+    return names;
+}
+QAction *autoFixAction(PageView &view, const char *name)
+{
+    autoFixMenu(view);
+    for (QAction *a : autoFixButton(view)->menu()->actions())
+        if (a->objectName() == QLatin1String(name)) return a;
+    return nullptr;
+}
+} // namespace
+
+
+void WriteTests::theOptionsAfterAnAutoCorrectChangeUndoItAndGoAwayOnTheNextEdit()
+{
+    const SettingGuard replace(QStringLiteral("proof/ac/replace/en"), QVariant(), QVariant());
+    Typer t;
+    t.type(QStringLiteral("Say the "));
+    QVERIFY(!t.view.autoFixAvailable());   // (nothing was changed: nothing is offered)
+    t.type(QStringLiteral("teh "));
+    QCOMPARE(t.text(), QStringLiteral("Say the the "));
+    QVERIFY(t.view.autoFixAvailable());
+    QCOMPARE(t.view.autoFix().typed, QStringLiteral("teh"));
+    QCOMPARE(t.view.autoFix().fixed, QStringLiteral("the"));
+    QToolButton *button = autoFixButton(t.view);
+    QVERIFY(button);
+    QTRY_VERIFY(button->isVisible());
+    QVERIFY(!button->accessibleName().isEmpty());
+    QCOMPARE(autoFixMenu(t.view), (QStringList{QStringLiteral("autoFixUndo"), QStringLiteral("autoFixStop"), QStringLiteral("autoFixOptions")}));
+    QVERIFY(autoFixAction(t.view, "autoFixStop")->text().contains(QStringLiteral("teh")));
+    // The next edit ends the offer.
+    t.type(QStringLiteral("x"));
+    QVERIFY(!t.view.autoFixAvailable());
+    QVERIFY(!button->isVisible());
+    // So does moving the caret.
+    Typer v;
+    v.type(QStringLiteral("teh "));
+    QVERIFY(v.view.autoFixAvailable());
+    QTest::keyClick(&v.view, Qt::Key_Left);
+    QVERIFY(!v.view.autoFixAvailable());
+    QVERIFY(!autoFixButton(v.view)->isVisible());
+    // Take it back: the word stays as it was typed, in one step; Redo makes the change again.
+    Typer u;
+    u.type(QStringLiteral("Say teh "));
+    QCOMPARE(u.text(), QStringLiteral("Say the "));
+    autoFixAction(u.view, "autoFixUndo")->trigger();
+    QCOMPARE(u.text(), QStringLiteral("Say teh "));
+    QVERIFY(!u.view.autoFixAvailable());
+    QVERIFY(!autoFixButton(u.view)->isVisible());
+    u.view.redo();
+    QCOMPARE(u.text(), QStringLiteral("Say the "));
+    // Nothing is offered where the offer is over.
+    QVERIFY(!u.view.undoAutoFix() && !u.view.stopAutoFix());
+}
+
+
+void WriteTests::stoppingAnAutoCorrectChangeKeepsTheWordAsTypedAndTheSettingThatMadeIt()
+{
+    // A replacement: its entry is taken off the language's list.
+    {
+        const SettingGuard replace(QStringLiteral("proof/ac/replace/en"), QVariant(), QVariant());
+        Typer t;
+        t.type(QStringLiteral("Say teh "));
+        QCOMPARE(t.text(), QStringLiteral("Say the "));
+        QVERIFY(autoFixAction(t.view, "autoFixStop")->text().contains(QStringLiteral("teh")));
+        autoFixAction(t.view, "autoFixStop")->trigger();
+        QCOMPARE(t.text(), QStringLiteral("Say teh "));
+        bool listed = false;
+        for (const auto &entry : autoCorrectConfig(QStringLiteral("en-US")).replacements) listed = listed || entry.first == QLatin1String("teh");
+        QVERIFY(!listed);
+        Typer again;
+        again.type(QStringLiteral("Say teh "));
+        QCOMPARE(again.text(), QStringLiteral("Say teh "));
+        QVERIFY(!again.view.autoFixAvailable());
+    }
+    // Two initial capitals: the word goes on the list of words that keep them.
+    {
+        const SettingGuard initials(QStringLiteral("proof/ac/initialExceptions/en"), QVariant(), QVariant());
+        Typer t;
+        t.type(QStringLiteral("The THursday "));
+        QCOMPARE(t.text(), QStringLiteral("The Thursday "));
+        autoFixAction(t.view, "autoFixStop")->trigger();
+        QCOMPARE(t.text(), QStringLiteral("The THursday "));
+        QVERIFY(autoCorrectConfig(QStringLiteral("en-US")).initialExceptions.contains(QStringLiteral("THursday")));
+        Typer again;
+        again.type(QStringLiteral("The THursday "));
+        QCOMPARE(again.text(), QStringLiteral("The THursday "));
+    }
+    // The names of days, and the first letter of sentences: their switches go off.
+    {
+        const SettingGuard days(QStringLiteral("proof/ac/days"), true, true), sentences(QStringLiteral("proof/ac/sentences"), true, true);
+        Typer u;
+        u.type(QStringLiteral("See you on monday "));
+        QCOMPARE(u.text(), QStringLiteral("See you on Monday "));
+        QVERIFY(autoFixAction(u.view, "autoFixStop"));
+        autoFixAction(u.view, "autoFixStop")->trigger();
+        QCOMPARE(u.text(), QStringLiteral("See you on monday "));
+        QVERIFY(!autoCorrectConfig(QStringLiteral("en-US")).days);
+        Typer v;
+        v.type(QStringLiteral("It is. we "));
+        QCOMPARE(v.text(), QStringLiteral("It is. We "));
+        QCOMPARE(v.view.autoFix().kind, autotext::Fix::Kind::Sentence);
+        autoFixAction(v.view, "autoFixStop")->trigger();
+        QCOMPARE(v.text(), QStringLiteral("It is. we "));
+        QVERIFY(!autoCorrectConfig(QStringLiteral("en-US")).sentences);
+    }
+}
+
+
+void WriteTests::theAutoCorrectOptionsAreReachedFromTheKeyboardAndOpenTheSettings()
+{
+    const SettingGuard replace(QStringLiteral("proof/ac/replace/en"), QVariant(), QVariant());
+    Typer t;
+    t.type(QStringLiteral("Say teh "));
+    QVERIFY(t.view.autoFixAvailable());
+    QTRY_VERIFY(autoFixButton(t.view)->isVisible());
+    // Alt+Shift+F10 opens the choices (the test closes the menu that opens).
+    QShortcut *key = nullptr;
+    for (QShortcut *sc : t.view.findChildren<QShortcut *>())
+        if (sc->key() == QKeySequence(Qt::ALT | Qt::SHIFT | Qt::Key_F10)) key = sc;
+    QVERIFY(key && key->isEnabled());
+    QSignalSpy opened(autoFixButton(t.view)->menu(), &QMenu::aboutToShow);
+    QTimer closer;
+    closer.setInterval(20);
+    QObject::connect(&closer, &QTimer::timeout, &closer, [] {
+        if (QWidget *popup = QApplication::activePopupWidget()) popup->close();
+    });
+    closer.start();
+    Q_EMIT key->activated();
+    QTRY_VERIFY(opened.count() >= 1);
+    closer.stop();
+    // The last choice opens the AutoCorrect dialog.
+    withDialog([&] { autoFixAction(t.view, "autoFixOptions")->trigger(); }, QStringLiteral("autoCorrectDialog"), [](QDialog *d) { QVERIFY(d->findChild<AutoCorrectPage *>()); }, false);
+}
+
+
+// Detecting the language as you type: the twelfth word of a paragraph that states no language, with one dictionary accepting clearly more of the words than the document's language.
+void WriteTests::aParagraphIsGivenItsLanguageWhenItsTwelfthWordIsTypedAndTheChoiceIsOn()
+{
+    const QString french = QStringLiteral("Je pense que nous devons toujours regarder les choses avec beaucoup de patience et de courage ");
+    auto languageOf = [](Typer &t) {
+        QTextCursor c(t.doc->story());
+        c.setPosition(2);
+        return proofingLanguageAt(*t.doc, c);
+    };
+    {
+        const SettingGuard on(QStringLiteral("proof/detectLanguage"), true, false);
+        Typer t;
+        t.type(french);
+        QCOMPARE(languageOf(t), QStringLiteral("fr-FR"));
+        QCOMPARE(t.text(), french);
+        // It is looked at once: what is typed after goes on in the language, and English words do not change it back.
+        t.type(QStringLiteral("and then we went home to eat our dinner "));
+        QCOMPARE(languageOf(t), QStringLiteral("fr-FR"));
+        // One step that undoes: the text stays, the language goes; and the next word does not give it again.
+        Typer u;
+        u.type(french);
+        QCOMPARE(languageOf(u), QStringLiteral("fr-FR"));
+        u.doc->undo();
+        QCOMPARE(languageOf(u), QStringLiteral("en-US"));
+        QCOMPARE(u.text(), french);
+        u.type(QStringLiteral(" "));   // (a separator after the one that was typed is not the end of the twelfth word)
+        QCOMPARE(languageOf(u), QStringLiteral("en-US"));
+        u.type(QStringLiteral("encore "));
+        QCOMPARE(languageOf(u), QStringLiteral("en-US"));
+        // Another paragraph of the same document is its own.
+        Typer v;
+        v.type(QStringLiteral("I think that we must always look at things with a lot of patience and courage "));
+        QCOMPARE(languageOf(v), QStringLiteral("en-US"));   // (the document's language already)
+        // Eleven words are too few; text that states a language is left as it is.
+        Typer w;
+        w.type(QStringLiteral("Je pense que nous devons toujours regarder les choses avec beaucoup de patience "));
+        QCOMPARE(languageOf(w), QStringLiteral("en-US"));
+        Typer x;
+        x.type(QStringLiteral("Hello there friend "));
+        QTextCursor all(x.doc->story());
+        all.select(QTextCursor::Document);
+        setProofingLanguage(*x.doc, all, QStringLiteral("de-DE"));
+        x.view.cursor().movePosition(QTextCursor::End);
+        x.type(french);
+        QCOMPARE(languageOf(x), QStringLiteral("de-DE"));
+    }
+    // With the choice off (as it is until it is turned on) nothing is changed.
+    {
+        Typer t;
+        t.type(french);
+        QCOMPARE(languageOf(t), QStringLiteral("en-US"));
+    }
+}
+
 
 void WriteTests::theFirstLetterOfATableCellIsCapitalizedWhenThatSwitchIsOn()
 {

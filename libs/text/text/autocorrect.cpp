@@ -87,6 +87,8 @@ std::optional<Fix> correctWord(const QString &text, int rel, bool smartQuotes, c
         return all;
     };
     QString fixed;
+    Fix::Kind kind = Fix::Kind::None;
+    QString entryKey;
     if (config.replace) {
         // An entry that is a symbol (an arrow, dots), at the end of the text and not inside a longer run of the same mark.
         for (const auto &entry : config.replacements) {
@@ -95,13 +97,15 @@ std::optional<Fix> correctWord(const QString &text, int rel, bool smartQuotes, c
             const int at = rel - int(key.size());
             if (at > 0 && text[at - 1] == key[0] && !key[0].isLetterOrNumber()) continue;
             if (key[0].isLetterOrNumber() && at > 0 && wordChar(text[at - 1])) continue;
-            return Fix{at, rel, entry.second, false};
+            return Fix{at, rel, entry.second, false, Fix::Kind::Replacement, entry.first};
         }
         // An entry that is a word: the word just typed.
         if (!word.isEmpty()) {
             for (const auto &entry : config.replacements) {
                 if (entry.first.compare(word, Qt::CaseInsensitive) != 0 || entry.second == word || !wordLike(entry.first)) continue;
                 fixed = entry.second;
+                kind = Fix::Kind::Replacement;
+                entryKey = entry.first;
                 // Keep the typed capitals: "Teh" becomes "The", "TEH" becomes "THE".
                 if (word.size() > 1 && word == word.toUpper() && word != word.toLower()) fixed = fixed.toUpper();
                 else if (word[0].isUpper()) fixed[0] = fixed[0].toUpper();
@@ -116,13 +120,18 @@ std::optional<Fix> correctWord(const QString &text, int rel, bool smartQuotes, c
         // Two initial capitals: "THursday" becomes "Thursday".
         fixed = word;
         fixed[1] = fixed[1].toLower();
+        kind = Fix::Kind::TwoInitials;
     } else if (config.capsLock && word.size() > 3 && word[0].isLower() && word.mid(1) == word.mid(1).toUpper() && word.mid(1) != word.mid(1).toLower() && word[1].isLetter() &&
                !config.initialExceptions.contains(word)) {
         // The caps lock key was on: "cAPS" is "Caps".
         fixed = QString(word[0].toUpper()) + word.mid(1).toLower();
+        kind = Fix::Kind::CapsLock;
     } else if (config.days && english && word[0].isLower()) {
         static const QStringList days = {"monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"};
-        if (days.contains(word)) fixed = QString(word[0].toUpper()) + word.mid(1);
+        if (days.contains(word)) {
+            fixed = QString(word[0].toUpper()) + word.mid(1);
+            kind = Fix::Kind::Day;
+        }
     }
     // A capital at the start of a sentence.
     QString base = fixed.isEmpty() ? word : fixed;
@@ -144,11 +153,12 @@ std::optional<Fix> correctWord(const QString &text, int rel, bool smartQuotes, c
         if (sentenceStart && !abbreviation && base[0].isLetter()) {
             base[0] = base[0].toUpper();
             fixed = base;
+            if (kind == Fix::Kind::None) kind = paragraphStart && inCell ? Fix::Kind::Cell : Fix::Kind::Sentence;
         }
     }
     if (fixed.isEmpty() || fixed == word) return std::nullopt;
     if (smartQuotes) fixed.replace(QLatin1Char('\''), QChar(0x2019));
-    return Fix{start, rel, fixed, false};
+    return Fix{start, rel, fixed, false, kind, entryKey};
 }
 
 std::optional<Fix> formatWord(const QString &text)

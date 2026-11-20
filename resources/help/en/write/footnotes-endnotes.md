@@ -75,7 +75,7 @@ To leave a note, press **Esc**, press **Up** at its first line or **Down** at it
 - If the file has no notes, the first one you add also adds what a notes part needs, so that other programs open the file without a message.
 - A note stays in the file as long as anything cites it: the text, a header or footer, a text box, or another note. When the last of these lets it go, the note goes.
 - A document can hold up to 5,000 notes of each kind that its text cites. When it has that many, **Insert Footnote** and **Insert Endnote** are off, and the status bar says why. Notes you put in and then undo do not count.
-- **Find and Replace** and the **Spelling** pane (F7) look through the text of the document, not in its notes.
+- **Find and Replace** and the **Spelling** pane (F7) look through the notes too. The Spelling pane opens a footnote to show a word in it, and a word in an endnote can be ignored or added, but not changed.
 
 ## Undo
 
