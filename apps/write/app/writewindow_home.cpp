@@ -76,7 +76,7 @@ void WriteWindow::createHomeActions()
             for (const char *id : {"edit.pasteListContinue", "edit.pasteListNew", "edit.pasteListMerge"}) choices.push_back({Kind::Keep, act(QString::fromLatin1(id))->text(), QString::fromLatin1(id)});
         }
         if (m_view->clipboardHasCells()) {
-            for (const char *id : {"edit.pasteTable", "edit.pasteTableNest", "edit.pasteTableMerge", "edit.pasteTableRows", "edit.pasteTableOverwrite"})
+            for (const char *id : {"edit.pasteTable", "edit.pasteTableNest", "edit.pasteTableMerge", "edit.pasteTableRows", "edit.pasteTableColumns", "edit.pasteTableOverwrite"})
                 if (act(QString::fromLatin1(id))->isEnabled()) choices.push_back({Kind::Keep, act(QString::fromLatin1(id))->text(), QString::fromLatin1(id)});
         }
         if (act("edit.pasteObject")->isEnabled()) choices.push_back({Kind::Keep, act("edit.pasteObject")->text(), QStringLiteral("edit.pasteObject")});
@@ -113,6 +113,15 @@ void WriteWindow::createHomeActions()
     mk("edit.pasteTableNest", tr("Nest Table"), "table", QKeySequence(), [pasteCells] { pasteCells(write::TablePaste::Nest); });
     mk("edit.pasteTableMerge", tr("Merge Table"), "table", QKeySequence(), [pasteCells] { pasteCells(write::TablePaste::Merge); });
     mk("edit.pasteTableRows", tr("Insert as New Rows"), "table", QKeySequence(), [pasteCells] { pasteCells(write::TablePaste::NewRows); });
+    mk("edit.pasteTableColumns", tr("Insert as New Columns"), "table", QKeySequence(), [this] {
+        if (!m_doc || refuseIfReadOnly()) return;
+        if (!m_view->canPasteCellsAsColumns()) {
+            statusBar()->showMessage(tr("Put the caret in a table that has room for the columns to paste the cells as new columns."), 5000);
+            return;
+        }
+        m_view->pasteCellsAsColumns();
+        m_view->setFocus(Qt::OtherFocusReason);
+    });
     mk("edit.pasteTableOverwrite", tr("Overwrite Cells"), "table", QKeySequence(), [pasteCells] { pasteCells(write::TablePaste::Overwrite); });
     auto syncPaste = [this] {
         if (!m_view) return;
@@ -122,7 +131,7 @@ void WriteWindow::createHomeActions()
         act("edit.pasteSpecial")->setEnabled(bool(m_doc));
         const bool cells = bool(m_doc) && m_view->clipboardMayHaveCells();
         for (const char *id : {"edit.pasteListContinue", "edit.pasteListNew", "edit.pasteListMerge"}) act(QString::fromLatin1(id))->setEnabled(bool(m_doc) && m_view->canPaste(Kind::Keep));
-        for (const char *id : {"edit.pasteTable", "edit.pasteTableNest", "edit.pasteTableMerge", "edit.pasteTableRows", "edit.pasteTableOverwrite"}) act(QString::fromLatin1(id))->setEnabled(cells);
+        for (const char *id : {"edit.pasteTable", "edit.pasteTableNest", "edit.pasteTableMerge", "edit.pasteTableRows", "edit.pasteTableColumns", "edit.pasteTableOverwrite"}) act(QString::fromLatin1(id))->setEnabled(cells);
     };
     connect(QApplication::clipboard(), &QClipboard::dataChanged, this, syncPaste);
     syncPaste();

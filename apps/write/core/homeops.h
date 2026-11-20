@@ -2,6 +2,7 @@
 // Commands of the Home tab that work on text as text: Change Case and Sort. Each is one step of the story's history (Change Case is a tracked change when Track Changes is on).
 
 #include "core/writedoc.h"
+#include "wml/wmlhtmlread.h"
 
 #include <QTextBlockFormat>
 #include <QTextCursor>
@@ -43,6 +44,11 @@ int sortParagraphs(WriteDoc &doc, QTextCursor &c, const SortOptions &options);
 // ---- Paste, merging the formatting
 // The fragment pasted as text in the look of the place it goes to; only its emphasis (bold, italic, underline, strikethrough) stays. One step.
 void pasteMerged(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fragment);
+
+// Spreadsheet cells as new columns of the table the caret is in: as many columns as the cells have go in after the caret's cell, and the cells fill them from the caret's row down (what is past the
+// table's last row is left out, and the table's notice says so). One step. Where the table cannot take that many columns, false and nothing done.
+bool canPasteCellsAsColumns(WriteDoc &doc, const QTextCursor &c, int columns);
+bool pasteCellsAsColumns(WriteDoc &doc, QTextCursor &c, const office::wml::ClipTable &cells);
 
 // ---- Horizontal line
 // A horizontal line (a paragraph of its own with a border under it) after the paragraph the caret is in, as one step; the caret goes to a plain paragraph below it. False where no paragraph can be

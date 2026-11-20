@@ -200,6 +200,13 @@ public:
     bool clipboardHasCells() const;
     bool canPasteCellsAs(TablePaste how) const;
     void pasteCellsAs(TablePaste how);
+    // The cells as new columns of the table the caret is in (after the caret's cell, filled from its row down).
+    bool canPasteCellsAsColumns() const;
+    void pasteCellsAsColumns();
+    bool changeLastPasteColumns();
+    // Opens the menu of the Paste Options button (the Ctrl key tapped after a paste does this); false when there is no offer. Esc ends the offer (false when there is none).
+    bool openPasteOptions();
+    bool endPasteOptions();
     bool changeLastPasteList(ListPaste how);
     bool changeLastPasteCells(TablePaste how);
     // What the last paste has choices for.
@@ -417,6 +424,7 @@ protected:
     void scrollContentsBy(int dx, int dy) override;
     void wheelEvent(QWheelEvent *e) override;
     void keyPressEvent(QKeyEvent *e) override;
+    void keyReleaseEvent(QKeyEvent *e) override;
     void mousePressEvent(QMouseEvent *e) override;
     void mouseMoveEvent(QMouseEvent *e) override;
     void mouseReleaseEvent(QMouseEvent *e) override;
@@ -725,6 +733,7 @@ private:
     struct PasteChoice {
         std::optional<ListPaste> list;
         int table = -1;   // a TablePaste, or -1: none
+        bool columns = false;   // the cells as new columns
     } m_choice;
     bool redoLastPaste(const std::function<void()> &again);
     void runPaste(bool smart, const std::function<void()> &put, int from);
@@ -732,6 +741,7 @@ private:
     QToolButton *m_pasteButton = nullptr;
     void notePaste(int from, int selectionEnd, const PasteSource &from_, bool startedInTable, bool asCells = false);
     void updatePasteButton();
+    bool m_ctrlTap = false;   // Ctrl went down and nothing else since
     bool m_gridlines = false;
     bool m_shadeFields = false;
     bool m_caretWithoutFocus = false;

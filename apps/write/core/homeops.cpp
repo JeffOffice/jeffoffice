@@ -3,6 +3,7 @@
 #include "core/editops.h"
 #include "core/wordformat.h"
 #include "core/styleops.h"
+#include "core/tableops.h"
 #include "core/writeprops.h"
 #include "flow/flowdocument.h"
 #include "text/textprops.h"
@@ -456,6 +457,46 @@ QVector<QPair<QString, QString>> describeFormatting(WriteDoc &doc, const QTextCu
     const QString language = cf.stringProperty(tp::Language);
     out.push_back({QCoreApplication::translate("jp::write::Inspector", "Language"), language.isEmpty() ? doc.proofingLanguage() : language});
     return out;
+}
+
+bool canPasteCellsAsColumns(WriteDoc &doc, const QTextCursor &c, int columns)
+{
+    if (columns < 1 || columns > office::wml::kMostClipColumns || !canPasteCells(doc, c, TablePaste::Overwrite)) return false;
+    const CellPlace at = cellPlace(doc, c);
+    return at.inTable && at.columns + columns <= office::wml::kMostClipColumns;
+}
+
+bool pasteCellsAsColumns(WriteDoc &doc, QTextCursor &c, const office::wml::ClipTable &cells)
+{
+    if (cells.rows.isEmpty() || cells.rows[0].isEmpty() || int(cells.rows.size()) > office::wml::kMostClipRows) return false;
+    const int columns = int(cells.rows[0].size());
+    if (!canPasteCellsAsColumns(doc, c, columns)) return false;
+    const CellPlace at = cellPlace(doc, c);
+    QTextCursor edit(doc.story());
+    edit.setPosition(c.selectionStart());
+    c.beginEditBlock();
+    int made = 0;
+    for (; made < columns; ++made) {
+        const int before = cellPlace(doc, edit).columns;
+        insertTableColumn(doc, edit, true);   // (it looks at every limit of a table first; a refusal changes nothing)
+        if (cellPlace(doc, edit).columns <= before) break;
+    }
+    if (made == 0) {
+        c.endEditBlock();
+        return false;
+    }
+    // The first new cell: the next one in the caret's row.
+    QTextCursor first(doc.story());
+    first.setPosition(c.selectionStart());
+    bool there = tabThroughCells(doc, first, false);
+    const CellPlace now = cellPlace(doc, first);
+    there = there && now.inTable && now.row == at.row && now.column > at.column;
+    if (there) {
+        pasteCells(doc, first, cells, TablePaste::Overwrite);
+        c.setPosition(first.position());
+    }
+    c.endEditBlock();
+    return true;
 }
 
 } // namespace jp::write

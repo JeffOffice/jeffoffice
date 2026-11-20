@@ -542,7 +542,7 @@ void WriteWindow::fillContextMenu(QMenu &menu)
     paste->addSeparator();
     for (const char *id : {"edit.pasteListContinue", "edit.pasteListNew", "edit.pasteListMerge"}) paste->addAction(act(QString::fromLatin1(id)));
     paste->addSeparator();
-    for (const char *id : {"edit.pasteTable", "edit.pasteTableNest", "edit.pasteTableMerge", "edit.pasteTableRows", "edit.pasteTableOverwrite"}) paste->addAction(act(QString::fromLatin1(id)));
+    for (const char *id : {"edit.pasteTable", "edit.pasteTableNest", "edit.pasteTableMerge", "edit.pasteTableRows", "edit.pasteTableColumns", "edit.pasteTableOverwrite"}) paste->addAction(act(QString::fromLatin1(id)));
     menu.addSeparator();
     menu.addAction(act("fmt.fontDialog"));
     menu.addAction(act("para.dialog"));

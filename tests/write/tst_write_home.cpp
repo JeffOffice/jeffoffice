@@ -2595,6 +2595,208 @@ private Q_SLOTS:
         }
     }
 
+    // Insert as New Columns: the cells go in columns of their own after the caret's cell, filled from its row down; one step.
+    void cellsPasteAsNewColumnsOfTheTableTheCaretIsIn()
+    {
+        {
+            WriteWindow w;
+            tableWindow(w);
+            putCells({QStringLiteral("a|b"), QStringLiteral("c|d")});
+            QVERIFY(w.act(QStringLiteral("edit.pasteTableColumns")));
+            w.act(QStringLiteral("edit.pasteTableColumns"))->trigger();
+            QCOMPARE(count(w, "<w:gridCol "), 4);
+            QCOMPARE(count(w, "<w:tr>"), 2);
+            QCOMPARE(cellTexts(w), (QStringList{QString(), QStringLiteral("a"), QStringLiteral("b"), QString(), QString(), QStringLiteral("c"), QStringLiteral("d"), QString()}));
+            QVERIFY(w.view()->pasteOptionsAvailable());
+            QVERIFY(w.document()->undo());
+            QCOMPARE(count(w, "<w:gridCol "), 2);
+            QVERIFY(w.document()->redo());
+            QCOMPARE(count(w, "<w:gridCol "), 4);
+        }
+        // More rows than the table has: the rest is left out, and the table says so.
+        {
+            WriteWindow w;
+            tableWindow(w);
+            putCells({QStringLiteral("1"), QStringLiteral("2"), QStringLiteral("3")});
+            w.view()->pasteCellsAsColumns();
+            QCOMPARE(count(w, "<w:gridCol "), 3);
+            QVERIFY(!cellTexts(w).contains(QStringLiteral("3")));
+            QVERIFY(!w.document()->tableNotice.isEmpty());
+        }
+        // Not outside a table, and not where the columns would pass the limit of a table (nothing is done).
+        {
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.show();
+            w.setDocument(open(makeDocx(para(run("plain")))), QString());
+            putCells({QStringLiteral("a|b")});
+            QVERIFY(!w.view()->canPasteCellsAsColumns());
+        }
+        {
+            WriteWindow w;
+            tableWindow(w, 1, 62);
+            putCells({QStringLiteral("a|b")});
+            QVERIFY(!w.view()->canPasteCellsAsColumns());
+            const QString before = w.document()->story()->toPlainText();
+            w.view()->pasteCellsAsColumns();
+            QCOMPARE(count(w, "<w:gridCol "), 62);
+            QCOMPARE(w.document()->story()->toPlainText(), before);
+            QVERIFY(!w.view()->pasteOptionsAvailable());
+        }
+        // From the Paste Options button after Ctrl+V: the change is one step, so one Undo takes it all back to before the paste.
+        {
+            WriteWindow w;
+            tableWindow(w);
+            putCells({QStringLiteral("a|b"), QStringLiteral("c|d")});
+            toFirstCell(w);
+            w.view()->paste();
+            QVERIFY(w.view()->pasteOptionsAvailable());
+            QMenu *menu = nullptr;
+            openOptions(w, &menu);
+            QVERIFY(menu->findChild<QAction *>(QStringLiteral("pasteColumns0")));
+            menu->close();
+            QVERIFY(w.view()->changeLastPasteColumns());
+            QCOMPARE(count(w, "<w:gridCol "), 4);
+            QVERIFY(w.document()->undo());
+            QCOMPARE(count(w, "<w:gridCol "), 2);
+            QVERIFY(cellTexts(w).first().isEmpty());
+            QVERIFY(w.document()->undo());   // (what came before the paste: the table the window began with)
+            QCOMPARE(count(w, "<w:tbl>"), 0);
+        }
+    }
+
+    // The keyboard: Ctrl tapped after a paste opens the options, the arrows and Enter choose, Esc ends the offer; a key between is no tap.
+    void thePasteOptionsOpenWithACtrlTapAndEndWithEsc()
+    {
+        auto pasteBold = [](WriteWindow &w) {
+            w.setNotifier([](const QString &, const QString &) {});
+            w.show();
+            w.setDocument(open(makeDocx(para(run("plain ")))), QString());
+            auto *mime = new QMimeData;
+            mime->setHtml(QStringLiteral("<p>some <b>bold</b> words</p>"));
+            QApplication::clipboard()->setMimeData(mime);
+            QTextCursor c(w.document()->story());
+            c.movePosition(QTextCursor::End);
+            w.view()->setCursor(c);
+            w.view()->paste();
+            w.view()->setFocus();
+        };
+        auto key = [](QWidget *to, QEvent::Type type, int k) {
+            QKeyEvent e(type, k, Qt::NoModifier);
+            QApplication::sendEvent(to, &e);
+        };
+        {
+            WriteWindow w;
+            pasteBold(w);
+            QVERIFY(w.view()->pasteOptionsAvailable());
+            QSignalSpy notices(w.view(), &PageView::notice);
+            key(w.view(), QEvent::KeyPress, Qt::Key_Control);
+            key(w.view(), QEvent::KeyPress, Qt::Key_Shift);   // (another key first: no tap)
+            key(w.view(), QEvent::KeyRelease, Qt::Key_Shift);
+            key(w.view(), QEvent::KeyRelease, Qt::Key_Control);
+            QCOMPARE(notices.count(), 0);
+            QVERIFY(w.view()->pasteOptionsAvailable());
+            // A tap: the options are announced, and the menu opens; Down three times and Enter choose Keep Text Only.
+            key(w.view(), QEvent::KeyPress, Qt::Key_Control);
+            key(w.view(), QEvent::KeyRelease, Qt::Key_Control);
+            QCOMPARE(notices.count(), 1);
+            QTRY_VERIFY(QApplication::activePopupWidget());
+            auto *menu = qobject_cast<QMenu *>(QApplication::activePopupWidget());
+            QVERIFY(menu);
+            for (int i = 0; i < 3; ++i) QTest::keyClick(menu, Qt::Key_Down);
+            QTest::keyClick(menu, Qt::Key_Return);
+            QTRY_VERIFY(!QApplication::activePopupWidget());
+            QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("plain some bold words"));
+            QVERIFY(charFormatAtEnd(w).fontWeight() < QFont::DemiBold);
+            QVERIFY(w.document()->undo());   // one Undo: before the paste
+            QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("plain "));
+        }
+        {
+            WriteWindow w;
+            pasteBold(w);
+            const QString text = w.document()->story()->toPlainText();
+            key(w.view(), QEvent::KeyPress, Qt::Key_Escape);
+            QVERIFY(!w.view()->pasteOptionsAvailable());
+            auto *button = w.view()->findChild<QToolButton *>(QStringLiteral("pasteOptionsButton"));
+            QVERIFY(button && !button->isVisible());
+            QCOMPARE(w.document()->story()->toPlainText(), text);   // (Esc takes nothing back)
+            QSignalSpy notices(w.view(), &PageView::notice);
+            key(w.view(), QEvent::KeyPress, Qt::Key_Control);
+            key(w.view(), QEvent::KeyRelease, Qt::Key_Control);
+            QCOMPARE(notices.count(), 0);
+            QVERIFY(!w.view()->changeLastPaste(PageView::PasteKind::TextOnly));
+        }
+        // The button has a name and a description for a screen reader.
+        {
+            WriteWindow w;
+            pasteBold(w);
+            auto *button = w.view()->findChild<QToolButton *>(QStringLiteral("pasteOptionsButton"));
+            QVERIFY(button);
+            QVERIFY(!button->accessibleName().isEmpty());
+            QVERIFY(!button->accessibleDescription().isEmpty());
+        }
+    }
+
+    // A document that became read-only after the paste, or one changed after it, has no offer left: nothing is replaced.
+    void aChoiceActsOnlyOnTheJustPastedRange()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocx(para(run("plain ")) + para(run("tail")))), QString());
+        auto *mime = new QMimeData;
+        mime->setHtml(QStringLiteral("<p>some <b>bold</b> words</p>"));
+        QApplication::clipboard()->setMimeData(mime);
+        QTextCursor c(w.document()->story());
+        c.setPosition(6);
+        w.view()->setCursor(c);
+        w.view()->paste();
+        QVERIFY(w.view()->pasteOptionsAvailable());
+        const int end = w.view()->cursor().position();
+        w.view()->setReadOnly(true);
+        QVERIFY(!w.view()->pasteOptionsAvailable());
+        const QString text = w.document()->story()->toPlainText();
+        QVERIFY(!w.view()->changeLastPaste(PageView::PasteKind::TextOnly));
+        QCOMPARE(w.document()->story()->toPlainText(), text);
+        w.view()->setReadOnly(false);
+        QVERIFY(w.view()->pasteOptionsAvailable());
+        // An edit elsewhere, and the offer is gone, though the caret comes back to the paste's end.
+        QTextCursor elsewhere(w.document()->story());
+        elsewhere.movePosition(QTextCursor::End);
+        elsewhere.insertText(QStringLiteral("!"));
+        QTextCursor back(w.document()->story());
+        back.setPosition(end);
+        w.view()->setCursor(back);
+        QVERIFY(!w.view()->pasteOptionsAvailable());
+        QVERIFY(!w.view()->changeLastPaste(PageView::PasteKind::TextOnly));
+        QVERIFY(w.document()->story()->toPlainText().endsWith(QStringLiteral("tail!")));
+    }
+
+    // Track Changes on: the change of mind leaves one insertion of the words, no deletion.
+    void aChoiceWithTrackedChangesIsOneInsertion()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocx(para(run("plain ")), "<w:trackRevisions/>")), QString());
+        QVERIFY(w.document()->trackChanges());
+        auto *mime = new QMimeData;
+        mime->setHtml(QStringLiteral("<p>some <b>bold</b> words</p>"));
+        QApplication::clipboard()->setMimeData(mime);
+        QTextCursor c(w.document()->story());
+        c.movePosition(QTextCursor::End);
+        w.view()->setCursor(c);
+        w.view()->paste();
+        QVERIFY(w.view()->changeLastPaste(PageView::PasteKind::TextOnly));
+        QCOMPARE(w.document()->story()->toPlainText().remove(QChar(0xFFFC)), QStringLiteral("plain some bold words"));   // (the marks of the insertion are not words)
+        const QByteArray xml = bodyXml(w.document()->toDocx());
+        QCOMPARE(xml.count("<w:del "), 0);
+        QCOMPARE(xml.count("<w:ins "), 1);
+        QVERIFY(w.document()->undo());
+        QCOMPARE(w.document()->story()->toPlainText().remove(QChar(0xFFFC)), QStringLiteral("plain "));
+        QCOMPARE(bodyXml(w.document()->toDocx()).count("<w:ins "), 0);
+    }
+
     static QMimeData *rtfMime()
     {
         auto *mime = new QMimeData;

@@ -27,6 +27,7 @@
                 "edit.pasteTableNest",
                 "edit.pasteTableMerge",
                 "edit.pasteTableRows",
+                "edit.pasteTableColumns",
                 "edit.pasteTableOverwrite",
                 "-",
                 "edit.pasteObject",
