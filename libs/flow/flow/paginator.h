@@ -330,10 +330,10 @@ private:
     QVector<Wrapped> wrappersOf(const Run &run, int index, const PageStart &start, int *moveBefore = nullptr);
     // The frame-local polygons that a column on the page (its rectangle, page coordinates) has the objects in as places the text keeps out of (as the page layer finds them for the
     // text box that is made of the column: Renderer::wrapObstacles).
-    QVector<QPolygonF> obstaclesFor(const QVector<Wrapped> &wrapped, const QRectF &column) const;
+    QVector<QPolygonF> obstaclesFor(const QVector<Wrapped> &wrapped, const QRectF &column, bool oneColumn) const;
     // The room a wrapped object takes: its rectangle and the distances round it (and what is kept clear under it). The distance above an object that is set from its paragraph or its
     // line does not reach up into the lines before them: they are laid out first, and the object is set from where the paragraph begins.
-    static QRectF roomOf(const FloatingObject &o, const Wrapped &w, const QVector<QRectF> &columns = {});
+    static QRectF roomOf(const FloatingObject &o, const Wrapped &w, const QRectF *whole = nullptr);
     static QPainterPath wrapOutlinePath(const FloatingObject &o, const Wrapped &w);
     bool breakContinuesAt(const StoryLayout::LineBrief &last, PageStart *next) const;
     int numberOf(int index) const;

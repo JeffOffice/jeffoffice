@@ -336,7 +336,7 @@ Paginator::Run Paginator::layoutPageWith(int index, const PageStart &st, const Q
     // A frame that is a column of the page (`column`: where, in page coordinates) has the objects the page's text goes round as places it keeps out of.
     QVector<QRectF> advanceWalls;   // (page coordinates: the room above a paragraph that asked for a place lower on the page, in its column)
     auto walled = [&](FrameSpec fs, const QRectF &column) {
-        if (!wrapped.isEmpty()) fs.obstacles = obstaclesFor(wrapped, column);
+        if (!wrapped.isEmpty()) fs.obstacles = obstaclesFor(wrapped, column, sec.columnCount() <= 1);
         for (const QRectF &w : advanceWalls)
             if (w.intersects(column)) fs.obstacles << QPolygonF(QRectF(-1e5, w.top() - column.top(), 2e5, w.height()));
         return fs;

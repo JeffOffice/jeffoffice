@@ -197,20 +197,15 @@ QRectF Paginator::placeOf(const FloatingObject &o, const Anchor &a, const Sectio
     return QRectF(QPointF(x, y), size);
 }
 
-QRectF Paginator::roomOf(const FloatingObject &o, const Wrapped &w, const QVector<QRectF> &columns)
+QRectF Paginator::roomOf(const FloatingObject &o, const Wrapped &w, const QRectF *whole)
 {
     // (A callout's pointer sticks out of its frame: the text keeps off that too.)
     QRectF frame = w.rect;
     if (o.item && o.item->rotation == 0) frame = frame.united(localReach(*o.item).translated(w.rect.topLeft()));
     QRectF room = frame.adjusted(-o.gap.left(), -o.gap.top(), o.gap.right(), o.gap.bottom() + w.below);
-    // (A tight wrap that has no outline, as wide as a column with its distances, leaves no room beside it: the text goes below it, and keeps off by the widest distance there too.)
-    if (o.wrap == FloatingObject::Wrap::Tight && o.outline.size() < 3) {
-        for (const QRectF &col : columns)
-            if (room.intersects(col) && room.left() <= col.left() + 0.5 && room.right() >= col.right() - 0.5) {
-                room.setBottom(room.bottom() + std::max({o.gap.left(), o.gap.right(), o.gap.bottom()}) - o.gap.bottom());
-                break;
-            }
-    }
+    // (A tight wrap that has no outline, as wide as the column with its distances (of a page with one column), leaves no room beside it: the text goes below it, and keeps off by the widest distance there too.)
+    if (o.wrap == FloatingObject::Wrap::Tight && o.outline.size() < 3 && whole && room.intersects(*whole) && room.left() <= whole->left() + 0.5 && room.right() >= whole->right() - 0.5)
+        room.setBottom(room.bottom() + std::max({o.gap.left(), o.gap.right(), o.gap.bottom()}) - o.gap.bottom());
     if (w.rect.top() >= w.anchorTop - 0.01 && room.top() < w.anchorTop) room.setTop(w.anchorTop);
     return room;
 }
@@ -230,7 +225,7 @@ QPainterPath Paginator::wrapOutlinePath(const FloatingObject &o, const Wrapped &
     return jp::wrapRoomAround(path, std::max({o.gap.left(), o.gap.right(), o.gap.top(), o.gap.bottom()}));
 }
 
-QVector<QPolygonF> Paginator::obstaclesFor(const QVector<Wrapped> &wrapped, const QRectF &column) const
+QVector<QPolygonF> Paginator::obstaclesFor(const QVector<Wrapped> &wrapped, const QRectF &column, bool oneColumn) const
 {
     QVector<QPolygonF> out;
     ++g_wrapColumns;
@@ -244,7 +239,7 @@ QVector<QPolygonF> Paginator::obstaclesFor(const QVector<Wrapped> &wrapped, cons
         const FloatingObject &o = w.frame ? *w.frame : m_doc->objects[w.object - 1];
         // A text box that does not reach into the column's text pushes none of it (by more than a hair: boxes are set edge to edge).
         if (o.item->type() == ItemType::Text && !w.rect.adjusted(0.55, 0.55, -0.55, -0.55).intersects(column)) continue;
-        QRectF b = roomOf(o, w, {column});
+        QRectF b = roomOf(o, w, oneColumn ? &column : nullptr);
         const bool outlined = o.wrap == FloatingObject::Wrap::Tight && o.outline.size() >= 3 && shapesLeft > 0;
         if (!outlined && !b.intersects(column)) continue;
         if (o.wrap == FloatingObject::Wrap::TopBottom) {
@@ -270,11 +265,21 @@ QVector<QPolygonF> Paginator::obstaclesFor(const QVector<Wrapped> &wrapped, cons
             // The side asked for is the room beside it: the other side is a wall as well. (The page layer makes the wall of a path and joins the two, as here, so that the
             // edges of the polygons are the same numbers: a line that touches one has the page layer put it where the paginator did.)
             const bool leftOnly = o.side == FloatingObject::Side::Left || (o.side == FloatingObject::Side::Largest && b.left() - column.left() >= column.right() - b.right());
-            // (The wall is the one rectangle, not the room joined to a second one: the join of two rectangles that share three edges came out as a sliver for some places, and the text went under the object.)
-            QRectF wall;
-            if (leftOnly) wall.setCoords(b.left(), b.top(), 1e5, b.bottom());
-            else wall.setCoords(-1e5, b.top(), b.right(), b.bottom());
-            out << QPolygonF(wall.translated(-column.left(), -column.top()));
+            QPainterPath path;
+            path.addRect(b);
+            QPainterPath beyond;
+            if (leftOnly) beyond.addRect(QRectF(b.left(), b.top(), 1e5, b.height()));
+            else beyond.addRect(QRectF(-1e5, b.top(), b.right() + 1e5, b.height()));
+            path = path.united(beyond);
+            QPolygonF wall = path.toFillPolygon();
+            // (The join of two rectangles that share three edges came out as a sliver for some places, and the text went under the object: then the wall is the one rectangle.)
+            if (!wall.boundingRect().contains(b)) {
+                QRectF one;
+                if (leftOnly) one.setCoords(b.left(), b.top(), 1e5, b.bottom());
+                else one.setCoords(-1e5, b.top(), b.right(), b.bottom());
+                wall = QPolygonF(one);
+            }
+            out << wall.translated(-column.left(), -column.top());
             continue;
         }
         out << QPolygonF(b.translated(-column.left(), -column.top()));
@@ -472,7 +477,7 @@ void Paginator::addObjects(Document *d, const QVector<Anchor> &anchors, const Se
             item->wrap.mode = Wrap::None;
             if (wall) {
                 const Wrap::Side side = o.side == FloatingObject::Side::Left ? Wrap::LeftOnly : o.side == FloatingObject::Side::Right ? Wrap::RightOnly : o.side == FloatingObject::Side::Largest ? Wrap::Largest : Wrap::Both;
-                QRectF room = roomOf(o, *wall, columns);
+                QRectF room = roomOf(o, *wall, columns.size() == 1 ? &columns.first() : nullptr);
                 if (o.wrap == FloatingObject::Wrap::TopBottom) {
                     // No text beside it: the room round it reaches across the columns it is in (a square wall that wide, for the page layer's wall of this kind is as wide as the page),
                     // to the columns' edges and no further (a wall that reached 0.5 point into a column that the room touches only, as the paginator's does not, would make its
