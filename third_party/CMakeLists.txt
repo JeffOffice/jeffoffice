@@ -71,7 +71,7 @@ FetchContent_GetProperties(hunspell)
 if(NOT hunspell_POPULATED)
   FetchContent_Populate(hunspell)
 endif()
-# OUR PATCH to Hunspell 1.7.6 (also listed in third_party/README.md): a dictionary can be read from memory, so the installed dictionaries
+# OUR PATCHES to Hunspell 1.7.6 (also listed in third_party/README.md): the suggestion time limits are made so long they never end a search (atypes.hxx). A dictionary can be read from memory, so the installed dictionaries
 # can be compressed files that are inflated in memory and never written out. filemgr.hxx/.cxx gain a hook, jeffoffice_memory_file: when
 # it is set and says a name is a file in memory, FileMgr reads its lines from that memory (the same lines fin.getline gives, with its limit: a line longer than the buffer ends the read).
 # Nothing else changes. The patched copies of the sources are made in the build folder (the downloaded sources are never edited).
@@ -93,9 +93,20 @@ file(GLOB HUNSPELL_ORIGINALS ${hunspell_SOURCE_DIR}/src/hunspell/*.cxx ${hunspel
 set(HUNSPELL_SOURCES)
 foreach(original ${HUNSPELL_ORIGINALS})
   get_filename_component(fname ${original} NAME)
-  if(fname STREQUAL "filemgr.hxx" OR fname STREQUAL "filemgr.cxx")
+  if(fname STREQUAL "filemgr.hxx" OR fname STREQUAL "filemgr.cxx" OR fname STREQUAL "atypes.hxx")
     file(READ ${original} text)
-    if(fname STREQUAL "filemgr.hxx")
+    if(fname STREQUAL "atypes.hxx")
+      jo_hunspell_patch(atypes.hxx "#define TIMELIMIT_GLOBAL_MS std::chrono::milliseconds(250)
+#define TIMELIMIT_SUGGESTION_MS std::chrono::milliseconds(100)
+#define TIMELIMIT_MS std::chrono::milliseconds(50)
+"
+"/* JeffOffice patch: no wall-clock limits on a suggestion (a slow or busy machine gave a different list than a fast one). The work stays
+   bounded by the counters (MINTIMER, MAXPLUSTIMER), the suggestion caps, and the dictionary's size. */
+#define TIMELIMIT_GLOBAL_MS std::chrono::hours(24)
+#define TIMELIMIT_SUGGESTION_MS std::chrono::hours(24)
+#define TIMELIMIT_MS std::chrono::hours(24)
+")
+    elseif(fname STREQUAL "filemgr.hxx")
       jo_hunspell_patch(filemgr.hxx "class FileMgr {"
 "/* JeffOffice patch: a file in memory. When this is set and returns true for a name, FileMgr reads the file from the memory it
    gives (data and size) and not from disk; the memory must stay valid until the dictionary is loaded. */
