@@ -33,6 +33,7 @@
 #include <QLineEdit>
 #include <QListWidget>
 #include <QMenu>
+#include <QDoubleSpinBox>
 #include <QPrintDialog>
 #include <QPrinter>
 #include <QPushButton>
@@ -296,8 +297,7 @@ QWidget *DeckFileScreen::buildPrint()
     column.top(printBtn, copies);
 
     QComboBox *printer = makePrinterBox(w);
-    auto *properties = new QPushButton(tr("Printer Properties…"), w);
-    properties->setObjectName(QStringLiteral("printPrinterSettings"));
+    QPushButton *properties = makePrinterPropertiesButton(w);
     auto *printerRow = new QWidget(w);
     auto *printerLine = new QHBoxLayout(printerRow);
     printerLine->setContentsMargins(0, 0, 0, 0);
@@ -365,9 +365,18 @@ QWidget *DeckFileScreen::buildPrint()
     headerFooter->setObjectName(QStringLiteral("printHeaderFooter"));
     headerFooter->setToolTip(tr("The date, header, footer, and page number of notes pages and handouts."));
     QCheckBox *reverse = makeReverseBox(w);
+    auto *comments = new QCheckBox(tr("Print comments"), w);
+    comments->setObjectName(QStringLiteral("printComments"));
+    comments->setToolTip(tr("A page of the slide's review comments after each slide that has any (slides and notes pages)."));
+    auto *highQuality = new QCheckBox(tr("High quality"), w);
+    highQuality->setObjectName(QStringLiteral("printHighQuality"));
+    highQuality->setToolTip(tr("Grayscale and pure black and white pages are made at 600 to the inch, not 300. It takes longer and more memory."));
+    QCheckBox *openPdf = makeOpenPdfBox(w, QStringLiteral("printOpenPdf"));
+    const MarginBoxes margins = makeMarginBoxes(w);
     // the groups of the Print page (docs/design/STYLE.md)
     column.group(PrintColumn::printerHeading());
     column.wide(printerRow);
+    column.checks(openPdf);
     column.group(PrintColumn::pagesHeading());
     column.pair(tr("Print what"), what, tr("Order"), order);
     for (QRadioButton *r : {all, currentOnly, selection}) column.wide(r);
@@ -379,6 +388,9 @@ QWidget *DeckFileScreen::buildPrint()
     column.checks(scaleFit, frame);
     column.group(PrintColumn::paperHeading(), tr("(as each slide says unless changed)"));
     column.pair(tr("Paper"), paper, tr("Color"), color);
+    column.pair(tr("Top margin"), margins.top, tr("Bottom margin"), margins.bottom);
+    column.pair(tr("Left margin"), margins.left, tr("Right margin"), margins.right);
+    column.checks(comments, highQuality);
     column.link(headerFooter);
     left->addLayout(column.layout());
     left->addStretch(1);
@@ -452,6 +464,10 @@ QWidget *DeckFileScreen::buildPrint()
         o.copies = copies->value();
         o.collate = collate->isChecked();
         o.paper = paperChoiceSize(paper);
+        o.margins = marginsOf(margins);
+        o.comments = comments->isChecked();
+        o.highQuality = highQuality->isChecked();
+        o.openAfter = openPdf->isChecked();
         o.reverse = reverse->isChecked() && !sidesByHand(sides);   // (both sides by hand sets the order itself)
         return o;
     };
@@ -462,6 +478,9 @@ QWidget *DeckFileScreen::buildPrint()
         const int per = deck::slidesPerPage(o.layout);
         order->setEnabled(per >= 4);
         frame->setEnabled(o.layout == deck::PrintLayout::Slides);
+        comments->setEnabled(o.layout == deck::PrintLayout::Slides || o.layout == deck::PrintLayout::NotesPages);
+        updatePrinterPropertiesButton(properties, printer);
+        openPdf->setVisible(printerChoice(printer).toFile);
         scaleFit->setEnabled(o.layout == deck::PrintLayout::Slides);
         headerFooter->setEnabled(o.layout == deck::PrintLayout::NotesPages || deck::slidesPerPage(o.layout) > 0);
         text->setEnabled(some->isChecked());
@@ -544,28 +563,17 @@ QWidget *DeckFileScreen::buildPrint()
     connect(paper, &QComboBox::currentIndexChanged, w, [=] { restart(); });
     // The system's print window, on the printer the job is printed on, so that what is chosen there (paper, tray, quality) is kept; what the page also has comes back to it.
     connect(properties, &QPushButton::clicked, this, [=] {
-        QPrinter &p = m_win->printer();
-        const PrinterChoice choice = printerChoice(printer);
-        if (!choice.toFile && !choice.printer.isEmpty()) {
-            p.setOutputFormat(QPrinter::NativeFormat);
-            p.setPrinterName(choice.printer);
-        }
-        p.setCopyCount(copies->value());
-        p.setCollateCopies(collate->isChecked());
-        p.setColorMode(color->currentData().toInt() != int(PrintColor::Color) ? QPrinter::GrayScale : QPrinter::Color);
-        const QString before = p.printerName();
-        QPrintDialog dialog(&p, this);
-        if (execPrintDialog(dialog) != QDialog::Accepted) return;
-        const int at = p.printerName() != before ? printer->findData(p.printerName(), Qt::UserRole) : -1;
-        if (at >= 0 && !p.printerName().isEmpty()) printer->setCurrentIndex(at);
-        copies->setValue(std::max(1, p.copyCount()));
-        collate->setChecked(p.collateCopies());
-        // (the window has the two colors of a printer: a choice of black and white stays one while the printer is gray)
-        if (p.colorMode() == QPrinter::GrayScale && color->currentData().toInt() == int(PrintColor::Color)) color->setCurrentIndex(color->findData(int(PrintColor::Grayscale)));
-        else if (p.colorMode() == QPrinter::Color) color->setCurrentIndex(color->findData(int(PrintColor::Color)));
-        const int sized = paper->findData(int(p.pageLayout().pageSize().id()));
-        if (sized >= 0) paper->setCurrentIndex(sized);
+        PrinterControls controls;
+        controls.printer = printer;
+        controls.copies = copies;
+        controls.collate = collate;
+        controls.color = color;
+        controls.paper = paper;
+        showPrinterProperties(this, m_win->printer(), controls);
     });
+    for (QDoubleSpinBox *box : {margins.top, margins.bottom, margins.left, margins.right}) connect(box, &QDoubleSpinBox::valueChanged, w, [=] { paint(); });
+    connect(comments, &QCheckBox::toggled, w, [=] { restart(); });
+    connect(highQuality, &QCheckBox::toggled, w, [=] { paint(); });
     connect(copies, &QSpinBox::valueChanged, w, [=] { refresh(); });
     connect(collate, &QCheckBox::toggled, w, [=] { refresh(); });
     connect(reverse, &QCheckBox::toggled, w, [=] { restart(); });

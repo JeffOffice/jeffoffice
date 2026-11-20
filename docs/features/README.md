@@ -5,8 +5,8 @@ JeffOffice is an independent project. Each app aims to work with Office files an
 | App | What it does | State | Done | Partly | Not yet | List |
 |---|---|---|---:|---:|---:|---|
 | JeffPub | Desktop publishing for flyers, newsletters, brochures, cards, and other print pieces; opens and saves Publisher's `.pub` files | beta (0.43.1) | 232 | 19 | 56 | [jeffpub.md](jeffpub.md) |
-| JeffDeck | Presentations and slide shows; saves `.pptx` and `.odp`, and opens `.ppt` too | beta (0.43.1) | 272 | 72 | 146 | [jeffdeck.md](jeffdeck.md) |
-| JeffWrite | Documents and reports; saves `.docx` and `.rtf`, and opens `.doc` and `.odt` too | beta (0.43.1) | 163 | 170 | 96 | [jeffwrite.md](jeffwrite.md) |
+| JeffDeck | Presentations and slide shows; saves `.pptx` and `.odp`, and opens `.ppt` too | beta (0.43.1) | 273 | 71 | 146 | [jeffdeck.md](jeffdeck.md) |
+| JeffWrite | Documents and reports; saves `.docx` and `.rtf`, and opens `.doc` and `.odt` too | beta (0.43.1) | 165 | 168 | 96 | [jeffwrite.md](jeffwrite.md) |
 | JeffCrunch | Spreadsheets and calculation; saves `.xlsx` (and `.xls` and `.ods` copies), and opens `.xls`, `.ods`, and `.csv` | beta (0.43.1) | 226 | 193 | 96 | [jeffcrunch.md](jeffcrunch.md) |
 | JeffMail | Email, calendars, contacts, and tasks, kept where the provider keeps them | not built yet | 2 | 31 | 374 | [jeffmail.md](jeffmail.md) |
 | JeffBase | Databases for lists and records; keeps its data in SQLite, and opens `.accdb` and `.mdb` | not built yet | 2 | 31 | 299 | [jeffbase.md](jeffbase.md) |

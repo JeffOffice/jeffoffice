@@ -12,6 +12,13 @@
 #include "io/pdftransparency.h"
 #include "../pdftransparencyfixtures.h"
 #include <QScopeGuard>
+#include "app/help.h"
+#include "app/printpage.h"
+#include "app/privacy.h"
+#include "core/comments.h"
+#include "io/qtpdf.h"
+#include <QDoubleSpinBox>
+#include <QPdfWriter>
 #include "core/notesmaster.h"
 #include "core/printheaderfooter.h"
 #include <QBuffer>
@@ -295,6 +302,293 @@ private Q_SLOTS:
         d->props.title.clear();
         QVERIFY2(deck::exportPdf(*d, path, o, &err), qPrintable(err));
         QVERIFY(fileBytes(path).contains("/Title"));
+    }
+
+    // The PDF carries the presentation's properties in its information dictionary: title, author, subject, keywords, the date it was made, and this program as creator and producer; the author
+    // stays out when Options > Save removes personal information.
+    void exportPdfCarriesThePresentationsProperties()
+    {
+        auto d = outputDeck();
+        d->props.title = QStringLiteral("Quarterly talk");
+        d->props.author = QStringLiteral("Zed Author");
+        d->props.subject = QStringLiteral("Budget");
+        d->props.keywords = QStringLiteral("plan, budget");
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("props.pdf"));
+        QString err;
+        const QDateTime before = QDateTime::currentDateTimeUtc().addSecs(-2);
+        QVERIFY2(deck::exportPdf(*d, path, deck::OutputOptions(), &err), qPrintable(err));
+        const QDateTime after = QDateTime::currentDateTimeUtc().addSecs(2);
+        const PdfDocument pdf(fileBytes(path));
+        QVERIFY(pdf.isValid());
+        QCOMPARE(pdf.meta(QStringLiteral("Title")), QStringLiteral("Quarterly talk"));
+        QCOMPARE(pdf.meta(QStringLiteral("Author")), QStringLiteral("Zed Author"));
+        QCOMPARE(pdf.meta(QStringLiteral("Subject")), QStringLiteral("Budget"));
+        QCOMPARE(pdf.meta(QStringLiteral("Keywords")), QStringLiteral("plan, budget"));
+        QCOMPARE(pdf.meta(QStringLiteral("Producer")), appInfo().name);
+        QCOMPARE(pdf.meta(QStringLiteral("Creator")), appInfo().name);
+        const QString date = pdf.meta(QStringLiteral("CreationDate"));
+        QVERIFY2(date.startsWith(QStringLiteral("D:")), qPrintable(date));
+        QDateTime made = QDateTime::fromString(date.mid(2, 14), QStringLiteral("yyyyMMddHHmmss"));
+        made.setTimeZone(QTimeZone::utc());
+        QVERIFY2(made.isValid() && made >= before && made <= after, qPrintable(date));
+        QVERIFY(pdfPageCount(fileBytes(path)) == 4);   // (the slides and the bookmarks are as they were)
+        QCOMPARE(pdf.outline().size(), 4);
+        // a presentation with no title is named for the file; the author is left out when personal information is removed
+        d->props.title.clear();
+        const bool was = privacy::removeOnSave();
+        const auto restore = qScopeGuard([was] { privacy::setRemoveOnSave(was); });
+        privacy::setRemoveOnSave(true);
+        QVERIFY2(deck::exportPdf(*d, path, deck::OutputOptions(), &err), qPrintable(err));
+        const QByteArray bytes = fileBytes(path);
+        QCOMPARE(PdfDocument(bytes).meta(QStringLiteral("Title")), QStringLiteral("props"));
+        QCOMPARE(PdfDocument(bytes).meta(QStringLiteral("Author")), QString());
+        QVERIFY(!bytes.contains("Zed Author"));
+        // a PDF with a password has them too once it is opened
+        PdfProtection protect;
+        protect.openPassword = QStringLiteral("open sesame");
+        QVERIFY2(deck::exportPdf(*d, path, deck::OutputOptions(), &err, &protect), qPrintable(err));
+        QCOMPARE(PdfDocument(fileBytes(path), protect.openPassword).meta(QStringLiteral("Producer")), appInfo().name);
+    }
+
+    // The PDF that Print makes to a file has the properties, is opened after saving only when asked, and nothing is opened otherwise.
+    void theDeckPdfThatPrintMakesHasThePropertiesAndOpensOnlyWhenAsked()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        w.newSlide();
+        w.editor()->doc()->props.title = QStringLiteral("Printed talk");
+        w.editor()->doc()->props.author = QStringLiteral("Zed Author");
+        w.editor()->doc()->props.keywords = QStringLiteral("print, talk");
+        const QString path = dir.filePath(QStringLiteral("printed.pdf"));
+        w.setSavePathChooser([&](const QString &, const QString &) { return path; });
+        const auto openBefore = help::openUrl;
+        const auto restore = qScopeGuard([&] {
+            help::openUrl = openBefore;
+            setOpenPdfAfterSaving(false);
+        });
+        QList<QUrl> opened;
+        help::openUrl = [&](const QUrl &url) {
+            opened << url;
+            return true;
+        };
+        setOpenPdfAfterSaving(false);
+        deck::OutputOptions o;
+        o.toFile = true;
+        QVERIFY(w.printOutput(o));
+        const PdfDocument pdf(fileBytes(path));
+        QVERIFY(pdf.isValid());
+        QCOMPARE(pdf.meta(QStringLiteral("Title")), QStringLiteral("Printed talk"));
+        QCOMPARE(pdf.meta(QStringLiteral("Author")), QStringLiteral("Zed Author"));
+        QCOMPARE(pdf.meta(QStringLiteral("Keywords")), QStringLiteral("print, talk"));
+        QCOMPARE(pdf.meta(QStringLiteral("Producer")), appInfo().name);
+        QVERIFY(opened.isEmpty());
+        o.openAfter = true;
+        QVERIFY(w.printOutput(o));
+        QCOMPARE(opened.size(), 1);
+        QCOMPARE(opened.first().toLocalFile(), path);
+        // Export to PDF: the box has the switch, off, and the choice is kept
+        bool wasOn = true;
+        answerOutputDialog([&](QDialog *dialog) {
+            auto *box = dialog->findChild<QCheckBox *>(QStringLiteral("pdfOpenAfter"));
+            QVERIFY(box);
+            wasOn = box->isChecked();
+            box->setChecked(true);
+        });
+        w.act("file.exportPdf")->trigger();
+        QVERIFY(!wasOn);
+        QCOMPARE(opened.size(), 2);
+        QVERIFY(openPdfAfterSaving());
+    }
+
+    // Print comments: after each slide that has review comments comes a page of them (who wrote them and what they say, the replies under them); a slide with none has no extra page.
+    void commentsGoOnAPageAfterTheSlideThatHasThem()
+    {
+        auto d = showDeck(3);
+        const comments::CommentAuthor pat{QStringLiteral("Pat Doe"), QStringLiteral("PD")}, lee{QStringLiteral("Lee Roy"), QStringLiteral("LR")};
+        const QDateTime noon(QDate(2026, 10, 12), QTime(12, 0), QTimeZone::UTC);
+        const QString first = comments::addComment(*d->pages[1], pat, QStringLiteral("Check the numbers here"), QPointF(100, 40), noon);
+        comments::addReply(*d->pages[1], first, lee, QStringLiteral("Agreed on that"), noon.addSecs(90));
+        comments::addComment(*d->pages[1], lee, QStringLiteral("Second thought"), QPointF(300, 200), noon.addSecs(120));
+        deck::OutputOptions o;
+        QCOMPARE(deck::outputPageCount(*d, o), 3);
+        o.comments = true;
+        for (deck::PrintLayout layout : {deck::PrintLayout::Slides, deck::PrintLayout::NotesPages}) {
+            o.layout = layout;
+            QCOMPARE(deck::outputPageCount(*d, o), 4);
+            o.comments = false;
+            QCOMPARE(deck::outputPageCount(*d, o), 3);
+            o.comments = true;
+        }
+        // (an outline and the handouts have no room for them)
+        for (deck::PrintLayout layout : {deck::PrintLayout::Outline, deck::PrintLayout::Handout3}) {
+            o.layout = layout;
+            const int with = deck::outputPageCount(*d, o);
+            o.comments = false;
+            QCOMPARE(deck::outputPageCount(*d, o), with);
+            o.comments = true;
+        }
+        o.layout = deck::PrintLayout::Slides;
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("comments.pdf"));
+        QString err;
+        QVERIFY2(deck::exportPdf(*d, path, o, &err), qPrintable(err));
+        const QByteArray pdf = fileBytes(path);
+        QCOMPARE(pdfPageCount(pdf), 4);
+        QVERIFY(pdfText(pdf, 1).contains(QStringLiteral("Slide 2 title")));
+        const QString page = pdfText(pdf, 2);
+        QVERIFY2(page.contains(QStringLiteral("Comments on slide 2")), qPrintable(page));
+        for (const char *what : {"Pat Doe: Check the numbers here", "Lee Roy: Agreed on that", "Lee Roy: Second thought"}) QVERIFY2(page.contains(QString::fromLatin1(what)), what);
+        QVERIFY(pdfText(pdf, 3).contains(QStringLiteral("Slide 3 title")));
+        QVERIFY(!pdfText(pdf, 0).contains(QStringLiteral("Comments on slide")));
+        // the bookmarks go to the slides, not to the comments between them
+        const QVector<PdfDocument::OutlineEntry> marks = PdfDocument(pdf).outline();
+        QCOMPARE(marks.size(), 3);
+        QCOMPARE(marks[0].page, 0);
+        QCOMPARE(marks[1].page, 1);
+        QCOMPARE(marks[2].page, 3);
+        // the names stay out when personal information is to be removed
+        const bool was = privacy::removeOnSave();
+        const auto restore = qScopeGuard([was] { privacy::setRemoveOnSave(was); });
+        privacy::setRemoveOnSave(true);
+        QVERIFY2(deck::exportPdf(*d, path, o, &err), qPrintable(err));
+        const QString nameless = pdfText(fileBytes(path), 2);
+        QVERIFY(nameless.contains(QStringLiteral("Check the numbers here")));
+        QVERIFY2(!nameless.contains(QStringLiteral("Pat Doe")) && !nameless.contains(QStringLiteral("Lee Roy")), qPrintable(nameless));
+        // more comments than the page holds: the page says so
+        for (int i = 0; i < 80; ++i) comments::addComment(*d->pages[1], pat, QStringLiteral("Another note number %1 on this slide").arg(i), QPointF(10, 10), noon);
+        QVERIFY2(deck::exportPdf(*d, path, o, &err), qPrintable(err));
+        QCOMPARE(pdfPageCount(fileBytes(path)), 4);
+        QVERIFY(pdfText(fileBytes(path), 2).contains(QStringLiteral("More comments are not shown")));
+    }
+
+    // High quality: a page made into pixels (pure black and white, or gray where the device can't) is made at 600 to the inch, not 300.
+    void highQualityMakesThePixelsOfAGrayPageFiner()
+    {
+        auto d = showDeck(1);
+        deck::setSlideBackground(*d->pages[0], QColor(0xC0, 0x20, 0x20));
+        const QSizeF paper = deck::localePaper();
+        auto imageWidth = [&](bool high) {
+            QBuffer out;
+            out.open(QIODevice::WriteOnly);
+            {
+                QPdfWriter pdf(&out);
+                pdf.setPageSize(QPageSize(paper, QPageSize::Point, QString(), QPageSize::ExactMatch));
+                pdf.setPageMargins(QMarginsF(0, 0, 0, 0));
+                pdf.setResolution(1200);
+                QPainter p(&pdf);
+                deck::OutputOptions o;
+                o.layout = deck::PrintLayout::NotesPages;
+                o.blackAndWhite = true;
+                o.grayscale = true;
+                o.highQuality = high;
+                LayoutCache cache;
+                p.scale(1200.0 / 72, 1200.0 / 72);
+                deck::paintOutputPage(&p, *d, &cache, o, 0, paper);
+            }
+            QtPdf q;
+            if (!q.loadBytes(out.data())) return -1;
+            int widest = 0;
+            for (const QtPdf::Obj &obj : q.objects) {
+                const int at = int(obj.body.indexOf("/Subtype /Image"));
+                if (at < 0) continue;
+                const int w = int(obj.body.indexOf("/Width "));
+                if (w >= 0) widest = std::max(widest, QRegularExpression(QStringLiteral("^\\d+")).match(QString::fromLatin1(obj.body.mid(w + 7, 8))).captured(0).toInt());
+            }
+            return widest;
+        };
+        const int normal = imageWidth(false), high = imageWidth(true);
+        QVERIFY2(std::abs(normal - paper.width() * 300 / 72) <= 1, qPrintable(QString::number(normal)));
+        QVERIFY2(std::abs(high - paper.width() * 600 / 72) <= 1, qPrintable(QString::number(high)));
+    }
+
+    // Margins on the Print page: the whole page is scaled to fit inside them, so the slide lands inside the margins.
+    void marginsLeaveBlankSpaceRoundTheSheet()
+    {
+        auto d = showDeck(1);
+        deck::setSlideBackground(*d->pages[0], QColor(0xC0, 0x20, 0x20));
+        const QSizeF paper(612, 792);
+        LayoutCache cache;
+        auto box = [&](const QMarginsF &margins) {
+            deck::OutputOptions o;
+            o.paper = paper;
+            o.margins = margins;
+            const QImage img = outputImage(*d, &cache, o, 0, paper);
+            int left = img.width(), top = img.height(), right = -1, bottom = -1;
+            for (int y = 0; y < img.height(); ++y)
+                for (int x = 0; x < img.width(); ++x)
+                    if (qGray(img.pixel(x, y)) < 235) {
+                        left = std::min(left, x);
+                        top = std::min(top, y);
+                        right = std::max(right, x);
+                        bottom = std::max(bottom, y);
+                    }
+            return QRect(left, top, right - left + 1, bottom - top + 1);
+        };
+        const QRect plain = box(QMarginsF());
+        QVERIFY2(std::abs(plain.width() - 612) <= 2, qPrintable(QString::number(plain.width())));   // (a slide fills the width of the paper)
+        const QMarginsF margins(36, 72, 36, 72);
+        const QRect inset = box(margins);
+        const QRectF inside = insideMargins(paper, margins);
+        const double fit = std::min(inside.width() / paper.width(), inside.height() / paper.height());
+        QVERIFY2(std::abs(inset.width() - fit * plain.width()) <= 3, qPrintable(QString::number(inset.width())));
+        QVERIFY2(std::abs(inset.left() - (inside.center().x() - fit * plain.width() / 2)) <= 3, qPrintable(QString::number(inset.left())));
+        QVERIFY(inset.left() >= margins.left() - 2 && inset.right() <= paper.width() - margins.right() + 2);
+        QVERIFY(inset.top() >= margins.top() - 2 && inset.bottom() <= paper.height() - margins.bottom() + 2);
+        // the same for a page of notes, whose whole page is scaled
+        deck::OutputOptions notes;
+        notes.layout = deck::PrintLayout::NotesPages;
+        notes.paper = paper;
+        notes.margins = margins;
+        const QImage img = outputImage(*d, &cache, notes, 0, paper);
+        QCOMPARE(inkIn(img, QRect(0, 0, img.width(), int(margins.top()) - 2)), 0);
+        QCOMPARE(inkIn(img, QRect(0, int(paper.height() - margins.bottom()) + 2, img.width(), int(margins.bottom()) - 2)), 0);
+    }
+
+    // The Print page has the margins, comments, and high quality, and Printer Properties and the open box only where they mean something.
+    void theDeckPrintPageHasMarginsCommentsQualityAndTheOpenBox()
+    {
+        DeckWindow w;
+        auto d = showDeck(3);
+        const comments::CommentAuthor pat{QStringLiteral("Pat Doe"), QStringLiteral("PD")};
+        comments::addComment(*d->pages[1], pat, QStringLiteral("Check this"), QPointF(100, 40), QDateTime(QDate(2026, 10, 12), QTime(12, 0), QTimeZone::UTC));
+        w.editor()->setDocument(std::move(d));
+        w.resize(1300, 1000);
+        w.show();
+        w.showFileScreen(QStringLiteral("print"));
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        auto *screen = w.findChild<FileScreen *>();
+        QVERIFY(screen);
+        for (const char *name : {"printMarginTop", "printMarginBottom", "printMarginLeft", "printMarginRight", "printComments", "printHighQuality", "printOpenPdf", "printPrinterSettings"})
+            QVERIFY2(screen->findChild<QWidget *>(QString::fromLatin1(name)), name);
+        auto *label = screen->findChild<QLabel *>(QStringLiteral("printPage"));
+        auto *comments = screen->findChild<QCheckBox *>(QStringLiteral("printComments"));
+        auto *printer = screen->findChild<QComboBox *>(QStringLiteral("printPrinter"));
+        auto *button = screen->findChild<QPushButton *>(QStringLiteral("printPrinterSettings"));
+        auto *openPdf = screen->findChild<QCheckBox *>(QStringLiteral("printOpenPdf"));
+        QVERIFY(label && comments && printer && button && openPdf);
+        QTRY_VERIFY(label->text().endsWith(QStringLiteral(" of 3")));
+        comments->setChecked(true);
+        QTRY_VERIFY2(label->text().endsWith(QStringLiteral(" of 4")), qPrintable(label->text()));
+        // (no window of the system's on the test display: the button is hidden, not disabled; the box is for a file)
+        const auto restore = qScopeGuard([] { setPrinterPropertiesStandIn({}); });
+        printer->insertItem(0, QStringLiteral("a printer"), QStringLiteral("a printer"));
+        printer->setCurrentIndex(0);
+        QTRY_VERIFY(!button->isVisibleTo(screen));
+        QVERIFY(!openPdf->isVisibleTo(screen));
+        setPrinterPropertiesStandIn([] { return true; });
+        printer->setCurrentIndex(printer->count() - 1);
+        QTRY_VERIFY(openPdf->isVisibleTo(screen));
+        QVERIFY(!button->isVisibleTo(screen));
+        printer->setCurrentIndex(0);
+        QTRY_VERIFY(button->isVisibleTo(screen));
+        QVERIFY(button->isEnabled());
+        for (QWidget *c : {static_cast<QWidget *>(button), static_cast<QWidget *>(openPdf), static_cast<QWidget *>(comments), screen->findChild<QWidget *>(QStringLiteral("printHighQuality")), screen->findChild<QWidget *>(QStringLiteral("printMarginTop"))})
+            QVERIFY(!c->accessibleName().isEmpty() || qobject_cast<QAbstractButton *>(c));
+        w.editor()->markSaved();
     }
 
     // Notes pages and handouts are on the locale's paper, upright.

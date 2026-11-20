@@ -18,6 +18,7 @@
 #include "render/renderer.h"
 
 #include <QImage>
+#include <QMarginsF>
 #include <QSizeF>
 #include <QStringList>
 #include <QString>
@@ -47,6 +48,10 @@ struct OutputOptions {
     int copies = 1;
     bool collate = true;          // the whole set again for each copy, else each page's copies together
     bool reverse = false;         // the last page first
+    QMarginsF margins;            // printing: blank space round each sheet, in points; the whole page is scaled to fit inside it (none: the page uses the whole sheet)
+    bool highQuality = false;     // printing: pages that are made into pixels (grayscale and pure black and white) are made at 600 to the inch, not 300
+    bool comments = false;        // slides and notes pages: a page of the slide's review comments (who wrote them and what they say) after each slide that has any
+    bool openAfter = false;       // for a PDF: opened in the system's viewer once saved
     bool bookmarks = true;        // for a PDF: a bookmark for each slide (its title, or "Slide N")
     bool tags = true;             // for a PDF: the structure for screen readers (tagged PDF): reading order, headings, alt text, tables
     bool archive = false;         // for a PDF: PDF/A-1b, the form for keeping (every font inside, no transparency, the standard's mark in its metadata); never with a password

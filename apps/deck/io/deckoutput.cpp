@@ -4,6 +4,10 @@
 #include "core/printheaderfooter.h"
 
 #include "app/settings.h"
+#include "app/pdfproperties.h"
+#include "app/printpage.h"
+#include "app/privacy.h"
+#include "core/comments.h"
 #include "core/appinfo.h"
 #include "core/deck.h"
 #include "core/fonts.h"
@@ -379,6 +383,62 @@ void paintOutlinePage(const Sheet &s, const QVector<int> &slides, int page)
     for (const OutlineLine &line : pages[page]) (line.title ? head : body).draw(s.p, kMargin + line.x, kMargin + line.baseline, line.text);
 }
 
+// ---- the review comments ----
+
+// The pages of slides and notes pages: each slide, and after it, when comments are asked for and it has any, the page of its comments (one page: what does not fit is said to be left out).
+struct PlannedPage {
+    int slide = 0;
+    bool comments = false;
+};
+QVector<PlannedPage> pagePlan(const Document &d, const OutputOptions &o, const QVector<int> &slides)
+{
+    QVector<PlannedPage> plan;
+    const bool withComments = o.comments && (o.layout == PrintLayout::Slides || o.layout == PrintLayout::NotesPages);
+    for (int slide : slides) {
+        plan.push_back({slide, false});
+        if (withComments && slide >= 0 && slide < d.pages.size() && !comments::commentsOf(*d.pages[slide]).isEmpty()) plan.push_back({slide, true});
+    }
+    return plan;
+}
+
+// The page of a slide's comments: its heading, then each comment ("who: what it says", the names left out when Options > Save removes personal information), its replies under it.
+void paintCommentsPage(const Sheet &s, int slide)
+{
+    const Face head = outlineTitleFace(s.d), body = outlineBodyFace(s.d);
+    const double w = std::max(s.paper.width() - 2 * kMargin, 80.0), h = std::max(s.paper.height() - 2 * kMargin, 6 * head.lineHeight());
+    const bool names = !privacy::removeOnSave();
+    ArtifactSpan text(s.tagger, s.p);
+    double y = 0;
+    for (const QString &line : wrapped(head, QCoreApplication::translate("DeckOutput", "Comments on slide %1").arg(slide + 1), w)) {
+        head.draw(s.p, kMargin, kMargin + y + head.ascent(), line);
+        y += head.lineHeight();
+    }
+    y += kSlideGap;
+    const QVector<comments::Comment> list = comments::commentsOf(*s.d.pages[slide]);
+    int left = int(list.size());
+    auto put = [&](const QString &what, double indent) {
+        const QStringList lines = wrapped(body, what, std::max(w - indent, 40.0));
+        if (y + lines.size() * body.lineHeight() > h + 0.01) return false;
+        for (const QString &line : lines) {
+            body.draw(s.p, kMargin + indent, kMargin + y + body.ascent(), line);
+            y += body.lineHeight();
+        }
+        y += 3;
+        return true;
+    };
+    auto said = [&](const QString &author, const QString &what) { return names && !author.trimmed().isEmpty() ? author.trimmed() + QStringLiteral(": ") + what : what; };
+    for (const comments::Comment &c : list) {
+        bool fits = put(said(c.author, c.text), 0);
+        for (int r = 0; fits && r < c.replies.size(); ++r) fits = put(said(c.replies[r].author, c.replies[r].text), kLevelIndent);
+        if (!fits) break;
+        --left;
+    }
+    if (left > 0) {
+        const QString more = QCoreApplication::translate("DeckOutput", "More comments are not shown: %1.").arg(left);
+        body.draw(s.p, kMargin, kMargin + h - body.lineHeight() + body.ascent(), more, kRule);
+    }
+}
+
 // Paints the page as the device draws it.
 void paintPlain(QPainter *p, const Document &d, LayoutCache *cache, const OutputOptions &o, int page, const QSizeF &paper, TextOutput output, PdfTagger *tags = nullptr)
 {
@@ -401,9 +461,13 @@ void paintPlain(QPainter *p, const Document &d, LayoutCache *cache, const Output
     p->save();
     switch (o.layout) {
     case PrintLayout::Slides:
-    case PrintLayout::NotesPages:
-        if (page >= 0 && page < slides.size()) (o.layout == PrintLayout::Slides ? paintSlidePage : paintNotesPage)(s, slides[page]);
+    case PrintLayout::NotesPages: {
+        const QVector<PlannedPage> plan = pagePlan(d, o, slides);
+        if (page < 0 || page >= plan.size()) break;
+        if (plan[page].comments) paintCommentsPage(s, plan[page].slide);
+        else (o.layout == PrintLayout::Slides ? paintSlidePage : paintNotesPage)(s, plan[page].slide);
         break;
+    }
     case PrintLayout::Outline: paintOutlinePage(s, slides, page); break;
     default:
         if (page >= 0 && page * slidesPerPage(o.layout) < slides.size()) paintHandoutPage(s, slides, page);
@@ -418,7 +482,7 @@ void paintGrayPixels(QPainter *p, const Document &d, LayoutCache *cache, const O
 {
     const QTransform toDevice = p->deviceTransform();
     // As many pixels to the point as the device has, up to 300 to the inch.
-    const double k = std::clamp(std::hypot(toDevice.m11(), toDevice.m12()), 0.05, 300.0 / 72);
+    const double k = std::clamp(std::hypot(toDevice.m11(), toDevice.m12()), 0.05, (o.highQuality ? 600.0 : 300.0) / 72);
     QImage img((paper * k).toSize().expandedTo(QSize(1, 1)), QImage::Format_RGB32);
     img.fill(Qt::white);
     {
@@ -517,7 +581,8 @@ int outputPageCount(const Document &d, const OutputOptions &o, const QSizeF &pap
     if (slides.isEmpty()) return 0;
     if (o.layout == PrintLayout::Outline) return int(outlinePages(d, slides, outputPageSize(d, o, paper)).size());
     const int per = slidesPerPage(o.layout);
-    return per ? int((slides.size() + per - 1) / per) : int(slides.size());
+    if (!per) return int(pagePlan(d, o, slides).size());
+    return int((slides.size() + per - 1) / per);
 }
 
 QString outputOutlineText(const Document &d, const OutputOptions &o)
@@ -530,8 +595,29 @@ QString outputOutlineText(const Document &d, const OutputOptions &o)
     return out;
 }
 
+// Where the whole page goes so that it is inside the margins: from the sheet's top left, and how much it is scaled.
+static void marginPlace(const QSizeF &paper, const QMarginsF &margins, QPointF *offset, double *scale)
+{
+    const QRectF inside = insideMargins(paper, margins);
+    *scale = std::min(inside.width() / paper.width(), inside.height() / paper.height());
+    *offset = inside.center() - QPointF(paper.width() * *scale / 2, paper.height() * *scale / 2);
+}
+
 void paintOutputPage(QPainter *p, const Document &d, LayoutCache *cache, const OutputOptions &o, int page, const QSizeF &paper, PdfTagger *tags)
 {
+    if (hasMargins(o.margins) && paper.width() > 0 && paper.height() > 0) {
+        QPointF offset;
+        double scale = 1;
+        marginPlace(paper, o.margins, &offset, &scale);
+        p->save();
+        p->translate(offset);
+        p->scale(scale, scale);
+        OutputOptions inner = o;
+        inner.margins = QMarginsF();
+        paintOutputPage(p, d, cache, inner, page, paper, tags);
+        p->restore();
+        return;
+    }
     if (o.blackAndWhite || (o.grayscale && !deviceMakesGray(p))) paintGrayPixels(p, d, cache, o, page, paper);
     else paintPlain(p, d, cache, o, page, paper, textOutputOf(p), tags);
 }
@@ -539,11 +625,22 @@ void paintOutputPage(QPainter *p, const Document &d, LayoutCache *cache, const O
 // The clickable boxes of a PDF of printed slides, one to a page: a web or mail address goes to the web, a jump to the next, previous, first, last, or a numbered slide goes to
 // that slide's page. A file's link is never written (what is on another computer must not be touched, and a path means nothing on another's), nor are the end of the show and
 // the rest that only a show does.
+// The page of the PDF that each of `slides` is on (the pages of comments are between them).
+static QVector<int> pdfPagesOfSlides(const Document &d, const OutputOptions &o, const QVector<int> &slides)
+{
+    QVector<int> at;
+    const QVector<PlannedPage> plan = pagePlan(d, o, slides);
+    for (int i = 0; i < plan.size(); ++i)
+        if (!plan[i].comments) at << i;
+    return at;
+}
+
 static QVector<PdfLink> slideLinks(const Document &d, const OutputOptions &o, const QVector<int> &slides)
 {
     QVector<PdfLink> out;
     if (o.layout != PrintLayout::Slides) return out;
     const QSizeF page = outputPageSize(d, o);
+    const QVector<int> at = pdfPagesOfSlides(d, o, slides);
     LayoutCache cache;
     RenderOptions drawn;
     drawn.output = true;   // (as the slides are drawn into the PDF)
@@ -553,15 +650,17 @@ static QVector<PdfLink> slideLinks(const Document &d, const OutputOptions &o, co
         for (const LinkArea &area : linkAreas(d, cache, slides[k], drawn)) {
             const office::LinkTarget t = office::parseLink(area.link);
             PdfLink link;
-            link.page = k;
+            link.page = at[k];
+            // (a page of comments between slides: a jump goes to the slide's own page)
+            auto toSlide = [&](int index) { return index >= 0 && index < at.size() ? at[index] : -1; };
             switch (t.kind) {
             case office::LinkKind::Web:
             case office::LinkKind::Mail: link.uri = t.address; break;
-            case office::LinkKind::Next: link.toPage = k + 1 < slides.size() ? k + 1 : -1; break;
-            case office::LinkKind::Previous: link.toPage = k - 1; break;
-            case office::LinkKind::First: link.toPage = 0; break;
-            case office::LinkKind::Last: link.toPage = int(slides.size()) - 1; break;
-            case office::LinkKind::Slide: link.toPage = int(slides.indexOf(t.slide - 1)); break;
+            case office::LinkKind::Next: link.toPage = toSlide(k + 1 < slides.size() ? k + 1 : -1); break;
+            case office::LinkKind::Previous: link.toPage = toSlide(k - 1); break;
+            case office::LinkKind::First: link.toPage = toSlide(0); break;
+            case office::LinkKind::Last: link.toPage = toSlide(int(slides.size()) - 1); break;
+            case office::LinkKind::Slide: link.toPage = toSlide(int(slides.indexOf(t.slide - 1))); break;
             default: continue;
             }
             if (link.uri.isEmpty() && link.toPage < 0) continue;
@@ -593,7 +692,7 @@ bool exportPdf(const Document &d, const QString &path, const OutputOptions &o, Q
     // straight to the file.
     const QVector<PdfLink> links = slideLinks(d, o, outputSlides(d, o));
     const bool archiving = o.archive && !encrypted;
-    const bool inMemory = encrypted || tagging || bookmarking || archiving || !links.isEmpty();
+    const bool inMemory = true;   // (the document information is written into the finished file)
     QBuffer memory;
     if (inMemory) memory.open(QIODevice::WriteOnly);
     auto make = [&](PdfTagger *tagger) {
@@ -663,13 +762,16 @@ bool exportPdf(const Document &d, const QString &path, const OutputOptions &o, Q
         // One for each slide: its title, or its number, going to the page it is on.
         const QVector<int> slides = outputSlides(d, o);
         const int per = std::max(1, slidesPerPage(o.layout));
+        const QVector<int> at = pdfPagesOfSlides(d, o, slides);
         QVector<PdfBookmark> marks;
         for (int k = 0; k < slides.size(); ++k) {
             const QString slideName = slideTitle(d, slides[k]).trimmed();
-            marks.push_back({slideName.isEmpty() ? QCoreApplication::translate("DeckOutput", "Slide %1").arg(slides[k] + 1) : slideName, 0, k / per});
+            marks.push_back({slideName.isEmpty() ? QCoreApplication::translate("DeckOutput", "Slide %1").arg(slides[k] + 1) : slideName, 0, slidesPerPage(o.layout) ? k / per : at.value(k, k)});
         }
         bytes = addPdfBookmarks(bytes, marks);
     }
+    // (the document's own properties; the author stays out when personal information is removed. A PDF/A file keeps the information its metadata names, which Qt wrote to match.)
+    if (!archiving) bytes = setPdfInfo(bytes, pdfDocumentInfo(d.props.toPackageProps(), QFileInfo(path).completeBaseName(), false));
     if (encrypted) {
         QString why;
         bytes = encryptPdf(bytes, *protect, &why);

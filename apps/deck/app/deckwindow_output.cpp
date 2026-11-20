@@ -4,6 +4,7 @@
 
 #include "app/deckwindow.h"
 #include "app/uistyle.h"
+#include "app/pdfproperties.h"
 #include "app/printpage.h"
 #include "app/printsides.h"
 
@@ -116,6 +117,10 @@ public:
         form->addRow(QString(), m_hidden);
         form->addRow(QString(), m_frame);
         form->addRow(QString(), m_gray);
+        m_comments = new QCheckBox(DeckWindow::tr("Print comments"), this);
+        m_comments->setObjectName(QStringLiteral("outputComments"));
+        m_comments->setToolTip(DeckWindow::tr("A page of the slide's review comments after each slide that has any (slides and notes pages)."));
+        form->addRow(QString(), m_comments);
         m_tags = new QCheckBox(DeckWindow::tr("Document structure tags for accessibility"), this);
         m_tags->setObjectName(QStringLiteral("pdfTags"));
         m_tags->setChecked(true);
@@ -128,6 +133,8 @@ public:
         m_archive->setObjectName(QStringLiteral("pdfArchive"));
         m_archive->setToolTip(DeckWindow::tr("Makes a PDF/A-1b file: every font is in the file, so it looks the same in years."));
         form->addRow(QString(), m_archive);
+        m_openAfter = makeOpenPdfBox(this, QStringLiteral("pdfOpenAfter"));
+        form->addRow(QString(), m_openAfter);
         m_protect = new jp::PdfProtectionRow(this);
         m_protect->forbiddenBy({m_archive}, DeckWindow::tr("PDF/A is turned off, because a PDF with a password can't be a PDF/A file."));
         form->addRow(QString(), m_protect);
@@ -152,6 +159,7 @@ public:
         m_hidden->setChecked(st.value(QStringLiteral("output/hidden"), false).toBool());
         m_frame->setChecked(st.value(QStringLiteral("output/frame"), false).toBool());
         m_gray->setChecked(st.value(QStringLiteral("output/grayscale"), false).toBool());
+        m_comments->setChecked(st.value(QStringLiteral("output/comments"), false).toBool());
         m_all->setChecked(true);
 
         auto update = [this] { refresh(); };
@@ -163,7 +171,7 @@ public:
             if (!m_some->isChecked()) m_some->setChecked(true);
             refresh();
         });
-        for (QCheckBox *c : {m_hidden, m_frame, m_gray}) connect(c, &QCheckBox::toggled, this, update);
+        for (QCheckBox *c : {m_hidden, m_frame, m_gray, m_comments}) connect(c, &QCheckBox::toggled, this, update);
         refresh();
     }
 
@@ -174,6 +182,8 @@ public:
         o.hiddenSlides = m_hidden->isChecked();
         o.frameSlides = m_frame->isChecked();
         o.grayscale = m_gray->isChecked();
+        o.comments = m_comments->isChecked();
+        o.openAfter = m_openAfter->isChecked();
         o.horizontalOrder = m_order->currentData().toBool();
         o.archive = m_archive->isChecked();
         o.tags = m_tags->isChecked() && !(o.layout == deck::PrintLayout::Outline || o.grayscale);
@@ -194,6 +204,7 @@ public:
         st.setValue(QStringLiteral("output/hidden"), o.hiddenSlides);
         st.setValue(QStringLiteral("output/frame"), o.frameSlides);
         st.setValue(QStringLiteral("output/grayscale"), o.grayscale);
+        st.setValue(QStringLiteral("output/comments"), o.comments);
     }
 
 private:
@@ -203,6 +214,7 @@ private:
         const int per = deck::slidesPerPage(o.layout);
         m_order->setEnabled(per >= 4);
         m_frame->setEnabled(o.layout == deck::PrintLayout::Slides);
+        m_comments->setEnabled(o.layout == deck::PrintLayout::Slides || o.layout == deck::PrintLayout::NotesPages);
         m_text->setEnabled(m_some->isChecked());
         // A range that names no slide can't be printed.
         const bool badRange = m_some->isChecked() && o.slides.isEmpty();
@@ -224,7 +236,7 @@ private:
     QComboBox *m_what = nullptr, *m_order = nullptr;
     QRadioButton *m_all = nullptr, *m_currentOnly = nullptr, *m_some = nullptr;
     QLineEdit *m_text = nullptr;
-    QCheckBox *m_hidden = nullptr, *m_frame = nullptr, *m_gray = nullptr, *m_archive = nullptr, *m_tags = nullptr, *m_bookmarks = nullptr;
+    QCheckBox *m_hidden = nullptr, *m_frame = nullptr, *m_gray = nullptr, *m_archive = nullptr, *m_tags = nullptr, *m_bookmarks = nullptr, *m_comments = nullptr, *m_openAfter = nullptr;
     QLabel *m_summary = nullptr;
     jp::PdfProtectionRow *m_protect = nullptr;
     QDialogButtonBox *m_buttons = nullptr;
@@ -283,6 +295,7 @@ bool exportPdfCommand(DeckWindow *w, const PathChooser &chooser)
     w->statusBar()->showMessage(DeckWindow::tr("Exported %1").arg(QFileInfo(path).fileName()) +
                                     (notTagged.isEmpty() ? QString() : QLatin1Char(' ') + DeckWindow::tr("(not tagged for screen readers: %1)").arg(notTagged)),
                                 notTagged.isEmpty() ? 5000 : 8000);
+    if (options.openAfter) openSavedPdf(path);
     return true;
 }
 
@@ -537,7 +550,11 @@ bool DeckWindow::printOutput(const deck::OutputOptions &options, QPrinter::Duple
         QFile whole(made->fileName());
         QSaveFile file(path);
         bool ok = whole.open(QIODevice::ReadOnly) && file.open(QIODevice::WriteOnly);
-        while (ok && !whole.atEnd()) ok = file.write(whole.read(1 << 20)) >= 0;
+        // (the document's properties go into the file the printer made)
+        if (ok) {
+            const QByteArray bytes = setPdfInfo(whole.readAll(), pdfDocumentInfo(doc.props.toPackageProps(), m_ed->displayName(), false));
+            ok = file.write(bytes) == bytes.size();
+        }
         if (ok) ok = file.commit();
         else file.cancelWriting();
         if (!ok) {
@@ -546,6 +563,7 @@ bool DeckWindow::printOutput(const deck::OutputOptions &options, QPrinter::Duple
             return false;
         }
         statusBar()->showMessage(tr("Saved %1").arg(QFileInfo(path).fileName()), 5000);
+        if (options.openAfter) openSavedPdf(path);
         return true;
     }
     statusBar()->showMessage(tr("Sent %1 to the printer").arg(m_ed->displayName()), 5000);
