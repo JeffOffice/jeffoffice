@@ -257,8 +257,9 @@
          "text": "352af623689b5cb2c2f8771b49600670bbb5ad10794a7d414b4926635ac6804a"
         },
         {
-         "status": "partly",
-         "text": "e5adcdec784f78226d417441756d0e88ca776995d0bbab3db427780275bbdcc5"
+         "hide_soon": true,
+         "status": "done",
+         "text": "072472f80ee7af17a3451c9489a7b280ff7413b58e200bb883836d0c589e39fa"
         },
         {
          "hide_soon": true,
@@ -280,8 +281,9 @@
        "heading": "137e939cfa89e9168a1c39bd1d380b84ea3942a877a7cdf16d6d40591f6fa9ab",
        "items": [
         {
-         "status": "partly",
-         "text": "75a36405d6ac1770c94c2ba7a0626c1f77e8fa748f174a5e1bf7ddbbc3ca2033"
+         "hide_soon": true,
+         "status": "done",
+         "text": "014bbc0afb40d11962a05433949db7313ba0973ca0971563e2a193a9eb56d499"
         },
         {
          "hide_soon": true,
@@ -875,8 +877,9 @@
          "text": "f348d8d9a58895b438ab7e376e7a8ae20bc18d81e85a8568944d5da3bad64c01"
         },
         {
-         "status": "partly",
-         "text": "984ec79037aff40a7fb7fee8150d0d9d6c2fb52014179a783fd1bdb7b8ad045f"
+         "hide_soon": true,
+         "status": "done",
+         "text": "d62e70cf9dcde3b67125663f099ea7a64cafbca0947c292f5e57cc946a96d482"
         }
        ]
       },
@@ -2107,7 +2110,7 @@
      "items": [
       {
        "status": "partly",
-       "text": "3f08eda56da035ab0d03f8cced0836e41a91781a2b160109e9853eaf53e24ba7"
+       "text": "fa31d3f7c626252a8235484922df3a890557cb3c7742a09b11ba1de36dac2775"
       },
       {
        "hide_soon": true,
@@ -7731,6 +7734,18 @@
     "fr": ""
    }
   },
+  "014bbc0afb40d11962a05433949db7313ba0973ca0971563e2a193a9eb56d499": {
+   "drop": false,
+   "en": "Export to PDF the active sheets, the whole workbook, or the selection.",
+   "es": "Exporte a PDF las hojas activas, el libro completo o la selección.",
+   "fr": "Exportez en PDF les feuilles actives, le classeur entier ou la sélection.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "019b6b5ae5d1ba889f5411262e31bc998cff6a4b65c74d97a571029c57a94af6": {
    "drop": false,
    "en": "Windows high contrast mode: the system’s colors are used throughout, applied as it is turned on or off.",
@@ -8228,6 +8243,18 @@
    "en": "Table of Contents",
    "es": "Tabla de contenido",
    "fr": "Table des matières",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "072472f80ee7af17a3451c9489a7b280ff7413b58e200bb883836d0c589e39fa": {
+   "drop": false,
+   "en": "Preview each page before printing, with page navigation and zoom. Drag the margins and column widths directly on the preview, and see a note when a sheet is shrunk very small.",
+   "es": "Vea cada página antes de imprimir, con navegación por páginas y zoom. Arrastre los márgenes y los anchos de columna directamente en la vista previa y consulte un aviso cuando una hoja se reduce a un tamaño muy pequeño.",
+   "fr": "Affichez chaque page avant l’impression, avec navigation entre les pages et zoom. Faites glisser les marges et les largeurs de colonne directement dans l’aperçu et consultez une remarque lorsqu’une feuille est très fortement réduite.",
    "soon": {
     "drop": true,
     "en": "",
@@ -12579,18 +12606,6 @@
     "fr": ""
    }
   },
-  "3f08eda56da035ab0d03f8cced0836e41a91781a2b160109e9853eaf53e24ba7": {
-   "drop": false,
-   "en": "The sheet is cut into pages by the paper, margins, scale, print area, repeated titles, manual breaks, and page order. A page shows cells whole, so a row is not split, and wide text is clipped.",
-   "es": "La hoja se divide en páginas según el papel, los márgenes, la escala, el área de impresión, los títulos repetidos, los saltos manuales y el orden de las páginas. Una página muestra las celdas completas, de modo que no se divide una fila, y el texto ancho se recorta.",
-   "fr": "La feuille est découpée en pages selon le papier, les marges, l’échelle, la zone d’impression, les titres répétés, les sauts manuels et l’ordre des pages. Une page affiche les cellules entières, donc une ligne n’est pas coupée, et le texte trop large est tronqué.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "3f27d05a0d8412029f7871d0c65e33bf122a38bc8ec57ce89c58f5b98c19bc5e": {
    "drop": false,
    "en": "Red wavy underlines mark misspelled words as you type, with suggestions, `Ignore All`, and `Add to Dictionary` on right-click. The Spelling pane (`F7`) offers Change, Change All, Ignore, Ignore All, and Add, and goes through tables, footnotes, headers, and footers. Words in capitals or with numbers are skipped, AutoCorrect works, and the custom dictionary lets you edit added and excluded words, find, add, and remove them, and import and export a word list.",
@@ -16803,18 +16818,6 @@
     "fr": ""
    }
   },
-  "75a36405d6ac1770c94c2ba7a0626c1f77e8fa748f174a5e1bf7ddbbc3ca2033": {
-   "drop": false,
-   "en": "Export to PDF the active sheets, the whole workbook, or the selection.",
-   "es": "Exporte a PDF las hojas activas, el libro completo o la selección.",
-   "fr": "Exportez en PDF les feuilles actives, le classeur entier ou la sélection.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "75ad438e0cd646d3b7397deca30db3e15efcd884f2636987f7a8b8735a8984ce": {
    "drop": false,
    "en": "Slide Master, Handout Master, and Notes Master views",
@@ -19045,18 +19048,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "984ec79037aff40a7fb7fee8150d0d9d6c2fb52014179a783fd1bdb7b8ad045f": {
-   "drop": false,
-   "en": "The Page tab has Print quality (150, 300, 600, and 1200 dots per inch, and a value the file has), read and saved in `.xlsx` and `.xls` files.",
-   "es": "La pestaña Página incluye Calidad de impresión (150, 300, 600 y 1200 puntos por pulgada, y un valor que tenga el archivo), que se lee y se guarda en archivos `.xlsx` y `.xls`.",
-   "fr": "L’onglet Page propose la Qualité d’impression (150, 300, 600 et 1200 points par pouce, et une valeur présente dans le fichier), lue et enregistrée dans les fichiers `.xlsx` et `.xls`.",
-   "soon": {
-    "drop": false,
-    "en": "Notes printed where they are on the cells",
-    "es": "Notas impresas donde están en las celdas",
-    "fr": "Notes imprimées à leur emplacement sur les cellules"
    }
   },
   "9877966dae1391618900ee88282b0c4a83fb75ae2dd179251edc3b71ddf3dde6": {
@@ -23307,6 +23298,18 @@
     "fr": ""
    }
   },
+  "d62e70cf9dcde3b67125663f099ea7a64cafbca0947c292f5e57cc946a96d482": {
+   "drop": false,
+   "en": "Choose the print quality (150, 300, 600, or 1200 dots per inch) on the Page tab, and print notes where they are on the cells. Both settings are saved in `.xlsx` and `.xls` files.",
+   "es": "Elija la calidad de impresión (150, 300, 600 o 1200 puntos por pulgada) en la pestaña Página e imprima las notas donde están sobre las celdas. Ambos ajustes se guardan en archivos `.xlsx` y `.xls`.",
+   "fr": "Choisissez la qualité d’impression (150, 300, 600 ou 1200 points par pouce) dans l’onglet Page et imprimez les notes à leur emplacement sur les cellules. Les deux réglages sont enregistrés dans les fichiers `.xlsx` et `.xls`.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "d67e127bef83e8477e4d9a25af9f8ef67292c3e6f291b15e983374a6237d3add": {
    "drop": false,
    "en": "Saving keeps what the app can’t edit: pivot tables and caches, slicers, timelines, sparklines, the data model, query definitions, custom XML, form-control and ActiveX parts, the macro project of a macro-enabled file, rich data, printer settings, and parts the app doesn’t know. They are written back as they were, and untouched parts are kept byte for byte.",
@@ -24409,18 +24412,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "e5adcdec784f78226d417441756d0e88ca776995d0bbab3db427780275bbdcc5": {
-   "drop": false,
-   "en": "Print preview with page navigation, fit page, and zoom, and a note when a sheet is shrunk very small, needs more pages than can be made, or is empty.",
-   "es": "Vista previa de impresión con navegación por páginas, ajuste de página y zoom, y un aviso cuando una hoja se reduce mucho, necesita más páginas de las posibles o está vacía.",
-   "fr": "Aperçu avant impression avec navigation entre les pages, ajustement à la page et zoom, et une note lorsqu’une feuille est très réduite, nécessite plus de pages que possible ou est vide.",
-   "soon": {
-    "drop": false,
-    "en": "Margins and column widths dragged on the preview",
-    "es": "Arrastre de márgenes y anchos de columna en la vista previa",
-    "fr": "Déplacement des marges et des largeurs de colonnes dans l’aperçu"
    }
   },
   "e5bff83e061796a9ff7853d18120c79bb8bd5f8b4ace4c48c8f30c6da26d2916": {
@@ -25976,6 +25967,18 @@
    "en": "Widow and orphan control, keep with next, keep lines together, and page break before are applied when pages are laid out.",
    "es": "El control de líneas viudas y huérfanas, mantener con el siguiente, mantener líneas juntas y salto de página anterior se aplican al paginar.",
    "fr": "Le contrôle des veuves et orphelines, la conservation avec le suivant, la conservation des lignes ensemble et le saut de page avant sont appliqués lors de la mise en page.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "fa31d3f7c626252a8235484922df3a890557cb3c7742a09b11ba1de36dac2775": {
+   "drop": false,
+   "en": "The sheet is cut into pages by the paper, margins, scale, print area, repeated titles, manual breaks, and page order. A page shows cells whole, and wide text is clipped.",
+   "es": "La hoja se divide en páginas según el papel, los márgenes, la escala, el área de impresión, los títulos repetidos, los saltos manuales y el orden de las páginas. Una página muestra las celdas completas y el texto ancho se recorta.",
+   "fr": "La feuille est découpée en pages selon le papier, les marges, l’échelle, la zone d’impression, les titres répétés, les sauts manuels et l’ordre des pages. Une page affiche les cellules entières et le texte large est tronqué.",
    "soon": {
     "drop": true,
     "en": "",
