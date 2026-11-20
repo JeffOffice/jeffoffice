@@ -1,4 +1,5 @@
 #include "core/sheetobjects.h"
+#include "core/cellstyles.h"
 #include "core/items.h"
 #include "text/fontreplace.h"
 
@@ -353,6 +354,7 @@ void SheetObjects::loadTheme()
     if (m_book->hasTheme()) {
         const Theme t = m_book->theme();
         // (the theme has the colors and fonts in use; its part says the rest)
+        ++m_themeParses;
         if (!t.xml.isEmpty() && parseXml(t.xml, &m_themeDoc)) {
             m_theme = t;
             m_formats = child(child(m_themeDoc.documentElement(), ns::A, QStringLiteral("themeElements")), ns::A, QStringLiteral("fmtScheme"));
@@ -361,6 +363,8 @@ void SheetObjects::loadTheme()
         }
     }
     m_doc->fonts = {m_theme.name, m_theme.majorLatin, m_theme.minorLatin};
+    // (what is drawn with a color of the theme, an equation's letters among it, is drawn with the workbook's: the scheme the pickers offer)
+    m_doc->colors = workbookColorScheme(m_book->styles());
 }
 
 void SheetObjects::themeChanged()
@@ -375,23 +379,13 @@ void SheetObjects::themeChanged()
             s.context->theme = m_theme;
             s.context->formats = m_formats;
         }
-        // (the charts read are read again with the colors the theme has now)
+        // (the charts read are read again with the colors the theme has now, when each is next wanted: a workbook of many charts does not read them all here)
         s.parsed.clear();
-        QHash<QString, std::shared_ptr<const Chart>> again;
         for (const std::shared_ptr<Object> &o : s.objects) {
             if (!o->built || o->deleted) continue;
             if (o->meta.kind == ObjectKind::Chart) {
                 if (!o->chart || o->chart != o->fileChart) continue;   // (a chart made or changed here has the colors it was given)
-                std::shared_ptr<const Chart> chart = again.value(o->meta.chartPart);
-                if (!chart) {
-                    auto parsed = std::make_shared<Chart>();
-                    QString error;
-                    if (!readChart(m_book->objectPackage().part(o->meta.chartPart), m_theme, ColorMap(), parsed.get(), &error)) continue;
-                    chart = parsed;
-                    again.insert(o->meta.chartPart, chart);
-                    s.parsed.insert(o->meta.chartPart, chart);
-                }
-                o->chart = o->fileChart = chart;
+                o->chartStale = true;
                 o->drawnKey = 0;
                 if (shown) m_layer.invalidate(o->id);
             } else if (o->meta.kind == ObjectKind::Diagram) {
@@ -404,6 +398,10 @@ void SheetObjects::themeChanged()
                 if (const jp::ItemPtr again2 = readShape(o->meta.element, o->ownContext ? *o->ownContext : *s.context)) {
                     o->item = again2;
                     o->linkStale = false;
+                    if (o->equationRgb && again2->type() == jp::ItemType::Equation) {
+                        const auto &equation = static_cast<const jp::EquationItem &>(*again2);
+                        o->equationRgb->store((equation.fill.isNone() ? QColor(Qt::black) : equation.fill.color.resolve(m_doc->colors)).rgb());
+                    }
                     if (shown) m_layer.invalidate(o->id);
                 }
             }
@@ -623,8 +621,28 @@ QByteArray SheetObjects::diagramPicture(int sheet, int id)
     return m_diagramPictures.value(o->diagramKey).svg;
 }
 
+// A chart the file gave, whose colors follow the theme, read again with the theme as it is now: done when the chart is next wanted (drawn, edited, copied), not when the theme changes.
+void SheetObjects::freshChart(int sheet, Object &o)
+{
+    o.chartStale = false;
+    if (!o.chart || o.chart != o.fileChart) return;   // (a chart made or changed here has the colors it was given)
+    Sheet &s = m_sheets[size_t(sheet)];
+    std::shared_ptr<const Chart> chart = s.parsed.value(o.meta.chartPart);
+    if (!chart) {
+        auto parsed = std::make_shared<Chart>();
+        QString error;
+        ++m_chartPartsRead;
+        if (!readChart(m_book->objectPackage().part(o.meta.chartPart), m_theme, ColorMap(), parsed.get(), &error)) return;
+        chart = parsed;
+        s.parsed.insert(o.meta.chartPart, chart);
+    }
+    o.chart = o.fileChart = chart;
+    o.drawnKey = 0;
+}
+
 void SheetObjects::ensureBuilt(int sheet, Object &o)
 {
+    if (o.chartStale) freshChart(sheet, o);
     if (o.built) return;
     o.built = true;
     Sheet &s = m_sheets[size_t(sheet)];
@@ -1021,8 +1039,11 @@ LayerObject SheetObjects::layerObject(int sheet, const std::shared_ptr<Object> &
             const auto &equation = static_cast<const jp::EquationItem &>(*o->item);
             const QByteArray markup = equation.markup;
             const QColor color = equation.fill.isNone() ? QColor(Qt::black) : equation.fill.color.resolve(m_doc->colors);
+            if (!o->equationRgb) o->equationRgb = std::make_shared<std::atomic<quint32>>();
+            o->equationRgb->store(color.rgb());
+            const auto rgb = o->equationRgb;   // (a theme change puts the color it comes to here: see themeChanged)
             lo->margin = 0;
-            lo->paintVector = [markup, color](QPainter *painter, const QRectF &box) { jp::office::wml::paintEquation(painter, markup, box, color); };
+            lo->paintVector = [markup, rgb](QPainter *painter, const QRectF &box) { jp::office::wml::paintEquation(painter, markup, box, QColor::fromRgb(rgb->load())); };
         }
     };
     return l;
@@ -1276,6 +1297,16 @@ QColor SheetObjects::shapeFillOf(int sheet, int id)
     ensureBuilt(sheet, *o);
     if (!o->item || o->item->fill.type != jp::Fill::Solid || o->item->fill.color.kind() != jp::ColorRef::Rgb) return {};
     return o->item->fill.color.rgbValue();
+}
+
+QColor SheetObjects::equationColorOf(int sheet, int id)
+{
+    Object *o = find(sheet, id);
+    if (!o || o->deleted) return {};
+    ensureBuilt(sheet, *o);
+    if (!o->item || o->item->type() != jp::ItemType::Equation) return {};
+    const auto &equation = static_cast<const jp::EquationItem &>(*o->item);
+    return equation.fill.isNone() ? QColor(Qt::black) : equation.fill.color.resolve(m_doc->colors);
 }
 
 QColor SheetObjects::chartColorOf(int sheet, int id)

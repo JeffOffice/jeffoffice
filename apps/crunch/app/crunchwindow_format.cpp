@@ -326,42 +326,14 @@ bool CrunchWindow::formatSelection(const FormatChange &change, const QString &te
 
 namespace {
 
-// A theme color made lighter or darker as the cells that name it have it: its lightness moved by a tint, not the color mixed with white or black.
-QColor workbookShade(const QColor &base, int lighten, int darken)
-{
-    return QColor::fromRgb(jp::office::sheet::tintedRgb(quint32(base.rgb() & 0xFFFFFF), lighten > 0 ? lighten / 100.0 : -darken / 100.0));
-}
-
-// The theme color (the place the styles count them by) a slot of the picker's scheme stands for: the main color is dark 1, the five accents are the theme's first five, and the two hyperlinks.
-int themeIndexOfSlot(int slot)
-{
-    switch (slot) {
-    case Main: return 1;
-    case Hyperlink: return 10;
-    case Followed: return 11;
-    default: return slot >= Accent1 && slot <= Accent5 ? 4 + (slot - Accent1) : -1;
-    }
-}
+using crunch::themeIndexOfSlot;
 
 } // namespace
 
 ColorScheme CrunchWindow::workbookColors() const
 {
-    ColorScheme scheme = builtinColorSchemes().first();
-    if (!m_loaded || !m_loaded->book) return scheme;
-    const Styles &st = m_loaded->book->styles();
-    auto theme = [&st](int index, const QColor &fallback) {
-        ColorSpec c;
-        c.kind = ColorSpec::Kind::Theme;
-        c.index = index;
-        return QColor::fromRgb(st.resolve(c, quint32(fallback.rgb() & 0xFFFFFF)));
-    };
-    scheme.c[Main] = theme(1, scheme.c[Main]);
-    for (int i = 0; i < 5; ++i) scheme.c[Accent1 + i] = theme(4 + i, scheme.c[Accent1 + i]);
-    scheme.c[Hyperlink] = theme(10, scheme.c[Hyperlink]);
-    scheme.c[Followed] = theme(11, scheme.c[Followed]);
-    scheme.shade = &workbookShade;
-    return scheme;
+    if (!m_loaded || !m_loaded->book) return builtinColorSchemes().first();
+    return crunch::workbookColorScheme(m_loaded->book->styles());
 }
 
 ColorSpec CrunchWindow::colorSpecOf(const ColorRef &c) const

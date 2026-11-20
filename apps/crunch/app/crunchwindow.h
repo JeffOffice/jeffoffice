@@ -1622,6 +1622,9 @@ public:
     bool editingShapeText() const { return m_shapeEditor != nullptr; }
     void setShapeTextAsker(const std::function<bool(ShapeTextChoices *)> &asker) { m_shapeTextAsker = asker; }
     bool setObjectFill(const QColor &color, bool none);
+    bool setObjectFill(const ColorRef &c);      // (a picked color: a color of the theme stays one)
+    bool setObjectOutline(const ColorRef &c);
+    QString objectColorText(const ColorRef &c) const;
     bool applyShapeStyle(int index);   // Shape Format > Shape Styles: a ready-made fill and outline, one step
     void enableShapeStyles(bool on);
     bool setObjectOutline(const QColor &color, bool none);

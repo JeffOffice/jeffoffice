@@ -37,6 +37,7 @@
 #include <QStringList>
 
 #include <functional>
+#include <atomic>
 #include <memory>
 #include <vector>
 
@@ -146,6 +147,7 @@ public:
     // For the tests of a theme change: the solid color a shape of the sheet is filled with as it is made now (invalid for none), and the color of the first series of a chart as it is made now.
     QColor shapeFillOf(int sheet, int id);
     QColor chartColorOf(int sheet, int id);
+    QColor equationColorOf(int sheet, int id);   // (the color an equation of the sheet is drawn in)
     // The font the first run of the words of a shape or text box is set in, as it is made now (for a test of what Replace Fonts shows); empty for an object with no words.
     QString textFontOf(int sheet, int id);
     // Sheets were added, copied, renamed, or deleted (or that was undone): there is room for the sheets there are, and the charts' references name the sheets as they are called now (a
@@ -302,6 +304,8 @@ public:
     // The objects that are there (made, and not taken away): what the limit on a workbook's objects counts.
     int liveObjects() const { return m_objectsMade - m_deadMade; }
     int chartPartsRead() const { return m_chartPartsRead; }
+    // How many times the workbook's theme part was parsed (once for each theme set, undone, or redone; counted for tests).
+    int themeParses() const { return m_themeParses; }
     // How many drawings were parsed on a worker thread (see show).
     int drawingsParsedApart() const { return m_parsedApart; }
     // How many diagrams were drawn from their drawings so far (at most kMaxDiagramsDrawn: the rest are boxes), and the SVG picture a diagram object was made as (empty for none).
@@ -333,6 +337,8 @@ private:
         jp::office::sheet::DrawingAnchor savedAnchor;  // what the file being written has
         bool frozen = false;                           // `base` is the size-keeping form
         bool built = false, made = false;
+        std::shared_ptr<std::atomic<quint32>> equationRgb;   // an equation's color as it is drawn as outlines (printing, export), kept up as the theme changes
+        bool chartStale = false;                       // a chart of the file whose colors follow a theme that changed since it was read: read again when it is next wanted
         bool released = false;                         // what was kept of it for Undo is let go (see releaseDead)
         bool provisional = false;                      // a barcode made with a stand-in PNG: the save makes the real one
         bool counted = false;                          // it is counted in m_objectsMade (and, while taken away, in m_deadMade)
@@ -404,6 +410,7 @@ private:
     // A large drawing is parsed on a worker (true): `parsed` is told when it is.
     bool parseApart(int sheet, Sheet &s);
     void parsed(int sheet, quint64 generation, const std::shared_ptr<QDomDocument> &doc, const QString &why);
+    void freshChart(int sheet, Object &o);
     void ensureBuilt(int sheet, Object &o);
     jp::ItemPtr diagramItem(Sheet &s, Object &o);
     void readContext();
@@ -509,6 +516,7 @@ private:
     int m_deadMade = 0;                                      // of those, the ones taken away (a barcode that was swapped for another gives its slot back)
     quint64 m_linkEpoch = 1;                                 // changes when rows, columns, or sheets move: the cells barcodes are linked to are found again
     int m_chartPartsRead = 0;
+    int m_themeParses = 0;
     int m_parsedApart = 0;
     quint64 m_generation = 0;                                // of the workbook open (a worker's answer for another is let go)
     qint64 m_chartsDrawn = 0;

@@ -433,10 +433,22 @@ private:
     bool m_first = true;
 };
 
+// A theme as a step holds it: its colors and names, and its part as a buffer shared with every other step that names the same theme (the part may be up to 4 MB).
+struct HeldTheme {
+    jp::office::Theme theme;   // (its part is not here, but in `xml`)
+    std::shared_ptr<const QByteArray> xml;
+    jp::office::Theme get() const
+    {
+        jp::office::Theme t = theme;
+        if (xml) t.xml = *xml;
+        return t;
+    }
+};
+
 // The workbook's theme given another, as a step: Undo and Redo give the whole theme as it was and is (the first Redo is a no-op: the step is pushed after the theme is set).
 class ThemeChanged : public QUndoCommand {
 public:
-    ThemeChanged(EditSession *session, jp::office::Theme before, jp::office::Theme after, const QString &text)
+    ThemeChanged(EditSession *session, HeldTheme before, HeldTheme after, const QString &text)
         : QUndoCommand(text), m_session(session), m_before(std::move(before)), m_after(std::move(after)) {}
     void redo() override
     {
@@ -444,18 +456,46 @@ public:
             m_first = false;
             return;
         }
-        if (!m_session->setThemeNow(m_after)) m_session->giveUpUndo(text(), true);
+        if (!m_session->setThemeNow(m_after.get())) m_session->giveUpUndo(text(), true);
     }
     void undo() override
     {
-        if (!m_session->setThemeNow(m_before)) m_session->giveUpUndo(text(), false);
+        if (!m_session->setThemeNow(m_before.get())) m_session->giveUpUndo(text(), false);
     }
 
 private:
     EditSession *m_session;
-    jp::office::Theme m_before, m_after;
+    HeldTheme m_before, m_after;
     bool m_first = true;
 };
+
+std::shared_ptr<const QByteArray> EditSession::sharedThemePart(const QByteArray &xml)
+{
+    if (xml.isEmpty()) return nullptr;
+    // (the buffers the steps hold are looked at by what they say: a theme set again is the buffer already held, not another; a buffer no step holds any more is let go)
+    std::shared_ptr<const QByteArray> found;
+    for (auto it = m_themeParts.begin(); it != m_themeParts.end();) {
+        const std::shared_ptr<const QByteArray> held = it->lock();
+        if (!held) {
+            it = m_themeParts.erase(it);
+            continue;
+        }
+        if (!found && held->size() == xml.size() && *held == xml) found = held;
+        ++it;
+    }
+    if (found) return found;
+    found = std::make_shared<const QByteArray>(xml);
+    m_themeParts.push_back(found);
+    return found;
+}
+
+int EditSession::themePartsHeld() const
+{
+    int n = 0;
+    for (const std::weak_ptr<const QByteArray> &p : m_themeParts)
+        if (!p.expired()) ++n;
+    return n;
+}
 
 bool EditSession::hasTheme() const { return m_book && m_book->book && m_book->book->hasTheme(); }
 
@@ -511,7 +551,14 @@ EditSession::Outcome EditSession::applyTheme(const jp::office::Theme &theme, con
         }
     }
     m_lastCalculated = false;
-    m_undo.push(new ThemeChanged(this, was, theme, text));
+    auto held = [this](const jp::office::Theme &t) {
+        HeldTheme h;
+        h.xml = sharedThemePart(t.xml);
+        h.theme = t;
+        h.theme.xml.clear();
+        return h;
+    };
+    m_undo.push(new ThemeChanged(this, held(was), held(theme), text));
     Q_EMIT themeChanged();
     Q_EMIT stylesChanged();
     return out;

@@ -2565,8 +2565,11 @@ bool Workbook::open(const Package &package, QString *error, const Limits &limits
     for (const Relationship &rel : themes) {
         if (rel.external || !package.hasPart(rel.target)) continue;
         Theme theme;
+        // (a part that says it is more than a theme part may be is not inflated at all: the usual colors stay, and the file's own part is left as it is)
+        const qint64 declared = package.partSize(rel.target);
+        if (declared < 0 || declared > kMaxThemePartBytes) break;
         const QByteArray part = package.part(rel.target);
-        if (!readTheme(part, &theme)) break;
+        if (part.size() > kMaxThemePartBytes || !readTheme(part, &theme)) break;
         for (int i = 0; i < kThemeColors; ++i)
             if (theme.colors[kStyleThemeOrder[i]].isValid()) m_styles.theme[i] = theme.colors[kStyleThemeOrder[i]].rgb() & 0xFFFFFF;
         m_styles.majorFont = theme.majorLatin;
@@ -2574,12 +2577,10 @@ bool Workbook::open(const Package &package, QString *error, const Limits &limits
         m_themePartName = rel.target;
         m_themeMajorInFile = theme.majorLatin;
         m_themeMinorInFile = theme.minorLatin;
-        // (kept whole to be changed and written, unless it is more than a theme part may be: the file's own is then left as it is)
-        if (part.size() <= kMaxThemePartBytes) {
-            m_themeXml = part;
-            theme.xml.clear();
-            m_theme = theme;
-        }
+        // (kept whole, to be changed and written)
+        m_themeXml = part;
+        theme.xml.clear();
+        m_theme = theme;
         break;
     }
     return true;
@@ -3546,7 +3547,8 @@ CellFormat Workbook::changedFormat(CellFormat f, const FormatChange &c)
     if (c.numberFormat) f.numFmtId = numberFormatId(*c.numberFormat);
     if (c.touchesFont()) {
         FontSpec font = m_styles.font(f.font);
-        if (c.fontName && font.name != *c.fontName) {
+        // (a font of the theme is the one the person sees, the theme's: choosing the stored name of a font that shows another is a change, and the one it shows is not)
+        if (c.fontName && (font.scheme.isEmpty() ? font.name : m_styles.fontNameOf(font)) != *c.fontName) {
             font.name = *c.fontName;
             font.scheme.clear();   // (a font chosen by name is no longer the theme's own)
         }
@@ -4026,7 +4028,11 @@ void Workbook::savedTo(const Package &package, const SavedCounts &counts)
     m_fontTextRenames.clear();
     m_themeMajorInFile = m_styles.majorFont;
     m_themeMinorInFile = m_styles.minorFont;
-    if (hasTheme()) m_themeXml = m_package.part(m_themePartName);
+    // (what the file written has of the theme is what it was told to write; a file that has no theme part leaves the workbook its own, to be written by a later save)
+    if (hasTheme()) {
+        const QByteArray written = m_package.part(m_themePartName);
+        if (!written.isEmpty()) m_themeXml = written;
+    }
     m_fillsAdded = m_fillsAdded.mid(counts.fills);
     m_bordersAdded = m_bordersAdded.mid(counts.borders);
     m_stylesAdded = m_stylesAdded.mid(counts.styles);

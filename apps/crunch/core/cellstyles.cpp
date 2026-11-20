@@ -92,4 +92,38 @@ QVector<StyleSample> styleSamples(const Styles &styles)
     return out;
 }
 
+namespace {
+
+QColor workbookShade(const QColor &base, int lighten, int darken)
+{
+    return QColor::fromRgb(jp::office::sheet::tintedRgb(quint32(base.rgb() & 0xFFFFFF), lighten > 0 ? lighten / 100.0 : -darken / 100.0));
+}
+
+} // namespace
+
+int themeIndexOfSlot(int slot)
+{
+    switch (slot) {
+    case Main: return 1;
+    case Hyperlink: return 10;
+    case Followed: return 11;
+    default: return slot >= Accent1 && slot <= Accent5 ? 4 + (slot - Accent1) : -1;
+    }
+}
+
+ColorScheme workbookColorScheme(const Styles &st)
+{
+    ColorScheme scheme = builtinColorSchemes().first();
+    auto theme = [&st](int index, const QColor &fallback) {
+        ColorSpec c;
+        c.kind = ColorSpec::Kind::Theme;
+        c.index = index;
+        return QColor::fromRgb(st.resolve(c, quint32(fallback.rgb() & 0xFFFFFF)));
+    };
+    for (int slot : {int(Main), int(Accent1), int(Accent2), int(Accent3), int(Accent4), int(Accent5), int(Hyperlink), int(Followed)})
+        scheme.c[slot] = theme(themeIndexOfSlot(slot), scheme.c[slot]);
+    scheme.shade = &workbookShade;
+    return scheme;
+}
+
 } // namespace jp::crunch

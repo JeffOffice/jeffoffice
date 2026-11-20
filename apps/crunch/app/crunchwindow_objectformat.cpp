@@ -15,6 +15,7 @@
 #include "app/spelling.h"
 #include "app/settings.h"
 #include "app/crunchwindow.h"
+#include "core/cellstyles.h"
 
 #include "app/compresspictures.h"
 #include "app/picturetools.h"
@@ -87,9 +88,28 @@ void insertAfterLast(QDomElement &parent, const QDomElement &e, std::initializer
 
 QDomElement spPrOf(const QDomElement &object) { return childNamed(object, QStringLiteral("spPr")); }
 
+// A color as a drawing says it: six hex digits, or (written "name/mod/off") a color of the theme by its name, made lighter or darker as lumMod and lumOff, in percent (section 20.1.2.3 of the first part of the standard).
 QDomElement colorElement(QDomDocument &doc, const QString &hex)
 {
     QDomElement fill = newA(doc, "solidFill");
+    if (hex.contains(QLatin1Char('/'))) {
+        const QStringList parts = hex.split(QLatin1Char('/'));
+        QDomElement c = newA(doc, "schemeClr");
+        c.setAttribute(QStringLiteral("val"), parts.value(0));
+        const int mod = parts.value(1).toInt(), off = parts.value(2).toInt();
+        if (mod != 100) {
+            QDomElement m = newA(doc, "lumMod");
+            m.setAttribute(QStringLiteral("val"), mod * 1000);
+            c.appendChild(m);
+        }
+        if (off > 0) {
+            QDomElement o = newA(doc, "lumOff");
+            o.setAttribute(QStringLiteral("val"), off * 1000);
+            c.appendChild(o);
+        }
+        fill.appendChild(c);
+        return fill;
+    }
     QDomElement c = newA(doc, "srgbClr");
     c.setAttribute(QStringLiteral("val"), hex.toUpper());
     fill.appendChild(c);
@@ -499,6 +519,32 @@ bool CrunchWindow::setObjectOutline(const QColor &color, bool none)
 {
     const QString hex = none ? QString() : hexOf(color);
     return restyleObject(none ? tr("No Outline") : tr("Outline"), [&](QDomElement &el, grid::ObjectBox *) { return setLine(el, hex, none, 0, QString()); });
+}
+
+// A color picked, as a drawing keeps it: a color of the theme (with its tint) stays that color of the theme, so that it follows a theme the workbook is given later and is drawn as the swatch
+// showed it; any other is the color it comes to.
+QString CrunchWindow::objectColorText(const ColorRef &c) const
+{
+    if (c.kind() == ColorRef::Scheme && m_loaded && m_loaded->book && m_loaded->book->hasTheme() && crunch::themeIndexOfSlot(c.slot()) >= 0) {
+        static const char *const names[] = {"tx1", "accent1", "accent2", "accent3", "accent4", "accent5", "hlink", "folHlink"};
+        if (c.slot() >= Main && c.slot() < SlotCount && c.slot() <= Followed) {
+            const int mod = c.lighten() > 0 ? 100 - c.lighten() : c.darken() > 0 ? 100 - c.darken() : 100;
+            return QStringLiteral("%1/%2/%3").arg(QLatin1String(names[c.slot()])).arg(mod).arg(std::max(0, c.lighten()));
+        }
+    }
+    return hexOf(c.resolve(workbookColors()));
+}
+
+bool CrunchWindow::setObjectFill(const ColorRef &c)
+{
+    const QString text = c.isNone() ? QString() : objectColorText(c);
+    return restyleObject(c.isNone() ? tr("No Fill") : tr("Shape Fill"), [&](QDomElement &el, grid::ObjectBox *) { return setFill(el, text); });
+}
+
+bool CrunchWindow::setObjectOutline(const ColorRef &c)
+{
+    const QString text = c.isNone() ? QString() : objectColorText(c);
+    return restyleObject(c.isNone() ? tr("No Outline") : tr("Outline"), [&](QDomElement &el, grid::ObjectBox *) { return setLine(el, text, c.isNone(), 0, QString()); });
 }
 
 bool CrunchWindow::setObjectOutlineStyle(double weightPoints, const QString &dash)
@@ -1287,9 +1333,8 @@ void CrunchWindow::objectFormatRibbonParts(RibbonParts &parts)
         b->setCurrent(ColorRef::rgb(fill ? QColor(0xBD, 0xD7, 0xEE) : QColor(0x2E, 0x75, 0xB6)));
         connect(b, &ColorButton::colorPicked, this, [this, b, fill](const ColorRef &c) {
             b->setCurrent(c);
-            const QColor rgb = c.isNone() ? QColor() : c.resolve(workbookColors());
-            if (fill) setObjectFill(rgb, c.isNone());
-            else setObjectOutline(rgb, c.isNone());
+            if (fill) setObjectFill(c);
+            else setObjectOutline(c);
         });
         return b;
     };

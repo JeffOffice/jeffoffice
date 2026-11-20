@@ -1014,6 +1014,9 @@ public:
     // is made) where the workbook has no theme or already has it; `problem` says why not.
     Outcome applyTheme(const jp::office::Theme &theme, const QString &text);
     bool setThemeNow(const jp::office::Theme &theme);   // the step's own work (and Undo's, and Redo's)
+    // The steps of a theme change hold each theme's part once, however many steps name it (the history keeps up to kUndoSteps steps); how many such parts are held now, for tests.
+    std::shared_ptr<const QByteArray> sharedThemePart(const QByteArray &xml);
+    int themePartsHeld() const;
     // The fonts the cells use, by name (a theme font by the typeface it means), each with the names of the sheets whose cells use it, in the order first met (the missing-fonts bar's list).
     struct FontUse {
         QString family;
@@ -1361,6 +1364,7 @@ private:
     friend class FontsRenamed;
     friend class ThemeFontRenamed;
     friend class ThemeChanged;
+    std::vector<std::weak_ptr<const QByteArray>> m_themeParts;   // the theme parts the steps of Undo hold (see sharedThemePart)
     // A step could not be undone or done again: every step is forgotten (the workbook is not as the stack says), and `stepFailed` says so.
     void giveUpUndo(const QString &stepText, bool redoing);
     // Forgets every step that is done (and what each holds): Undo does not go back over them.
