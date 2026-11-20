@@ -39,6 +39,14 @@ QString kindName(const write::Revision &r)
     case write::Revision::ParagraphFormat: return QCoreApplication::translate("jp::ReviewPane", "Formatted paragraph");
     case write::Revision::MarkInserted: return QCoreApplication::translate("jp::ReviewPane", "Inserted paragraph");
     case write::Revision::MarkDeleted: return QCoreApplication::translate("jp::ReviewPane", "Deleted paragraph");
+    case write::Revision::RowInserted: return QCoreApplication::translate("jp::ReviewPane", "Inserted row");
+    case write::Revision::RowDeleted: return QCoreApplication::translate("jp::ReviewPane", "Deleted row");
+    case write::Revision::CellInserted: return QCoreApplication::translate("jp::ReviewPane", "Inserted cell");
+    case write::Revision::CellDeleted: return QCoreApplication::translate("jp::ReviewPane", "Deleted cell");
+    case write::Revision::CellMerged: return QCoreApplication::translate("jp::ReviewPane", "Merged cells");
+    case write::Revision::TableFormat: return QCoreApplication::translate("jp::ReviewPane", "Formatted table");
+    case write::Revision::RowFormat: return QCoreApplication::translate("jp::ReviewPane", "Formatted row");
+    case write::Revision::CellFormat: return QCoreApplication::translate("jp::ReviewPane", "Formatted cell");
     }
     return QString();
 }

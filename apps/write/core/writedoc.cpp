@@ -6,6 +6,7 @@
 #include "core/commentops.h"
 #include "core/listpresets.h"
 #include "core/reviewops.h"
+#include "core/tableops.h"
 
 #include "core/wordformat.h"
 #include "core/writeprops.h"
@@ -345,7 +346,11 @@ int s_openDocuments = 0;   // (the store of bytes the formats refer to is emptie
 quint64 s_lastId = 0;
 }
 
-WriteDoc::WriteDoc() : m_id(++s_lastId), m_flow(std::make_unique<flow::FlowDocument>()) { ++s_openDocuments; }
+WriteDoc::WriteDoc() : m_id(++s_lastId), m_flow(std::make_unique<flow::FlowDocument>())
+{
+    ++s_openDocuments;
+    m_flow->story()->setProperty(kTableStoreProperty, QVariant::fromValue(quintptr(&m_flow->tables)));
+}
 
 WriteDoc::~WriteDoc()
 {

@@ -11,6 +11,7 @@
 
 #include <QTextBlock>
 #include <QDate>
+#include <QDateTime>
 #include <QSet>
 #include <QTextCursor>
 #include <QVector>
@@ -50,6 +51,25 @@ void deleteTableColumns(WriteDoc &doc, QTextCursor &c);
 // space instead of a cell. One step. False, with nothing done, where a cell is joined with others down or across rows, or where no cell of a row would be left (Delete Rows is that).
 bool deleteTableCellsShiftLeft(WriteDoc &doc, QTextCursor &c, bool apply = true);   // (not `apply`: only whether it could be)
 void deleteTable(WriteDoc &doc, QTextCursor &c);
+
+// ---- Tracked changes of tables
+// The story has the address of the document's records of cells as this property, for the code that looks through a story alone (the list of its changes).
+inline constexpr char kTableStoreProperty[] = "jw.tableStore";
+// What a table's start, a row's, or a cell's properties record as tracked changes (w:ins and w:del in a row's, w:cellIns, w:cellDel, and w:cellMerge in a cell's, and w:tblPrChange,
+// w:tblGridChange, w:trPrChange, and w:tcPrChange in the properties of a table, a row, or a cell). Each is at the first paragraph of the row, cell, or table, and covers its paragraphs.
+struct TableChange {
+    enum Kind { RowInserted, RowDeleted, CellInserted, CellDeleted, CellMerged, TableProps, RowProps, CellProps };
+    Kind kind = RowInserted;
+    QByteArray record;       // the element that records the change, as written (it has the Id, the person, and the time)
+    int from = 0, to = 0;    // the places in the story: the first paragraph's start, and the end of the last one
+    int block = 0;           // the number of the first paragraph
+};
+// The changes that the paragraph begins (it is the first of a cell, and may be of a row and a table too); `store` has the records of the document's cells.
+void tableChangesAt(const flow::TableStore &store, const QTextBlock &b, QVector<TableChange> *out);
+// Accepts or rejects the changes of tables, which `which` has as tableChangesAt found them in the story as it is now: a record that is accepted (an inserted row, a deleted row that is gone)
+// or rejected (a deleted row that stays) is taken out, a row or cell that a rejected insertion or an accepted deletion removes goes (with its words), a rejected change of properties gives
+// the old ones back, and a rejected merge splits the cells again. A cell that cannot go (it is joined with others) keeps its change. One step; returns how many were done.
+int resolveTableChanges(WriteDoc &doc, const QVector<TableChange> &which, bool accept);
 
 // ---- Making and changing tables (each is one step that undoes, and is written to the file so that it opens the same)
 

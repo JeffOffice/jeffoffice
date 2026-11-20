@@ -965,7 +965,7 @@ const PageView::ReviewCache::PageMarks &PageView::reviewMarksOf(int storyFrom, i
     pm.hi = hi;
     QVector<std::pair<int, int>> spans, formats;
     for (const Revision &r : revisionsIn(m_doc->story(), lo, hi, 4000)) {
-        const bool formatting = r.kind == Revision::Format || r.kind == Revision::ParagraphFormat;
+        const bool formatting = r.isFormatting();
         (formatting ? formats : spans).push_back({r.from, std::max(r.to, r.from + 1)});
         if (m_reviewMarks.deletions && (r.kind == Revision::Deletion || r.kind == Revision::MovedFrom)) {
             const QString words = revisionText(m_doc->story(), r, 60);

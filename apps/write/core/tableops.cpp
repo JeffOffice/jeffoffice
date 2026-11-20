@@ -3292,4 +3292,320 @@ bool sortTableRows(WriteDoc &doc, QTextCursor &c, const QVector<TableSortKey> &k
     return true;
 }
 
+// ---- tracked changes of tables
+
+namespace {
+
+struct Record {
+    QByteArray name, xml;   // the record's element, as written
+};
+
+// The records of tracked changes among the properties of the start of a table, a row, or a cell (kept as written), and for a table the change of its grid.
+QVector<Record> recordsOf(const QByteArray &open, int kind)
+{
+    QVector<Record> out;
+    // (Most starts say nothing of changes: a quick look first.)
+    if (!open.contains("Change") && !open.contains("ins") && !open.contains("del") && !open.contains("cellIns") && !open.contains("cellDel") && !open.contains("cellMerge")) return out;
+    XmlTree t;
+    int el = -1;
+    const char *closing = kind == kTbl ? "</w:tbl>" : kind == kRow ? "</w:tr>" : "</w:tc>";
+    if (!parseKept(&t, open, closing, &el)) return out;
+    const char *prName = kind == kTbl ? "tblPr" : kind == kRow ? "trPr" : "tcPr";
+    for (int c = t.firstChild(el); c >= 0; c = t.next(c)) {
+        const bool pr = t.is(c, prName), grid = kind == kTbl && t.is(c, "tblGrid"), ex = kind == kRow && t.is(c, "tblPrEx");
+        if (!pr && !grid && !ex) continue;
+        for (int k = t.firstChild(c); k >= 0; k = t.next(k)) {
+            const QByteArray name = t.localName(k);
+            const bool wanted = kind == kRow ? (name == "ins" || name == "del" || name == "trPrChange")
+                              : kind == kCell ? (name == "cellIns" || name == "cellDel" || name == "cellMerge" || name == "tcPrChange")
+                                              : (name == "tblPrChange" || name == "tblGridChange");
+            if (wanted) out.push_back({name, t.raw(k)});
+        }
+    }
+    return out;
+}
+
+// Whether the cell of `key` is `cell` or in it (a cell of a table in `cell`, at any depth).
+bool inCellOf(const flow::TableStore &store, int key, int cell)
+{
+    for (int depth = 0; key && depth < 64; ++depth) {
+        if (key == cell) return true;
+        const flow::CellRecord *r = store.get(key);
+        key = r ? r->parent : 0;
+    }
+    return false;
+}
+
+const flow::CellRecord *ancestorAtDepth(const flow::TableStore &store, const flow::CellRecord *r, int depth, int *own)
+{
+    int d = 0;
+    for (const flow::CellRecord *p = r; p && d < 64; p = store.get(p->parent), ++d) {
+        if (p->parent == 0) {
+            *own = d;
+            break;
+        }
+    }
+    // (r's depth is `*own`; climb to `depth` if it is deeper)
+    int have = *own;
+    while (r && have > depth) {
+        r = store.get(r->parent);
+        --have;
+    }
+    return have == depth ? r : nullptr;
+}
+
+TableChange makeChange(TableChange::Kind kind, const QByteArray &xml, int from, int to, int block)
+{
+    TableChange c;
+    c.kind = kind;
+    c.record = xml;
+    c.from = from;
+    c.to = to;
+    c.block = block;
+    return c;
+}
+
+} // namespace
+
+void tableChangesAt(const flow::TableStore &store, const QTextBlock &b, QVector<TableChange> *out)
+{
+    const int key = cellKeyOf(b);
+    const flow::CellRecord *rec = key ? store.get(key) : nullptr;
+    if (!rec) return;
+    const QTextBlock prev = b.previous();
+    const int pkey = prev.isValid() ? cellKeyOf(prev) : 0;
+    if (pkey && inCellOf(store, pkey, key)) return;   // (not the first paragraph of its cell)
+    const flow::CellRecord *prec = pkey ? store.get(pkey) : nullptr;
+    // Where the cell, the row, and the table end: the last paragraph that is in them.
+    auto endOf = [&](auto inside) {
+        int to = b.position() + b.length() - 1;
+        for (QTextBlock n = b.next(); n.isValid(); n = n.next()) {
+            const int k = cellKeyOf(n);
+            if (!k || !inside(k)) break;
+            to = n.position() + n.length() - 1;
+        }
+        return to;
+    };
+    const CellPart *cp = static_cast<const CellPart *>(rec->cell.app.get());
+    const RowPart *rp = static_cast<const RowPart *>(rec->row ? rec->row->app.get() : nullptr);
+    const TablePart *tp = static_cast<const TablePart *>(rec->table ? rec->table->app.get() : nullptr);
+    // The row and the table begin here when the paragraph before is not in them (at the depth of this cell).
+    int own = 0;
+    store.get(key);
+    const flow::CellRecord *sibling = nullptr;
+    if (prec) {
+        int depthOfThis = 0;
+        for (const flow::CellRecord *p = rec; p && p->parent && depthOfThis < 64; p = store.get(p->parent)) ++depthOfThis;
+        sibling = ancestorAtDepth(store, prec, depthOfThis, &own);
+    }
+    const bool newTable = !sibling || sibling->table != rec->table;
+    const bool newRow = newTable || sibling->row != rec->row;
+    const int block = b.blockNumber();
+    if (newTable && tp)
+        for (const Record &r : recordsOf(tp->open, kTbl))
+            out->push_back(makeChange(TableChange::TableProps, r.xml, b.position(), endOf([&](int k) { for (const flow::CellRecord *q = store.get(k); q; q = store.get(q->parent)) if (q->table == rec->table) return true; return false; }), block));
+    if (newRow && rp)
+        for (const Record &r : recordsOf(rp->open, kRow)) {
+            const TableChange::Kind kind = r.name == "ins" ? TableChange::RowInserted : r.name == "del" ? TableChange::RowDeleted : TableChange::RowProps;
+            out->push_back(makeChange(kind, r.xml, b.position(), endOf([&](int k) { for (const flow::CellRecord *q = store.get(k); q; q = store.get(q->parent)) if (q->row == rec->row) return true; return false; }), block));
+        }
+    if (cp)
+        for (const Record &r : recordsOf(cp->open, kCell)) {
+            const TableChange::Kind kind = r.name == "cellIns" ? TableChange::CellInserted : r.name == "cellDel" ? TableChange::CellDeleted : r.name == "cellMerge" ? TableChange::CellMerged : TableChange::CellProps;
+            out->push_back(makeChange(kind, r.xml, b.position(), endOf([&](int k) { return inCellOf(store, k, key); }), block));
+        }
+}
+
+namespace {
+
+// The properties a change record keeps: the ones the properties of the table, row, or cell were before the change, as the elements of `<w:tblPr>`, `<w:trPr>`, or `<w:tcPr>` inside it.
+QByteArray oldPropsOf(const QByteArray &record)
+{
+    XmlTree t;
+    int el = -1;
+    if (!parseKept(&t, record, "", &el)) return QByteArray();
+    QByteArray out;
+    for (int c = t.firstChild(el); c >= 0; c = t.next(c))
+        for (int k = t.firstChild(c); k >= 0; k = t.next(k)) out += t.raw(k);
+    return out;
+}
+
+// The start of a table, a row, or a cell with the properties it had before a change of them (the record is taken out), keeping what is not the change's own: the marks of an inserted or
+// deleted row or cell and a merge, which are separate changes. For a table's grid change the grid is given back and the properties are left as they are.
+QByteArray withOldProps(const QByteArray &open, int kind, const char *changeName)
+{
+    XmlTree t;
+    int el = -1;
+    const char *closing = kind == kTbl ? "</w:tbl>" : kind == kRow ? "</w:tr>" : "</w:tc>";
+    if (!parseKept(&t, open, closing, &el)) return open;
+    const char *prName = kind == kTbl ? "tblPr" : kind == kRow ? "trPr" : "tcPr";
+    const bool gridChange = QByteArray(changeName) == "tblGridChange";
+    QByteArray out = t.startTag(el);
+    for (int c = t.firstChild(el); c >= 0; c = t.next(c)) {
+        if (t.is(c, prName) && !gridChange) {
+            QByteArray oldKids, keptKids;
+            for (int k = t.firstChild(c); k >= 0; k = t.next(k)) {
+                const QByteArray name = t.localName(k);
+                if (name == changeName) oldKids += oldPropsOf(t.raw(k));
+                else if (name == "ins" || name == "del" || name == "cellIns" || name == "cellDel" || name == "cellMerge") keptKids += t.raw(k);
+            }
+            const QByteArray kids = oldKids + keptKids;
+            if (!kids.isEmpty()) out += QByteArray("<w:") + prName + ">" + kids + "</w:" + prName + ">";
+        } else if (t.is(c, "tblGrid") && gridChange) {
+            QByteArray grid;
+            for (int k = t.firstChild(c); k >= 0; k = t.next(k))
+                if (t.is(k, "tblGridChange"))
+                    for (int g = t.firstChild(k); g >= 0; g = t.next(g))
+                        if (t.is(g, "tblGrid"))
+                            for (int q = t.firstChild(g); q >= 0; q = t.next(q)) grid += t.raw(q);
+            out += t.startTag(c) + grid + t.endTag(c);
+        } else {
+            out += t.raw(c);
+        }
+    }
+    return out;
+}
+
+// The start of a table with the record of a change of its grid taken out (the grid stays as it is).
+QByteArray withoutGridChange(const QByteArray &open)
+{
+    XmlTree g;
+    int el = -1;
+    if (!parseKept(&g, open, "</w:tbl>", &el)) return open;
+    QByteArray out = g.startTag(el);
+    for (int c = g.firstChild(el); c >= 0; c = g.next(c)) {
+        if (!g.is(c, "tblGrid")) {
+            out += g.raw(c);
+            continue;
+        }
+        out += g.startTag(c);
+        for (int k = g.firstChild(c); k >= 0; k = g.next(k))
+            if (!g.is(k, "tblGridChange")) out += g.raw(k);
+        out += g.endTag(c);
+    }
+    return out;
+}
+
+// What a merge record says the cell was before (w:vMergeOrig): "rest", "cont", or nothing.
+QString mergeWasOf(const QByteArray &xml)
+{
+    XmlTree t;
+    int el = -1;
+    if (!parseKept(&t, xml, "", &el)) return QString();
+    return t.attr(el, "vMergeOrig");
+}
+
+} // namespace
+
+int resolveTableChanges(WriteDoc &doc, const QVector<TableChange> &whichGiven, bool accept)
+{
+    if (whichGiven.isEmpty()) return 0;
+    QVector<TableChange> which = whichGiven;
+    std::stable_sort(which.begin(), which.end(), [](const TableChange &a, const TableChange &b) { return a.from > b.from; });
+    TableCommand command(doc);
+    int done = 0;
+    struct Wanted {
+        TableChange change;
+        bool structural;    // the row or cell goes
+    };
+    for (qsizetype i = 0; i < which.size();) {
+        // The changes of one table, together: those that begin in it (the table's paragraphs from its first to its last).
+        const auto v = viewAt(doc, which[i].from);
+        if (!v) {
+            ++i;
+            continue;
+        }
+        const std::vector<flow::BlockRef> &refs = v->index.refs();
+        const int tableFrom = refs[size_t(v->first)].pos, tableTo = refs[size_t(v->last - 1)].end;
+        QVector<TableChange> group;
+        for (; i < which.size() && which[i].from >= tableFrom && which[i].from < tableTo; ++i) {
+            // (a change in a table inside this one is a later one: its own table's)
+            const auto inner = viewAt(doc, which[i].from);
+            if (inner && inner->first == v->first && inner->last == v->last) group.push_back(which[i]);
+            else break;
+        }
+        if (group.isEmpty()) {
+            ++i;
+            continue;
+        }
+        const flow::TableLayout &t = *v->layout;
+        // Which of the changes remove a row or a cell, and which only take out or restore a record.
+        QVector<int> rowsToGo;
+        QVector<TableChange> cellsToGo, records;
+        for (const TableChange &c : std::as_const(group)) {
+            const bool removes = (c.kind == TableChange::RowInserted || c.kind == TableChange::CellInserted) ? !accept : (c.kind == TableChange::RowDeleted || c.kind == TableChange::CellDeleted) ? accept : false;
+            const int ci = t.cellOfPosition(c.from);
+            if (ci < 0) continue;
+            if (removes && (c.kind == TableChange::RowInserted || c.kind == TableChange::RowDeleted)) {
+                if (!rowsToGo.contains(t.cell(ci).row)) rowsToGo.push_back(t.cell(ci).row);
+                ++done;
+            } else if (removes) {
+                cellsToGo.push_back(c);
+            } else {
+                records.push_back(c);
+            }
+        }
+        // The records: taken out (or the old properties given back) in one pass over the table's parts.
+        if (!records.isEmpty()) {
+            QTextCursor c(doc.story());
+            c.setPosition(group.first().from);
+            editTable(doc, c, [&](XTable &x, const View &w, const Area &) {
+                const flow::TableLayout &lay = *w.layout;
+                for (const TableChange &r : std::as_const(records)) {
+                    const int ci = lay.cellOfPosition(r.from);
+                    if (ci < 0) continue;
+                    const flow::TableLayout::Cell &cell = lay.cell(ci);
+                    const flow::TableLayout::Row &row = lay.row(cell.row);
+                    XRow &xr = x.rows[cell.row];
+                    XCell &xc = xr.cells[ci - row.cell0];
+                    switch (r.kind) {
+                    case TableChange::RowInserted: xr.open = patchPr(xr.open, kRow, {{"ins", QByteArray()}}); break;
+                    case TableChange::RowDeleted: xr.open = patchPr(xr.open, kRow, {{"del", QByteArray()}}); break;
+                    case TableChange::CellInserted: xc.open = patchPr(xc.open, kCell, {{"cellIns", QByteArray()}}); break;
+                    case TableChange::CellDeleted: xc.open = patchPr(xc.open, kCell, {{"cellDel", QByteArray()}}); break;
+                    case TableChange::CellMerged: {
+                        if (!accept) {
+                            // The merge as it was: the cells joined down as they were (w:vMergeOrig).
+                            const QString was = mergeWasOf(r.record);
+                            xc.open = patchPr(xc.open, kCell, {{"vMerge", was == QLatin1String("rest") ? QByteArray("<w:vMerge w:val=\"restart\"/>") : was == QLatin1String("cont") ? QByteArray("<w:vMerge/>") : QByteArray()}});
+                        }
+                        xc.open = patchPr(xc.open, kCell, {{"cellMerge", QByteArray()}});
+                        break;
+                    }
+                    case TableChange::TableProps: {
+                        const bool grid = r.record.contains("tblGridChange"), props = r.record.contains("tblPrChange");
+                        if (props) x.open = accept ? patchPr(x.open, kTbl, {{"tblPrChange", QByteArray()}}) : withOldProps(x.open, kTbl, "tblPrChange");
+                        if (grid) x.open = accept ? withoutGridChange(x.open) : withOldProps(x.open, kTbl, "tblGridChange");
+                        break;
+                    }
+                    case TableChange::RowProps: xr.open = !accept ? withOldProps(xr.open, kRow, "trPrChange") : patchPr(xr.open, kRow, {{"trPrChange", QByteArray()}}); break;
+                    case TableChange::CellProps: xc.open = !accept ? withOldProps(xc.open, kCell, "tcPrChange") : patchPr(xc.open, kCell, {{"tcPrChange", QByteArray()}}); break;
+                    }
+                    ++done;
+                }
+                return true;
+            });
+        }
+        // Cells that go (an inserted one rejected, a deleted one accepted), the later ones first.
+        for (const TableChange &cg : std::as_const(cellsToGo)) {
+            QTextCursor c(doc.story());
+            c.setPosition(cg.from);
+            if (deleteTableCellsShiftLeft(doc, c)) ++done;
+        }
+        // Rows that go, the later ones first, a run of rows in one step.
+        std::sort(rowsToGo.begin(), rowsToGo.end(), std::greater<int>());
+        for (qsizetype r = 0; r < rowsToGo.size();) {
+            qsizetype e = r;
+            while (e + 1 < rowsToGo.size() && rowsToGo[e + 1] == rowsToGo[e] - 1) ++e;
+            const flow::TableLayout::Row &first = t.row(rowsToGo[e]), &last = t.row(rowsToGo[r]);
+            QTextCursor c(doc.story());
+            c.setPosition(first.from);
+            c.setPosition(std::max(first.from, last.to - 1), QTextCursor::KeepAnchor);
+            deleteTableRows(doc, c);
+            r = e + 1;
+        }
+    }
+    return done;
+}
+
 } // namespace jp::write

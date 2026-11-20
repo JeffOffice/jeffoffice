@@ -253,6 +253,26 @@ void addRevisionsOf(const QTextBlock &b, QVector<Revision> *out)
             out->push_back(r);
         }
     }
+    // What a table records at this paragraph (it begins a cell, and may begin a row and the table).
+    if (b.blockFormat().hasProperty(flow::fp::Cell)) {
+        const QVariant store = b.document()->property(kTableStoreProperty);
+        if (store.isValid()) {
+            QVector<TableChange> changes;
+            tableChangesAt(*reinterpret_cast<const flow::TableStore *>(store.value<quintptr>()), b, &changes);
+            static const Revision::Kind kinds[] = {Revision::RowInserted, Revision::RowDeleted, Revision::CellInserted, Revision::CellDeleted, Revision::CellMerged, Revision::TableFormat, Revision::RowFormat, Revision::CellFormat};
+            for (const TableChange &c : std::as_const(changes)) {
+                Revision r;
+                r.kind = kinds[c.kind];
+                r.id = attributeOf(c.record, "id");
+                r.author = attributeOf(c.record, "author");
+                r.date = parseDate(attributeOf(c.record, "date"));
+                r.from = c.from;
+                r.to = c.to;
+                r.block = blockNo;
+                out->push_back(r);
+            }
+        }
+    }
 }
 
 QTextCharFormat asDeletedFormat(QTextCharFormat format)
@@ -820,6 +840,30 @@ QVector<Revision> withMovePairs(const QTextDocument *story, const QVector<Revisi
     return out;
 }
 
+// The changes the tables record, which `wanted` names, as they are in the story now (by kind and Id: the places they had may have moved), resolved together.
+static int resolveTableRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision> &wanted, bool accept)
+{
+    const QVariant store = story->property(kTableStoreProperty);
+    if (!store.isValid()) return 0;
+    static const Revision::Kind kinds[] = {Revision::RowInserted, Revision::RowDeleted, Revision::CellInserted, Revision::CellDeleted, Revision::CellMerged, Revision::TableFormat, Revision::RowFormat, Revision::CellFormat};
+    QMap<QString, int> asked;   // (how many of each kind and Id are asked for: an Id a hostile file repeats takes the first ones)
+    for (const Revision &r : wanted) ++asked[QString::number(int(r.kind)) + QLatin1Char('|') + r.id];
+    QVector<TableChange> now, chosen;
+    for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
+        if (!b.blockFormat().hasProperty(flow::fp::Cell)) continue;
+        now.clear();
+        tableChangesAt(*reinterpret_cast<const flow::TableStore *>(store.value<quintptr>()), b, &now);
+        for (const TableChange &c : std::as_const(now)) {
+            const QString key = QString::number(int(kinds[c.kind])) + QLatin1Char('|') + attributeOf(c.record, "id");
+            auto it = asked.find(key);
+            if (it == asked.end() || it.value() <= 0) continue;
+            --it.value();
+            chosen.push_back(c);
+        }
+    }
+    return resolveTableChanges(doc, chosen, accept);
+}
+
 int resolveRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision> &whichGiven, bool accept)
 {
     if (whichGiven.isEmpty()) return 0;
@@ -831,6 +875,9 @@ int resolveRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision
     QTextCursor edit(story);
     edit.beginEditBlock();
     int done = 0;
+    QVector<Revision> inTables;   // (what the tables record is done last, found again: taking text out has moved it)
+    for (const Revision &r : which)
+        if (r.inTable()) inTables.push_back(r);
     for (auto bi = byBlock.end(); bi != byBlock.begin();) {
         --bi;
         const int blockNumber = bi.key();
@@ -921,6 +968,7 @@ int resolveRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision
         }
     }
     edit.endEditBlock();
+    if (!inTables.isEmpty()) done += resolveTableRevisions(doc, story, inTables, accept);
     return done;
 }
 

@@ -15,7 +15,9 @@
 namespace jp::write {
 
 struct Revision {
-    enum Kind { Insertion, Deletion, MovedFrom, MovedTo, Format, ParagraphFormat, MarkInserted, MarkDeleted };
+    enum Kind { Insertion, Deletion, MovedFrom, MovedTo, Format, ParagraphFormat, MarkInserted, MarkDeleted,
+                // what a table records: a row or a cell inserted or deleted, cells merged, and a change of the properties of a table, a row, or a cell
+                RowInserted, RowDeleted, CellInserted, CellDeleted, CellMerged, TableFormat, RowFormat, CellFormat };
     Kind kind = Insertion;
     QString id, author;
     QDateTime date;               // none (invalid) when the file gives none
@@ -23,7 +25,10 @@ struct Revision {
     int block = 0;                // the number of the paragraph it begins in
     bool moved = false;           // a paragraph mark (MarkInserted, MarkDeleted) that a move inserted or took away (w:moveTo, w:moveFrom), which goes with its move
 
-    bool isDeletion() const { return kind == Deletion || kind == MovedFrom || kind == MarkDeleted; }
+    bool isDeletion() const { return kind == Deletion || kind == MovedFrom || kind == MarkDeleted || kind == RowDeleted || kind == CellDeleted; }
+    bool inTable() const { return kind >= RowInserted; }
+    // A change of how something looks (the marks beside the text call it formatting, not an insertion or a deletion).
+    bool isFormatting() const { return kind == Format || kind == ParagraphFormat || kind == TableFormat || kind == RowFormat || kind == CellFormat; }
     bool operator==(const Revision &o) const { return kind == o.kind && id == o.id && from == o.from && to == o.to; }
 };
 

@@ -462,6 +462,30 @@ QTextCharFormat storedFormatIn(QTextDocument *story, const QString &text)
 }
 int acceptAllOrReject(WriteDoc &doc, bool accept) { return accept ? acceptAll(doc) : rejectAll(doc); }
 
+// A table of `rows` (each a list of cell XML, with the row's properties), from the grid of `columns` columns of 2000 twentieths of a point; a paragraph follows it, as a table must be followed.
+struct TableRow {
+    QByteArray props;                 // the row's trPr children
+    QVector<QByteArray> cells;        // each cell's tcPr children and then its paragraph's XML, joined as "<tcPr>|<p>"
+};
+QByteArray tableOf(const QVector<TableRow> &rows, int columns, const QByteArray &tblPr = "<w:tblW w:w=\"0\" w:type=\"auto\"/>")
+{
+    QByteArray out = "<w:tbl><w:tblPr>" + tblPr + "</w:tblPr><w:tblGrid>";
+    for (int i = 0; i < columns; ++i) out += "<w:gridCol w:w=\"2000\"/>";
+    out += "</w:tblGrid>";
+    for (const TableRow &r : rows) {
+        out += "<w:tr>" + (r.props.isEmpty() ? QByteArray() : "<w:trPr>" + r.props + "</w:trPr>");
+        for (const QByteArray &c : r.cells) {
+            const qsizetype bar = c.indexOf('|');
+            out += "<w:tc><w:tcPr><w:tcW w:w=\"2000\" w:type=\"dxa\"/>" + c.left(bar) + "</w:tcPr>" + c.mid(bar + 1) + "</w:tc>";
+        }
+        out += "</w:tr>";
+    }
+    return out + "</w:tbl>" + para(run("after"));
+}
+QByteArray cellOf(const QByteArray &props, const QByteArray &content) { return props + "|" + content; }
+QByteArray revTag(const char *name, int id, const char *author = "Ann") { return "<w:" + QByteArray(name) + rev(id, author) + "/>"; }
+
+int count(const QByteArray &haystack, const char *needle) { return int(haystack.count(needle)); }
 
 class ReviewTests : public QObject {
     Q_OBJECT
@@ -2740,6 +2764,161 @@ private Q_SLOTS:
         QVERIFY2(revisionBlocksScannedForTest() - before < qint64(paragraphs) * 12, qPrintable(QString::number(revisionBlocksScannedForTest() - before)));
         QCOMPARE(revisionCount(doc->story()), 0);
         QCOMPARE(int(doc->story()->blockCount()), 2 * moves);   // (these paragraphs have no marks that moved: they stay)
+    }
+
+    // ---------------------------------------------------------------- Round B2: tables
+    void aTablesInsertedAndDeletedRowsAreListedAndAcceptedOrRejectedAsRows()
+    {
+        const QByteArray body = tableOf({{QByteArray(), {cellOf({}, para(run("a1"))), cellOf({}, para(run("a2")))}},
+                                         {revTag("ins", 60), {cellOf({}, para(inserted(70, "b1"))), cellOf({}, para(inserted(71, "b2")))}},
+                                         {revTag("del", 61, "Bob"), {cellOf({}, para(deleted(72, "c1"))), cellOf({}, para(deleted(73, "c2")))}}}, 2);
+        const QByteArray file = makeDocx(body);
+        {
+            auto doc = open(file);
+            QVERIFY(doc);
+            QVector<Revision::Kind> kinds;
+            QStringList authors;
+            for (const Revision &r : revisionsIn(doc->story())) {
+                if (r.inTable()) { kinds << r.kind; authors << r.author; }
+            }
+            QCOMPARE(kinds, (QVector<Revision::Kind>{Revision::RowInserted, Revision::RowDeleted}));
+            QCOMPARE(authors, (QStringList{"Ann", "Bob"}));
+            QCOMPARE(revisionCount(doc->story()), 6);   // (the two rows' marks and the four runs of text)
+            // The pane's model says what each is.
+            QStringList summaries;
+            for (const auto &c : reviewChanges(*doc).changes)
+                if (c.summary.contains(QStringLiteral("row"))) summaries << c.summary;
+            QCOMPARE(summaries, (QStringList{"Inserted row", "Deleted row"}));
+        }
+        // Accept All: the inserted row stays, its mark gone; the deleted row goes with its words.
+        {
+            auto doc = open(file);
+            QVERIFY(doc);
+            QCOMPARE(acceptAll(*doc), 6);
+            QCOMPARE(revisionCount(doc->story()), 0);
+            const QByteArray saved = documentXml(doc->toDocx());
+            QCOMPARE(count(saved, "<w:tr>") + count(saved, "<w:tr "), 2);
+            QVERIFY2(saved.contains("b1") && saved.contains("b2") && !saved.contains("c1") && !saved.contains("<w:ins ") && !saved.contains("<w:del "), saved.constData());
+            QVERIFY(doc->undo());
+            QVERIFY(!doc->canUndo());
+            QCOMPARE(revisionCount(doc->story()), 6);
+        }
+        // Reject All: the inserted row goes, the deleted one stays, its mark gone.
+        {
+            auto doc = open(file);
+            QVERIFY(doc);
+            QCOMPARE(rejectAll(*doc), 6);
+            QCOMPARE(revisionCount(doc->story()), 0);
+            const QByteArray saved = documentXml(doc->toDocx());
+            QCOMPARE(count(saved, "<w:tr>") + count(saved, "<w:tr "), 2);
+            QVERIFY2(!saved.contains("b1") && saved.contains("c1") && saved.contains("c2") && !saved.contains("<w:ins ") && !saved.contains("<w:del "), saved.constData());
+            QVERIFY(doc->undo());
+            QVERIFY(!doc->canUndo());
+        }
+        // One row alone, from the list: its own change and no other.
+        {
+            auto doc = open(file);
+            QVERIFY(doc);
+            QVector<Revision> one;
+            for (const Revision &r : revisionsIn(doc->story()))
+                if (r.kind == Revision::RowDeleted) one << r;
+            QCOMPARE(resolveRevisions(*doc, doc->story(), one, false), 1);
+            QCOMPARE(revisionCount(doc->story()), 5);
+            QVERIFY(!documentXml(doc->toDocx()).contains("<w:del w:id=\"61\""));
+            QVERIFY(documentXml(doc->toDocx()).contains("<w:ins w:id=\"60\""));
+        }
+    }
+
+    void aTablesInsertedDeletedAndMergedCellsAreResolved()
+    {
+        const QByteArray merged = tableOf({{QByteArray(), {cellOf("<w:vMerge w:val=\"restart\"/>" + revTag("cellMerge", 80).replace("/>", " w:vMerge=\"rest\"/>"), para(run("m1"))), cellOf({}, para(run("x")))}},
+                                           {QByteArray(), {cellOf("<w:vMerge/>" + revTag("cellMerge", 81).replace("/>", " w:vMerge=\"cont\"/>"), para(run(""))), cellOf({}, para(run("y")))}}}, 2);
+        for (const bool accept : {true, false}) {
+            auto doc = open(makeDocx(merged));
+            QVERIFY(doc);
+            QVector<Revision::Kind> kinds;
+            for (const Revision &r : revisionsIn(doc->story())) kinds << r.kind;
+            QCOMPARE(kinds, (QVector<Revision::Kind>{Revision::CellMerged, Revision::CellMerged}));
+            QCOMPARE(acceptAllOrReject(*doc, accept), 2);
+            const QByteArray saved = documentXml(doc->toDocx());
+            QVERIFY2(!saved.contains("cellMerge"), saved.constData());
+            QCOMPARE(count(saved, "<w:vMerge"), accept ? 2 : 0);   // (rejected: the cells are not joined, as they were)
+        }
+        // A cell a person deleted goes when that is accepted; one a person inserted goes when that is rejected; else the mark is all that goes.
+        const QByteArray cells = tableOf({{QByteArray(), {cellOf({}, para(run("p"))), cellOf(revTag("cellDel", 82), para(deleted(90, "q"))), cellOf(revTag("cellIns", 83), para(inserted(91, "r")))}}}, 3);
+        struct Case { bool accept; int cellsLeft; bool q, r; };
+        for (const Case c : {Case{true, 2, false, true}, Case{false, 2, true, false}}) {
+            auto doc = open(makeDocx(cells));
+            QVERIFY(doc);
+            QCOMPARE(acceptAllOrReject(*doc, c.accept), 4);   // (the two cells and the two runs of text)
+            QCOMPARE(revisionCount(doc->story()), 0);
+            const QByteArray saved = documentXml(doc->toDocx());
+            QVERIFY2(!saved.contains("cellDel") && !saved.contains("cellIns"), saved.constData());
+            QCOMPARE(count(saved, "<w:tc>"), c.cellsLeft);
+            QCOMPARE(saved.contains(">q<"), c.q);
+            QCOMPARE(saved.contains(">r<"), c.r);
+            QVERIFY(doc->undo());
+            QVERIFY(!doc->canUndo());
+        }
+    }
+
+    void changesOfTheLookOfATableARowAndACellAreResolvedByKeepingOrGivingBackTheOldOnes()
+    {
+        const QByteArray tblChange = "<w:tblPrChange" + rev(100) + "><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr></w:tblPrChange>";
+        const QByteArray trChange = "<w:cantSplit/><w:trPrChange" + rev(101, "Bob") + "><w:trPr/></w:trPrChange>";
+        const QByteArray tcChange = "<w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"FFFF00\"/><w:tcPrChange" + rev(102) + "><w:tcPr/></w:tcPrChange>";
+        const QByteArray body = tableOf({{trChange, {cellOf(tcChange, para(run("one"))), cellOf({}, para(run("two")))}}}, 2, "<w:tblW w:w=\"5000\" w:type=\"dxa\"/>" + tblChange);
+        {
+            auto doc = open(makeDocx(body));
+            QVERIFY(doc);
+            QVector<Revision::Kind> kinds;
+            for (const Revision &r : revisionsIn(doc->story())) kinds << r.kind;
+            QCOMPARE(kinds, (QVector<Revision::Kind>{Revision::TableFormat, Revision::RowFormat, Revision::CellFormat}));
+            QCOMPARE(rejectAll(*doc), 3);
+            const QByteArray saved = documentXml(doc->toDocx());
+            QVERIFY2(!saved.contains("Change") && !saved.contains("cantSplit") && !saved.contains("FFFF00") && !saved.contains("w:w=\"5000\"") && saved.contains("w:type=\"auto\""), saved.constData());
+            QVERIFY(doc->undo());
+            QVERIFY(!doc->canUndo());
+            QVERIFY(documentXml(doc->toDocx()).contains("tblPrChange"));
+        }
+        {
+            auto doc = open(makeDocx(body));
+            QVERIFY(doc);
+            QCOMPARE(acceptAll(*doc), 3);
+            const QByteArray saved = documentXml(doc->toDocx());
+            QVERIFY2(!saved.contains("Change") && saved.contains("<w:cantSplit/>") && saved.contains("FFFF00") && saved.contains("w:w=\"5000\""), saved.constData());
+        }
+    }
+
+    void aTablesRecordsWithHostileValuesAreResolvedWithoutHarm()
+    {
+        const QByteArray longName(3000, 'x');
+        QByteArray row1 = "<w:ins w:id=\"1\" w:author=\"" + longName + "\" w:date=\"not a date\"/><w:ins w:id=\"1\" w:author=\"Ann\" w:date=\"9999-99-99T99:99:99Z\"/><w:del w:id=\"-5\"/>";
+        const QByteArray body = tableOf({{row1, {cellOf(revTag("cellDel", 5) + revTag("cellDel", 5) + revTag("cellIns", 6), para(run("one")))}},
+                                         {revTag("ins", 7), {cellOf({}, para(run("two")))}}}, 1);
+        for (const bool accept : {true, false}) {
+            auto doc = open(makeDocx(body));
+            QVERIFY(doc);
+            QVERIFY(revisionsIn(doc->story()).size() >= 4);
+            acceptAllOrReject(*doc, accept);
+            QVERIFY(doc->toDocx().size() > 0);
+            QVERIFY(open(doc->toDocx()));
+        }
+        // A table with thousands of inserted rows is resolved in a few passes, not one for each row.
+        const int rows = 1500;
+        QVector<TableRow> many;
+        many.push_back({QByteArray(), {cellOf({}, para(run("head")))}});
+        for (int i = 0; i < rows; ++i) many.push_back({revTag("ins", 1000 + i), {cellOf({}, para(inserted(5000 + i, "r")))}});
+        const QByteArray big = makeDocx(tableOf(many, 1));
+        for (const bool accept : {true, false}) {
+            auto doc = open(big);
+            QVERIFY(doc);
+            const qint64 before = revisionBlocksScannedForTest();
+            QCOMPARE(acceptAllOrReject(*doc, accept), 2 * rows);
+            QVERIFY2(revisionBlocksScannedForTest() - before < qint64(rows) * 40, qPrintable(QString::number(revisionBlocksScannedForTest() - before)));
+            const QByteArray saved = documentXml(doc->toDocx());
+            QCOMPARE(count(saved, "<w:tr>") + count(saved, "<w:tr "), accept ? rows + 1 : 1);
+        }
     }
 
     void changesNestedPastTheReadersCapAreKeptAsTheyWereAndTheRestResolved()

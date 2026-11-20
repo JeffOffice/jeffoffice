@@ -474,7 +474,7 @@ QVector<write::StoryRevision> WriteWindow::shownRevisions() const
     const QString person = m_review && m_reviewDock && m_reviewDock->isVisible() ? m_review->chosenPerson() : QString();
     for (const write::StoryRevision &sr : write::documentRevisions(*m_doc)) {
         const write::Revision &r = sr.revision;
-        const bool formatting = r.kind == write::Revision::Format || r.kind == write::Revision::ParagraphFormat;
+        const bool formatting = r.isFormatting();
         if (formatting ? !m_showFormatting : !m_showInsertionsAndDeletions) continue;
         if (m_reviewView == ReviewView::NoMarkup) continue;
         if (!person.isEmpty() && r.author != person) continue;

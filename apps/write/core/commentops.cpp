@@ -1130,6 +1130,14 @@ jp::review::ChangeList reviewChanges(WriteDoc &doc)
         c.position = (qint64(storyOrder.indexOf(where)) << 32) | r.from;
         const QString words = revisionText(where, r);
         switch (r.kind) {
+        case Revision::RowInserted: c.kind = jp::review::Kind::Added; c.summary = QCoreApplication::translate("jp::write::Review", "Inserted row"); break;
+        case Revision::CellInserted: c.kind = jp::review::Kind::Added; c.summary = QCoreApplication::translate("jp::write::Review", "Inserted cell"); break;
+        case Revision::RowDeleted: c.kind = jp::review::Kind::Deleted; c.summary = QCoreApplication::translate("jp::write::Review", "Deleted row"); break;
+        case Revision::CellDeleted: c.kind = jp::review::Kind::Deleted; c.summary = QCoreApplication::translate("jp::write::Review", "Deleted cell"); break;
+        case Revision::CellMerged: c.kind = jp::review::Kind::Edited; c.summary = QCoreApplication::translate("jp::write::Review", "Merged cells"); break;
+        case Revision::TableFormat:
+        case Revision::RowFormat:
+        case Revision::CellFormat: c.kind = jp::review::Kind::Reformatted; c.summary = QCoreApplication::translate("jp::write::Review", "Formatted"); break;
         case Revision::Insertion:
         case Revision::MarkInserted: c.kind = jp::review::Kind::Added; c.summary = words.isEmpty() ? QCoreApplication::translate("jp::write::Review", "Inserted") : QCoreApplication::translate("jp::write::Review", "Inserted: %1").arg(words); break;
         case Revision::Deletion:
