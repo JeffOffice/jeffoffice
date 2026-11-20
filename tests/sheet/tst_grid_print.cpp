@@ -934,16 +934,18 @@ private Q_SLOTS:
         jp::office::sheet::ColumnSpan span;
         span.first = 10;
         span.last = 12;
-        span.style = 3;
+        span.style = 2;   // (the fill that shows)
+        withFormats(&col);
         col.sheet.columns.append(span);
         QCOMPARE(col.run().pages.size(), size_t(6));
         // a format for a row that the last page holds (and a format of none, which is no format)
         Fixture row(99, 2);
         build(row);
+        withFormats(&row);
         jp::office::sheet::RowSpec rs;
         rs.row = 95;
         rs.customFormat = true;
-        rs.style = 3;
+        rs.style = 2;
         row.sheet.rowSpecs.append(rs);
         QCOMPARE(row.run().pages.size(), size_t(6));
         Fixture none(99, 2);

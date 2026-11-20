@@ -644,6 +644,9 @@ struct PaginateTask::Impl {
 
     // the blank pages at the end
     bool trimReady = false;
+    int specStage = 0;
+    size_t specAt = 0, colAt = 0;
+    QVector<jp::office::sheet::RowSpec> rowSpecs;
     ShowCache shows;
     std::vector<quint32> formattedRows;
     std::vector<std::pair<quint32, quint32>> formattedCols;
@@ -836,30 +839,43 @@ struct PaginateTask::Impl {
     size_t reachAt = 0;
     std::vector<qint64> rowBreakList, colBreakList;
 
-    void reachAdd(qint64 row1, qint64 row2, quint32 col1, quint32 col2)
+    qint64 reachAdd(qint64 row1, qint64 row2, quint32 col1, quint32 col2)
     {
+        qint64 added = 1;
         auto band = std::upper_bound(reach.begin(), reach.end(), row1, [](qint64 r, const ReachBand &b) { return r < b.row1; });
         if (band != reach.begin()) --band;
         for (; band != reach.end() && band->row1 <= row2; ++band)
-            if (band->row2 >= row1) band->cols.emplace_back(col1, col2);
+            if (band->row2 >= row1) {
+                band->cols.emplace_back(col1, col2);
+                ++added;
+            }
+        return added;
     }
 
     bool reachStep(Work &w)
     {
         const jp::office::sheet::Sheet &sheet = *q.sheet;
         if (reachPhase == 0) {
-            for (const PageCut &p : out.pages) reach.push_back({p.row1, p.row2, {}});
-            std::sort(reach.begin(), reach.end(), [](const ReachBand &a, const ReachBand &b) { return a.row1 < b.row1; });
-            reach.erase(std::unique(reach.begin(), reach.end(), [](const ReachBand &a, const ReachBand &b) { return a.row1 == b.row1; }), reach.end());
-            w.add(qint64(out.pages.size()));
+            // (the pages of one area, in order: the bands of rows come in order once, whichever way the pages go, and the first page whose row comes back to an earlier one begins the second round)
+            while (reachAt < out.pages.size()) {
+                if (w.spent()) return false;
+                const PageCut &p = out.pages[reachAt];
+                if (!reach.empty() && p.row1 < reach.back().row1) {
+                    reachAt = out.pages.size();
+                    break;
+                }
+                if (reach.empty() || p.row1 != reach.back().row1) reach.push_back({p.row1, p.row2, {}});
+                ++reachAt;
+                w.add();
+            }
             reachPhase = 1;
+            reachAt = 0;
         }
         if (reachPhase == 1) {
             while (reachAt < q.spills.size()) {
                 if (w.spent()) return false;
                 const SpillRun &r = q.spills[reachAt++];
-                reachAdd(r.row, r.row, r.col1, r.col2);
-                w.add();
+                w.add(reachAdd(r.row, r.row, r.col1, r.col2));
             }
             reachPhase = 2;
             reachAt = 0;
@@ -869,7 +885,7 @@ struct PaginateTask::Impl {
                 if (w.spent()) return false;
                 const CellRange &m = sheet.merges[qsizetype(reachAt++)];
                 w.add();
-                if (m.valid && (m.row2 > m.row1 || m.col2 > m.col1)) reachAdd(m.row1, m.row2, m.col1, m.col2);
+                if (m.valid && (m.row2 > m.row1 || m.col2 > m.col1)) w.add(reachAdd(m.row1, m.row2, m.col1, m.col2));
             }
             reachPhase = 3;
             reachAt = 0;
@@ -878,8 +894,7 @@ struct PaginateTask::Impl {
             while (reachAt < q.shownNotes.size()) {
                 if (w.spent()) return false;
                 const std::pair<quint32, quint32> &n = q.shownNotes[reachAt++];
-                reachAdd(n.first, n.first, n.second, n.second);
-                w.add();
+                w.add(reachAdd(n.first, n.first, n.second, n.second));
             }
             reachPhase = 4;
             reachAt = 0;
@@ -952,17 +967,29 @@ struct PaginateTask::Impl {
     {
         if (q.onlySelection || (q.setup.hasPrintArea() && !q.ignorePrintArea) || out.truncated || out.areas.size() != 1) return true;
         if (!trimReady) {
-            for (const jp::office::sheet::RowSpec &r : q.sheet->placedRowSpecs())
+            if (specStage == 0) {
+                rowSpecs = q.sheet->placedRowSpecs();
+                specStage = 1;
+            }
+            while (specAt < size_t(rowSpecs.size())) {
+                if (w.spent()) return false;
+                const jp::office::sheet::RowSpec &r = rowSpecs[qsizetype(specAt++)];
                 if (r.customFormat && shows.formatShown(r.style)) formattedRows.push_back(r.row);
+                w.add();
+            }
             std::sort(formattedRows.begin(), formattedRows.end());
-            for (const jp::office::sheet::ColumnSpan &s : q.sheet->columns)
+            while (colAt < size_t(q.sheet->columns.size())) {
+                if (w.spent()) return false;
+                const jp::office::sheet::ColumnSpan &s = q.sheet->columns[qsizetype(colAt++)];
                 if (shows.formatShown(s.style)) formattedCols.emplace_back(s.first, s.last);
+                w.add();
+            }
             const CellRange &b = out.areas[0];
             if (!q.setup.fitToPage || !(q.setup.fitToWidth > 0 || q.setup.fitToHeight > 0)) {
                 rowBreakList = breaksIn(q.setup.rowBreaks, b.row1, b.row2);
                 colBreakList = breaksIn(q.setup.colBreaks, b.col1, b.col2);
             }
-            w.add(qint64(formattedRows.size() + formattedCols.size() + rowBreakList.size() + colBreakList.size()));
+            w.add(qint64(rowBreakList.size() + colBreakList.size()));
             trimReady = true;
         }
         if (out.pages.size() <= 1) return true;
