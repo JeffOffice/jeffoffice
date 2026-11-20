@@ -126,7 +126,8 @@ void CrunchWindow::refreshAnchors()
 // A shown note's box was moved or sized with the pointer: one step of Undo.
 void CrunchWindow::noteBoxDragged(qint64 row, qint64 col, const QRect &box)
 {
-    if (!m_session || m_sheet < 0 || row < 0 || col < 0) return;
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active || !m_session || m_sheet < 0 || row < 0 || col < 0) return;
     const jp::office::sheet::NoteBox place = crunch::noteBoxFromPixels(box, m_view->sheet().layout().rows, m_view->sheet().layout().cols, quint32(row), quint32(col));
     const crunch::EditSession::Outcome o = m_session->setNoteBox(m_sheet, quint32(row), quint32(col), place, tr("Move or Size Note"));
     if (!o.ok) {

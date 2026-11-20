@@ -11,8 +11,12 @@
 
 namespace jp::crunch {
 
-inline QRect noteBoxPixels(const jp::office::sheet::NoteBox &b, const jp::grid::Axis &rows, const jp::grid::Axis &cols, quint32 row, quint32 col)
+inline QRect noteBoxPixels(const jp::office::sheet::NoteBox &b, const jp::grid::Axis &liveRows, const jp::grid::Axis &liveCols, quint32 row, quint32 col)
 {
+    // (a view whose frozen rows begin below the first has the rows above them skipped, which its axes do not find: the box is worked out at the places of all of them)
+    jp::grid::Axis rows = liveRows, cols = liveCols;
+    rows.setSkipped(0);
+    cols.setSkipped(0);
     auto at = [](const jp::grid::Axis &axis, qint64 cell, int offset) {
         if (axis.count() <= 0) return qint64(offset);
         cell = std::clamp<qint64>(cell, 0, axis.count() - 1);
@@ -26,8 +30,11 @@ inline QRect noteBoxPixels(const jp::office::sheet::NoteBox &b, const jp::grid::
                  int(std::clamp<qint64>(std::max<qint64>(1, y2 - y1), 1, 10000000)));
 }
 
-inline jp::office::sheet::NoteBox noteBoxFromPixels(const QRect &rel, const jp::grid::Axis &rows, const jp::grid::Axis &cols, quint32 row, quint32 col)
+inline jp::office::sheet::NoteBox noteBoxFromPixels(const QRect &rel, const jp::grid::Axis &liveRows, const jp::grid::Axis &liveCols, quint32 row, quint32 col)
 {
+    jp::grid::Axis rows = liveRows, cols = liveCols;
+    rows.setSkipped(0);
+    cols.setSkipped(0);
     // (a place as a cell, counted from the note's, and the pixels into it; before the sheet is the first cell's edge, past it is the last cell's, as far as that goes)
     auto cellAt = [](const jp::grid::Axis &axis, qint64 place, qint64 own, int *cell, int *offset) {
         if (axis.count() <= 0) {

@@ -1525,6 +1525,7 @@ private:
     int m_opSeq = 0;                   // the order renames of columns and tables are made in
     bool m_lastCalculated = false;     // the last entry made its column a calculated column (see lastEntryMadeCalculatedColumn)
     int m_calculatedIndex = -1;        // the place on the undo stack of the step that made it
+    bool m_pairing = false;            // moveCellsInserting is between its two parts: they were asked about together, and the history is not let go of until both are done
     bool m_bigStepAllowed = false;     // see allowNextBigStep
     std::shared_ptr<LineDrops> m_lineDrops = std::make_shared<LineDrops>();
     // With the workbook held: lets go of what the steps that are gone held of the order of rows and columns.

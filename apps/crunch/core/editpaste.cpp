@@ -537,37 +537,63 @@ EditSession::Outcome EditSession::moveCellsInserting(int sheet, const CellRange 
     if (shiftDown) {
         const bool sameColumns = source.col1 == target.col1 && source.col2 == target.col2;
         if (sameColumns && source.row2 >= target.row1) {
-            if (source.row1 < target.row1) return refuse(tr("The cells can't be put in their own way. Drag them somewhere else."));
+            if (source.row1 < target.row1) return refuse(tr("Cells can't be inserted into themselves. Drag them somewhere else."));
             from.row1 += rows;
             from.row2 += rows;
         } else if (!sameColumns && source.col1 <= target.col2 && source.col2 >= target.col1 && source.row2 >= target.row1) {
-            return refuse(tr("The cells can't be put in their own way. Drag them somewhere else."));
+            return refuse(tr("Cells can't be inserted into themselves. Drag them somewhere else."));
         }
     } else {
         const bool sameRows = source.row1 == target.row1 && source.row2 == target.row2;
         if (sameRows && source.col2 >= target.col1) {
-            if (source.col1 < target.col1) return refuse(tr("The cells can't be put in their own way. Drag them somewhere else."));
+            if (source.col1 < target.col1) return refuse(tr("Cells can't be inserted into themselves. Drag them somewhere else."));
             from.col1 += cols;
             from.col2 += cols;
         } else if (!sameRows && source.row1 <= target.row2 && source.row2 >= target.row1 && source.col2 >= target.col1) {
-            return refuse(tr("The cells can't be put in their own way. Drag them somewhere else."));
+            return refuse(tr("Cells can't be inserted into themselves. Drag them somewhere else."));
         }
     }
     QString why;
-    // (both parts are asked about first, as the edits stand now: a refusal leaves nothing done, and nothing to redo)
+    // (the part that makes room is asked about first, as the sheet stands: a refusal leaves nothing done. The move is asked about when its turn comes, as the sheet stands after the room is made,
+    // since cells that are to shift away are not in its way; if it is refused then, the room is taken back)
     const StructEdit insert = shiftDown ? StructEdit::insertCellsDown(sheet, target) : StructEdit::insertCellsRight(sheet, target);
-    if (!canMove(insert, &why) || !canMove(StructEdit::move(sheet, source, sheet, toRow, toCol), &why)) return refuse(why);
-    const int start = m_undo.index();
-    m_undo.beginMacro(tr("Inserting cells"));
-    Outcome done = structure(insert, tr("Inserting cells"));
-    if (done.ok && !done.confirm && m_betweenStepsHook) m_betweenStepsHook();
-    if (done.ok && !done.confirm) done = structure(StructEdit::move(sheet, from, sheet, toRow, toCol), tr("Moving cells"));
-    m_undo.endMacro();
-    if (!done.ok) {
-        // (what was done is taken back; the step is dropped from the redo list by the macro being empty or undone)
-        while (m_undo.index() > start) m_undo.undo();
-        return done;
+    if (!canMove(insert, &why)) return refuse(why);
+    // one question for the two parts about what Undo can hold, asked before either is done
+    const StructEdit moveEdit = StructEdit::move(sheet, source, sheet, toRow, toCol);
+    bool big = false;
+    {
+        std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+        if (!hold) return refuse(tr("The workbook is busy. Try again in a moment."));
+        const qint64 limit = m_undoByteLimit;
+        big = hold->calculation()->estimateUndoBytes(insert, limit + 1) + hold->calculation()->estimateUndoBytes(moveEdit, limit + 1) > limit;
     }
+    if (big && !m_bigStepAllowed) {
+        out.ok = false;
+        out.confirm = true;
+        out.problem = tr("This can't be undone, and neither can what you did before it. Do you want to go on?");
+        return out;
+    }
+    m_bigStepAllowed = false;
+    const int start = m_undo.index();
+    m_pairing = true;
+    m_undo.beginMacro(tr("Moving cells"));
+    Outcome done = structure(insert, tr("Inserting cells"));
+    if (done.ok && m_betweenStepsHook) m_betweenStepsHook();
+    if (done.ok) done = structure(StructEdit::move(sheet, from, sheet, toRow, toCol), tr("Moving cells"));
+    m_undo.endMacro();
+    m_pairing = false;
+    if (!done.ok) {
+        // (what was done is taken back; then an obsolete command with nothing in it is pushed, which drops the undone macro from the stack and is not kept itself, so there is nothing to redo)
+        if (m_undo.index() > start) m_undo.undo();
+        auto *nothing = new QUndoCommand;
+        nothing->setObsolete(true);
+        m_undo.push(nothing);
+        out.ok = false;
+        out.problem = done.problem;
+        return out;
+    }
+    // (what both parts hold is let go of with the steps before, as for one step that is too big)
+    if (big) forgetStepsDone();
     return out;
 }
 

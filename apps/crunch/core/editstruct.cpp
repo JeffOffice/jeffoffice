@@ -219,7 +219,7 @@ EditSession::Outcome EditSession::structure(const StructEdit &edit, const QStrin
     }
     // a step that would hold more than Undo can is asked about first (what it deletes or writes over, and what it writes again, are kept to undo it)
     bool big = false;
-    {
+    if (!m_pairing) {   // (the two parts of a move that makes room are asked about together, by their caller)
         // (the graph is asked how many formulas read what moves, with the worker held back: it works in the graph)
         std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
         if (!hold) {
@@ -236,7 +236,7 @@ EditSession::Outcome EditSession::structure(const StructEdit &edit, const QStrin
         out.problem = tr("This can't be undone, and neither can what you did before it. Do you want to go on?");
         return out;
     }
-    m_bigStepAllowed = false;
+    if (!m_pairing) m_bigStepAllowed = false;
     Step step;
     step.structure = std::make_shared<StructChange>();
     step.structure->drops = m_lineDrops;
