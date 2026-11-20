@@ -119,7 +119,7 @@ public:
         form->addRow(QString(), m_gray);
         m_comments = new QCheckBox(DeckWindow::tr("Print comments"), this);
         m_comments->setObjectName(QStringLiteral("outputComments"));
-        m_comments->setToolTip(DeckWindow::tr("A page of the slide's review comments after each slide that has any (slides and notes pages)."));
+        m_comments->setToolTip(DeckWindow::tr("The pages of the slide's review comments after each slide that has any (slides and notes pages)."));
         form->addRow(QString(), m_comments);
         m_tags = new QCheckBox(DeckWindow::tr("Document structure tags for accessibility"), this);
         m_tags->setObjectName(QStringLiteral("pdfTags"));

@@ -366,7 +366,7 @@ QWidget *DeckFileScreen::buildPrint()
     QCheckBox *reverse = makeReverseBox(w);
     auto *comments = new QCheckBox(tr("Print comments"), w);
     comments->setObjectName(QStringLiteral("printComments"));
-    comments->setToolTip(tr("A page of the slide's review comments after each slide that has any (slides and notes pages)."));
+    comments->setToolTip(tr("The pages of the slide's review comments after each slide that has any (slides and notes pages)."));
     auto *highQuality = new QCheckBox(tr("High quality"), w);
     highQuality->setObjectName(QStringLiteral("printHighQuality"));
     highQuality->setToolTip(tr("Grayscale and pure black and white pages are made at 600 to the inch, not 300 (300 for a very large page). It takes longer and more memory."));

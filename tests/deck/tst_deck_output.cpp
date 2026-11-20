@@ -777,6 +777,18 @@ private Q_SLOTS:
         const QSizeF sheet = deck::outputPageSize(*d, o);
         const QVector<deck::CommentsPage> pages = deck::commentsPages(*d, 0, sheet);
         QCOMPARE(pages.size(), 20);
+        // (the room a page has is not a whole number of lines: the line that says so stands clear of the last line of text on sheets of several heights, whichever way the room falls)
+        for (double height = 500; height < 560; height += 3.7) {
+            const QVector<deck::CommentsPage> tall = deck::commentsPages(*d, 0, QSizeF(sheet.width(), height));
+            QCOMPARE(tall.size(), 20);
+            const deck::CommentsPage &end = tall.last();
+            QVERIFY(end.notShown > 0 && end.noticeTop >= 0);
+            for (int i = 0; i < end.tops.size(); ++i) QVERIFY2(end.tops[i] + end.lineHeight <= end.noticeTop + 0.01, qPrintable(QStringLiteral("height %1, line %2").arg(height).arg(i)));
+            QVERIFY(end.noticeTop + end.lineHeight <= end.bottom + 0.01);
+            int count = 0;
+            for (const deck::CommentsPage &page : tall) count += int(page.lines.size());
+            QCOMPARE(end.notShown, int(comments::commentsOf(*d->pages[0]).size()) - count);
+        }
         int shown = 0;
         for (const deck::CommentsPage &page : pages) shown += int(page.lines.size());
         const deck::CommentsPage &last = pages.last();
@@ -786,9 +798,6 @@ private Q_SLOTS:
         QVERIFY(shown > 0 && shown < held);
         QCOMPARE(last.notShown, held - shown);
         QVERIFY(last.noticeTop >= 0);
-        // no line of text reaches the line that says so, and it is inside the text area
-        for (int i = 0; i < last.tops.size(); ++i) QVERIFY2(last.tops[i] + last.lineHeight <= last.noticeTop + 0.01, qPrintable(QString::number(i)));
-        QVERIFY(last.noticeTop + last.lineHeight <= last.bottom + 0.01);
         for (int p = 0; p + 1 < pages.size(); ++p) QCOMPARE(pages[p].noticeTop, -1.0);
         // (every page keeps to its text area)
         for (const deck::CommentsPage &page : pages)
@@ -801,7 +810,9 @@ private Q_SLOTS:
         QVERIFY2(deck::exportPdf(*d, path, o, &err), qPrintable(err));
         const QByteArray pdf = fileBytes(path);
         QCOMPARE(pdfPageCount(pdf), 21);
-        QVERIFY2(pdfText(pdf, 20).contains(QStringLiteral("More comments are not shown: %1.").arg(last.notShown)), qPrintable(pdfText(pdf, 20).right(120)));
+        // (the words of the counted message, whether the text is the translation's or the source's: the number, "more comment", and "not shown")
+        const QString said = pdfText(pdf, 20);
+        QVERIFY2(said.contains(QStringLiteral("%1 more comment").arg(last.notShown)) && said.contains(QStringLiteral("not shown")), qPrintable(said.right(120)));
     }
 
     // The comments are real content of a tagged PDF, a heading and a paragraph for each comment or reply, in reading order after the slide's own page; not decoration.
