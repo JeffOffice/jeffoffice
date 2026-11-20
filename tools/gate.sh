@@ -33,7 +33,7 @@ run() {  # run <log> <suite> <shard or ""> [functions...]
   mkdir -p "$T/$log/.config"
   ( [ -n "$shard" ] && export JO_APPCHECK_SHARD=$shard
     # (output capped: a crashing test can make QtTest's crash handler print "Received signal" without end; one filled the disk on Nov 8)
-    HOME=$T/$log XDG_CONFIG_HOME=$T/$log/.config QT_QPA_PLATFORM=offscreen JP_NO_TELEMETRY=1 timeout 2400 systemd-run --user --scope -p MemoryMax=12G -q ./$s ${JO_GATE_XML:+-o "$L.$log.xml,xml" -o "-,txt"} "$@" 2>&1 | head -c 200M > "$L.$log" ) &
+    HOME=$T/$log XDG_CONFIG_HOME=$T/$log/.config QT_QPA_PLATFORM=offscreen JP_NO_TELEMETRY=1 JO_REQUIRE_ODF_VALIDATE=1 timeout 2400 systemd-run --user --scope -p MemoryMax=12G -q ./$s ${JO_GATE_XML:+-o "$L.$log.xml,xml" -o "-,txt"} "$@" 2>&1 | head -c 200M > "$L.$log" ) &
 }
 wait_slot() { while [ "$(jobs -rp | wc -l)" -ge "$PAR" ]; do sleep 1; done; }
 SPLIT=${JO_GATE_SPLIT:-4}

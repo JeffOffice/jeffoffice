@@ -2,8 +2,10 @@
 
 #include "io/zip.h"
 
+#include <QCoreApplication>
 #include <QFile>
 #include <QLibrary>
+#include <QRegularExpression>
 #include <QSysInfo>
 #include <QXmlStreamReader>
 #include <QXmlStreamWriter>
@@ -14,6 +16,13 @@
 
 namespace odfcheck {
 namespace {
+
+int validated = 0;
+constexpr char ourNamespace[] = "urn:jeffoffice:odf-extension";
+constexpr char ourObjectNamespace[] = "urn:jeffoffice:names:extension:1.0";
+constexpr char ourNoteNamespace[] = "urn:jeffoffice:note";
+constexpr char calcextNamespace[] = "urn:org:documentfoundation:names:experimental:calc:xmlns:calcext:1.0";
+constexpr char loextNamespace[] = "urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0";
 
 // The few libxml2 entry points the check uses, found by name when the test runs. Only opaque pointers are passed, but for the two small structures read back (the error and the node), whose first fields are
 // the same in every 2.x release.
@@ -60,16 +69,21 @@ struct Xml2 {
     }
 };
 
+// What the validator said: levels 1 (warning) and up are told apart, so that a warning is not counted as an error.
+struct Said {
+    QStringList errors, warnings;
+};
+
 void collect(void *user, const XmlError *e)
 {
-    QStringList *into = static_cast<QStringList *>(user);
-    if (!e || into->size() > 40) return;
+    Said *said = static_cast<Said *>(user);
+    if (!e || said->errors.size() + said->warnings.size() > 40) return;
     QString text = QString::fromUtf8(e->message).trimmed();
     if (e->node) {
         const XmlNode *n = static_cast<const XmlNode *>(e->node);
         if (n->name && (n->type == 1)) text += QStringLiteral(" [element ") + QString::fromUtf8(reinterpret_cast<const char *>(n->name)) + QLatin1Char(']');
     }
-    into->append(QString::number(e->line) + QLatin1Char('\t') + text);
+    sortMessage(e->level, QString::number(e->line) + QLatin1Char('\t') + text, &said->errors, &said->warnings);
 }
 
 QByteArray readSchema(const char *name)
@@ -90,13 +104,13 @@ void *compile(Xml2 &x, const char *file, QString *why)
         *why = QStringLiteral("libxml2 could not read %1").arg(QLatin1String(file));
         return nullptr;
     }
-    QStringList errors;
+    Said said;
     void *parser = x.newDocParser(doc);
-    x.setParserErrors(parser, collect, &errors);
+    x.setParserErrors(parser, collect, &said);
     void *schema = x.parse(parser);
     x.freeParser(parser);
     x.freeDoc(doc);
-    if (!schema) *why = QStringLiteral("libxml2 could not compile %1: %2").arg(QLatin1String(file), errors.value(0));
+    if (!schema) *why = QStringLiteral("libxml2 could not compile %1: %2").arg(QLatin1String(file), said.errors.value(0));
     return schema;
 }
 
@@ -106,15 +120,17 @@ Xml2 &xml2()
     static bool tried = false;
     if (tried) return x;
     tried = true;
-    // (the system's own: the sonames of Linux, the Mac's system library, and the names a Windows toolchain gives it)
-    const char *const names[] = {"libxml2.so.2", "libxml2.so", "/usr/lib/libxml2.2.dylib", "/usr/lib/libxml2.dylib", "libxml2-2", "libxml2-16", "libxml2"};
+    // (the system's own: the sonames of Linux, the Mac's system library, and the names a Windows toolchain gives it; the newer releases changed the number: libxml2.so.16, libxml2.16.dylib, libxml2-16.dll)
+    const char *const names[] = {"libxml2.so.16", "libxml2.so.2", "libxml2.so", "/usr/lib/libxml2.2.dylib", "/usr/lib/libxml2.16.dylib", "/usr/lib/libxml2.dylib", "libxml2.16.dylib", "libxml2.2.dylib", "libxml2.dylib", "libxml2-16", "libxml2-2", "libxml2"};
+    QStringList attempts;
     for (const char *name : names) {
-        x.lib.setFileName(QString::fromLatin1(name));
+        attempts << QString::fromLatin1(name);
+        x.lib.setFileName(attempts.last());
         if (x.lib.load()) break;
     }
     const QString platform = QSysInfo::prettyProductName();
     if (!x.lib.isLoaded()) {
-        x.why = QStringLiteral("libxml2 is not on this machine (%1): it needs the system's libxml2 2.9 or later (libxml2.so.2, libxml2.2.dylib, or libxml2-2.dll on the path)").arg(platform);
+        x.why = QStringLiteral("libxml2 is not on this machine (%1): it needs the system's libxml2 2.9 or later; tried: %2").arg(platform, attempts.join(QLatin1String(", ")));
         return x;
     }
 #define RESOLVE(field, symbol) *reinterpret_cast<void **>(&x.field) = reinterpret_cast<void *>(x.lib.resolve(symbol))
@@ -147,30 +163,38 @@ bool standard(QStringView ns)
            ns == QLatin1String("http://www.w3.org/1998/Math/MathML") || ns == QLatin1String("http://www.w3.org/XML/1998/namespace");
 }
 
-// The part without the names of other makers, each element on a line of its own (so that a message's line is the element's), and what was taken out. False if the part is not well formed.
-bool strip(const QByteArray &xml, QByteArray *out, QStringList *privateNames, QString *why, bool asVersion12)
+// The part without the names of ours and of the other suites' extension namespaces (exact addresses, see isExtensionNamespace), each element on a line of its own (so that a message's line is the element's), and what was taken out.
+// An element of an extension namespace is taken out but its standard children stay, in its place (counted in `wrappers`, so that a test can bound them); a name of any other namespace is an error. False if the part is not well formed.
+bool strip(const QByteArray &xml, QByteArray *out, QStringList *privateNames, QStringList *errors, int *wrappers, const QString &part, QString *why, bool asVersion12)
 {
     QXmlStreamReader r(xml);
     QXmlStreamWriter w(out);
     w.setAutoFormatting(false);
-    const auto note = [privateNames](const QString &ns, const QString &local) {
+    const auto note = [&](const QString &ns, const QString &local) {
         const QString name = QLatin1Char('{') + ns + QLatin1Char('}') + local;
         if (!privateNames->contains(name)) privateNames->append(name);
+        if (!isExtensionNamespace(ns)) {
+            const QString error = part + QLatin1String(": a name of a namespace that is neither the standard's nor a listed extension: ") + name;
+            if (!errors->contains(error)) errors->append(error);
+        }
     };
     bool first = true;
+    // for each open element: 0 kept, 1 taken out with its children kept, and whether a standard element was seen inside it
+    struct Open {
+        bool wrapper;
+        bool standardInside;
+    };
+    QList<Open> open;
     while (!r.atEnd()) {
         r.readNext();
         if (r.isStartElement()) {
             if (!standard(r.namespaceUri())) {
                 note(r.namespaceUri().toString(), r.name().toString());
-                int depth = 1;
-                while (depth > 0 && !r.atEnd()) {
-                    r.readNext();
-                    if (r.isStartElement()) ++depth;
-                    else if (r.isEndElement()) --depth;
-                }
+                open.append({true, false});
                 continue;
             }
+            for (Open &o : open) o.standardInside = true;
+            open.append({false, false});
             if (!first) w.writeCharacters(QStringLiteral("\n"));
             first = false;
             w.writeStartElement(r.qualifiedName().toString());
@@ -187,9 +211,14 @@ bool strip(const QByteArray &xml, QByteArray *out, QStringList *privateNames, QS
                 w.writeAttribute(a.qualifiedName().toString(), version ? QStringLiteral("1.2") : a.value().toString());
             }
         } else if (r.isEndElement()) {
-            w.writeEndElement();
+            const Open o = open.takeLast();
+            if (o.wrapper) {
+                if (o.standardInside) ++*wrappers;
+            } else {
+                w.writeEndElement();
+            }
         } else if (r.isCharacters()) {
-            w.writeCharacters(r.text().toString());
+            if (open.isEmpty() || !open.last().wrapper) w.writeCharacters(r.text().toString());
         }
     }
     if (r.hasError()) {
@@ -200,6 +229,58 @@ bool strip(const QByteArray &xml, QByteArray *out, QStringList *privateNames, QS
 }
 
 } // namespace
+
+bool filteredRun()
+{
+    const QStringList args = QCoreApplication::arguments();
+    for (qsizetype i = 1; i < args.size(); ++i)
+        if (!args.at(i).startsWith(QLatin1Char('-'))) return true;
+    return false;
+}
+
+void sortMessage(int level, const QString &text, QStringList *errors, QStringList *warnings)
+{
+    (level <= 1 ? warnings : errors)->append(text);
+}
+
+int validatedParts()
+{
+    return validated;
+}
+
+bool required()
+{
+    return qEnvironmentVariable("JO_REQUIRE_ODF_VALIDATE") == QLatin1String("1");
+}
+
+bool isExtensionNamespace(const QString &ns)
+{
+    return ns == QLatin1String(ourNamespace) || ns == QLatin1String(ourObjectNamespace) || ns == QLatin1String(ourNoteNamespace) || ns == QLatin1String(calcextNamespace) || ns == QLatin1String(loextNamespace);
+}
+
+QString unlistedPrivateName(const Result &r)
+{
+    for (const QString &name : r.privateNames) {
+        const qsizetype end = name.indexOf(QLatin1Char('}'));
+        if (!name.startsWith(QLatin1Char('{')) || end < 0 || !isExtensionNamespace(name.mid(1, end - 1))) return name;
+    }
+    return QString();
+}
+
+QStringList errorsWithout(const QStringList &errors, const QStringList &needles, const QStringList &containers)
+{
+    // The validator also reports the elements that hold the offending one ("Extra element X in interleave", "Element X failed to validate content", ...): those of the named containers belong to the gap.
+    static const QRegularExpression phrase(QStringLiteral("Extra element|Invalid sequence in interleave|failed to validate|has extra content|Did not expect element"));
+    QStringList left;
+    for (const QString &e : errors) {
+        bool known = false;
+        for (const QString &n : needles) known = known || e.contains(n);
+        if (!known && e.contains(phrase))
+            for (const QString &c : containers) known = known || e.contains(QRegularExpression(QStringLiteral("[eE]lement ") + QRegularExpression::escape(c) + QStringLiteral("(?![\\w-])")));
+        if (!known) left << e;
+    }
+    return left;
+}
 
 QString unavailableReason()
 {
@@ -217,7 +298,7 @@ Result checkPart(const QString &part, const QByteArray &xml, Kind kind, bool asV
     }
     QByteArray clean;
     QString why;
-    if (!strip(xml, &clean, &r.privateNames, &why, asVersion12)) {
+    if (!strip(xml, &clean, &r.privateNames, &r.errors, &r.wrappers, part, &why, asVersion12)) {
         r.ran = true;
         r.errors << part + QLatin1String(": ") + why;
         return r;
@@ -228,20 +309,24 @@ Result checkPart(const QString &part, const QByteArray &xml, Kind kind, bool asV
         r.errors << part + QLatin1String(": libxml2 could not read the part");
         return r;
     }
-    QStringList raw;
+    Said said;
     void *valid = x.newValid(kind == Kind::Manifest ? x.manifest : x.document);
-    x.setValidErrors(valid, collect, &raw);
+    x.setValidErrors(valid, collect, &said);
     const int bad = x.validate(valid, doc);
     x.freeValid(valid);
     x.freeDoc(doc);
     r.ran = true;
+    r.parts = 1;
+    ++validated;
     const QList<QByteArray> lines = clean.split('\n');
-    for (const QString &e : raw) {
+    const auto describe = [&](const QString &e) {
         const qsizetype tab = e.indexOf(QLatin1Char('\t'));
         const int line = e.left(tab).toInt();
         const QString at = line >= 1 && line <= lines.size() ? QString::fromUtf8(lines.at(line - 1).left(200)) : QString();
-        r.errors << QStringLiteral("%1 line %2: %3 | %4").arg(part).arg(line).arg(e.mid(tab + 1), at);
-    }
+        return QStringLiteral("%1 line %2: %3 | %4").arg(part).arg(line).arg(e.mid(tab + 1), at);
+    };
+    for (const QString &e : said.errors) r.errors << describe(e);
+    for (const QString &e : said.warnings) r.warnings << describe(e);
     if (bad && r.errors.isEmpty()) r.errors << part + QLatin1String(": the part does not validate");
     return r;
 }
@@ -268,6 +353,9 @@ Result checkPackage(const QByteArray &zip, const QStringList &wanted, bool asVer
         }
         const Result one = checkPart(name, parts.value(name), name.startsWith(QLatin1String("META-INF/")) ? Kind::Manifest : Kind::Document, asVersion12);
         all.errors += one.errors;
+        all.warnings += one.warnings;
+        all.parts += one.parts;
+        all.wrappers += one.wrappers;
         for (const QString &n : one.privateNames)
             if (!all.privateNames.contains(n)) all.privateNames << n;
     }

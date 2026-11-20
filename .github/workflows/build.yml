@@ -764,6 +764,8 @@ jobs:
         env:
           QT_QPA_PLATFORM: offscreen
           JP_TEST_TRACE: '1'
+          # (the tests of the OpenDocument writers must check their files against the schema on Linux and the Mac, not skip: a validator that stops being found fails them; Windows has none)
+          JO_REQUIRE_ODF_VALIDATE: ${{ runner.os != 'Windows' && '1' || '' }}
           # (the FFmpeg in Qt's folder is ours, so JeffDeck's tests of the formats it leaves out run: tests/data/media)
           JO_MINIMAL_FFMPEG: '1'
           # (our own Linux machine has the processors to run the biggest programs in parts; GitHub's have two to four)

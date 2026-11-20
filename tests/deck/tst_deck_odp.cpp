@@ -164,8 +164,11 @@ QString attrOf(const QDomElement &e, const char *qualified)
 class DeckOdpTests : public QObject {
     Q_OBJECT
 
+    int m_validatedBefore = 0;
+
 private Q_SLOTS:
-    void initTestCase() { initDeckTestCase(); }
+    void initTestCase() { initDeckTestCase(); m_validatedBefore = odfcheck::validatedParts(); }
+    void cleanupTestCase() { ODF_ASSERT_VALIDATED(m_validatedBefore); }
 
     // Presentation files open through one function that looks at the file, not
     // its name: the old binary format by its compound file signature.
@@ -3610,10 +3613,20 @@ private Q_SLOTS:
         QVERIFY(readZip(bytes, parts));
         QStringList wanted{QStringLiteral("content.xml"), QStringLiteral("styles.xml"), QStringLiteral("META-INF/manifest.xml")};
         if (parts.contains(QStringLiteral("settings.xml"))) wanted << QStringLiteral("settings.xml");
+        if (parts.contains(QStringLiteral("meta.xml"))) wanted << QStringLiteral("meta.xml");
+        // the shortcut, stated: the writer's own version is 1.3 (asserted here), the schema is 1.2's, so the check reads 1.3 as 1.2
+        for (const QString &name : {QStringLiteral("content.xml"), QStringLiteral("styles.xml")}) {
+            const QByteArray head = parts.value(name).left(3000);
+            QVERIFY2(head.contains("office:version=\"1.3\""), qPrintable(name + QLatin1String(" is not written as version 1.3: the check below reads 1.3 as 1.2 (the schema here is 1.2's), so it must be changed with the writer's version")));
+        }
+        QVERIFY2(parts.value(QStringLiteral("META-INF/manifest.xml")).contains("manifest:version=\"1.3\""), "the manifest is not written as version 1.3: the check reads 1.3 as 1.2 (the schema here is 1.2's)");
         const odfcheck::Result r = odfcheck::checkPackage(bytes, wanted, true);
-        if (!r.ran) QSKIP(qPrintable(QStringLiteral("not checked: ") + r.skip));
+        if (!r.ran) ODF_SKIP_OR_FAIL(r.skip);
+        QCOMPARE(r.parts, int(wanted.size()));
+        QCOMPARE(r.wrappers, 0);
+        QVERIFY2(r.warnings.isEmpty(), qPrintable(r.warnings.mid(0, 3).join(QLatin1Char('\n'))));
         QVERIFY2(r.errors.isEmpty(), qPrintable(QString::number(r.errors.size()) + QLatin1String(" errors: ") + r.errors.mid(0, 6).join(QLatin1Char('\n'))));
-        for (const QString &name : r.privateNames) QVERIFY2(name.startsWith(QLatin1String("{urn:jeffoffice:odf-extension}")) || name.startsWith(QLatin1String("{urn:org:documentfoundation:names:experimental:")), qPrintable(QLatin1String("a name of another maker: ") + name));
+        QVERIFY2(odfcheck::unlistedPrivateName(r).isEmpty(), qPrintable(QLatin1String("a name of another maker: ") + odfcheck::unlistedPrivateName(r)));
     }
 };
 

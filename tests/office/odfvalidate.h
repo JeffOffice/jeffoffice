@@ -13,6 +13,9 @@ namespace odfcheck {
 struct Result {
     bool ran = false;
     QString skip;                 // why the check did not run (the machine has no libxml2, or the schema folder is missing)
+    QStringList warnings;         // what the validator said below the level of an error, apart
+    int parts = 0;                // how many parts were really validated (a test asserts it is above zero)
+    int wrappers = 0;             // how many extension elements were taken out that had standard elements inside (their children stay in place)
     QStringList errors;           // "part line N: the validator's message | the offending element's start"
     QStringList privateNames;     // "{namespace}name" of each element and attribute taken out
 };
@@ -28,7 +31,42 @@ Result checkPart(const QString &part, const QByteArray &xml, Kind kind = Kind::D
 // "META-INF/manifest.xml"); a wanted part that is missing is an error.
 Result checkPackage(const QByteArray &zip, const QStringList &wanted, bool asVersion12 = false);
 
+// Where a message of the validator goes: level 1 (a warning) apart, level 2 and up (an error, a fatal error) with the errors. (The collector of the check uses this.)
+void sortMessage(int level, const QString &text, QStringList *errors, QStringList *warnings);
+
+// How many parts this program has validated so far (each test class asserts that its own share is above zero when the validator is present).
+int validatedParts();
+
+// Whether the program was started with the names of test functions (a run of a few tests, which need not validate anything).
+bool filteredRun();
+
+// JO_REQUIRE_ODF_VALIDATE=1 in the environment: a machine with no validator is then a failure, not a skip (set where the gate and CI run the tests).
+bool required();
+
+// Whether a namespace is one of ours or of another suite's listed extensions (exact addresses); the part check takes these names out, and any other maker's name is an error.
+bool isExtensionNamespace(const QString &ns);
+
+// The first name in `r.privateNames` that is not in a listed extension namespace (empty if there is none).
+QString unlistedPrivateName(const Result &r);
+
+// The errors that are not a known gap's: those that mention none of `needles`, and are not the validator's report of a failed container (a "failed to validate", "extra content", "Extra element ... in
+// interleave" message) of one of the named `containers`, which the gap causes.
+QStringList errorsWithout(const QStringList &errors, const QStringList &needles, const QStringList &containers = QStringList());
+
 // Whether the check can run here, and if not, why (naming the platform and what is needed).
 QString unavailableReason();
 
 } // namespace odfcheck
+
+// In a test: the check did not run. A skip, unless the environment requires the validator (then it fails, so that a validator that silently stopped being found is noticed).
+#define ODF_SKIP_OR_FAIL(reason)                                                                                                                  \
+    do {                                                                                                                                         \
+        if (odfcheck::required()) QFAIL(qPrintable(QStringLiteral("JO_REQUIRE_ODF_VALIDATE is set, and the validator did not run: ") + (reason))); \
+        QSKIP(qPrintable(QStringLiteral("not checked: ") + (reason)));                                                                           \
+    } while (0)
+
+// In a test class that validates: at the end, if the validator is present, more parts were checked than at the start (`before` is validatedParts() from initTestCase).
+#define ODF_ASSERT_VALIDATED(before)                                                                                                             \
+    do {                                                                                                                                         \
+        if (odfcheck::unavailableReason().isEmpty() && !odfcheck::filteredRun()) QVERIFY2(odfcheck::validatedParts() > (before), "the validator is present, but no part was validated in this class"); \
+    } while (0)

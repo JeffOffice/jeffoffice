@@ -404,7 +404,11 @@ QStringList standardParagraphsOf(const QString &bodyXmlOfDocx)
 
 class OdtTests : public QObject {
     Q_OBJECT
+    int m_validatedBefore = 0;
 private Q_SLOTS:
+    void initTestCase() { m_validatedBefore = odfcheck::validatedParts(); }
+    void cleanupTestCase() { ODF_ASSERT_VALIDATED(m_validatedBefore); }
+
     // Heavy dashed underlines keep their line and their weight both ways: the bold long-dash, dot-dash, and dot-dot-dash of an .odt are the heavy ones of a .docx, and back.
     void heavyDashedUnderlinesSurviveBothWays()
     {
@@ -3216,10 +3220,13 @@ private Q_SLOTS:
     // The check of a document, shared: the content and styles must have no error left once the names of ours are taken out, and what was taken out is only ours.
     static void mustBeValid(const QByteArray &odt, const char *what)
     {
-        const odfcheck::Result r = odfcheck::checkPackage(odt, {QStringLiteral("content.xml"), QStringLiteral("styles.xml"), QStringLiteral("META-INF/manifest.xml")});
-        if (!r.ran) QSKIP(qPrintable(QStringLiteral("not checked: ") + r.skip));
+        const odfcheck::Result r = odfcheck::checkPackage(odt, {QStringLiteral("content.xml"), QStringLiteral("styles.xml"), QStringLiteral("meta.xml"), QStringLiteral("META-INF/manifest.xml")});
+        if (!r.ran) ODF_SKIP_OR_FAIL(r.skip);
         QVERIFY2(r.errors.isEmpty(), qPrintable(QString::fromLatin1(what) + QLatin1String(": ") + r.errors.mid(0, 6).join(QLatin1Char('\n'))));
-        for (const QString &name : r.privateNames) QVERIFY2(name.startsWith(QLatin1String("{urn:jeffoffice:odf-extension}")), qPrintable(QString::fromLatin1(what) + QLatin1String(" has a name of another maker: ") + name));
+        QVERIFY2(r.warnings.isEmpty(), qPrintable(QString::fromLatin1(what) + QLatin1String(" has warnings: ") + r.warnings.mid(0, 3).join(QLatin1Char('\n'))));
+        QCOMPARE(r.parts, 4);
+        QCOMPARE(r.wrappers, 0);
+        QVERIFY2(odfcheck::unlistedPrivateName(r).isEmpty(), qPrintable(QString::fromLatin1(what) + QLatin1String(" has a name of another maker: ") + odfcheck::unlistedPrivateName(r)));
     }
 
     void aPlainDocumentIsValidAgainstTheSchema()
@@ -3276,7 +3283,11 @@ private Q_SLOTS:
         const QByteArray odt = fromDocxPackage(w.finish());
         QVERIFY(QString::fromUtf8(filesOf(odt).value(QStringLiteral("styles.xml"))).contains(QLatin1String("style:header-first")));
         const odfcheck::Result r = odfcheck::checkPackage(odt, {QStringLiteral("styles.xml")});
-        if (!r.ran) QSKIP(qPrintable(QStringLiteral("not checked: ") + r.skip));
+        if (!r.ran) ODF_SKIP_OR_FAIL(r.skip);
+        // only the known gap may be among the errors; a different error fails here
+        const QStringList other = odfcheck::errorsWithout(r.errors, {QStringLiteral("header-first"), QStringLiteral("footer-first")}, {QStringLiteral("header"), QStringLiteral("footer"), QStringLiteral("master-page")});
+        QVERIFY2(other.isEmpty(), qPrintable(QStringLiteral("an error other than the known gap: ") + other.mid(0, 3).join(QLatin1Char('\n'))));
+        // the marker: this fails (as an unexpected pass) once the gap is gone, so that the expectation is removed
         QEXPECT_FAIL("", "known gap: style:header-first is not in the version 1.2 schema", Continue);
         QVERIFY2(r.errors.isEmpty(), qPrintable(r.errors.mid(0, 3).join(QLatin1Char('\n'))));
     }
@@ -3286,8 +3297,12 @@ private Q_SLOTS:
     {
         const QByteArray odt = odtOfDrawing("<w:p><w:pPr><w:contextualSpacing/><w:spacing w:after=\"200\"/></w:pPr><w:r><w:t>one</w:t></w:r></w:p><w:p><w:r><w:t>two</w:t></w:r></w:p>");
         const odfcheck::Result r = odfcheck::checkPackage(odt, {QStringLiteral("content.xml"), QStringLiteral("styles.xml")});
-        if (!r.ran) QSKIP(qPrintable(QStringLiteral("not checked: ") + r.skip));
-        if (!QString::fromUtf8(filesOf(odt).value(QStringLiteral("content.xml"))).contains(QLatin1String("contextual-spacing"))) QSKIP("the attribute is not written for this input");
+        if (!r.ran) ODF_SKIP_OR_FAIL(r.skip);
+        QVERIFY2(QString::fromUtf8(filesOf(odt).value(QStringLiteral("content.xml"))).contains(QLatin1String("contextual-spacing")), "the attribute is not written for this input");
+        // only the known gap may be among the errors; a different error fails here
+        const QStringList other = odfcheck::errorsWithout(r.errors, {QStringLiteral("contextual-spacing")}, {QStringLiteral("style"), QStringLiteral("automatic-styles"), QStringLiteral("styles")});
+        QVERIFY2(other.isEmpty(), qPrintable(QStringLiteral("an error other than the known gap: ") + other.mid(0, 3).join(QLatin1Char('\n'))));
+        // the marker: this fails (as an unexpected pass) once the gap is gone, so that the expectation is removed
         QEXPECT_FAIL("", "known gap: style:contextual-spacing is not in the version 1.2 schema", Continue);
         QVERIFY2(r.errors.isEmpty(), qPrintable(r.errors.mid(0, 3).join(QLatin1Char('\n'))));
     }
@@ -3295,7 +3310,7 @@ private Q_SLOTS:
     // The check itself sees an element out of the standard's order (so that a passing test above means something).
     void theCheckSeesAnElementOutOfOrder()
     {
-        if (!odfcheck::unavailableReason().isEmpty()) QSKIP(qPrintable(QStringLiteral("not checked: ") + odfcheck::unavailableReason()));
+        if (!odfcheck::unavailableReason().isEmpty()) ODF_SKIP_OR_FAIL(odfcheck::unavailableReason());
         QByteArray odt = odtOfDrawing("<w:p><w:r><w:t>x</w:t></w:r></w:p>");
         QMap<QString, QByteArray> parts = filesOf(odt);
         QByteArray content = parts.value(QStringLiteral("content.xml"));
