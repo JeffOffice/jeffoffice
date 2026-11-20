@@ -117,6 +117,38 @@ QByteArray xlsSource()
     return jp::office::sheet::saveXls(wb, &xls, &report, &why) ? xls : QByteArray();
 }
 
+// A sheet for the app's own save of an .ods copy: A1 has a note by Ann (shown, with a box and a date), B2:D2 is merged and its first cell has a hidden note by Cy, and the covered C2 has a shown
+// one by Dee (with a box and a date); C3 has a hidden one by Bob.
+QByteArray odsKeepSource()
+{
+    const QString automatic = QStringLiteral(
+        "<style:style style:name=\"co1\" style:family=\"table-column\"><style:table-column-properties style:column-width=\"2cm\"/></style:style>"
+        "<style:style style:name=\"ro1\" style:family=\"table-row\"><style:table-row-properties style:row-height=\"1cm\" style:use-optimal-row-height=\"false\"/></style:style>");
+    const QString alpha = QStringLiteral("<office:annotation office:display=\"true\" svg:x=\"2.5cm\" svg:y=\"1.25cm\" svg:width=\"3cm\" svg:height=\"1.5cm\">"
+                                         "<dc:creator>Ann</dc:creator><dc:date>2026-01-02T03:04:05</dc:date><text:p>alpha</text:p></office:annotation>");
+    const QString first = QStringLiteral("<office:annotation><dc:creator>Cy</dc:creator><dc:date>2025-05-06T07:08:09</dc:date><text:p>first</text:p></office:annotation>");
+    const QString covered = QStringLiteral("<office:annotation office:display=\"true\" svg:x=\"5.3cm\" svg:y=\"1.6cm\" svg:width=\"2.7cm\" svg:height=\"2.1cm\">"
+                                           "<dc:creator>Dee</dc:creator><dc:date>2024-03-04T05:06:07</dc:date><text:p>covered</text:p></office:annotation>");
+    const QString gamma = QStringLiteral("<office:annotation><dc:creator>Bob</dc:creator><text:p>gamma</text:p></office:annotation>");
+    const QString attrs = QStringLiteral("table:style-name=\"ro1\"");
+    const QString r1 = row(cell(QStringLiteral("office:value-type=\"float\" office:value=\"3\""), QStringLiteral("<text:p>3</text:p>") + alpha) + emptyCell() + emptyCell(), attrs);
+    const QString r2 = row(emptyCell() + cell(QStringLiteral("table:number-columns-spanned=\"3\" table:number-rows-spanned=\"1\""), first) + QStringLiteral("<table:covered-table-cell>") + covered
+                               + QStringLiteral("</table:covered-table-cell><table:covered-table-cell/>"), attrs);
+    const QString r3 = row(emptyCell() + emptyCell() + cell(QString(), gamma), attrs);
+    return buildOds(contentXml(table(QStringLiteral("S"), columns(8, QStringLiteral("table:style-name=\"co1\"")) + r1 + r2 + r3 + row(emptyCell(), attrs)), automatic));
+}
+
+// The window's own Save of the workbook as an .ods (the path the app takes: an .xlsx made from the session, read back, and written as .ods). The file, or empty if it was not made.
+QString savedAsOds(Win *o, const QString &name)
+{
+    const QString file = o->dir.filePath(name);
+    o->answer = file;
+    QSignalSpy copied(&o->w, &CrunchWindow::copyExported);
+    if (!o->w.save()) return QString();
+    if (!(copied.count() > 0 || copied.wait(60000)) || !copied.first().at(1).toBool()) return QString();
+    return file;
+}
+
 enum class Form { Ods, Xls };
 enum class Target { Xlsx, Ods, Xls };
 
@@ -307,8 +339,14 @@ private Q_SLOTS:
                 QCOMPARE(at->second.box.col1, kv.second.box.col1);
                 QCOMPARE(at->second.box.row2, kv.second.box.row2);
                 QCOMPARE(at->second.box.col2, kv.second.box.col2);
-                if (action == QLatin1String("moveBox") && kv.first == noteKey(0, 0) && t != Target::Ods) QVERIFY(at->second.box == kMoved);
-            } else if (action == QLatin1String("resetSize") && t != Target::Ods) {
+                // (and the distances into them, to the pixel, in every form: the open-document one too)
+                auto within = [](int v, int want) { return std::abs(v - want) <= 1; };
+                const NoteBox &was = kv.second.box, &got = at->second.box;
+                QVERIFY2(within(got.x1, was.x1) && within(got.y1, was.y1) && within(got.x2, was.x2) && within(got.y2, was.y2), qPrintable(describe(expected) + " / " + describe(now)));
+                if (action == QLatin1String("moveBox") && kv.first == noteKey(0, 0)) QVERIFY2(within(got.x1, kMoved.x1) && within(got.y1, kMoved.y1) && within(got.x2, kMoved.x2) && within(got.y2, kMoved.y2), qPrintable(describe(now)));
+            } else if (action == QLatin1String("resetSize") && t == Target::Ods) {
+                QVERIFY2(!at->second.box.set, qPrintable(describe(now)));   // (an .ods keeps that it has no box of its own)
+            } else if (action == QLatin1String("resetSize")) {
                 // (the default is written as the form's usual box: beside the cell)
                 QVERIFY(at->second.box.set);
                 QCOMPARE(at->second.box.col1, 1);
@@ -395,6 +433,109 @@ private Q_SLOTS:
             QVERIFY(!out.problem.isEmpty());
             QVERIFY(s->setNote(0, 1, 1, QString(32767, QLatin1Char('x')), QStringLiteral("Pat"), false, QStringLiteral("New Note")).ok);
         }
+    }
+    // What the app's save of an .ods as an .ods writes (an .xlsx made from the session and read back, then the .ods), edited or not: each note keeps its date (an edit of the words makes the date
+    // the person's no longer, so that one has none; any other edit keeps it), its author, its shown state, its box to the pixel (or that it has none), and the note on a covered cell stays on it.
+    void anOdsSavedAsOdsFromTheWindowKeepsEverythingItsNotesHad_data()
+    {
+        QTest::addColumn<QString>("action");
+        QTest::addColumn<QString>("what");
+        for (const char *a : {"none", "hide", "moveBox", "words"})
+            for (const char *w : {"date", "covered", "box", "shown", "author", "text"}) QTest::newRow(qPrintable(QStringLiteral("%1 %2").arg(QLatin1String(a), QLatin1String(w)))) << QString::fromLatin1(a) << QString::fromLatin1(w);
+    }
+    void anOdsSavedAsOdsFromTheWindowKeepsEverythingItsNotesHad()
+    {
+        QFETCH(QString, action);
+        QFETCH(QString, what);
+        Win o;
+        QVERIFY(o.open(odsKeepSource(), QStringLiteral("book.ods")));
+        crunch::EditSession *s = o.w.session();
+        QCOMPARE(s->anchors().notes(0).size(), size_t(4));
+        if (action == QLatin1String("hide")) QVERIFY(doIt(s, QStringLiteral("hide")).ok);
+        if (action == QLatin1String("moveBox")) QVERIFY(doIt(s, QStringLiteral("moveBox")).ok);
+        if (action == QLatin1String("words")) QVERIFY(s->setNote(0, 0, 0, QStringLiteral("new words"), QStringLiteral("Zed"), true, QStringLiteral("Edit Note")).ok);
+        // what the session has now (the edit of the words has cleared that note's date, and the others have theirs)
+        const std::map<quint64, NoteInfo> expected = s->anchors().notes(0);
+        QCOMPARE(expected.size(), size_t(4));
+        QCOMPARE(expected.at(noteKey(0, 0)).date, action == QLatin1String("words") ? QString() : QStringLiteral("2026-01-02T03:04:05"));
+        QCOMPARE(expected.at(noteKey(1, 2)).date, QStringLiteral("2024-03-04T05:06:07"));
+        const QString file = savedAsOds(&o, QStringLiteral("out.ods"));
+        QVERIFY2(!file.isEmpty(), qPrintable(o.told.join(QLatin1Char('|'))));
+        jp::office::sheet::Workbook back;
+        QString why;
+        QVERIFY2(back.openFile(file, &why), qPrintable(why));
+        const std::map<quint64, NoteInfo> now = jp::office::sheet::readSheetNoteInfos(back, 0);
+        if (what == QLatin1String("covered")) {
+            // the note on the covered cell is on it, and the sheet has its merged range
+            QVERIFY(now.count(noteKey(1, 2)));
+            QCOMPARE(now.at(noteKey(1, 2)).text, QStringLiteral("covered"));
+            jp::office::sheet::Sheet sheet;
+            QVERIFY(back.readSheet(0, &sheet));
+            QCOMPARE(sheet.merges.size(), qsizetype(1));
+            return;
+        }
+        QCOMPARE(now.size(), expected.size());
+        for (const auto &kv : expected) {
+            const auto at = now.find(kv.first);
+            QVERIFY2(at != now.end(), qPrintable(QString::number(kv.first >> 32) + "," + QString::number(kv.first & 0xFFFFFFFFu)));
+            const QString where = QStringLiteral("(%1,%2) ").arg(kv.first >> 32).arg(kv.first & 0xFFFFFFFFu);
+            if (what == QLatin1String("text")) QVERIFY2(at->second.text == kv.second.text, qPrintable(where + at->second.text));
+            if (what == QLatin1String("author")) QVERIFY2(at->second.author == kv.second.author, qPrintable(where + at->second.author));
+            if (what == QLatin1String("shown")) QVERIFY2(at->second.shown == kv.second.shown, qPrintable(where + "shown"));
+            if (what == QLatin1String("date")) QVERIFY2(at->second.date == kv.second.date, qPrintable(where + at->second.date + " / " + kv.second.date));
+            if (what == QLatin1String("box")) QVERIFY2(at->second.box == kv.second.box, qPrintable(where + "box"));
+        }
+    }
+
+    // Find looks in the notes of every converted workbook whose notes are loaded (.ods and .xls); only a workbook from a text file is refused, and the reason is true.
+    void findLooksInTheNotesOfOdsAndXlsWorkbooksAndRefusesOnlyTextFiles()
+    {
+        for (const Form f : {Form::Ods, Form::Xls}) {
+            Win o;
+            QVERIFY(o.open(sourceOf(f), nameOf(f)));
+            bool cannot = true;
+            QString why;
+            const auto notes = o.w.session()->notesOf(0, &cannot, &why);
+            QVERIFY2(!cannot, qPrintable(why));
+            QVERIFY(notes && notes->size() == 2);
+            QCOMPARE(notes->at(noteKey(0, 0)), QStringLiteral("alpha"));
+        }
+        Win text;
+        QVERIFY(text.open(QByteArray("a,b\n1,2\n"), QStringLiteral("data.csv")));
+        bool cannot = false;
+        QString why;
+        text.w.session()->notesOf(0, &cannot, &why);
+        QVERIFY(cannot);
+        QVERIFY2(why.contains(QStringLiteral("text")) && !why.contains(QStringLiteral("older")), qPrintable(why));
+    }
+
+    // The workbook's cap on the characters of notes holds in the app's save as .ods, and the notes kept are whole ones.
+    void theCapOnNoteCharactersHoldsInTheAppsOdsSave()
+    {
+        const QString big = QStringLiteral("<office:annotation><text:p><text:s text:c=\"100000\"/></text:p></office:annotation>");
+        QString rows;
+        for (int i = 0; i < 83; ++i) rows += row(cell(QString(), big));
+        QString tables;
+        for (int k = 1; k <= 5; ++k) tables += table(QStringLiteral("S%1").arg(k), columns(1) + rows);
+        Win o;
+        QVERIFY(o.open(buildOds(contentXml(tables)), QStringLiteral("big.ods")));
+        const QString file = savedAsOds(&o, QStringLiteral("out.ods"));
+        QVERIFY2(!file.isEmpty(), qPrintable(o.told.join(QLatin1Char('|'))));
+        jp::office::sheet::Workbook back;
+        QString why;
+        QVERIFY2(back.openFile(file, &why), qPrintable(why));
+        qint64 written = 0;
+        int withNotes = 0;
+        for (int i = 0; i < 5; ++i) {
+            const auto notes = jp::office::sheet::readSheetNoteInfos(back, i);
+            if (!notes.empty()) ++withNotes;
+            for (const auto &n : notes) {
+                written += n.second.text.size() + n.second.author.size();
+                QCOMPARE(n.second.text.size(), qsizetype(100000));
+            }
+        }
+        QVERIFY2(written <= jp::office::sheet::kMaxNoteCharsPerBook, qPrintable(QString::number(written)));
+        QVERIFY(withNotes >= 3);
     }
 };
 

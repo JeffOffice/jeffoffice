@@ -440,6 +440,7 @@ void CellAnchors::addToSave(SaveChanges *changes) const
             } else {
                 op.author = n->second.author;
                 op.text = n->second.text;
+                op.date = n->second.date;
                 op.shown = n->second.shown;
                 op.box = n->second.box;
                 if (n->second.threaded) {

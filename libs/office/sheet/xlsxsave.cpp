@@ -1609,7 +1609,7 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
     const Package *base = &book.package();
     if (!base->isLazy() && book.isConverted()) {
         QByteArray bytes;
-        if (!writeBaseXlsx(book, &bytes, &why, cancel, &rep.notes, requested.keepOdfObjects, int(requested.newExternalLinks.size()), requested.dropExternalLinks)) return fail(why);
+        if (!writeBaseXlsx(book, &bytes, &why, cancel, &rep.notes, requested.keepOdfObjects, int(requested.newExternalLinks.size()), requested.dropExternalLinks, requested.keepOdfNotes)) return fail(why);
         if (!baseFile.readLazy(bytes, &why)) return fail(why);
         base = &baseFile;
     }
@@ -3389,7 +3389,11 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
         for (const NoteWrite &w : noteWrites) {
             const SheetEntry &se = book.info().sheets[w.sheet];
             const auto found = changes.sheets.find(w.sheet);
-            const std::vector<NoteOp> &ops = found->second.noteOps;
+            std::vector<NoteOp> ops = found->second.noteOps;
+            for (NoteOp &op : ops) {
+                op.keepOdf = requested.keepOdfNotes;
+                if (!op.keepOdf) op.date.clear();   // (an .xlsx has no date for a note)
+            }
             if (w.newComments) {
                 newEntries.emplace_back(entryName(w.commentsPart), newCommentsPart(ops));
                 QByteArray t2;

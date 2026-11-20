@@ -584,7 +584,42 @@ private Q_SLOTS:
         int commentParts = 0;
         for (auto it = parts.begin(); it != parts.end(); ++it)
             if (it.key().startsWith(QLatin1String("xl/comments"))) ++commentParts;
-        QCOMPARE(commentParts, 4);
+        QCOMPARE(commentParts, 5);   // (the fifth sheet keeps the notes that fit: see theNotesOfTheSheetThatReachesTheWorkbooksLimitAreKeptWholeUpToIt)
+    }
+
+    // Past the workbook's limit on note text, the notes of the sheet that reaches it are kept whole up to the limit (not the whole sheet's dropped), and the count left out is said.
+    void theNotesOfTheSheetThatReachesTheWorkbooksLimitAreKeptWholeUpToIt()
+    {
+        const QString big = annotation(QStringLiteral("<text:p><text:s text:c=\"100000\"/></text:p>"));
+        QString rows;
+        for (int i = 0; i < 83; ++i) rows += row(notedCell(big));
+        QString tables;
+        for (int k = 1; k <= 5; ++k) tables += table(QStringLiteral("S%1").arg(k), columns(1) + rows);
+        Workbook wb;
+        QString why;
+        QVERIFY2(openIt(buildOds(contentXml(tables)), &wb, &why), qPrintable(why));
+        QByteArray xlsx;
+        SaveReport report;
+        QVERIFY2(saveXlsx(wb, SaveChanges(), &xlsx, &why, &report), qPrintable(why));
+        Workbook back;
+        jp::office::Package package;
+        QVERIFY2(package.readLazy(xlsx, &why) && back.open(package, &why), qPrintable(why));
+        qint64 written = 0, kept = 0;
+        for (int i = 0; i < 5; ++i) {
+            const auto notes = notesOf(back, i);
+            kept += qint64(notes.size());
+            for (const auto &n : notes) {
+                written += n.second.text.size() + n.second.author.size();
+                QCOMPARE(n.second.text.size(), qsizetype(100000));
+            }
+            if (i < 4) QCOMPARE(notes.size(), size_t(83));
+        }
+        QVERIFY2(written <= kMaxNoteCharsPerBook, qPrintable(QString::number(written)));
+        QVERIFY(notesOf(back, 4).size() > 0 && notesOf(back, 4).size() < 83);   // (the fifth sheet keeps what fits)
+        const qint64 left = 5 * 83 - kept;
+        QVERIFY(left > 0);
+        const QString said = report.notes.join(QLatin1Char('|'));
+        QVERIFY2(said.contains(QStringLiteral("more note text")) && said.contains(QString::number(left) + QStringLiteral(" note")), qPrintable(said));
     }
 
     // A sheet whose cell text says "annotation" but has no note is not read again to look for notes (the real annotation elements are found in the first read), whether the sheet is saved as .xlsx or
@@ -635,6 +670,68 @@ private Q_SLOTS:
         Workbook fromXlsx;
         QVERIFY2(package.readLazy(xlsx, &why) && fromXlsx.open(package, &why), qPrintable(why));
         QVERIFY(!contentOf(odsOf(fromXlsx, nullptr, &why)).contains("<dc:date>"));
+    }
+
+    // A file made to be saved on as an OpenDocument one carries what an .xlsx cannot hold of a note (its date, and that it has no box of its own), in the comments and the drawing, and a change that puts a
+    // note carries them too; a plain .xlsx holds neither.
+    void anXlsxMadeToBeSavedOnAsOdsCarriesTheDateAndTheNoBox()
+    {
+        const QString dated = annotation(QStringLiteral("<dc:creator>Ann</dc:creator><dc:date>2010-02-07T00:00:00</dc:date><text:p>x</text:p>"), QStringLiteral("office:display=\"true\" svg:x=\"4.5cm\" svg:y=\"1.2cm\" svg:width=\"5cm\" svg:height=\"2.5cm\""));
+        const QString plain = annotation(QStringLiteral("<dc:creator>Bob</dc:creator><text:p>y</text:p>"));
+        Workbook wb;
+        QString why;
+        QVERIFY2(openIt(gridBook(rowOf(notedCell(dated) + notedCell(plain))), &wb, &why), qPrintable(why));
+        const auto was = notesOf(wb);
+        SaveChanges keep;
+        keep.keepOdfNotes = true;
+        QByteArray xlsx;
+        QVERIFY2(saveXlsx(wb, keep, &xlsx, &why), qPrintable(why));
+        jp::office::Package package;
+        Workbook made;
+        QVERIFY2(package.readLazy(xlsx, &why) && made.open(package, &why), qPrintable(why));
+        const auto now = notesOf(made);
+        QCOMPARE(now.at(noteKey(0, 0)).date, QStringLiteral("2010-02-07T00:00:00"));
+        QVERIFY(now.at(noteKey(0, 0)).box == was.at(noteKey(0, 0)).box);
+        QVERIFY(now.at(noteKey(0, 1)).date.isEmpty());
+        QVERIFY(!now.at(noteKey(0, 1)).box.set);
+        const QByteArray ods = contentOf(odsOf(made, nullptr, &why));
+        QVERIFY2(ods.contains("<dc:date>2010-02-07T00:00:00</dc:date>"), "the date is written");
+        // a change that puts notes: one with a date and no box, one that gives the note without a box one
+        SaveChanges edit = keep;
+        NoteOp put;
+        put.row = 0;
+        put.col = 3;
+        put.author = QStringLiteral("Cy");
+        put.text = QStringLiteral("new");
+        put.date = QStringLiteral("2020-01-02T03:04:05");
+        NoteOp move;
+        move.row = 0;
+        move.col = 1;
+        move.author = QStringLiteral("Bob");
+        move.text = QStringLiteral("y");
+        move.box = {true, 0, 1, 7, 8, 1, 3, 9, 10};
+        edit.sheets[0].noteOps = {put, move};
+        QByteArray changed;
+        QVERIFY2(saveXlsx(wb, edit, &changed, &why), qPrintable(why));
+        Workbook again;
+        jp::office::Package package2;
+        QVERIFY2(package2.readLazy(changed, &why) && again.open(package2, &why), qPrintable(why));
+        const auto after = notesOf(again);
+        QCOMPARE(after.at(noteKey(0, 3)).date, QStringLiteral("2020-01-02T03:04:05"));
+        QVERIFY(!after.at(noteKey(0, 3)).box.set);
+        QVERIFY(after.at(noteKey(0, 1)).box == move.box);
+        QCOMPARE(after.at(noteKey(0, 0)).date, QStringLiteral("2010-02-07T00:00:00"));
+        // a plain .xlsx: no date, and every note has a box
+        SaveChanges edit2;
+        edit2.sheets[0].noteOps = {put};
+        QByteArray plainXlsx;
+        QVERIFY2(saveXlsx(wb, edit2, &plainXlsx, &why), qPrintable(why));
+        Workbook third;
+        jp::office::Package package3;
+        QVERIFY2(package3.readLazy(plainXlsx, &why) && third.open(package3, &why), qPrintable(why));
+        const auto last = notesOf(third);
+        QVERIFY(last.at(noteKey(0, 3)).date.isEmpty() && last.at(noteKey(0, 3)).box.set);
+        QVERIFY(last.at(noteKey(0, 0)).date.isEmpty() && last.at(noteKey(0, 1)).box.set);
     }
 
     // The notes on rows 1 to 3 of a real older file (a box above its cell: every one has y 0 in): numbers copied from it into a file built here. Read, saved as .ods (the box is where it was, none of

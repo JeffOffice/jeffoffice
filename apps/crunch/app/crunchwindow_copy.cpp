@@ -60,6 +60,7 @@ bool CrunchWindow::exportCopy(const QString &path)
     const bool xls = crunch::copyKindOf(path) == QLatin1String("xls"), ots = crunch::copyKindOf(path) == QLatin1String("ots");
     // (an .ods or .ots copy keeps the embedded objects of other kinds the file held; an .xls has no place for them)
     snapshot->changes.keepOdfObjects = !xls;
+    snapshot->changes.keepOdfNotes = true;   // (what an .xlsx cannot hold of a note goes through it: the .ods copy has the date and the box as the file had them, and the .xls copy says which dates it loses)
     m_saving = true;
     m_session->setBusy(true);
     updateEditActions();

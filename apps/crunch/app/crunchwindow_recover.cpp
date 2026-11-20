@@ -85,6 +85,7 @@ void CrunchWindow::autoRecover()
     // is read again by the thread for itself, with the list of sheets as it is now; a workbook read from another form (an older file, a text file) has no file to read again, and the thread
     // is given a copy of the object (its large parts are shared, not copied). The rest of what is saved is in the snapshot, a copy. A snapshot that holds a function that reads the window's
     // models (a pivot table made in this run, or a chart part made from a model) is written here, where nothing can change meanwhile.
+    snapshot->changes.keepOdfNotes = true;
     snapshot->changes.keepOdfObjects = true;   // (work recovered from this copy and saved as an .ods still has the objects an .ods held; a save as an .xlsx writes them as pictures)
     const bool apart = snapshot->changes.addedPivots.empty() && snapshot->changes.producedParts.empty();
     const bool converted = book->isConverted();

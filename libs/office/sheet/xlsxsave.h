@@ -265,6 +265,9 @@ struct SaveChanges {
     // For a workbook read from an OpenDocument file: the embedded objects of other kinds it holds are kept whole when the file written goes on to be an OpenDocument one; else (the default) they are
     // written as their pictures alone.
     bool keepOdfObjects = false;
+    // The file is made to be read back and saved on as an OpenDocument or an .xls one: what an .xlsx cannot hold of a note (its date, and that it has no box of its own) is carried in the comments and
+    // the drawing, in a form of our own that no other program is given (a plain save writes neither).
+    bool keepOdfNotes = false;
     std::vector<CellPermute> permutes;
     std::map<int, SheetChanges> sheets;           // by the sheet's place in the workbook
     // The print area and titles of the sheets whose page setup may differ from the file's: the workbook's names are changed where they differ from these.

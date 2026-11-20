@@ -24,8 +24,8 @@ QString baseSheetPart(int index);
 // a time. False, with a message, if a sheet cannot be read whole or `cancel` is set (looked at as the cells are written).
 // A formula that reads another workbook ("[1]Sheet1!A1") is written as a formula when the workbook has that link (the file's own, which are written here, or `extraLinks` more that the save adds after them),
 // and as its value when it has none (or `dropLinks` says the links are left out).
-// An embedded object an OpenDocument file held that is not one of ours is written as its picture only, and `notes` (if given) says so; a file that is written only to be saved on as an OpenDocument one (`keepOdfObjects`) keeps them whole.
-bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error = nullptr, const std::atomic<bool> *cancel = nullptr, QStringList *notes = nullptr, bool keepOdfObjects = false, int extraLinks = 0, bool dropLinks = false);
+// An embedded object an OpenDocument file held that is not one of ours is written as its picture only, and `notes` (if given) says so; a file that is written only to be saved on as an OpenDocument one (`keepOdfObjects`) keeps them whole; `keepOdfNotes` carries the date of a note, and that it has no box, as SaveChanges says.
+bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error = nullptr, const std::atomic<bool> *cancel = nullptr, QStringList *notes = nullptr, bool keepOdfObjects = false, int extraLinks = 0, bool dropLinks = false, bool keepOdfNotes = false);
 
 // For a workbook read from an OpenDocument spreadsheet: a package with the drawing parts, relationships, and pictures of the sheets that have drawing objects (each sheet's part is a stand-in), named as
 // writeBaseXlsx names them. Null if the workbook has none. The sheets that may have objects are read whole to find them.

@@ -988,7 +988,7 @@ bool dropForeignObjects(ImportedDrawing *d)
 // An object of ours is written as an embedded package of its kind; any other (kept only for a file that goes on to be an OpenDocument one) as a binary part.
 static bool isOurObject(const ImportedObject &o) { return o.odf.isEmpty() && ole::kindOfProgId(o.progId) != ole::Kind::Other; }
 
-bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const std::atomic<bool> *cancel, QStringList *notes, bool keepOdfObjects, int extraLinks, bool dropLinks)
+bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const std::atomic<bool> *cancel, QStringList *notes, bool keepOdfObjects, int extraLinks, bool dropLinks, bool keepOdfNotes)
 {
     auto fail = [&](const QString &why) {
         if (error) *error = why;
@@ -1030,7 +1030,20 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
     QSet<QString> mediaExtensions;
     std::vector<bool> hasNotes(size_t(info.sheets.size()), false);   // the sheets that have notes of an OpenDocument file to write
     qint64 noteChars = 0;
-    const QString notesLeftOut = noteBookLimitMessage();
+    std::vector<qsizetype> noteLimit(size_t(info.sheets.size()), -1);   // the most notes of a sheet that are written (-1: all): the notes of all the sheets together are bounded as those of one workbook are
+    qint64 notesLeft = 0;                                                  // how many were left out for that
+    // The first notes of `list` (whole ones) that fit what is left of the workbook's limit: how many.
+    auto notesThatFit = [&](const QVector<ImportedNote> &list) {
+        qsizetype fit = 0;
+        for (const ImportedNote &n : list) {
+            const qint64 chars = n.text.size() + n.author.size();
+            if (noteChars + chars > kMaxNoteCharsPerBook) break;
+            noteChars += chars;
+            ++fit;
+        }
+        notesLeft += list.size() - fit;
+        return fit;
+    };
     if (const ForeignBook *foreign = book.foreignBook()) {
         for (int i = 0; i < info.sheets.size(); ++i) {
             if (cancel && cancel->load(std::memory_order_relaxed)) return fail(QCoreApplication::translate("jp::office::sheet::Save", "The save was stopped."));
@@ -1039,14 +1052,11 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
             Sheet look;
             if (!book.readSheet(i, &look)) continue;
             if (wantNotes && !look.importedNotes.isEmpty()) {
-                // (the notes of all the sheets together are bounded as those of one workbook are: what is past the bound is left out, and said)
-                qint64 chars = 0;
-                for (const ImportedNote &n : std::as_const(look.importedNotes)) chars += n.text.size() + n.author.size();
-                if (noteChars + chars <= kMaxNoteCharsPerBook) {
-                    noteChars += chars;
+                // (what is past the bound is left out, and said)
+                const qsizetype fit = notesThatFit(look.importedNotes);
+                if (fit > 0) {
                     hasNotes[size_t(i)] = true;
-                } else if (notes && !notes->contains(notesLeftOut)) {
-                    notes->append(notesLeftOut);
+                    noteLimit[size_t(i)] = fit;
                 }
             }
             if (!wantDrawing || look.importedDrawing.isEmpty()) continue;
@@ -1142,16 +1152,14 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
         sheet.importedDrawing = importedOf[size_t(i)];
         if (!book.foreignBook() && !sheet.importedNotes.isEmpty()) {
             // (a workbook of the older binary form has its notes with its sheets, bounded as the others' are)
-            qint64 chars = 0;
-            for (const ImportedNote &n : std::as_const(sheet.importedNotes)) chars += n.text.size() + n.author.size();
-            if (noteChars + chars <= kMaxNoteCharsPerBook) {
-                noteChars += chars;
+            const qsizetype fit = notesThatFit(sheet.importedNotes);
+            if (fit > 0) {
                 hasNotes[size_t(i)] = true;
-            } else if (notes && !notes->contains(notesLeftOut)) {
-                notes->append(notesLeftOut);
+                noteLimit[size_t(i)] = fit;
             }
         }
         if (!hasNotes[size_t(i)]) sheet.importedNotes.clear();
+        else if (noteLimit[size_t(i)] >= 0 && sheet.importedNotes.size() > noteLimit[size_t(i)]) sheet.importedNotes.resize(noteLimit[size_t(i)]);
         QByteArray sheetRels;   // (the relationships of the sheet: its drawing, and its notes)
         zip.beginStream(baseSheetPart(i).mid(1), true);
         Out sink(&zip);
@@ -1234,6 +1242,8 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
                 op.col = n.col;
                 op.author = n.author;
                 op.text = n.text;
+                op.keepOdf = keepOdfNotes;
+                if (keepOdfNotes) op.date = n.date;   // (an .xlsx has no date for a note: only a copy made to be saved on as .ods carries it)
                 op.shown = n.shown;
                 op.box = n.box;
                 ops.push_back(std::move(op));
@@ -1248,6 +1258,7 @@ bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const 
                     QByteArray(kXmlHead) + "<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">" + sheetRels + "</Relationships>", true);
     }
     zip.add(QStringLiteral("xl/sharedStrings.xml"), sharedStringsPart(book.sharedStrings(), qsizetype(book.sharedStringsInFile()), references), true);
+    if (notesLeft > 0 && notes) notes->append(noteBookLimitMessage(notesLeft));
     *out = zip.finish();
     return true;
 }

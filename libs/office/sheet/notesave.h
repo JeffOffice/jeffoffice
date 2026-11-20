@@ -17,6 +17,8 @@ struct NoteOp {
     quint32 row = 0, col = 0;
     bool remove = false;      // the note on the cell is taken away (else it is put: made, or replaced)
     QString author, text;
+    QString date;             // the date an OpenDocument note has (written in the comment only for a file made to be saved on as an OpenDocument one)
+    bool keepOdf = false;     // the file is made to be saved on as an OpenDocument one: a note with no box of its own is written with no anchor (not the usual one), so that it has none when read
     bool shown = false;       // shown all the time
     NoteBox box;              // where the box is (`set`: the shape is given this anchor; else a new shape has the usual one and an old shape keeps its own)
     ThreadPtr thread;         // for a note that stands for a thread of comments: the thread (its comments part is written beside the note, `author` and `text` being the older note's)

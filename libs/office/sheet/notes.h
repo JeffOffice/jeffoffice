@@ -11,6 +11,8 @@
 
 #include <map>
 #include <set>
+#include <unordered_map>
+#include <utility>
 #include <vector>
 
 namespace jp::office { class Package; }
@@ -83,6 +85,26 @@ qint64 threadPartReads();
 std::map<quint64, NoteInfo> noteInfosOf(const Sheet &sheet, qint64 most = kMaxNotes, bool *truncated = nullptr, NoteReadContext *context = nullptr);
 // What is said when the notes of a workbook are left out for their characters (a read says it by `truncated`, a save in its report).
 QString noteBookLimitMessage();
+// What is said when `count` notes of a workbook are left out for the characters of notes all its sheets have together.
+QString noteBookLimitMessage(qint64 count);
+
+// The sizes of a sheet's columns and rows in pixels as a box's anchor in the older binary form reckons them (that form gives a corner as a part of its cell: 1/1024 across, 1/256 down): a column is
+// its characters of seven pixels each, a row its points at 96 to the inch; a hidden one is 0.
+class NoteGrid {
+public:
+    explicit NoteGrid(const Sheet &sheet);
+    int columnPixels(quint32 col) const;
+    int rowPixels(quint32 row) const;
+    // The pixels into a cell that a part of it comes to, and the part (as the anchor has it, `parts` being 1024 across and 256 down) that a number of pixels is.
+    static int pixelsOf(quint32 part, int cellPixels, int parts) { return int((qint64(part) * cellPixels + parts / 2) / parts); }
+    static quint32 partOf(int pixels, int cellPixels, int parts);
+
+private:
+    double m_defaultWidth, m_defaultHeight;
+    std::vector<ColumnSpan> m_columns;   // by first column
+    std::unordered_map<quint32, std::pair<double, bool>> m_rows;   // by row: height in points (-1 none), hidden
+};
+
 // Just the texts (what Find looks in).
 std::map<quint64, QString> readSheetNotes(const Workbook &book, int sheet, bool *truncated = nullptr);
 

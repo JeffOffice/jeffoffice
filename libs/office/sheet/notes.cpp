@@ -9,6 +9,7 @@
 #include <QXmlStreamReader>
 
 #include <atomic>
+#include <cmath>
 #include <algorithm>
 #include <memory>
 #include <set>
@@ -432,7 +433,7 @@ const std::map<quint64, NoteInfo> &commentsOf(const Workbook &book, const QStrin
     bool inComment = false, inText = false, inAuthors = false, inAuthor = false, inPhonetic = false;
     quint32 row = 0, col = 0;
     int authorId = 0;
-    QString text, authorText;
+    QString text, authorText, date;
     QStringList authors;
     bool stopped = false;
     while (!r.atEnd() && !stopped) {
@@ -454,6 +455,7 @@ const std::map<quint64, NoteInfo> &commentsOf(const Workbook &book, const QStrin
                 row = col = 0;
                 authorId = r.attributes().value(QLatin1String("authorId")).toInt();
                 if (!parseCellRef(r.attributes().value(QLatin1String("ref")), &row, &col)) inComment = false;
+                date = r.attributes().value(QLatin1String("urn:jeffoffice:note"), QLatin1String("date")).left(64).toString();
             } else if (inComment && r.name() == QLatin1String("rPh")) {
                 inPhonetic = true;
             } else if (inComment && !inPhonetic && r.name() == QLatin1String("t")) {
@@ -497,6 +499,7 @@ const std::map<quint64, NoteInfo> &commentsOf(const Workbook &book, const QStrin
                     xmlscan::decodeEscapes(&text);
                     n.text = text;
                     n.author = authorId >= 0 && authorId < authors.size() ? authors[authorId] : QString();
+                    n.date = date;
                     // (a comment of a thread has an author named "tc=" and the id of the thread)
                     n.threaded = n.author.startsWith(QLatin1String("tc="));
                     if (n.threaded) n.author.clear();
@@ -508,6 +511,46 @@ const std::map<quint64, NoteInfo> &commentsOf(const Workbook &book, const QStrin
     }
     }
     return out;
+}
+
+QString noteBookLimitMessage(qint64 count) { return QCoreApplication::translate("jp::office::sheet::Save", "%n note(s) left out, because the workbook has more note text than this program keeps.", nullptr, int(std::min<qint64>(count, 0x7fffffff))); }
+
+NoteGrid::NoteGrid(const Sheet &sheet) : m_defaultWidth(sheet.format.defaultColWidth > 0 ? sheet.format.defaultColWidth : 9.140625), m_defaultHeight(sheet.format.defaultRowHeight > 0 ? sheet.format.defaultRowHeight : 15)
+{
+    m_columns.assign(sheet.columns.cbegin(), sheet.columns.cend());
+    std::stable_sort(m_columns.begin(), m_columns.end(), [](const ColumnSpan &a, const ColumnSpan &b) { return a.first < b.first; });
+    for (const RowSpec &r : sheet.placedRowSpecs()) m_rows.emplace(r.row, std::make_pair(r.height, r.hidden));   // (the first spec of a row is the one used)
+}
+
+int NoteGrid::columnPixels(quint32 col) const
+{
+    double width = m_defaultWidth;
+    auto at = std::upper_bound(m_columns.begin(), m_columns.end(), col, [](quint32 c, const ColumnSpan &s) { return c < s.first; });
+    if (at != m_columns.begin()) {
+        const ColumnSpan &s = *(at - 1);
+        if (col <= s.last) {
+            if (s.hidden) return 0;
+            if (s.width >= 0) width = s.width;
+        }
+    }
+    return int(std::lround(std::min(width, 255.0) * 7.0));
+}
+
+int NoteGrid::rowPixels(quint32 row) const
+{
+    double height = m_defaultHeight;
+    const auto at = m_rows.find(row);
+    if (at != m_rows.end()) {
+        if (at->second.second) return 0;
+        if (at->second.first >= 0) height = at->second.first;
+    }
+    return int(std::lround(std::min(height, 409.5) * 96.0 / 72.0));
+}
+
+quint32 NoteGrid::partOf(int pixels, int cellPixels, int parts)
+{
+    if (cellPixels <= 0 || pixels <= 0) return 0;
+    return quint32(std::clamp<qint64>(std::llround(double(pixels) * parts / cellPixels), 0, parts - 1));
 }
 
 QString noteBookLimitMessage() { return QCoreApplication::translate("jp::office::sheet::Save", "The workbook has more note text than this program keeps; the rest was left out."); }

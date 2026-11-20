@@ -54,6 +54,7 @@ EditSession::Outcome EditSession::setNote(int sheet, quint32 row, quint32 col, c
     now.text = text;
     now.shown = shown;
     now.author = was ? was->author : author;
+    if (was && was->text == text) now.date = was->date;   // (the date stays with the words it was written for)
     if (was) now.box = was->box;
     if (was && *was == now) return Outcome();   // (nothing to change)
     SideEdit edit;

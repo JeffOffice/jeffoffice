@@ -50,7 +50,9 @@ bool wholeElement(const QByteArray &xml, const Tag &open, qsizetype *end)
 
 QByteArray commentXml(const QByteArray &prefix, const NoteOp &op, int authorId)
 {
-    QByteArray x = "<" + prefix + "comment ref=\"" + cellName(op.row, op.col).toLatin1() + "\" authorId=\"" + QByteArray::number(authorId) + "\" shapeId=\"0\"><" + prefix + "text><" + prefix
+    // (the date is in a name of our own: a reader that does not know it does not see it)
+    const QByteArray date = op.date.isEmpty() ? QByteArray() : " xmlns:jo=\"urn:jeffoffice:note\" jo:date=\"" + xmlscan::escapeAttribute(op.date) + "\"";
+    QByteArray x = "<" + prefix + "comment ref=\"" + cellName(op.row, op.col).toLatin1() + "\" authorId=\"" + QByteArray::number(authorId) + "\" shapeId=\"0\"" + date + "><" + prefix + "text><" + prefix
                    + "t xml:space=\"preserve\">" + xmlscan::escapeText(op.text) + "</" + prefix + "t></" + prefix + "text></" + prefix + "comment>";
     return x;
 }
@@ -249,7 +251,7 @@ QByteArray defaultAnchorText(const NoteOp &op)
 QByteArray shapeXml(const NoteOp &op, int id)
 {
     const int row = int(op.row), col = int(op.col);
-    const QByteArray anchor = op.box.set ? anchorText(op) : defaultAnchorText(op);
+    const QByteArray anchor = op.box.set ? anchorText(op) : op.keepOdf ? QByteArray() : defaultAnchorText(op);
     return "<v:shape id=\"_x0000_s" + QByteArray::number(id) + "\" type=\"#_x0000_t202\" style=\"position:absolute;margin-left:80pt;margin-top:2pt;width:108pt;height:59.25pt;z-index:" + QByteArray::number(id % 1000000)
            + ";visibility:" + (op.shown ? "visible" : "hidden") + "\" fillcolor=\"#ffffe1\" o:insetmode=\"auto\"><v:fill color2=\"#ffffe1\"/><v:shadow on=\"t\" color=\"black\" obscured=\"t\"/><v:path o:connecttype=\"none\"/>"
            + "<v:textbox style=\"mso-direction-alt:auto\"><div style=\"text-align:left\"></div></v:textbox><x:ClientData ObjectType=\"Note\"><x:MoveWithCells/><x:SizeWithCells/><x:Anchor>"
@@ -298,7 +300,8 @@ bool applyNoteOpsToDrawing(const QByteArray &vml, const std::vector<NoteOp> &ops
         if (op->second->remove) continue;
         QByteArray piece = vml.mid(shape.start, shape.end - shape.start);
         const NoteBox was = shapeBox(vml, shape, row, col);
-        if (was.set && (op->second->box.set ? !(was == op->second->box) : !op->second->remove)) {
+        // (a note of a file made to be saved on as an OpenDocument one may have no box: it is given one when the change has one, and loses it when the change has none)
+        if (op->second->box.set ? ((was.set || op->second->keepOdf) && !(was == op->second->box)) : was.set) {
             // the box was moved or sized, or put back to the default: the anchor's numbers (the shape keeps the rest as it has it)
             Tag t;
             qsizetype pos = 0;
@@ -307,7 +310,7 @@ bool applyNoteOpsToDrawing(const QByteArray &vml, const std::vector<NoteOp> &ops
                 if (t.closing || t.local != "Anchor" || t.selfClosing) continue;
                 const qsizetype close = piece.indexOf('<', t.end);
                 if (close < 0) break;
-                piece.replace(t.end, close - t.end, op->second->box.set ? anchorText(*op->second) : defaultAnchorText(*op->second));
+                piece.replace(t.end, close - t.end, op->second->box.set ? anchorText(*op->second) : op->second->keepOdf ? QByteArray() : defaultAnchorText(*op->second));
                 break;
             }
         }

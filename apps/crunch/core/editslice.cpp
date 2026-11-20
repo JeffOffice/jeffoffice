@@ -191,9 +191,10 @@ std::shared_ptr<const std::map<quint64, QString>> EditSession::notesOf(int sheet
     if (cannot) *cannot = false;
     auto none = std::make_shared<const std::map<quint64, QString>>();
     if (!m_book || !m_book->book) return none;
-    if (m_book->book->isConverted()) {
+    // (the notes of a workbook read from an .ods or an .xls file are loaded with it, and are searched; a text or web page file has none)
+    if (const QString kind = m_book->book->convertedKind(); m_book->book->isConverted() && kind != QLatin1String(".xls") && kind != QLatin1String(".ods") && kind != QLatin1String(".fods")) {
         if (cannot) *cannot = true;
-        if (why) *why = tr("A workbook opened from an older kind of file, or from a text file, has its notes in a form JeffCrunch does not search. Save it as an .xlsx workbook, and look again.");
+        if (why) *why = tr("A workbook opened from a text or web page file has no notes to search.");
         return none;
     }
     // (the notes as they are now, kept by the session; the texts are copied when a search asks, and again after a change: see forgetNotes)
