@@ -1509,6 +1509,7 @@ private Q_SLOTS:
     void punctuationAtTheEndOfALineHangsPastTheMargin();
     void aParagraphThatTurnsHangingOffHasNone();
     void textAfterABreakThatBeginsAParagraphHasItsFirstLineIndent();
+    void aBreakAfterHiddenParagraphsStillBeginsTheParagraph();
     void aParagraphThatIsAllHiddenTakesNoRoom();
     void wordSpaceBetweenParagraphsIsTheLarger();
     void wordSpaceBetweenParagraphsAddsWhenTheFileAsksForIt();

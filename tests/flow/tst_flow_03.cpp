@@ -442,6 +442,91 @@ void FlowTests::textAfterABreakThatBeginsAParagraphHasItsFirstLineIndent()
 }
 
 
+// A paragraph that begins with a page break begins its text after the break, as its first line, even where paragraphs whose text and marks are hidden come before it
+// (they are joined to it and show nothing: the break is still the first thing of what is shown).
+void FlowTests::aBreakAfterHiddenParagraphsStillBeginsTheParagraph()
+{
+    auto lefts = [&](int hiddenBefore, bool paginated) {
+        QVector<double> out;
+        QTextCharFormat run;
+        run.setFontFamilies({QStringLiteral("Times New Roman")});
+        run.setFontPointSize(12);
+        QTextCharFormat hidden = run;
+        hidden.setProperty(tp::HiddenText, true);
+        QTextBlockFormat bf;
+        bf.setLeftMargin(40);
+        bf.setTextIndent(-40);
+        const QString words = QStringLiteral("alpha beta gamma delta epsilon zeta eta theta iota kappa lambda mu nu xi omicron pi rho sigma tau upsilon phi chi psi omega alpha beta gamma delta");
+        auto fill = [&](QTextCursor &c) {
+            for (int i = 0; i < hiddenBefore; ++i) {
+                c.setBlockFormat(QTextBlockFormat());
+                c.setBlockCharFormat(hidden);
+                c.insertText(QStringLiteral("hidden words in a paragraph whose mark is hidden"), hidden);
+                c.insertBlock(QTextBlockFormat(), hidden);
+            }
+            c.setBlockFormat(bf);
+            c.setBlockCharFormat(run);
+            c.insertText(QString(flow::kPageBreak) + words, run);
+        };
+        if (paginated) {
+            FlowDocument fd;
+            fd.env.wordLines = true;
+            QTextCursor c(fd.story());
+            fill(c);
+            Paginator pg(&fd);
+            for (int k = 0; k < pg.pageCount(); ++k)
+                for (const auto &l : pg.lines(k)) out << l.rect.left();
+            return out;
+        }
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        fill(c);
+        LayoutEnv env;
+        env.wordLines = true;
+        StoryLayout lay;
+        lay.build(&doc, {plainFrame(200, 300)}, env);
+        for (const auto &l : lay.lineInfo(0)) out << l.rect.left();
+        return out;
+    };
+    // (Nothing to run into or loop on: paragraphs that show nothing and no more, a break that is all of the paragraph after them, and a paragraph that is taller than the page.)
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        QTextCharFormat hidden;
+        hidden.setFontFamilies({QStringLiteral("Times New Roman")});
+        hidden.setFontPointSize(12);
+        hidden.setProperty(tp::HiddenText, true);
+        QTextCursor c(fd.story());
+        for (int i = 0; i < 3; ++i) {
+            c.setBlockCharFormat(hidden);
+            c.insertText(QStringLiteral("hidden"), hidden);
+            c.insertBlock(QTextBlockFormat(), hidden);
+        }
+        Paginator onlyHidden(&fd);
+        QVERIFY(onlyHidden.pageCount() >= 1 && onlyHidden.pageCount() <= 2);
+        QTextCharFormat run = hidden;
+        run.clearProperty(tp::HiddenText);
+        c.setBlockCharFormat(run);
+        c.insertText(QString(flow::kPageBreak), run);
+        Paginator breakOnly(&fd);
+        QVERIFY(breakOnly.pageCount() >= 1 && breakOnly.pageCount() <= 3);
+        c.insertBlock(QTextBlockFormat(), run);
+        for (int i = 0; i < 400; ++i) c.insertText(QStringLiteral("a line of text that is taller than the page when there are many "), run);
+        Paginator tall(&fd);
+        QVERIFY(tall.pageCount() >= 2 && tall.pageCount() < 200);
+    }
+    for (bool paginated : {false, true}) {
+        const auto plain = lefts(0, paginated);
+        QVERIFY(plain.size() >= 3);
+        for (int hidden : {1, 2}) {
+            const auto joined = lefts(hidden, paginated);
+            QCOMPARE(joined.size(), plain.size());
+            for (int i = 0; i < plain.size(); ++i) QVERIFY2(std::abs(joined[i] - plain[i]) < 0.01, qPrintable(QStringLiteral("hidden %1 line %2: %3 against %4").arg(hidden).arg(i).arg(joined[i]).arg(plain[i])));
+        }
+    }
+}
+
+
 // A paragraph whose text and mark are both hidden takes no room (not a line, not its space); one whose mark is not hidden is an empty line.
 void FlowTests::aParagraphThatIsAllHiddenTakesNoRoom()
 {

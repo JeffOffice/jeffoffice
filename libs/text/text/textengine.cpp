@@ -1905,6 +1905,14 @@ static int sourceBlockNumber(const QTextBlock &b)
     return b.blockNumber();
 }
 
+// Whether a paragraph's text is all hidden in the view (a paragraph with no text is).
+static bool textHidden(const QTextBlock &b, int view)
+{
+    for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it)
+        if (it.fragment().isValid() && !tp::hiddenInView(it.fragment().charFormat(), view)) return false;
+    return true;
+}
+
 bool StoryLayout::joinsNext(const QTextBlock &b, int end)
 {
     // (A mark that a tracked change deleted is a paragraph's end where the deleted text is shown, and one that a change inserted is none where only what was there before is.)
@@ -4078,7 +4086,10 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
 
         // (The text after a page break that begins a paragraph is set as the paragraph's first line, indent and all, as a word processor sets it.)
         // (A break that is hidden text, as what a tracked change deleted is, is none.)
-        const bool startsWithBreak = env.wordLines && doc->characterAt(head.position()) == QChar(0x000C) && head.length() > 1 && !tp::hiddenInView(head.begin().fragment().charFormat(), env.revisionView);
+        // (Paragraphs joined before it that show nothing are not the paragraph's beginning: a break at the start of the last of them is the break that begins it.)
+        QTextBlock shown = head;
+        while (env.wordLines && shown != b && textHidden(shown, env.revisionView)) shown = shown.next();
+        const bool startsWithBreak = env.wordLines && doc->characterAt(shown.position()) == QChar(0x000C) && shown.length() > 1 && !tp::hiddenInView(shown.begin().fragment().charFormat(), env.revisionView);
         const bool firstAfterBreak = startsWithBreak && (!tail || m_span.indentContinued);
         const double leftM = bf.leftMargin() * scale, rightM = bf.rightMargin() * scale, textIndent = tail && !firstAfterBreak ? 0.0 : bf.textIndent() * scale;
         // A slide's space given as a share of the line is of the line at the size the text was shrunk to; one given in points is not.
