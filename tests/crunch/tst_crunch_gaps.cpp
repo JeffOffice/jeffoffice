@@ -1830,13 +1830,14 @@ private Q_SLOTS:
         const QRect was = e.view()->shownNoteRect(2, 2);
         const jp::office::sheet::NoteBox first = s->anchors().noteAt(0, 2, 2)->box;
         e.select(QStringLiteral("C3"));
-        w.act(QStringLiteral("notes.moveSize"))->trigger();
-        QVERIFY(e.view()->inNoteKeys());
-        QTest::keyClick(e.view(), Qt::Key_Right);
         jp::office::sheet::SheetProtection locked;
         locked.enabled = true;
         locked.objects = true;
-        QVERIFY(s->setSheetProtection(0, locked, QStringLiteral("Protect")).ok);   // (the sheet is protected while the keys have the box)
+        QVERIFY(s->setSheetProtection(0, locked, QStringLiteral("Protect")).ok);   // (a change to the workbook gives the keys' box up, so the sheet is protected first)
+        QTRY_VERIFY(w.act(QStringLiteral("notes.moveSize"))->isEnabled());
+        w.act(QStringLiteral("notes.moveSize"))->trigger();
+        QVERIFY(e.view()->inNoteKeys());
+        QTest::keyClick(e.view(), Qt::Key_Right);
         const int steps = w.undoStack()->count();
         e.win.told.clear();
         QTest::keyClick(e.view(), Qt::Key_Return);
