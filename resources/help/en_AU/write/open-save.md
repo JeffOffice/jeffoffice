@@ -137,6 +137,8 @@ A .docx file can carry the fonts its text is set in, so the document looks the w
 
 JeffWrite does not use a font whose maker's licence says it may not be embedded, a font that is damaged, or any font past the first 64 in one file. When that happens, the message you see when you open the file says so, and the text is shown in a similar font instead. The file keeps its fonts as they were when you save it.
 
+To put the fonts your text uses in the files you save, click **File > Options**, open the **Save** page, and turn on **Save fonts in the file**. It is off at first. JeffWrite then puts in the fonts that come with it and that the text uses, in each style the document uses, when it saves a .docx file. It never puts in a font whose licence does not allow it, and when it leaves one out, the message after the save names it. It makes the file larger, and at most 64 fonts and 256 MB go in one file.
+
 ## Related
 
 - [Welcome to JeffWrite](start)

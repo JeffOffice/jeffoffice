@@ -2166,7 +2166,7 @@ Artigo da contracapa	4</translation>
         <translation type="unfinished">%1 (Sombreado %2%)</translation>
     </message>
     <message>
-        <location filename="../libs/page/core/document.cpp" line="+518"/>
+        <location filename="../libs/page/core/document.cpp" line="+519"/>
         <source>Organization Name</source>
         <translation type="unfinished">Nome da organização</translation>
     </message>
@@ -5296,14 +5296,14 @@ Artigo da contracapa	4</translation>
     </message>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="-15"/>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="+460"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+461"/>
         <location filename="../apps/write/app/writewindow.cpp" line="+805"/>
         <source>Save</source>
         <translation type="unfinished">Guardar</translation>
     </message>
     <message>
         <location filename="../apps/pub/app/dialogs.cpp" line="+66"/>
-        <location filename="../apps/write/app/writewindow_options.cpp" line="+84"/>
+        <location filename="../apps/write/app/writewindow_options.cpp" line="+97"/>
         <source>Inches</source>
         <translation type="unfinished">Polegadas</translation>
     </message>
@@ -5765,7 +5765,7 @@ Artigo da contracapa	4</translation>
         <translation type="unfinished">Selecione primeiro uma lista de destinatários.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_options.cpp" line="-24"/>
+        <location filename="../apps/write/app/writewindow_options.cpp" line="-36"/>
         <source>Document (*.docx)</source>
         <translation type="unfinished">Documento (*.docx)</translation>
     </message>
@@ -5801,12 +5801,22 @@ Artigo da contracapa	4</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow.cpp" line="+0"/>
-        <location filename="../apps/write/app/writewindow_options.cpp" line="+6"/>
+        <location filename="../apps/write/app/writewindow_options.cpp" line="+18"/>
         <source>Display</source>
         <translation type="unfinished">Visualização</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_options.cpp" line="+4"/>
+        <location filename="../apps/write/app/writewindow_options.cpp" line="-16"/>
+        <source>Save fonts in the file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Puts the fonts that come with the program, and that the text uses, in a saved .docx file, so the text looks the same on a computer that doesn&apos;t have them. It makes the file larger. A font whose license does not allow it is left out, and fonts every computer has are never put in.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
         <source>Show formatting marks (¶) when a window opens</source>
         <translation type="unfinished">Mostrar marcas de formatação (¶) ao abrir uma janela</translation>
     </message>
@@ -8011,12 +8021,7 @@ Abra-os com o seu programa de correio eletrónico para os enviar.</translation>
         <translation type="unfinished">O conteúdo da publicação está danificado: %1</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubimport.cpp" line="+167"/>
-        <source>Embedded font &quot;%1&quot; was not imported.</source>
-        <translation type="unfinished">O tipo de letra incorporado &quot;%1&quot; não foi importado.</translation>
-    </message>
-    <message>
-        <location line="+36"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+213"/>
         <source>Only the first section&apos;s page numbering was imported.</source>
         <translation type="unfinished">Só foi importada a numeração de páginas da primeira secção.</translation>
     </message>
@@ -8026,7 +8031,7 @@ Abra-os com o seu programa de correio eletrónico para os enviar.</translation>
         <translation type="unfinished">Não foi possível apresentar uma imagem %1.</translation>
     </message>
     <message>
-        <location line="+352"/>
+        <location line="+353"/>
         <source>This is not a .pub publication file.</source>
         <translation type="unfinished">Este não é um ficheiro de publicação .pub.</translation>
     </message>
@@ -8427,7 +8432,7 @@ Abra-os com o seu programa de correio eletrónico para os enviar.</translation>
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="+602"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+604"/>
         <source>A picture on page %1 has low resolution (%2 ppi; printers ask for 300).</source>
         <translation type="unfinished">Uma imagem na página %1 tem baixa resolução (%2 ppi; as gráficas pedem 300).</translation>
     </message>
@@ -9945,7 +9950,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
 <context>
     <name>PptImport</name>
     <message>
-        <location filename="../apps/deck/io/pptimport.cpp" line="+781"/>
+        <location filename="../apps/deck/io/pptimport.cpp" line="+783"/>
         <source>Title Slide</source>
         <translation type="unfinished">Diapositivo de Título</translation>
     </message>
@@ -10010,7 +10015,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
         <translation type="unfinished">Esquema Personalizado</translation>
     </message>
     <message>
-        <location line="+256"/>
+        <location line="+259"/>
         <source>And %1 more.</source>
         <translation type="unfinished">E mais %1.</translation>
     </message>
@@ -10066,7 +10071,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
         <translation type="unfinished">Não é possível utilizar o tamanho do diapositivo indicado no ficheiro, pelo que os diapositivos têm 13,333 por 7,5 polegadas.</translation>
     </message>
     <message>
-        <location line="+510"/>
+        <location line="+516"/>
         <source>Only the first %1 slide masters are read.</source>
         <translation type="unfinished">Só são lidos os primeiros %1 modelos globais de diapositivos.</translation>
     </message>
@@ -32515,12 +32520,12 @@ Não é possível ler o ficheiro.</translation>
         <translation type="unfinished">Não existem diapositivos para imprimir.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow.cpp" line="+74"/>
+        <location filename="../apps/deck/app/deckwindow.cpp" line="+73"/>
         <source>Presentation1</source>
         <translation type="unfinished">Apresentação1</translation>
     </message>
     <message>
-        <location line="+182"/>
+        <location line="+177"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
@@ -43125,7 +43130,7 @@ Origem: %3</translation>
 <context>
     <name>jp::MainWindow</name>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="-1668"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="-1670"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+608"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
@@ -43154,7 +43159,7 @@ Origem: %3</translation>
         <location line="+47"/>
         <location line="+18"/>
         <location line="+34"/>
-        <location line="+49"/>
+        <location line="+51"/>
         <location line="+1"/>
         <location line="+4"/>
         <location line="+1"/>
@@ -43164,7 +43169,7 @@ Origem: %3</translation>
         <translation type="unfinished">Abrir</translation>
     </message>
     <message>
-        <location line="-354"/>
+        <location line="-356"/>
         <location line="+18"/>
         <location line="+34"/>
         <source>JeffPub can&apos;t open &quot;%1&quot;.
@@ -43173,7 +43178,7 @@ Origem: %3</translation>
 %2</translation>
     </message>
     <message>
-        <location line="+58"/>
+        <location line="+60"/>
         <source>Opened .pub file. %1</source>
         <translation type="unfinished">Ficheiro .pub aberto. %1</translation>
     </message>
@@ -43211,27 +43216,27 @@ Origem: %3</translation>
         <translation type="unfinished">Publicação JeffPub (*.jpub)</translation>
     </message>
     <message>
-        <location line="-284"/>
-        <location line="+266"/>
+        <location line="-286"/>
+        <location line="+268"/>
         <location line="+18"/>
         <source>.pub Publication Files (*.pub)</source>
         <translation type="unfinished">Ficheiros de publicação .pub (*.pub)</translation>
     </message>
     <message>
-        <location line="-498"/>
+        <location line="-500"/>
         <source> (Read-Only)</source>
         <translation type="unfinished"> (Só de Leitura)</translation>
     </message>
     <message>
         <location line="+280"/>
         <location line="+6"/>
-        <location line="+61"/>
+        <location line="+63"/>
         <location line="+1"/>
         <source>Open and Repair</source>
         <translation type="unfinished">Abrir e Reparar</translation>
     </message>
     <message>
-        <location line="-68"/>
+        <location line="-70"/>
         <source>&quot;%1&quot; has a password, and a file with a password can&apos;t be repaired. Open it with its password instead.</source>
         <translation type="unfinished">&quot;%1&quot; tem palavra-passe, e um ficheiro com palavra-passe não pode ser reparado. Abra-o com a sua palavra-passe.</translation>
     </message>
@@ -43243,7 +43248,7 @@ Origem: %3</translation>
 %2</translation>
     </message>
     <message>
-        <location line="+35"/>
+        <location line="+37"/>
         <source>Repaired %1</source>
         <translation type="unfinished">Reparado %1</translation>
     </message>
@@ -43552,8 +43557,8 @@ Origem: %3</translation>
         <translation type="unfinished">Perfis de cor (*.icc *.icm)</translation>
     </message>
     <message>
-        <location line="-578"/>
-        <location line="+578"/>
+        <location line="-580"/>
+        <location line="+580"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+568"/>
         <source>All Files (*)</source>
         <translation type="unfinished">Todos os ficheiros (*)</translation>
@@ -43900,7 +43905,7 @@ Origem: %3</translation>
         <translation type="unfinished">Nova Publicação em Branco</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="-1664"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="-1666"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+179"/>
         <source>Publications (*.jpub *.pub)</source>
         <translation type="unfinished">Publicações (*.jpub *.pub)</translation>
@@ -47028,7 +47033,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">%1 × %2</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="+919"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+921"/>
         <location filename="../apps/pub/app/mainwindow_info.cpp" line="-31"/>
         <source>Pages</source>
         <translation>Páginas</translation>
@@ -51100,7 +51105,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
 <context>
     <name>jp::ReusePane</name>
     <message>
-        <location filename="../apps/deck/app/reusepane.cpp" line="+31"/>
+        <location filename="../apps/deck/app/reusepane.cpp" line="+30"/>
         <location line="+50"/>
         <source>Reuse Slides</source>
         <translation type="unfinished">Reutilizar diapositivos</translation>
@@ -51146,7 +51151,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">Apresentações (*.pptx *.pptm *.potx *.potm *.ppsx *.ppsm *.ppt *.pps *.pot)</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+16"/>
         <source>The file can&apos;t be read.</source>
         <translation type="unfinished">Não é possível ler o ficheiro.</translation>
     </message>
@@ -57687,13 +57692,13 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <location line="+5"/>
         <location line="+124"/>
         <location line="+52"/>
-        <location line="+442"/>
+        <location line="+445"/>
         <location filename="../apps/write/core/designops.cpp" line="+27"/>
         <source>Open</source>
         <translation type="unfinished">Abrir</translation>
     </message>
     <message>
-        <location line="-591"/>
+        <location line="-594"/>
         <location filename="../apps/write/app/writewindow_graphics.cpp" line="+88"/>
         <location filename="../apps/write/app/writewindow_insert.cpp" line="+138"/>
         <location filename="../apps/write/app/writewindow_pictures.cpp" line="+163"/>
@@ -57738,7 +57743,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <location line="+10"/>
         <location line="+19"/>
         <location line="+4"/>
-        <location line="+43"/>
+        <location line="+46"/>
         <location line="+12"/>
         <location line="+11"/>
         <location line="+2"/>
@@ -57750,7 +57755,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">Guardar</translation>
     </message>
     <message>
-        <location line="-429"/>
+        <location line="-432"/>
         <location line="+221"/>
         <source>Save As</source>
         <translation type="unfinished">Guardar Como</translation>
@@ -57918,7 +57923,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">As macros deste documento não são guardadas, porque um ficheiro %1 não as pode conter.</translation>
     </message>
     <message>
-        <location line="+76"/>
+        <location line="+79"/>
         <source>%1 couldn&apos;t save &quot;%2&quot;.
 The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">%1 não foi possível guardar &quot;%2&quot;.
@@ -57931,8 +57936,8 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">documento</translation>
     </message>
     <message>
-        <location line="-194"/>
-        <location line="+119"/>
+        <location line="-197"/>
+        <location line="+122"/>
         <location filename="../apps/write/app/writewindow_output.cpp" line="+545"/>
         <location line="+415"/>
         <source>%1 couldn&apos;t save &quot;%2&quot;.
@@ -57941,7 +57946,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
 %3%4</translation>
     </message>
     <message>
-        <location line="-360"/>
+        <location line="-363"/>
         <source>Documents (*.docx *.docm *.dotx *.dotm *.doc *.dot *.rtf *.odt *.fodt *.ott *.txt *.html *.htm)</source>
         <translation type="unfinished">Documentos (*.docx *.docm *.dotx *.dotm *.doc *.dot *.rtf *.odt *.fodt *.ott *.txt *.html *.htm)</translation>
     </message>
@@ -57989,7 +57994,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">O ficheiro conterá apenas as palavras do documento e mais nada: sem tipos de letra, imagens ou limites de tabelas. Escolha a forma como os carateres e os finais de linha são escritos. Um carácter que a codificação não consiga representar é guardado como ponto de interrogação.</translation>
     </message>
     <message>
-        <location line="+62"/>
+        <location line="+65"/>
         <source>A plain text file holds only the words of this document, so its fonts, pictures, tables, and other formatting aren&apos;t saved in it.</source>
         <translation type="unfinished">Um ficheiro de texto simples contém apenas as palavras deste documento, por isso os seus tipos de letra, imagens, tabelas e outra formatação não são guardados.</translation>
     </message>
@@ -58180,7 +58185,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">%1 exportado</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_file.cpp" line="-299"/>
+        <location filename="../apps/write/app/writewindow_file.cpp" line="-302"/>
         <location filename="../apps/write/app/writewindow_output.cpp" line="-76"/>
         <location line="+3"/>
         <location line="+230"/>
@@ -58189,7 +58194,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">Guardar como Texto Simples</translation>
     </message>
     <message>
-        <location line="+59"/>
+        <location line="+62"/>
         <location filename="../apps/write/app/writewindow_output.cpp" line="-237"/>
         <source>Some characters couldn&apos;t be saved in this encoding (%1 in all). They were saved as question marks.</source>
         <translation type="unfinished">Alguns carateres não puderam ser guardados nesta codificação (%1 no total). Foram guardados como pontos de interrogação.</translation>
@@ -69874,6 +69879,22 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     </message>
 </context>
 <context>
+    <name>jp::office</name>
+    <message>
+        <location filename="../libs/office/office/pptfonts.cpp" line="+53"/>
+        <source>its record is not where a font belongs.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>Only the first %n record(s) of the font list are read.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>jp::office::CfbSalvage</name>
     <message>
         <location filename="../libs/office/office/cfbsalvage.cpp" line="+247"/>
@@ -71560,10 +71581,61 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <source>Only the first %1 embedded fonts are read.</source>
         <translation type="unfinished">Só são lidos os primeiros %1 tipos de letra incorporados.</translation>
     </message>
+    <message numerus="yes">
+        <location filename="../libs/office/office/embeddedfonts.cpp" line="+105"/>
+        <location filename="../libs/office/office/pptfonts.cpp" line="-1"/>
+        <source>%n embedded font(s) in the file can&apos;t be used: %1</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
     <message>
         <location line="+1"/>
+        <source>Some embedded fonts in the file were not used, because their licenses do not allow it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>Only the first %n embedded font(s) are read.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>Only the first %n embedded font(s) in the file were looked at.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location filename="../libs/office/wml/wmlfonts.cpp" line="+1"/>
         <source>Some embedded fonts are left out: they are too large.</source>
         <translation type="unfinished">Alguns tipos de letra incorporados foram omitidos: são demasiado grandes.</translation>
+    </message>
+    <message>
+        <location filename="../libs/office/wml/wmlfontswrite.cpp" line="+271"/>
+        <source>These fonts were not saved in the file, because their licenses do not allow it: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Some fonts were not saved in the file: it may carry at most %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Some fonts were not saved in the file: they are too large.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>The fonts were not saved in the file: its font table can&apos;t be changed.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -77178,7 +77250,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">uma tabela com mais células do que as mantidas</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/writedoc_export.cpp" line="+344"/>
+        <location filename="../apps/write/core/writedoc_export.cpp" line="+348"/>
         <source>drop caps (the letters are saved as ordinary ones)</source>
         <translation type="unfinished">capitulares (as letras são guardadas como normais)</translation>
     </message>

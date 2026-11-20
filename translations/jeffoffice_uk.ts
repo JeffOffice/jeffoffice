@@ -2252,7 +2252,7 @@ Back page story	4</source>
         <translation type="unfinished">Довга штрихпунктирна з двома крапками</translation>
     </message>
     <message>
-        <location filename="../libs/page/core/document.cpp" line="+518"/>
+        <location filename="../libs/page/core/document.cpp" line="+519"/>
         <source>Organization Name</source>
         <translation type="unfinished">Назва організації</translation>
     </message>
@@ -5431,7 +5431,7 @@ Back page story	4</source>
     </message>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="+29"/>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="+460"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+461"/>
         <location filename="../apps/write/app/writewindow.cpp" line="+805"/>
         <source>Save</source>
         <translation type="unfinished">Зберегти</translation>
@@ -5461,7 +5461,7 @@ Back page story	4</source>
         <location filename="../apps/pub/app/dialogs.cpp" line="+6"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+0"/>
         <location filename="../apps/write/app/writewindow.cpp" line="+0"/>
-        <location filename="../apps/write/app/writewindow_options.cpp" line="+79"/>
+        <location filename="../apps/write/app/writewindow_options.cpp" line="+92"/>
         <source>Advanced</source>
         <translation type="unfinished">Додатково</translation>
     </message>
@@ -5782,7 +5782,7 @@ Back page story	4</source>
         <translation type="unfinished">Спочатку виберіть список отримувачів.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_options.cpp" line="-40"/>
+        <location filename="../apps/write/app/writewindow_options.cpp" line="-52"/>
         <source>Document (*.docx)</source>
         <translation type="unfinished">Документ (*.docx)</translation>
     </message>
@@ -5803,12 +5803,22 @@ Back page story	4</source>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow.cpp" line="+0"/>
-        <location filename="../apps/write/app/writewindow_options.cpp" line="+6"/>
+        <location filename="../apps/write/app/writewindow_options.cpp" line="+18"/>
         <source>Display</source>
         <translation type="unfinished">Відображення</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_options.cpp" line="+4"/>
+        <location filename="../apps/write/app/writewindow_options.cpp" line="-16"/>
+        <source>Save fonts in the file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Puts the fonts that come with the program, and that the text uses, in a saved .docx file, so the text looks the same on a computer that doesn&apos;t have them. It makes the file larger. A font whose license does not allow it is left out, and fonts every computer has are never put in.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
         <source>Show formatting marks (¶) when a window opens</source>
         <translation type="unfinished">Показувати символи форматування (¶) під час відкриття вікна</translation>
     </message>
@@ -8048,12 +8058,7 @@ Open them with your email program to send.</source>
         <translation type="unfinished">Вміст публікації пошкоджено: %1</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubimport.cpp" line="+167"/>
-        <source>Embedded font &quot;%1&quot; was not imported.</source>
-        <translation type="unfinished">Вбудований шрифт «%1» не було імпортовано.</translation>
-    </message>
-    <message>
-        <location line="+36"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+213"/>
         <source>Only the first section&apos;s page numbering was imported.</source>
         <translation type="unfinished">Імпортовано лише нумерацію сторінок першого розділу.</translation>
     </message>
@@ -8063,7 +8068,7 @@ Open them with your email program to send.</source>
         <translation type="unfinished">Не вдалося показати малюнок у форматі %1.</translation>
     </message>
     <message>
-        <location line="+352"/>
+        <location line="+353"/>
         <source>This is not a .pub publication file.</source>
         <translation type="unfinished">Це не файл публікації .pub.</translation>
     </message>
@@ -8434,7 +8439,7 @@ Open them with your email program to send.</source>
 <context>
     <name>MainWindow</name>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="+602"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+604"/>
         <source>A picture on page %1 has low resolution (%2 ppi; printers ask for 300).</source>
         <translation type="unfinished">Малюнок на сторінці %1 має низьку роздільну здатність (%2 ppi; друкарні вимагають 300).</translation>
     </message>
@@ -9952,7 +9957,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>PptImport</name>
     <message>
-        <location filename="../apps/deck/io/pptimport.cpp" line="+781"/>
+        <location filename="../apps/deck/io/pptimport.cpp" line="+783"/>
         <source>Title Slide</source>
         <translation type="unfinished">Титульний слайд</translation>
     </message>
@@ -10017,7 +10022,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Настроюваний макет</translation>
     </message>
     <message>
-        <location line="+256"/>
+        <location line="+259"/>
         <source>And %1 more.</source>
         <translation type="unfinished">І ще %1.</translation>
     </message>
@@ -10073,7 +10078,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Розмір слайдів у файлі не можна використати, тому слайди мають розмір 13,333 × 7,5 дюйма.</translation>
     </message>
     <message>
-        <location line="+510"/>
+        <location line="+516"/>
         <source>Only the first %1 slide masters are read.</source>
         <translation type="unfinished">Прочитано лише перші %1 зразків слайдів.</translation>
     </message>
@@ -32538,12 +32543,12 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Немає слайдів для друку.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow.cpp" line="+74"/>
+        <location filename="../apps/deck/app/deckwindow.cpp" line="+73"/>
         <source>Presentation1</source>
         <translation type="unfinished">Презентація 1</translation>
     </message>
     <message>
-        <location line="+182"/>
+        <location line="+177"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
@@ -43154,7 +43159,7 @@ Source: %3</source>
 <context>
     <name>jp::MainWindow</name>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="-1668"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="-1670"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+608"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
@@ -43197,23 +43202,23 @@ Source: %3</source>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+266"/>
+        <location line="+268"/>
         <location line="+18"/>
         <source>.pub Publication Files (*.pub)</source>
         <translation type="unfinished">Файли публікацій .pub (*.pub)</translation>
     </message>
     <message>
-        <location line="-284"/>
-        <location line="+578"/>
+        <location line="-286"/>
+        <location line="+580"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+398"/>
         <source>All Files (*)</source>
         <translation type="unfinished">Усі файли (*)</translation>
     </message>
     <message>
-        <location line="-541"/>
+        <location line="-543"/>
         <location line="+18"/>
         <location line="+34"/>
-        <location line="+49"/>
+        <location line="+51"/>
         <location line="+1"/>
         <location line="+4"/>
         <location line="+1"/>
@@ -43223,7 +43228,7 @@ Source: %3</source>
         <translation type="unfinished">Відкрити</translation>
     </message>
     <message>
-        <location line="-354"/>
+        <location line="-356"/>
         <location line="+18"/>
         <location line="+34"/>
         <source>JeffPub can&apos;t open &quot;%1&quot;.
@@ -43234,13 +43239,13 @@ Source: %3</source>
     <message>
         <location line="-23"/>
         <location line="+6"/>
-        <location line="+61"/>
+        <location line="+63"/>
         <location line="+1"/>
         <source>Open and Repair</source>
         <translation type="unfinished">Відкрити та відновити</translation>
     </message>
     <message>
-        <location line="-68"/>
+        <location line="-70"/>
         <source>&quot;%1&quot; has a password, and a file with a password can&apos;t be repaired. Open it with its password instead.</source>
         <translation type="unfinished">«%1» захищено паролем, а файл із паролем не можна відновити. Відкрийте його, використовуючи пароль.</translation>
     </message>
@@ -43252,7 +43257,7 @@ Source: %3</source>
 %2</translation>
     </message>
     <message>
-        <location line="+35"/>
+        <location line="+37"/>
         <source>Repaired %1</source>
         <translation type="unfinished">Відновлено %1</translation>
     </message>
@@ -46937,7 +46942,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Автоматично</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="-919"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="-921"/>
         <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+2"/>
         <source>Tints…</source>
         <translation type="unfinished">Відтінок…</translation>
@@ -51133,7 +51138,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::ReusePane</name>
     <message>
-        <location filename="../apps/deck/app/reusepane.cpp" line="+31"/>
+        <location filename="../apps/deck/app/reusepane.cpp" line="+30"/>
         <location line="+50"/>
         <source>Reuse Slides</source>
         <translation type="unfinished">Повторне використання слайдів</translation>
@@ -51179,7 +51184,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Презентації (*.pptx *.pptm *.potx *.potm *.ppsx *.ppsm *.ppt *.pps *.pot)</translation>
     </message>
     <message>
-        <location line="+17"/>
+        <location line="+16"/>
         <source>The file can&apos;t be read.</source>
         <translation type="unfinished">Не вдалося прочитати файл.</translation>
     </message>
@@ -56580,13 +56585,13 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+5"/>
         <location line="+124"/>
         <location line="+52"/>
-        <location line="+442"/>
+        <location line="+445"/>
         <location filename="../apps/write/core/designops.cpp" line="+27"/>
         <source>Open</source>
         <translation type="unfinished">Відкрити</translation>
     </message>
     <message>
-        <location line="-617"/>
+        <location line="-620"/>
         <source>Close</source>
         <translation type="unfinished">Закрити</translation>
     </message>
@@ -56603,7 +56608,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+10"/>
         <location line="+19"/>
         <location line="+4"/>
-        <location line="+43"/>
+        <location line="+46"/>
         <location line="+12"/>
         <location line="+11"/>
         <location line="+2"/>
@@ -56615,7 +56620,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Зберегти</translation>
     </message>
     <message>
-        <location line="-429"/>
+        <location line="-432"/>
         <location line="+221"/>
         <source>Save As</source>
         <translation type="unfinished">Зберегти як</translation>
@@ -56815,7 +56820,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="-3"/>
-        <location line="+119"/>
+        <location line="+122"/>
         <location filename="../apps/write/app/writewindow_output.cpp" line="+545"/>
         <location line="+415"/>
         <source>%1 couldn&apos;t save &quot;%2&quot;.
@@ -56824,7 +56829,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 %3%4</translation>
     </message>
     <message>
-        <location line="-114"/>
+        <location line="-117"/>
         <source>Saved &quot;%1&quot; in My Templates.</source>
         <translation type="unfinished">«%1» збережено в моїх шаблонах.</translation>
     </message>
@@ -56873,7 +56878,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Файл містить лише слова документа й нічого більше: без шрифтів, малюнків і меж таблиць. Виберіть, як записувати символи та кінці рядків. Символ, який не може бути збережений у цьому кодуванні, буде збережено як знак питання.</translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="+37"/>
         <source>%1 couldn&apos;t save &quot;%2&quot;.
 The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">%1 не вдалося зберегти «%2».
@@ -69918,6 +69923,23 @@ The password couldn&apos;t be put on the file.</source>
     </message>
 </context>
 <context>
+    <name>jp::office</name>
+    <message>
+        <location filename="../libs/office/office/pptfonts.cpp" line="+53"/>
+        <source>its record is not where a font belongs.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>Only the first %n record(s) of the font list are read.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>jp::office::CfbSalvage</name>
     <message>
         <location filename="../libs/office/office/cfbsalvage.cpp" line="+247"/>
@@ -71613,10 +71635,64 @@ The password couldn&apos;t be put on the file.</source>
         <source>Only the first %1 embedded fonts are read.</source>
         <translation type="unfinished">Прочитано лише перші %1 вбудованих шрифтів.</translation>
     </message>
+    <message numerus="yes">
+        <location filename="../libs/office/office/embeddedfonts.cpp" line="+105"/>
+        <location filename="../libs/office/office/pptfonts.cpp" line="-1"/>
+        <source>%n embedded font(s) in the file can&apos;t be used: %1</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
     <message>
         <location line="+1"/>
+        <source>Some embedded fonts in the file were not used, because their licenses do not allow it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>Only the first %n embedded font(s) are read.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>Only the first %n embedded font(s) in the file were looked at.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location filename="../libs/office/wml/wmlfonts.cpp" line="+1"/>
         <source>Some embedded fonts are left out: they are too large.</source>
         <translation type="unfinished">Частину вбудованих шрифтів пропущено: вони занадто великі.</translation>
+    </message>
+    <message>
+        <location filename="../libs/office/wml/wmlfontswrite.cpp" line="+271"/>
+        <source>These fonts were not saved in the file, because their licenses do not allow it: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Some fonts were not saved in the file: it may carry at most %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Some fonts were not saved in the file: they are too large.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>The fonts were not saved in the file: its font table can&apos;t be changed.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -77232,7 +77308,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">таблиця з більшою кількістю комірок, ніж зберігається</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/writedoc_export.cpp" line="+344"/>
+        <location filename="../apps/write/core/writedoc_export.cpp" line="+348"/>
         <source>drop caps (the letters are saved as ordinary ones)</source>
         <translation type="unfinished">буквиці (літери збережено як звичайні)</translation>
     </message>

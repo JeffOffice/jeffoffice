@@ -173,6 +173,10 @@
         <source>Spot color %1</source>
         <translation>Spot colour %1</translation>
     </message>
+    <message>
+        <source>Puts the fonts that come with the program, and that the text uses, in a saved .docx file, so the text looks the same on a computer that doesn't have them. It makes the file larger. A font whose license does not allow it is left out, and fonts every computer has are never put in.</source>
+        <translation>Puts the fonts that come with the program, and that the text uses, in a saved .docx file, so the text looks the same on a computer that doesn't have them. It makes the file larger. A font whose licence does not allow it is left out, and fonts every computer has are never put in.</translation>
+    </message>
 </context>
 <context>
     <name>Export</name>
@@ -1223,6 +1227,17 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>Gray</source>
         <translation>Grey</translation>
+    </message>
+</context>
+<context>
+    <name>jp::office::wml</name>
+    <message>
+        <source>Some embedded fonts in the file were not used, because their licenses do not allow it.</source>
+        <translation>Some embedded fonts in the file were not used, because their licences do not allow it.</translation>
+    </message>
+    <message>
+        <source>These fonts were not saved in the file, because their licenses do not allow it: %1.</source>
+        <translation>These fonts were not saved in the file, because their licences do not allow it: %1.</translation>
     </message>
 </context>
 <context>

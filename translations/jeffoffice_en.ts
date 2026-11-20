@@ -275,7 +275,7 @@
 <context>
     <name>jp::MainWindow</name>
     <message numerus="yes">
-        <location filename="../apps/pub/app/mainwindow.cpp" line="+1681"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+1684"/>
         <source>Saved %n drawing(s).</source>
         <translation>
             <numerusform>Saved %n drawing.</numerusform>
@@ -411,6 +411,17 @@
     </message>
 </context>
 <context>
+    <name>jp::office</name>
+    <message numerus="yes">
+        <location filename="../libs/office/office/pptfonts.cpp" line="+54"/>
+        <source>Only the first %n record(s) of the font list are read.</source>
+        <translation>
+            <numerusform>Only the first %n record of the font list is read.</numerusform>
+            <numerusform>Only the first %n records of the font list are read.</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>jp::office::sheet::Ods</name>
     <message numerus="yes">
         <location filename="../libs/office/sheet/ods.cpp" line="+2022"/>
@@ -488,6 +499,31 @@
         <translation>
             <numerusform>%n table could not be shown as a table (it has more rows, columns, or cells than this program can lay out, or is nested too deeply, or has no rows): it is kept as it was and shown as a stand-in.</numerusform>
             <numerusform>%n tables could not be shown as tables (they have more rows, columns, or cells than this program can lay out, or are nested too deeply, or have no rows): they are kept as they were and shown as stand-ins.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../libs/office/office/embeddedfonts.cpp" line="+105"/>
+        <location filename="../libs/office/office/pptfonts.cpp" line="-1"/>
+        <source>%n embedded font(s) in the file can&apos;t be used: %1</source>
+        <translation>
+            <numerusform>%n embedded font in the file can&apos;t be used: %1</numerusform>
+            <numerusform>%n embedded fonts in the file can&apos;t be used: %1</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+2"/>
+        <source>Only the first %n embedded font(s) are read.</source>
+        <translation>
+            <numerusform>Only the first %n embedded font is read.</numerusform>
+            <numerusform>Only the first %n embedded fonts are read.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>Only the first %n embedded font(s) in the file were looked at.</source>
+        <translation>
+            <numerusform>Only the first %n embedded font in the file was looked at.</numerusform>
+            <numerusform>Only the first %n embedded fonts in the file were looked at.</numerusform>
         </translation>
     </message>
 </context>
