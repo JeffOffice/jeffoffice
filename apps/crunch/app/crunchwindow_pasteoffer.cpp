@@ -22,6 +22,7 @@ void CrunchWindow::createPasteOffer()
 {
     m_pasteOffer = new PasteOffer(m_view->viewport(), m_view, [this] { return pasteOfferChoices(); });
     m_pasteOffer->installOn(m_view);
+    m_pasteOffer->setBusyCheck([this] { return pasteOfferBusy(); });
     connect(m_pasteOffer, &PasteOffer::escaped, this, [this] { endPasteOffer(); });
     connect(m_pasteOffer, &PasteOffer::opened, this, [this] { setStatus(tr("Paste Options. Use the arrow keys and Enter to choose, or Esc to leave them.")); });
     connect(m_view, &grid::GridView::viewChanged, this, [this] { updatePasteOffer(); });
@@ -29,6 +30,12 @@ void CrunchWindow::createPasteOffer()
     connect(QApplication::clipboard(), &QClipboard::dataChanged, this, [this] {
         if (!m_repasting) endPasteOffer();
     });
+}
+
+// Whether a step is under way (a large change put in slice by slice, a find or sort at work, a cell being edited, a save): the button offers nothing then, as the paste cannot be taken back.
+bool CrunchWindow::pasteOfferBusy() const
+{
+    return m_applying || m_saving || m_edit.active || m_argsDialog || (m_session && m_session->isSlicing());
 }
 
 void CrunchWindow::endPasteOffer()
@@ -71,15 +78,21 @@ void CrunchWindow::updatePasteOffer()
     }
     m_pasteOffer->setDescription(tr("How the pasted cells are kept. Tap the %1 key after a paste to open it.").arg(PasteOffer::keyName()));
     m_pasteOffer->showAt(cell);
+    m_pasteOffer->refreshBusy();
 }
 
 // The button's choice: the last paste is taken back and done again in the form chosen, one step of Undo in all. When the form does nothing here the first paste stands.
 bool CrunchWindow::repasteWith(const crunch::EditSession::PasteOptions &options)
 {
-    if (!pasteIsLast() || m_repasting) return false;
+    if (!pasteIsLast() || m_repasting || pasteOfferBusy()) return false;
     const PasteNote first = m_pasteNote;
+    QUndoStack *u = undoStack();
     m_repasting = true;
     undoRedoNow(false);
+    if (u->index() != first.index - 1) {   // (the paste was not taken back: nothing is done on top of it)
+        m_repasting = false;
+        return false;
+    }
     m_pasteNote.live = false;
     pasteClipboard(options);
     m_repasting = false;

@@ -49,6 +49,7 @@ private Q_SLOTS:
         const auto all = rows();
         QCOMPARE(PasteDefaultsSection::value(all[0]), 1);
         QCOMPARE(PasteDefaultsSection::value(all[1]), 0);
+        QVERIFY(!Settings::get().value(QStringLiteral("test/pasteProgram")).isValid());   // (a box nobody changed keeps nothing)
         // a kept number that is not one of the choices (a setting from another version, or a hand edit) is the row's own
         Settings::get().setValue(QStringLiteral("test/pasteSame"), 77);
         QCOMPARE(PasteDefaultsSection::value(all[0]), 0);
@@ -78,6 +79,35 @@ private Q_SLOTS:
         QMimeData broken;
         broken.setData(QStringLiteral("application/x-jeffoffice-origin"), "no newline here");
         QCOMPARE(pasteOriginOf(&broken, mine), PasteFrom::OtherProgram);
+    }
+
+    // What a copy leaves on the clipboard is a short digest of the program's name and the document's random id: no name. A stamp that is long or not of that shape is not read, whatever it holds.
+    void theStampIsShortAndAMalformedOneIsNotRead()
+    {
+        const QString mine = newPasteDocumentId();
+        QMimeData stamped;
+        stampPasteOrigin(&stamped, mine);
+        const QByteArray bytes = stamped.data(QStringLiteral("application/x-jeffoffice-origin"));
+        QVERIFY2(bytes.size() <= 64 && bytes.endsWith(mine.toUtf8()), bytes.constData());
+        QVERIFY(!bytes.contains(QCoreApplication::applicationName().toUtf8()) || QCoreApplication::applicationName().size() < 4);
+        const QString tag = QString::fromLatin1(bytes.left(bytes.indexOf('\n')));
+        auto read = [&](const QByteArray &stamp) {
+            QMimeData m;
+            m.setData(QStringLiteral("application/x-jeffoffice-origin"), stamp);
+            return pasteOriginOf(&m, mine);
+        };
+        QCOMPARE(read(bytes), PasteFrom::SameDocument);
+        // 5 MB of the right start, and of a long second line, a third line, no tag, a tag of a wrong shape, and the end of the line left on
+        QByteArray huge = (tag + QLatin1Char('\n') + mine).toUtf8();
+        huge += QByteArray(5 * 1024 * 1024, 'a');
+        QCOMPARE(read(huge), PasteFrom::OtherProgram);
+        QCOMPARE(read(QByteArray(300, 'a')), PasteFrom::OtherProgram);
+        QCOMPARE(read((tag + QLatin1Char('\n') + mine + QLatin1Char('\n') + mine).toUtf8()), PasteFrom::OtherProgram);
+        QCOMPARE(read(("\n" + mine).toUtf8()), PasteFrom::OtherProgram);
+        QCOMPARE(read(("zz" + tag.mid(2) + "\n" + mine).toUtf8()), PasteFrom::OtherProgram);
+        QCOMPARE(read((tag + QLatin1Char('\n') + mine + QLatin1Char('\n')).toUtf8()), PasteFrom::OtherProgram);
+        QCOMPARE(read((tag + QLatin1Char('\n') + QStringLiteral("not a uuid!")).toUtf8()), PasteFrom::OtherProgram);
+        QCOMPARE(read(QByteArray()), PasteFrom::OtherProgram);
     }
 };
 

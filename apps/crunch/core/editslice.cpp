@@ -124,7 +124,7 @@ void EditSession::startFill(Step step, const QString &text)
 {
     qint64 cells = qint64(step.cells.size());
     for (const FillEdit &f : step.fills) cells += qint64(f.row2) - f.row1 + 1;
-    if (cells <= kFillAtOnce) {
+    if (cells <= (s_fillAtOnceForTest > 0 ? s_fillAtOnceForTest : kFillAtOnce)) {
         pushStep(std::move(step), text);
         return;
     }

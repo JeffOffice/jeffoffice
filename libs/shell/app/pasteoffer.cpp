@@ -1,10 +1,13 @@
 #include "app/pasteoffer.h"
 
+#include <QAbstractScrollArea>
 #include <QAction>
+#include <QApplication>
 #include <QCoreApplication>
 #include <QEvent>
 #include <QKeyEvent>
 #include <QMenu>
+#include <QTimer>
 #include <QToolButton>
 #include <QWidget>
 #include <algorithm>
@@ -35,7 +38,12 @@ PasteOffer::PasteOffer(QWidget *host, QWidget *focus, const Choices &choices) : 
 PasteOffer::~PasteOffer()
 {
     // (the window may be closing: nothing the button's menu holds calls back into it)
+    if (m_focus) {
+        m_focus->removeEventFilter(this);
+        if (auto *area = qobject_cast<QAbstractScrollArea *>(m_focus)) area->viewport()->removeEventFilter(this);
+    }
     if (m_button) {
+        m_button->removeEventFilter(this);
         if (QMenu *menu = m_button->menu()) menu->disconnect();
         m_button->disconnect();
         delete m_button;
@@ -50,7 +58,7 @@ void PasteOffer::fill()
         menu->removeAction(old);
         old->deleteLater();
     }
-    const QVector<PasteChoice> choices = m_choices ? m_choices() : QVector<PasteChoice>();
+    const QVector<PasteChoice> choices = m_choices && !isBusy() ? m_choices() : QVector<PasteChoice>();
     for (const PasteChoice &c : choices) {
         if (c.separatorBefore && !menu->actions().isEmpty()) menu->addSeparator();
         QAction *a = menu->addAction(c.text);
@@ -88,9 +96,19 @@ void PasteOffer::showAt(const QRect &anchor)
         m_button->setFocusPolicy(Qt::NoFocus);
         auto *menu = new QMenu(m_button);
         m_button->setMenu(menu);
+        // (the menu closing, by a choice or by Esc, gives the keyboard back to the page)
+        connect(menu, &QMenu::aboutToHide, this, [this] {
+            QTimer::singleShot(0, this, [this] {
+                if (!m_focus || QApplication::activePopupWidget()) return;
+                if (QWidget *window = m_focus->window(); window->isVisible() && QApplication::activeWindow() != window) window->activateWindow();   // (the menu's own window is not left as the active one)
+                m_focus->setFocus(Qt::OtherFocusReason);
+            });
+        });
         connect(menu, &QMenu::aboutToShow, this, [this] { fill(); });   // (built when it opens: what the choices can do is as of then)
+        m_button->installEventFilter(this);
         m_button->hide();
     }
+    m_button->setEnabled(!isBusy());
     m_button->adjustSize();
     const QSize size = m_button->size();
     m_button->move(std::clamp(anchor.right() + 6, 0, std::max(0, m_host->width() - size.width())), std::clamp(anchor.bottom() + 4, 0, std::max(0, m_host->height() - size.height())));
@@ -104,11 +122,16 @@ void PasteOffer::hide()
     if (m_button) m_button->hide();
 }
 
+void PasteOffer::refreshBusy()
+{
+    if (m_button) m_button->setEnabled(!isBusy());
+}
+
 bool PasteOffer::isShown() const { return m_button && m_button->isVisible(); }
 
 bool PasteOffer::openMenu()
 {
-    if (!isShown()) return false;
+    if (!isShown() || isBusy()) return false;
     // (popup, not exec: the menu is up while the key event is over, and the arrow keys and Enter choose)
     m_button->menu()->popup(m_button->mapToGlobal(QPoint(0, m_button->height())));
     Q_EMIT opened();
@@ -139,10 +162,16 @@ bool PasteOffer::keyReleased(const QKeyEvent *e) { return wasTap(e) && openMenu(
 void PasteOffer::installOn(QWidget *focus)
 {
     focus->installEventFilter(this);
+    if (auto *area = qobject_cast<QAbstractScrollArea *>(focus)) area->viewport()->installEventFilter(this);
 }
 
-bool PasteOffer::eventFilter(QObject *, QEvent *e)
+bool PasteOffer::eventFilter(QObject *watched, QEvent *e)
 {
+    if (watched == m_button) {
+        // (the button: while it is busy a click does not open the menu)
+        if ((e->type() == QEvent::MouseButtonPress || e->type() == QEvent::MouseButtonDblClick || e->type() == QEvent::KeyPress) && isBusy()) return true;
+        return false;
+    }
     switch (e->type()) {
     case QEvent::WindowDeactivate:
     case QEvent::FocusOut:

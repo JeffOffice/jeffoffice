@@ -629,6 +629,9 @@ public:
     void finishFills();
     // The most cells a step is put in at once (more are put in by slices).
     static constexpr qint64 kFillAtOnce = 2000;
+    // (a test makes a small fill go by slices: the number of cells put in at once, or 0 for the usual)
+    static void setFillAtOnceForTest(qint64 cells) { s_fillAtOnceForTest = cells; }
+    static inline qint64 s_fillAtOnceForTest = 0;
     // What the slices did (a test counts them): how many cells the biggest slice put in, and how many slices there have been.
     qint64 longestSlice() const { return m_longestSlice; }
     int slicesPushed() const { return m_slicesPushed; }

@@ -3,6 +3,7 @@
 #include "deckhelpers.h"
 #include "app/pastedefaults.h"
 #include "app/pasteoffer.h"
+#include "../pasteofferchecks.h"
 #include "canvas/canvas.h"
 
 #include <QMimeData>
@@ -1244,6 +1245,85 @@ private Q_SLOTS:
         QTRY_VERIFY(menu->isVisible());
         QVERIFY(menu->findChild<QAction *>(QStringLiteral("pasteOption3")));
         closePopup();
+    }
+
+    // The Ctrl tap opens the menu only when nothing else was done between its press and release (a click, the wheel, a shortcut); after the menu closes by Esc or a choice the keyboard is on the
+    // slide and the Undo shortcut takes the paste back; and someone who never opens Options gets what Paste always did. Through the canvas's own widgets.
+    void theCtrlTapAndTheKeyboardAfterTheMenu()
+    {
+        PaneGuard guard;
+        Settings &st = Settings::get();
+        for (const char *k : {"edit/pasteDefaultSame", "edit/pasteDefaultOther", "edit/pasteDefaultProgram"}) st.remove(QString::fromLatin1(k));
+        DeckWindow w;
+        w.show();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        Editor *ed = w.editor();
+        ed->surfaceItems().clear();
+        auto putOnClipboard = [] {
+            auto *mime = new QMimeData;
+            mime->setText(QStringLiteral("Some words"));
+            mime->setHtml(QStringLiteral("<p><b>Some</b> words</p>"));
+            QApplication::clipboard()->setMimeData(mime);
+        };
+        auto buttonOf = [&] { return w.canvas()->viewport()->findChild<QToolButton *>(QStringLiteral("pasteOptionsButton")); };
+        auto boldFirst = [&] {
+            const auto *t = dynamic_cast<TextItem *>(ed->surfaceItems().front().get());
+            QTextDocument *story = t ? ed->doc()->storyDoc(t->storyId) : nullptr;
+            return story && story->begin().begin().fragment().charFormat().fontWeight() >= QFont::DemiBold;
+        };
+        auto offered = [&] {
+            putOnClipboard();
+            w.act(QStringLiteral("edit.paste"))->trigger();
+            QTRY_VERIFY(buttonOf() && buttonOf()->isVisible());
+        };
+        w.canvas()->setFocus();
+        // (nothing set: a paste from another program keeps the source formatting)
+        offered();
+        QVERIFY(boldFirst());
+        QWidget *canvas = w.canvas(), *viewport = w.canvas()->viewport();
+        QVERIFY(jp::pastecheck::menuAfterCtrl(canvas, [] {}));   // (a plain tap)
+        QVERIFY(buttonOf()->isVisible());
+        QVERIFY(!jp::pastecheck::menuAfterCtrl(canvas, [&] { jp::pastecheck::ctrlWheel(viewport); }));
+        QVERIFY(buttonOf()->isVisible());   // (the zoom is not an edit: the offer stays)
+        QVERIFY(jp::pastecheck::menuAfterCtrl(canvas, [] {}));
+        QVERIFY(!jp::pastecheck::menuAfterCtrl(canvas, [&] { QTest::mouseClick(viewport, Qt::LeftButton, Qt::ControlModifier, QPoint(3, 3)); }));
+        offered();
+        QVERIFY(!jp::pastecheck::menuAfterCtrl(canvas, [&] { QTest::keyClick(canvas, Qt::Key_V, Qt::ControlModifier); }));
+        ed->undo();
+        offered();
+        QVERIFY(!jp::pastecheck::menuAfterCtrl(canvas, [&] { QTest::keyClick(canvas, Qt::Key_C, Qt::ControlModifier); }));
+        offered();
+        QVERIFY(!jp::pastecheck::menuAfterCtrl(canvas, [&] { QTest::keyClick(canvas, Qt::Key_Z, Qt::ControlModifier); }));
+        // the keyboard after the menu closes by Esc, and by a choice
+        ed->undoStack()->clear();
+        ed->surfaceItems().clear();
+        for (const Qt::Key closeBy : {Qt::Key_Escape, Qt::Key_Return}) {
+            offered();
+            QCOMPARE(ed->undoStack()->count(), 1);
+            QTest::keyEvent(QTest::Press, canvas, Qt::Key(PasteOffer::key()));
+            QTest::keyEvent(QTest::Release, canvas, Qt::Key(PasteOffer::key()));
+            QTRY_VERIFY(QApplication::activePopupWidget());
+            if (closeBy == Qt::Key_Return) {   // (Keep Text Only: the second choice)
+                for (int i = 0; i < 2; ++i) QTest::keyClick(QApplication::activePopupWidget(), Qt::Key_Down);
+            }
+            QTest::keyClick(QApplication::activePopupWidget(), closeBy);
+            QTRY_VERIFY(!QApplication::activePopupWidget());
+            w.activateWindow();   // (the offscreen platform leaves a closed menu's window as the active one)
+            QTRY_COMPARE(QApplication::focusWidget(), static_cast<QWidget *>(canvas));
+            QCOMPARE(ed->undoStack()->count(), 1);
+            if (closeBy == Qt::Key_Return) QVERIFY(!boldFirst());
+            const QKeySequence undo(QKeySequence::Undo);
+            QTRY_VERIFY(w.act(QStringLiteral("edit.undo"))->isEnabled());
+            QTest::keyClick(QApplication::focusWidget(), undo[0].key(), undo[0].keyboardModifiers());
+            QCOMPARE(ed->surfaceItems().size(), size_t(0));
+        }
+        // Options > OK with nothing changed keeps nothing
+        const QVector<PasteDefaultRow> rows = DeckWindow::pasteDefaultRows();
+        {
+            PasteDefaultsSection untouched(rows);
+            untouched.apply();
+        }
+        for (const PasteDefaultRow &row : rows) QVERIFY(!st.value(row.key).isValid());
     }
 
     // Set Default Paste: Paste does what was set for where the content came from. From another program (no stamp) it is the third setting; a copy made in a window carries that window's stamp, so

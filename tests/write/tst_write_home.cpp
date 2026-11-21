@@ -2922,6 +2922,51 @@ private Q_SLOTS:
         setKinds(Kind::Keep, Kind::Keep, Kind::Keep);
     }
 
+    // After the menu closes by Esc or a choice the keyboard is on the page and the Undo shortcut takes the paste back; and someone who never opens Options gets what Paste always did.
+    void afterThePasteOptionsMenuClosesTheKeyboardIsOnThePage()
+    {
+        Settings &st = Settings::get();
+        for (const char *k : {"edit/pasteDefaultSame", "edit/pasteDefaultOther", "edit/pasteDefaultProgram"}) st.remove(QString::fromLatin1(k));
+        {
+            const auto rows = PageView::pasteDefaultRows();
+            PasteDefaultsSection untouched(rows);
+            untouched.apply();
+            for (const PasteDefaultRow &row : rows) {
+                QVERIFY(!st.value(row.key).isValid());
+                QCOMPARE(PasteDefaultsSection::value(row), int(PageView::PasteKind::Keep));
+            }
+        }
+        for (const Qt::Key closeBy : {Qt::Key_Escape, Qt::Key_Return}) {
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.show();
+            QVERIFY(QTest::qWaitForWindowActive(&w));
+            w.setDocument(open(makeDocx(para(run("plain ")))), QString());
+            auto *mime = new QMimeData;
+            mime->setHtml(QStringLiteral("<p>some <b>bold</b> words</p>"));
+            QApplication::clipboard()->setMimeData(mime);
+            QTextCursor c(w.document()->story());
+            c.movePosition(QTextCursor::End);
+            w.view()->setCursor(c);
+            w.view()->setFocus();
+            w.act(QStringLiteral("edit.paste"))->trigger();
+            QVERIFY(w.view()->pasteOptionsAvailable());
+            QTRY_VERIFY(w.act(QStringLiteral("edit.undo"))->isEnabled());
+            const QString pasted = w.document()->story()->toPlainText();
+            QTest::keyEvent(QTest::Press, w.view(), Qt::Key(PageView::pasteOptionsKey()));
+            QTest::keyEvent(QTest::Release, w.view(), Qt::Key(PageView::pasteOptionsKey()));
+            QTRY_VERIFY(QApplication::activePopupWidget());
+            if (closeBy == Qt::Key_Return) QTest::keyClick(QApplication::activePopupWidget(), Qt::Key_Down);
+            QTest::keyClick(QApplication::activePopupWidget(), closeBy);
+            QTRY_VERIFY(!QApplication::activePopupWidget());
+            QTRY_COMPARE(QApplication::focusWidget(), static_cast<QWidget *>(w.view()));
+            const QKeySequence undo(QKeySequence::Undo);
+            QTest::keyClick(QApplication::focusWidget(), undo[0].key(), undo[0].keyboardModifiers());
+            QVERIFY2(w.document()->story()->toPlainText() != pasted, "the Undo shortcut did not take the paste back");
+            QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("plain "));
+        }
+    }
+
     // The keyboard: Ctrl tapped after a paste opens the options, the arrows and Enter choose, Esc ends the offer. Each way a tap is spoilt is checked against a tap that works in the same state.
     void thePasteOptionsOpenWithACtrlTapAndEndWithEsc()
     {

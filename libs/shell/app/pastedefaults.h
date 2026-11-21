@@ -42,7 +42,7 @@ private:
     QVector<PasteDefaultRow> m_rows;
 };
 
-// A copy carries where it was made: this program (its name) and which document in it. Stamped on what the app puts on the clipboard; read by a paste.
+// A copy carries where it was made: this program (a digest of its name, not the name) and which document in it (a random id of the session). Stamped on what the app puts on the clipboard; read by a paste.
 JO_COMMON_EXPORT void stampPasteOrigin(QMimeData *mime, const QString &documentId);
 // Where the clipboard's content came from, for the document `documentId`: its own, another document of this program, or another program (no stamp, or another program's).
 JO_COMMON_EXPORT PasteFrom pasteOriginOf(const QMimeData *mime, const QString &documentId);

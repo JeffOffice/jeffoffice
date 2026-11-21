@@ -39,6 +39,11 @@ public:
     void showAt(const QRect &anchor);
     void hide();
     bool isShown() const;
+    // While `busy` says true (the paste is still being put in, a step is under way) the button does not offer its choices: a click, the key, and the menu do nothing, and the button is dimmed;
+    // `refreshBusy` says the answer may have changed.
+    void setBusyCheck(const std::function<bool()> &busy) { m_busy = busy; }
+    void refreshBusy();
+    bool isBusy() const { return m_busy && m_busy(); }
     QToolButton *button() const { return m_button; }
     // Pops the menu up by the button (the arrow keys and Enter choose); false when the button is not shown.
     bool openMenu();
@@ -51,7 +56,8 @@ public:
     bool wasTap(const QKeyEvent *e);
     // True when the release was a tap and the menu opened.
     bool keyReleased(const QKeyEvent *e);
-    // The same, as an event filter on the widget that has the keyboard (an app that has no key handling of its own to put it in): Esc, too, says `escaped`.
+    // The same, as an event filter on the widget that has the keyboard (an app that has no key handling of its own to put it in): Esc, too, says `escaped`. For a scroll area the filter is put on
+    // its viewport as well, where the mouse and wheel events go (a click or the wheel between the key's press and its release is no tap).
     void installOn(QWidget *focus);
 
     // The key that opens it: Ctrl (the key by that name on a Mac is Meta to Qt), and the name to say; a test may set another.
@@ -72,6 +78,7 @@ private:
     QPointer<QWidget> m_host, m_focus;
     QString m_description;
     Choices m_choices;
+    std::function<bool()> m_busy;
     bool m_tap = false;   // the key went down and nothing else since
 };
 

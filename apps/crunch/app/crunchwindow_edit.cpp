@@ -109,6 +109,7 @@ void CrunchWindow::createEditing()
         updateEditActions();
     });
     connect(m_session.get(), &crunch::EditSession::fillFinished, this, &CrunchWindow::updateEditActions);   // (Undo and Redo are on again when the last slice is in)
+    connect(m_session.get(), &crunch::EditSession::fillFinished, this, [this] { updatePasteOffer(); });   // (and the Paste Options button, if it was held back)
     QUndoStack *u = m_session->undoStack();
     connect(u, &QUndoStack::indexChanged, this, [this] { removeArrows(); });   // (the arrows are of the cells as they were)
     connect(u, &QUndoStack::canUndoChanged, this, &CrunchWindow::updateEditActions);
@@ -148,6 +149,7 @@ void CrunchWindow::updateEditActions()
     QUndoStack *u = undoStack();
     const bool open = m_session && !m_saving && !isReadOnly() && !m_argsDialog;
     const bool stepping = m_applying || (m_session && m_session->isSlicing());   // (Undo and Redo wait while a large change is being put in)
+    if (m_pasteOffer) m_pasteOffer->refreshBusy();
     act("edit.undo")->setEnabled(open && !stepping && m_session->canUndo());
     act("edit.redo")->setEnabled(open && !stepping && u->canRedo());
     act("edit.undo")->setToolTip(jp::plainToolTip(u && m_session->canUndo() ? (KeyMap::shownKey(act("edit.undo")).isEmpty() ? tr("Undo %1").arg(u->undoText()) : tr("Undo %1 (%2)").arg(u->undoText(), KeyMap::shownKey(act("edit.undo")))) : tr("Undo")));

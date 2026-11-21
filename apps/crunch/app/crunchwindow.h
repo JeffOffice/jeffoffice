@@ -1338,6 +1338,7 @@ private:
     void endPasteOffer();
     void updatePasteOffer();
     bool pasteIsLast() const;
+    bool pasteOfferBusy() const;
     void notePaste(const jp::office::sheet::CellRange &range, const crunch::EditSession::PasteOptions &options);
     bool repasteWith(const crunch::EditSession::PasteOptions &options);
     QVector<PasteChoice> pasteOfferChoices();

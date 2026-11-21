@@ -547,7 +547,9 @@ bool PageView::redoLastPaste(const std::function<void()> &again)
 {
     const int from = m_lastPaste.from, selectionEnd = m_lastPaste.selectionEnd, to = m_lastPaste.to;
     const std::optional<PasteSource> made = m_lastPaste.source;
+    const int pasted = m_doc->story()->revision();
     undo();
+    if (m_doc->story() != m_lastPaste.story || m_doc->story()->revision() == pasted) return false;   // (the paste was not taken back: nothing is done on top of it)
     const int taken = m_doc->story()->revision();
     QTextCursor back(m_doc->story());
     back.setPosition(from);

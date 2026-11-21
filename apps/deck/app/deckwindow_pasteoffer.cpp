@@ -130,8 +130,14 @@ bool DeckWindow::pasteOnce(int form)
 bool DeckWindow::repasteAs(int form)
 {
     if (!m_pasteLive || m_pasteAt != m_changes) return false;
+    QUndoStack *stack = m_ed->undoStack();
+    const int index = stack->index();
     m_pasting = true;
     m_ed->undo();
+    if (stack->index() != index - 1) {   // (the paste was not taken back, as with a crop open: nothing is done on top of it)
+        m_pasting = false;
+        return false;
+    }
     const quint64 undone = m_changes;
     const bool did = pasteOnce(form);
     if (!did) {
