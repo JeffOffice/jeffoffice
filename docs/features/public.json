@@ -157,8 +157,9 @@
        "heading": "8d54cd10991bbb4f1d6ad8c37d17fc610c67773504fc9764839733acceab5893",
        "items": [
         {
-         "status": "partly",
-         "text": "4febe0c68eec4711702b5da88a85e74cab0ada184ec970a7615592beb3cd0ac7"
+         "hide_soon": true,
+         "status": "done",
+         "text": "884ac6e52c1f333417182d9e7d2e66c865fcb07700e82c235b885be7ae837e07"
         },
         {
          "hide_soon": true,
@@ -447,7 +448,7 @@
         },
         {
          "status": "partly",
-         "text": "038b0b921cc277642323ae1c85ff65abb88e3429727abfee64e528f9c782e2f7"
+         "text": "c743dba1a849a222a4e003c2892e275e15321c68f0f22bc4e530bf569bcfbb06"
         },
         {
          "hide_soon": true,
@@ -556,7 +557,7 @@
         },
         {
          "status": "partly",
-         "text": "9b80765de4072b50e6f85f43abd1370a6e737b9fc915390bafd0edf2d7b6c757"
+         "text": "4f10d16ce646abd1ea8d7efcadc8d1f3742c7ec8a80164b754e5d6ee6e9e838f"
         },
         {
          "status": "partly",
@@ -833,12 +834,13 @@
        "heading": "db4683de064e1ff34cb5fd3925259c131d1bb3ed9969ff37f71cf674453f419c",
        "items": [
         {
-         "status": "partly",
-         "text": "cc98411f16b82071946349690f3623d494abac85c0159defb26bdcdab5504222"
+         "hide_soon": true,
+         "status": "done",
+         "text": "74421c47b9d48b925ad1215a37ab27ca84496868801e29cd794661a3e9970a03"
         },
         {
          "status": "partly",
-         "text": "3a561e1e34e84626d28619b5a2d4c5e4801a44a45113d7cc01505f5dd9d9bdc5"
+         "text": "18a96c596051a5405ad29ad95aaab65008b470f237717805123083f4c55765cd"
         }
        ]
       },
@@ -1368,7 +1370,7 @@
         },
         {
          "status": "partly",
-         "text": "0a9f40b2828ec07bf8f65aa47f96d0e9922e7a131398ff63ad19ea34fb037059"
+         "text": "fa278aac128ac019c63ec1e9ebdfabe547a9812a2ca619ad8ed39a0a31037031"
         },
         {
          "status": "partly",
@@ -7871,18 +7873,6 @@
     "fr": ""
    }
   },
-  "038b0b921cc277642323ae1c85ff65abb88e3429727abfee64e528f9c782e2f7": {
-   "drop": false,
-   "en": "Set font color and cell fill color from theme colors with tints, standard colors, More Colors, or No Color. Each change is one step of Undo.",
-   "es": "Defina el color de fuente y el color de relleno de celda con colores del tema con matices, colores estándar, Más colores o Sin color. Cada cambio es un solo paso de deshacer.",
-   "fr": "Définissez la couleur de police et la couleur de remplissage des cellules avec des couleurs de thème avec nuances, des couleurs standard, Plus de couleurs ou Aucune couleur. Chaque changement est une seule étape d’annulation.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "03a261aa89ffd4d59cba080da705d11a9c7d77f1f250d19dc505899cefc56faf": {
    "drop": false,
    "en": "Print several pages per sheet (business cards, labels), placed by the publication’s own side and top margins and gaps.",
@@ -8625,18 +8615,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "0a9f40b2828ec07bf8f65aa47f96d0e9922e7a131398ff63ad19ea34fb037059": {
-   "drop": false,
-   "en": "A Table Styles gallery, Clear to remove the look, and New Table Style, which asks for a name and the fill, text color, and bold of the header row, row stripes, totals row, and first column. The new style is added to a Custom group and saved in the file.",
-   "es": "Una galería de estilos de tabla, Borrar para quitar el aspecto, y Nuevo estilo de tabla, que pide un nombre y el relleno, el color del texto y la negrita de la fila de encabezado, las bandas de filas, la fila de totales y la primera columna. El nuevo estilo se agrega a un grupo Personalizado y se guarda en el archivo.",
-   "fr": "Une galerie de styles de tableau, Effacer pour retirer l’aspect, et Nouveau style de tableau, qui demande un nom ainsi que le remplissage, la couleur du texte et le gras de la ligne d’en-tête, des bandes de lignes, de la ligne de totaux et de la première colonne. Le nouveau style est ajouté à un groupe Personnalisé et enregistré dans le fichier.",
-   "soon": {
-    "drop": false,
-    "en": "Table styles: borders, fonts, column stripes, corner cells, and changing or deleting a style",
-    "es": "Estilos de tabla: bordes, fuentes, bandas de columnas, celdas de esquina, y cambiar o eliminar un estilo",
-    "fr": "Styles de tableau : bordures, polices, bandes de colonnes, cellules d’angle, et modification ou suppression d’un style"
    }
   },
   "0b34cd64f82fde71f3a8b0ba442f605358125c966553788d079f42478c3b6ea5": {
@@ -9549,6 +9527,18 @@
     "en": "Edit Points and rerouting connectors",
     "es": "Edición de puntos y redirección de conectores",
     "fr": "Modification des points et reroutage des connecteurs"
+   }
+  },
+  "18a96c596051a5405ad29ad95aaab65008b470f237717805123083f4c55765cd": {
+   "drop": false,
+   "en": "Pick a theme, theme colors, or theme fonts from the Themes, Colors, and Fonts galleries to restyle cells, cell styles, table styles, and tab colors. Create your own color and font sets, save the current theme, browse for a theme from another file, or reset. Each choice is one step of Undo.",
+   "es": "Elija un tema, colores del tema o fuentes del tema en las galerías Temas, Colores y Fuentes para cambiar el estilo de celdas, estilos de celda, estilos de tabla y colores de pestañas. Cree sus propios conjuntos de colores y fuentes, guarde el tema actual, busque un tema de otro archivo o restablezca. Cada elección es un paso de Deshacer.",
+   "fr": "Choisissez un thème, des couleurs de thème ou des polices de thème dans les galeries Thèmes, Couleurs et Polices pour modifier le style des cellules, des styles de cellule, des styles de tableau et des couleurs d’onglet. Créez vos propres jeux de couleurs et de polices, enregistrez le thème actuel, recherchez un thème dans un autre fichier ou réinitialisez. Chaque choix correspond à une étape d’annulation.",
+   "soon": {
+    "drop": false,
+    "en": "Effects gallery: choose theme effects",
+    "es": "Galería de efectos: elegir efectos del tema",
+    "fr": "Galerie d’effets : choisir les effets du thème"
    }
   },
   "18d1d5b665ef44829cfec26184694d030700c0a7e9313bbbf7d811618a5108ab": {
@@ -12239,18 +12229,6 @@
     "fr": ""
    }
   },
-  "3a561e1e34e84626d28619b5a2d4c5e4801a44a45113d7cc01505f5dd9d9bdc5": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Themes: apply, save, and browse, with colors, fonts, and effects",
-    "es": "Temas: aplicar, guardar y buscar, con colores, fuentes y efectos",
-    "fr": "Thèmes : appliquer, enregistrer et parcourir, avec couleurs, polices et effets"
-   }
-  },
   "3a74b04aedbbed54323db0c68cdfa933d9a9e3a2e06668feda945ad3a917dec3": {
    "drop": true,
    "en": "",
@@ -13775,6 +13753,18 @@
     "fr": ""
    }
   },
+  "4f10d16ce646abd1ea8d7efcadc8d1f3742c7ec8a80164b754e5d6ee6e9e838f": {
+   "drop": false,
+   "en": "Open the Cell Styles gallery and apply a style to cells, or add a new cell style of your own. The headings, Title, Total, and Accent styles follow a theme change.",
+   "es": "Abra la galería de estilos de celda y aplique un estilo a las celdas, o agregue un estilo de celda propio. Los estilos de encabezado, Título, Total y de énfasis siguen los cambios de tema.",
+   "fr": "Ouvrez la galerie des styles de cellule et appliquez un style aux cellules, ou ajoutez votre propre style de cellule. Les styles de titre, Titre, Total et d’accentuation suivent un changement de thème.",
+   "soon": {
+    "drop": false,
+    "en": "Cell style modification: change a style so the cells that use it follow",
+    "es": "Modificación de estilos de celda: cambiar un estilo para que las celdas que lo usan lo sigan",
+    "fr": "Modification des styles de cellule : changer un style pour que les cellules qui l’utilisent le suivent"
+   }
+  },
   "4f66729450f120558774bc5cda4767a260b6760c242cec2c7b1a120707d67fda": {
    "drop": false,
    "en": "Tables",
@@ -13812,18 +13802,6 @@
    }
   },
   "4fd4b1059680e38ec52fcbd8eec019eb32662d0c4959522b0b25e42f6fe82706": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "4febe0c68eec4711702b5da88a85e74cab0ada184ec970a7615592beb3cd0ac7": {
    "drop": true,
    "en": "",
    "es": "",
@@ -16727,6 +16705,18 @@
     "fr": ""
    }
   },
+  "74421c47b9d48b925ad1215a37ab27ca84496868801e29cd794661a3e9970a03": {
+   "drop": false,
+   "en": "A workbook’s theme, with its colors, fonts, and effects, is read and kept, and colors and fonts that cells take from the theme follow it. Theme colors stay theme references through open, edit, save, and reopen.",
+   "es": "El tema de un libro, con sus colores, fuentes y efectos, se lee y se conserva, y los colores y fuentes que las celdas toman del tema lo siguen. Los colores del tema se conservan como referencias al tema al abrir, editar, guardar y volver a abrir.",
+   "fr": "Le thème d’un classeur, avec ses couleurs, ses polices et ses effets, est lu et conservé, et les couleurs et polices que les cellules tirent du thème le suivent. Les couleurs de thème restent des références au thème à l’ouverture, à la modification, à l’enregistrement et à la réouverture.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "7478cca15a82e2118bd5d718e13a2c861e57685a887eedbe2e2dabf58b471ee5": {
    "drop": false,
    "en": "Saves `.docx` files that keep the document's content and look.",
@@ -17973,6 +17963,18 @@
     "en": "Validation rules kept in the file’s extension form, including lists that read other sheets: edit",
     "es": "Reglas de validación guardadas en la forma de extensión del archivo, incluidas las listas que leen otras hojas: edición",
     "fr": "Règles de validation conservées dans la forme d’extension du fichier, y compris les listes lisant d’autres feuilles : modification"
+   }
+  },
+  "884ac6e52c1f333417182d9e7d2e66c865fcb07700e82c235b885be7ae837e07": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "886781a9eaa9d8438a36af8adb5a94d9567b95efb8ed74cf0324a107dac5e371": {
@@ -19269,18 +19271,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "9b80765de4072b50e6f85f43abd1370a6e737b9fc915390bafd0edf2d7b6c757": {
-   "drop": false,
-   "en": "Apply a cell style from the gallery, with built-in styles made when used. New Cell Style adds a style of your own to the gallery.",
-   "es": "Aplique un estilo de celda de la galería, con los estilos integrados creados al usarlos. Nuevo estilo de celda agrega un estilo propio a la galería.",
-   "fr": "Appliquez un style de cellule depuis la galerie, les styles intégrés étant créés à l’usage. Nouveau style de cellule ajoute un style personnalisé à la galerie.",
-   "soon": {
-    "drop": false,
-    "en": "Modify a cell style, with cells that use it following",
-    "es": "Modificar un estilo de celda, con las celdas que lo usan siguiendo el cambio",
-    "fr": "Modification d’un style de cellule, avec mise à jour des cellules qui l’utilisent"
    }
   },
   "9bb8474e6fdca87bb7941bcac4ab67bcc97ca38c4e8d1de3e6fab147a83b41db": {
@@ -22031,6 +22021,18 @@
     "fr": ""
    }
   },
+  "c743dba1a849a222a4e003c2892e275e15321c68f0f22bc4e530bf569bcfbb06": {
+   "drop": false,
+   "en": "Set the font color and the cell fill color from theme colors with tints, standard colors, or more colors, or choose No Fill. A theme color stays a theme reference, so it follows a theme change.",
+   "es": "Establezca el color de fuente y el color de relleno de la celda con colores del tema con matices, colores estándar o más colores, o elija Sin relleno. Un color del tema se conserva como referencia al tema, por lo que sigue los cambios de tema.",
+   "fr": "Définissez la couleur de police et la couleur de remplissage de la cellule avec des couleurs de thème avec nuances, des couleurs standard ou d’autres couleurs, ou choisissez Aucun remplissage. Une couleur de thème reste une référence au thème et suit donc un changement de thème.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "c7cb70fdf0b130f39fa06bc1cb9f0fe48fc0368aaa61eeb4031507e5580674ba": {
    "drop": true,
    "en": "",
@@ -22533,18 +22535,6 @@
     "en": "Data bars, color scales, and icon sets: create",
     "es": "Barras de datos, escalas de color y conjuntos de iconos: crear",
     "fr": "Barres de données, nuances de couleurs et jeux d’icônes : création"
-   }
-  },
-  "cc98411f16b82071946349690f3623d494abac85c0159defb26bdcdab5504222": {
-   "drop": false,
-   "en": "A workbook’s theme (colors, fonts, and effects) is read and kept, and every color or font a cell takes from the theme resolves to it.",
-   "es": "El tema de un libro (colores, fuentes y efectos) se lee y se conserva, y cada color o fuente que una celda toma del tema se resuelve con él.",
-   "fr": "Le thème d’un classeur (couleurs, polices et effets) est lu et conservé, et chaque couleur ou police qu’une cellule tire du thème s’y rapporte.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
    }
   },
   "ccdc41b7762ddef6e745fe08828da15bb6b6e96a0df3f6f5436becf1673b7ad4": {
@@ -25989,6 +25979,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "fa278aac128ac019c63ec1e9ebdfabe547a9812a2ca619ad8ed39a0a31037031": {
+   "drop": false,
+   "en": "Apply a table style from the Table Styles gallery, clear it, or create a new table style with its own name and a look for the header row, row stripes, totals row, and first column. The new style is added to a Custom group and saved with the file. Built-in styles follow a theme change.",
+   "es": "Aplique un estilo de tabla desde la galería de estilos de tabla, bórrelo o cree un estilo de tabla nuevo con nombre propio y un aspecto para la fila de encabezado, las filas con bandas, la fila de totales y la primera columna. El estilo nuevo se agrega a un grupo Personalizado y se guarda con el archivo. Los estilos integrados siguen los cambios de tema.",
+   "fr": "Appliquez un style de tableau depuis la galerie des styles de tableau, effacez-le, ou créez un nouveau style de tableau avec son propre nom et un aspect pour la ligne d’en-tête, les lignes alternées, la ligne des totaux et la première colonne. Le nouveau style est ajouté à un groupe Personnalisé et enregistré avec le fichier. Les styles intégrés suivent un changement de thème.",
+   "soon": {
+    "drop": false,
+    "en": "Table style borders, fonts, column stripes, and corner cells; change and delete a style",
+    "es": "Bordes, fuentes, bandas de columna y celdas de esquina en estilos de tabla; cambiar y eliminar un estilo",
+    "fr": "Bordures, polices, colonnes alternées et cellules d’angle des styles de tableau ; modifier et supprimer un style"
    }
   },
   "fa31d3f7c626252a8235484922df3a890557cb3c7742a09b11ba1de36dac2775": {
