@@ -263,9 +263,12 @@ QVector<int> outOfReadingOrder(const ItemList &items, const QSizeF &pageSize)
 bool linkTextSaysWhere(const QString &words, const QString &address)
 {
     const QString text = words.simplified().toCaseFolded();
-    if (text.isEmpty()) return true;
-    static const QStringList empty = {QStringLiteral("here"), QStringLiteral("click here"), QStringLiteral("link"), QStringLiteral("this link"), QStringLiteral("this"), QStringLiteral("more"),
-                                      QStringLiteral("read more"), QStringLiteral("click"), QStringLiteral("page"), QStringLiteral("this page")};
+    if (text.isEmpty()) return false;
+    // The words that say nothing, one translatable list (each language has its own).
+    QStringList empty = QCoreApplication::translate("jp::PageAccess", "here, click here, link, this link, this, more, read more, click, page, this page",
+                                                                 "Words and phrases that do not say where a link goes, separated by commas and spaces; translate each one for your language")
+                                         .split(QLatin1String(", "), Qt::SkipEmptyParts);
+    for (QString &phrase : empty) phrase = phrase.simplified().toCaseFolded();
     if (empty.contains(text)) return false;
     // The address itself (or the start of one) is read out letter by letter.
     return !(text == address.simplified().toCaseFolded() || text.startsWith(QLatin1String("http://")) || text.startsWith(QLatin1String("https://")) || text.startsWith(QLatin1String("www.")));
@@ -276,6 +279,7 @@ QVector<PageAccessIssue> checkPageAccessibility(const Document &doc, bool slides
     QVector<PageAccessIssue> out;
     const LayoutEnv env = Renderer::layoutEnv(doc);
     QHash<QString, int> firstWithTitle;
+    int linksReported = 0, linksMore = 0;
     for (int p = 0; p < doc.pages.size() && out.size() < most; ++p) {
         if (titleOf) {
             const QString title = titleOf(p).simplified().toCaseFolded();
@@ -340,19 +344,48 @@ QVector<PageAccessIssue> checkPageAccessibility(const Document &doc, bool slides
                 for (const TableCell &c : static_cast<const TableItem &>(*it).cells) stories << c.storyId << c.storyId2;
             for (const QString &sid : std::as_const(stories)) {
                 const QTextDocument *sd = sid.isEmpty() ? nullptr : doc.storyDoc(sid);
-                if (!sd || out.size() >= most) continue;
-                QString unclear;
-                for (QTextBlock b = sd->begin(); b.isValid() && unclear.isEmpty(); b = b.next())
-                    for (QTextBlock::iterator f = b.begin(); !f.atEnd() && unclear.isEmpty(); ++f) {
+                if (!sd) continue;
+                for (QTextBlock b = sd->begin(); b.isValid(); b = b.next()) {
+                    // The fragments of one link (the same address, side by side) are one link.
+                    QString words, href;
+                    bool inLink = false;
+                    auto endLink = [&] {
+                        if (!inLink) return;
+                        inLink = false;
+                        if (linkTextSaysWhere(words, href)) return;
+                        if (linksReported >= kMostUnclearLinks) {
+                            ++linksMore;
+                            return;
+                        }
+                        ++linksReported;
+                        const QString shown = words.simplified().left(60);
+                        if (out.size() >= most) return;
+                        out.push_back({PageAccessIssue::UnclearLink, PageAccessIssue::Warning, p, it->id,
+                                       shown.isEmpty()
+                                           ? (slides ? QCoreApplication::translate("jp::PageAccess", "A link on slide %1 has no words. Use words that name the page it opens.")
+                                                     : QCoreApplication::translate("jp::PageAccess", "A link on page %1 has no words. Use words that name the page it opens."))
+                                                 .arg(p + 1)
+                                           : (slides ? QCoreApplication::translate("jp::PageAccess", "The link \"%1\" on slide %2 does not say where it goes. Use words that name the page it opens.")
+                                                     : QCoreApplication::translate("jp::PageAccess", "The link \"%1\" on page %2 does not say where it goes. Use words that name the page it opens."))
+                                                 .arg(shown)
+                                                 .arg(p + 1)});
+                    };
+                    for (QTextBlock::iterator f = b.begin(); !f.atEnd(); ++f) {
                         const QTextCharFormat cf = f.fragment().charFormat();
-                        if (cf.isAnchor() && !linkTextSaysWhere(f.fragment().text(), cf.anchorHref())) unclear = f.fragment().text().trimmed();
+                        if (!cf.isAnchor()) {
+                            endLink();
+                            continue;
+                        }
+                        if (inLink && cf.anchorHref() != href) endLink();
+                        if (!inLink) {
+                            inLink = true;
+                            words.clear();
+                            href = cf.anchorHref();
+                        }
+                        words += f.fragment().text();
                     }
-                if (!unclear.isEmpty())
-                    out.push_back({PageAccessIssue::UnclearLink, PageAccessIssue::Warning, p, it->id,
-                                   (slides ? QCoreApplication::translate("jp::PageAccess", "The link \"%1\" on slide %2 does not say where it goes. Use words that name the page it opens.")
-                                           : QCoreApplication::translate("jp::PageAccess", "The link \"%1\" on page %2 does not say where it goes. Use words that name the page it opens."))
-                                       .arg(unclear.left(60))
-                                       .arg(p + 1)});
+                    endLink();
+                }
             }
         });
         // Text that is hard to read against what is behind it, in each object that has some (those in groups too), where the text is.
@@ -419,6 +452,10 @@ QVector<PageAccessIssue> checkPageAccessibility(const Document &doc, bool slides
                                .arg(p + 1) + QLatin1Char(' ') + QCoreApplication::translate("jp::PageAccess", "Open Reading Order to change it.")});
         }
     }
+    // The links past the first kMostUnclearLinks are counted, not listed.
+    if (linksMore > 0 && !out.isEmpty())
+        out.push_back({PageAccessIssue::UnclearLink, PageAccessIssue::Tip, out.last().page, QString(),
+                       QCoreApplication::translate("jp::PageAccess", "%n more link(s) do not say where they go. Use words that name the page each one opens.", nullptr, linksMore)});
     return out;
 }
 

@@ -26,6 +26,8 @@ struct PageAccessIssue {
 };
 
 constexpr int kMaxPageAccessIssues = 500;
+// The links that say nothing of where they go that are listed one by one; the rest are counted in one line.
+constexpr int kMostUnclearLinks = 50;
 
 // The contrast of two colors, from 1 (the same) to 21 (black on white): the ratio of their relative luminances, each with 0.05 added.
 double contrastRatio(const QColor &a, const QColor &b);
