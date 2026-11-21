@@ -18,6 +18,7 @@
 #include "io/pdftransparency.h"
 #include "render/pagetags.h"
 #include "render/svgexport.h"
+#include "text/storyio.h"
 #include "text/textengine.h"
 #include "text/textprops.h"
 
@@ -1088,6 +1089,66 @@ SlidePicturesResult exportSlidePictures(const Document &d, LayoutCache *cache, c
             return result;
         }
     }
+    return result;
+}
+
+PicturePresentationResult picturePresentation(const Document &d, LayoutCache *cache, const PicturePresentationOptions &o)
+{
+    PicturePresentationResult result;
+    result.widthUsed = slidePictureWidth(d, o.width);
+    int total = 0;
+    for (const auto &page : d.pages)
+        if (!page->hidden || o.hidden) ++total;
+    std::unique_ptr<Document> made = newPresentation();
+    setSlideSize(*made, d.pageSize(), false);
+    MasterPage *blank = layoutByKey(*made, QStringLiteral("blank"));
+    if (!blank) {
+        result.error = QCoreApplication::translate("jp::deck::Output", "There is no blank layout to put the pictures on.");
+        return result;
+    }
+    const QSizeF size = made->pageSize();
+    qint64 bytes = 0;
+    int done = 0;
+    for (int i = 0; i < d.pages.size(); ++i) {
+        if (d.pages[i]->hidden && !o.hidden) continue;
+        const QImage img = slideImage(d, cache, i, result.widthUsed);
+        QByteArray png;
+        QBuffer buffer(&png);
+        if (img.isNull() || !buffer.open(QIODevice::WriteOnly) || !img.save(&buffer, "PNG")) {
+            result.error = QCoreApplication::translate("jp::deck::Output", "Slide %1 could not be drawn as a picture.").arg(i + 1);
+            return result;
+        }
+        bytes += png.size();
+        if (bytes > o.mostBytes) {
+            result.error = QCoreApplication::translate("jp::deck::Output", "The pictures come to more than a presentation of pictures can hold. Use a smaller width or fewer slides.");
+            return result;
+        }
+        const int at = addSlide(*made, *blank);
+        auto picture = std::make_shared<PictureItem>();
+        picture->imageId = made->addImage(png, QStringLiteral("png"));
+        picture->rect = QRectF(QPointF(0, 0), size);
+        picture->imgRect = QRectF(QPointF(0, 0), size);
+        const QString title = slideTitle(d, i).trimmed();
+        picture->altText = title.isEmpty() ? QCoreApplication::translate("jp::deck::Output", "Slide %1").arg(i + 1) : title;
+        picture->name = QCoreApplication::translate("jp::deck::Output", "Slide %1 picture").arg(i + 1);
+        Page &slide = *made->pages[at];
+        slide.items.push_back(picture);
+        const QString notes = notesText(d, *d.pages[i]);
+        if (!notes.isEmpty()) {
+            slide.notesStoryId = made->createStory();
+            setStoryText(made->storyDoc(slide.notesStoryId), notes);
+        }
+        ++done;
+        if (o.progress && !o.progress(done, total)) {
+            result.cancelled = true;
+            return result;
+        }
+    }
+    if (done == 0) return result;
+    // (the new presentation started with one slide of its own, ahead of these)
+    made->pages.removeAt(0);
+    result.slides = done;
+    result.presentation = std::move(made);
     return result;
 }
 

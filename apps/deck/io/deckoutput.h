@@ -146,4 +146,23 @@ QStringList slidePictureNames(const Document &d, const SlidePicturesOptions &o);
 int slidePictureWidth(const Document &d, int width);
 SlidePicturesResult exportSlidePictures(const Document &d, LayoutCache *cache, const SlidePicturesOptions &o);
 
+// A presentation of pictures: a new presentation of the same slide size with a slide for each slide of `d` (a hidden one only when `hidden`), the slide drawn as one picture
+// `width` pixels across (held to kMostSlidePicturePixels as slidePictureWidth does) that fills the slide, with the slide's title as its alt text and the slide's notes kept on the
+// new slide. All the pictures together are held to kMostPicturePresentationBytes: past that it stops, with `error` and no presentation. `progress` is as for the files.
+constexpr qint64 kMostPicturePresentationBytes = qint64(512) * 1024 * 1024;
+struct PicturePresentationOptions {
+    int width = 1920;
+    bool hidden = false;
+    qint64 mostBytes = kMostPicturePresentationBytes;   // (a smaller one only for a test of the limit)
+    std::function<bool(int done, int total)> progress;
+};
+struct PicturePresentationResult {
+    std::unique_ptr<Document> presentation;   // empty when it stopped
+    QString error;
+    bool cancelled = false;
+    int slides = 0;
+    int widthUsed = 0;
+};
+PicturePresentationResult picturePresentation(const Document &d, LayoutCache *cache, const PicturePresentationOptions &o);
+
 } // namespace jp::deck

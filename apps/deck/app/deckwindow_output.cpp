@@ -639,6 +639,85 @@ int DeckWindow::exportSlidePictures(const deck::SlidePicturesOptions &optionsIn)
     return int(result.written.size());
 }
 
+bool DeckWindow::exportPicturePresentation(const deck::PicturePresentationOptions &optionsIn)
+{
+    settle(this);
+    const QString title = tr("Save as Presentation of Pictures");
+    deck::PicturePresentationOptions options = optionsIn;
+    bool anyShown = false;
+    for (const auto &page : m_ed->doc()->pages) anyShown = anyShown || !page->hidden || options.hidden;
+    if (!anyShown) {
+        jp::plainInformation(this, title, tr("Every slide is hidden, so there is nothing to save. Choose to include hidden slides to save them."));
+        return false;
+    }
+    const QString filter = tr("Presentation (*.pptx)");
+    const QString suggested = suggestedPath(this, tr("%1 - Pictures").arg(m_ed->displayName()), QStringLiteral(".pptx"));
+    QString path = m_pathChooser ? m_pathChooser(suggested, filter) : askSavePath(this, title, suggested, filter);
+    if (path.isEmpty()) return false;
+    if (QFileInfo(path).suffix().isEmpty()) path += QStringLiteral(".pptx");
+    std::unique_ptr<QProgressDialog> bar;
+    const int shown = [&] {
+        int n = 0;
+        for (const auto &page : m_ed->doc()->pages) n += !page->hidden || options.hidden;
+        return n;
+    }();
+    if (shown > 10) {
+        bar = std::make_unique<QProgressDialog>(tr("Drawing the slides as pictures…"), tr("Cancel"), 0, shown, this);
+        bar->setWindowModality(Qt::WindowModal);
+        bar->setMinimumDuration(0);
+        bar->setValue(0);
+        options.progress = [&bar, inner = optionsIn.progress](int done, int total) {
+            bar->setValue(done);
+            QCoreApplication::processEvents();
+            return !bar->wasCanceled() && (!inner || inner(done, total));
+        };
+    }
+    QApplication::setOverrideCursor(Qt::WaitCursor);
+    deck::PicturePresentationResult made = deck::picturePresentation(*m_ed->doc(), &m_ed->cache(), options);
+    QApplication::restoreOverrideCursor();
+    bar.reset();
+    if (made.cancelled) {
+        statusBar()->showMessage(tr("Stopped. Nothing was saved."), 8000);
+        return false;
+    }
+    if (!made.presentation) {
+        jp::plainWarning(this, title, made.error.isEmpty() ? tr("The pictures could not be made.") : made.error);
+        return false;
+    }
+    // Saved as any presentation is, by a window that holds it (never shown): its file properties, format choices, and warnings are the ones every save has.
+    DeckWindow holder;
+    holder.editor()->setDocument(std::move(made.presentation));
+    if (!holder.saveTo(path, true)) return false;
+    statusBar()->showMessage(tr("Saved %1, with %n slide(s) as pictures.", nullptr, made.slides).arg(QFileInfo(path).fileName()), 8000);
+    return true;
+}
+
+bool DeckWindow::exportPicturePresentationAsk()
+{
+    QDialog dlg(this);
+    dlg.setObjectName(QStringLiteral("picturePresentationDialog"));
+    dlg.setWindowTitle(tr("Save as Presentation of Pictures"));
+    auto *form = new QFormLayout(&dlg);
+    auto *width = new QSpinBox(&dlg);
+    width->setObjectName(QStringLiteral("picturePresentationWidth"));
+    width->setRange(100, 8000);
+    width->setSuffix(tr(" pixels"));
+    width->setValue(1920);
+    form->addRow(tr("Width of each picture"), width);
+    auto *hidden = new QCheckBox(tr("Include hidden slides"), &dlg);
+    hidden->setObjectName(QStringLiteral("picturePresentationHidden"));
+    form->addRow(hidden);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dlg);
+    form->addRow(buttons);
+    connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
+    if (dlg.exec() != QDialog::Accepted) return false;
+    deck::PicturePresentationOptions options;
+    options.width = width->value();
+    options.hidden = hidden->isChecked();
+    return exportPicturePresentation(options);
+}
+
 bool DeckWindow::exportSlidePicturesAsk()
 {
     deck::SlidePicturesOptions options;
@@ -651,6 +730,7 @@ void DeckWindow::createOutputActions()
     mk("file.exportPdf", tr("Export to PDF…"), "file-output", QKeySequence(), [this] { exportPdf(); });
     mk("file.exportPicture", tr("Export Slide as Picture…"), "image", QKeySequence(), [this] { exportPicture(); });
     mk("file.exportSlidePictures", tr("Save Slides as Pictures…"), "images", QKeySequence(), [this] { exportSlidePicturesAsk(); });
+    mk("file.exportPicturePresentation", tr("Save as Presentation of Pictures…"), "images", QKeySequence(), [this] { exportPicturePresentationAsk(); });
     mk("file.print", tr("Print…"), "printer", QKeySequence::Print, [this] { showFileScreen(QStringLiteral("print")); });
 }
 
