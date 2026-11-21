@@ -4880,7 +4880,15 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                             while (k > s0 && !B->disp[k - 1].isSpace()) --k;
                             // The width is given again: without it Qt treats the line
                             // as endless, and justified text spreads off the page.
-                            if (k > s0 && (iv.x1 - iv.x0) - (line.cursorToX(k) - line.cursorToX(s0)) < zone) line.setNumColumns(k - s0, std::max(1.0, iv.x1 - iv.x0));
+                            // (Where the paragraph is justified the line's spaces are already stretched to fill it: the room left is measured at the spaces' own widths.)
+                            double reach = line.cursorToX(k) - line.cursorToX(s0);
+                            if (B->tl->textOption().alignment() & Qt::AlignJustify) {
+                                int spaces = 0, before = 0;
+                                for (int i = s0; i < s0 + n; ++i)
+                                    if (B->disp[i] == QLatin1Char(' ')) { ++spaces; if (i < k) ++before; }
+                                if (spaces > 0) reach -= before * std::max(0.0, (iv.x1 - iv.x0) - line.naturalTextWidth()) / spaces;
+                            }
+                            if (k > s0 && (iv.x1 - iv.x0) - reach < zone) line.setNumColumns(k - s0, std::max(1.0, iv.x1 - iv.x0));
                             // The limit of lines in a row that end in a hyphen: the word that would make one more goes down whole.
                             else if (k > s0 && hyphenLimit > 0 && hyphenRun >= hyphenLimit) line.setNumColumns(k - s0, std::max(1.0, iv.x1 - iv.x0));
                         }

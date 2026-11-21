@@ -2806,6 +2806,43 @@ private Q_SLOTS:
         QCOMPARE(static_cast<jp::TextItem *>(again->pages[0]->items[0].get())->hyphenZone, 30.0);
     }
 
+    // The hyphenation zone is measured at the words' own spacing: a justified line has its spaces stretched to fill the
+    // box, which must not make the room left at its end look smaller than it is.
+    void hyphenationZoneIgnoresJustifiedSpacing()
+    {
+        jp::initCore();
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        auto t = std::make_shared<jp::TextItem>();
+        t->storyId = doc->createStory(QStringLiteral("We met at the international conference today and talked about everything."));
+        doc->pages[0]->items.push_back(t);
+        auto firstLine = [&](double width, double zone, Qt::Alignment al) {
+            QTextCursor c(doc->storyDoc(t->storyId));
+            QTextBlockFormat bf;
+            bf.setAlignment(al);
+            c.select(QTextCursor::Document);
+            c.mergeBlockFormat(bf);
+            t->rect = QRectF(72, 72, width, 200);
+            t->hyphenZone = zone;
+            jp::LayoutCache cache;
+            jp::RenderOptions opt;
+            const auto fl = cache.textFrame(*doc, *t, 1, opt);
+            return fl.layout ? fl.layout->lineInfo(0).value(0).text : QString();
+        };
+        int widthsChecked = 0;
+        for (double width = 90; width <= 200; width += 1.5) {
+            // The most the zone can be where the unjustified line still breaks the word: the room it leaves there.
+            double room = -1;
+            for (double zone = 0; zone <= 60; zone += 0.25)
+                if (firstLine(width, zone, Qt::AlignLeft).endsWith(QChar(0x00AD))) room = zone;
+            if (room < 1) continue;
+            ++widthsChecked;
+            const QString left = firstLine(width, room - 0.25, Qt::AlignLeft), justified = firstLine(width, room - 0.25, Qt::AlignJustify);
+            QVERIFY2(left.endsWith(QChar(0x00AD)), qPrintable(left));
+            QVERIFY2(justified.endsWith(QChar(0x00AD)), qPrintable(QStringLiteral("width %1: %2 / %3").arg(width).arg(left, justified)));
+        }
+        QVERIFY2(widthsChecked >= 5, qPrintable(QString::number(widthsChecked)));
+    }
+
     void lineSpacingBelowLines()
     {
         auto doc = jp::Document::blank(QSizeF(612, 792));
