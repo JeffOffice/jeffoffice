@@ -742,7 +742,7 @@
 <context>
     <name>jp::office::wml</name>
     <message numerus="yes">
-        <location filename="../libs/office/wml/wmlread.cpp" line="+1618"/>
+        <location filename="../libs/office/wml/wmlread.cpp" line="+1646"/>
         <source>%n part or link of the file had a name that could not be used, and was left out.</source>
         <translation>
             <numerusform>%n part or link of the file had a name that could not be used, and was left out.</numerusform>
@@ -750,7 +750,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+65"/>
+        <location line="+73"/>
         <source>%n table could not be shown as a table (it has more rows, columns, or cells than this program can lay out, or is nested too deeply, or has no rows): it is kept as it was and shown as a stand-in.</source>
         <translation>
             <numerusform>%n table could not be shown as a table (it has more rows, columns, or cells than this program can lay out, or is nested too deeply, or has no rows): it is kept as it was and shown as a stand-in.</numerusform>

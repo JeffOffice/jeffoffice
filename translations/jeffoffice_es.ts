@@ -74464,12 +74464,12 @@ No se pudo aplicar la contraseña al archivo.</translation>
 <context>
     <name>jp::office::wml</name>
     <message>
-        <location filename="../libs/office/wml/wmlread.cpp" line="+444"/>
+        <location filename="../libs/office/wml/wmlread.cpp" line="+446"/>
         <source>[picture]</source>
         <translation type="unfinished">[imagen]</translation>
     </message>
     <message>
-        <location line="+546"/>
+        <location line="+572"/>
         <source>[Table: %1 rows by %2 columns]</source>
         <translation type="unfinished">[Tabla: %1 filas por %2 columnas]</translation>
     </message>
@@ -74515,6 +74515,16 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <location line="+35"/>
         <source>The document is longer than this program can open: the end of it was left out.</source>
         <translation type="unfinished">El documento es más largo de lo que este programa puede abrir: se omitió el final.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>The document has more sections than this program can open: the section breaks after the first 15,000 were ignored, and the rest of the text is in the last section.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>A paragraph is longer than this program can open: the rest of it was left out.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message numerus="yes">
         <location line="+4"/>
