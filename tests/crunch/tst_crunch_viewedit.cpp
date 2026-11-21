@@ -438,7 +438,7 @@ private Q_SLOTS:
         EditWindow e;
         QVERIFY(e.open(book));
         const grid::GridSheet &gs = e.view()->sheet();
-        const grid::Cell *cell = gs.cellAt(0, 0);
+        std::optional<grid::Cell> cell = gs.cellAt(0, 0);
         QVERIFY(cell);
         const QString narrow = gs.shown(0, 0, *cell).text;   // (held)
         QVERIFY(run(e, {"insert a column in the range", false, true, 1, 3}).ok);

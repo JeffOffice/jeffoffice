@@ -356,9 +356,9 @@ private Q_SLOTS:
         QCOMPARE(shown(wb, s, QStringLiteral("IV1")), QStringLiteral("n:1"));
         QCOMPARE(shown(wb, s, QStringLiteral("A65536")), QStringLiteral("n:4"));
         QCOMPARE(shown(wb, s, QStringLiteral("IV65536")), QStringLiteral("n:5"));
-        QVERIFY(s.cells.find(0, 256) == nullptr);
-        QVERIFY(s.cells.find(1, 255) != nullptr);
-        QVERIFY(s.cells.find(1, 256) == nullptr);
+        QVERIFY(!s.cells.find(0, 256));
+        QVERIFY(s.cells.find(1, 255).has_value());
+        QVERIFY(!s.cells.find(1, 256));
         // a sheet that is not where the workbook says it is
         QByteArray stream = Book().sheet(QStringLiteral("S"), number(0, 0, 1)).stream();
         Workbook w2;

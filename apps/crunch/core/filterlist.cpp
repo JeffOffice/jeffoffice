@@ -37,7 +37,7 @@ bool FilterListRun::step(qint64 budget)
         if (budget > 0 && spent >= budget) return false;
         ++spent;
         ++m_list.cells;
-        const Cell *c = s.cells.find(m_row, m_col);
+        const std::optional<Cell> c = s.cells.find(m_row, m_col);
         // colors
         {
             ColorSpec fill, font;

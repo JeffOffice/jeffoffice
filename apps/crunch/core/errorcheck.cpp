@@ -92,7 +92,7 @@ const QString &InconsistentScan::keyAt(qint64 row, qint64 col)
     const quint64 id = (quint64(row) << 20) | quint64(col);
     const auto found = m_keys.find(id);
     if (found != m_keys.end()) return found->second;
-    const Cell *cell = m_calc->sheet(m_sheet).cells.find(quint32(row), quint32(col));
+    const std::optional<Cell> cell = m_calc->sheet(m_sheet).cells.find(quint32(row), quint32(col));
     QString key;
     if (cell && cell->hasFormula() && !(cell->flags & ArrayMember)) {
         const Calculation::CellContent content = m_calc->content(m_sheet, quint32(row), quint32(col));
@@ -104,7 +104,7 @@ const QString &InconsistentScan::keyAt(qint64 row, qint64 col)
 bool InconsistentScan::formulaAt(qint64 row, qint64 col) const
 {
     if (row < 0 || col < 0 || row >= qint64(kMaxRows) || col >= qint64(kMaxColumns)) return false;
-    const Cell *cell = m_calc->sheet(m_sheet).cells.find(quint32(row), quint32(col));
+    const std::optional<Cell> cell = m_calc->sheet(m_sheet).cells.find(quint32(row), quint32(col));
     return cell && cell->hasFormula() && !(cell->flags & ArrayMember);
 }
 

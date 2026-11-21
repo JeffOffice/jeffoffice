@@ -1667,7 +1667,7 @@ void CrunchEditTests::aSharedFormulaSurvivesItsFirstCellBeingTypedOver()
     QCOMPARE(show(s, b.sharedStrings(), QStringLiteral("B1")), QStringLiteral("n:99"));
     QVERIFY(!at(s, QStringLiteral("B1"))->hasFormula());
     for (const int r : {2, 3, 4}) {
-        const Cell *c = at(s, QStringLiteral("B%1").arg(r));
+        const std::optional<Cell> c = at(s, QStringLiteral("B%1").arg(r));
         QVERIFY(c && c->hasFormula());
         QCOMPARE(s.formulaText(*c), QStringLiteral("A%1*2").arg(r));
     }

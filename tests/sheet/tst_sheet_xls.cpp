@@ -245,7 +245,7 @@ private Q_SLOTS:
             Sheet s;
             QVERIFY2(book.readSheet(0, &s), when);
             auto formula = [&](const char *ref) {
-                const Cell *c = sheettest::at(s, QLatin1String(ref));
+                const std::optional<Cell> c = sheettest::at(s, QLatin1String(ref));
                 return c && c->hasFormula() ? s.formulaText(*c) : QStringLiteral("none");
             };
             QCOMPARE(formula("A2"), QStringLiteral("CALL(\"mylib\",\"Proc\",\"BB\",A1)"));
@@ -393,7 +393,7 @@ private Q_SLOTS:
         Sheet s;
         QVERIFY(w5.readSheet(0, &s));
         QCOMPARE(show(s, w5.sharedStrings(), QStringLiteral("A1")), QStringLiteral("i:bold and plain"));
-        const Cell *a1 = sheettest::at(s, QStringLiteral("A1"));
+        const std::optional<Cell> a1 = sheettest::at(s, QStringLiteral("A1"));
         QVERIFY(a1 && s.richTexts.contains(a1->textIndex()));
         const RichRuns runs = s.richTexts.value(a1->textIndex());
         QCOMPARE(runs.size(), 2);
@@ -474,7 +474,7 @@ private Q_SLOTS:
         QVERIFY(wb.readSheet(0, &s));
         QVERIFY2(s.error.isEmpty(), qPrintable(s.error));
         auto f = [&](const QString &ref) {
-            const Cell *c = sheettest::at(s, ref);
+            const std::optional<Cell> c = sheettest::at(s, ref);
             return c ? s.formulaText(*c) : QStringLiteral("none");
         };
         QCOMPARE(f("B1"), QStringLiteral("A1*2"));
@@ -693,17 +693,17 @@ private Q_SLOTS:
         QVERIFY2(openBook(b, &wb, &why), qPrintable(why));
         Sheet s;
         QVERIFY(wb.readSheet(0, &s));
-        const Cell *a3 = sheettest::at(s, QStringLiteral("A3"));
+        const std::optional<Cell> a3 = sheettest::at(s, QStringLiteral("A3"));
         QVERIFY(a3 && a3->hasFormula());
         QVERIFY(a3->flags & ArrayFormula);
         QCOMPARE(s.formulaText(*a3), QStringLiteral("C1:D2*2"));
         QCOMPARE(rangeName(s.formulaRange(*a3)), QStringLiteral("A3:B4"));
         for (const QString &ref : {QStringLiteral("B3"), QStringLiteral("A4"), QStringLiteral("B4")}) {
-            const Cell *c = sheettest::at(s, ref);
+            const std::optional<Cell> c = sheettest::at(s, ref);
             QVERIFY(c && !c->hasFormula());
         }
         QCOMPARE(shown(wb, s, QStringLiteral("B4")), QStringLiteral("n:8"));
-        const Cell *table = sheettest::at(s, QStringLiteral("B6"));
+        const std::optional<Cell> table = sheettest::at(s, QStringLiteral("B6"));
         QVERIFY(table && table->hasFormula());
         QVERIFY(table->flags & DataTable);
         QCOMPARE(s.formulaText(*table), QStringLiteral("TABLE(D3,F5)"));
@@ -731,7 +731,7 @@ private Q_SLOTS:
         Sheet s;
         QVERIFY(wb.readSheet(0, &s));
         auto text = [&](const QString &ref) {
-            const Cell *c = sheettest::at(s, ref);
+            const std::optional<Cell> c = sheettest::at(s, ref);
             return c && c->hasFormula() ? s.formulaText(*c) : QStringLiteral("none");
         };
         QCOMPARE(text(QStringLiteral("B2")), QStringLiteral("TABLE(D3,)"));

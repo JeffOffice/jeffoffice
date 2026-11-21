@@ -60,7 +60,7 @@ QString val(const Workbook &wb, const Sheet &sheet, const QString &ref)
 
 QString formula(const Sheet &sheet, const QString &ref)
 {
-    const Cell *c = at(sheet, ref);
+    const std::optional<Cell> c = at(sheet, ref);
     return c && c->hasFormula() ? sheet.formulaText(*c) : QString();
 }
 
@@ -1030,7 +1030,7 @@ private Q_SLOTS:
             const QString back = formula(o, ref).toUpper().replace(QLatin1String("TRUE()"), QLatin1String("TRUE")).replace(QLatin1String("FALSE()"), QLatin1String("FALSE"));
             QVERIFY2(back == formulas[i].toUpper(), qPrintable(QStringLiteral("ods %1: %2").arg(ref, formula(o, ref))));
             // the old form holds the functions it has a number for; the others keep the value they came to (and are counted)
-            const Cell *cell = b.cells.find(quint32(i), 1);
+            const std::optional<Cell> cell = b.cells.find(quint32(i), 1);
             if (cell && cell->hasFormula()) {
                 ++keptInXls;
                 QVERIFY2(formula(b, ref) == formulas[i], qPrintable(QStringLiteral("xls %1: %2").arg(ref, formula(b, ref))));
@@ -2706,7 +2706,7 @@ private Q_SLOTS:
         for (const Workbook *wb : {&c.original, &c.xls, &c.ods}) {
             const Sheet b = c.sheet(*wb, 0);
             for (const char *ref : {"A1", "B1"}) {
-                const Cell *cell = at(b, QString::fromLatin1(ref));
+                const std::optional<Cell> cell = at(b, QString::fromLatin1(ref));
                 QVERIFY(cell);
                 const FontSpec &font = wb->styles().font(wb->styles().format(cell->style).font);
                 QVERIFY2(!font.color.isSet() || wb->styles().resolve(font.color, 0) != 0xFFFFFFFFu, qPrintable(QStringLiteral("the font color of %1 is %2").arg(QString::fromLatin1(ref)).arg(wb->styles().resolve(font.color, 0), 0, 16)));

@@ -681,7 +681,7 @@ private Q_SLOTS:
         QVERIFY2(sheet.cells.memoryBytes() <= rows * 5 * 28, qPrintable(QString::number(sheet.cells.memoryBytes())));
         QCOMPARE(sheet.formulaCells, rows);
         QCOMPARE(sheet.storedResults, rows);
-        const Cell *last = sheet.cells.find(quint32(rows - 1), 2);
+        const std::optional<Cell> last = sheet.cells.find(quint32(rows - 1), 2);
         QVERIFY(last);
         QCOMPARE(sheet.formulaText(*last), QStringLiteral("A%1*2").arg(rows));
         QCOMPARE(sheet.stats.xmlBytes, device.served());

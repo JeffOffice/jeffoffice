@@ -145,7 +145,7 @@ private Q_SLOTS:
         QCOMPARE(book.styles().cellXfs.size(), 2);
         Sheet sheet;
         QVERIFY(book.readSheet(0, &sheet));
-        const Cell *c = at(sheet, QStringLiteral("A1"));
+        const std::optional<Cell> c = at(sheet, QStringLiteral("A1"));
         QVERIFY(c);
         QCOMPARE(book.styles().formatCode(c->style), QStringLiteral("0.000"));
         // No styles part.

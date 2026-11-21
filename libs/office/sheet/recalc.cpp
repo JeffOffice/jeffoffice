@@ -126,7 +126,7 @@ Value WorkbookSource::cell(int sheet, quint32 row, quint32 col) const
 {
     if (sheet < 0 || sheet >= int(m_sheets.size()) || col >= kMaxColumns) return Value();
     const Sheet &s = m_sheets[size_t(sheet)];
-    const Cell *c = s.cells.find(row, col);
+    const std::optional<Cell> c = s.cells.find(row, col);
     return c ? valueOf(s, *c) : Value();
 }
 
@@ -158,7 +158,7 @@ bool WorkbookSource::cellInfo(int sheet, quint32 row, quint32 col, const QString
         *out = Value::number(std::floor(width));
         return true;
     }
-    const Cell *c = s.cells.find(row, col);
+    const std::optional<Cell> c = s.cells.find(row, col);
     const quint32 style = c ? c->style : span ? span->style : 0;
     const Styles &styles = m_book.styles();
     if (kind == QLatin1String("protect")) {
@@ -405,7 +405,7 @@ bool WorkbookSource::isSubtotal(int sheet, quint32 row, quint32 col) const
 {
     if (sheet < 0 || sheet >= int(m_sheets.size())) return false;
     const Sheet &s = m_sheets[size_t(sheet)];
-    const Cell *c = s.cells.find(row, col);
+    const std::optional<Cell> c = s.cells.find(row, col);
     if (!c || !c->hasFormula() || c->formula < 0 || c->formula >= s.formulas.size()) return false;
     const qint32 text = s.formulas[c->formula].text;
     if (text < 0 || text >= s.formulaTexts.size()) return false;

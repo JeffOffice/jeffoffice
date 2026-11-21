@@ -282,7 +282,7 @@ private Q_SLOTS:
         const QByteArray xml = worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>") + QString::fromUtf8(esc) + QStringLiteral("</t></is></c></row>"));
         Sheet sheet;
         QVERIFY(readSheetXml(xml, &sheet));
-        const Cell *c = at(sheet, QStringLiteral("A1"));
+        const std::optional<Cell> c = at(sheet, QStringLiteral("A1"));
         QVERIFY(c);
         QCOMPARE(sheet.texts.value(c->textIndex()), nasty);
         QCOMPARE(xmlscan::unescape("a &amp; b &lt;&#65;&#x42;&gt; &quot;&apos;"), QStringLiteral("a & b <AB> \"'"));

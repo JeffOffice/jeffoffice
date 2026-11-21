@@ -930,7 +930,7 @@ private:
     // Where a node's cell is now (a node is of a live cell: its row and column are in the order), and the cell.
     quint32 rowOf(const Node &n) const { return m_sheets[size_t(n.sheet)].cells.rowPlaceOf(n.rowId); }
     quint32 colOf(const Node &n) const { return m_sheets[size_t(n.sheet)].cells.colPlaceOf(n.colId); }
-    const Cell *cellOf(const Node &n) const { return m_sheets[size_t(n.sheet)].cells.findById(n.rowId, n.colId); }
+    std::optional<Cell> cellOf(const Node &n) const { return m_sheets[size_t(n.sheet)].cells.findById(n.rowId, n.colId); }
     bool dormant(const Node &n) const { return dormant(n.sheet, n.rowId, n.colId); }   // (its cell is in a line that is deleted, and the step that did it can still be undone: nothing is made of it)
     Cell *cellOfMutable(const Node &n) { return m_sheets[size_t(n.sheet)].cells.findMutableById(n.rowId, n.colId); }
     static quint64 stampKey(int sheet, quint32 rowId, quint32 colId) { return (quint64(quint32(sheet)) << 40) | (quint64(rowId) << 16) | colId; }

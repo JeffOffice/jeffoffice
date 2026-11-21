@@ -15,7 +15,7 @@ Value EditSession::valueAt(int sheet, quint32 row, quint32 col) const
 {
     if (!m_book || !m_book->calc || sheet < 0 || sheet >= m_book->calc->sheetCount()) return Value();
     const Sheet &s = m_book->calc->sheet(sheet);
-    const Cell *c = s.cells.find(row, col);
+    const std::optional<Cell> c = s.cells.find(row, col);
     if (!c) return Value();
     Value v;
     if ((c->hasFormula() || (c->flags & ArrayMember)) && m_values->find(sheet, c->rowId, c->colId, &v)) return v;

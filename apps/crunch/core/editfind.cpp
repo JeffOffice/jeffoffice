@@ -17,7 +17,7 @@ using jp::calc::Value;
 QString EditSession::shownText(int sheet, quint32 row, quint32 col, bool neutral) const
 {
     if (!m_book || !m_book->calc || !m_book->book || sheet < 0 || sheet >= m_book->calc->sheetCount()) return {};
-    const Cell *c = m_book->calc->sheet(sheet).cells.find(row, col);
+    const std::optional<Cell> c = m_book->calc->sheet(sheet).cells.find(row, col);
     if (!c) return {};
     const Value v = valueAt(sheet, row, col);
     switch (v.kind()) {
@@ -46,7 +46,7 @@ QString EditSession::searchText(int sheet, quint32 row, quint32 col) const
 {
     if (!m_book || !m_book->calc || !m_book->book || sheet < 0 || sheet >= m_book->calc->sheetCount()) return {};
     const Sheet &s = m_book->calc->sheet(sheet);
-    const Cell *c = s.cells.find(row, col);
+    const std::optional<Cell> c = s.cells.find(row, col);
     if (!c) return {};
     if (c->hasFormula() && !(c->flags & (ArrayMember))) {
         const Calculation::CellContent content = m_book->calc->content(sheet, row, col);
@@ -120,7 +120,7 @@ bool EditSession::prepareReplace(ReplacePlan &plan, qint64 budget)
             break;
         }
         const QString where = cellName(spot.row, spot.col);
-        const Cell *cell = calc->sheet(spot.sheet).cells.find(spot.row, spot.col);
+        const std::optional<Cell> cell = calc->sheet(spot.sheet).cells.find(spot.row, spot.col);
         if (!cell) continue;
         // (the text a cell is typed as: a text constant is what it holds, anything else as the formula bar shows it)
         const bool plainText = !cell->hasFormula() && (cell->type == CellType::SharedString || cell->type == CellType::InlineString || cell->type == CellType::FormulaString);

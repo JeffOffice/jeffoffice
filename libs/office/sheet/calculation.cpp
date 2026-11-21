@@ -360,7 +360,7 @@ bool Calculation::formulaInfo(int sheet, quint32 row, quint32 col, QString *text
 {
     if (sheet < 0 || sheet >= int(m_sheets.size())) return false;
     const Sheet &s = m_sheets[size_t(sheet)];
-    const Cell *c = s.cells.find(row, col);
+    const std::optional<Cell> c = s.cells.find(row, col);
     if (!c || !c->hasFormula() || c->formula < 0 || c->formula >= s.formulas.size()) return false;
     if (text) {
         QString held = s.formulaText(*c);
@@ -678,7 +678,7 @@ void Calculation::keepStored(Node &n, char cls)
         return;
     }
     const Sheet &s = m_sheets[size_t(n.sheet)];
-    const Cell *c = s.cells.findById(n.rowId, n.colId);
+    const std::optional<Cell> c = s.cells.findById(n.rowId, n.colId);
     storeResult(n, id, c ? valueOf(s, *c) : Value(), false);   // (what the file stored is what the grid shows already, and is not told)
 }
 
@@ -1077,7 +1077,7 @@ void Calculation::tellValue(const Node &n, const Value &v, bool fill) const
 Value Calculation::shownResult(const Node &n, Value v) const
 {
     if (!m_precision || !v.isNumber()) return v;
-    const Cell *c = cellOf(n);
+    const std::optional<Cell> c = cellOf(n);
     if (!c) return v;
     const Styles &styles = m_book.styles();
     if (m_shownFormatCount != styles.cellXfs.size()) {
@@ -1184,7 +1184,7 @@ Value Calculation::cell(int sheet, quint32 row, quint32 col) const
 {
     if (sheet < 0 || sheet >= int(m_sheets.size()) || col >= kMaxColumns) return Value();
     const Sheet &s = m_sheets[size_t(sheet)];
-    const Cell *c = s.cells.find(row, col);
+    const std::optional<Cell> c = s.cells.find(row, col);
     if (!c) return Value();
     if (c->hasFormula() || (c->flags & ArrayMember)) {
         Value v;
@@ -1199,7 +1199,7 @@ Value Calculation::shown(int sheet, quint32 row, quint32 col) const
 {
     if (sheet < 0 || sheet >= int(m_sheets.size()) || col >= kMaxColumns) return Value();
     const Sheet &s = m_sheets[size_t(sheet)];
-    const Cell *c = s.cells.find(row, col);
+    const std::optional<Cell> c = s.cells.find(row, col);
     if (!c) return Value();
     if ((c->hasFormula() || (c->flags & ArrayMember)) && size_t(sheet) < m_state.size()) {
         const SheetState &st = m_state[size_t(sheet)];
@@ -1346,7 +1346,7 @@ bool Calculation::load()
             for (quint32 col = r.col1; col <= r.col2; ++col) {
                 if (row == rowOf(n) && col == colOf(n)) continue;
                 Cell member;
-                if (const Cell *have = s.cells.find(row, col)) {
+                if (const std::optional<Cell> have = s.cells.find(row, col)) {
                     member = *have;
                 } else {
                     if (++added > kMaxMembersAdded) continue;
@@ -1356,7 +1356,7 @@ bool Calculation::load()
                     member.flags |= Tainted;
                 } else {
                     member.flags |= ArrayMember;
-                    if (const Cell *head = cellOf(n); head && (head->flags & SpillFormula)) member.flags |= SpillMember;
+                    if (const std::optional<Cell> head = cellOf(n); head && (head->flags & SpillFormula)) member.flags |= SpillMember;
                     member.formula = n.formula;
                 }
                 s.cells.set(row, col, member);
@@ -1567,7 +1567,7 @@ bool Calculation::rewriteSheetReferences(const QString &oldName, const QString &
                 if (size_t(fi) >= st.nodeOf.size() || st.nodeOf[size_t(fi)] == kNone) continue;
                 const quint32 id = st.nodeOf[size_t(fi)];
                 if (dormant(m_nodes[id])) continue;   // (a formula in a line that is deleted is as it was: its text slot is rewritten and put back with the rest)
-                const Cell *c = s.cells.findById(m_nodes[id].rowId, m_nodes[id].colId);
+                const std::optional<Cell> c = s.cells.findById(m_nodes[id].rowId, m_nodes[id].colId);
                 record->rewritten.push_back({si, rowOf(m_nodes[id]), colOf(m_nodes[id]), m_nodes[id].rowId, m_nodes[id].colId, c && (c->flags & DataTable)});
                 again.push_back(id);
             }
@@ -2660,7 +2660,7 @@ bool Calculation::finishNode(Node &n, quint32 id, const Value &v)
         if (m_readCascade) n.flags |= Cascade;
         if (m_options.verify) {
             const Sheet &sh = m_sheets[size_t(n.sheet)];
-            const Cell *stored = cellOf(n);
+            const std::optional<Cell> stored = cellOf(n);
             if (stored && !m_options.verify(valueOf(sh, *stored), nodeValue(n, id))) n.flags |= Mismatch;
         }
     }
@@ -2876,7 +2876,7 @@ bool Calculation::stepGroup(Progress &pr, const std::function<bool()> &timeUp, q
                 // (a formula never worked out begins from the result its file stored, as a program going on from where the file was left would)
                 if (!(x.flags & Worked)) {
                     const Sheet &sheet = m_sheets[size_t(x.sheet)];
-                    if (const Cell *stored = cellOf(x)) {
+                    if (const std::optional<Cell> stored = cellOf(x)) {
                         j.start[place] = valueOf(sheet, *stored);
                         j.fromFile[place] = 1;
                         storeResult(x, id, j.start[place], false);
@@ -2884,7 +2884,7 @@ bool Calculation::stepGroup(Progress &pr, const std::function<bool()> &timeUp, q
                     x.flags &= quint16(~Worked);
                 } else if (x.kind == KindError) {
                     // (a formula that has an error from an earlier working out begins from the file's result if that was not an error: an error that circles feeds itself for ever, and goes round only when it is the answer)
-                    if (const Cell *stored = cellOf(x)) {
+                    if (const std::optional<Cell> stored = cellOf(x)) {
                         const Value fromFile = valueOf(m_sheets[size_t(x.sheet)], *stored);
                         if (!fromFile.isError() && !fromFile.isEmpty()) {
                             j.start[place] = fromFile;
@@ -3315,7 +3315,7 @@ bool Calculation::setValue(int sheet, quint32 row, quint32 col, const Value &v, 
     m_guard.check("Calculation::setValue");
     if (sheet < 0 || sheet >= int(m_sheets.size()) || col >= kMaxColumns || row >= kGridRows || v.isArray()) return false;
     Sheet &s = m_sheets[size_t(sheet)];
-    const Cell *found = s.cells.find(row, col);
+    std::optional<Cell> found = s.cells.find(row, col);
     if (found && ((found->flags & (ArrayMember | ArrayFormula)) && !(found->flags & (SpillFormula | SpillMember)))) return false;   // (a cell of an array is not edited alone)
     abandonNow();
     Cell c = found ? *found : Cell();
@@ -3379,7 +3379,7 @@ bool Calculation::setFormula(int sheet, quint32 row, quint32 col, const QString 
     const ParseResult parsed = parseFormula(formula, po);
     if (!parsed.ok()) return false;
     Sheet &s = m_sheets[size_t(sheet)];
-    const Cell *found = s.cells.find(row, col);
+    std::optional<Cell> found = s.cells.find(row, col);
     if (found && ((found->flags & (ArrayMember | ArrayFormula)) && !(found->flags & (SpillFormula | SpillMember)))) return false;
     abandonNow();
     SheetState &st = m_state[size_t(sheet)];
@@ -3475,7 +3475,7 @@ bool Calculation::rebaseCopy(int sheet, quint32 row, quint32 col, const CellCont
     if (row == c.heldRow && col == c.heldCol) return false;
     if (!renumberEpochsAre(c.heldEpochs)) return false;
     Sheet &s = m_sheets[size_t(sheet)];
-    const Cell *found = s.cells.find(row, col);
+    const std::optional<Cell> found = s.cells.find(row, col);
     if (found && (found->flags & (ArrayMember | ArrayFormula | DataTable))) return false;
     const quint32 rowId = s.cells.rowIdAt(row), colId = s.cells.colIdAt(col);
     if (rowId == CellStore::kNoLine || colId == CellStore::kNoLine || c.heldRowId == CellStore::kNoLine || c.heldColId == CellStore::kNoLine) return false;
@@ -3570,7 +3570,7 @@ Calculation::CellContent Calculation::content(int sheet, quint32 row, quint32 co
     CellContent out;
     if (sheet < 0 || sheet >= int(m_sheets.size()) || col >= kMaxColumns || row >= kGridRows) return out;
     const Sheet &s = m_sheets[size_t(sheet)];
-    const Cell *c = s.cells.find(row, col);
+    const std::optional<Cell> c = s.cells.find(row, col);
     if (!c) return out;
     out.exists = true;
     out.style = c->style;
@@ -3635,7 +3635,7 @@ bool Calculation::put(int sheet, quint32 row, quint32 col, const CellContent &c,
     const bool ok = c.isFormula ? setFormula(sheet, row, col, c.formula, marking, c.hasStored ? &c.stored : nullptr, c.dynamic) : setValue(sheet, row, col, c.value, marking, c.sharedString);
     if (ok && c.isFormula && c.hasHeld && c.heldSheet == sheet && c.heldRow == row && c.heldCol == col && renumberEpochsAre(c.heldEpochs)) {
         restoreHeldFormula(sheet, row, col, c.held, c.heldDRow, c.heldDCol, c.heldCls);
-        const Cell *now = m_sheets[size_t(sheet)].cells.find(row, col);
+        const std::optional<Cell> now = m_sheets[size_t(sheet)].cells.find(row, col);
         if (!now || !now->hasFormula() || m_sheets[size_t(sheet)].formulaText(*now) != c.formula) setFormula(sheet, row, col, c.formula, marking, c.hasStored ? &c.stored : nullptr, c.dynamic);   // (it does not read as the text: the text is the cell's)
     }
     return ok && setStyle(sheet, row, col, c.style);
@@ -3664,7 +3664,7 @@ qint64 Calculation::keptCount() const
 quint32 Calculation::nodeAt(int sheet, quint32 row, quint32 col) const
 {
     if (sheet < 0 || sheet >= int(m_sheets.size())) return kNone;
-    const Cell *c = m_sheets[size_t(sheet)].cells.find(row, col);
+    const std::optional<Cell> c = m_sheets[size_t(sheet)].cells.find(row, col);
     if (!c || !c->hasFormula() || c->formula < 0) return kNone;
     const SheetState &st = m_state[size_t(sheet)];
     return size_t(c->formula) < st.nodeOf.size() ? st.nodeOf[size_t(c->formula)] : kNone;
@@ -3684,7 +3684,7 @@ bool Calculation::staleResult(int sheet, quint32 rowId, quint32 colId, quint32 e
 void Calculation::redirtyCell(int sheet, quint32 rowId, quint32 colId)
 {
     if (sheet < 0 || sheet >= int(m_sheets.size())) return;
-    const Cell *c = m_sheets[size_t(sheet)].cells.findById(rowId, colId);
+    const std::optional<Cell> c = m_sheets[size_t(sheet)].cells.findById(rowId, colId);
     if (!c || !c->hasFormula() || c->formula < 0) return;
     const SheetState &st = m_state[size_t(sheet)];
     if (size_t(c->formula) >= st.nodeOf.size() || st.nodeOf[size_t(c->formula)] == kNone) return;

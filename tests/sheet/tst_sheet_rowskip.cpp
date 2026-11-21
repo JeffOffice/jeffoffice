@@ -135,10 +135,10 @@ private Q_SLOTS:
         QVERIFY(readWith(xml, false, 1000, &slow) || !slow.error.isEmpty());
         QCOMPARE(describe(fast), describe(slow));
         QVERIFY(fast.partial && slow.partial);
-        QVERIFY(at(fast, QStringLiteral("C6001")) != nullptr);
+        QVERIFY(at(fast, QStringLiteral("C6001")).has_value());
         QCOMPARE(fast.formulaText(*at(fast, QStringLiteral("C6001"))), QStringLiteral("A6001*2+$A$1"));
-        QVERIFY(at(fast, QStringLiteral("A100")) == nullptr);       // (above the view: not kept, in either)
-        QVERIFY(at(fast, QStringLiteral("A1")) != nullptr);        // (the frozen rows are kept)
+        QVERIFY(!at(fast, QStringLiteral("A100")));       // (above the view: not kept, in either)
+        QVERIFY(at(fast, QStringLiteral("A1")).has_value());        // (the frozen rows are kept)
         // the parser was given a fraction of what it is given for every row
         QVERIFY2(fast.stats.xmlBytes * 5 < slow.stats.xmlBytes, qPrintable(QStringLiteral("%1 and %2").arg(fast.stats.xmlBytes).arg(slow.stats.xmlBytes)));
         // and the cells it kept are those of the screen and the frozen rows
@@ -284,8 +284,8 @@ private Q_SLOTS:
         const bool ok1 = readWith(xml, true, 300, &fast), ok2 = readWith(xml, false, 300, &slow);
         QVERIFY2(ok1 && ok2, qPrintable(fast.error + QLatin1String(" / ") + slow.error));
         QCOMPARE(describe(fast), describe(slow));
-        QVERIFY(at(fast, QStringLiteral("Z2103")) != nullptr);
-        QVERIFY(at(fast, QStringLiteral("A2001")) != nullptr);
+        QVERIFY(at(fast, QStringLiteral("Z2103")).has_value());
+        QVERIFY(at(fast, QStringLiteral("A2001")).has_value());
     }
 
     // Rows larger than what the device reads at a time, above the view and in it, with a shared formula's first cell far into one: the same sheet.
@@ -304,7 +304,7 @@ private Q_SLOTS:
         readWith(xml, true, 8, &fast);
         readWith(xml, false, 8, &slow);
         QCOMPARE(describe(fast), describe(slow));
-        QVERIFY(at(fast, QStringLiteral("B20")) != nullptr);
+        QVERIFY(at(fast, QStringLiteral("B20")).has_value());
         QCOMPARE(fast.formulaText(*at(fast, QStringLiteral("B20"))), QStringLiteral("A20&\"!\""));
         QVERIFY(fast.stats.xmlBytes < xml.size() / 3);
     }
@@ -318,8 +318,8 @@ private Q_SLOTS:
         const QByteArray xml = makeSheet(spec);
         Sheet fast;
         QVERIFY(readWith(xml, true, 1000, &fast) || fast.partial);
-        QVERIFY(at(fast, QStringLiteral("A100001")) != nullptr);
-        QVERIFY(at(fast, QStringLiteral("A99999")) == nullptr);
+        QVERIFY(at(fast, QStringLiteral("A100001")).has_value());
+        QVERIFY(!at(fast, QStringLiteral("A99999")));
         QVERIFY2(fast.stats.xmlBytes * 10 < xml.size(), qPrintable(QStringLiteral("%1 of %2").arg(fast.stats.xmlBytes).arg(xml.size())));
     }
 
@@ -334,7 +334,7 @@ private Q_SLOTS:
         QCOMPARE(slow.stats.fastRows, qint64(0));
         // (the rows with an inline string, an entity, or a letter past ASCII are the parser's; the rest are the scanner's)
         QVERIFY2(fast.stats.fastRows > 250 && fast.stats.fastRows < 400, qPrintable(QString::number(fast.stats.fastRows)));
-        QVERIFY(at(fast, QStringLiteral("A399")) != nullptr);
+        QVERIFY(at(fast, QStringLiteral("A399")).has_value());
         QCOMPARE(fast.formulaText(*at(fast, QStringLiteral("D5"))), QStringLiteral("A5>1"));
     }
 
@@ -396,7 +396,7 @@ private Q_SLOTS:
             QVERIFY(readRows(xml, true, &a));
             QVERIFY(readRows(xml, false, &b));
             QCOMPARE(describeAll(a), describeAll(b));
-            QVERIFY(at(a, QStringLiteral("A3")) != nullptr);
+            QVERIFY(at(a, QStringLiteral("A3")).has_value());
             QCOMPARE(at(a, QStringLiteral("A3"))->number, 3.0);
             QCOMPARE(at(a, QStringLiteral("A2"))->number, 2.0);
         }

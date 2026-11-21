@@ -169,7 +169,7 @@ bool readSpreadsheetRows(const QString &path, QVector<QStringList> *rows, QStrin
         case jp::calc::Value::Kind::Bool: text = v.boolean() ? QStringLiteral("TRUE") : QStringLiteral("FALSE"); break;
         case jp::calc::Value::Kind::Error: text = jp::calc::errorKindText(v.errorKind()); break;
         case jp::calc::Value::Kind::Number: {
-            const sh::Cell *cell = src.sheet(0).cells.find(r, c);
+            const std::optional<sh::Cell> cell = src.sheet(0).cells.find(r, c);
             const quint32 style = cell ? cell->style : 0;
             auto it = formats.find(style);
             if (it == formats.end()) it = formats.insert(style, jp::calc::NumberFormat(book.styles().formatCode(style)));

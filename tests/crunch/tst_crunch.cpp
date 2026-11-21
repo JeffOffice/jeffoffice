@@ -187,12 +187,12 @@ private Q_SLOTS:
         v->selectCell(8, 1);
         QCOMPARE(v->activeCellText(), QStringLiteral("=SUM(B3:B8)"));
         QCOMPARE(win.w.formulaBar()->text(), QStringLiteral("=SUM(B3:B8)"));
-        const grid::Cell *b9 = v->sheet().cellAt(8, 1);
+        const std::optional<grid::Cell> b9 = v->sheet().cellAt(8, 1);
         QVERIFY(b9);
         QCOMPARE(v->sheet().valueOf(8, 1, *b9).debug(), QStringLiteral("n:1155"));
         QCOMPARE(v->sheet().shown(8, 1, *b9).text, QStringLiteral("$1,155.00"));
         // B11 = C9/B9 - 1, as a percent
-        const grid::Cell *b11 = v->sheet().cellAt(10, 1);
+        const std::optional<grid::Cell> b11 = v->sheet().cellAt(10, 1);
         QVERIFY(b11);
         QCOMPARE(v->sheet().shown(10, 1, *b11).text, QStringLiteral("6.0%"));
         // the date, and the number too wide for its cell
@@ -698,7 +698,7 @@ private Q_SLOTS:
         const grid::GridView *v = win.w.view();
         const QStringList want = {"n:1800030000", "n:1250025000", "n:60000", "n:119998", "n:59999", "n:249470", "n:60001", "n:599955", "n:59950"};
         for (int k = 0; k < formulas.size(); ++k) {
-            const grid::Cell *c = v->sheet().cellAt(quint32(k), 3);
+            const std::optional<grid::Cell> c = v->sheet().cellAt(quint32(k), 3);
             QVERIFY2(c, qPrintable(formulas[k]));
             QVERIFY2(v->sheet().valueOf(quint32(k), 3, *c).debug() == want[k], qPrintable(QStringLiteral("%1 is %2, not %3").arg(formulas[k], v->sheet().valueOf(quint32(k), 3, *c).debug(), want[k])));
         }
@@ -731,12 +731,12 @@ private Q_SLOTS:
         QVERIFY(done.count() > 0 || done.wait(120000));
         // the formulas were worked out (the stored 1 is not what they came to), every one, however much it reads
         for (int r = 0; r < 30; ++r) {
-            const grid::Cell *c = win.w.view()->sheet().cellAt(quint32(r), 3);
+            const std::optional<grid::Cell> c = win.w.view()->sheet().cellAt(quint32(r), 3);
             QVERIFY(c);
             QVERIFY2(win.w.view()->sheet().valueOf(quint32(r), 3, *c).isNumber() && win.w.view()->sheet().valueOf(quint32(r), 3, *c).number() > 1000, qPrintable(QStringLiteral("row %1 is %2").arg(r + 1).arg(win.w.view()->sheet().valueOf(quint32(r), 3, *c).debug())));
         }
         // (and the one that makes 400 texts of 24,000 characters, which took a slice of 35 milliseconds)
-        const grid::Cell *text = win.w.view()->sheet().cellAt(30, 3);
+        const std::optional<grid::Cell> text = win.w.view()->sheet().cellAt(30, 3);
         QVERIFY(text);
         QCOMPARE(win.w.view()->sheet().valueOf(30, 3, *text).debug(), QStringLiteral("n:9600000"));
         // What the window did is told, and bounded by what was counted, not by how quick the machine is: no batch had more values than a batch holds (taking a batch costs in proportion
@@ -803,7 +803,7 @@ private Q_SLOTS:
         QCOMPARE(done.count(), 0);
         const grid::GridView *v = win.w.view();
         // a cell that was reached shows its result, in its text too; one that was not shows the stored -1
-        const grid::Cell *first = v->sheet().cellAt(0, 1), *last = v->sheet().cellAt(n - 1, 1);
+        const std::optional<grid::Cell> first = v->sheet().cellAt(0, 1), last = v->sheet().cellAt(n - 1, 1);
         QVERIFY(first && last);
         QCOMPARE(v->sheet().valueOf(0, 1, *first).debug(), QStringLiteral("n:2"));
         QCOMPARE(v->sheet().shown(0, 1, *first).text, QStringLiteral("2"));

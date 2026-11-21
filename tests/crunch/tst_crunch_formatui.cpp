@@ -63,7 +63,7 @@ const grid::CellLook &lookAt(EditWindow &e, const QString &ref)
 {
     quint32 r = 0, c = 0;
     parseCellRef(ref, &r, &c);
-    const grid::Cell *cell = e.view()->sheet().cellAt(r, c);
+    const std::optional<grid::Cell> cell = e.view()->sheet().cellAt(r, c);
     return e.view()->sheet().looks().look(e.view()->sheet().styleOf(r, c, cell));
 }
 

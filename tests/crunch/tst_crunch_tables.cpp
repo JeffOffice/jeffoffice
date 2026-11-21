@@ -115,7 +115,7 @@ struct Saved {
     {
         Sheet s;
         if (!book.readSheet(sheet, &s)) return QStringLiteral("unreadable");
-        const Cell *c = at(s, ref);
+        const std::optional<Cell> c = at(s, ref);
         return c ? s.formulaText(*c) : QStringLiteral("-");
     }
 };

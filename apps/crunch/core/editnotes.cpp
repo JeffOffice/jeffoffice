@@ -241,7 +241,7 @@ EditSession::Outcome EditSession::lockedCellsIn(int sheet, const CellRange &rang
     const jp::office::sheet::Sheet &model = m_book->calc->sheet(sheet);
     for (quint32 r = range.row1; r <= range.row2; ++r)
         for (quint32 c = range.col1; c <= range.col2; ++c) {
-            const jp::office::sheet::Cell *cell = model.cells.find(r, c);
+            const std::optional<jp::office::sheet::Cell> cell = model.cells.find(r, c);
             if (isLocked(sheet, cell ? cell->style : implicitStyle(sheet, r, c), r, c)) return refused(lockedMessage());
         }
     return Outcome();

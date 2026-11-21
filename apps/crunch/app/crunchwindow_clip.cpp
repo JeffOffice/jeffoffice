@@ -210,7 +210,7 @@ QString CrunchWindow::htmlOfClip(const ClipData &clip) const
         for (quint32 c = 0; c < clip.cols; ++c) {
             const quint32 col = clip.source.col1 + c;
             if (L.cols.size(col) == 0) continue;
-            const grid::Cell *cell = gs.cellAt(row, col);
+            const std::optional<grid::Cell> cell = gs.cellAt(row, col);
             QString text, style;
             if (cell) {
                 text = gs.textOf(row, col, *cell).toHtmlEscaped();

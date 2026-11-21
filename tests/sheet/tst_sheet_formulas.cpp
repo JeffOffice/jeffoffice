@@ -11,7 +11,7 @@ struct Shift {
 
 QString formulaAt(const Sheet &sheet, const QString &ref)
 {
-    const Cell *c = at(sheet, ref);
+    const std::optional<Cell> c = at(sheet, ref);
     return c ? sheet.formulaText(*c) : QStringLiteral("(no cell)");
 }
 
@@ -156,7 +156,7 @@ private Q_SLOTS:
             "<row r=\"3\"><c r=\"A3\"><f t=\"dataTable\" ref=\"B3:D3\" dt2D=\"1\" dtr=\"1\" r1=\"A1\" r2=\"B1\"/><v>9</v></c></row>");
         Sheet sheet;
         QVERIFY2(readSheetXml(xml, &sheet), qPrintable(sheet.error));
-        const Cell *a1 = at(sheet, "A1");
+        const std::optional<Cell> a1 = at(sheet, "A1");
         QVERIFY(a1 && (a1->flags & ArrayFormula) && a1->hasFormula());
         QCOMPARE(sheet.formulaText(*a1), QStringLiteral("SUM(C1:C3*D1:D3)"));
         QVERIFY(sheet.formulaRange(*a1).valid);

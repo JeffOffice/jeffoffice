@@ -78,7 +78,7 @@ Proofing proofingOfFile(const QString &path, quint32 row, quint32 col)
     jp::office::sheet::Sheet s;
     QString why;
     if (!wb.openFile(path, &why) || !wb.readSheet(0, &s)) return p;
-    if (const auto *cell = s.cells.find(row, col)) {
+    if (const std::optional<Cell> cell = s.cells.find(row, col)) {
         const auto &f = wb.styles().format(cell->style);
         p.language = f.language;
         p.noProof = f.noProof;

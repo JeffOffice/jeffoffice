@@ -43,7 +43,7 @@ struct Book {
     {
         quint32 r = 0, c = 0;
         parseCellRef(ref, &r, &c);
-        const Cell *cellp = calc->sheet(sheet).cells.find(r, c);
+        const std::optional<Cell> cellp = calc->sheet(sheet).cells.find(r, c);
         return cellp ? calc->sheet(sheet).formulaText(*cellp) : QStringLiteral("-");
     }
 };

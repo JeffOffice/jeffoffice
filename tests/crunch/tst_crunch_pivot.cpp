@@ -3360,7 +3360,7 @@ private Q_SLOTS:
         QVERIFY2(book.openFile(target, &why), qPrintable(why));
         jp::office::sheet::Sheet sheet;
         book.readSheet(0, &sheet);
-        const Cell *grand = sheet.cells.find(12, 10);   // K13: the grand total
+        const std::optional<Cell> grand = sheet.cells.find(12, 10);   // K13: the grand total
         QVERIFY(grand);
         QCOMPARE(grand->number, 49.0);
     }

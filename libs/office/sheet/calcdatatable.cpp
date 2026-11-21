@@ -248,7 +248,7 @@ private:
 quint32 Calculation::nodeOfCell(int sheet, quint32 row, quint32 col) const
 {
     if (sheet < 0 || size_t(sheet) >= m_sheets.size()) return kNone;
-    const Cell *c = m_sheets[size_t(sheet)].cells.find(row, col);
+    const std::optional<Cell> c = m_sheets[size_t(sheet)].cells.find(row, col);
     if (!c || !c->hasFormula() || c->formula < 0) return kNone;
     const SheetState &st = m_state[size_t(sheet)];
     return size_t(c->formula) < st.nodeOf.size() ? st.nodeOf[size_t(c->formula)] : kNone;
@@ -358,7 +358,7 @@ bool Calculation::prepareTable(quint32 id, TableCache &t)
     t.left = TableCache::Left::Unsafe;
     Node &n = m_nodes[id];
     Sheet &s = m_sheets[size_t(n.sheet)];
-    const Cell *first = s.cells.findById(n.rowId, n.colId);
+    const std::optional<Cell> first = s.cells.findById(n.rowId, n.colId);
     if (!first || !(first->flags & DataTable) || n.formula < 0) return false;
     const qint32 rangeAt = s.formulas[n.formula].range;
     if (rangeAt < 0 || rangeAt >= s.ranges.size() || !s.ranges[rangeAt].valid) return false;

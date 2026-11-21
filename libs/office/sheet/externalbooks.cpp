@@ -563,7 +563,7 @@ struct ExternalBooks::Impl {
         }
         if (single) {
             if (note) noteRead(index, src->book.info().sheets[sheets[0]].name, range);
-            const Cell *c = read[0]->cells.find(range.row1, range.col1);
+            const std::optional<Cell> c = read[0]->cells.find(range.row1, range.col1);
             *out = c ? src->valueOf(*read[0], *c) : Value();
             return true;
         }
@@ -581,7 +581,7 @@ struct ExternalBooks::Impl {
             }
             for (quint32 r = 0; r < useRows; ++r)
                 for (quint32 c = 0; c < useCols; ++c) {
-                    const Cell *cell = sh.cells.find(range.row1 + r, range.col1 + c);
+                    const std::optional<Cell> cell = sh.cells.find(range.row1 + r, range.col1 + c);
                     if (cell && cell->type != CellType::Empty) arr.set(int(quint32(k) * useRows + r), int(c), src->valueOf(sh, *cell));
                 }
         }

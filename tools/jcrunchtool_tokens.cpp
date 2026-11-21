@@ -145,7 +145,7 @@ int tokenCheckMain(const QStringList &args)
             const int cce = quint8(b[20]) | (quint8(b[21]) << 8);
             if (22 + cce <= len) {
                 const Walked w = normalize(QByteArray(b + 22, cce));
-                const Cell *cell = sheet.cells.find(quint32(row), quint32(col));
+                const std::optional<Cell> cell = sheet.cells.find(quint32(row), quint32(col));
                 if (w.ok && w.comparable && cell && cell->hasFormula()) {
                     const QString text = sheet.formulaText(*cell);
                     QByteArray rgce, extra;

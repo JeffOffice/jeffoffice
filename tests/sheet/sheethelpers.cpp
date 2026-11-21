@@ -83,16 +83,16 @@ bool readSheetXml(const QByteArray &xml, Sheet *out, const ReadOptions &options)
     return readSheetPart(&buffer, options, out);
 }
 
-const Cell *at(const Sheet &sheet, const QString &ref)
+std::optional<Cell> at(const Sheet &sheet, const QString &ref)
 {
     quint32 row = 0, col = 0;
-    if (!parseCellRef(ref, &row, &col)) return nullptr;
+    if (!parseCellRef(ref, &row, &col)) return std::nullopt;
     return sheet.cells.find(row, col);
 }
 
 QString show(const Sheet &sheet, const SharedStrings &shared, const QString &ref)
 {
-    const Cell *c = at(sheet, ref);
+    const std::optional<Cell> c = at(sheet, ref);
     if (!c) return QStringLiteral("none");
     switch (c->type) {
     case CellType::Empty: return QStringLiteral("-");

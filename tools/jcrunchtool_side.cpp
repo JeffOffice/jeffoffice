@@ -138,7 +138,7 @@ int sideRoundtripMain(const QStringList &args)
         }
         if (x.cells.cellCount() != y.cells.cellCount()) add(QStringLiteral("cell count"));
         x.cells.forEach([&](quint32 cellRow, quint32 cellCol, const Cell &c) {
-            const Cell *e = y.cells.find(cellRow, cellCol);
+            const std::optional<Cell> e = y.cells.find(cellRow, cellCol);
             if (!e) {
                 add(QStringLiteral("a cell is missing"));
                 return;

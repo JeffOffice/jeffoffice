@@ -358,7 +358,7 @@ SpecialResult goToSpecial(const EditSession &session, int sheet, const CellRange
         for (const CellRange &r : s.ranges)
             if (r.valid && activeRow >= r.row1 && activeRow <= r.row2 && activeCol >= r.col1 && activeCol <= r.col2) {
                 // (the ranges also hold those of data tables: the first cell of one says which it is)
-                const Cell *first = s.cells.find(r.row1, r.col1);
+                const std::optional<Cell> first = s.cells.find(r.row1, r.col1);
                 if (first && (first->flags & DataTable)) continue;
                 out.ranges.append(r);
                 out.cells = r.cellCount();

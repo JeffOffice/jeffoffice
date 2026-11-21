@@ -7616,7 +7616,7 @@ private Q_SLOTS:
         QVERIFY(wb.open(inner));
         office::sheet::Sheet sheet;
         QVERIFY(wb.readSheet(0, &sheet));
-        const office::sheet::Cell *cell = sheet.cells.find(3, 2);
+        const std::optional<office::sheet::Cell> cell = sheet.cells.find(3, 2);
         QVERIFY(cell && cell->number == 60);
         // and reads again
         auto again = open(saved);

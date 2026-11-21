@@ -66,8 +66,8 @@ public:
     // The styles changed where they stand (a font was renamed): the looks made from them are made again.
     void resetLooks() { m_looks.reset(); }
 
-    // The cell, or null.
-    const Cell *cellAt(quint32 row, quint32 col) const;
+    // A copy of the cell, or none.
+    std::optional<Cell> cellAt(quint32 row, quint32 col) const;
     // The value of a cell as it is shown.
     jp::calc::Value valueOf(quint32 row, quint32 col, const Cell &cell) const;
     // The value of a cell of this sheet or of another (as it is shown; empty for none), and a sheet by its place (null for none).
@@ -124,6 +124,7 @@ public:
     }
     // The format of a place: its cell's, else its row's when the row has one, else its column's; 0 for none.
     quint32 styleOf(quint32 row, quint32 col, const Cell *cell) const;
+    quint32 styleOf(quint32 row, quint32 col, const std::optional<Cell> &cell) const { return styleOf(row, col, cell ? &*cell : nullptr); }
     // The width of a column in the grid's units at 100% (0 when hidden), and of a block of columns.
     double columnWidth(qint64 col) const;
 

@@ -65,7 +65,7 @@ private Q_SLOTS:
         Sheet s;
         QVERIFY(!wb.readSheet(0, &s));
         QVERIFY2(s.error.contains(QLatin1String("32,767")), qPrintable(s.error));
-        const Cell *b1 = at(s, QStringLiteral("B1"));
+        const std::optional<Cell> b1 = at(s, QStringLiteral("B1"));
         QVERIFY(b1);
         QCOMPARE(s.text(*b1, wb.sharedStrings()).size(), 32767);
         QCOMPARE(shown(wb, s, QStringLiteral("A2")), QStringLiteral("i:next"));

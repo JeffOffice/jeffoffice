@@ -123,7 +123,7 @@ bool Calculation::canApply(const StructEdit &e, QString *why) const
     for (const CellRange &r : s.ranges) {
         if (!r.valid || r.cellCount() <= 1) continue;
         // (the block of a formula that spills is not cut by an edit: the formula is worked out again, and fills what it needs)
-        if (const Cell *head = s.cells.find(r.row1, r.col1); head && (head->flags & SpillFormula)) continue;
+        if (const std::optional<Cell> head = s.cells.find(r.row1, r.col1); head && (head->flags & SpillFormula)) continue;
         bool hit = false;
         switch (e.kind) {
         case K::InsertRows: hit = r.row1 < e.first && r.row2 >= e.first; break;
@@ -140,7 +140,7 @@ bool Calculation::canApply(const StructEdit &e, QString *why) const
         for (const quint32 id : m_special) {
             const Node &n = m_nodes[id];
             if ((n.flags & Dead) || n.sheet != e.sheet || n.kept != 'D') continue;
-            const Cell *c = cellOf(n);
+            const std::optional<Cell> c = cellOf(n);
             if (!c || !c->hasFormula()) continue;
             if (names.isEmpty())
                 for (const SheetEntry &se : m_book.info().sheets) names << se.name;
@@ -158,7 +158,7 @@ bool Calculation::canApply(const StructEdit &e, QString *why) const
         bool pushed = false;
         const quint32 firstGone = limit - count;
         if (e.kind == K::InsertRows) {
-            if (s.extentRows > firstGone) pushed = s.cells.find(firstGone, 0) != nullptr || s.extentRows > firstGone;
+            if (s.extentRows > firstGone) pushed = s.cells.find(firstGone, 0).has_value() || s.extentRows > firstGone;
         } else if (e.kind == K::InsertColumns) {
             if (s.extentCols > firstGone) pushed = true;
         } else if (e.kind == K::InsertCellsDown) {
@@ -743,7 +743,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
         std::vector<qint32> heads;
         for (const CellRange &r : S.ranges) {
             if (!r.valid || r.cellCount() <= 1 || r.row1 < gone.row1 || r.row1 > gone.row2 || r.col1 < gone.col1 || r.col1 > gone.col2) continue;
-            if (const Cell *head = S.cells.find(r.row1, r.col1); head && (head->flags & SpillFormula) && head->formula >= 0) heads.push_back(head->formula);
+            if (const std::optional<Cell> head = S.cells.find(r.row1, r.col1); head && (head->flags & SpillFormula) && head->formula >= 0) heads.push_back(head->formula);
         }
         for (const qint32 formula : heads) letGoOfSpill(e.sheet, formula);
     }
@@ -796,7 +796,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
         const Node &n = m_nodes[id];
         if ((n.flags & Dead) || dormant(n)) continue;   // (a formula in a line that is deleted is as it was when the line went: nothing is written for it, and Undo brings the line back)
         const Sheet &sn = m_sheets[size_t(n.sheet)];
-        const Cell *c = cellOf(n);
+        const std::optional<Cell> c = cellOf(n);
         if (!c || !c->hasFormula()) continue;
         Rewrite r;
         r.id = id;
@@ -1255,10 +1255,10 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
                 r = adjusted(r);
                 if (!was.valid || !r.valid || was.cellCount() <= 1) continue;
                 if (r.row2 - r.row1 == was.row2 - was.row1 && r.col2 - r.col1 == was.col2 - was.col1) continue;
-                if (const Cell *head = S.cells.find(r.row1, r.col1); head && (head->flags & SpillFormula)) cutBlocks.push_back({r.row1, r.col1});
+                if (const std::optional<Cell> head = S.cells.find(r.row1, r.col1); head && (head->flags & SpillFormula)) cutBlocks.push_back({r.row1, r.col1});
             }
             for (const auto &[row, col] : cutBlocks) {
-                const Cell *head = S.cells.find(row, col);
+                const std::optional<Cell> head = S.cells.find(row, col);
                 if (!head) continue;
                 if (const quint32 old = nodeAt(e.sheet, row, col); old != kNone) dropNode(old);
                 const quint32 now = addNode(e.sheet, row, col, *head, head->formula);
@@ -1412,7 +1412,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
         const bool told = (n0.flags & Told) && !(n0.traits & IdTold);   // (with the id frame, a formula that uses names and tables only is not made again by an edit of whole lines)
         if (r.shownOnly) {
             // (the text it is shown as is the one it was written again to before ids: a formula kept apart for its function has #NAME? when the text of what it reads changed)
-            const Cell *shownCell = cellOf(n0);
+            const std::optional<Cell> shownCell = cellOf(n0);
             if (shownCell && shownCell->hasFormula()) {
                 const QString shown = m_sheets[size_t(n0.sheet)].formulaText(*shownCell);
                 if (shown != r.was) r.now = shown;
@@ -1645,7 +1645,7 @@ bool Calculation::undoEdit(const EditRecord &rec, EditRecord *done)
         if (!w.hasStored && w.sheet >= 0 && w.sheet < int(m_sheets.size())) {
             // (the inverse edit has most of them as they were: those that do are left alone)
             const Sheet &sw = m_sheets[size_t(w.sheet)];
-            const Cell *c = sw.cells.find(w.row, w.col);
+            const std::optional<Cell> c = sw.cells.find(w.row, w.col);
             if (c && c->hasFormula() && !(c->flags & (ArrayFormula | DataTable)) && sw.formulaText(*c) == w.text) continue;
         }
         if (rewriteArrayText(w.sheet, w.row, w.col, w.text)) continue;

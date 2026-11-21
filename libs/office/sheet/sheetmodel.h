@@ -18,6 +18,7 @@
 #include <QString>
 #include <QStringList>
 #include <QVector>
+#include <optional>
 
 #include <algorithm>
 #include <atomic>
@@ -244,16 +245,20 @@ public:
     void finish();
     // How many cells there are (before finish(), counting any a later one will replace); those of rows and columns that are deleted are not counted.
     qint64 cellCount() const { return m_count - m_dead; }
-    // The cell at the place, or null.
-    const Cell *find(quint32 row, quint32 col) const;
+    // A copy of the cell at the place, or none. A copy, never a pointer: the worker restructures the store while the window reads it, and a pointer into the store is left dangling by that (24 bytes, cheap to copy).
+    std::optional<Cell> find(quint32 row, quint32 col) const;
     // The same by the ids of the cell's row and column (what a formula's node and the window's marks hold): no turning of places into ids, so the cell is found wherever its row and column
     // are now (a deleted one is still found: it is held, dead).
-    const Cell *findById(quint32 rowId, quint32 colId) const;
+    std::optional<Cell> findById(quint32 rowId, quint32 colId) const;
+    // A pointer INTO the store, for the store's own code and for a caller that changes the cell under the proper hold, and for no other. It is good only until the next call that adds, puts, or takes away a
+    // cell or edits the lines (the blocks move), and wrong on the window's thread beside the worker; never keep it across such a call, and never use it where find() would do.
+    const Cell *findReal(quint32 row, quint32 col) const;
+    const Cell *findRealById(quint32 rowId, quint32 colId) const;
     Cell *findMutableById(quint32 rowId, quint32 colId)
     {
         guardCheck("CellStore::findMutableById");
         noteWrite(rowId, colId);
-        return const_cast<Cell *>(findById(rowId, colId));
+        return const_cast<Cell *>(findRealById(rowId, colId));
     }
     // Ids and places, one for the other (kNoLine for a place past the sheet's end, and for the id of a row or column that is deleted).
     quint32 rowIdAt(quint32 place) const { return rowIdOf(place); }

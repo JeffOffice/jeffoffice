@@ -400,7 +400,7 @@ private Q_SLOTS:
         QVERIFY2(styles.contains(QStringLiteral("Georgia")) && styles.contains(QStringLiteral("0.000")) && styles.contains(QStringLiteral("FFEB9C")), qPrintable(styles));
         Sheet data;
         QVERIFY(f.book.readSheet(0, &data));
-        const Cell *a2 = at(data, QStringLiteral("A2"));
+        const std::optional<Cell> a2 = at(data, QStringLiteral("A2"));
         QVERIFY(a2 && a2->style != 0);
         QVERIFY(f.sheetPart(0).contains(QStringLiteral("00B050")));
         QVERIFY(f.sheetPart(0).contains(QStringLiteral("a new text")) || f.part(QStringLiteral("xl/sharedStrings.xml")).contains(QStringLiteral("a new text")));
@@ -588,7 +588,7 @@ private Q_SLOTS:
             QVERIFY(f.open(e.path));
             Sheet sheet;
             QVERIFY(f.book.readSheet(0, &sheet));
-            const Cell *last = at(sheet, QStringLiteral("A149999"));
+            const std::optional<Cell> last = at(sheet, QStringLiteral("A149999"));
             QVERIFY(last && last->style != 0);
             QVERIFY(f.sheetPart(0).contains(QStringLiteral("<col ")));
         }

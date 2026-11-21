@@ -126,7 +126,7 @@ const grid::CellLook &lookAt(EditWindow &e, const QString &ref)
 {
     quint32 r = 0, c = 0;
     parseCellRef(ref, &r, &c);
-    const grid::Cell *cell = e.view()->sheet().cellAt(r, c);
+    const std::optional<grid::Cell> cell = e.view()->sheet().cellAt(r, c);
     return e.view()->sheet().looks().look(e.view()->sheet().styleOf(r, c, cell));
 }
 
@@ -419,7 +419,7 @@ private Q_SLOTS:
         Window second;
         QVERIFY(second.open(e.copyOfFile()));
         const grid::GridSheet &g = second.w.view()->sheet();
-        const grid::Cell *cell = g.cellAt(1, 1);
+        const std::optional<grid::Cell> cell = g.cellAt(1, 1);
         QVERIFY(cell);
         const grid::CellLook &look = g.looks().look(cell->style);
         QVERIFY(look.bold);

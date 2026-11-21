@@ -118,7 +118,7 @@ QString shown(const Workbook &wb, const Sheet &s, const QString &ref) { return s
 
 QString formulaOf(const Sheet &s, const QString &ref)
 {
-    const Cell *c = at(s, ref);
+    const std::optional<Cell> c = at(s, ref);
     return c ? s.formulaText(*c) : QString();
 }
 

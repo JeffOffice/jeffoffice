@@ -97,7 +97,7 @@ double neededPixels(const Shown &s, const CellLook &look, int maxDigitWidth)
 
 double GridSheet::fitWidthOfCell(quint32 row, quint32 col) const
 {
-    const Cell *cell = cellAt(row, col);
+    const std::optional<Cell> cell = cellAt(row, col);
     if (!cell) return 0;
     const CellLook &look = lookOf(row, col, cell->style);
     const Shown s = showValue(valueOf(row, col, *cell), look, m_data.dateSystem, 1e9, m_looks.maxDigitWidth(), *m_meter, &m_symbols);
@@ -113,7 +113,7 @@ double GridSheet::fitWidth(quint32 col, qint64 limit) const
 
 double GridSheet::formulaPixels(quint32 row, quint32 col) const
 {
-    const Cell *cell = cellAt(row, col);
+    const std::optional<Cell> cell = cellAt(row, col);
     if (!cell || !cell->hasFormula() || !m_data.sheet || m_data.sheet->formulaText(*cell).isEmpty()) return 0;
     const CellLook &look = lookOf(row, col, cell->style);
     if (look.wrap) return 0;
@@ -439,7 +439,7 @@ std::shared_ptr<GridGeometry> GridSheet::makeGeometry(const Sheet &sheet, const 
     return geometry;
 }
 
-const Cell *GridSheet::cellAt(quint32 row, quint32 col) const { return m_data.sheet && col < kMaxColumns ? m_data.sheet->cells.find(row, col) : nullptr; }
+std::optional<Cell> GridSheet::cellAt(quint32 row, quint32 col) const { return m_data.sheet && col < kMaxColumns ? m_data.sheet->cells.find(row, col) : std::nullopt; }
 
 jp::calc::Value GridSheet::valueOf(quint32 row, quint32 col, const Cell &cell) const
 {
@@ -457,7 +457,7 @@ jp::calc::Value GridSheet::valueIn(int sheet, quint32 row, quint32 col) const
 {
     const Sheet *s = sheetAt(sheet);
     if (!s || col >= jp::office::sheet::kMaxColumns) return jp::calc::Value();
-    const Cell *cell = s->cells.find(row, col);
+    const std::optional<Cell> cell = s->cells.find(row, col);
     return cell ? valueOfCell(sheet, row, col, *s, *cell) : jp::calc::Value();
 }
 

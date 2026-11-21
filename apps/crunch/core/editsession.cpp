@@ -1683,7 +1683,7 @@ qint64 EditSession::changedResults() const
 bool EditSession::storedEquals(int sheet, quint32 rowId, quint32 colId, const Value &value) const
 {
     const Sheet &s = m_book->calc->sheet(sheet);
-    const Cell *c = s.cells.findById(rowId, colId);
+    const std::optional<Cell> c = s.cells.findById(rowId, colId);
     if (!c) return false;
     switch (c->type) {
     case CellType::Empty: return value.isEmpty();
@@ -1705,7 +1705,7 @@ void EditSession::noteResults(const std::vector<ValueStore::Item> &items)
         const quint64 key = keyOf(it.sheet, it.row, it.col);
         if (m_touched.count(key)) continue;
         const Sheet &s = m_book->calc->sheet(it.sheet);
-        const Cell *c = s.cells.findById(it.row, it.col);
+        const std::optional<Cell> c = s.cells.findById(it.row, it.col);
         if (it.value.isEmpty() && (!c || !(c->hasFormula() || (c->flags & (ArrayMember | Tainted))))) {
             // (a cell a formula that spills filled and no longer fills: it holds nothing now, and the file's cell for it is taken out)
             Value was;

@@ -530,7 +530,7 @@ private Q_SLOTS:
             o.screenRows = 100;
             return readSheetXml(worksheet(rows, QString(), views), out, o);
         };
-        auto has = [](const Sheet &s, const char *ref) { return at(s, QLatin1String(ref)) != nullptr; };
+        auto has = [](const Sheet &s, const char *ref) { return at(s, QLatin1String(ref)).has_value(); };
         // scrolled to row 3001
         Sheet scrolled;
         QVERIFY(readWith(QStringLiteral("<sheetViews><sheetView workbookViewId=\"0\" topLeftCell=\"A3001\"/></sheetViews>"), &scrolled));

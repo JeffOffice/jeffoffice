@@ -422,8 +422,9 @@ struct FormatCaseFinder::Impl {
     }
 
     // Takes the value a piece needs from a cell: the number of a call's, the text of a joined cell.
-    static bool fetch(Piece *p, const Sheet &sheet, const SharedStrings &shared, const Cell *c)
+    static bool fetch(Piece *p, const Sheet &sheet, const SharedStrings &shared, const std::optional<Cell> &cell)
     {
+        const Cell *c = cell ? &*cell : nullptr;   // (the copy the caller holds, not the store)
         if (p->kind == PieceKind::Call) {
             double v = 0;
             if (!numberOf(c, &v)) return false;

@@ -58,7 +58,7 @@ QByteArray stylesXml(const QString &numFmts, const QString &cellXfs, const QStri
 bool readSheetXml(const QByteArray &xml, Sheet *out, const ReadOptions &options = ReadOptions());
 
 // The cell at the A1 reference, or null.
-const Cell *at(const Sheet &sheet, const QString &ref);
+std::optional<Cell> at(const Sheet &sheet, const QString &ref);
 // What the cell holds, in one string: "n:1.5" a number, "s:text" a shared string, "i:text" an inline string, "t:text" the text of a formula, "b:1" or
 // "b:0" a boolean, "e:#DIV/0!" an error, "d:45366" a date, "-" an empty cell, and "none" no cell.
 QString show(const Sheet &sheet, const SharedStrings &shared, const QString &ref);

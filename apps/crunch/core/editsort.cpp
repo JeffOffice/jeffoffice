@@ -308,7 +308,7 @@ bool EditSession::prepareSort(SortPlan &plan, qint64 budget)
             } else if (level.by == SortLevel::By::Icon) {
                 k.match = plan.spec.iconAt(row, col) == level.icon;
             } else {
-                const Cell *c = s.cells.find(row, col);
+                const std::optional<Cell> c = s.cells.find(row, col);
                 ColorSpec color;
                 if (c) {
                     const CellFormat &format = m_book->book->styles().format(c->style);
@@ -600,7 +600,7 @@ bool EditSession::looksLikeHeader(int sheet, const CellRange &range) const
     int texts = 0;
     for (quint32 col = range.col1; col <= range.col2; ++col) {
         const Value top = valueAt(sheet, range.row1, col);
-        const Cell *c = calc->sheet(sheet).cells.find(range.row1, col);
+        const std::optional<Cell> c = calc->sheet(sheet).cells.find(range.row1, col);
         if (!top.isText() && !top.isEmpty()) return false;
         if (top.isText() && c && c->hasFormula()) return false;
         if (top.isText()) ++texts;

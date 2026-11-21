@@ -1008,7 +1008,7 @@ int roundtripOne(const QString &path)
                                 const PlacedRef *a1 = i < pa.size() ? &pa[i] : nullptr, *b1 = j < pb.size() ? &pb[j] : nullptr;
                                 if (a1 && b1 && key(a1) == key(b1)) {
                                     const bool isEdited = si == sheet && key(a1) == editedKey;
-                                    const Cell *model = calc->sheet(si).cells.find(b1->row, b1->col);
+                                    const std::optional<Cell> model = calc->sheet(si).cells.find(b1->row, b1->col);
                                     const bool arrayMember = model && (model->flags & ArrayMember);
                                     if (isEdited) {
                                         cellRight = isTyped(*b1->cell, sb, hb, newValue, typedText);
@@ -2077,7 +2077,7 @@ int namesRoundtripOne(const QString &path)
         after.book.readSheet(si, &sb);
         sa.cells.forEach([&](quint32 row, quint32 col, const Cell &c) {
             ++cells;
-            const Cell *e = sb.cells.find(row, col);
+            const std::optional<Cell> e = sb.cells.find(row, col);
             if (e && hashCell(sa, x.sharedStrings(), c) == hashCell(sb, after.book.sharedStrings(), *e)) ++cellsSame;
         });
         if (sa.cells.cellCount() != sb.cells.cellCount()) add(QStringLiteral("cell count"));
@@ -2234,7 +2234,7 @@ int tablesRoundtripOne(const QString &path)
             quint32 row = cellRow;
             for (const Insert &in : inserted)
                 if (in.sheet == si && row >= in.row) ++row;
-            const Cell *e = sb.cells.find(row, cellCol);
+            const std::optional<Cell> e = sb.cells.find(row, cellCol);
             if (e && !e->hasFormula() && hashCell(sa, book.sharedStrings(), c) == hashCell(sb, after.book.sharedStrings(), *e)) ++cellsSame;
         });
     }
@@ -2385,7 +2385,7 @@ int editRecalcCheck(const QString &path, int edits, quint32 seed)
         if (!sameValue(entry.second, again->second)) {
             if (++mismatches == 1 || (verbose && mismatches <= 5)) {
                 const int sheet = int(entry.first >> 40);
-                const Cell *cell = calc->sheet(sheet).cells.findById(quint32((entry.first >> 16) & 0xFFFFFF), quint32(entry.first & 0xFFFF));
+                const std::optional<Cell> cell = calc->sheet(sheet).cells.findById(quint32((entry.first >> 16) & 0xFFFFFF), quint32(entry.first & 0xFFFF));
                 const quint32 row = calc->sheet(sheet).cells.rowPlaceOf(quint32((entry.first >> 16) & 0xFFFFFF)), col = calc->sheet(sheet).cells.colPlaceOf(quint32(entry.first & 0xFFFF));
                 const QString text = cell && row != CellStore::kNoLine && col != CellStore::kNoLine ? calc->content(sheet, row, col).formula : QString();
                 const QString what = QStringLiteral("sheet %1 %2 (=%3): %4 against %5").arg(sheet).arg(row == CellStore::kNoLine ? QStringLiteral("?") : cellName(row, col), text, entry.second.debug(), again->second.debug());

@@ -240,7 +240,7 @@ CellRange Calculation::spillBlock(int sheet, quint32 row, quint32 col) const
     CellRange out;
     if (sheet < 0 || sheet >= int(m_sheets.size())) return out;
     const Sheet &s = m_sheets[size_t(sheet)];
-    const Cell *c = s.cells.find(row, col);
+    const std::optional<Cell> c = s.cells.find(row, col);
     if (!c || !c->hasFormula() || !(c->flags & SpillFormula) || c->formula < 0 || c->formula >= s.formulas.size()) return out;
     out.row1 = out.row2 = row;
     out.col1 = out.col2 = col;
@@ -253,7 +253,7 @@ CellRange Calculation::spillBlock(int sheet, quint32 row, quint32 col) const
 bool Calculation::isSpillAnchor(int sheet, quint32 row, quint32 col) const
 {
     if (sheet < 0 || sheet >= int(m_sheets.size())) return false;
-    const Cell *c = m_sheets[size_t(sheet)].cells.find(row, col);
+    const std::optional<Cell> c = m_sheets[size_t(sheet)].cells.find(row, col);
     return c && c->hasFormula() && (c->flags & SpillFormula);
 }
 
@@ -261,7 +261,7 @@ bool Calculation::isSpillMember(int sheet, quint32 row, quint32 col, CellRange *
 {
     if (sheet < 0 || sheet >= int(m_sheets.size())) return false;
     const Sheet &s = m_sheets[size_t(sheet)];
-    const Cell *c = s.cells.find(row, col);
+    const std::optional<Cell> c = s.cells.find(row, col);
     if (!c || !(c->flags & SpillMember) || c->formula < 0) return false;
     if (anchor) {
         *anchor = CellRange();
@@ -279,7 +279,7 @@ jp::calc::CellSource::SpillAnswer Calculation::spillRange(int sheet, quint32 row
 {
     if (sheet < 0 || sheet >= int(m_sheets.size())) return SpillAnswer::NotSpill;
     const Sheet &s = m_sheets[size_t(sheet)];
-    const Cell *c = s.cells.find(row, col);
+    const std::optional<Cell> c = s.cells.find(row, col);
     if (!c || !c->hasFormula() || !(c->flags & SpillFormula) || c->formula < 0) return SpillAnswer::NotSpill;
     const SheetState &st = m_state[size_t(sheet)];
     const quint32 id = size_t(c->formula) < st.nodeOf.size() ? st.nodeOf[size_t(c->formula)] : kNone;
@@ -357,7 +357,7 @@ void Calculation::letGoOfSpill(int sheet, qint32 formula)
 
 Value Calculation::applySpill(Node &n, quint32 id, const Value &v)
 {
-    const Cell *head = cellOf(n);
+    const std::optional<Cell> head = cellOf(n);
     if (!head || !(head->flags & SpillFormula)) return v;
     const int sheet = n.sheet;
     Sheet &s = m_sheets[size_t(sheet)];
@@ -432,7 +432,7 @@ Value Calculation::applySpill(Node &n, quint32 id, const Value &v)
             for (quint32 row = now.row1; row <= now.row2; ++row)
                 for (quint32 col = now.col1; col <= now.col2; ++col) {
                     if (row == row0 && col == col0) continue;
-                    const Cell *have = s.cells.find(row, col);
+                    const std::optional<Cell> have = s.cells.find(row, col);
                     if (have && (have->flags & SpillMember) && have->formula == formula) continue;
                     Cell member = have ? *have : Cell();
                     member.type = CellType::Empty;

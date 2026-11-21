@@ -988,7 +988,7 @@ private Q_SLOTS:
         QVERIFY(wb.open(inner));
         office::sheet::Sheet sheet;
         QVERIFY(wb.readSheet(0, &sheet));
-        const office::sheet::Cell *cell = sheet.cells.find(2, 1);
+        const std::optional<office::sheet::Cell> cell = sheet.cells.find(2, 1);
         QVERIFY(cell && cell->number == 42);
         auto again = deck::importPresentation(bytes, &err);
         QVERIFY2(again, qPrintable(err));

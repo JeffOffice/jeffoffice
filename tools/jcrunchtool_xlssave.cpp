@@ -47,7 +47,7 @@ void compareSheets(const Workbook &a, const Sheet &x, const Workbook &b, const S
 {
     if (x.cells.cellCount() != y.cells.cellCount()) d->add(QStringLiteral("cell count"));
     x.cells.forEach([&](quint32 row, quint32 col, const Cell &c) {
-        const Cell *e = y.cells.find(row, col);
+        const std::optional<Cell> e = y.cells.find(row, col);
         if (!e) {
             d->add(QStringLiteral("a cell is missing"));
             return;
@@ -206,7 +206,7 @@ int xlsSaveCheckMain(const QStringList &args)
             } else {
                 Sheet y;
                 w2.readSheet(firstSheetWithCell, &y);
-                const Cell *c = y.cells.find(changeRow, changeCol);
+                const std::optional<Cell> c = y.cells.find(changeRow, changeCol);
                 if (!c || c->type != CellType::Number || c->number != 12345.5) diffs.add(QStringLiteral("the change is not there"));
                 if (y.cells.cellCount() < 1) diffs.add(QStringLiteral("cells lost by the change"));
             }

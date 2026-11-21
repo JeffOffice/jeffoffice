@@ -85,7 +85,7 @@ void enter(CrunchWindow *w, qint64 row, qint64 col, const QString &text)
 // What the grid shows in a cell.
 QString shown(CrunchWindow *w, quint32 row, quint32 col)
 {
-    const grid::Cell *cell = w->view()->sheet().cellAt(row, col);
+    const std::optional<grid::Cell> cell = w->view()->sheet().cellAt(row, col);
     return cell ? w->view()->sheet().textOf(row, col, *cell) : QString();
 }
 
@@ -184,7 +184,7 @@ private Q_SLOTS:
         m_app.sampleFile = tempFile(QStringLiteral("sample.xlsx"));
         // The places a person is in when a command is there to use. A blank workbook has nothing in it, so a few cells are typed first (the sample has its own).
         auto fill = [](CrunchWindow *w) {
-            if (w->view()->sheet().cellAt(0, 0) != nullptr) return;
+            if (w->view()->sheet().cellAt(0, 0).has_value()) return;
             enter(w, 0, 0, QStringLiteral("3"));
             enter(w, 0, 1, QStringLiteral("5"));
             enter(w, 0, 2, QStringLiteral("=A1+B1"));

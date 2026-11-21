@@ -671,7 +671,7 @@ private Q_SLOTS:
         GridSheet g;
         g.setMeter(&kMeter);
         g.setData(data);
-        const Cell *c = g.cellAt(3, 4);
+        const std::optional<Cell> c = g.cellAt(3, 4);
         QVERIFY(c);
         QCOMPARE(g.shown(3, 4, *c).text, QStringLiteral("304"));
         QCOMPARE(g.textsMade(), qint64(1));
@@ -801,7 +801,7 @@ private Q_SLOTS:
         GridSheet g;
         g.setMeter(&kMeter);
         g.setData(d);
-        const Cell *b1 = g.cellAt(0, 1);
+        const std::optional<Cell> b1 = g.cellAt(0, 1);
         QVERIFY(b1);
         QCOMPARE(g.valueOf(0, 1, *b1).debug(), QStringLiteral("n:99"));   // (not worked out yet: what the file stored)
         QVERIFY(calc.recalculate().finished);
@@ -919,7 +919,7 @@ private Q_SLOTS:
         GridSheet g;
         g.setData(d);
         g.setShowFormulas(true);
-        const Cell *c = g.cellAt(0, 0);
+        const std::optional<Cell> c = g.cellAt(0, 0);
         QVERIFY(c);
         QCOMPARE(g.shown(0, 0, *c).text, QStringLiteral("=XLOOKUP(1,B1,C1)"));
     }

@@ -41,7 +41,7 @@ private:
         std::vector<std::pair<quint32, quint32>> columns;   // runs, both ends in them
     };
     const Hidden &hidden(int sheet) const;
-    const jp::office::sheet::Cell *cellAt(int sheet, quint32 row, quint32 col) const;
+    std::optional<jp::office::sheet::Cell> cellAt(int sheet, quint32 row, quint32 col) const;
     jp::calc::Value valueOf(int sheet, quint32 row, quint32 col, const jp::office::sheet::Cell &cell) const;
 
     const jp::office::sheet::WorkbookSource *m_source;

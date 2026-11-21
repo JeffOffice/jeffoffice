@@ -123,7 +123,7 @@ private Q_SLOTS:
         QVERIFY2(openIt(buildOds(contentXml(table(QStringLiteral("S"), columns(1) + row(cell(QStringLiteral("office:value-type=\"string\""), QStringLiteral("<text:p><text:s text:c=\"1000\"/>x</text:p>")))))), &some, &why),
                  qPrintable(why));
         QVERIFY(some.readSheet(0, &s));
-        const Cell *c = at(s, QStringLiteral("A1"));
+        const std::optional<Cell> c = at(s, QStringLiteral("A1"));
         QVERIFY(c);
         QCOMPARE(s.text(*c, some.sharedStrings()), QString(1000, QLatin1Char(' ')) + QLatin1Char('x'));
         // a text of more characters than the limit says is refused with what came before it kept

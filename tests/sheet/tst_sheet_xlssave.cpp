@@ -105,7 +105,7 @@ QString differences(const Workbook &a, const Sheet &x, const Workbook &b, const 
     QStringList out;
     if (x.cells.cellCount() != y.cells.cellCount()) out << QStringLiteral("cell count %1 vs %2").arg(x.cells.cellCount()).arg(y.cells.cellCount());
     x.cells.forEach([&](quint32 row, quint32 col, const Cell &c) {
-        const Cell *d = y.cells.find(row, col);
+        const std::optional<Cell> d = y.cells.find(row, col);
         const QString ref = cellName(row, col);
         if (!d) {
             out << ref + QStringLiteral(" missing");
@@ -518,7 +518,7 @@ private Q_SLOTS:
         // the cell that uses it is in the same format as before, and so follows the heading
         Sheet s;
         QVERIFY(back.readSheet(0, &s));
-        const Cell *a1 = sheettest::at(s, QStringLiteral("A1"));
+        const std::optional<Cell> a1 = sheettest::at(s, QStringLiteral("A1"));
         QVERIFY(a1);
         QCOMPARE(a1->style, quint32(16));
         QCOMPARE(t.cellXfs[int(a1->style)].value(QStringLiteral("xfId")).toInt(), heading);
@@ -605,7 +605,7 @@ private Q_SLOTS:
         Sheet s;
         QVERIFY(back.readSheet(0, &s));
         auto text = [&](const QString &ref) {
-            const Cell *c = sheettest::at(s, ref);
+            const std::optional<Cell> c = sheettest::at(s, ref);
             return c && c->hasFormula() ? s.formulaText(*c) : QStringLiteral("none");
         };
         QCOMPARE(text(QStringLiteral("B2")), QStringLiteral("TABLE(D3,)"));

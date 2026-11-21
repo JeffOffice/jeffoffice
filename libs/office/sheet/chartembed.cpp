@@ -211,7 +211,7 @@ bool cellText(const Opened &o, quint32 row, quint32 col, QString *text, bool *nu
 {
     *text = QString();
     *number = false;
-    const Cell *cell = o.sheet.cells.find(row, col);
+    const std::optional<Cell> cell = o.sheet.cells.find(row, col);
     if (!cell) return true;
     if (cell->hasFormula()) return false;
     switch (cell->type) {
@@ -232,7 +232,7 @@ bool cellText(const Opened &o, quint32 row, quint32 col, QString *text, bool *nu
 // A number of the series: a number cell that is not a date (any other number format is fine: the chart stores the number, and its format code stays).
 bool cellNumber(const Opened &o, quint32 row, quint32 col, double *value)
 {
-    const Cell *cell = o.sheet.cells.find(row, col);
+    const std::optional<Cell> cell = o.sheet.cells.find(row, col);
     if (!cell || cell->hasFormula() || cell->type != CellType::Number || !std::isfinite(cell->number) || formatKindOf(o, *cell) == calc::FormatKind::Date) return false;
     *value = cell->number;
     return true;
@@ -386,7 +386,7 @@ bool embeddedChartSetData(Chart &chart, const QByteArray &workbook, const ChartD
         SavedCell cell;
         cell.row = row;
         cell.col = quint16(col);
-        if (const Cell *old = o->sheet.cells.find(row, col)) cell.style = old->style;
+        if (const std::optional<Cell> old = o->sheet.cells.find(row, col)) cell.style = old->style;
         cell.value = value;
         edits[{row, col}] = cell;
     };

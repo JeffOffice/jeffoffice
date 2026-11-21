@@ -53,7 +53,7 @@ struct Saved {
     {
         Sheet s;
         if (!book.readSheet(sheet, &s)) return QStringLiteral("unreadable");
-        const Cell *c = at(s, ref);
+        const std::optional<Cell> c = at(s, ref);
         return c ? s.formulaText(*c) : QStringLiteral("-");
     }
     // "name|scope|text|comment|hidden" of each name the file has (the program's own, such as print areas, left out), in the file's order

@@ -486,7 +486,7 @@ void CondFormats::applyChange(RangeStats *rs, quint32 row, quint32 col) const
     const quint64 id = (quint64(row) << 16) | col;
     auto at = std::lower_bound(rs->cells.begin(), rs->cells.end(), id, [](const StatCell &c, quint64 v) { return c.id < v; });
     const bool had = at != rs->cells.end() && at->id == id;
-    const Cell *cell = sheet->cells.find(row, col);
+    const std::optional<Cell> cell = sheet->cells.find(row, col);
     if (had) {
         if (!std::isnan(at->num)) rs->removeNumber(at->num);
         if (at->key) {
@@ -1022,7 +1022,7 @@ CondCell CondFormats::compute(quint32 row, quint32 col, bool *incomplete) const
     if (!sheet) return out;
     DifferentialFormat merged;
     bool anyFormat = false;
-    const Cell *cell = sheet->cells.find(row, col);
+    const std::optional<Cell> cell = sheet->cells.find(row, col);
     const Value value = cell ? m_owner->valueOf(row, col, *cell) : Value();
     const jp::office::sheet::Styles *styles = m_owner->data().styles;
     std::vector<int> rules;

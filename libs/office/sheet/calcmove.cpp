@@ -41,14 +41,14 @@ bool Calculation::canMoveCells(const StructEdit &e, QString *why) const
     auto insideBlock = [&](const CellRange &r) { return r.row1 >= e.row1 && r.row2 <= e.row2 && r.col1 >= e.col1 && r.col2 <= e.col2; };
     // (the block of a formula that spills goes with its formula's cell, which is worked out again where it lands: what is written over of a block makes it #SPILL!. Part of it moved, the formula's cell not, is refused)
     auto spills = [](const Sheet &sh, const CellRange &r) {
-        const Cell *head = sh.cells.find(r.row1, r.col1);
+        const std::optional<Cell> head = sh.cells.find(r.row1, r.col1);
         return head && (head->flags & SpillFormula);
     };
     for (const CellRange &r : from.ranges) {
         if (!meets(r, e.row1, e.col1, e.row2, e.col2)) continue;
         if (spills(from, r) && r.row1 >= e.row1 && r.row1 <= e.row2 && r.col1 >= e.col1 && r.col1 <= e.col2) continue;
         // an array goes whole (an array of one cell too); part of one does not, and a data table does not go at all
-        const Cell *first = from.cells.find(r.row1, r.col1);
+        const std::optional<Cell> first = from.cells.find(r.row1, r.col1);
         if (first && (first->flags & DataTable)) return refuse(dataTable);
         if (!insideBlock(r) || !first || !(first->flags & ArrayFormula)) return refuse(array);
     }
@@ -56,7 +56,7 @@ bool Calculation::canMoveCells(const StructEdit &e, QString *why) const
         if (r.cellCount() <= 1 || !meets(r, e.toRow, e.toCol, toRow2, toCol2)) continue;
         if (spills(to, r)) continue;
         if (e.sheet == e.toSheet && insideBlock(r)) continue;   // (it goes with the block: it is not written over)
-        const Cell *first = to.cells.find(r.row1, r.col1);
+        const std::optional<Cell> first = to.cells.find(r.row1, r.col1);
         return refuse(first && (first->flags & DataTable) ? dataTable : array);
     }
     // merged cells go whole or not at all, and are not written over in part
@@ -121,7 +121,7 @@ CellRange Calculation::arrayRangeAt(int sheet, quint32 row, quint32 col) const
 {
     if (sheet < 0 || sheet >= int(m_sheets.size())) return CellRange();
     const Sheet &s = m_sheets[size_t(sheet)];
-    const Cell *c = s.cells.find(row, col);
+    const std::optional<Cell> c = s.cells.find(row, col);
     if (!c || !(c->flags & (ArrayFormula | ArrayMember)) || (c->flags & (SpillFormula | SpillMember)) || c->formula < 0 || c->formula >= s.formulas.size()) return CellRange();
     const qint32 slot = s.formulas[c->formula].range;
     if (slot < 0 || slot >= s.ranges.size() || !s.ranges[slot].valid) return CellRange();
@@ -134,7 +134,7 @@ CellRange Calculation::arrayMeeting(int sheet, quint32 row1, quint32 col1, quint
     const Sheet &s = m_sheets[size_t(sheet)];
     for (const CellRange &r : s.ranges) {
         if (!r.valid || r.row1 > row2 || r.row2 < row1 || r.col1 > col2 || r.col2 < col1) continue;
-        const Cell *first = s.cells.find(r.row1, r.col1);
+        const std::optional<Cell> first = s.cells.find(r.row1, r.col1);
         if (!first || !(first->flags & ArrayFormula) || (first->flags & (SpillFormula | SpillMember))) continue;   // (the block of a formula that spills is no array)
         return r;
     }
@@ -147,7 +147,7 @@ void Calculation::dissolveArrayAt(int sheet, quint32 row, quint32 col)
     m_guard.check("Calculation::dissolveArrayAt");
     if (sheet < 0 || sheet >= int(m_sheets.size())) return;
     const Sheet &s = m_sheets[size_t(sheet)];
-    const Cell *c = s.cells.find(row, col);
+    const std::optional<Cell> c = s.cells.find(row, col);
     if (!c || !(c->flags & (ArrayFormula | ArrayMember)) || (c->flags & (SpillFormula | SpillMember)) || c->formula < 0 || c->formula >= s.formulas.size()) return;
     abandonNow();
     dissolveArray(sheet, s.formulas[c->formula].range);
@@ -179,7 +179,7 @@ bool Calculation::putArray(int sheet, quint32 row, quint32 col, const CellConten
 void Calculation::markArrayMembers(int sheet, quint32 row, quint32 col)
 {
     Sheet &s = m_sheets[size_t(sheet)];
-    const Cell *first = s.cells.find(row, col);
+    const std::optional<Cell> first = s.cells.find(row, col);
     if (!first || !first->hasFormula() || first->formula < 0 || first->formula >= s.formulas.size()) return;
     const qint32 slot = s.formulas[first->formula].range;
     if (slot < 0 || slot >= s.ranges.size() || !s.ranges[slot].valid) return;
@@ -192,7 +192,7 @@ void Calculation::markArrayMembers(int sheet, quint32 row, quint32 col)
         for (quint32 cc = r.col1; cc <= r.col2; ++cc) {
             if (rr == row && cc == col) continue;
             Cell member;
-            if (const Cell *have = s.cells.find(rr, cc)) {
+            if (const std::optional<Cell> have = s.cells.find(rr, cc)) {
                 member = *have;
             }
             if (member.hasFormula()) continue;
@@ -304,7 +304,7 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
         if ((n.flags & Dead) || dormant(n)) continue;
         if (inSource(n.sheet, rowOf(n), colOf(n)) || inDestination(n.sheet, rowOf(n), colOf(n))) continue;
         const Sheet &sn = m_sheets[size_t(n.sheet)];
-        const Cell *c = cellOf(n);
+        const std::optional<Cell> c = cellOf(n);
         if (!c || !c->hasFormula()) continue;
         Rewrite r;
         r.id = id;
@@ -326,7 +326,7 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
     for (qint32 i = 0; i < S.ranges.size(); ++i) {
         const CellRange r = S.ranges[i];
         if (!r.valid || !meets(r, e.row1, e.col1, e.row2, e.col2)) continue;
-        if (const Cell *head = S.cells.find(r.row1, r.col1); head && (head->flags & SpillFormula)) {
+        if (const std::optional<Cell> head = S.cells.find(r.row1, r.col1); head && (head->flags & SpillFormula)) {
             letGoOfSpill(e.sheet, head->formula);   // (the cells it filled are let go of; its cell goes where it goes and is worked out there)
             continue;
         }
@@ -346,7 +346,7 @@ bool Calculation::applyMove(const StructEdit &e, EditRecord *rec)
     for (qint32 i = 0; i < D.ranges.size(); ++i) {
         const CellRange r = D.ranges[i];
         if (!r.valid || !meets(r, e.toRow, e.toCol, toRow2, toCol2)) continue;
-        if (const Cell *head = D.cells.find(r.row1, r.col1); head && (head->flags & SpillFormula)) continue;
+        if (const std::optional<Cell> head = D.cells.find(r.row1, r.col1); head && (head->flags & SpillFormula)) continue;
         rec->arraysTaken.push_back({e.toSheet, i, r, false});
         freeSlots.push_back({e.toSheet, i});
         dissolveArray(e.toSheet, i);

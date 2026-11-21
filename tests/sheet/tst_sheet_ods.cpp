@@ -142,7 +142,7 @@ private Q_SLOTS:
         const QString inside = QStringLiteral("<text:p>plain <text:span text:style-name=\"T1\">bold</text:span> and <text:span text:style-name=\"T2\">same</text:span></text:p>");
         Workbook wb = open(simple(table(QStringLiteral("S"), columns(1) + row(cell(QStringLiteral("office:value-type=\"string\""), inside))), styles));
         const Sheet s = readSheet(wb);
-        const Cell *c = at(s, QStringLiteral("A1"));
+        const std::optional<Cell> c = at(s, QStringLiteral("A1"));
         QVERIFY(c);
         const auto runs = s.richTexts.constFind(c->textIndex());
         QVERIFY(runs != s.richTexts.cend());
@@ -191,7 +191,7 @@ private Q_SLOTS:
         const QString r2 = row(QStringLiteral("<table:covered-table-cell office:value-type=\"float\" office:value=\"3\"/><table:covered-table-cell office:value-type=\"float\" office:value=\"4\"/>"));
         Workbook wb = open(simple(table(QStringLiteral("S"), columns(2) + r1 + r2)));
         const Sheet s = readSheet(wb);
-        const Cell *a1 = at(s, QStringLiteral("A1"));
+        const std::optional<Cell> a1 = at(s, QStringLiteral("A1"));
         QVERIFY(a1 && a1->hasFormula());
         QVERIFY(a1->flags & ArrayFormula);
         const CellRange range = s.formulaRange(*a1);
@@ -256,7 +256,7 @@ private Q_SLOTS:
                                       QStringLiteral("0.0,\"K\""), QStringLiteral("#.0##"), QStringLiteral("#,##0.00;[Red]-#,##0.00"),
                                       QStringLiteral("_(\"$\"* #,##0.00_);_(\"$\"* \"(\"#,##0.00\")\";_(\"$\"* -??_);_(@_)"), QStringLiteral("General"), QStringLiteral("0.0E-00"), QStringLiteral("0;-0;")};
         for (int i = 0; i < expected.size(); ++i) {
-            const Cell *c = at(s, cellName(0, quint32(i)));
+            const std::optional<Cell> c = at(s, cellName(0, quint32(i)));
             QVERIFY2(c, qPrintable(QString::number(i) + QLatin1Char(' ') + s.error));
             QCOMPARE(wb.styles().formatCode(c->style), expected[i]);
         }
@@ -285,7 +285,7 @@ private Q_SLOTS:
                                                styles, QString(), fonts), common));
         const Sheet s = readSheet(wb);
         const Styles &st = wb.styles();
-        const Cell *plain = at(s, QStringLiteral("A1")), *styled = at(s, QStringLiteral("B1")), *general = at(s, QStringLiteral("C1"));
+        const std::optional<Cell> plain = at(s, QStringLiteral("A1")), styled = at(s, QStringLiteral("B1")), general = at(s, QStringLiteral("C1"));
         QVERIFY(plain && styled && general);
         QCOMPARE(plain->style, 0u);
         QCOMPARE(st.font(st.format(0).font).name, QStringLiteral("Liberation Sans"));
@@ -399,7 +399,7 @@ private Q_SLOTS:
         QCOMPARE(s.mergeCount, qint64(1));
         QCOMPARE(shown(wb, s, QStringLiteral("A1")), QStringLiteral("i:wide"));
         QCOMPARE(shown(wb, s, QStringLiteral("D1")), QStringLiteral("n:1"));
-        QVERIFY(at(s, QStringLiteral("B1")) != nullptr);   // (a covered cell with a border has the look)
+        QVERIFY(at(s, QStringLiteral("B1")).has_value());   // (a covered cell with a border has the look)
         QVERIFY(at(s, QStringLiteral("B1"))->style != 0);
         QVERIFY(!at(s, QStringLiteral("A2")));
         QCOMPARE(shown(wb, s, QStringLiteral("D2")), QStringLiteral("n:2"));

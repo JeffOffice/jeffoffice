@@ -330,7 +330,7 @@ void CrunchWindow::fillDragged(const grid::GridRange &source, const grid::GridRa
         // (dates: the last cell of the block holds a number shown as a date)
         const quint32 lastRow = from.row2, lastCol = from.col2;
         const grid::GridSheet &gs = m_view->sheet();
-        const grid::Cell *cell = gs.cellAt(lastRow, lastCol);
+        const std::optional<grid::Cell> cell = gs.cellAt(lastRow, lastCol);
         m_lastFill.dates = cell && m_session->valueAt(m_sheet, lastRow, lastCol).isNumber() && gs.looks().look(gs.styleOf(lastRow, lastCol, cell)).format.kind() == jp::calc::FormatKind::Date;
         offerFillOptions();
     }
@@ -522,7 +522,7 @@ void CrunchWindow::justifySelection()
     range.col2 = quint32(r.col2);
     // the font of the first cell, as the grid shows it, and the width of the column inside its margins
     const grid::GridSheet &gs = m_view->sheet();
-    const grid::Cell *cell = gs.cellAt(range.row1, range.col1);
+    const std::optional<grid::Cell> cell = gs.cellAt(range.row1, range.col1);
     const grid::CellLook &look = gs.looks().look(gs.styleOf(range.row1, range.col1, cell));
     QFont font(look.family.isEmpty() ? m_view->font().family() : look.family);
     font.setPixelSize(std::max(9, int(std::lround(look.pointSize * 96.0 / 72.0))));

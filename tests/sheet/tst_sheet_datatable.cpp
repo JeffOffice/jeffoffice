@@ -207,7 +207,7 @@ private Q_SLOTS:
         QCOMPARE(b.at(QStringLiteral("C5")), QStringLiteral("n:4"));   // (what the table comes to, as the engine reads it)
         quint32 r = 0, c = 0;
         QVERIFY(parseCellRef(QStringLiteral("C5"), &r, &c));
-        const Cell *cell = b.calc->sheet(0).cells.find(r, c);
+        const std::optional<Cell> cell = b.calc->sheet(0).cells.find(r, c);
         QVERIFY(cell);
         QCOMPARE(cell->number, 0.0);   // (what the file stored)
     }

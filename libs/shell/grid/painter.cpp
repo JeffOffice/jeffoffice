@@ -1086,7 +1086,7 @@ marked:
             const double w2 = colsAxis.size(col);
             if (w2 == 0) return 0;
             if (++m_stats.spillProbes > kMaxSpillProbes) return -1;
-            const Cell *other = m_sheet->cellAt(quint32(row), quint32(col));
+            const std::optional<Cell> other = m_sheet->cellAt(quint32(row), quint32(col));
             if (other && (other->type != CellType::Empty || other->hasFormula())) return -1;
             if (L.merges.count() > 0 && L.merges.at(quint32(row), quint32(col)) >= 0) return -1;
             if (centerContinuous) {
@@ -1282,7 +1282,7 @@ marked:
             break;
         }
         ++m_stats.mergesDrawn;
-        const Cell *anchor = m_sheet->cellAt(m.row1, m.col1);
+        const std::optional<Cell> anchor = m_sheet->cellAt(m.row1, m.col1);
         const quint32 xf = anchor ? anchor->style : m_sheet->styleOf(m.row1, m.col1, nullptr);
         CondCell anchorCondValue;
         const CondCell *anchorCond = nullptr;
@@ -1306,7 +1306,7 @@ marked:
         m_beneath = m_paper;
         if (look.hasBorder() || xf == 0) {
             auto lookOf = [&](quint32 r, quint32 c) -> const CellLook * {
-                const Cell *x = m_sheet->cellAt(r, c);
+                const std::optional<Cell> x = m_sheet->cellAt(r, c);
                 return x && x->style ? &looks.look(x->style) : nullptr;
             };
             const CellLook *tl = lookOf(m.row1, m.col1), *tr = lookOf(m.row1, m.col2), *bl = lookOf(m.row2, m.col1), *br = lookOf(m.row2, m.col2);

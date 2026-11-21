@@ -146,12 +146,12 @@ bool PivotExternalReads::read(const QString &path, const QString &where, PivotSo
     source->dates = held->book->info().dateSystem;
     source->numFmtIds.clear();
     for (quint32 c = range.col1; c <= range.col2; ++c) {
-        const Cell *first = held->sheet.cells.find(range.row1 + 1, c);
+        const std::optional<Cell> first = held->sheet.cells.find(range.row1 + 1, c);
         source->numFmtIds.append(first ? int(held->book->styles().numFmtId(first->style)) : 0);
     }
     source->cell = [held](quint32 r, quint32 c) {
         PivotValue pv;
-        const Cell *cell = held->sheet.cells.find(r, c);
+        const std::optional<Cell> cell = held->sheet.cells.find(r, c);
         if (!cell) return pv;
         switch (cell->type) {
         case CellType::Empty: break;

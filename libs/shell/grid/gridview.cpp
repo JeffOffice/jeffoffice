@@ -30,7 +30,7 @@ public:
     explicit Nav(const GridSheet *sheet) : m_sheet(sheet) {}
     bool hasValue(qint64 row, qint64 col) const override
     {
-        const Cell *c = m_sheet->cellAt(quint32(row), quint32(col));
+        const std::optional<Cell> c = m_sheet->cellAt(quint32(row), quint32(col));
         return c && (c->type != jp::office::sheet::CellType::Empty || c->hasFormula());
     }
     void usedExtent(qint64 *rows, qint64 *cols) const override
@@ -733,7 +733,7 @@ QString GridView::rangeName() const
 
 QString GridView::activeCellText() const
 {
-    const Cell *cell = m_sheet.cellAt(quint32(m_selection.activeRow), quint32(m_selection.activeCol));
+    const std::optional<Cell> cell = m_sheet.cellAt(quint32(m_selection.activeRow), quint32(m_selection.activeCol));
     if (!cell || !m_sheet.data().sheet) return QString();
     using jp::calc::Value;
     if (cell->hasFormula() || (cell->flags & jp::office::sheet::ArrayMember)) {

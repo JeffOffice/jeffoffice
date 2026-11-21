@@ -543,7 +543,7 @@ private Q_SLOTS:
         // a value inside changes (the highest is no longer): the figures follow that cell, and are not made again
         quint32 row = 0, col = 0;
         parseCellRef(QStringLiteral("A1000"), &row, &col);
-        const_cast<Cell *>(b.sheet.cells.find(row, col))->number = 5;
+        const_cast<Cell *>(b.sheet.cells.findReal(row, col))->number = 5;
         b.grid.invalidateText(row, col);
         QVERIFY(!b.at(QStringLiteral("A1000")).any);
         QVERIFY(b.at(QStringLiteral("A999")).any);
@@ -776,13 +776,13 @@ private Q_SLOTS:
         QCOMPARE(b.at(QStringLiteral("A1")).scale, QRgb(0xFFFF0000));   // (the lowest: the red end)
         QCOMPARE(b.grid.conditional().passes(), qint64(1));
         // A10 becomes what A20 has
-        const_cast<Cell *>(b.sheet.cells.find(9, 0))->number = 19;
+        const_cast<Cell *>(b.sheet.cells.findReal(9, 0))->number = 19;
         b.grid.invalidateText(9, 0);
         QCOMPARE(b.grid.conditional().incrementalChanges(), qint64(1));
         QCOMPARE(b.grid.conditional().passes(), qint64(1));
         QVERIFY(!b.formatAt(QStringLiteral("A10")).isEmpty() && !b.formatAt(QStringLiteral("A20")).isEmpty());
         // the highest is brought down below all of them: the lowest of the scale is that, the highest the next, and the cell that was the lowest is in the middle
-        const_cast<Cell *>(b.sheet.cells.find(49999, 0))->number = -50000;
+        const_cast<Cell *>(b.sheet.cells.findReal(49999, 0))->number = -50000;
         b.grid.invalidateText(49999, 0);
         QCOMPARE(b.grid.conditional().passes(), qint64(1));
         QCOMPARE(b.grid.conditional().incrementalChanges(), qint64(2));

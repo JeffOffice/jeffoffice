@@ -24,7 +24,7 @@ bool TextWalk::step(qint64 budget)
             if (budget > 0 && m_looked >= stop) return false;
             if (!m_firstInLine) m_line += QLatin1Char('\t');
             m_firstInLine = false;
-            const jp::office::sheet::Cell *c = m_sheet->cellAt(quint32(m_row), quint32(m_col));
+            const std::optional<Cell> c = m_sheet->cellAt(quint32(m_row), quint32(m_col));
             if (!c || (c->type == jp::office::sheet::CellType::Empty && !c->hasFormula())) {
                 ++m_looked;
                 continue;

@@ -40,7 +40,7 @@ QString show(const PivotCell &c)
 PivotCell stored(const Sheet &sh, const SharedStrings &shared, quint32 row, quint32 col)
 {
     PivotCell pc;
-    const Cell *c = sh.cells.find(row, col);
+    const std::optional<Cell> c = sh.cells.find(row, col);
     if (!c) return pc;
     switch (c->type) {
     case CellType::Empty: break;
@@ -79,7 +79,7 @@ bool same(const PivotCell &a, const PivotCell &b)
 PivotValue valueOfStored(const Sheet &sh, const SharedStrings &shared, const Styles &styles, QHash<quint32, bool> *dateStyle, quint32 row, quint32 col)
 {
     PivotValue v;
-    const Cell *c = sh.cells.find(row, col);
+    const std::optional<Cell> c = sh.cells.find(row, col);
     if (!c) return v;
     switch (c->type) {
     case CellType::Empty: break;
@@ -335,7 +335,7 @@ int pivotCheckMain(const QStringList &args)
                 // (the number format of the cell above that shows this very number, else the field's)
                 int use = id;
                 for (qint64 r = qint64(where.row1) + gridRow; r >= where.row1 && r >= 0; --r) {
-                    const Cell *cell = sh.cells.find(quint32(r), where.col1 + quint32(gridCol));
+                    const std::optional<Cell> cell = sh.cells.find(quint32(r), where.col1 + quint32(gridCol));
                     if (cell && (cell->type == CellType::Number || cell->type == CellType::Date) && cell->number == v) {
                         use = book.styles().numFmtId(cell->style);
                         break;

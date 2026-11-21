@@ -17,9 +17,9 @@ int WorkbookChartCells::sheetCount() const { return m_source ? m_source->sheetCo
 
 int WorkbookChartCells::sheetIndex(const QString &name) const { return m_source ? m_source->sheetIndex(name) : -1; }
 
-const Cell *WorkbookChartCells::cellAt(int sheet, quint32 row, quint32 col) const
+std::optional<Cell> WorkbookChartCells::cellAt(int sheet, quint32 row, quint32 col) const
 {
-    if (!m_source || sheet < 0 || sheet >= m_source->sheetCount()) return nullptr;
+    if (!m_source || sheet < 0 || sheet >= m_source->sheetCount()) return std::nullopt;
     return m_source->sheet(sheet).cells.find(row, col);
 }
 
@@ -36,13 +36,13 @@ Value WorkbookChartCells::valueOf(int sheet, quint32 row, quint32 col, const Cel
 Value WorkbookChartCells::value(int sheet, quint32 row, quint32 col) const
 {
     ++m_reads;
-    const Cell *c = cellAt(sheet, row, col);
+    const std::optional<Cell> c = cellAt(sheet, row, col);
     return c ? valueOf(sheet, row, col, *c) : Value();
 }
 
 QString WorkbookChartCells::text(int sheet, quint32 row, quint32 col) const
 {
-    const Cell *c = cellAt(sheet, row, col);
+    const std::optional<Cell> c = cellAt(sheet, row, col);
     if (!c) return QString();
     m_looks.trim();   // (no look is held here between calls)
     const Value v = valueOf(sheet, row, col, *c);
@@ -69,7 +69,7 @@ QString WorkbookChartCells::text(int sheet, quint32 row, quint32 col) const
 
 QString WorkbookChartCells::formatCode(int sheet, quint32 row, quint32 col) const
 {
-    const Cell *c = cellAt(sheet, row, col);
+    const std::optional<Cell> c = cellAt(sheet, row, col);
     if (!c || !m_styles) return QStringLiteral("General");
     const QString code = m_styles->formatCode(c->style, QLocale::c());   // (the file's code, not the person's: it is written into charts)
     return code.isEmpty() ? QStringLiteral("General") : code;

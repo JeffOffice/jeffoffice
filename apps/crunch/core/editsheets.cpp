@@ -711,7 +711,7 @@ std::optional<jp::office::sheet::RichText> EditSession::richOf(int sheet, quint3
         if (m_touched.count(key)) return std::nullopt;   // (typed over: plain)
     }
     // as the file has it: a shared string with runs, or an inline string with runs
-    const Cell *cell = m_book->calc->sheet(sheet).cells.find(row, col);
+    const std::optional<Cell> cell = m_book->calc->sheet(sheet).cells.find(row, col);
     RichText out;
     out.text = c.value.text();
     if (c.sharedString >= 0) {

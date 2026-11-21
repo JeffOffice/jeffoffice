@@ -123,14 +123,26 @@ void CellStore::finish()
     m_last = nullptr;
 }
 
-const Cell *CellStore::find(quint32 row, quint32 col) const
+std::optional<Cell> CellStore::find(quint32 row, quint32 col) const
+{
+    const Cell *c = findReal(row, col);
+    return c ? std::optional<Cell>(*c) : std::nullopt;
+}
+
+std::optional<Cell> CellStore::findById(quint32 rowId, quint32 colId) const
+{
+    const Cell *c = findRealById(rowId, colId);
+    return c ? std::optional<Cell>(*c) : std::nullopt;
+}
+
+const Cell *CellStore::findReal(quint32 row, quint32 col) const
 {
     const quint32 rowId = rowIdOf(row), colId = colIdOf(col);
     if (rowId == kNoLine || colId == kNoLine) return nullptr;
-    return findById(rowId, colId);
+    return findRealById(rowId, colId);
 }
 
-const Cell *CellStore::findById(quint32 rowId, quint32 colId) const
+const Cell *CellStore::findRealById(quint32 rowId, quint32 colId) const
 {
     if (rowId == kNoLine || colId >= 0x10000) return nullptr;
     const auto block = m_blocks.find(rowId / kBlockRows);
@@ -148,7 +160,7 @@ Cell *CellStore::findMutable(quint32 row, quint32 col)
     guardCheck("CellStore::findMutable");
     const quint32 rowId = rowIdOf(row), colId = colIdOf(col);
     noteWrite(rowId, colId);
-    return const_cast<Cell *>(find(row, col));
+    return const_cast<Cell *>(findReal(row, col));
 }
 
 Cell *CellStore::set(quint32 row, quint32 col, const Cell &placed)

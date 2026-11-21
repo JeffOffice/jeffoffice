@@ -388,7 +388,7 @@ bool EditSession::prepareFilter(FilterPlan &plan, qint64 budget)
         for (; plan.next <= plan.lastRow; ++plan.next) {
             if (budget > 0 && spent >= budget) return false;
             ++spent;
-            const Cell *cell = s.cells.find(plan.next, c.col);
+            const std::optional<Cell> cell = s.cells.find(plan.next, c.col);
             if (!cell) continue;
             const Value v = valueAt(plan.sheet, plan.next, c.col);
             if (v.isNumber()) c.collected.push_back(v.number());
@@ -427,7 +427,7 @@ bool EditSession::prepareFilter(FilterPlan &plan, qint64 budget)
         bool hidden = false;
         for (const FilterPlan::Column &c : plan.columns) {
             ++spent;
-            const Cell *cell = s.cells.find(row, c.col);
+            const std::optional<Cell> cell = s.cells.find(row, c.col);
             const Value v = cell ? valueAt(plan.sheet, row, c.col) : Value();
             bool pass = true;
             switch (c.fc.kind) {

@@ -100,7 +100,7 @@ private Q_SLOTS:
         QCOMPARE(numbers, (QVector<double>{6, 2, 4, 5, 1, 7}));
         QCOMPARE(store.cellCount(), qint64(6));
         QCOMPARE(store.blockCount(), 4);
-        const Cell *found = store.find(0, 1);
+        const Cell *found = store.findReal(0, 1);
         QVERIFY(found);
         QCOMPARE(found->number, 6.0);
         QVERIFY(store.find(200, 3));
@@ -207,14 +207,14 @@ private Q_SLOTS:
                 QCOMPARE(store.erase(r, c), want.erase({r, c}) == 1);
             } else {
                 const Cell *put = store.set(makeCell(r, c, 100000 + i));
-                QVERIFY(put && put == store.find(r, c) && put->number == 100000 + i);
+                QVERIFY(put && put == store.findReal(r, c) && put->number == 100000 + i);
                 want[{r, c}] = 100000 + i;
             }
         }
         QCOMPARE(store.cellCount(), qint64(want.size()));
         for (quint32 r = 0; r < 340; ++r)
             for (quint32 c = 0; c < 34; ++c) {
-                const Cell *found = store.find(r, c);
+                const Cell *found = store.findReal(r, c);
                 const auto it = want.find({r, c});
                 QVERIFY2((found != nullptr) == (it != want.end()), qPrintable(QStringLiteral("%1,%2").arg(r).arg(c)));
                 if (found) QCOMPARE(found->number, it->second);
@@ -1054,7 +1054,7 @@ private Q_SLOTS:
         QVERIFY2(readSheetXml(xml, &sheet), qPrintable(sheet.error));
         SharedStrings none;
         for (const char *ref : {"A1", "B1", "C1", "E1", "H1"}) {
-            QVERIFY2(at(sheet, ref) != nullptr, ref);
+            QVERIFY2(at(sheet, ref).has_value(), ref);
             QCOMPARE(show(sheet, none, ref), QStringLiteral("e:#VALUE!"));
         }
         QCOMPARE(show(sheet, none, "D1"), QStringLiteral("-"));
@@ -1214,7 +1214,7 @@ private:
         store.finish();
         const Model start = model;
         // one cell is followed: where it is held never changes
-        const Cell *tracked = store.find(model.cells.begin()->first.first, model.cells.begin()->first.second);
+        const Cell *tracked = store.findReal(model.cells.begin()->first.first, model.cells.begin()->first.second);
         QVERIFY(tracked);
         std::pair<quint32, quint32> trackedAt = model.cells.begin()->first;
         bool trackedLive = true;
@@ -1275,12 +1275,12 @@ private:
             QVERIFY2(sliced == expectedTail && (slices > 1 || expectedTail.size() < 30), qPrintable(where + QStringLiteral(": the walk from the end in slices: %1 cells, expected %2, %3 slices").arg(sliced.size()).arg(expectedTail.size()).arg(slices)));
             for (int probe = 0; probe < 40; ++probe) {
                 const quint32 r = std::min<quint32>(rowBase + rng() % (rows + 20), rowCap - 1), c = std::min<quint32>(colBase + rng() % (cols + 6), colCap - 1);
-                const Cell *found = store.find(r, c);
+                const Cell *found = store.findReal(r, c);
                 const auto it = model.cells.find({r, c});
                 QVERIFY2((found != nullptr) == (it != model.cells.end()) && (!found || found->number == it->second), qPrintable(where + QStringLiteral(": find %1,%2").arg(r).arg(c)));
             }
             // the cell that was followed is the very cell, if it is not in a deleted row or column
-            if (trackedLive) QVERIFY2(store.find(trackedAt.first, trackedAt.second) == tracked, qPrintable(where + QStringLiteral(": the followed cell moved")));
+            if (trackedLive) QVERIFY2(store.findReal(trackedAt.first, trackedAt.second) == tracked, qPrintable(where + QStringLiteral(": the followed cell moved")));
         };
         check("at the start");
         for (int step = 0; step < steps; ++step) {

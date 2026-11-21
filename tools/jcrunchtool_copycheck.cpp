@@ -327,7 +327,7 @@ int copyCheckMain(const QStringList &args)
                 return;
             }
             if (coveredByMerge(row, col)) return;
-            const Cell *e = b.cells.find(row, col);
+            const std::optional<Cell> e = b.cells.find(row, col);
             const Class cb = e ? classOf(*e) : Class::None;
             // (an empty text is no value in a document of OpenDocument's kind)
             bool emptyText = false;
@@ -368,7 +368,7 @@ int copyCheckMain(const QStringList &args)
                         const Class k = classOf(*cell);
                         return k == Class::Text ? QStringLiteral("\"") + sh.text(*cell, ss).left(40) + QLatin1Char('"') : QString::number(cell->number, 'g', 17);
                     };
-                    diff(QStringLiteral("value at %1!%2 (%3 vs %4: %5 vs %6)").arg(written[i].name, cellName(row, col)).arg(int(ca)).arg(int(cb), 0, 10, QLatin1Char(' ')).arg(repr(a, book.sharedStrings(), &c), repr(b, back.sharedStrings(), e)), QStringLiteral("value: %1 to %2").arg(QLatin1String(kindName(ca)), QLatin1String(kindName(cb))));
+                    diff(QStringLiteral("value at %1!%2 (%3 vs %4: %5 vs %6)").arg(written[i].name, cellName(row, col)).arg(int(ca)).arg(int(cb), 0, 10, QLatin1Char(' ')).arg(repr(a, book.sharedStrings(), &c), repr(b, back.sharedStrings(), e ? &*e : nullptr)), QStringLiteral("value: %1 to %2").arg(QLatin1String(kindName(ca)), QLatin1String(kindName(cb))));
                 }
                 // the formats
                 if (e) {
@@ -416,7 +416,7 @@ int copyCheckMain(const QStringList &args)
                 if (classOf(c) == Class::Text && b.text(c, back.sharedStrings()).isEmpty()) return;
                 br = std::max(br, row + 1);
                 bc = std::max(bc, col + 1);
-                const Cell *d = a.cells.find(row, col);
+                const std::optional<Cell> d = a.cells.find(row, col);
                 if (!d || (classOf(*d) == Class::None && !d->hasFormula())) {
                     if (!coveredByMerge(row, col) && !arrayCells.contains((quint64(row) << 20) | col) && !(classOf(c) == Class::Text && b.text(c, back.sharedStrings()).isEmpty())) ++extra;
                 }

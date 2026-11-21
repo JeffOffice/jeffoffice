@@ -1612,7 +1612,7 @@ private Q_SLOTS:
         // and the store's value for a formula is the one the cell shows after the edits: the cell's ids say where
         QVERIFY(s->insertRows(0, 0, 2).ok);
         QVERIFY(e.settle());
-        const office::sheet::Cell *b = s->calculation()->sheet(0).cells.find(2, 1);
+        const std::optional<office::sheet::Cell> b = s->calculation()->sheet(0).cells.find(2, 1);
         QVERIFY(b && b->hasFormula());
         calc::Value held;
         QVERIFY(e.win.w.values().find(0, b->rowId, b->colId, &held));
@@ -1901,7 +1901,7 @@ private Q_SLOTS:
         QVERIFY(e.open(buildXlsx({worksheet(rows)}, QByteArray(), QString(), QString(), QByteArray())));
         QVERIFY(e.settle());
         crunch::EditSession *s = e.win.w.session();
-        const office::sheet::Cell *member = s->calculation()->sheet(0).cells.find(1, 1);   // B2, a cell of the array
+        std::optional<office::sheet::Cell> member = s->calculation()->sheet(0).cells.find(1, 1);   // B2, a cell of the array
         QVERIFY(member && (member->flags & office::sheet::ArrayMember));
         jp::calc::LineLimits rowLimits = jp::calc::LineLimits::rows();
         rowLimits.idLimit = rowLimits.firstNew + 10;

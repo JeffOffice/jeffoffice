@@ -748,7 +748,7 @@ QString EditSession::pivotDataFormula(int sheet, quint32 row, quint32 col, int f
 
 bool EditSession::cellsHoldAnything(int sheet, quint32 row, quint32 col) const
 {
-    const Cell *c = m_book->calc->sheet(sheet).cells.find(row, col);
+    const std::optional<Cell> c = m_book->calc->sheet(sheet).cells.find(row, col);
     return c && (c->hasFormula() || c->type != CellType::Empty);
 }
 
@@ -810,7 +810,7 @@ void EditSession::fillPivotSource(PivotSource *ps, int sheet, const CellRange &r
         switch (v.kind()) {
         case Value::Kind::Empty: break;
         case Value::Kind::Number: {
-            const Cell *cell = src->cells.find(r, c);
+            const std::optional<Cell> cell = src->cells.find(r, c);
             bool date = false;
             if (cell) {
                 auto it = dateStyle->find(cell->style);

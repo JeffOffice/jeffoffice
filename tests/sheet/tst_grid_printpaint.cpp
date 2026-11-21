@@ -250,7 +250,7 @@ private Q_SLOTS:
         c.cell.number = double(int(CellError::Div0));
         pg.sheet.cells.add(c);
         pg.open();
-        const Cell *cell = pg.sheet.cells.find(0, 0);
+        const std::optional<Cell> cell = pg.sheet.cells.find(0, 0);
         QCOMPARE(pg.grid.shown(0, 0, *cell).text, QStringLiteral("#DIV/0!"));
         pg.grid.setErrorDisplay(GridSheet::ErrorDisplay::Blank);
         QVERIFY(pg.grid.shown(0, 0, *cell).text.isEmpty());

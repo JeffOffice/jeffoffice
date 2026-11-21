@@ -2501,7 +2501,7 @@ void CrunchEditTests::anEditDuringTheCalculationIsAbsorbed()
     QVERIFY(QTest::qWaitFor([&] { return !win.w.isCalculating(); }, 60000));
     const grid::GridSheet &gs = win.w.view()->sheet();
     for (const quint32 r : {0u, 1u, 15000u, quint32(n - 1)}) {
-        const grid::Cell *c = gs.cellAt(r, 1);
+        const std::optional<grid::Cell> c = gs.cellAt(r, 1);
         QVERIFY(c);
         QCOMPARE(gs.valueOf(r, 1, *c).debug(), QStringLiteral("n:%1").arg((r + 1) * 2 + 5));
     }

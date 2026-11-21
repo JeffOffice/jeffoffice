@@ -232,7 +232,7 @@ bool gridOf(const office::sheet::Workbook &book, const office::sheet::Sheet &she
         QVector<CellValue> line;
         for (quint32 c = 0; c < cols; ++c) {
             CellValue v;
-            if (const Cell *cell = sheet.cells.find(range.row1 + r, range.col1 + c)) {
+            if (const std::optional<Cell> cell = sheet.cells.find(range.row1 + r, range.col1 + c)) {
                 switch (cell->type) {
                 case CellType::Number:
                 case CellType::Date:

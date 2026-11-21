@@ -66,7 +66,7 @@ struct EditWindow {
     {
         quint32 r = 0, c = 0;
         parseCellRef(ref, &r, &c);
-        const grid::Cell *cell = view()->sheet().cellAt(r, c);
+        const std::optional<grid::Cell> cell = view()->sheet().cellAt(r, c);
         return cell ? view()->sheet().valueOf(r, c, *cell).debug() : QStringLiteral("-");
     }
     // The text of the cell in its format, whole (the cell may be too narrow to show it).
@@ -74,7 +74,7 @@ struct EditWindow {
     {
         quint32 r = 0, c = 0;
         parseCellRef(ref, &r, &c);
-        const grid::Cell *cell = view()->sheet().cellAt(r, c);
+        const std::optional<grid::Cell> cell = view()->sheet().cellAt(r, c);
         return cell ? view()->sheet().textOf(r, c, *cell) : QString();
     }
     // Types text into the selected cell as a person does: the first character at the grid (which starts the entry), the rest into the cell's line.
@@ -136,7 +136,7 @@ inline QString savedFormula(const QString &path, const QString &ref, int sheet =
     if (!b.open(p, &why)) return why;
     Sheet s;
     if (!b.readSheet(sheet, &s)) return QStringLiteral("unreadable");
-    const Cell *c = at(s, ref);
+    const std::optional<Cell> c = at(s, ref);
     return c ? s.formulaText(*c) : QStringLiteral("-");
 }
 // The cell of a saved file, as the file holds it.
