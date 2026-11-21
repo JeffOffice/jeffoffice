@@ -2768,8 +2768,15 @@ private Q_SLOTS:
     {
         auto *w = new QWidget;
         w->show();
-        QTimer::singleShot(100, [w] { delete w; });
-        QVERIFY(runWithCancel(w, QStringLiteral("working"), [](const std::atomic<bool> *) { QThread::msleep(600); }));
+        // (the 0 ms timer is due before the note's 300 ms one, so the window is gone first on any machine; the work waits for that, not for a time)
+        std::atomic<bool> deleted(false);
+        QTimer::singleShot(0, [w, &deleted] { delete w; deleted = true; });
+        QElapsedTimer guard;
+        guard.start();
+        QVERIFY(runWithCancel(w, QStringLiteral("working"), [&](const std::atomic<bool> *) {
+            while (!deleted && guard.elapsed() < 60000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE"))) QThread::msleep(5);   // (a stuck loop fails below, doesn't hang)
+        }));
+        QVERIFY(deleted);
     }
 
     // Until the note shows, the window takes no input (it is enabled again after), and a second call while one runs is refused and runs nothing.
@@ -2778,11 +2785,18 @@ private Q_SLOTS:
         QWidget w;
         w.show();
         bool disabledMeanwhile = false, nestedRan = false, nestedResult = true;
-        QTimer::singleShot(100, [&] {
+        std::atomic<bool> checked(false);
+        QTimer::singleShot(0, [&] {
             disabledMeanwhile = !w.isEnabled();
             nestedResult = runWithCancel(&w, QStringLiteral("again"), [&](const std::atomic<bool> *) { nestedRan = true; });
+            checked = true;
         });
-        QVERIFY(runWithCancel(&w, QStringLiteral("working"), [](const std::atomic<bool> *) { QThread::msleep(500); }));
+        QElapsedTimer guard;
+        guard.start();
+        QVERIFY(runWithCancel(&w, QStringLiteral("working"), [&](const std::atomic<bool> *) {
+            while (!checked && guard.elapsed() < 60000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE"))) QThread::msleep(5);   // (waits for the check, not for a time)
+        }));
+        QVERIFY(checked);
         QVERIFY(disabledMeanwhile);
         QVERIFY(!nestedResult);
         QVERIFY(!nestedRan);
@@ -2820,7 +2834,7 @@ private Q_SLOTS:
             // 300 ms, Windows CI Nov 17; a cancel between two tries is seen at the start of the next, so the result is still Cancelled)
             do {
                 result = office::decryptPackage(info, package, QStringLiteral("wrong"), office::kMaxOpenFileBytes, false, &out, [cancel] { return cancel->load(); });
-            } while (result != office::CryptResult::Cancelled && t.elapsed() < 20000);
+            } while (result != office::CryptResult::Cancelled && t.elapsed() < 20000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")));
         });
         QVERIFY2(pressed, "the note with a Cancel button did not show");
         QVERIFY(!finished);
