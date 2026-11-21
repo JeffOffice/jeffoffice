@@ -272,10 +272,18 @@ QByteArray Writer::bordersAttrs(const T &t, int parent, bool paragraph)
         QString lw;
         const QString v = borderValue(t, side, &space, &lw);
         if (v.isEmpty()) continue;
+        if (paragraph) {
+            // (Paragraph borders as the standard has them, ECMA-376 Part 1 section 17.3.1.24: the line styles the format has no word for become single lines, a theme color its plain color.)
+            const QString val = t.attr(side, "val");
+            if (val != QLatin1String("single") && val != QLatin1String("double") && val != QLatin1String("dotted") && !val.startsWith(QLatin1String("dash")) && val != QLatin1String("nil") && val != QLatin1String("none"))
+                left(QCoreApplication::translate("odt", "paragraph border lines other than single, double, dotted, and dashed (saved as single lines)"));
+            if (!t.attr(side, "themeColor").isEmpty()) left(QCoreApplication::translate("odt", "theme colors of paragraph borders and shading (saved as the colors they show)"));
+        }
         x += " fo:border-" + QByteArray(s[1]) + "=\"" + v.toUtf8() + "\"";
         if (!lw.isEmpty()) x += " style:border-line-width-" + QByteArray(s[1]) + "=\"" + lw.toUtf8() + "\"";
         if (paragraph && v != QLatin1String("none")) x += " fo:padding-" + QByteArray(s[1]) + "=\"" + QByteArray::number(std::max(0, std::min(space, 31))) + "pt\"";
     }
+    if (paragraph && t.child(parent, "bar") >= 0) left(QCoreApplication::translate("odt", "the bar beside a paragraph (not saved)"));
     return x;
 }
 
@@ -494,8 +502,13 @@ QByteArray Writer::paragraphAttrs(const T &t, int pPr, bool inStyle, bool *break
         } else if (name == "widowControl") x += on(c) ? " fo:orphans=\"2\" fo:widows=\"2\"" : " fo:orphans=\"0\" fo:widows=\"0\"";
         else if (name == "bidi") x += on(c) ? " style:writing-mode=\"rl-tb\"" : "";
         else if (name == "shd") {
-            const QString col = shadeColor(t, c);
+            QString col = shadeColor(t, c);
+            const QString val = t.attr(c, "val");
+            if (col.isEmpty() && val == QLatin1String("solid") && !hexColorOrEmpty(t.attr(c, "color")).isEmpty()) col = QStringLiteral("#") + hexColorOrEmpty(t.attr(c, "color"));   // (a solid fill is the color of the ink)
             if (!col.isEmpty()) x += " fo:background-color=\"" + col.toUtf8() + "\"";
+            if (val.startsWith(QLatin1String("pct")) || val.startsWith(QLatin1String("horz")) || val.startsWith(QLatin1String("vert")) || val.startsWith(QLatin1String("diag")) || val.startsWith(QLatin1String("thin")) || val.startsWith(QLatin1String("reverse")))
+                left(QCoreApplication::translate("odt", "shading patterns (saved as a plain fill)"));
+            if (!t.attr(c, "themeFill").isEmpty()) left(QCoreApplication::translate("odt", "theme colors of paragraph borders and shading (saved as the colors they show)"));
         } else if (name == "pBdr") x += bordersAttrs(t, c, true);
         else if (name == "outlineLvl") {
             if (outline) *outline = t.val(c).toInt() + 1;

@@ -20,6 +20,7 @@
 #include "app/writewindow.h"
 #include "core/appinfo.h"
 #include "core/editops.h"
+#include "core/styleops.h"
 #include "core/pagesetup.h"
 #include "core/writeprops.h"
 #include "core/pictureops.h"
@@ -71,6 +72,7 @@
 #include <QTimer>
 #include <QTemporaryDir>
 #include <QTest>
+#include <limits>
 
 using namespace jp;
 using namespace jp::write;
@@ -112,6 +114,31 @@ QByteArray headingsDocx(const QByteArray &body)
                   "><w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style>"
                   "<w:style w:type=\"paragraph\" w:styleId=\"Heading1\"><w:name w:val=\"heading 1\"/><w:pPr><w:outlineLvl w:val=\"0\"/></w:pPr></w:style>"
                   "<w:style w:type=\"paragraph\" w:styleId=\"Heading2\"><w:name w:val=\"heading 2\"/><w:pPr><w:outlineLvl w:val=\"1\"/></w:pPr></w:style></w:styles>",
+              kWord + QStringLiteral("styles+xml"));
+    w.addRelationship(QStringLiteral("/word/document.xml"), kRel + QStringLiteral("styles"), QStringLiteral("/word/styles.xml"));
+    return w.finish();
+}
+
+// A .docx whose styles give paragraphs borders and shading (solid, a percent pattern, a theme fill), with a paragraph of each and a fourth with a box of its own.
+QByteArray styledBoxesDocx()
+{
+    office::PackageWriter w;
+    const QByteArray body =
+        "<w:p><w:pPr><w:pStyle w:val=\"QuoteA\"/></w:pPr><w:r><w:t>one</w:t></w:r></w:p><w:p><w:pPr><w:pStyle w:val=\"QuoteB\"/></w:pPr><w:r><w:t>two</w:t></w:r></w:p>"
+        "<w:p><w:pPr><w:pStyle w:val=\"QuoteC\"/></w:pPr><w:r><w:t>three</w:t></w:r></w:p>"
+        "<w:p><w:pPr><w:pBdr><w:top w:val=\"single\" w:sz=\"4\" w:space=\"1\" w:color=\"00FF00\"/></w:pBdr><w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"CCCCCC\"/></w:pPr><w:r><w:t>four</w:t></w:r></w:p>";
+    w.addPart(QStringLiteral("/word/document.xml"), QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<w:document ") + kNs + "><w:body>" + body + "</w:body></w:document>",
+              kWord + QStringLiteral("document.main+xml"));
+    w.addRelationship(QStringLiteral("/"), kRel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+    w.addPart(QStringLiteral("/word/styles.xml"),
+              QByteArray("<?xml version=\"1.0\"?><w:styles ") + kNs +
+                  "><w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style>"
+                  "<w:style w:type=\"paragraph\" w:styleId=\"QuoteA\"><w:name w:val=\"QuoteA\"/><w:basedOn w:val=\"Normal\"/><w:pPr><w:pBdr><w:left w:val=\"triple\" w:sz=\"12\" w:space=\"4\" w:color=\"FF0000\"/>"
+                  "<w:bar w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"auto\"/></w:pBdr><w:shd w:val=\"solid\" w:color=\"FFE0E0\" w:fill=\"auto\"/></w:pPr></w:style>"
+                  "<w:style w:type=\"paragraph\" w:styleId=\"QuoteB\"><w:name w:val=\"QuoteB\"/><w:basedOn w:val=\"Normal\"/><w:pPr><w:pBdr><w:top w:val=\"single\" w:sz=\"8\" w:space=\"1\" w:color=\"4472C4\" "
+                  "w:themeColor=\"accent1\" w:themeTint=\"99\"/></w:pBdr><w:shd w:val=\"pct25\" w:color=\"0000FF\" w:fill=\"FFFF00\"/></w:pPr></w:style>"
+                  "<w:style w:type=\"paragraph\" w:styleId=\"QuoteC\"><w:name w:val=\"QuoteC\"/><w:basedOn w:val=\"Normal\"/><w:pPr><w:pBdr><w:bottom w:val=\"thinThickSmallGap\" w:sz=\"12\" w:space=\"1\" w:color=\"auto\"/></w:pBdr>"
+                  "<w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"FFFFFF\" w:themeFill=\"accent2\" w:themeFillTint=\"66\"/></w:pPr></w:style></w:styles>",
               kWord + QStringLiteral("styles+xml"));
     w.addRelationship(QStringLiteral("/word/document.xml"), kRel + QStringLiteral("styles"), QStringLiteral("/word/styles.xml"));
     return w.finish();
@@ -781,6 +808,280 @@ private Q_SLOTS:
         QVERIFY(!boxOf(w, 0).any() && !boxOf(w, 1).any());
         QVERIFY(w.document()->redo());
         QVERIFY(boxOf(w, 1).any());
+    }
+
+    // A box a STYLE gives (borders and shading: solid, a percent pattern, a theme fill) is the style's: saved with no edit, no paragraph gains a direct w:pBdr or w:shd, the style part keeps
+    // its pattern and theme attributes, the style still drives the paragraphs (a change of its fill reaches them), and what a paragraph says itself stays as it said it.
+    void aBoxAStyleGivesIsNeverCopiedIntoTheParagraphsOnSave()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        auto window = windowOn(dir, styledBoxesDocx());
+        QVERIFY(window);
+        WriteWindow &w = *window;
+        Quiet quiet(w);
+        auto boxOf = [](WriteWindow &win, int block) { return write::paragraphBoxAt(QTextCursor(win.document()->story()->findBlockByNumber(block))); };
+        QVERIFY(boxOf(w, 0).left.visible() && boxOf(w, 0).fill.isValid());   // (the style's box is drawn)
+        QVERIFY(boxOf(w, 1).top.visible() && boxOf(w, 1).fill.isValid());
+        QVERIFY(boxOf(w, 2).bottom.visible() && boxOf(w, 2).fill.isValid());
+        QVERIFY(saveInto(w, dir, QStringLiteral("styled.docx")));
+        office::Package package;
+        package.read(fileBytes(dir.filePath(QStringLiteral("styled.docx"))));
+        const QByteArray doc = package.part(QStringLiteral("/word/document.xml")), styles = package.part(QStringLiteral("/word/styles.xml"));
+        QCOMPARE(doc.count("<w:pBdr>"), 1);   // (the fourth paragraph's own)
+        QCOMPARE(doc.count("<w:shd "), 1);
+        QVERIFY(doc.contains("w:fill=\"CCCCCC\""));
+        for (const char *kept : {"w:val=\"pct25\"", "w:themeFill=\"accent2\"", "w:themeFillTint=\"66\"", "w:themeColor=\"accent1\"", "w:val=\"triple\"", "<w:bar ", "w:val=\"thinThickSmallGap\""})
+            QVERIFY2(styles.contains(kept), kept);
+        // The style still drives them: opened again, a change of the style's fill reaches the paragraph that has none of its own, and not the one that has.
+        WriteWindow v;
+        Quiet quietV(v);
+        QVERIFY(v.openFile(dir.filePath(QStringLiteral("styled.docx"))));
+        const QColor patternFill = boxOf(v, 1).fill;
+        office::wml::Style quote = *v.document()->styleSheet().find(QStringLiteral("QuoteA"));
+        quote.pPr.shading = office::wml::Shading{QStringLiteral("clear"), QStringLiteral("auto"), QStringLiteral("00FF00")};
+        for (office::wml::RawChild &child : quote.pPr.extra)   // (the style's w:shd is kept as written beside the fill: both say the new fill)
+            if (child.xml.startsWith("<w:shd")) child.xml = "<w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"00FF00\"/>";
+        QTextCursor c(v.document()->story());
+        QString problem;
+        QVERIFY2(modifyStyle(*v.document(), c, QStringLiteral("QuoteA"), quote, &problem), qPrintable(problem));
+        QCOMPARE(boxOf(v, 0).fill, QColor(0, 0xFF, 0));
+        QCOMPARE(boxOf(v, 1).fill, patternFill);
+        QCOMPARE(boxOf(v, 3).fill, QColor(0xCC, 0xCC, 0xCC));
+        QVERIFY(saveInto(v, dir, QStringLiteral("styled2.docx")));
+        office::Package second;
+        second.read(fileBytes(dir.filePath(QStringLiteral("styled2.docx"))));
+        const QByteArray doc2 = second.part(QStringLiteral("/word/document.xml"));
+        QCOMPARE(doc2.count("<w:pBdr>"), 1);
+        QCOMPARE(doc2.count("<w:shd "), 1);
+        QVERIFY(second.part(QStringLiteral("/word/styles.xml")).contains("w:fill=\"00FF00\""));
+    }
+
+    // A tracked format change records the paragraph as it was: what its style gives it (borders, shading) is not in that record, and not in the paragraph.
+    void aTrackedFormatChangeDoesNotRecordTheBoxAStyleGives()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        auto window = windowOn(dir, styledBoxesDocx());
+        QVERIFY(window);
+        WriteWindow &w = *window;
+        Quiet quiet(w);
+        w.document()->setTrackChanges(true);
+        QTextCursor c(w.document()->story()->findBlockByNumber(0));
+        write::setAlignment(*w.document(), c, Qt::AlignHCenter);
+        QVERIFY(saveInto(w, dir, QStringLiteral("tracked.docx")));
+        office::Package package;
+        package.read(fileBytes(dir.filePath(QStringLiteral("tracked.docx"))));
+        const QByteArray doc = package.part(QStringLiteral("/word/document.xml"));
+        QVERIFY(doc.contains("<w:pPrChange"));
+        QCOMPARE(doc.count("<w:pBdr>"), 1);
+        QCOMPARE(doc.count("<w:shd "), 1);
+    }
+
+    // One edit of one side rewrites that side only: the other sides stay as the file wrote them (a triple line, a bar, a theme color), a Borders and Shading box accepted as it was is no edit,
+    // and paragraphs whose boxes differ keep their own sides that the person leaves alone.
+    void settingOneBorderSideKeepsTheOtherSidesAsTheFileWroteThem()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QByteArray top = "<w:top w:val=\"triple\" w:sz=\"18\" w:space=\"2\" w:color=\"auto\"/>", bottom = "<w:bottom w:val=\"single\" w:sz=\"8\" w:space=\"1\" w:color=\"C55A11\" w:themeColor=\"accent2\" w:themeShade=\"BF\"/>",
+                         bar = "<w:bar w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"00FF00\"/>";
+        auto window = windowOn(dir, headingsDocx("<w:p><w:pPr><w:pBdr>" + top + bottom + bar + "</w:pBdr></w:pPr><w:r><w:t>one</w:t></w:r></w:p>"
+                                                   "<w:p><w:pPr><w:pBdr><w:bottom w:val=\"single\" w:sz=\"4\" w:space=\"1\" w:color=\"auto\"/></w:pBdr></w:pPr><w:r><w:t>two</w:t></w:r></w:p>"));
+        QVERIFY(window);
+        WriteWindow &w = *window;
+        Quiet quiet(w);
+        auto pBdr = [&](const QString &name, int which) {
+            office::Package p;
+            p.read(fileBytes(dir.filePath(name)));
+            const QByteArray doc = p.part(QStringLiteral("/word/document.xml"));
+            int at = -1;
+            for (int i = 0; i <= which; ++i) at = doc.indexOf("<w:pBdr>", at + 1);
+            return at < 0 ? QByteArray() : doc.mid(at, doc.indexOf("</w:pBdr>", at) + 9 - at);
+        };
+        QTextCursor &sel = w.view()->cursor();
+        sel.setPosition(1);
+        // The Borders and Shading box accepted as it was: no step.
+        quint64 serial = w.document()->nextStepSerial();
+        withDialog([&] { w.act(QStringLiteral("para.bordersShading"))->trigger(); }, QStringLiteral("paragraphBordersDialog"), [](QDialog *) {});
+        QCOMPARE(w.document()->nextStepSerial(), serial);
+        // The left side alone.
+        tp::ParaBox box;
+        box.left = tp::BoxSide{QStringLiteral("single"), 12, 3, QColor(0, 0, 0xFF)};
+        write::setParagraphBox(*w.document(), sel, box, write::boxpart::Left);
+        QCOMPARE(w.document()->nextStepSerial(), serial + 1);
+        write::setParagraphBox(*w.document(), sel, box, write::boxpart::Left);   // (the same again changes nothing)
+        QCOMPARE(w.document()->nextStepSerial(), serial + 1);
+        QVERIFY(saveInto(w, dir, QStringLiteral("sides.docx")));
+        const QByteArray one = pBdr(QStringLiteral("sides.docx"), 0);
+        QCOMPARE(one, "<w:pBdr>" + top + "<w:left w:val=\"single\" w:sz=\"12\" w:space=\"3\" w:color=\"0000FF\"/>" + bottom + bar + "</w:pBdr>");
+        // Both paragraphs selected: the sides they do not share show as mixed and stay, the one set goes to both.
+        sel.setPosition(1);
+        sel.setPosition(w.document()->story()->findBlockByNumber(1).position() + 2, QTextCursor::KeepAnchor);
+        serial = w.document()->nextStepSerial();
+        withDialog([&] { w.act(QStringLiteral("para.bordersShading"))->trigger(); }, QStringLiteral("paragraphBordersDialog"), [](QDialog *d) {
+            QCheckBox *topBox = d->findChild<QCheckBox *>(QStringLiteral("top")), *bottomBox = d->findChild<QCheckBox *>(QStringLiteral("bottom")), *rightBox = d->findChild<QCheckBox *>(QStringLiteral("right"));
+            QVERIFY(topBox && bottomBox && rightBox);
+            QCOMPARE(topBox->checkState(), Qt::PartiallyChecked);
+            QCOMPARE(bottomBox->checkState(), Qt::PartiallyChecked);   // (a different line on each)
+            QVERIFY(!rightBox->isChecked());
+            rightBox->setChecked(true);
+        });
+        QCOMPARE(w.document()->nextStepSerial(), serial + 1);
+        QVERIFY(saveInto(w, dir, QStringLiteral("sides2.docx")));
+        const QByteArray first = pBdr(QStringLiteral("sides2.docx"), 0), second = pBdr(QStringLiteral("sides2.docx"), 1);
+        QVERIFY(first.contains(top) && first.contains(bottom) && first.contains(bar) && first.contains("<w:left w:val=\"single\" w:sz=\"12\" w:space=\"3\" w:color=\"0000FF\"/>"));
+        QVERIFY(first.contains("<w:right "));
+        QVERIFY(!second.contains("<w:top") && second.contains("<w:bottom w:val=\"single\" w:sz=\"4\" w:space=\"1\" w:color=\"auto\"/>") && second.contains("<w:right "));
+    }
+
+    // A font color picked from the palette's theme row is the color the swatch showed, in the window and in the file saved and opened again, for every slot and every tint the picker offers.
+    void aThemeFontColorIsTheColorOfItsSwatchInTheWindowAndInTheSavedFile()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        WriteWindow w;
+        Quiet quiet(w);
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("word"));
+        QVERIFY(w.document()->theme());
+        const ColorScheme colors = w.document()->flow().env.colors;
+        auto shown = [&](WriteWindow &win) {
+            QTextCursor c(win.document()->story());
+            c.setPosition(2);
+            return c.charFormat().foreground().color();
+        };
+        QTextCursor sel(w.document()->story());
+        sel.setPosition(0);
+        sel.setPosition(4, QTextCursor::KeepAnchor);
+        int checked = 0;
+        for (int slot = 0; slot < SlotCount; ++slot)
+            for (const QPair<int, int> &tint : QList<QPair<int, int>>{{0, 0}, {20, 0}, {40, 0}, {60, 0}, {80, 0}, {0, 30}}) {
+                const ColorRef ref = ColorRef::scheme(slot, tint.first, tint.second);
+                write::setTextColorRef(*w.document(), sel, ref);
+                QCOMPARE(shown(w).name(), ref.resolve(colors).name());
+                ++checked;
+            }
+        QCOMPARE(checked, SlotCount * 6);
+        const ColorRef ref = ColorRef::scheme(Accent2, 40);
+        write::setTextColorRef(*w.document(), sel, ref);
+        QVERIFY(saveInto(w, dir, QStringLiteral("theme.docx")));
+        WriteWindow v;
+        Quiet quietV(v);
+        QVERIFY(v.openFile(dir.filePath(QStringLiteral("theme.docx"))));
+        QCOMPARE(shown(v).name(), ref.resolve(colors).name());
+        office::Package package;
+        package.read(fileBytes(dir.filePath(QStringLiteral("theme.docx"))));
+        QVERIFY(package.part(QStringLiteral("/word/document.xml")).contains("w:themeColor=\"accent2\""));
+    }
+
+    // Options > Save: a window that is open takes a new recovery interval at once, whatever its size (the range Options offers; a value outside it, kept in the settings by hand, is brought in).
+    void theRecoveryTimerOfAnOpenWindowFollowsEachNewInterval()
+    {
+        Settings &st = Settings::get();
+        const QVariant old = st.value(QStringLiteral("save/autoRecoverMinutes"));
+        WriteWindow w;
+        Quiet quiet(w);
+        w.show();
+        QVector<OptionsPage> pages = w.optionsPages();
+        QList<QWidget *> built;
+        for (const OptionsPage &p : pages) built << p.build();
+        QSpinBox *minutes = nullptr;
+        for (QWidget *page : built)
+            if (auto *f = page->findChild<QSpinBox *>(QStringLiteral("autoRecoverMinutes"))) minutes = f;
+        QVERIFY(minutes);
+        for (const int value : {3, 120, 1}) {
+            minutes->setValue(value);
+            for (const OptionsPage &p : pages)
+                if (p.apply) p.apply();
+            QCOMPARE(w.recoveryIntervalMs(), value * 60 * 1000);
+        }
+        minutes->setValue(0);   // (the box stops at its least)
+        QCOMPARE(minutes->value(), minutes->minimum());
+        qDeleteAll(built);
+        // A value kept by hand: none or less is the shortest, and a huge one the longest (it would overflow a timer's milliseconds unbrought in).
+        for (const QPair<int, int> &c : QList<QPair<int, int>>{{0, 1}, {-5, 1}, {100000, 120}, {std::numeric_limits<int>::max(), 120}}) {
+            st.setValue(QStringLiteral("save/autoRecoverMinutes"), c.first);
+            Q_EMIT AutoRecoverNotifier::get().changed(c.first);
+            QCOMPARE(w.recoveryIntervalMs(), c.second * 60 * 1000);
+            WriteWindow fresh;
+            QCOMPARE(fresh.recoveryIntervalMs(), c.second * 60 * 1000);
+        }
+        st.setValue(QStringLiteral("save/autoRecoverMinutes"), old.isValid() ? old : QVariant(10));
+    }
+
+    // A comment's author and initials that need escaping in XML (an ampersand, angle brackets, quotes) or are not Latin survive the save and the opening of the file.
+    void aCommentAuthorNeedingXmlEscapingSurvivesSaveAndOpen()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString author = QStringLiteral("Zoë \"Z\" <Smith> & O'Neil 山田"), initials = QStringLiteral("Z&<山");
+        Settings::get().setValue(QStringLiteral("user/name"), author);
+        Settings::get().setValue(QStringLiteral("user/initials"), initials);
+        WriteWindow w;
+        Quiet quiet(w);
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("some words to remark on"));
+        w.document()->setReviewer(author, initials);
+        QTextCursor c(w.document()->story());
+        c.setPosition(5, QTextCursor::KeepAnchor);
+        const int made = write::addComment(*w.document(), c, QStringLiteral("A <remark> & \"more\""));
+        QVERIFY(made >= 0);
+        QVERIFY(saveInto(w, dir, QStringLiteral("escaped.docx")));
+        office::Package package;
+        package.read(fileBytes(dir.filePath(QStringLiteral("escaped.docx"))));
+        const QByteArray comments = package.part(QStringLiteral("/word/comments.xml"));
+        QVERIFY(!comments.isEmpty());
+        QVERIFY(!comments.contains("<Smith>") && !comments.contains("\"Z\""));
+        QVERIFY(comments.contains("&amp;") && comments.contains("&lt;Smith&gt;"));
+        WriteWindow v;
+        Quiet quietV(v);
+        QVERIFY(v.openFile(dir.filePath(QStringLiteral("escaped.docx"))));
+        const std::optional<write::Comment> back = write::commentById(*v.document(), made);
+        QVERIFY(back.has_value());
+        QCOMPARE(back->author, author);
+        QCOMPARE(back->initials, initials);
+        QCOMPARE(back->text, QStringLiteral("A <remark> & \"more\""));
+        Settings::get().setValue(QStringLiteral("user/name"), QStringLiteral("Tester"));
+        Settings::get().setValue(QStringLiteral("user/initials"), QString());
+    }
+
+    // The Help page on Find and Replace keeps the Search choice in the list of choices that narrow the search: one list, no blank line between its items.
+    void theFindAndReplaceHelpListsTheSearchChoiceWithTheOthers()
+    {
+        const QString md = jp::help::topic(QStringLiteral("find-replace")).markdown;
+        const int heading = md.indexOf(QStringLiteral("## Narrow the search"));
+        QVERIFY(heading >= 0);
+        const int next = md.indexOf(QStringLiteral("\n## "), heading + 5);
+        const QString section = md.mid(heading, next - heading);
+        QVERIFY(section.contains(QStringLiteral("- **Search**")));
+        QVERIFY(!section.mid(section.indexOf(QStringLiteral("- **Match case**"))).contains(QStringLiteral("\n\n- ")));
+        QTextDocument shown;
+        shown.setMarkdown(section);
+        QCOMPARE(shown.toHtml().count(QStringLiteral("<ul")), 1);
+        QCOMPARE(shown.toHtml().count(QStringLiteral("<li")), 3);
+    }
+
+    // Check Compatibility lists what saving as an .odt flattens in paragraph borders and shading (a pattern, a theme color, a line style the format lacks, a bar), and a solid fill is kept.
+    void theCompatibilityCheckListsWhatAnOdtFlattensInParagraphBoxes()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        auto window = windowOn(dir, styledBoxesDocx());
+        QVERIFY(window);
+        WriteWindow &w = *window;
+        Quiet quiet(w);
+        const QString kept = w.incompatibilities().join(QLatin1Char('|'));
+        QVERIFY2(kept.contains(QStringLiteral("shading patterns")), qPrintable(kept));
+        QVERIFY2(kept.contains(QStringLiteral("theme colors of paragraph borders and shading")), qPrintable(kept));
+        QVERIFY2(kept.contains(QStringLiteral("border lines other than")), qPrintable(kept));
+        QVERIFY2(kept.contains(QStringLiteral("the bar beside a paragraph")), qPrintable(kept));
+        QString error;
+        QStringList notes;
+        const QByteArray odt = w.document()->toOdt(&error, &notes);
+        QVERIFY2(!odt.isEmpty(), qPrintable(error));
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(odt, parts));
+        const QByteArray styles = parts.value(QStringLiteral("styles.xml")) + parts.value(QStringLiteral("content.xml"));
+        QVERIFY(styles.contains("fo:background-color=\"#FFE0E0\""));   // (QuoteA's solid fill, which names its color and no fill)
     }
 
     // Line spacing: the Paragraph box's at least, exactly, and multiple kinds, and "don't add space between paragraphs of the same style", are written as the file writes them

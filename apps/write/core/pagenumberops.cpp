@@ -302,6 +302,7 @@ void setParagraphLook(QTextCursor &c, const PageNumberDesign &d)
     QTextBlockFormat bf = c.blockFormat();
     bf.setAlignment(d.side == PageNumberSide::Left ? Qt::AlignLeft : d.side == PageNumberSide::Right ? Qt::AlignRight : Qt::AlignHCenter);
     bf.clearProperty(tp::Borders);
+    bf.clearProperty(prop::BoxOwn);
     const PageNumberRule rule = pageNumberRule(d);
     if (rule != PageNumberRule::None) {
         tp::ParaBox box;
@@ -310,7 +311,7 @@ void setParagraphLook(QTextCursor &c, const PageNumberDesign &d)
         line.eighths = 4;
         line.space = rule == PageNumberRule::Above ? 4 : 3;
         (rule == PageNumberRule::Above ? box.top : box.bottom) = line;
-        bf.setProperty(tp::Borders, box.spec());
+        setBoxOn(bf, box, rule == PageNumberRule::Above ? boxpart::Top : boxpart::Bottom);
     }
     c.setBlockFormat(bf);
 }
@@ -434,6 +435,7 @@ int removeMarks(QTextDocument *story, const QString &gallery = QString())
             bf.clearProperty(prop::RawBefore);
             bf.clearProperty(prop::RawAfter);
             bf.clearProperty(tp::Borders);
+            bf.clearProperty(prop::BoxOwn);
             QTextCursor one(story);
             one.setBlockFormat(bf);
             ++count;
@@ -493,6 +495,7 @@ void wipeUnmarked(QTextDocument *story)
     if (first.isValid() && first.text().isEmpty() && !keepBlocks.contains(first.blockNumber())) {
         QTextBlockFormat bf = first.blockFormat();
         bf.clearProperty(tp::Borders);
+        bf.clearProperty(prop::BoxOwn);
         bf.setAlignment(Qt::AlignLeft);
         QTextCursor one(first);
         one.setBlockFormat(bf);
@@ -578,6 +581,7 @@ bool insertPageNumberDesign(WriteDoc &doc, int page, const QString &id, PageNumb
                 c.insertBlock();
                 QTextBlockFormat bf = c.blockFormat();
                 bf.clearProperty(tp::Borders);
+                bf.clearProperty(prop::BoxOwn);
                 bf.clearProperty(prop::RawBefore);
                 bf.clearProperty(prop::RawAfter);
                 c.setBlockFormat(bf);

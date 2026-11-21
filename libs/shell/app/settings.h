@@ -6,6 +6,7 @@
 #include <QLocale>
 #include <QObject>
 #include <QSettings>
+#include <algorithm>
 #include <QString>
 #include <QStringList>
 
@@ -151,7 +152,7 @@ public:
     void sync() { m_s.sync(); m_suite.sync(); }
 
     QString userName() const;
-    int autoRecoverMinutes() const { return m_s.value("save/autoRecoverMinutes", 10).toInt(); }
+    int autoRecoverMinutes() const { return std::clamp(m_s.value("save/autoRecoverMinutes", 10).toInt(), 1, 120); }   // (the range Options offers: a hand-edited value never overflows a timer)
     double nudge() const { return m_s.value("edit/nudge", 9.0).toDouble(); }   // points (0.125 in)
 
 private:

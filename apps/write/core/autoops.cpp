@@ -172,11 +172,11 @@ bool enterAfterRule(WriteDoc &doc, QTextCursor &c, const AutoOptions &options)
     QTextCursor above(doc.story());
     above.setPosition(start);
     changeBlockFormat(doc, above, [&](QTextBlockFormat &bf) {
-        tp::ParaBox box = tp::ParaBox::parse(bf.stringProperty(tp::Borders));
+        tp::ParaBox box;
         box.bottom.style = *line == QLatin1Char('=') ? QStringLiteral("double") : QStringLiteral("single");
         box.bottom.eighths = *line == QLatin1Char('_') ? 18 : 6;
         box.bottom.space = 1;
-        bf.setProperty(tp::Borders, box.spec());
+        setBoxOn(bf, box, boxpart::Bottom);
     });
     return true;
 }

@@ -759,6 +759,15 @@ bool paragraphBordersDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
 {
     if (!doc || !cursor) return false;
     const tp::ParaBox before = paragraphBoxAt(*cursor);
+    // A side or the fill that the selected paragraphs do not all have the same is mixed: shown as partly ticked, and left as it is unless the person sets it.
+    int mixed = 0;
+    for (const tp::ParaBox &b : paragraphBoxesOf(*cursor)) {
+        if (!(b.top == before.top)) mixed |= boxpart::Top;
+        if (!(b.left == before.left)) mixed |= boxpart::Left;
+        if (!(b.bottom == before.bottom)) mixed |= boxpart::Bottom;
+        if (!(b.right == before.right)) mixed |= boxpart::Right;
+        if (!(b.fill == before.fill)) mixed |= boxpart::Fill;
+    }
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("paragraphBordersDialog"));
     dlg.setWindowTitle(QCoreApplication::translate("jp::write::Dialogs", "Borders and Shading"));
@@ -769,23 +778,36 @@ bool paragraphBordersDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     for (const tp::BoxSide *s : {&before.top, &before.left, &before.bottom, &before.right})
         if (!firstSide && s->visible()) firstSide = s;
     const tp::BoxSide shown = firstSide ? *firstSide : tp::BoxSide{QStringLiteral("single"), 4, 1, QColor()};
-    auto side = [&](const char *name, const QString &text, const tp::BoxSide &now) {
+    auto side = [&](const char *name, const QString &text, const tp::BoxSide &now, int part) {
         auto *c = new QCheckBox(text, sides);
         c->setObjectName(QString::fromLatin1(name));
-        c->setChecked(now.visible());
+        if (mixed & part) {
+            c->setTristate(true);
+            c->setCheckState(Qt::PartiallyChecked);
+        } else c->setChecked(now.visible());
         sv->addWidget(c);
         return c;
     };
-    QCheckBox *top = side("top", QCoreApplication::translate("jp::write::Dialogs", "Top"), before.top), *left = side("left", QCoreApplication::translate("jp::write::Dialogs", "Left"), before.left),
-              *bottom = side("bottom", QCoreApplication::translate("jp::write::Dialogs", "Bottom"), before.bottom), *right = side("right", QCoreApplication::translate("jp::write::Dialogs", "Right"), before.right);
+    QCheckBox *top = side("top", QCoreApplication::translate("jp::write::Dialogs", "Top"), before.top, boxpart::Top), *left = side("left", QCoreApplication::translate("jp::write::Dialogs", "Left"), before.left, boxpart::Left),
+              *bottom = side("bottom", QCoreApplication::translate("jp::write::Dialogs", "Bottom"), before.bottom, boxpart::Bottom), *right = side("right", QCoreApplication::translate("jp::write::Dialogs", "Right"), before.right, boxpart::Right);
     auto *box = new QPushButton(QCoreApplication::translate("jp::write::Dialogs", "Box"), sides);
     box->setObjectName(QStringLiteral("box"));
     auto *none = new QPushButton(QCoreApplication::translate("jp::write::Dialogs", "None"), sides);
     none->setObjectName(QStringLiteral("none"));
     sv->addWidget(box);
     sv->addWidget(none);
-    QObject::connect(box, &QPushButton::clicked, &dlg, [=] { for (QCheckBox *c : {top, left, bottom, right}) c->setChecked(true); });
-    QObject::connect(none, &QPushButton::clicked, &dlg, [=] { for (QCheckBox *c : {top, left, bottom, right}) c->setChecked(false); });
+    QObject::connect(box, &QPushButton::clicked, &dlg, [=] {
+        for (QCheckBox *c : {top, left, bottom, right}) {
+            c->setTristate(false);
+            c->setChecked(true);
+        }
+    });
+    QObject::connect(none, &QPushButton::clicked, &dlg, [=] {
+        for (QCheckBox *c : {top, left, bottom, right}) {
+            c->setTristate(false);
+            c->setChecked(false);
+        }
+    });
     v->addWidget(sides);
     auto *form = new QFormLayout;
     auto *style = new QComboBox(&dlg);
@@ -819,7 +841,9 @@ bool paragraphBordersDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     fill->setScheme(doc->flow().env.colors);
     fill->setPopupMode(QToolButton::InstantPopup);
     fill->setWell(true);
-    fill->setCurrent(before.fill.isValid() ? ColorRef::rgb(before.fill) : ColorRef::none());
+    fill->setCurrent(before.fill.isValid() && !(mixed & boxpart::Fill) ? ColorRef::rgb(before.fill) : ColorRef::none());
+    const ColorRef initialLineColor = color->current(), initialFill = fill->current();
+    const int initialStyle = style->currentIndex(), initialWidth = width->currentIndex(), initialSpace = space->value();
     form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Style"), style);
     form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Width"), width);
     form->addRow(QCoreApplication::translate("jp::write::Dialogs", "Color"), color);
@@ -837,13 +861,28 @@ bool paragraphBordersDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     line.eighths = width->currentData().toInt();
     line.space = space->value();
     line.color = lineColor.isNone() ? QColor() : lineColor.resolve(doc->flow().env.colors);
+    // What the person changed: the line the sides are drawn with, and the fill.
+    const bool lineSet = style->currentIndex() != initialStyle || width->currentIndex() != initialWidth || space->value() != initialSpace || !(color->current() == initialLineColor);
+    const bool fillSet = !(fill->current() == initialFill);
+    // Only what the person set is set: a side that was ticked and still is keeps its own line unless the line was changed, and a mixed side stays as each paragraph has it.
     tp::ParaBox after;
-    if (top->isChecked()) after.top = line;
-    if (left->isChecked()) after.left = line;
-    if (bottom->isChecked()) after.bottom = line;
-    if (right->isChecked()) after.right = line;
-    after.fill = fillColor.isNone() ? QColor() : fillColor.resolve(doc->flow().env.colors);
-    setParagraphBox(*doc, *cursor, after, boxpart::Sides | boxpart::Fill);
+    int parts = 0;
+    auto decide = [&](QCheckBox *c, int part, const tp::BoxSide &was, tp::BoxSide *out) {
+        const bool untouched = (mixed & part) ? c->checkState() == Qt::PartiallyChecked : c->isChecked() == was.visible();
+        if (untouched && !(lineSet && c->checkState() == Qt::Checked && !(mixed & part))) return;
+        if (c->checkState() == Qt::PartiallyChecked) return;
+        parts |= part;
+        if (c->isChecked()) *out = line;
+    };
+    decide(top, boxpart::Top, before.top, &after.top);
+    decide(left, boxpart::Left, before.left, &after.left);
+    decide(bottom, boxpart::Bottom, before.bottom, &after.bottom);
+    decide(right, boxpart::Right, before.right, &after.right);
+    if (fillSet) {
+        parts |= boxpart::Fill;
+        after.fill = fillColor.isNone() ? QColor() : fillColor.resolve(doc->flow().env.colors);
+    }
+    if (parts) setParagraphBox(*doc, *cursor, after, parts);
     return true;
 }
 

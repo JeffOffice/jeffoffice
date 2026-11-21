@@ -59,7 +59,13 @@ enum : int {
     EndnoteStyle,                             // QString: the paragraph's style, which the pages' copy of an endnote does not carry (it takes no part in what the document's paragraphs are, by their styles)
     StylesRev,                                // int, on the FIRST paragraph: how many changes to the style sheet were made; it has no meaning of its own, it makes a change to the styles a step of the
                                               // text's history (writedoc.h, putStyle), whatever paragraphs it changes
+    BoxOwn,                                   // int (paragraph): the parts of the paragraph's box (boxpart bits) that are the paragraph's own, set by a command, not the style's: only those are written as direct w:pBdr sides and w:shd
 };
+}
+
+// The parts of a paragraph's borders and shading (ECMA-376 Part 1 sections 17.3.1.24 and 17.3.1.31), as bits.
+namespace boxpart {
+enum { Top = 1, Left = 2, Bottom = 4, Right = 8, Between = 16, Fill = 32, Sides = Top | Left | Bottom | Right, Lines = Sides | Between };
 }
 
 // The bytes that formats keep beside the text (a piece of the file kept as XML, the attributes of a paragraph...) are not in the formats, whose

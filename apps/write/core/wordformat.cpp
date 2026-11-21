@@ -759,15 +759,7 @@ QTextBlockFormat blockFormatOf(const ParaProps &p)
     if (p.suppressAutoHyphens.value_or(false)) bf.setProperty(tp::NoAutoHyphen, true);
     if (!p.overflowPunct.value_or(true)) bf.setProperty(tp::NoHangPunct, true);
     {
-        tp::ParaBox box;
-        if (p.borders) {
-            box.top = sideOf(p.borders->top);
-            box.left = sideOf(p.borders->left);
-            box.bottom = sideOf(p.borders->bottom);
-            box.right = sideOf(p.borders->right);
-            box.between = sideOf(p.borders->between);
-        }
-        box.fill = fillOf(p.shading);
+        const tp::ParaBox box = boxOf(p);
         if (box.any()) bf.setProperty(tp::Borders, box.spec());
     }
     if (p.outlineLvl) bf.setProperty(prop::Outline, *p.outlineLvl);
@@ -812,6 +804,29 @@ QTextBlockFormat blockFormatOf(const ParaProps &p)
     if (!p.indAttrs.isEmpty()) setStored(bf, prop::IndAttrs, p.indAttrs);
     if (!p.numExtra.isEmpty()) setStored(bf, prop::NumExtra, p.numExtra);
     return bf;
+}
+
+// The box (borders and fill) a paragraph's properties give.
+tp::ParaBox boxOf(const ParaProps &p)
+{
+    tp::ParaBox box;
+    if (p.borders) {
+        box.top = sideOf(p.borders->top);
+        box.left = sideOf(p.borders->left);
+        box.bottom = sideOf(p.borders->bottom);
+        box.right = sideOf(p.borders->right);
+        box.between = sideOf(p.borders->between);
+    }
+    box.fill = fillOf(p.shading);
+    return box;
+}
+
+// One side of w:pBdr as the program writes it: a line, or nil where the line is taken off (a style's).
+QByteArray boxSideXml(const char *name, const tp::BoxSide &b)
+{
+    if (!b.visible()) return "<w:" + QByteArray(name) + " w:val=\"nil\"/>";
+    return "<w:" + QByteArray(name) + " w:val=\"" + b.style.toUtf8() + "\" w:sz=\"" + QByteArray::number(b.eighths) + "\" w:space=\"" + QByteArray::number(b.space) + "\" w:color=\"" +
+           (b.color.isValid() ? b.color.name().mid(1).toUpper().toLatin1() : QByteArray("auto")) + "\"/>";
 }
 
 ParaProps paraPropsOf(const QTextBlockFormat &f)
@@ -887,23 +902,23 @@ ParaProps paraPropsOf(const QTextBlockFormat &f)
     std::stable_sort(tabs.begin(), tabs.end(), [](const TabStop &a, const TabStop &b) { return a.pos < b.pos; });
     p.tabs = tabs;
     if (f.hasProperty(prop::RawPPr)) p.extra = unpackRaw(storedBytes(f, prop::RawPPr));
-    // Borders the program made (a horizontal line): written as w:pBdr, in the place the schema has it (those a file had stay as it wrote them, among the kept properties).
-    if (f.hasProperty(tp::Borders)) {
+    // Borders the program made (a horizontal line, a command's): written as w:pBdr, in the place the schema has it, for the sides that are the paragraph's own (prop::BoxOwn): a side a style
+    // gives is the style's, and stays there. Those a file had stay as it wrote them, among the kept properties.
+    const int own = f.intProperty(prop::BoxOwn);
+    if (own & boxpart::Lines) {
         bool kept = false;
         for (const RawChild &c : std::as_const(p.extra)) kept = kept || c.xml.startsWith("<w:pBdr");
         const tp::ParaBox box = tp::ParaBox::parse(f.stringProperty(tp::Borders));
-        if (!kept && (box.top.visible() || box.left.visible() || box.bottom.visible() || box.right.visible() || box.between.visible())) {
+        if (!kept) {
             QByteArray x = "<w:pBdr>";
-            auto side = [&](const char *name, const tp::BoxSide &b) {
-                if (!b.visible()) return;
-                x += "<w:" + QByteArray(name) + " w:val=\"" + b.style.toUtf8() + "\" w:sz=\"" + QByteArray::number(b.eighths) + "\" w:space=\"" + QByteArray::number(b.space) + "\" w:color=\"" +
-                     (b.color.isValid() ? b.color.name().mid(1).toUpper().toLatin1() : QByteArray("auto")) + "\"/>";
+            auto side = [&](const char *name, int part, const tp::BoxSide &b) {
+                if (own & part) x += boxSideXml(name, b);
             };
-            side("top", box.top);
-            side("left", box.left);
-            side("bottom", box.bottom);
-            side("right", box.right);
-            side("between", box.between);
+            side("top", boxpart::Top, box.top);
+            side("left", boxpart::Left, box.left);
+            side("bottom", boxpart::Bottom, box.bottom);
+            side("right", boxpart::Right, box.right);
+            side("between", boxpart::Between, box.between);
             x += "</w:pBdr>";
             RawChild c;
             c.rank = office::wml::paraChildRank("pBdr");
@@ -913,15 +928,15 @@ ParaProps paraPropsOf(const QTextBlockFormat &f)
             p.extra.insert(at, c);
         }
     }
-    // The fill the program gave (or the file's, when it kept no w:shd of its own): a plain fill (ECMA-376 Part 1 section 17.3.1.31).
-    if (f.hasProperty(tp::Borders)) {
+    // The fill the program gave, when it is the paragraph's own and the file kept no w:shd of its own: a plain fill (ECMA-376 Part 1 section 17.3.1.31).
+    if (own & boxpart::Fill) {
         bool keptShd = false;
         for (const RawChild &c : std::as_const(p.extra)) keptShd = keptShd || c.xml.startsWith("<w:shd");
         const tp::ParaBox box = tp::ParaBox::parse(f.stringProperty(tp::Borders));
-        if (!keptShd && box.fill.isValid()) {
+        if (!keptShd) {
             RawChild c;
             c.rank = office::wml::paraChildRank("shd");
-            c.xml = "<w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"" + box.fill.name().mid(1).toUpper().toLatin1() + "\"/>";
+            c.xml = "<w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"" + (box.fill.isValid() ? box.fill.name().mid(1).toUpper().toLatin1() : QByteArray("auto")) + "\"/>";
             int at = 0;
             while (at < p.extra.size() && p.extra.at(at).rank <= c.rank) ++at;
             p.extra.insert(at, c);

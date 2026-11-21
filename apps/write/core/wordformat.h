@@ -4,6 +4,7 @@
 // format holds coming out; the writer takes what differs from the style's to be what the paragraph or run says itself.
 
 #include "office/theme.h"
+#include "text/textprops.h"
 #include "wml/wml.h"
 
 #include <QColor>
@@ -22,6 +23,8 @@ QString languageOf(const QVector<office::wml::RawChild> &extra);
 
 QTextBlockFormat blockFormatOf(const office::wml::ParaProps &resolved);
 office::wml::ParaProps paraPropsOf(const QTextBlockFormat &format);
+tp::ParaBox boxOf(const office::wml::ParaProps &props);   // the box a paragraph's properties give
+QByteArray boxSideXml(const char *name, const tp::BoxSide &side);   // a w:pBdr side: its line, or nil
 
 // The text of a number of a list in a number format of the file ("lowerRoman", "decimal"...), and a Roman numeral.
 QString listNumberText(const QString &format, int n);

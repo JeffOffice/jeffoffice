@@ -312,7 +312,7 @@ void discard(const Recovered &r)
 void followInterval(QTimer &timer, QObject *context)
 {
     timer.setInterval(std::max(1, Settings::get().autoRecoverMinutes()) * 60 * 1000);
-    QObject::connect(&AutoRecoverNotifier::get(), &AutoRecoverNotifier::changed, context, [&timer](int minutes) { timer.start(std::max(1, minutes) * 60 * 1000); });
+    QObject::connect(&AutoRecoverNotifier::get(), &AutoRecoverNotifier::changed, context, [&timer](int minutes) { timer.start(std::clamp(minutes, 1, 120) * 60 * 1000); });
 }
 
 void endSession()

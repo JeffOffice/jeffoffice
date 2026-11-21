@@ -2521,8 +2521,9 @@ void setTextColorRef(WriteDoc &doc, QTextCursor &c, const ColorRef &ref)
     auto hexOf = [](int percentKept) { return QStringLiteral("%1").arg(std::clamp(int(std::lround(percentKept * 255 / 100.0)), 0, 255), 2, 16, QLatin1Char('0')).toUpper(); };
     const QString name = QLatin1String(names[ref.slot()]);
     const QString tint = ref.lighten() > 0 ? hexOf(100 - ref.lighten()) : QString(), shade = ref.darken() > 0 && ref.lighten() <= 0 ? hexOf(100 - ref.darken()) : QString();
-    QColor shown;
-    if (!themeColorOf(doc, name, tint, shade, &shown)) return setTextColor(doc, c, plain);
+    QColor unused;
+    if (!themeColorOf(doc, name, tint, shade, &unused)) return setTextColor(doc, c, plain);
+    const QColor shown = plain;   // (the swatch the person picked, whole: the color shown and the color saved are the one tint of the palette)
     const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     changeCharFormat(doc, c, [&](QTextCharFormat &f) {
@@ -2558,17 +2559,6 @@ void dropKeptRunProperty(QTextCharFormat &f, const char *tag)
 
 } // namespace
 
-// The kept properties of a paragraph (as the file wrote them), less those that begin with `tag` (w:pBdr, w:shd).
-static void dropKeptParagraphProperty(QTextBlockFormat &f, const char *tag)
-{
-    if (!f.hasProperty(prop::RawPPr)) return;
-    QVector<office::wml::RawChild> kept = unpackRaw(storedBytes(f, prop::RawPPr));
-    for (int i = int(kept.size()) - 1; i >= 0; --i)
-        if (kept.at(i).xml.startsWith(tag)) kept.removeAt(i);
-    if (kept.isEmpty()) f.clearProperty(prop::RawPPr);
-    else setStored(f, prop::RawPPr, packRaw(kept));
-}
-
 tp::ParaBox paragraphBoxAt(const QTextCursor &c)
 {
     QTextCursor at(c);
@@ -2576,20 +2566,115 @@ tp::ParaBox paragraphBoxAt(const QTextCursor &c)
     return tp::ParaBox::parse(at.blockFormat().stringProperty(tp::Borders));
 }
 
+// The children of a kept w:pBdr (its sides, each as written), or none when `xml` is not one.
+static QVector<QPair<QByteArray, QByteArray>> boxSidesOf(const QByteArray &xml)
+{
+    QVector<QPair<QByteArray, QByteArray>> out;
+    int at = xml.indexOf('>');
+    if (!xml.startsWith("<w:pBdr") || at < 0 || xml.at(at - 1) == '/') return out;
+    ++at;
+    while (at < xml.size() && out.size() < 16) {
+        while (at < xml.size() && xml.at(at) != '<') ++at;
+        if (at >= xml.size() || xml.mid(at, 2) == "</") break;
+        const int end = xml.indexOf('>', at);
+        if (end < 0) break;
+        int nameEnd = at + 1;
+        while (nameEnd < end && xml.at(nameEnd) != ' ' && xml.at(nameEnd) != '/') ++nameEnd;
+        const QByteArray name = xml.mid(at + 1, nameEnd - at - 1);
+        int stop = end + 1;
+        if (xml.at(end - 1) != '/') {
+            const int close = xml.indexOf("</" + name + ">", end);
+            if (close < 0) break;
+            stop = close + int(name.size()) + 3;
+        }
+        out.push_back({name.mid(name.indexOf(':') + 1), xml.mid(at, stop - at)});
+        at = stop;
+    }
+    return out;
+}
+
+QVector<tp::ParaBox> paragraphBoxesOf(const QTextCursor &c)
+{
+    QVector<tp::ParaBox> out;
+    for (const QTextBlock &b : selectedBlocks(c)) out.push_back(tp::ParaBox::parse(b.blockFormat().stringProperty(tp::Borders)));
+    return out;
+}
+
+void setBoxOn(QTextBlockFormat &bf, const tp::ParaBox &box, int parts, const tp::ParaBox &inherited)
+{
+    tp::ParaBox now = tp::ParaBox::parse(bf.stringProperty(tp::Borders));
+    // (Only what differs from the paragraph's box is set: a side the person left alone stays as the file had it.)
+    int changed = 0;
+    if ((parts & boxpart::Top) && !(now.top == box.top)) changed |= boxpart::Top;
+    if ((parts & boxpart::Left) && !(now.left == box.left)) changed |= boxpart::Left;
+    if ((parts & boxpart::Bottom) && !(now.bottom == box.bottom)) changed |= boxpart::Bottom;
+    if ((parts & boxpart::Right) && !(now.right == box.right)) changed |= boxpart::Right;
+    if ((parts & boxpart::Between) && !(now.between == box.between)) changed |= boxpart::Between;
+    if ((parts & boxpart::Fill) && !(now.fill == box.fill)) changed |= boxpart::Fill;
+    if (!changed) return;
+    if (changed & boxpart::Top) now.top = box.top;
+    if (changed & boxpart::Left) now.left = box.left;
+    if (changed & boxpart::Bottom) now.bottom = box.bottom;
+    if (changed & boxpart::Right) now.right = box.right;
+    if (changed & boxpart::Between) now.between = box.between;
+    if (changed & boxpart::Fill) now.fill = box.fill;
+    if (now.any()) bf.setProperty(tp::Borders, now.spec());
+    else bf.clearProperty(tp::Borders);
+    // (A line or fill taken off is written only where a style gives one that has to be overridden; else the paragraph has nothing of its own there.)
+    int own = bf.intProperty(prop::BoxOwn) | changed, overridden = 0;
+    const struct { int part; const tp::BoxSide &side, &style; } sides[] = {{boxpart::Top, now.top, inherited.top},       {boxpart::Left, now.left, inherited.left}, {boxpart::Bottom, now.bottom, inherited.bottom},
+                                                                            {boxpart::Right, now.right, inherited.right}, {boxpart::Between, now.between, inherited.between}};
+    for (const auto &x : sides)
+        if ((changed & x.part) && !x.side.visible()) {
+            if (x.style.visible()) overridden |= x.part;
+            else own &= ~x.part;
+        }
+    if ((changed & boxpart::Fill) && !now.fill.isValid()) {
+        if (inherited.fill.isValid()) overridden |= boxpart::Fill;
+        else own &= ~boxpart::Fill;
+    }
+    if (own) bf.setProperty(prop::BoxOwn, own);
+    else bf.clearProperty(prop::BoxOwn);
+    if (!bf.hasProperty(prop::RawPPr)) return;
+    QVector<office::wml::RawChild> kept = unpackRaw(storedBytes(bf, prop::RawPPr));
+    for (int i = 0; i < kept.size(); ++i) {
+        if (kept.at(i).xml.startsWith("<w:shd") && (changed & boxpart::Fill)) {
+            kept.removeAt(i--);   // (the fill is written again from the box)
+            continue;
+        }
+        if (!kept.at(i).xml.startsWith("<w:pBdr") || !(changed & boxpart::Lines)) continue;
+        // The sides the person set are written over, in the order the schema has them; the others stay as written (their line style, theme color, bar).
+        static const struct { const char *name, *other; int part; } order[] = {{"top", "", boxpart::Top}, {"left", "start", boxpart::Left}, {"bottom", "", boxpart::Bottom}, {"right", "end", boxpart::Right},
+                                                                                  {"between", "", boxpart::Between}};
+        const QVector<QPair<QByteArray, QByteArray>> sides = boxSidesOf(kept.at(i).xml);
+        QByteArray x = "<w:pBdr>";
+        for (const auto &o : order) {
+            const tp::BoxSide &side = o.part == boxpart::Top ? now.top : o.part == boxpart::Left ? now.left : o.part == boxpart::Bottom ? now.bottom : o.part == boxpart::Right ? now.right : now.between;
+            if (changed & o.part) {
+                if (side.visible() || (overridden & o.part)) x += boxSideXml(o.name, side);
+                continue;
+            }
+            for (const auto &c : sides)
+                if (c.first == o.name || c.first == o.other) x += c.second;
+        }
+        for (const auto &c : sides)   // (the bar, and what else the box had)
+            if (c.first != "top" && c.first != "left" && c.first != "start" && c.first != "bottom" && c.first != "right" && c.first != "end" && c.first != "between") x += c.second;
+        if (x == "<w:pBdr>") {   // (no side left)
+            kept.removeAt(i--);
+            continue;
+        }
+        kept[i].xml = x + "</w:pBdr>";
+    }
+    if (kept.isEmpty()) bf.clearProperty(prop::RawPPr);
+    else setStored(bf, prop::RawPPr, packRaw(kept));
+}
+
 void setParagraphBox(WriteDoc &doc, QTextCursor &c, const tp::ParaBox &box, int parts)
 {
     changeBlockFormat(doc, c, [&](QTextBlockFormat &bf) {
-        tp::ParaBox now = tp::ParaBox::parse(bf.stringProperty(tp::Borders));
-        if (parts & boxpart::Top) now.top = box.top;
-        if (parts & boxpart::Left) now.left = box.left;
-        if (parts & boxpart::Bottom) now.bottom = box.bottom;
-        if (parts & boxpart::Right) now.right = box.right;
-        if (parts & boxpart::Between) now.between = box.between;
-        if (parts & boxpart::Fill) now.fill = box.fill;
-        if (now.any()) bf.setProperty(tp::Borders, now.spec());
-        else bf.clearProperty(tp::Borders);
-        if (parts & boxpart::Lines) dropKeptParagraphProperty(bf, "<w:pBdr");
-        if (parts & boxpart::Fill) dropKeptParagraphProperty(bf, "<w:shd");
+        // (What the paragraph's style gives it: a line or fill the person takes off has to be written over it.)
+        const QString style = bf.stringProperty(tp::StyleName).isEmpty() ? doc.defaultParagraphStyle() : bf.stringProperty(tp::StyleName);
+        setBoxOn(bf, box, parts, boxOf(doc.baselineParagraph(style, 0, 0)));
     });
 }
 

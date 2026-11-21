@@ -411,9 +411,12 @@ bool insertHorizontalLine(WriteDoc &doc, QTextCursor &c)
     box.bottom.style = QStringLiteral("single");
     box.bottom.eighths = 6;
     box.bottom.space = 1;
-    changeBlockFormat(doc, at, [&](QTextBlockFormat &bf) { bf.setProperty(tp::Borders, box.spec()); });
+    changeBlockFormat(doc, at, [&](QTextBlockFormat &bf) { setBoxOn(bf, box, boxpart::Bottom); });
     insertParagraph(doc, at);   // the plain paragraph below it
-    changeBlockFormat(doc, at, [&](QTextBlockFormat &bf) { bf.clearProperty(tp::Borders); });
+    changeBlockFormat(doc, at, [&](QTextBlockFormat &bf) {
+        bf.clearProperty(tp::Borders);
+        bf.clearProperty(prop::BoxOwn);
+    });
     group.endEditBlock();
     c = at;
     return true;

@@ -4,6 +4,7 @@
 // page view call these; they know nothing of pages.
 
 #include "core/writedoc.h"
+#include "core/writeprops.h"
 #include "text/textengine.h"
 
 #include <QColor>
@@ -195,14 +196,16 @@ void setTextColor(WriteDoc &doc, QTextCursor &c, const QColor &color);       // 
 // section 17.3.2.6), so that a change of theme recolors it; any other color, or a document with no theme, gets the plain color the palette shows.
 void setTextColorRef(WriteDoc &doc, QTextCursor &c, const ColorRef &color);
 // The borders and shading of paragraphs (ECMA-376 Part 1 sections 17.3.1.24 and 17.3.1.31): the parts of the box that a command sets, as bits.
-namespace boxpart {
-enum { Top = 1, Left = 2, Bottom = 4, Right = 8, Between = 16, Fill = 32, Sides = Top | Left | Bottom | Right, Lines = Sides | Between };
-}
+// (The bits are boxpart, in writeprops.h.)
 // The box (borders and fill) of the paragraph the selection starts in, as the paragraph has it now.
 tp::ParaBox paragraphBoxAt(const QTextCursor &c);
 // Every paragraph of the selection (or the one the caret is in) takes the parts of `box` named in `parts`, and keeps the rest of its own box; one step of the history. The border or
 // shading the file gave a paragraph is replaced where a part is set, so what is saved is what is shown.
 void setParagraphBox(WriteDoc &doc, QTextCursor &c, const tp::ParaBox &box, int parts);
+// The same on one paragraph's format: only the parts of `box` that differ from the paragraph's are set (the rest of a kept w:pBdr stays as written), and they become the paragraph's own (`inherited`: the box its style gives it, which a line taken off must be written over).
+void setBoxOn(QTextBlockFormat &bf, const tp::ParaBox &box, int parts, const tp::ParaBox &inherited = tp::ParaBox());
+// The box of each paragraph the selection touches.
+QVector<tp::ParaBox> paragraphBoxesOf(const QTextCursor &c);
 void setHighlight(WriteDoc &doc, QTextCursor &c, const QString &name);       // empty: none
 void setCharShading(WriteDoc &doc, QTextCursor &c, const QColor &color);   // invalid: none; the shading of the letters (w:shd), not the highlight
 void setCharBorder(WriteDoc &doc, QTextCursor &c, bool on);                  // a thin line round the letters (w:bdr)
