@@ -312,6 +312,12 @@ Chart chartFromSeries(const QVector<ChartSeries> &series, const QVector<SeriesKi
     c.border.color = QColor(0xD9, 0xD9, 0xD9);
     c.border.width = 0.75;
     c.style = 2;
+    if (like) {
+        // the colors a series takes are the chart's own (its style's, or the scheme chosen for it), the same ones a reset gives back
+        if (!like->palette.isEmpty()) c.palette = like->palette;
+        c.originalPalette = like->originalPalette;
+        c.styleBase = like->styleBase;
+    }
     const int count = std::min(int(series.size()), kMaxMadeSeries);
     // the plots: one for each kind of drawing (and each side), the areas first and the lines over the bars
     struct Group {
@@ -349,7 +355,7 @@ Chart chartFromSeries(const QVector<ChartSeries> &series, const QVector<SeriesKi
         }
         ChartSeries s = series[i];
         if (s.color.isValid() == false || !s.colorFromFile) {
-            s.color = c.palette.isEmpty() ? QColor(0x44, 0x72, 0xC4) : c.palette.value(i % c.palette.size());
+            s.color = chartStyleSeriesColor(c, i, count);
             s.colorFromFile = true;
         }
         if (p.type == ChartType::Scatter) s.smooth = p.lines && p.smooth;
@@ -419,6 +425,7 @@ Chart chartFromSeries(const QVector<ChartSeries> &series, const QVector<SeriesKi
         c.plotBorder = like->plotBorder;
         c.font = like->font;
         c.textColor = like->textColor;
+        c.styleText = like->styleText;
         c.style = like->style;
         c.blanksAs = like->blanksAs;
         c.plotVisibleOnly = like->plotVisibleOnly;

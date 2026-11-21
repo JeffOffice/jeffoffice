@@ -1114,6 +1114,7 @@ bool Reader::read(const QDomElement &root, QString *error)
     c.palette = paletteOf(m_theme, m_map);
     c.fontFamily = m_theme.minorLatin.isEmpty() ? QStringLiteral("Carlito") : m_theme.minorLatin;
     c.textColor = m_theme.colors[m_map.tx1].isValid() ? m_theme.colors[m_map.tx1] : QColor(Qt::black);
+    c.styleText = c.textColor;
     c.backgroundColor = m_theme.colors[m_map.bg1].isValid() ? m_theme.colors[m_map.bg1] : QColor(Qt::white);
     if (const QDomElement style = findStyle(root); !style.isNull()) {
         const int n = int(parseInt(valOf(style), 2));

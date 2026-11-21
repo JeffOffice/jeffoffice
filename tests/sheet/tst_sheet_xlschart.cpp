@@ -5,6 +5,7 @@
 #include "office/chart.h"
 #include "office/package.h"
 #include "office/theme.h"
+#include "sheet/chartedit.h"
 #include "sheet/drawing.h"
 #include "sheet/oldsave.h"
 #include "sheet/xlsxsave.h"
@@ -218,6 +219,26 @@ private Q_SLOTS:
         case 8: QVERIFY(p.type == ChartType::Pie && p.firstSliceAngle == 90 && p.varyColors); break;
         case 9: QVERIFY(p.type == ChartType::Doughnut && p.holeSize == 60); break;
         default: QVERIFY(p.type == ChartType::Scatter); QCOMPARE(p.series[0].xRef, QStringLiteral("Data!$A$2:$A$4")); QCOMPARE(p.series[0].valueRef, QStringLiteral("Data!$B$2:$B$4")); break;
+        }
+    }
+
+    // A chart read from an old binary workbook has the palette's colors: Reset on a series gives each its place's color (a color the file gave is a look of its own, and goes), never an invalid one.
+    void resetOnAChartFromAnOldWorkbookGivesThePaletteColor()
+    {
+        const QByteArray s = series(0, named(0, 1), 1, seriesColor(0x00FF00)) + series(0, named(0, 2), 2);
+        Workbook wb;
+        QString why;
+        QVector<Chart> charts;
+        QVERIFY2(readCharts(bookWith(chartBody(s, columnParents(group(bar())))), &wb, 0, &charts, &why), qPrintable(why));
+        QCOMPARE(charts.size(), 1);
+        Chart c = charts[0];
+        QVERIFY(!c.styleBase.isValid() && !c.palette.isEmpty());
+        QCOMPARE(jp::office::sheet::partLookOf(c, jp::office::sheet::ChartPart::Series, 0).fill.name(), QStringLiteral("#00ff00"));
+        for (int k = 0; k < 2; ++k) {
+            jp::office::sheet::resetPartToStyle(&c, jp::office::sheet::ChartPart::Series, k);
+            const QColor got = jp::office::sheet::partLookOf(c, jp::office::sheet::ChartPart::Series, k).fill;
+            QVERIFY(got.isValid());
+            QCOMPARE(got.name(), c.palette[k % c.palette.size()].name());
         }
     }
 

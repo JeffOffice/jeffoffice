@@ -555,6 +555,145 @@ private Q_SLOTS:
         }
     }
 
+    // Reset on the chart area takes away what a look set on the page and on its text: after the dark look the page has no fill and the text is the theme's again, not white on nothing.
+    void resetOfTheChartAreaGivesBackTheTextOfTheStyle()
+    {
+        Chart c = roundTrip(columns());
+        QVERIFY(c.styleText.isValid());
+        const QColor text = c.textColor;
+        applyChartStyle(&c, 2);
+        QCOMPARE(c.textColor, QColor(Qt::white));
+        QVERIFY(c.font.color.isValid() && c.background.isValid());
+        resetPartToStyle(&c, ChartPart::Series, 0);   // (another part: the page and its text stay)
+        QVERIFY(c.background.isValid() && c.textColor == QColor(Qt::white) && c.font.color.isValid());
+        resetPartToStyle(&c, ChartPart::Area, 0);
+        QVERIFY(!c.background.isValid() && !c.border.set);
+        QVERIFY(!c.font.color.isValid());
+        QCOMPARE(c.textColor, text);
+        // and what is written has no light text left
+        QVERIFY(!roundTrip(c).font.color.isValid());
+    }
+
+    // Reset on a series takes away what the series has of its own and leaves what its kind gives it: a smooth line of a kind that is smooth stays, and a scatter kind without marks gets none.
+    void resetOfASeriesKeepsWhatItsKindGives()
+    {
+        Chart smooth = roundTrip(withKind(columns(), ChartKind::ScatterSmooth, defaultTheme()));
+        QCOMPARE(kindOfChart(smooth), ChartKind::ScatterSmooth);
+        resetPartToStyle(&smooth, ChartPart::Series, 0);
+        QCOMPARE(kindOfChart(smooth), ChartKind::ScatterSmooth);
+        QVERIFY(partLookOf(smooth, ChartPart::Series, 0).smooth && partLookOf(smooth, ChartPart::Series, 1).smooth);
+        // straight lines: one series set smooth by hand goes back to straight
+        Chart lines = roundTrip(withKind(columns(), ChartKind::ScatterLines, defaultTheme()));
+        ChartPartLook look = partLookOf(lines, ChartPart::Series, 0);
+        look.smooth = true;
+        setPartLook(&lines, ChartPart::Series, 0, look);
+        QVERIFY(partLookOf(lines, ChartPart::Series, 0).smooth && kindOfChart(lines) == ChartKind::ScatterLines);
+        resetPartToStyle(&lines, ChartPart::Series, 0);
+        QVERIFY(!partLookOf(lines, ChartPart::Series, 0).smooth);
+        // lines with no marks (every series says none): reset puts none on
+        Chart bare = roundTrip(withKind(columns(), ChartKind::ScatterLines, defaultTheme()));
+        for (ChartPlot &p : bare.plots)
+            for (ChartSeries &sr : p.series) sr.marker.symbol = ChartMarker::None;
+        resetPartToStyle(&bare, ChartPart::Series, 1);
+        QCOMPARE(partLookOf(bare, ChartPart::Series, 1).marker, ChartMarker::None);
+        QCOMPARE(partLookOf(bare, ChartPart::Series, 0).marker, ChartMarker::None);
+        // marks only: never smooth; a line chart without marks has none after a reset
+        Chart marks = roundTrip(withKind(columns(), ChartKind::Scatter, defaultTheme()));
+        look = partLookOf(marks, ChartPart::Series, 0);
+        look.smooth = true;
+        setPartLook(&marks, ChartPart::Series, 0, look);
+        resetPartToStyle(&marks, ChartPart::Series, 0);
+        QVERIFY(!partLookOf(marks, ChartPart::Series, 0).smooth);
+        Chart line = roundTrip(withKind(columns(), ChartKind::Line, defaultTheme()));
+        look = partLookOf(line, ChartPart::Series, 0);
+        look.marker = ChartMarker::Star;
+        setPartLook(&line, ChartPart::Series, 0, look);
+        resetPartToStyle(&line, ChartPart::Series, 0);
+        QCOMPARE(partLookOf(line, ChartPart::Series, 0).marker, ChartMarker::None);
+    }
+
+    // After Colors, Reset gives a series the color the scheme gave it (not the color of the file's style), for a style of one color and for one of accents in turn, and the scheme named "default"
+    // gives the theme's own back; a look does not recolor the series, so Reset gives what it did before.
+    void resetAfterColorsGivesTheSchemesColor()
+    {
+        for (int style : {2, 3}) {
+            Chart c = columns();
+            c.style = style;
+            c = roundTrip(c);
+            const QColor before = chartStyleSeriesColor(c, 1, 2);
+            applyChartStyle(&c, 2);
+            resetPartToStyle(&c, ChartPart::Series, 1);
+            QCOMPARE(partLookOf(c, ChartPart::Series, 1).fill, before);
+            const int scheme = 3;
+            applyColorScheme(&c, scheme);
+            const QColor given = chartSchemeColor(c, scheme, 1);
+            QVERIFY(given.isValid() && given != before);
+            QCOMPARE(partLookOf(c, ChartPart::Series, 1).fill, given);
+            ChartPartLook look = partLookOf(c, ChartPart::Series, 1);
+            look.fill = QColor(0x12, 0x34, 0x56);
+            setPartLook(&c, ChartPart::Series, 1, look);
+            resetPartToStyle(&c, ChartPart::Series, 1);
+            QCOMPARE(partLookOf(c, ChartPart::Series, 1).fill.name(), given.name());
+            QCOMPARE(chartStyleSeriesColor(c, 0, 2).name(), chartSchemeColor(c, scheme, 0).name());
+            // the scheme of the theme's own colors (the first): its colors are the chart's palette as it was read
+            const QVector<QColor> palette = c.originalPalette;
+            QVERIFY(!palette.isEmpty());
+            applyColorScheme(&c, 0);
+            QCOMPARE(c.palette, palette);
+            look.fill = QColor(0x65, 0x43, 0x21);
+            setPartLook(&c, ChartPart::Series, 1, look);
+            resetPartToStyle(&c, ChartPart::Series, 1);
+            QCOMPARE(partLookOf(c, ChartPart::Series, 1).fill.name(), palette[1 % palette.size()].name());
+        }
+    }
+
+    // Chart Kind after a Reset leaves each series its color: the kinds' own coloring and the reset's are one rule.
+    void chartKindAfterResetKeepsTheSeriesColors()
+    {
+        for (int style : {2, 3}) {
+            Chart c = columns();
+            c.style = style;
+            c = roundTrip(c);
+            ChartPartLook look = partLookOf(c, ChartPart::Series, 1);
+            look.fill = QColor(0x12, 0x34, 0x56);
+            setPartLook(&c, ChartPart::Series, 1, look);
+            resetPartToStyle(&c, ChartPart::Series, 1);
+            QVERIFY(!seriesOf(c)[1].colorFromFile);
+            const QColor first = seriesOf(c)[0].color, second = seriesOf(c)[1].color;
+            const Chart other = withKind(c, ChartKind::Line, defaultTheme());
+            QCOMPARE(seriesOf(other)[0].color.name(), first.name());
+            QCOMPARE(seriesOf(other)[1].color.name(), second.name());
+            // and after Colors the kind change keeps the scheme's
+            Chart colored = c;
+            applyColorScheme(&colored, 3);
+            resetPartToStyle(&colored, ChartPart::Series, 1);
+            const QColor chosen = seriesOf(colored)[1].color;
+            QCOMPARE(seriesOf(withKind(colored, ChartKind::Area, defaultTheme()))[1].color.name(), chosen.name());
+        }
+    }
+
+    // Reset gives the palette's color and never an invalid one for a chart of any origin that has no style of one color: made here, read from a part, or given no palette at all.
+    void resetGivesAValidColorForCharts()
+    {
+        Chart made = columns();
+        QVERIFY(!made.styleBase.isValid());
+        Chart read = roundTrip(columns());
+        Chart bare = read;
+        bare.palette.clear();
+        bare.styleBase = QColor();
+        for (Chart *c : {&made, &read, &bare}) {
+            for (int k = 0; k < 2; ++k) {
+                ChartPartLook look = partLookOf(*c, ChartPart::Series, k);
+                look.fill = QColor(0x12, 0x34, 0x56);
+                setPartLook(c, ChartPart::Series, k, look);
+                resetPartToStyle(c, ChartPart::Series, k);
+                const QColor got = partLookOf(*c, ChartPart::Series, k).fill;
+                QVERIFY(got.isValid());
+                QCOMPARE(got.name(), (c->palette.isEmpty() ? QColor(0x44, 0x72, 0xC4) : c->palette[k % c->palette.size()]).name());
+            }
+        }
+    }
+
     void colorsAndLooksAreOurOwnAndStay()
     {
         QVERIFY(chartColorSchemeCount() >= 6 && chartStyleCount() >= 4 && chartLayoutCount() >= 4);

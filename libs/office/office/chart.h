@@ -281,10 +281,12 @@ struct Chart {
     bool drawTrendlines = false;    // the series' trendlines are drawn (and named in the legend); a program that has not asked for them draws a chart as it always has
     // What it is set in and drawn on, from the theme and the color map.
     QVector<QColor> palette;        // the colors series (and slices) take when the file gives none, in order
+    QVector<QColor> originalPalette;    // the palette before a color scheme was chosen (empty until one is): the scheme named "default" gives it back
     QColor styleBase;               // the color the chart's style shades the series from (its styles of one color); invalid when the style colors them from the palette in turn
     QString fontFamily;
     ChartFont font;                 // c:txPr of the chart: its text, unless a part says otherwise
     QColor textColor, backgroundColor;
+    QColor styleText;               // the text color the theme gives (invalid for a chart that was not read from a theme): what a reset of the chart area gives back
     QColor background;              // the chart area's fill; invalid for none
     ChartLine border;               // the chart area's border
     QColor plotFill;                // the plot area's fill; invalid for none

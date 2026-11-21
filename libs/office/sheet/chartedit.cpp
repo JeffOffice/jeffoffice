@@ -709,12 +709,26 @@ QColor chartSchemeColor(const Chart &chart, int scheme, int n)
 {
     if (scheme < 0 || scheme >= schemes().size()) return QColor();
     const Scheme &s = schemes()[scheme];
-    if (s.colors.isEmpty()) return chart.palette.isEmpty() ? QColor(0x44, 0x72, 0xC4) : chart.palette.value(n % chart.palette.size());
+    if (s.colors.isEmpty()) {
+        const QVector<QColor> &own = chart.originalPalette.isEmpty() ? chart.palette : chart.originalPalette;
+        return own.isEmpty() ? QColor(0x44, 0x72, 0xC4) : own.value(n % own.size());
+    }
     return QColor(s.colors[n % s.colors.size()]);
 }
 
 void applyColorScheme(Chart *chart, int scheme)
 {
+    if (scheme < 0 || scheme >= schemes().size()) return;
+    // The scheme is the chart's palette from now on (what a reset of a series gives back, and what a series added later takes); the style's one color no longer shades it.
+    if (chart->originalPalette.isEmpty()) chart->originalPalette = chart->palette;
+    const Scheme &chosen = schemes()[scheme];
+    if (chosen.colors.isEmpty()) {
+        chart->palette = chart->originalPalette;
+    } else {
+        chart->palette.clear();
+        for (const QRgb rgb : chosen.colors) chart->palette << QColor(rgb);
+    }
+    chart->styleBase = QColor();
     int n = 0;
     for (ChartPlot &p : chart->plots)
         for (ChartSeries &s : p.series) {
@@ -1098,6 +1112,9 @@ void resetPartToStyle(Chart *chart, ChartPart part, int series)
         chart->backgroundNone = false;
         chart->backgroundKept = ChartKept();
         chart->border = ChartLine();
+        // the text a look sets (white on a dark page) goes with the page it was set for
+        chart->font.color = QColor();
+        chart->textColor = chart->styleText.isValid() ? chart->styleText : QColor(Qt::black);
         break;
     case ChartPart::Plot:
         chart->plotFill = QColor();
@@ -1108,7 +1125,14 @@ void resetPartToStyle(Chart *chart, ChartPart part, int series)
     case ChartPart::Series: {
         const int total = seriesCount(*chart);
         int n = 0;
-        for (ChartPlot &p : chart->plots)
+        for (ChartPlot &p : chart->plots) {
+            // a scatter whose series are all smooth (or all without marks) is of that kind: the kind is not formatting a series has of its own
+            bool kindSmooth = !p.series.isEmpty(), kindBare = !p.series.isEmpty();
+            for (const ChartSeries &o : std::as_const(p.series)) {
+                kindSmooth = kindSmooth && o.smooth;
+                kindBare = kindBare && o.marker.symbol == ChartMarker::None;
+            }
+            const bool lines = p.type == ChartType::Scatter && p.lines;
             for (ChartSeries &s : p.series) {
                 if (n++ != series) continue;
                 s.color = chartStyleSeriesColor(*chart, series, total);
@@ -1118,10 +1142,11 @@ void resetPartToStyle(Chart *chart, ChartPart part, int series)
                 s.kept = ChartKept();
                 s.pointColors.clear();
                 s.keptPoints.clear();
-                s.smooth = p.type == ChartType::Scatter && p.lines && p.smooth;
+                s.smooth = lines && (p.smooth || kindSmooth);
                 s.marker = ChartMarker();
-                if (p.type == ChartType::Line && !p.markers) s.marker.symbol = ChartMarker::None;
+                if ((p.type == ChartType::Line && !p.markers) || (lines && kindBare)) s.marker.symbol = ChartMarker::None;
             }
+        }
         break;
     }
     }

@@ -8,6 +8,7 @@
 #include "office/chart.h"
 #include "office/chart_write.h"
 #include "office/package.h"
+#include "sheet/chartedit.h"
 #include "sheet/drawing.h"
 #include "sheet/odschart.h"
 #include "sheet/odsdraw.h"
@@ -297,6 +298,38 @@ private Q_SLOTS:
     }
 
     // A chart's kept parts, and what a chart without trendlines and error bars says: nothing is added to a chart that has neither.
+    // A chart read from an OpenDocument file has no style of one color: Reset on a series gives it the palette's color, a color, however many series the chart has.
+    void resetOnAChartFromOpenDocumentGivesThePaletteColor()
+    {
+        Chart model = jp::office::blankChart(jp::office::defaultTheme());
+        jp::office::ChartPlot plot;
+        plot.type = ChartType::Line;
+        for (int i = 0; i < 3; ++i) {
+            jp::office::ChartSeries sr;
+            sr.name = QStringLiteral("S%1").arg(i);
+            sr.values << 1 << 3 << 2;
+            sr.categories << "a" << "b" << "c";
+            plot.series.append(sr);
+        }
+        model.plots.append(plot);
+        const QByteArray document = jp::office::sheet::odschart::chartToOdf(model, 4000000, 3000000, nullptr);
+        jp::office::sheet::ods::StyleStore store;
+        QString why;
+        QVERIFY2(jp::office::sheet::odschart::parseStyles(document, Limits(), &store, &why), qPrintable(why));
+        Chart back;
+        QVERIFY2(jp::office::sheet::odschart::chartFromOdf(document, store, nullptr, &back, &why, nullptr), qPrintable(why));
+        QVERIFY(!back.styleBase.isValid());
+        for (int k = 0; k < 3; ++k) {
+            jp::office::sheet::ChartPartLook look = jp::office::sheet::partLookOf(back, jp::office::sheet::ChartPart::Series, k);
+            look.fill = QColor(0x12, 0x34, 0x56);
+            jp::office::sheet::setPartLook(&back, jp::office::sheet::ChartPart::Series, k, look);
+            jp::office::sheet::resetPartToStyle(&back, jp::office::sheet::ChartPart::Series, k);
+            const QColor got = jp::office::sheet::partLookOf(back, jp::office::sheet::ChartPart::Series, k).fill;
+            QVERIFY(got.isValid());
+            QCOMPARE(got.name(), (back.palette.isEmpty() ? QColor(0x44, 0x72, 0xC4) : back.palette[k % back.palette.size()]).name());
+        }
+    }
+
     void aChartWithNeitherTrendlinesNorErrorBarsIsWrittenAsBefore()
     {
         Chart model = jp::office::blankChart(jp::office::defaultTheme());
