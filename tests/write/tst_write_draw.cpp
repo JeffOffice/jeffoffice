@@ -192,7 +192,7 @@ const QByteArray kThemedStyles = "<w:style w:type=\"paragraph\" w:default=\"1\" 
                                  "<w:rPr><w:color w:val=\"2F5496\" w:themeColor=\"accent1\" w:themeShade=\"BF\"/></w:rPr></w:style>";
 const QByteArray kThemedSect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr>";
 
-// The lightness of the color (HSL) times the shade, as the file format says a theme shade is.
+// The lightness of the color (HSL) times the shade: the rule the files programs write follow (see tintedThemeColor).
 QColor shadedBy(const QColor &c, int shade)
 {
     float h, s, l, a;
@@ -1155,7 +1155,13 @@ private Q_SLOTS:
         QVERIFY(formatAt(*w.document(), 10).stringProperty(prop::ColorAttrs).isEmpty());
         QColor expected;
         QVERIFY(themeColorOf(*w.document(), QStringLiteral("accent2"), QStringLiteral("99"), QString(), &expected));
-        expected = ColorRef::scheme(Accent2, 40).resolve(w.document()->flow().env.colors);   // (the swatch's color is the one kept)
+        // the tint of the theme's accent 2 as the files have it (the lightness L * 0x99/255 + 1 - 0x99/255, the hue and saturation kept; see tintedThemeColor)
+        const QColor accent2 = w.document()->theme()->colors[office::Theme::Accent2];
+        float hue, sat, light, alpha;
+        accent2.getHslF(&hue, &sat, &light, &alpha);
+        QCOMPARE(expected.rgb(), QColor::fromHslF(hue, sat, light * (0x99 / 255.0f) + 1 - 0x99 / 255.0f, alpha).rgb());
+        QCOMPARE(fontColor->scheme().shade != nullptr, true);
+        QCOMPARE(ColorRef::scheme(Accent2, 40).resolve(fontColor->scheme()).rgb(), expected.rgb());   // (the swatch is that color)
         QCOMPARE(formatAt(*w.document(), 3).foreground().color().rgb(), expected.rgb());
         // saved and opened again through the window
         const QString path = dir.filePath(QStringLiteral("themed.docx"));
@@ -1181,6 +1187,69 @@ private Q_SLOTS:
         QVERIFY(formatAt(*w.document(), 10).stringProperty(prop::ColorAttrs).isEmpty());
         QVERIFY(w.document()->undo());
         QVERIFY(formatAt(*w.document(), 3).stringProperty(prop::ColorAttrs).isEmpty());
+    }
+
+    // Every tint the Font Color palette offers: the swatch, the text drawn, the plain value saved, and the color read back when the saved file is opened through the window are one color, the
+    // one for the theme reference (section 17.3.2.6). Hand-computed: 4472C4 lighter 40% (tint 99) is 8FAADC; darker 25% (shade BF) is 335593; black lighter 50% (tint 80) is 7F7F7F.
+    void everyTintOfTheFontColorPaletteIsTheStandardsColorSwatchDrawnSavedAndRead()
+    {
+        QCOMPARE(tintedThemeColor(QColor(0x44, 0x72, 0xC4), QStringLiteral("99"), QString()).name().toUpper(), QStringLiteral("#8FAADC"));
+        QCOMPARE(tintedThemeColor(QColor(0x44, 0x72, 0xC4), QString(), QStringLiteral("BF")).name().toUpper(), QStringLiteral("#2F5496"));
+        QCOMPARE(tintedThemeColor(QColor(Qt::black), QStringLiteral("80"), QString()).name().toUpper(), QStringLiteral("#7F7F7F"));
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        WriteWindow w;
+        w.setDocument(WriteDoc::blank(), QString());
+        struct Pick {
+            ColorRef ref;
+            QColor swatch;
+        };
+        QVector<Pick> picks;
+        for (int slot = 0; slot < SlotCount; ++slot) {
+            for (int lighten : {0, 20, 40, 60, 80}) picks.push_back({ColorRef::scheme(slot, lighten), QColor()});
+            picks.push_back({ColorRef::scheme(slot, 0, 30), QColor()});
+        }
+        QTextCursor typed(w.document()->story());
+        insertText(*w.document(), typed, QString(picks.size(), QLatin1Char('x')));
+        ColorButton *fontColor = nullptr;
+        for (ColorButton *b : w.ribbon()->findChildren<ColorButton *>())
+            if (b->toolTip() == QStringLiteral("Font Color")) fontColor = b;
+        QVERIFY(fontColor);
+        for (int i = 0; i < picks.size(); ++i) {
+            picks[i].swatch = picks[i].ref.resolve(fontColor->scheme());
+            QTextCursor &c = w.view()->cursor();
+            c.setPosition(i);
+            c.setPosition(i + 1, QTextCursor::KeepAnchor);
+            Q_EMIT fontColor->colorPicked(picks[i].ref);
+        }
+        auto fmtAt = [](WriteDoc &doc, int at) {
+            QTextCursor r(doc.story());
+            r.setPosition(at + 1);
+            return r.charFormat();
+        };
+        for (int i = 0; i < picks.size(); ++i) {
+            const QTextCharFormat f = fmtAt(*w.document(), i);
+            const QColor drawn = f.foreground().color();
+            QCOMPARE(drawn.rgb(), picks[i].swatch.rgb());
+            QCOMPARE(f.stringProperty(prop::ColorAttrsRgb), drawn.name(QColor::HexRgb).mid(1).toUpper());
+            const QStringList parts = f.stringProperty(prop::ColorAttrs).split(QLatin1Char(';'));
+            QColor standard;
+            QVERIFY(themeColorOf(*w.document(), parts.value(0), parts.value(1), parts.value(2), &standard));
+            QCOMPARE(standard.rgb(), drawn.rgb());
+        }
+        const QString path = dir.filePath(QStringLiteral("tints.docx"));
+        w.setSavePathChooser([&](const QString &, const QString &) { return path; });
+        QVERIFY(w.saveAs());
+        WriteWindow v;
+        QVERIFY(v.openFile(path));
+        for (int i = 0; i < picks.size(); ++i) {
+            const QTextCharFormat f = fmtAt(*v.document(), i);
+            QCOMPARE(f.foreground().color().rgb(), picks[i].swatch.rgb());
+            const QStringList parts = f.stringProperty(prop::ColorAttrs).split(QLatin1Char(';'));
+            QColor standard;
+            QVERIFY(themeColorOf(*v.document(), parts.value(0), parts.value(1), parts.value(2), &standard));
+            QCOMPARE(standard.rgb(), picks[i].swatch.rgb());
+        }
     }
 
     void themeFontsAndAWholeThemeChangeTheDocumentAndResetPutsTheOldOneBack()
@@ -1301,13 +1370,12 @@ private Q_SLOTS:
         QCOMPARE(w.document()->theme()->majorLatin, first.majorLatin);
     }
 
-    // A shade is worked out as the file format says (the lightness times the shade), and only a style whose slot got another color is touched: a change of fonts, or of other colors, leaves it as the file had it.
+    // A shade is worked out as the files say (the lightness times the shade), and only a style whose slot got another color is touched: a change of fonts, or of other colors, leaves it as the file had it.
     void aShadedStyleChangesOnlyWithItsSlotAndKeepsItsShade()
     {
         const QByteArray body = "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:r><w:t>Title</w:t></w:r></w:p>";
         const QColor old(0x44, 0x72, 0xC4);
         const QByteArray file = themedDocx(body, kThemedSect, kThemedStyles, "<w:p><w:r><w:t>h</w:t></w:r></w:p>", themeWithAccent(old));
-        QVERIFY(near(shadedBy(old, 0xBF), QColor(0x2F, 0x54, 0x96)));
         auto doc = open(file);
         QVERIFY(doc->theme());
         const QByteArray original = styleElement(doc->toDocx(), "Heading1");

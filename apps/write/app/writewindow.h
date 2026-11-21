@@ -678,6 +678,8 @@ private:
     QList<FontCombo *> m_fontCombos;
     QList<SizeCombo *> m_sizeCombos;
     QList<ColorButton *> m_colorButtons;
+    QList<ColorButton *> m_fontColorButtons;   // (the ones that set the font color: their palette makes a tint as the file does)
+    ColorScheme fontColorScheme() const;
     office::Theme m_openedTheme;   // the document's theme as it was opened (Reset to the template's theme)
     QList<ColorButton *> m_pageColorButtons;   // (Design > Page Color)
     QList<MeasureSpin *> m_indentFields;

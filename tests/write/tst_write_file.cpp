@@ -20,6 +20,7 @@
 #include "app/writewindow.h"
 #include "core/appinfo.h"
 #include "core/editops.h"
+#include "core/themeops.h"
 #include "core/styleops.h"
 #include "core/pagesetup.h"
 #include "core/writeprops.h"
@@ -935,7 +936,7 @@ private Q_SLOTS:
         QVERIFY(!second.contains("<w:top") && second.contains("<w:bottom w:val=\"single\" w:sz=\"4\" w:space=\"1\" w:color=\"auto\"/>") && second.contains("<w:right "));
     }
 
-    // A font color picked from the palette's theme row is the color the swatch showed, in the window and in the file saved and opened again, for every slot and every tint the picker offers.
+    // A font color picked from the palette's theme row is the color the swatch showed (a tint as files have it), in the window and in the file saved and opened again, for every slot and every tint the picker offers.
     void aThemeFontColorIsTheColorOfItsSwatchInTheWindowAndInTheSavedFile()
     {
         QTemporaryDir dir;
@@ -944,7 +945,8 @@ private Q_SLOTS:
         Quiet quiet(w);
         typeText(*w.document(), w.view()->cursor(), QStringLiteral("word"));
         QVERIFY(w.document()->theme());
-        const ColorScheme colors = w.document()->flow().env.colors;
+        ColorScheme colors = w.document()->flow().env.colors;
+        colors.shade = &write::pickerThemeShade;   // (the Font Color palette's swatches: the standard's tint, section 17.3.2.6)
         auto shown = [&](WriteWindow &win) {
             QTextCursor c(win.document()->story());
             c.setPosition(2);

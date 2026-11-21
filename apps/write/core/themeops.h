@@ -13,6 +13,12 @@ office::Theme documentTheme(const WriteDoc &doc);
 // Whether the document has a theme part that can change (a file with none can't take one here).
 bool canChangeTheme(const WriteDoc &doc);
 
+// A theme color with a tint or shade (two hex digits each, as the file writes them), by the rule real files follow (ECMA-376 Part 1 sections 17.2.1 and 17.3.2.6; the details and the measurement are in themeops.cpp).
+QColor tintedThemeColor(const QColor &base, const QString &tint, const QString &shade);
+// The two hex digits a tint or shade keeping `percentKept` percent of the color is written with.
+QString themeTintHex(int percentKept);
+// tintedThemeColor for a picker's swatch (percents of white or black mixed in): the ColorScheme::shade of the font color's palette, so the swatch is the color saved and drawn.
+QColor pickerThemeShade(const QColor &base, int lighten, int darken);
 // The color a name of the theme (as w:themeColor writes it: "text1", "accent2", "hyperlink") has in the document's theme with a tint or shade (two hex digits each, as w:themeTint and
 // w:themeShade write them, ECMA-376 Part 1 section 17.3.2.6); false where the document has no theme or the name is none of its colors.
 bool themeColorOf(const WriteDoc &doc, const QString &name, const QString &tint, const QString &shade, QColor *out);

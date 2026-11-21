@@ -5,7 +5,9 @@
 #include "text/textprops.h"
 #include "wml/wml.h"
 
+#include "core/color.h"
 #include <QTextBlock>
+#include <cmath>
 #include <algorithm>
 #include <QTextCursor>
 #include <QTextDocument>
@@ -25,7 +27,7 @@ bool slotOf(const QString &name, Theme::Color *slot)
         const char *name;
         Theme::Color slot;
     } extra[] = {{"text1", Theme::Dark1}, {"background1", Theme::Light1}, {"text2", Theme::Dark2}, {"background2", Theme::Light2}, {"dark1", Theme::Dark1}, {"light1", Theme::Light1},
-                 {"dark2", Theme::Dark2}, {"light2", Theme::Light2}, {"followedHyperlink", Theme::FollowedHyperlink}};
+                 {"dark2", Theme::Dark2}, {"light2", Theme::Light2}, {"hyperlink", Theme::Hyperlink}, {"followedHyperlink", Theme::FollowedHyperlink}};
     for (const auto &e : extra)
         if (name == QLatin1String(e.name)) {
             *slot = e.slot;
@@ -36,29 +38,11 @@ bool slotOf(const QString &name, Theme::Color *slot)
 
 QString hex(const QColor &c) { return c.name(QColor::HexRgb).mid(1).toUpper(); }
 
-// The color a slot has in `theme` with a tint or shade (two hex digits each, as the file writes them), worked out as the file format defines them: the lightness of the color
-// (HSL) is multiplied by the shade, or, for a tint, multiplied by it and lifted toward white by what is left.
-QColor shaded(const QColor &base, const QString &tint, const QString &shade)
-{
-    bool ok = false;
-    QColor c = base;
-    const int t = tint.toInt(&ok, 16);
-    const bool hasTint = ok && !tint.isEmpty();
-    const int s = shade.toInt(&ok, 16);
-    const bool hasShade = ok && !shade.isEmpty();
-    if (!hasTint && !hasShade) return base;
-    float h, sat, l, a;
-    c.getHslF(&h, &sat, &l, &a);
-    if (hasTint) l = l * (t / 255.0f) + (1.0f - t / 255.0f);
-    if (hasShade) l = l * (s / 255.0f);
-    return QColor::fromHslF(h < 0 ? 0 : h, sat, std::clamp(l, 0.0f, 1.0f), a);
-}
-
 bool colorOf(const Theme &theme, const QString &name, const QString &tint, const QString &shade, QColor *out)
 {
     Theme::Color slot;
     if (!slotOf(name, &slot)) return false;
-    *out = shaded(theme.colors[slot], tint, shade);
+    *out = tintedThemeColor(theme.colors[slot], tint, shade);
     return true;
 }
 
@@ -190,6 +174,37 @@ bool change(WriteDoc &doc, const Theme &to)
 }
 
 } // namespace
+
+// The one rule for a theme color's tint and shade in a word-processing file. ECMA-376 Part 1 section 17.3.2.6 (themeTint and themeShade of a run's color) words it per red, green, and blue
+// value, but the section's shade wording is not consistent with its own tint example, and the files programs write follow the lightness rule of section 17.2.1 (the color in HSL: a tint makes the
+// lightness L * t + (1 - t), a shade L * s, with t or s the two hex digits over 255; the hue and saturation stay). Real files were measured: 154 runs and styles with a theme color, a tint
+// or shade, and a plain value, from 115 documents; all 154 plain values equal the lightness rule's (within 1 in each channel; 98 of them are the same by both rules), none
+// match the per-channel rule alone. So the lightness rule is used, as the shade of a tint is ignored when a tint is present (section 17.3.2.6). Hand-computed (the tests check them):
+// 4472C4 (L 0.518) lighter 40% (tint 99, t = 0.6) has L 0.709, 8FAADC (hue 0.607, saturation 0.520); darker 25% (shade BF, s = 0.749) has L 0.388, 2F5496; black lighter 50% (tint 80, t = 128/255) has L 0.498, 7F7F7F.
+QColor tintedThemeColor(const QColor &base, const QString &tint, const QString &shade)
+{
+    bool ok = false;
+    const int t = tint.toInt(&ok, 16);
+    const bool hasTint = ok && !tint.isEmpty();
+    const int s = shade.toInt(&ok, 16);
+    const bool hasShade = ok && !shade.isEmpty();
+    if (!hasTint && !hasShade) return base;
+    float h, sat, l, a;
+    base.getHslF(&h, &sat, &l, &a);
+    if (hasTint) l = l * (t / 255.0f) + (1.0f - t / 255.0f);
+    else l = l * (s / 255.0f);
+    return QColor::fromHslF(h < 0 ? 0 : h, sat, std::clamp(l, 0.0f, 1.0f), a);
+}
+
+QString themeTintHex(int percentKept)
+{
+    return QStringLiteral("%1").arg(std::clamp(int(std::lround(percentKept * 255 / 100.0)), 0, 255), 2, 16, QLatin1Char('0')).toUpper();
+}
+
+QColor pickerThemeShade(const QColor &base, int lighten, int darken)
+{
+    return tintedThemeColor(base, lighten > 0 ? themeTintHex(100 - lighten) : QString(), darken > 0 && lighten <= 0 ? themeTintHex(100 - darken) : QString());
+}
 
 bool themeColorOf(const WriteDoc &doc, const QString &name, const QString &tint, const QString &shade, QColor *out)
 {

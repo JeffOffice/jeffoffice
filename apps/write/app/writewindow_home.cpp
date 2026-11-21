@@ -335,7 +335,7 @@ void WriteWindow::createMiniToolbar()
     };
     target->setColor = [this](const ColorRef &c) {
         if (!m_doc || refuseIfReadOnly()) return;
-        const QColor chosen = c.isNone() ? QColor() : c.resolve(m_doc->flow().env.colors);
+        const QColor chosen = c.isNone() ? QColor() : c.resolve(fontColorScheme());
         if (auto *typing = m_view->shapeEditor()) typing->setColor(chosen.isValid() ? chosen : QColor(Qt::black));
         else write::setTextColorRef(*m_doc, m_view->cursor(), c);
         m_view->focusText();
@@ -344,6 +344,7 @@ void WriteWindow::createMiniToolbar()
     m_mini = mini;
     m_fontCombos << mini->fontBox();
     m_colorButtons << mini->colorButton();
+    m_fontColorButtons << mini->colorButton();
     connect(m_view, &write::PageView::selectionMade, this, [this] { updateMiniToolbar(true); });
     connect(m_view, &write::PageView::caretChanged, this, [this] { updateMiniToolbar(false); });
 }

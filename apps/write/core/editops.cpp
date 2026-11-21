@@ -2518,12 +2518,10 @@ void setTextColorRef(WriteDoc &doc, QTextCursor &c, const ColorRef &ref)
     static const char *const names[] = {"text1", "accent1", "accent2", "accent3", "accent4", "accent5", "hyperlink", "followedHyperlink"};
     static_assert(sizeof names / sizeof *names == SlotCount, "a name for every slot of a color scheme");
     if (ref.kind() != ColorRef::Scheme || ref.slot() < 0 || ref.slot() >= SlotCount) return setTextColor(doc, c, plain);
-    auto hexOf = [](int percentKept) { return QStringLiteral("%1").arg(std::clamp(int(std::lround(percentKept * 255 / 100.0)), 0, 255), 2, 16, QLatin1Char('0')).toUpper(); };
     const QString name = QLatin1String(names[ref.slot()]);
-    const QString tint = ref.lighten() > 0 ? hexOf(100 - ref.lighten()) : QString(), shade = ref.darken() > 0 && ref.lighten() <= 0 ? hexOf(100 - ref.darken()) : QString();
-    QColor unused;
-    if (!themeColorOf(doc, name, tint, shade, &unused)) return setTextColor(doc, c, plain);
-    const QColor shown = plain;   // (the swatch the person picked, whole: the color shown and the color saved are the one tint of the palette)
+    const QString tint = ref.lighten() > 0 ? themeTintHex(100 - ref.lighten()) : QString(), shade = ref.darken() > 0 && ref.lighten() <= 0 ? themeTintHex(100 - ref.darken()) : QString();
+    QColor shown;   // (the file format's color for the reference: the one drawn, saved as the plain value, and read back by any program)
+    if (!themeColorOf(doc, name, tint, shade, &shown)) return setTextColor(doc, c, plain);
     const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     changeCharFormat(doc, c, [&](QTextCharFormat &f) {

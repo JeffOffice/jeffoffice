@@ -247,6 +247,14 @@ QString WriteWindow::displayName() const { return m_path.isEmpty() ? m_untitled 
 
 bool WriteWindow::isModified() const { return (m_doc && m_doc->isModified()) || (m_view && m_view->shapeEditor() && m_view->shapeEditor()->changed()); }
 
+// The palette of the font color: a tint or shade of a theme color is the one the file's theme reference comes to (the swatch, the drawn text, and the saved value are one color).
+ColorScheme WriteWindow::fontColorScheme() const
+{
+    ColorScheme scheme = m_doc->flow().env.colors;
+    scheme.shade = &write::pickerThemeShade;
+    return scheme;
+}
+
 // The look of the words being typed in a shape, on the buttons and boxes of the ribbon.
 void WriteWindow::reflectShapeEditor()
 {
@@ -633,7 +641,7 @@ void WriteWindow::refreshUi()
         f->setCurrentFamily(family);
     }
     for (SizeCombo *s : m_sizeCombos) s->setSize(cf.fontPointSize() > 0 ? cf.fontPointSize() : 11);
-    for (ColorButton *b : m_colorButtons) b->setScheme(m_doc->flow().env.colors);
+    for (ColorButton *b : m_colorButtons) b->setScheme(m_fontColorButtons.contains(b) ? fontColorScheme() : m_doc->flow().env.colors);
     if (m_view->shapeEditor()) reflectShapeEditor();   // (what the words being typed in a shape have, not the body's)
 
     // Page setup of the section the caret is in.

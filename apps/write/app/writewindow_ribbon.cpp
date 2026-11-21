@@ -10,6 +10,7 @@
 #include "app/ribbonbuilder.h"
 #include "app/widgets.h"
 #include "core/editops.h"
+#include "core/themeops.h"
 #include "core/wordformat.h"
 #include "text/textprops.h"
 
@@ -154,12 +155,13 @@ void WriteWindow::ribbonParts(RibbonParts &parts)
         b->setCurrent(ColorRef::rgb(QColor(0xC0, 0, 0)));
         connect(b, &ColorButton::colorPicked, this, [this](const ColorRef &c) {
             if (!m_doc || refuseIfReadOnly()) return;
-            const QColor color = c.isNone() ? QColor() : c.resolve(m_doc->flow().env.colors);
+            const QColor color = c.isNone() ? QColor() : c.resolve(fontColorScheme());
             if (auto *typing = m_view->shapeEditor()) typing->setColor(color.isValid() ? color : QColor(Qt::black));
             else write::setTextColorRef(*m_doc, m_view->cursor(), c);
             m_view->focusText();
         });
         m_colorButtons << b;
+        m_fontColorButtons << b;
         return b;
     };
     // Shading of the paragraphs selected: a color of the palette, or none.

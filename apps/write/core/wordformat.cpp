@@ -2,6 +2,7 @@
 
 #include "core/color.h"
 #include "core/fieldcode.h"
+#include "core/themeops.h"
 #include "core/writeprops.h"
 #include "text/numbersystems.h"
 #include "text/opentype.h"
@@ -36,11 +37,7 @@ QColor themed(const Color &c, const Theme *theme)
 {
     Theme::Color slot;
     if (!theme || !themeColorFromName(c.theme, &slot)) return QColor();
-    QColor base = theme->colors[slot];
-    bool ok = false;
-    if (const int tint = c.tint.toInt(&ok, 16); ok && !c.tint.isEmpty()) base = mix(QColor(Qt::white), base, tint / 255.0);
-    if (const int shade = c.shade.toInt(&ok, 16); ok && !c.shade.isEmpty()) base = mix(QColor(Qt::black), base, shade / 255.0);
-    return base;
+    return tintedThemeColor(theme->colors[slot], c.tint, c.shade);
 }
 
 QString themeSlotOfFonts(const Fonts &f, bool *major)
