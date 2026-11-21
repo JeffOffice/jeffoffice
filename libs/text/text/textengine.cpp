@@ -10,6 +10,7 @@
 #include "text/numbersystems.h"
 #include "text/opentype.h"
 #include "text/textprops.h"
+#include "core/syslocale.h"
 
 #include <QCache>
 #include <QScopeGuard>
@@ -459,7 +460,7 @@ QString FieldContext::key(bool withClock) const
 {
     // With Format Page Numbers' settings, which change every page number.
     return QStringLiteral("%1/%2/%3/%4/%5/%6/%7/%8/%9").arg(pageNumber).arg(pageCount).arg(mergeRecord).arg(continuedOnPage).arg(continuedFromPage)
-        .arg(nextPage).arg(prevPage).arg(withClock ? now.toString("yyyyMMddhhmm") : QString())
+        .arg(nextPage).arg(prevPage).arg(withClock ? jp::fixedText(now, QStringLiteral("yyyyMMddhhmm")) : QString())
         .arg(doc ? QString::number(doc->firstPageNumber()) + doc->pageNumberFormat() + QLatin1Char('/') + QString::number(doc->pageTotal()) + QLatin1Char('/') + QString::number(doc->sectionPageTotal())
         // (and the number this page shows, and the ones its linked boxes name, which a section can change)
         + QLatin1Char('/') + QString::number(doc->pageNumberShown(pageNumber)) + doc->pageNumberFormatOf(pageNumber) + QLatin1Char('/') + QString::number(nextPage > 0 ? doc->pageNumberShown(nextPage) : 0) + QLatin1Char('/') + QString::number(prevPage > 0 ? doc->pageNumberShown(prevPage) : 0) : QString());

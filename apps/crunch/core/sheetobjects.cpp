@@ -24,6 +24,7 @@
 #include <QPointer>
 #include <QSvgRenderer>
 #include "core/barcodeitem.h"
+#include "core/syslocale.h"
 #include <QThreadPool>
 
 #include <algorithm>
@@ -1654,7 +1655,7 @@ void SheetObjects::addToSave(SaveChanges *changes)
                         }
                         if (overBudget && !fallbackNoted) {
                             fallbackNoted = true;
-                            if (m_saveNote) m_saveNote(QCoreApplication::translate("jp::crunch::SheetObjects", "The pictures that stand for equations come to more than %1, so the equations past that are saved as math alone.").arg(QLocale().formattedDataSize(m_fallbackLimit)));
+                            if (m_saveNote) m_saveNote(QCoreApplication::translate("jp::crunch::SheetObjects", "The pictures that stand for equations come to more than %1, so the equations past that are saved as math alone.").arg(jp::workerLocale().formattedDataSize(m_fallbackLimit)));
                         }
                         if (!png.isEmpty()) {
                             const QByteArray pic = "<xdr:pic><xdr:nvPicPr><xdr:cNvPr id=\"" + QByteArray::number(o->meta.id) + "\" name=\"" + o->meta.name.toHtmlEscaped().toUtf8() + "\"" + (o->meta.description.isEmpty() ? QByteArray() : " descr=\"" + o->meta.description.toHtmlEscaped().toUtf8() + "\"")
@@ -1948,7 +1949,7 @@ bool SheetObjects::chartRoom(int sheet, const Chart &chart, int replacing, QStri
                 held -= o->points;
             }
     if (held + wanted > m_limits.maxPoints) {
-        if (why) *why = QCoreApplication::translate("jp::crunch::SheetObjects", "The charts made or changed here since the last save already hold as many numbers as JeffCrunch keeps (%1). Save the workbook first.").arg(QLocale().toString(m_limits.maxPoints));
+        if (why) *why = QCoreApplication::translate("jp::crunch::SheetObjects", "The charts made or changed here since the last save already hold as many numbers as JeffCrunch keeps (%1). Save the workbook first.").arg(jp::systemLocale().toString(m_limits.maxPoints));
         return false;
     }
     return true;
@@ -2683,8 +2684,8 @@ bool SheetObjects::canMakeChart(int sheet, const Chart &chart, QString *why)
     };
     if (!m_book || sheet < 0 || sheet >= int(m_sheets.size())) return refuse(tr("There is no such sheet."));
     if (addedCount() >= m_limits.maxAdded)
-        return refuse(tr("%1 new objects are as many as JeffCrunch saves in one go. Save the workbook, and then add more.").arg(QLocale().toString(m_limits.maxAdded)));
-    if (m_objectsMade - m_deadMade >= kMaxWorkbookObjects) return refuse(tr("The workbook has as many objects as JeffCrunch holds (%1).").arg(QLocale().toString(kMaxWorkbookObjects)));
+        return refuse(tr("%1 new objects are as many as JeffCrunch saves in one go. Save the workbook, and then add more.").arg(jp::systemLocale().toString(m_limits.maxAdded)));
+    if (m_objectsMade - m_deadMade >= kMaxWorkbookObjects) return refuse(tr("The workbook has as many objects as JeffCrunch holds (%1).").arg(jp::systemLocale().toString(kMaxWorkbookObjects)));
     return chartRoom(sheet, chart, -1, why);
 }
 
@@ -2702,8 +2703,8 @@ int SheetObjects::makeChart(int sheet, const Chart &chart, const DrawingAnchor &
         if (!(m_book->info().sheets[sheet].isNew && m_book->info().sheets[sheet].kind == SheetKind::Chartsheet && empty)) return refuse(tr("A chart sheet holds one chart. Put charts on a worksheet."));
     }
     if (addedCount() >= m_limits.maxAdded)
-        return refuse(tr("%1 new objects are as many as JeffCrunch saves in one go. Save the workbook, and then add more.").arg(QLocale().toString(m_limits.maxAdded)));
-    if (m_objectsMade - m_deadMade >= kMaxWorkbookObjects) return refuse(tr("The workbook has as many objects as JeffCrunch holds (%1).").arg(QLocale().toString(kMaxWorkbookObjects)));
+        return refuse(tr("%1 new objects are as many as JeffCrunch saves in one go. Save the workbook, and then add more.").arg(jp::systemLocale().toString(m_limits.maxAdded)));
+    if (m_objectsMade - m_deadMade >= kMaxWorkbookObjects) return refuse(tr("The workbook has as many objects as JeffCrunch holds (%1).").arg(jp::systemLocale().toString(kMaxWorkbookObjects)));
     if (!chartRoom(sheet, chart, -1, why)) return -1;
     knowShapeIds(sheet, s);
     auto o = std::make_shared<Object>();
@@ -2923,12 +2924,12 @@ int SheetObjects::makeElement(int sheet, const jp::crunch::ObjectClip &clip, con
     if (m_book->info().sheets[sheet].kind != SheetKind::Worksheet) return refuse(tr("A chart sheet holds one chart. Put objects on a worksheet."));
     Sheet &s = sheetState(sheet);
     if (addedCount() >= m_limits.maxAdded)
-        return refuse(tr("%1 new objects are as many as JeffCrunch saves in one go. Save the workbook, and then add more.").arg(QLocale().toString(m_limits.maxAdded)));
-    if (m_objectsMade - m_deadMade >= kMaxWorkbookObjects) return refuse(tr("The workbook has as many objects as JeffCrunch holds (%1).").arg(QLocale().toString(kMaxWorkbookObjects)));
+        return refuse(tr("%1 new objects are as many as JeffCrunch saves in one go. Save the workbook, and then add more.").arg(jp::systemLocale().toString(m_limits.maxAdded)));
+    if (m_objectsMade - m_deadMade >= kMaxWorkbookObjects) return refuse(tr("The workbook has as many objects as JeffCrunch holds (%1).").arg(jp::systemLocale().toString(kMaxWorkbookObjects)));
     qint64 held = pastedBytesHeld();
     for (const jp::crunch::ClipMedia &m : clip.media) held += m.bytes.size();
     if (held > m_limits.maxBytes)
-        return refuse(tr("The pictures put in since the last save are as many as JeffCrunch saves in one go (%1 MB). Save the workbook, and then paste more.").arg(QLocale().toString(m_limits.maxBytes >> 20)));
+        return refuse(tr("The pictures put in since the last save are as many as JeffCrunch saves in one go (%1 MB). Save the workbook, and then paste more.").arg(jp::systemLocale().toString(m_limits.maxBytes >> 20)));
     knowShapeIds(sheet, s);
     // the element in a document of its own
     QByteArray wrapped = "<w xmlns:xdr=\"http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"" + clip.namespaces + ">" + clip.elementXml + "</w>";
@@ -2993,7 +2994,7 @@ int SheetObjects::makeElement(int sheet, const jp::crunch::ObjectClip &clip, con
     jp::ItemPtr item = readShape(el, *context);
     if (room && !isBarcodeItem(item.get())) ++m_budget.barcodes;
     if (!item) return refuse(tr("The object on the clipboard can't be drawn."));
-    if (clip.provisional && !isBarcodeItem(item.get())) return refuse(tr("The workbook has as many barcodes as JeffCrunch draws (%1).").arg(QLocale().toString(kMostBarcodesHonored)));   // (a stand-in picture is shown only by a barcode that is drawn)
+    if (clip.provisional && !isBarcodeItem(item.get())) return refuse(tr("The workbook has as many barcodes as JeffCrunch draws (%1).").arg(jp::systemLocale().toString(kMostBarcodesHonored)));   // (a stand-in picture is shown only by a barcode that is drawn)
     auto o = std::make_shared<Object>();
     o->id = s.nextId++;
     o->added = true;

@@ -7,6 +7,7 @@
 
 #include "core/comments.h"
 #include "core/sections.h"
+#include "core/syslocale.h"
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -631,7 +632,7 @@ void Exporter::writeComments(X &x, const Page &page)
             x.open("officeooo:annotation").len("svg:x", c.at.x()).len("svg:y", c.at.y()).len("svg:width", 14).len("svg:height", 14);
             if (!author.isEmpty()) x.open("dc:creator").text(author).close();
             if (!initials.isEmpty()) x.open("meta:creator-initials").text(initials).close();
-            if (date.isValid()) x.open("dc:date").text(date.toUTC().toString(QStringLiteral("yyyy-MM-dd'T'HH:mm:ss"))).close();
+            if (date.isValid()) x.open("dc:date").text(jp::fixedText(date.toUTC(), QStringLiteral("yyyy-MM-dd'T'HH:mm:ss"))).close();
             const QStringList lines = text.split(QLatin1Char('\n'));
             for (const QString &line : lines) x.open("text:p").text(line).close();
             x.close();

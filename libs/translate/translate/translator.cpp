@@ -2,6 +2,7 @@
 #include "core/workthread.h"
 #include "languages.h"
 #include "runmap.h"
+#include "core/syslocale.h"
 
 #include <QCoreApplication>
 #include <QMetaObject>
@@ -58,7 +59,7 @@ bool Translator::translatePieces(const QString &from, const QString &to, const Q
     qint64 total = 0;
     for (const QString &p : pieces) total += p.size();
     if (total > kMostRequestChars) {
-        if (error) *error = QCoreApplication::translate("jp::translate", "That is too much text to translate at once: %1 letters. The most is %2. Select less of it.").arg(QLocale().toString(total), QLocale().toString(kMostRequestChars));
+        if (error) *error = QCoreApplication::translate("jp::translate", "That is too much text to translate at once: %1 letters. The most is %2. Select less of it.").arg(jp::systemLocale().toString(total), jp::systemLocale().toString(kMostRequestChars));
         return false;
     }
     const QVector<ModelPair> route = m_catalog.route(from, to);

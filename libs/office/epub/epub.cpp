@@ -1,6 +1,7 @@
 #include "epub/epub.h"
 
 #include "io/zip.h"
+#include "core/syslocale.h"
 
 #include <QBuffer>
 #include <QDateTime>
@@ -123,7 +124,7 @@ QString metadata(const QString &id, const QString &title, const QString &lang, c
     QString meta = QStringLiteral("<dc:identifier id=\"bookid\">%1</dc:identifier>\n<dc:title>%2</dc:title>\n<dc:language>%3</dc:language>\n")
                        .arg(xml(id), xml(title), xml(lang));
     if (!author.isEmpty()) meta += QStringLiteral("<dc:creator>%1</dc:creator>\n").arg(xml(author));
-    meta += QStringLiteral("<meta property=\"dcterms:modified\">%1</meta>\n").arg(QDateTime::currentDateTimeUtc().toString(QStringLiteral("yyyy-MM-ddThh:mm:ssZ")));
+    meta += QStringLiteral("<meta property=\"dcterms:modified\">%1</meta>\n").arg(jp::fixedText(QDateTime::currentDateTimeUtc(), QStringLiteral("yyyy-MM-ddThh:mm:ssZ")));
     return meta;
 }
 

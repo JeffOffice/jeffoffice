@@ -10,6 +10,7 @@
 #include "text/textprops.h"
 #include "wml/wml.h"
 #include "wml/xmltree.h"
+#include "core/syslocale.h"
 
 #include <QCoreApplication>
 #include <QDataStream>
@@ -870,7 +871,7 @@ namespace {
 QByteArray commentXml(const Comment &c, bool commentStyles)
 {
     QByteArray out = "<w:comment w:id=\"" + QByteArray::number(c.id) + "\" w:author=\"" + escapeXml(xmlSafe(c.author), true) + "\"";
-    if (c.date.isValid()) out += " w:date=\"" + c.date.toUTC().toString(QStringLiteral("yyyy-MM-ddTHH:mm:ssZ")).toLatin1() + "\"";
+    if (c.date.isValid()) out += " w:date=\"" + jp::fixedText(c.date.toUTC(), QStringLiteral("yyyy-MM-ddTHH:mm:ssZ")).toLatin1() + "\"";
     out += " w:initials=\"" + escapeXml(xmlSafe(c.initials), true) + "\">";
     const QStringList paragraphs = xmlSafe(c.text).split(QLatin1Char('\n'));
     for (int i = 0; i < paragraphs.size(); ++i) {

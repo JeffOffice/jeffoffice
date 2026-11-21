@@ -16,6 +16,7 @@
 #include "sheet/notes.h"
 #include "sheet/odsstyles.h"
 #include "sheet/xmlscan.h"
+#include "core/syslocale.h"
 
 #include <QBuffer>
 #include <QDate>
@@ -1990,9 +1991,9 @@ private:
                 if (raw.ok) n.box = noteBoxFromOds(raw.x, raw.y, raw.w, raw.h, n.row, n.col, grid);
             }
         }
-        if (m_notesOver) m_s.notKept << QCoreApplication::translate("jp::office::sheet::Ods", "Only the first %1 notes on a sheet are kept.").arg(QLocale().toString(kMaxNotes));
+        if (m_notesOver) m_s.notKept << QCoreApplication::translate("jp::office::sheet::Ods", "Only the first %1 notes on a sheet are kept.").arg(jp::systemLocale().toString(qint64(kMaxNotes)));
         const int cut = int(qMin(m_notesCut, qint64(1000000000)));
-        if (cut > 0) m_s.notKept << QCoreApplication::translate("jp::office::sheet::Ods", "%n note(s) cut to %1 characters", nullptr, cut).arg(QLocale().toString(kMaxOdsNoteChars));
+        if (cut > 0) m_s.notKept << QCoreApplication::translate("jp::office::sheet::Ods", "%n note(s) cut to %1 characters", nullptr, cut).arg(jp::systemLocale().toString(qint64(kMaxOdsNoteChars)));
     }
 
     // The drawing objects of the sheet, from the shapes kept, now that the sizes of its columns and rows are known (a sheet read only as far as a row has no drawing: its rows are not all read).

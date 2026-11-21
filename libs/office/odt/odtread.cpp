@@ -6,6 +6,7 @@
 #include "wml/wml.h"
 
 #include "io/zipindex.h"
+#include "core/syslocale.h"
 
 #include <QCoreApplication>
 #include <QDateTime>
@@ -879,7 +880,7 @@ bool Reader::read(const QByteArray &file, QString *error, QStringList *notes)
             }
         auto date = [](const QString &d) {
             const QDateTime dt = QDateTime::fromString(d.left(19), Qt::ISODate);
-            return dt.isValid() ? dt.toString(QStringLiteral("yyyy-MM-ddTHH:mm:ssZ")) : QString();
+            return dt.isValid() ? jp::fixedText(dt, QStringLiteral("yyyy-MM-ddTHH:mm:ssZ")) : QString();
         };
         QByteArray core = QByteArray(kXmlHeader) +
                           "<cp:coreProperties xmlns:cp=\"http://schemas.openxmlformats.org/package/2006/metadata/core-properties\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" "

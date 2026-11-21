@@ -1,5 +1,6 @@
 #include "office/packageprops.h"
 #include "office/package.h"
+#include "core/syslocale.h"
 
 #include <QSet>
 #include <algorithm>
@@ -24,7 +25,7 @@ constexpr int kMostSteps = 200000;   // (the most tokens of a part that are read
 constexpr int kMostCustom = 5000;
 // (the most custom properties that are read: kMostCustom above)
 
-QString dateText(const QDateTime &d) { return d.toUTC().toString(QStringLiteral("yyyy-MM-dd'T'HH:mm:ss'Z'")); }
+QString dateText(const QDateTime &d) { return jp::fixedText(d.toUTC(), QStringLiteral("yyyy-MM-dd'T'HH:mm:ss'Z'")); }
 
 QDateTime dateOf(const QString &text)
 {

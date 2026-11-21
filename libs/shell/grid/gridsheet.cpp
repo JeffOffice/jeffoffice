@@ -4,6 +4,7 @@
 #include <QFontMetricsF>
 
 #include "sheet/cellref.h"
+#include "core/syslocale.h"
 
 #include <QLocale>
 #include <QTime>
@@ -823,9 +824,9 @@ QString GridSheet::storedTextOf(quint32 row, quint32 col, const Cell &cell) cons
             if (isDate || n < 1) {
                 const qint64 seconds = qint64(std::llround(fraction * 86400.0));
                 const QTime time = QTime::fromMSecsSinceStartOfDay(int(std::min<qint64>(seconds, 86399) * 1000));
-                if (!isDate) return time.toString(QStringLiteral("HH:mm:ss"));
+                if (!isDate) return jp::fixedText(time, QStringLiteral("HH:mm:ss"));
                 const QString day = QStringLiteral("%1-%2-%3").arg(y, 4, 10, QLatin1Char('0')).arg(m, 2, 10, QLatin1Char('0')).arg(d, 2, 10, QLatin1Char('0'));
-                return seconds == 0 ? day : day + QLatin1Char('T') + time.toString(QStringLiteral("HH:mm:ss"));
+                return seconds == 0 ? day : day + QLatin1Char('T') + jp::fixedText(time, QStringLiteral("HH:mm:ss"));
             }
         }
         return QString::number(n, 'g', QLocale::FloatingPointShortest);

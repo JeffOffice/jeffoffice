@@ -11,6 +11,7 @@
 
 #include "app/protectdialogs.h"
 #include "sheet/protection.h"
+#include "core/syslocale.h"
 
 #include <QAction>
 #include <QInputDialog>
@@ -240,7 +241,7 @@ void CrunchWindow::askPassword(const QString &what, const PasswordHash &hash, co
                        case PasswordResult::TooSlow:
                            notice(tr("Password"),
                                   tr("This file asks for its password to be checked far more times than any program does when it makes one (more than %1), so JeffCrunch doesn't check it.")
-                                      .arg(QLocale().toString(jp::office::sheet::kMaxSpinCount)),
+                                      .arg(jp::systemLocale().toString(jp::office::sheet::kMaxSpinCount)),
                                   true);
                            return;
                        case PasswordResult::Stopped: setStatus(tr("The check of the password was stopped.")); return;

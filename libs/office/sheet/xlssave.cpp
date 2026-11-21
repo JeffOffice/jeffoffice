@@ -18,6 +18,7 @@
 #include "sheet/xlslinkaddress.h"
 #include "sheet/xlsrecord.h"
 #include "sheet/xlscrypt.h"
+#include "core/syslocale.h"
 
 #include <QCoreApplication>
 #include <QHash>
@@ -767,7 +768,7 @@ private:
         }
         const auto counted = [](qint64 count) { return int(std::min<qint64>(count, 0x7fffffff)); };
         auto said = [&](qint64 count, const QString &text, bool withNumber, qint64 number) {
-            if (count > 0) trim(oldsave::sheetNote(sheetName, withNumber ? text.arg(QLocale().toString(number)) : text));
+            if (count > 0) trim(oldsave::sheetNote(sheetName, withNumber ? text.arg(jp::systemLocale().toString(number)) : text));
         };
         said(outside, QCoreApplication::translate("Sheet", "%n note(s) outside the old format's sheet size (past row 65,536 or column IV), which were left out", nullptr, counted(outside)), false, 0);
         said(empty, QCoreApplication::translate("Sheet", "%n note(s) with no words, which were left out", nullptr, counted(empty)), false, 0);

@@ -6,6 +6,7 @@
 #include "app/plaintext.h"
 #include "app/privacy.h"
 #include "core/remotepath.h"
+#include "core/syslocale.h"
 
 #include <QApplication>
 #include <QCheckBox>
@@ -173,7 +174,7 @@ bool valueFor(const QString &code, const QString &text, QString *value, QString 
             *why = QCoreApplication::translate("jp::InfoPage", "\"%1\" is not a date. Type it as 2026-11-04, or as your computer writes dates.").arg(text);
             return false;
         }
-        *value = d.toUTC().toString(QStringLiteral("yyyy-MM-dd'T'HH:mm:ss'Z'"));
+        *value = jp::fixedText(d.toUTC(), QStringLiteral("yyyy-MM-dd'T'HH:mm:ss'Z'"));
     } else {
         *value = text;
     }

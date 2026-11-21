@@ -10,6 +10,7 @@
 #include "core/writeprops.h"
 #include "text/textprops.h"
 #include "wml/wml.h"
+#include "core/syslocale.h"
 
 #include <QMap>
 #include <QTextDocument>
@@ -383,7 +384,7 @@ QString revisionAuthorOf(const QByteArray &startTag) { return attributeOf(startT
 
 QByteArray revisionStartTag(WriteDoc &doc, const QString &tag)
 {
-    const QString date = QDateTime::currentDateTimeUtc().toString(QStringLiteral("yyyy-MM-ddTHH:mm:ssZ"));
+    const QString date = jp::fixedText(QDateTime::currentDateTimeUtc(), QStringLiteral("yyyy-MM-ddTHH:mm:ssZ"));
     return "<w:" + tag.toLatin1() + " w:id=\"" + QByteArray::number(doc.nextRevisionId()) + "\" w:author=\"" + escapeAttribute(doc.reviewer()) + "\" w:date=\"" + date.toLatin1() + "\">";
 }
 

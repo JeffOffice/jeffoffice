@@ -1,4 +1,5 @@
 #include "io/pdfbookmarks.h"
+#include "core/syslocale.h"
 
 #include <QBuffer>
 #include <QRegularExpression>
@@ -255,7 +256,7 @@ QString infoText(const QString &text)
     return cutAtCharacter(t.trimmed(), kMostPdfInfoChars).trimmed();
 }
 
-QString pdfDate(const QDateTime &when) { return QStringLiteral("D:") + when.toUTC().toString(QStringLiteral("yyyyMMddHHmmss")) + QLatin1Char('Z'); }
+QString pdfDate(const QDateTime &when) { return QStringLiteral("D:") + fixedText(when.toUTC(), QStringLiteral("yyyyMMddHHmmss")) + QLatin1Char('Z'); }
 } // namespace
 
 bool appendPdfInfo(QIODevice *file, const PdfInfo &info)
@@ -463,7 +464,7 @@ QByteArray pdfInfoXmp(const PdfInfo &info, bool archive, int archivePart)
     if (!infoText(info.program).isEmpty()) x += "<pdf:Producer>" + esc(info.program) + "</pdf:Producer>\n";
     if (archive) x += "<pdfaid:part>" + QByteArray::number(archivePart) + "</pdfaid:part><pdfaid:conformance>B</pdfaid:conformance>\n";
     if (!infoText(info.program).isEmpty()) x += "<xmp:CreatorTool>" + esc(info.program) + "</xmp:CreatorTool>\n";
-    if (info.created.isValid()) x += "<xmp:CreateDate>" + info.created.toUTC().toString(QStringLiteral("yyyy-MM-ddTHH:mm:ss")).toLatin1() + "Z</xmp:CreateDate>\n";
+    if (info.created.isValid()) x += "<xmp:CreateDate>" + fixedText(info.created.toUTC(), QStringLiteral("yyyy-MM-ddTHH:mm:ss")).toLatin1() + "Z</xmp:CreateDate>\n";
     x += "</rdf:Description>\n</rdf:RDF></x:xmpmeta>\n<?xpacket end=\"w\"?>";
     return x;
 }

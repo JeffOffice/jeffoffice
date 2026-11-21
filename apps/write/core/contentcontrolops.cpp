@@ -3,6 +3,7 @@
 #include "core/editops.h"
 #include "core/writeprops.h"
 #include "text/textprops.h"
+#include "core/syslocale.h"
 
 #include <QCoreApplication>
 #include <QLocale>
@@ -284,7 +285,7 @@ QByteArray dateElement(const ControlProps &p, const QByteArray &old)
             if (old[s - 1] != '/' && old.lastIndexOf("</") > s) childrenOf(old.mid(s + 1, old.lastIndexOf("</") - s - 1), &kids);
         }
     }
-    if (p.date.isValid()) tag += " w:fullDate=\"" + p.date.toString(QStringLiteral("yyyy-MM-dd")).toLatin1() + "T00:00:00Z\"";
+    if (p.date.isValid()) tag += " w:fullDate=\"" + jp::fixedText(p.date, QStringLiteral("yyyy-MM-dd")).toLatin1() + "T00:00:00Z\"";
     tag += ">";
     QByteArray out = tag;
     bool hasFormat = false, hasLid = false;

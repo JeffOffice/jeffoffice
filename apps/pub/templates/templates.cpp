@@ -6,6 +6,7 @@
 #include "render/textart.h"
 #include "templates/changetemplate.h"
 #include "text/textprops.h"
+#include "core/syslocale.h"
 
 #include <QBuffer>
 #include <QCoreApplication>
@@ -1639,7 +1640,7 @@ ItemList makeCalendar(Document &doc, const QRectF &area, int year, int month, in
         cf.setFontPointSize(style == 2 ? 22 : 30);
         cf.setProperty(tp::ThemeFont, QStringLiteral("major"));
         cf.setProperty(tp::ColorRefP, ColorRef::scheme(Accent1).toString());
-        c.insertText(QLocale().monthName(month) + QStringLiteral(" %1").arg(year), cf);
+        c.insertText(jp::workerLocale().monthName(month) + QStringLiteral(" %1").arg(year), cf);
     }
     out.push_back(title);
     const int lead = first.dayOfWeek() % 7;   // Sunday first

@@ -3,6 +3,7 @@
 #include "io/crypto.h"
 #include "office/officecrypt.h"
 #include "office/package.h"
+#include "core/syslocale.h"
 
 #include <QCoreApplication>
 #include <QCryptographicHash>
@@ -92,7 +93,7 @@ bool VersionStore::add(const QString &name, const QByteArray &docx, QString *err
     DocVersion d;
     d.saved = QDateTime::currentDateTime();
     // (a name that no copy has: the time to the millisecond, and a count if two come at once)
-    QString base = d.saved.toString(QStringLiteral("yyyyMMdd-HHmmss-zzz"));
+    QString base = jp::fixedText(d.saved, QStringLiteral("yyyyMMdd-HHmmss-zzz"));
     d.file = base + m_extension;
     for (int n = 2; QFileInfo::exists(m_folder + QLatin1Char('/') + d.file); ++n) d.file = base + QLatin1Char('-') + QString::number(n) + m_extension;
     d.name = name.simplified().left(120);

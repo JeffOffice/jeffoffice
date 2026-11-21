@@ -1,6 +1,7 @@
 #include "sheet/styles.h"
 
 #include "calc/numfmt.h"
+#include "core/syslocale.h"
 
 #include <algorithm>
 #include <cmath>
@@ -20,6 +21,15 @@ QString Styles::formatCode(quint32 xf, const QLocale &locale) const
     const auto it = numFmts.constFind(id);
     if (it != numFmts.constEnd()) return it.value();
     const QString builtin = jp::calc::builtinFormatCode(id, locale);
+    return builtin.isEmpty() ? QStringLiteral("General") : builtin;
+}
+
+QString Styles::formatCode(quint32 xf) const
+{
+    const qint32 id = numFmtId(xf);
+    const auto it = numFmts.constFind(id);
+    if (it != numFmts.constEnd()) return it.value();
+    const QString builtin = jp::calc::builtinFormatCode(id, jp::systemLocale().shortDate);
     return builtin.isEmpty() ? QStringLiteral("General") : builtin;
 }
 

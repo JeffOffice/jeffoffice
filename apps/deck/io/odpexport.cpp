@@ -18,6 +18,7 @@
 #include "office/odfcrypt.h"
 #include "office/package.h"
 #include "office/privacy.h"
+#include "core/syslocale.h"
 #include <QBuffer>
 #include <QCoreApplication>
 #include <QDateTime>
@@ -86,7 +87,7 @@ QString mediaTypeOf(const QString &format)
 }
 
 // A date in the form the files of this suite write them: local time, no zone.
-QString dateText(const QDateTime &t) { return (t.isValid() ? t : QDateTime::currentDateTime()).toString(QStringLiteral("yyyy-MM-dd'T'HH:mm:ss")); }
+QString dateText(const QDateTime &t) { return jp::fixedText(t.isValid() ? t : QDateTime::currentDateTime(), QStringLiteral("yyyy-MM-dd'T'HH:mm:ss")); }
 
 } // namespace
 

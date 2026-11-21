@@ -1,6 +1,7 @@
 #include "sheet/htmlbook.h"
 
 #include "wml/wmlhtmlread.h"
+#include "core/syslocale.h"
 
 #include <QCoreApplication>
 
@@ -96,7 +97,7 @@ bool Workbook::openHtml(const QByteArray &file, const QString &path, QString *er
     Q_UNUSED(path)
     *this = Workbook();
     m_limits = limits;
-    const auto book = HtmlBook::open(file, limits, QLocale(), &m_info, &m_shared, &m_styles, error);
+    const auto book = HtmlBook::open(file, limits, jp::workerLocale(), &m_info, &m_shared, &m_styles, error);
     if (!book) {
         *this = Workbook();
         return false;

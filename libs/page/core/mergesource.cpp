@@ -4,6 +4,7 @@
 #include "io/zip.h"
 #include "sheet/recalc.h"
 #include "sheet/sheetreader.h"
+#include "core/syslocale.h"
 
 #include <QCoreApplication>
 #include <QFile>
@@ -151,7 +152,8 @@ bool readSpreadsheetRows(const QString &path, QVector<QStringList> *rows, QStrin
     src.usedExtent(0, &nrows, &ncols);
     ncols = std::min<quint32>(ncols, kMostMergeColumns);
     if (nrows == 0 || ncols == 0) return true;
-    const jp::calc::NumberSymbols symbols = jp::calc::NumberSymbols::of(QLocale());
+    const jp::SystemLocale person = jp::systemLocale();
+    const jp::calc::NumberSymbols symbols = jp::calc::NumberSymbols::of(person.decimalPoint, person.groupSeparator);
     QHash<quint32, jp::calc::NumberFormat> formats;
     // Only the cells the sheet holds are walked (a sheet with one cell far away has one), by rows; a row with no cell is not a row of the list.
     QMap<quint32, QMap<quint32, QString>> held;
@@ -170,7 +172,7 @@ bool readSpreadsheetRows(const QString &path, QVector<QStringList> *rows, QStrin
             const sh::Cell *cell = src.sheet(0).cells.find(r, c);
             const quint32 style = cell ? cell->style : 0;
             auto it = formats.find(style);
-            if (it == formats.end()) it = formats.insert(style, jp::calc::NumberFormat(book.styles().formatCode(style, QLocale())));
+            if (it == formats.end()) it = formats.insert(style, jp::calc::NumberFormat(book.styles().formatCode(style)));
             const jp::calc::Formatted f = it->format(v.number(), book.info().dateSystem, 0, &symbols);
             text = f.failed ? jp::calc::numberToText(v.number()) : f.text;
             break;

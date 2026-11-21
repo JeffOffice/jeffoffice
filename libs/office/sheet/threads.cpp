@@ -1,4 +1,5 @@
 #include "sheet/threads.h"
+#include "core/syslocale.h"
 
 #include <QDateTime>
 #include <QUuid>
@@ -100,7 +101,7 @@ QString newThreadId() { return QUuid::createUuid().toString(QUuid::WithBraces).t
 QString threadTimeNow()
 {
     const QDateTime now = QDateTime::currentDateTimeUtc();
-    return now.toString(QStringLiteral("yyyy-MM-dd'T'HH:mm:ss")) + QStringLiteral(".00");
+    return jp::fixedText(now, QStringLiteral("yyyy-MM-dd'T'HH:mm:ss")) + QStringLiteral(".00");
 }
 
 } // namespace jp::office::sheet

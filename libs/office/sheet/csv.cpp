@@ -5,6 +5,7 @@
 #include "sheet/cellref.h"
 #include "sheet/entry.h"
 #include "sheet/xlscodepage.h"
+#include "core/syslocale.h"
 
 #include <QCoreApplication>
 #include <QFileInfo>
@@ -1246,7 +1247,7 @@ bool Workbook::openDelimited(const QByteArray &file, const QString &path, QStrin
 {
     *this = Workbook();
     m_limits = limits;
-    const auto book = CsvBook::open(file, path, limits, QLocale(), &m_info, &m_shared, &m_styles, error);
+    const auto book = CsvBook::open(file, path, limits, jp::workerLocale(), &m_info, &m_shared, &m_styles, error);
     if (!book) {
         *this = Workbook();
         return false;

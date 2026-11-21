@@ -36,6 +36,7 @@
 #include "render/renderer.h"
 #include "wml/wmlmathpath.h"
 #include "text/textprops.h"
+#include "core/syslocale.h"
 
 #include <QBuffer>
 #include <QCryptographicHash>
@@ -2061,7 +2062,7 @@ void Exporter::writeProperties()
     const DocProps &props = m_doc.props;
     auto element = [](const char *name, const QString &text) { return text.isEmpty() ? QString() : QStringLiteral("<%1>%2</%1>").arg(QLatin1String(name), esc(text)); };
     auto date = [](const char *name, const QDateTime &t) {
-        return QStringLiteral("<%1 xsi:type=\"dcterms:W3CDTF\">%2</%1>").arg(QLatin1String(name), t.toUTC().toString(QStringLiteral("yyyy-MM-dd'T'HH:mm:ss'Z'")));
+        return QStringLiteral("<%1 xsi:type=\"dcterms:W3CDTF\">%2</%1>").arg(QLatin1String(name), jp::fixedText(t.toUTC(), QStringLiteral("yyyy-MM-dd'T'HH:mm:ss'Z'")));
     };
     QString core = QStringLiteral("<cp:coreProperties xmlns:cp=\"http://schemas.openxmlformats.org/package/2006/metadata/core-properties\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\" "
                                   "xmlns:dcterms=\"http://purl.org/dc/terms/\" xmlns:dcmitype=\"http://purl.org/dc/dcmitype/\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">");
@@ -2241,7 +2242,7 @@ void Exporter::writeComments(int slide, const QString &slidePart)
         if (c.date.isValid()) {
             const QDateTime own = c.date.toLocalTime();
             bias = -own.offsetFromUtc() / 60;
-            xml += QStringLiteral(" dt=\"%1\"").arg(own.toString(QStringLiteral("yyyy-MM-dd'T'HH:mm:ss.zzz")));
+            xml += QStringLiteral(" dt=\"%1\"").arg(jp::fixedText(own, QStringLiteral("yyyy-MM-dd'T'HH:mm:ss.zzz")));
         }
         xml += QStringLiteral(" idx=\"%1\"><p:pos x=\"%2\" y=\"%3\"/><p:text>%4</p:text>").arg(c.idx).arg(std::lround(c.at.x() * 8)).arg(std::lround(c.at.y() * 8)).arg(esc(c.text));
         xml += QStringLiteral("<p:extLst><p:ext uri=\"{C676402C-5697-4E1C-873F-D02D1690AC5C}\"><p15:threadingInfo xmlns:p15=\"http://schemas.microsoft.com/office/powerpoint/2012/main\" timeZoneBias=\"%1\"")

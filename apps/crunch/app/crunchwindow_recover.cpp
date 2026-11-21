@@ -10,6 +10,7 @@
 #include "core/appinfo.h"
 #include "core/sheetobjects.h"
 #include "sheet/xlsxsave.h"
+#include "core/syslocale.h"
 
 #include <QApplication>
 #include <QDialog>
@@ -222,7 +223,7 @@ void CrunchWindow::offerRecovery(bool askIfNone)
     v->addWidget(intro);
     auto *list = new QListWidget(&dlg);
     list->setAccessibleName(tr("Recovered workbooks"));
-    const QLocale loc;
+    const jp::SystemLocale loc = jp::systemLocale();
     for (const auto &r : found) {
         const QString where = r.source.isEmpty() ? tr("never saved") : QDir::toNativeSeparators(r.source);
         auto *it = new QListWidgetItem(tr("%1\n%2, saved %3").arg(r.title, where, loc.toString(r.saved, QLocale::ShortFormat)), list);

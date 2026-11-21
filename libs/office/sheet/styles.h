@@ -260,8 +260,10 @@ struct Styles {
     // The id of the number format of a cell format (0, General, for one the file doesn't have).
     qint32 numFmtId(quint32 xf) const { return xf < quint32(cellXfs.size()) ? cellXfs[int(xf)] : 0; }
     // Its code: the file's own for an id it defines, else the built-in one of that id (calc/numfmt.h), else "General". The built-in dates 14 and 22 are the system's short date: they
-    // are in the order of the locale given (the person's, by default).
-    QString formatCode(quint32 xf, const QLocale &locale = QLocale()) const;
+    // are in the order of the locale given (the person's, when none is).
+    QString formatCode(quint32 xf, const QLocale &locale) const;
+    // With the person's own short date, from jp::systemLocale() (any thread).
+    QString formatCode(quint32 xf) const;
 
     // What is there for a cell format, a font, a fill, or a border by its place: the first of each (the default look) for a place the file doesn't have.
     const CellFormat &format(quint32 xf) const;
