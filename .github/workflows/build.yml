@@ -303,9 +303,9 @@ jobs:
         run: |
           part=${{ matrix.part }}
           # (a run that was cancelled can leave its test programs running on Windows; one held a results file open and the sweep below failed, and one
-          # would keep the next build from writing its program: November 19, 2026)
+          # would keep the next build from writing its program: November 19, 2026; the checks job on its own runner also sweeps the runner's temp folder, where Qt's copy is)
           if [ "$RUNNER_OS" = Windows ]; then
-            powershell -NoProfile -NonInteractive -Command "Get-Process | Where-Object { \$_.Path -like '$(cygpath -w "$PWD")\*' } | ForEach-Object { 'stopping a program an earlier run left: ' + \$_.ProcessName; Stop-Process -Id \$_.Id -Force }" || true
+            powershell -NoProfile -NonInteractive -Command "Get-Process | Where-Object { \$_.Path -like '$(cygpath -w "$PWD")\*' -or ('${JO_CHECKS_SELF:-}' -eq '1' -and \$_.Path -like '$(cygpath -w "$RUNNER_TEMP")\*') } | ForEach-Object { 'stopping a program an earlier run left: ' + \$_.ProcessName; Stop-Process -Id \$_.Id -Force }" || true
           fi
           git clean -ffdxq -e build -e 'build-keep-*' || echo "some files of an earlier run could not be swept away"
           if [ -d build ]; then
