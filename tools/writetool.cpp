@@ -687,6 +687,19 @@ int main(int argc, char **argv)
         pager = ownPager.get();
     }
     Paginator &pg = *pager;
+#ifdef JW_DOCX
+    if (cmd == "info" && wdoc && qEnvironmentVariableIsSet("WRITETOOL_STATS")) {
+        // (the sizes a limit is set from: paragraphs, characters, the longest paragraph, sections, and the largest font)
+        const QTextDocument *story = wdoc->story();
+        int longest = 0;
+        double biggest = 0;
+        for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
+            longest = std::max(longest, b.length() - 1);
+            for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) biggest = std::max(biggest, it.fragment().charFormat().fontPointSize());
+        }
+        out << "stats\t" << story->blockCount() << " paragraphs\t" << story->characterCount() << " chars\t" << longest << " longest\t" << wdoc->flow().sections.size() << " sections\t" << biggest << " pt\n";
+    }
+#endif
     const int pages = pg.pageCount();
     out << "paginated\t" << pages << " pages\t" << timer.elapsed() << " ms\n";
     LayoutCache cache;
@@ -704,7 +717,12 @@ int main(int argc, char **argv)
         QDir dir(args[3]);
         if (!dir.mkpath(QStringLiteral("."))) { out << "cannot make " << args[3] << "\n"; return 1; }
         // (WRITETOOL_MAX_PAGES=N draws the first N pages and the last 5: a sweep over hostile files then times the reading and the pagination of the whole, not the drawing of tens of thousands of pages)
-        const int drawFirst = qEnvironmentVariableIntValue("WRITETOOL_MAX_PAGES");
+        // (Unset, a file of more than kMostDrawnPages pages has its first kDrawnOfMany drawn and its last 5, and says so: real files have at most 1,446 pages, and the pagination of the whole is what is timed;
+        // WRITETOOL_MAX_PAGES=0 draws every page.)
+        constexpr int kMostDrawnPages = 2000, kDrawnOfMany = 200;
+        const bool capSet = qEnvironmentVariableIsSet("WRITETOOL_MAX_PAGES");
+        const int drawFirst = capSet ? qEnvironmentVariableIntValue("WRITETOOL_MAX_PAGES") : pages > kMostDrawnPages ? kDrawnOfMany : 0;
+        if (!capSet && drawFirst > 0) out << "note\tdrew " << drawFirst + 5 << " of the " << pages << " pages (WRITETOOL_MAX_PAGES=0 draws all)\n";
         for (int k = 0; k < pages; ++k) {
             if (drawFirst > 0 && k >= drawFirst && k < pages - 5) continue;
             const QImage img = pageImage(pg, &cache, k, width, false, pages);
