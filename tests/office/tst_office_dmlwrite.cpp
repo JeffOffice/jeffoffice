@@ -538,7 +538,8 @@ private Q_SLOTS:
         QVERIFY(near(back->firstBlock().next().next().charFormat().fontPointSize(), 31));
         QVERIFY(back->firstBlock().next().next().text().isEmpty());
         QVERIFY(!back->lastBlock().text().isEmpty());
-        QCOMPARE(int(elementsNamed(r.spTree, "endParaRPr").size()), 1);
+        // The empty paragraph, and the one that ends in a break (its empty last line is as tall as the paragraph mark).
+        QCOMPARE(int(elementsNamed(r.spTree, "endParaRPr").size()), 2);
     }
 
     void dmlWriteHyperlinksAreRelationshipsMadeOnce()
