@@ -4723,8 +4723,18 @@
        "text": "eed310de942dd127bb1801c1f59eb181b3ed57227c706f790e1065289c55cfde"
       },
       {
+       "hide_soon": true,
+       "status": "done",
+       "text": "62c5ee1f8ec0dccb0d3aecdd2cafab466703f113375fb507d7cf02c0118c5135"
+      },
+      {
+       "hide_soon": true,
+       "status": "done",
+       "text": "283d19d19c7d73fe916217e405208378e3ae6ab58dd8dc68aad571ad946ca298"
+      },
+      {
        "status": "partly",
-       "text": "186b760f3f7c8fd11efc76684fe25b02b86ae87e86f41fcf7d790349147c893a"
+       "text": "6c018be6d02fa8765ad1a7130b5aa7d5d12ce16d1de01558844303e204e9a564"
       }
      ]
     },
@@ -4779,6 +4789,11 @@
        "hide_soon": true,
        "status": "done",
        "text": "33222b5023371fa47a253e1f54a9373d02d4657efd9d9b67700107ed78eee2ca"
+      },
+      {
+       "hide_soon": true,
+       "status": "done",
+       "text": "c4117f9f2a810d9effb01f4c44dadbafa55f508f7dcd867bc064a8f2e9cbed6c"
       }
      ]
     },
@@ -4825,6 +4840,11 @@
        "hide_soon": true,
        "status": "done",
        "text": "3e46d4c1a6a657c1f7c119488535776dff81f6913a536bfa5570499616059119"
+      },
+      {
+       "hide_soon": true,
+       "status": "done",
+       "text": "d84ccfb1e9547c314306b53a68e55e40ef5c05953cdbfb7f87aee05419584ed8"
       }
      ]
     },
@@ -4871,6 +4891,11 @@
        "hide_soon": true,
        "status": "done",
        "text": "4b40cf14202f03abad7b678da6f7ad10cc32e6837400cddfe2b77da0f54f515f"
+      },
+      {
+       "hide_soon": true,
+       "status": "done",
+       "text": "92a1aca1c352304b7222eb1221028530137ddc3366dc136fbfc4367dd26eb840"
       }
      ]
     },
@@ -5133,7 +5158,7 @@
         },
         {
          "status": "partly",
-         "text": "e3fabf6760947d09b8715f66c1224460669d1806e88a6d22f4a6f91b1f0f7823"
+         "text": "c0398fb4fec51c2e32f5610fd6a509a6ae0e7f6ff5d352e5ecabdacaaf3bc2d1"
         },
         {
          "hide_soon": true,
@@ -5144,6 +5169,10 @@
          "hide_soon": true,
          "status": "done",
          "text": "f2fc9d77c1e4a367721f7e75b9d0d1bdc312592329f53ad00fe7a1cd47fa9337"
+        },
+        {
+         "status": "partly",
+         "text": "e96f6935fe242408a2589780dfbc35d46b81625c407bbe5bede4be6e5d08feba"
         }
        ]
       },
@@ -9481,18 +9510,6 @@
     "fr": "Polices de remplacement de même largeur de lettres pour les polices absentes des classeurs"
    }
   },
-  "186b760f3f7c8fd11efc76684fe25b02b86ae87e86f41fcf7d790349147c893a": {
-   "drop": false,
-   "en": "Distribute selected shapes horizontally or vertically with equal gaps, using the Arrange group.",
-   "es": "Distribuya las formas seleccionadas horizontal o verticalmente con espacios iguales, mediante el grupo Organizar.",
-   "fr": "Répartissez les formes sélectionnées horizontalement ou verticalement avec des écarts égaux, à l’aide du groupe Organiser.",
-   "soon": {
-    "drop": false,
-    "en": "Equalize width, height, or both across selected shapes",
-    "es": "Igualar el ancho, el alto o ambos en las formas seleccionadas",
-    "fr": "Uniformisation de la largeur, de la hauteur ou des deux pour les formes sélectionnées"
-   }
-  },
   "186c2b1deb8ad1e2ead27f6c451b794e9ccb662be94a3a523a0b494f3c9a4afb": {
    "drop": false,
    "en": "Choose automatic, automatic except data tables, or manual calculation, and turn `Calculate Before Save` on or off; the mode is kept as saved. In manual mode the status bar shows \"Calculate\" when results are out of date, and a click on it calculates the formulas.",
@@ -10866,6 +10883,18 @@
    "en": "Fit the sheet to a number of pages wide and tall, or automatic, or set a percent from 10 to 400; a warning appears when the type becomes too small to read.",
    "es": "Ajuste la hoja a un número de páginas de ancho y alto, o automático, o defina un porcentaje de 10 a 400; aparece una advertencia cuando el texto se vuelve demasiado pequeño para leerse.",
    "fr": "Ajustez la feuille à un nombre de pages en largeur et en hauteur, ou en automatique, ou définissez un pourcentage de 10 à 400 ; un avertissement apparaît quand le texte devient trop petit pour être lu.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "283d19d19c7d73fe916217e405208378e3ae6ab58dd8dc68aad571ad946ca298": {
+   "drop": false,
+   "en": "Give the selected objects the same width, the same height, or both, and distribute them horizontally or vertically with equal gaps. Locked objects keep their size.",
+   "es": "Dé a los objetos seleccionados el mismo ancho, la misma altura o ambos, y distribúyalos horizontal o verticalmente con espacios iguales. Los objetos bloqueados conservan su tamaño.",
+   "fr": "Donnez aux objets sélectionnés la même largeur, la même hauteur ou les deux, et répartissez-les horizontalement ou verticalement avec des espaces égaux. Les objets verrouillés conservent leur taille.",
    "soon": {
     "drop": true,
     "en": "",
@@ -15337,6 +15366,18 @@
     "fr": ""
    }
   },
+  "62c5ee1f8ec0dccb0d3aecdd2cafab466703f113375fb507d7cf02c0118c5135": {
+   "drop": false,
+   "en": "Make several copies of an object at once, with an offset, a size change, and a color that steps from the first copy to the last. All the copies are undone in one step.",
+   "es": "Haga varias copias de un objeto a la vez, con un desplazamiento, un cambio de tamaño y un color que cambia gradualmente de la primera copia a la última. Todas las copias se deshacen en un solo paso.",
+   "fr": "Réalisez plusieurs copies d’un objet à la fois, avec un décalage, un changement de taille et une couleur qui évolue progressivement de la première copie à la dernière. Toutes les copies s’annulent en une seule étape.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "62c828f4c04f76b54a77cc0589d4ea7c0ce4b2e7db16c547775b6b2d776794a7": {
    "drop": false,
    "en": "Use the Number tab of Format Cells: twelve categories with their options and a live sample in the person’s language, including decimal places, thousands separator, negative number styles, and Custom formats.",
@@ -16175,6 +16216,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "6c018be6d02fa8765ad1a7130b5aa7d5d12ce16d1de01558844303e204e9a564": {
+   "drop": false,
+   "en": "Set a corner radius for a rounded rectangle and for shapes with rounded corners, and choose the point from which a shape is resized: a corner, the middle of a side, or the center.",
+   "es": "Defina un radio de esquina para un rectángulo redondeado y para las formas con esquinas redondeadas, y elija el punto desde el cual se cambia el tamaño de una forma: una esquina, el centro de un lado o el centro.",
+   "fr": "Définissez un rayon d’angle pour un rectangle arrondi et pour les formes à angles arrondis, et choisissez le point à partir duquel une forme est redimensionnée : un angle, le milieu d’un côté ou le centre.",
+   "soon": {
+    "drop": false,
+    "en": "Shape slant",
+    "es": "Inclinación de formas",
+    "fr": "Inclinaison des formes"
    }
   },
   "6c1003ccf0c39731b5a32f223f6626bec9c62aa603df4378809a39500b2b0f8e": {
@@ -18690,6 +18743,18 @@
    "en": "Tables draw borders, fills, and text from the file, and rows grow to fit their text.",
    "es": "Las tablas dibujan bordes, rellenos y texto del archivo, y las filas crecen para ajustarse a su texto.",
    "fr": "Les tableaux dessinent les bordures, remplissages et textes du fichier, et les lignes s’agrandissent selon leur texte.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "92a1aca1c352304b7222eb1221028530137ddc3366dc136fbfc4367dd26eb840": {
+   "drop": false,
+   "en": "Choose how a merge field shows its value: as a number or percent with 0 to 4 decimal places, a currency amount, a date, or a time, in your language and region. A value that cannot be read is shown as it is.",
+   "es": "Elija cómo muestra su valor un campo de combinación: como número o porcentaje con 0 a 4 decimales, importe en moneda, fecha u hora, en su idioma y región. Un valor que no se puede leer se muestra tal cual.",
+   "fr": "Choisissez comment un champ de fusion affiche sa valeur : nombre ou pourcentage avec 0 à 4 décimales, montant monétaire, date ou heure, dans votre langue et votre région. Une valeur illisible s’affiche telle quelle.",
    "soon": {
     "drop": true,
     "en": "",
@@ -21541,6 +21606,18 @@
     "fr": ""
    }
   },
+  "c0398fb4fec51c2e32f5610fd6a509a6ae0e7f6ff5d352e5ecabdacaaf3bc2d1": {
+   "drop": false,
+   "en": "Add a reflection (Tight, Half, Full, or none) to letters.",
+   "es": "Agregue un reflejo (Ajustado, Medio, Completo o ninguno) a las letras.",
+   "fr": "Ajoutez un reflet (Serré, Moitié, Complet ou aucun) aux lettres.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "c084b0f75e2fd74db72e2cfa1ec51d98bff1576c26c428f93c5afb89411aa087": {
    "drop": false,
    "en": "Edit headers and footers, show or hide them, and insert the page number, date, and time with `Alt+Shift+P`, `Alt+Shift+D`, and `Alt+Shift+T`. The Mailings tab is hidden while a master page is open.",
@@ -21779,6 +21856,18 @@
     "en": "Blank Page",
     "es": "Página en blanco",
     "fr": "Page blanche"
+   }
+  },
+  "c4117f9f2a810d9effb01f4c44dadbafa55f508f7dcd867bc064a8f2e9cbed6c": {
+   "drop": false,
+   "en": "Draw a text box whose text is turned a quarter turn from the start. The direction is kept in the saved file.",
+   "es": "Dibuje un cuadro de texto cuyo texto está girado un cuarto de vuelta desde el principio. La dirección se conserva en el archivo guardado.",
+   "fr": "Dessinez une zone de texte dont le texte est pivoté d’un quart de tour dès le départ. La direction est conservée dans le fichier enregistré.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "c43881a49a585b139ae678ede8c296c01f669a1381352da346faa28fe7f47fb0": {
@@ -23401,6 +23490,18 @@
     "fr": ""
    }
   },
+  "d84ccfb1e9547c314306b53a68e55e40ef5c05953cdbfb7f87aee05419584ed8": {
+   "drop": false,
+   "en": "Move the selected objects from a page onto its master page, and back from the master page onto the page. Objects that cannot be moved stay, and the status bar gives the reason.",
+   "es": "Mueva los objetos seleccionados de una página a su página maestra, y de la página maestra de vuelta a la página. Los objetos que no se pueden mover permanecen donde están y la barra de estado indica el motivo.",
+   "fr": "Déplacez les objets sélectionnés d’une page vers sa page de référence, et de la page de référence vers la page. Les objets qui ne peuvent pas être déplacés restent en place, et la barre d’état en donne la raison.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "d85ddf06f44789f0e37021ae2e348139f130c5fd216d4ee5b7acdde9b32c54bb": {
    "drop": false,
    "en": "Delete a slide, duplicate it with its notes, transition, and animations, or hide it. A hidden slide is skipped in the show, is not printed unless asked, and appears struck through in the pane.",
@@ -24253,18 +24354,6 @@
     "fr": ""
    }
   },
-  "e3fabf6760947d09b8715f66c1224460669d1806e88a6d22f4a6f91b1f0f7823": {
-   "drop": false,
-   "en": "Apply shadow, outline, emboss, engrave, text fill (solid and gradient), text outline, and text glow in a color you pick.",
-   "es": "Aplique sombra, contorno, relieve, grabado, relleno de texto (sólido y degradado), contorno de texto y resplandor de texto en un color que usted elija.",
-   "fr": "Appliquez ombre, contour, relief, gravure, remplissage du texte (uni et dégradé), contour du texte et lueur du texte dans une couleur de votre choix.",
-   "soon": {
-    "drop": false,
-    "en": "Reflection and bevel on letters",
-    "es": "Reflejo y bisel en las letras",
-    "fr": "Reflet et biseau sur les lettres"
-   }
-  },
   "e415dbb3e7dad30fa65de19cf8fa2583f1d6858ddc548aeec48b72e1810b1f14": {
    "drop": false,
    "en": "Merge & Center, Merge Across, Merge Cells, and Unmerge Cells. A merged area keeps the top-left cell’s value and asks before emptying the others. Sort moves merged areas of one size with their rows and refuses other sizes, a fill never goes into or out of a merged area and says so, a filter hides rows by what their cells hold, and print draws a merged area as one cell.",
@@ -24719,6 +24808,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "e96f6935fe242408a2589780dfbc35d46b81625c407bbe5bede4be6e5d08feba": {
+   "drop": false,
+   "en": "Add a reflection to letters. The effect is kept in the saved `.jpub` file.",
+   "es": "Agregue un reflejo a las letras. El efecto se conserva en el archivo `.jpub` guardado.",
+   "fr": "Ajoutez un reflet aux lettres. L’effet est conservé dans le fichier `.jpub` enregistré.",
+   "soon": {
+    "drop": false,
+    "en": "Bevel for letters",
+    "es": "Bisel para las letras",
+    "fr": "Biseau pour les lettres"
    }
   },
   "e9ddc2103219380bf21287d39be060b9d17f585a55d54c6d4effdebb3d1df2b4": {
