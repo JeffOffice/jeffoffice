@@ -2848,9 +2848,36 @@ private Q_SLOTS:
         w->setAttribute(Qt::WA_DeleteOnClose);
         w->show();
         const QPointer<WriteWindow> alive(w);
-        QTimer::singleShot(100, [w] { w->close(); });
+        // (the first turn of the event loop is the one the check of the password runs in: the window is closed while the key is made, not after, whatever the machine's speed)
+        QTimer::singleShot(0, [w] { w->close(); });
         QVERIFY(!w->openFile(path));
         QTRY_VERIFY(!alive);
+        QVERIFY2(!asked, "the question was put to the window that was closed");
+        setOpenPasswordStandIn(nullptr);
+    }
+
+    // A closed window is hidden at once and deleted only when its event loop is reached: the check may end in between, with the window still there, and it is not asked either.
+    void aWindowClosedButNotYetDeletedIsNotAskedEither()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        office::EncryptOptions options;
+        options.spinCount = 1000000;
+        const QString path = dir.filePath(QStringLiteral("p.docx"));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(office::encryptPackage(makeDocx("<w:p><w:r><w:t>x</w:t></w:r></w:p>"), QStringLiteral("right"), options));
+        f.close();
+        bool asked = false;
+        setOpenPasswordStandIn([&](const QString &, bool, QString *) {
+            asked = true;
+            return false;
+        });
+        WriteWindow w;
+        w.show();
+        QTimer::singleShot(0, [&w] { w.close(); });
+        QVERIFY(!w.openFile(path));
+        QVERIFY2(!w.isVisible(), "the window was closed while the check ran");
         QVERIFY2(!asked, "the question was put to the window that was closed");
         setOpenPasswordStandIn(nullptr);
     }

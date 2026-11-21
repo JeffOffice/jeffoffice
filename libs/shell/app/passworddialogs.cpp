@@ -406,6 +406,35 @@ void cancelRunningForTest()
     if (g_running) *g_running = true;
 }
 
+namespace {
+// A window that is closed is hidden at once but deleted only when its event loop gets to it (the app sets WA_DeleteOnClose), so a pointer to it can still be good
+// while the password is checked: the close event, seen here, says the window was closed, and a window that was closed is not asked anything.
+class CloseWatch : public QObject {
+public:
+    explicit CloseWatch(QWidget *parent) : m_window(parent ? parent->window() : nullptr)
+    {
+        if (m_window) m_window->installEventFilter(this);
+    }
+    ~CloseWatch() override
+    {
+        if (m_window) m_window->removeEventFilter(this);
+    }
+    // (a close that the window's own handler refused leaves it showing)
+    bool closed() const { return m_sawClose && (!m_window || !m_window->isVisible()); }
+
+protected:
+    bool eventFilter(QObject *, QEvent *e) override
+    {
+        if (e->type() == QEvent::Close) m_sawClose = true;
+        return false;
+    }
+
+private:
+    QPointer<QWidget> m_window;
+    bool m_sawClose = false;
+};
+}
+
 PackageUnlock unlockProtectedPackage(QWidget *parent, const QString &fileName, QByteArray *bytes, QString *kept, bool *wasProtected, QString *error)
 {
     QByteArray info, package, zip;
@@ -423,6 +452,8 @@ PackageUnlock unlockProtectedPackage(QWidget *parent, const QString &fileName, Q
     bytes->squeeze();
     // (the window may be closed, from its title bar, while a password is checked: nothing is asked of it or done to it after)
     const QPointer<QWidget> alive(parent);
+    const CloseWatch watch(parent);
+    auto gone = [&] { return parent && (!alive || watch.closed()); };
     auto decrypt = [&](const QString &password, office::CryptResult *result) {
         const bool finished = runWithCancel(parent, QCoreApplication::translate("jp::PasswordDialogs", "Checking the password…"), [&](const std::atomic<bool> *cancel) {
             *result = odf    ? office::decryptOdf(otherFile, password, office::kMaxOpenFileBytes, false, &zip, [cancel] { return cancel->load(); })
@@ -448,7 +479,7 @@ PackageUnlock unlockProtectedPackage(QWidget *parent, const QString &fileName, Q
         }
     }
     if (packaged) decrypt(office::defaultPassword(), &r);
-    if (parent && !alive) return PackageUnlock::WindowGone;
+    if (gone()) return PackageUnlock::WindowGone;
     if (r == office::CryptResult::Ok) {
         *bytes = zip;
         return PackageUnlock::Opened;
@@ -458,7 +489,7 @@ PackageUnlock unlockProtectedPackage(QWidget *parent, const QString &fileName, Q
         QString password;
         if (!askOpenFilePassword(parent, fileName, wrong, &password)) return PackageUnlock::Cancelled;
         decrypt(password, &r);
-        if (parent && !alive) {
+        if (gone()) {
             crypto::wipe(password);
             return PackageUnlock::WindowGone;
         }
