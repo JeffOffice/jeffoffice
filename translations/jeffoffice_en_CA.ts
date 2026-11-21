@@ -619,6 +619,10 @@ Download it from %2 now? (%3, once.)</translation>
         <source>Sparkline Marker Color</source>
         <translation>Sparkline Marker Colour</translation>
     </message>
+    <message>
+        <source>Theme Colors</source>
+        <translation>Theme Colours</translation>
+    </message>
 </context>
 <context>
     <name>jp::DeckFileScreen</name>

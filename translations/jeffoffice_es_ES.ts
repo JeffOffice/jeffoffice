@@ -1463,6 +1463,14 @@ No se puede leer el fichero.</translation>
         <source>Save the workbook first: a new window shows the file.</source>
         <translation type="unfinished">Guarde primero el libro: una nueva ventana muestra el fichero.</translation>
     </message>
+    <message>
+        <source>Theme Files (*.thmx)</source>
+        <translation type="unfinished">Ficheros de tema (*.thmx)</translation>
+    </message>
+    <message>
+        <source>The file can't be read.</source>
+        <translation type="unfinished">No se puede leer el fichero.</translation>
+    </message>
 </context>
 <context>
     <name>jp::DeckFileScreen</name>

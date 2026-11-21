@@ -2106,7 +2106,7 @@ Article de dernière page	4</translation>
         <translation type="unfinished">%1 contient au maximum %2 caractères ici (ce texte en contient %3).</translation>
     </message>
     <message>
-        <location filename="../libs/base/core/color.cpp" line="+115"/>
+        <location filename="../libs/base/core/color.cpp" line="+119"/>
         <source>Main</source>
         <translation type="unfinished">Principale</translation>
     </message>
@@ -12700,6 +12700,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <location line="+1"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+1"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+1"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+1"/>
         <source>Fonts</source>
         <translation type="unfinished">Polices</translation>
     </message>
@@ -13250,7 +13251,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <location line="+1"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+7"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+6"/>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+4"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+5"/>
         <source>Tools</source>
         <translation type="unfinished">Outils</translation>
     </message>
@@ -13340,7 +13341,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="-93"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="-93"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="-103"/>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-86"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-87"/>
         <source>Help</source>
         <translation type="unfinished">Aide</translation>
     </message>
@@ -13505,7 +13506,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="+29"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+11"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+15"/>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-34"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-35"/>
         <source>Colors</source>
         <translation>Couleurs</translation>
     </message>
@@ -13571,7 +13572,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
     <message>
         <location line="+5"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+20"/>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+18"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+19"/>
         <source>Format</source>
         <translation>Format</translation>
     </message>
@@ -13798,6 +13799,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
     <message>
         <location line="+1"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+3"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+2"/>
         <source>Themes</source>
         <translation type="unfinished">Thèmes</translation>
     </message>
@@ -13875,7 +13877,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
     <message>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="-154"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="-12"/>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-136"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-139"/>
         <source>About</source>
         <translation type="unfinished">À propos</translation>
     </message>
@@ -14091,7 +14093,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
     <message>
         <location filename="../libs/shell/app/commandsearch.cpp" line="+37"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+3"/>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+70"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+71"/>
         <source>Options</source>
         <translation type="unfinished">Options</translation>
     </message>
@@ -14233,7 +14235,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <translation type="unfinished">Filigrane</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-121"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-122"/>
         <source>Cell Styles</source>
         <translation type="unfinished">Styles de cellules</translation>
     </message>
@@ -14300,7 +14302,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <translation>Données</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+14"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+15"/>
         <source>Format Cells</source>
         <translation type="unfinished">Mettre en forme les cellules</translation>
     </message>
@@ -14437,7 +14439,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <translation type="unfinished">Quadrillage</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-53"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-54"/>
         <source>Accounting Number Format</source>
         <translation type="unfinished">Format de nombre comptable</translation>
     </message>
@@ -14487,7 +14489,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <translation type="unfinished">Financier</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+3"/>
         <source>Footer</source>
         <translation>Pied de page</translation>
     </message>
@@ -14527,7 +14529,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <translation type="unfinished">Règles de mise en surbrillance des cellules</translation>
     </message>
     <message>
-        <location line="-52"/>
+        <location line="-53"/>
         <source>Barcode</source>
         <translation type="unfinished">Code-barres</translation>
     </message>
@@ -14537,7 +14539,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <translation type="unfinished">Contrôles</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+16"/>
         <source>Form Controls</source>
         <translation type="unfinished">Contrôles de formulaire</translation>
     </message>
@@ -14652,7 +14654,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <translation type="unfinished">Apparences de tableau</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+8"/>
         <source>Top/Bottom Rules</source>
         <translation type="unfinished">Règles haut/bas</translation>
     </message>
@@ -14817,7 +14819,7 @@ Ouvrez-le dans votre logiciel de messagerie, ajoutez les destinataires et envoye
 <context>
     <name>Sheet</name>
     <message>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="+68"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="+69"/>
         <source>Part of the file has more settings on one item than any real file has, so it can&apos;t be read.</source>
         <translation type="unfinished">Une partie du fichier contient plus de paramètres sur un même élément qu&apos;aucun fichier réel, elle ne peut donc pas être lue.</translation>
     </message>
@@ -15056,7 +15058,7 @@ Ouvrez-le dans votre logiciel de messagerie, ajoutez les destinataires et envoye
         <translation type="unfinished">Une formule est plus longue que dans tout fichier réel.</translation>
     </message>
     <message>
-        <location line="+89"/>
+        <location line="+95"/>
         <source>The file has no workbook part.</source>
         <translation type="unfinished">Le fichier ne contient pas de partie classeur.</translation>
     </message>
@@ -15071,7 +15073,7 @@ Ouvrez-le dans votre logiciel de messagerie, ajoutez les destinataires et envoye
         <translation type="unfinished">Deux feuilles du classeur partagent une même partie, ce qu&apos;aucun fichier réel ne fait.</translation>
     </message>
     <message>
-        <location line="+208"/>
+        <location line="+213"/>
         <source>This file is a web page that was saved with an .xls name. This program can&apos;t open that kind of file yet.</source>
         <translation type="unfinished">Ce fichier est une page web enregistrée avec un nom en .xls. Ce programme ne peut pas encore ouvrir ce type de fichier.</translation>
     </message>
@@ -15174,7 +15176,7 @@ Ouvrez-le dans votre logiciel de messagerie, ajoutez les destinataires et envoye
         <translation type="unfinished">Le fichier ne contient aucun classeur.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="+1180"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="+1224"/>
         <location filename="../libs/office/sheet/xls.cpp" line="+2011"/>
         <source>There is no such sheet.</source>
         <translation type="unfinished">Cette feuille n&apos;existe pas.</translation>
@@ -22870,14 +22872,14 @@ Source : %3</translation>
     <name>jp::CrunchWindow</name>
     <message>
         <location filename="../apps/crunch/app/crunchwindow.cpp" line="+325"/>
-        <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+881"/>
+        <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+886"/>
         <location filename="../apps/crunch/app/crunchwindow_windows.cpp" line="+101"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
     <message>
         <location line="-132"/>
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+185"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+187"/>
         <source>The new workbook is getting ready. It can be changed in a moment.</source>
         <translation type="unfinished">Le nouveau classeur est en cours de préparation. Il pourra être modifié dans un instant.</translation>
     </message>
@@ -23068,12 +23070,12 @@ Source : %3</translation>
     </message>
     <message>
         <location line="-64"/>
-        <location line="+408"/>
+        <location line="+409"/>
         <source>New Workbooks</source>
         <translation type="unfinished">Nouveaux classeurs</translation>
     </message>
     <message>
-        <location line="-402"/>
+        <location line="-403"/>
         <location line="+2"/>
         <source>Font of a new workbook</source>
         <translation>Police d&apos;un nouveau classeur</translation>
@@ -23090,12 +23092,12 @@ Source : %3</translation>
     </message>
     <message>
         <location line="+14"/>
-        <location line="+376"/>
+        <location line="+377"/>
         <source>Display</source>
         <translation type="unfinished">Affichage</translation>
     </message>
     <message>
-        <location line="-371"/>
+        <location line="-372"/>
         <location line="+8"/>
         <location line="+3"/>
         <source>Gridline color</source>
@@ -23114,12 +23116,12 @@ Source : %3</translation>
     </message>
     <message>
         <location line="+21"/>
-        <location line="+329"/>
+        <location line="+330"/>
         <source>Privacy</source>
         <translation type="unfinished">Confidentialité</translation>
     </message>
     <message>
-        <location line="-266"/>
+        <location line="-267"/>
         <source>Split</source>
         <translation type="unfinished">Fractionner</translation>
     </message>
@@ -23139,7 +23141,7 @@ Source : %3</translation>
         <translation type="unfinished">Commentaires</translation>
     </message>
     <message>
-        <location line="+221"/>
+        <location line="+222"/>
         <source>The name %1 now stands for the cells selected.</source>
         <translation type="unfinished">Le nom %1 désigne désormais les cellules sélectionnées.</translation>
     </message>
@@ -23154,9 +23156,10 @@ Source : %3</translation>
         <translation type="unfinished">Fermer la fenêtre une fois la recherche de valeur cible ou le scénario récapitulatif terminé.</translation>
     </message>
     <message>
-        <location line="-759"/>
+        <location line="-760"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-286"/>
-        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+1252"/>
+        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+1298"/>
+        <location filename="../apps/crunch/app/crunchwindow_themes.cpp" line="+39"/>
         <source>All Files (*)</source>
         <translation type="unfinished">Tous les fichiers (*)</translation>
     </message>
@@ -23177,7 +23180,7 @@ Source : %3</translation>
     </message>
     <message>
         <location line="+7"/>
-        <location line="+571"/>
+        <location line="+572"/>
         <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-151"/>
         <location line="+6"/>
         <location line="+14"/>
@@ -23209,7 +23212,7 @@ Source : %3</translation>
         <translation type="unfinished">Enregistrer</translation>
     </message>
     <message>
-        <location line="-570"/>
+        <location line="-571"/>
         <source>Save As…</source>
         <translation type="unfinished">Enregistrer sous…</translation>
     </message>
@@ -23275,12 +23278,12 @@ Source : %3</translation>
     </message>
     <message>
         <location line="+54"/>
-        <location line="+463"/>
+        <location line="+464"/>
         <source>Editing</source>
         <translation type="unfinished">Modification</translation>
     </message>
     <message>
-        <location line="-458"/>
+        <location line="-459"/>
         <location line="+4"/>
         <source>After pressing Enter, move the selection</source>
         <translation>Déplacer la sélection après validation</translation>
@@ -23292,12 +23295,12 @@ Source : %3</translation>
     </message>
     <message>
         <location line="+143"/>
-        <location line="+314"/>
+        <location line="+315"/>
         <source>Custom Lists</source>
         <translation type="unfinished">Listes personnalisées</translation>
     </message>
     <message>
-        <location line="-311"/>
+        <location line="-312"/>
         <source>A custom list is a row of words that Fill goes through, like the days of the week. Type one list on each line, with commas between the words. Type the first word in a cell and drag the fill handle to get the rest.</source>
         <translation type="unfinished">Une liste personnalisée est une série de mots que le remplissage parcourt, comme les jours de la semaine. Saisissez une liste par ligne, avec des virgules entre les mots. Saisissez le premier mot dans une cellule, puis faites glisser la poignée de recopie pour obtenir le reste.</translation>
     </message>
@@ -23327,7 +23330,7 @@ Source : %3</translation>
         <translation type="unfinished">Tout recalculer</translation>
     </message>
     <message>
-        <location line="+165"/>
+        <location line="+166"/>
         <source>An object&apos;s name is one to 255 characters.</source>
         <translation type="unfinished">Le nom d&apos;un objet comporte de 1 à 255 caractères.</translation>
     </message>
@@ -23740,7 +23743,7 @@ Source : %3</translation>
         <translation type="unfinished">Graphique collé avec les valeurs qu&apos;il affichait : il ne lit pas les cellules de ce classeur.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-207"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-208"/>
         <source>Select All</source>
         <translation type="unfinished">Sélectionner tout</translation>
     </message>
@@ -23848,7 +23851,7 @@ Source : %3</translation>
         <translation type="unfinished">Couper</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+399"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+400"/>
         <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-34"/>
         <location line="+17"/>
         <location line="+12"/>
@@ -23861,7 +23864,7 @@ Source : %3</translation>
         <translation type="unfinished">Coller</translation>
     </message>
     <message>
-        <location line="-803"/>
+        <location line="-804"/>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-201"/>
         <location line="+1"/>
         <location line="+43"/>
@@ -24115,8 +24118,8 @@ Source : %3</translation>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+162"/>
         <location filename="../apps/crunch/app/crunchwindow_filter.cpp" line="-214"/>
-        <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="-835"/>
-        <location line="+601"/>
+        <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="-840"/>
+        <location line="+606"/>
         <location line="+1"/>
         <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+495"/>
         <location line="+6"/>
@@ -24125,40 +24128,40 @@ Source : %3</translation>
         <translation type="unfinished">Effacer</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="-670"/>
-        <location line="+338"/>
+        <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="-675"/>
+        <location line="+343"/>
         <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-132"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="+269"/>
         <source>Bold</source>
         <translation type="unfinished">Gras</translation>
     </message>
     <message>
-        <location line="-337"/>
-        <location line="+338"/>
+        <location line="-342"/>
+        <location line="+343"/>
         <source>Italic</source>
         <translation type="unfinished">Italique</translation>
     </message>
     <message>
-        <location line="-337"/>
+        <location line="-342"/>
         <location line="+1"/>
-        <location line="+337"/>
+        <location line="+342"/>
         <source>Underline</source>
         <translation>Soulignement</translation>
     </message>
     <message>
-        <location line="-336"/>
-        <location line="+337"/>
+        <location line="-341"/>
+        <location line="+342"/>
         <source>Double Underline</source>
         <translation type="unfinished">Souligné double</translation>
     </message>
     <message>
-        <location line="-336"/>
-        <location line="+337"/>
+        <location line="-341"/>
+        <location line="+342"/>
         <source>Strikethrough</source>
         <translation type="unfinished">Barré</translation>
     </message>
     <message>
-        <location line="-336"/>
+        <location line="-341"/>
         <source>Increase Font Size</source>
         <translation type="unfinished">Augmenter la taille de police</translation>
     </message>
@@ -24189,7 +24192,7 @@ Source : %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+450"/>
+        <location line="+455"/>
         <location line="+5"/>
         <location line="+3"/>
         <location line="+500"/>
@@ -24197,7 +24200,7 @@ Source : %3</translation>
         <translation type="unfinished">Fusionner les cellules</translation>
     </message>
     <message>
-        <location line="-957"/>
+        <location line="-962"/>
         <source>Unmerge Cells</source>
         <translation type="unfinished">Annuler la fusion des cellules</translation>
     </message>
@@ -24258,12 +24261,12 @@ Source : %3</translation>
     </message>
     <message>
         <location line="+6"/>
-        <location line="+998"/>
+        <location line="+1003"/>
         <source>General</source>
         <translation type="unfinished">Standard</translation>
     </message>
     <message>
-        <location line="-993"/>
+        <location line="-998"/>
         <source>Bottom Border</source>
         <translation type="unfinished">Bordure inférieure</translation>
     </message>
@@ -24373,7 +24376,7 @@ Source : %3</translation>
     <message>
         <location line="+60"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+3"/>
-        <location line="+485"/>
+        <location line="+490"/>
         <location line="+36"/>
         <location line="+5"/>
         <location filename="../apps/crunch/app/crunchwindow_mini.cpp" line="+148"/>
@@ -24381,7 +24384,7 @@ Source : %3</translation>
         <translation type="unfinished">Bordures</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="-523"/>
+        <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="-528"/>
         <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-10"/>
         <source>Clear All</source>
         <translation type="unfinished">Effacer tout</translation>
@@ -24403,13 +24406,13 @@ Source : %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+816"/>
+        <location line="+821"/>
         <location line="+29"/>
         <source>Copy Formatting</source>
         <translation type="unfinished">Copier la mise en forme</translation>
     </message>
     <message>
-        <location line="-844"/>
+        <location line="-849"/>
         <source>Copy Formatting: copies the format of the selected cells to the cells you select next. Double-click to paint more than once.</source>
         <translation type="unfinished">Copier la mise en forme : copie le format des cellules sélectionnées vers les cellules que vous sélectionnez ensuite. Double-cliquez pour l&apos;appliquer plusieurs fois.</translation>
     </message>
@@ -24425,12 +24428,12 @@ Source : %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+971"/>
+        <location line="+976"/>
         <source>More Number Formats…</source>
         <translation type="unfinished">Autres formats numériques…</translation>
     </message>
     <message>
-        <location line="-965"/>
+        <location line="-970"/>
         <source>Horizontal Text</source>
         <translation type="unfinished">Texte horizontal</translation>
     </message>
@@ -24462,7 +24465,7 @@ Source : %3</translation>
     <message>
         <location line="+110"/>
         <location line="+5"/>
-        <location line="+748"/>
+        <location line="+753"/>
         <location line="+10"/>
         <location line="+7"/>
         <location line="+8"/>
@@ -24484,8 +24487,9 @@ Source : %3</translation>
     <message>
         <location line="-621"/>
         <location line="+621"/>
-        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-649"/>
-        <location line="+801"/>
+        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-675"/>
+        <location line="+26"/>
+        <location line="+800"/>
         <source>No Fill</source>
         <translation type="unfinished">Aucun remplissage</translation>
     </message>
@@ -25124,7 +25128,7 @@ Source : %3</translation>
         <translation>Atteindre</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+446"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+447"/>
         <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="-74"/>
         <location line="+8"/>
         <location line="+4"/>
@@ -25227,7 +25231,7 @@ Source : %3</translation>
         <location filename="../apps/crunch/app/crunchwindow_cond.cpp" line="+0"/>
         <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="+1"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+0"/>
-        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-203"/>
+        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-202"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="+11"/>
         <location line="+9"/>
         <source>Text</source>
@@ -25305,7 +25309,7 @@ Source : %3</translation>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_arrange.cpp" line="+27"/>
         <location line="+88"/>
-        <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="-1037"/>
+        <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="-1042"/>
         <source>Align Left</source>
         <translation type="unfinished">Aligner à gauche</translation>
     </message>
@@ -25410,48 +25414,48 @@ Source : %3</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+4"/>
-        <location line="+422"/>
+        <location line="+427"/>
         <source>Wrap Text</source>
         <translation type="unfinished">Renvoyer à la ligne automatiquement</translation>
     </message>
     <message>
-        <location line="-419"/>
+        <location line="-424"/>
         <location line="+1"/>
         <source>Merge and Center</source>
         <translation type="unfinished">Fusionner et centrer</translation>
     </message>
     <message>
         <location line="-3"/>
-        <location line="+440"/>
+        <location line="+445"/>
         <source>Increase Indent</source>
         <translation type="unfinished">Augmenter le retrait</translation>
     </message>
     <message>
-        <location line="-439"/>
-        <location line="+439"/>
+        <location line="-444"/>
+        <location line="+444"/>
         <source>Decrease Indent</source>
         <translation type="unfinished">Diminuer le retrait</translation>
     </message>
     <message>
-        <location line="-432"/>
-        <location line="+1021"/>
+        <location line="-437"/>
+        <location line="+1026"/>
         <source>Currency</source>
         <translation type="unfinished">Monétaire</translation>
     </message>
     <message>
-        <location line="-1015"/>
+        <location line="-1020"/>
         <source>Comma Style</source>
         <translation type="unfinished">Séparateur de milliers</translation>
     </message>
     <message>
         <location line="+15"/>
-        <location line="+492"/>
+        <location line="+497"/>
         <source>Increase Decimal</source>
         <translation type="unfinished">Ajouter une décimale</translation>
     </message>
     <message>
-        <location line="-491"/>
-        <location line="+491"/>
+        <location line="-496"/>
+        <location line="+496"/>
         <source>Decrease Decimal</source>
         <translation type="unfinished">Réduire les décimales</translation>
     </message>
@@ -25915,7 +25919,7 @@ Source : %3</translation>
         <translation type="unfinished">Cellules que le tableau doit couvrir (sa première cellule est conservée) :</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-592"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-593"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="+59"/>
         <source>Count</source>
         <translation type="unfinished">Nombre</translation>
@@ -26581,7 +26585,7 @@ Source : %3</translation>
         <translation type="unfinished">Blancs non compris</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+501"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+502"/>
         <source>&quot;%1&quot; is not an address JeffCrunch can go to.</source>
         <translation type="unfinished">« %1 » n&apos;est pas une adresse à laquelle JeffCrunch peut accéder.</translation>
     </message>
@@ -26923,7 +26927,7 @@ Le fichier est introuvable.</translation>
         <translation type="unfinished">Vous pouvez enregistrer votre travail sous forme de copie et conserver les deux versions, ou remplacer le fichier.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-719"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-720"/>
         <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+1"/>
         <source>Save a Copy…</source>
         <translation type="unfinished">Enregistrer une copie…</translation>
@@ -28589,7 +28593,8 @@ Le fichier est illisible.</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-627"/>
+        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-653"/>
+        <location line="+26"/>
         <location line="+5"/>
         <location filename="../apps/crunch/app/crunchwindow_outline.cpp" line="-111"/>
         <location line="+9"/>
@@ -30193,7 +30198,7 @@ Le fichier est illisible.</translation>
         <translation type="unfinished">Couleur de sparkline</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-73"/>
+        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-99"/>
         <source>This can be done to a picture, a shape, or a text box. Pick one first.</source>
         <translation type="unfinished">Cette action s&apos;applique à une image, une forme ou une zone de texte. Sélectionnez-en une d&apos;abord.</translation>
     </message>
@@ -30204,19 +30209,21 @@ Le fichier est illisible.</translation>
     </message>
     <message>
         <location line="+41"/>
-        <location line="+801"/>
+        <location line="+26"/>
+        <location line="+800"/>
         <source>Shape Fill</source>
         <translation type="unfinished">Remplissage de forme</translation>
     </message>
     <message>
-        <location line="-795"/>
-        <location line="+797"/>
+        <location line="-820"/>
+        <location line="+26"/>
+        <location line="+796"/>
         <location line="+1"/>
         <source>No Outline</source>
         <translation type="unfinished">Aucun contour</translation>
     </message>
     <message>
-        <location line="-598"/>
+        <location line="-597"/>
         <source>Flip</source>
         <translation type="unfinished">Retourner</translation>
     </message>
@@ -30316,13 +30323,13 @@ Le fichier est illisible.</translation>
     <message>
         <location line="+2"/>
         <location line="+1"/>
-        <location line="+170"/>
+        <location line="+169"/>
         <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+11"/>
         <source>Weight</source>
         <translation>Épaisseur</translation>
     </message>
     <message>
-        <location line="-168"/>
+        <location line="-167"/>
         <source>Wrap to the shape</source>
         <translation type="unfinished">Renvoyer à la forme</translation>
     </message>
@@ -30497,7 +30504,7 @@ Le fichier est illisible.</translation>
         <translation type="unfinished">Afficher l&apos;image entière</translation>
     </message>
     <message>
-        <location line="+20"/>
+        <location line="+19"/>
         <source>Picture Border</source>
         <translation type="unfinished">Bordure de l&apos;image</translation>
     </message>
@@ -31204,7 +31211,7 @@ Le fichier est illisible.</translation>
         <location line="+8"/>
         <location line="+15"/>
         <location line="+20"/>
-        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-651"/>
+        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-650"/>
         <source>&quot;%1&quot; is not a picture JeffCrunch can read, or it is too large.</source>
         <translation type="unfinished">« %1 » n&apos;est pas une image que JeffCrunch peut lire, ou elle est trop volumineuse.</translation>
     </message>
@@ -32033,6 +32040,98 @@ Le fichier est illisible.</translation>
         <location line="+2"/>
         <source>Convert Object to Picture</source>
         <translation type="unfinished">Convertir l&apos;objet en image</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/app/crunchwindow_themes.cpp" line="-4"/>
+        <source>Browse for Themes…</source>
+        <translation>Rechercher des thèmes…</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <location line="+53"/>
+        <source>Browse for Themes</source>
+        <translation>Rechercher des thèmes</translation>
+    </message>
+    <message>
+        <location line="-51"/>
+        <source>Themes, Workbooks, Documents, and Presentations (*.thmx *.xlsx *.xltx *.docx *.dotx *.pptx *.potx)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Save Current Theme…</source>
+        <translation type="unfinished">Enregistrer le thème actuel…</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+53"/>
+        <source>Save Current Theme</source>
+        <translation type="unfinished">Enregistrer le thème actuel</translation>
+    </message>
+    <message>
+        <location line="-53"/>
+        <location line="+19"/>
+        <location line="+6"/>
+        <location line="+5"/>
+        <location line="+15"/>
+        <location line="+45"/>
+        <source>Theme</source>
+        <translation type="unfinished">Thème</translation>
+    </message>
+    <message>
+        <location line="-89"/>
+        <source>Theme Files (*.thmx)</source>
+        <translation type="unfinished">Fichiers de thème (*.thmx)</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Reset to the Workbook&apos;s Theme</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>This workbook has no theme part, so it can&apos;t take a theme. Nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>The theme could not be applied to this workbook. Nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>%1 can&apos;t be read: %2</source>
+        <translation type="unfinished">Impossible de lire %1 : %2</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>The file can&apos;t be read.</source>
+        <translation>Impossible de lire le fichier.</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>%1 can&apos;t be written.</source>
+        <translation>Impossible d&apos;écrire %1.</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Reset Theme</source>
+        <translation type="unfinished">Rétablir le thème</translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>Built-In</source>
+        <translation>Intégré</translation>
+    </message>
+    <message>
+        <location line="+34"/>
+        <source>Theme Colors</source>
+        <translation type="unfinished">Couleurs du thème</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>Theme Fonts</source>
+        <translation type="unfinished">Polices du thème</translation>
     </message>
 </context>
 <context>
@@ -62852,7 +62951,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     </message>
     <message>
         <location filename="../apps/crunch/core/editformat.cpp" line="+70"/>
-        <location line="+1111"/>
+        <location line="+1242"/>
         <source>This sheet is protected, so whether its cells are locked, and whether their formulas are hidden, can&apos;t be changed. Unprotect the sheet first (Review, Unprotect Sheet).</source>
         <translation type="unfinished">Cette feuille est protégée : le verrouillage de ses cellules et le masquage de leurs formules ne peuvent pas être modifiés. Ôtez d&apos;abord la protection de la feuille (Révision, Ôter la protection de la feuille).</translation>
     </message>
@@ -62878,8 +62977,9 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     </message>
     <message>
         <location line="+9"/>
-        <location filename="../apps/crunch/core/editformat.cpp" line="-1100"/>
-        <location line="+464"/>
+        <location filename="../apps/crunch/core/editformat.cpp" line="-1231"/>
+        <location line="+454"/>
+        <location line="+141"/>
         <location line="+45"/>
         <location line="+59"/>
         <location line="+38"/>
@@ -62927,19 +63027,19 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Effacer les règles de la feuille</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editformat.cpp" line="-1366"/>
+        <location filename="../apps/crunch/core/editformat.cpp" line="-1497"/>
         <source>This workbook has as many different formats as a workbook can hold (%1 cell formats). Give the cells a format the workbook already has, or clear the formats of some cells, and try again.</source>
         <translation type="unfinished">Ce classeur contient le nombre maximal de formats différents qu&apos;un classeur peut contenir (%1 formats de cellule). Appliquez aux cellules un format que le classeur possède déjà, ou effacez les formats de certaines cellules, puis réessayez.</translation>
     </message>
     <message>
         <location line="+22"/>
-        <location line="+650"/>
+        <location line="+781"/>
         <location line="+150"/>
         <source>Those are not cells of the sheet.</source>
         <translation type="unfinished">Ce ne sont pas des cellules de la feuille.</translation>
     </message>
     <message>
-        <location line="-788"/>
+        <location line="-919"/>
         <source>That is more cells than JeffCrunch formats at once (%1). Select whole columns or rows, or fewer cells.</source>
         <translation type="unfinished">Cela dépasse le nombre de cellules que JeffCrunch peut mettre en forme en une fois (%1). Sélectionnez des colonnes ou des lignes entières, ou moins de cellules.</translation>
     </message>
@@ -62970,12 +63070,22 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     </message>
     <message>
         <location line="+18"/>
-        <location line="+171"/>
+        <location line="+302"/>
         <source>A font&apos;s name can have up to %1 characters in a workbook, and this one has %2. Choose another font.</source>
         <translation type="unfinished">Dans un classeur, le nom d&apos;une police peut compter jusqu&apos;à %1 caractères, et celui-ci en compte %2. Choisissez une autre police.</translation>
     </message>
     <message>
-        <location line="+23"/>
+        <location line="-124"/>
+        <source>This workbook has no theme part, so it can&apos;t take a theme. Nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>The theme could not be applied to this workbook. Nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+138"/>
         <location line="+65"/>
         <source>Replace Fonts</source>
         <translation type="unfinished">Remplacer les polices</translation>
@@ -70147,7 +70257,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
 <context>
     <name>jp::crunch::SheetObjects</name>
     <message>
-        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+385"/>
+        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+441"/>
         <source>a drawing that could not be read (%1)</source>
         <translation type="unfinished">un dessin illisible (%1)</translation>
     </message>
@@ -70157,7 +70267,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">plus de %1 objets dans un dessin ; les autres sont ignorés</translation>
     </message>
     <message>
-        <location line="+186"/>
+        <location line="+206"/>
         <source>more objects than the %1 a workbook may show</source>
         <translation type="unfinished">plus d&apos;objets que les %1 qu&apos;un classeur peut afficher</translation>
     </message>
@@ -70182,7 +70292,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">une forme ou une image illisible</translation>
     </message>
     <message numerus="yes">
-        <location line="+464"/>
+        <location line="+467"/>
         <source>The file stores this object together with %n other(s), so they can&apos;t be deleted one at a time.</source>
         <translation type="unfinished">
             <numerusform>Le fichier stocke cet objet avec %n autre objet ; ils ne peuvent donc pas être supprimés séparément.</numerusform>
@@ -70190,7 +70300,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         </translation>
     </message>
     <message>
-        <location line="+724"/>
+        <location line="+752"/>
         <source>The charts made or changed here since the last save already hold as many numbers as JeffCrunch keeps (%1). Save the workbook first.</source>
         <translation type="unfinished">Les graphiques créés ou modifiés ici depuis le dernier enregistrement contiennent déjà autant de nombres que JeffCrunch peut en conserver (%1). Enregistrez d&apos;abord le classeur.</translation>
     </message>
@@ -70249,12 +70359,12 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">%1 nouveaux objets, c&apos;est le maximum que JeffCrunch enregistre en une fois. Enregistrez le classeur, puis ajoutez-en d&apos;autres.</translation>
     </message>
     <message>
-        <location line="-2172"/>
+        <location line="-2203"/>
         <source>a diagram that could not be shown</source>
         <translation type="unfinished">un diagramme qui n&apos;a pas pu être affiché</translation>
     </message>
     <message>
-        <location line="+903"/>
+        <location line="+934"/>
         <source>The pictures that stand for equations come to more than %1, so the equations past that are saved as math alone.</source>
         <translation type="unfinished">Les images qui représentent les équations dépassent %1 ; les équations au-delà sont enregistrées uniquement comme mathématiques.</translation>
     </message>
@@ -71331,7 +71441,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <location filename="../libs/office/office/package.cpp" line="+4"/>
         <location line="+7"/>
         <location filename="../libs/office/sheet/sheetcrypt.cpp" line="-1"/>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="-1409"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="-1453"/>
         <location filename="../apps/deck/io/presentationfile.cpp" line="-23"/>
         <location line="+28"/>
         <source>The file is larger than this program can open.</source>
@@ -72773,7 +72883,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
 <context>
     <name>jp::office::sheet::Workbook</name>
     <message>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="+578"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="+616"/>
         <source>Give the table style a name.</source>
         <translation type="unfinished">Donnez un nom au style de tableau.</translation>
     </message>

@@ -699,6 +699,10 @@ Download it from %2 now? (%3, once.)</translation>
         <source>Summarize with Pivot Table</source>
         <translation>Summarise with Pivot Table</translation>
     </message>
+    <message>
+        <source>Theme Colors</source>
+        <translation>Theme Colours</translation>
+    </message>
 </context>
 <context>
     <name>jp::DeckFileScreen</name>

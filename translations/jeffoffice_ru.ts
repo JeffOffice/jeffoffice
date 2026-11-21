@@ -2107,7 +2107,7 @@ Back page story	4</source>
         <translation type="unfinished">%1 может содержать не более %2 знаков (в этом тексте %3).</translation>
     </message>
     <message>
-        <location filename="../libs/base/core/color.cpp" line="+115"/>
+        <location filename="../libs/base/core/color.cpp" line="+119"/>
         <source>Main</source>
         <translation type="unfinished">Основной</translation>
     </message>
@@ -12709,6 +12709,7 @@ Download it from %2 now? (%3, once.)</source>
         <location line="+1"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+1"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+1"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+1"/>
         <source>Fonts</source>
         <translation type="unfinished">Шрифты</translation>
     </message>
@@ -13259,7 +13260,7 @@ Download it from %2 now? (%3, once.)</source>
         <location line="+1"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+7"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+6"/>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+4"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+5"/>
         <source>Tools</source>
         <translation type="unfinished">Сервис</translation>
     </message>
@@ -13349,7 +13350,7 @@ Download it from %2 now? (%3, once.)</source>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="-93"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="-93"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="-103"/>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-86"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-87"/>
         <source>Help</source>
         <translation type="unfinished">Справка</translation>
     </message>
@@ -13514,7 +13515,7 @@ Download it from %2 now? (%3, once.)</source>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="+29"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+11"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+15"/>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-34"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-35"/>
         <source>Colors</source>
         <translation>Цвета</translation>
     </message>
@@ -13580,7 +13581,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+5"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+20"/>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+18"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+19"/>
         <source>Format</source>
         <translation>Формат</translation>
     </message>
@@ -13807,6 +13808,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+1"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+3"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+2"/>
         <source>Themes</source>
         <translation type="unfinished">Темы</translation>
     </message>
@@ -13849,7 +13851,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="-154"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="-175"/>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-136"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-139"/>
         <source>About</source>
         <translation type="unfinished">О программе</translation>
     </message>
@@ -14083,7 +14085,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location filename="../libs/shell/app/commandsearch.cpp" line="+37"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+3"/>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+51"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+52"/>
         <source>Options</source>
         <translation type="unfinished">Параметры</translation>
     </message>
@@ -14256,7 +14258,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Подложка</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-136"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-137"/>
         <source>Accounting Number Format</source>
         <translation type="unfinished">Бухгалтерский числовой формат</translation>
     </message>
@@ -14365,7 +14367,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Финансовые</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+3"/>
         <source>Footer</source>
         <translation>Нижний колонтитул</translation>
     </message>
@@ -14443,7 +14445,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Правила выделения ячеек</translation>
     </message>
     <message>
-        <location line="-52"/>
+        <location line="-53"/>
         <source>Barcode</source>
         <translation type="unfinished">Штрихкод</translation>
     </message>
@@ -14453,7 +14455,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Элементы управления</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+16"/>
         <source>Form Controls</source>
         <translation type="unfinished">Элементы управления формы</translation>
     </message>
@@ -14661,7 +14663,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Внешний вид таблицы</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+8"/>
         <source>Top/Bottom Rules</source>
         <translation type="unfinished">Правила отбора первых и последних значений</translation>
     </message>
@@ -15083,7 +15085,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">Файл повреждён или был изменён после установки защиты: её защищённое содержимое не может быть прочитано.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="+68"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="+69"/>
         <source>Part of the file has more settings on one item than any real file has, so it can&apos;t be read.</source>
         <translation type="unfinished">Часть файла содержит больше параметров для одного элемента, чем допускает любой настоящий файл, поэтому её невозможно прочитать.</translation>
     </message>
@@ -15322,7 +15324,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">Формула длиннее, чем допускается в любом реальном файле.</translation>
     </message>
     <message>
-        <location line="+89"/>
+        <location line="+95"/>
         <source>The file has no workbook part.</source>
         <translation type="unfinished">В файле нет части книги.</translation>
     </message>
@@ -15337,7 +15339,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">Два листа книги используют одну и ту же часть, чего не бывает в реальных файлах.</translation>
     </message>
     <message>
-        <location line="+208"/>
+        <location line="+213"/>
         <source>This file is a web page that was saved with an .xls name. This program can&apos;t open that kind of file yet.</source>
         <translation type="unfinished">Этот файл является веб-страницей, сохранённой с расширением .xls. Эта программа пока не может открывать такие файлы.</translation>
     </message>
@@ -15432,7 +15434,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">Этот файл является составным файлом, но книги в нём нет.</translation>
     </message>
     <message>
-        <location line="+1180"/>
+        <location line="+1224"/>
         <location filename="../libs/office/sheet/xls.cpp" line="+761"/>
         <source>There is no such sheet.</source>
         <translation type="unfinished">Такого листа нет.</translation>
@@ -22889,13 +22891,13 @@ Source: %3</source>
     <name>jp::CrunchWindow</name>
     <message>
         <location filename="../apps/crunch/app/crunchwindow.cpp" line="+193"/>
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+185"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+187"/>
         <source>The new workbook is getting ready. It can be changed in a moment.</source>
         <translation type="unfinished">Новая книга готовится. Её можно будет изменить через мгновение.</translation>
     </message>
     <message>
         <location line="+132"/>
-        <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+881"/>
+        <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+886"/>
         <location filename="../apps/crunch/app/crunchwindow_windows.cpp" line="+101"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
@@ -23070,13 +23072,14 @@ Source: %3</source>
     <message>
         <location line="+0"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-286"/>
-        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+1252"/>
+        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+1298"/>
+        <location filename="../apps/crunch/app/crunchwindow_themes.cpp" line="+39"/>
         <source>All Files (*)</source>
         <translation type="unfinished">Все файлы (*)</translation>
     </message>
     <message>
         <location line="+7"/>
-        <location line="+571"/>
+        <location line="+572"/>
         <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-151"/>
         <location line="+6"/>
         <location line="+14"/>
@@ -23108,7 +23111,7 @@ Source: %3</source>
         <translation type="unfinished">Сохранить</translation>
     </message>
     <message>
-        <location line="-570"/>
+        <location line="-571"/>
         <source>Save As…</source>
         <translation type="unfinished">Сохранить как…</translation>
     </message>
@@ -23160,12 +23163,12 @@ Source: %3</source>
     </message>
     <message>
         <location line="+80"/>
-        <location line="+463"/>
+        <location line="+464"/>
         <source>Editing</source>
         <translation type="unfinished">Редактирование</translation>
     </message>
     <message>
-        <location line="-458"/>
+        <location line="-459"/>
         <location line="+4"/>
         <source>After pressing Enter, move the selection</source>
         <translation>После нажатия Enter перемещать выделение</translation>
@@ -23273,12 +23276,12 @@ Source: %3</source>
     </message>
     <message>
         <location line="+22"/>
-        <location line="+408"/>
+        <location line="+409"/>
         <source>New Workbooks</source>
         <translation type="unfinished">Новые книги</translation>
     </message>
     <message>
-        <location line="-402"/>
+        <location line="-403"/>
         <location line="+2"/>
         <source>Font of a new workbook</source>
         <translation>Шрифт новой книги</translation>
@@ -23295,12 +23298,12 @@ Source: %3</source>
     </message>
     <message>
         <location line="+14"/>
-        <location line="+376"/>
+        <location line="+377"/>
         <source>Display</source>
         <translation type="unfinished">Отображение</translation>
     </message>
     <message>
-        <location line="-371"/>
+        <location line="-372"/>
         <location line="+8"/>
         <location line="+3"/>
         <source>Gridline color</source>
@@ -23319,18 +23322,18 @@ Source: %3</source>
     </message>
     <message>
         <location line="+21"/>
-        <location line="+329"/>
+        <location line="+330"/>
         <source>Privacy</source>
         <translation type="unfinished">Конфиденциальность</translation>
     </message>
     <message>
-        <location line="-314"/>
-        <location line="+314"/>
+        <location line="-315"/>
+        <location line="+315"/>
         <source>Custom Lists</source>
         <translation type="unfinished">Пользовательские списки</translation>
     </message>
     <message>
-        <location line="-311"/>
+        <location line="-312"/>
         <source>A custom list is a row of words that Fill goes through, like the days of the week. Type one list on each line, with commas between the words. Type the first word in a cell and drag the fill handle to get the rest.</source>
         <translation type="unfinished">Пользовательский список — это ряд слов, который используется при заполнении, например дни недели. Введите каждый список в отдельной строке, слова разделяйте запятыми. Введите первое слово в ячейку и протяните маркер заполнения, чтобы получить остальные.</translation>
     </message>
@@ -23453,7 +23456,7 @@ Source: %3</source>
         <translation type="unfinished">Обратная связь</translation>
     </message>
     <message>
-        <location line="+160"/>
+        <location line="+161"/>
         <source>An object&apos;s name is one to 255 characters.</source>
         <translation type="unfinished">Имя объекта может содержать от одного до 255 символов.</translation>
     </message>
@@ -23624,7 +23627,7 @@ Source: %3</source>
         <translation type="unfinished"> или больше</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-702"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-703"/>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="-160"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+128"/>
         <location filename="../apps/crunch/app/crunchwindow_page.cpp" line="+196"/>
@@ -24555,7 +24558,7 @@ Source: %3</source>
         <translation type="unfinished">Нет</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="-1021"/>
+        <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="-1026"/>
         <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+0"/>
         <source>Center</source>
         <translation type="unfinished">По центру</translation>
@@ -24566,7 +24569,7 @@ Source: %3</source>
         <translation>Значение</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+1035"/>
+        <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+1040"/>
         <source>Percentage</source>
         <translation type="unfinished">Процент</translation>
     </message>
@@ -24666,7 +24669,7 @@ Source: %3</source>
         <translation type="unfinished">%1 скопировано</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+658"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+659"/>
         <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+30"/>
         <location line="+17"/>
         <location line="+12"/>
@@ -24730,7 +24733,7 @@ Source: %3</source>
         <translation type="unfinished">Значения</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-671"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-672"/>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="-343"/>
         <location line="+299"/>
         <location line="+44"/>
@@ -25483,8 +25486,8 @@ The file that was there is as it was.</source>
     <message>
         <location line="+137"/>
         <location filename="../apps/crunch/app/crunchwindow_filter.cpp" line="-363"/>
-        <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="-976"/>
-        <location line="+601"/>
+        <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="-981"/>
+        <location line="+606"/>
         <location line="+1"/>
         <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-103"/>
         <location line="+6"/>
@@ -25880,7 +25883,7 @@ This file is protected with a password. Password:</source>
         <translation>Перейти к</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+459"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+460"/>
         <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="-74"/>
         <location line="+8"/>
         <location line="+4"/>
@@ -26054,40 +26057,40 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Шрифты не заменены.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="-1045"/>
-        <location line="+338"/>
+        <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="-1050"/>
+        <location line="+343"/>
         <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+21"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="-20"/>
         <source>Bold</source>
         <translation type="unfinished">Полужирный</translation>
     </message>
     <message>
-        <location line="-337"/>
-        <location line="+338"/>
+        <location line="-342"/>
+        <location line="+343"/>
         <source>Italic</source>
         <translation type="unfinished">Курсив</translation>
     </message>
     <message>
-        <location line="-337"/>
+        <location line="-342"/>
         <location line="+1"/>
-        <location line="+337"/>
+        <location line="+342"/>
         <source>Underline</source>
         <translation>Подчёркивание</translation>
     </message>
     <message>
-        <location line="-336"/>
-        <location line="+337"/>
+        <location line="-341"/>
+        <location line="+342"/>
         <source>Double Underline</source>
         <translation type="unfinished">Двойное подчёркивание</translation>
     </message>
     <message>
-        <location line="-336"/>
-        <location line="+337"/>
+        <location line="-341"/>
+        <location line="+342"/>
         <source>Strikethrough</source>
         <translation type="unfinished">Зачёркнутый</translation>
     </message>
     <message>
-        <location line="-336"/>
+        <location line="-341"/>
         <source>Increase Font Size</source>
         <translation type="unfinished">Увеличить размер шрифта</translation>
     </message>
@@ -26213,24 +26216,24 @@ This file is protected with a password. Password:</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+422"/>
+        <location line="+427"/>
         <source>Wrap Text</source>
         <translation type="unfinished">Переносить текст</translation>
     </message>
     <message>
-        <location line="-421"/>
-        <location line="+440"/>
+        <location line="-426"/>
+        <location line="+445"/>
         <source>Increase Indent</source>
         <translation type="unfinished">Увеличить отступ</translation>
     </message>
     <message>
-        <location line="-439"/>
-        <location line="+439"/>
+        <location line="-444"/>
+        <location line="+444"/>
         <source>Decrease Indent</source>
         <translation type="unfinished">Уменьшить отступ</translation>
     </message>
     <message>
-        <location line="-438"/>
+        <location line="-443"/>
         <location line="+1"/>
         <source>Merge and Center</source>
         <translation type="unfinished">Объединить и выровнять по центру</translation>
@@ -26242,7 +26245,7 @@ This file is protected with a password. Password:</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+450"/>
+        <location line="+455"/>
         <location line="+5"/>
         <location line="+3"/>
         <location line="+500"/>
@@ -26250,18 +26253,18 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Объединить ячейки</translation>
     </message>
     <message>
-        <location line="-957"/>
+        <location line="-962"/>
         <source>Unmerge Cells</source>
         <translation type="unfinished">Разъединить ячейки</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+1021"/>
+        <location line="+1026"/>
         <source>Currency</source>
         <translation type="unfinished">Денежный</translation>
     </message>
     <message>
-        <location line="-1020"/>
+        <location line="-1025"/>
         <source>Percent Style</source>
         <translation type="unfinished">Процентный</translation>
     </message>
@@ -26322,24 +26325,24 @@ This file is protected with a password. Password:</source>
     </message>
     <message>
         <location line="+4"/>
-        <location line="+492"/>
+        <location line="+497"/>
         <source>Increase Decimal</source>
         <translation type="unfinished">Увеличить количество знаков после запятой</translation>
     </message>
     <message>
-        <location line="-491"/>
-        <location line="+491"/>
+        <location line="-496"/>
+        <location line="+496"/>
         <source>Decrease Decimal</source>
         <translation type="unfinished">Уменьшить количество знаков после запятой</translation>
     </message>
     <message>
-        <location line="-490"/>
-        <location line="+998"/>
+        <location line="-495"/>
+        <location line="+1003"/>
         <source>General</source>
         <translation type="unfinished">Общий</translation>
     </message>
     <message>
-        <location line="-993"/>
+        <location line="-998"/>
         <source>Bottom Border</source>
         <translation type="unfinished">Нижняя граница</translation>
     </message>
@@ -26449,7 +26452,7 @@ This file is protected with a password. Password:</source>
     <message>
         <location line="+60"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+3"/>
-        <location line="+485"/>
+        <location line="+490"/>
         <location line="+36"/>
         <location line="+5"/>
         <location filename="../apps/crunch/app/crunchwindow_mini.cpp" line="+148"/>
@@ -26457,7 +26460,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Границы</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="-523"/>
+        <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="-528"/>
         <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-10"/>
         <source>Clear All</source>
         <translation type="unfinished">Очистить всё</translation>
@@ -26479,13 +26482,13 @@ This file is protected with a password. Password:</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+816"/>
+        <location line="+821"/>
         <location line="+29"/>
         <source>Copy Formatting</source>
         <translation type="unfinished">Копировать формат</translation>
     </message>
     <message>
-        <location line="-844"/>
+        <location line="-849"/>
         <source>Copy Formatting: copies the format of the selected cells to the cells you select next. Double-click to paint more than once.</source>
         <translation type="unfinished">Копировать формат: копирует формат выделенных ячеек в ячейки, которые вы выделите далее. Дважды щёлкните, чтобы применить формат несколько раз.</translation>
     </message>
@@ -26501,12 +26504,12 @@ This file is protected with a password. Password:</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+971"/>
+        <location line="+976"/>
         <source>More Number Formats…</source>
         <translation type="unfinished">Другие числовые форматы…</translation>
     </message>
     <message>
-        <location line="-965"/>
+        <location line="-970"/>
         <source>Horizontal Text</source>
         <translation type="unfinished">Горизонтальный текст</translation>
     </message>
@@ -26538,7 +26541,7 @@ This file is protected with a password. Password:</source>
     <message>
         <location line="+110"/>
         <location line="+5"/>
-        <location line="+748"/>
+        <location line="+753"/>
         <location line="+10"/>
         <location line="+7"/>
         <location line="+8"/>
@@ -26554,8 +26557,9 @@ This file is protected with a password. Password:</source>
     <message>
         <location line="+42"/>
         <location line="+621"/>
-        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-649"/>
-        <location line="+801"/>
+        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-675"/>
+        <location line="+26"/>
+        <location line="+800"/>
         <source>No Fill</source>
         <translation type="unfinished">Без заливки</translation>
     </message>
@@ -27785,7 +27789,7 @@ This file is protected with a password. Password:</source>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="-53"/>
-        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-593"/>
+        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-592"/>
         <location line="+543"/>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-505"/>
         <location line="+88"/>
@@ -28059,7 +28063,8 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-775"/>
+        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-801"/>
+        <location line="+26"/>
         <location line="+5"/>
         <location filename="../apps/crunch/app/crunchwindow_outline.cpp" line="-111"/>
         <location line="+9"/>
@@ -30106,7 +30111,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Цвет спарклайна</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-73"/>
+        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-99"/>
         <source>This can be done to a picture, a shape, or a text box. Pick one first.</source>
         <translation type="unfinished">Это можно применить к рисунку, фигуре или текстовому полю. Сначала выберите один из них.</translation>
     </message>
@@ -30117,19 +30122,21 @@ This file is protected with a password. Password:</source>
     </message>
     <message>
         <location line="+41"/>
-        <location line="+801"/>
+        <location line="+26"/>
+        <location line="+800"/>
         <source>Shape Fill</source>
         <translation type="unfinished">Заливка фигуры</translation>
     </message>
     <message>
-        <location line="-795"/>
-        <location line="+797"/>
+        <location line="-820"/>
+        <location line="+26"/>
+        <location line="+796"/>
         <location line="+1"/>
         <source>No Outline</source>
         <translation type="unfinished">Без контура</translation>
     </message>
     <message>
-        <location line="-598"/>
+        <location line="-597"/>
         <source>Flip</source>
         <translation type="unfinished">Отразить</translation>
     </message>
@@ -30229,13 +30236,13 @@ This file is protected with a password. Password:</source>
     <message>
         <location line="+2"/>
         <location line="+1"/>
-        <location line="+170"/>
+        <location line="+169"/>
         <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+11"/>
         <source>Weight</source>
         <translation>Толщина</translation>
     </message>
     <message>
-        <location line="-168"/>
+        <location line="-167"/>
         <source>Wrap to the shape</source>
         <translation type="unfinished">Обтекание по контуру фигуры</translation>
     </message>
@@ -30404,7 +30411,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Показать весь рисунок</translation>
     </message>
     <message>
-        <location line="+20"/>
+        <location line="+19"/>
         <source>Picture Border</source>
         <translation type="unfinished">Граница рисунка</translation>
     </message>
@@ -31238,7 +31245,7 @@ The file can&apos;t be read.</source>
         <location line="+8"/>
         <location line="+15"/>
         <location line="+20"/>
-        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-651"/>
+        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-650"/>
         <source>&quot;%1&quot; is not a picture JeffCrunch can read, or it is too large.</source>
         <translation type="unfinished">«%1» не является рисунком, который может прочитать JeffCrunch, или он слишком большой.</translation>
     </message>
@@ -32068,6 +32075,98 @@ The file can&apos;t be read.</source>
         <location line="+2"/>
         <source>Convert Object to Picture</source>
         <translation type="unfinished">Преобразовать объект в рисунок</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/app/crunchwindow_themes.cpp" line="-4"/>
+        <source>Browse for Themes…</source>
+        <translation type="unfinished">Найти темы…</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <location line="+53"/>
+        <source>Browse for Themes</source>
+        <translation type="unfinished">Найти темы</translation>
+    </message>
+    <message>
+        <location line="-51"/>
+        <source>Themes, Workbooks, Documents, and Presentations (*.thmx *.xlsx *.xltx *.docx *.dotx *.pptx *.potx)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Save Current Theme…</source>
+        <translation type="unfinished">Сохранить текущую тему…</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+53"/>
+        <source>Save Current Theme</source>
+        <translation type="unfinished">Сохранить текущую тему</translation>
+    </message>
+    <message>
+        <location line="-53"/>
+        <location line="+19"/>
+        <location line="+6"/>
+        <location line="+5"/>
+        <location line="+15"/>
+        <location line="+45"/>
+        <source>Theme</source>
+        <translation type="unfinished">Тема</translation>
+    </message>
+    <message>
+        <location line="-89"/>
+        <source>Theme Files (*.thmx)</source>
+        <translation type="unfinished">Файлы тем (*.thmx)</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Reset to the Workbook&apos;s Theme</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>This workbook has no theme part, so it can&apos;t take a theme. Nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>The theme could not be applied to this workbook. Nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>%1 can&apos;t be read: %2</source>
+        <translation>Не удалось прочитать %1: %2</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>The file can&apos;t be read.</source>
+        <translation>Не удалось прочитать файл.</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>%1 can&apos;t be written.</source>
+        <translation>Не удалось записать %1.</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Reset Theme</source>
+        <translation type="unfinished">Сбросить тему</translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>Built-In</source>
+        <translation>Встроенные</translation>
+    </message>
+    <message>
+        <location line="+34"/>
+        <source>Theme Colors</source>
+        <translation type="unfinished">Цвета темы</translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>Theme Fonts</source>
+        <translation type="unfinished">Шрифты темы</translation>
     </message>
 </context>
 <context>
@@ -63152,7 +63251,8 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+9"/>
         <location filename="../apps/crunch/core/editformat.cpp" line="+81"/>
-        <location line="+464"/>
+        <location line="+454"/>
+        <location line="+141"/>
         <location line="+45"/>
         <location line="+59"/>
         <location line="+38"/>
@@ -63353,25 +63453,25 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Применить имена</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editformat.cpp" line="-1422"/>
-        <location line="+1111"/>
+        <location filename="../apps/crunch/core/editformat.cpp" line="-1553"/>
+        <location line="+1242"/>
         <source>This sheet is protected, so whether its cells are locked, and whether their formulas are hidden, can&apos;t be changed. Unprotect the sheet first (Review, Unprotect Sheet).</source>
         <translation type="unfinished">Этот лист защищён, поэтому нельзя изменить, заблокированы ли его ячейки и скрыты ли их формулы. Сначала снимите защиту листа (Рецензирование, Снять защиту листа).</translation>
     </message>
     <message>
-        <location line="-1055"/>
+        <location line="-1186"/>
         <source>This workbook has as many different formats as a workbook can hold (%1 cell formats). Give the cells a format the workbook already has, or clear the formats of some cells, and try again.</source>
         <translation type="unfinished">В этой книге столько разных форматов, сколько книга может содержать (%1 форматов ячеек). Назначьте ячейкам формат, который уже есть в книге, или очистите форматы некоторых ячеек и попробуйте снова.</translation>
     </message>
     <message>
         <location line="+22"/>
-        <location line="+650"/>
+        <location line="+781"/>
         <location line="+150"/>
         <source>Those are not cells of the sheet.</source>
         <translation type="unfinished">Это не ячейки листа.</translation>
     </message>
     <message>
-        <location line="-788"/>
+        <location line="-919"/>
         <source>That is more cells than JeffCrunch formats at once (%1). Select whole columns or rows, or fewer cells.</source>
         <translation type="unfinished">Это больше ячеек, чем JeffCrunch форматирует за один раз (%1). Выделите целые столбцы или строки либо меньше ячеек.</translation>
     </message>
@@ -63402,12 +63502,22 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+18"/>
-        <location line="+171"/>
+        <location line="+302"/>
         <source>A font&apos;s name can have up to %1 characters in a workbook, and this one has %2. Choose another font.</source>
         <translation type="unfinished">Имя шрифта в книге может содержать не более %1 знаков, а в этом имени %2. Выберите другой шрифт.</translation>
     </message>
     <message>
-        <location line="+23"/>
+        <location line="-124"/>
+        <source>This workbook has no theme part, so it can&apos;t take a theme. Nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>The theme could not be applied to this workbook. Nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+138"/>
         <location line="+65"/>
         <source>Replace Fonts</source>
         <translation type="unfinished">Заменить шрифты</translation>
@@ -70203,7 +70313,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::crunch::SheetObjects</name>
     <message>
-        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+385"/>
+        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+441"/>
         <source>a drawing that could not be read (%1)</source>
         <translation type="unfinished">рисунок, который не удалось прочитать (%1)</translation>
     </message>
@@ -70213,7 +70323,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">больше %1 объектов в рисунке; остальные не показаны</translation>
     </message>
     <message>
-        <location line="+186"/>
+        <location line="+206"/>
         <source>more objects than the %1 a workbook may show</source>
         <translation type="unfinished">больше объектов, чем допускает книга (%1)</translation>
     </message>
@@ -70238,7 +70348,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">фигура или рисунок, который не удалось прочитать</translation>
     </message>
     <message numerus="yes">
-        <location line="+464"/>
+        <location line="+467"/>
         <source>The file stores this object together with %n other(s), so they can&apos;t be deleted one at a time.</source>
         <translation type="unfinished">
             <numerusform>Файл хранит этот объект вместе с %n другим объектом, поэтому их нельзя удалить по одному.</numerusform>
@@ -70247,7 +70357,7 @@ The password couldn&apos;t be put on the file.</source>
         </translation>
     </message>
     <message>
-        <location line="+724"/>
+        <location line="+752"/>
         <source>The charts made or changed here since the last save already hold as many numbers as JeffCrunch keeps (%1). Save the workbook first.</source>
         <translation type="unfinished">Диаграммы, созданные или изменённые здесь после последнего сохранения, уже содержат столько чисел, сколько хранит JeffCrunch (%1). Сначала сохраните книгу.</translation>
     </message>
@@ -70306,12 +70416,12 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">%1 новых объектов — столько, сколько JeffCrunch сохраняет за один раз. Сохраните книгу и добавьте остальные.</translation>
     </message>
     <message>
-        <location line="-2172"/>
+        <location line="-2203"/>
         <source>a diagram that could not be shown</source>
         <translation type="unfinished">диаграмму, которую не удалось показать</translation>
     </message>
     <message>
-        <location line="+903"/>
+        <location line="+934"/>
         <source>The pictures that stand for equations come to more than %1, so the equations past that are saved as math alone.</source>
         <translation type="unfinished">Рисунков, представляющих формулы, больше %1, поэтому формулы сверх этого сохраняются только как математика.</translation>
     </message>
@@ -71391,7 +71501,7 @@ The password couldn&apos;t be put on the file.</source>
         <location filename="../libs/office/office/package.cpp" line="+4"/>
         <location line="+7"/>
         <location filename="../libs/office/sheet/sheetcrypt.cpp" line="-1"/>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="-1409"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="-1453"/>
         <location filename="../apps/deck/io/presentationfile.cpp" line="-23"/>
         <location line="+28"/>
         <source>The file is larger than this program can open.</source>
@@ -72844,7 +72954,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::office::sheet::Workbook</name>
     <message>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="+578"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="+616"/>
         <source>Give the table style a name.</source>
         <translation type="unfinished">Укажите имя стиля таблицы.</translation>
     </message>

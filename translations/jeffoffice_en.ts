@@ -308,7 +308,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+906"/>
+        <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+911"/>
         <source>%n style(s) here have the same names as styles in %1, with another look. Replace them with the ones from %1?</source>
         <translation>
             <numerusform>%n style here has the same name as a style in %1, with another look. Replace it with the one from %1?</numerusform>
@@ -523,7 +523,7 @@
 <context>
     <name>jp::crunch::SheetObjects</name>
     <message numerus="yes">
-        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+1095"/>
+        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+1174"/>
         <source>The file stores this object together with %n other(s), so they can&apos;t be deleted one at a time.</source>
         <translation>
             <numerusform>The file stores this object together with %n other object, so they can&apos;t be deleted one at a time.</numerusform>
@@ -531,7 +531,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+1837"/>
+        <location line="+1865"/>
         <source>The file stores this chart together with %n other(s), so it can&apos;t be changed here.</source>
         <translation>
             <numerusform>The file stores this chart together with %n other chart, so it can&apos;t be changed here.</numerusform>
