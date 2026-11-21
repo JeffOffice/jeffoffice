@@ -547,24 +547,32 @@ void DeckWindow::moveSlideNumber(int across, int down)
 void DeckWindow::showHeaderFooter()
 {
     Document *d = m_ed->doc();
-    const deck::PrintHeaderFooter notesStart =
-        deck::printHeaderFooter(*d, deck::hasPrintHeaderFooter(*d, deck::PrintedPages::Notes) ? deck::PrintedPages::Notes : deck::PrintedPages::Handouts);
-    HeaderFooterDialog dlg(deck::footerOptions(*d), this, &notesStart);
+    const bool hasNotes = deck::hasPrintHeaderFooter(*d, deck::PrintedPages::Notes), hasHandouts = deck::hasPrintHeaderFooter(*d, deck::PrintedPages::Handouts);
+    deck::PrintHeaderFooter notesStart = deck::printHeaderFooter(*d, deck::PrintedPages::Notes);
+    deck::PrintHeaderFooter handoutsStart = deck::printHeaderFooter(*d, deck::PrintedPages::Handouts);
+    // With no choice made for either (printing shows its own for each) or the same one for both there is one set; with two different ones, two sets,
+    // and each stays as it was unless it is changed here.
+    const bool oneSet = (!hasNotes && !hasHandouts) || notesStart == handoutsStart;
+    if (oneSet) notesStart = handoutsStart = hasNotes ? notesStart : handoutsStart;
+    HeaderFooterDialog dlg(deck::footerOptions(*d), this, &notesStart, oneSet ? nullptr : &handoutsStart);
     if (dlg.exec() != QDialog::Accepted) return;
-    const deck::PrintHeaderFooter notesChoice = dlg.printChoice();
-    if (notesChoice == notesStart) {
+    const deck::PrintHeaderFooter notesChoice = dlg.printChoice(deck::PrintedPages::Notes);
+    const deck::PrintHeaderFooter handoutsChoice = oneSet ? notesChoice : dlg.printChoice(deck::PrintedPages::Handouts);
+    const bool notesChanged = !(notesChoice == notesStart), handoutsChanged = !(handoutsChoice == handoutsStart);
+    if (!notesChanged && !handoutsChanged) {
         applyFooters(dlg.options(), dlg.applyToAll());
         return;
     }
-    // The slides' choice and the notes pages' and handouts' are one step of Undo.
+    // The slides' choice (with no slide to apply it to, only for all of them) and the notes pages' and handouts' are one step of Undo.
     const int i = m_ed->currentPage();
-    if (!dlg.applyToAll() && (i < 0 || i >= d->pages.size())) return;
+    const bool slideAsked = dlg.applyToAll() || (i >= 0 && i < d->pages.size());
     m_notes->commit();
     if (m_outline) m_outline->commit();
     m_ed->endTextEdit();
     m_ed->beginChange(tr("Header & Footer"));
-    deck::applyFooters(*d, dlg.options(), dlg.applyToAll() ? nullptr : d->pages[i].get());
-    for (deck::PrintedPages pages : {deck::PrintedPages::Notes, deck::PrintedPages::Handouts}) deck::setPrintHeaderFooter(*d, pages, notesChoice);
+    if (slideAsked) deck::applyFooters(*d, dlg.options(), dlg.applyToAll() ? nullptr : d->pages[i].get());
+    if (notesChanged) deck::setPrintHeaderFooter(*d, deck::PrintedPages::Notes, notesChoice);
+    if (handoutsChanged) deck::setPrintHeaderFooter(*d, deck::PrintedPages::Handouts, handoutsChoice);
     m_ed->endChange();
 }
 

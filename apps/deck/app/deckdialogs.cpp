@@ -42,7 +42,8 @@ QDialogButtonBox *applyButtons(QDialog *dlg, bool *all)
 }
 } // namespace
 
-HeaderFooterDialog::HeaderFooterDialog(const deck::FooterOptions &o, QWidget *parent, const deck::PrintHeaderFooter *print) : QDialog(parent), m_start(o)
+HeaderFooterDialog::HeaderFooterDialog(const deck::FooterOptions &o, QWidget *parent, const deck::PrintHeaderFooter *print, const deck::PrintHeaderFooter *handouts)
+    : QDialog(parent), m_start(o)
 {
     setWindowTitle(tr("Header & Footer"));
     setObjectName(QStringLiteral("headerFooterDialog"));
@@ -81,8 +82,19 @@ HeaderFooterDialog::HeaderFooterDialog(const deck::FooterOptions &o, QWidget *pa
         auto *slidePage = new QWidget(tabs);
         slidePage->setLayout(lay);
         tabs->addTab(slidePage, tr("Slide"));
-        m_print = new PrintHeaderFooterPanel(*print, tabs);
-        tabs->addTab(m_print, tr("Notes and Handouts"));
+        if (handouts && !(*handouts == *print)) {
+            // Each set stays as it is unless it is changed here: two sets, not one written over both.
+            auto *both = new QTabWidget(tabs);
+            both->setObjectName(QStringLiteral("headerFooterNotesAndHandouts"));
+            m_print = new PrintHeaderFooterPanel(*print, both);
+            m_printHandouts = new PrintHeaderFooterPanel(*handouts, both);
+            both->addTab(m_print, tr("Notes pages"));
+            both->addTab(m_printHandouts, tr("Handouts"));
+            tabs->addTab(both, tr("Notes and Handouts"));
+        } else {
+            m_print = new PrintHeaderFooterPanel(*print, tabs);
+            tabs->addTab(m_print, tr("Notes and Handouts"));
+        }
         outer->addWidget(tabs);
     } else {
         outer->addLayout(lay);
@@ -90,7 +102,11 @@ HeaderFooterDialog::HeaderFooterDialog(const deck::FooterOptions &o, QWidget *pa
     outer->addWidget(applyButtons(this, &m_all));
 }
 
-deck::PrintHeaderFooter HeaderFooterDialog::printChoice() const { return m_print ? m_print->choice() : deck::PrintHeaderFooter(); }
+deck::PrintHeaderFooter HeaderFooterDialog::printChoice(deck::PrintedPages pages) const
+{
+    if (pages == deck::PrintedPages::Handouts && m_printHandouts) return m_printHandouts->choice();
+    return m_print ? m_print->choice() : deck::PrintHeaderFooter();
+}
 
 PrintHeaderFooterPanel::PrintHeaderFooterPanel(const deck::PrintHeaderFooter &start, QWidget *parent) : QWidget(parent)
 {

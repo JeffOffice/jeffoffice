@@ -29,18 +29,19 @@ class PrintHeaderFooterPanel;
 class HeaderFooterDialog : public QDialog {
     Q_OBJECT
 public:
-    // With `print` given, the window has two tabs, Slide and Notes and Handouts (what is printed at the top and bottom of those pages).
-    HeaderFooterDialog(const deck::FooterOptions &options, QWidget *parent = nullptr, const deck::PrintHeaderFooter *print = nullptr);
+    // With `notes` given, the window has two tabs, Slide and Notes and Handouts (what is printed at the top and bottom of those pages). When `handouts`
+    // is given too and is not the same as `notes`, the second tab shows both sets, in a tab each; otherwise it shows one set for both.
+    HeaderFooterDialog(const deck::FooterOptions &options, QWidget *parent = nullptr, const deck::PrintHeaderFooter *notes = nullptr, const deck::PrintHeaderFooter *handouts = nullptr);
     deck::FooterOptions options() const;
-    // What the Notes and Handouts tab says (the choice given back as it was when there is no such tab).
-    deck::PrintHeaderFooter printChoice() const;
+    // What the Notes and Handouts tab says for the notes pages or the handouts (the choice as it was given when there is no such tab).
+    deck::PrintHeaderFooter printChoice(deck::PrintedPages pages) const;
     // Whether Apply to All was chosen (else Apply, to the slide being edited).
     bool applyToAll() const { return m_all; }
 
 private:
     QCheckBox *m_date, *m_number, *m_footer, *m_skipTitle;
     QLineEdit *m_text;
-    PrintHeaderFooterPanel *m_print = nullptr;
+    PrintHeaderFooterPanel *m_print = nullptr, *m_printHandouts = nullptr;   // (the second only when the two sets differ)
     deck::FooterOptions m_start;   // as it was given: what the dialog doesn't show (a date's text, the field's code, ...) is given back as it was
     bool m_all = false;
 };
