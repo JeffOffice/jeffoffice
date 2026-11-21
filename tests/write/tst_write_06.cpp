@@ -128,6 +128,30 @@ void WriteTests::thePagesCopiesOfAJoinedRunHoldOnlyTheirOwnText()
 }
 
 
+// A page of one paragraph of hundreds of thousands of characters (one run, so one fragment) reads its own few thousand characters out of the story, not the whole run for each page:
+// the characters read to make every page's copy are about the characters there are, and twice the text reads twice the characters, not four times. (Counted.)
+void WriteTests::thePagesOfOneHugeRunReadOnlyTheirOwnCharacters()
+{
+    const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"6000\" w:h=\"4800\"/><w:pgMar w:top=\"720\" w:right=\"720\" w:bottom=\"720\" w:left=\"720\" w:header=\"360\" w:footer=\"360\" w:gutter=\"0\"/></w:sectPr>";
+    qint64 read[2] = {0, 0}, length[2] = {0, 0};
+    int pageCount[2] = {0, 0};
+    for (int k = 0; k < 2; ++k) {
+        QByteArray text;
+        for (int w = 0; w < 20000 * (k + 1); ++w) text += "word" + QByteArray::number(w % 10) + " ";
+        auto doc = open(makeDocx("<w:p><w:r><w:t xml:space=\"preserve\">" + text + "</w:t></w:r></w:p>", kStyles, QByteArray(), sect));
+        QVERIFY(doc);
+        pageCount[k] = doc->pager().pageCount();
+        QVERIFY2(pageCount[k] >= 100 * (k + 1), qPrintable(QString::number(pageCount[k])));
+        const qint64 before = doc->pager().fragmentCharsReadForTest();
+        for (int i = 0; i < pageCount[k]; ++i) QVERIFY(doc->pager().materialize(i));
+        read[k] = doc->pager().fragmentCharsReadForTest() - before;
+        length[k] = doc->story()->characterCount();
+    }
+    QVERIFY2(read[0] <= 2 * length[0], qPrintable(QStringLiteral("%1 characters read for the %2 pages of a story of %3").arg(read[0]).arg(pageCount[0]).arg(length[0])));
+    QVERIFY2(read[1] <= 2 * read[0] + 1000, qPrintable(QStringLiteral("%1 characters read, then %2 for twice the text").arg(read[0]).arg(read[1])));
+}
+
+
 // The copy of a page's text is made in one edit: a paragraph of thousands of runs of one character each, set small, is a page of thousands of pieces, and the copy of that page takes
 // a moment, not the time of laying out the paragraph for every piece put in. (A ceiling many times what the page takes alone.)
 void WriteTests::aPageOfThousandsOfRunsIsCopiedInOneEdit()

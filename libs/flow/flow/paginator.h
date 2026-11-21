@@ -242,6 +242,8 @@ public:
     qint64 numberStepsForTest() const { return m_numberSteps; }
     // How many characters the copies of the text on the pages have held since it was made (the copy a page is drawn from holds that page's text and a line more): for tests of what a page costs.
     qint64 charsCopiedForTest() const { return m_charsCopied; }
+    // How many characters were read out of the story to make the copies of the pages' text (a page of a paragraph of millions of characters reads its own few thousand): for tests.
+    qint64 fragmentCharsReadForTest() const { return m_fragmentCharsRead; }
     // The lines looked at to number the lines of pages so far (a page's own, each time it is laid out): the work of line numbering, which is a page's lines and no more.
     qint64 lineNumberVisitsForTest() const { return m_lineNumberVisits; }
     // How many runs' formats were read to count the notes before pages (a paragraph of thousands of runs is asked at each of its pages: the runs before the part asked are passed by their places).
@@ -608,6 +610,7 @@ private:
     qint64 m_passes = 0;
     qint64 m_headerFramesMade = 0, m_headerReachesMade = 0;
     qint64 m_charsCopied = 0;
+    qint64 m_fragmentCharsRead = 0;
     qint64 m_headerTablesMade = 0, m_headerTableCells = 0;   // layouts of the tables made, and the cells held
     // The number of the page asked for last, so that the next one's is one more: a walk back to the section's first page is for a page that doesn't follow it.
     mutable int m_numberOf = -1, m_number = 0;

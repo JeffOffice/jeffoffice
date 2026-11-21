@@ -1567,6 +1567,9 @@ void Paginator::applyShift(Run *run, const PageShift &shift) const
     }
 }
 
+// A fragment of at most this many characters is copied whole and cut to the page's part; a longer one is read only where the page is.
+constexpr int kWholeFragment = 4096;
+
 std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStart &st, int *storyFrom, bool *fromBefore, const QVector<int> &gapBlocks, double gap)
 {
     const QTextDocument *main = m_doc->story();
@@ -1737,8 +1740,18 @@ std::unique_ptr<QTextDocument> Paginator::sliceOf(const Run &run, const PageStar
             const int rel = frag.position() - b.position();
             if (rel + frag.length() <= skip) continue;   // (before the page's first character: without copying its text, which a paragraph of thousands of pages has before each)
             if (rel >= upto) break;
-            QString text = frag.text();
-            if (rel < skip) text = text.mid(skip - rel);
+            QString text;
+            const int wantFrom = std::max(rel, skip), wantTo = std::min(rel + frag.length(), upto);
+            if (frag.length() > kWholeFragment && wantTo > wantFrom && 4 * (wantTo - wantFrom) < frag.length()) {
+                // (A run of one format is one fragment, however long the paragraph: a page of a paragraph of millions of characters takes its own few thousand, not the fragment's text for each page.)
+                text.resize(wantTo - wantFrom);
+                for (int i = wantFrom; i < wantTo; ++i) text[i - wantFrom] = main->characterAt(b.position() + i);
+                m_fragmentCharsRead += text.size();
+            } else {
+                text = frag.text();
+                m_fragmentCharsRead += text.size();
+                if (rel < skip) text = text.mid(skip - rel);
+            }
             // (Of the fragment's text from where the page begins: as much as reaches the copy's end. A run of one format is one fragment, however long the paragraph.)
             if (std::max(rel, skip) + int(text.size()) > upto) text = text.left(upto - std::max(rel, skip));
             const QString code = frag.charFormat().stringProperty(tp::Field);

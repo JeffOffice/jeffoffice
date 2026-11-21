@@ -1222,6 +1222,7 @@ private Q_SLOTS:
     void aLongRunOfJoinedParagraphsIsCutIntoParagraphsOfThirtyTwo();
     void aJoinedRunIsCutAtTheSamePlacesWhereverALayoutBegins();
     void thePagesCopiesOfAJoinedRunHoldOnlyTheirOwnText();
+    void thePagesOfOneHugeRunReadOnlyTheirOwnCharacters();
     void aPageOfThousandsOfRunsIsCopiedInOneEdit();
     void theLinesOfAParagraphOfThousandsOfRunsReadOnlyTheirOwnRanges();
     void aPageFarDownAParagraphOfAHundredThousandRunsIsCopiedQuickly();
