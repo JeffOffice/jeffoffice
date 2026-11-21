@@ -62,8 +62,15 @@ QByteArray fontWithItalicFlags(const QByteArray &font);
 // them, for the test that shows how the platform draws them.
 struct StandInStretch { QString family, standIn; int stretch[4]; };
 QList<StandInStretch> standInStretchesForTest();
-// How many times the font database has been asked whether a family is installed, on this thread, since the program began (the answers are kept): a count for tests of cost.
+// How many times the font database has been asked whether a family is installed, since the program began (the answers are kept): a count for tests of cost.
 qint64 fontDatabaseAskedForTest();
+// How many of those questions came from a thread other than the one that ran initCore(): none, in a program that follows the rule below.
+qint64 fontDatabaseAskedOffMainForTest();
+// Whether a family is installed, for code that may run on a worker thread. The font database is asked from the main thread only: there this asks it;
+// on any other thread this reads the names listed on the main thread (case-insensitive, "[Foundry]" dropped; a name the database would only
+// find through an alias is not found), and says no before initCore() has listed them (counted by the next function).
+bool familyInstalled(const QString &family);
+qint64 installedFamiliesMissedForTest();
 // Every family the table of stand-ins names, sorted, for the same test.
 QStringList standInFamiliesForTest();
 // The name to write in files other programs read: a bundled font that is

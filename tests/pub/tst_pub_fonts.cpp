@@ -1,6 +1,8 @@
 // JeffPub's tests of stand-in fonts, letter widths, and bold drawn by hand.
 #include "pubhelpers.h"
+#include "core/workthread.h"
 
+#include <QElapsedTimer>
 #include <QScopeGuard>
 #include <map>
 
@@ -1283,18 +1285,46 @@ private Q_SLOTS:
         QCOMPARE(combo.currentText(), QStringLiteral("Typed"));
     }
 
-    // The names the table has no font for are asked of the font database by several threads at the start; the answer is the one a single thread gets.
-    void missingSubstituteKeysAreTheSameWhenAskedOneByOne()
+    // The font database is asked from the main thread only: starting the program asks it from no other thread, and the names the table has no font for
+    // are the ones a one-by-one question gets.
+    void startupAsksTheFontDatabaseOnTheMainThreadOnly()
     {
         jp::initCore();
+        QCOMPARE(jp::fontDatabaseAskedOffMainForTest(), qint64(0));
         QStringList serial;
         for (const QString &key : jp::standInKeysForTest())
             if (!QFontDatabase::hasFamily(key)) serial << key;
         serial.sort();
+        QElapsedTimer clock;
+        clock.start();
         QStringList asked = jp::missingSubstituteKeys();
+        qInfo("FONTSTART names=%d missing=%d took %lld ms on the main thread", int(jp::standInKeysForTest().size()), int(asked.size()), (long long)clock.elapsed());
         asked.sort();
-        if (serial.isEmpty()) QSKIP("this computer has a font for every name in the table");
         QCOMPARE(asked, serial);
+        QCOMPARE(jp::fontDatabaseAskedOffMainForTest(), qint64(0));
+    }
+
+    // A worker asks "is this family installed" of the copy of the names, never of the database, and gets the main thread's answer: a name present, absent,
+    // in another case, and with a foundry in brackets.
+    void aWorkerAsksTheCopyOfTheFamilyNames()
+    {
+        jp::initCore();
+        const QStringList all = QFontDatabase::families();
+        QVERIFY(!all.isEmpty());
+        const QString present = all.first();
+        QStringList names{present, present.toUpper(), present.toLower(), present + QStringLiteral(" [Foundry]"), QStringLiteral("Zzyzx Not A Font"), QString()};
+        QList<bool> onMain, onWorker;
+        for (const QString &n : names) onMain << jp::familyInstalled(n);
+        const qint64 before = jp::fontDatabaseAskedForTest();
+        jp::WorkThread w([&] {
+            for (const QString &n : names) onWorker << jp::familyInstalled(n);
+        });
+        w.join();
+        QCOMPARE(onWorker, onMain);
+        QVERIFY(onMain.at(0) && onMain.at(1) && onMain.at(2) && !onMain.at(4));
+        QCOMPARE(jp::fontDatabaseAskedForTest(), before);
+        QCOMPARE(jp::fontDatabaseAskedOffMainForTest(), qint64(0));
+        QCOMPARE(jp::installedFamiliesMissedForTest(), qint64(0));
     }
 
     // How the platform's text engine draws the stretched stand-ins (each

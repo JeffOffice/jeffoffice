@@ -405,7 +405,7 @@ private:
     QString symbolPictures(const QString &s) const
     {
         const QString family = m_dc.font.family();
-        if (!isSymbolFont(family) || QFontDatabase::hasFamily(family)) return s;
+        if (!isSymbolFont(family) || jp::familyInstalled(family)) return s;
         QString out;
         for (QChar c : s) {
             const QString picture = symbolToUnicode(family, c.unicode());

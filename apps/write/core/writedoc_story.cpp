@@ -2,6 +2,7 @@
 // as XML becomes the pieces of writeprops.h.
 
 #include "core/barcodeitem.h"
+#include "core/fonts.h"
 #include "core/items.h"
 #include "core/svg.h"
 #include "core/pictureops.h"
@@ -1390,7 +1391,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
                 // A symbol of a symbol font is set in that font whatever font the run is in, as its character is (where the machine lacks the font the page shows the picture the
                 // character stands for, as wide as the font makes it).
                 if (!font.isEmpty() && symbols) af.setProperty(tp::DisplayFamily, font);
-                if (ok && !font.isEmpty() && !symbols && !QFontDatabase::hasFamily(font)) {
+                if (ok && !font.isEmpty() && !symbols && !jp::familyInstalled(font)) {
                     const uint ch = code >= 0xF000 && code <= 0xF0FF ? code - 0xF000 : code;
                     if (ch >= 0x20 && ch <= 0xFFFF) {
                         field = QStringLiteral("raw:") + QString(QChar(char16_t(ch)));

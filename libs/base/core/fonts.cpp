@@ -518,22 +518,75 @@ static const StandInWidths *measuredStandIn(const QString &family)
 // Whether a family is installed or an application font. The font database
 // takes about 0.2 ms to say, and layout asks it of every run: its answers are
 // kept until fonts are added or removed.
-static thread_local qint64 g_databaseAsked = 0;
-qint64 fontDatabaseAskedForTest() { return g_databaseAsked; }
+// Every question goes through askDatabase(), which counts it. The font database (its first filling, its name lookups) is asked from the main thread
+// only: workers read a copy of the family names (familyInstalled below).
+static std::atomic<qint64> g_databaseAsked{0}, g_databaseAskedOffMain{0};
+static std::atomic<QThread *> g_fontThread{nullptr};
+qint64 fontDatabaseAskedForTest() { return g_databaseAsked.load(); }
+qint64 fontDatabaseAskedOffMainForTest() { return g_databaseAskedOffMain.load(); }
+
+static bool onFontThread() { return !g_fontThread.load() || QThread::currentThread() == g_fontThread.load(); }
+
+static bool askDatabase(const QString &family)
+{
+    ++g_databaseAsked;
+    if (!onFontThread()) ++g_databaseAskedOffMain;
+    return QFontDatabase::hasFamily(family);
+}
+
+namespace {
+std::mutex g_installedLock;
+QSet<QString> g_installed;   // (lowercase names)
+bool g_haveInstalled = false;
+std::atomic<qint64> g_installedMisses{0};
+}   // namespace
+
+static QString installedKey(QString family)
+{
+    family = family.trimmed();
+    if (family.endsWith(QLatin1Char(']'))) {   // "Name [Foundry]"
+        const qsizetype open = family.lastIndexOf(QLatin1Char('['));
+        if (open > 0) family = family.left(open).trimmed();
+    }
+    return family.toLower();
+}
+
+// (main thread)
+static void refreshInstalledFamilies()
+{
+    QSet<QString> now;
+    ++g_databaseAsked;
+    for (const QString &f : QFontDatabase::families()) now.insert(installedKey(f));
+    std::lock_guard<std::mutex> lock(g_installedLock);
+    g_installed = std::move(now);
+    g_haveInstalled = true;
+}
+
+bool familyInstalled(const QString &family)
+{
+    if (onFontThread()) return askDatabase(family);
+    std::lock_guard<std::mutex> lock(g_installedLock);
+    if (!g_haveInstalled) {
+        ++g_installedMisses;
+        return false;
+    }
+    return g_installed.contains(installedKey(family));
+}
+
+qint64 installedFamiliesMissedForTest() { return g_installedMisses.load(); }
 
 static bool haveFamily(const QString &family)
 {
     static QHash<QString, bool> cache;   // main thread only, like all layout
     static bool watching = false;
-    if (!qGuiApp) return (++g_databaseAsked, QFontDatabase::hasFamily(family));
+    if (!qGuiApp) return askDatabase(family);
     if (!watching) {
         QObject::connect(qGuiApp, &QGuiApplication::fontDatabaseChanged, qGuiApp, [] { cache.clear(); });
         watching = true;
     }
     auto it = cache.constFind(family);
     if (it == cache.constEnd()) {
-        ++g_databaseAsked;
-        it = cache.insert(family, QFontDatabase::hasFamily(family));
+        it = cache.insert(family, askDatabase(family));
     }
     return *it;
 }
@@ -989,28 +1042,13 @@ QStringList standInFamiliesForTest()
     return out;
 }
 
-// The names in the table that this computer has no font for. The font database is asked for each (about 0.2 ms apiece, a quarter of the start), so the
-// questions are split among threads.
+// The names in the table that this computer has no font for. The font database is asked on this (the main) thread only: it takes about 0.2 ms for
+// each name, and a database filled and searched by several threads at once is not something to rely on.
 QStringList missingSubstituteKeys()
 {
-    const auto &t = table();
-    const QStringList keys = t.keys();
-    QVector<char> missing(keys.size(), 0);
-    const int threads = std::clamp(QThread::idealThreadCount(), 1, 4);
-    const auto ask = [&](int from, int step) {
-        for (int i = from; i < keys.size(); i += step) missing[i] = QFontDatabase::hasFamily(keys[i]) ? 0 : 1;
-    };
-    std::vector<WorkThread> workers;
-    workers.reserve(size_t(threads));
-    for (int k = 1; k < threads; ++k) {
-        workers.emplace_back([&ask, k, threads] { ask(k, threads); });
-        if (!workers.back().started()) ask(k, threads);   // (no thread to be had: this one asks for those names too)
-    }
-    ask(0, threads);
-    for (WorkThread &w : workers) w.join();
     QStringList out;
-    for (int i = 0; i < keys.size(); ++i)
-        if (missing[i]) out << keys[i];
+    for (const QString &key : table().keys())
+        if (!askDatabase(key)) out << key;
     return out;
 }
 
@@ -1127,11 +1165,14 @@ void initCore()
     static bool done = false;
     if (done) return;
     done = true;
+    g_fontThread = QThread::currentThread();
     QImageReader::setAllocationLimit(2048);   // megabytes; print covers carry 600 dpi photos
     startupMark("initCore: begin");
     loadBundledFonts();
     startupMark("initCore: bundled fonts loaded");
     installFontSubstitutions();
+    refreshInstalledFamilies();
+    if (qGuiApp) QObject::connect(qGuiApp, &QGuiApplication::fontDatabaseChanged, qGuiApp, [] { refreshInstalledFamilies(); });
 }
 
 bool familyMayBeBundled(const QString &family)

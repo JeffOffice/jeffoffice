@@ -1,5 +1,6 @@
 #include "core/barcodeitem.h"
 #include "core/items.h"
+#include "core/fonts.h"
 
 #include <QBuffer>
 #include <QCryptographicHash>
@@ -27,7 +28,7 @@ QString digitFamily()
 {
     static const QString f = [] {
         for (const QString &name : {QStringLiteral("OCR-B"), QStringLiteral("OCR B"), QStringLiteral("OCRB"), QStringLiteral("OCR-B 10 BT")})
-            if (QFontDatabase::hasFamily(name)) return name;
+            if (jp::familyInstalled(name)) return name;
         return QStringLiteral("Arimo");
     }();
     return f;

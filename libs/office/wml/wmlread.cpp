@@ -77,7 +77,7 @@ public:
         const SymbolPictures *pictures = ok ? symbolPicturesOf(font) : nullptr;
         if (!pictures) return box;
         auto cached = installed.constFind(font.toLower());
-        if (cached == installed.constEnd()) cached = installed.insert(font.toLower(), QFontDatabase::hasFamily(font));
+        if (cached == installed.constEnd()) cached = installed.insert(font.toLower(), jp::familyInstalled(font));
         if (*cached) return code <= 0xFFFF ? QString(QChar(char16_t(code))) : box;
         const QChar picture = pictures->of(code);
         return picture.isNull() ? box : QString(picture);
