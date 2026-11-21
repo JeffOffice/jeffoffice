@@ -63,6 +63,7 @@ public:
     int footnotes = 0, endnotes = 0;
     // What the body holds so far; past the limits (wml.h) the rest is left out.
     int paragraphs = 0, inlines = 0, sections = 0;
+    int ignoredSections = 0;          // the section breaks past kMaxSections (ignored: the text after them stays in the last section)
     int cutParagraphs = 0;            // the paragraphs that had more characters than kMaxParagraphChars (the rest of each is left out)
     bool truncated = false;
     int standIns = 0;                 // the tables that are kept whole as XML, for want of room (or rows)
@@ -567,10 +568,15 @@ public:
         bool cut = false;
         for (Inline &in : p.content) {
             if (in.text.size() > room) {
-                in.text.truncate(int(room));
+                // (Not between the halves of a pair of surrogates.)
+                int keep = int(room);
+                if (keep > 0 && in.text.at(keep - 1).isHighSurrogate() && in.text.at(keep).isLowSurrogate()) --keep;
+                in.text.truncate(keep);
                 cut = true;
+                room = 0;
+            } else {
+                room -= in.text.size();
             }
-            room -= in.text.size();
         }
         if (cut) ++cutParagraphs;
         return p;
@@ -973,18 +979,27 @@ public:
     {
         for (int c = t.firstChild(n); c >= 0; c = t.next(c)) {
             if (inCell && t.is(c, "tcPr")) continue;   // (the cell's properties are in its Open block)
-            if (paragraphs >= kMaxParagraphs || inlines >= kMaxInlines || sections >= kMaxSections) {
-                truncated = true;
-                return;
-            }
             const QByteArray name = t.localName(c);
+            // (At the limit the rest is left out, but only what is more: the section properties that end the body are not content, and a file of exactly the limit is whole and silent.)
+            if ((paragraphs >= kMaxParagraphs || inlines >= kMaxInlines) && !(t.ns(c) == NsW && name == "sectPr")) {
+                truncated = true;
+                continue;   // (what follows is passed by: the body's own section properties, last, are still read)
+            }
             if (t.ns(c) != NsW) {
                 out->push_back(rawBlock(c));
             } else if (name == "p") {
                 ++paragraphs;
                 Block b;
                 b.para = paragraph(c);
-                if (b.para.props.section) ++sections;
+                if (b.para.props.section) {
+                    // (Past the limit of sections the text goes on in the last one: the breaks after it are ignored, and a note says so.)
+                    if (sections >= kMaxSections) {
+                        b.para.props.section.reset();
+                        ++ignoredSections;
+                    } else {
+                        ++sections;
+                    }
+                }
                 out->push_back(std::move(b));
             } else if (name == "sectPr") {
                 if (last) {
@@ -1692,8 +1707,12 @@ bool readDocx(const QByteArray &zip, Document *doc, QString *error, ReadNotes *n
         noteIt(QCoreApplication::translate("jp::office::wml", "The document is longer than this program can open: the end of it was left out."));
         if (notes) notes->leftOut = true;
     }
+    if (reader.ignoredSections > 0) {
+        noteIt(QCoreApplication::translate("jp::office::wml", "The document has more sections than this program can open: the section breaks after the first 15,000 were ignored, and the rest of the text is in the last section."));
+        if (notes) notes->leftOut = true;
+    }
     if (reader.cutParagraphs > 0) {
-        noteIt(QCoreApplication::translate("jp::office::wml", "A paragraph is longer than this program can lay out: the rest of it was left out."));
+        noteIt(QCoreApplication::translate("jp::office::wml", "A paragraph is longer than this program can open: the rest of it was left out."));
         if (notes) notes->leftOut = true;
     }
     if (reader.standIns > 0)

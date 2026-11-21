@@ -723,13 +723,15 @@ int main(int argc, char **argv)
         const bool capSet = qEnvironmentVariableIsSet("WRITETOOL_MAX_PAGES");
         const int drawFirst = capSet ? qEnvironmentVariableIntValue("WRITETOOL_MAX_PAGES") : pages > kMostDrawnPages ? kDrawnOfMany : 0;
         if (!capSet && drawFirst > 0) out << "note\tdrew " << drawFirst + 5 << " of the " << pages << " pages (WRITETOOL_MAX_PAGES=0 draws all)\n";
+        int written = 0;
         for (int k = 0; k < pages; ++k) {
             if (drawFirst > 0 && k >= drawFirst && k < pages - 5) continue;
             const QImage img = pageImage(pg, &cache, k, width, false, pages);
             if (img.isNull() || !img.save(dir.filePath(QStringLiteral("page-%1.png").arg(k + 1, 3, 10, QLatin1Char('0'))))) { out << "cannot save page " << k + 1 << "\n"; return 1; }
+            ++written;
             cache.clear();   // (each page has stories of its own: what was laid out for one is not wanted for the next, and held, a file of hundreds of pages takes a gigabyte)
         }
-        out << "wrote\t" << pages << " pages\t" << timer.elapsed() << " ms\n";
+        out << "wrote\t" << written << " pages\tof " << pages << "\t" << timer.elapsed() << " ms\n";
         return 0;
     }
     if (cmd == "pdf") {

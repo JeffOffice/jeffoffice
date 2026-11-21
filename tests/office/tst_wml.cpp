@@ -2946,54 +2946,110 @@ private Q_SLOTS:
         QVERIFY(settingsWithMailMerge(added, none).contains("<w:trackRevisions/>"));
     }
 
-    // A body of more sections than the limit is read as far as it, with a note, and more sections after it change nothing: the sections read are the limit for twice and four times as many.
-    void aBodyOfThousandsOfSectionsIsReadAsFarAsTheLimit()
+    // Sections past the limit: the text goes on in the last section, the breaks after the limit are ignored, and a note says so. A file of exactly the limit is whole and silent, and the
+    // properties that end the body (a different page size here) are the last section's.
+    void aBodyOfThousandsOfSectionsKeepsTheLimitAndJoinsTheRest()
     {
         const QByteArray one = "<w:p><w:pPr><w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr></w:pPr><w:r><w:t>s</w:t></w:r></w:p>";
-        int read[3] = {0, 0, 0};
-        for (int k = 0; k < 3; ++k) {
+        const QByteArray end = "<w:sectPr><w:pgSz w:w=\"15840\" w:h=\"12240\"/></w:sectPr>";
+        int breaks[4] = {0, 0, 0, 0}, paragraphs[4] = {0, 0, 0, 0};
+        const int counts[4] = {kMaxSections - 1, kMaxSections, kMaxSections + 1, 2 * kMaxSections};
+        for (int k = 0; k < 4; ++k) {
             QByteArray body;
-            for (int i = 0; i < kMaxSections * (k + 1) / 2 + 100; ++i) body += one;
+            for (int i = 0; i < counts[k]; ++i) body += one;
+            body += "<w:p><w:r><w:t>last</w:t></w:r></w:p>" + end;
             Document d;
             QString err;
             ReadNotes notes;
             QVERIFY(readDocx(Made{body, {}, {}, {}}.build(), &d, &err, &notes));
             for (const Block &b : d.body)
-                if (b.para.props.section) ++read[k];
-            QCOMPARE(notes.notes.size(), k == 0 ? 0 : 1);   // (more than the limit: one note; the first is 100 over the limit's half)
-            QCOMPARE(notes.leftOut, k != 0);
+                if (b.para.props.section) ++breaks[k];
+            paragraphs[k] = int(d.body.size());
+            QCOMPARE(d.lastSection.pageW, 15840);   // (the end of the body is never lost to the limit)
+            QCOMPARE(notes.notes.size(), k < 2 ? 0 : 1);
+            QCOMPARE(notes.leftOut, k >= 2);
         }
-        QCOMPARE(read[0], kMaxSections / 2 + 100);
-        QCOMPARE(read[1], kMaxSections);
-        QCOMPARE(read[2], kMaxSections);
+        QCOMPARE(breaks[0], kMaxSections - 1);
+        QCOMPARE(breaks[1], kMaxSections);
+        QCOMPARE(breaks[2], kMaxSections);
+        QCOMPARE(breaks[3], kMaxSections);
+        QCOMPARE(paragraphs[2], kMaxSections + 2);   // (none of the text is left out)
+        QCOMPARE(paragraphs[3], 2 * kMaxSections + 1);
     }
 
-    // A paragraph of more characters than the limit keeps the limit's worth, with a note that counts it; twice the text keeps the same, and a paragraph under it is whole.
+    // A paragraph of more characters than the limit keeps the limit's worth (not at the limit: whole and silent), with a note; twice the text keeps the same; a cut never splits a pair of
+    // surrogates, and one across several runs keeps the first of them whole and the rest as far as the limit, with the pieces that are not text still there.
     void aParagraphOfMillionsOfCharactersKeepsTheLimit()
     {
-        qint64 kept[2] = {0, 0};
-        for (int k = 0; k < 2; ++k) {
-            QByteArray text;
-            for (int i = 0; i < kMaxParagraphChars * (k + 2) / 5; ++i) text += "word ";
+        auto read = [](const QByteArray &paragraph, Document *d, ReadNotes *notes) {
+            QString err;
+            return readDocx(Made{paragraph + "<w:p><w:r><w:t>after</w:t></w:r></w:p>", {}, {}, {}}.build(), d, &err, notes);
+        };
+        auto length = [](const Document &d) {
+            qint64 n = 0;
+            for (const Inline &in : d.body[0].para.content) n += in.text.size();
+            return n;
+        };
+        for (const int extra : {0, 1, 1000000, 3000000}) {
+            const QByteArray text = QByteArray(kMaxParagraphChars + extra, 'x');
+            Document d;
+            ReadNotes notes;
+            QVERIFY(read("<w:p><w:r><w:t>" + text + "</w:t></w:r></w:p>", &d, &notes));
+            QCOMPARE(d.body.size(), 2);
+            QCOMPARE(length(d), qint64(kMaxParagraphChars));
+            QCOMPARE(d.body[1].para.content[0].text, QStringLiteral("after"));
+            QCOMPARE(notes.notes.size(), extra == 0 ? 0 : 1);
+            QCOMPARE(notes.leftOut, extra != 0);
+        }
+        // One character fewer than the limit is whole.
+        {
+            Document d;
+            ReadNotes notes;
+            QVERIFY(read("<w:p><w:r><w:t>" + QByteArray(kMaxParagraphChars - 1, 'x') + "</w:t></w:r></w:p>", &d, &notes));
+            QCOMPARE(length(d), qint64(kMaxParagraphChars - 1));
+            QCOMPARE(notes.notes.size(), 0);
+        }
+        // A pair of surrogates that straddles the cut is left out whole.
+        {
+            Document d;
+            ReadNotes notes;
+            const QByteArray emoji = QStringLiteral("\U0001F600").toUtf8();
+            QVERIFY(read("<w:p><w:r><w:t>" + QByteArray(kMaxParagraphChars - 1, 'x') + emoji + "yy</w:t></w:r></w:p>", &d, &notes));
+            QCOMPARE(length(d), qint64(kMaxParagraphChars - 1));
+            QVERIFY(!d.body[0].para.content[0].text.endsWith(QChar(0xD83D)));
+            QCOMPARE(notes.notes.size(), 1);
+        }
+        // Several runs and a tab and a break: cut across them, the first runs whole, the one that crosses cut, the later ones empty, the objects kept.
+        {
+            Document d;
+            ReadNotes notes;
+            const QByteArray half(kMaxParagraphChars / 2 + 10, 'a');
+            QVERIFY(read("<w:p><w:r><w:t>" + half + "</w:t></w:r><w:r><w:tab/><w:t>" + half + "</w:t></w:r><w:r><w:br/><w:t>late</w:t></w:r><w:r><w:drawing/></w:r></w:p>", &d, &notes));
+            QCOMPARE(length(d), qint64(kMaxParagraphChars));
+            QCOMPARE(notes.notes.size(), 1);
+            QVERIFY(d.body[0].para.content.size() >= 3);
+            QCOMPARE(d.body[0].para.content[0].text.size(), half.size());
+        }
+    }
+
+
+    // A body of exactly the limit of paragraphs is whole and silent, the properties that end it kept; one more is left out, with the note.
+    void aBodyOfExactlyTheLimitOfParagraphsIsWholeAndSilent()
+    {
+        const QByteArray end = "<w:sectPr><w:pgSz w:w=\"15840\" w:h=\"12240\"/></w:sectPr>";
+        for (const int extra : {0, 1}) {
+            QByteArray body;
+            body.reserve((kMaxParagraphs + 1) * 6 + 100);
+            for (int i = 0; i < kMaxParagraphs + extra; ++i) body += "<w:p/>";
             Document d;
             QString err;
             ReadNotes notes;
-            QVERIFY(readDocx(Made{"<w:p><w:r><w:t xml:space=\"preserve\">" + text + "</w:t></w:r></w:p><w:p><w:r><w:t>after</w:t></w:r></w:p>", {}, {}, {}}.build(), &d, &err, &notes));
-            QCOMPARE(d.body.size(), 2);
-            for (const Inline &in : d.body[0].para.content) kept[k] += in.text.size();
-            QCOMPARE(d.body[1].para.content[0].text, QStringLiteral("after"));
-            QCOMPARE(notes.notes.size(), 1);
-            QVERIFY(notes.leftOut);
+            QVERIFY(readDocx(Made{body + end, {}, {}, {}}.build(), &d, &err, &notes));
+            QCOMPARE(d.body.size(), kMaxParagraphs);
+            QCOMPARE(d.lastSection.pageW, 15840);
+            QCOMPARE(notes.notes.size(), extra);
+            QCOMPARE(notes.leftOut, extra == 1);
         }
-        QCOMPARE(kept[0], qint64(kMaxParagraphChars));
-        QCOMPARE(kept[1], qint64(kMaxParagraphChars));
-        // Under the limit it is whole.
-        Document d;
-        QString err;
-        ReadNotes notes;
-        QVERIFY(readDocx(Made{"<w:p><w:r><w:t>" + QByteArray(kMaxParagraphChars / 2, 'x') + "</w:t></w:r></w:p>", {}, {}, {}}.build(), &d, &err, &notes));
-        QCOMPARE(d.body[0].para.content[0].text.size(), kMaxParagraphChars / 2);
-        QCOMPARE(notes.notes.size(), 0);
     }
 
     // The outline of a tight wrap is read as shares of the frame; a file's points are bounded: the first kMostWrapPoints are kept, none is outside the reach, and fewer than three make none.

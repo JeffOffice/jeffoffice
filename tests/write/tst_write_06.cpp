@@ -152,6 +152,63 @@ void WriteTests::thePagesOfOneHugeRunReadOnlyTheirOwnCharacters()
 }
 
 
+// What a page's copy of the text holds is the document's own text from where the page's first line begins, for a run of 4,096 characters (copied whole and cut) and of 4,097 (read where the
+// page is): the same text in both, with a line break and an object placeholder inside the run, on every page; and a selection across the boundary of two pages is the text between the two
+// places, the second page's copy beginning inside it.
+void WriteTests::thePagesCopyOfARunHoldsTheDocumentsOwnTextWhicheverWayItIsRead()
+{
+    const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"6000\" w:h=\"4800\"/><w:pgMar w:top=\"720\" w:right=\"720\" w:bottom=\"720\" w:left=\"720\" w:header=\"360\" w:footer=\"360\" w:gutter=\"0\"/></w:sectPr>";
+    qint64 readFor[2] = {0, 0};
+    int which = 0;
+    for (const int size : {4096, 4097}) {
+        QString text;
+        for (int n = 0; text.size() < size; ++n) {
+            text += QStringLiteral("p%1w%2 ").arg(n / 40 + 1).arg(n);
+            if (n == 300) text += QChar(0x2028);   // (a line break)
+            if (n == 500) text += QChar(0xFFFC);   // (an object placeholder)
+        }
+        text.truncate(size);
+        QByteArray xml = text.toHtmlEscaped().toUtf8();
+        xml.replace(QString(QChar(0x2028)).toUtf8(), "</w:t><w:br/><w:t xml:space=\"preserve\">");
+        auto doc = open(makeDocx("<w:p><w:r><w:t xml:space=\"preserve\">" + xml + "</w:t></w:r></w:p>", kStyles, QByteArray(), sect));
+        QVERIFY(doc);
+        const int pages = doc->pager().pageCount();
+        QVERIFY2(pages >= 3, qPrintable(QString::number(pages)));
+        const QString whole = doc->story()->toPlainText();
+        const qint64 before = doc->pager().fragmentCharsReadForTest();
+        QVERIFY(doc->pager().materialize(0));   // (the first is made before the others, and the copy of each is made once)
+        for (int k = 0; k < pages; ++k) {
+            const auto page = doc->pager().materialize(k);
+            QVERIFY(page);
+            QString copy;
+            for (const auto &item : page->doc->pages[0]->items)
+                if (const auto *t = dynamic_cast<const TextItem *>(item.get()))
+                    if (const Story *st = page->doc->story(t->storyId)) copy += st->doc->toPlainText();
+            QVERIFY2(!copy.isEmpty(), qPrintable(QString::number(k)));
+            QCOMPARE(page->storyFrom, doc->pager().lines(k).first().pos);
+            QCOMPARE(copy, whole.mid(page->storyFrom, copy.size()));
+        }
+        readFor[which] = doc->pager().fragmentCharsReadForTest() - before;
+        // A selection across the boundary of the second and third pages.
+        const int boundary = doc->pager().lines(2).first().pos;
+        QTextCursor c(doc->story());
+        c.setPosition(boundary - 20);
+        c.setPosition(boundary + 20, QTextCursor::KeepAnchor);
+        QCOMPARE(c.selectedText(), text.mid(boundary - 20, 40));
+        const auto third = doc->pager().materialize(2);
+        QString thirdText;
+        for (const auto &item : third->doc->pages[0]->items)
+            if (const auto *t = dynamic_cast<const TextItem *>(item.get()))
+                if (const Story *st = third->doc->story(t->storyId)) thirdText += st->doc->toPlainText();
+        QVERIFY(thirdText.startsWith(whole.mid(boundary, 20)));
+        ++which;
+    }
+    // (Both are read: the run of 4,097 where the pages are, so for all its pages no more than twice its text, where the other is read whole for each.)
+    QVERIFY2(readFor[1] <= 2 * 4097, qPrintable(QStringLiteral("%1 and %2 characters read").arg(readFor[0]).arg(readFor[1])));
+    QVERIFY(readFor[0] > readFor[1]);
+}
+
+
 // The copy of a page's text is made in one edit: a paragraph of thousands of runs of one character each, set small, is a page of thousands of pieces, and the copy of that page takes
 // a moment, not the time of laying out the paragraph for every piece put in. (A ceiling many times what the page takes alone.)
 void WriteTests::aPageOfThousandsOfRunsIsCopiedInOneEdit()

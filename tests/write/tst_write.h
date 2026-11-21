@@ -1223,6 +1223,7 @@ private Q_SLOTS:
     void aJoinedRunIsCutAtTheSamePlacesWhereverALayoutBegins();
     void thePagesCopiesOfAJoinedRunHoldOnlyTheirOwnText();
     void thePagesOfOneHugeRunReadOnlyTheirOwnCharacters();
+    void thePagesCopyOfARunHoldsTheDocumentsOwnTextWhicheverWayItIsRead();
     void aPageOfThousandsOfRunsIsCopiedInOneEdit();
     void theLinesOfAParagraphOfThousandsOfRunsReadOnlyTheirOwnRanges();
     void aPageFarDownAParagraphOfAHundredThousandRunsIsCopiedQuickly();
