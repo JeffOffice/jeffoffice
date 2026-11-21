@@ -39,7 +39,6 @@ protected:
 
 public:
     // The window is going: what is typed is given up, not saved into a window that is no longer whole to be told.
-    void giveUpTyping() { m_going = true; m_idle.stop(); }
 
 private:
     void markGrammar();   // the blue dotted lines, for the issues now known (the rest are asked for)
@@ -49,7 +48,6 @@ private:
     QString m_pageId;
     bool m_loading = false;
     bool m_typed = false;   // typed since the last save or load
-    bool m_going = false;   // the window is going
 };
 
 } // namespace jp

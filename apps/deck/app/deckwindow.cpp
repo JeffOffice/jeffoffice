@@ -234,11 +234,20 @@ DeckWindow::DeckWindow(QWidget *parent) : AppWindow(parent)
 
 DeckWindow::~DeckWindow()
 {
+    // First, before any member goes: the window is closing. Hiding a window that is going sends the pane with the focus a focus-out, and a
+    // number field its editingFinished, which would save what is typed into a window that is no longer whole. The editor refuses every change from
+    // here on (the panes that save by hand ask it), the show is let go of (Presenter View's notes are its own), and no child tells the window or
+    // anything else anything more.
+    m_ed->close();
+    if (m_show) {
+        m_show->disconnect(this);
+        m_show->close();
+    }
+    for (QObject *child : findChildren<QObject *>()) {
+        child->disconnect(this);
+        child->blockSignals(true);   // (destroyed is still sent)
+    }
     qApp->removeEventFilter(this);   // (the filter of Full Screen and of the File screen)
-    // Hiding a window that is going sends the pane with the focus a focus-out, which would save what is typed into a window that is no longer whole.
-    if (m_notes) m_notes->giveUpTyping();
-    if (m_outline) m_outline->giveUpTyping();
-    if (m_show) m_show->close();
 }
 
 QAction *DeckWindow::mk(const QString &id, const QString &text, const QString &iconName, const QKeySequence &key, const std::function<void()> &fn,

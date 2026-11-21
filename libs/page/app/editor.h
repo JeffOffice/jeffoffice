@@ -86,6 +86,12 @@ public:
     // A document opened read-only: no text is edited (the window disables the commands that change it, and the canvas refuses keys, text, and drops).
     void setReadOnly(bool on) { m_readOnly = on; }
     bool readOnly() const { return m_readOnly; }
+    // The window that holds this editor is being taken down: no change begins from now on (a pane's focus-out or a field's editingFinished that
+    // fires while the window goes would save into a window that is half gone).
+    void close() { m_closed = true; m_typingTimer.stop(); }
+    bool closed() const { return m_closed; }
+    // For the tests: how many times a change or a text edit was asked for (begun or refused), over all editors.
+    static int changeEntries() { return s_entries; }
     void markSaved() { m_undo.setClean(); }
     void markUnsaved() { m_undo.resetClean(); }   // a recovered copy: unsaved until saved
 
@@ -500,6 +506,8 @@ private:
     QString m_toolShape;
 
     bool m_readOnly = false;
+    bool m_closed = false;
+    static inline int s_entries = 0;
     int m_changeDepth = 0;
     QByteArray m_before;
     QStringList m_selBefore;

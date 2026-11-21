@@ -579,6 +579,8 @@ QTextDocument *Editor::editDoc() const { return m_doc->storyDoc(m_text.storyId);
 
 void Editor::beginTextEdit(const QString &itemId, int pos, int row, int col, int half)
 {
+    ++s_entries;
+    if (m_closed) return;
     if (m_readOnly) return;
     Item *it = m_doc->item(itemId);
     if (!it) return;
@@ -736,6 +738,8 @@ void Editor::endCrop(bool keep)
 
 void Editor::beginChange(const QString &label)
 {
+    ++s_entries;
+    if (m_closed) return;
     m_doc->dropChainIndex();
     // A crop in progress is one step of its own: any other change ends it first (its own drags begin theirs with beginCropChange).
     if (m_cropOpen && m_changeDepth == 1) endCrop(true);
@@ -744,6 +748,8 @@ void Editor::beginChange(const QString &label)
 
 void Editor::beginCropChange(const QString &label)
 {
+    ++s_entries;
+    if (m_closed) return;
     if (m_typing && label != tr("Typing")) flushTyping();
     if (m_changeDepth++ == 0) {
         m_before = snapshot();

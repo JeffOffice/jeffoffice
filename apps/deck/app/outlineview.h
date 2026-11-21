@@ -25,7 +25,6 @@ public:
     // Saves what was typed into the slides.
     void commit();
     // The window is going: what is typed is given up, not saved into a window that is no longer whole to be told.
-    void giveUpTyping() { m_going = true; m_idle.stop(); }
     bool hasTyping() const { return m_typed; }
     // The slide the cursor is in, or -1.
     int slideAtCursor() const;
@@ -59,7 +58,6 @@ private:
 
     Editor *m_ed;
     QTimer m_idle;
-    bool m_going = false;      // the window is going
     bool m_typed = false;      // typed since the last save or load
     bool m_loading = false;    // the view is being filled in or marked, not typed in
     bool m_applying = false;   // typing is being saved into the slides
