@@ -462,6 +462,54 @@ private Q_SLOTS:
         QVERIFY2(found[0].message.contains(QLatin1String("header row")), qPrintable(found[0].message));
     }
 
+    // The publication app's checker also lists a table with merged cells (a screen reader loses its place in them) and a link whose words say nothing of where it goes
+    // (or that has no words), in the pane the app shows; a table with whole cells and a link that names its page are not listed.
+    void theCheckerListsMergedCellsAndUnclearLinksInThePublicationApp()
+    {
+        jp::MainWindow w;
+        w.resize(1400, 900);
+        w.show();
+        jp::Editor *ed = w.editor();
+        auto merged = ed->newTable(QRectF(72, 72, 200, 60), 2, 2);
+        auto *t = static_cast<jp::TableItem *>(merged.get());
+        t->header = true;
+        t->cell(0, 0).colSpan = 2;
+        t->cell(0, 1).covered = true;
+        ed->addItem(merged, false);
+        auto whole = ed->newTable(QRectF(72, 200, 200, 60), 2, 2);
+        static_cast<jp::TableItem *>(whole.get())->header = true;
+        ed->addItem(whole, false);
+        auto box = std::static_pointer_cast<jp::TextItem>(ed->newTextBox(QRectF(72, 300, 400, 100), QString()));
+        ed->addItem(box, false);
+        QTextCursor c(ed->doc()->storyDoc(box->storyId));
+        auto link = [&](const QString &words, const QString &href) {
+            QTextCharFormat f;
+            f.setAnchor(true);
+            f.setAnchorHref(href);
+            c.insertText(words, f);
+            c.insertText(QStringLiteral(" "), QTextCharFormat());
+        };
+        link(QStringLiteral("click here"), QStringLiteral("https://example.org/a"));
+        link(QStringLiteral("  "), QStringLiteral("https://example.org/b"));
+        link(QStringLiteral("The annual report"), QStringLiteral("https://example.org/c"));
+        ed->clearSelection();
+        w.act(QStringLiteral("rev.accessibility"))->trigger();
+        jp::PageAccessibilityPane *pane = w.accessibilityPane();
+        QVERIFY(pane);
+        QStringList lines;
+        for (int i = 0; i < pane->list()->count(); ++i) lines << pane->list()->item(i)->text();
+        auto count = [&](const QString &part) {
+            int n = 0;
+            for (const QString &l : lines) n += l.contains(part);
+            return n;
+        };
+        QCOMPARE(count(QStringLiteral("has merged cells")), 1);
+        QCOMPARE(count(QStringLiteral("The link \"click here\" on page 1")), 1);
+        QCOMPARE(count(QStringLiteral("has no words")), 1);
+        QCOMPARE(count(QStringLiteral("annual report")), 0);
+        QCOMPARE(count(QStringLiteral("header row")), 0);
+    }
+
     // The pane lists it with a fix, "Use the first row as a header", which turns the header row on in one step that undoes; the list is empty after it.
     void theFixTurnsTheHeaderRowOnAndUndoes()
     {
