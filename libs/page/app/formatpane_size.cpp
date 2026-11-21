@@ -153,18 +153,21 @@ void buildSizePage(FormatPane *pane, PanePage *page)
         auto *y = measure(w, "positionY", -4000, 8000);
         form->addRow(FormatPane::tr("Horizontal position"), x);
         form->addRow(FormatPane::tr("Vertical position"), y);
-        auto *from = new QLabel(FormatPane::tr("From the top left corner"), w);
-        form->addRow(from);
+        // Where the numbers are counted from: the top left corner of the object, or its center (what the boxes show and what a typed number moves).
+        auto *from = choices(w, "positionFrom", {FormatPane::tr("Top left corner"), FormatPane::tr("Center")});
+        form->addRow(FormatPane::tr("Position from"), from);
         position->body()->addLayout(form);
         const QString label = FormatPane::tr("Position");
-        bindNumber(pane, x, label, [](const Item &it) -> std::optional<double> { return it.rect.x(); },
-                   [pane](Item &it, double v) {
-                       formatops::moveFrame(pane->editor(), it, v - it.rect.x(), 0);
+        auto offset = [from](const Item &it, bool horizontal) { return from->currentIndex() == 1 ? (horizontal ? it.rect.width() : it.rect.height()) / 2 : 0.0; };
+        bindNumber(pane, x, label, [offset](const Item &it) -> std::optional<double> { return it.rect.x() + offset(it, true); },
+                   [pane, offset](Item &it, double v) {
+                       formatops::moveFrame(pane->editor(), it, v - offset(it, true) - it.rect.x(), 0);
                    }, Scope::Selected, false);
-        bindNumber(pane, y, label, [](const Item &it) -> std::optional<double> { return it.rect.y(); },
-                   [pane](Item &it, double v) {
-                       formatops::moveFrame(pane->editor(), it, 0, v - it.rect.y());
+        bindNumber(pane, y, label, [offset](const Item &it) -> std::optional<double> { return it.rect.y() + offset(it, false); },
+                   [pane, offset](Item &it, double v) {
+                       formatops::moveFrame(pane->editor(), it, 0, v - offset(it, false) - it.rect.y());
                    }, Scope::Selected, false);
+        QObject::connect(from, &QComboBox::currentIndexChanged, pane, [s] { s->refresh(); });
     }
 
     // ---- text box
