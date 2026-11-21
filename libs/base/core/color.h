@@ -98,3 +98,4 @@ struct InkOutput {
 QColor colorFromString(const QString &s);
 
 } // namespace jp
+// (CI trial, comment only)
