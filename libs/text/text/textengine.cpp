@@ -172,7 +172,7 @@ QString FieldContext::resolve(const QString &code, const QString &language) cons
         } host(*this);
         FieldWork alone;
         FieldWork &pass = work ? *work : alone;
-        const QString place = QStringLiteral("%1/%2/%3/").arg(pageNumber).arg(pageCount).arg(now.toSecsSinceEpoch() / 60) + arg;
+        const QString place = QStringLiteral("%1/%2/%3/%4%5/").arg(pageNumber).arg(pageCount).arg(now.toSecsSinceEpoch() / 60).arg(doc ? doc->pageNumberShown(pageNumber) : pageNumber).arg(doc ? doc->pageNumberFormatOf(pageNumber) : QString()) + arg;
         if (work) {
             QMutexLocker hold(&pass.lock);
             const auto known = pass.shown.constFind(place);

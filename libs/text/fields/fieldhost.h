@@ -3,6 +3,7 @@
 // properties, the moment, a prompt's answer) by implementing FieldHost, and the engine (fields/fieldcode.h) works out the result. The word processor fills the engine's Env itself
 // from its story; a host is the same bundle in a form that needs no story.
 
+#include "core/syslocale.h"
 #include "fields/fieldcode.h"
 
 #include <QDateTime>
@@ -31,7 +32,7 @@ public:
     // The counters of SEQ fields by name (upper case); null where the host has none.
     virtual QHash<QString, qint64> *sequences() const { return nullptr; }
     virtual QDateTime now() const { return QDateTime::currentDateTime(); }
-    virtual QLocale locale() const { return QLocale(); }
+    virtual QLocale locale() const { return jp::systemLocale().locale; }
     // The answer to the prompt of an ASK or FILLIN field (`kind` is ASK or FILLIN); none where nobody answers (the field keeps its result).
     virtual std::optional<QString> prompt(const QString &kind, const QString &text, const QString &defaultAnswer) const { Q_UNUSED(kind) Q_UNUSED(text) Q_UNUSED(defaultAnswer) return std::nullopt; }
 };

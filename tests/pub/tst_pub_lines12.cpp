@@ -1172,6 +1172,60 @@ private Q_SLOTS:
 
     // The numbers and formats a page shows are looked up in a table made once after a change: they are the ones counted the long way, whatever the sections; and the key a page number field
     // is laid out under carries the number and format the page shows, so a section put in before the page lays it out again.
+    // The page-number field, a date field, a formatted merge field, and a field of the shared engine on the pages of two sections (the second restarts at 1, in capital roman numerals),
+    // all worked out in one layout pass: each shows its own text, no page's text leaks to another through the pass's cache, and the pass's budget counts a field once.
+    void pageDateMergeAndEngineFieldsTogetherInTwoSections()
+    {
+        jp::initCore();
+        jp::MainWindow w;
+        w.resize(1200, 900);
+        w.show();
+        jp::Editor *ed = w.editor();
+        ed->setDocument(jp::Document::blank(QSizeF(612, 792)));
+        ed->insertPages(0, 3, false, false);
+        ed->doc()->merge.fields = {QStringLiteral("Price")};
+        ed->doc()->merge.rows = {{QStringLiteral("1234.5")}};
+        QVERIFY(ed->startSection(3, 1, int(jp::Document::pageNumberFormats().indexOf(QStringLiteral("ROMAN")))));
+        const jp::Document &doc = *ed->doc();
+        QCOMPARE(int(doc.pages.size()), 4);
+        const QDateTime when(QDate(2026, 3, 4), QTime(15, 30));
+        const QStringList pageShows = {QStringLiteral("1"), QStringLiteral("2"), QStringLiteral("I"), QStringLiteral("II")};
+        const QString numpages = QStringLiteral("fld:NUMPAGES");
+        auto at = [&](const std::shared_ptr<jp::FieldWork> &pass, int page) {
+            jp::FieldContext c;
+            c.doc = &doc;
+            c.work = pass;
+            c.pageNumber = page;
+            c.pageCount = 4;
+            c.mergeRecord = 0;
+            c.now = when;
+            return c;
+        };
+        auto pass = std::make_shared<jp::FieldWork>();
+        // Forward, then backward and again: what a page shows never depends on which page was asked first.
+        for (int round = 0; round < 3; ++round)
+            for (int k = 0; k < 4; ++k) {
+                const int page = round == 1 ? 4 - k : k + 1;
+                const jp::FieldContext c = at(pass, page);
+                QCOMPARE(c.resolve(QStringLiteral("page")), pageShows[page - 1]);
+                QCOMPARE(c.resolve(QStringLiteral("date:yyyy-MM-dd")), QStringLiteral("2026-03-04"));
+                QCOMPARE(c.resolve(QStringLiteral("merge:Price|currency")), QStringLiteral("$1,234.50"));
+                QCOMPARE(c.resolve(numpages), QStringLiteral("4"));
+            }
+        // The engine's field is worked out once for each place it shows (here a page of its own), however often the pass asks.
+        auto cost = [&](int page, int times) {
+            auto fresh = std::make_shared<jp::FieldWork>();
+            for (int i = 0; i < times; ++i) QCOMPARE(at(fresh, page).resolve(numpages), QStringLiteral("4"));
+            return fresh->spent.load();
+        };
+        const qint64 once = cost(1, 1);
+        QVERIFY(once > 0);
+        QCOMPARE(cost(1, 5), once);
+        QCOMPARE(cost(3, 5), once);
+        // Four places, so four times the work and no more, however many times each is asked.
+        QCOMPARE(pass->spent.load(), 4 * once);
+    }
+
     void sectionTableMatchesTheLongCountAndTheLayoutKeyFollowsIt()
     {
         jp::MainWindow w;

@@ -87,7 +87,6 @@ apps/write/app/writewindow_info.cpp | window and dialog code of an app: main thr
 apps/write/app/writewindow_output.cpp | window and dialog code of an app: main thread
 apps/write/core/citeops.cpp | document edits the window makes: main thread
 apps/write/core/contentcontrolops.cpp | document edits the window makes: main thread
-apps/write/core/fieldcode.h | fields are updated by the window: main thread
 apps/write/core/fieldops.cpp | document edits the window makes: main thread
 apps/write/core/fieldscan.cpp | fields are updated by the window: main thread
 apps/write/core/homeops.cpp | document edits the window makes: main thread

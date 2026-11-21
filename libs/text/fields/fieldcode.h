@@ -3,6 +3,7 @@
 // Env) and shown in the formats the switches ask for (\* roman, \# "0.00", \@ "MMMM d, yyyy"). Nothing here touches the story; core/fieldops.h walks the story and asks.
 // A field this engine does not know, or one it cannot answer (a bookmark it has not been told of), has no result here, and the field keeps the result it has.
 
+#include "core/syslocale.h"
 #include <QDateTime>
 #include <QLocale>
 #include <QHash>
@@ -96,7 +97,7 @@ struct Env {
     // Where the field is: its page (from 1) as a number and as the page number shows it, the pages in all and in its section, its section's number, and the place it stands at.
     int page = 0, pages = 0, sectionPages = 0, section = 0, position = 0;
     QString pageText;
-    QLocale locale;   // the language of the names of months and days a date shows: the field's own where the document says it, else the program's
+    QLocale locale = jp::systemLocale().locale;   // the language of the names of months and days a date shows: the field's own where the document says it, else the program's
     std::function<std::optional<BookmarkInfo>(const QString &)> bookmark;
     std::function<void(const QString &name, BookmarkInfo *)> bookmarkPage;   // fills `page` and `pageIndex` of a bookmark's info (asked only when a page number is shown)
     qint64 globSteps = 0;                                                    // the steps the wildcard matcher of IF has taken in this evaluation (counted here; each match has its own bound)
