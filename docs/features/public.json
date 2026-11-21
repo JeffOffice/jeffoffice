@@ -863,7 +863,7 @@
         },
         {
          "status": "partly",
-         "text": "f33345c1ca1de24d7dfea8240ff92591f982efce69d904550b55724b22d783d7"
+         "text": "6ff409981c23bd949648412507dc97e9992290da7279270541ea3b3f889c3fd2"
         },
         {
          "hide_soon": true,
@@ -2115,7 +2115,7 @@
      "items": [
       {
        "status": "partly",
-       "text": "fa31d3f7c626252a8235484922df3a890557cb3c7742a09b11ba1de36dac2775"
+       "text": "1ce92631e094ec6e663479c7878c60f0e25b22198440752ae5481204dc76dc2f"
       },
       {
        "hide_soon": true,
@@ -9786,6 +9786,18 @@
     "fr": ""
    }
   },
+  "1ce92631e094ec6e663479c7878c60f0e25b22198440752ae5481204dc76dc2f": {
+   "drop": false,
+   "en": "Pagination cuts the sheet into pages by paper, margins, scale, print area, repeated titles, manual breaks, and page order. A page shows cells whole, so a row is not split, and wide text is clipped.",
+   "es": "La paginación divide la hoja en páginas según el papel, los márgenes, la escala, el área de impresión, los títulos repetidos, los saltos manuales y el orden de las páginas. Una página muestra las celdas completas, de modo que no se divide una fila, y el texto ancho se recorta.",
+   "fr": "La pagination découpe la feuille en pages selon le papier, les marges, l’échelle, la zone d’impression, les titres répétés, les sauts manuels et l’ordre des pages. Une page affiche les cellules entières, donc une ligne n’est pas coupée, et le texte trop large est tronqué.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "1cf16e73e883a7400a919953384a7fcea717b80b0bafab0bc90b4afde8277009": {
    "drop": false,
    "en": "Hyperlinks in text are drawn in the theme’s link colors and kept readable on any background, including the bands and panels some layouts draw behind text. The words of a link stay inside the link when saved to an `.odp`.",
@@ -16511,6 +16523,18 @@
    "en": "",
    "es": "",
    "fr": "",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "6ff409981c23bd949648412507dc97e9992290da7279270541ea3b3f889c3fd2": {
+   "drop": false,
+   "en": "Automatic page breaks are placed from the paper, fonts, and printer, and pages at the end of the print order that show nothing are left off.",
+   "es": "Los saltos de página automáticos se colocan según el papel, las fuentes y la impresora, y las páginas del final del orden de impresión que no muestran nada se omiten.",
+   "fr": "Les sauts de page automatiques sont placés d’après le papier, les polices et l’imprimante, et les pages en fin d’ordre d’impression qui n’affichent rien sont omises.",
    "soon": {
     "drop": true,
     "en": "",
@@ -25566,18 +25590,6 @@
     "fr": ""
    }
   },
-  "f33345c1ca1de24d7dfea8240ff92591f982efce69d904550b55724b22d783d7": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Automatic page breaks that match other programs for the same fonts and printer",
-    "es": "Saltos de página automáticos que coinciden con otros programas para las mismas fuentes e impresora",
-    "fr": "Sauts de page automatiques identiques à ceux d’autres programmes pour les mêmes polices et la même imprimante"
-   }
-  },
   "f33f7f1238ea2a2fc12bc001ae13db61d847f25e6d381c3bba5f1fb179369ef3": {
    "drop": false,
    "en": "The Size & Properties page of the pane reaches alt text and size for movies and sounds.",
@@ -26092,18 +26104,6 @@
     "en": "Table style borders, fonts, column stripes, and corner cells; change and delete a style",
     "es": "Bordes, fuentes, bandas de columna y celdas de esquina en estilos de tabla; cambiar y eliminar un estilo",
     "fr": "Bordures, polices, colonnes alternées et cellules d’angle des styles de tableau ; modifier et supprimer un style"
-   }
-  },
-  "fa31d3f7c626252a8235484922df3a890557cb3c7742a09b11ba1de36dac2775": {
-   "drop": false,
-   "en": "The sheet is cut into pages by the paper, margins, scale, print area, repeated titles, manual breaks, and page order. A page shows cells whole, and wide text is clipped.",
-   "es": "La hoja se divide en páginas según el papel, los márgenes, la escala, el área de impresión, los títulos repetidos, los saltos manuales y el orden de las páginas. Una página muestra las celdas completas y el texto ancho se recorta.",
-   "fr": "La feuille est découpée en pages selon le papier, les marges, l’échelle, la zone d’impression, les titres répétés, les sauts manuels et l’ordre des pages. Une page affiche les cellules entières et le texte large est tronqué.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
    }
   },
   "fa357a48a90057cdd87ffeca7f3ff8467a9a4a8e255c91b81fae06c0bcc85e7d": {
