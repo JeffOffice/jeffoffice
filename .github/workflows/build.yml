@@ -33,6 +33,12 @@ on:
         description: 'Only refresh GitHub''s compiler caches of the two Windows checks jobs: build them as usual and save the caches, with no tests, packaging, or signing'
         type: boolean
         default: false
+      # A trial of the Windows checks job (2/2) on our own Windows machine: builds and runs only the Windows checks, second half, and runs it there
+      # whatever the repository variable JO_WINDOWS_CHECKS_SELF says. Start it with mac_both=false.
+      windows_checks_trial:
+        description: 'Only the second Windows checks job, on our own Windows machine (a trial)'
+        type: boolean
+        default: false
 
 # (a run that only refreshes the compiler caches is named so, which the "passed" job below looks for: it builds and tests nothing, so it must never stand for a whole run)
 run-name: ${{ (github.event_name == 'workflow_dispatch' && inputs.cache_refresh) && format('cache refresh {0}', github.sha) || '' }}
@@ -85,15 +91,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - name: linux
-            os: ubuntu-24.04
-          - name: windows
-            os: windows-2022
-          - name: arm64
-            os: macos-15
-          - name: x86_64
-            os: macos-15
+        include: ${{ fromJSON((github.event_name == 'workflow_dispatch' && inputs.windows_checks_trial) && '[{"name":"windows","os":"windows-2022"}]' || '[{"name":"linux","os":"ubuntu-24.04"},{"name":"windows","os":"windows-2022"},{"name":"arm64","os":"macos-15"},{"name":"x86_64","os":"macos-15"}]') }}
     # (the same machines as the build jobs below: the Linux build runs on our own, whose C library is the one ours must run on, and the Mac's on our own Mac)
     # (the label jo-ryzen-tests is on one of the two runners only: each keeps its own build folder and precompiled headers, and a file built on one never
     # hit the other's compiler cache, so each rebuilt what the other had built; with one runner it stays warm, and overlapping runs wait for it: Nov 20, 2026)
@@ -256,18 +254,20 @@ jobs:
       # check program then; tools/ci_targets.sh)
       SHARD: ${{ (vars.JO_WINDOWS_SELF == '1' && matrix.name == 'windows' && matrix.part == 'tests' && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && (inputs.mac_both && !inputs.cache_refresh))) && 'ours' || (vars.JO_WINDOWS_SELF == '1' && matrix.name == 'windows' && matrix.part == 'checks' && matrix.shard == 1 && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && (inputs.mac_both && !inputs.cache_refresh))) && 'pack' || !(matrix.name == 'linux' || (matrix.name == 'macos' && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && (inputs.mac_both && !inputs.cache_refresh)))) && format('{0}/2', matrix.shard) || '' }}
       # Our own machines keep the compiler cache in a folder of their own, kept from run to run; GitHub's machines keep it in GitHub's cache.
-      CCACHE_DIR: ${{ (matrix.name == 'linux' && github.event_name != 'pull_request') && '/ccache' || (matrix.name == 'macos' && github.event_name != 'pull_request') && '/Users/Shared/jo-ccache' || (vars.JO_WINDOWS_SELF == '1' && matrix.name == 'windows' && matrix.part == 'tests' && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && (inputs.mac_both && !inputs.cache_refresh))) && 'C:\jo\ccache' || format('{0}/.ccache', github.workspace) }}
+      CCACHE_DIR: ${{ (matrix.name == 'linux' && github.event_name != 'pull_request') && '/ccache' || (matrix.name == 'macos' && github.event_name != 'pull_request') && '/Users/Shared/jo-ccache' || (vars.JO_WINDOWS_SELF == '1' && matrix.name == 'windows' && matrix.part == 'tests' && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && (inputs.mac_both && !inputs.cache_refresh))) && 'C:\jo\ccache' || (matrix.name == 'windows' && matrix.part == 'checks' && matrix.shard == 2 && (vars.JO_WINDOWS_CHECKS_SELF == '1' || (github.event_name == 'workflow_dispatch' && inputs.windows_checks_trial)) && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && (inputs.mac_both || inputs.cache_refresh))) && 'C:\jo\ccache-checks' || format('{0}/.ccache', github.workspace) }}
       # (precompiled headers: without these, ccache caches no file that reads one; the header times because a fresh checkout's files are all new)
       CCACHE_SLOPPINESS: pch_defines,time_macros,include_file_mtime,include_file_ctime
+      # The Windows checks job (2/2) on our own Windows machine ("1" there): see the runs-on below.
+      JO_CHECKS_SELF: ${{ (matrix.name == 'windows' && matrix.part == 'checks' && matrix.shard == 2 && (vars.JO_WINDOWS_CHECKS_SELF == '1' || (github.event_name == 'workflow_dispatch' && inputs.windows_checks_trial)) && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && (inputs.mac_both || inputs.cache_refresh))) && '1' || '' }}
     strategy:
       fail-fast: false
       matrix:
         # (a cache refresh: only the Windows checks jobs; the name, part, and include lists are cut here, not only excluded, because an include that
         # matches no combination makes a combination of its own)
-        name: ${{ fromJSON((github.event_name == 'workflow_dispatch' && inputs.cache_refresh) && '["windows"]' || '["linux","windows","macos"]') }}
+        name: ${{ fromJSON((github.event_name == 'workflow_dispatch' && (inputs.cache_refresh || inputs.windows_checks_trial)) && '["windows"]' || '["linux","windows","macos"]') }}
         # Each system builds twice, side by side (the compiler cache makes the second build a few minutes): one job runs the tests, the other the app
         # checks, the other checks, and the packaging. One after another they took 18 minutes.
-        part: ${{ fromJSON((github.event_name == 'workflow_dispatch' && inputs.cache_refresh) && '["checks"]' || '["tests","checks"]') }}
+        part: ${{ fromJSON((github.event_name == 'workflow_dispatch' && (inputs.cache_refresh || inputs.windows_checks_trial)) && '["checks"]' || '["tests","checks"]') }}
         # Windows and macOS split each part in two halves that build and run about half each (tools/ci_targets.sh): the checks' first half builds and
         # packages the apps; Linux, on our own machine, has the processors to run a part in one job (and splits the biggest programs, CI_SPLIT).
         shard: [1, 2]
@@ -275,16 +275,16 @@ jobs:
         # part in one job, its biggest programs in parts side by side, where two jobs built the same libraries twice, 17 to 18 minutes each)
         # (nor for our own Mac: its one machine ran four jobs one after another, each with its own checkout, copy of Qt, and build, about 19 minutes in all
         # and the longest part of a run on November 19, 2026; a part is one job there now. A pull request and a release's run keep the halves.)
-        exclude: ${{ fromJSON(!(github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && (inputs.mac_both && !inputs.cache_refresh))) && '[{"name":"linux","shard":2}]' || vars.JO_WINDOWS_SELF == '1' && '[{"name":"linux","shard":2},{"name":"windows","part":"tests","shard":2},{"name":"macos","shard":2}]' || '[{"name":"linux","shard":2},{"name":"macos","shard":2}]') }}
+        exclude: ${{ fromJSON((github.event_name == 'workflow_dispatch' && inputs.windows_checks_trial) && '[{"name":"windows","part":"checks","shard":1}]' || !(github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && (inputs.mac_both && !inputs.cache_refresh))) && '[{"name":"linux","shard":2}]' || vars.JO_WINDOWS_SELF == '1' && '[{"name":"linux","shard":2},{"name":"windows","part":"tests","shard":2},{"name":"macos","shard":2}]' || '[{"name":"linux","shard":2},{"name":"macos","shard":2}]') }}
         # (One app for Apple silicon and Intel Macs (Qt's macOS build is universal), unsigned for now.)
-        include: ${{ fromJSON((github.event_name == 'workflow_dispatch' && inputs.cache_refresh) && '[{"name":"windows","os":"windows-2022"}]' || '[{"name":"linux","os":"ubuntu-24.04"},{"name":"windows","os":"windows-2022"},{"name":"macos","os":"macos-15"}]') }}
+        include: ${{ fromJSON((github.event_name == 'workflow_dispatch' && (inputs.cache_refresh || inputs.windows_checks_trial)) && '[{"name":"windows","os":"windows-2022"}]' || '[{"name":"linux","os":"ubuntu-24.04"},{"name":"windows","os":"windows-2022"},{"name":"macos","os":"macos-15"}]') }}
     # Linux runs on our own machine (labels self-hosted + jo-linux) and macOS on our own Mac (self-hosted + jo-mac), except for pull requests, which run on
     # GitHub's: no one else's code runs there. (GitHub's Macs were often not there at all: whole runs waited, then were cancelled, Nov 16.)
     # The two Windows test jobs, the longest of a run (21 to 27 minutes each on GitHub's four processors, Nov 19 2026), run on our own Windows machine
     # (self-hosted + jo-ryzen: 16 processors, its compiler cache on its own disk) while the repository variable JO_WINDOWS_SELF is 1; set it to 0 and they
     # are back on GitHub's with the next run. Not for a pull request, and not for a release's run (started by hand with mac_both on), which is built on
     # GitHub's machines throughout. The Windows checks jobs stay on GitHub's: one packages and signs the installer, and both take 8 to 13 minutes.
-    runs-on: ${{ (matrix.name == 'linux' && github.event_name != 'pull_request') && fromJSON('["self-hosted", "jo-linux"]') || (vars.JO_WINDOWS_SELF == '1' && matrix.name == 'windows' && matrix.part == 'tests' && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && (inputs.mac_both && !inputs.cache_refresh))) && fromJSON('["self-hosted", "jo-ryzen-tests"]') || (matrix.os == 'macos-15' && github.event_name != 'pull_request') && fromJSON('["self-hosted", "jo-mac"]') || matrix.os }}
+    runs-on: ${{ (matrix.name == 'linux' && github.event_name != 'pull_request') && fromJSON('["self-hosted", "jo-linux"]') || (vars.JO_WINDOWS_SELF == '1' && matrix.name == 'windows' && matrix.part == 'tests' && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && (inputs.mac_both && !inputs.cache_refresh))) && fromJSON('["self-hosted", "jo-ryzen-tests"]') || (matrix.name == 'windows' && matrix.part == 'checks' && matrix.shard == 2 && (vars.JO_WINDOWS_CHECKS_SELF == '1' || (github.event_name == 'workflow_dispatch' && inputs.windows_checks_trial)) && github.event_name != 'pull_request' && !(github.event_name == 'workflow_dispatch' && (inputs.mac_both || inputs.cache_refresh))) && fromJSON('["self-hosted", "jo-ryzen-checks"]') || (matrix.os == 'macos-15' && github.event_name != 'pull_request') && fromJSON('["self-hosted", "jo-mac"]') || matrix.os }}
     timeout-minutes: 120
     steps:
       # Our own Windows machine and our own Mac keep the build folder from run to run (the next step), so the checkout does not sweep the folder clean there.
@@ -686,6 +686,8 @@ jobs:
           # uses (tools/ci_targets.sh).
           if [ "$FULL_BUILD" = true ]; then TARGETS=""; else TARGETS="--target $(bash tools/ci_targets.sh ${{ matrix.part }} "$RUNNER_OS" "$SHARD")"; fi
           echo "building: ${TARGETS:-everything}"
+          # (this job builds beside the tests job of the same run, on the same sixteen processors: eight compiles at a time, so that neither waits on the other)
+          if [ "${JO_CHECKS_SELF:-}" = 1 ]; then export CMAKE_BUILD_PARALLEL_LEVEL=8; fi
           cmake --build build --parallel ${CMAKE_BUILD_PARALLEL_LEVEL:-} $TARGETS
           if command -v ccache >/dev/null 2>&1; then
             ccache --show-stats
