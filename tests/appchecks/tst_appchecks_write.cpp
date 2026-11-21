@@ -699,6 +699,7 @@ private Q_SLOTS:
             {QStringLiteral("review.show.formatting"), QStringLiteral("it chooses whether the bars for changes of formatting are painted in the pages' margin, which no control shows; the window's tests check the painting")},
         };
         m_app.neverRun = {
+            {QStringLiteral("fmt.stopHighlighting"), QStringLiteral("it is on only while the pointer is highlighting, which no place here is; pointerHighlightingStaysOnUntilStopHighlightingOrEscapeAndEachSelectionIsOneStep runs it there")},
             {QStringLiteral("insert.control.properties"), QStringLiteral("it is on only with the caret in a content control, which no place here has; thePropertiesBoxEditsTheControlInOneStep runs it on one")},
             {QStringLiteral("design.themes.reset"), QStringLiteral("it is on only once the theme differs from the one the document was opened with, which no place here changes; theDesignTabListsThemesColorsAndFontsAndTheyApplyInOneStep runs it after a change")},
             {QStringLiteral("arrange.distribute.h"), QStringLiteral("it needs three objects selected together, which no place here has; theEffectsMenuAndDistributeWorkFromTheWindowOneStepEach runs it on three")},
