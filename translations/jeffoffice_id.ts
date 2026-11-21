@@ -864,7 +864,7 @@
     <message>
         <location filename="../libs/shell/app/appwindow.cpp" line="+184"/>
         <source>This window system places the windows itself, so a program can&apos;t arrange them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sistem jendela ini menempatkan jendela-jendelanya sendiri, sehingga program tidak dapat mengaturnya.</translation>
     </message>
     <message>
         <location line="+168"/>
@@ -3749,22 +3749,22 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="-1189"/>
         <source>Middle left</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kiri tengah</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Middle right</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kanan tengah</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Resize from</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ubah ukuran dari</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Corner radius</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Radius sudut</translation>
     </message>
     <message>
         <location line="+17"/>
@@ -3891,17 +3891,17 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="-24"/>
         <source>Start numbering again at this page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mulai penomoran lagi pada halaman ini</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>Same as the section before</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sama seperti bagian sebelumnya</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>The section runs from this page to the next page that starts one. Page numbers in it count and look as set here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bagian berlangsung dari halaman ini hingga halaman berikutnya yang memulai bagian baru. Nomor halaman di dalamnya dihitung dan ditampilkan sesuai pengaturan di sini.</translation>
     </message>
     <message>
         <location line="+20"/>
@@ -5886,32 +5886,32 @@ Berita halaman belakang	4</translation>
     <message>
         <location filename="../apps/write/app/writewindow_options.cpp" line="-59"/>
         <source>Tab characters</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Karakter tab</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Spaces</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Spasi</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Paragraph marks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tanda paragraf</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Hidden text</source>
-        <translation type="unfinished">Teks Tersembunyi</translation>
+        <translation type="unfinished">Teks tersembunyi</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Optional hyphens</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tanda hubung opsional</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Object anchors</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Jangkar objek</translation>
     </message>
     <message>
         <location line="+38"/>
@@ -5931,7 +5931,7 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="+4"/>
         <source>Always show these formatting marks on the screen</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Selalu tampilkan tanda format ini di layar</translation>
     </message>
     <message>
         <location line="+12"/>
@@ -5956,7 +5956,7 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="+12"/>
         <source>What Paste does, by where the content came from</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Yang dilakukan Tempel, berdasarkan asal konten</translation>
     </message>
     <message>
         <location filename="../apps/pub/app/dialogs.cpp" line="-564"/>
@@ -5998,32 +5998,32 @@ Berita halaman belakang	4</translation>
         <location filename="../libs/page/app/duplicatedialog.cpp" line="+21"/>
         <location line="+51"/>
         <source>Duplicate Several Times</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Duplikasi Beberapa Kali</translation>
     </message>
     <message>
         <location line="-30"/>
         <source>Step the fill color to</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ubah isian warna secara bertahap menjadi</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>Number of copies</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Jumlah salinan</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Horizontal offset</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Offset horizontal</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Vertical offset</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Offset vertikal</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Size change for each copy</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Perubahan ukuran untuk setiap salinan</translation>
     </message>
 </context>
 <context>
@@ -6657,7 +6657,7 @@ Berita halaman belakang	4</translation>
     <message>
         <location line="+6"/>
         <source>glue points can&apos;t be saved to .pub (a connector attached to one is attached to the nearest side instead)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Titik perekat tidak dapat disimpan ke .pub (konektor yang terpasang padanya akan dipasang ke sisi terdekat)</translation>
     </message>
 </context>
 <context>
@@ -8690,12 +8690,12 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location filename="../libs/page/app/mergedialogs.cpp" line="+15"/>
         <source>Format Merge Field</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Format Bidang Gabungan</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>As it is in the list</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Seperti yang ada di daftar</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -8725,12 +8725,12 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location line="+10"/>
         <source>Show the value as</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tampilkan nilai sebagai</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Decimal places</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Jumlah desimal</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -8746,42 +8746,42 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <location line="+16"/>
         <location line="+3"/>
         <source>Short</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pendek</translation>
     </message>
     <message>
         <location line="-3"/>
         <source>Long</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Panjang</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Year, month, day</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tahun, bulan, hari</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Month and day</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bulan dan hari</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Month and year</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bulan dan tahun</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>12-hour</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">12 jam</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>24-hour</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">24 jam</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>The value is shown as the list holds it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nilai ditampilkan sebagaimana tersimpan dalam daftar.</translation>
     </message>
 </context>
 <context>
@@ -8979,7 +8979,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location line="+4"/>
         <source>The number that the first slide counts from can&apos;t be saved in this kind of file.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Angka yang dihitung dari slaid pertama tidak dapat disimpan dalam jenis berkas ini.</translation>
     </message>
     <message>
         <location line="+39"/>
@@ -10733,7 +10733,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location line="+9"/>
         <source>The number the first slide counts from in the file is too large or too small, so it is %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Angka yang dihitung dari slaid pertama dalam berkas terlalu besar atau terlalu kecil, sehingga menjadi %1.</translation>
     </message>
     <message>
         <location line="+204"/>
@@ -12638,12 +12638,12 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location filename="../libs/shell/app/repeat.cpp" line="+52"/>
         <source>Repeat %1 (F4)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ulangi %1 (F4)</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Repeat (F4)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ulangi (F4)</translation>
     </message>
 </context>
 <context>
@@ -12862,7 +12862,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+3"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+1"/>
         <source>Current Selection</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pilihan Saat Ini</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -13123,7 +13123,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location line="+1"/>
         <source>Merge Shapes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gabungkan Bentuk</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -13508,7 +13508,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location line="+2"/>
         <source>Text Styles</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gaya Teks</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -15245,7 +15245,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
     <message>
         <location line="+55"/>
         <source>calculation set by hand or without data tables</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">perhitungan diatur secara manual atau tanpa tabel data</translation>
     </message>
     <message>
         <location line="+33"/>
@@ -19068,12 +19068,12 @@ Penerbitan desktop</translation>
     <message>
         <location line="+1"/>
         <source>Bold Outline</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Garis Tepi Tebal</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Filled Outline</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Garis Tepi Berisi</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -19088,7 +19088,7 @@ Penerbitan desktop</translation>
     <message>
         <location line="+1"/>
         <source>Outlined Shadow</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bayangan Bergaris Tepi</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -19098,7 +19098,7 @@ Penerbitan desktop</translation>
     <message>
         <location line="+1"/>
         <source>Colored Glow</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cahaya Berwarna</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -19113,7 +19113,7 @@ Penerbitan desktop</translation>
     <message>
         <location line="+1"/>
         <source>Engrave</source>
-        <translation type="unfinished">Cekung</translation>
+        <translation type="unfinished">Ukir</translation>
     </message>
 </context>
 <context>
@@ -19250,12 +19250,12 @@ Penerbitan desktop</translation>
     <message>
         <location filename="../libs/shell/app/undohistory.cpp" line="+67"/>
         <source>Actions that can be redone</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tindakan yang dapat diulangi</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Actions that can be undone</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tindakan yang dapat diurungkan</translation>
     </message>
     <message>
         <location line="+32"/>
@@ -19271,14 +19271,14 @@ Penerbitan desktop</translation>
         <location line="+1"/>
         <source>Redo %n action(s)</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>Ulangi %n tindakan</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+0"/>
         <source>Undo %n action(s)</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>Urungkan %n tindakan</numerusform>
         </translation>
     </message>
 </context>
@@ -21364,12 +21364,12 @@ Sumber: %3</translation>
     <message>
         <location line="+1"/>
         <source>Format Selection…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Format Pilihan…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Reset to Match Style</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Atur Ulang agar Sesuai Gaya</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -22076,17 +22076,17 @@ Sumber: %3</translation>
     <message>
         <location line="+101"/>
         <source>Reset to Match Style</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Atur Ulang agar Sesuai Gaya</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>Current Selection</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pilihan Saat Ini</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Current Selection: the part of the chart that Format Selection and Reset to Match Style act on</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pilihan Saat Ini: bagian bagan yang diterapkan oleh Format Pilihan dan Atur Ulang agar Sesuai Gaya</translation>
     </message>
 </context>
 <context>
@@ -23614,17 +23614,17 @@ Sumber: %3</translation>
     <message>
         <location line="+28"/>
         <source>These settings belong to this workbook. They are saved in its file and are not kept for other workbooks.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pengaturan ini milik buku kerja ini. Pengaturan disimpan dalam berkasnya dan tidak disimpan untuk buku kerja lain.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>These settings belong to a workbook. Open one to change them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pengaturan ini milik sebuah buku kerja. Buka satu untuk mengubahnya.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>Work the formulas out before the workbook is saved (when calculating by hand)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hitung rumus sebelum buku kerja disimpan (saat menghitung secara manual)</translation>
     </message>
     <message>
         <location line="+69"/>
@@ -23654,7 +23654,7 @@ Sumber: %3</translation>
     <message>
         <location line="+6"/>
         <source>What Paste puts in, by where the cells were copied</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Apa yang dimasukkan Tempel, berdasarkan lokasi sel yang disalin</translation>
     </message>
     <message>
         <location line="+19"/>
@@ -24345,12 +24345,12 @@ Sumber: %3</translation>
     <message>
         <location line="+39"/>
         <source>Insert Rows</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sisipkan Baris</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Insert Columns</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sisipkan Kolom</translation>
     </message>
     <message>
         <location line="+15"/>
@@ -24675,12 +24675,12 @@ Sumber: %3</translation>
     <message>
         <location line="+1"/>
         <source>Format Selection…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Format Pilihan…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Reset to Match Style</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Atur Ulang agar Sesuai Gaya</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -25919,14 +25919,14 @@ File yang ada sebelumnya tidak berubah.</translation>
         <location line="+72"/>
         <source>Redid %1 of %n action(s)</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>Mengulangi %1 dari %n tindakan</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+0"/>
         <source>Undid %1 of %n action(s)</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>Mengurungkan %1 dari %n tindakan</numerusform>
         </translation>
     </message>
     <message>
@@ -26232,7 +26232,7 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <location line="-98"/>
         <source>%n note(s)</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>%n catatan</numerusform>
         </translation>
     </message>
     <message numerus="yes">
@@ -26240,7 +26240,7 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <location line="+134"/>
         <source>%n conversation(s) of comments with the text were left as they are.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>%n percakapan komentar dengan teks tersebut dibiarkan apa adanya.</numerusform>
         </translation>
     </message>
     <message>
@@ -26291,7 +26291,7 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
     <message>
         <location line="+32"/>
         <source>No format was chosen, so the search looks at the text only.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tidak ada format yang dipilih, jadi pencarian hanya memeriksa teks.</translation>
     </message>
     <message>
         <location line="+30"/>
@@ -26576,12 +26576,12 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
     <message>
         <location line="-86"/>
         <source>Snap to Grid</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tarik ke Kisi</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Snap to Shape</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tarik ke Bentuk</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -26591,22 +26591,22 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
     <message>
         <location line="+19"/>
         <source>Snap to Grid is on: objects go to the edges of cells as you drag them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tarik ke Kisi aktif: objek menempel ke tepi sel saat diseret.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Snap to Grid is off.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tarik ke Kisi nonaktif.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Snap to Shape is on: objects go to the edges of other objects as you drag them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tarik ke Bentuk aktif: objek menempel ke tepi objek lain saat diseret.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Snap to Shape is off.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tarik ke Bentuk nonaktif.</translation>
     </message>
     <message>
         <location line="+98"/>
@@ -26705,12 +26705,12 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
     <message>
         <location line="+1"/>
         <source>Modify Cell Style…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ubah Gaya Sel…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Merge Styles…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gabungkan Gaya…</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -27087,22 +27087,22 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <location line="+11"/>
         <location line="+7"/>
         <source>Modify Cell Style</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ubah Gaya Sel</translation>
     </message>
     <message>
         <location line="-34"/>
         <source>This workbook has no styles yet. Give a cell a style from the gallery first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Buku kerja ini belum memiliki gaya. Berikan gaya ke sel dari galeri terlebih dahulu.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Style to change:</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gaya yang akan diubah:</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>This workbook has no style called &quot;%1&quot;. A style the gallery offers is in the workbook once a cell has used it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Buku kerja ini tidak memiliki gaya bernama &quot;%1&quot;. Gaya yang ditawarkan galeri akan ada di buku kerja setelah sebuah sel menggunakannya.</translation>
     </message>
     <message>
         <location line="+31"/>
@@ -27112,44 +27112,44 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <location line="+7"/>
         <location line="+4"/>
         <source>Merge Styles</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gabungkan Gaya</translation>
     </message>
     <message>
         <location line="-35"/>
         <source>Open the workbook that has the styles first. Merge Styles brings the styles of another open workbook into this one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Buka buku kerja yang memiliki gaya terlebih dahulu. Gabungkan Gaya membawa gaya dari buku kerja terbuka lain ke buku kerja ini.</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>Workbook to take the styles from:</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Buku kerja sumber gaya:</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>%1 is busy. Try again in a moment.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 sedang sibuk. Coba lagi sebentar lagi.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>%1 has no styles of its own to bring in.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 tidak memiliki gaya sendiri untuk dibawa.</translation>
     </message>
     <message numerus="yes">
         <location line="+7"/>
         <source>%n style(s) here have the same names as styles in %1, with another look. Replace them with the ones from %1?</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>%n gaya di sini memiliki nama yang sama dengan gaya di %1, dengan tampilan berbeda. Ganti dengan gaya dari %1?</numerusform>
         </translation>
     </message>
     <message>
         <location line="+7"/>
         <source>No style was brought in: the styles of %1 are here already, or were kept as they are.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tidak ada gaya yang dibawa: gaya %1 sudah ada di sini, atau dibiarkan apa adanya.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Merge Styles: %1 added, %2 replaced.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gabungkan Gaya: %1 ditambahkan, %2 diganti.</translation>
     </message>
     <message>
         <location line="+17"/>
@@ -28030,7 +28030,7 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <location line="-276"/>
         <location line="+436"/>
         <source>Remove Hyperlinks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hapus Hiperlink</translation>
     </message>
     <message>
         <location line="-354"/>
@@ -28239,12 +28239,12 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
     <message>
         <location line="-19"/>
         <source>Copied the cells to the sheet &quot;%1&quot;.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Menyalin sel ke lembar &quot;%1&quot;.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Moved the cells to the sheet &quot;%1&quot;.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Memindahkan sel ke lembar &quot;%1&quot;.</translation>
     </message>
     <message>
         <location line="+104"/>
@@ -28400,12 +28400,12 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <location line="-134"/>
         <location line="+180"/>
         <source>Auto Outline</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Garis Besar Otomatis</translation>
     </message>
     <message>
         <location line="-179"/>
         <source>Clear Outline</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hapus Garis Besar</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -28429,57 +28429,57 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
     <message>
         <location line="+4"/>
         <source>Select the row or column that sums up a collapsed group (the one with the plus button), and try again. Nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pilih baris atau kolom yang merangkum grup yang diciutkan (yang memiliki tombol plus), lalu coba lagi. Tidak ada yang diubah.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Select a row or column that is in a group, or the one that sums it up, and try again. Nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pilih baris atau kolom yang berada dalam grup, atau yang merangkumnya, lalu coba lagi. Tidak ada yang diubah.</translation>
     </message>
     <message>
         <location line="+31"/>
         <source>This sheet has no outline to clear.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lembar ini tidak memiliki garis besar untuk dihapus.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Outline cleared.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Garis besar dihapus.</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>The groups the formulas call for are longer than %1 rows, and were left out. Nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Grup yang diminta rumus lebih panjang dari %1 baris, sehingga dilewati. Tidak ada yang diubah.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>No totals were found: no formula here adds up two or more rows or columns that lie wholly above, below, left of, or right of it. Nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tidak ada total yang ditemukan: tidak ada rumus di sini yang menjumlahkan dua baris atau kolom atau lebih yang seluruhnya berada di atas, di bawah, di kiri, atau di kanan rumus tersebut. Tidak ada yang diubah.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The outline of this sheet is already the one its formulas call for. Nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Garis besar lembar ini sudah sesuai dengan yang diminta rumusnya. Tidak ada yang diubah.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Outline made from the formulas.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Garis besar dibuat dari rumus.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Some groups were left out because an outline has at most %1 levels.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Beberapa grup dilewati karena garis besar hanya memiliki paling banyak %1 tingkat.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Groups of more than %1 rows were left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Grup dengan lebih dari %1 baris dilewati.</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>This sheet has an outline. Replace it with one made from the formulas?</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lembar ini memiliki garis besar. Ganti dengan yang dibuat dari rumus?</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-801"/>
@@ -31982,12 +31982,12 @@ Berkas tidak dapat dibaca.</translation>
         <location line="+2"/>
         <location line="+18"/>
         <source>Hide Window</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sembunyikan Jendela</translation>
     </message>
     <message>
         <location line="-17"/>
         <source>Unhide Window…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tampilkan Jendela…</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -32002,32 +32002,32 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+14"/>
         <source>This is the only window that is open. Open or create another workbook first: a hidden window is brought back with Unhide Window in another one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ini adalah satu-satunya jendela yang terbuka. Buka atau buat buku kerja lain terlebih dahulu: jendela tersembunyi dapat dikembalikan dengan Tampilkan Jendela di buku kerja lain.</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>The window &quot;%1&quot; is hidden. Unhide Window on the View tab brings it back.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Jendela &quot;%1&quot; disembunyikan. Tampilkan Jendela pada tab Tampilan akan mengembalikannya.</translation>
     </message>
     <message>
         <location line="+18"/>
         <source>No window is hidden.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tidak ada jendela yang disembunyikan.</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>Unhide Window</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tampilkan Jendela</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Window to show</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Jendela yang akan ditampilkan</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>The window &quot;%1&quot; is shown again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Jendela &quot;%1&quot; ditampilkan kembali.</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -32507,7 +32507,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="-51"/>
         <source>Themes, Workbooks, Documents, and Presentations (*.thmx *.xlsx *.xltx *.docx *.dotx *.pptx *.potx)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tema, Buku Kerja, Dokumen, dan Presentasi (*.thmx *.xlsx *.xltx *.docx *.dotx *.pptx *.potx)</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -32538,17 +32538,17 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+4"/>
         <source>Reset to the Workbook&apos;s Theme</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Atur Ulang ke Tema Buku Kerja</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>This workbook has no theme part, so it can&apos;t take a theme. Nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Buku kerja ini tidak memiliki bagian tema, sehingga tidak dapat menerapkan tema. Tidak ada yang diubah.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>The theme could not be applied to this workbook. Nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tema tidak dapat diterapkan ke buku kerja ini. Tidak ada yang diubah.</translation>
     </message>
     <message>
         <location line="+17"/>
@@ -32588,32 +32588,32 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_pasteoffer.cpp" line="-89"/>
         <source>Paste Options. Use the arrow keys and Enter to choose, or Esc to leave them.</source>
-        <translation type="unfinished">Opsi Tempel. Gunakan tombol panah dan Enter untuk memilih, atau Esc untuk keluar.</translation>
+        <translation type="unfinished">Opsi Tempel. Gunakan tombol panah dan Enter untuk memilih, atau Esc untuk membiarkannya.</translation>
     </message>
     <message>
         <location line="+52"/>
         <source>How the pasted cells are kept. Tap the %1 key after a paste to open it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cara sel yang ditempel dipertahankan. Tekan tombol %1 setelah menempel untuk membukanya.</translation>
     </message>
     <message>
         <location line="+29"/>
         <source>Everything</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Semuanya</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Formatting only</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hanya pemformatan</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Cells copied in this workbook</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sel yang disalin di buku kerja ini</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Cells copied in another workbook</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sel yang disalin di buku kerja lain</translation>
     </message>
     <message>
         <location line="+12"/>
@@ -33355,7 +33355,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+16"/>
         <source>%1, variant %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1, varian %2</translation>
     </message>
     <message>
         <location line="+46"/>
@@ -33585,12 +33585,12 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+7"/>
         <source>Save as Presentation of Pictures</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Simpan sebagai Presentasi Gambar</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A new presentation with every slide as one picture, with its notes. It looks the same everywhere, and its text can&apos;t be changed. You choose the width.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Presentasi baru dengan setiap slaid sebagai satu gambar, beserta catatannya. Tampilannya sama di mana pun, dan teksnya tidak dapat diubah. Anda memilih lebarnya.</translation>
     </message>
     <message>
         <location line="+24"/>
@@ -34510,7 +34510,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+1"/>
         <source>Number of Slides</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Jumlah Slaid</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -34665,7 +34665,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+2"/>
         <source>Move Split</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pindah Pemisah</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -34933,7 +34933,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+4"/>
         <source>What Paste does, by where the content came from</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Apa yang dilakukan Tempel, menurut asal konten</translation>
     </message>
     <message>
         <location line="+69"/>
@@ -35585,44 +35585,44 @@ Berkas tidak dapat dibaca.</translation>
         <location line="+8"/>
         <location line="+62"/>
         <source>Save as Presentation of Pictures</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Simpan sebagai Presentasi Gambar</translation>
     </message>
     <message>
         <location line="-53"/>
         <source>%1 - Pictures</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 - Gambar</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>The pictures can&apos;t be saved over &quot;%1&quot;, the presentation that is open. Choose another name.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gambar tidak dapat disimpan di atas &quot;%1&quot;, presentasi yang sedang terbuka. Pilih nama lain.</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>Drawing the slides as pictures…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Menggambar slaid sebagai gambar…</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Stopped. Nothing was saved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dihentikan. Tidak ada yang disimpan.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The pictures could not be made.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gambar tidak dapat dibuat.</translation>
     </message>
     <message numerus="yes">
         <location line="+7"/>
         <source>Saved %1, with %n slide(s) as pictures.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>Tersimpan %1, dengan %n slaid sebagai gambar.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Width of each picture</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lebar setiap gambar</translation>
     </message>
     <message>
         <location line="+24"/>
@@ -35642,7 +35642,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+1"/>
         <source>Save as Presentation of Pictures…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Simpan sebagai Presentasi Gambar…</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -35982,12 +35982,12 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+12"/>
         <source>Brightness: 0% (Normal)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kecerahan: 0% (Normal)</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Brightness: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kecerahan: %1</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -35997,12 +35997,12 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+1"/>
         <source>Contrast: 0% (Normal)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kontras: 0% (Normal)</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Contrast: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kontras: %1</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -36012,17 +36012,17 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+3"/>
         <source>Saturation: 0% (Normal)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Saturasi: 0% (Normal)</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Saturation: -100% (Gray)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Saturasi: -100% (Abu-abu)</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Saturation: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Saturasi: %1</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -36052,17 +36052,17 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+3"/>
         <source>Transparency: 0% (Normal)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Transparansi: 0% (Normal)</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Transparency: %1%</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Transparansi: %1%</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Picture Transparency</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Transparansi Gambar</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -36072,18 +36072,18 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+2"/>
         <source>Click the color in the picture that is to be clear.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Klik warna di gambar yang akan dibuat transparan.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>No Transparent Color</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tanpa Warna Transparan</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+62"/>
         <source>Transparent Color</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Warna Transparan</translation>
     </message>
     <message>
         <location line="-57"/>
@@ -36158,7 +36158,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+11"/>
         <source>Click a color in a picture that is selected.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Klik warna di gambar yang dipilih.</translation>
     </message>
     <message>
         <location line="+37"/>
@@ -37727,12 +37727,12 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+6"/>
         <source>Play Across Slides</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Putar Lintas Slaid</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Play Across Slides: in the slide show, the sound goes on playing when the slide changes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Putar Lintas Slaid: dalam presentasi slaid, suara terus diputar ketika slaid berganti.</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -38286,13 +38286,13 @@ Berkas tidak dapat dibaca.</translation>
         <location line="+29"/>
         <source>Author field on %n slide(s)</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>Bidang penulis pada %n slaid</numerusform>
         </translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A field that shows the author&apos;s name in the text of a slide. With Remove personal information on, it is saved with no text.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bidang yang menampilkan nama penulis dalam teks slaid. Dengan Hapus informasi pribadi aktif, bidang ini disimpan tanpa teks.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -38609,27 +38609,27 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location filename="../apps/deck/app/deckwindow_pasteoffer.cpp" line="-133"/>
         <source>Paste Options. Use the arrow keys and Enter to choose, or Esc to leave them.</source>
-        <translation type="unfinished">Opsi Tempel. Gunakan tombol panah dan Enter untuk memilih, atau Esc untuk keluar.</translation>
+        <translation type="unfinished">Opsi Tempel. Gunakan tombol panah dan Enter untuk memilih, atau Esc untuk membiarkannya.</translation>
     </message>
     <message>
         <location line="+43"/>
         <source>How the pasted content is kept. Tap the %1 key after a paste to open it.</source>
-        <translation type="unfinished">Cara konten yang ditempel disimpan. Tekan tombol %1 setelah menempel untuk membukanya.</translation>
+        <translation type="unfinished">Cara konten yang ditempel dipertahankan. Tekan tombol %1 setelah menempel untuk membukanya.</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Pasting within the same presentation</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Menempel dalam presentasi yang sama</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Pasting between presentations</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Menempel antar presentasi</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Pasting from other programs</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Menempel dari program lain</translation>
     </message>
 </context>
 <context>
@@ -39113,12 +39113,12 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+62"/>
         <source>The numbers for the copies must be real numbers.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Angka untuk salinan harus berupa angka.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>That would make more than 2,000 new objects. Make fewer copies, or select fewer objects.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Itu akan membuat lebih dari 2.000 objek baru. Buat lebih sedikit salinan, atau pilih lebih sedikit objek.</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -39128,12 +39128,12 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+0"/>
         <source>Duplicate Several Times</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Duplikat Beberapa Kali</translation>
     </message>
     <message>
         <location line="+39"/>
         <source>The first copy would be bigger or smaller than an object can be, or off the page by too much.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Salinan pertama akan lebih besar atau lebih kecil dari ukuran yang dapat dimiliki objek, atau keluar halaman terlalu jauh.</translation>
     </message>
     <message>
         <location line="+58"/>
@@ -39148,27 +39148,27 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+34"/>
         <source>There is no group to put back.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tidak ada kelompok untuk dikembalikan.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>The group can&apos;t be put back: one of its objects was deleted.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kelompok tidak dapat dikelompokkan kembali: salah satu objeknya telah dihapus.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The group can&apos;t be put back: one of its objects is in another group now.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kelompok tidak dapat dikelompokkan kembali: salah satu objeknya sekarang berada di kelompok lain.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The group can&apos;t be put back: one of its objects is not on this page now.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kelompok tidak dapat dikelompokkan kembali: salah satu objeknya sekarang tidak berada di halaman ini.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>The group can&apos;t be put back: one of its objects is not on this master now.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kelompok tidak dapat dikelompokkan kembali: salah satu objeknya sekarang tidak berada di master ini.</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -39193,57 +39193,57 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+17"/>
         <source>Equalize Size</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Samakan Ukuran</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Equalize Width</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Samakan Lebar</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Equalize Height</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Samakan Tinggi</translation>
     </message>
     <message>
         <location line="+25"/>
         <source>Select an object first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pilih objek terlebih dahulu.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>An object that is locked stays where it is.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objek yang terkunci tetap di tempatnya.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>An object inside a group stays where it is. Select the whole group.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objek di dalam kelompok tetap di tempatnya. Pilih seluruh kelompok.</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>A text box linked to another one stays on its page.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kotak teks yang ditautkan ke kotak teks lain tetap berada di halamannya.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>An embedded object stays on its page.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objek tersemat tetap berada di halamannya.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Send to Master Page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kirim ke Halaman Master</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Send to Page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kirim ke Halaman</translation>
     </message>
     <message>
         <location line="+21"/>
         <source>This page has no master page.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Halaman ini tidak memiliki halaman master.</translation>
     </message>
     <message>
         <location line="+22"/>
@@ -39631,7 +39631,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+62"/>
         <source>Format Merge Field</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Format Bidang Gabungan</translation>
     </message>
     <message>
         <location line="+71"/>
@@ -39643,142 +39643,142 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location filename="../libs/page/app/editor_sections.cpp" line="+16"/>
         <source>Go to a page first: a master page has no sections.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Buka halaman terlebih dahulu: halaman master tidak memiliki bagian.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>That page is not in the publication.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Halaman itu tidak ada dalam publikasi.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The first page starts the first section. Use Format Page Numbers to set how it counts.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Halaman pertama memulai bagian pertama. Gunakan Format Nomor Halaman untuk mengatur cara penomorannya.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>This page starts a section like that already.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Halaman ini sudah memulai bagian seperti itu.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Insert Section</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sisipkan Bagian</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>This page does not start a section.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Halaman ini tidak memulai bagian.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Merge with Previous Section</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gabungkan dengan Bagian Sebelumnya</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>Glue points go on a shape that is not locked.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Titik sambung hanya dapat ditempatkan pada bentuk yang tidak terkunci.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A shape has no more than 16 glue points.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bentuk memiliki paling banyak 16 titik sambung.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Click on the shape to put a glue point there.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Klik pada bentuk untuk menambahkan titik sambung di sana.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Add Glue Point</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tambahkan Titik Sambung</translation>
     </message>
     <message>
         <location line="+27"/>
         <source>There is no such glue point.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tidak ada titik sambung seperti itu.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Remove Glue Point</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hapus Titik Sambung</translation>
     </message>
     <message>
         <location filename="../libs/page/app/editor_shapes.cpp" line="+92"/>
         <source>Select two or more shapes first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pilih dua bentuk atau lebih terlebih dahulu.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Select a shape first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pilih bentuk terlebih dahulu.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Select no more than 64 shapes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pilih paling banyak 64 bentuk.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Only shapes can be changed this way. Artwork and other objects stay as they are.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hanya bentuk yang dapat diubah dengan cara ini. Karya seni dan objek lain tetap seperti semula.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>An object that is locked stays as it is.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objek yang terkunci tetap seperti semula.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>An object inside a group stays as it is. Select the whole group.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objek di dalam kelompok tetap seperti semula. Pilih seluruh kelompok.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Select shapes that are on the same page.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pilih bentuk yang berada di halaman yang sama.</translation>
     </message>
     <message>
         <location line="+31"/>
         <source>Merging shapes…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Menggabungkan bentuk…</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>The shapes leave nothing.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bentuk-bentuk tidak menyisakan apa pun.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>That would cut the shapes into too many pieces.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tindakan itu akan memotong bentuk menjadi terlalu banyak bagian.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>The shapes are too complex to merge in a reasonable time.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bentuk terlalu kompleks untuk digabungkan dalam waktu yang wajar.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Cancelled. The shapes are as they were.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dibatalkan. Bentuk-bentuk tetap seperti semula.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>The shapes are too complex to merge.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bentuk terlalu kompleks untuk digabungkan.</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>Union</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gabungan</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Combine</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kombinasikan</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -39788,72 +39788,72 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+1"/>
         <source>Intersect</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Irisan</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Fragment</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Fragmen</translation>
     </message>
     <message>
         <location line="+43"/>
         <source>The shapes are curves already.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bentuk-bentuk sudah berupa kurva.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>The shapes cannot be made of straight lines.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bentuk-bentuk tidak dapat dibuat dari garis lurus.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Give the shapes an outline first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Berikan garis tepi kepada bentuk-bentuk terlebih dahulu.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Convert to Curve</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Konversi ke Kurva</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Convert to Polygon</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Konversi ke Poligon</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Convert to Contour</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Konversi ke Kontur</translation>
     </message>
     <message>
         <location line="+57"/>
         <source>Nothing to break apart: each shape is one piece.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tidak ada yang perlu dipecah: setiap bentuk terdiri dari satu bagian.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>That would make more than 256 shapes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tindakan itu akan membuat lebih dari 256 bentuk.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Break Apart</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pecah</translation>
     </message>
     <message>
         <location line="+76"/>
         <source>Select a shape that a connector is attached to, or a connector.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pilih bentuk yang terhubung dengan konektor, atau sebuah konektor.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>The connectors are on their shortest paths already.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Konektor sudah berada di jalur terpendeknya.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Reroute Connectors</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rute Ulang Konektor</translation>
     </message>
 </context>
 <context>
@@ -40845,27 +40845,27 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+6"/>
         <source>Format…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Format…</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Format From Cell</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Format dari Sel</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Clear Format</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hapus Format</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The format to look for</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Format yang dicari</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>A look that a conditional format gives a cell is not searched, only the format the cell has itself.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tampilan yang diberikan format bersyarat ke sel tidak dicari, hanya format yang dimiliki sel itu sendiri.</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -40916,22 +40916,22 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+47"/>
         <source>No format was chosen, so the search looks at the text only.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tidak ada format yang dipilih, jadi pencarian hanya memeriksa teks.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Looking for the format: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mencari format: %1</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>every part of a cell&apos;s format</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">setiap bagian dari format sel</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Any format</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Format apa saja</translation>
     </message>
     <message>
         <location line="+48"/>
@@ -42530,7 +42530,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+2"/>
         <source>Top left corner</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sudut kiri atas</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -42540,7 +42540,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+1"/>
         <source>Position from</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Posisi dari</translation>
     </message>
     <message>
         <location line="+16"/>
@@ -43306,18 +43306,18 @@ Resolusi efektif: %3 ppi</translation>
     <message>
         <location line="+7"/>
         <source>Notes pages</source>
-        <translation type="unfinished">Halaman catatan</translation>
+        <translation type="unfinished">Halaman Catatan</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Handouts</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Selebaran</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+3"/>
         <source>Notes and Handouts</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Catatan dan Selebaran</translation>
     </message>
 </context>
 <context>
@@ -46627,12 +46627,12 @@ Sumber: %3</translation>
     <message>
         <location line="+1"/>
         <source>Insert Section…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sisipkan Bagian…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Merge with Previous Section</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gabungkan dengan Bagian Sebelumnya</translation>
     </message>
     <message>
         <location line="+20"/>
@@ -47169,85 +47169,85 @@ Sumber: %3</translation>
     <message>
         <location line="+240"/>
         <source>Drag a point to reshape. Ctrl+click a point to delete it, or an edge to add one. Shift+click puts a glue point for connectors on the shape, or takes it away. Press Esc when done.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Seret titik untuk membentuk ulang. Ctrl+klik titik untuk menghapusnya, atau tepi untuk menambahkannya. Shift+klik menempatkan titik lem untuk konektor pada bentuk, atau menghapusnya. Tekan Esc jika sudah selesai.</translation>
     </message>
     <message numerus="yes">
         <location line="+4"/>
         <source>Made %n shapes.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>Membuat %n bentuk.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The text in the merged shapes was removed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Teks dalam bentuk yang digabungkan telah dihapus.</translation>
     </message>
     <message>
         <location line="+9"/>
         <location line="+31"/>
         <source>Merge Shapes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gabungkan Bentuk</translation>
     </message>
     <message>
         <location line="-19"/>
         <source>Cancelling…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Membatalkan…</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>Union</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gabungan</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Combine</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gabungkan</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Subtract</source>
-        <translation type="unfinished">Kurangi</translation>
+        <translation type="unfinished">Kurangkan</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Intersect</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Irisan</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Fragment</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Fragmen</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>More than one of the shapes has text. Merging removes the text of all of them. Merge anyway?</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lebih dari satu bentuk memiliki teks. Penggabungan akan menghapus teks dari semua bentuk tersebut. Tetap gabungkan?</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>Convert to Curve</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Konversi ke Kurva</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Convert to Polygon</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Konversi ke Poligon</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Convert to Contour</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Konversi ke Kontur</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Break Apart</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pecah</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Reroute Connectors</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rutekan Ulang Konektor</translation>
     </message>
     <message>
         <location line="+106"/>
@@ -47299,7 +47299,7 @@ Sumber: %3</translation>
     <message>
         <location line="+3"/>
         <source>Duplicate Several Times…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Duplikasi Beberapa Kali…</translation>
     </message>
     <message>
         <location line="+49"/>
@@ -47309,7 +47309,7 @@ Sumber: %3</translation>
     <message>
         <location line="+146"/>
         <source>Draw Vertical Text Box</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gambar Kotak Teks Vertikal</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -47389,23 +47389,23 @@ Sumber: %3</translation>
     <message>
         <location line="+16"/>
         <source>Equalize Width</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Samakan Lebar</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Equalize Height</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Samakan Tinggi</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Equalize Width and Height</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Samakan Lebar dan Tinggi</translation>
     </message>
     <message>
         <location line="+1"/>
         <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+532"/>
         <source>Send to Master Page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kirim ke Halaman Master</translation>
     </message>
     <message>
         <location line="+199"/>
@@ -47445,7 +47445,7 @@ Sumber: %3</translation>
     <message>
         <location line="+1"/>
         <source>Format Merge Field…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Format Bidang Gabungan…</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -48286,12 +48286,12 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <location line="+3"/>
         <location line="+4"/>
         <source>Text Reflection</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pantulan Teks</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Text Style</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gaya Teks</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -49280,7 +49280,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+11"/>
         <source>Send to Page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kirim ke Halaman</translation>
     </message>
     <message>
         <location line="+161"/>
@@ -50963,12 +50963,12 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <location filename="../libs/page/core/pageaccess.cpp" line="+268"/>
         <source>here, click here, link, this link, this, more, read more, click, page, this page</source>
         <comment>Words and phrases that do not say where a link goes, separated by commas and spaces; translate each one for your language</comment>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">di sini, klik di sini, tautan, tautan ini, ini, lainnya, baca selengkapnya, klik, halaman, halaman ini</translation>
     </message>
     <message>
         <location line="+24"/>
         <source>Slide %1 has the same title as slide %2. People who use a screen reader find a slide by its title, so each should have its own.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Slaid %1 memiliki judul yang sama dengan slaid %2. Pengguna pembaca layar menemukan slaid berdasarkan judulnya, sehingga setiap slaid sebaiknya memiliki judulnya sendiri.</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -51028,32 +51028,32 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+13"/>
         <source>A table on slide %1 has merged cells. A screen reader can lose its place in them, so keep each cell of a table whole.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tabel pada slaid %1 memiliki sel yang digabungkan. Pembaca layar dapat kehilangan posisinya di dalamnya, sehingga pertahankan setiap sel tabel tetap utuh.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A table on page %1 has merged cells. A screen reader can lose its place in them, so keep each cell of a table whole.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tabel pada halaman %1 memiliki sel yang digabungkan. Pembaca layar dapat kehilangan posisinya di dalamnya, sehingga pertahankan setiap sel tabel tetap utuh.</translation>
     </message>
     <message>
         <location line="+28"/>
         <source>A link on slide %1 has no words. Use words that name the page it opens.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tautan pada slaid %1 tidak memiliki kata. Gunakan kata yang menyebutkan halaman yang dibukanya.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A link on page %1 has no words. Use words that name the page it opens.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tautan pada halaman %1 tidak memiliki kata. Gunakan kata yang menyebutkan halaman yang dibukanya.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The link &quot;%1&quot; on slide %2 does not say where it goes. Use words that name the page it opens.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tautan &quot;%1&quot; pada slaid %2 tidak menyebutkan tujuannya. Gunakan kata yang menyebutkan halaman yang dibukanya.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The link &quot;%1&quot; on page %2 does not say where it goes. Use words that name the page it opens.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tautan &quot;%1&quot; pada halaman %2 tidak menyebutkan tujuannya. Gunakan kata yang menyebutkan halaman yang dibukanya.</translation>
     </message>
     <message>
         <location line="+25"/>
@@ -51094,7 +51094,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <location line="+6"/>
         <source>%n more link(s) do not say where they go. Use words that name the page each one opens.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>%n tautan lainnya tidak menyebutkan tujuannya. Gunakan kata yang menyebutkan halaman yang dibuka masing-masing.</numerusform>
         </translation>
     </message>
 </context>
@@ -52791,7 +52791,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="-40"/>
         <source>Include on notes pages and handouts</source>
-        <translation type="unfinished">Sertakan pada halaman catatan dan selebaran</translation>
+        <translation type="unfinished">Sertakan di halaman catatan dan selebaran</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -53542,17 +53542,17 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+1"/>
         <source>Numbered</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bernomor</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Numbering changed</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Penomoran diubah</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Formatted section</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bagian yang diformat</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -53699,13 +53699,13 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+27"/>
         <source>In a text box</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dalam kotak teks</translation>
     </message>
     <message numerus="yes">
         <location line="+6"/>
         <source>%n more change(s) are inside text boxes that are not listed here, and are done only by Accept All Changes and Reject All Changes.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>%n perubahan lainnya berada di dalam kotak teks yang tidak tercantum di sini, dan hanya dapat dilakukan dengan Terima Semua Perubahan dan Tolak Semua Perubahan.</numerusform>
         </translation>
     </message>
     <message>
@@ -54706,7 +54706,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+13"/>
         <source>Arrow Options</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Opsi Panah</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -54716,7 +54716,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+1"/>
         <source>Visible</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Terlihat</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -54746,7 +54746,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+3"/>
         <source>Last Viewed</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Terakhir Dilihat</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -54886,7 +54886,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+5"/>
         <source>Number slides from</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Beri nomor slaid mulai dari</translation>
     </message>
 </context>
 <context>
@@ -55281,7 +55281,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location filename="../libs/shell/app/splitmover.cpp" line="+67"/>
         <source>Move Split: use the arrow keys to move the divider, Tab for the next one, and Enter when it is where you want it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pindahkan Pemisah: gunakan tombol panah untuk memindahkan pembatas, Tab untuk pembatas berikutnya, dan Enter saat sudah pada posisi yang diinginkan.</translation>
     </message>
 </context>
 <context>
@@ -57757,7 +57757,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+3"/>
         <source>Down</source>
-        <translation type="unfinished">Bawah</translation>
+        <translation type="unfinished">Ke bawah</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -57982,12 +57982,12 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+3"/>
         <source>JeffWrite reached the end of the document. &quot;%1&quot; was not found below.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">JeffWrite mencapai akhir dokumen. &quot;%1&quot; tidak ditemukan di bawah.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>JeffWrite reached the start of the document. &quot;%1&quot; was not found above.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">JeffWrite mencapai awal dokumen. &quot;%1&quot; tidak ditemukan di atas.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -58007,7 +58007,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="+0"/>
         <source>JeffWrite made no replacements.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">JeffWrite tidak membuat penggantian.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -58023,13 +58023,13 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <location line="+1"/>
         <source>%n text box was too large to change.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>%n kotak teks terlalu besar untuk diubah.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Only the first %1 text boxes were changed; use Replace All again for the rest.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hanya %1 kotak teks pertama yang diubah; gunakan Ganti Semua lagi untuk sisanya.</translation>
     </message>
 </context>
 <context>
@@ -60088,7 +60088,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+19"/>
         <source>%1 (in .rtf files)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 (dalam berkas .rtf)</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -61763,7 +61763,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+223"/>
         <source>%n change(s) were kept as written because settling them would damage the document.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>%n perubahan dipertahankan seperti yang tertulis karena penyelesaiannya akan merusak dokumen.</numerusform>
         </translation>
     </message>
     <message>
@@ -61811,7 +61811,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+25"/>
         <source>This change is in a text box that can&apos;t be opened here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Perubahan ini berada di kotak teks yang tidak dapat dibuka di sini.</translation>
     </message>
     <message>
         <location line="+149"/>
@@ -61990,7 +61990,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+1"/>
         <source>Stop Highlighting</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hentikan Penyorotan</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -62025,7 +62025,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+11"/>
         <source>Highlighting: select the text to highlight. Choose Stop Highlighting or press Esc to stop.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Penyorotan: pilih teks yang akan disorot. Pilih Hentikan Penyorotan atau tekan Esc untuk berhenti.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_tables.cpp" line="-272"/>
@@ -62711,12 +62711,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+1"/>
         <source>Format Selection…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Format Pilihan…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Reset to Match Style</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Atur Ulang agar Sesuai Gaya</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -64899,12 +64899,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="-124"/>
         <source>This workbook has no theme part, so it can&apos;t take a theme. Nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Buku kerja ini tidak memiliki bagian tema, sehingga tidak dapat menerima tema. Tidak ada yang diubah.</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>The theme could not be applied to this workbook. Nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tema tidak dapat diterapkan ke buku kerja ini. Tidak ada yang diubah.</translation>
     </message>
     <message>
         <location line="+138"/>
@@ -65053,51 +65053,51 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+100"/>
         <source>That style is used by too many cells to change at once (more than %1).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gaya itu dipakai oleh terlalu banyak sel untuk diubah sekaligus (lebih dari %1).</translation>
     </message>
     <message>
         <location line="+85"/>
         <source>The Normal style can&apos;t be modified here. Every cell without a style of its own uses it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gaya Normal tidak dapat diubah di sini. Setiap sel tanpa gaya sendiri memakainya.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>This workbook has no style called &quot;%1&quot;, and no place to keep it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Buku kerja ini tidak memiliki gaya bernama &quot;%1&quot;, dan tidak ada tempat untuk menyimpannya.</translation>
     </message>
     <message>
         <location line="+18"/>
         <source>This workbook can&apos;t take more formats.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Buku kerja ini tidak dapat menerima format lagi.</translation>
     </message>
     <message>
         <location line="+14"/>
         <location line="+2"/>
         <location line="+1"/>
         <source>Modify Cell Style</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ubah Gaya Sel</translation>
     </message>
     <message>
         <location line="+40"/>
         <source>There are more styles to merge than JeffCrunch brings in at once (%1). Nothing was merged.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ada lebih banyak gaya untuk digabungkan daripada yang dapat dibawa JeffCrunch sekaligus (%1). Tidak ada yang digabungkan.</translation>
     </message>
     <message>
         <location line="+69"/>
         <source>This workbook has no room for the styles to bring in. Nothing was merged.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Buku kerja ini tidak punya ruang untuk gaya yang akan dibawa. Tidak ada yang digabungkan.</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>This workbook can&apos;t take more formats. Nothing was merged.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Buku kerja ini tidak dapat menerima format lagi. Tidak ada yang digabungkan.</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+11"/>
         <location line="+32"/>
         <source>Nothing was merged.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tidak ada yang digabungkan.</translation>
     </message>
     <message>
         <location line="-35"/>
@@ -65105,17 +65105,17 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+24"/>
         <location line="+3"/>
         <source>Merge Styles</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gabungkan Gaya</translation>
     </message>
     <message>
         <location line="-12"/>
         <source>This workbook has no room for the style &quot;%1&quot;. Nothing was merged.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Buku kerja ini tidak punya ruang untuk gaya &quot;%1&quot;. Tidak ada yang digabungkan.</translation>
     </message>
     <message>
         <location line="+92"/>
         <source>Those links are on too many cells to take the look off at once (more than %1).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tautan tersebut ada di terlalu banyak sel untuk menghapus tampilannya sekaligus (lebih dari %1).</translation>
     </message>
     <message>
         <location filename="../apps/crunch/core/editnotes.cpp" line="-42"/>
@@ -65240,12 +65240,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+45"/>
         <source>Replacing in the note in %1 would leave it with no words. Nothing was replaced.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mengganti teks di catatan pada %1 akan membuatnya tanpa kata. Tidak ada yang diganti.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Replacing in the note in %1 would make it longer than %2 characters. Nothing was replaced.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mengganti teks di catatan pada %1 akan membuatnya lebih panjang dari %2 karakter. Tidak ada yang diganti.</translation>
     </message>
     <message>
         <location line="+19"/>
@@ -66545,22 +66545,22 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="-126"/>
         <source>This sheet has more formulas than Auto Outline reads (%1).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lembar ini memiliki lebih banyak rumus daripada yang dapat dibaca Garis Besar Otomatis (%1).</translation>
     </message>
     <message>
         <location line="+17"/>
         <source>This sheet has an outline. Replace it with one made from the formulas?</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lembar ini memiliki garis besar. Ganti dengan yang dibuat dari rumus?</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Auto Outline</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Garis Besar Otomatis</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>Clear Outline</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hapus Garis Besar</translation>
     </message>
     <message>
         <location line="+32"/>
@@ -67174,7 +67174,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+6"/>
         <source>The format to look for has nothing in it. Choose a format first, or clear it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Format yang akan dicari kosong. Pilih format terlebih dahulu, atau hapus isinya.</translation>
     </message>
 </context>
 <context>
@@ -72493,7 +72493,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+1"/>
         <source>Protection</source>
-        <translation type="unfinished">Proteksi</translation>
+        <translation type="unfinished">Perlindungan</translation>
     </message>
 </context>
 <context>
@@ -72606,23 +72606,23 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+24"/>
         <source>There is no blank layout to put the pictures on.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tidak ada tata letak kosong untuk meletakkan gambar.</translation>
     </message>
     <message>
         <location line="+11"/>
         <location line="+15"/>
         <source>The pictures come to more than a presentation of pictures can hold. Use a smaller width or fewer slides.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gambar-gambar itu melebihi kapasitas presentasi gambar. Gunakan lebar yang lebih kecil atau slaid yang lebih sedikit.</translation>
     </message>
     <message>
         <location line="-7"/>
         <source>Slide %1 could not be drawn as a picture.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Slaid %1 tidak dapat digambar sebagai gambar.</translation>
     </message>
     <message>
         <location line="+17"/>
         <source>Slide %1 picture</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gambar Slaid %1</translation>
     </message>
 </context>
 <context>
@@ -72948,7 +72948,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+426"/>
         <source>%n embedded object(s) are shown as pictures.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>%n objek tersemat ditampilkan sebagai gambar.</numerusform>
         </translation>
     </message>
     <message>
@@ -72989,23 +72989,23 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location filename="../libs/office/doc/doccomments.cpp" line="+107"/>
         <source>The document has more comments than this program can hold, and the last ones were left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dokumen memiliki lebih banyak komentar daripada yang dapat ditampung program ini, dan komentar terakhir dihilangkan.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Comments longer than this program can hold were cut short.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Komentar yang lebih panjang dari batas program ini dipotong.</translation>
     </message>
     <message>
         <location line="+106"/>
         <source>The comments in the document could not be read, and were left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Komentar dalam dokumen tidak dapat dibaca dan dihilangkan.</translation>
     </message>
     <message numerus="yes">
         <location line="+2"/>
         <source>%n comment(s) could not be read and were left out.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>%n komentar tidak dapat dibaca dan dihilangkan.</numerusform>
         </translation>
     </message>
 </context>
@@ -74438,12 +74438,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+4"/>
         <source>The document has more sections than this program can open: the section breaks after the first 15,000 were ignored, and the rest of the text is in the last section.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dokumen memiliki lebih banyak bagian daripada yang dapat dibuka program ini: jeda bagian setelah 15.000 pertama diabaikan, dan sisa teks berada di bagian terakhir.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>A paragraph is longer than this program can open: the rest of it was left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sebuah paragraf lebih panjang dari yang dapat dibuka program ini: sisanya dihilangkan.</translation>
     </message>
     <message numerus="yes">
         <location line="+4"/>
@@ -75585,7 +75585,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+18"/>
         <source>Between</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Antara</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -75610,17 +75610,17 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+2"/>
         <source>Short dashes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Garis Putus-putus Pendek</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Dash-dot</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Strip-Titik</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Dash-dot-dot</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Strip-Titik-Titik</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -75645,7 +75645,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+1"/>
         <source>Distance from text</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Jarak dari Teks</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -78890,17 +78890,17 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="-491"/>
         <source>Pasting within the same document</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Menempel dalam dokumen yang sama</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Pasting between documents</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Menempel di antara dokumen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Pasting from other programs</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Menempel dari program lain</translation>
     </message>
     <message>
         <location line="+491"/>
@@ -79760,7 +79760,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+6"/>
         <source>Linked (paragraph and character)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tertaut (paragraf dan karakter)</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -79870,22 +79870,22 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+6"/>
         <source>Only in this document</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hanya dalam dokumen ini</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>New documents based on this template</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dokumen baru berdasarkan templat ini</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Available in</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tersedia di</translation>
     </message>
     <message>
         <location line="+84"/>
         <source>The style was changed in this document, but new documents did not get it: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gaya diubah dalam dokumen ini, tetapi dokumen baru tidak mendapatkannya: %1</translation>
     </message>
 </context>
 <context>
@@ -80372,28 +80372,28 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+188"/>
         <source>dash-dot and short-dash paragraph border lines (saved as dashed lines)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Garis bingkai paragraf strip-titik dan strip pendek (disimpan sebagai garis putus-putus)</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>paragraph border lines other than single, double, dotted, and dashed (saved as single lines)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Garis bingkai paragraf selain tunggal, ganda, titik-titik, dan putus-putus (disimpan sebagai garis tunggal)</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+231"/>
         <source>theme colors of paragraph borders and shading (saved as the colors they show)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Warna tema pada bingkai dan pewarnaan paragraf (disimpan sebagai warna yang ditampilkan)</translation>
     </message>
     <message>
         <location line="-225"/>
         <source>the bar beside a paragraph (not saved)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bilah di samping paragraf (tidak disimpan)</translation>
     </message>
     <message>
         <location line="+224"/>
         <source>shading patterns (saved as a plain fill)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pola pewarnaan (disimpan sebagai isian polos)</translation>
     </message>
     <message>
         <location line="+364"/>

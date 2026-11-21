@@ -864,7 +864,7 @@
     <message>
         <location filename="../libs/shell/app/appwindow.cpp" line="+184"/>
         <source>This window system places the windows itself, so a program can&apos;t arrange them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Questa finestra gestisce da sola il posizionamento delle finestre, quindi un programma non può disporle.</translation>
     </message>
     <message>
         <location line="+168"/>
@@ -3750,22 +3750,22 @@ Articolo dell&apos;ultima pagina	4</translation>
     <message>
         <location line="-1189"/>
         <source>Middle left</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Centro sinistra</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Middle right</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Centro destra</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Resize from</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ridimensiona da</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Corner radius</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Raggio dell&apos;angolo</translation>
     </message>
     <message>
         <location line="+17"/>
@@ -3892,17 +3892,17 @@ Articolo dell&apos;ultima pagina	4</translation>
     <message>
         <location line="-24"/>
         <source>Start numbering again at this page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Riavvia la numerazione da questa pagina</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>Same as the section before</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Uguale alla sezione precedente</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>The section runs from this page to the next page that starts one. Page numbers in it count and look as set here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La sezione va da questa pagina alla successiva che ne inizia una nuova. I numeri di pagina al suo interno vengono conteggiati e visualizzati come impostato qui.</translation>
     </message>
     <message>
         <location line="+20"/>
@@ -5888,17 +5888,17 @@ Articolo dell&apos;ultima pagina	4</translation>
     <message>
         <location filename="../apps/write/app/writewindow_options.cpp" line="-59"/>
         <source>Tab characters</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Caratteri di tabulazione</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Spaces</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Spazi</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Paragraph marks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Segni di paragrafo</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -5908,12 +5908,12 @@ Articolo dell&apos;ultima pagina	4</translation>
     <message>
         <location line="+1"/>
         <source>Optional hyphens</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Trattini di sillabazione opzionali</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Object anchors</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ancoraggi oggetto</translation>
     </message>
     <message>
         <location line="+38"/>
@@ -5933,7 +5933,7 @@ Articolo dell&apos;ultima pagina	4</translation>
     <message>
         <location line="+4"/>
         <source>Always show these formatting marks on the screen</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mostra sempre questi segni di formattazione sullo schermo</translation>
     </message>
     <message>
         <location line="+12"/>
@@ -5958,7 +5958,7 @@ Articolo dell&apos;ultima pagina	4</translation>
     <message>
         <location line="+12"/>
         <source>What Paste does, by where the content came from</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Comportamento di Incolla in base all&apos;origine del contenuto</translation>
     </message>
     <message>
         <location filename="../apps/pub/app/dialogs.cpp" line="-564"/>
@@ -6000,32 +6000,32 @@ Articolo dell&apos;ultima pagina	4</translation>
         <location filename="../libs/page/app/duplicatedialog.cpp" line="+21"/>
         <location line="+51"/>
         <source>Duplicate Several Times</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Duplica più volte</translation>
     </message>
     <message>
         <location line="-30"/>
         <source>Step the fill color to</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Fai variare il colore di riempimento a</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>Number of copies</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Numero di copie</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Horizontal offset</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Spostamento orizzontale</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Vertical offset</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Spostamento verticale</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Size change for each copy</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Variazione di dimensione per ogni copia</translation>
     </message>
 </context>
 <context>
@@ -6663,7 +6663,7 @@ Articolo dell&apos;ultima pagina	4</translation>
     <message>
         <location line="+6"/>
         <source>glue points can&apos;t be saved to .pub (a connector attached to one is attached to the nearest side instead)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">I punti di collegamento non possono essere salvati in .pub (un connettore collegato a uno di essi viene invece collegato al lato più vicino)</translation>
     </message>
 </context>
 <context>
@@ -8697,12 +8697,12 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
     <message>
         <location filename="../libs/page/app/mergedialogs.cpp" line="+15"/>
         <source>Format Merge Field</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Formatta campo unione</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>As it is in the list</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Come appare nell&apos;elenco</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -8732,12 +8732,12 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
     <message>
         <location line="+10"/>
         <source>Show the value as</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mostra il valore come</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Decimal places</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cifre decimali</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -8753,42 +8753,42 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <location line="+16"/>
         <location line="+3"/>
         <source>Short</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Breve</translation>
     </message>
     <message>
         <location line="-3"/>
         <source>Long</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lungo</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Year, month, day</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Anno, mese, giorno</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Month and day</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mese e giorno</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Month and year</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mese e anno</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>12-hour</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">12 ore</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>24-hour</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">24 ore</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>The value is shown as the list holds it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Il valore viene mostrato così come è memorizzato nell&apos;elenco.</translation>
     </message>
 </context>
 <context>
@@ -8986,7 +8986,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
     <message>
         <location line="+4"/>
         <source>The number that the first slide counts from can&apos;t be saved in this kind of file.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Il numero da cui parte la prima diapositiva non può essere salvato in questo tipo di file.</translation>
     </message>
     <message>
         <location line="+39"/>
@@ -10741,7 +10741,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
     <message>
         <location line="+9"/>
         <source>The number the first slide counts from in the file is too large or too small, so it is %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Il numero da cui parte la prima diapositiva nel file è troppo grande o troppo piccolo, quindi viene impostato a %1.</translation>
     </message>
     <message>
         <location line="+204"/>
@@ -12647,12 +12647,12 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
     <message>
         <location filename="../libs/shell/app/repeat.cpp" line="+52"/>
         <source>Repeat %1 (F4)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ripeti %1 (F4)</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Repeat (F4)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ripeti (F4)</translation>
     </message>
 </context>
 <context>
@@ -12871,7 +12871,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+3"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+1"/>
         <source>Current Selection</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Selezione corrente</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -13132,7 +13132,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
     <message>
         <location line="+1"/>
         <source>Merge Shapes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Unisci forme</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -13517,7 +13517,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
     <message>
         <location line="+2"/>
         <source>Text Styles</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Stili testo</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -15556,7 +15556,7 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
     <message>
         <location line="+6"/>
         <source>calculation set by hand or without data tables</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">calcolo impostato manualmente o senza tabelle dati</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -19085,17 +19085,17 @@ Desktop publishing</translation>
     <message>
         <location line="+1"/>
         <source>Bold Outline</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Contorno grassetto</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Filled Outline</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Contorno riempito</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Shadow</source>
-        <translation type="unfinished">Ombreggiatura</translation>
+        <translation type="unfinished">Ombra</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -19105,7 +19105,7 @@ Desktop publishing</translation>
     <message>
         <location line="+1"/>
         <source>Outlined Shadow</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ombra con contorno</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -19115,7 +19115,7 @@ Desktop publishing</translation>
     <message>
         <location line="+1"/>
         <source>Colored Glow</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Alone colorato</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -19267,12 +19267,12 @@ Desktop publishing</translation>
     <message>
         <location filename="../libs/shell/app/undohistory.cpp" line="+67"/>
         <source>Actions that can be redone</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Azioni che possono essere ripetute</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Actions that can be undone</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Azioni che possono essere annullate</translation>
     </message>
     <message>
         <location line="+32"/>
@@ -19288,16 +19288,16 @@ Desktop publishing</translation>
         <location line="+1"/>
         <source>Redo %n action(s)</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>Ripeti %n azione</numerusform>
+            <numerusform>Ripeti %n azioni</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+0"/>
         <source>Undo %n action(s)</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>Annulla %n azione</numerusform>
+            <numerusform>Annulla %n azioni</numerusform>
         </translation>
     </message>
 </context>
@@ -21360,12 +21360,12 @@ Origine: %3</translation>
     <message>
         <location line="+1"/>
         <source>Format Selection…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Formatta selezione…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Reset to Match Style</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ripristina per corrispondere allo stile</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -22097,17 +22097,17 @@ Origine: %3</translation>
     <message>
         <location line="+101"/>
         <source>Reset to Match Style</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Reimposta in base allo stile</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>Current Selection</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Selezione corrente</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Current Selection: the part of the chart that Format Selection and Reset to Match Style act on</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Selezione corrente: la parte del grafico su cui agiscono Formato selezione e Reimposta in base allo stile</translation>
     </message>
 </context>
 <context>
@@ -23681,17 +23681,17 @@ Origine: %3</translation>
     <message>
         <location line="+15"/>
         <source>These settings belong to this workbook. They are saved in its file and are not kept for other workbooks.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Queste impostazioni appartengono a questa cartella di lavoro. Sono salvate nel suo file e non vengono mantenute per le altre cartelle di lavoro.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>These settings belong to a workbook. Open one to change them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Queste impostazioni appartengono a una cartella di lavoro. Aprirne una per modificarle.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>Work the formulas out before the workbook is saved (when calculating by hand)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Calcola le formule prima che la cartella di lavoro venga salvata (quando il calcolo è manuale)</translation>
     </message>
     <message>
         <location line="+54"/>
@@ -23713,7 +23713,7 @@ Origine: %3</translation>
     <message>
         <location line="+33"/>
         <source>What Paste puts in, by where the cells were copied</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cosa inserisce Incolla, in base a dove sono state copiate le celle</translation>
     </message>
     <message>
         <location line="+113"/>
@@ -23902,12 +23902,12 @@ Origine: %3</translation>
     <message>
         <location line="+1"/>
         <source>Format Selection…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Formato selezione…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Reset to Match Style</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Reimposta in base allo stile</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -24414,12 +24414,12 @@ Origine: %3</translation>
     <message>
         <location line="-19"/>
         <source>Copied the cells to the sheet &quot;%1&quot;.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Celle copiate nel foglio &quot;%1&quot;.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Moved the cells to the sheet &quot;%1&quot;.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Celle spostate nel foglio &quot;%1&quot;.</translation>
     </message>
     <message>
         <location line="+104"/>
@@ -24659,12 +24659,12 @@ Origine: %3</translation>
     <message>
         <location line="+1"/>
         <source>Modify Cell Style…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Modifica stile cella…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Merge Styles…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Unisci stili…</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -25031,22 +25031,22 @@ Origine: %3</translation>
         <location line="+11"/>
         <location line="+7"/>
         <source>Modify Cell Style</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Modifica stile cella</translation>
     </message>
     <message>
         <location line="-34"/>
         <source>This workbook has no styles yet. Give a cell a style from the gallery first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Questa cartella di lavoro non ha ancora stili. Prima assegna uno stile a una cella dalla galleria.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Style to change:</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Stile da modificare:</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>This workbook has no style called &quot;%1&quot;. A style the gallery offers is in the workbook once a cell has used it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Questa cartella di lavoro non ha uno stile chiamato &quot;%1&quot;. Uno stile offerto dalla galleria è presente nella cartella di lavoro una volta che una cella lo ha usato.</translation>
     </message>
     <message>
         <location line="+31"/>
@@ -25056,45 +25056,45 @@ Origine: %3</translation>
         <location line="+7"/>
         <location line="+4"/>
         <source>Merge Styles</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Unisci stili</translation>
     </message>
     <message>
         <location line="-35"/>
         <source>Open the workbook that has the styles first. Merge Styles brings the styles of another open workbook into this one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Apri prima la cartella di lavoro che contiene gli stili. Unisci stili porta in questa gli stili di un&apos;altra cartella di lavoro aperta.</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>Workbook to take the styles from:</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cartella di lavoro da cui prendere gli stili:</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>%1 is busy. Try again in a moment.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 è occupato. Riprova tra poco.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>%1 has no styles of its own to bring in.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 non ha stili propri da importare.</translation>
     </message>
     <message numerus="yes">
         <location line="+7"/>
         <source>%n style(s) here have the same names as styles in %1, with another look. Replace them with the ones from %1?</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n stile qui ha lo stesso nome di uno stile in %1, con un aspetto diverso. Sostituirlo con quello di %1?</numerusform>
+            <numerusform>%n stili qui hanno lo stesso nome di stili in %1, con un aspetto diverso. Sostituirli con quelli di %1?</numerusform>
         </translation>
     </message>
     <message>
         <location line="+7"/>
         <source>No style was brought in: the styles of %1 are here already, or were kept as they are.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nessuno stile è stato importato: gli stili di %1 sono già qui, oppure sono stati mantenuti così come sono.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Merge Styles: %1 added, %2 replaced.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Unisci stili: %1 aggiunti, %2 sostituiti.</translation>
     </message>
     <message>
         <location line="+17"/>
@@ -25487,8 +25487,8 @@ Origine: %3</translation>
         <location line="-98"/>
         <source>%n note(s)</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n nota</numerusform>
+            <numerusform>%n note</numerusform>
         </translation>
     </message>
     <message numerus="yes">
@@ -25496,8 +25496,8 @@ Origine: %3</translation>
         <location line="+134"/>
         <source>%n conversation(s) of comments with the text were left as they are.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n conversazione di commenti con il testo è stata lasciata com&apos;è.</numerusform>
+            <numerusform>%n conversazioni di commenti con il testo sono state lasciate come sono.</numerusform>
         </translation>
     </message>
     <message>
@@ -25550,7 +25550,7 @@ Origine: %3</translation>
     <message>
         <location line="+32"/>
         <source>No format was chosen, so the search looks at the text only.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Non è stato scelto alcun formato, quindi la ricerca considera solo il testo.</translation>
     </message>
     <message>
         <location line="+30"/>
@@ -25792,12 +25792,12 @@ Origine: %3</translation>
     <message>
         <location line="-86"/>
         <source>Snap to Grid</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Blocca su griglia</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Snap to Shape</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Blocca su forma</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -25807,22 +25807,22 @@ Origine: %3</translation>
     <message>
         <location line="+19"/>
         <source>Snap to Grid is on: objects go to the edges of cells as you drag them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Blocca su griglia è attivo: gli oggetti si allineano ai bordi delle celle mentre li trascini.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Snap to Grid is off.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Blocca su griglia è disattivato.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Snap to Shape is on: objects go to the edges of other objects as you drag them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Blocca su forma è attivo: gli oggetti si allineano ai bordi di altri oggetti mentre li trascini.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Snap to Shape is off.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Blocca su forma è disattivato.</translation>
     </message>
     <message>
         <location line="+98"/>
@@ -26022,12 +26022,12 @@ Origine: %3</translation>
     <message>
         <location line="+39"/>
         <source>Insert Rows</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Inserisci righe</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Insert Columns</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Inserisci colonne</translation>
     </message>
     <message>
         <location line="+15"/>
@@ -26629,7 +26629,7 @@ Origine: %3</translation>
         <location line="-276"/>
         <location line="+436"/>
         <source>Remove Hyperlinks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rimuovi collegamenti ipertestuali</translation>
     </message>
     <message>
         <location line="-354"/>
@@ -27136,16 +27136,16 @@ Origine: %3</translation>
         <location line="+234"/>
         <source>Redid %1 of %n action(s)</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>Ripetuta %1 di %n azione</numerusform>
+            <numerusform>Ripetute %1 di %n azioni</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+0"/>
         <source>Undid %1 of %n action(s)</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>Annullata %1 di %n azione</numerusform>
+            <numerusform>Annullate %1 di %n azioni</numerusform>
         </translation>
     </message>
     <message>
@@ -29002,12 +29002,12 @@ Impossibile leggere il file.</translation>
         <location line="-134"/>
         <location line="+180"/>
         <source>Auto Outline</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Struttura automatica</translation>
     </message>
     <message>
         <location line="-179"/>
         <source>Clear Outline</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cancella struttura</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -29031,57 +29031,57 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="+4"/>
         <source>Select the row or column that sums up a collapsed group (the one with the plus button), and try again. Nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Seleziona la riga o colonna che riassume un gruppo compresso (quello con il pulsante più) e riprova. Non è stato modificato nulla.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Select a row or column that is in a group, or the one that sums it up, and try again. Nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Seleziona una riga o colonna che fa parte di un gruppo, oppure quella che lo riassume, e riprova. Non è stato modificato nulla.</translation>
     </message>
     <message>
         <location line="+31"/>
         <source>This sheet has no outline to clear.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Questo foglio non ha una struttura da cancellare.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Outline cleared.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Struttura cancellata.</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>The groups the formulas call for are longer than %1 rows, and were left out. Nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">I gruppi richiesti dalle formule sono più lunghi di %1 righe e sono stati esclusi. Non è stato modificato nulla.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>No totals were found: no formula here adds up two or more rows or columns that lie wholly above, below, left of, or right of it. Nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Non sono stati trovati totali: nessuna formula qui somma due o più righe o colonne che si trovano interamente sopra, sotto, a sinistra o a destra di essa. Non è stato modificato nulla.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The outline of this sheet is already the one its formulas call for. Nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La struttura di questo foglio è già quella richiesta dalle formule. Non è stato modificato nulla.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Outline made from the formulas.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Struttura creata dalle formule.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Some groups were left out because an outline has at most %1 levels.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Alcuni gruppi sono stati esclusi perché una struttura ha al massimo %1 livelli.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Groups of more than %1 rows were left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">I gruppi di più di %1 righe sono stati esclusi.</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>This sheet has an outline. Replace it with one made from the formulas?</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Questo foglio ha una struttura. Sostituirla con una creata dalle formule?</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-653"/>
@@ -32021,12 +32021,12 @@ Impossibile leggere il file.</translation>
         <location line="+2"/>
         <location line="+18"/>
         <source>Hide Window</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nascondi finestra</translation>
     </message>
     <message>
         <location line="-17"/>
         <source>Unhide Window…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mostra finestra…</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -32041,32 +32041,32 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="+14"/>
         <source>This is the only window that is open. Open or create another workbook first: a hidden window is brought back with Unhide Window in another one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Questa è l&apos;unica finestra aperta. Apri o crea prima un&apos;altra cartella di lavoro: una finestra nascosta si riporta visibile con Mostra finestra in un&apos;altra cartella.</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>The window &quot;%1&quot; is hidden. Unhide Window on the View tab brings it back.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La finestra &quot;%1&quot; è nascosta. Mostra finestra nella scheda Visualizza la riporta visibile.</translation>
     </message>
     <message>
         <location line="+18"/>
         <source>No window is hidden.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nessuna finestra è nascosta.</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>Unhide Window</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mostra finestra</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Window to show</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Finestra da mostrare</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>The window &quot;%1&quot; is shown again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La finestra &quot;%1&quot; è di nuovo visibile.</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -32546,7 +32546,7 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="-51"/>
         <source>Themes, Workbooks, Documents, and Presentations (*.thmx *.xlsx *.xltx *.docx *.dotx *.pptx *.potx)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Temi, cartelle di lavoro, documenti e presentazioni (*.thmx *.xlsx *.xltx *.docx *.dotx *.pptx *.potx)</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -32577,17 +32577,17 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="+4"/>
         <source>Reset to the Workbook&apos;s Theme</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Reimposta sul tema della cartella di lavoro</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>This workbook has no theme part, so it can&apos;t take a theme. Nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Questa cartella di lavoro non ha una parte dedicata al tema, quindi non può usarne uno. Non è stato modificato nulla.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>The theme could not be applied to this workbook. Nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Impossibile applicare il tema a questa cartella di lavoro. Non è stato modificato nulla.</translation>
     </message>
     <message>
         <location line="+17"/>
@@ -32617,42 +32617,42 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="+34"/>
         <source>Theme Colors</source>
-        <translation type="unfinished">Colori tema</translation>
+        <translation type="unfinished">Colori del tema</translation>
     </message>
     <message>
         <location line="+17"/>
         <source>Theme Fonts</source>
-        <translation type="unfinished">Tipi di carattere tema</translation>
+        <translation type="unfinished">Caratteri del tema</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_pasteoffer.cpp" line="-89"/>
         <source>Paste Options. Use the arrow keys and Enter to choose, or Esc to leave them.</source>
-        <translation type="unfinished">Opzioni incolla. Usa i tasti freccia e Invio per scegliere, oppure Esc per uscire.</translation>
+        <translation type="unfinished">Opzioni di incolla. Usa i tasti freccia e Invio per scegliere, oppure Esc per uscire.</translation>
     </message>
     <message>
         <location line="+52"/>
         <source>How the pasted cells are kept. Tap the %1 key after a paste to open it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Modalità di conservazione delle celle incollate. Premi il tasto %1 dopo un&apos;operazione di incolla per aprirlo.</translation>
     </message>
     <message>
         <location line="+29"/>
         <source>Everything</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tutto</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Formatting only</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Solo formattazione</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Cells copied in this workbook</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Celle copiate in questa cartella di lavoro</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Cells copied in another workbook</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Celle copiate in un&apos;altra cartella di lavoro</translation>
     </message>
     <message>
         <location line="+12"/>
@@ -33394,7 +33394,7 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="+16"/>
         <source>%1, variant %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1, variante %2</translation>
     </message>
     <message>
         <location line="+46"/>
@@ -33614,12 +33614,12 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="+7"/>
         <source>Save as Presentation of Pictures</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Salva come presentazione di immagini</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A new presentation with every slide as one picture, with its notes. It looks the same everywhere, and its text can&apos;t be changed. You choose the width.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Una nuova presentazione con ogni diapositiva come un&apos;unica immagine, con le relative note. Ha lo stesso aspetto ovunque e il suo testo non può essere modificato. Scegli la larghezza.</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -34549,7 +34549,7 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="+1"/>
         <source>Number of Slides</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Numero di diapositive</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -34704,7 +34704,7 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="+2"/>
         <source>Move Split</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sposta divisione</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -34972,7 +34972,7 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="+4"/>
         <source>What Paste does, by where the content came from</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Funzione di Incolla in base all&apos;origine del contenuto</translation>
     </message>
     <message>
         <location line="+69"/>
@@ -35625,45 +35625,45 @@ Impossibile leggere il file.</translation>
         <location line="+8"/>
         <location line="+62"/>
         <source>Save as Presentation of Pictures</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Salva come presentazione di immagini</translation>
     </message>
     <message>
         <location line="-53"/>
         <source>%1 - Pictures</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 - Immagini</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>The pictures can&apos;t be saved over &quot;%1&quot;, the presentation that is open. Choose another name.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Impossibile salvare le immagini sovrascrivendo &quot;%1&quot;, la presentazione aperta. Scegli un altro nome.</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>Drawing the slides as pictures…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Creazione delle diapositive come immagini…</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Stopped. Nothing was saved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Interrotto. Nulla è stato salvato.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The pictures could not be made.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Impossibile creare le immagini.</translation>
     </message>
     <message numerus="yes">
         <location line="+7"/>
         <source>Saved %1, with %n slide(s) as pictures.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>Salvato %1, con %n diapositiva come immagine.</numerusform>
+            <numerusform>Salvato %1, con %n diapositive come immagini.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Width of each picture</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Larghezza di ciascuna immagine</translation>
     </message>
     <message>
         <location line="+24"/>
@@ -35683,7 +35683,7 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="+1"/>
         <source>Save as Presentation of Pictures…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Salva come presentazione di immagini…</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -36016,12 +36016,12 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="+12"/>
         <source>Brightness: 0% (Normal)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Luminosità: 0% (Normale)</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Brightness: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Luminosità: %1</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -36031,12 +36031,12 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="+1"/>
         <source>Contrast: 0% (Normal)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Contrasto: 0% (Normale)</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Contrast: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Contrasto: %1</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -36046,17 +36046,17 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="+3"/>
         <source>Saturation: 0% (Normal)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Saturazione: 0% (Normale)</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Saturation: -100% (Gray)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Saturazione: -100% (Scala di grigi)</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Saturation: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Saturazione: %1</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -36086,17 +36086,17 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="+3"/>
         <source>Transparency: 0% (Normal)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Trasparenza: 0% (Normale)</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Transparency: %1%</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Trasparenza: %1%</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Picture Transparency</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Trasparenza immagine</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -36106,18 +36106,18 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="+2"/>
         <source>Click the color in the picture that is to be clear.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Fai clic sul colore dell&apos;immagine che deve essere reso trasparente.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>No Transparent Color</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nessun colore trasparente</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+62"/>
         <source>Transparent Color</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Colore trasparente</translation>
     </message>
     <message>
         <location line="-57"/>
@@ -36192,7 +36192,7 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="+11"/>
         <source>Click a color in a picture that is selected.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Fai clic su un colore di un&apos;immagine selezionata.</translation>
     </message>
     <message>
         <location line="+37"/>
@@ -37726,12 +37726,12 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="+6"/>
         <source>Play Across Slides</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Riproduci tra diapositive</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Play Across Slides: in the slide show, the sound goes on playing when the slide changes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Riproduci tra diapositive: durante la presentazione, il suono continua a essere riprodotto quando la diapositiva cambia.</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -38328,14 +38328,14 @@ Impossibile leggere il file.</translation>
         <location line="+29"/>
         <source>Author field on %n slide(s)</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>Campo autore su %n diapositiva</numerusform>
+            <numerusform>Campo autore su %n diapositive</numerusform>
         </translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A field that shows the author&apos;s name in the text of a slide. With Remove personal information on, it is saved with no text.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Un campo che mostra il nome dell&apos;autore nel testo di una diapositiva. Con Rimuovi informazioni personali attivo, viene salvato senza testo.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -38652,27 +38652,27 @@ Impossibile leggere il file.</translation>
     <message>
         <location filename="../apps/deck/app/deckwindow_pasteoffer.cpp" line="-133"/>
         <source>Paste Options. Use the arrow keys and Enter to choose, or Esc to leave them.</source>
-        <translation type="unfinished">Opzioni incolla. Usa i tasti freccia e Invio per scegliere, oppure Esc per uscire.</translation>
+        <translation type="unfinished">Opzioni di incolla. Usa i tasti freccia e Invio per scegliere, oppure Esc per uscire.</translation>
     </message>
     <message>
         <location line="+43"/>
         <source>How the pasted content is kept. Tap the %1 key after a paste to open it.</source>
-        <translation type="unfinished">Come viene mantenuto il contenuto incollato. Dopo aver incollato, premi il tasto %1 per aprirlo.</translation>
+        <translation type="unfinished">Modalità di conservazione del contenuto incollato. Premi il tasto %1 dopo un&apos;operazione di incolla per aprirlo.</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Pasting within the same presentation</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Incolla all&apos;interno della stessa presentazione</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Pasting between presentations</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Incolla tra presentazioni</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Pasting from other programs</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Incolla da altri programmi</translation>
     </message>
 </context>
 <context>
@@ -39156,12 +39156,12 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="+62"/>
         <source>The numbers for the copies must be real numbers.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">I numeri delle copie devono essere numeri reali.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>That would make more than 2,000 new objects. Make fewer copies, or select fewer objects.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Verrebbero creati più di 2.000 nuovi oggetti. Crea meno copie oppure seleziona meno oggetti.</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -39171,12 +39171,12 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="+0"/>
         <source>Duplicate Several Times</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Duplica più volte</translation>
     </message>
     <message>
         <location line="+39"/>
         <source>The first copy would be bigger or smaller than an object can be, or off the page by too much.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La prima copia sarebbe più grande o più piccola di quanto consentito per un oggetto, oppure uscirebbe troppo dalla pagina.</translation>
     </message>
     <message>
         <location line="+58"/>
@@ -39191,32 +39191,32 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="+34"/>
         <source>There is no group to put back.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Non c&apos;è alcun gruppo da ripristinare.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>The group can&apos;t be put back: one of its objects was deleted.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Impossibile ripristinare il gruppo: uno dei suoi oggetti è stato eliminato.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The group can&apos;t be put back: one of its objects is in another group now.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Impossibile ripristinare il gruppo: uno dei suoi oggetti fa ora parte di un altro gruppo.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The group can&apos;t be put back: one of its objects is not on this page now.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Impossibile ripristinare il gruppo: uno dei suoi oggetti non si trova più in questa pagina.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>The group can&apos;t be put back: one of its objects is not on this master now.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Impossibile ripristinare il gruppo: uno dei suoi oggetti non si trova più in questo master.</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>Regroup</source>
-        <translation type="unfinished">Raggruppa di nuovo</translation>
+        <translation type="unfinished">Raggruppa nuovamente</translation>
     </message>
     <message>
         <location line="+38"/>
@@ -39236,57 +39236,57 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="+17"/>
         <source>Equalize Size</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Uguaglia dimensioni</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Equalize Width</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Uguaglia larghezza</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Equalize Height</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Uguaglia altezza</translation>
     </message>
     <message>
         <location line="+25"/>
         <source>Select an object first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Seleziona prima un oggetto.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>An object that is locked stays where it is.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Un oggetto bloccato resta dov&apos;è.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>An object inside a group stays where it is. Select the whole group.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Un oggetto all&apos;interno di un gruppo resta dov&apos;è. Seleziona l&apos;intero gruppo.</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>A text box linked to another one stays on its page.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Una casella di testo collegata a un&apos;altra resta sulla sua pagina.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>An embedded object stays on its page.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Un oggetto incorporato resta sulla sua pagina.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Send to Master Page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Invia a pagina master</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Send to Page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Invia a pagina</translation>
     </message>
     <message>
         <location line="+21"/>
         <source>This page has no master page.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Questa pagina non ha una pagina master.</translation>
     </message>
     <message>
         <location line="+22"/>
@@ -39674,7 +39674,7 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="+62"/>
         <source>Format Merge Field</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Formatta campo unione</translation>
     </message>
     <message>
         <location line="+71"/>
@@ -39686,142 +39686,142 @@ Impossibile leggere il file.</translation>
     <message>
         <location filename="../libs/page/app/editor_sections.cpp" line="+16"/>
         <source>Go to a page first: a master page has no sections.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Vai prima a una pagina: una pagina master non ha sezioni.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>That page is not in the publication.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Quella pagina non fa parte della pubblicazione.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The first page starts the first section. Use Format Page Numbers to set how it counts.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La prima pagina avvia la prima sezione. Usa Formatta numeri di pagina per impostare come vengono conteggiate.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>This page starts a section like that already.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Questa pagina avvia già una sezione di questo tipo.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Insert Section</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Inserisci sezione</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>This page does not start a section.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Questa pagina non avvia una sezione.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Merge with Previous Section</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Unisci con sezione precedente</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>Glue points go on a shape that is not locked.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">I punti di collegamento vanno su una forma non bloccata.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A shape has no more than 16 glue points.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Una forma non può avere più di 16 punti di collegamento.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Click on the shape to put a glue point there.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Fai clic sulla forma per inserire lì un punto di collegamento.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Add Glue Point</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Aggiungi punto di collegamento</translation>
     </message>
     <message>
         <location line="+27"/>
         <source>There is no such glue point.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Non esiste un punto di collegamento di questo tipo.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Remove Glue Point</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rimuovi punto di collegamento</translation>
     </message>
     <message>
         <location filename="../libs/page/app/editor_shapes.cpp" line="+92"/>
         <source>Select two or more shapes first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Seleziona prima due o più forme.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Select a shape first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Seleziona prima una forma.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Select no more than 64 shapes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Seleziona non più di 64 forme.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Only shapes can be changed this way. Artwork and other objects stay as they are.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">In questo modo si possono modificare solo le forme. Le opere grafiche e gli altri oggetti restano come sono.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>An object that is locked stays as it is.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Un oggetto bloccato resta com&apos;è.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>An object inside a group stays as it is. Select the whole group.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Un oggetto all&apos;interno di un gruppo resta com&apos;è. Seleziona l&apos;intero gruppo.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Select shapes that are on the same page.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Seleziona forme che si trovano sulla stessa pagina.</translation>
     </message>
     <message>
         <location line="+31"/>
         <source>Merging shapes…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Unione di forme…</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>The shapes leave nothing.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Le forme non lasciano nulla.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>That would cut the shapes into too many pieces.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Così le forme verrebbero tagliate in troppi frammenti.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>The shapes are too complex to merge in a reasonable time.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Le forme sono troppo complesse per essere unite in un tempo ragionevole.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Cancelled. The shapes are as they were.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Annullato. Le forme sono rimaste com&apos;erano.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>The shapes are too complex to merge.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Le forme sono troppo complesse per essere unite.</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>Union</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Unione</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Combine</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Combina</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -39831,72 +39831,72 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="+1"/>
         <source>Intersect</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Interseca</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Fragment</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Frammenta</translation>
     </message>
     <message>
         <location line="+43"/>
         <source>The shapes are curves already.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Le forme sono già curve.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>The shapes cannot be made of straight lines.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Le forme non possono essere costituite da linee rette.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Give the shapes an outline first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Assegna prima un contorno alle forme.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Convert to Curve</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Converti in curva</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Convert to Polygon</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Converti in poligono</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Convert to Contour</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Converti in contorno</translation>
     </message>
     <message>
         <location line="+57"/>
         <source>Nothing to break apart: each shape is one piece.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Niente da separare: ogni forma è un unico pezzo.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>That would make more than 256 shapes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Così si otterrebbero più di 256 forme.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Break Apart</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Separa</translation>
     </message>
     <message>
         <location line="+76"/>
         <source>Select a shape that a connector is attached to, or a connector.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Seleziona una forma a cui è collegato un connettore, oppure un connettore.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>The connectors are on their shortest paths already.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">I connettori si trovano già sui loro percorsi più brevi.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Reroute Connectors</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ricalcola percorso connettori</translation>
     </message>
 </context>
 <context>
@@ -40856,27 +40856,27 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="+6"/>
         <source>Format…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Formato…</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Format From Cell</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Formato da cella</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Clear Format</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cancella formato</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The format to look for</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Il formato da cercare</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>A look that a conditional format gives a cell is not searched, only the format the cell has itself.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Non viene cercato un aspetto che un formato condizionale assegna a una cella, ma solo il formato che la cella ha di suo.</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -40927,22 +40927,22 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="+47"/>
         <source>No format was chosen, so the search looks at the text only.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Non è stato scelto alcun formato, quindi la ricerca considera solo il testo.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Looking for the format: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ricerca del formato: %1</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>every part of a cell&apos;s format</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">ogni parte del formato di una cella</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Any format</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Qualsiasi formato</translation>
     </message>
     <message>
         <location line="+48"/>
@@ -42637,7 +42637,7 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="-25"/>
         <source>Top left corner</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Angolo superiore sinistro</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -42647,7 +42647,7 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="+1"/>
         <source>Position from</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Posizione da</translation>
     </message>
     <message>
         <location line="+24"/>
@@ -43357,13 +43357,13 @@ Risoluzione effettiva: %3 ppi</translation>
     <message>
         <location line="+1"/>
         <source>Handouts</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Volantini</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+3"/>
         <source>Notes and Handouts</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Note e stampati</translation>
     </message>
 </context>
 <context>
@@ -46676,12 +46676,12 @@ Origine: %3</translation>
     <message>
         <location line="+1"/>
         <source>Insert Section…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Inserisci sezione…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Merge with Previous Section</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Unisci con la sezione precedente</translation>
     </message>
     <message>
         <location line="+20"/>
@@ -47255,7 +47255,7 @@ Origine: %3</translation>
     <message>
         <location line="+3"/>
         <source>Duplicate Several Times…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Duplica più volte…</translation>
     </message>
     <message>
         <location line="+49"/>
@@ -47265,7 +47265,7 @@ Origine: %3</translation>
     <message>
         <location line="+146"/>
         <source>Draw Vertical Text Box</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Disegna casella di testo verticale</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -47345,23 +47345,23 @@ Origine: %3</translation>
     <message>
         <location line="+16"/>
         <source>Equalize Width</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Uniforma larghezza</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Equalize Height</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Uniforma altezza</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Equalize Width and Height</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Uniforma larghezza e altezza</translation>
     </message>
     <message>
         <location line="+1"/>
         <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+532"/>
         <source>Send to Master Page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Invia alla pagina master</translation>
     </message>
     <message>
         <location line="+199"/>
@@ -47401,7 +47401,7 @@ Origine: %3</translation>
     <message>
         <location line="+1"/>
         <source>Format Merge Field…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Formatta campo unione…</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -48242,12 +48242,12 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <location line="+3"/>
         <location line="+4"/>
         <source>Text Reflection</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Riflesso del testo</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Text Style</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Stile testo</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -48649,41 +48649,41 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     <message>
         <location line="-439"/>
         <source>Drag a point to reshape. Ctrl+click a point to delete it, or an edge to add one. Shift+click puts a glue point for connectors on the shape, or takes it away. Press Esc when done.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Trascina un punto per rimodellare. Ctrl+clic su un punto per eliminarlo, o su un bordo per aggiungerne uno. Maiusc+clic inserisce o rimuove un punto di collegamento per i connettori sulla forma. Premi Esc al termine.</translation>
     </message>
     <message numerus="yes">
         <location line="+4"/>
         <source>Made %n shapes.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>Creata %n forma.</numerusform>
+            <numerusform>Create %n forme.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The text in the merged shapes was removed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Il testo delle forme unite è stato rimosso.</translation>
     </message>
     <message>
         <location line="+9"/>
         <location line="+31"/>
         <source>Merge Shapes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Unisci forme</translation>
     </message>
     <message>
         <location line="-19"/>
         <source>Cancelling…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Annullamento in corso…</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>Union</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Unione</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Combine</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Combina</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -48693,42 +48693,42 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     <message>
         <location line="+0"/>
         <source>Intersect</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Interseca</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Fragment</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Frammento</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>More than one of the shapes has text. Merging removes the text of all of them. Merge anyway?</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Più di una delle forme contiene testo. L&apos;unione elimina il testo di tutte. Unire comunque?</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>Convert to Curve</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Converti in curva</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Convert to Polygon</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Converti in poligono</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Convert to Contour</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Converti in contorno</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Break Apart</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Separa</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Reroute Connectors</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ridisegna connettori</translation>
     </message>
     <message>
         <location line="+106"/>
@@ -49325,7 +49325,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     <message>
         <location line="+11"/>
         <source>Send to Page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Invia alla pagina</translation>
     </message>
     <message>
         <location line="+161"/>
@@ -51015,12 +51015,12 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <location filename="../libs/page/core/pageaccess.cpp" line="+268"/>
         <source>here, click here, link, this link, this, more, read more, click, page, this page</source>
         <comment>Words and phrases that do not say where a link goes, separated by commas and spaces; translate each one for your language</comment>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">qui, clicca qui, collegamento, questo collegamento, questo, altro, leggi altro, clicca, pagina, questa pagina</translation>
     </message>
     <message>
         <location line="+24"/>
         <source>Slide %1 has the same title as slide %2. People who use a screen reader find a slide by its title, so each should have its own.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La diapositiva %1 ha lo stesso titolo della diapositiva %2. Chi usa un lettore di schermo trova una diapositiva dal suo titolo, quindi ognuna dovrebbe averne uno proprio.</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -51080,32 +51080,32 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     <message>
         <location line="+13"/>
         <source>A table on slide %1 has merged cells. A screen reader can lose its place in them, so keep each cell of a table whole.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Una tabella nella diapositiva %1 ha celle unite. Un lettore di schermo può perdere il punto in tali celle, quindi mantieni ogni cella di una tabella intera.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A table on page %1 has merged cells. A screen reader can lose its place in them, so keep each cell of a table whole.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Una tabella nella pagina %1 ha celle unite. Un lettore di schermo può perdere il punto in tali celle, quindi mantieni ogni cella di una tabella intera.</translation>
     </message>
     <message>
         <location line="+28"/>
         <source>A link on slide %1 has no words. Use words that name the page it opens.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Un collegamento nella diapositiva %1 non ha parole. Usa parole che indichino la pagina che apre.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A link on page %1 has no words. Use words that name the page it opens.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Un collegamento nella pagina %1 non ha parole. Usa parole che indichino la pagina che apre.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The link &quot;%1&quot; on slide %2 does not say where it goes. Use words that name the page it opens.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Il collegamento &quot;%1&quot; nella diapositiva %2 non indica dove porta. Usa parole che indichino la pagina che apre.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The link &quot;%1&quot; on page %2 does not say where it goes. Use words that name the page it opens.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Il collegamento &quot;%1&quot; nella pagina %2 non indica dove porta. Usa parole che indichino la pagina che apre.</translation>
     </message>
     <message>
         <location line="+25"/>
@@ -51146,8 +51146,8 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <location line="+6"/>
         <source>%n more link(s) do not say where they go. Use words that name the page each one opens.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n altro collegamento non indica dove porta. Usa parole che indichino la pagina che ciascuno apre.</numerusform>
+            <numerusform>%n altri collegamenti non indicano dove portano. Usa parole che indichino la pagina che ciascuno apre.</numerusform>
         </translation>
     </message>
 </context>
@@ -52844,7 +52844,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     <message>
         <location line="-40"/>
         <source>Include on notes pages and handouts</source>
-        <translation type="unfinished">Includi nelle note e negli stampati</translation>
+        <translation type="unfinished">Includi nelle pagine delle note e negli stampati</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -52859,7 +52859,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     <message>
         <location line="+1"/>
         <source>Today&apos;s date, when this is empty</source>
-        <translation type="unfinished">Data odierna, se questo campo è vuoto</translation>
+        <translation type="unfinished">La data di oggi, se questo campo è vuoto</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -53595,17 +53595,17 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     <message>
         <location line="+1"/>
         <source>Numbered</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Numerata</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Numbering changed</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Numerazione modificata</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Formatted section</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sezione formattata</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -53752,14 +53752,14 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     <message>
         <location line="+27"/>
         <source>In a text box</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">In una casella di testo</translation>
     </message>
     <message numerus="yes">
         <location line="+6"/>
         <source>%n more change(s) are inside text boxes that are not listed here, and are done only by Accept All Changes and Reject All Changes.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n altra modifica si trova in caselle di testo non elencate qui e può essere gestita solo con Accetta tutte le modifiche e Rifiuta tutte le modifiche.</numerusform>
+            <numerusform>%n altre modifiche si trovano in caselle di testo non elencate qui e possono essere gestite solo con Accetta tutte le modifiche e Rifiuta tutte le modifiche.</numerusform>
         </translation>
     </message>
     <message>
@@ -54760,22 +54760,22 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     <message>
         <location line="+13"/>
         <source>Arrow Options</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Opzioni freccia</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Automatic</source>
-        <translation type="unfinished">Automatico</translation>
+        <translation type="unfinished">Automatica</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Visible</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Visibile</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Hidden</source>
-        <translation type="unfinished">Nascosto</translation>
+        <translation type="unfinished">Nascosta</translation>
     </message>
     <message>
         <location line="+12"/>
@@ -54800,7 +54800,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     <message>
         <location line="+3"/>
         <source>Last Viewed</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ultima visualizzata</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -54940,7 +54940,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     <message>
         <location line="+5"/>
         <source>Number slides from</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Numera le diapositive da</translation>
     </message>
 </context>
 <context>
@@ -55335,7 +55335,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     <message>
         <location filename="../libs/shell/app/splitmover.cpp" line="+67"/>
         <source>Move Split: use the arrow keys to move the divider, Tab for the next one, and Enter when it is where you want it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sposta divisione: usa i tasti freccia per spostare il separatore, Tab per passare al successivo e Invio quando è nella posizione desiderata.</translation>
     </message>
 </context>
 <context>
@@ -58036,12 +58036,12 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     <message>
         <location line="+3"/>
         <source>JeffWrite reached the end of the document. &quot;%1&quot; was not found below.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">JeffWrite ha raggiunto la fine del documento. &quot;%1&quot; non è stato trovato più in basso.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>JeffWrite reached the start of the document. &quot;%1&quot; was not found above.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">JeffWrite ha raggiunto l&apos;inizio del documento. &quot;%1&quot; non è stato trovato più in alto.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -58061,7 +58061,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     <message>
         <location line="+0"/>
         <source>JeffWrite made no replacements.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">JeffWrite non ha effettuato sostituzioni.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -58077,14 +58077,14 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <location line="+1"/>
         <source>%n text box was too large to change.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n casella di testo era troppo grande per essere modificata.</numerusform>
+            <numerusform>%n caselle di testo erano troppo grandi per essere modificate.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Only the first %1 text boxes were changed; use Replace All again for the rest.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sono state modificate solo le prime %1 caselle di testo; usa di nuovo Sostituisci tutto per le restanti.</translation>
     </message>
 </context>
 <context>
@@ -59678,12 +59678,12 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     <message>
         <location line="+1"/>
         <source>Format Selection…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Formatta selezione…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Reset to Match Style</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ripristina per corrispondere allo stile</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -61750,7 +61750,7 @@ Impossibile applicare la password al file.</translation>
     <message>
         <location line="+19"/>
         <source>%1 (in .rtf files)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 (nei file .rtf)</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -61839,8 +61839,8 @@ Impossibile applicare la password al file.</translation>
         <location line="+223"/>
         <source>%n change(s) were kept as written because settling them would damage the document.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n modifica è stata mantenuta come scritta perché risolverla danneggerebbe il documento.</numerusform>
+            <numerusform>%n modifiche sono state mantenute come scritte perché risolverle danneggerebbe il documento.</numerusform>
         </translation>
     </message>
     <message>
@@ -61888,7 +61888,7 @@ Impossibile applicare la password al file.</translation>
     <message>
         <location line="+25"/>
         <source>This change is in a text box that can&apos;t be opened here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Questa modifica si trova in una casella di testo che qui non può essere aperta.</translation>
     </message>
     <message>
         <location line="+149"/>
@@ -62396,7 +62396,7 @@ Impossibile applicare la password al file.</translation>
     <message>
         <location line="+1"/>
         <source>Stop Highlighting</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Interrompi evidenziazione</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -62431,7 +62431,7 @@ Impossibile applicare la password al file.</translation>
     <message>
         <location line="+11"/>
         <source>Highlighting: select the text to highlight. Choose Stop Highlighting or press Esc to stop.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Evidenziazione: seleziona il testo da evidenziare. Scegli Interrompi evidenziazione oppure premi Esc per interrompere.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_fields.cpp" line="+43"/>
@@ -64584,12 +64584,12 @@ Impossibile applicare la password al file.</translation>
     <message>
         <location line="-124"/>
         <source>This workbook has no theme part, so it can&apos;t take a theme. Nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Questa cartella di lavoro non ha una parte tema, quindi non può usare un tema. Non è stato modificato nulla.</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>The theme could not be applied to this workbook. Nothing was changed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Impossibile applicare il tema a questa cartella di lavoro. Non è stato modificato nulla.</translation>
     </message>
     <message>
         <location line="+138"/>
@@ -64738,51 +64738,51 @@ Impossibile applicare la password al file.</translation>
     <message>
         <location line="+100"/>
         <source>That style is used by too many cells to change at once (more than %1).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Quello stile è usato da troppe celle per essere modificato in una volta sola (più di %1).</translation>
     </message>
     <message>
         <location line="+85"/>
         <source>The Normal style can&apos;t be modified here. Every cell without a style of its own uses it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lo stile Normale non può essere modificato qui. Lo usano tutte le celle che non hanno uno stile proprio.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>This workbook has no style called &quot;%1&quot;, and no place to keep it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">In questa cartella di lavoro non esiste uno stile chiamato &quot;%1&quot; e non c&apos;è spazio per conservarlo.</translation>
     </message>
     <message>
         <location line="+18"/>
         <source>This workbook can&apos;t take more formats.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Questa cartella di lavoro non può contenere altri formati.</translation>
     </message>
     <message>
         <location line="+14"/>
         <location line="+2"/>
         <location line="+1"/>
         <source>Modify Cell Style</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Modifica stile cella</translation>
     </message>
     <message>
         <location line="+40"/>
         <source>There are more styles to merge than JeffCrunch brings in at once (%1). Nothing was merged.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ci sono più stili da unire di quanti JeffCrunch ne importi in una volta sola (%1). Non è stato unito nulla.</translation>
     </message>
     <message>
         <location line="+69"/>
         <source>This workbook has no room for the styles to bring in. Nothing was merged.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">In questa cartella di lavoro non c&apos;è spazio per gli stili da importare. Non è stato unito nulla.</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>This workbook can&apos;t take more formats. Nothing was merged.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Questa cartella di lavoro non può contenere altri formati. Non è stato unito nulla.</translation>
     </message>
     <message>
         <location line="+3"/>
         <location line="+11"/>
         <location line="+32"/>
         <source>Nothing was merged.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Non è stato unito nulla.</translation>
     </message>
     <message>
         <location line="-35"/>
@@ -64790,17 +64790,17 @@ Impossibile applicare la password al file.</translation>
         <location line="+24"/>
         <location line="+3"/>
         <source>Merge Styles</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Unisci stili</translation>
     </message>
     <message>
         <location line="-12"/>
         <source>This workbook has no room for the style &quot;%1&quot;. Nothing was merged.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">In questa cartella di lavoro non c&apos;è spazio per lo stile &quot;%1&quot;. Non è stato unito nulla.</translation>
     </message>
     <message>
         <location line="+92"/>
         <source>Those links are on too many cells to take the look off at once (more than %1).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Questi collegamenti si trovano su troppe celle per essere rimossi in una volta sola (più di %1).</translation>
     </message>
     <message>
         <location filename="../apps/crunch/core/editflash.cpp" line="+55"/>
@@ -65173,12 +65173,12 @@ Impossibile applicare la password al file.</translation>
     <message>
         <location line="+45"/>
         <source>Replacing in the note in %1 would leave it with no words. Nothing was replaced.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sostituire nella nota in %1 la lascerebbe senza parole. Non è stato sostituito nulla.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Replacing in the note in %1 would make it longer than %2 characters. Nothing was replaced.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sostituire nella nota in %1 la renderebbe più lunga di %2 caratteri. Non è stato sostituito nulla.</translation>
     </message>
     <message>
         <location line="+19"/>
@@ -65622,22 +65622,22 @@ Impossibile applicare la password al file.</translation>
     <message>
         <location line="-126"/>
         <source>This sheet has more formulas than Auto Outline reads (%1).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Questo foglio contiene più formule di quante Struttura automatica ne legga (%1).</translation>
     </message>
     <message>
         <location line="+17"/>
         <source>This sheet has an outline. Replace it with one made from the formulas?</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Questo foglio ha già una struttura. Sostituirla con una creata dalle formule?</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Auto Outline</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Struttura automatica</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>Clear Outline</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cancella struttura</translation>
     </message>
     <message>
         <location line="+32"/>
@@ -67238,7 +67238,7 @@ Impossibile applicare la password al file.</translation>
     <message>
         <location line="+6"/>
         <source>The format to look for has nothing in it. Choose a format first, or clear it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Il formato da cercare è vuoto. Scegli prima un formato oppure cancellalo.</translation>
     </message>
 </context>
 <context>
@@ -72674,23 +72674,23 @@ Impossibile applicare la password al file.</translation>
     <message>
         <location line="+24"/>
         <source>There is no blank layout to put the pictures on.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Non c&apos;è un layout vuoto su cui inserire le immagini.</translation>
     </message>
     <message>
         <location line="+11"/>
         <location line="+15"/>
         <source>The pictures come to more than a presentation of pictures can hold. Use a smaller width or fewer slides.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Le immagini superano ciò che una presentazione di immagini può contenere. Usa una larghezza minore o meno diapositive.</translation>
     </message>
     <message>
         <location line="-7"/>
         <source>Slide %1 could not be drawn as a picture.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Impossibile disegnare la diapositiva %1 come immagine.</translation>
     </message>
     <message>
         <location line="+17"/>
         <source>Slide %1 picture</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Immagine diapositiva %1</translation>
     </message>
 </context>
 <context>
@@ -73017,8 +73017,8 @@ Impossibile applicare la password al file.</translation>
         <location line="+426"/>
         <source>%n embedded object(s) are shown as pictures.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n oggetto incorporato è mostrato come immagine.</numerusform>
+            <numerusform>%n oggetti incorporati sono mostrati come immagini.</numerusform>
         </translation>
     </message>
     <message>
@@ -73059,24 +73059,24 @@ Impossibile applicare la password al file.</translation>
     <message>
         <location filename="../libs/office/doc/doccomments.cpp" line="+107"/>
         <source>The document has more comments than this program can hold, and the last ones were left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Il documento contiene più commenti di quanti questo programma possa gestire, quindi gli ultimi sono stati esclusi.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Comments longer than this program can hold were cut short.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">I commenti più lunghi di quanto questo programma possa gestire sono stati troncati.</translation>
     </message>
     <message>
         <location line="+106"/>
         <source>The comments in the document could not be read, and were left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Impossibile leggere i commenti nel documento, che sono stati esclusi.</translation>
     </message>
     <message numerus="yes">
         <location line="+2"/>
         <source>%n comment(s) could not be read and were left out.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n commento non è stato letto ed è stato escluso.</numerusform>
+            <numerusform>%n commenti non sono stati letti e sono stati esclusi.</numerusform>
         </translation>
     </message>
 </context>
@@ -74519,12 +74519,12 @@ Impossibile applicare la password al file.</translation>
     <message>
         <location line="+4"/>
         <source>The document has more sections than this program can open: the section breaks after the first 15,000 were ignored, and the rest of the text is in the last section.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Il documento contiene più sezioni di quante questo programma possa aprire: le interruzioni di sezione dopo le prime 15.000 sono state ignorate e il resto del testo si trova nell&apos;ultima sezione.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>A paragraph is longer than this program can open: the rest of it was left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Un paragrafo è più lungo di quanto questo programma possa aprire: la parte eccedente è stata esclusa.</translation>
     </message>
     <message numerus="yes">
         <location line="+4"/>
@@ -75474,7 +75474,7 @@ Impossibile applicare la password al file.</translation>
     <message>
         <location line="+18"/>
         <source>Between</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tra</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -75499,17 +75499,17 @@ Impossibile applicare la password al file.</translation>
     <message>
         <location line="+2"/>
         <source>Short dashes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Trattini corti</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Dash-dot</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Trattino-punto</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Dash-dot-dot</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Trattino-punto-punto</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -75534,7 +75534,7 @@ Impossibile applicare la password al file.</translation>
     <message>
         <location line="+1"/>
         <source>Distance from text</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Distanza dal testo</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -78976,17 +78976,17 @@ Impossibile applicare la password al file.</translation>
     <message>
         <location line="-491"/>
         <source>Pasting within the same document</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Incollamento all&apos;interno dello stesso documento</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Pasting between documents</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Incollamento tra documenti</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Pasting from other programs</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Incollamento da altri programmi</translation>
     </message>
     <message>
         <location line="+491"/>
@@ -79848,7 +79848,7 @@ Impossibile applicare la password al file.</translation>
     <message>
         <location line="+6"/>
         <source>Linked (paragraph and character)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Collegato (paragrafo e carattere)</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -79958,22 +79958,22 @@ Impossibile applicare la password al file.</translation>
     <message>
         <location line="+6"/>
         <source>Only in this document</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Solo in questo documento</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>New documents based on this template</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nuovi documenti basati su questo modello</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Available in</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Disponibile in</translation>
     </message>
     <message>
         <location line="+84"/>
         <source>The style was changed in this document, but new documents did not get it: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lo stile è stato modificato in questo documento, ma i nuovi documenti non lo hanno ricevuto: %1</translation>
     </message>
 </context>
 <context>
@@ -80460,28 +80460,28 @@ Impossibile applicare la password al file.</translation>
     <message>
         <location line="+188"/>
         <source>dash-dot and short-dash paragraph border lines (saved as dashed lines)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">linee di bordo del paragrafo a trattino-punto e trattino corto (salvate come linee tratteggiate)</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>paragraph border lines other than single, double, dotted, and dashed (saved as single lines)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">linee di bordo del paragrafo diverse da singola, doppia, punteggiata e tratteggiata (salvate come linee singole)</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+231"/>
         <source>theme colors of paragraph borders and shading (saved as the colors they show)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">colori del tema per bordi e sfondo dei paragrafi (salvati con i colori visualizzati)</translation>
     </message>
     <message>
         <location line="-225"/>
         <source>the bar beside a paragraph (not saved)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">la barra accanto a un paragrafo (non salvata)</translation>
     </message>
     <message>
         <location line="+224"/>
         <source>shading patterns (saved as a plain fill)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">motivi di sfondo (salvati come riempimento semplice)</translation>
     </message>
     <message>
         <location line="+364"/>

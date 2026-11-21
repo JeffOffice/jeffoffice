@@ -1,16 +1,16 @@
 # Scheda Casella di testo
-<!-- keywords: scheda casella di testo, strumenti casella di testo, scheda contestuale, adattamento testo, collegare caselle di testo, capolettera, effetti testo, tipografia, colonne, margini -->
+<!-- keywords: scheda casella di testo, strumenti casella di testo, scheda contestuale, adattamento testo, collega caselle di testo, capolettera, effetti testo, tipografia, colonne, margini -->
 
-La scheda **Casella di testo** viene visualizzata, sotto l'etichetta **Strumenti casella di testo**, quando si seleziona una casella di testo o si fa clic al suo interno. Scompare quando si seleziona un altro elemento.
+La scheda **Casella di testo** compare, sotto l'etichetta **Strumenti casella di testo**, quando selezioni una casella di testo o vi fai clic dentro. Scompare quando selezioni qualcos'altro.
 
-- **Testo** contiene **Adattamento testo**, **Direzione testo** e **Sillabazione**. Vedere [Aggiungere e formattare caselle di testo](text-boxes).
-- **Allineamento** allinea il testo a sinistra, al centro, a destra, giustificato o distribuito, e in alto, al centro o in basso nella casella. Contiene anche **Colonne** e **Margini**. Vedere [Aggiungere e formattare caselle di testo](text-boxes).
-- **Collegamento** contiene **Crea collegamento**, **Interrompi**, **Indietro** e **Avanti** per far scorrere un articolo attraverso più caselle. Vedere [Far scorrere il testo tra caselle di testo](linked-text).
-- **Carattere** ripete gli strumenti per tipo di carattere, dimensione e stile della scheda **Home**. Vedere [Formattare il testo](formatting-text).
-- **Effetti** contiene **Ombreggiatura**, **Contorno**, **Rilievo**, **Incisione**, **Riempimento testo**, **Contorno testo** e **Alone testo** da applicare alle lettere stesse. Vedere [Formattare il testo](formatting-text).
-- **Tipografia** contiene **Capolettera** e funzionalità più avanzate dei tipi di carattere, come **Stile numeri**, **Legature**, **Set stilistici**, **Ornato**, **Alternative stilistiche** e **Maiuscoletto vero**. Vedere [Formattare il testo](formatting-text).
-- **Disponi** controlla la disposizione del testo, l'ordine di sovrapposizione, il raggruppamento, l'allineamento e la rotazione della casella. Vedere [Spostare, allineare, raggruppare e sovrapporre oggetti](arrange).
-- **Dimensioni** imposta l'altezza e la larghezza della casella. Vedere [Spostare, allineare, raggruppare e sovrapporre oggetti](arrange).
+- **Testo** contiene **Adattamento testo**, **Direzione testo** e **Sillabazione**. Vedi [Aggiungere e formattare caselle di testo](text-boxes).
+- **Allineamento** dispone il testo a sinistra, al centro, a destra, giustificato o distribuito, e in alto, al centro o in basso nella casella. Contiene anche **Colonne** e **Margini**. Vedi [Aggiungere e formattare caselle di testo](text-boxes).
+- **Collegamento** contiene **Crea collegamento**, **Interrompi**, **Precedente** e **Successivo**, per far scorrere un articolo attraverso più caselle. Vedi [Far scorrere il testo tra caselle di testo](linked-text).
+- **Carattere** ripropone gli strumenti di carattere, dimensione e stile della scheda **Home**. Vedi [Formattare il testo](formatting-text).
+- **Effetti** contiene **Ombreggiatura**, **Contorno**, **Rilievo**, **Incisione**, **Riempimento testo**, **Contorno testo** e **Alone testo**, che agiscono sulle lettere. **Riflesso** (il pulsante sotto di essi) inserisce un'immagine speculare sotto le lettere: **Riflesso ravvicinato**, **Riflesso a metà** o **Riflesso completo**, oppure **Nessun riflesso** per eliminarlo. **Stili testo** offre 12 aspetti predefiniti per le lettere (come **Contorno**, **Ombreggiatura**, **Alone** e **Riflesso**). Uno stile imposta insieme riempimento, contorno ed effetti, con i colori della combinazione colori, e sostituisce ciò che le lettere selezionate avevano di questi tre elementi; carattere e dimensione restano invariati. Ogni scelta corrisponde a un passaggio di **Annulla**. Vedi [Formattare il testo](formatting-text).
+- **Tipografia** contiene **Capolettera** e funzioni tipografiche più fini come **Stile numeri**, **Legature**, **Set stilistici**, **Ornato**, **Alternative stilistiche** e **Maiuscoletto vero**. Vedi [Formattare il testo](formatting-text).
+- **Disponi** controlla la disposizione del testo, l'ordine di sovrapposizione, il raggruppamento, l'allineamento e la rotazione della casella. Vedi [Spostare, allineare, raggruppare e sovrapporre oggetti](arrange).
+- **Dimensioni** imposta altezza e larghezza della casella. Vedi [Spostare, allineare, raggruppare e sovrapporre oggetti](arrange).
 
 ## Argomenti correlati
 

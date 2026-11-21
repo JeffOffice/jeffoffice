@@ -303,6 +303,10 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Los gráficos se guardan como imágenes: sus datos no se pueden modificar en este tipo de fichero.</translation>
     </message>
     <message>
+        <source>The number that the first slide counts from can't be saved in this kind of file.</source>
+        <translation type="unfinished">El número desde el que cuenta la primera diapositiva no se puede guardar en este tipo de fichero.</translation>
+    </message>
+    <message>
         <source>The presentation file could not be put together.</source>
         <translation type="unfinished">No se pudo generar el fichero de presentación.</translation>
     </message>
@@ -659,6 +663,10 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <source>The slide size in the file can't be used, so the slides are 13.333 by 7.5 inches.</source>
         <translation type="unfinished">No se puede usar el tamaño de diapositiva del fichero, por lo que las diapositivas miden 13,333 por 7,5 pulgadas.</translation>
+    </message>
+    <message>
+        <source>The number the first slide counts from in the file is too large or too small, so it is %1.</source>
+        <translation type="unfinished">El número desde el que cuenta la primera diapositiva en el fichero es demasiado grande o demasiado pequeño, así que es %1.</translation>
     </message>
     <message>
         <source>The file has no presentation in it: %1</source>
@@ -1300,6 +1308,10 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Ficheros de texto (*.csv *.tsv *.txt)</translation>
     </message>
     <message>
+        <source>These settings belong to this workbook. They are saved in its file and are not kept for other workbooks.</source>
+        <translation type="unfinished">Estos ajustes pertenecen a este libro. Se guardan en su fichero y no se conservan para otros libros.</translation>
+    </message>
+    <message>
         <source>After pressing Enter, move the selection</source>
         <translation>Después de pulsar Entrar, mover la selección</translation>
     </message>
@@ -1469,7 +1481,7 @@ No se puede leer el fichero.</translation>
     </message>
     <message>
         <source>The file can't be read.</source>
-        <translation type="unfinished">No se puede leer el fichero.</translation>
+        <translation type="unfinished">El fichero no se puede leer.</translation>
     </message>
 </context>
 <context>
@@ -1877,6 +1889,10 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
     <message>
         <source>Field that holds picture file names:</source>
         <translation type="unfinished">Campo que contiene los nombres de fichero de imagen:</translation>
+    </message>
+    <message>
+        <source>Drag a point to reshape. Ctrl+click a point to delete it, or an edge to add one. Shift+click puts a glue point for connectors on the shape, or takes it away. Press Esc when done.</source>
+        <translation type="unfinished">Arrastre un punto para dar nueva forma. Ctrl+clic en un punto para eliminarlo, o en un borde para agregar uno. Mayús+clic coloca un punto de unión para conectores en la forma, o lo quita. Pulse Esc al terminar.</translation>
     </message>
     <message>
         <source>Keyboard Shortcuts: every command's keys, and how to use JeffPub without a mouse.</source>
@@ -2304,6 +2320,10 @@ No se pudo aplicar la contraseña al fichero.</translation>
         <translation type="unfinished">Imágenes y objetos vinculados, y campos que leen otro fichero. Al quitarlos, los campos se convierten en texto y se eliminan los vinculados. Los vínculos web se conservan.</translation>
     </message>
     <message>
+        <source>%1 (in .rtf files)</source>
+        <translation type="unfinished">%1 (en ficheros .rtf)</translation>
+    </message>
+    <message>
         <source>File Name</source>
         <translation type="unfinished">Nombre de fichero</translation>
     </message>
@@ -2326,6 +2346,10 @@ No se pudo aplicar la contraseña al fichero.</translation>
     <message>
         <source>Copy Formatting: select the text to paint. Press Esc to stop.</source>
         <translation type="unfinished">Copiar formato: seleccione el texto al que desea aplicar el formato. Pulse Esc para detenerse.</translation>
+    </message>
+    <message>
+        <source>Highlighting: select the text to highlight. Choose Stop Highlighting or press Esc to stop.</source>
+        <translation type="unfinished">Resaltado: seleccione el texto que desea resaltar. Elija Detener resaltado o pulse Esc para detenerlo.</translation>
     </message>
     <message>
         <source>There is no field here to update. Select text, or press Ctrl+A first, to update every field in it.</source>

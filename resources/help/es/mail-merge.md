@@ -1,55 +1,67 @@
 # Combinación de correspondencia y combinación de catálogo
-<!-- keywords: combinación de correspondencia, combinar correspondencia, combinar, destinatarios, lista de direcciones, etiquetas, cartas modelo, cartas personalizadas, csv, xlsx, vcard, campo de combinación, bloque de direcciones, catálogo, lista de productos, combinación de correo electrónico, vista previa -->
+<!-- keywords: combinación de correspondencia, combinar, destinatarios, lista de direcciones, etiquetas, cartas modelo, csv, xlsx, vcard, campo de combinación, bloque de direcciones, catálogo, lista de productos, combinación de correo electrónico, vista previa, cartas personalizadas, combinar correspondencia -->
 
-La combinación de correspondencia rellena una publicación con datos de una lista. Escribe una carta una sola vez y JeffPub crea una copia para cada persona, con su nombre y su dirección en el lugar correspondiente. La combinación de catálogo repite un mismo diseño para cada elemento de una lista.
+La combinación de correspondencia rellena una publicación con datos de una lista. Usted escribe una carta una sola vez, y JeffPub crea una copia para cada persona, con el nombre y la dirección de esa persona en su lugar. Una combinación de catálogo repite un mismo diseño para cada artículo de una lista.
 
-Las herramientas están en la pestaña **Correspondencia**. Para seguir un proceso guiado, haga clic en **Correspondencia > Iniciar > Combinación de correspondencia > Asistente para combinación de correspondencia paso a paso** para abrir el panel **Combinación de correspondencia**.
+Las herramientas están en la ficha **Correspondencia**. Para seguir un proceso guiado, haga clic en **Correspondencia > Iniciar > Combinación de correspondencia > Asistente paso a paso para combinación de correspondencia** para abrir el panel **Combinación de correspondencia**.
 
 ## Elegir los destinatarios
 
 Haga clic en **Correspondencia > Iniciar > Seleccionar destinatarios**:
 
-- **Usar una lista existente…**: elija un archivo CSV, un archivo de texto separado por tabulaciones, una hoja de cálculo .xlsx (la primera hoja) o un archivo de contactos .vcf. En un archivo CSV, de texto o de hoja de cálculo, la primera fila debe contener los nombres de las columnas.
-- **Seleccionar de los contactos…**: elija un archivo de contactos (.vcf o .vcard). La mayoría de las libretas de direcciones y los teléfonos pueden guardar sus contactos en uno de estos archivos; cada contacto se convierte en un destinatario, con columnas de nombre, dirección, teléfono y correo electrónico.
-- **Escribir una nueva lista…**: rellene la ventana **Nueva lista de direcciones** y use **Nueva entrada** para cada persona. Después, JeffPub le ofrece guardar la lista como archivo CSV.
+- **Usar una lista existente…**: elija un archivo CSV, un archivo de texto delimitado por tabulaciones, una hoja de cálculo .xlsx (la primera hoja) o un archivo de contactos .vcf. En un archivo CSV, de texto o de hoja de cálculo, la primera fila debe contener los nombres de las columnas.
+- **Seleccionar de contactos…**: elija un archivo de contactos (.vcf o .vcard). La mayoría de las agendas y teléfonos pueden guardar sus contactos en ese formato; cada contacto se convierte en un destinatario, con columnas de nombre, dirección, teléfono y correo electrónico.
+- **Escribir una lista nueva…**: complete la ventana **Nueva lista de direcciones**, usando **Nueva entrada** para cada persona. Después, JeffPub le ofrece guardar la lista como un archivo CSV.
 
-Para revisar la lista, haga clic en **Correspondencia > Iniciar > Editar lista de destinatarios**. En la ventana **Destinatarios de combinación de correspondencia**, desactive una fila para omitir a esa persona, haga clic en un encabezado para ordenar y escriba en **Filtrar destinatarios** para acotar la lista. **Buscar duplicados** desactiva las filas repetidas y **Validar direcciones** resalta las filas a las que les falta la dirección o que tienen un código postal extraño.
+Para revisar la lista, haga clic en **Correspondencia > Iniciar > Editar lista de destinatarios**. En la ventana **Destinatarios de combinación de correspondencia**, desmarque una fila para omitir a esa persona, haga clic en un encabezado para ordenar y escriba en **Filtrar destinatarios** para reducir la lista. **Buscar duplicados** desmarca las repeticiones, y **Validar direcciones** resalta las filas con una dirección que falta o un código postal extraño.
 
 ## Agregar campos de combinación
 
-Un campo de combinación es un marcador de posición, como «Nombre», que se convierte en un valor real para cada persona. Haga clic en un cuadro de texto (si no lo hace, JeffPub agrega uno) y use **Correspondencia > Escribir e insertar campos**:
+Un campo de combinación es un marcador de posición, como «Nombre», que se convierte en un valor real para cada persona. Haga clic en un cuadro de texto (si no existe ninguno, JeffPub agrega uno) y use **Correspondencia > Escribir e insertar campos**:
 
 - **Bloque de direcciones**: una dirección postal formada a partir de columnas con nombres como Nombre, Apellidos y Dirección 1.
-- **Línea de saludo**: "Estimado" y el nombre de la persona, o "Estimado amigo:" si no hay nombre.
+- **Línea de saludo**: «Estimado» y el nombre de la persona, o «Estimado amigo:» si no hay nombre.
 - **Insertar campo de combinación**: elija cualquier columna.
-- **Campo de imagen**: elija una columna con nombres de archivo de imagen. JeffPub agrega un marco vacío y busca los archivos junto a la lista. Después de guardar la publicación y volver a abrirla, una imagen cuyo archivo esté fuera de la carpeta de la publicación no se muestra hasta que vuelva a elegir la lista de destinatarios (**Correspondencia > Seleccionar destinatarios > Usar una lista existente…**). Entonces, las imágenes de la carpeta de la lista, y de las carpetas que contiene, se muestran hasta que cierre la publicación. JeffPub no lo recuerda para la próxima vez. También puede guardar los archivos de imagen en la carpeta de la publicación, o en una carpeta dentro de ella, y se mostrarán en cuanto la abra. Así se evita que una publicación que alguien le envíe lea por su cuenta imágenes de su equipo. La imagen de cada registro se muestra al obtener la vista previa de los resultados, imprimir, guardar un PDF o combinar en una nueva publicación o en un catálogo.
+- **Campo de imagen**: elija una columna con nombres de archivos de imagen. JeffPub agrega un marco vacío y busca los archivos junto a su lista. Después de guardar la publicación y volver a abrirla, una imagen cuyo archivo está fuera de la carpeta de la publicación no se muestra hasta que vuelva a elegir la lista de destinatarios (**Correspondencia > Seleccionar destinatarios > Usar una lista existente…**). Entonces se muestran las imágenes de la carpeta de la lista y de las carpetas que contiene, hasta que cierre la publicación. JeffPub no lo recuerda para la próxima vez. También puede guardar los archivos de imagen en la carpeta de la publicación, o en una carpeta dentro de ella; en ese caso se muestran en cuanto se abre. Así, una publicación que alguien le envíe no leerá por sí sola imágenes de su equipo. La imagen de cada registro se muestra al obtener la vista previa de los resultados, al imprimir, al guardar un PDF o al combinar en una publicación nueva o en un catálogo.
+
+## Mostrar un número, un precio, una fecha o una hora a su manera
+
+Un campo de combinación muestra el valor tal como está en su lista. Para cambiarlo, haga clic junto al campo (o selecciónelo, o selecciónelos varios) y haga clic en **Correspondencia > Escribir e insertar campos > Formato de campo de combinación…**. En **Mostrar el valor como**, elija:
+
+- **Número**, con de 0 a 4 **Posiciones decimales**. Por ejemplo, 1234,5 con 1 posición decimal se muestra como 1.234,5.
+- **Moneda**, con el símbolo monetario de su región: 1234,5 se muestra como 1.234,50 € donde ese sea el símbolo.
+- **Porcentaje**, donde 0,256 se muestra como 25,6 % con 1 posición decimal.
+- **Fecha**, con un **Estilo** como Corto, Largo, Año, mes, día, Mes y día, o Mes y año.
+- **Hora**, con un **Estilo** Corto, de 12 horas o de 24 horas.
+
+La línea **Muestra** indica lo que produce su elección. Los valores se leen y se muestran en el idioma del texto donde está el campo (inglés de EE. UU. si no hay ninguno definido), no en el idioma de su equipo. En inglés de EE. UU., 03/04/2026 es el 4 de marzo, y en un idioma en que el día va primero, como el alemán o el inglés británico, es el 3 de abril; en alemán, 1.234,5 es un número con coma decimal. Un año de dos cifras se interpreta como 2000 a 2029 para 00 a 29, y como 1930 a 1999 para 30 a 99. Un número entre paréntesis, como (500), es negativo. Un valor que no es un número, una fecha ni una hora del tipo elegido se muestra exactamente como está en su lista: una palabra, «nan» o «inf» (una persona puede llamarse Nan), un valor vacío, una hora con formato de fecha o una fecha con formato de hora. La vista previa y la combinación terminada muestran el valor con formato. La elección es un paso de **Deshacer** y se guarda con la publicación.
 
 ## Obtener una vista previa de los resultados
 
-Haga clic en **Correspondencia > Vista previa de resultados > Vista previa de resultados** para ver los datos reales en lugar de los campos. Use **Primer registro**, **Registro anterior**, **Registro siguiente** y **Último registro** para recorrer las personas, o **Buscar destinatario** para ir a una coincidencia.
+Haga clic en **Correspondencia > Vista previa de resultados > Vista previa de resultados** para ver datos reales en lugar de los campos. Use **Primer registro**, **Registro anterior**, **Registro siguiente** y **Último registro** para recorrer las personas, o **Buscar destinatario** para saltar a una coincidencia.
 
 ## Finalizar la combinación
 
 Haga clic en **Correspondencia > Finalizar > Finalizar y combinar**:
 
-- **Combinar en impresora…** abre la página **Imprimir**. Active **Imprimir todos los registros de la combinación de correspondencia** e imprima.
+- **Combinar en impresora…** abre la página **Imprimir**. Marque **Imprimir todos los registros de la combinación de correspondencia** y, después, imprima.
 - **Combinar en nueva publicación** crea una publicación nueva con una copia de sus páginas para cada persona.
 - **Combinar en PDF…** guarda un único PDF con las páginas de todas las personas.
-- **Combinar en correo electrónico…** crea un archivo de correo electrónico .eml por persona, con la primera página como imagen. Elija la columna de correo electrónico, escriba un asunto y elija una carpeta. JeffPub no envía los mensajes. Abra los archivos en su programa de correo electrónico.
-- **Exportar lista de destinatarios…** guarda la lista como archivo CSV.
+- **Combinar en correo electrónico…** crea un archivo de correo .eml por persona, con la primera página como imagen. Elija la columna del correo electrónico, escriba un asunto y seleccione una carpeta. JeffPub no envía los mensajes; ábralos en su programa de correo.
+- **Exportar lista de destinatarios…** guarda la lista como un archivo CSV.
 
 ## Combinación de catálogo
 
 Haga clic en **Insertar > Páginas > Páginas de catálogo** para abrir el panel **Combinación de catálogo**.
 
-1. Elija la lista de productos, como se ha indicado antes.
-2. Haga clic en **Insertar área de catálogo**. Aparece un cuadro con la etiqueta "Área de catálogo". Establezca sus **Filas** y **Columnas**, así como su posición y tamaño. Coloque los campos de un elemento en la primera celda haciendo doble clic en ellos en la lista. Se repiten en las demás celdas. Para una imagen, elija la versión "(imagen)" del campo.
-3. Obtenga una vista previa con las flechas. Cada página muestra tantos elementos como celdas tiene el área. Después, combine en una nueva publicación, en un PDF o en la impresora.
+1. Elija la lista de productos, como se explicó antes.
+2. Haga clic en **Insertar área de catálogo**. Aparece un cuadro con la etiqueta «Área de catálogo». Establezca sus **Filas** y **Columnas**, así como su posición y tamaño. Coloque los campos de un artículo en la primera celda haciendo doble clic en ellos en la lista. Se repiten en las demás celdas. Elija la versión «(imagen)» de un campo para una imagen.
+3. Obtenga una vista previa con las flechas. Cada página muestra tantos artículos como celdas tenga el área. Después, combine en una publicación nueva, en un PDF o en la impresora.
 
 **Quitar área de catálogo** elimina el área.
 
 ## Temas relacionados
 
 - [Imprimir una publicación](printing)
-- [Agregar cuadros de texto y aplicarles formato](text-boxes)
-- [La pestaña Correspondencia](tab-mailings)
+- [Agregar y dar formato a cuadros de texto](text-boxes)
+- [La ficha Correspondencia](tab-mailings)

@@ -1,54 +1,66 @@
 # Mala direta e mesclagem de catálogo
-<!-- keywords: mala direta, mesclar, mesclagem, destinatários, lista de endereços, etiquetas, cartas modelo, carta padrão, csv, xlsx, vcard, campo de mesclagem, bloco de endereço, catálogo, lista de produtos, mesclagem de email, visualizar -->
+<!-- keywords: mala direta, mesclagem, destinatários, lista de endereços, etiquetas, cartas-modelo, csv, xlsx, vcard, campo de mesclagem, bloco de endereço, catálogo, lista de produtos, mesclagem de email, visualizar -->
 
-A mala direta preenche uma publicação com dados de uma lista. Você escreve uma carta uma única vez, e o JeffPub faz uma cópia para cada pessoa, com o nome e o endereço dela no lugar certo. A mesclagem de catálogo repete um layout para cada item de uma lista.
+A mala direta preenche uma publicação com dados de uma lista. Você escreve a carta uma única vez, e o JeffPub cria uma cópia para cada pessoa, com o nome e o endereço dela no lugar certo. A mesclagem de catálogo repete um mesmo layout para cada item de uma lista.
 
-As ferramentas ficam na guia **Correspondências**. Para seguir um passo a passo, clique em **Correspondências > Iniciar > Mala Direta > Assistente de mala direta passo a passo** para abrir o painel **Mala Direta**.
+As ferramentas estão na guia **Correspondências**. Para seguir um roteiro guiado, clique em **Correspondências > Iniciar > Mala Direta > Assistente de Mala Direta Passo a Passo** para abrir o painel **Mala Direta**.
 
 ## Escolher os destinatários
 
 Clique em **Correspondências > Iniciar > Selecionar Destinatários**:
 
-- **Usar uma lista existente…**: escolha um arquivo CSV, um arquivo de texto separado por tabulações, uma planilha .xlsx (a primeira planilha) ou um arquivo de contatos .vcf. Em um arquivo CSV, de texto ou de planilha, a primeira linha deve conter os nomes das colunas.
-- **Selecionar dos contatos…**: escolha um arquivo de contatos (.vcf ou .vcard). A maioria dos catálogos de endereços e celulares consegue salvar os contatos nesse formato; cada contato se torna um destinatário, com colunas de nome, endereço, telefone e email.
-- **Digitar uma nova lista…**: preencha a janela **Nova Lista de Endereços**, usando **Nova Entrada** para cada pessoa. Em seguida, o JeffPub oferece a opção de salvar a lista como um arquivo CSV.
+- **Usar uma Lista Existente…**: escolha um arquivo CSV, um arquivo de texto separado por tabulações, uma planilha .xlsx (a primeira planilha) ou um arquivo de contatos .vcf. Em arquivos CSV, de texto ou de planilha, a primeira linha deve conter os nomes das colunas.
+- **Selecionar dos Contatos…**: escolha um arquivo de contatos (.vcf ou .vcard). A maioria das agendas e dos celulares pode salvar os contatos em um arquivo desse tipo; cada contato se torna um destinatário, com colunas de nome, endereço, telefone e email.
+- **Digitar uma Nova Lista…**: preencha a janela **Nova Lista de Endereços**, usando **Novo Registro** para cada pessoa. Depois, o JeffPub oferece salvar a lista como um arquivo CSV.
 
-Para conferir a lista, clique em **Correspondências > Iniciar > Editar lista de destinatários**. Na janela **Destinatários da Mala Direta**, desmarque uma linha para ignorar essa pessoa, clique em um título de coluna para classificar e digite em **Filtrar destinatários** para restringir a lista. **Localizar Duplicatas** desmarca as repetições, e **Validar Endereços** realça as linhas com endereço ausente ou CEP estranho.
+Para conferir a lista, clique em **Correspondências > Iniciar > Editar Lista de Destinatários**. Na janela **Destinatários da Mala Direta**, desmarque uma linha para ignorar aquela pessoa, clique em um cabeçalho para classificar e digite em **Filtrar destinatários** para reduzir a lista. **Localizar Duplicatas** desmarca as repetições, e **Validar Endereços** destaca as linhas com endereço ausente ou CEP estranho.
 
 ## Adicionar campos de mesclagem
 
-Um campo de mesclagem é um espaço reservado, como «Nome», que se torna um valor real para cada pessoa. Clique em uma caixa de texto (o JeffPub adiciona uma se você não fizer isso) e use **Correspondências > Gravar e Inserir Campos**:
+Um campo de mesclagem é um espaço reservado, como «Nome», que se torna um valor real para cada pessoa. Clique em uma caixa de texto (o JeffPub adiciona uma, se você não tiver uma) e use **Correspondências > Gravar e Inserir Campos**:
 
-- **Bloco de endereço**: um endereço para correspondência montado a partir de colunas com nomes como Nome, Sobrenome e Linha de Endereço 1.
-- **Linha de saudação**: "Prezado(a)" e o nome da pessoa, ou "Prezado(a) amigo(a)," se não houver nome.
+- **Bloco de Endereço**: um endereço postal montado a partir de colunas com nomes como Nome, Sobrenome e Endereço.
+- **Linha de Saudação**: "Prezado(a)" seguido do nome da pessoa, ou "Prezado(a) amigo(a)," se não houver nome.
 - **Inserir Campo de Mesclagem**: escolha qualquer coluna.
-- **Campo de Imagem**: escolha uma coluna com nomes de arquivos de imagem. O JeffPub adiciona um quadro vazio e procura os arquivos na mesma pasta da lista. Depois que você salva a publicação e a abre novamente, uma imagem cujo arquivo esteja fora da pasta da publicação não aparece até que você escolha a lista de destinatários de novo (**Correspondências > Selecionar Destinatários > Usar uma lista existente…**). Então, as imagens da pasta da lista e das pastas dentro dela aparecem até você fechar a publicação. O JeffPub não guarda essa escolha para a próxima vez. Outra opção é manter os arquivos de imagem na pasta da publicação, ou em uma pasta dentro dela, para que apareçam assim que a publicação for aberta. Isso impede que uma publicação enviada por outra pessoa leia imagens do seu computador por conta própria. A imagem de cada registro aparece quando você visualiza os resultados, imprime, salva um PDF ou mescla em uma nova publicação ou em um catálogo.
+- **Campo de Imagem**: escolha uma coluna com nomes de arquivos de imagem. O JeffPub adiciona um quadro vazio e procura os arquivos ao lado da sua lista. Depois que você salva a publicação e a abre de novo, uma imagem cujo arquivo está fora da pasta da publicação não aparece até que você escolha a lista de destinatários outra vez (**Correspondências > Selecionar Destinatários > Usar uma Lista Existente…**). Então, as imagens da pasta da lista e das pastas dentro dela aparecem até que você feche a publicação. O JeffPub não guarda isso para a próxima vez. Ou então mantenha os arquivos de imagem na pasta da publicação, ou em uma pasta dentro dela, e elas aparecem assim que a publicação for aberta. Isso impede que uma publicação enviada por outra pessoa leia, por conta própria, imagens do seu computador. A imagem de cada registro aparece ao visualizar os resultados, ao imprimir, ao salvar um PDF ou ao mesclar para uma nova publicação ou um catálogo.
+
+## Mostrar um número, um preço, uma data ou uma hora do seu jeito
+
+Um campo de mesclagem mostra o valor exatamente como a lista o guarda. Para mudar isso, clique ao lado do campo (ou selecione-o, ou vários campos) e clique em **Correspondências > Gravar e Inserir Campos > Formatar Campo de Mesclagem…**. Em **Mostrar o valor como**, escolha:
+
+- **Número**, com de 0 a 4 **Casas decimais**. Por exemplo, 1234,5 com 1 casa decimal aparece como 1.234,5.
+- **Moeda**, com o símbolo monetário da sua região: 1234,5 aparece como R$ 1.234,50, onde esse for o símbolo.
+- **Porcentagem**, em que 0,256 aparece como 25,6% com 1 casa decimal.
+- **Data**, em um **Estilo** como Curto, Longo, Ano, mês, dia, Mês e dia, ou Mês e ano.
+- **Hora**, em um **Estilo** Curto, de 12 horas ou de 24 horas.
+
+A linha **Amostra** mostra o resultado da sua escolha. Os valores são lidos e exibidos no idioma do texto onde está o campo (inglês dos EUA, se nenhum for definido), e não no idioma do seu computador. Em inglês dos EUA, 03/04/2026 é 4 de março; em um idioma em que o dia vem primeiro, como o alemão ou o inglês britânico, é 3 de abril. No português brasileiro, 1.234,5 é um número com vírgula decimal. Um ano com dois dígitos é lido como 2000 a 2029 para 00 a 29, e 1930 a 1999 para 30 a 99. Um número entre parênteses, como (500), é negativo. Um valor que não é número, data ou hora do tipo escolhido aparece exatamente como está na lista: uma palavra, "nan" ou "inf" (uma pessoa pode se chamar Nan), um valor vazio, uma hora com formato de data, ou uma data com formato de hora. A visualização e a mesclagem final mostram o valor formatado. A escolha pode ser desfeita com um passo de Desfazer e é salva com a publicação.
 
 ## Visualizar os resultados
 
-Clique em **Correspondências > Visualizar Resultados > Visualizar Resultados** para ver os dados reais no lugar dos campos. Use **Primeiro registro**, **Registro anterior**, **Próximo registro** e **Último registro** para percorrer as pessoas, ou **Localizar destinatário** para ir até uma correspondência.
+Clique em **Correspondências > Visualizar Resultados > Visualizar Resultados** para ver dados reais no lugar dos campos. Use **Primeiro Registro**, **Registro Anterior**, **Próximo Registro** e **Último Registro** para percorrer as pessoas, ou **Localizar Destinatário** para ir até uma correspondência.
 
 ## Concluir a mesclagem
 
-Clique em **Correspondências > Concluir > Concluir e mesclar**:
+Clique em **Correspondências > Concluir > Concluir e Mesclar**:
 
-- **Mesclar para Impressora…** abre a página **Imprimir**. Marque **Imprimir todos os registros da mala direta** e imprima.
+- **Mesclar para Impressora…** abre a página **Imprimir**. Marque **Imprimir todos os registros da mala direta** e então imprima.
 - **Mesclar em nova publicação** cria uma nova publicação com uma cópia das suas páginas para cada pessoa.
 - **Mesclar para PDF…** salva um único PDF com as páginas de todas as pessoas.
-- **Mesclar para Email…** cria um arquivo de email .eml por pessoa, com a primeira página como imagem. Escolha a coluna de email, digite um assunto e selecione uma pasta. O JeffPub não envia os emails. Abra os arquivos no seu programa de email.
+- **Mesclar para Email…** cria um arquivo de email .eml por pessoa, com a primeira página como imagem. Escolha a coluna de email, digite um assunto e escolha uma pasta. O JeffPub não envia os emails. Abra os arquivos no seu programa de email.
 - **Exportar Lista de Destinatários…** salva a lista como um arquivo CSV.
 
 ## Mesclagem de catálogo
 
-Clique em **Inserir > Páginas > Páginas de catálogo** para abrir o painel **Mesclagem de catálogo**.
+Clique em **Inserir > Páginas > Páginas de Catálogo** para abrir o painel **Mesclagem de Catálogo**.
 
 1. Escolha a lista de produtos, como descrito acima.
-2. Clique em **Inserir área de catálogo**. Aparece uma caixa identificada como "Área de catálogo". Defina as **Linhas** e **Colunas**, além da posição e do tamanho. Coloque os campos de um item na primeira célula clicando duas vezes neles na lista. Eles se repetem nas outras células. Escolha a versão "(imagem)" de um campo para uma imagem.
-3. Visualize com as setas. Cada página mostra tantos itens quanto o número de células da área. Depois, mescle em uma nova publicação, em um PDF ou na impressora.
+2. Clique em **Inserir Área de Catálogo**. Uma caixa marcada como "Área de catálogo" aparece. Defina suas **Linhas** e **Colunas**, além da posição e do tamanho. Coloque os campos de um item na primeira célula, clicando duas vezes neles na lista. Eles se repetem nas outras células. Escolha a versão "(imagem)" de um campo para uma imagem.
+3. Visualize com as setas. Cada página mostra tantos itens quantas forem as células da área. Depois, mescle para uma nova publicação, um PDF ou a impressora.
 
-**Remover Área de Catálogo** remove a área.
+**Remover Área de Catálogo** retira a área.
 
-## Relacionados
+## Veja também
 
 - [Imprimir uma publicação](printing)
 - [Adicionar e formatar caixas de texto](text-boxes)
