@@ -732,6 +732,38 @@ private Q_SLOTS:
         QVERIFY2(qAbs(lines[1].rect.height() - 1.2 * 20) < 0.5, qPrintable(QString::number(lines[1].rect.height())));
     }
 
+    // Saved through the window under a new name and opened again, that empty last line is still the paragraph mark's size.
+    void emptyLastLineKeepsTheParagraphMarksSizeThroughTheWindowsSave()
+    {
+        const QByteArray styles = pfRun(4, 0, 0) + cfRun(3, 0x20000, le(40, 2)) + cfRun(1, 0x20000, le(20, 2));
+        QTemporaryDir dir;
+        const QString oldPath = dir.filePath(QStringLiteral("old.ppt")), newPath = dir.filePath(QStringLiteral("new.pptx"));
+        QFile out(oldPath);
+        QVERIFY(out.open(QIODevice::WriteOnly));
+        out.write(buildPpt(false, false, false, false, pptText(1, QStringLiteral("Hi\x0b"), styles)));
+        out.close();
+        {
+            DeckWindow w;
+            QVERIFY(w.openFile(oldPath));
+            w.setSavePathChooser([&](const QString &, const QString &) { return newPath; });
+            QVERIFY(w.save());
+            w.editor()->markSaved();
+        }
+        DeckWindow again;
+        QVERIFY(again.openFile(newPath));
+        Document &doc = *again.editor()->doc();
+        const TextItem *body = nullptr;
+        for (const auto &it : doc.pages[0]->items)
+            if (it->role == QLatin1String("ph:body:1")) body = static_cast<const TextItem *>(it.get());
+        QVERIFY(body);
+        LayoutCache cache;
+        const auto lines = cache.textFrame(doc, *body, 1, RenderOptions()).layout->lineInfo(0);
+        QCOMPARE(int(lines.size()), 2);
+        QVERIFY2(qAbs(lines[1].rect.height() - 1.2 * 20) < 0.5, qPrintable(QString::number(lines[1].rect.height())));
+        Settings::get().removeRecentFile(oldPath);
+        Settings::get().removeRecentFile(newPath);
+    }
+
     // Objects on a slide, on its master, and in a group don't wrap text around them: text and objects overlap there.
     void importBinaryObjectsDoNotWrapText()
     {

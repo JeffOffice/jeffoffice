@@ -288,6 +288,41 @@ private Q_SLOTS:
         }
     }
 
+    // Saved through the window under a new name and opened again, an old file's link that has only a friendly name is still a link to its address.
+    void oldFileLinkSurvivesTheWindowsSave()
+    {
+        QTemporaryDir dir;
+        QByteArray file = buildPpt(false, false, true);
+        const qsizetype url = file.indexOf(utf16(QStringLiteral("https://example.org/site")));
+        const qsizetype name = file.indexOf(utf16(QStringLiteral("the site")));
+        QVERIFY(url > 8 && name > 8);
+        file[url - 8] = char(0x00);
+        file[name - 6] = char(0xBB);
+        const QString oldPath = dir.filePath(QStringLiteral("old.ppt")), newPath = dir.filePath(QStringLiteral("new.pptx"));
+        QFile out(oldPath);
+        QVERIFY(out.open(QIODevice::WriteOnly));
+        out.write(file);
+        out.close();
+        {
+            DeckWindow w;
+            QVERIFY(w.openFile(oldPath));
+            w.setSavePathChooser([&](const QString &, const QString &) { return newPath; });
+            QVERIFY(w.save());
+            w.editor()->markSaved();
+        }
+        DeckWindow again;
+        QVERIFY(again.openFile(newPath));
+        const Page &slide = *again.editor()->doc()->pages[2];
+        QTextDocument *body = placeholderStory(*again.editor()->doc(), slide, QStringLiteral("ph:body:1"));
+        QVERIFY(body);
+        QString href;
+        for (auto f = body->begin().begin(); !f.atEnd(); ++f)
+            if (f.fragment().text() == QLatin1String("the site")) href = f.fragment().charFormat().anchorHref();
+        QCOMPARE(href, QStringLiteral("https://example.org/site"));
+        Settings::get().removeRecentFile(oldPath);
+        Settings::get().removeRecentFile(newPath);
+    }
+
     // A presentation protected with a password: each persist object is enciphered on its own with the key of its persist id, the pictures field by field. The right password gives the
     // slides and the picture as they were; the file without it says it is protected; a wrong password is refused, and nothing is read.
     void protectedBinaryPresentationOpensWithItsPassword()

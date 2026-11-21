@@ -524,13 +524,14 @@ void writeParagraph(QXmlStreamWriter &w, const QTextBlock &b, DrawingWriteContex
 {
     begin(w, "a:p");
     writeParagraphProperties(w, b, ctx);
-    bool wrote = false;
+    bool wrote = false, endsInBreak = false;
     for (auto it = b.begin(); !it.atEnd(); ++it) {
         const QTextFragment f = it.fragment();
         if (f.isValid() && writeFragment(w, f.text(), f.charFormat(), ctx)) wrote = true;
+        if (f.isValid() && !f.text().isEmpty()) endsInBreak = f.text().endsWith(QChar(QChar::LineSeparator));
     }
-    // The mark after the last letter says how tall an empty paragraph is.
-    if (!wrote) writeRunProperties(w, "a:endParaRPr", b.charFormat(), ctx, false);
+    // The mark after the last letter says how tall an empty paragraph is, and an empty last line after a line break.
+    if (!wrote || endsInBreak) writeRunProperties(w, "a:endParaRPr", b.charFormat(), ctx, false);
     w.writeEndElement();
 }
 
