@@ -290,8 +290,9 @@ private Q_SLOTS:
         QTRY_VERIFY(rows->isVisible());
         QVERIFY(columns->isHidden());
         QCOMPARE(rows->width(), OutlineGutter::thicknessFor(2));
+        // (the margin shows once the outline is set; the groups in view are known when the grid has its lines laid out, which is the condition to wait on)
+        QTRY_COMPARE(int(rows->visibleGroups().size()), 2);
         const auto groups = rows->visibleGroups();
-        QCOMPARE(int(groups.size()), 2);
         // the button of the inner group is on its summary line (row 5), in the second column of the margin; the outer group's on row 6, in the first
         const crunch::Outline::Group inner = groups[1], outer = groups[0];
         const QRect button = rows->groupButton(inner);
