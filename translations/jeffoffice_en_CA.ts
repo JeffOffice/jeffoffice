@@ -177,6 +177,10 @@
         <source>Puts the fonts that come with the program, and that the text uses, in a saved .docx file, so the text looks the same on a computer that doesn't have them. It makes the file larger. A font whose license does not allow it is left out, and fonts every computer has are never put in.</source>
         <translation>Puts the fonts that come with the program, and that the text uses, in a saved .docx file, so the text looks the same on a computer that doesn't have them. It makes the file larger. A font whose licence does not allow it is left out, and fonts every computer has are never put in.</translation>
     </message>
+    <message>
+        <source>Step the fill color to</source>
+        <translation>Step the fill colour to</translation>
+    </message>
 </context>
 <context>
     <name>Export</name>

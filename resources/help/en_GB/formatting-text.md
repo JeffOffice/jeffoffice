@@ -40,7 +40,7 @@ When you select words with the mouse, a small bar floats above them. It has the 
 
 ## Effects, drop caps, and typography
 
-On the **Text Box** tab, **Effects** adds shadow, outline, emboss, engrave, glow, and gradient fills to letters. A drop cap is a large first letter: click in the paragraph and choose **Text Box > Typography > Drop Cap**. Pick 2 to 5 lines, or **Custom Drop Cap…**. The rest of **Typography**, such as ligatures and stylistic sets, depends on what the font offers.
+On the **Text Box** tab, **Effects** adds shadow, outline, emboss, engrave, glow, reflection, and gradient fills to letters. A drop cap is a large first letter: click in the paragraph and choose **Text Box > Typography > Drop Cap**. Pick 2 to 5 lines, or **Custom Drop Cap…**. The rest of **Typography**, such as ligatures and stylistic sets, depends on what the font offers.
 
 ## Copy formatting with the button
 

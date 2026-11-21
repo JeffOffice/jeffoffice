@@ -24,6 +24,18 @@ A merge field is a placeholder, such as «First Name», that becomes a real valu
 - **Insert Merge Field**: pick any column.
 - **Picture Field**: pick a column of picture file names. JeffPub adds an empty frame and looks for the files next to your list. After you save the publication and open it again, a picture whose file is outside the publication's folder does not show until you choose the recipient list again (**Mailings > Select Recipients > Use an Existing List…**). Then the pictures in the list's folder, and in the folders inside it, show until you close the publication. JeffPub does not remember this for next time. Or keep the picture files in the publication's folder, or in a folder inside it, and they show as soon as it opens. This keeps a publication someone sends you from reading pictures from your computer on its own. Each record's picture shows when you preview the results, print, save a PDF, or merge to a new publication or a catalogue.
 
+## Show a number, a price, a date, or a time your way
+
+A merge field shows the value just as your list holds it. To change that, click next to the field (or select it, or several fields) and click **Mailings > Write & Insert Fields > Format Merge Field…**. Under **Show the value as**, choose:
+
+- **Number**, with 0 to 4 **Decimal places**. For example, 1234.5 with 1 decimal place shows as 1,234.5.
+- **Currency**, with the currency sign of your region: 1234.5 shows as $1,234.50 where that is the sign.
+- **Percent**, where 0.256 shows as 25.6% with 1 decimal place.
+- **Date**, in a **Style** such as Short, Long, Year, month, day, Month and day, or Month and year.
+- **Time**, in a Short, 12-hour, or 24-hour **Style**.
+
+The **Sample** line shows what your choice makes. The values are read and shown in the language of the text at the field (US English where none is set), not the language of your computer. In US English 03/04/2026 is March 4, and in a day-first language such as German or British English it is April 3; in German, 1.234,5 is a number with a decimal comma. A year of two digits is read as 2000 to 2029 for 00 to 29, and 1930 to 1999 for 30 to 99. A number in parentheses, such as (500), is negative. A value that is not a number, a date, or a time of the kind you chose shows exactly as it is in your list: a word, "nan" or "inf" (a person may be named Nan), an empty value, a time with a date format, and a date with a time format. The preview and the finished merge both show the formatted value. The choice is one step of Undo, and it is saved with the publication.
+
 ## Preview the results
 
 Click **Mailings > Preview Results > Preview Results** to see real details in place of the fields. Use **First Record**, **Previous Record**, **Next Record**, and **Last Record** to flip through the people, or **Find Recipient** to jump to a match.
