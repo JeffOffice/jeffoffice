@@ -19,6 +19,9 @@ class Editor;
 
 // A picture of the Title Slide of built-in theme `theme` in its variant `variant`, `width` pixels across at `dpr` (kept once drawn).
 QImage themePicture(int theme, int variant, int width, qreal dpr);
+// How many pictures themePicture has drawn (one that was kept is not drawn again), and, for the tests, letting go of the kept ones.
+int themePictureRenders();
+void forgetThemePictures();
 
 // Pictures to choose from, in rows of `columns` with the arrow keys moving between them and Enter choosing, each with a tip (and a name
 // below it when `names`). The pictures are drawn when they are first needed. The current one has an accent outline.

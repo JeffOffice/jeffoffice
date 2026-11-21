@@ -59,16 +59,34 @@ QString signatureOf(const Document &d)
     return s + QLatin1Char(' ') + QString::number(master ? deck::backgroundStyleOf(master->background, t) : -1);
 }
 
+// The pictures made so far (each is made once for the program's run), and how many were made.
+QHash<QString, QImage> &keptPictures()
+{
+    static QHash<QString, QImage> kept;
+    return kept;
+}
+int &renderedPictures()
+{
+    static int made = 0;
+    return made;
+}
+
 } // namespace
 
 QImage themePicture(int theme, int variant, int width, qreal dpr)
 {
-    static QHash<QString, QImage> kept;
     const QString key = QStringLiteral("%1|%2|%3|%4").arg(theme).arg(variant).arg(width).arg(dpr);
-    auto found = kept.constFind(key);
-    if (found == kept.cend()) found = kept.insert(key, firstSlide(*deck::themePresentation(theme, variant), width, dpr));
+    auto found = keptPictures().constFind(key);
+    if (found == keptPictures().cend()) {
+        ++renderedPictures();
+        found = keptPictures().insert(key, firstSlide(*deck::themePresentation(theme, variant), width, dpr));
+    }
     return found.value();
 }
+
+int themePictureRenders() { return renderedPictures(); }
+
+void forgetThemePictures() { keptPictures().clear(); }
 
 // ---------------- PictureGrid ----------------
 PictureGrid::PictureGrid(int pictureWidth, int columns, bool names, QWidget *parent)

@@ -13,6 +13,7 @@
 #include "app/filedialogs.h"
 #include "app/printsides.h"
 #include "app/settings.h"
+#include "app/themegallery.h"
 #include "canvas/canvas.h"
 #include "core/appinfo.h"
 #include "core/deck.h"
@@ -40,6 +41,9 @@
 #include <QRadioButton>
 #include <QScrollArea>
 #include <QSpinBox>
+#include <QTimer>
+#include <QPointer>
+#include <memory>
 #include <QStyleHints>
 #include <QTimer>
 #include <QToolButton>
@@ -60,11 +64,20 @@ public:
     StartTile(const QString &name, const QPixmap &picture, QWidget *parent) : QAbstractButton(parent), m_picture(picture)
     {
         setText(name);
+        setAccessibleName(name);
         setCursor(Qt::PointingHandCursor);
         setAttribute(Qt::WA_Hover);
         setFocusPolicy(Qt::StrongFocus);
         const QSize pic = picture.deviceIndependentSize().toSize();
         setFixedSize(pic.width() + 24, pic.height() + 52);
+    }
+
+    // The picture, once it is drawn (a tile may start with a plain one of the same size).
+    void setPicture(const QPixmap &picture)
+    {
+        m_picture = picture;
+        setProperty("pictureReady", true);
+        update();
     }
 
 protected:
@@ -185,25 +198,53 @@ QWidget *DeckFileScreen::buildNew()
     row->addWidget(tile);
     row->addStretch(1);
     v->addLayout(row);
-    // The built-in themes, each in its four variants, shown as the first slide of a presentation made in it.
+    // The built-in themes, each in its four variants, shown as the first slide of a presentation made in it. The page comes up at once with plain pictures;
+    // they are drawn a few at a time as the page is shown (those in view first), once for the run of the program (themePicture keeps them).
     v->addWidget(sectionLabel(tr("Themes"), w));
     const QSize small(168, 105);
+    struct Pending {
+        QPointer<StartTile> tile;
+        int theme, variant;
+    };
+    auto pending = std::make_shared<QVector<Pending>>();
+    QImage plain(QSize(small.width() - 16, qRound((small.width() - 16) * 9.0 / 16.0)) * dpr, QImage::Format_ARGB32_Premultiplied);
+    plain.fill(Qt::white);
+    plain.setDevicePixelRatio(dpr);
+    const QPixmap plainPicture = paperPixmap(plain, small, dpr);
     for (int theme = 0; theme < deck::builtinThemeCount(); ++theme) {
         auto *themeRow = new QHBoxLayout();
         const QVector<deck::Variant> variants = deck::builtinThemeVariants(theme);
         for (int variant = 0; variant < int(variants.size()); ++variant) {
-            auto made = deck::themePresentation(theme, variant);
-            QImage shot = deck::slideImage(*made, &cache, 0, qRound((small.width() - 16) * dpr));
-            shot.setDevicePixelRatio(dpr);
-            auto *themed = new StartTile(variant == 0 ? deck::builtinThemeName(theme) : variants[size_t(variant)].colors.name,
-                                         paperPixmap(shot, small, dpr), w);
+            // (the name of the theme, and for the other variants the number too, so that no two tiles read alike)
+            const QString label = variant == 0 ? deck::builtinThemeName(theme) : tr("%1, variant %2").arg(deck::builtinThemeName(theme)).arg(variant + 1);
+            auto *themed = new StartTile(label, plainPicture, w);
             themed->setObjectName(QStringLiteral("themeTile%1_%2").arg(theme).arg(variant));
-            connect(themed, &QAbstractButton::clicked, this, [this, theme, variant] { startFrom([=] { return deck::themePresentation(theme, variant); }); });
+            // A new presentation starts with empty places, as a blank one does: the name is on the tile, not on the slide.
+            connect(themed, &QAbstractButton::clicked, this, [this, theme, variant] { startFrom([=] { return deck::themePresentation(theme, variant, false); }); });
             themeRow->addWidget(themed);
+            pending->push_back({themed, theme, variant});
         }
         themeRow->addStretch(1);
         v->addLayout(themeRow);
     }
+    auto *drawer = new QTimer(w);
+    drawer->setInterval(0);
+    connect(drawer, &QTimer::timeout, w, [drawer, pending, w, small, dpr] {
+        // The first tile that is in view, else the first left.
+        int pick = -1;
+        for (int i = 0; i < pending->size() && pick < 0; ++i)
+            if ((*pending)[i].tile && !(*pending)[i].tile->visibleRegion().isEmpty()) pick = i;
+        if (pick < 0 && !pending->isEmpty()) pick = 0;
+        if (pick < 0) {
+            drawer->stop();
+            return;
+        }
+        const Pending item = pending->takeAt(pick);
+        if (!item.tile) return;
+        QImage shot = themePicture(item.theme, item.variant, small.width() - 16, dpr);
+        item.tile->setPicture(paperPixmap(shot, small, dpr));
+    });
+    drawer->start();
     // The templates a person saved: a presentation made from one is a new presentation (the template stays as it was).
     v->addWidget(myTemplatesPanel(w, {QStringLiteral("*.potx"), QStringLiteral("*.otp")}, QStringLiteral("file"), [this](const QString &path) {
         m_win->openFile(path);

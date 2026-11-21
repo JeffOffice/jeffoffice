@@ -746,7 +746,7 @@ QVector<FontSet> fontSets()
     return out;
 }
 
-std::unique_ptr<Document> themePresentation(int theme, int variant)
+std::unique_ptr<Document> themePresentation(int theme, int variant, bool named)
 {
     theme = std::clamp(theme, 0, kThemeCount - 1);
     auto d = newPresentation();
@@ -756,7 +756,7 @@ std::unique_ptr<Document> themePresentation(int theme, int variant)
         remakeTitleSlide(*d);
         d->appData[QStringLiteral("themeXml")] = QString::fromLatin1(detail::themePartXml(themeOf(*d)).toBase64());
     }
-    detail::sayOnTitleSlide(*d, QString::fromLatin1(spec.name));
+    if (named) detail::sayOnTitleSlide(*d, QString::fromLatin1(spec.name));
     detail::syncSchemeColors(*d);
     const QVector<Variant> variants = builtinThemeVariants(theme);
     if (variant > 0 && variant < variants.size()) applyVariant(*d, variants[variant]);

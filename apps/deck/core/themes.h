@@ -67,7 +67,8 @@ QVector<FontSet> fontSets();
 
 // A presentation in the theme: its slide master, the nine standard layouts, and
 // a Title Slide that says the theme's name; in variant `variant` of it. 16:9.
-std::unique_ptr<Document> themePresentation(int theme, int variant = 0);
+// With `named` off, the Title Slide's places are empty, as a blank presentation's are (what a new presentation made from the theme starts as).
+std::unique_ptr<Document> themePresentation(int theme, int variant = 0, bool named = true);
 
 // A one-slide presentation in the theme `d` has (its first slide master and layouts, and its colors), whatever the theme is: what the
 // galleries show. And the same in variant `variant` (of variantsOf).
