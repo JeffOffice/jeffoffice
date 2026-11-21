@@ -6,6 +6,8 @@
 #include <QSet>
 #include "core/chartobject.h"
 
+#include <algorithm>
+#include <limits>
 #include <cmath>
 
 #include "core/svg.h"
@@ -1733,7 +1735,8 @@ int Document::pageNumberShown(int page) const
     if (!m_sectionsBuilt) buildSections();
     page = std::max(page, 1);
     const int k = int(std::upper_bound(m_numPage.begin(), m_numPage.end(), page) - m_numPage.begin()) - 1;
-    return (k == 0 ? setup.firstPageNumber : m_numAt[k]) + page - m_numPage[k];
+    // (A presentation may start at any 32-bit number: the sum stays inside it, and a step from the lowest one.)
+    return int(std::clamp<qint64>(qint64(k == 0 ? setup.firstPageNumber : m_numAt[k]) + page - m_numPage[k], std::numeric_limits<int>::min() + 1, std::numeric_limits<int>::max()));
 }
 
 QString Document::pageNumberFormatOf(int page) const
