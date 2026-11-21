@@ -2,6 +2,7 @@
 // Each document is built here from a few lines of XML.
 
 #include "../cmdsearchcheck.h"
+#include "core/workthread.h"
 #include "../isolatesettings.h"
 #include "app/widgets.h"
 #include "app/theme.h"
@@ -1673,7 +1674,7 @@ private Q_SLOTS:
         const QByteArray theirBytes = theirs->toDocx();
         QLockFile other(normalTemplatePath() + QStringLiteral(".lock"));
         QVERIFY(other.tryLock());
-        std::thread finish([&other, theirBytes] {
+        jp::WorkThread finish([&other, theirBytes] {
             QThread::msleep(400);
             putTemplateFile(theirBytes);   // (the other window saves, then lets go of the lock)
             other.unlock();

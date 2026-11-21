@@ -1,6 +1,7 @@
 // Tests of the ciphers and of opening workbooks that are protected with a password: the ciphers against published values, then each kind of protection round trip (the files are made here, in
 // code), the refusals (a wrong password, a file that needs one, damage, hostile numbers), and the readers' reports.
 #include "xlshelpers.h"
+#include "core/workthread.h"
 #include "odshelpers.h"
 
 #include "io/cfb.h"
@@ -1709,10 +1710,10 @@ private Q_SLOTS:
             auto run = [&] {
                 for (int i = next++; i < parts; i = next++) keys[i] = QPasswordDigestor::deriveKeyPbkdf2(QCryptographicHash::Sha1, start, salts[i], 100000, 32);
             };
-            std::vector<std::thread> pool;
+            std::vector<jp::WorkThread> pool;
             for (int i = 0; i < 7; ++i) pool.emplace_back(run);
             run();
-            for (std::thread &th : pool) th.join();
+            for (jp::WorkThread &th : pool) th.join();
         }
         jp::ZipWriter z;
         z.add(QStringLiteral("mimetype"), "application/vnd.oasis.opendocument.presentation", false);

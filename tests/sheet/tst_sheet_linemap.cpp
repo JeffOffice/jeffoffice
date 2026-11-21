@@ -3,6 +3,7 @@
 // The map is checked against a plain vector of ids that is changed the obvious way. What an operation cost is counted (searches, runs visited, entries moved), never timed, and
 // shown not to depend on the number of lines.
 #include "calc/linemap.h"
+#include "core/workthread.h"
 
 #include "../testrunner.h"
 
@@ -1030,7 +1031,7 @@ private Q_SLOTS:
         {
             std::atomic<uint64_t> requests{0}, wrong{0};
             const uint64_t hits0 = m.cacheHits(), misses0 = m.cacheMisses();
-            std::vector<std::thread> threads;
+            std::vector<jp::WorkThread> threads;
             for (int t = 0; t < 4; ++t)
                 threads.emplace_back([&, t] {
                     QRandomGenerator local(100 + t);
@@ -1057,7 +1058,7 @@ private Q_SLOTS:
             std::atomic<int> parked[3] = {{0}, {0}, {0}};
             std::atomic<uint64_t> reads{0}, torn{0}, wrong{0};
             const int readers = 3;
-            std::vector<std::thread> threads;
+            std::vector<jp::WorkThread> threads;
             for (int t = 0; t < readers; ++t)
                 threads.emplace_back([&, t] {
                     QRandomGenerator local(500 + t);

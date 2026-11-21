@@ -1,6 +1,7 @@
 // Tests of what the programs of the suite share and JeffCrunch's window uses: automatic recovery (a copy of unsaved work at the Options interval, offered again after a crash, gone once
 // saved or closed), Spelling (F7 over the text cells, and as you type in the cell editor), and AutoCorrect as you type in the cell editor (and web addresses made links).
 #include "app/crunchinfo.h"
+#include "core/workthread.h"
 #include "app/crunchwindow.h"
 #include "app/recovery.h"
 #include "app/settings.h"
@@ -666,7 +667,7 @@ private Q_SLOTS:
                 QVERIFY(pause.entered.tryAcquire(1, 20000));
                 w.setAsker([](const QString &, const QString &) { return CrunchWindow::Answer::Discard; });
                 // (the window waits for the thread, which is held: it is let go from another thread a little later)
-                std::thread letGo([&pause] {
+                jp::WorkThread letGo([&pause] {
                     QThread::msleep(300);
                     pause.proceed.release();
                 });
