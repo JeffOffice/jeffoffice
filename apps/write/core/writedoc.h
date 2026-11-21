@@ -43,6 +43,10 @@ namespace mail { struct State; }
 constexpr int kMostDiagramsDrawn = 500;
 
 class WriteDoc;
+
+// The character style of a run as it is shown: the link style a file puts on the runs of an entry of a table of contents (the paragraph style of which is toc 1 or the like) is not shown, so the
+// run is as its paragraph style makes it, while the run keeps naming the style (and the file is written as it was). The same for reading a run and for working out what it says of its own.
+QString shownCharacterStyle(const office::wml::StyleSheet &sheet, const QString &paragraphStyle, const QString &characterStyle);
 // The most the pictures of a document come to together.
 constexpr qint64 kMostMediaBytes = qint64(512) << 20;
 

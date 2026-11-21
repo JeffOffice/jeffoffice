@@ -1099,6 +1099,52 @@ private Q_SLOTS:
         QVERIFY2(examined < 20, qPrintable(QStringLiteral("anchors examined for one grab: %1").arg(examined)));
     }
 
+    // A document opened and saved with no edit adds nothing to its paragraphs and runs: the link style on the runs of an entry of a table of contents stays the only property of the run (it is not
+    // shown as a link, but the run is written as it was, with no color or underline said), and a paragraph that named no paragraph style names none when saved, with its tab stops as written
+    // (ECMA-376 Part 1 sections 17.3.2.29, 17.3.1.27, and 17.3.1.37).
+    void anUneditedSaveAddsNoStyleReferenceTabsColorOrUnderlineToTheTextItHad()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        auto docx = [](const QByteArray &body, const QByteArray &styles) {
+            office::PackageWriter w;
+            w.addPart(QStringLiteral("/word/document.xml"), QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<w:document ") + kNs + "><w:body>" + body + "</w:body></w:document>",
+                      kWord + QStringLiteral("document.main+xml"));
+            w.addRelationship(QStringLiteral("/"), kRel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+            w.addPart(QStringLiteral("/word/styles.xml"), QByteArray("<?xml version=\"1.0\"?><w:styles ") + kNs + ">" + styles + "</w:styles>", kWord + QStringLiteral("styles+xml"));
+            w.addRelationship(QStringLiteral("/word/document.xml"), kRel + QStringLiteral("styles"), QStringLiteral("/word/styles.xml"));
+            return w.finish();
+        };
+        const QByteArray toc = "<w:style w:type=\"paragraph\" w:styleId=\"TOC1\"><w:name w:val=\"toc 1\"/><w:basedOn w:val=\"Normal\"/></w:style>"
+                               "<w:style w:type=\"character\" w:styleId=\"Hyperlink\"><w:name w:val=\"Hyperlink\"/><w:rPr><w:color w:val=\"0563C1\"/><w:u w:val=\"single\"/></w:rPr></w:style>";
+        const QByteArray entry = "<w:r><w:rPr><w:rStyle w:val=\"Hyperlink\"/></w:rPr><w:t>Entry</w:t></w:r>";
+        const QByteArray tabs = "<w:pPr><w:tabs><w:tab w:val=\"left\" w:pos=\"720\"/><w:tab w:val=\"right\" w:leader=\"dot\" w:pos=\"9000\"/></w:tabs></w:pPr>";
+        // (A) a file whose styles flag a default paragraph style; (B) one that flags none.
+        for (const bool flagged : {true, false}) {
+            const QByteArray normal = flagged ? "<w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style>"
+                                              : "<w:style w:type=\"paragraph\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style>";
+            const QByteArray body = "<w:p><w:pPr><w:pStyle w:val=\"TOC1\"/></w:pPr>" + entry + "</w:p>"
+                                    "<w:p>" + tabs + "<w:r><w:t>one</w:t></w:r></w:p>"
+                                    "<w:p><w:r><w:t>two</w:t></w:r></w:p>"
+                                    "<w:p><w:pPr><w:pStyle w:val=\"Normal\"/></w:pPr><w:r><w:t>three</w:t></w:r></w:p>";
+            auto window = windowOn(dir, docx(body, normal + toc));
+            QVERIFY(window);
+            Quiet quiet(*window);
+            QVERIFY(saveInto(*window, dir, QStringLiteral("unedited.docx")));
+            office::Package package;
+            package.read(fileBytes(dir.filePath(QStringLiteral("unedited.docx"))));
+            const QByteArray xml = package.part(QStringLiteral("/word/document.xml"));
+            const qsizetype from = xml.indexOf("<w:body>");
+            QVERIFY(xml.contains("<w:rPr><w:rStyle w:val=\"Hyperlink\"/></w:rPr>"));
+            QVERIFY2(!xml.contains("w:color") && !xml.contains("<w:u "), xml.constData());
+            QVERIFY2(xml.contains("<w:p>" + tabs + "<w:r>"), xml.constData());
+            QVERIFY2(xml.contains("<w:p><w:r><w:t>two</w:t></w:r></w:p>") || xml.contains("<w:p><w:r><w:t xml:space=\"preserve\">two</w:t></w:r></w:p>"), xml.mid(from).constData());
+            // (A file that flags its default style has it left out of the paragraphs that name it; one that flags none keeps the reference where the paragraph had it, and adds none.)
+            QVERIFY2(flagged || xml.contains("<w:pStyle w:val=\"Normal\"/></w:pPr><w:r><w:t"), xml.mid(from).constData());
+            QCOMPARE(xml.count("<w:pStyle "), flagged ? 1 : 2);
+        }
+    }
+
     // The dash-dot, dash-dot-dot, and short-dash border lines saved as OpenDocument or Rich Text Format files come back as dashed lines, not solid ones (ECMA-376 Part 1 section 17.18.2 names them;
     // ODF 1.3 part 3 section 20.183 has no dash-dot line), and Check Compatibility lists the loss; a plain `.docx` save keeps all three.
     void dashDotBorderLinesSurviveOtherFormatsAsDashedLinesAndAreListed()

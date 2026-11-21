@@ -60,6 +60,7 @@ enum : int {
     StylesRev,                                // int, on the FIRST paragraph: how many changes to the style sheet were made; it has no meaning of its own, it makes a change to the styles a step of the
                                               // text's history (writedoc.h, putStyle), whatever paragraphs it changes
     BoxOwn,                                   // int (paragraph): the parts of the paragraph's box (boxpart bits) that are the paragraph's own, set by a command, not the style's: only those are written as direct w:pBdr sides and w:shd
+    NoStyleRef,                               // bool (paragraph): the file's paragraph named no paragraph style (and the file flags no default one), so it is saved naming none
 };
 }
 

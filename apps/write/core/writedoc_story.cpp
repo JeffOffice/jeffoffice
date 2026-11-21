@@ -43,6 +43,14 @@ using namespace jp::office::wml;
 
 namespace jp::write {
 
+QString shownCharacterStyle(const StyleSheet &sheet, const QString &paragraphStyle, const QString &characterStyle)
+{
+    if (characterStyle.isEmpty()) return characterStyle;
+    const Style *paragraph = sheet.find(paragraphStyle), *character = sheet.find(characterStyle);
+    if (paragraph && character && paragraph->name.startsWith(QLatin1String("toc "), Qt::CaseInsensitive) && character->name.compare(QLatin1String("Hyperlink"), Qt::CaseInsensitive) == 0) return QString();
+    return characterStyle;
+}
+
 namespace {
 
 // The Qt lists of one numbering id, by level: the items go on in the one that is open, and a deeper level's list is closed by an item of a shallower level.
@@ -695,12 +703,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
         const QByteArray key = paraStyle.toUtf8() + '\x01' + runPropsXml(props) + (layer ? '\x02' + layer->key.toUtf8() : QByteArray());
         auto it = formats.constFind(key);
         if (it != formats.constEnd()) return it.value();
-        // (The link style a file puts on the runs of an entry of a table of contents, the paragraph style of which is toc 1 or the like, is not shown: an entry is as its style makes it.)
-        QString characterStyle = props.style;
-        if (!characterStyle.isEmpty()) {
-            const Style *paragraph = sheet.find(paraStyle), *character = sheet.find(characterStyle);
-            if (paragraph && character && paragraph->name.startsWith(QLatin1String("toc "), Qt::CaseInsensitive) && character->name.compare(QLatin1String("Hyperlink"), Qt::CaseInsensitive) == 0) characterStyle.clear();
-        }
+        const QString characterStyle = shownCharacterStyle(sheet, paraStyle, props.style);
         RunProps resolved = sheet.run(paraStyle, characterStyle, layer);
         resolved.overlay(props);
         resolved.extra = props.extra;
@@ -869,6 +872,8 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
         resolved.numId = numId;
         resolved.ilvl = level;
         QTextBlockFormat bf = paragraphFormatOf(resolved);
+        // (A paragraph that named no style, in a file that flags none as its default: it is saved as it was, naming none.)
+        if (direct.style.isEmpty() && sheet.defaultId(QStringLiteral("paragraph")).isEmpty()) bf.setProperty(prop::NoStyleRef, true);
         // (Line numbers: the paragraph's own element says, else its style's; an element that says off turns it off.)
         {
             auto suppresses = [](const QVector<RawChild> &extra, bool *stated) {

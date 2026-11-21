@@ -58,7 +58,7 @@ void settleKinds(RunProps *run, const RunProps &base)
 RunProps WriteDoc::runPropsWritten(const QTextCharFormat &format, const QString &styleId, const TableLayer *layer) const
 {
     RunProps run = runPropsOf(format);
-    const RunProps base = m_wml.styles.run(styleId, run.style, layer);
+    const RunProps base = m_wml.styles.run(styleId, shownCharacterStyle(m_wml.styles, styleId, run.style), layer);
     settleKinds(&run, base);
     RunProps diff = run.differences(base);
     diff.style = run.style;
@@ -162,7 +162,7 @@ void WriteDoc::exportInto(BlockSink &sink, QTextDocument *whose, QTextBlock firs
         }
         // (A file that flags a default style has it left out of its paragraphs. One that flags none has paragraphs that say Normal, which the program takes for the default:
         // they are saved saying it, since a reader that doesn't would give them another look.)
-        direct.style = styleId == defaultStyle && (!sheet.defaultId(QStringLiteral("paragraph")).isEmpty() || !sheet.find(styleId)) ? QString() : styleId;
+        direct.style = styleId == defaultStyle && (!sheet.defaultId(QStringLiteral("paragraph")).isEmpty() || !sheet.find(styleId) || bf.boolProperty(prop::NoStyleRef)) ? QString() : styleId;
         if (bf.hasProperty(prop::OddTabs)) {
             QVector<TabStop> tabs = direct.tabs.value_or(QVector<TabStop>());
             tabs += unpackTabs(storedBytes(bf, prop::OddTabs));
@@ -183,7 +183,7 @@ void WriteDoc::exportInto(BlockSink &sink, QTextDocument *whose, QTextBlock firs
             const QTextCharFormat cf = f.charFormat();
             const QString text = f.text();
             RunProps run = runPropsOf(cf);
-            const RunProps base = sheet.run(styleId, run.style, layer);
+            const RunProps base = sheet.run(styleId, shownCharacterStyle(sheet, styleId, run.style), layer);
             settleKinds(&run, base);
             RunProps diff = run.differences(base);
             diff.style = run.style;
@@ -210,7 +210,7 @@ void WriteDoc::exportInto(BlockSink &sink, QTextDocument *whose, QTextBlock firs
         // The paragraph mark's own formatting: the last paragraph's.
         {
             RunProps mark = runPropsOf(markFormat(lastPart));
-            RunProps base = sheet.run(styleId, mark.style, layer);
+            RunProps base = sheet.run(styleId, shownCharacterStyle(sheet, styleId, mark.style), layer);
             // (A header's or a footer's paragraph with no style, in a file that has no Header or Footer style, has the document's default size as its mark: the pages gave it that, as
             // the built-in paragraph has none of its own, and it is not written back as a size the file never had.)
             for (const HeaderPart &hp : m_headerParts)
