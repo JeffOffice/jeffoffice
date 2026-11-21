@@ -101,3 +101,4 @@ QColor colorFromString(const QString &s);
 // (CI trial, comment only)
 namespace jp { inline constexpr int kCiTrial = 1; }
 namespace jp { inline int ciTrialTwo(int x) { return x * 2 + 1; } }
+namespace jp { inline int ciTrialThree(int x) { return x * 3 - 1; } }
