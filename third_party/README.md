@@ -124,6 +124,7 @@ These are the only modifications to the upstream sources. Each is marked with a 
 - Unused librevenge generators and the directory stream are not built.
 - **Metadata is optional.** `MSPUBParser.cpp` ignores errors while reading document properties instead of failing the whole import (affects two sample files in Apache POI's test set).
 - **Damaged OLE headers.** `RVNGOLEStream.cpp` rejects impossible block sizes instead of asserting (found by Apache POI's fuzz files).
+- **Page numbering and sections.** `MSPUBParser.cpp` (`parseSectionChunk`) reads each section's first page, start number, and number style (at most 1,000 records), and `MSPUBCollector.cpp` passes the first section's numbering and each later section on as `jp:first-page-number`, `jp:page-number-style`, `jp:section`, `jp:section-start`, and `jp:section-style`. Upstream ignores them.
 
 ## Hunspell (modified)
 
