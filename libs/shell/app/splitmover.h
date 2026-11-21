@@ -7,6 +7,7 @@
 #include <QList>
 #include <QObject>
 #include <QPointer>
+#include <QWidget>
 
 class QSplitter;
 
@@ -44,6 +45,7 @@ private:
     QList<Handle> m_handles;
     int m_current = 0;
     bool m_active = false;
+    QPointer<QWidget> m_window;   // the window it was started in: the only one whose keys it reads
 };
 
 } // namespace jp

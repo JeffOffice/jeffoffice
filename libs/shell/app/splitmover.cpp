@@ -13,6 +13,7 @@ void mark(const SplitMover::Handle &h, bool on)
 {
     if (!h.splitter) return;
     QSplitterHandle *handle = h.splitter->handle(h.index);
+    if (!handle) return;   // (a pane taken away while Move Split is on)
     handle->setProperty("moving", on);
     handle->setStyleSheet(on ? QStringLiteral("background: palette(highlight);") : QString());
 }
@@ -38,6 +39,7 @@ bool SplitMover::start(const QList<QSplitter *> &splitters)
     }
     if (m_handles.isEmpty()) return false;
     m_active = true;
+    m_window = m_handles.first().splitter->window();
     qApp->installEventFilter(this);
     select(0);
     return true;
@@ -47,6 +49,7 @@ void SplitMover::stop()
 {
     if (!m_active) return;
     m_active = false;
+    m_window = nullptr;
     qApp->removeEventFilter(this);
     for (const Handle &h : std::as_const(m_handles))
         mark(h, false);
@@ -56,6 +59,7 @@ void SplitMover::stop()
 
 void SplitMover::select(int which)
 {
+    if (m_handles.isEmpty()) return;
     for (const Handle &h : std::as_const(m_handles))
         mark(h, false);
     m_current = (which % int(m_handles.size()) + int(m_handles.size())) % int(m_handles.size());
@@ -65,6 +69,7 @@ void SplitMover::select(int which)
 
 void SplitMover::move(int pixels)
 {
+    if (m_current < 0 || m_current >= m_handles.size()) return;
     const Handle &h = m_handles[m_current];
     if (!h.splitter) return;
     QList<int> sizes = h.splitter->sizes();
@@ -78,8 +83,20 @@ void SplitMover::move(int pixels)
     h.splitter->setSizes(sizes);
 }
 
-bool SplitMover::eventFilter(QObject *, QEvent *event)
+bool SplitMover::eventFilter(QObject *watched, QEvent *event)
 {
+    if (!m_window || m_handles.isEmpty()) {
+        stop();
+        return false;
+    }
+    // It ends when its window loses the focus or a dialog opens over it, and it reads nothing meant for any other window or for a dialog.
+    if (watched == m_window && (event->type() == QEvent::WindowDeactivate || event->type() == QEvent::WindowBlocked)) {
+        stop();
+        return false;
+    }
+    if (QApplication::activeModalWidget()) return false;
+    auto *widget = qobject_cast<QWidget *>(watched);
+    if (!widget || widget->window() != m_window) return false;
     if (event->type() == QEvent::MouseButtonPress) {
         stop();
         return false;
