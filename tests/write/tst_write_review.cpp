@@ -4222,7 +4222,9 @@ private Q_SLOTS:
     void replaceAllInTextBoxesKeepsUntouchedParagraphsCountsTheTooLargeAndStopsAtTheLimit()
     {
         const QByteArray keep = "<w:p w:rsidR=\"00AB12\"><w:bookmarkStart w:id=\"9\" w:name=\"keepme\"/><w:r><w:t>plain words</w:t></w:r><w:bookmarkEnd w:id=\"9\"/></w:p>";
-        const QByteArray inner = keep + para(run("the cat sat"));
+        const QByteArray control = "<w:p><w:sdt><w:sdtPr><w:alias w:val=\"Nm\"/><w:tag w:val=\"t1\"/></w:sdtPr><w:sdtContent><w:r w:rsidRPr=\"00CD34\"><w:rPr><w:lang w:val=\"fr-FR\"/></w:rPr><w:t>control text</w:t></w:r></w:sdtContent></w:sdt>"
+                                   "<w:proofErr w:type=\"spellStart\"/><w:r><w:t> checked</w:t></w:r><w:proofErr w:type=\"spellEnd\"/></w:p>";
+        const QByteArray inner = keep + control + para(run("the cat sat"));
         QByteArray huge;
         for (int i = 0; i < 2001; ++i) huge += para(run(i == 0 ? "cat" : "x"));
         WriteWindow w;
@@ -4238,6 +4240,7 @@ private Q_SLOTS:
         const QByteArray x = documentXml(savedByWindow(w));
         QVERIFY2(x.contains("the dog sat") && x.contains("a dog"), x.constData());
         QVERIFY2(x.contains("<w:bookmarkStart w:id=\"9\" w:name=\"keepme\"/>") && x.contains("w:rsidR=\"00AB12\""), x.constData());
+        QVERIFY2(x.contains("<w:alias w:val=\"Nm\"/>") && x.contains("w:rsidRPr=\"00CD34\"") && x.contains("<w:proofErr w:type=\"spellStart\"/>"), x.constData());
         QVERIFY2(!x.contains("Fallback") && !x.contains("the cat sat"), x.constData());
         QVERIFY2(pane->status().contains(QStringLiteral("1 text box was too large to change")), qPrintable(pane->status()));
         QVERIFY(!pane->status().contains(QStringLiteral("was not found")));
