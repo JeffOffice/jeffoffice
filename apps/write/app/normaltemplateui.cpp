@@ -35,4 +35,10 @@ bool setNormalTemplate(QWidget *parent, const std::function<void(WriteDoc &)> &c
     return false;
 }
 
+void tellNormalTemplateProblem(QWidget *parent, const QString &text)
+{
+    if (g_showError) g_showError(text);
+    else plainWarning(parent, QCoreApplication::translate("jp::write::NormalTemplate", "Set as Default"), text);
+}
+
 } // namespace jp::write

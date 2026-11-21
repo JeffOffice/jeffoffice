@@ -15,6 +15,8 @@ constexpr qint64 kMaxNormalTemplateBytes = qint64(50) << 20;
 
 // Where the file is.
 QString normalTemplatePath();
+// The copy of the template as it was before its last change (one file, replaced each time).
+QString normalTemplateBackupPath();
 
 enum class NormalTemplateState { Missing, Usable, Unreadable };
 // Whether there is a template, and whether it can be used (not too large, and a document that reads).

@@ -30,6 +30,7 @@ QString bodyStoryId(const flow::MaterializedPage &page)
 }
 
 std::function<void(const flow::MaterializedPage &, const PageDrawing &)> s_observer;
+int s_anchorsExamined = 0;
 
 // A red wave under [x1, x2] at the height y, as the text engine draws the waves under the words of its own text.
 void paintWave(QPainter *p, double x1, double x2, double y)
@@ -126,6 +127,7 @@ void paintAnchorMarks(QPainter *p, flow::MaterializedPage &page, LayoutCache *la
             if (!f.charFormat().hasProperty(flow::fp::AnchorId)) continue;
             for (int i = 0; i < int(f.length()); ++i) anchors.push_back(f.position() + i);
         }
+    s_anchorsExamined += int(anchors.size());
     if (anchors.isEmpty()) return;
     for (const QString &id : page.boxes) {
         const Item *item = page.doc->item(id);
@@ -250,6 +252,8 @@ void paintEditedEdge(QPainter *p, const flow::MaterializedPage &page, const Page
 }
 
 } // namespace
+
+int anchorsExaminedByPagePaint() { return s_anchorsExamined; }
 
 void setPaintObserver(const std::function<void(const flow::MaterializedPage &, const PageDrawing &)> &observer) { s_observer = observer; }
 

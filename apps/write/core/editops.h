@@ -89,6 +89,18 @@ public:
     UntrackedEdit(const UntrackedEdit &) = delete;
     UntrackedEdit &operator=(const UntrackedEdit &) = delete;
 };
+// While one is alive, an edit of this story (the words of a text box, taken out of the document to be changed) is recorded as a tracked change when Track Changes is on, as one of the text's is.
+class TrackedStory {
+public:
+    explicit TrackedStory(const QTextDocument *story);
+    ~TrackedStory();
+    TrackedStory(const TrackedStory &) = delete;
+    TrackedStory &operator=(const TrackedStory &) = delete;
+private:
+    const QTextDocument *m_before;
+};
+// Whether `story` is the one a TrackedStory is alive for.
+bool isTrackedStory(const QTextDocument *story);
 // The place before which the cursor is held when it is in a note: where the note's words begin (after its number), 0 where the cursor is in no note (footnotes and endnotes).
 int noteStartOf(const QTextCursor &c);
 // Insert > Endnote (Ctrl+Alt+D): a reference to a new endnote where the cursor is (the end of a selection), and the note, set with the others after the text or at the end of the

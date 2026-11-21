@@ -4217,6 +4217,101 @@ private Q_SLOTS:
         }
     }
 
+    // Replace All in text boxes: a box where a match is replaced keeps its other paragraphs as the file wrote them (a bookmark, a revision attribute) and, when it had one, loses the older-programs copy
+    // that would still show the old words; a box too large to read is counted and said, never reported as "not found"; all the boxes are one step; at most kMostBoxesChanged boxes change in one run.
+    void replaceAllInTextBoxesKeepsUntouchedParagraphsCountsTheTooLargeAndStopsAtTheLimit()
+    {
+        const QByteArray keep = "<w:p w:rsidR=\"00AB12\"><w:bookmarkStart w:id=\"9\" w:name=\"keepme\"/><w:r><w:t>plain words</w:t></w:r><w:bookmarkEnd w:id=\"9\"/></w:p>";
+        const QByteArray inner = keep + para(run("the cat sat"));
+        QByteArray huge;
+        for (int i = 0; i < 2001; ++i) huge += para(run(i == 0 ? "cat" : "x"));
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        w.setDocument(open(makeDocx(para(run("a cat") + boxWithFallback(inner, inner) + boxOf(huge)))), QString());
+        w.showFindPane();
+        WriteFindPane *pane = w.findPane();
+        pane->findBox()->setText(QStringLiteral("cat"));
+        pane->replaceBox()->setText(QStringLiteral("dog"));
+        pane->replaceAll();
+        const QByteArray x = documentXml(savedByWindow(w));
+        QVERIFY2(x.contains("the dog sat") && x.contains("a dog"), x.constData());
+        QVERIFY2(x.contains("<w:bookmarkStart w:id=\"9\" w:name=\"keepme\"/>") && x.contains("w:rsidR=\"00AB12\""), x.constData());
+        QVERIFY2(!x.contains("Fallback") && !x.contains("the cat sat"), x.constData());
+        QVERIFY2(pane->status().contains(QStringLiteral("1 text box was too large to change")), qPrintable(pane->status()));
+        QVERIFY(!pane->status().contains(QStringLiteral("was not found")));
+        // One Undo takes back the swaps in the text and in the boxes together.
+        QVERIFY(w.document()->undo());
+        {
+            const QByteArray back = documentXml(savedByWindow(w));
+            QVERIFY2(back.contains("the cat sat") && back.contains("a cat") && !back.contains("dog"), back.constData());
+        }
+        // Only the box too large to read, and a word that is only there: nothing is changed, and it is not "not found".
+        WriteWindow v;
+        v.setNotifier([](const QString &, const QString &) {});
+        v.resize(900, 700);
+        v.show();
+        v.setDocument(open(makeDocx(para(run("a") + boxOf(huge)))), QString());
+        v.showFindPane();
+        v.findPane()->findBox()->setText(QStringLiteral("cat"));
+        v.findPane()->replaceBox()->setText(QStringLiteral("dog"));
+        v.findPane()->replaceAll();
+        QVERIFY2(v.findPane()->status().contains(QStringLiteral("made no replacements")) && v.findPane()->status().contains(QStringLiteral("1 text box was too large")), qPrintable(v.findPane()->status()));
+        QVERIFY(!v.findPane()->status().contains(QStringLiteral("was not found")));
+        // The limit: one more box than one run changes; the run says so, the rest is changed by running it again, and each run is one step.
+        const int more = WriteFindPane::kMostBoxesChanged + 20;
+        QByteArray boxes;
+        for (int i = 0; i < more; ++i) boxes += boxOf(para(run("cat")));
+        WriteWindow m;
+        m.setNotifier([](const QString &, const QString &) {});
+        m.resize(900, 700);
+        m.show();
+        m.setDocument(open(makeDocx(para(run("a") + boxes))), QString());
+        m.showFindPane();
+        m.findPane()->findBox()->setText(QStringLiteral("cat"));
+        m.findPane()->replaceBox()->setText(QStringLiteral("dog"));
+        m.findPane()->replaceAll();
+        QVERIFY2(m.findPane()->status().contains(QString::number(WriteFindPane::kMostBoxesChanged) + QStringLiteral(" text boxes")), qPrintable(m.findPane()->status()));
+        QCOMPARE(documentXml(savedByWindow(m)).count("dog"), WriteFindPane::kMostBoxesChanged);
+        m.findPane()->replaceAll();
+        QCOMPARE(documentXml(savedByWindow(m)).count("dog"), more);
+        // Each run is one step: one Undo takes back the second run's boxes, and one more the first run's.
+        QVERIFY(m.document()->undo());
+        QCOMPARE(documentXml(savedByWindow(m)).count("dog"), WriteFindPane::kMostBoxesChanged);
+        QVERIFY(m.document()->undo());
+        QCOMPARE(documentXml(savedByWindow(m)).count("dog"), 0);
+    }
+
+    // With Track Changes on, Replace All records its replacements as tracked changes, in the text and in the words of text boxes: the old words are kept as deleted, the new ones inserted,
+    // so a reviewer sees what was changed (ECMA-376 Part 1 sections 17.13.5.14 and 17.13.5.18); with it off, the words are simply replaced.
+    void replaceAllRecordsTrackedChangesInTheTextAndInTextBoxes()
+    {
+        for (const bool track : {true, false}) {
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.resize(900, 700);
+            w.show();
+            auto doc = open(makeDocx(para(run("a cat") + boxOf(para(run("the cat sat"))))));
+            doc->setTrackChanges(track);
+            w.setDocument(std::move(doc), QString());
+            w.showFindPane();
+            w.findPane()->findBox()->setText(QStringLiteral("cat"));
+            w.findPane()->replaceBox()->setText(QStringLiteral("dog"));
+            w.findPane()->replaceAll();
+            const QByteArray x = documentXml(savedByWindow(w));
+            const qsizetype boxAt = x.indexOf("<w:txbxContent");
+            QVERIFY(boxAt > 0);
+            if (track) {
+                QVERIFY2(x.left(boxAt).contains("<w:del ") && x.left(boxAt).contains("<w:ins "), x.constData());
+                QVERIFY2(x.mid(boxAt).contains("<w:del ") && x.mid(boxAt).contains("<w:ins "), x.constData());
+                QVERIFY2(x.contains("<w:delText") && x.contains("cat") && x.contains("dog"), x.constData());
+            } else {
+                QVERIFY2(!x.contains("<w:del ") && !x.contains("<w:ins ") && !x.contains("cat"), x.constData());
+            }
+        }
+    }
+
     void aChangeInATextBoxInAnEndnoteIsCountedAndDoneAndEveryKindOfChangeInABoxIsFound()
     {
         {

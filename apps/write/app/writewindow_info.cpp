@@ -240,6 +240,11 @@ QStringList WriteWindow::incompatibilities()
     const QByteArray bytes = m_doc->toOdt(&err, &notKept);
     if (bytes.isEmpty()) kept << err;
     else kept = notKept;
+    // (A Rich Text Format file is a way to save too: what it can't hold is listed with the format named.)
+    QString rtfErr;
+    QStringList rtfNotes;
+    if (!m_doc->toRtf(&rtfErr, &rtfNotes).isEmpty())
+        for (const QString &note : rtfNotes) kept << tr("%1 (in .rtf files)").arg(note);
     if (alwaysOpensReadOnly()) kept << tr("The choice to always open the document for reading only.");
     return kept;
 }

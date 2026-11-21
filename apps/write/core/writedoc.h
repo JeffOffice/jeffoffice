@@ -289,6 +289,8 @@ public:
     // Called first when the document is written to bytes (a save, a recovery copy, an export): the words being typed in a shape are put in the document before it is.
     void setFlushHook(std::function<void()> hook) { m_flushHook = std::move(hook); }
     QByteArray boxContentOfStory(QTextDocument *story);
+    // The same, one entry for each paragraph or block of the story, so that a paragraph that did not change can be kept as the file wrote it.
+    QVector<QByteArray> boxParagraphsOfStory(QTextDocument *story);
     // Whether the story is a header's or a footer's, and which section and slot first has it (-1 for none).
     bool isHeaderFooterStory(const QTextDocument *story) const;
     bool headerFooterSlotOf(const QTextDocument *story, int *section, bool *footer, int *slot) const;

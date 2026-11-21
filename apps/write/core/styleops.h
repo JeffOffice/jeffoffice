@@ -67,6 +67,8 @@ QString createStyle(WriteDoc &doc, QTextCursor &c, const office::wml::Style &def
 // with the restyling of the text: a paragraph or run whose look is what the old style gave it follows the new one, and what the text says itself stays. A definition that comes to the
 // style as it is changes nothing (no step; the file is written as it was). False, with `problem` told, when it can't be done.
 bool modifyStyle(WriteDoc &doc, QTextCursor &c, const QString &id, const office::wml::Style &def, QString *problem = nullptr);
+// Makes (or changes) the style `id` of `source` in `target` too, with the styles it is based on that `target` lacks, and its character style when it is a linked pair; `changed`: the style was only changed in `source`, not made (it is changed in `target` when it has it); "" when done, else why not.
+QString copyStyleToDocument(const WriteDoc &source, WriteDoc &target, const QString &id, bool changed);
 // Deletes a style the person made, as one step of the history: the paragraphs that had it go back to the default paragraph style (the characters, to none) and take its look off, the styles
 // based on it are based on what it was based on, and what the text says itself stays. False, with `problem` told, for a built-in style (those only go back to what they were) and one the
 // document lacks.

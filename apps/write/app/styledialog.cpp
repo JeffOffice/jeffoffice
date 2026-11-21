@@ -292,18 +292,19 @@ bool styleDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor, const QStr
             }
         }
         QString why;
+        QString styleId = modifyId;
         if (modify) done = modifyStyle(*doc, *cursor, modifyId, def, &why);
-        else done = !createStyle(*doc, *cursor, def, &why, true).isEmpty();
+        else {
+            styleId = createStyle(*doc, *cursor, def, &why, true);
+            done = !styleId.isEmpty();
+        }
         if (!done) problem->setText(why);
-        // For new documents too: the Normal template gets the same style (a style of the person's that it lacks is made in it).
+        // For new documents too: the Normal template gets the same style, with the styles it is based on and its linked character style (the document's own change stands if it can't).
         if (done && scope->currentData().toBool()) {
-            const QString id = modify ? modifyId : QString();
-            setNormalTemplate(&dlg, [&](WriteDoc &target) {
-                QTextCursor at(target.story());
-                QString ignored;
-                if (modify && styleOfDocument(target, id)) modifyStyle(target, at, id, def, &ignored);
-                else createStyle(target, at, def, &ignored, false);
-            });
+            QString templateProblem;
+            const bool saved = setNormalTemplate(&dlg, [&](WriteDoc &target) { templateProblem = copyStyleToDocument(*doc, target, styleId, modify); });
+            if (saved && !templateProblem.isEmpty())
+                tellNormalTemplateProblem(&dlg, QCoreApplication::translate("jp::write::StyleDialog", "The style was changed in this document, but new documents did not get it: %1").arg(templateProblem));
         }
         return done;
     };

@@ -474,6 +474,16 @@ QString createStyle(WriteDoc &doc, QTextCursor &c, const Style &def, QString *pr
     return s.id;
 }
 
+// Only the properties the edit changed go to the linked character style; what it had of its own stays.
+static void carryRunChanges(RunProps &target, const RunProps &from, const RunProps &to)
+{
+#define CARRY(f) if (!(from.f == to.f)) target.f = to.f;
+    CARRY(fonts) CARRY(bold) CARRY(italic) CARRY(caps) CARRY(smallCaps) CARRY(strike) CARRY(dstrike) CARRY(vanish) CARRY(noProof)
+    CARRY(color) CARRY(spacing) CARRY(scale) CARRY(position) CARRY(kern) CARRY(size) CARRY(highlight) CARRY(underline) CARRY(vertAlign)
+    CARRY(extra)
+#undef CARRY
+}
+
 bool modifyStyle(WriteDoc &doc, QTextCursor &c, const QString &id, const Style &def, QString *problem)
 {
     Q_UNUSED(c);
@@ -516,7 +526,7 @@ bool modifyStyle(WriteDoc &doc, QTextCursor &c, const QString &id, const Style &
     if (s.type == QLatin1String("paragraph") && !s.link.isEmpty() && !(s.rPr == old.rPr && s.qFormat == old.qFormat))
         if (const Style *t = before.find(s.link); t && t->type == QLatin1String("character") && t->link == s.id) {
             Style changed = *t;
-            changed.rPr = s.rPr;
+            carryRunChanges(changed.rPr, old.rPr, s.rPr);
             changed.qFormat = s.qFormat;
             changed.raw.clear();
             twin = changed;
@@ -533,6 +543,42 @@ bool modifyStyle(WriteDoc &doc, QTextCursor &c, const QString &id, const Style &
     edit.endEditBlock();
     if (!doc.settleStyleEdit()) return fail(QCoreApplication::translate("jp::write::Styles", "The document keeps no history, so the style was not changed."));
     return true;
+}
+
+QString copyStyleToDocument(const WriteDoc &source, WriteDoc &target, const QString &id, bool changed)
+{
+    const std::optional<Style> from = styleOfDocument(source, id);
+    if (!from) return QCoreApplication::translate("jp::write::Styles", "The document has no such style.");
+    QString problem;
+    QTextCursor at(target.story());
+    // The styles it is based on that the target lacks come first, topmost first (a built-in style is added by the change itself); each is made with the target's own id for it.
+    QHash<QString, QString> made;
+    QStringList chain;
+    for (QString up = from->basedOn; !up.isEmpty() && !chain.contains(up) && !styleOfDocument(target, up) && builtinStyle(up).id.isEmpty();) {
+        const std::optional<Style> a = styleOfDocument(source, up);
+        if (!a) break;
+        chain.prepend(up);
+        up = a->basedOn;
+    }
+    auto base = [&](const QString &was) { return made.value(was, was); };
+    for (const QString &up : chain) {
+        Style def = *styleOfDocument(source, up);
+        def.basedOn = base(def.basedOn);
+        def.next.clear();
+        if (def.type == QLatin1String("paragraph") && !def.link.isEmpty()) def.type = QStringLiteral("linked");
+        const QString newId = createStyle(target, at, def, &problem, false);
+        if (newId.isEmpty()) return problem;
+        made.insert(up, newId);
+    }
+    Style def = *from;
+    def.basedOn = base(def.basedOn);
+    // (A style that is only changed in the document is changed in the template when it has it; one that was made is made there, and a name that is taken there is a problem.)
+    if (changed && styleOfDocument(target, id)) {
+        if (!modifyStyle(target, at, id, def, &problem)) return problem;
+        return QString();
+    }
+    if (def.type == QLatin1String("paragraph") && !def.link.isEmpty()) def.type = QStringLiteral("linked");
+    return createStyle(target, at, def, &problem, false).isEmpty() ? problem : QString();
 }
 
 bool deleteStyle(WriteDoc &doc, const QString &id, QString *problem)

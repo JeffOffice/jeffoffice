@@ -647,8 +647,14 @@ int &untrackedDepth()
     return d;
 }
 
+const QTextDocument *&trackedStory()
+{
+    static thread_local const QTextDocument *s = nullptr;
+    return s;
+}
+
 // Whether an edit of the story the cursor is in is recorded as a tracked change.
-bool tracking(const WriteDoc &doc, const QTextCursor &c) { return doc.trackChanges() && untrackedDepth() == 0 && c.document() == doc.story(); }
+bool tracking(const WriteDoc &doc, const QTextCursor &c) { return doc.trackChanges() && untrackedDepth() == 0 && (c.document() == doc.story() || (trackedStory() && c.document() == trackedStory())); }
 
 // The look of text the reviewer inserted.
 QTextCharFormat insertedLook(WriteDoc &doc, const QTextCharFormat &f) { return withRevisionLook(f, false, 1, doc.reviewerIndex(doc.reviewer())); }
@@ -890,6 +896,9 @@ void trackedDeleteOne(WriteDoc &doc, QTextCursor &c, bool back, bool byWord)
 
 UntrackedEdit::UntrackedEdit() { ++untrackedDepth(); }
 UntrackedEdit::~UntrackedEdit() { --untrackedDepth(); }
+bool isTrackedStory(const QTextDocument *story) { return story && story == trackedStory(); }
+TrackedStory::TrackedStory(const QTextDocument *story) : m_before(trackedStory()) { trackedStory() = story; }
+TrackedStory::~TrackedStory() { trackedStory() = m_before; }
 
 struct EditScope::Impl {
     Impl(WriteDoc &doc, QTextDocument *story) : numbers(doc, story) {}

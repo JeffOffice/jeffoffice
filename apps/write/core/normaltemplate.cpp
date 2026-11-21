@@ -15,6 +15,8 @@ namespace jp::write {
 
 QString normalTemplatePath() { return userDefaultFile(QStringLiteral("Normal.docx")); }
 
+QString normalTemplateBackupPath() { return normalTemplatePath() + QStringLiteral(".bak"); }
+
 namespace {
 
 // The template as a document; null when there is no file, or it can't be used (too large, not readable, or not a document), and then `why` says so.
@@ -79,6 +81,11 @@ bool changeNormalTemplate(const std::function<void(WriteDoc &)> &change, QString
     if (bytes.isEmpty()) {
         if (error) *error = problem;
         return false;
+    }
+    // One copy of the template as it was stays beside it, replaced each time.
+    if (QFile::exists(normalTemplatePath())) {
+        QFile::remove(normalTemplateBackupPath());
+        QFile::copy(normalTemplatePath(), normalTemplateBackupPath());
     }
     QSaveFile out(normalTemplatePath());
     if (!out.open(QIODevice::WriteOnly) || out.write(bytes) != bytes.size() || !out.commit()) {

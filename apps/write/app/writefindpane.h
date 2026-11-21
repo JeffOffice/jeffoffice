@@ -50,6 +50,7 @@ public:
     // How many times a story has been searched for a match (a count for tests of the work a search up does).
     int scansMade() const { return m_scans; }
     static constexpr int kMostMatches = 20000;
+    static constexpr int kMostBoxesChanged = 500;   // (the text boxes one Replace All changes: past that the person is told to run it again)
     QLineEdit *findBox() const { return m_find; }
     QLineEdit *replaceBox() const { return m_replace; }
     QCheckBox *matchCase() const { return m_case; }
@@ -95,7 +96,8 @@ private:
     QVector<QTextDocument *> sideStories();
     bool lastMatchBefore(QTextDocument *story, int before, QTextCursor *found, QString *problem);
     int replaceInStory(QTextDocument *story, QString *problem, StoryWords *given = nullptr);
-    int replaceInTextBoxes(QString *problem);
+    int replaceInTextBoxes(QString *problem, int *tooLarge);
+    bool m_boxesStopped = false;
     bool selectionIsMatch();
     static bool holdsMark(const QString &plain, int from, int to);
     static bool holdsMark(const QString &plain, const QTextCursor &match);

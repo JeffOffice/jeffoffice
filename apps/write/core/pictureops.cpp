@@ -2735,7 +2735,24 @@ std::unique_ptr<QTextDocument> textBoxStory(WriteDoc &doc, int position, bool *t
     return doc.boxEditStory(xml, whole);
 }
 
-bool setTextBoxStory(WriteDoc &doc, int position, QTextDocument *story, bool *refused)
+namespace {
+
+// The children of a text box's content as the file wrote them; none when one of them is not a paragraph.
+QVector<QByteArray> boxChildrenRaw(const QByteArray &inner)
+{
+    QVector<QByteArray> out;
+    XmlTree t;
+    if (!t.parse("<x " + declarations() + ">" + inner + "</x>", nullptr)) return out;
+    for (int p = t.firstChild(t.root()); p >= 0; p = t.next(p)) {
+        if (!t.is(p, "p")) return QVector<QByteArray>();
+        out << t.raw(p);
+    }
+    return out;
+}
+
+} // namespace
+
+bool setTextBoxStory(WriteDoc &doc, int position, QTextDocument *story, bool *refused, const QVector<bool> *changed)
 {
     if (refused) *refused = false;
     if (!story) return false;
@@ -2743,10 +2760,22 @@ bool setTextBoxStory(WriteDoc &doc, int position, QTextDocument *story, bool *re
         if (refused) *refused = true;
         return false;
     }
-    const QByteArray content = doc.boxContentOfStory(story);
+    const QVector<QByteArray> exported = doc.boxParagraphsOfStory(story);
+    QByteArray content = "<w:txbxContent>";
+    for (const QByteArray &p : exported) content += p;
+    content += "</w:txbxContent>";
     const bool done = changePicture(doc, position, [&](Model &m) {
         const BoxContent box = boxContentOf(m.graphic);
         const bool add = box.begin < 0;
+        if (!add && changed && changed->size() == exported.size()) {
+            // The paragraphs that did not change are kept as written.
+            const QVector<QByteArray> old = boxChildrenRaw(box.inner);
+            if (old.size() == exported.size()) {
+                content = "<w:txbxContent>";
+                for (qsizetype i = 0; i < old.size(); ++i) content += (*changed)[i] ? exported[i] : old[i];
+                content += "</w:txbxContent>";
+            }
+        }
         if (add && !shapeTakesText(m.graphic)) return false;
         if (!add && m.graphic.mid(box.begin, box.end - box.begin) == content) return false;
         if (add) {

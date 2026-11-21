@@ -250,7 +250,7 @@ QString Writer::borderValue(const T &t, int side, int *space, QString *lineWidth
     QString style = QStringLiteral("solid");
     if (val == QLatin1String("double")) style = QStringLiteral("double");
     else if (val == QLatin1String("dotted")) style = QStringLiteral("dotted");
-    else if (val.startsWith(QLatin1String("dash"))) style = QStringLiteral("dashed");
+    else if (val.startsWith(QLatin1String("dash")) || val == QLatin1String("dotDash") || val == QLatin1String("dotDotDash")) style = QStringLiteral("dashed");   // (the format has no dash-dot border line, ODF 1.3 part 3 section 20.183)
     if (space) *space = t.attr(side, "space").toInt();
     if (lineWidth && style == QLatin1String("double")) {
         const QString third = QString::number(pt / 3.0, 'f', 3) + QStringLiteral("pt");
@@ -275,7 +275,9 @@ QByteArray Writer::bordersAttrs(const T &t, int parent, bool paragraph)
         if (paragraph) {
             // (Paragraph borders as the standard has them, ECMA-376 Part 1 section 17.3.1.24: the line styles the format has no word for become single lines, a theme color its plain color.)
             const QString val = t.attr(side, "val");
-            if (val != QLatin1String("single") && val != QLatin1String("double") && val != QLatin1String("dotted") && !val.startsWith(QLatin1String("dash")) && val != QLatin1String("nil") && val != QLatin1String("none"))
+            if (val == QLatin1String("dotDash") || val == QLatin1String("dotDotDash") || val == QLatin1String("dashSmallGap"))
+                left(QCoreApplication::translate("odt", "dash-dot and short-dash paragraph border lines (saved as dashed lines)"));
+            else if (val != QLatin1String("single") && val != QLatin1String("double") && val != QLatin1String("dotted") && !val.startsWith(QLatin1String("dash")) && val != QLatin1String("nil") && val != QLatin1String("none"))
                 left(QCoreApplication::translate("odt", "paragraph border lines other than single, double, dotted, and dashed (saved as single lines)"));
             if (!t.attr(side, "themeColor").isEmpty()) left(QCoreApplication::translate("odt", "theme colors of paragraph borders and shading (saved as the colors they show)"));
         }

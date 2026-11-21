@@ -341,7 +341,9 @@ bool setTextBoxText(WriteDoc &doc, int position, const QStringList &paragraphs);
 // (`tooBig`, if given, says a box refused for holding more paragraphs than the editor takes; `refused`, a story that is not put in for want of room or for a reason the document gave: the person is told.)
 // `whole`: every paragraph is in the story, the deleted ones too (for settling the box's tracked changes).
 std::unique_ptr<QTextDocument> textBoxStory(WriteDoc &doc, int position, bool *tooBig = nullptr, bool whole = false);
-bool setTextBoxStory(WriteDoc &doc, int position, QTextDocument *story, bool *refused = nullptr);
+// `changed`, if given, says for each paragraph of the story whether its words were changed: the paragraphs that were not stay as the file wrote them (their bookmarks, revision marks, and content
+// controls), when the box has as many paragraphs as the story.
+bool setTextBoxStory(WriteDoc &doc, int position, QTextDocument *story, bool *refused = nullptr, const QVector<bool> *changed = nullptr);
 // How the object sets its words: where they sit up and down ("t", "ctr", or "b"), whether the lines break at its width, whether they shrink to fit, and the room kept round them, in points.
 struct TextBoxLook {
     QString anchor = QStringLiteral("t");

@@ -223,7 +223,10 @@ struct Writer {
     {
         if (!b.visible()) return QByteArray();
         const QString v = b.val;
-        const char *kind = v == QLatin1String("double") ? "\\brdrdb" : v == QLatin1String("dotted") ? "\\brdrdot" : v == QLatin1String("dashed") ? "\\brdrdash" : v == QLatin1String("thick") ? "\\brdrth" : "\\brdrs";
+        // (The dash-dot and short-dash lines are kept as dashed lines: no control word for them has been checked against the format's description, which is not at hand.)
+        if (v == QLatin1String("dotDash") || v == QLatin1String("dotDotDash") || v == QLatin1String("dashSmallGap"))
+            note(QStringLiteral("dash-dot and short-dash border lines (saved as dashed lines)"));
+        const char *kind = v == QLatin1String("dotDash") || v == QLatin1String("dotDotDash") || v == QLatin1String("dashSmallGap") ? "\\brdrdash" : v == QLatin1String("double") ? "\\brdrdb" : v == QLatin1String("dotted") ? "\\brdrdot" : v == QLatin1String("dashed") ? "\\brdrdash" : v == QLatin1String("thick") ? "\\brdrth" : "\\brdrs";
         QByteArray o = QByteArray("\\brdr") + side + kind + "\\brdrw" + QByteArray::number(std::clamp(b.size * 20 / 8, 5, 75)) + "\\brsp" + QByteArray::number(std::clamp(b.space * 20, 0, 31680));
         if (!b.color.isEmpty() && b.color != QLatin1String("auto")) o += "\\brdrcf" + QByteArray::number(color(b.color));
         return o;
@@ -263,6 +266,32 @@ struct Writer {
         if (p.borders) {
             o += border("t", p.borders->top ? *p.borders->top : Border()) + border("l", p.borders->left ? *p.borders->left : Border()) + border("b", p.borders->bottom ? *p.borders->bottom : Border()) +
                  border("r", p.borders->right ? *p.borders->right : Border());
+        } else {
+            // (A paragraph from a document in the program keeps its borders as the w:pBdr the file wrote, ECMA-376 Part 1 section 17.3.1.24: its four sides are written here, and a line between
+            // paragraphs, which no verified control word is at hand for, is said as lost.)
+            for (const RawChild &c : p.extra) {
+                if (!c.xml.startsWith("<w:pBdr")) continue;
+                static const QRegularExpression side(QStringLiteral("<w:(top|left|bottom|right|between)\\s([^>]*?)/?>"));
+                auto attr = [](const QString &tag, const char *name) {
+                    const QRegularExpressionMatch m = QRegularExpression(QStringLiteral("w:%1=\"([^\"]*)\"").arg(QLatin1String(name))).match(tag);
+                    return m.hasMatch() ? m.captured(1) : QString();
+                };
+                QByteArray sides;
+                for (QRegularExpressionMatchIterator it = side.globalMatch(QString::fromUtf8(c.xml)); it.hasNext();) {
+                    const QRegularExpressionMatch m = it.next();
+                    Border b;
+                    b.val = attr(m.captured(2), "val");
+                    b.size = attr(m.captured(2), "sz").toInt();
+                    b.space = attr(m.captured(2), "space").toInt();
+                    b.color = attr(m.captured(2), "color");
+                    if (m.captured(1) == QLatin1String("between")) {
+                        if (b.visible()) note(QStringLiteral("lines between paragraphs"));
+                        continue;
+                    }
+                    sides += border(m.captured(1) == QLatin1String("top") ? "t" : m.captured(1) == QLatin1String("left") ? "l" : m.captured(1) == QLatin1String("bottom") ? "b" : "r", b);
+                }
+                o += sides;
+            }
         }
         if (p.shading && !p.shading->fill.isEmpty() && p.shading->fill != QLatin1String("auto")) o += "\\cbpat" + QByteArray::number(color(p.shading->fill));
         if (!o.isEmpty()) o += ' ';

@@ -62,6 +62,9 @@ struct PageDrawing {
     bool editIsNote = false;   // the edited story is a footnote's (its box is among the page's notes; the text of the page is not dimmed)
 };
 
+// How many anchors the paints of pages have looked at so far (the page's own story holds the text of that page only; a test counts them).
+int anchorsExaminedByPagePaint();
+
 // Paints the page in its own coordinates (points from its top left corner) on the painter.
 void paintPage(QPainter *p, flow::MaterializedPage &page, LayoutCache *layouts, const PageDrawing &drawing);
 

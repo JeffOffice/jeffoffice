@@ -16,4 +16,7 @@ bool setNormalTemplate(QWidget *parent, const std::function<void(WriteDoc &)> &c
 // Stand-ins for the two boxes (a test sets them; the program never does): the answer to "Replace it?", and what is shown of an error. Set to empty functions, the boxes are shown.
 void setNormalTemplatePrompts(const std::function<bool()> &askReplace, const std::function<void(const QString &)> &showError);
 
+// Tells the person (or the test's stand-in for the error box) why the template could not take a change.
+void tellNormalTemplateProblem(QWidget *parent, const QString &text);
+
 } // namespace jp::write

@@ -149,13 +149,20 @@ std::unique_ptr<QTextDocument> WriteDoc::boxEditStory(const QByteArray &txbxCont
     return s;
 }
 
-QByteArray WriteDoc::boxContentOfStory(QTextDocument *story)
+QVector<QByteArray> WriteDoc::boxParagraphsOfStory(QTextDocument *story)
 {
     QVector<Block> blocks;
     VectorSink sink(&blocks);
     exportInto(sink, story);
+    QVector<QByteArray> out;
+    for (const Block &b : blocks) out << blockXml(b);
+    return out;
+}
+
+QByteArray WriteDoc::boxContentOfStory(QTextDocument *story)
+{
     QByteArray out = "<w:txbxContent>";
-    for (const Block &b : blocks) out += blockXml(b);
+    for (const QByteArray &p : boxParagraphsOfStory(story)) out += p;
     return out + "</w:txbxContent>";
 }
 

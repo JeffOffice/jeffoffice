@@ -631,7 +631,8 @@ FindWords WriteFindPane::wordsOf(StoryWords *text)
     };
     // The new words take the place of the first of the characters of the match, and the look of the first of them; the characters of it between pieces kept as XML
     // are taken away, and the pieces stay. (The matches come from the last to the first, so that no swap moves another.)
-    w.put = [text, story](QTextCursor &match, const QString &with) {
+    write::WriteDoc *doc = m_win->document();
+    w.put = [doc, text, story](QTextCursor &match, const QString &with) {
         const QVector<QPair<int, int>> pieces = text->pieces(match.selectionStart(), match.selectionEnd());
         if (pieces.isEmpty()) return;
         QTextCursor first(story);
@@ -639,14 +640,19 @@ FindWords WriteFindPane::wordsOf(StoryWords *text)
         const QTextCharFormat look = first.charFormat();
         QTextCursor edit(story);
         edit.beginEditBlock();
+        // With Track Changes on, what goes is marked as deleted and the new words as inserted, as when they are typed over (the text, and a text box's words being changed, see TrackedStory).
+        const bool record = doc && doc->trackChanges() && (story == doc->story() || write::isTrackedStory(story));
         for (int i = int(pieces.size()) - 1; i >= 1; --i) {
             edit.setPosition(pieces[i].first);
             edit.setPosition(pieces[i].second, QTextCursor::KeepAnchor);
-            edit.removeSelectedText();
+            if (record) write::removeSelection(*doc, edit);
+            else edit.removeSelectedText();
         }
         edit.setPosition(pieces.first().first);
         edit.setPosition(pieces.first().second, QTextCursor::KeepAnchor);
-        edit.insertText(with, look);
+        if (!record) edit.insertText(with, look);
+        else if (with.isEmpty()) write::removeSelection(*doc, edit);
+        else write::insertText(*doc, edit, with);
         edit.endEditBlock();
     };
     return w;
@@ -888,7 +894,8 @@ int WriteFindPane::replaceInStory(QTextDocument *story, QString *problem, StoryW
 }
 
 // Swaps every match in the words of the text boxes and shapes of the text, each box's words as a story of their own, put back in the box (as the step the swaps are part of); how many.
-int WriteFindPane::replaceInTextBoxes(QString *problem)
+// The paragraphs of a box that no swap touched stay as the file wrote them. `tooLarge` counts the boxes that hold more than the editor takes, or that could not take the new words.
+int WriteFindPane::replaceInTextBoxes(QString *problem, int *tooLarge)
 {
     write::WriteDoc *doc = m_win->document();
     QTextDocument *body = doc->story();
@@ -900,17 +907,42 @@ int WriteFindPane::replaceInTextBoxes(QString *problem)
             for (int i = 0; i < int(f.length()); ++i)
                 if (write::isDrawnObjectAt(body, f.position() + i)) at.push_back(f.position() + i);
         }
-    int n = 0;
+    int n = 0, boxes = 0;
     for (const int position : at) {
         const write::PictureInfo info = write::pictureAt(*doc, body, position);
         if (!info.valid || !info.editable || (info.kind != write::DrawnKind::Shape && info.kind != write::DrawnKind::TextBox)) continue;
-        std::unique_ptr<QTextDocument> words = write::textBoxStory(*doc, position);
+        bool big = false;
+        std::unique_ptr<QTextDocument> words = write::textBoxStory(*doc, position, &big, true);
+        if (big) {
+            ++*tooLarge;
+            continue;
+        }
         if (!words || words->toPlainText().trimmed().isEmpty()) continue;
+        QStringList before;
+        for (QTextBlock b = words->begin(); b.isValid(); b = b.next()) before << b.text();
         StoryWords text(words.get());
         if (text.dirty) text.rebuild();
-        const int swapped = replaceInStory(words.get(), problem, &text);
+        int swapped = 0;
+        {
+            const write::TrackedStory tracked(words.get());
+            swapped = replaceInStory(words.get(), problem, &text);
+        }
         if (!problem->isEmpty()) return n;
-        if (swapped > 0 && write::setTextBoxStory(*doc, position, words.get())) n += swapped;
+        if (swapped <= 0) continue;
+        if (boxes >= kMostBoxesChanged) {
+            m_boxesStopped = true;
+            break;
+        }
+        QVector<bool> changed;
+        int k = 0;
+        for (QTextBlock b = words->begin(); b.isValid(); b = b.next(), ++k) changed << (k >= before.size() || before[k] != b.text());
+        bool refused = false;
+        if (write::setTextBoxStory(*doc, position, words.get(), &refused, before.size() == words->blockCount() ? &changed : nullptr)) {
+            n += swapped;
+            ++boxes;
+        } else if (refused) {
+            ++*tooLarge;
+        }
     }
     return n;
 }
@@ -928,14 +960,19 @@ void WriteFindPane::replaceAll()
             n += replaceInStory(d, &problem);
             if (!problem.isEmpty()) break;
         }
-    if (problem.isEmpty()) n += replaceInTextBoxes(&problem);
+    int tooLarge = 0;
+    m_boxesStopped = false;
+    if (problem.isEmpty()) n += replaceInTextBoxes(&problem, &tooLarge);
     if (!problem.isEmpty()) {
         m_status->setText(problem);
         return;
     }
-    m_status->setText(n == 0   ? tr("JeffWrite made no replacements. \"%1\" was not found.").arg(findTextForMessage(q))
-                      : n == 1 ? tr("JeffWrite made 1 replacement.")
-                               : tr("JeffWrite made %1 replacements.").arg(n));
+    QString text = n == 0   ? (tooLarge > 0 ? tr("JeffWrite made no replacements.") : tr("JeffWrite made no replacements. \"%1\" was not found.").arg(findTextForMessage(q)))
+                   : n == 1 ? tr("JeffWrite made 1 replacement.")
+                            : tr("JeffWrite made %1 replacements.").arg(n);
+    if (tooLarge > 0) text += QLatin1Char(' ') + tr("%n text box was too large to change.", nullptr, tooLarge);
+    if (m_boxesStopped) text += QLatin1Char(' ') + tr("Only the first %1 text boxes were changed; use Replace All again for the rest.").arg(kMostBoxesChanged);
+    m_status->setText(text);
 }
 
 } // namespace jp

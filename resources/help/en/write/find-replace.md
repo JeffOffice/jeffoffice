@@ -66,7 +66,7 @@ You can leave **Find what** empty. Then every stretch of text with that look is 
 2. Type the new words in **Replace with**. To remove the words you found, leave it empty.
 3. Type the old words in **Find what**.
 4. Click **Replace** to see the first match. Click **Replace** again to change it. JeffWrite then moves to the next match. Each change is one step, so **Undo** (Ctrl+Z) takes back one at a time.
-5. Click **Replace All** to change every match at once. The pane tells you how many it changed. **Replace All** also changes the words in text boxes and shapes, and is one step, so one **Undo** puts every word back. **Find Next** does not look in text boxes yet.
+5. Click **Replace All** to change every match at once. The pane tells you how many it changed. **Replace All** also changes the words in text boxes and shapes, and is one step, so one **Undo** puts every word back. When **Track Changes** is on, every replacement is recorded as a tracked change, in the text and in the boxes. A box that is too large to change is counted in the message. **Replace All** does not reach text boxes in headers and footers, shapes grouped together, or boxes linked to each other. **Find Next** does not look in text boxes yet.
 
 The new words look like the first letter of the words they replace. If you replace a bold word, the new word is bold.
 
