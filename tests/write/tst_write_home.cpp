@@ -2,6 +2,7 @@
 // Each document is built here from a few lines of XML.
 
 #include "../cmdsearchcheck.h"
+#include "core/syslocale.h"
 #include "core/workthread.h"
 #include "../isolatesettings.h"
 #include "app/widgets.h"
@@ -16,6 +17,7 @@
 #include "app/pageoutput.h"
 #include "render/pdfpage.h"
 #include <QBuffer>
+#include <atomic>
 #include <QScopeGuard>
 #include <QPdfWriter>
 #include "app/ruler.h"
@@ -1694,6 +1696,53 @@ private Q_SLOTS:
         const SectionSetup now = pageSetupOf(newBlankDocument()->sectionProps(0), false);
         QCOMPARE(now.top, 18.0);
         QCOMPARE(now.right, 54.0);
+        QFile::remove(normalTemplatePath());
+    }
+
+    // The workers of the three scenarios above (a template put and a lock let go from another thread) beside the main thread asking for the locale and changing it, 2,000 times each: the
+    // worker takes its dates and numbers from the copy (jp::systemLocale), never from the system, and the file and the lock come out whole.
+    void aWorkerBesideTheMainThreadsLocaleChangesKeepsTheTemplateAndTheLock()
+    {
+        QFile::remove(normalTemplatePath());
+        auto blank = WriteDoc::blank();
+        const QByteArray bytes = blank->toDocx();
+        const QLocale english(QLocale::English, QLocale::UnitedStates), german(QLocale::German, QLocale::Germany);
+        const QLocale before;
+        QLocale::setDefault(english);
+        jp::captureSystemLocale();
+        const QString inEnglish = jp::systemLocale().toString(QDate(2026, 11, 20), QLocale::LongFormat) + jp::systemLocale().toString(1234567);
+        QLocale::setDefault(german);
+        jp::captureSystemLocale();
+        const QString inGerman = jp::systemLocale().toString(QDate(2026, 11, 20), QLocale::LongFormat) + jp::systemLocale().toString(1234567);
+        QVERIFY(inEnglish != inGerman);
+        std::atomic<int> rounds{0}, odd{0};
+        {
+            jp::WorkThread worker([&] {
+                for (int i = 0; i < 2000; ++i) {
+                    QLockFile lock(normalTemplatePath() + QStringLiteral(".lock"));
+                    if (lock.tryLock(1000)) {
+                        QFile f(normalTemplatePath());
+                        if (f.open(QIODevice::WriteOnly)) f.write(bytes);
+                        f.close();
+                        lock.unlock();
+                    }
+                    const jp::SystemLocale person = jp::systemLocale();
+                    const QString text = person.toString(QDate(2026, 11, 20), QLocale::LongFormat) + person.toString(1234567);
+                    if (text != inEnglish && text != inGerman) ++odd;
+                    ++rounds;
+                }
+            });
+            for (int i = 0; i < 2000; ++i) {
+                QLocale::setDefault(i % 2 ? german : english);
+                jp::captureSystemLocale();
+                jp::systemLocale();
+            }
+        }
+        QLocale::setDefault(before);
+        jp::captureSystemLocale();
+        QCOMPARE(rounds.load(), 2000);
+        QCOMPARE(odd.load(), 0);
+        QCOMPARE(normalTemplateState(), NormalTemplateState::Usable);
         QFile::remove(normalTemplatePath());
     }
 
