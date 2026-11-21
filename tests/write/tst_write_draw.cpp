@@ -1155,6 +1155,7 @@ private Q_SLOTS:
         QVERIFY(formatAt(*w.document(), 10).stringProperty(prop::ColorAttrs).isEmpty());
         QColor expected;
         QVERIFY(themeColorOf(*w.document(), QStringLiteral("accent2"), QStringLiteral("99"), QString(), &expected));
+        expected = ColorRef::scheme(Accent2, 40).resolve(w.document()->flow().env.colors);   // (the swatch's color is the one kept)
         QCOMPARE(formatAt(*w.document(), 3).foreground().color().rgb(), expected.rgb());
         // saved and opened again through the window
         const QString path = dir.filePath(QStringLiteral("themed.docx"));
