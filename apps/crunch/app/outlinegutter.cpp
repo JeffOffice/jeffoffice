@@ -51,7 +51,9 @@ std::vector<std::pair<quint32, quint32>> OutlineGutter::visibleRanges() const
 {
     const grid::GridLayout &L = m_view->sheet().layout();
     std::vector<std::pair<quint32, quint32>> out;
-    for (grid::Pane which : m_columns ? std::initializer_list<grid::Pane>{grid::Pane::Left, grid::Pane::Body} : std::initializer_list<grid::Pane>{grid::Pane::Top, grid::Pane::Body}) {
+    // (a named array: the arrays behind two initializer lists in a conditional are gone before the loop starts, and an optimizing build of GCC 13 saw no pane at all)
+    const grid::Pane panes[2] = {m_columns ? grid::Pane::Left : grid::Pane::Top, grid::Pane::Body};
+    for (grid::Pane which : panes) {
         const grid::PaneView pv = L.pane(which);
         if (pv.isEmpty()) continue;
         out.emplace_back(quint32(m_columns ? pv.firstCol : pv.firstRow), quint32(m_columns ? pv.lastCol : pv.lastRow));
