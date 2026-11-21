@@ -363,6 +363,9 @@ private Q_SLOTS:
         initCore();
     }
 
+    // (the barcode dialog starts from the settings the last barcode left: every test starts from the defaults, whatever ran before)
+    void init() { Settings::get().remove(QStringLiteral("barcode")); }
+
     // ---------------------------------------------------------------- Insert > Symbols
     void theSymbolDialogPutsASymbolAtTheCaretAndRemembersIt()
     {
