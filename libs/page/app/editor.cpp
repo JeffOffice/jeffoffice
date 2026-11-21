@@ -2341,6 +2341,28 @@ int Editor::insertPages(int after, int count, bool duplicate, bool oneTextBox, c
     return at;
 }
 
+// A page that starts a section is never the first page (that starts the first section, numbered as Format Page Numbers says): one that has become the first, because the page before it
+// went, keeps what it numbered as the publication's first-section numbering.
+static void settleFirstPage(Document &doc)
+{
+    if (doc.pages.isEmpty() || !doc.pages[0]->startsSection) return;
+    Page &p = *doc.pages[0];
+    if (p.sectionStart > 0) doc.setup.firstPageNumber = p.sectionStart;
+    if (p.sectionFormat >= 0 && p.sectionFormat < Document::pageNumberFormats().size()) doc.setup.pageNumberFormat = Document::pageNumberFormats()[p.sectionFormat];
+    p.startsSection = false;
+    p.sectionStart = 0;
+    p.sectionFormat = -1;
+}
+
+// The section a page starts passes to the page after it (when that one starts none).
+static void passSection(Page &from, Page &to)
+{
+    if (!from.startsSection || to.startsSection) return;
+    to.startsSection = true;
+    to.sectionStart = from.sectionStart;
+    to.sectionFormat = from.sectionFormat;
+}
+
 void Editor::deletePage(int index)
 {
     if (m_doc->pages.size() <= 1 || index < 0 || index >= m_doc->pages.size()) {
@@ -2352,7 +2374,9 @@ void Editor::deletePage(int index)
     QStringList ids;
     walkItems(m_doc->pages[index]->items, [&](const ItemPtr &it) { ids << it->id; });
     removeFromChains(ids);
+    if (index + 1 < m_doc->pages.size()) passSection(*m_doc->pages[index], *m_doc->pages[index + 1]);   // (the section a page starts starts with the page after it)
     m_doc->pages.removeAt(index);
+    settleFirstPage(*m_doc);
     // Drop stories no longer referenced.
     const QSet<QString> used = m_doc->storiesInUse();
     for (const auto &sid : m_doc->stories.keys())
@@ -2369,7 +2393,16 @@ void Editor::movePage(int from, int to)
     const int n = m_doc->pages.size();
     if (from < 0 || from >= n || to < 0 || to >= n || from == to) return;
     beginChange(tr("Move Page"));
+    const bool startedSection = m_doc->pages[from]->startsSection;
     m_doc->pages.move(from, to);
+    // (a section starts with its page, but a page that comes first cannot start one: the next page does)
+    if (startedSection && to == 0 && n > 1) {
+        passSection(*m_doc->pages[0], *m_doc->pages[1]);
+        m_doc->pages[0]->startsSection = false;
+        m_doc->pages[0]->sectionStart = 0;
+        m_doc->pages[0]->sectionFormat = -1;
+    }
+    settleFirstPage(*m_doc);
     m_page = to;
     endChange();
     Q_EMIT pageChanged();

@@ -157,10 +157,11 @@ public:
   }
   void setPublicationLayout(unsigned layout) { m_publicationLayout = layout; } // JeffPub patch
   // JeffPub patch: the first section's first page number and number style
-  // (0 1 2 3, 1 I II III, 2 i ii iii, 3 A B C, 4 a b c), and whether a later
-  // section numbers its pages on its own.
+  // (0 1 2 3, 1 I II III, 2 i ii iii, 3 A B C, 4 a b c), and each later
+  // section: its first page (2 on), its start number (0: the numbers go on)
+  // and its style.
   void setPageNumbering(unsigned first, unsigned style) { m_firstPageNumber = first; m_pageNumberStyle = style; }
-  void setLaterSectionsNumbered() { m_laterSectionsNumbered = true; }
+  void addSection(unsigned page, unsigned start, unsigned style) { m_sections[page] = std::make_pair(start, style); }
   // JeffPub patch: text wrapping around the shape, and its distances.
   void setShapeWrap(unsigned seqNum, unsigned wrap) { m_shapeInfosBySeqNum[seqNum].m_wrap = wrap; }
   void setShapeWrapDistances(unsigned seqNum, int l, int t, int r, int b) { m_shapeInfosBySeqNum[seqNum].m_wrapDistances = std::array<int, 4>{{l, t, r, b}}; }
@@ -232,7 +233,8 @@ private:
   unsigned m_firstPageNumber = 1;         // JeffPub patch: see setPageNumbering
   unsigned m_defaultTabStopEmu = 0;       // JeffPub patch: the publication's default tab stop, when not 36 points (0 none)
   unsigned m_pageNumberStyle = 0;
-  bool m_laterSectionsNumbered = false;
+  std::map<unsigned, std::pair<unsigned, unsigned>> m_sections;   // JeffPub patch: later sections by first page
+  mutable unsigned m_pagesWritten = 0;
   std::vector<Color> m_paletteColors;
   std::vector<unsigned> m_shapeSeqNumsOrdered;
   std::map<unsigned, unsigned> m_pageSeqNumsByShapeSeqNum;

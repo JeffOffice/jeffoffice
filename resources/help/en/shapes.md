@@ -54,7 +54,7 @@ A connector attaches to the connection points a shape has (the middle of each si
 
 ## Merge shapes and convert outlines
 
-Select two or more shapes on the same page, then click **Shape Format > Insert Shapes > Merge Shapes**. The new shape has the fill and line of the shape you selected first, and sits where the old ones were. The old shapes go, and so does any text in them. Each choice is one step of Undo, and the new shapes are left selected.
+Select two or more shapes on the same page, then click **Shape Format > Insert Shapes > Merge Shapes**. The new shape has the fill and line of the shape you selected first, and sits where the old ones were. The old shapes go, and so does any text in them: the status bar says so, and when more than one of the shapes has text you are asked once before it is removed. A connector attached to an old shape is attached to the new shape when it was at the middle of one of the new shape's sides, and is let go where it was otherwise. Each choice is one step of Undo, and the new shapes are left selected.
 
 - **Union** makes one shape of everything the shapes cover.
 - **Combine** keeps what only one of the shapes covers and cuts out the places where they overlap.
@@ -62,14 +62,14 @@ Select two or more shapes on the same page, then click **Shape Format > Insert S
 - **Intersect** keeps only what every shape covers.
 - **Fragment** cuts the shapes into every piece they make with one another. Each piece is a shape of its own.
 
-You can merge up to 64 shapes at once, and a result that would be cut into more than 256 pieces is refused. A shape that is locked, inside a group, or artwork stays as it is, and the status bar says so. A merged shape is a shape with points of its own, so **Edit Points** reshapes it, and it is kept in the file like any other.
+You can merge up to 64 shapes at once, and a result that would be cut into more than 256 pieces is refused. Shapes with very many crossing edges would take too long, and are refused with a message; a merge of more than a few crossings runs in the background, with a box where you can click **Cancel** (the shapes then stay as they were). A hole in a shape stays a hole, however many merges follow. A shape that is locked, inside a group, or artwork stays as it is, and the status bar says so. A merged shape is a shape with points of its own, so **Edit Points** reshapes it, and it is kept in the file like any other.
 
 **Shape Format > Insert Shapes > Convert** changes how the selected shapes are drawn:
 
 - **Convert to Curve** gives the shape an outline of its own, so that its points can be moved (**Edit Points** does the same when you start to edit).
 - **Convert to Polygon** makes every curve of the outline out of short straight lines.
 - **Convert to Contour** makes the line of the shape a shape of its own, filled with the line's color. The shape needs a line.
-- **Break Apart** makes a shape that has several parts (as a union of shapes that do not touch has) into one shape for each part. A ring breaks into its outer circle and its hole, each filled.
+- **Break Apart** makes a shape that has several parts (as a union of shapes that do not touch has) into one shape for each part. A ring breaks into its outer circle and its hole, each filled. The text of a shape stays with it: with the first piece of a shape that is broken apart.
 
 ## Reroute connectors
 

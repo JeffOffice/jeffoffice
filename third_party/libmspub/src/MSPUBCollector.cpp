@@ -2401,8 +2401,13 @@ void MSPUBCollector::writePage(unsigned pageSeqNum) const
       pageProps.insert("jp:first-page-number", int(m_firstPageNumber));
     if (m_pageNumberStyle)
       pageProps.insert("jp:page-number-style", int(m_pageNumberStyle));
-    if (m_laterSectionsNumbered)
-      pageProps.insert("jp:page-number-sections", 1);
+    const auto section = m_sections.find(++m_pagesWritten);
+    if (section != m_sections.end())
+    {
+      pageProps.insert("jp:section", 1);
+      pageProps.insert("jp:section-start", int(section->second.first));
+      pageProps.insert("jp:section-style", int(section->second.second));
+    }
     m_painter->startPage(pageProps);
     if (hasMaster)
     {

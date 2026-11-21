@@ -209,10 +209,16 @@ public:
             const int style = p["jp:page-number-style"] ? p["jp:page-number-style"]->getInt() : 0;
             static const char *const styles[] = {"", "ROMAN", "roman", "ALPHA", "alpha"};
             m_doc.setup.pageNumberFormat = style >= 1 && style <= 4 ? QString::fromLatin1(styles[style]) : QString();
-            if (p["jp:page-number-sections"])
-                m_rep.warnings << QCoreApplication::translate("Import", "Only the first section's page numbering was imported.");
         }
         auto page = m_doc.addPage();
+        // A page that starts a later section: where the numbers begin again (0: they go on) and the style (the same four as above, as formats from the first up).
+        if (p["jp:section"] && m_doc.pages.size() > 1) {
+            static const int format[] = {0, 4, 3, 2, 1};   // (1 I II III, 2 i ii iii, 3 A B C, 4 a b c as the indexes of Document::pageNumberFormats)
+            const int style = p["jp:section-style"] ? p["jp:section-style"]->getInt() : 0;
+            page->startsSection = true;
+            page->sectionStart = p["jp:section-start"] ? std::clamp(p["jp:section-start"]->getInt(), 0, 1000) : 0;
+            page->sectionFormat = format[style >= 1 && style <= 4 ? style : 0];
+        }
         // The page's master: the one written under that sequence number (A when the file names none).
         page->masterId = p["jp:master-seq"] ? m_masterIds.value(p["jp:master-seq"]->getInt(), QStringLiteral("A")) : QStringLiteral("A");
         m_page = page.get();

@@ -1542,6 +1542,7 @@ void Document::dropChainIndex() const
     QMutexLocker lock(&m_prevLock);
     m_prevBuilt = false;
     m_prevOf.clear();
+    m_sectionsBuilt = false;
 }
 
 TextItem *Document::prevFrame(const QString &frameId) const
@@ -1705,24 +1706,42 @@ int Document::sectionCount() const
     return n;
 }
 
+void Document::buildSections() const
+{
+    m_numPage = {1};
+    m_numAt = {0};
+    m_fmtPage = {1};
+    m_fmtAt = {-1};
+    for (int i = 1; i < int(pages.size()); ++i) {
+        const Page &p = *pages[i];
+        if (!p.startsSection) continue;
+        if (p.sectionStart > 0) {
+            m_numPage << i + 1;
+            m_numAt << p.sectionStart;
+        }
+        if (p.sectionFormat >= 0 && p.sectionFormat < pageNumberFormats().size()) {
+            m_fmtPage << i + 1;
+            m_fmtAt << p.sectionFormat;
+        }
+    }
+    m_sectionsBuilt = true;
+}
+
 int Document::pageNumberShown(int page) const
 {
-    int n = setup.firstPageNumber;
-    const int upTo = std::min<int>(std::max(page, 1), int(pages.size()));
-    for (int i = 1; i < upTo; ++i) {
-        const Page &p = *pages[i];
-        n = p.startsSection && p.sectionStart > 0 ? p.sectionStart : n + 1;
-    }
-    return n + (page > upTo ? page - upTo : 0);
+    QMutexLocker lock(&m_prevLock);
+    if (!m_sectionsBuilt) buildSections();
+    page = std::max(page, 1);
+    const int k = int(std::upper_bound(m_numPage.begin(), m_numPage.end(), page) - m_numPage.begin()) - 1;
+    return (k == 0 ? setup.firstPageNumber : m_numAt[k]) + page - m_numPage[k];
 }
 
 QString Document::pageNumberFormatOf(int page) const
 {
-    QString format = setup.pageNumberFormat;
-    const int upTo = std::min<int>(std::max(page, 1), int(pages.size()));
-    for (int i = 1; i < upTo; ++i)
-        if (const Page &p = *pages[i]; p.startsSection && p.sectionFormat >= 0 && p.sectionFormat < pageNumberFormats().size()) format = pageNumberFormats()[p.sectionFormat];
-    return format;
+    QMutexLocker lock(&m_prevLock);
+    if (!m_sectionsBuilt) buildSections();
+    const int k = int(std::upper_bound(m_fmtPage.begin(), m_fmtPage.end(), std::max(page, 1)) - m_fmtPage.begin()) - 1;
+    return k == 0 ? setup.pageNumberFormat : pageNumberFormats()[m_fmtAt[k]];
 }
 
 // What the styles come to, kept until `styles` is written to: the styles as they were (a write to Document::styles makes its own copy of them, so

@@ -2406,6 +2406,12 @@ QByteArray PubWriter::write(QStringList *skipped)
     for (const auto &page : m_doc.pages) commentCount += comments::commentCount(*page);
     if (skipped && commentCount)
         *skipped << QCoreApplication::translate("Export", "the comments couldn't be saved to .pub (comments are kept only in .jpub)");
+    // The format has no glue points of a shape's own: a connector attached to one is written attached to the side it leaves by (the rules below).
+    bool anyGlue = false;
+    m_doc.forEachItem([&](Item *it, int, const QString &) {
+        if (const auto *s = dynamic_cast<const ShapeItem *>(it)) anyGlue = anyGlue || !s->gluePoints.isEmpty();
+    });
+    if (skipped && anyGlue) *skipped << QCoreApplication::translate("Export", "glue points can't be saved to .pub (a connector attached to one is attached to the nearest side instead)");
     // An object set in text says so (03) and gives its number (0f), with 34
     // = 0, as in Publisher's files (Oct 7); an index lists each number's
     // story and object.
@@ -2426,10 +2432,11 @@ QByteArray PubWriter::write(QStringList *skipped)
     // (type 75, named by DOCUMENT 2f) with an entry for each section's first
     // page (01) holding its start number (02) and, unless 1 2 3, its style
     // (03: 1 I II III, 2 i ii iii, 3 A B C, 4 a b c). JeffPub numbers the
-    // whole publication one way, so it writes one section, and none for 1 2 3.
-    const int numberStyle = int(QStringList{QString(), QStringLiteral("ROMAN"), QStringLiteral("roman"), QStringLiteral("ALPHA"), QStringLiteral("alpha")}
-                                    .indexOf(m_doc.setup.pageNumberFormat));
-    const quint32 sectionSeq = m_doc.setup.firstPageNumber != 1 || numberStyle > 0 ? next++ : 0;
+    // whole publication one way until it has sections (Insert Section): then an entry for each, with its start number when it numbers again and the style it is in
+    // (what its pages show, which a section that goes on from the one before takes from it), and none at all for 1 2 3.
+    const QStringList numberStyles{QString(), QStringLiteral("ROMAN"), QStringLiteral("roman"), QStringLiteral("ALPHA"), QStringLiteral("alpha")};
+    const int numberStyle = int(numberStyles.indexOf(m_doc.setup.pageNumberFormat));
+    const quint32 sectionSeq = m_doc.setup.firstPageNumber != 1 || numberStyle > 0 || m_doc.sectionCount() > 1 ? next++ : 0;
     const quint32 fontSeq = m_fonts.isEmpty() && m_textIds.isEmpty() ? 0 : next++;
     // Fonts the style sheet names, so the font table, written first, has them.
     for (const QString &name : styleNames())
@@ -2470,7 +2477,16 @@ QByteArray PubWriter::write(QStringList *skipped)
     if (sectionSeq) {
         QVector<B> entry{u32(0x01, 1), u16(0x02, quint32(std::clamp(m_doc.setup.firstPageNumber, 1, 1000)))};   // Publisher refuses a file starting past 1000
         if (numberStyle > 0) entry << u16(0x03, quint32(numberStyle));
-        cw.put(sectionSeq, {0x75, 256, {u16(0x01, 1), list(0x02, {rec(0x00, entry)})}});
+        QVector<B> entries{rec(0x00, entry)};
+        for (int i = 1; i < int(m_doc.pages.size()) && entries.size() < 1000; ++i) {
+            const Page &pg = *m_doc.pages[i];
+            if (!pg.startsSection) continue;
+            QVector<B> e{u32(0x01, quint32(i + 1))};
+            if (pg.sectionStart > 0) e << u16(0x02, quint32(std::clamp(pg.sectionStart, 1, 1000)));
+            if (const int style = int(numberStyles.indexOf(m_doc.pageNumberFormatOf(i + 1))); style > 0) e << u16(0x03, quint32(style));
+            entries << rec(0x00, e);
+        }
+        cw.put(sectionSeq, {0x75, 256, {u16(0x01, quint32(entries.size())), list(0x02, entries)}});
     }
     cw.put(257, {0x72, 256, {}});
     cw.put(259, {0x73, 256, {}});

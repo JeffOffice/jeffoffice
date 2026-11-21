@@ -5,7 +5,10 @@
 #include "office/connectionsites.h"
 #include "render/shapes.h"
 
+#include "core/workthread.h"
+
 #include <QCoreApplication>
+#include <QEventLoop>
 #include <algorithm>
 
 namespace jp {
@@ -19,11 +22,11 @@ QPainterPath pageOutline(const ShapeItem &s)
     return s.transform().map(own);
 }
 
-// A shape with the outline on the page: the look of `from`, no text, no turn.
-std::shared_ptr<ShapeItem> shapeWith(const ShapeItem &from, const QPainterPath &onPage)
+// A shape with the outline on the page: the look of `from`, no turn, and its text only when `keepText` is set.
+std::shared_ptr<ShapeItem> shapeWith(const ShapeItem &from, const QPainterPath &onPage, bool keepText = false)
 {
     auto s = std::static_pointer_cast<ShapeItem>(from.clone());
-    s->storyId.clear();
+    if (!keepText) s->storyId.clear();
     s->gluePoints.clear();
     s->adj.clear();
     s->rotation = 0;
@@ -32,6 +35,49 @@ std::shared_ptr<ShapeItem> shapeWith(const ShapeItem &from, const QPainterPath &
     s->rect = box;
     s->customPath = QTransform::fromTranslate(-box.left(), -box.top()).map(onPage);
     return s;
+}
+
+// Where the ends of connectors attached to these shapes are on the page, noted before the shapes go.
+struct Attach {
+    LineItem::Glue *glue;
+    QPointF at;
+};
+
+QVector<Attach> attachedTo(Document &doc, const QStringList &ids)
+{
+    QVector<Attach> out;
+    doc.forEachItem([&](Item *it, int, const QString &) {
+        if (it->type() != ItemType::Line) return;
+        for (LineItem::Glue *g : {&static_cast<LineItem *>(it)->start, &static_cast<LineItem *>(it)->end}) {
+            const Item *o = g->site >= 0 && ids.contains(g->id) ? doc.item(g->id) : nullptr;
+            if (o && g->site < connectionSiteCount(*o)) out.push_back(Attach{g, connectionSite(*o, g->site)});
+        }
+    });
+    return out;
+}
+
+// Each of those ends goes to the site of a new shape that is where it was (the middle of a side of the new shape's frame); an end with none is let go where it was.
+void reattach(const QVector<Attach> &ends, const QVector<std::shared_ptr<ShapeItem>> &shapes)
+{
+    for (const Attach &e : ends) {
+        *e.glue = LineItem::Glue();
+        for (const auto &s : shapes) {
+            bool found = false;
+            for (int j = 0, n = connectionSiteCount(*s); j < n && !found; ++j)
+                if (QLineF(connectionSite(*s, j), e.at).length() < 0.5) {
+                    e.glue->id = s->id;
+                    e.glue->site = j;
+                    found = true;
+                }
+            if (found) break;
+        }
+    }
+}
+
+bool hasText(const Document &doc, const ShapeItem &s)
+{
+    const QTextDocument *d = s.storyId.isEmpty() ? nullptr : doc.storyDoc(s.storyId);
+    return d && !d->isEmpty();
 }
 
 } // namespace
@@ -59,23 +105,59 @@ static bool pickShapes(Document &doc, const QStringList &ids, QVector<ShapeItem 
     return true;
 }
 
-bool Editor::mergeShapes(pathops::Op op, QString *why, int *made)
+int Editor::mergeTextCount() const
+{
+    int n = 0;
+    for (const QString &id : topLevelSelection())
+        if (const auto *s = dynamic_cast<const ShapeItem *>(m_doc->item(id)); s && hasText(*m_doc, *s)) ++n;
+    return n;
+}
+
+bool Editor::mergeShapes(pathops::Op op, QString *why, int *made, int *textRemoved)
 {
     if (made) *made = 0;
+    if (textRemoved) *textRemoved = 0;
     QVector<ShapeItem *> shapes;
     ItemList *list = nullptr;
     if (!pickShapes(*m_doc, topLevelSelection(), &shapes, &list, why, true)) return false;
     QVector<QPainterPath> outlines;
     for (const ShapeItem *s : shapes) outlines << pageOutline(*s);
     int refused = 0;
-    const QVector<QPainterPath> result = pathops::merge(op, outlines, &refused);
+    QVector<QPainterPath> result;
+    if (const qint64 work = pathops::estimateWork(op, outlines); work <= pathops::kQuickWork || work > pathops::kMostWork) {   // (one past the most is refused at once, so it needs no box)
+        result = pathops::merge(op, outlines, &refused);
+    } else {
+        // (the work is counted before it starts and refused past pathops::kMostWork; what is left runs on a thread of its own, and the window stays alive and can cancel it)
+        std::atomic<bool> cancel{false};
+        QEventLoop loop;
+        Q_EMIT busyStarted(tr("Merging shapes…"), &cancel);
+        {
+            WorkThread worker([&] {
+                result = pathops::merge(op, outlines, &refused, [&](int step, int) {
+                    if (mergeStepHook) mergeStepHook(step, cancel);
+                    return !cancel.load();
+                });
+                QMetaObject::invokeMethod(&loop, &QEventLoop::quit, Qt::QueuedConnection);
+            });
+            if (worker.started()) loop.exec();
+            else result = pathops::merge(op, outlines, &refused);
+        }
+        Q_EMIT busyEnded();
+    }
     if (result.isEmpty()) {
-        if (why) *why = refused == 0 ? tr("The shapes leave nothing.") : refused == 2 ? tr("That would cut the shapes into too many pieces.") : tr("The shapes are too complex to merge.");
+        if (why)
+            *why = refused == 0 ? tr("The shapes leave nothing.") : refused == 2 ? tr("That would cut the shapes into too many pieces.") : refused == 3 ? tr("The shapes are too complex to merge in a reasonable time.")
+                : refused == 4 ? tr("Cancelled. The shapes are as they were.") : tr("The shapes are too complex to merge.");
         return false;
     }
     const ShapeItem first = *shapes.first();   // (a copy: the shapes go from the list below)
     QStringList gone;
-    for (const ShapeItem *s : shapes) gone << s->id;
+    int withText = 0;
+    for (const ShapeItem *s : shapes) {
+        gone << s->id;
+        if (hasText(*m_doc, *s)) ++withText;
+    }
+    const QVector<Attach> ends = attachedTo(*m_doc, gone);
     int at = int(list->size());
     for (int i = 0; i < list->size(); ++i)
         if (gone.contains((*list)[i]->id)) at = std::min(at, i);
@@ -84,14 +166,18 @@ bool Editor::mergeShapes(pathops::Op op, QString *why, int *made)
     list->erase(std::remove_if(list->begin(), list->end(), [&](const ItemPtr &it) { return gone.contains(it->id); }), list->end());
     at = std::min(at, int(list->size()));
     QStringList ids;
+    QVector<std::shared_ptr<ShapeItem>> made2;
     for (const QPainterPath &p : result) {
         const auto s = shapeWith(first, p);
         list->insert(list->begin() + at++, s);
         ids << s->id;
+        made2 << s;
     }
+    reattach(ends, made2);
     select(ids);
     endChange();
     if (made) *made = int(result.size());
+    if (textRemoved) *textRemoved = withText;
     return true;
 }
 
@@ -132,14 +218,16 @@ bool Editor::convertOutline(Convert how, QString *why)
         }
         if (how == Convert::Contour) {
             // The outline of the line is the new shape, filled with the line's color and with no line.
-            const auto c = shapeWith(*s, to[i]);
+            const auto c = shapeWith(*s, to[i], true);
             c->fill = Fill::solid(s->stroke.color);
             c->stroke = Stroke::none();
+            const QVector<Attach> ends = attachedTo(*m_doc, QStringList{s->id});
             for (ItemPtr &slot : *list)
                 if (slot.get() == s) {
                     slot = c;
                     break;
                 }
+            reattach(ends, QVector<std::shared_ptr<ShapeItem>>{c});
             ids << c->id;
         } else {
             // (a shape with its own outline has the four sites of its sides, not its preset's: a connector attached to one keeps its side, and one attached to a glue point its number)
@@ -194,16 +282,20 @@ bool Editor::breakApart(QString *why, int *made)
             continue;
         }
         const ShapeItem look = *s;
+        const QVector<Attach> ends = attachedTo(*m_doc, QStringList{s->id});
+        QVector<std::shared_ptr<ShapeItem>> pieces;
         int at = 0;
         for (int k = 0; k < list->size(); ++k)
             if ((*list)[k].get() == s) at = k;
         list->erase(list->begin() + at);   // (s is not used after this)
         for (const QPainterPath &p : parts[i]) {
-            const auto c = shapeWith(look, p);
+            const auto c = shapeWith(look, p, pieces.isEmpty());   // (the text stays with the first piece)
             list->insert(list->begin() + at++, c);
+            pieces << c;
             ids << c->id;
             ++count;
         }
+        reattach(ends, pieces);
     }
     select(ids);
     endChange();

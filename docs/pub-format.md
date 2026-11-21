@@ -754,8 +754,9 @@ the style, left out for 1 2 3: 1 = I II III, 2 = i ii iii, 3 = A B C, and
 Confirmed October 2026 by numbering sections in Publisher 2021, saving,
 and comparing the streams; then by opening JeffPub's own files in Publisher,
 which read back start 5 in lowercase roman numerals and drew v, vi, vii.
-JeffPub numbers a publication one way, so it writes one section and, when
-opening a file whose later sections number on their own, keeps the first.
+JeffPub writes an entry for the first page and one for each page that starts
+a section (Insert Section), with the style its pages show, and reads them all
+back (at most 1,000).
 
 ### Text wrapping
 

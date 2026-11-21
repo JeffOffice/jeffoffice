@@ -67,6 +67,11 @@
 #include <QMimeData>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QDialog>
+#include <QLabel>
+#include <QProgressBar>
+#include <QVBoxLayout>
+#include "app/uistyle.h"
 #include "app/plaintext.h"
 #include "app/pagefonts.h"
 #include "app/readaloud.h"
@@ -963,19 +968,60 @@ void MainWindow::createActions()
         statusBar()->showMessage(tr("Drag a point to reshape. Ctrl+click a point to delete it, or an edge to add one. Shift+click puts a glue point for connectors on the shape, or takes it away. Press Esc when done."), 10000);
     });
     // Merge Shapes and Convert (libs/page/app/editor_shapes.cpp): the result or the reason it was refused goes on the status bar.
-    auto shapeResult = [this](bool ok, const QString &why, int made) {
-        if (!ok) statusBar()->showMessage(why, 6000);
-        else if (made > 1) statusBar()->showMessage(tr("Made %n shapes.", "", made), 6000);
+    auto shapeResult = [this](bool ok, const QString &why, int made, int textRemoved = 0) {
+        QString message = !ok ? why : made > 1 ? tr("Made %n shapes.", "", made) : QString();
+        if (ok && textRemoved > 0) message += (message.isEmpty() ? QString() : QStringLiteral(" ")) + tr("The text in the merged shapes was removed.");
+        if (!message.isEmpty()) statusBar()->showMessage(message, 6000);
     };
+    // The box over a merge that runs on a worker thread (libs/page/app/editor_shapes.cpp): Cancel stops it at its next step, and the shapes stay as they were.
+    connect(ed, &Editor::busyStarted, this, [this](const QString &text, std::atomic<bool> *cancel) {
+        auto *box = new QDialog(this);
+        box->setObjectName(QStringLiteral("busyBox"));
+        box->setAttribute(Qt::WA_DeleteOnClose);
+        box->setWindowModality(Qt::WindowModal);
+        box->setWindowTitle(tr("Merge Shapes"));
+        auto *lay = new QVBoxLayout(box);
+        auto *label = new QLabel(text, box);
+        label->setTextFormat(Qt::PlainText);
+        auto *bar = new QProgressBar(box);
+        bar->setRange(0, 0);
+        auto *buttons = new jp::ButtonBox(QDialogButtonBox::Cancel, box);
+        lay->addWidget(label);
+        lay->addWidget(bar);
+        lay->addWidget(buttons);
+        connect(buttons, &QDialogButtonBox::rejected, box, [this, cancel, label, buttons] {
+            cancel->store(true);
+            label->setText(tr("Cancelling…"));
+            buttons->setEnabled(false);
+        });
+        connect(box, &QDialog::rejected, box, [cancel] { cancel->store(true); });
+        box->show();
+    });
+    connect(ed, &Editor::busyEnded, this, [this] {
+        for (QDialog *d : findChildren<QDialog *>(QStringLiteral("busyBox"), Qt::FindDirectChildrenOnly)) {
+            d->disconnect();
+            d->close();
+        }
+    });
     const struct { const char *id; pathops::Op op; const char *icon; } merges[] = {{"shape.union", pathops::Op::Union, "combine"}, {"shape.combine", pathops::Op::Combine, "merge"},
         {"shape.subtract", pathops::Op::Subtract, "square-minus"}, {"shape.intersect", pathops::Op::Intersect, "blend"}, {"shape.fragment", pathops::Op::Fragment, "slice"}};
     const QString mergeNames[] = {tr("Union"), tr("Combine"), tr("Subtract"), tr("Intersect"), tr("Fragment")};
     for (int i = 0; i < 5; ++i)
-        mk(QLatin1String(merges[i].id), mergeNames[i], merges[i].icon, QKeySequence(), [ed, shapeResult, op = merges[i].op] {
+        mk(QLatin1String(merges[i].id), mergeNames[i], merges[i].icon, QKeySequence(), [this, ed, shapeResult, op = merges[i].op] {
+            // (the text of the shapes goes: with more than one shape that has some, ask once first)
+            if (ed->mergeTextCount() > 1) {
+                jp::MessageBox box(QMessageBox::Question, tr("Merge Shapes"), tr("More than one of the shapes has text. Merging removes the text of all of them. Merge anyway?"), QMessageBox::NoButton, this);
+                box.setObjectName(QStringLiteral("mergeTextBox"));
+                box.setTextFormat(Qt::PlainText);
+                box.addButton(QMessageBox::Cancel);
+                QPushButton *go = box.addButton(tr("Merge"), QMessageBox::AcceptRole);
+                box.exec();
+                if (box.clickedButton() != go) return;
+            }
             QString why;
-            int made = 0;
-            const bool ok = ed->mergeShapes(op, &why, &made);
-            shapeResult(ok, why, made);
+            int made = 0, textRemoved = 0;
+            const bool ok = ed->mergeShapes(op, &why, &made, &textRemoved);
+            shapeResult(ok, why, made, textRemoved);
         });
     mk("shape.toCurve", tr("Convert to Curve"), "spline", QKeySequence(), [ed, shapeResult] { QString why; shapeResult(ed->convertOutline(Editor::Convert::Curve, &why), why, 0); });
     mk("shape.toPolygon", tr("Convert to Polygon"), "hexagon", QKeySequence(), [ed, shapeResult] { QString why; shapeResult(ed->convertOutline(Editor::Convert::Polygon, &why), why, 0); });

@@ -17,6 +17,9 @@
 #include <QTextCursor>
 #include <QTimer>
 
+#include <atomic>
+#include <functional>
+
 class QKeyEvent;
 class QLabel;
 class QMimeData;
@@ -301,9 +304,16 @@ public:
     // Merge Shapes: the selected shapes become one shape (union, combine, subtract, or intersect) or the pieces they cut one another into (fragment), made on the page
     // with the look of the shape selected first; the shapes it replaces go. At least two shapes, at most pathops::kMostShapes, none locked, in a group, or artwork. One
     // step of Undo; the new shapes are selected. False, with the reason in `why`, when it is refused or nothing is left. `*made` is the number of shapes it made.
-    bool mergeShapes(pathops::Op op, QString *why = nullptr, int *made = nullptr);
+    // The text of the shapes goes (a result has none): `*textRemoved` is the number of the shapes that had text, and mergeTextCount() is the same number for the selection, so that
+    // a window can ask first. A connector attached to a shape that is merged is attached to the result when the site it was at is a site of the result (the middle of a side of its
+    // frame) and is let go where it was otherwise. Work above pathops::kQuickWork is done on a worker thread while this waits in the event loop, with busyStarted() and
+    // busyEnded() around it (a window shows a box that sets `*cancel`; the shapes stay as they were then); mergeStepHook, for tests, is called on the worker before each step.
+    bool mergeShapes(pathops::Op op, QString *why = nullptr, int *made = nullptr, int *textRemoved = nullptr);
+    int mergeTextCount() const;
+    std::function<void(int step, std::atomic<bool> &cancel)> mergeStepHook;
     // Convert to Curve, Polygon, or Contour: each selected shape gets an outline of its own that Edit Points reshapes (the points of its curves, of straight lines, or of the
-    // outline of its line, which then is its fill). Break Apart: a shape with several subpaths becomes one shape for each. One step of Undo. The same refusals as above.
+    // outline of its line, which then is its fill). Break Apart: a shape with several subpaths becomes one shape for each. One step of Undo. The same refusals as above. The text of a
+    // shape stays with it (with the first of the pieces of a break apart), and a connector attached to a shape that is broken apart is treated as for a merge.
     enum class Convert { Curve, Polygon, Contour };
     bool convertOutline(Convert how, QString *why = nullptr);
     bool breakApart(QString *why = nullptr, int *made = nullptr);
@@ -462,6 +472,8 @@ public:
     QVector<QTextCursor> formatTargets() const;   // cursor(s) a formatting command applies to
 
 Q_SIGNALS:
+    void busyStarted(const QString &text, std::atomic<bool> *cancel);
+    void busyEnded();
     // Undo or redo is about to run (a step still being made by a control, which undo would wait for, may end first).
     void historyAboutToChange();
     void documentReplaced();

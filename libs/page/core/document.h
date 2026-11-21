@@ -656,6 +656,11 @@ private:
     mutable QMutex m_prevLock;
     mutable bool m_prevBuilt = false;
     mutable QHash<QString, QString> m_prevOf;   // a box's id -> the id of the box that links to it
+    // Where the page numbers begin again and where the format changes, made once after a change (dropChainIndex) so that a lookup is a binary search: the (1-based) page, and
+    // for a number the number it shows there or for a format the format's index. The first entry of each is the first page, whose number and format are the setup's.
+    mutable bool m_sectionsBuilt = false;
+    mutable QVector<int> m_numPage, m_numAt, m_fmtPage, m_fmtAt;
+    void buildSections() const;
     mutable int m_scans = 0, m_indexings = 0;
 };
 

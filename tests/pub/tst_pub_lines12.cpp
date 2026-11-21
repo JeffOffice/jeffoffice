@@ -10,7 +10,12 @@
 #include "app/formatpresets.h"
 #include "core/texteffects.h"
 #include "text/textprops.h"
+#include <QDialogButtonBox>
 #include <QTextBlock>
+#include <QThread>
+#include <QTimer>
+#include <atomic>
+#include <cmath>
 #include <QAction>
 #include <QCheckBox>
 #include <QComboBox>
@@ -65,6 +70,81 @@ class PubLines12Tests : public QObject {
         if (!w.saveTo(path)) return nullptr;
         holder = std::make_unique<jp::MainWindow>();
         return holder->openFile(path) ? holder.get() : nullptr;
+    }
+
+    // ---- review fixes (Nov 21): holes, counted work, text, connectors
+    static QPainterPath squarePath(double x0, double y0, double x1, double y1, bool reversed = false)
+    {
+        QPainterPath p;
+        if (!reversed) {
+            p.moveTo(x0, y0);
+            p.lineTo(x1, y0);
+            p.lineTo(x1, y1);
+            p.lineTo(x0, y1);
+        } else {
+            p.moveTo(x0, y0);
+            p.lineTo(x0, y1);
+            p.lineTo(x1, y1);
+            p.lineTo(x1, y0);
+        }
+        p.closeSubpath();
+        return p;
+    }
+    static bool covers(const QVector<QPainterPath> &parts, const QPointF &at)
+    {
+        for (const QPainterPath &p : parts)
+            if (p.contains(at)) return true;
+        return false;
+    }
+    // A ring: the outer square and the inner one wound the same way under the odd-even rule (what a shape that is filled with holes has), or opposite ways under winding.
+    static QPainterPath donutPath(bool oddEven)
+    {
+        QPainterPath p = squarePath(50, 50, 250, 250);
+        p.addPath(squarePath(100, 100, 200, 200, !oddEven));
+        p.setFillRule(oddEven ? Qt::OddEvenFill : Qt::WindingFill);
+        return p;
+    }
+    // A five-pointed star drawn with one stroke that crosses itself (its middle is a pentagon the odd-even rule leaves empty and winding fills).
+    static QPainterPath pentagram(bool oddEven)
+    {
+        QPainterPath p;
+        for (int i = 0; i < 5; ++i) {
+            const double a = -M_PI / 2 + 2 * M_PI * ((i * 2) % 5) / 5;
+            const QPointF q(150 + 100 * std::cos(a), 150 + 100 * std::sin(a));
+            if (i) p.lineTo(q);
+            else p.moveTo(q);
+        }
+        p.closeSubpath();
+        p.setFillRule(oddEven ? Qt::OddEvenFill : Qt::WindingFill);
+        return p;
+    }
+    // A scribble of n corners in a 100 point square: it crosses itself a great deal. (Made from a fixed sequence: the same on every machine.)
+    static QPainterPath scribble(int n, quint32 seed)
+    {
+        quint32 s = seed * 2654435761u + 12345u;
+        QPainterPath p;
+        for (int i = 0; i < n; ++i) {
+            s = s * 1664525u + 1013904223u;
+            const double x = (s >> 8) % 1000 / 10.0;
+            s = s * 1664525u + 1013904223u;
+            const double y = (s >> 8) % 1000 / 10.0;
+            if (i) p.lineTo(x, y);
+            else p.moveTo(x, y);
+        }
+        p.closeSubpath();
+        return p;
+    }
+    static QPainterPath starPath(int n, int step, double radius, double cx, double cy)
+    {
+        QPainterPath p;
+        for (int i = 0; i < n; ++i) {
+            const double a = 2 * M_PI * (qint64(i) * step % n) / n;
+            const QPointF q(cx + radius * std::cos(a), cy + radius * std::sin(a));
+            if (i) p.lineTo(q);
+            else p.moveTo(q);
+        }
+        p.closeSubpath();
+        return p;
     }
 
 private Q_SLOTS:
@@ -564,6 +644,634 @@ private Q_SLOTS:
         hostile.fromJson(json);
         QCOMPARE(int(hostile.gluePoints.size()), jp::kMostGluePoints);
         for (const QPointF &q : hostile.gluePoints) QVERIFY(q.x() >= 0 && q.x() <= 1 && q.y() == 0);
+    }
+    // Three shapes inside one another, in every operation: what each covers is what it should (the holes between them stay empty).
+    void nestedShapesKeepTheirHolesInEveryOperation()
+    {
+        using namespace jp::pathops;
+        const QVector<QPainterPath> nest{squarePath(50, 50, 250, 250), squarePath(100, 100, 200, 200), squarePath(140, 140, 160, 160)};
+        struct Want { Op op; bool ring, between, middle; int count; } wants[] = {
+            {Op::Union, true, true, true, 1}, {Op::Combine, true, false, true, 1}, {Op::Subtract, true, false, false, 1}, {Op::Intersect, false, false, true, 1}, {Op::Fragment, true, true, true, 3}};
+        for (const Want &w : wants) {
+            int refused = -1;
+            const QVector<QPainterPath> out = merge(w.op, nest, &refused);
+            QVERIFY2(!out.isEmpty(), qPrintable(QString::number(int(w.op)) + " refused " + QString::number(refused)));
+            QCOMPARE(int(out.size()), w.count);
+            QCOMPARE(covers(out, QPointF(70, 70)), w.ring);
+            QCOMPARE(covers(out, QPointF(120, 120)), w.between);
+            QCOMPARE(covers(out, QPointF(150, 150)), w.middle);
+            QVERIFY(!covers(out, QPointF(30, 30)));
+            for (const QPainterPath &p : out) QCOMPARE(p.fillRule(), Qt::OddEvenFill);
+        }
+    }
+
+    // A ring (under either fill rule) with another shape in each operation, and the result of a step used in the next: the hole stays a hole.
+    void aRingKeepsItsHoleWhateverIsDoneWithIt()
+    {
+        using namespace jp::pathops;
+        const QPainterPath far = squarePath(400, 400, 450, 450), big = squarePath(0, 0, 300, 300), part = squarePath(40, 40, 150, 150);
+        for (bool oddEven : {true, false}) {
+            const QPainterPath ring = donutPath(oddEven);
+            const QString rule = oddEven ? QStringLiteral("odd-even") : QStringLiteral("winding");
+            for (Op op : {Op::Union, Op::Combine, Op::Subtract, Op::Intersect, Op::Fragment}) {
+                const QVector<QPainterPath> out = merge(op, {ring, op == Op::Intersect ? big : far});
+                QVERIFY2(!out.isEmpty(), qPrintable(rule + " " + QString::number(int(op))));
+                QVERIFY2(!covers(out, QPointF(150, 150)), qPrintable(rule + " hole, op " + QString::number(int(op))));
+                QVERIFY2(covers(out, QPointF(70, 70)), qPrintable(rule + " ring, op " + QString::number(int(op))));
+                QCOMPARE(covers(out, QPointF(420, 420)), op == Op::Union || op == Op::Combine || op == Op::Fragment);
+            }
+            // The shape that covers half the hole fills that half and no more.
+            const QVector<QPainterPath> half = merge(Op::Union, {ring, part});
+            QVERIFY(covers(half, QPointF(120, 120)));
+            QVERIFY(!covers(half, QPointF(180, 180)));
+            // Steps in a row: a square minus a square, then the result with a far shape (the result of the first step is a ring that has the winding of its own).
+            const QVector<QPainterPath> first = merge(Op::Subtract, {squarePath(50, 50, 250, 250), squarePath(100, 100, 200, 200)});
+            QCOMPARE(int(first.size()), 1);
+            const QVector<QPainterPath> second = merge(Op::Union, {first[0], far});
+            QVERIFY(!covers(second, QPointF(150, 150)));
+            QVERIFY(covers(second, QPointF(70, 70)) && covers(second, QPointF(420, 420)));
+            const QVector<QPainterPath> third = merge(Op::Union, {ring, far, squarePath(500, 500, 520, 520)});
+            QVERIFY(!covers(third, QPointF(150, 150)));
+            QVERIFY(covers(third, QPointF(510, 510)));
+        }
+    }
+
+    // A path that crosses itself keeps the fill rule it has: its middle is empty under odd-even and filled under winding, in every operation.
+    void aStarThatCrossesItselfKeepsItsFillRule()
+    {
+        using namespace jp::pathops;
+        const QPainterPath far = squarePath(400, 400, 450, 450), big = squarePath(0, 0, 400, 400);
+        for (bool oddEven : {true, false}) {
+            for (Op op : {Op::Union, Op::Combine, Op::Subtract, Op::Intersect, Op::Fragment}) {
+                const QVector<QPainterPath> out = merge(op, {pentagram(oddEven), op == Op::Intersect ? big : far});
+                QVERIFY(!out.isEmpty());
+                QCOMPARE(covers(out, QPointF(150, 150)), !oddEven);
+                QVERIFY(covers(out, QPointF(150, 150 - 85)));   // (a point of the upper tip)
+                QVERIFY(!covers(out, QPointF(5, 5)));
+            }
+        }
+    }
+
+    // The same through the window: a ring made by Subtract, merged again with a far shape, saved and opened again: the hole is empty at each stage, and the outline keeps its rule.
+    void aRingMergedAgainKeepsItsHoleThroughSaveAndOpen()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        jp::MainWindow w;
+        w.resize(1200, 900);
+        w.show();
+        jp::Editor *ed = w.editor();
+        ed->setDocument(jp::Document::blank(QSizeF(612, 792)));
+        const QString outer = addShape(ed, QRectF(50, 50, 200, 200)), inner = addShape(ed, QRectF(100, 100, 100, 100));
+        ed->select(QStringList{outer, inner});
+        fire(w, "shape.subtract");
+        QCOMPARE(shapeCount(ed), 1);
+        QVERIFY(!filled(ed, 150, 150) && filled(ed, 70, 70));
+        const QString ring = ed->doc()->pages[0]->items[0]->id, far = addShape(ed, QRectF(400, 400, 50, 50));
+        ed->select(QStringList{ring, far});
+        fire(w, "shape.union");
+        QCOMPARE(shapeCount(ed), 1);
+        QVERIFY(!filled(ed, 150, 150));   // (the hole comes back filled when the outline is merged under the winding rule)
+        QVERIFY(filled(ed, 70, 70) && filled(ed, 420, 420));
+        QCOMPARE(shapeAt(ed, 0)->customPath.fillRule(), Qt::OddEvenFill);
+        std::unique_ptr<jp::MainWindow> holder;
+        jp::MainWindow *again = reopened(w, dir, holder);
+        QVERIFY(again);
+        QCOMPARE(shapeCount(again->editor()), 1);
+        QVERIFY(!filled(again->editor(), 150, 150));
+        QVERIFY(filled(again->editor(), 70, 70) && filled(again->editor(), 420, 420));
+        // A shape with holes of its own under the odd-even rule (two squares wound the same way) merged with another.
+        ed->setDocument(jp::Document::blank(QSizeF(612, 792)));
+        const QString donut = addShape(ed, QRectF(50, 50, 200, 200));
+        shapeAt(ed, 0)->customPath = QTransform::fromTranslate(-50, -50).map(donutPath(true));
+        QVERIFY(!filled(ed, 150, 150));
+        const QString other = addShape(ed, QRectF(400, 400, 50, 50), QStringLiteral("rect"), Qt::blue);
+        ed->select(QStringList{donut, other});
+        fire(w, "shape.combine");
+        QCOMPARE(shapeCount(ed), 1);
+        QVERIFY(!filled(ed, 150, 150));
+        QVERIFY(filled(ed, 70, 70) && filled(ed, 420, 420));
+        QVERIFY(reopened(w, dir, holder));
+        QVERIFY(!filled(holder->editor(), 150, 150));
+    }
+
+    // The work is counted before it is done, and a command whose work passes the budget is refused (nothing is run). The four inputs that froze the window for minutes
+    // (all within the element limits) are refused for every operation; the count is the test, not a time.
+    void workIsCountedAndRefusedBeforeItIsDone()
+    {
+        using namespace jp::pathops;
+        QVector<QVector<QPainterPath>> cases(4);
+        for (int i = 0; i < 4; ++i) cases[0] << starPath(5999, 2999, 100, i * 3, i * 2);
+        for (int i = 0; i < 64; ++i) cases[1] << starPath(370, 171, 100, i * 0.5, 0);
+        for (int i = 0; i < 64; ++i) cases[2] << scribble(370, i + 1);
+        for (int i = 0; i < 4; ++i) cases[3] << scribble(5990, i + 1);
+        for (int c = 0; c < cases.size(); ++c) {
+            qint64 total = 0;
+            for (const QPainterPath &p : cases[c]) {
+                QVERIFY(p.elementCount() <= kMostElements);   // (within the stated limits: the elements do not bound the work)
+                total += p.elementCount();
+            }
+            QVERIFY(total <= kMostTotalElements);
+            for (Op op : {Op::Union, Op::Combine, Op::Subtract, Op::Intersect, Op::Fragment}) {
+                const QString what = QStringLiteral("case %1, op %2").arg(c).arg(int(op));
+                QVERIFY2(estimateWork(op, cases[c]) > kMostWork, qPrintable(what));
+                int refused = -1;
+                qint64 done = -1;
+                QVERIFY2(merge(op, cases[c], &refused, {}, &done).isEmpty(), qPrintable(what));
+                QCOMPARE(refused, 3);
+                QCOMPARE(done, qint64(0));   // (refused before any step)
+            }
+        }
+        // What is only above the quick work is done, and counted: 64 ovals that overlap are cheap.
+        QVector<QPainterPath> ovals;
+        for (int i = 0; i < 64; ++i) {
+            QPainterPath o;
+            o.addEllipse(QPointF(i * 5, i * 3), 50, 40);
+            ovals << o;
+        }
+        qint64 done = -1;
+        QVERIFY(estimateWork(Op::Union, ovals) < kMostWork);
+        QCOMPARE(int(merge(Op::Union, ovals, nullptr, {}, &done).size()), 1);
+        QVERIFY(done > 0 && done <= kMostSteps);
+        // A scribble pair passes the first count and is refused by the count of a step, for Subtract and Intersect as for the others (the same growth checks on what the steps make).
+        const QVector<QPainterPath> pair{scribble(250, 7), scribble(250, 8)};
+        for (Op op : {Op::Union, Op::Subtract, Op::Intersect}) {
+            QVERIFY(estimateWork(op, pair) <= kMostWork);
+            int refused = -1;
+            qint64 spent = 0;
+            QVERIFY(merge(op, pair, &refused, {}, &spent).isEmpty());
+            QCOMPARE(refused, 3);
+            QVERIFY(spent > kMostSteps);
+        }
+        // The steps are counted: a progress function that says stop ends the merge at that step, refused as cancelled.
+        int steps = 0, refused = -1;
+        QVERIFY(merge(Op::Union, {squarePath(0, 0, 10, 10), squarePath(5, 5, 20, 20), squarePath(8, 8, 30, 30)}, &refused, [&](int step, int) { steps = step + 1; return step < 2; }).isEmpty());
+        QCOMPARE(refused, 4);
+        QCOMPARE(steps, 3);
+    }
+
+    // A merge above the quick work runs on a thread of its own with a box that cancels it; the result is one step of Undo, and a cancel leaves the shapes as they were.
+    void aLongMergeRunsOnAWorkerAndCanBeCancelled()
+    {
+        jp::MainWindow w;
+        w.resize(1200, 900);
+        w.show();
+        jp::Editor *ed = w.editor();
+        auto addScribbles = [&] {
+            ed->setDocument(jp::Document::blank(QSizeF(612, 792)));
+            QStringList ids;
+            QVector<QPainterPath> outlines;
+            for (int i = 0; i < 3; ++i) {
+                ids << addShape(ed, QRectF(10, 10, 100, 100));
+                shapeAt(ed, i)->customPath = scribble(150, 7 + i);
+                outlines << shapeAt(ed, i)->customPath.translated(10, 10);
+            }
+            ed->select(ids);
+            return outlines;
+        };
+        const QVector<QPainterPath> outlines = addScribbles();
+        QVERIFY(jp::pathops::estimateWork(jp::pathops::Op::Union, outlines) > jp::pathops::kQuickWork);
+        QVERIFY(jp::pathops::estimateWork(jp::pathops::Op::Union, outlines) <= jp::pathops::kMostWork);
+        QThread *main = QThread::currentThread();
+        std::atomic<int> steps{0};
+        std::atomic<bool> offMain{true};
+        ed->mergeStepHook = [&](int, std::atomic<bool> &) {
+            ++steps;
+            if (QThread::currentThread() == main) offMain = false;
+        };
+        bool boxShown = false;
+        int started = 0, ended = 0;
+        QMetaObject::Connection c1 = connect(ed, &jp::Editor::busyStarted, ed, [&](const QString &, std::atomic<bool> *) {
+            ++started;
+            auto *box = w.findChild<QDialog *>(QStringLiteral("busyBox"));
+            boxShown = box && box->isVisible() && box->findChild<QDialogButtonBox *>();
+        });
+        QMetaObject::Connection c2 = connect(ed, &jp::Editor::busyEnded, ed, [&] { ++ended; });
+        QString why;
+        int made = 0;
+        const int undoBefore = ed->undoStack()->count();
+        QVERIFY2(ed->mergeShapes(jp::pathops::Op::Union, &why, &made), qPrintable(why));
+        QCOMPARE(made, 1);
+        QCOMPARE(shapeCount(ed), 1);
+        QCOMPARE(ed->undoStack()->count(), undoBefore + 1);
+        QCOMPARE(ed->undoStack()->undoText(), QStringLiteral("Union"));
+        QVERIFY(boxShown);
+        QCOMPARE(started, 1);
+        QCOMPARE(ended, 1);
+        QVERIFY(steps > 0);
+        QVERIFY(offMain.load());
+        QTRY_VERIFY(!w.findChild<QDialog *>(QStringLiteral("busyBox")));
+        // Cancel in the box (pressed before the worker starts): the shapes stay, no step, and the message says so.
+        addScribbles();
+        steps = 0;
+        QObject::disconnect(c1);
+        c1 = connect(ed, &jp::Editor::busyStarted, ed, [&](const QString &, std::atomic<bool> *) {
+            auto *box = w.findChild<QDialog *>(QStringLiteral("busyBox"));
+            QVERIFY(box);
+            auto *buttons = box->findChild<QDialogButtonBox *>();
+            QVERIFY(buttons);
+            buttons->button(QDialogButtonBox::Cancel)->click();
+        });
+        const int undoAfter = ed->undoStack()->count();
+        QVERIFY(!ed->mergeShapes(jp::pathops::Op::Union, &why, &made));
+        QVERIFY(why.contains(QStringLiteral("Cancelled")));
+        QCOMPARE(shapeCount(ed), 3);
+        QCOMPARE(ed->undoStack()->count(), undoAfter);
+        QCOMPARE(steps.load(), 1);   // (stopped at the first step)
+        QTRY_VERIFY(!w.findChild<QDialog *>(QStringLiteral("busyBox")));
+        // Cancel from the worker's own step: the work stops at the next step (counted, not timed), and the shapes stay.
+        addScribbles();
+        QObject::disconnect(c1);
+        steps = 0;
+        ed->mergeStepHook = [&](int step, std::atomic<bool> &cancel) {
+            ++steps;
+            if (step == 2) cancel = true;
+        };
+        QVERIFY(!ed->mergeShapes(jp::pathops::Op::Union, &why, &made));
+        QCOMPARE(steps.load(), 3);
+        QCOMPARE(shapeCount(ed), 3);
+        QCOMPARE(ed->undoStack()->count(), undoAfter);
+        QObject::disconnect(c2);
+        ed->mergeStepHook = nullptr;
+    }
+
+    // Every outline a merge makes is closed (it ends where it began), so that the stroke of one joins at its start: a fragment of ovals and a rectangle had open ones.
+    void mergeResultsAreClosedOutlines()
+    {
+        using namespace jp::pathops;
+        QPainterPath e1, e2, r;
+        e1.addEllipse(0, 0, 100, 80);
+        e2.addEllipse(50, 20, 100, 80);
+        r.addRect(10, 10, 200, 30);
+        for (Op op : {Op::Union, Op::Combine, Op::Subtract, Op::Intersect, Op::Fragment}) {
+            const QVector<QPainterPath> out = merge(op, {e1, e2, r});
+            QVERIFY(!out.isEmpty());
+            for (const QPainterPath &p : out) {
+                QPointF start;
+                int open = 0;
+                for (int i = 0; i <= p.elementCount(); ++i) {
+                    const bool end = i == p.elementCount() || p.elementAt(i).type == QPainterPath::MoveToElement;
+                    if (end && i > 0 && QPointF(p.elementAt(i - 1)) != start) ++open;
+                    if (i < p.elementCount() && p.elementAt(i).type == QPainterPath::MoveToElement) start = p.elementAt(i);
+                }
+                QVERIFY2(open == 0, qPrintable(QStringLiteral("op %1: %2 outlines left open").arg(int(op)).arg(open)));
+            }
+        }
+        // The polygon of a curve is closed too, and a stroke of it joins at the start (the corner of a square is filled out to the point).
+        const QPainterPath square = polygon(squarePath(0, 0, 100, 100));
+        QVERIFY(contour(square, 10).contains(QPointF(-3, -3)));
+    }
+
+    // A merge that is far past the budget is refused with a message, and nothing opens a box.
+    void aMergeTooBigIsRefusedWithAMessage()
+    {
+        jp::MainWindow w;
+        w.resize(1200, 900);
+        w.show();
+        jp::Editor *ed = w.editor();
+        ed->setDocument(jp::Document::blank(QSizeF(612, 792)));
+        QStringList ids;
+        for (int i = 0; i < 4; ++i) {
+            ids << addShape(ed, QRectF(10, 10, 100, 100));
+            shapeAt(ed, i)->customPath = starPath(5999, 2999, 50, 50 + i * 3, 50 + i * 2);
+        }
+        ed->select(ids);
+        int started = 0;
+        connect(ed, &jp::Editor::busyStarted, ed, [&] { ++started; });
+        QString why;
+        fire(w, "shape.union");
+        QCOMPARE(shapeCount(ed), 4);
+        QCOMPARE(started, 0);
+        QVERIFY(ed->mergeShapes(jp::pathops::Op::Union, &why) == false);
+        QVERIFY(why.contains(QStringLiteral("too complex")));
+        QVERIFY(w.statusBar()->currentMessage().contains(QStringLiteral("too complex")));
+    }
+
+    // Text in shapes: Break Apart and Convert keep it, Merge removes it and says so (and asks once when more than one of the shapes has some).
+    void textInShapesIsKeptOrRemovedAsTheCommandSays()
+    {
+        jp::MainWindow w;
+        w.resize(1200, 900);
+        w.show();
+        jp::Editor *ed = w.editor();
+        auto textOf = [&](int i) {
+            const QString id = shapeAt(ed, i)->storyId;
+            const QTextDocument *d = id.isEmpty() ? nullptr : ed->doc()->storyDoc(id);
+            return d ? d->toPlainText() : QString();
+        };
+        auto withText = [&](const QRectF &r, const QString &text, const QColor &color = Qt::red) {
+            const QString id = addShape(ed, r, QStringLiteral("rect"), color);
+            auto *s = static_cast<jp::ShapeItem *>(ed->doc()->item(id));
+            s->storyId = ed->doc()->createStory(text);
+            return id;
+        };
+        // Break Apart: the first piece has the text.
+        ed->setDocument(jp::Document::blank(QSizeF(612, 792)));
+        const QString two = withText(QRectF(10, 10, 200, 50), QStringLiteral("Hello"));
+        QPainterPath halves = squarePath(0, 0, 50, 50);
+        halves.addPath(squarePath(150, 0, 200, 50));
+        shapeAt(ed, 0)->customPath = halves;
+        ed->select(two);
+        fire(w, "shape.breakApart");
+        QCOMPARE(shapeCount(ed), 2);
+        QCOMPARE(textOf(0), QStringLiteral("Hello"));
+        QVERIFY(shapeAt(ed, 1)->storyId.isEmpty());
+        ed->undo();
+        QCOMPARE(shapeCount(ed), 1);
+        QCOMPARE(textOf(0), QStringLiteral("Hello"));
+        // Convert (each of the three) keeps it, a contour too.
+        for (const char *id : {"shape.toCurve", "shape.toPolygon", "shape.toContour"}) {
+            ed->setDocument(jp::Document::blank(QSizeF(612, 792)));
+            const QString one = withText(QRectF(10, 10, 100, 50), QStringLiteral("Keep me"), Qt::red);
+            shapeAt(ed, 0)->stroke = jp::Stroke::line(jp::ColorRef::rgb(Qt::black), 4);
+            ed->select(one);
+            fire(w, id);
+            QCOMPARE(shapeCount(ed), 1);
+            QCOMPARE(textOf(0), QStringLiteral("Keep me"));
+        }
+        // Merge with one shape that has text: removed, and the status bar says so; no question.
+        ed->setDocument(jp::Document::blank(QSizeF(612, 792)));
+        const QString a = withText(QRectF(50, 50, 100, 100), QStringLiteral("Alpha")), b = addShape(ed, QRectF(100, 100, 100, 100), QStringLiteral("rect"), Qt::blue);
+        ed->select(QStringList{a, b});
+        QCOMPARE(ed->mergeTextCount(), 1);
+        bool asked = false;
+        QTimer watch;
+        QObject::connect(&watch, &QTimer::timeout, [&] {
+            if (auto *d = qobject_cast<QDialog *>(QApplication::activeModalWidget())) {
+                asked = true;
+                d->reject();
+            }
+        });
+        watch.start(20);
+        fire(w, "shape.union");
+        QVERIFY(!asked);
+        QCOMPARE(shapeCount(ed), 1);
+        QVERIFY(shapeAt(ed, 0)->storyId.isEmpty());
+        QVERIFY(w.statusBar()->currentMessage().contains(QStringLiteral("removed")));
+        // More than one with text: one question. Cancel leaves the shapes and their text; Merge removes it.
+        ed->setDocument(jp::Document::blank(QSizeF(612, 792)));
+        const QString c = withText(QRectF(50, 50, 100, 100), QStringLiteral("One")), d2 = withText(QRectF(100, 100, 100, 100), QStringLiteral("Two"), Qt::blue),
+                      e = withText(QRectF(300, 300, 50, 50), QStringLiteral("Three"));
+        ed->select(QStringList{c, d2, e});
+        QCOMPARE(ed->mergeTextCount(), 3);
+        watch.stop();
+        const int steps = ed->undoStack()->count();
+        withDialog([&] { fire(w, "shape.fragment"); }, QStringLiteral("mergeTextBox"), [&](QDialog *) {}, false);
+        QCOMPARE(shapeCount(ed), 3);
+        QCOMPARE(ed->undoStack()->count(), steps);
+        QCOMPARE(textOf(0), QStringLiteral("One"));
+        withDialog([&] { fire(w, "shape.union"); }, QStringLiteral("mergeTextBox"), [&](QDialog *box) {
+            QPushButton *go = nullptr;
+            for (QPushButton *p : box->findChildren<QPushButton *>())
+                if (p->text() == QStringLiteral("Merge")) go = p;
+            QVERIFY(go);
+            go->click();
+        });
+        QCOMPARE(shapeCount(ed), 1);
+        QVERIFY(shapeAt(ed, 0)->storyId.isEmpty());
+        QVERIFY(w.statusBar()->currentMessage().contains(QStringLiteral("removed")));
+    }
+
+    // A connector attached to a shape that is merged or broken apart follows the shape's new outline when the site it was at is a site of a new shape, and is let go where it was otherwise.
+    void connectorsFollowAMergedShapeWhenTheirSiteStays()
+    {
+        jp::MainWindow w;
+        w.resize(1200, 900);
+        w.show();
+        jp::Editor *ed = w.editor();
+        ed->setDocument(jp::Document::blank(QSizeF(612, 792)));
+        const QString a = addShape(ed, QRectF(50, 50, 100, 100)), b = addShape(ed, QRectF(100, 50, 100, 100)), far = addShape(ed, QRectF(300, 400, 40, 40), QStringLiteral("rect"), Qt::blue);
+        auto connect = [&](const QString &from, int site, const QString &to, int toSite) {
+            auto line = std::make_shared<jp::LineItem>();
+            line->start = jp::LineItem::Glue{from, site};
+            line->end = jp::LineItem::Glue{to, toSite};
+            ed->doc()->pages[0]->items.push_back(line);
+            return line->id;
+        };
+        const jp::ShapeItem *sa = static_cast<jp::ShapeItem *>(ed->doc()->item(a));
+        const int left = jp::connectionSiteOnSide(*sa, 1), right = jp::connectionSiteOnSide(*sa, 3);
+        const QString onLeft = connect(a, left, far, 0), onRight = connect(a, right, far, 0), onB = connect(b, jp::connectionSiteOnSide(*sa, 3), far, 0);
+        ed->doc()->routeConnectors();
+        auto line = [&](const QString &id) { return static_cast<jp::LineItem *>(ed->doc()->item(id)); };
+        const QPointF rightAt = line(onRight)->p1;
+        QCOMPARE(rightAt, QPointF(150, 100));
+        ed->select(QStringList{a, b});
+        fire(w, "shape.union");
+        QCOMPARE(shapeCount(ed), 5);   // (the union, the far shape, and the three connectors)
+        const QString merged = ed->selectedItems().first()->id;
+        // The left side of A is the left side of the union (its middle is at 50, 100): attached to the union. B's right side is the union's right side.
+        QCOMPARE(line(onLeft)->start.id, merged);
+        QCOMPARE(jp::connectionSite(*ed->doc()->item(merged), line(onLeft)->start.site), QPointF(50, 100));
+        QCOMPARE(line(onB)->start.id, merged);
+        QCOMPARE(jp::connectionSite(*ed->doc()->item(merged), line(onB)->start.site), QPointF(200, 100));
+        // A's right side is inside the union: not a site of it, so the connector is let go and stays where it was.
+        QVERIFY(line(onRight)->start.id.isEmpty());
+        QCOMPARE(line(onRight)->p1, rightAt);
+        QCOMPARE(line(onLeft)->end.id, far);   // (the other end is on a shape that stayed)
+        // Break Apart: the sides of the whole that are the sides of a piece stay attached, the top (the middle of the gap) is let go.
+        ed->setDocument(jp::Document::blank(QSizeF(612, 792)));
+        const QString whole = addShape(ed, QRectF(10, 10, 150, 50)), other = addShape(ed, QRectF(300, 400, 40, 40), QStringLiteral("rect"), Qt::blue);
+        QPainterPath halves = squarePath(0, 0, 50, 50);
+        halves.addPath(squarePath(100, 0, 150, 50));
+        shapeAt(ed, 0)->customPath = halves;
+        const jp::ShapeItem *sw = static_cast<jp::ShapeItem *>(ed->doc()->item(whole));
+        const QString l1 = connect(whole, jp::connectionSiteOnSide(*sw, 1), other, 0), l2 = connect(whole, jp::connectionSiteOnSide(*sw, 3), other, 0), l3 = connect(whole, jp::connectionSiteOnSide(*sw, 0), other, 0);
+        ed->doc()->routeConnectors();
+        const QPointF top = line(l3)->p1;
+        ed->select(whole);
+        fire(w, "shape.breakApart");
+        QCOMPARE(shapeCount(ed), 6);   // (the two pieces, the other shape, and the three connectors)
+        QCOMPARE(line(l1)->start.id, shapeAt(ed, 0)->id);
+        QCOMPARE(line(l2)->start.id, shapeAt(ed, 1)->id);
+        QVERIFY(line(l3)->start.id.isEmpty());
+        QCOMPARE(line(l3)->p1, top);
+    }
+
+    // A section starts with its page. Moved to the front, the page after it starts the section (the first page cannot); deleted, the page after it starts it; both in the step that moves or deletes.
+    void aSectionStartMovesWithItsPageAndIsNotLost()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        jp::MainWindow w;
+        w.resize(1200, 900);
+        w.show();
+        jp::Editor *ed = w.editor();
+        auto fresh = [&] {
+            ed->setDocument(jp::Document::blank(QSizeF(612, 792)));
+            ed->insertPages(0, 4, false, false);
+            QVERIFY(ed->startSection(2, 1, 3));   // (page 3 starts a section of its own: again from 1, in lowercase roman)
+        };
+        auto shown = [&](jp::Editor *e, int page) {
+            jp::FieldContext ctx;
+            ctx.doc = e->doc();
+            ctx.pageNumber = page;
+            return ctx.resolve(QStringLiteral("page"));
+        };
+        auto starts = [&](int i) { return ed->doc()->pages[i]->startsSection; };
+        fresh();
+        QCOMPARE(int(ed->doc()->pages.size()), 5);
+        // To the front: the old first page is page 2, and it starts the section.
+        int steps = ed->undoStack()->index();
+        ed->movePage(2, 0);
+        QCOMPARE(ed->undoStack()->index(), steps + 1);
+        QVERIFY(!starts(0) && starts(1) && !starts(2));
+        QCOMPARE(ed->doc()->pages[1]->sectionStart, 1);
+        QCOMPARE(ed->doc()->pages[1]->sectionFormat, 3);
+        QCOMPARE(ed->doc()->sectionCount(), 2);
+        const QStringList want{QStringLiteral("1"), QStringLiteral("i"), QStringLiteral("ii"), QStringLiteral("iii"), QStringLiteral("iv")};
+        for (int p = 1; p <= 5; ++p) QCOMPARE(shown(ed, p), want[p - 1]);
+        std::unique_ptr<jp::MainWindow> holder;
+        jp::MainWindow *again = reopened(w, dir, holder);   // (a section start on the first page is dropped on open: this one is not on it)
+        QVERIFY(again);
+        QCOMPARE(again->editor()->doc()->sectionCount(), 2);
+        for (int p = 1; p <= 5; ++p) QCOMPARE(shown(again->editor(), p), want[p - 1]);
+        ed->undo();
+        QVERIFY(starts(2) && !starts(0) && !starts(1));
+        // Elsewhere: the start goes with the page.
+        ed->movePage(2, 3);
+        QVERIFY(starts(3) && !starts(2));
+        QCOMPARE(ed->doc()->sectionCount(), 2);
+        ed->undo();
+        // A page that is not the section's first moves out of it and the section stays on its page.
+        ed->movePage(3, 0);
+        QVERIFY(starts(3) && !starts(0));
+        ed->undo();
+        // Deleted: the page after it starts the section, in the one step, and undo brings everything back.
+        steps = ed->undoStack()->index();
+        ed->deletePage(2);
+        QCOMPARE(ed->undoStack()->index(), steps + 1);
+        QCOMPARE(int(ed->doc()->pages.size()), 4);
+        QVERIFY(starts(2));
+        QCOMPARE(ed->doc()->pages[2]->sectionStart, 1);
+        QCOMPARE(ed->doc()->pages[2]->sectionFormat, 3);
+        QCOMPARE(ed->doc()->sectionCount(), 2);
+        ed->undo();
+        QCOMPARE(int(ed->doc()->pages.size()), 5);
+        QVERIFY(starts(2) && !starts(3));
+        // The last page of the publication starts the section and is deleted: the section goes with it.
+        ed->movePage(2, 4);
+        ed->deletePage(4);
+        QCOMPARE(ed->doc()->sectionCount(), 1);
+        // A section's page that becomes the first page (the page before it is deleted, or moved off) cannot start a section: what it numbered is the publication's own now.
+        ed->setDocument(jp::Document::blank(QSizeF(612, 792)));
+        ed->insertPages(0, 3, false, false);
+        QVERIFY(ed->startSection(1, 7, 4));
+        ed->deletePage(0);
+        QVERIFY(!starts(0));
+        QCOMPARE(ed->doc()->setup.firstPageNumber, 7);
+        QCOMPARE(ed->doc()->setup.pageNumberFormat, QStringLiteral("ROMAN"));
+        QCOMPARE(shown(ed, 1), QStringLiteral("VII"));
+        QCOMPARE(ed->doc()->sectionCount(), 1);
+        ed->undo();
+        QVERIFY(starts(1));
+        QCOMPARE(ed->doc()->setup.firstPageNumber, 1);
+        ed->movePage(0, 2);
+        QVERIFY(!starts(0));
+        QCOMPARE(ed->doc()->setup.firstPageNumber, 7);
+    }
+
+    // The numbers and formats a page shows are looked up in a table made once after a change: they are the ones counted the long way, whatever the sections; and the key a page number field
+    // is laid out under carries the number and format the page shows, so a section put in before the page lays it out again.
+    void sectionTableMatchesTheLongCountAndTheLayoutKeyFollowsIt()
+    {
+        jp::MainWindow w;
+        w.resize(1200, 900);
+        w.show();
+        jp::Editor *ed = w.editor();
+        ed->setDocument(jp::Document::blank(QSizeF(612, 792)));
+        ed->insertPages(0, 11, false, false);
+        auto longCount = [&](int page, QString *format) {
+            const jp::Document &d = *ed->doc();
+            int n = d.setup.firstPageNumber;
+            QString f = d.setup.pageNumberFormat;
+            const int upTo = std::min<int>(std::max(page, 1), int(d.pages.size()));
+            for (int i = 1; i < upTo; ++i) {
+                const jp::Page &p = *d.pages[i];
+                n = p.startsSection && p.sectionStart > 0 ? p.sectionStart : n + 1;
+                if (p.startsSection && p.sectionFormat >= 0) f = jp::Document::pageNumberFormats()[p.sectionFormat];
+            }
+            *format = f;
+            return n + (page > upTo ? page - upTo : 0);
+        };
+        auto check = [&] {
+            for (int page = -1; page <= int(ed->doc()->pages.size()) + 3; ++page) {
+                QString format;
+                const int n = longCount(page, &format);
+                QCOMPARE(ed->doc()->pageNumberShown(page), n);
+                QCOMPARE(ed->doc()->pageNumberFormatOf(page), format);
+            }
+        };
+        check();
+        QVERIFY(ed->startSection(3, 10, 3));
+        check();
+        QVERIFY(ed->startSection(5, 0, 2));
+        check();
+        QVERIFY(ed->startSection(8, 2, -1));
+        QVERIFY(ed->startSection(9, 0, 4));
+        check();
+        QVERIFY(ed->mergeSection(5));
+        check();
+        ed->movePage(3, 7);
+        check();
+        ed->deletePage(8);
+        check();
+        ed->undo();
+        check();
+        ed->doc()->setup.firstPageNumber = 4;   // (the first section's own numbering is read as it is, not kept in the table)
+        check();
+        // The layout key of a page number field on the last page.
+        ed->setDocument(jp::Document::blank(QSizeF(612, 792)));
+        ed->insertPages(0, 4, false, false);
+        jp::FieldContext ctx;
+        ctx.doc = ed->doc();
+        ctx.pageNumber = 5;
+        const QString plain = ctx.key(false);
+        QVERIFY(ed->startSection(2, 1, 0));   // (a section before the page: it shows 3, not 5)
+        const QString renumbered = ctx.key(false);
+        QVERIFY(renumbered != plain);
+        QVERIFY(ed->startSection(2, 1, 3));   // (the same number, in another format)
+        const QString reformatted = ctx.key(false);
+        QVERIFY(reformatted != renumbered);
+        QVERIFY(ed->mergeSection(2));
+        QCOMPARE(ctx.key(false), plain);
+    }
+
+    // The .pub file keeps every section's numbering: the start number, the style, and where it begins; a save and open of the app brings back what each page shows. A glue point is named as a loss.
+    void everySectionsNumberingIsKeptByAPubFile()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        jp::MainWindow w;
+        w.resize(1200, 900);
+        w.show();
+        jp::Editor *ed = w.editor();
+        ed->setDocument(jp::Document::blank(QSizeF(612, 792)));
+        ed->insertPages(0, 5, false, false);
+        ed->doc()->setup.firstPageNumber = 3;
+        QVERIFY(ed->startSection(2, 1, 3));    // lowercase roman from 1
+        QVERIFY(ed->startSection(4, 0, 2));    // goes on, in capital letters
+        QVERIFY(ed->startSection(5, 20, -1));  // from 20, in the same style
+        const QString path = dir.filePath(QStringLiteral("sections.pub"));
+        QVERIFY(w.saveTo(path));
+        auto holder = std::make_unique<jp::MainWindow>();
+        QVERIFY(holder->openFile(path));
+        const jp::Document &back = *holder->editor()->doc();
+        QCOMPARE(int(back.pages.size()), 6);
+        QCOMPARE(back.sectionCount(), 4);
+        for (int p = 1; p <= 6; ++p) {
+            QCOMPARE(back.pageNumberShown(p), ed->doc()->pageNumberShown(p));
+            QCOMPARE(back.pageNumberFormatOf(p), ed->doc()->pageNumberFormatOf(p));
+        }
+        QCOMPARE(back.pageNumberShown(6), 20);
+        QCOMPARE(back.pageNumberFormatOf(6), QStringLiteral("ALPHA"));
+        // What a copy to .pub loses is listed: nothing about the sections, and the glue points when a shape has some.
+        const QStringList plain = jp::publisherLosses(*ed->doc());
+        for (const QString &line : plain) QVERIFY(!line.contains(QStringLiteral("lue point")) && !line.contains(QStringLiteral("ection")));
+        const QString shape = addShape(ed, QRectF(100, 100, 80, 40));
+        QVERIFY(ed->addGluePoint(shape, QPointF(120, 120)));
+        bool named = false;
+        for (const QString &line : jp::publisherLosses(*ed->doc())) named = named || line.contains(QStringLiteral("lue points can"));
+        QVERIFY(named);
     }
 };
 

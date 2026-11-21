@@ -3608,11 +3608,13 @@ void MSPUBParser::parseStoryListChunk(librevenge::RVNGInputStream *input, const 
 // chunk's 2f): one record (00) per section with its first page (01) and,
 // unless the numbers continue from the section before, its start number (02);
 // 03 is the number style when not 1 2 3 (1 I II III, 2 i ii iii, 3 A B C,
-// 4 a b c). Checked by numbering sections in Publisher and saving.
+// 4 a b c). Checked by numbering sections in Publisher and saving. At most
+// 1000 sections are read.
 void MSPUBParser::parseSectionChunk(librevenge::RVNGInputStream *input, const ContentChunkReference &chunk)
 {
   unsigned length = readU32(input);
   bool first = true;
+  unsigned records = 0;
   while (stillReading(input, chunk.offset + length))
   {
     MSPUBBlockInfo info = parseBlock(input);
@@ -3623,19 +3625,21 @@ void MSPUBParser::parseSectionChunk(librevenge::RVNGInputStream *input, const Co
         MSPUBBlockInfo subInfo = parseBlock(input);
         if (subInfo.type == GENERAL_CONTAINER)
         {
-          unsigned start = 0, style = 0;
+          unsigned page = 0, start = 0, style = 0;
           while (stillReading(input, subInfo.dataOffset + subInfo.dataLength))
           {
             MSPUBBlockInfo field = parseBlock(input, true);
-            if (field.id == 0x02)
+            if (field.id == 0x01)
+              page = field.data;
+            else if (field.id == 0x02)
               start = field.data;
             else if (field.id == 0x03)
               style = field.data;
           }
           if (first)
             m_collector->setPageNumbering(start ? start : 1, style);
-          else if (start || style)
-            m_collector->setLaterSectionsNumbered();
+          else if (page > 1 && page < 100000 && ++records <= 1000)
+            m_collector->addSection(page, start, style);
           first = false;
         }
         skipBlock(input, subInfo);
