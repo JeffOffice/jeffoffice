@@ -713,6 +713,25 @@ private Q_SLOTS:
         QVERIFY2(qAbs(lines[1].baseline - lines[0].baseline - wanted) < 0.05, qPrintable(QString::number(lines[1].baseline - lines[0].baseline) + QStringLiteral(" vs ") + QString::number(wanted)));
     }
 
+    // A paragraph that ends in a line break has an empty last line, as tall as the text of the paragraph mark, which the last character run
+    // holds ([MS-PPT] 2.9.44: the runs cover the text and its terminating paragraph break): here 20 points, the text itself being 40.
+    void importBinaryEmptyLastLineIsTheParagraphMarksSize()
+    {
+        const QByteArray styles = pfRun(4, 0, 0) + cfRun(3, 0x20000, le(40, 2)) + cfRun(1, 0x20000, le(20, 2));
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, pptText(1, QStringLiteral("Hi\x0b"), styles)), &err);
+        QVERIFY2(d, qPrintable(err));
+        const TextItem *body = nullptr;
+        for (const auto &it : d->pages[0]->items)
+            if (it->role == QLatin1String("ph:body:1")) body = static_cast<const TextItem *>(it.get());
+        QVERIFY(body);
+        LayoutCache cache;
+        const auto lines = cache.textFrame(*d, *body, 1, RenderOptions()).layout->lineInfo(0);
+        QCOMPARE(int(lines.size()), 2);
+        QVERIFY2(qAbs(lines[0].rect.height() - 1.2 * 40) < 0.5, qPrintable(QString::number(lines[0].rect.height())));
+        QVERIFY2(qAbs(lines[1].rect.height() - 1.2 * 20) < 0.5, qPrintable(QString::number(lines[1].rect.height())));
+    }
+
     // Objects on a slide, on its master, and in a group don't wrap text around them: text and objects overlap there.
     void importBinaryObjectsDoNotWrapText()
     {

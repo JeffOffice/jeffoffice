@@ -4908,6 +4908,14 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         }
                     }
                     double single = singleOf(ranges, line.textStart(), std::max(1, line.textLength()), base);
+                    // (A slide's empty last line, after a line break that ends its paragraph, is as tall as the paragraph mark's text.)
+                    if (env.slideLines && line.textLength() == 0 && line.textStart() > 0) {
+                        QTextLayout::FormatRange mark;
+                        mark.start = line.textStart();
+                        mark.length = 1;
+                        mark.format = resolveCharFormat(b.charFormat(), env);
+                        single = singleOf({mark}, line.textStart(), 1, base);
+                    }
                     if (line.textStart() == 0) single = std::max(single, markerSingle);
                     double h = lineHeightFor(bf, scale, single);
                     if (env.lineCut > 0 && (bf.lineHeightType() == QTextBlockFormat::SingleHeight || bf.lineHeightType() == QTextBlockFormat::ProportionalHeight)) {

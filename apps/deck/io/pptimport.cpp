@@ -2785,7 +2785,15 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
 
         // The paragraph.
         const double size = first.size ? first.size : 18;
-        const QTextCharFormat blockFormat = charFormat(first, ctx);
+        // (A paragraph that ends in a line break has an empty last line, which is as tall as the paragraph mark's text: the run that holds the
+        // mark, not the one the paragraph starts in, sets it; [MS-PPT] 2.9.44 and the text body's terminating paragraph break.)
+        Cf markCf = first;
+        if (end > start && text.at(qsizetype(end - 1)) == QChar(0x0B))
+            if (const int i = cfIndex.at(end); i >= 0) {
+                markCf = base.cf;
+                mergeCf(markCf, g.cf.at(i).cf);
+            }
+        const QTextCharFormat blockFormat = charFormat(markCf, ctx);
         QTextBlockFormat bf;
         switch (pf.align) {
         case 1: bf.setAlignment(Qt::AlignHCenter); break;
