@@ -7418,6 +7418,28 @@ private Q_SLOTS:
         QVERIFY(withBook >= 1);
     }
 
+    // A chart that is only opened and saved again (the Current Selection box has read it) is written as the file had it, byte for byte.
+    void anUntouchedChartIsSavedAsTheFileHadIt()
+    {
+        auto source = textDoc({"x"});
+        QTextCursor c(source->story());
+        QCOMPARE(insertChart(*source, c, ChartForm::Line), PictureResult::Ok);
+        const QByteArray first = source->toDocx();
+        office::Package one;
+        QVERIFY(one.read(first));
+        const QByteArray part = one.part(QStringLiteral("/word/charts/chart1.xml"));
+        QVERIFY(!part.isEmpty());
+        auto doc = open(first);
+        QVERIFY(doc);
+        office::Chart read;
+        bool found = false;
+        for (int at = 0; at < 4 && !found; ++at) found = isDrawnObjectAt(doc->story(), at) && readChartAt(*doc, at, &read);
+        QVERIFY(found);
+        office::Package two;
+        QVERIFY(two.read(doc->toDocx()));
+        QCOMPARE(two.part(QStringLiteral("/word/charts/chart1.xml")), part);
+    }
+
     // The numbers of a chart that reads cells of the workbook kept with it are edited: the cells of the workbook and what the chart stores change together as one step of Undo, the file keeps one
     // chart part and one workbook (the new ones), and the saved workbook opens with the new numbers.
     void theNumbersOfAChartWithItsWorkbookAreEditedKeepingOneChartPartAndOneWorkbook()

@@ -8,6 +8,7 @@
 #include "office/theme.h"
 #include "sheet/chartops.h"
 
+#include <QHash>
 #include <QObject>
 #include <QString>
 #include <QStringList>
@@ -31,6 +32,9 @@ public:
     virtual bool chartNow(office::Chart *out) = 0;
     // The theme the chart is colored by.
     virtual office::Theme chartTheme() = 0;
+    // Which chart is selected, one number for each chart of the window that stays while the chart does (empty for a window that has one chart at a time and cannot say): the part of the chart
+    // chosen in Current Selection is kept for each.
+    virtual QString chartId() { return QString(); }
     // Changes the selected chart as one step named `label`: `edit` is given the chart. False when nothing was changed (no chart, or one that can't be changed, or no difference).
     virtual bool changeChart(const QString &label, const std::function<void(office::Chart *)> &edit) = 0;
     // Tells the person something (`warning`: a refusal, not just news).
@@ -107,14 +111,19 @@ public:
     // Current Selection: the part of the chart the Format commands act on, one of the list of chartPartNames (the chart area, the plot area, and each series). It is chosen in the box
     // partBox() makes (every box of the window shows the same one) or by selectPart; Format Selection opens Format Chart Part at it, and Reset to Match Style takes away what was set on it
     // (sheet/chartedit.h resetPartToStyle) as one step, or does nothing, and says so by returning false, when the part already matches its style.
-    QStringList partNames() const;
-    int currentPart() const { return m_part; }
+    // The part is kept for each chart, as a kind of part and, for a series, which one it is (by where its data is read from, or by its name and numbers: not by its place in the list), so
+    // that it is still the one chosen when series come and go; a part that is gone leaves the chart area chosen. The box shows what the commands act on: a command finds the chart changed
+    // since the box was filled, shows the box what is chosen now, and does nothing that time.
+    QStringList partNames() const { return m_names; }
+    int currentPart() const { return m_shown; }
     void selectPart(int index);
     void formatSelection();
     bool resetSelectionToStyle();
-    // The box that lists the parts. It is empty and off while no chart is selected; the window calls refreshParts when the selection or the chart changes.
+    // The box that lists the parts. It is empty and off while no chart is selected; the window calls refreshParts (which reads the chart, once) when the selection or the chart changes, or
+    // showParts with the chart it has read already (null: none is selected).
     QComboBox *partBox(QWidget *parent);
     void refreshParts();
+    void showParts(const office::Chart *chart);
 
     ChartDesignHost *host() const { return m_host; }
 
@@ -123,8 +132,20 @@ Q_SIGNALS:
     void partsChanged();
 
 private:
+    struct Pick {
+        int kind = 0;       // 0: the chart area, 1: the plot area, 2: a series
+        QString key;        // the series' (seriesKey)
+        int nth = 0;        // which of the series that have the key (a chart can have two of one name)
+    };
+    void formatPartOf(const office::Chart &chart, int part);
+    int resolve(const QStringList &keys, const Pick &pick) const;
+    // The chart as the box last showed it: false (and the box made right) when it is not the one that is selected now.
+    bool partsAreCurrent(const office::Chart &chart);
     ChartDesignHost *m_host;
-    int m_part = 0;
+    QStringList m_names, m_keys;
+    int m_shown = 0;
+    QString m_shownId;
+    QHash<QString, Pick> m_picks;
 };
 
 // The three buttons beside a selected chart: Chart Parts (the elements menu), Chart Looks (colors and looks), and Chart Filters (the series). They are children of `viewport`, which the app

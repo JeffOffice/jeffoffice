@@ -840,10 +840,12 @@ QWidget *CrunchWindow::chartParent() { return this; }
 bool CrunchWindow::chartNow(Chart *out)
 {
     const int id = pickedObject();
-    if (id < 0 || !m_objects || m_objects->kindOf(m_sheet, id) != ObjectKind::Chart) return false;
+    if (id < 0 || !m_session || m_saving || !m_objects || m_objects->kindOf(m_sheet, id) != ObjectKind::Chart) return false;
     *out = m_objects->chartNow(m_sheet, id);
     return true;
 }
+
+QString CrunchWindow::chartId() { return QString::number(m_sheet) + QLatin1Char('/') + QString::number(pickedObject()); }
 
 Theme CrunchWindow::chartTheme() { return m_objects ? m_objects->theme() : Theme(); }
 
@@ -897,7 +899,10 @@ void CrunchWindow::updateChartState()
     bool editable = false;
     if (chart) editable = m_objects->canEditChart(m_sheet, id);
     for (const char *name : {"chartdesign.selectData", "chartdesign.changeType", "chartdesign.switch", "chartdesign.formatPart", "chartdesign.formatSelection", "chartdesign.resetStyle"}) act(QString::fromLatin1(name))->setEnabled(editable);
-    m_design->refreshParts();
+    // (the chart is read once for this update: its elements and the Current Selection box are of that one read; while saving, or before a workbook is open, there is none)
+    Chart current;
+    const bool haveChart = chart && chartNow(&current);
+    m_design->showParts(haveChart ? &current : nullptr);
     {
         // (Move Chart needs a chart it can move: on a worksheet, a new chart sheet is always a place to go to; on a chart sheet, another worksheet is)
         bool other = false;
@@ -909,7 +914,7 @@ void CrunchWindow::updateChartState()
         act(QStringLiteral("chartdesign.moveChart"))->setEnabled(other);
     }
     {
-        const ChartElements e = editable && id >= 0 ? elementsOf(m_objects->chartNow(m_sheet, id)) : ChartElements();
+        const ChartElements e = editable && haveChart ? elementsOf(current) : ChartElements();
         act(QStringLiteral("chartdesign.axisH"))->setEnabled(e.hasHorizontal);
         act(QStringLiteral("chartdesign.axisV"))->setEnabled(e.hasVertical);
     }

@@ -15,6 +15,9 @@
 #include "app/crunchinfo.h"
 #include "app/help.h"
 #include "app/onlinepictures.h"
+#include "app/chartdesign.h"
+#include "app/keytips.h"
+#include "sheet/chartmake.h"
 #include "app/ribbon.h"
 #include "core/fonts.h"
 #include "core/objectclip.h"
@@ -1252,6 +1255,261 @@ private Q_SLOTS:
         e.win.w.objects()->layer()->select(-1);
         QTRY_COMPARE(box->count(), 0);
         QVERIFY(!box->isEnabled());
+    }
+
+    // Current Selection is kept for each chart and by the series' identity, not its place: it follows a series when another is taken out, falls back to the chart area when its own is gone, and
+    // Reset to Match Style then acts on what the box shows, never on another series; a second chart has its own part.
+    void currentSelectionFollowsItsSeriesAndItsChart()
+    {
+        const QVector<SeriesSpec> east = {SeriesSpec{QStringLiteral("Sheet1!$B$1"), QStringLiteral("Sheet1!$A$2:$A$4"), QStringLiteral("Sheet1!$B$2:$B$4"), QStringLiteral("East"), {"Q1", "Q2", "Q3"}, {10, 20, 30}, QString()}};
+        const QVector<SeriesSpec> west = {SeriesSpec{QStringLiteral("Sheet1!$C$1"), QStringLiteral("Sheet1!$A$2:$A$4"), QStringLiteral("Sheet1!$C$2:$C$4"), QStringLiteral("West"), {"Q1", "Q2", "Q3"}, {5, 10, 15}, QString()}};
+        const QString anchors = twoCell(4, 1, 11, 13, chartFrame(2, QStringLiteral("rIdC"), QStringLiteral("One"))) + twoCell(4, 14, 11, 26, chartFrame(3, QStringLiteral("rIdD"), QStringLiteral("Two")));
+        EditWindow e;
+        QVERIFY(e.open(bookWithDrawing({dataSheet()}, drawingPart(anchors), {chartTarget(QStringLiteral("rIdC"), 1, chartPart(QStringLiteral("barChart"), east)), chartTarget(QStringLiteral("rIdD"), 2, chartPart(QStringLiteral("barChart"), west))})));
+        QTRY_VERIFY(objectsShown(e, 2));
+        e.win.w.objects()->layer()->select(0);
+        QTRY_VERIFY(e.win.w.act(QStringLiteral("chartdesign.resetStyle"))->isEnabled());
+        Ribbon *r = e.win.w.ribbon();
+        r->showTab(r->tab(QStringLiteral("Chart")));
+        QComboBox *box = chartPartBoxOn(r->tab(QStringLiteral("Chart")));
+        QVERIFY(box);
+        QTRY_COMPARE(box->count(), 3);
+        // a second series, taken from the cells
+        auto changeSeries = [&](const std::function<void(jp::SelectDataDialog *)> &edit) {
+            e.win.w.setSelectDataAsker([&](const SelectDataRequest &request, Chart *result) -> bool {
+                jp::SelectDataDialog d(request);
+                edit(&d);
+                *result = d.result();
+                return true;
+            });
+            e.win.w.act(QStringLiteral("chartdesign.selectData"))->trigger();
+        };
+        changeSeries([&](jp::SelectDataDialog *d) {
+            ChartSeries more = d->seriesAt(0);
+            more.name = QStringLiteral("West");
+            more.nameRef = QStringLiteral("Sheet1!$C$1");
+            more.valueRef = QStringLiteral("Sheet1!$C$2:$C$4");
+            d->addSeries(more);
+        });
+        QTRY_COMPARE(box->count(), 4);
+        QCOMPARE(box->itemText(3), QStringLiteral("West"));
+        // each series its own color, set one at a time through Format Selection
+        pickChartPart(box, 2);
+        withDialog([&] { e.win.w.act(QStringLiteral("chartdesign.formatSelection"))->trigger(); }, QStringLiteral("formatChartPartDialog"), [](QDialog *d) {
+            auto *dialog = static_cast<jp::FormatChartPartDialog *>(d);
+            QCOMPARE(dialog->currentPart(), 2);
+            dialog->setFill(QColor(0x80, 0x20, 0x20));
+        });
+        pickChartPart(box, 3);
+        withDialog([&] { e.win.w.act(QStringLiteral("chartdesign.formatSelection"))->trigger(); }, QStringLiteral("formatChartPartDialog"), [](QDialog *d) {
+            auto *dialog = static_cast<jp::FormatChartPartDialog *>(d);
+            QCOMPARE(dialog->currentPart(), 3);
+            dialog->setFill(QColor(0x20, 0x40, 0x60));
+        });
+        QCOMPARE(partLookOf(chartOf(e), ChartPart::Series, 0).fill.name(), QStringLiteral("#802020"));
+        QCOMPARE(partLookOf(chartOf(e), ChartPart::Series, 1).fill.name(), QStringLiteral("#204060"));
+        // the first series is taken out: West is the chosen one still, in its new place, and Reset gives West its style's color
+        changeSeries([](jp::SelectDataDialog *d) { d->removeSeries(0); });
+        QTRY_COMPARE(box->count(), 3);
+        QCOMPARE(box->currentIndex(), 2);
+        QCOMPARE(box->currentText(), QStringLiteral("West"));
+        e.win.w.act(QStringLiteral("chartdesign.resetStyle"))->trigger();
+        QCOMPARE(partLookOf(chartOf(e), ChartPart::Series, 0).fill.name(), chartStyleSeriesColor(chartOf(e), 0, 1).name());
+        // West is taken out too, and a series put in its place (the same name: another series): the chart area is chosen, and Reset leaves the new series alone
+        changeSeries([&](jp::SelectDataDialog *d) {
+            ChartSeries other = d->seriesAt(0);
+            other.name = QStringLiteral("North");
+            other.nameRef = QStringLiteral("Sheet1!$B$1");
+            other.valueRef = QStringLiteral("Sheet1!$B$2:$B$4");
+            d->addSeries(other);
+            d->removeSeries(0);
+        });
+        QTRY_COMPARE(box->count(), 3);
+        QCOMPARE(box->currentIndex(), 0);
+        pickChartPart(box, 2);
+        withDialog([&] { e.win.w.act(QStringLiteral("chartdesign.formatSelection"))->trigger(); }, QStringLiteral("formatChartPartDialog"), [](QDialog *d) { static_cast<jp::FormatChartPartDialog *>(d)->setFill(QColor(0x11, 0x22, 0x33)); });
+        changeSeries([](jp::SelectDataDialog *d) {
+            ChartSeries more = d->seriesAt(0);
+            more.name = QStringLiteral("South");
+            more.nameRef = QStringLiteral("Sheet1!$C$1");
+            more.valueRef = QStringLiteral("Sheet1!$C$2:$C$4");
+            d->addSeries(more);
+            d->removeSeries(0);
+        });
+        QTRY_COMPARE(box->currentIndex(), 0);
+        QCOMPARE(box->count(), 3);
+        const int steps = e.win.w.session()->undoStack()->index();
+        e.win.w.act(QStringLiteral("chartdesign.resetStyle"))->trigger();   // (the chart area: nothing was set on it)
+        QCOMPARE(partLookOf(chartOf(e), ChartPart::Series, 0).fill.name(), QStringLiteral("#112233"));   // (the new series was copied from the one that had it)
+        QVERIFY(e.win.w.session()->undoStack()->index() <= steps + 1);
+        // the second chart has its own part, and the first keeps its own
+        pickChartPart(box, 2);
+        e.win.w.objects()->layer()->select(1);
+        QTRY_COMPARE(box->count(), 3);
+        QCOMPARE(box->currentIndex(), 0);
+        pickChartPart(box, 1);
+        e.win.w.objects()->layer()->select(0);
+        QTRY_COMPARE(box->currentIndex(), 2);
+        e.win.w.objects()->layer()->select(1);
+        QTRY_COMPARE(box->currentIndex(), 1);
+    }
+
+    // The box shows what Format Selection and Reset act on: a chart that changed under it (a series taken out, undone, or another chart picked) with no update in between is found out by the
+    // command, which shows the box what is chosen now and changes nothing that time, so no other series is reset in place of the one chosen.
+    void aCommandActsOnWhatTheBoxShowsAfterTheChartChanged()
+    {
+        struct Host : jp::ChartDesignHost {
+            Chart chart;
+            QString id = QStringLiteral("a");
+            int changes = 0;
+            QWidget *chartParent() override { return nullptr; }
+            bool chartNow(Chart *out) override
+            {
+                *out = chart;
+                return true;
+            }
+            QString chartId() override { return id; }
+            jp::office::Theme chartTheme() override { return jp::office::defaultTheme(); }
+            bool changeChart(const QString &, const std::function<void(Chart *)> &edit) override
+            {
+                const QByteArray before = writeChartPart(chart);
+                edit(&chart);
+                ++changes;
+                return writeChartPart(chart) != before;
+            }
+            void chartNotice(const QString &, const QString &, bool) override {}
+        } host;
+        QVector<ChartSeries> series;
+        for (int i = 0; i < 3; ++i) {
+            ChartSeries s;
+            s.name = QStringLiteral("S%1").arg(i + 1);
+            s.categories << "a" << "b";
+            s.values << i + 1.0 << i + 2.0;
+            series << s;
+        }
+        host.chart = chartFromSeries(series, QVector<SeriesKind>(3, SeriesKind{ChartKind::Column, false}), jp::office::defaultTheme());
+        for (int k = 0; k < 3; ++k) {
+            ChartPartLook look = partLookOf(host.chart, ChartPart::Series, k);
+            look.fill = QColor(0x10 * (k + 1), 0x20, 0x30);
+            setPartLook(&host.chart, ChartPart::Series, k, look);
+        }
+        jp::ChartDesign design(&host);
+        design.refreshParts();
+        QCOMPARE(design.partNames().size(), 5);
+        design.selectPart(4);
+        QCOMPARE(design.currentPart(), 4);
+        // series 3 is taken out; nobody told the design
+        const Chart before = host.chart;
+        const QVector<ChartSeries> fewer = {seriesOf(before)[0], seriesOf(before)[1]};
+        host.chart = chartFromSeries(fewer, QVector<SeriesKind>(2, SeriesKind{ChartKind::Column, false}), jp::office::defaultTheme(), &before);
+        QCOMPARE(int(partLookOf(host.chart, ChartPart::Series, 1).fill.red()), 0x20);
+        const QByteArray written = writeChartPart(host.chart);
+        QVERIFY(!design.resetSelectionToStyle());
+        QCOMPARE(host.changes, 0);
+        QCOMPARE(writeChartPart(host.chart), written);
+        QCOMPARE(design.currentPart(), 0);   // (the box shows the chart area now)
+        QCOMPARE(design.partNames().size(), 4);
+        // the same for Format Selection: nothing opens (a dialog that opened would block this test)
+        design.selectPart(3);
+        const Chart two = host.chart;
+        host.chart = chartFromSeries(QVector<ChartSeries>{seriesOf(two)[1], seriesOf(two)[0]}, QVector<SeriesKind>(2, SeriesKind{ChartKind::Column, false}), jp::office::defaultTheme(), &two);
+        design.formatSelection();
+        QCOMPARE(design.currentPart(), 2);   // (S2 is the first series now)
+        QCOMPARE(design.partNames().value(2), QStringLiteral("S2"));
+        // another chart picked: its own part (the chart area, as it has none yet), and the first keeps S2
+        host.id = QStringLiteral("b");
+        QVERIFY(!design.resetSelectionToStyle() || design.currentPart() == 0);
+        design.refreshParts();
+        QCOMPARE(design.currentPart(), 0);
+        host.id = QStringLiteral("a");
+        design.refreshParts();
+        QCOMPARE(design.currentPart(), 2);
+    }
+
+    // After a theme change the chart is read again (the themes branch's freshChart hook in apps/crunch/core/sheetobjects.cpp): the Current Selection box, Format Selection, and Reset to Match Style
+    // use that chart, with its new palette and its new style color. Ready for when the hook is there: pick a series, give it a color of its own, change the theme, then expect the box's series
+    // to be the ones of the re-read chart, Format Selection's dialog to show the re-read chart's colors, and Reset to give the new palette's color (chartStyleSeriesColor of the re-read chart).
+    void afterAThemeChangeTheBoxAndResetUseTheReReadChart()
+    {
+        QSKIP("the freshChart hook (SheetObjects, apps/crunch/core/sheetobjects.cpp) has not landed: the themes branch is not in origin/main yet");
+    }
+
+    // The window reads the chart once for a change of what is picked: the box and the chart's elements are of that one read (a cell read is counted).
+    void pickingAChartReadsItsCellsOnce()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithAChart()));
+        QTRY_VERIFY(objectsShown(e, 1));
+        const jp::office::sheet::ChartCells *cells = e.win.w.objects()->cells();
+        QVERIFY(cells);
+        const auto *counted = dynamic_cast<const jp::grid::WorkbookChartCells *>(cells);
+        QVERIFY(counted);
+        qint64 mark = counted->reads();
+        (void)chartOf(e);
+        const qint64 oneRead = counted->reads() - mark;
+        QVERIFY(oneRead > 0);
+        e.win.w.objects()->layer()->select(-1);
+        QTest::qWait(0);
+        mark = counted->reads();
+        e.win.w.objects()->layer()->select(0);
+        QTRY_VERIFY(e.win.w.act(QStringLiteral("chartdesign.resetStyle"))->isEnabled());
+        // (a pick is told to the window twice, by the picker and by the layer: one read for each, not three)
+        QVERIFY2(counted->reads() - mark <= 2 * oneRead, qPrintable(QString::number(counted->reads() - mark) + QStringLiteral(" reads, one read is ") + QString::number(oneRead)));
+    }
+
+    // The Current Selection box is reached by its KeyTip and by Tab among the group's controls, opens with Alt+Down, and takes the part with Enter: in the shared ribbon, so for every app.
+    void theCurrentSelectionBoxWorksFromTheKeyboard()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookWithAChart()));
+        QTRY_VERIFY(objectsShown(e, 1));
+        e.win.w.show();
+        QVERIFY(QTest::qWaitForWindowActive(&e.win.w));
+        e.win.w.objects()->layer()->select(0);
+        QTRY_VERIFY(e.win.w.act(QStringLiteral("chartdesign.resetStyle"))->isEnabled());
+        Ribbon *r = e.win.w.ribbon();
+        r->showTab(r->tab(QStringLiteral("Chart")));
+        QComboBox *box = chartPartBoxOn(r->tab(QStringLiteral("Chart")));
+        QVERIFY(box);
+        QTRY_COMPARE(box->count(), 3);
+        QTRY_VERIFY(box->isVisible());
+        KeyTips *tips = nullptr;
+        for (QObject *child : e.win.w.children())
+            if ((tips = dynamic_cast<KeyTips *>(child))) break;
+        QVERIFY(tips);
+        // its KeyTip: shown with the tab's, and typing it puts the focus in the box
+        tips->showTop();
+        QString tabLetters;
+        for (const auto &t : tips->shown())
+            if (auto *b = qobject_cast<QAbstractButton *>(t.second); b && b->objectName() == QLatin1String("jpRibbonTab") && b->text().contains(QLatin1String("Chart"))) tabLetters = t.first;
+        tips->hide();
+        QVERIFY(!tabLetters.isEmpty());
+        QTest::keyClick(&e.win.w, Qt::Key_Alt);
+        tips->showTop();
+        QTest::keyClicks(&e.win.w, tabLetters);
+        QTRY_COMPARE(int(tips->level()), int(KeyTips::InTab));
+        QWidget *tagged = nullptr;
+        for (const auto &t : tips->shown())
+            if (t.first == QLatin1String("CB")) tagged = t.second;
+        QCOMPARE(tagged, static_cast<QWidget *>(box));
+        QTest::keyClicks(&e.win.w, QStringLiteral("CB"));
+        QTRY_COMPARE(QApplication::focusWidget(), static_cast<QWidget *>(box));
+        // Alt+Down opens its list, Down then Enter takes the next part
+        QTest::keyClick(box, Qt::Key_Down, Qt::AltModifier);
+        QTRY_VERIFY(box->view()->isVisible());
+        QTest::keyClick(box->view(), Qt::Key_Down);
+        QTest::keyClick(box->view(), Qt::Key_Return);
+        QTRY_VERIFY(!box->view()->isVisible());
+        QCOMPARE(box->currentIndex(), 1);
+        // Tab goes on to the next control of the group (Format Selection), Shift+Tab back
+        box->setFocus();
+        QTest::keyClick(box, Qt::Key_Tab);
+        QWidget *next = QApplication::focusWidget();
+        QVERIFY(next && next != box);
+        auto *nextButton = qobject_cast<QToolButton *>(next);
+        QVERIFY(nextButton && nextButton->defaultAction() == e.win.w.act(QStringLiteral("chartdesign.formatSelection")));
+        QTest::keyClick(next, Qt::Key_Backtab, Qt::ShiftModifier);
+        QCOMPARE(QApplication::focusWidget(), static_cast<QWidget *>(box));
     }
 
     // Turning only "Print this object" on or off does not resize the object: the box shows sizes to a tenth of a point, so a size like it is not a change.

@@ -463,6 +463,8 @@ bool WriteWindow::chartNow(office::Chart *out)
     return write::readChartAt(*m_doc, at, out);
 }
 
+QString WriteWindow::chartId() { return m_doc ? QString::number(m_view->selectedPicture()) : QString(); }
+
 office::Theme WriteWindow::chartTheme() { return m_doc ? write::chartThemeOf(*m_doc) : office::defaultTheme(); }
 
 bool WriteWindow::changeChart(const QString &label, const std::function<void(office::Chart *)> &edit)

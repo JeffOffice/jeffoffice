@@ -497,6 +497,7 @@ private:
     QWidget *chartParent() override { return this; }
     bool chartKeepsDataTable() const override { return !isOpenDocumentPath(m_path); }
     bool chartNow(office::Chart *out) override;
+    QString chartId() override;
     office::Theme chartTheme() override;
     bool changeChart(const QString &label, const std::function<void(office::Chart *)> &edit) override;
     void chartNotice(const QString &title, const QString &text, bool warning) override;

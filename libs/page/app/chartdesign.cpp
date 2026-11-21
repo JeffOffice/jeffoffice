@@ -8,6 +8,7 @@
 
 #include <QActionGroup>
 #include <QComboBox>
+#include <QCryptographicHash>
 #include <QPointer>
 #include <QCoreApplication>
 #include <QFileInfo>
@@ -565,52 +566,119 @@ void ChartDesign::formatPart(int part)
 {
     Chart chart;
     if (!m_host->chartNow(&chart)) return;
+    formatPartOf(chart, part);
+}
+
+void ChartDesign::formatPartOf(const Chart &chart, int part)
+{
     FormatChartPartDialog dialog(chart, part, m_host->chartParent());
     if (dialog.exec() != QDialog::Accepted) return;
     const Chart made = dialog.result();
     m_host->changeChart(tr("Format Chart Part"), [made](Chart *c) { *c = made; });
 }
 
-QStringList ChartDesign::partNames() const
+namespace {
+
+// What names a series for Current Selection: where its data is read from when it is read from cells (the name and the numbers then change as the cells do), else its name and its numbers.
+QString seriesKey(const ChartSeries &s)
+{
+    if (!s.valueRef.isEmpty() || !s.xRef.isEmpty()) return QStringLiteral("r\x1f") + s.nameRef + QLatin1Char('\x1f') + s.valueRef + QLatin1Char('\x1f') + s.xRef;
+    QCryptographicHash hash(QCryptographicHash::Md5);
+    hash.addData(QByteArrayView(reinterpret_cast<const char *>(s.values.constData()), s.values.size() * qsizetype(sizeof(double))));
+    hash.addData(QByteArrayView(reinterpret_cast<const char *>(s.xValues.constData()), s.xValues.size() * qsizetype(sizeof(double))));
+    hash.addData(s.categories.join(QLatin1Char('\x1e')).toUtf8());
+    return QStringLiteral("v\x1f") + s.name + QLatin1Char('\x1f') + QString::fromLatin1(hash.result().toHex());
+}
+
+QStringList seriesKeys(const Chart &chart)
+{
+    QStringList keys;
+    for (const ChartSeries &s : seriesOf(chart)) keys << seriesKey(s);
+    return keys;
+}
+
+} // namespace
+
+int ChartDesign::resolve(const QStringList &keys, const Pick &pick) const
+{
+    if (pick.kind < 2) return pick.kind;
+    int seen = 0;
+    for (int i = 0; i < keys.size(); ++i)
+        if (keys[i] == pick.key && seen++ == pick.nth) return 2 + i;
+    return -1;
+}
+
+void ChartDesign::showParts(const Chart *chart)
+{
+    m_shownId = chart ? m_host->chartId() : QString();
+    m_names = chart ? chartPartNames(*chart) : QStringList();
+    m_keys = chart ? seriesKeys(*chart) : QStringList();
+    m_shown = 0;
+    if (chart) {
+        if (m_picks.size() > 256) m_picks.clear();
+        Pick &pick = m_picks[m_shownId];
+        const int at = resolve(m_keys, pick);
+        if (at < 0) pick = Pick();   // (the series is gone: the chart area)
+        m_shown = std::max(0, at);
+    }
+    Q_EMIT partsChanged();
+}
+
+void ChartDesign::refreshParts()
 {
     Chart chart;
-    return m_host->chartNow(&chart) ? chartPartNames(chart) : QStringList();
+    showParts(m_host->chartNow(&chart) ? &chart : nullptr);
 }
 
 void ChartDesign::selectPart(int index)
 {
-    const int count = int(partNames().size());
-    const int now = count > 0 ? std::clamp(index, 0, count - 1) : 0;
-    if (now == m_part) return;
-    m_part = now;
+    if (m_names.isEmpty()) return;
+    const int now = std::clamp(index, 0, int(m_names.size()) - 1);
+    Pick pick;
+    pick.kind = std::min(now, 2);
+    if (now >= 2) {
+        pick.key = m_keys.value(now - 2);
+        for (int i = 0; i < now - 2; ++i) pick.nth += m_keys.value(i) == pick.key;
+    }
+    m_picks[m_shownId] = pick;
+    if (now == m_shown) return;
+    m_shown = now;
     Q_EMIT partsChanged();
+}
+
+bool ChartDesign::partsAreCurrent(const Chart &chart)
+{
+    // (what is chosen is read again from this chart: the box may have been filled for another, or before series came or went)
+    const QString id = m_host->chartId();
+    const QStringList keys = seriesKeys(chart);
+    const int at = resolve(keys, m_picks.value(id));
+    if (id == m_shownId && keys == m_keys && at == m_shown) return true;
+    showParts(&chart);
+    return false;
 }
 
 void ChartDesign::formatSelection()
 {
-    const int count = int(partNames().size());
-    if (count > 0) formatPart(std::clamp(m_part, 0, count - 1));
+    Chart chart;
+    if (!m_host->chartNow(&chart) || !partsAreCurrent(chart)) return;
+    formatPartOf(chart, m_shown);
 }
 
 bool ChartDesign::resetSelectionToStyle()
 {
     Chart chart;
-    if (!m_host->chartNow(&chart)) return false;
-    const int count = int(chartPartNames(chart).size());
-    const int at = std::clamp(m_part, 0, count - 1);
+    if (!m_host->chartNow(&chart) || !partsAreCurrent(chart)) return false;
+    const int at = m_shown;
     const ChartPart part = at == 0 ? ChartPart::Area : at == 1 ? ChartPart::Plot : ChartPart::Series;
     // (a part that already matches its style is not a step)
     Chart reset = chart;
     resetPartToStyle(&reset, part, at - 2);
     if (writeChartPart(reset) == writeChartPart(chart)) return false;
-    return m_host->changeChart(tr("Reset to Match Style"), [part, at](Chart *c) { resetPartToStyle(c, part, at - 2); });
-}
-
-void ChartDesign::refreshParts()
-{
-    const int count = int(partNames().size());
-    if (m_part >= count) m_part = std::max(0, count - 1);
-    Q_EMIT partsChanged();
+    const QString key = at >= 2 ? m_keys.value(at - 2) : QString();
+    return m_host->changeChart(tr("Reset to Match Style"), [part, at, key](Chart *c) {
+        if (at >= 2 && seriesKeys(*c).value(at - 2) != key) return;   // (not the series the box showed: nothing is reset)
+        resetPartToStyle(c, part, at - 2);
+    });
 }
 
 QComboBox *ChartDesign::partBox(QWidget *parent)

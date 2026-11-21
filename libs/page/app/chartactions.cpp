@@ -63,6 +63,11 @@ public:
         const PictureItem *pic = selectedChart(m_ed);
         return pic && !m_ed->readOnly() && readChartOf(*m_ed->doc(), *pic, out);
     }
+    QString chartId() override
+    {
+        const PictureItem *pic = selectedChart(m_ed);
+        return pic ? pic->id : QString();
+    }
     office::Theme chartTheme() override
     {
         const PictureItem *pic = selectedChart(m_ed);

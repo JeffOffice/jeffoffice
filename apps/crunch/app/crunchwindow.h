@@ -1772,6 +1772,7 @@ private:
     // (the chart editor that every app shares: app/chartdesign.h; these are what it asks of this window)
     QWidget *chartParent() override;
     bool chartNow(jp::office::Chart *out) override;
+    QString chartId() override;
     jp::office::Theme chartTheme() override;
     bool changeChart(const QString &label, const std::function<void(jp::office::Chart *)> &edit) override;
     void chartNotice(const QString &title, const QString &text, bool warning) override;

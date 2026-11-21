@@ -234,6 +234,9 @@ private Q_SLOTS:
         w.act(QStringLiteral("chartdesign.resetStyle"))->trigger();
         QCOMPARE(ed->undoStack()->index(), steps + 1);
         QCOMPARE(look(jp::office::sheet::ChartPart::Series, 1).fill, style);
+        // (the color a chart of this program's own format gives back is the palette's, and a color)
+        QVERIFY(style.isValid() && !c.styleBase.isValid() && !c.palette.isEmpty());
+        QCOMPARE(style.name(), c.palette[1 % c.palette.size()].name());
         QVERIFY(!look(jp::office::sheet::ChartPart::Series, 1).line.set);
         QCOMPARE(look(jp::office::sheet::ChartPart::Area, 0).fill.name(), QStringLiteral("#fff0c0"));
         ed->undo();
