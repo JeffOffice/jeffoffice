@@ -22,6 +22,7 @@ KeyTips::KeyTips(QWidget *window, Ribbon *ribbon, std::function<void()> openFile
     : QObject(window), m_window(window), m_ribbon(ribbon), m_openFile(std::move(openFile))
 {
     qApp->installEventFilter(this);
+    if (ribbon) connect(ribbon, &QObject::destroyed, this, [this] { qApp->removeEventFilter(this); });   // (the key tips are built from the ribbon)
 }
 
 bool KeyTips::mine() const

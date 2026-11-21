@@ -241,6 +241,7 @@ OutlineView::OutlineView(Editor *ed, QWidget *parent) : QTextEdit(parent), m_ed(
     connect(&m_idle, &QTimer::timeout, this, &OutlineView::commit);
     connect(this, &QTextEdit::textChanged, this, &OutlineView::textTyped);
     connect(this, &QTextEdit::cursorPositionChanged, this, &OutlineView::cursorMoved);
+    connect(m_ed, &QObject::destroyed, this, &OutlineView::shutDown);   // (a window's children go in order: the editor may be freed while this view is not)
     connect(m_ed, &Editor::changed, this, &OutlineView::reload);
     connect(m_ed, &Editor::pageChanged, this, &OutlineView::pageChanged);
     connect(m_ed, &Editor::documentReplaced, this, [this] {
@@ -250,6 +251,16 @@ OutlineView::OutlineView(Editor *ed, QWidget *parent) : QTextEdit(parent), m_ed(
         m_dirty = true;
         reload();
     });
+}
+
+OutlineView::~OutlineView() { shutDown(); }
+
+void OutlineView::shutDown()
+{
+    m_gone = true;
+    m_typed = false;
+    m_idle.stop();
+    qApp->removeEventFilter(this);
 }
 
 // ---- the lines, from the slides and back ----
@@ -407,7 +418,7 @@ void OutlineView::reload()
 
 void OutlineView::textTyped()
 {
-    if (m_loading) return;
+    if (m_loading || m_gone) return;
     if (!m_typed) {
         m_typed = true;
         // Any click or command saves what is waiting first.
@@ -419,7 +430,7 @@ void OutlineView::textTyped()
 void OutlineView::commit()
 {
     m_idle.stop();
-    if (m_ed->closed() || !m_typed || m_ed->readOnly()) return;   // (a presentation open for reading only is not changed by what is typed)
+    if (m_gone || m_ed->closed() || !m_typed || m_ed->readOnly()) return;   // (a presentation open for reading only is not changed by what is typed)
     m_typed = false;
     qApp->removeEventFilter(this);
     apply(tr("Outline"));
@@ -716,6 +727,7 @@ bool OutlineView::event(QEvent *e)
 // While typing waits to be saved, a click anywhere or a window closing saves it first.
 bool OutlineView::eventFilter(QObject *o, QEvent *e)
 {
+    if (m_gone) return false;
     if (e->type() == QEvent::MouseButtonPress || e->type() == QEvent::Close) commit();
     return QTextEdit::eventFilter(o, e);
 }

@@ -238,6 +238,8 @@ DeckWindow::~DeckWindow()
     // number field its editingFinished, which would save what is typed into a window that is no longer whole. The editor refuses every change from
     // here on (the panes that save by hand ask it), the show is let go of (Presenter View's notes are its own), and no child tells the window or
     // anything else anything more.
+    qApp->removeEventFilter(this);
+    if (m_outline) m_outline->shutDown();   // (its own application-wide filter, off before the editor it reads is freed)
     m_ed->close();
     if (m_show) {
         m_show->disconnect(this);

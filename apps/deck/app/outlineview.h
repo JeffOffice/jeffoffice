@@ -20,10 +20,13 @@ class OutlineView : public QTextEdit {
     Q_OBJECT
 public:
     explicit OutlineView(Editor *ed, QWidget *parent = nullptr);
+    ~OutlineView() override;
     // Shows the deck's text, unless typing waits to be saved.
     void reload();
     // Saves what was typed into the slides.
     void commit();
+    // The window or the editor is going: the application-wide filter is taken off and nothing more is saved. Safe to call twice.
+    void shutDown();
     // The window is going: what is typed is given up, not saved into a window that is no longer whole to be told.
     bool hasTyping() const { return m_typed; }
     // The slide the cursor is in, or -1.
@@ -58,6 +61,7 @@ private:
 
     Editor *m_ed;
     QTimer m_idle;
+    bool m_gone = false;       // shutDown ran: kept here, never read through the editor, which may be freed
     bool m_typed = false;      // typed since the last save or load
     bool m_loading = false;    // the view is being filled in or marked, not typed in
     bool m_applying = false;   // typing is being saved into the slides

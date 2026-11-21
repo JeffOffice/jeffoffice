@@ -151,6 +151,48 @@ private Q_SLOTS:
         QCOMPARE(entriesWhenDeleted(w), 0);
     }
 
+    // The same, with a combo box's list open as the window goes (the list closing sends events through the application-wide filter while the
+    // window's children are freed one by one).
+    void aWindowGoingWithAListOpenAsksNothingOfItsOutlineView()
+    {
+        auto *w = new DeckWindow;
+        w->resize(1000, 700);
+        w->show();
+        QVERIFY(QTest::qWaitForWindowExposed(w));
+        w->act(QStringLiteral("view.outline"))->trigger();
+        QVERIFY(w->outlineView() && w->outlineView()->isVisible());
+        w->activateWindow();
+        w->outlineView()->setFocus();
+        QTRY_VERIFY(w->outlineView()->hasFocus());
+        QTest::keyClicks(w->outlineView(), QStringLiteral("typed"));
+        QVERIFY(w->outlineView()->hasTyping());
+        QComboBox *box = nullptr;
+        for (auto *c : w->findChildren<QComboBox *>())
+            if (c->isVisibleTo(w) && c->count() > 0) { box = c; break; }
+        if (box) box->showPopup();
+        QCOMPARE(entriesWhenDeleted(w), 0);
+    }
+
+    // The view's filter belongs to the view: once the editor it reads is gone, a click anywhere gives up the typing instead of reading the editor.
+    void anOutlineViewWhoseEditorIsGoneIsNotAskedByAClick()
+    {
+        auto *ed = new Editor;
+        ed->setDocument(deck::newDefaultPresentation());
+        OutlineView view(ed);
+        view.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&view));
+        view.setFocus();
+        QTest::keyClicks(&view, QStringLiteral("typed"));
+        QVERIFY(view.hasTyping());
+        delete ed;
+        view.hide();   // (a view whose editor is gone is only ever deleted: nothing paints it)
+        QWidget other;
+        other.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&other));
+        QTest::mouseClick(&other, Qt::LeftButton);
+        QVERIFY(!view.hasTyping());
+    }
+
     // A number typed in the Format pane and not yet entered: the field's editingFinished fires as the window goes.
     void aWindowGoingAsksNoChangeOfAFormatPaneNumber()
     {
