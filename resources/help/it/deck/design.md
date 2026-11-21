@@ -1,44 +1,50 @@
 # Dimensioni diapositiva, sfondo e piè di pagina
-<!-- keywords: struttura, tema, temi, varianti, variante, colori, caratteri, crea nuovi colori tema, crea nuovi caratteri tema, colori personalizzati, file del tema, thmx, salva tema corrente, reimposta tema, stili sfondo, schema diapositiva, layout, cerca temi, sfoglia temi, applica a tutte le diapositive, applica alle diapositive selezionate, dimensioni diapositiva, widescreen, 16:9, standard, 4:3, proporzioni, adatta, sfondo, colore sfondo, formato sfondo, intestazione, piè di pagina, numero diapositiva, data, diapositiva titolo -->
+<!-- keywords: struttura, tema, temi, varianti, variante, colori, caratteri, crea nuovi colori tema, crea nuovi caratteri tema, colori personalizzati, file tema, thmx, salva tema corrente, reimposta tema, stili sfondo, schema diapositiva, layout, cerca temi, applica a tutte le diapositive, applica alle diapositive selezionate, dimensioni diapositiva, widescreen, 16:9, standard, 4:3, proporzioni, adatta, dimensioni diapositiva personalizzate, numera diapositive da, numero della prima diapositiva, inizia da, sfondo, colore sfondo, formato sfondo, intestazione, piè di pagina, numero diapositiva, data, diapositiva titolo, footer, numero diapositiva, pagina, campo, tema predefinito, sfondo pagina, orientamento, verticale, orizzontale, tema personalizzato, sfondo, piè di pagina diapositiva, dimensioni, formato diapositiva, modello, tema colori, tema caratteri
 
-La scheda **Struttura** modifica l'aspetto di tutte le diapositive: il tema, la forma, lo sfondo e il piè di pagina lungo il bordo inferiore.
+La scheda **Struttura** cambia l'aspetto di ogni diapositiva: il tema, la forma, lo sfondo e il piè di pagina lungo il bordo inferiore.
 
 ## Dimensioni diapositiva
 
 Fai clic su **Struttura > Personalizza > Dimensioni diapositiva** e scegli una dimensione:
 
-- **Standard (4:3)** misura 25,4 cm in larghezza e 19 cm in altezza. È la forma più quadrata degli schermi e dei proiettori meno recenti.
-- **Widescreen (16:9)** misura 33,9 cm in larghezza e 19 cm in altezza. Le nuove presentazioni iniziano con questa dimensione.
+- **Standard (4:3)** misura 25,4 cm di larghezza e 19 cm di altezza. È la forma più quadrata dei vecchi schermi e proiettori.
+- **Widescreen (16:9)** misura 33,9 cm di larghezza e 19 cm di altezza. Le nuove presentazioni iniziano con questa dimensione.
 
-Un segno di spunta indica la dimensione attuale della presentazione. Quando scegli l'altra, JeffDeck chiede **Ridimensionare il contenuto in base alla nuova dimensione della diapositiva?** Fai clic su **Adatta** per cambiare la dimensione. Testo e spessori delle linee vengono ridimensionati, i layout e i segnaposto si adattano alla nuova forma, e gli altri oggetti vengono scalati per mantenere la propria forma e restare al centro. Fai clic su **Annulla** per non modificare nulla. CTRL+Z annulla la modifica.
+Un segno di spunta indica la dimensione attuale della presentazione. Quando scegli l'altra, JeffDeck chiede **Ridimensionare il contenuto in base alla nuova dimensione della diapositiva?**. Fai clic su **Adatta** per cambiare la dimensione. Testo e spessori delle linee vengono ridimensionati, i layout e i segnaposto si adattano alla nuova forma, e gli altri oggetti vengono scalati in modo da conservare la propria forma e restare centrati. Fai clic su **Annulla** per non modificare nulla. CTRL+Z annulla la modifica.
 
 Una presentazione aperta da un file può avere una dimensione diversa da queste due. La mantiene, e nessuna delle due opzioni risulta selezionata.
 
+**Dimensioni diapositiva personalizzate** offre un elenco di formati, una larghezza e un'altezza, l'orientamento **Orizzontale** o **Verticale** e il modo in cui vengono ruotate le pagine delle note. **Numera diapositive da** è il numero da cui parte la prima diapositiva: il numero di diapositiva nelle diapositive, nelle pagine stampate e nelle pagine di un file .pptx salvato inizia da lì. Può essere un numero intero qualsiasi, anche zero o negativo, fino a circa due miliardi in entrambe le direzioni; un file di un altro programma con un numero superiore viene aperto con il più vicino, e all'apertura le note lo segnalano. I numeri di diapositiva sulle diapositive e sulle pagine stampate lo mostrano. Un segnalibro PDF di una diapositiva con titolo usa il titolo, preceduto dal numero della diapositiva quando la numerazione non inizia da 1 ("7. Titolo"); il segnalibro di una diapositiva senza titolo è "Diapositiva 7". Le immagini esportate mantengono il nome in base alla posizione della diapositiva ("Diapositiva 1.png", "Diapositiva 2.png") così risultano in ordine. Un file .odp non conserva il numero, e Verifica compatibilità lo segnala. Cambiare la dimensione, il numero o le pagine delle note è un'unica operazione annullabile con CTRL+Z.
+
 ## Sfondo
 
-Fai clic su **Struttura > Personalizza > Formato sfondo**. Scegli un **Colore di riempimento** tra i colori del tema o un colore personalizzato. Poi fai clic su:
+Fai clic su **Struttura > Personalizza > Formato sfondo**. Scegli un **Colore di riempimento tinta unita** tra i colori del tema oppure un colore personalizzato. Poi fai clic su:
 
 - **Applica** per modificare solo la diapositiva corrente.
-- **Applica a tutte** per modificare tutte le diapositive. Le diapositive e i layout che avevano uno sfondo proprio adottano il nuovo.
+- **Applica a tutte** per modificare ogni diapositiva. Le diapositive e i layout che avevano uno sfondo proprio seguono ora il nuovo.
 
-Seleziona **Nascondi grafica di sfondo** per impedire che immagini e forme dello schema diapositiva compaiano sulla diapositiva corrente. Il colore di sfondo resta. In visualizzazione Schema diapositiva la casella vale per il layout che stai modificando.
+Seleziona **Nascondi elementi grafici di sfondo** per impedire che immagini e forme dello schema diapositiva compaiano sulla diapositiva corrente. Il colore di sfondo resta. In visualizzazione Schema diapositiva la casella vale per il layout che stai modificando.
 
 ## Intestazione e piè di pagina
 
-Il piè di pagina è una riga di testo piccolo lungo il bordo inferiore di una diapositiva. Può contenere la data, il numero di diapositiva e una riga di testo personalizzato. Compare sulla diapositiva, quindi viene stampato e riprodotto.
+Il piè di pagina è una riga di testo piccolo lungo il bordo inferiore della diapositiva. Può contenere la data, il numero di diapositiva e una riga di testo personalizzata. Compare sulla diapositiva, quindi viene stampato e riprodotto.
 
-1. Fai clic su **Inserisci > Testo > Intestazione e piè di pagina**.
-2. In **Includi nella diapositiva**, seleziona ciò che ti serve: **Data e ora**, **Numero diapositiva** e **Piè di pagina**. Per **Piè di pagina**, digita il testo nella casella accanto.
+1. Fai clic su **Inserisci > Testo > Intestazione e piè di pagina**. La finestra ha due schede, **Diapositiva** e **Note e stampati**.
+2. Nella scheda **Diapositiva**, sotto **Includi nella diapositiva**, seleziona ciò che vuoi: **Data e ora**, **Numero diapositiva** e **Piè di pagina**. Per **Piè di pagina**, scrivi il testo nella casella accanto.
 3. Seleziona **Non mostrare nella diapositiva titolo** per lasciare pulita la prima diapositiva.
 4. Fai clic su **Applica** per la diapositiva corrente oppure su **Applica a tutte** per tutte le diapositive. Con **Applica a tutte**, anche le diapositive aggiunte in seguito avranno il piè di pagina.
 
+La scheda **Note e stampati** contiene **Data**, **Intestazione**, **Piè di pagina** e **Numero di pagina**, che vengono stampati in alto e in basso nelle pagine delle note e negli stampati. Seleziona ciò che vuoi e scrivi il testo accanto; lascia vuoto **Data** per stampare la data odierna. Vengono applicati insieme alle pagine delle note e agli stampati, e **Applica** e **Applica a tutte** li salvano insieme alle scelte della scheda **Diapositiva**, come un'unica operazione di Annulla. Le stesse opzioni si trovano in **Intestazione e piè di pagina** nella pagina Stampa della schermata File.
+
 La data e il numero di diapositiva sono campi, che si aggiornano da soli: la data è quella odierna, e il numero segue la posizione della diapositiva quando la sposti.
+
+Per inserire il titolo della presentazione, l'autore, il nome del file o il numero di diapositive in una casella di testo, fai clic nella casella, poi scegli **Inserisci**, **Campo** e quello che ti serve. Ognuno è un campo, quindi cambia quando cambia la presentazione: modifica il titolo in **File**, **Informazioni** e le parole si aggiornano. **Numero di diapositive** conta tutte le diapositive della presentazione, comprese quelle nascoste, e mostra lo stesso numero su ogni diapositiva e in ogni sezione. Un file salvato conserva tutti e quattro come campi: mostrano le parole che avevano al momento del salvataggio e si aggiornano di nuovo quando lo apri in JeffDeck. Altri programmi possono mostrare solo le parole. Se **Rimuovi le informazioni personali da questo file al salvataggio** è attivo, un campo **Autore** viene salvato senza parole, quindi il file non contiene il nome dell'autore; il campo è comunque presente quando apri il file. **Ispeziona documento** indica quante diapositive hanno un campo Autore. Il numero di diapositiva e la data restano campi in entrambi i tipi di file.
 
 ## Temi
 
-Un **tema** è l'aspetto complessivo di una presentazione: i colori, i caratteri, gli sfondi, lo **schema diapositiva** e i **layout** con ciò che disegnano. Lo schema diapositiva è la pagina che sta dietro a tutte le diapositive. Un layout è uno schema per un tipo di diapositiva, come Diapositiva titolo o Due contenuti. I temi disegnano su di essi fasce, linee e forme.
+Un **tema** è l'aspetto complessivo di una presentazione: i suoi colori, i suoi caratteri, i suoi sfondi, lo **schema diapositiva** e i **layout** con ciò che disegnano. Lo schema diapositiva è la pagina che sta dietro a tutte le diapositive. Un layout è uno schema per un tipo di diapositiva, come Diapositiva titolo o Due contenuti. I temi disegnano fasce, linee e forme su di essi.
 
-JeffDeck include nove temi propri:
+JeffDeck ha nove temi propri:
 
 - **JeffOffice** è il tema bianco e semplice con cui inizia una nuova presentazione.
 - **Harbor** ha una fascia blu scuro in alto e una linea verde acqua sotto.
@@ -47,59 +53,59 @@ JeffDeck include nove temi propri:
 - **Confetti** è vivace, con triangoli colorati negli angoli.
 - **Granite** è scuro e freddo, con una fascia ardesia dietro il titolo.
 - **Orchard** è verde tenue, con un riquadro del titolo arrotondato e cerchi grandi.
-- **Marquee** è nero e oro, con una sottile doppia cornice.
-- **Tideline** è azzurro pallido, con fasce d'acqua in alto.
+- **Marquee** è nero e oro, con una cornice doppia sottile.
+- **Tideline** è azzurro pallido, con fasce d'acqua lungo il bordo superiore.
 
 ### Scegliere un tema
 
 1. Fai clic sulla scheda **Struttura**. Il gruppo **Temi** mostra un'immagine della diapositiva titolo di ogni tema.
-2. Fai clic su un'immagine. Il tema viene applicato a tutte le diapositive in un solo passaggio. CTRL+Z lo annulla.
+2. Fai clic su un'immagine. Il tema viene applicato a tutte le diapositive in un'unica operazione. CTRL+Z lo annulla.
 
-Le frecce su e giù accanto alle immagini mostrano la riga successiva di temi. Il pulsante finale apre tutti e nove insieme. Il tema della presentazione è evidenziato con un contorno.
+Le frecce su e giù accanto alle immagini mostrano la riga successiva di temi. L'ultimo pulsante apre tutti e nove insieme. Il tema della presentazione è evidenziato con un contorno.
 
-Le diapositive conservano il proprio contenuto. Ogni diapositiva passa al layout del proprio tipo, quindi una Diapositiva titolo resta una Diapositiva titolo e una diapositiva Due contenuti resta Due contenuti. Le parole restano, e le caselle si spostano nelle posizioni del nuovo layout. Il testo che usava i caratteri e i colori del vecchio tema adotta quelli del nuovo. Il testo a cui hai assegnato un formato personale conserva il proprio aspetto: una parola rossa, una riga in grassetto o un carattere scelto da te. Un cambio di tema o di sfondo tiene conto anche di ciò su cui poggia ogni testo. Il testo in una cella di tabella o in una forma con un colore proprio, oppure su un'immagine, non diventa chiaro o scuro con lo sfondo della diapositiva. Se un colore che hai impostato risulterebbe difficile da leggere sul nuovo sfondo (con contrasto inferiore a 4,5 a 1), si avvicina al chiaro o allo scuro, solo quanto basta per renderlo leggibile.
+Le diapositive conservano il loro contenuto. Ogni diapositiva passa al layout del proprio tipo, quindi una Diapositiva titolo resta una Diapositiva titolo e una diapositiva Due contenuti resta Due contenuti. Le parole restano, e le caselle si spostano nelle posizioni del nuovo layout. Il testo che usava i caratteri e i colori del tema precedente prende quelli del nuovo tema. Il testo a cui hai assegnato un aspetto proprio lo mantiene: una parola rossa, una riga in grassetto o un carattere scelto da te. Un cambio di tema o di sfondo considera anche ciò su cui poggia ogni testo. Il testo in una cella di tabella o in una forma con un colore proprio, oppure su un'immagine, non diventa chiaro o scuro con lo sfondo della diapositiva. Se un colore che hai impostato risulterebbe difficile da leggere sul nuovo sfondo (con un contrasto inferiore a 4,5 a 1), si avvicina al chiaro o allo scuro, quanto basta per renderlo leggibile.
 
-Un'immagine in un segnaposto passa alla posizione del nuovo layout e non viene mai allungata. In un segnaposto immagine viene ritagliata al centro per riempire lo spazio. In un segnaposto di contenuto l'intera immagine viene adattata all'interno dello spazio, così nulla viene tagliato. Un'immagine che non si trova in un segnaposto resta dove l'hai posizionata.
+Un'immagine in un segnaposto passa nella posizione del nuovo layout e non viene mai allungata. In un segnaposto immagine viene ritagliata per riempire lo spazio, dal centro. In un segnaposto contenuto l'immagine intera viene adattata allo spazio, così nulla viene tagliato. Un'immagine che non si trova in un segnaposto resta dove l'hai messa.
 
 ### Fare clic con il pulsante destro su un tema
 
 Fai clic con il pulsante destro su un'immagine per tre scelte:
 
 - **Applica a tutte le diapositive** equivale a un clic.
-- **Applica alle diapositive selezionate** modifica solo le diapositive selezionate (in Sequenza diapositive) o la diapositiva corrente. Queste diapositive ottengono un proprio schema diapositiva, mentre le altre mantengono il loro. Se in seguito scegli lo stesso tema e la stessa variante per altre diapositive, vengono collegate a quello stesso schema, senza crearne un'altra copia.
-- **Sfoglia temi…** consente di scegliere un file di presentazione o di modello (.pptx, .potx, .ppsx, .ppt, .pps o .pot) e applica il suo tema a tutte le diapositive. Se il file non ha uno schema diapositiva, oppure il suo schema non ha layout, JeffDeck lo segnala e non modifica nulla. Puoi anche scegliere un file di tema (.thmx) o un documento (.docx o .dotx). Un file così non contiene diapositive o layout, solo colori e caratteri del tema: le tue diapositive conservano i propri layout e adottano i nuovi colori e caratteri in un solo passaggio.
-- **Salva tema corrente…** scrive i dodici colori del tema, i suoi due caratteri e gli stili degli effetti in un file di tema (.thmx). Altre applicazioni di JeffOffice e altri programmi possono usare il tema da quel file.
+- **Applica alle diapositive selezionate** cambia solo le diapositive che hai selezionato (in Sequenza diapositive) o la diapositiva corrente. Queste diapositive ricevono un proprio schema diapositiva, mentre le altre mantengono il loro. Se in seguito scegli lo stesso tema e la stessa variante per altre diapositive, queste finiscono nello stesso schema diapositiva invece di riceverne una copia.
+- **Cerca temi…** ti permette di scegliere un file di presentazione o di modello (.pptx, .potx, .ppsx, .ppt, .pps o .pot) e prende il suo tema per tutte le diapositive. Se il file non ha uno schema diapositiva, oppure il suo schema non ha layout, JeffDeck lo segnala e non modifica nulla. Puoi anche scegliere un file di tema (.thmx) o un documento (.docx o .dotx). Un file di questo tipo non contiene diapositive né layout, solo i colori e i caratteri di un tema: le tue diapositive conservano i loro layout e prendono i nuovi colori e caratteri, in un'unica operazione.
+- **Salva tema corrente…** scrive i dodici colori del tema, i suoi due caratteri e i suoi stili effetto in un file di tema (.thmx). Altre app di JeffOffice e altri programmi possono prendere il tema da quel file.
 
-Un tema creato per diapositive di un'altra forma (widescreen oppure 4:3) viene allungato per adattarsi alla tua. Cerchi e quadrati del suo disegno restano tondi e quadrati, e fasce e linee raggiungono ancora i bordi.
+Un tema creato per diapositive di altra forma (panoramica o 4 per 3) viene allungato per adattarsi alla tua. Cerchi e quadrati del suo disegno restano tondi e quadrati, e le fasce e i filetti arrivano sempre ai bordi.
 
 ## Varianti
 
-Le **varianti** sono altri aspetti dello stesso tema. Il gruppo **Varianti** mostra quattro piccole immagini. Ognuna ha una riga di barre colorate in basso: i suoi colori. Fai clic su una per usarla. Cambia i colori e, dove previsto, anche lo sfondo.
+Le **varianti** sono altri aspetti dello stesso tema. Il gruppo **Varianti** mostra quattro piccole immagini. Ciascuna ha una fila di barre colorate lungo il fondo: i suoi colori. Fai clic su una per usarla. Cambia i colori e, dove previsto, anche lo sfondo.
 
 La freccia a destra del gruppo apre un menu:
 
-- **Colori** mostra i dodici colori attuali del tema. Sotto di essi c'è un elenco di combinazioni di colori: prima quelle che hai creato, poi quelle predefinite. Fai clic su una combinazione, e ogni colore della vecchia combinazione diventa il colore corrispondente della nuova, ovunque fosse usato. I colori che hai scelto tu restano invariati.
-- **Caratteri** elenca coppie di caratteri: uno per i titoli e uno per il testo. Fai clic su una coppia, e il testo che usava i vecchi caratteri adotta i nuovi.
-- **Stili sfondo** mostra dodici campioni. In orizzontale ci sono i quattro colori del tema: Chiaro 1, Chiaro 2, Scuro 2 e Scuro 1. In verticale ci sono tre tipi: tinta unita, sfumatura leggera e sfumatura più intensa. Una sfumatura passa gradualmente da un colore all'altro. Fai clic su un campione per usarlo su tutte le diapositive. Gli sfondi che diapositive e layout avevano in proprio cedono il posto. Su uno sfondo scuro il testo diventa chiaro, e su uno chiaro diventa scuro. Anche i collegamenti ipertestuali cambiano, così restano facili da leggere: JeffDeck sceglie colori per i collegamenti leggibili sullo sfondo e, dove possibile, sulle fasce e sui riquadri che alcuni layout disegnano dietro al testo.
+- **Colori** mostra i dodici colori che il tema ha ora. Sotto ci sono le combinazioni di colori: prima quelle che hai creato, poi quelle integrate. Fai clic su una combinazione e ogni colore della vecchia diventa il colore corrispondente della nuova, ovunque fosse usato. I colori che hai scelto tu restano.
+- **Caratteri** elenca coppie di caratteri: uno per i titoli e uno per il testo. Fai clic su una coppia e il testo che usava i vecchi caratteri prende i nuovi.
+- **Stili sfondo** mostra dodici campioni. In orizzontale ci sono i quattro colori del tema: Chiaro 1, Chiaro 2, Scuro 2 e Scuro 1. In verticale ci sono tre tipi: tinta unita, sfumatura leggera e sfumatura più intensa. Una sfumatura passa gradualmente da un colore a un altro. Fai clic su un campione per usarlo su tutte le diapositive. Gli sfondi che diapositive e layout avevano in proprio cedono il posto. Su uno sfondo scuro il testo diventa chiaro, e su uno chiaro diventa scuro. Anche i collegamenti ipertestuali cambiano, così restano facili da leggere: JeffDeck sceglie colori di collegamento leggibili sullo sfondo e, dove possibile, sulle fasce e sui riquadri che alcuni layout disegnano dietro al testo.
 
-Ogni scelta è un passaggio che CTRL+Z annulla.
+Ogni scelta è un'unica operazione che CTRL+Z annulla.
 
 ### Creare i propri colori e caratteri
 
-In fondo all'elenco **Colori** fai clic su **Crea nuovi colori tema…**. La finestra ha un pulsante per ciascuno dei dodici colori. Fai clic su un pulsante per scegliere il colore di quella posizione. La striscia sotto i pulsanti mostra i colori con un titolo di esempio, una riga di testo e un collegamento. Digita un nome e fai clic su **Salva**. I colori vengono applicati subito alle diapositive e restano nell'elenco. **Crea nuovi caratteri tema…** in fondo all'elenco **Caratteri** funziona allo stesso modo: scegli un carattere per i titoli e uno per il testo, controlla l'esempio, assegna un nome alla coppia e salva. Non si può usare un nome già assegnato a un insieme predefinito.
+In fondo all'elenco **Colori** fai clic su **Crea nuovi colori tema…**. La finestra ha un pulsante per ciascuno dei dodici colori. Fai clic su un pulsante per scegliere il colore di quella posizione. La striscia sotto i pulsanti mostra i colori con un titolo di esempio, una riga di testo e un collegamento. Scrivi un nome e fai clic su **Salva**. I colori vengono applicati subito alle diapositive e restano nell'elenco. **Crea nuovi caratteri tema…** in fondo all'elenco **Caratteri** funziona allo stesso modo: scegli un carattere per i titoli e uno per il testo, controlla l'esempio, assegna un nome alla coppia e salva. Non si può usare un nome già assegnato a una combinazione integrata.
 
-I tuoi insiemi vengono conservati nella cartella delle impostazioni, quindi anche JeffWrite li mostra. Per eliminarne uno dall'elenco, usa **Elimina colori personalizzati** o **Elimina caratteri personalizzati** nello stesso menu.
+I tuoi set sono conservati nella cartella delle impostazioni, quindi anche JeffWrite li mostra. Per eliminarne uno dall'elenco, usa **Elimina colori personalizzati** o **Elimina caratteri personalizzati** nello stesso menu.
 
 ### Ripristinare il tema del modello
 
-**Reimposta sul tema del modello** in fondo agli elenchi **Colori** e **Caratteri** ripristina i colori e i caratteri che la presentazione aveva quando l'hai aperta o creata. È un solo passaggio, che CTRL+Z annulla. La voce è grigia quando non è cambiato nulla.
+**Reimposta sul tema del modello** in fondo agli elenchi **Colori** e **Caratteri** rimette i colori e i caratteri che la presentazione aveva quando l'hai aperta o creata. È un'unica operazione, e CTRL+Z la annulla. La voce è grigia quando non è cambiato nulla.
 
 ## Salvataggio
 
-Una presentazione conserva il proprio tema, lo schema diapositiva e i layout quando la salvi. Gli altri programmi di presentazione li leggono, e JeffDeck li legge di nuovo esattamente com'erano. Un tema o uno stile di sfondo scuro viene salvato come lo salvano gli altri programmi per i temi scuri: la pagina risulta scura, quindi una casella di testo aggiunta a una diapositiva in quel caso parte con testo chiaro. Per modificare lo schema diapositiva o un layout, usa la visualizzazione Schema diapositiva, nella scheda **Visualizza**.
+Una presentazione conserva il suo tema, lo schema diapositiva e i layout quando la salvi. Altri programmi per presentazioni li leggono, e JeffDeck li legge di nuovo esattamente come erano. Un tema o uno stile di sfondo scuro viene salvato come lo salvano gli altri programmi per i temi scuri: la pagina risulta scura, quindi una casella di testo che aggiungi a una diapositiva lì parte chiara. Per modificare lo schema diapositiva o un layout, usa la visualizzazione Schema diapositiva, nella scheda **Visualizza**.
 
-## Argomenti correlati
+## Vedi anche
 
 - [Scheda Struttura](tab-design)
 - [Aggiungere, modificare ed eliminare diapositive](slides)
-- [Riutilizzare diapositive da un'altra presentazione](reuse)
+- [Riutilizzare diapositive di un'altra presentazione](reuse)
