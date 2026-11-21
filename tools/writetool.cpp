@@ -30,6 +30,7 @@
 #include "core/spellcheck.h"
 #include "core/writedoc.h"
 #include "doc/doc.h"
+#include "fields/fieldcode.h"
 #include "odt/odt.h"
 #include "text/dictionaries.h"
 #endif
@@ -603,7 +604,7 @@ int main(int argc, char **argv)
         auto flat = [](QString t) { return t.replace(QLatin1Char('\t'), QLatin1String("\\t")).replace(QLatin1Char('\n'), QLatin1String("\\n")).replace(QLatin1Char('\r'), QLatin1String("\\r")); };
         static const char *const outcomes[] = {"same", "differs", "kept", "locked"};
         for (const write::FieldChange &c : r.changes)
-            out << c.name << '\t' << outcomes[c.outcome] << '\t' << (write::fields::dependsOnTheMachine(c.name) ? "machine" : "doc") << '\t' << flat(c.before) << '\t' << flat(c.after) << '\t' << flat(c.instruction).left(120) << '\n';
+            out << c.name << '\t' << outcomes[c.outcome] << '\t' << (fields::dependsOnTheMachine(c.name) ? "machine" : "doc") << '\t' << flat(c.before) << '\t' << flat(c.after) << '\t' << flat(c.instruction).left(120) << '\n';
         out << "#fields\t" << r.found << "\t" << timer.elapsed() << " ms\n";
         return 0;
     }
