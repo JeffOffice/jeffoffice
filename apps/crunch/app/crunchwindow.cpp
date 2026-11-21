@@ -555,7 +555,14 @@ void CrunchWindow::createActions()
     m_repeat = new jp::RepeatCommand(this);
     connect(m_repeat, &jp::RepeatCommand::changed, this, [this] { updateRepeatActions(); });
     mk("edit.repeat", tr("Repeat"), "repeat", QKeySequence(Qt::Key_F4), [this] { runRepeat(); }, false, false);
-    mk("edit.repeat.ctrlY", tr("Repeat"), QString(), QKeySequence(Qt::CTRL | Qt::Key_Y), [this] { runRepeat(); }, false, false);
+    // (Ctrl+Y: a key of its own for Repeat, which has no place on the ribbon or the keyboard page: while Redo has a step the key is Redo)
+    m_repeatCtrlY = new QAction(tr("Repeat"), this);
+    m_repeatCtrlY->setObjectName(QStringLiteral("edit.repeat.ctrlY"));
+    m_repeatCtrlY->setShortcut(QKeySequence(Qt::CTRL | Qt::Key_Y));
+    m_repeatCtrlY->setShortcutContext(Qt::WindowShortcut);
+    m_repeatCtrlY->setEnabled(false);
+    addAction(m_repeatCtrlY);
+    connect(m_repeatCtrlY, &QAction::triggered, this, [this] { runRepeat(); });
     mk("file.options", tr("Options"), "settings", QKeySequence(), [this] {
         // The shared pages (General, Proofing), then Editing: where the selection goes after Enter.
         Editor stand;

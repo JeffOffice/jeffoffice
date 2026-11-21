@@ -2069,6 +2069,7 @@ private:
     QMenu *buildHistoryMenu(QWidget *owner, bool redo);
     void stepThroughHistory(bool redo, int count);
     jp::RepeatCommand *m_repeat = nullptr;
+    QAction *m_repeatCtrlY = nullptr;
     grid::Selection m_lastSelectable;
     bool m_revertingSelection = false;
     AnchorHooks m_anchorHooks;

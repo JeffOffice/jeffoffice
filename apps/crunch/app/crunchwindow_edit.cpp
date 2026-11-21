@@ -679,7 +679,7 @@ void CrunchWindow::updateRepeatActions()
 {
     const bool open = m_session && !m_saving && !isReadOnly() && !m_argsDialog && !m_applying;
     act("edit.repeat")->setEnabled(open && m_repeat->available());
-    act("edit.repeat.ctrlY")->setEnabled(open && m_repeat->ctrlYEnabled());
+    m_repeatCtrlY->setEnabled(open && m_repeat->ctrlYEnabled());
     act("edit.repeat")->setToolTip(jp::plainToolTip(m_repeat->tip()));
 }
 
