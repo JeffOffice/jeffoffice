@@ -29,10 +29,12 @@ Check **Hide background graphics** to stop the pictures and shapes of the slide 
 
 A footer is a line of small text along the bottom of a slide. It can hold the date, the slide number, and a line of your own words. It shows on the slide, and so it prints and plays.
 
-1. Click **Insert > Text > Header and Footer**.
-2. Under **Include on slide**, check what you want: **Date and time**, **Slide number**, and **Footer**. For **Footer**, type the text in the box beside it.
+1. Click **Insert > Text > Header and Footer**. The window has two tabs, **Slide** and **Notes and Handouts**.
+2. On the **Slide** tab, under **Include on slide**, check what you want: **Date and time**, **Slide number**, and **Footer**. For **Footer**, type the text in the box beside it.
 3. Check **Don't show on title slide** to leave the first slide clean.
 4. Click **Apply** for the slide you are on, or **Apply to All** for every slide. With **Apply to All**, slides you add later get the footer too.
+
+The **Notes and Handouts** tab has the **Date**, **Header**, **Footer**, and **Page number** that print at the top and bottom of notes pages and handouts. Check what you want and type the words beside it; leave **Date** empty to print today's date. They go to the notes pages and the handouts together, and **Apply** and **Apply to All** save them with what you chose on the **Slide** tab, as one step of Undo. The same choices are in **Header & Footer** on the Print page of the File screen.
 
 The date and the slide number are fields, which keep themselves right: the date is today's, and the number follows the slide's place when you move it.
 

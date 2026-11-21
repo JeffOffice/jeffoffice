@@ -7,7 +7,7 @@ On the left is a list. Some entries open a page, and some do their job at once.
 
 ## Start
 
-- **New** shows a **Blank Presentation** to click. See [Open and save presentations](open-save).
+- **New** shows a **Blank Presentation** to click, then **Themes**: each of the nine themes in its four variants, drawn as the first slide of a presentation made in it. Click one to start a presentation in that theme and variant (in this window when it is still untouched, otherwise in a new window). Your own templates are below, under **My Templates**. See [Open and save presentations](open-save).
 - **Open** has **Browse** to pick a file, **Recover Unsaved Work** to bring back copies that automatic recovery kept, and lists of **Pinned** and **Recent Presentations**. See [Open and save presentations](open-save) and [Get back unsaved work](recover).
 
 ## This presentation

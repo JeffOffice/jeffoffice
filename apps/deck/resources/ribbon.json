@@ -396,6 +396,7 @@
                 "arr.rotL",
                 "arr.flipH",
                 "arr.flipV",
+                "arr.rotMore",
                 "-",
                 "arr.alignLeft",
                 "arr.alignCenter",
@@ -1176,6 +1177,10 @@
               "keytip": "CW"
             },
             {
+              "small": "win.moveSplit",
+              "keytip": "MS"
+            },
+            {
               "large": "view.fullScreen",
               "keytip": "FU"
             },
@@ -1708,6 +1713,66 @@
             {
               "large": "pic.change",
               "keytip": "CP"
+            },
+            {
+              "small": {
+                "id": "ribbon.pictureCorrections",
+                "text": "Corrections",
+                "icon": "sun"
+              },
+              "keytip": "CR",
+              "menu": [
+                "pic.brightness.-40",
+                "pic.brightness.-20",
+                "pic.brightness.0",
+                "pic.brightness.20",
+                "pic.brightness.40",
+                "-",
+                "pic.contrast.-40",
+                "pic.contrast.-20",
+                "pic.contrast.0",
+                "pic.contrast.20",
+                "pic.contrast.40"
+              ]
+            },
+            {
+              "small": {
+                "id": "ribbon.pictureColor",
+                "text": "Color",
+                "icon": "palette"
+              },
+              "keytip": "CL",
+              "menu": [
+                "pic.recolor.none",
+                "pic.recolor.gray",
+                "pic.recolor.blackwhite",
+                "-",
+                "pic.saturation.-100",
+                "pic.saturation.-50",
+                "pic.saturation.0",
+                "pic.saturation.50",
+                "pic.saturation.100",
+                "-",
+                "pic.transparent",
+                "pic.transparentNone"
+              ]
+            },
+            {
+              "small": {
+                "id": "ribbon.pictureTransparency",
+                "text": "Transparency",
+                "icon": "blend"
+              },
+              "keytip": "TY",
+              "menu": [
+                "pic.transparency.0",
+                "pic.transparency.15",
+                "pic.transparency.30",
+                "pic.transparency.50",
+                "pic.transparency.65",
+                "pic.transparency.80",
+                "pic.transparency.95"
+              ]
             },
             {
               "small": "pic.compress",

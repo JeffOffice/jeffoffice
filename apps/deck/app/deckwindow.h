@@ -46,6 +46,7 @@ namespace deck {
 struct DeckComparison;
 }
 class DeckReviewPane;
+class SplitMover;
 class AnimationPane;
 class ColorButton;
 class ChartActions;
@@ -81,6 +82,7 @@ struct ColorSet;
 struct FontSet;
 struct FooterOptions;
 struct SlidePicturesOptions;
+struct PicturePresentationOptions;
 struct MasterParts;
 struct MediaPlay;
 struct OutputOptions;
@@ -302,6 +304,8 @@ public:
     // Picture Format > Change Picture: the selected picture shows the picture of `path` (asked for when empty), keeping its size, place, crop, and formatting;
     // one step. False when none is chosen or the file can't be read as a picture.
     bool changePictureFromFile(const QString &path = QString());
+    // The color the selected pictures have clear (Set Transparent Color picks it from the window).
+    void setPictureTransparentColor(const QColor &color);
     // A movie ("video") or a sound ("audio") from a file, put on the slide as the presentation program does: kept in the
     // presentation, with its first picture as the poster and the timing that plays it in the click sequence. False, with
     // the reason shown, when the file can't be put on the slide. (deckwindow_media.cpp)
@@ -444,6 +448,10 @@ public:
     // Save slides as pictures: every slide to a folder as Slide 1, Slide 2, and so on; how many were written (0, and the reason said, when none could be). The Ask form shows the box first.
     int exportSlidePictures(const deck::SlidePicturesOptions &options);
     bool exportSlidePicturesAsk();
+    // Save as a presentation of pictures: a new presentation file with each slide as one picture (a file name is asked for; the Ask form shows the width box first). False, with the reason
+    // said, when none could be made.
+    bool exportPicturePresentation(const deck::PicturePresentationOptions &options);
+    bool exportPicturePresentationAsk();
     // Make an Email: a message as a .eml file (asking where to put it) with the presentation, or the presentation as a PDF; the person opens it in an email program. Nothing is sent.
     enum class EmailWhat { Presentation, Pdf };
     // `protect`: a password for the PDF of the Pdf form (the presentation as a file keeps the password the presentation has)
@@ -599,6 +607,7 @@ private:
     NotesPane *m_notes = nullptr;
     CommentsPane *m_comments = nullptr;
     DeckFileScreen *m_fileScreen = nullptr;
+    SplitMover *m_splitMover = nullptr;
     QSplitter *m_split = nullptr, *m_rightSplit = nullptr, *m_commentSplit = nullptr;   // the last: the slide and the Comments pane
     QStackedWidget *m_views = nullptr;   // the split, and the Slide Sorter
     SlideSorter *m_sorter = nullptr;

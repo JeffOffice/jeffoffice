@@ -235,6 +235,9 @@ DeckWindow::DeckWindow(QWidget *parent) : AppWindow(parent)
 DeckWindow::~DeckWindow()
 {
     qApp->removeEventFilter(this);   // (the filter of Full Screen and of the File screen)
+    // Hiding a window that is going sends the pane with the focus a focus-out, which would save what is typed into a window that is no longer whole.
+    if (m_notes) m_notes->giveUpTyping();
+    if (m_outline) m_outline->giveUpTyping();
     if (m_show) m_show->close();
 }
 
@@ -371,7 +374,7 @@ void DeckWindow::refreshUi()
     const QTextCharFormat cf = textish ? ed->currentCharFormat() : QTextCharFormat();
     const QTextBlockFormat bf = textish ? ed->currentBlockFormat() : QTextBlockFormat();
     for (const char *id : {"edit.cut", "edit.copy", "edit.delete"}) act(id)->setEnabled(sel || (editing && ed->cursor().hasSelection()));
-    for (const char *id : {"arr.front", "arr.forward", "arr.backward", "arr.back", "arr.rotR", "arr.rotL", "arr.flipH", "arr.flipV"}) act(id)->setEnabled(sel);
+    for (const char *id : {"arr.front", "arr.forward", "arr.backward", "arr.back", "arr.rotR", "arr.rotL", "arr.flipH", "arr.flipV", "arr.rotMore"}) act(id)->setEnabled(sel);
     for (const char *id : {"arr.alignLeft", "arr.alignCenter", "arr.alignRight", "arr.alignTop", "arr.alignMiddle", "arr.alignBottom"}) act(id)->setEnabled(sel);
     for (const char *id : {"arr.distH", "arr.distV"}) act(id)->setEnabled(ed->selection().size() > 2 || (sel && act("arr.alignToSlide")->isChecked()));
     act("arr.group")->setEnabled(kind == "multi");

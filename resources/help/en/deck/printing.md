@@ -62,6 +62,8 @@ An **SVG** picture is a drawing, not pixels. It is as sharp at any size, the let
 
 JeffDeck suggests the presentation's name and the slide's number as the file name.
 
+To save the whole presentation as a new presentation of pictures, click **Save as Presentation of Pictures**. Choose the width of each picture (1920 pixels at first) and whether to include hidden slides, then choose where to save the new file. JeffDeck makes a presentation of the same size with a slide for each of yours, each slide holding one picture that fills it. The slide's title becomes the picture's alt text, and the slide's notes go with it. It looks the same everywhere, and its text can't be changed. If the pictures would come to more than a presentation can hold (512 MB in all), JeffDeck says so and saves nothing; use a smaller width or fewer slides.
+
 To save every slide, click **Save Slides as Pictures** next to it. Choose the picture type (PNG, JPEG, GIF, TIFF, BMP, or SVG) and a folder. JeffDeck makes one file for each slide, named **Slide 1**, **Slide 2**, and so on. The **Width** box sets the pixels across and is not used for SVG.
 
 ## Related

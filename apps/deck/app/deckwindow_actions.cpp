@@ -3,6 +3,7 @@
 
 #include "core/textdirection.h"
 #include "app/deckwindow.h"
+#include "app/splitmover.h"
 
 #include "app/deckcanvas.h"
 #include "app/deckdialogs.h"
@@ -202,6 +203,8 @@ void DeckWindow::createFormatActions()
     mk("arr.rotL", tr("Rotate Left 90°"), "rotate-ccw", QKeySequence(), [ed] { ed->rotateSelection(-90); });
     mk("arr.flipH", tr("Flip Horizontal"), "flip-horizontal-2", QKeySequence(), [ed] { ed->flipSelection(true); });
     mk("arr.flipV", tr("Flip Vertical"), "flip-vertical-2", QKeySequence(), [ed] { ed->flipSelection(false); });
+    // More Rotation Options: the Format pane at its Size page, where the rotation is typed to the degree.
+    mk("arr.rotMore", tr("More Rotation Options…"), "rotate-cw", QKeySequence(), [this] { formatSelection(FormatPane::Tab::SizeProperties); });
     mk("edit.selectAll", tr("Select All"), "text-select", QKeySequence::SelectAll, [ed] {
         if (ed->isEditingText()) {
             QTextCursor c = ed->cursor();
@@ -314,6 +317,15 @@ void DeckWindow::createViewActions()
     };
     mk("win.arrange", tr("Arrange All"), "layout-panel-left", QKeySequence(), [openWindows] { AppWindow::arrangeInColumns(openWindows()); });
     mk("win.cascade", tr("Cascade"), "layers-2", QKeySequence(), [openWindows] { AppWindow::cascade(openWindows()); });
+    // Move Split: the arrow keys move the divider between the slide list and the slide, and between the slide and the notes.
+    mk("win.moveSplit", tr("Move Split"), "move-horizontal", QKeySequence(), [this] {
+        if (!m_splitMover) {
+            m_splitMover = new SplitMover(this);
+            connect(m_splitMover, &SplitMover::prompt, this, [this](const QString &text) { statusBar()->showMessage(text); });
+            connect(m_splitMover, &SplitMover::finished, this, [this] { statusBar()->clearMessage(); });
+        }
+        m_splitMover->start({m_split, m_rightSplit});
+    });
     // Where the window system places the windows itself these do nothing: they are off, and say why.
     if (!AppWindow::windowPlacementAllowed())
         for (const char *id : {"win.arrange", "win.cascade"}) {
@@ -534,8 +546,26 @@ void DeckWindow::moveSlideNumber(int across, int down)
 
 void DeckWindow::showHeaderFooter()
 {
-    HeaderFooterDialog dlg(deck::footerOptions(*m_ed->doc()), this);
-    if (dlg.exec() == QDialog::Accepted) applyFooters(dlg.options(), dlg.applyToAll());
+    Document *d = m_ed->doc();
+    const deck::PrintHeaderFooter notesStart =
+        deck::printHeaderFooter(*d, deck::hasPrintHeaderFooter(*d, deck::PrintedPages::Notes) ? deck::PrintedPages::Notes : deck::PrintedPages::Handouts);
+    HeaderFooterDialog dlg(deck::footerOptions(*d), this, &notesStart);
+    if (dlg.exec() != QDialog::Accepted) return;
+    const deck::PrintHeaderFooter notesChoice = dlg.printChoice();
+    if (notesChoice == notesStart) {
+        applyFooters(dlg.options(), dlg.applyToAll());
+        return;
+    }
+    // The slides' choice and the notes pages' and handouts' are one step of Undo.
+    const int i = m_ed->currentPage();
+    if (!dlg.applyToAll() && (i < 0 || i >= d->pages.size())) return;
+    m_notes->commit();
+    if (m_outline) m_outline->commit();
+    m_ed->endTextEdit();
+    m_ed->beginChange(tr("Header & Footer"));
+    deck::applyFooters(*d, dlg.options(), dlg.applyToAll() ? nullptr : d->pages[i].get());
+    for (deck::PrintedPages pages : {deck::PrintedPages::Notes, deck::PrintedPages::Handouts}) deck::setPrintHeaderFooter(*d, pages, notesChoice);
+    m_ed->endChange();
 }
 
 void DeckWindow::showPrintHeaderFooter()
