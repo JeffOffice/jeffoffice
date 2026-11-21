@@ -39,6 +39,10 @@ Click the small arrow at the corner of the **Styles** group, or press **Ctrl+Alt
 3. Type a **Name**. A name can have up to 255 letters, and it cannot be the name of another style.
 4. Check the other choices, and click **OK**.
 
+The **Style type** can be **Paragraph**, **Character**, or **Linked**. A linked style is a paragraph style with a character style of the same look beside it (named like the paragraph style, with "Char" added), so the look can be given to a whole paragraph or only to some words. When you change the paragraph style later, its character style takes the new look too.
+
+**Available in** chooses **Only in this document** or **New documents based on this template**. With the second choice the style is also saved in the template that new documents start from.
+
 The new style is saved with your document, and your paragraph takes it. One **Undo** (Ctrl+Z) takes the style back.
 
 ## Change a style
