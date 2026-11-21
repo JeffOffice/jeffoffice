@@ -496,6 +496,34 @@ private Q_SLOTS:
                  asPub(aw)->refreshUi();
                  asPub(aw)->act(QStringLiteral("arr.group"))->trigger();   // (Group is Ungroup while a group is selected)
              }, true},
+            {QStringLiteral("two overlapping shapes selected"), [](AppWindow *aw, bool) {
+                 Editor *ed = asPub(aw)->editor();
+                 auto one = std::make_shared<ShapeItem>(), two = std::make_shared<ShapeItem>();
+                 one->rect = QRectF(100, 400, 120, 80);
+                 two->rect = QRectF(160, 430, 120, 80);
+                 ed->addItem(one);
+                 ed->addItem(two);
+                 ed->select(QStringList{one->id, two->id});
+             }, false},
+            {QStringLiteral("a connector attached to a shape"), [](AppWindow *aw, bool) {
+                 Editor *ed = asPub(aw)->editor();
+                 auto one = std::make_shared<ShapeItem>(), two = std::make_shared<ShapeItem>();
+                 one->rect = QRectF(50, 100, 80, 60);
+                 two->rect = QRectF(300, 300, 80, 60);
+                 ed->addItem(one);
+                 ed->addItem(two);
+                 auto line = std::make_shared<LineItem>();
+                 line->start = LineItem::Glue{one->id, 0};
+                 line->end = LineItem::Glue{two->id, 2};
+                 ed->addItem(line);
+                 ed->select(one->id);
+             }, false},
+            {QStringLiteral("a page that starts a section"), [](AppWindow *aw, bool) {
+                 Editor *ed = asPub(aw)->editor();
+                 if (ed->doc()->pages.size() < 2) ed->doc()->addPage(1, ed->doc()->pages[0]->masterId);
+                 ed->startSection(1, 1, 3);
+                 ed->setCurrentPage(1);
+             }, false},
             {QStringLiteral("a merge preview"), [](AppWindow *aw, bool) {
                  asPub(aw)->refreshUi();
                  asPub(aw)->act(QStringLiteral("mm.preview"))->trigger();
@@ -520,6 +548,8 @@ private Q_SLOTS:
             {QStringLiteral("page."), {aStyledPage}},
             {QStringLiteral("tb."), {QStringLiteral("a story in two linked boxes"), QStringLiteral("the second of two linked boxes")}},
             {QStringLiteral("edit.pasteFormat"), {QStringLiteral("formatting copied from bold words")}},
+            {QStringLiteral("shape."), {QStringLiteral("two overlapping shapes selected"), QStringLiteral("a connector attached to a shape")}},
+            {QStringLiteral("page.section"), {QStringLiteral("a page that starts a section")}},
             {QStringLiteral("dash"), {QStringLiteral("a line with arrows and dashes"), QStringLiteral("a line selected")}},
             {QStringLiteral("arrow"), {QStringLiteral("a line with arrows and dashes"), QStringLiteral("a line selected")}},
             {QStringLiteral("ins.updateToc"), {QStringLiteral("a table of contents out of date")}},
