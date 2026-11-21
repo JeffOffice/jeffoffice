@@ -1,6 +1,10 @@
 #include "app/undohistory.h"
+#include "app/plaintext.h"
 
+#include <QAccessible>
 #include <QCoreApplication>
+#include <QFontMetrics>
+#include <QKeyEvent>
 #include <QLabel>
 #include <QListWidget>
 #include <QMouseEvent>
@@ -20,7 +24,8 @@ public:
     {
         setMouseTracking(true);
         setSelectionMode(QAbstractItemView::NoSelection);
-        setFocusPolicy(Qt::NoFocus);
+        setFocusPolicy(Qt::NoFocus);   // (the keys go to the menu, which marks the rows)
+        setTextElideMode(Qt::ElideRight);
         setHorizontalScrollBarPolicy(Qt::ScrollBarAlwaysOff);
         viewport()->setMouseTracking(true);
     }
@@ -57,7 +62,9 @@ UndoHistoryMenu::UndoHistoryMenu(bool redo, std::function<QStringList()> names, 
     list->hovered = [this](int n) { markSteps(n); };
     list->picked = [this](int n) { choose(n); };
     list->setMinimumWidth(220);
+    list->setMaximumWidth(UndoHistoryMenu::kMaxWidth);
     list->setFixedHeight(180);
+    list->setAccessibleName(redo ? QCoreApplication::translate("UndoHistory", "Actions that can be redone") : QCoreApplication::translate("UndoHistory", "Actions that can be undone"));
     m_footer = new QLabel(body);
     m_footer->setTextFormat(Qt::PlainText);
     m_footer->setContentsMargins(8, 4, 8, 4);
@@ -74,7 +81,12 @@ void UndoHistoryMenu::fill()
     m_list->clear();
     const QStringList names = m_names();
     const int n = int(std::min<qsizetype>(names.size(), kMaxShown));
-    for (int i = 0; i < n; ++i) m_list->addItem(names.at(i));
+    const QFontMetrics fm(m_list->font());
+    for (int i = 0; i < n; ++i) {
+        auto *item = new QListWidgetItem(fm.elidedText(names.at(i), Qt::ElideRight, kMaxWidth - 40), m_list);
+        item->setToolTip(plainToolTip(names.at(i)));   // (the whole name where it was cut)
+        item->setData(Qt::AccessibleTextRole, names.at(i));
+    }
     markSteps(0);
 }
 
@@ -86,6 +98,47 @@ void UndoHistoryMenu::markSteps(int count)
     for (int i = 0; i < m_list->count(); ++i) m_list->item(i)->setSelected(i < m_marked);   // (set in code: the list itself takes no selection from the mouse)
     if (m_marked == 0) m_footer->setText(m_redo ? QCoreApplication::translate("UndoHistory", "Redo") : QCoreApplication::translate("UndoHistory", "Undo"));
     else m_footer->setText(m_redo ? QCoreApplication::translate("UndoHistory", "Redo %n action(s)", nullptr, m_marked) : QCoreApplication::translate("UndoHistory", "Undo %n action(s)", nullptr, m_marked));
+    m_list->setCurrentRow(m_marked - 1, QItemSelectionModel::NoUpdate);
+    announce();
+}
+
+// The footer says what Enter would do: its text is its name for a screen reader, which is told when it changes.
+void UndoHistoryMenu::announce()
+{
+    m_footer->setAccessibleName(m_footer->text());
+    QAccessibleEvent changed(m_footer, QAccessible::NameChanged);
+    QAccessible::updateAccessibility(&changed);
+}
+
+QString UndoHistoryMenu::rowText(int row) const { return row >= 0 && row < m_list->count() ? m_list->item(row)->text() : QString(); }
+QString UndoHistoryMenu::rowName(int row) const { return row >= 0 && row < m_list->count() ? m_list->item(row)->data(Qt::AccessibleTextRole).toString() : QString(); }
+QString UndoHistoryMenu::footerText() const { return m_footer->text(); }
+
+int UndoHistoryMenu::page() const
+{
+    const int rowHeight = std::max(1, m_list->count() > 0 ? m_list->visualItemRect(m_list->item(0)).height() : 1);
+    return std::max(1, m_list->viewport()->height() / rowHeight - 1);
+}
+
+void UndoHistoryMenu::keyPressEvent(QKeyEvent *e)
+{
+    if (e->modifiers() & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier)) {
+        QMenu::keyPressEvent(e);
+        return;
+    }
+    switch (e->key()) {
+    case Qt::Key_Down: markSteps(m_marked + 1); break;
+    case Qt::Key_Up: markSteps(m_marked - 1); break;
+    case Qt::Key_PageDown: markSteps(m_marked + page()); break;
+    case Qt::Key_PageUp: markSteps(m_marked - page()); break;
+    case Qt::Key_Home: markSteps(1); break;
+    case Qt::Key_End: markSteps(m_list->count()); break;
+    case Qt::Key_Return:
+    case Qt::Key_Enter: choose(m_marked); break;
+    case Qt::Key_Escape: close(); break;
+    default: QMenu::keyPressEvent(e); return;
+    }
+    e->accept();
 }
 
 void UndoHistoryMenu::choose(int count)

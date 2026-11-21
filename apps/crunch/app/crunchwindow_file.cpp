@@ -65,6 +65,7 @@ void CrunchWindow::showBlank()
 // The window holds no workbook: the grid is empty and nothing of the one before is left.
 void CrunchWindow::dropWorkbook()
 {
+    if (m_repeat) m_repeat->setDocument(++m_documentCounter);
     forgetFilePassword();
     cancelPageBreaks();
     dropLayoutJob();

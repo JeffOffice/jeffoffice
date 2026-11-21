@@ -367,6 +367,9 @@ public:
     qint64 placeComparisons() const { return m_placeComparisons; }
     // The place of the style format a named style has (by its name), made when the workbook does not have it and it is one of the built-in styles (see builtinStyleNames); -1 if there is none.
     qint32 styleNamed(const QString &name);
+    // Gives a workbook read from a file of another form (a text file, an older binary file, an OpenDocument file) the style tables of the XML form, as the file a save writes for it has them (the
+    // Normal style, and the styles the older file named), so that named styles can be kept in it. Nothing is done for a workbook that has them.
+    void makeStyleTables();
     // How many more styles can be made (styleNamed for a built-in one, addNamedStyle); 0 when the workbook has no place for styles.
     qint64 styleRoom() const;
     // A style of a person's own, named `name` (made from the cell format at `format`): its place among the style formats; -1 if the name is taken (a style with that name, whatever the capitals),

@@ -2069,6 +2069,7 @@ private:
     QMenu *buildHistoryMenu(QWidget *owner, bool redo);
     void stepThroughHistory(bool redo, int count);
     jp::RepeatCommand *m_repeat = nullptr;
+    quint64 m_documentCounter = 0;   // (the token Repeat knows the workbook by: a new one for each session made or closed)
     QAction *m_repeatCtrlY = nullptr;
     grid::Selection m_lastSelectable;
     bool m_revertingSelection = false;

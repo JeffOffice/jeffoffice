@@ -19,7 +19,6 @@
 #include "app/sheettabs.h"
 #include "core/sheetobjects.h"
 #include "core/editsession.h"
-#include "app/undohistory.h"
 #include "grid/gridview.h"
 #include "sheet/cellref.h"
 
@@ -30,7 +29,10 @@
 #include <QFileInfo>
 #include <QFontMetrics>
 #include <QKeyEvent>
+#include <QAbstractSpinBox>
 #include <QLineEdit>
+#include <QPlainTextEdit>
+#include <QTextEdit>
 #include <QUndoStack>
 #include "app/plaintext.h"
 
@@ -40,6 +42,7 @@ QUndoStack *CrunchWindow::undoStack() const { return m_session ? m_session->undo
 
 void CrunchWindow::createEditing()
 {
+    m_repeat->setDocument(++m_documentCounter);   // (what was repeatable in the workbook before is not for this one)
     m_session = std::make_unique<crunch::EditSession>(&m_loader, m_loaded, &m_values, nullptr);
     applyCustomListLines();
     // (a formula typed with the name of another open workbook reads it: the files of the workbooks open in the other windows)
@@ -672,6 +675,8 @@ void CrunchWindow::runRepeat()
         return;
     }
     if (m_saving || m_applying || m_argsDialog) return;
+    // (F4 is the grid's: a box of text of the window that has the focus, the Name box or the find box, keeps its key)
+    if (QWidget *w = QApplication::focusWidget(); w && w != m_view && !m_view->isAncestorOf(w) && (qobject_cast<QLineEdit *>(w) || qobject_cast<QTextEdit *>(w) || qobject_cast<QPlainTextEdit *>(w) || qobject_cast<QAbstractSpinBox *>(w))) return;
     m_repeat->run();
 }
 
@@ -701,12 +706,16 @@ QMenu *CrunchWindow::buildHistoryMenu(QWidget *owner, bool redo)
 
 void CrunchWindow::stepThroughHistory(bool redo, int count)
 {
+    int done = 0;
     for (int i = 0; i < count; ++i) {
         QUndoStack *u = undoStack();
         const int before = u ? u->index() : 0;
         undoRedo(redo);
-        if (!u || u->index() == before) break;   // (a step that was refused, or that waits for a password, ends the run)
+        if (!u || u->index() == before) break;   // (a step that was refused, or that waits for a password, or that is still being made in slices, ends the run)
+        ++done;
     }
+    // (a run that stopped says how far it got)
+    if (done < count) setStatus(redo ? tr("Redid %1 of %n action(s)", nullptr, count).arg(done) : tr("Undid %1 of %n action(s)", nullptr, count).arg(done));
 }
 
 void CrunchWindow::undoRedoNow(bool redo)

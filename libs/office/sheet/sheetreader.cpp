@@ -3600,6 +3600,7 @@ quint32 Workbook::formatWith(quint32 base, const FormatChange &c)
 
 qint32 Workbook::styleNamed(const QString &name)
 {
+    makeStyleTables();
     for (const CellStyleName &n : m_styles.cellStyles)
         if (n.name.compare(name, Qt::CaseInsensitive) == 0) return n.xfId < quint32(m_styles.styleXfs.size()) ? qint32(n.xfId) : -1;
     // (a built-in style the workbook does not have is made, if the file can be given one: it has the lists the styles go in, and room)
@@ -3632,7 +3633,7 @@ qint32 Workbook::styleNamed(const QString &name)
 
 qint64 Workbook::styleRoom() const
 {
-    if (m_styles.styleXfs.isEmpty() || m_styles.cellStyles.isEmpty()) return 0;
+    if (m_styles.styleXfs.isEmpty() || m_styles.cellStyles.isEmpty()) return isConverted() ? kMaxStylesMade : 0;   // (made when the first is wanted: see makeStyleTables)
     return std::max<qint64>(0, kMaxStylesMade - m_styles.styleXfs.size());
 }
 

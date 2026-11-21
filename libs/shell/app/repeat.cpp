@@ -6,12 +6,20 @@ namespace jp {
 
 RepeatCommand::RepeatCommand(QObject *parent) : QObject(parent) {}
 
-void RepeatCommand::record(const QString &name, std::function<void()> again)
+void RepeatCommand::record(const QString &name, std::function<void()> again, quint64 document)
 {
-    if (m_running) return;   // (a command done again is the one already kept)
+    if (m_running) return;
+    if (document != 0 && document != m_document) return;   // (given in a document that is gone)   // (a command done again is the one already kept)
     m_name = name;
     m_again = std::move(again);
     Q_EMIT changed();
+}
+
+void RepeatCommand::setDocument(quint64 token)
+{
+    if (token == m_document) return;
+    m_document = token;
+    clear();
 }
 
 void RepeatCommand::clear()

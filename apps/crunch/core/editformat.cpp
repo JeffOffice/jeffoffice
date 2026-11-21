@@ -2,7 +2,6 @@
 // were and as they are), the formats of whole columns and rows, and the merged ranges. See EditSession::formatCells.
 #include "core/editsession.h"
 #include "sheet/fonttext.h"
-#include "calc/numfmt.h"
 
 #include "core/formatfind.h"
 #include "sheet/builtinstyles.h"
@@ -773,8 +772,6 @@ EditSession::Outcome EditSession::applyStyleNamed(int sheet, const CellRange &ra
         return out;
     }
     qint32 place = -1;
-    FormatChange direct;
-    bool useDirect = false;
     {
         // (the style is made with the worker held back: it reads the workbook's styles)
         std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
@@ -784,28 +781,7 @@ EditSession::Outcome EditSession::applyStyleNamed(int sheet, const CellRange &ra
             return out;
         }
         place = m_book->book->styleNamed(name);
-        // (a workbook that came from a text file, an older binary file, or an OpenDocument file has no named styles of the XML form: the built-in style then gives its look as formatting of the cells)
-        jp::office::sheet::BuiltinStyle def;
-        if (place < 0 && jp::office::sheet::builtinStyle(name, &def)) {
-            useDirect = true;
-            const bool theme = m_book->book->hasTheme();
-            if (def.size > 0) direct.fontSize = def.size;
-            if (!def.fontName.isEmpty()) direct.fontName = def.fontName;
-            if (!def.scheme.isEmpty() && theme) direct.fontScheme = def.scheme;
-            direct.bold = def.bold;
-            direct.italic = def.italic;
-            direct.underline = def.underline;
-            if (def.fontColor.isSet()) direct.fontColor = def.fontColor;
-            else direct.fontColor = jp::office::sheet::ColorSpec();
-            direct.fill = def.fill;
-            direct.left = def.border.left;
-            direct.right = def.border.right;
-            direct.top = def.border.top;
-            direct.bottom = def.border.bottom;
-            direct.numberFormat = jp::calc::builtinFormatCode(def.numFmtId);
-        }
     }
-    if (useDirect) return formatCells(sheet, range, direct, text);
     if (place < 0) {
         out.ok = false;
         out.problem = tr("This workbook has no place to keep the style \"%1\".").arg(name);

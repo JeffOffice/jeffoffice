@@ -679,6 +679,8 @@ void RibbonCustom::applyQuick(Ribbon *r, AppWindow *win) const
                 menuCommand = true;
             }
     const QHash<QAction *, QToolButton *> menus = menuCommand ? menuButtons(r) : QHash<QAction *, QToolButton *>();
+    // (Undo and Redo and the like have their arrows on the ribbon file's own quick toolbar, not in a group: a command with no menu among the groups has the one the file gives it there)
+    const QList<Ribbon::QuickEntry> defaults = r->defaultQuickAccess();
     QStringList used = {QStringLiteral("0")};
     used << (r->fileKeytip().isEmpty() ? QStringLiteral("F") : r->fileKeytip());
     for (int i = 0; i < r->tabCount(); ++i)
@@ -697,6 +699,13 @@ void RibbonCustom::applyQuick(Ribbon *r, AppWindow *win) const
         if (const QToolButton *src = menus.value(a)) {
             e.menu = src->menu();
             e.split = src->popupMode() == QToolButton::MenuButtonPopup;
+        } else {
+            for (const Ribbon::QuickEntry &d : defaults)
+                if (d.action == a && d.menu) {
+                    e.menu = d.menu;
+                    e.split = d.split;
+                    break;
+                }
         }
         ++n;
         e.keytip = n <= 9 ? QString::number(n) : freeKeytip(QString(), used, 2);

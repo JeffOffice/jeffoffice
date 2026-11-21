@@ -7,6 +7,7 @@
 #include <QStringList>
 #include <functional>
 
+class QKeyEvent;
 class QLabel;
 class QListWidget;
 
@@ -26,9 +27,22 @@ public:
     // Does the first `count` steps through the app's function and closes the list.
     void choose(int count);
     int shownSteps() const;
+    // The rows as the list holds them: the text shown (elided to the width of the list), and the whole name, which is the tip and what a screen reader reads.
+    QString rowText(int row) const;
+    QString rowName(int row) const;
+    QString footerText() const;
+    // The most width the list takes, however long a step's name is.
+    static constexpr int kMaxWidth = 360;
+
+protected:
+    // The keys of a menu: Up and Down move the marked steps (as the pointer does), Home and End mark the first and the last, PageUp and PageDown move by a page, Enter does the marked
+    // steps, and Escape closes the list.
+    void keyPressEvent(QKeyEvent *e) override;
 
 private:
     void fill();
+    void announce();
+    int page() const;
     bool m_redo;
     std::function<QStringList()> m_names;
     std::function<void(int)> m_run;

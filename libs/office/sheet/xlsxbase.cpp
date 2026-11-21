@@ -15,6 +15,7 @@
 #include "io/zip.h"
 #include "sheet/xmlscan.h"
 
+#include <QBuffer>
 #include <QCoreApplication>
 #include <QHash>
 #include <QList>
@@ -987,6 +988,26 @@ bool dropForeignObjects(ImportedDrawing *d)
 
 // An object of ours is written as an embedded package of its kind; any other (kept only for a file that goes on to be an OpenDocument one) as a binary part.
 static bool isOurObject(const ImportedObject &o) { return o.odf.isEmpty() && ole::kindOfProgId(o.progId) != ole::Kind::Other; }
+
+void Workbook::makeStyleTables()
+{
+    if (!isConverted() || !m_styles.styleXfs.isEmpty() || !m_styles.cellStyles.isEmpty()) return;
+    // (what the file has of them is what the part of the base file says, written as a save writes it, or the part of the file already saved)
+    QByteArray part;
+    if (m_package.isLazy()) {
+        part = m_package.part(m_stylesPart);
+    } else {
+        QSet<int> addedFormats;
+        for (const AddedNumberFormat &f : addedNumberFormats()) addedFormats.insert(f.id);
+        part = jp::office::sheet::stylesPart(m_styles, qsizetype(m_formatsInFile), addedFormats);
+    }
+    QBuffer in(&part);
+    Styles read;
+    if (part.isEmpty() || !in.open(QIODevice::ReadOnly) || !readStyles(&in, m_limits, &read) || read.styleXfs.isEmpty() || read.cellStyles.isEmpty()) return;
+    m_styles.styleXfs = read.styleXfs;
+    m_styles.cellStyles = read.cellStyles;
+    m_styleXfsInFile = m_styles.styleXfs.size();
+}
 
 bool writeBaseXlsx(const Workbook &book, QByteArray *out, QString *error, const std::atomic<bool> *cancel, QStringList *notes, bool keepOdfObjects, int extraLinks, bool dropLinks, bool keepOdfNotes)
 {
