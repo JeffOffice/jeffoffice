@@ -1298,12 +1298,17 @@ void Importer::readHyperlinks(const Rec &list)
         if (!atom || atom->len < 4) continue;
         Cursor ac(d, atom->off, atom->end());
         const quint32 id = ac.u32();
-        QString target, location;
+        QString target, location, friendly;
         for (const Rec &k : kids) {
             if (k.type != RT_CString) continue;
             if (k.inst == 1) target = readChars(d, k, true);
             else if (k.inst == 3) location = readChars(d, k, true);
+            else if (k.inst == 0) friendly = readChars(d, k, true);
         }
+        // (Section 2.10.16 makes the target and the location optional: a link that has only the friendly name, which holds the
+        // address, is a link to that address, as the original draws it.)
+        if (target.isEmpty() && location.isEmpty() && (friendly.contains(QLatin1String("://")) || friendly.startsWith(QLatin1String("mailto:"), Qt::CaseInsensitive)))
+            target = friendly;
         const int zero = target.indexOf(QChar(0));
         if (zero >= 0) target.truncate(zero);
         if (target.isEmpty()) continue;

@@ -237,6 +237,28 @@ private Q_SLOTS:
         QVERIFY(!d->pages[0]->props.contains(QStringLiteral("transition")));
     }
 
+    // A link the file gives only a friendly name for, which holds the address, is a link to that address ([MS-PPT] 2.10.16: the target and
+    // the location are optional), and its words are drawn as a link.
+    void binaryPresentationLinkWithOnlyAFriendlyNameIsALink()
+    {
+        QByteArray file = buildPpt(false, false, true);
+        const qsizetype url = file.indexOf(utf16(QStringLiteral("https://example.org/site")));
+        const qsizetype name = file.indexOf(utf16(QStringLiteral("the site")));
+        QVERIFY(url > 8 && name > 8);
+        // The address record becomes the friendly name (instance 0); the earlier friendly name record is made another, ignored kind.
+        file[url - 8] = char(0x00);
+        file[name - 6] = char(0xBB);   // record type 0x0FBA -> 0x0FBB
+        QString err;
+        auto d = deck::importBinaryPresentation(file, &err);
+        QVERIFY2(d, qPrintable(err));
+        QTextDocument *body = placeholderStory(*d, *d->pages[2], QStringLiteral("ph:body:1"));
+        QVERIFY(body);
+        QString href;
+        for (auto f = body->begin().begin(); !f.atEnd(); ++f)
+            if (f.fragment().text() == QLatin1String("the site")) href = f.fragment().charFormat().anchorHref();
+        QCOMPARE(href, QStringLiteral("https://example.org/site"));
+    }
+
     // An old binary presentation (.ppt, a show .pps, a template .pot) is
     // read, never written over: Save asks for a new name, suggesting the
     // newer kind beside it, and the old file stays as it was.
