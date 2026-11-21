@@ -73,7 +73,9 @@ void buildPicturePage(FormatPane *pane, PanePage *page)
         ignoreWheelUnlessFocused(recolor);
         auto *threshold = percent(w, "imageThreshold", 0, 100);
         auto *transparency = percent(w, "imageTransparency", 0, 100);
+        auto *saturation = percent(w, "imageSaturation", -100, 100);
         form->addRow(FormatPane::tr("Recolor"), recolor);
+        form->addRow(FormatPane::tr("Saturation"), saturation);
         form->addRow(FormatPane::tr("Black and white level"), threshold);
         form->addRow(FormatPane::tr("Transparency"), transparency);
         color->body()->addLayout(form);
@@ -85,6 +87,8 @@ void buildPicturePage(FormatPane *pane, PanePage *page)
         }, [](Item &it, int i) {
             static_cast<PictureItem &>(it).recolor = i == 1 ? PictureItem::Grayscale : i == 2 ? PictureItem::BlackWhite : PictureItem::NoRecolor;
         });
+        bindNumber(pane, saturation, label, [](const Item &it) -> std::optional<double> { const auto *p = correctable(it); return p ? std::optional<double>(p->saturationMove()) : nullopt; },
+                   [](Item &it, double v) { static_cast<PictureItem &>(it).setSaturationMove(v); });
         bindNumber(pane, threshold, label, [](const Item &it) -> std::optional<double> {
             const auto *p = correctable(it);
             return p && p->recolor == PictureItem::BlackWhite ? std::optional<double>(p->blackWhiteLevel * 100) : nullopt;

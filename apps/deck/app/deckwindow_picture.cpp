@@ -22,6 +22,7 @@
 #include <QAction>
 #include <QFileInfo>
 #include <QMenu>
+#include <QPointer>
 #include <QStandardPaths>
 #include <QStatusBar>
 
@@ -88,6 +89,45 @@ void DeckWindow::createCropActions()
         compressPicturesDialog(this, m_ed, tr("Apply to all pictures in the presentation"));
     });
 
+    // Corrections, Color, and Transparency (Picture Format > Adjust): each choice is one step of Undo for the pictures selected, drawn and saved as the Format pane's boxes are.
+    auto signedPercent = [](int v) { return v > 0 ? QStringLiteral("+%1%").arg(v) : QStringLiteral("%1%").arg(v); };
+    auto onPictures = [ed](const QString &step, const std::function<void(PictureItem &)> &change) {
+        leaveCrop(ed);
+        ed->forEachSelected(step, [change](Item *it) {
+            if (auto *p = dynamic_cast<PictureItem *>(it); p && p->mediaKind.isEmpty() && p->chartXml.isEmpty() && !p->imageId.isEmpty()) change(*p);
+        });
+    };
+    for (int v : {-40, -20, 0, 20, 40}) {
+        mk(QStringLiteral("pic.brightness.%1").arg(v), v == 0 ? tr("Brightness: 0% (Normal)") : tr("Brightness: %1").arg(signedPercent(v)), QString(), QKeySequence(),
+           [onPictures, v] { onPictures(tr("Brightness"), [v](PictureItem &p) { p.brightness = v; }); });
+        mk(QStringLiteral("pic.contrast.%1").arg(v), v == 0 ? tr("Contrast: 0% (Normal)") : tr("Contrast: %1").arg(signedPercent(v)), QString(), QKeySequence(),
+           [onPictures, v] { onPictures(tr("Contrast"), [v](PictureItem &p) { p.contrast = v; }); });
+    }
+    for (int v : {-100, -50, 0, 50, 100}) {
+        mk(QStringLiteral("pic.saturation.%1").arg(v), v == 0 ? tr("Saturation: 0% (Normal)") : v == -100 ? tr("Saturation: -100% (Gray)") : tr("Saturation: %1").arg(signedPercent(v)), QString(),
+           QKeySequence(), [onPictures, v] { onPictures(tr("Saturation"), [v](PictureItem &p) { p.setSaturationMove(v); }); });
+    }
+    const struct { const char *id; PictureItem::Recolor how; QString name; } recolors[] = {{"none", PictureItem::NoRecolor, tr("No Recolor")},
+                                                                                           {"gray", PictureItem::Grayscale, tr("Grayscale")},
+                                                                                           {"blackwhite", PictureItem::BlackWhite, tr("Black and White")}};
+    for (const auto &r : recolors) {
+        const PictureItem::Recolor how = r.how;
+        mk(QStringLiteral("pic.recolor.%1").arg(QLatin1String(r.id)), r.name, QString(), QKeySequence(), [onPictures, how] { onPictures(tr("Recolor"), [how](PictureItem &p) { p.recolor = how; }); });
+    }
+    for (int v : {0, 15, 30, 50, 65, 80, 95})
+        mk(QStringLiteral("pic.transparency.%1").arg(v), v == 0 ? tr("Transparency: 0% (Normal)") : tr("Transparency: %1%").arg(v), QString(), QKeySequence(),
+           [onPictures, v] { onPictures(tr("Picture Transparency"), [v](PictureItem &p) { p.transparency = v / 100.0; }); });
+    // Set Transparent Color picks a color from what the window shows; the pictures selected then have that color clear.
+    mk("pic.transparent", tr("Set Transparent Color"), "pipette", QKeySequence(), [this] {
+        QPointer<DeckWindow> self(this);
+        pickColorFromWindow(this, [self](const QColor &c) {
+            if (self && c.isValid()) self->setPictureTransparentColor(c);
+        });
+    });
+    mk("pic.transparentNone", tr("No Transparent Color"), QString(), QKeySequence(), [onPictures] {
+        onPictures(tr("Transparent Color"), [](PictureItem &p) { p.hasTransparentColor = false; });
+    });
+
     // Aspect Ratio: the shapes slides and screens come in, wide ones and tall ones.
     const struct { int w, h; QString name; } ratios[] = {
         {1, 1, tr("Square 1:1")}, {2, 3, tr("Portrait 2:3")}, {3, 4, tr("Portrait 3:4")}, {3, 5, tr("Portrait 3:5")}, {4, 5, tr("Portrait 4:5")},
@@ -117,6 +157,18 @@ void DeckWindow::cropPictureToShape(const QString &shape)
     leaveCrop(m_ed);
     m_ed->forEachSelected(tr("Crop to Shape"), [shape](Item *it) {
         if (auto *p = dynamic_cast<PictureItem *>(it); p && !p->imageId.isEmpty()) p->maskShape = shape;
+    });
+}
+
+void DeckWindow::setPictureTransparentColor(const QColor &color)
+{
+    if (!color.isValid()) return;
+    leaveCrop(m_ed);
+    m_ed->forEachSelected(tr("Transparent Color"), [color](Item *it) {
+        if (auto *p = dynamic_cast<PictureItem *>(it); p && p->mediaKind.isEmpty() && p->chartXml.isEmpty() && !p->imageId.isEmpty()) {
+            p->hasTransparentColor = true;
+            p->transparentColor = QColor(color.red(), color.green(), color.blue());
+        }
     });
 }
 

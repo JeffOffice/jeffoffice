@@ -340,6 +340,30 @@ void PictureItem::scaleInto(const QRectF &from, const QRectF &to)
     imgRect = QRectF(imgRect.x() * kx, imgRect.y() * ky, imgRect.width() * kx, imgRect.height() * ky);
 }
 
+double PictureItem::saturationMove() const
+{
+    for (const BlipEffect &e : blipEffects)
+        if (e.kind == BlipEffect::Hsl) return std::clamp(e.saturation, -1.0, 1.0) * 100;
+    return 0;
+}
+
+void PictureItem::setSaturationMove(double percent)
+{
+    const double move = std::clamp(percent, -100.0, 100.0) / 100;
+    for (qsizetype i = 0; i < blipEffects.size(); ++i) {
+        BlipEffect &e = blipEffects[i];
+        if (e.kind != BlipEffect::Hsl) continue;
+        e.saturation = move;
+        if (e.saturation == 0 && e.hue == 0 && e.lightness == 0) blipEffects.removeAt(i);
+        return;
+    }
+    if (move == 0) return;
+    BlipEffect e;
+    e.kind = BlipEffect::Hsl;
+    e.saturation = move;
+    blipEffects.append(e);
+}
+
 QVector<BlipEffect> PictureItem::colorEffects() const
 {
     QVector<BlipEffect> out;

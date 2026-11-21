@@ -189,6 +189,10 @@ public:
     QVector<BlipEffect> blipEffects;
     // Every change of the picture's colors, in the order they are drawn: the settings, then blipEffects.
     QVector<BlipEffect> colorEffects() const;
+    // How far the picture's colors are moved in saturation, from -100 (gray) to 100 (as strong as they go), as the first hue, saturation, and lightness change of blipEffects says (0 with
+    // none); set, it changes that one's saturation only, and takes the change out when nothing is left in it, or puts one in at the end when there was none.
+    double saturationMove() const;
+    void setSaturationMove(double percent);
     // Takes the changes a blip lists, in the order it lists them. The settings hold those that come first, if they come in the order the
     // settings are drawn (a clear color, the brightness and contrast, gray or black and white) and each only once; blipEffects holds the rest,
     // so that what is drawn and what is written follows the file whatever its order.
