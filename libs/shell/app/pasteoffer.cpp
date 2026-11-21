@@ -44,8 +44,9 @@ PasteOffer::~PasteOffer()
     }
     if (m_button) {
         m_button->removeEventFilter(this);
-        if (QMenu *menu = m_button->menu()) menu->disconnect();
-        m_button->disconnect();
+        // (only what is connected to this offer: a wildcard disconnect also cuts the style sheet's hold on the widget's destroyed signal)
+        if (QMenu *menu = m_button->menu()) menu->disconnect(this);
+        m_button->disconnect(this);
         delete m_button;
     }
 }

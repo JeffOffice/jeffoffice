@@ -167,6 +167,24 @@ private Q_SLOTS:
         QCOMPARE(b->asked, asked);
         delete b;
     }
+
+    // The offer goes without cutting what others hung on the button and its menu: the style sheet's own list of widgets (it hears of a widget going from
+    // its destroyed signal) was cut by a wildcard disconnect, and the next change of the interface theme read a widget that was gone.
+    void whatOthersHungOnTheButtonAndItsMenuSurvivesTheOffer()
+    {
+        Bench b;
+        b.offer->showAt(QRect(10, 10, 20, 20));
+        QToolButton *button = b.offer->button();
+        QMenu *menu = button->menu();
+        int buttonGone = 0, menuGone = 0;
+        QObject sink;
+        connect(button, &QObject::destroyed, &sink, [&buttonGone] { ++buttonGone; });
+        connect(menu, &QObject::destroyed, &sink, [&menuGone] { ++menuGone; });
+        delete b.offer;
+        b.offer = nullptr;
+        QCOMPARE(buttonGone, 1);
+        QCOMPARE(menuGone, 1);
+    }
 };
 
 JP_TEST_CLASS(ShellPasteOfferTests)
