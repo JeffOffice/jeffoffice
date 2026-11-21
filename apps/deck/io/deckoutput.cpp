@@ -1107,18 +1107,27 @@ PicturePresentationResult picturePresentation(const Document &d, LayoutCache *ca
         return result;
     }
     const QSizeF size = made->pageSize();
-    qint64 bytes = 0;
+    qint64 bytes = 0, largest = 0;
     int done = 0;
     for (int i = 0; i < d.pages.size(); ++i) {
         if (d.pages[i]->hidden && !o.hidden) continue;
+        // The total is looked at before the next slide is drawn, from the size of the biggest picture so far (every slide has the same pixels): a slide that
+        // would take it over is not drawn, so what is held is never more than the total and the one slide being drawn (its pixels, and its picture).
+        if (bytes + largest > o.mostBytes) {
+            result.error = QCoreApplication::translate("jp::deck::Output", "The pictures come to more than a presentation of pictures can hold. Use a smaller width or fewer slides.");
+            return result;
+        }
         const QImage img = slideImage(d, cache, i, result.widthUsed);
+        ++result.drawn;
         QByteArray png;
         QBuffer buffer(&png);
         if (img.isNull() || !buffer.open(QIODevice::WriteOnly) || !img.save(&buffer, "PNG")) {
             result.error = QCoreApplication::translate("jp::deck::Output", "Slide %1 could not be drawn as a picture.").arg(i + 1);
             return result;
         }
+        result.bytes = bytes + png.size();
         bytes += png.size();
+        largest = std::max<qint64>(largest, png.size());
         if (bytes > o.mostBytes) {
             result.error = QCoreApplication::translate("jp::deck::Output", "The pictures come to more than a presentation of pictures can hold. Use a smaller width or fewer slides.");
             return result;

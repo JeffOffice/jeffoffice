@@ -655,13 +655,21 @@ bool DeckWindow::exportPicturePresentation(const deck::PicturePresentationOption
     QString path = m_pathChooser ? m_pathChooser(suggested, filter) : askSavePath(this, title, suggested, filter);
     if (path.isEmpty()) return false;
     if (QFileInfo(path).suffix().isEmpty()) path += QStringLiteral(".pptx");
+    // Never over the file of the presentation open here: the picture presentation would take its place, and this window would still show the old one.
+    if (sameFile(path, m_ed->filePath())) {
+        const QString text = tr("The pictures can't be saved over \"%1\", the presentation that is open. Choose another name.").arg(QFileInfo(path).fileName());
+        if (m_notifier) m_notifier(title, text);
+        else jp::plainWarning(this, title, text);
+        return false;
+    }
     std::unique_ptr<QProgressDialog> bar;
     const int shown = [&] {
         int n = 0;
         for (const auto &page : m_ed->doc()->pages) n += !page->hidden || options.hidden;
         return n;
     }();
-    if (shown > 10) {
+    // (for any presentation of more than ten slides, whatever number of them are drawn)
+    if (m_ed->doc()->pages.size() > 10) {
         bar = std::make_unique<QProgressDialog>(tr("Drawing the slides as pictures…"), tr("Cancel"), 0, shown, this);
         bar->setWindowModality(Qt::WindowModal);
         bar->setMinimumDuration(0);

@@ -162,6 +162,8 @@ struct PicturePresentationResult {
     bool cancelled = false;
     int slides = 0;
     int widthUsed = 0;
+    int drawn = 0;       // the slides drawn (one over the total is drawn and let go of)
+    qint64 bytes = 0;    // the pictures held when it ended
 };
 PicturePresentationResult picturePresentation(const Document &d, LayoutCache *cache, const PicturePresentationOptions &o);
 
