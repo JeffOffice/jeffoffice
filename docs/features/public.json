@@ -1488,7 +1488,7 @@
         },
         {
          "status": "partly",
-         "text": "201fcdfae81a395e7369808cb2148ebe9e4e689180a364ea916a9773f144aa25"
+         "text": "cfe45375fc05a2e4072d86c74cda88324fd870985a38d73a54ca911e14567e3e"
         },
         {
          "status": "partly",
@@ -1500,7 +1500,12 @@
         },
         {
          "status": "partly",
-         "text": "15d3ebd2474eaa13d4b72804fd81f0a1553298ba707601709ccad9f8a669aace"
+         "text": "317fba5c1e028ef715f7a84475637700674159c6bbc5c2ee11e0a6892ac49cc0"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
+         "text": "4f63b405bcd1b8dfccdaf11de1d0972e0ff25ff07c649b72de4d6d4da1f2833f"
         },
         {
          "status": "partly",
@@ -3742,7 +3747,12 @@
         },
         {
          "status": "partly",
-         "text": "15a27c675889566f268b5197f11bb010deaaaf73038e803571bc8b59dd9d474e"
+         "text": "dff9f8fe814f744b6e8dcf56af91ba29a4d8891fb39805089842719ca2ba695c"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
+         "text": "da9edc38992373f6c18365b04137e4c357afe8c71bebb5f74ab3f4ec6d33901b"
         },
         {
          "hide_soon": true,
@@ -4779,6 +4789,11 @@
       {
        "status": "partly",
        "text": "ef07bb5de90a7ff1c92476fa6cc1955f1aecfbf78849bfc129f1baed855d250c"
+      },
+      {
+       "hide_soon": true,
+       "status": "done",
+       "text": "f0aef89eec6b598f2d1b384d9420f3dd0c45c2ea0cb4a165d9a4d1c92231b55b"
       },
       {
        "hide_soon": true,
@@ -5914,8 +5929,9 @@
          "text": "1f304a8b7e473e5425d1d267e178eaf74e80164b90e01d18f7bc98002bf1517b"
         },
         {
-         "status": "partly",
-         "text": "7dcca107315e5ce93372bc4bcbfdff1a9b9bb471930bebc2f750f18d69a43354"
+         "hide_soon": true,
+         "status": "done",
+         "text": "3c92155a754d6e2ef64c13558ca7861a87418ab9f7fdb7914d6428ce787e7c98"
         },
         {
          "hide_soon": true,
@@ -6038,8 +6054,9 @@
          "text": "52a08d7a207650138152c3f248f8c9db85037c443a4e5c29f4831687bfe74aea"
         },
         {
-         "status": "partly",
-         "text": "c5cacad83e3520c8ce1d02dbe3c1e961d045f6ccaf861de085e9a4437d3149f7"
+         "hide_soon": true,
+         "status": "done",
+         "text": "95846acb99cef1cbda44ec008fb5d942e37f65adbcb0b67b11f66e5e946e5cfa"
         },
         {
          "status": "partly",
@@ -6055,8 +6072,9 @@
          "text": "5d3c0d3e576121f13d8833c812d9d5f7162074757d84218746ecc1d2b9dabd7a"
         },
         {
-         "status": "partly",
-         "text": "ea37e2d36beb3ef2b25fc355cdf3e53c492642c0138ada4dd11655f9f3c16e2c"
+         "hide_soon": true,
+         "status": "done",
+         "text": "495dde7403f6fc8771306a3b5c32965217e843f931d050250709fcd832e4205e"
         },
         {
          "status": "todo",
@@ -6154,8 +6172,9 @@
          "text": "1280f78a70aaede490888b30b43e87095bee9375c293470c7554f8f330ddaec3"
         },
         {
-         "status": "partly",
-         "text": "064118c41ca481c01bc6b6520cac3848533de7c016a5fa3a34160404bd194fda"
+         "hide_soon": true,
+         "status": "done",
+         "text": "93e8e41c4f46f345c92929449408a25562669c02cad6d2d5929519ebd83af57f"
         },
         {
          "hide_soon": true,
@@ -6206,8 +6225,9 @@
          "text": "5d90fd69877b96b5e4c5a951d6f5453046078299b08939f941197805f9369c0e"
         },
         {
-         "status": "partly",
-         "text": "3d504368fe90a66563d912363abacc60e94684f1ba7cee1417ee1c9532db7025"
+         "hide_soon": true,
+         "status": "done",
+         "text": "d9126b584f790bdf701ebb132c95b2c70bfc7ab6525a6ab54594f0fa1826e90d"
         },
         {
          "hide_soon": true,
@@ -6225,8 +6245,9 @@
          "text": "d2c308adaf9454cb5982bb1a5cd2dcf610c91b8bf6d654fdada54d4c1ea5e922"
         },
         {
-         "status": "partly",
-         "text": "3bab5dcb0b60c0491ea71a1bfbe5418260323e71d4e54a2ac1cdc8883ab23e84"
+         "hide_soon": true,
+         "status": "done",
+         "text": "1b65d5b76607edffbfff571e5bc7b6967584597dd879df6cfe3d4c6c91521064"
         },
         {
          "status": "partly",
@@ -6234,7 +6255,7 @@
         },
         {
          "status": "partly",
-         "text": "968d6177a5075fe4c7133c8d5e015ed7d8f8ad561c77a755e458823ab9a7894b"
+         "text": "5ad9371f24b467ed6a0fd07418362166b7b020b704222f714e0650bdc32060e9"
         },
         {
          "hide_soon": true,
@@ -6301,7 +6322,7 @@
         },
         {
          "status": "partly",
-         "text": "5c0052f674d41882bae31b12d685ca6c1d303584e49d0069a6e704704fd29099"
+         "text": "e843bb7bf3882abbc4bf4cf6b0822ed6d7d284f2d68d401f30c908958234a51e"
         },
         {
          "hide_soon": true,
@@ -7148,7 +7169,12 @@
        "items": [
         {
          "status": "partly",
-         "text": "fbff3445a9c9af034b5ec3b52368570967db4466b22c4ea0937ffee6ea7393a0"
+         "text": "866bc94f4c9dbff2e8a87cb71aa3bd12d582f24f218446ac02ffb61ef7dbed90"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
+         "text": "5a32f514e8f376ea9ed845d53048bf703c8309ea13e9c4d3dbac0f02804305ad"
         },
         {
          "hide_soon": true,
@@ -8092,18 +8118,6 @@
     "en": "Chart Filters button",
     "es": "Botón Filtros de gráfico",
     "fr": "Bouton Filtres du graphique"
-   }
-  },
-  "064118c41ca481c01bc6b6520cac3848533de7c016a5fa3a34160404bd194fda": {
-   "drop": false,
-   "en": "Choose font color and highlight color from the Home tab.",
-   "es": "Elija el color de fuente y el color de resaltado en la pestaña Inicio.",
-   "fr": "Choisissez la couleur de police et la couleur de surlignage dans l’onglet Accueil.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
    }
   },
   "064cd5670d2807cbc8ac8069ca68d05ef4c687e3cce4ab536d2829ee12232555": {
@@ -9342,30 +9356,6 @@
     "fr": ""
    }
   },
-  "15a27c675889566f268b5197f11bb010deaaaf73038e803571bc8b59dd9d474e": {
-   "drop": false,
-   "en": "Format the fill and line of the chart area, the plot area, and each series, set smooth lines and marks, and format the horizontal and vertical axes.",
-   "es": "Dé formato al relleno y la línea del área del gráfico, del área de trazado y de cada serie, configure líneas suaves y marcadores, y dé formato a los ejes horizontal y vertical.",
-   "fr": "Mettez en forme le remplissage et le trait de la zone du graphique, de la zone de traçage et de chaque série, réglez les lignes lissées et les marques, et mettez en forme les axes horizontal et vertical.",
-   "soon": {
-    "drop": false,
-    "en": "Current Selection, Reset to Match Style, and text styles of chart elements",
-    "es": "Selección actual, restablecer para coincidir con el estilo y estilos de texto de los elementos del gráfico",
-    "fr": "Sélection active, rétablissement du style et styles de texte des éléments du graphique"
-   }
-  },
-  "15d3ebd2474eaa13d4b72804fd81f0a1553298ba707601709ccad9f8a669aace": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Chart Format tab: current selection, shape styles, text art styles, shapes, text boxes, pictures, size, and arrange",
-    "es": "Pestaña Formato de gráfico: selección actual, estilos de forma, estilos de texto artístico, formas, cuadros de texto, imágenes, tamaño y organización",
-    "fr": "Onglet Format du graphique : sélection active, styles de forme, styles de texte artistique, formes, zones de texte, images, taille et organisation"
-   }
-  },
   "16afa954e924cc18a412d71d62ee4ad03a856815830f85f38fea0c32943be9b8": {
    "drop": false,
    "en": "Undo and Redo, with the name of the step shown in their tips.",
@@ -9712,6 +9702,18 @@
     "en": "Floating tables: edit; diagonal borders in a cell",
     "es": "Tablas flotantes: edición; bordes diagonales en una celda",
     "fr": "Tableaux flottants : modification ; bordures diagonales dans une cellule"
+   }
+  },
+  "1b65d5b76607edffbfff571e5bc7b6967584597dd879df6cfe3d4c6c91521064": {
+   "drop": false,
+   "en": "Create multilevel lists with nine levels, each with its own number format, indent, restart rule, and link to a heading style, and save a list as a named list style.",
+   "es": "Cree listas multinivel de nueve niveles, cada uno con su propio formato de número, sangría, regla de reinicio y vínculo con un estilo de título, y guarde una lista como estilo de lista con nombre.",
+   "fr": "Créez des listes à plusieurs niveaux, sur neuf niveaux, chacun avec son format de numérotation, son retrait, sa règle de redémarrage et son lien avec un style de titre, et enregistrez une liste comme style de liste nommé.",
+   "soon": {
+    "drop": false,
+    "en": "Choosing each level's options in the program, and drawing picture bullets",
+    "es": "Elección de las opciones de cada nivel en el programa y dibujo de viñetas de imagen",
+    "fr": "Choix des options de chaque niveau dans le programme et affichage des puces image"
    }
   },
   "1b93dc245163c4b7427260c23c72fc129dd4a73ba3135579a8c47012df3df61f": {
@@ -10168,18 +10170,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "201fcdfae81a395e7369808cb2148ebe9e4e689180a364ea916a9773f144aa25": {
-   "drop": false,
-   "en": "Format Horizontal Axis and Format Vertical Axis set bounds, major and minor units, reverse order, where the other axis crosses, number format, tick marks, label position, and label turn. Also set a log scale (base 2 to 1000), display units, and show the units’ name on the axis.",
-   "es": "Dar formato al eje horizontal y al eje vertical establecen los límites, las unidades principales y secundarias, el orden inverso, dónde cruza el otro eje, el formato de número, las marcas de graduación, la posición de las etiquetas y su giro. También establecen una escala logarítmica (base 2 a 1000), unidades de visualización y muestran el nombre de las unidades en el eje.",
-   "fr": "Format de l’axe horizontal et Format de l’axe vertical définissent les limites, les unités principales et secondaires, l’ordre inverse, le point de croisement de l’autre axe, le format de nombre, les graduations, la position des étiquettes et leur rotation. Ils définissent aussi une échelle logarithmique (base 2 à 1000), des unités d’affichage et affichent le nom des unités sur l’axe.",
-   "soon": {
-    "drop": false,
-    "en": "Format panes: axis text direction, and panes for a series and a point",
-    "es": "Paneles de formato: dirección del texto del eje, y paneles para una serie y un punto",
-    "fr": "Volets de format : orientation du texte de l’axe, et volets pour une série et un point"
    }
   },
   "204ebea6183d0f25ba58448264e9988cd6e9410280b629a04f48fc71bc624a27": {
@@ -11634,6 +11624,18 @@
     "fr": ""
    }
   },
+  "317fba5c1e028ef715f7a84475637700674159c6bbc5c2ee11e0a6892ac49cc0": {
+   "drop": true,
+   "en": "",
+   "es": "",
+   "fr": "",
+   "soon": {
+    "drop": false,
+    "en": "Chart Format tab: shape styles, text styles, insert shapes, text boxes and pictures on the chart, and size and arrange",
+    "es": "Pestaña Formato del gráfico: estilos de forma, estilos de texto, inserción de formas, cuadros de texto e imágenes en el gráfico, y tamaño y organización",
+    "fr": "Onglet Format du graphique : styles de forme, styles de texte, insertion de formes, zones de texte et images dans le graphique, taille et organisation"
+   }
+  },
   "318486305a8c60d3a65c70b6656a4e4aa30bf5284d8d5da5ce400f5bac0d78a7": {
    "drop": false,
    "en": "Saves `.pptx` files as complete packages with their elements in the standard's own parts.",
@@ -12378,23 +12380,23 @@
     "fr": ""
    }
   },
-  "3bab5dcb0b60c0491ea71a1bfbe5418260323e71d4e54a2ac1cdc8883ab23e84": {
-   "drop": false,
-   "en": "Multilevel lists with nine levels: set each level's number format, indent, tab or space after, restart rule, and link to a heading style, and keep them in `.docx` and `.odt` files.",
-   "es": "Listas multinivel de nueve niveles: defina el formato de número, la sangría, el tabulador o espacio posterior, la regla de reinicio y el vínculo a un estilo de título de cada nivel, y consérvelos en archivos `.docx` y `.odt`.",
-   "fr": "Listes à plusieurs niveaux, sur neuf niveaux : définissez le format de numéro, le retrait, la tabulation ou l’espace après, la règle de redémarrage et le lien vers un style de titre de chaque niveau, et conservez-les dans des fichiers `.docx` et `.odt`.",
-   "soon": {
-    "drop": false,
-    "en": "Choosing each level's options in the program, and drawing picture bullets",
-    "es": "Elección de las opciones de cada nivel en el programa y dibujo de viñetas de imagen",
-    "fr": "Choix des options de chaque niveau dans le programme et affichage des puces image"
-   }
-  },
   "3c59d3c6c19bc79e78b88ceaaf8ad405ac36fb6b5e886502cf0552f705e6992f": {
    "drop": false,
    "en": "Spelling marks appear as you type in text being edited.",
    "es": "Las marcas de ortografía aparecen mientras escribe en el texto que se edita.",
    "fr": "Les marques d’orthographe apparaissent pendant la saisie dans le texte en cours de modification.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "3c92155a754d6e2ef64c13558ca7861a87418ab9f7fdb7914d6428ce787e7c98": {
+   "drop": false,
+   "en": "Saves `.docx`, `.dotx`, and `.odt` files.",
+   "es": "Guarda archivos `.docx`, `.dotx` y `.odt`.",
+   "fr": "Enregistre les fichiers `.docx`, `.dotx` et `.odt`.",
    "soon": {
     "drop": true,
     "en": "",
@@ -12472,18 +12474,6 @@
     "en": "Chart data editing in place on the slide",
     "es": "Edición de los datos del gráfico directamente en la diapositiva",
     "fr": "Modification des données du graphique directement sur la diapositive"
-   }
-  },
-  "3d504368fe90a66563d912363abacc60e94684f1ba7cee1417ee1c9532db7025": {
-   "drop": false,
-   "en": "Set line spacing (single, 1.15, double, multiple, at least, or exactly) and the space before and after paragraphs. A multiple under single sets the lines closer together, as the file asks.",
-   "es": "Defina el interlineado (sencillo, 1,15, doble, múltiple, como mínimo o exacto) y el espacio antes y después de los párrafos. Un múltiplo inferior a sencillo acerca más las líneas, tal como lo indica el documento.",
-   "fr": "Définissez l’interligne (simple, 1,15, double, multiple, au moins ou exactement) et l’espacement avant et après les paragraphes. Un multiple inférieur à simple rapproche davantage les lignes, comme le demande le fichier.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
    }
   },
   "3d763902131a3134c33561915137f9329d98f52f0fe7b8bd81e921dbb25d1fd2": {
@@ -13494,6 +13484,18 @@
     "fr": ""
    }
   },
+  "495dde7403f6fc8771306a3b5c32965217e843f931d050250709fcd832e4205e": {
+   "drop": false,
+   "en": "Set the default save format (`.docx` or `.odt`), the automatic recovery interval, the default folder, and whether to save fonts in the file, which is off at first.",
+   "es": "Defina el formato de guardado predeterminado (`.docx` o `.odt`), el intervalo de recuperación automática, la carpeta predeterminada y si se incrustan las fuentes en el archivo, opción desactivada al principio.",
+   "fr": "Définissez le format d’enregistrement par défaut (`.docx` ou `.odt`), l’intervalle de récupération automatique, le dossier par défaut et l’intégration des polices dans le fichier, désactivée au départ.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "495e28d0d186481bf6738c07e9edef468c6f07e1488c1b2c84847768eb6cdbdb": {
    "drop": true,
    "en": "",
@@ -13804,6 +13806,18 @@
     "en": "Cell style modification: change a style so the cells that use it follow",
     "es": "Modificación de estilos de celda: cambiar un estilo para que las celdas que lo usan lo sigan",
     "fr": "Modification des styles de cellule : changer un style pour que les cellules qui l’utilisent le suivent"
+   }
+  },
+  "4f63b405bcd1b8dfccdaf11de1d0972e0ff25ff07c649b72de4d6d4da1f2833f": {
+   "drop": false,
+   "en": "Pick a chart part (the chart area, the plot area, or a series) from a list, open the format pane at it, and reset it to the look its chart style gives.",
+   "es": "Elija una parte del gráfico (el área del gráfico, el área de trazado o una serie) de una lista, abra el panel de formato en ella y restablezca el aspecto que le da el estilo del gráfico.",
+   "fr": "Choisissez une partie du graphique (la zone du graphique, la zone de traçage ou une série) dans une liste, ouvrez le volet de format à cet endroit et rétablissez l’aspect que lui donne le style du graphique.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "4f66729450f120558774bc5cda4767a260b6760c242cec2c7b1a120707d67fda": {
@@ -14682,6 +14696,18 @@
     "fr": ""
    }
   },
+  "5a32f514e8f376ea9ed845d53048bf703c8309ea13e9c4d3dbac0f02804305ad": {
+   "drop": false,
+   "en": "Pick a chart part (the chart area, the plot area, or a series) from a list, open the format pane at it, and reset it to the look its chart style gives.",
+   "es": "Elija una parte del gráfico (el área del gráfico, el área de trazado o una serie) de una lista, abra el panel de formato en ella y restablezca el aspecto que le da el estilo del gráfico.",
+   "fr": "Choisissez une partie du graphique (la zone du graphique, la zone de traçage ou une série) dans une liste, ouvrez le volet de format à cet endroit et rétablissez l’aspect que lui donne le style du graphique.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "5a9dce92eb2e0909128ab1c7ac1a0fd8102865008311b24c1e26d2663fa33630": {
    "drop": false,
    "en": "The menus and Help are available in English, German, Spanish, French, Italian, Dutch, and Portuguese. The translations are machine-made and can be corrected by anyone.",
@@ -14704,6 +14730,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "5ad9371f24b467ed6a0fd07418362166b7b020b704222f714e0650bdc32060e9": {
+   "drop": false,
+   "en": "Paragraph shading and borders from a file are drawn.",
+   "es": "Se muestran el sombreado y los bordes de párrafo de un archivo.",
+   "fr": "L’ombrage et les bordures de paragraphe d’un fichier s’affichent.",
+   "soon": {
+    "drop": false,
+    "en": "Setting paragraph shading and borders",
+    "es": "Definición del sombreado y los bordes de párrafo",
+    "fr": "Définition de l’ombrage et des bordures de paragraphe"
    }
   },
   "5af1b6cfdb4a8f82a82fb3b19a17963b363beac5272104f7146f40ab6c64770f": {
@@ -14824,18 +14862,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "5c0052f674d41882bae31b12d685ca6c1d303584e49d0069a6e704704fd29099": {
-   "drop": false,
-   "en": "Replace and Replace All with `Ctrl+H`, in the body, tables, headers, footers, and footnotes. Replace All is one step that says how many were replaced.",
-   "es": "Reemplazar y Reemplazar todo con `Ctrl+H`, en el cuerpo, las tablas, los encabezados, los pies de página y las notas al pie. Reemplazar todo es un solo paso que indica cuántos se reemplazaron.",
-   "fr": "Remplacer et Tout remplacer avec `Ctrl+H`, dans le corps, les tableaux, les en-têtes, les pieds de page et les notes de bas de page. Tout remplacer est une seule étape qui indique le nombre de remplacements.",
-   "soon": {
-    "drop": false,
-    "en": "Replace in text boxes, and search direction",
-    "es": "Reemplazo en cuadros de texto y dirección de búsqueda",
-    "fr": "Remplacement dans les zones de texte et sens de la recherche"
    }
   },
   "5c237df33390abaad70067f48bd95ebb34af64c9262c57fc39b56960144ab640": {
@@ -17430,18 +17456,6 @@
     "fr": ""
    }
   },
-  "7dcca107315e5ce93372bc4bcbfdff1a9b9bb471930bebc2f750f18d69a43354": {
-   "drop": false,
-   "en": "Saves `.docx`, `.dotx`, and `.odt` files.",
-   "es": "Guarda archivos `.docx`, `.dotx` y `.odt`.",
-   "fr": "Enregistre les fichiers `.docx`, `.dotx` et `.odt`.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "7e167f0e2285a8f8073a10ac0b5b3762061583e006bb43f90c66f847920f2adf": {
    "drop": false,
    "en": "Cells",
@@ -17944,6 +17958,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "866bc94f4c9dbff2e8a87cb71aa3bd12d582f24f218446ac02ffb61ef7dbed90": {
+   "drop": false,
+   "en": "Add chart elements (axes, titles, data labels, data table, gridlines, legend, error bars, lines, and trendline), apply quick layouts, colors, and styles, switch rows and columns, select and edit data, change the chart type, and format chart parts and axes.",
+   "es": "Agregue elementos al gráfico (ejes, títulos, etiquetas de datos, tabla de datos, líneas de cuadrícula, leyenda, barras de error, líneas y línea de tendencia), aplique diseños rápidos, colores y estilos, cambie filas y columnas, seleccione y edite datos, cambie el tipo de gráfico y dé formato a las partes y a los ejes.",
+   "fr": "Ajoutez des éléments au graphique (axes, titres, étiquettes de données, tableau de données, quadrillage, légende, barres d’erreur, lignes et courbe de tendance), appliquez des dispositions rapides, des couleurs et des styles, inversez lignes et colonnes, sélectionnez et modifiez les données, changez le type de graphique et mettez en forme les parties et les axes.",
+   "soon": {
+    "drop": false,
+    "en": "Text styles of chart elements",
+    "es": "Estilos de texto de los elementos del gráfico",
+    "fr": "Styles de texte des éléments du graphique"
    }
   },
   "86d4fd2ebc486f01f2f4cfbc972259f19ec4329da39f67f7bb1bca4b5971681d": {
@@ -18834,6 +18860,18 @@
     "fr": ""
    }
   },
+  "93e8e41c4f46f345c92929449408a25562669c02cad6d2d5929519ebd83af57f": {
+   "drop": false,
+   "en": "Choose font color and highlight color from the Home tab.",
+   "es": "Elija el color de fuente y el color de resaltado en la pestaña Inicio.",
+   "fr": "Choisissez la couleur de police et la couleur de surlignage dans l’onglet Accueil.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "9410e47bec6a2df22bf2badbfb8ba7eb7e4057d1877acd30757c19cd68ec39a1": {
    "drop": false,
    "en": "Editing",
@@ -18942,6 +18980,18 @@
     "fr": ""
    }
   },
+  "95846acb99cef1cbda44ec008fb5d942e37f65adbcb0b67b11f66e5e946e5cfa": {
+   "drop": false,
+   "en": "Set the user name and initials, a light or dark interface, the display language, usage statistics (opt in), and update checks. The name and initials sign comments and tracked changes and are kept in a saved `.docx` file.",
+   "es": "Defina el nombre de usuario y las iniciales, una interfaz clara u oscura, el idioma de la pantalla, las estadísticas de uso (opcional) y la búsqueda de actualizaciones. El nombre y las iniciales firman los comentarios y los cambios con seguimiento, y se conservan en un archivo `.docx` guardado.",
+   "fr": "Définissez le nom d’utilisateur et les initiales, une interface claire ou sombre, la langue d’affichage, les statistiques d’utilisation (facultatif) et la recherche de mises à jour. Le nom et les initiales signent les commentaires et les modifications suivies, et sont conservés dans un fichier `.docx` enregistré.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "95ca4e5dc900099a2dd139d176b32b7d31b9d9205f9a6b9e3ccae38c434e2b39": {
    "drop": false,
    "en": "Safety and limits",
@@ -19036,18 +19086,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "968d6177a5075fe4c7133c8d5e015ed7d8f8ad561c77a755e458823ab9a7894b": {
-   "drop": false,
-   "en": "Paragraph shading and borders from a file are drawn.",
-   "es": "El sombreado y los bordes de párrafo de un archivo se dibujan.",
-   "fr": "Les trames et bordures de paragraphe d’un fichier sont affichées.",
-   "soon": {
-    "drop": false,
-    "en": "Setting paragraph shading and borders",
-    "es": "Aplicación de sombreado y bordes de párrafo",
-    "fr": "Application de trames et de bordures de paragraphe"
    }
   },
   "96a8a32a07aece165ce7a7fc1fb1acbb132f0a117060f593dfe120c6785ec375": {
@@ -22026,18 +22064,6 @@
     "fr": ""
    }
   },
-  "c5cacad83e3520c8ce1d02dbe3c1e961d045f6ccaf861de085e9a4437d3149f7": {
-   "drop": false,
-   "en": "Options has General and Proofing pages. General covers user name and initials, light or dark interface, display language, usage statistics (opt in), and update checks.",
-   "es": "Opciones tiene las páginas General y Revisión. General incluye nombre de usuario e iniciales, interfaz clara u oscura, idioma de la interfaz, estadísticas de uso (opcionales) y búsqueda de actualizaciones.",
-   "fr": "Les options comprennent les pages Général et Vérification. Général couvre le nom d’utilisateur et les initiales, l’interface claire ou sombre, la langue d’affichage, les statistiques d’utilisation (sur option) et la recherche de mises à jour.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "c5d49438e4621f381760553ad6496dbbf6c5182073335feee57d19ec099db4a0": {
    "drop": false,
    "en": "Pick one of four other looks of a theme, with color schemes, heading and body font pairs, and twelve background styles: four colors, each flat and with two gradients. Text turns light or dark to follow the background, and links stay readable.",
@@ -22890,6 +22916,18 @@
     "fr": ""
    }
   },
+  "cfe45375fc05a2e4072d86c74cda88324fd870985a38d73a54ca911e14567e3e": {
+   "drop": false,
+   "en": "Format chart axes (bounds, major and minor units, log scale, reverse order, where the other axis crosses, display units, number format, tick marks, label position, and label turn) and the fill and line of the chart area, the plot area, and each series, with smooth lines and marks.",
+   "es": "Dé formato a los ejes del gráfico (límites, unidades principales y secundarias, escala logarítmica, orden inverso, cruce del otro eje, unidades de visualización, formato de número, marcas de graduación, posición y giro de las etiquetas) y al relleno y la línea del área del gráfico, del área de trazado y de cada serie, con líneas suavizadas y marcas.",
+   "fr": "Mettez en forme les axes du graphique (limites, unités principales et secondaires, échelle logarithmique, ordre inversé, croisement de l’autre axe, unités d’affichage, format de nombre, graduations, position et rotation des étiquettes) ainsi que le remplissage et le trait de la zone du graphique, de la zone de traçage et de chaque série, avec lignes lissées et marques.",
+   "soon": {
+    "drop": false,
+    "en": "Text direction on axes and format panes for a point",
+    "es": "Dirección del texto en los ejes y paneles de formato para un punto",
+    "fr": "Direction du texte des axes et volets de format pour un point"
+   }
+  },
   "cffbe2c953799d0cd964c1d1272253c3033f6d14934150421268c0643932453a": {
    "drop": false,
    "en": "Error Checking steps through formulas that give an error, numbers stored as text, formulas unlike the formulas on both sides, dates stored as text with a two-digit year, and formulas in unlocked cells. It goes to each cell, says what is wrong, and marks it with a green triangle. Ignore Error is saved in the file and is one step of Undo.",
@@ -23574,6 +23612,18 @@
     "fr": ""
    }
   },
+  "d9126b584f790bdf701ebb132c95b2c70bfc7ab6525a6ab54594f0fa1826e90d": {
+   "drop": false,
+   "en": "Set line spacing (single, 1.15, double, multiple, at least, or exactly) and space before and after paragraphs, with an option not to add space between paragraphs of the same style.",
+   "es": "Defina el interlineado (sencillo, 1,15, doble, múltiple, mínimo o exacto) y el espacio antes y después de los párrafos, con una opción para no agregar espacio entre párrafos del mismo estilo.",
+   "fr": "Définissez l’interligne (simple, 1,15, double, multiple, au moins ou exactement) et l’espacement avant et après les paragraphes, avec une option pour ne pas ajouter d’espace entre les paragraphes du même style.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "d9240daa1cb6517a4ce4c772fd5e6b30d5ccf0d03fd7017af4a60f8c1a88d15c": {
    "drop": false,
    "en": "Diagrams in a file are kept as saved.",
@@ -23675,6 +23725,18 @@
    "en": "Open and save macro-enabled files (`.xlsm`, `.xltm`), keeping the macro project untouched and never running it. Save As offers `.xlsm` when the workbook came from a file with macros.",
    "es": "Abra y guarde documentos con macros (`.xlsm`, `.xltm`), conservando el proyecto de macros intacto y sin ejecutarlo nunca. Guardar como ofrece `.xlsm` cuando el libro procede de un documento con macros.",
    "fr": "Ouvrez et enregistrez des fichiers avec macros (`.xlsm`, `.xltm`) en conservant le projet de macros intact, sans jamais l’exécuter. Enregistrer sous propose `.xlsm` lorsque le classeur provient d’un fichier avec macros.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "da9edc38992373f6c18365b04137e4c357afe8c71bebb5f74ab3f4ec6d33901b": {
+   "drop": false,
+   "en": "Pick a chart part (the chart area, the plot area, or a series) from a list, open the format pane at it, and reset it to the look its chart style gives.",
+   "es": "Elija una parte del gráfico (el área del gráfico, el área de trazado o una serie) de una lista, abra el panel de formato en ella y restablezca el aspecto que le da el estilo del gráfico.",
+   "fr": "Choisissez une partie du graphique (la zone du graphique, la zone de traçage ou une série) dans une liste, ouvrez le volet de format à cet endroit et rétablissez l’aspect que lui donne le style du graphique.",
    "soon": {
     "drop": true,
     "en": "",
@@ -24040,6 +24102,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "dff9f8fe814f744b6e8dcf56af91ba29a4d8891fb39805089842719ca2ba695c": {
+   "drop": false,
+   "en": "Format the fill and line of the chart area, the plot area, and each series, including smooth lines and marks, and format the horizontal and vertical axes.",
+   "es": "Dé formato al relleno y la línea del área del gráfico, del área de trazado y de cada serie, incluidas las líneas suavizadas y las marcas, y dé formato a los ejes horizontal y vertical.",
+   "fr": "Mettez en forme le remplissage et le trait de la zone du graphique, de la zone de traçage et de chaque série, y compris les lignes lissées et les marques, ainsi que les axes horizontal et vertical.",
+   "soon": {
+    "drop": false,
+    "en": "Text styles of chart elements",
+    "es": "Estilos de texto de los elementos del gráfico",
+    "fr": "Styles de texte des éléments du graphique"
    }
   },
   "e0581e39e2c34d383eeaba7e32dbbb9b5140528af6e75cc7f65847ff066f3be6": {
@@ -24714,6 +24788,18 @@
     "fr": "Fonctions récemment utilisées et galerie de fonctions pour chaque catégorie"
    }
   },
+  "e843bb7bf3882abbc4bf4cf6b0822ed6d7d284f2d68d401f30c908958234a51e": {
+   "drop": false,
+   "en": "Replace and Replace All with match case, whole words, and direction, in the body, tables, headers, footers, and footnotes. Replace All is one step that reports how many were replaced.",
+   "es": "Reemplace y reemplace todo con coincidencia de mayúsculas y minúsculas, palabras completas y dirección, en el cuerpo, las tablas, los encabezados, los pies de página y las notas al pie. Reemplazar todo es un solo paso e indica cuántos cambios hizo.",
+   "fr": "Remplacez et remplacez tout avec respect de la casse, mots entiers et direction, dans le corps, les tableaux, les en-têtes, les pieds de page et les notes de bas de page. Remplacer tout est une seule étape et indique le nombre de remplacements.",
+   "soon": {
+    "drop": false,
+    "en": "Replace in text boxes",
+    "es": "Reemplazo en cuadros de texto",
+    "fr": "Remplacement dans les zones de texte"
+   }
+  },
   "e867532181a30f52f4ee844d4ae076f75b770c076f44fe3c3e8347bf035d2baa": {
    "drop": false,
    "en": "Set line spacing (1, 1.15, 1.5, 2, 2.5, and 3) and use the Paragraph window for indents, spacing before and after, and tab stops.",
@@ -24899,18 +24985,6 @@
    "en": "Opens a damaged file as far as it can and says what it left out.",
    "es": "Abre un archivo dañado hasta donde sea posible e indica qué omitió.",
    "fr": "Ouvre un fichier endommagé autant que possible et indique ce qu’il a laissé de côté.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "ea37e2d36beb3ef2b25fc355cdf3e53c492642c0138ada4dd11655f9f3c16e2c": {
-   "drop": false,
-   "en": "Save options: the default format for a new document (`.docx` or `.odt`), the automatic recovery interval, the default folder, and Save fonts in the file.",
-   "es": "Opciones de guardado: el formato predeterminado para un documento nuevo (`.docx` o `.odt`), el intervalo de recuperación automática, la carpeta predeterminada y Guardar las fuentes en el archivo.",
-   "fr": "Options d’enregistrement : le format par défaut d’un nouveau document (`.docx` ou `.odt`), l’intervalle de récupération automatique, le dossier par défaut et Enregistrer les polices dans le fichier.",
    "soon": {
     "drop": true,
     "en": "",
@@ -25367,6 +25441,18 @@
    "en": "Print crop marks, bleed marks, registration marks, density bars, color bars, and job information, and allow bleeds.",
    "es": "Imprima marcas de corte, marcas de sangrado, marcas de registro, barras de densidad, barras de color e información del trabajo, y permita sangrados.",
    "fr": "Imprimez des traits de coupe, des repères de fond perdu, des repères de registre, des barres de densité, des barres de couleur et les informations du travail, et autorisez les fonds perdus.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "f0aef89eec6b598f2d1b384d9420f3dd0c45c2ea0cb4a165d9a4d1c92231b55b": {
+   "drop": false,
+   "en": "Pick a chart part (the chart area, the plot area, or a series) from a list, open the format pane at it, and reset it to the look its chart style gives.",
+   "es": "Elija una parte del gráfico (el área del gráfico, el área de trazado o una serie) de una lista, abra el panel de formato en ella y restablezca el aspecto que le da el estilo del gráfico.",
+   "fr": "Choisissez une partie du graphique (la zone du graphique, la zone de traçage ou une série) dans une liste, ouvrez le volet de format à cet endroit et rétablissez l’aspect que lui donne le style du graphique.",
    "soon": {
     "drop": true,
     "en": "",
@@ -26296,18 +26382,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "fbff3445a9c9af034b5ec3b52368570967db4466b22c4ea0937ffee6ea7393a0": {
-   "drop": false,
-   "en": "Add chart elements (axes, axis titles, title, data labels, gridlines, legend, error bars, lines, trendline, and data table), apply quick layouts, change colors and styles, switch rows and columns, select and edit data, change the chart type, and format chart parts and axes.",
-   "es": "Agregue elementos al gráfico (ejes, títulos de ejes, título, etiquetas de datos, líneas de cuadrícula, leyenda, barras de error, líneas, línea de tendencia y tabla de datos), aplique diseños rápidos, cambie colores y estilos, cambie filas y columnas, seleccione y edite datos, cambie el tipo de gráfico y dé formato a las partes del gráfico y a los ejes.",
-   "fr": "Ajoutez des éléments au graphique (axes, titres d’axes, titre, étiquettes de données, quadrillage, légende, barres d’erreur, lignes, courbe de tendance et tableau de données), appliquez des dispositions rapides, changez les couleurs et les styles, inversez les lignes et les colonnes, sélectionnez et modifiez les données, changez le type de graphique et mettez en forme les éléments du graphique et les axes.",
-   "soon": {
-    "drop": false,
-    "en": "Embedded workbook for charts created here",
-    "es": "Libro de trabajo incrustado para los gráficos creados aquí",
-    "fr": "Classeur intégré pour les graphiques créés ici"
    }
   },
   "fc2b387e520e46cd912268b7cfe13df59c3fad1b1f7230c446d078c26c96d582": {
