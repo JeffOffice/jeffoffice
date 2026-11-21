@@ -1,5 +1,6 @@
 #include "core/fonts.h"
 #include "core/workthread.h"
+#include "core/syslocale.h"
 
 #include <atomic>
 #include <map>
@@ -1166,6 +1167,7 @@ void initCore()
     if (done) return;
     done = true;
     g_fontThread = QThread::currentThread();
+    captureSystemLocale();   // (the main thread asks the system once; workers use the copy)
     QImageReader::setAllocationLimit(2048);   // megabytes; print covers carry 600 dpi photos
     startupMark("initCore: begin");
     loadBundledFonts();

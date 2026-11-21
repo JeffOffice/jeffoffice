@@ -1857,9 +1857,10 @@ QString builtinFormatCode(int id)
     }
 }
 
-QString shortDateFormatCode(const QLocale &locale)
+QString shortDateFormatCode(const QLocale &locale) { return shortDateFormatCode(locale.dateFormat(QLocale::ShortFormat)); }
+
+QString shortDateFormatCode(const QString &pattern)
 {
-    const QString pattern = locale.dateFormat(QLocale::ShortFormat);
     QString out;
     bool day = false, month = false, year = false;
     for (int i = 0; i < pattern.size();) {
@@ -1909,10 +1910,12 @@ QString shortDateFormatCode(const QLocale &locale)
     return out;
 }
 
-QString builtinFormatCode(int id, const QLocale &locale)
+QString builtinFormatCode(int id, const QLocale &locale) { return builtinFormatCode(id, locale.dateFormat(QLocale::ShortFormat)); }
+
+QString builtinFormatCode(int id, const QString &shortDatePattern)
 {
-    if (id == 14) return shortDateFormatCode(locale);
-    if (id == 22) return shortDateFormatCode(locale) + QStringLiteral(" h:mm");
+    if (id == 14) return shortDateFormatCode(shortDatePattern);
+    if (id == 22) return shortDateFormatCode(shortDatePattern) + QStringLiteral(" h:mm");
     return builtinFormatCode(id);
 }
 

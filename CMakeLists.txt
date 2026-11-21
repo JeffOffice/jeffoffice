@@ -522,9 +522,12 @@ qt_add_executable(sheettests
   tests/sheet/tst_sheet_csvreview.cpp
   tests/sheet/tst_sheet_textmatch.cpp
   tests/sheet/tst_sheet_filter.cpp
+  tests/sheet/tst_sheet_syslocale.cpp
   tests/sheet/sheettests.qrc)
 target_link_libraries(sheettests PRIVATE jeffoffice-common jp_zlib Qt6::Test)
 target_compile_definitions(sheettests PRIVATE JO_ODF_SCHEMA_DIR="${CMAKE_SOURCE_DIR}/third_party/odf_schema")
+# QSystemLocale (a private Qt header, from CorePrivate) stands in for the system in the locale tests.
+target_link_libraries(sheettests PRIVATE Qt6::CorePrivate)
 set_target_properties(sheettests PROPERTIES WIN32_EXECUTABLE OFF)
 add_test(NAME sheettests COMMAND sheettests)
 set_tests_properties(sheettests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")

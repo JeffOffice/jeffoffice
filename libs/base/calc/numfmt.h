@@ -79,6 +79,14 @@ struct NumberSymbols {
     bool isPlain() const { return decimal == QLatin1String(".") && group == QLatin1String(","); }
     // A locale's own (the usual ones for a locale that gives none).
     static NumberSymbols of(const QLocale &locale);
+    // From the signs themselves (an empty one is left as the usual).
+    static NumberSymbols of(const QString &decimal, const QString &group)
+    {
+        NumberSymbols out;
+        if (!decimal.isEmpty()) out.decimal = decimal;
+        if (!group.isEmpty()) out.group = group;
+        return out;
+    }
 };
 
 // What the first section that takes a number makes of it; for the grid (a number or a date aligns right, a text left).
@@ -120,9 +128,12 @@ QString builtinFormatCode(int id);
 // The code of the short date of a locale, as the system writes it (its order of day, month, and year, its separators, a year of four digits): what the file format's built-in format 14
 // means, "m/d/yyyy" in the United States.
 QString shortDateFormatCode(const QLocale &locale);
+// The same from the pattern of the short date (a QLocale's own format string).
+QString shortDateFormatCode(const QString &pattern);
 // The code of a built-in format as a person sees it in a locale: the format of the file (builtinFormatCode) except that 14 is the locale's short date and 22 that and the time (h:mm),
 // which is what the file format defines them as (the system's short date).
 QString builtinFormatCode(int id, const QLocale &locale);
+QString builtinFormatCode(int id, const QString &shortDatePattern);
 
 // The RGB (0xRRGGBB) of a palette color 1 to 56 as the number formats name them; 0 for any other number.
 quint32 formatColorRgb(int color);

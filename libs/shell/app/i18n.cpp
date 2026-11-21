@@ -3,6 +3,7 @@
 #include "app/settings.h"
 #include "core/appinfo.h"
 #include "core/datafolder.h"
+#include "core/syslocale.h"
 
 #include <QCoreApplication>
 #include <QDir>
@@ -116,6 +117,7 @@ QString pickUiLanguage(const QStringList &wanted, const QStringList &have)
 QString installTranslations()
 {
     s_language = installTranslationsFor();
+    captureSystemLocale();   // (the language setting can change what workers format in)
     {
         const QMutexLocker lock(&s_sourceLock);
         s_sources.clear();
