@@ -1270,6 +1270,14 @@ Download it from %2 now? (%3, once.)</translation>
         <translation>Underline colour:</translation>
     </message>
     <message>
+        <source>No Color</source>
+        <translation>No Colour</translation>
+    </message>
+    <message>
+        <source>Color</source>
+        <translation>Colour</translation>
+    </message>
+    <message>
         <source>Center</source>
         <translation>Centre</translation>
     </message>
@@ -1354,6 +1362,10 @@ Download it from %2 now? (%3, once.)</translation>
 </context>
 <context>
     <name>odt</name>
+    <message>
+        <source>theme colors of paragraph borders and shading (saved as the colors they show)</source>
+        <translation>theme colours of paragraph borders and shading (saved as the colours they show)</translation>
+    </message>
     <message>
         <source>the page color</source>
         <translation>the page colour</translation>

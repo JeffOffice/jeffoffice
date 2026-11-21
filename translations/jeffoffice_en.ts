@@ -434,7 +434,7 @@
 <context>
     <name>jp::WriteWindow</name>
     <message numerus="yes">
-        <location filename="../apps/write/app/writewindow.cpp" line="+784"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+802"/>
         <source>%1 of %n word(s)</source>
         <translation>
             <numerusform>%1 of %n word</numerusform>
@@ -442,7 +442,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/write/app/writewindow_home.cpp" line="+258"/>
+        <location filename="../apps/write/app/writewindow_home.cpp" line="+282"/>
         <source>There are too many paragraphs to sort at once. Select %n paragraph(s) or fewer.</source>
         <translation>
             <numerusform>There are too many paragraphs to sort at once. Select %n paragraph or fewer.</numerusform>
@@ -523,7 +523,7 @@
 <context>
     <name>jp::crunch::SheetObjects</name>
     <message numerus="yes">
-        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+1174"/>
+        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+1199"/>
         <source>The file stores this object together with %n other(s), so they can&apos;t be deleted one at a time.</source>
         <translation>
             <numerusform>The file stores this object together with %n other object, so they can&apos;t be deleted one at a time.</numerusform>
@@ -580,7 +580,7 @@
 <context>
     <name>jp::office::sheet::Ods</name>
     <message numerus="yes">
-        <location filename="../libs/office/sheet/ods.cpp" line="+1988"/>
+        <location filename="../libs/office/sheet/ods.cpp" line="+1995"/>
         <source>%n note(s) cut to %1 characters</source>
         <translation>
             <numerusform>%n note cut to %1 characters</numerusform>
