@@ -1103,7 +1103,7 @@ int connectionPoints(const Item &target)
     if (target.type() != ItemType::Shape) return 0;
     const auto &s = static_cast<const ShapeItem &>(target);
     if (!s.customPath.isEmpty() || !hasConnectionSites(s.shape)) return 0;
-    return connectionSiteCount(target);
+    return geometrySiteCount(target);
 }
 
 // The frame that puts a connector's ends where they are (the counterpart of how

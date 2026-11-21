@@ -1,4 +1,5 @@
 // Tests of libs/office: writing DrawingML.
+#include "office/connectionsites.h"
 #include "officehelpers.h"
 
 class OfficeDmlWriteTests : public QObject {
@@ -1342,6 +1343,40 @@ private Q_SLOTS:
             for (const ItemPtr &it : r.items) numbers << it->sourceId;
             QCOMPARE(int(numbers.size()), 6);
         }
+    }
+
+    // A preset shape with glue points of its own: a connector attached to one is not written with an index past the preset's own list, and one on the preset's own site is.
+    void dmlWriteGluePointsAreNotConnectorIndexes()
+    {
+        auto box = std::make_shared<ShapeItem>();
+        box->rect = QRectF(10, 10, 80, 40);
+        box->gluePoints << QPointF(0.25, 0.5);   // (site 4: the rectangle has four of its own)
+        auto other = std::make_shared<ShapeItem>();
+        other->rect = QRectF(200, 100, 60, 60);
+        QCOMPARE(connectionSiteCount(*box), 5);
+        QCOMPARE(geometrySiteCount(*box), 4);
+        auto onGlue = std::make_shared<LineItem>();
+        onGlue->p1 = QPointF(30, 30);
+        onGlue->p2 = QPointF(200, 130);
+        onGlue->start = LineItem::Glue{box->id, 4};
+        onGlue->end = LineItem::Glue{other->id, 1};
+        onGlue->syncRect();
+        auto onSide = std::make_shared<LineItem>();
+        onSide->p1 = QPointF(90, 30);
+        onSide->p2 = QPointF(200, 130);
+        onSide->start = LineItem::Glue{box->id, 3};
+        onSide->end = LineItem::Glue{other->id, 2};
+        onSide->syncRect();
+        WriteRound r;
+        r.run(ItemList{box, other, onGlue, onSide});
+        QCOMPARE(int(r.items.size()), 4);
+        const auto *glue = static_cast<LineItem *>(r.items[2].get());
+        QVERIFY(glue->start.id.isEmpty());   // (no index 4 was written, so nothing is attached to the preset's fifth site)
+        QCOMPARE(glue->end.id, r.items[1]->id);
+        QVERIFY(!r.text().contains(QStringLiteral("idx=\"4\"")));
+        const auto *side = static_cast<LineItem *>(r.items[3].get());
+        QCOMPARE(side->start.id, r.items[0]->id);
+        QCOMPARE(side->start.site, 3);
     }
 
     // What can't be written is given no number, so nothing is attached to it.

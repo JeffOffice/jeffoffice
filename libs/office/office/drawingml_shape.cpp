@@ -256,7 +256,7 @@ int connectionSiteOf(const Item &target, qint64 index)
     if (target.type() != ItemType::Shape) return -1;
     const auto &s = static_cast<const ShapeItem &>(target);
     if (!s.customPath.isEmpty() || !hasConnectionSites(s.shape)) return -1;
-    return index >= 0 && index < connectionSiteCount(target) ? int(index) : -1;
+    return index >= 0 && index < geometrySiteCount(target) ? int(index) : -1;
 }
 
 // The first child called `name` of the first element of `list` that has one.
