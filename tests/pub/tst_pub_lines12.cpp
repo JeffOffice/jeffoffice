@@ -1185,7 +1185,7 @@ private Q_SLOTS:
         ed->insertPages(0, 3, false, false);
         ed->doc()->merge.fields = {QStringLiteral("Price")};
         ed->doc()->merge.rows = {{QStringLiteral("1234.5")}};
-        QVERIFY(ed->startSection(3, 1, int(jp::Document::pageNumberFormats().indexOf(QStringLiteral("ROMAN")))));
+        QVERIFY(ed->startSection(2, 1, int(jp::Document::pageNumberFormats().indexOf(QStringLiteral("ROMAN")))));
         const jp::Document &doc = *ed->doc();
         QCOMPARE(int(doc.pages.size()), 4);
         const QDateTime when(QDate(2026, 3, 4), QTime(15, 30));
