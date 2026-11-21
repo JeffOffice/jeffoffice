@@ -47,6 +47,8 @@ public:
     // How many places the search text is found in the document now (at most kMostMatches), and where: ranges of the story. The count and the yellow bands on the pages follow the text of
     // the box, the two choices, and the document as they change.
     int matchCount() const { return m_matches.size(); }
+    // How many times a story has been searched for a match (a count for tests of the work a search up does).
+    int scansMade() const { return m_scans; }
     static constexpr int kMostMatches = 20000;
     QLineEdit *findBox() const { return m_find; }
     QLineEdit *replaceBox() const { return m_replace; }
@@ -97,6 +99,7 @@ private:
     static bool holdsMark(const QString &plain, int from, int to);
     static bool holdsMark(const QString &plain, const QTextCursor &match);
     WriteWindow *m_win;
+    int m_scans = 0;
     std::unique_ptr<StoryWords> m_text;
     QLineEdit *m_find, *m_replace;
     QComboBox *m_direction = nullptr;

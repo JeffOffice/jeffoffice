@@ -121,6 +121,7 @@ void WriteWindow::setPainterMode(PainterMode mode)
         if (!m_doc) return;
         m_brush = write::copyFormat(*m_doc, m_view->cursor());
         if (!m_brush.valid) return;
+        stopHighlighting();   // (highlighting and painting are not on together)
     }
     m_painter = mode;
     act(QStringLiteral("edit.formatPainter"))->setChecked(mode != PainterMode::Off);

@@ -1762,6 +1762,9 @@ private Q_SLOTS:
     void theStylesPaneInUseListFollowsAListStylesUseAlone();
     void findNextGoesDownUpOrAllTheWayRoundAsTheSearchBoxSays();
     void pointerHighlightingStaysOnUntilStopHighlightingOrEscapeAndEachSelectionIsOneStep();
+    void highlightingAndCopyFormattingEndWithTheDocumentAndTheWindowAndExcludeEachOther();
+    void replaceUpLeavesTheCaretBeforeTheWordsPutIn();
+    void findUpFromTheCaretIsExactPastTwentyThousandMatchesAndNeverScansTheStoryFromItsStart();
     void aCancelledStyleDialogOnABuiltInStyleTheDocumentLacksChangesNothing();
     void savesTheDocumentWithHeaderAndFooter();
     void aSavedDocumentIsTheSameBytesInEachProcess();

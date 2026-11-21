@@ -192,6 +192,11 @@ WriteWindow::WriteWindow(QWidget *parent) : AppWindow(parent)
 
 WriteWindow::~WriteWindow()
 {
+    // (No mode of the pointer goes on into a window that is going: nothing it listens to calls it again.)
+    qApp->removeEventFilter(this);
+    m_highlighting = false;
+    m_painter = PainterMode::Off;
+    m_view->disconnect(this);
     // (The pane's dock is taken down with the window's other children, after this: it must not reach the window's commands then.)
     if (m_navDock) m_navDock->disconnect(this);
     // (The find pane clears the view's highlights when hidden: hide it now, while this is still a WriteWindow, not in QWidget's close below.)
@@ -271,6 +276,10 @@ void WriteWindow::setDocument(std::unique_ptr<write::WriteDoc> doc, const QStrin
 {
     if (jp::ReadAloudBar *reading = jp::readAloudBarOf(this)) reading->documentChanged();   // (the text read is going: the reading ends)
     if (m_outlineOn) setOutlineMode(false);
+    // (Highlighting and painting were for the document that goes: neither goes on into the next, and the format copied belonged to it.)
+    stopHighlighting();
+    setPainterMode(PainterMode::Off);
+    m_brush = {};
     m_pageNumbersDoc = nullptr;
     m_split->setDocument(nullptr);
     m_view->setDocument(nullptr);
@@ -908,6 +917,8 @@ void WriteWindow::closeEvent(QCloseEvent *e)
         e->ignore();
         return;
     }
+    stopHighlighting();
+    setPainterMode(PainterMode::Off);
     rememberPlace();
     e->accept();
 }

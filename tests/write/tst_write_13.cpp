@@ -7,6 +7,7 @@
 #include "core/listpresets.h"
 
 #include <QJsonArray>
+#include <QPointer>
 #include <QJsonDocument>
 #include <QScopeGuard>
 #include <QStatusBar>
@@ -1420,6 +1421,130 @@ void WriteTests::pointerHighlightingStaysOnUntilStopHighlightingOrEscapeAndEachS
     w->act(QStringLiteral("edit.undo"))->trigger();
     QVERIFY(!highlighted(25));
     QVERIFY(highlighted(7));
+}
+
+
+// Highlighting and Copy Formatting belong to the document in the window: neither goes on into the next document or a closing window, they are not on together, and Esc ends the one that is.
+void WriteTests::highlightingAndCopyFormattingEndWithTheDocumentAndTheWindowAndExcludeEachOther()
+{
+    const QByteArray body = "<w:p><w:r><w:t>Alpha beta gamma delta epsilon</w:t></w:r></w:p>";
+    auto w = styWindow(body);
+    PageView *view = w->view();
+    const QString yellow = write::highlightNames().first();
+    QAction *stop = w->act(QStringLiteral("fmt.stopHighlighting"));
+    QAction *painter = w->act(QStringLiteral("edit.formatPainter"));
+    // Not on together: each one that starts ends the other.
+    w->startHighlighting(yellow);
+    QVERIFY(w->highlighting());
+    w->setPainterMode(WriteWindow::PainterMode::Once);
+    QCOMPARE(int(w->painterMode()), int(WriteWindow::PainterMode::Once));
+    QVERIFY(!w->highlighting());
+    QVERIFY(!stop->isEnabled());
+    w->startHighlighting(yellow);
+    QVERIFY(w->highlighting());
+    QCOMPARE(int(w->painterMode()), int(WriteWindow::PainterMode::Off));
+    QVERIFY(!painter->isChecked());
+    // Esc ends whichever is on.
+    QTest::keyClick(view, Qt::Key_Escape);
+    QVERIFY(!w->highlighting());
+    w->setPainterMode(WriteWindow::PainterMode::Locked);
+    QTest::keyClick(view, Qt::Key_Escape);
+    QCOMPARE(int(w->painterMode()), int(WriteWindow::PainterMode::Off));
+    // A new document in the window ends both, and a selection made there paints and highlights nothing.
+    w->startHighlighting(yellow);
+    w->setDocument(open(makeDocx(body, kStyles)), QString());
+    w->refreshNow();
+    QVERIFY(!w->highlighting());
+    QVERIFY(!stop->isEnabled());
+    w->setPainterMode(WriteWindow::PainterMode::Locked);
+    QCOMPARE(int(w->painterMode()), int(WriteWindow::PainterMode::Locked));
+    w->setDocument(open(makeDocx(body, kStyles)), QString());
+    QCOMPARE(int(w->painterMode()), int(WriteWindow::PainterMode::Off));
+    QVERIFY(!painter->isChecked());
+    const quint64 start = w->document()->nextStepSerial();
+    const QPoint a = styPointOf(view, 6), b = styPointOf(view, 10);
+    QTest::mousePress(view->viewport(), Qt::LeftButton, Qt::NoModifier, a);
+    QTest::mouseMove(view->viewport(), b);
+    QTest::mouseRelease(view->viewport(), Qt::LeftButton, Qt::NoModifier, b);
+    QCOMPARE(w->document()->nextStepSerial(), start);
+    // A window that is closed ends them (and one deleted with the file screen up leaves nothing listening).
+    w->startHighlighting(yellow);
+    w->close();
+    QVERIFY(!w->highlighting());
+    w->show();
+    w->setPainterMode(WriteWindow::PainterMode::Locked);
+    QCOMPARE(int(w->painterMode()), int(WriteWindow::PainterMode::Locked));
+    w->close();
+    QCOMPARE(int(w->painterMode()), int(WriteWindow::PainterMode::Off));
+    QPointer<WriteWindow> gone = w.get();
+    w->show();
+    w->showFileScreen(QStringLiteral("open"));
+    w->startHighlighting(yellow);
+    w.reset();
+    QVERIFY(!gone);
+    QWidget other;
+    other.show();
+    QTest::keyClick(&other, Qt::Key_Escape);
+}
+
+// Replace with Up as the direction leaves the caret before the words it put in, so that a search up does not find the replacement itself ("cat" put in as "concat").
+void WriteTests::replaceUpLeavesTheCaretBeforeTheWordsPutIn()
+{
+    WriteWindow w;
+    w.show();
+    typeText(*w.document(), w.view()->cursor(), QStringLiteral("one cat two cat"));
+    w.showFindPane();
+    WriteFindPane *pane = w.findPane();
+    pane->findBox()->setText(QStringLiteral("cat"));
+    pane->replaceBox()->setText(QStringLiteral("concat"));
+    pane->direction()->setCurrentIndex(pane->direction()->findData(int(WriteFindPane::Direction::Up)));
+    QTextCursor end(w.document()->story());
+    end.movePosition(QTextCursor::End);
+    w.view()->setCursor(end);
+    QVERIFY(pane->findNext());
+    pane->replaceOne();   // the last cat becomes concat; the search goes on to the one above it
+    QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("one cat two concat"));
+    QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("cat"));
+    QCOMPARE(w.view()->cursor().selectionStart(), 4);
+}
+
+// Find Up searches backward from the caret in stretches, so a press costs the matches near it (counted by the pane's scans), and it is exact past the 20,000 matches a count stops at.
+void WriteTests::findUpFromTheCaretIsExactPastTwentyThousandMatchesAndNeverScansTheStoryFromItsStart()
+{
+    WriteWindow w;
+    w.show();
+    const int count = 25000;
+    QString text;
+    for (int i = 0; i < count; ++i) text += QStringLiteral("cat ");
+    QTextCursor(w.document()->story()).insertText(text);
+    w.showFindPane();
+    WriteFindPane *pane = w.findPane();
+    pane->findBox()->setText(QStringLiteral("cat"));
+    pane->direction()->setCurrentIndex(pane->direction()->findData(int(WriteFindPane::Direction::Up)));
+    QTextCursor end(w.document()->story());
+    end.movePosition(QTextCursor::End);
+    w.view()->setCursor(end);
+    int mostScans = 0;
+    for (int k = 1; k <= 30; ++k) {
+        const int before = pane->scansMade();
+        QVERIFY(pane->findNext());
+        mostScans = std::max(mostScans, pane->scansMade() - before);
+        QCOMPARE(w.view()->cursor().selectionStart(), (count - k) * 4);   // (the 25,000th match, the one before it, and so on: past the cap)
+    }
+    QVERIFY2(mostScans < 400, qPrintable(QString::number(mostScans)));
+    // From the middle of the story, and from the second match: the one before.
+    QTextCursor middle(w.document()->story());
+    middle.setPosition(20000 * 4 + 3);
+    w.view()->setCursor(middle);
+    QVERIFY(pane->findNext());
+    QCOMPARE(w.view()->cursor().selectionStart(), 20000 * 4);
+    middle.setPosition(4 * 2);
+    w.view()->setCursor(middle);
+    QVERIFY(pane->findNext());
+    QCOMPARE(w.view()->cursor().selectionStart(), 4);
+    QVERIFY(pane->findNext());
+    QCOMPARE(w.view()->cursor().selectionStart(), 0);
+    QVERIFY(!pane->findNext());
 }
 
 

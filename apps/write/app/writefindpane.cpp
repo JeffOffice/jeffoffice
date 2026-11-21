@@ -676,6 +676,7 @@ bool WriteFindPane::searchStory(QTextDocument *story, int from, QTextCursor *fou
 {
     StoryWords *text = wordsOfStory(story);
     if (!text) return false;
+    ++m_scans;
     const FindWords w = wordsOf(text);
     for (int at = text->toWords(from);;) {
         const QTextCursor m = matchIn(text, at, problem);
@@ -756,7 +757,7 @@ bool WriteFindPane::findNext()
     } else {
         // Up: the last match before the selection, then the matches of the stories before this one, and no further.
         QTextCursor last;
-        if ((here == body || view->editedSideStory() == here) && lastMatchBefore(here, view->cursor().selectionStart(), &last, &problem) && (here == body || view->editedSideStory() == here || view->enterSideStory(here))) {
+        if ((here == body || view->editedSideStory() == here) && lastMatchBefore(here, view->cursor().selectionStart(), &last, &problem)) {
             found = last;
             got = true;
         }
@@ -792,19 +793,28 @@ bool WriteFindPane::findNext()
     return false;
 }
 
-// The last match of a story that ends at or before a place of its text (before its end when `before` is negative), shown as a cursor in the story.
+// The last match of a story that ends at or before a place of its text (before its end when `before` is negative), shown as a cursor in the story. The search goes backward from the place
+// in stretches that grow, so that a press costs the matches near the caret, not a scan of the story from its start, and the matches are not counted off from the start (no limit).
 bool WriteFindPane::lastMatchBefore(QTextDocument *story, int before, QTextCursor *found, QString *problem)
 {
-    bool got = false;
+    if (before < 0) before = std::max(0, story->characterCount() - 1);
     QTextCursor m;
-    for (int at = 0, seen = 0; seen < kMostMatches; ++seen) {
-        if (!searchStory(story, at, &m, problem)) break;
-        if (before >= 0 && m.selectionEnd() > before) break;
-        *found = m;
-        got = true;
-        at = std::max(m.selectionEnd(), at + 1);
+    for (int reach = 256;; reach *= 4) {
+        const int start = std::max(0, before - reach);
+        bool got = false;
+        QTextCursor last;
+        for (int at = start; searchStory(story, at, &m, problem);) {
+            if (m.selectionEnd() > before) break;
+            last = m;
+            got = true;
+            at = std::max(m.selectionEnd(), at + 1);
+        }
+        if (got) {
+            *found = last;
+            return true;
+        }
+        if (start == 0 || !problem->isEmpty()) return false;
     }
-    return got;
 }
 
 void WriteFindPane::replaceOne()
@@ -825,9 +835,9 @@ void WriteFindPane::replaceOne()
         const int at = text->pieces(match.selectionStart(), match.selectionEnd()).first().first;
         const QString with = m_wild->isChecked() ? write::expandReplacement(m_replace->text(), groupsOf(match, text)) : m_replace->text();
         wordsOf(text).put(match, with);
-        // The caret is after the new words, where the next search goes on from.
+        // The caret is after the new words, where the next search down goes on from; for a search up, before them (the words put in may hold what is searched for).
         QTextCursor after(story);
-        after.setPosition(at + int(with.size()));
+        after.setPosition(Direction(m_direction->currentData().toInt()) == Direction::Up ? at : at + int(with.size()));
         m_win->view()->setCursor(after);
     }
     findNext();
