@@ -51931,7 +51931,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
         <translation type="unfinished">Cancelar</translation>
     </message>
     <message>
-        <location line="+43"/>
+        <location line="+74"/>
         <source>Checking the password…</source>
         <translation type="unfinished">Verificando a senha…</translation>
     </message>

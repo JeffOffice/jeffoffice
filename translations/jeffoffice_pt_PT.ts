@@ -51931,7 +51931,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">Cancelar</translation>
     </message>
     <message>
-        <location line="+43"/>
+        <location line="+74"/>
         <source>Checking the password…</source>
         <translation type="unfinished">A verificar a palavra-passe…</translation>
     </message>

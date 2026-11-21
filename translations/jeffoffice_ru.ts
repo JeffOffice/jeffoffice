@@ -51984,7 +51984,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Отмена</translation>
     </message>
     <message>
-        <location line="+43"/>
+        <location line="+74"/>
         <source>Checking the password…</source>
         <translation type="unfinished">Проверка пароля…</translation>
     </message>

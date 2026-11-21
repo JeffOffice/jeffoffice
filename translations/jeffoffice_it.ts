@@ -51931,7 +51931,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
         <translation type="unfinished">Annulla</translation>
     </message>
     <message>
-        <location line="+43"/>
+        <location line="+74"/>
         <source>Checking the password…</source>
         <translation type="unfinished">Verifica della password…</translation>
     </message>
