@@ -138,7 +138,7 @@ std::vector<int> fieldCounts(const QString &text, QChar delimiter, int maxRecord
     return counts;
 }
 
-QChar chooseDelimiter(const QString &text, const QString &fileName, const QLocale &locale)
+QChar chooseDelimiter(const QString &text, const QString &fileName, const EntryLocale &locale)
 {
     const bool tsv = fileName.endsWith(QLatin1String(".tsv"), Qt::CaseInsensitive);
     // (in the order they win a tie: the language's own first)
@@ -254,14 +254,14 @@ bool keepsAsText(QStringView field)
 }
 
 // The currency sign of a locale as readNumber (entry.cpp) takes it.
-QString currencySignOf(const QLocale &l)
+QString currencySignOf(const EntryLocale &l)
 {
-    const QString c = l.currencySymbol(QLocale::CurrencySymbol);
+    const QString c = l.currencySymbol();
     return c.isEmpty() ? QStringLiteral("$") : c;
 }
 
 // Every number format code readEntry can ask for, in the person's locale (decimals up to 10: a typed number with more shows 10).
-QStringList entryFormatCodes(const QLocale &locale)
+QStringList entryFormatCodes(const EntryLocale &locale)
 {
     QStringList codes;
     auto zeros = [](int n) { return QString(n, QLatin1Char('0')); };
@@ -645,12 +645,13 @@ bool dateInOrder(const QString &text, const QString &order, double *serial)
 
 class SheetSink : public Sink {
 public:
-    SheetSink(const QHash<QString, quint32> &formats, const QSet<QString> &words, const QSet<QString> &months, const QLocale &locale, const Limits &limits, const std::function<bool(qint64)> &progress, qint64 stopAfterRow,
+    SheetSink(const QHash<QString, quint32> &formats, const QSet<QString> &words, const QSet<QString> &months, const EntryLocale &locale, const Limits &limits, const std::function<bool(qint64)> &progress, qint64 stopAfterRow,
               Sheet *out, const CsvImport &choices)
         : m_formats(formats), m_words(words), m_months(months), m_limits(limits), m_progress(progress), m_stopAfter(stopAfterRow), m_s(*out), m_choices(choices)
     {
-        m_options.locale = locale;
-        booleanWordsFor(locale, &m_true, &m_false);
+        m_options.locale = locale.locale;
+        m_options.signs = locale.signs;
+        booleanWordsFor(locale.locale, &m_true, &m_false);
         m_sign = currencySignOf(locale);
         for (const QChar c : m_sign)
             if (c.isLetter()) m_signHasLetters = true;
@@ -786,8 +787,9 @@ private:
     bool readMarked(const QString &typed, quint32 row, quint32 col, Cell *c, bool *numeric)
     {
         QString t = typed.trimmed();
-        const QChar decimal = m_choices.decimalMark.isNull() ? (m_options.locale.decimalPoint().isEmpty() ? QLatin1Char('.') : m_options.locale.decimalPoint()[0]) : m_choices.decimalMark;
-        const QChar group = m_choices.thousandsMark.isNull() ? (m_options.locale.groupSeparator().isEmpty() ? QLatin1Char(',') : m_options.locale.groupSeparator()[0]) : m_choices.thousandsMark;
+        const EntryLocale shown(m_options.locale, m_options.signs);
+        const QChar decimal = m_choices.decimalMark.isNull() ? (shown.decimalPoint().isEmpty() ? QLatin1Char('.') : shown.decimalPoint()[0]) : m_choices.decimalMark;
+        const QChar group = m_choices.thousandsMark.isNull() ? (shown.groupSeparator().isEmpty() ? QLatin1Char(',') : shown.groupSeparator()[0]) : m_choices.thousandsMark;
         bool negative = false;
         if (m_choices.trailingMinus && t.size() > 1 && t.endsWith(QLatin1Char('-')) && !t.startsWith(QLatin1Char('-')) && !t.startsWith(QLatin1Char('+'))) {
             t.chop(1);
@@ -960,7 +962,7 @@ int legacyCodePageFor(const QLocale &locale)
     }
 }
 
-CsvForm detectCsvForm(const QByteArray &bytes, const QString &fileName, const QLocale &locale)
+CsvForm detectCsvForm(const QByteArray &bytes, const QString &fileName, const EntryLocale &locale)
 {
     CsvForm form;
     qsizetype skip = 0;
@@ -977,7 +979,7 @@ CsvForm detectCsvForm(const QByteArray &bytes, const QString &fileName, const QL
         form.encoding = CsvEncoding::Utf8;
     } else {
         form.encoding = CsvEncoding::Legacy;
-        form.codePage = legacyCodePageFor(locale);
+        form.codePage = legacyCodePageFor(locale.locale);
     }
     const QString sample = decodeSample(bytes, skip, 1 << 16, form);
     // the lines end as the first one does (a line break inside quotes is not told from one that ends a line, which a file has few of)
@@ -1004,7 +1006,7 @@ CsvForm detectCsvForm(const QByteArray &bytes, const QString &fileName, const QL
     return form;
 }
 
-std::shared_ptr<const CsvBook> CsvBook::open(const QByteArray &file, const QString &fileName, const Limits &limits, const QLocale &locale, WorkbookInfo *info, SharedStrings *shared,
+std::shared_ptr<const CsvBook> CsvBook::open(const QByteArray &file, const QString &fileName, const Limits &limits, const EntryLocale &locale, WorkbookInfo *info, SharedStrings *shared,
                                               Styles *styles, QString *error)
 {
     // (a zero byte in the first piece of a file that is not UTF-16: a binary file, not text)
@@ -1015,7 +1017,7 @@ std::shared_ptr<const CsvBook> CsvBook::open(const QByteArray &file, const QStri
     std::shared_ptr<CsvBook> book(new CsvBook);
     book->m_data = file;
     book->m_locale = locale;
-    book->m_words = knownWordsOf(locale, &book->m_months);
+    book->m_words = knownWordsOf(locale.locale, &book->m_months);
     book->m_form = detectCsvForm(file, fileName, locale);
     if (limits.csv) {
         book->m_import = *limits.csv;
@@ -1205,7 +1207,7 @@ private:
 
 } // namespace
 
-QVector<QStringList> csvPreview(const QByteArray &file, const QString &fileName, const CsvImport &choices, const QLocale &locale, CsvForm *formOut, int *columnsOut)
+QVector<QStringList> csvPreview(const QByteArray &file, const QString &fileName, const CsvImport &choices, const EntryLocale &locale, CsvForm *formOut, int *columnsOut)
 {
     QVector<QStringList> rows;
     int widest = 0;
@@ -1247,7 +1249,7 @@ bool Workbook::openDelimited(const QByteArray &file, const QString &path, QStrin
 {
     *this = Workbook();
     m_limits = limits;
-    const auto book = CsvBook::open(file, path, limits, jp::workerLocale(), &m_info, &m_shared, &m_styles, error);
+    const auto book = CsvBook::open(file, path, limits, EntryLocale::ofSystem(), &m_info, &m_shared, &m_styles, error);
     if (!book) {
         *this = Workbook();
         return false;

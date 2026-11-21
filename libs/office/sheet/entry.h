@@ -6,6 +6,7 @@
 
 #include "calc/dates.h"
 #include "calc/value.h"
+#include "core/syslocale.h"
 
 #include <QDate>
 #include <QLocale>
@@ -28,8 +29,35 @@ struct Entry {
     QString formatCode;
 };
 
+// The person's own signs and formats, which a QLocale made from a language cannot hold (a decimal mark or a short date set in the system's settings). Empty: the locale's own.
+// What a worker thread reads a file with (it must not ask the system): jp::systemLocale() has them as text.
+struct LocaleSigns {
+    QString decimal, group, shortDate, currency, amText, pmText;
+    static LocaleSigns of(const jp::SystemLocale &s) { return {s.decimalPoint, s.groupSeparator, s.shortDate, s.currencySign, s.amText, s.pmText}; }
+};
+
+// A locale object and the person's signs beside it. A QLocale converts to one with no signs (the locale's own are used), so the callers that pass QLocale() are as before.
+struct EntryLocale {
+    QLocale locale;
+    LocaleSigns signs;
+    EntryLocale() = default;
+    EntryLocale(const QLocale &l, const LocaleSigns &s = LocaleSigns()) : locale(l), signs(s) {}
+    static EntryLocale ofSystem()
+    {
+        const jp::SystemLocale s = jp::systemLocale();
+        return EntryLocale(s.locale, LocaleSigns::of(s));
+    }
+    QString decimalPoint() const { return signs.decimal.isEmpty() ? locale.decimalPoint() : signs.decimal; }
+    QString groupSeparator() const { return signs.group.isEmpty() ? locale.groupSeparator() : signs.group; }
+    QString shortDateFormat() const { return signs.shortDate.isEmpty() ? locale.dateFormat(QLocale::ShortFormat) : signs.shortDate; }
+    QString currencySymbol() const { return signs.currency.isEmpty() ? locale.currencySymbol(QLocale::CurrencySymbol) : signs.currency; }
+    QString amText() const { return signs.amText.isEmpty() ? locale.amText() : signs.amText; }
+    QString pmText() const { return signs.pmText.isEmpty() ? locale.pmText() : signs.pmText; }
+};
+
 struct EntryOptions {
     QLocale locale;                                                 // the person's
+    LocaleSigns signs;                                              // and the signs and formats the locale object cannot hold
     jp::calc::DateSystem dateSystem = jp::calc::DateSystem::Date1900;
     QDate today;                                                    // the year of a date written without one; the current date when not valid
     bool textFormat = false;                                        // the cell's format is Text: everything but a formula stays as typed
@@ -65,6 +93,7 @@ const QStringList &prefixedFunctionNames();
 // `formulaToLocale` the file's into what is typed; text in quotes, names of sheets, brackets, and braces are left as they are, and so is a formula in any other locale.
 // (Names of functions are English for now.)
 QString formulaFromLocale(const QString &typed, const QLocale &locale);
+QString formulaFromLocale(const QString &typed, const EntryLocale &locale);
 QString formulaToLocale(const QString &formula, const QLocale &locale);
 
 // What a cell is shown as when it is edited: the value as it would be typed to give the same value (a percent with its "%", a date in the locale's short form), not cut to the

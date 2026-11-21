@@ -32,13 +32,13 @@ struct NumberRead {
 };
 
 // The characters that stand for a decimal mark and a separator of thousands in this locale (a space of any kind for a group is "a space").
-QChar decimalOf(const QLocale &l)
+QChar decimalOf(const EntryLocale &l)
 {
     const QString d = l.decimalPoint();
     return d.isEmpty() ? QLatin1Char('.') : d.front();
 }
 
-QChar groupOf(const QLocale &l)
+QChar groupOf(const EntryLocale &l)
 {
     const QString g = l.groupSeparator();
     return g.isEmpty() ? QLatin1Char(',') : g.front();
@@ -65,7 +65,7 @@ QString normalizeNative(const QString &s)
 bool isApostrophe(QChar c) { return c == QLatin1Char('\'') || c == QChar(0x2019) || c == QChar(0x02BC); }
 
 // A number written with digits, the locale's decimal mark and thousands separator, and an exponent: no sign, no sign of money or percent.
-bool readUnsigned(const QString &s, const QLocale &locale, NumberRead *out)
+bool readUnsigned(const QString &s, const EntryLocale &locale, NumberRead *out)
 {
     if (s.isEmpty()) return false;
     const QChar dec = decimalOf(locale), grp = groupOf(locale);
@@ -139,16 +139,16 @@ bool stripSign(QString *s, bool *negative)
     return true;
 }
 
-QString currencySign(const QLocale &l)
+QString currencySign(const EntryLocale &l)
 {
-    const QString c = l.currencySymbol(QLocale::CurrencySymbol);
+    const QString c = l.currencySymbol();
     return c.isEmpty() ? QStringLiteral("$") : c;
 }
 
-bool currencyBefore(const QLocale &l)
+bool currencyBefore(const EntryLocale &l)
 {
     const QString sign = currencySign(l);
-    const QString probe = l.toCurrencyString(1.0, sign);
+    const QString probe = l.locale.toCurrencyString(1.0, sign);
     const int at = probe.indexOf(sign), digit = probe.indexOf(QLatin1Char('1'));
     return at < 0 || digit < 0 || at < digit;
 }
@@ -169,7 +169,7 @@ bool readMixedFraction(const QString &typed, double *value, QString *code)
 }
 
 // "+5", "-1,234.50", "(5)", "5%", "$5", "$-5", "1.5E3": a number with the format that shows it as typed.
-bool readNumber(const QString &typed, const QLocale &locale, double *value, QString *code)
+bool readNumber(const QString &typed, const EntryLocale &locale, double *value, QString *code)
 {
     QString s = typed.trimmed();
     if (s.isEmpty()) return false;
@@ -226,9 +226,9 @@ bool readNumber(const QString &typed, const QLocale &locale, double *value, QStr
 
 enum class Order { MDY, DMY, YMD };
 
-Order orderOf(const QLocale &l)
+Order orderOf(const EntryLocale &l)
 {
-    const QString f = l.dateFormat(QLocale::ShortFormat);
+    const QString f = l.shortDateFormat();
     int d = f.indexOf(QLatin1Char('d')), m = f.indexOf(QLatin1Char('M')), y = f.indexOf(QLatin1Char('y'));
     if (d < 0) d = 1000;
     if (m < 0) m = 1000;
@@ -300,14 +300,14 @@ int yearOf(const QString &digits)
     return n;
 }
 
-bool readDate(const QString &typed, const EntryOptions &o, double *serial)
+bool readDate(const QString &typed, const EntryOptions &o, const EntryLocale &el, double *serial)
 {
     const QString s = typed.trimmed();
     if (s.isEmpty() || !isDigit(s.front()) ) {
         // (a date may begin with a month's name)
         if (s.isEmpty() || !s.front().isLetter()) return false;
     }
-    const bool dotSeparates = o.locale.dateFormat(QLocale::ShortFormat).contains(QLatin1Char('.'));
+    const bool dotSeparates = el.shortDateFormat().contains(QLatin1Char('.'));
     const QVector<Token> t = tokens(s, dotSeparates);
     if (t.size() < 2 || t.size() > 3) return false;
     // anything but separators, digits, and a month's name is no date
@@ -321,7 +321,7 @@ bool readDate(const QString &typed, const EntryOptions &o, double *serial)
         int nameAt = -1;
         for (int i = 0; i < t.size(); ++i)
             if (!t[i].numeric) nameAt = i;
-        month = monthFromName(t[nameAt].text, o.locale);
+        month = monthFromName(t[nameAt].text, el.locale);
         if (month == 0) return false;
         QVector<QString> nums;
         for (int i = 0; i < t.size(); ++i)
@@ -350,14 +350,14 @@ bool readDate(const QString &typed, const EntryOptions &o, double *serial)
     } else {
         QVector<QString> n;
         for (const Token &x : t) n.append(x.text);
-        Order order = orderOf(o.locale);
+        Order order = orderOf(el);
         if (n[0].size() >= 3) order = Order::YMD;   // a year of four digits first is always the year first
         if (n.size() == 3) {
             if (order == Order::YMD) {
                 year = yearOf(n[0]);
                 month = n[1].toInt();
                 day = n[2].toInt();
-                if (n[0].size() < 3 && orderOf(o.locale) != Order::YMD) return false;
+                if (n[0].size() < 3 && orderOf(el) != Order::YMD) return false;
             } else if (order == Order::MDY) {
                 month = n[0].toInt();
                 day = n[1].toInt();
@@ -403,7 +403,7 @@ struct TimeRead {
     bool over24 = false;
 };
 
-bool readTime(const QString &typed, const QLocale &locale, TimeRead *out)
+bool readTime(const QString &typed, const EntryLocale &locale, TimeRead *out)
 {
     QString s = typed.trimmed();
     if (s.isEmpty()) return false;
@@ -470,7 +470,7 @@ QString timeCode(const TimeRead &t)
     return t.seconds ? QStringLiteral("h:mm:ss") : QStringLiteral("h:mm");
 }
 
-bool readDateTime(const QString &typed, const EntryOptions &o, double *value, QString *code)
+bool readDateTime(const QString &typed, const EntryOptions &o, const EntryLocale &el, double *value, QString *code)
 {
     const QString s = typed.trimmed();
     if (s.isEmpty()) return false;
@@ -478,15 +478,15 @@ bool readDateTime(const QString &typed, const EntryOptions &o, double *value, QS
     TimeRead time;
     // a time alone
     if (s.contains(QLatin1Char(':')) || s.contains(QLatin1Char(' '))) {
-        if (!s.contains(QLatin1Char(' ')) || !readDate(s, o, &serial)) {
-            if (readTime(s, o.locale, &time)) {
+        if (!s.contains(QLatin1Char(' ')) || !readDate(s, o, el, &serial)) {
+            if (readTime(s, el, &time)) {
                 *value = time.fraction;
                 *code = timeCode(time);
                 return true;
             }
         }
     }
-    if (readDate(s, o, &serial)) {
+    if (readDate(s, o, el, &serial)) {
         *value = serial;
         *code = QStringLiteral("m/d/yyyy");
         return true;
@@ -496,7 +496,7 @@ bool readDateTime(const QString &typed, const EntryOptions &o, double *value, QS
     for (int i = 1; i < words.size(); ++i) {
         const QString datePart = words.mid(0, i).join(QLatin1Char(' ')), timePart = words.mid(i).join(QLatin1Char(' '));
         TimeRead t;
-        if (readDate(datePart, o, &serial) && readTime(timePart, o.locale, &t)) {
+        if (readDate(datePart, o, el, &serial) && readTime(timePart, el, &t)) {
             *value = serial + t.fraction;
             QString base = QStringLiteral("m/d/yyyy ");
             *code = base + timeCode(t);
@@ -815,7 +815,7 @@ QString toFileFormula(const QString &typedIn)
 
 namespace {
 
-bool commaDecimal(const QLocale &locale) { return locale.decimalPoint() == QLatin1String(","); }
+bool commaDecimal(const EntryLocale &locale) { return locale.decimalPoint() == QLatin1String(","); }
 
 // The end (the index after) of what is copied as it is: a text, a name of a sheet, a bracket, or a pair of braces that begins at `i`.
 int verbatimEnd(const QString &f, int i)
@@ -864,7 +864,9 @@ int verbatimEnd(const QString &f, int i)
 
 } // namespace
 
-QString formulaFromLocale(const QString &typed, const QLocale &locale)
+QString formulaFromLocale(const QString &typed, const QLocale &locale) { return formulaFromLocale(typed, EntryLocale(locale)); }
+
+QString formulaFromLocale(const QString &typed, const EntryLocale &locale)
 {
     if (!commaDecimal(locale) || !(typed.contains(QLatin1Char(';')) || typed.contains(QLatin1Char(',')))) return typed;
     QString out;
@@ -944,9 +946,10 @@ EntryResult readEntry(const QString &typedIn, const EntryOptions &options)
 {
     EntryResult r;
     const QString &typed = typedIn;
+    const EntryLocale entryLocale(options.locale, options.signs);
     auto tooLong = [&](int limit, const QString &what) {
         r.ok = false;
-        r.problem = what.arg(QLocale().toString(limit), QLocale().toString(typed.size()));
+        r.problem = what.arg(jp::systemLocale().toString(limit), jp::systemLocale().toString(typed.size()));
         return r;
     };
     if (typed.isEmpty()) {
@@ -961,7 +964,7 @@ EntryResult readEntry(const QString &typedIn, const EntryOptions &options)
         jp::calc::ParseOptions po;
         po.maxDepth = kMaxFormulaTypedDepth;
         po.maxArgs = 255;   // (the most the other program reads in a file)
-        const QString fileText = formulaFromLocale(text, options.locale);
+        const QString fileText = formulaFromLocale(text, entryLocale);
         const jp::calc::ParseResult p = jp::calc::parseFormula(fileText, po);
         if (!p.ok()) {
             r.ok = false;
@@ -1002,13 +1005,13 @@ EntryResult readEntry(const QString &typedIn, const EntryOptions &options)
         double v = 0;
         QString code;
         const QString plain = normalizeNative(typed);
-        if (readMixedFraction(plain, &v, &code) || readNumber(plain, options.locale, &v, &code)) {
+        if (readMixedFraction(plain, &v, &code) || readNumber(plain, entryLocale, &v, &code)) {
             r.entry.kind = Entry::Kind::Number;
             r.entry.number = v;
             r.entry.formatCode = code;
             return r;
         }
-        if (readDateTime(plain, options, &v, &code)) {
+        if (readDateTime(plain, options, entryLocale, &v, &code)) {
             r.entry.kind = Entry::Kind::Number;
             r.entry.number = v;
             r.entry.formatCode = code;

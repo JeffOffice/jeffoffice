@@ -13,7 +13,7 @@ bool isHtmlName(const QString &path);
 class HtmlBook : public ForeignBook {
 public:
     // Reads the page's tables and makes the sheets' names and the formats a typed entry asks for. False, with a message, if there is no table to read.
-    static std::shared_ptr<const HtmlBook> open(const QByteArray &page, const Limits &limits, const QLocale &locale, WorkbookInfo *info, SharedStrings *shared, Styles *styles, QString *error);
+    static std::shared_ptr<const HtmlBook> open(const QByteArray &page, const Limits &limits, const EntryLocale &locale, WorkbookInfo *info, SharedStrings *shared, Styles *styles, QString *error);
     bool readSheet(int index, const Limits &limits, const std::function<bool(qint64)> &progress, qint64 stopAfterRow, qint64 screenRows, Sheet *out) const override;
     QStringList skipped() const override { return m_skipped; }
     QString kind() const override { return QStringLiteral(".html"); }

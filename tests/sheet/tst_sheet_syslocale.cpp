@@ -6,6 +6,7 @@
 #include "core/syslocale.h"
 #include "calc/numfmt.h"
 #include "core/workthread.h"
+#include "sheet/entry.h"
 #include "sheet/styles.h"
 
 #include <QLocale>
@@ -167,22 +168,34 @@ private Q_SLOTS:
         const QString inGerman = systemLocale().toString(day, QLocale::LongFormat) + systemLocale().toString(1234567.5, 'f', 1);
         QVERIFY(inEnglish != inGerman);
         system.offMain = 0;
-        std::atomic<int> made{0}, mixed{0};
+        std::atomic<int> made{0}, mixed{0}, mainDone{0}, ready{0};
+        std::atomic<bool> workerRunning{false};
+        constexpr int kRounds = 2000;
         WorkThread worker([&] {
-            for (int i = 0; i < 2000; ++i) {
+            ++ready;
+            while (ready.load() < 2) QThread::yieldCurrentThread();   // (start barrier)
+            workerRunning = true;
+            // (both sides run until each has done its rounds: the worker goes on while the main thread is still changing the locale)
+            for (int i = 0; made.load() < kRounds || mainDone.load() < kRounds; ++i) {
                 const SystemLocale person = systemLocale();
                 const QString text = person.toString(day, QLocale::LongFormat) + person.toString(1234567.5, 'f', 1);
                 if (text != inEnglish && text != inGerman) ++mixed;
-                ++made;
+                if (made.load() < kRounds) ++made;
             }
         });
-        for (int i = 0; i < 2000; ++i) {
+        ++ready;
+        while (ready.load() < 2) QThread::yieldCurrentThread();
+        int overlapped = 0;
+        for (int i = 0; i < kRounds; ++i) {
             QLocale::setDefault(i % 2 ? german : english);
             captureSystemLocale();
             systemLocale();
+            if (workerRunning.load() && made.load() < kRounds) ++overlapped;   // (a round of the main thread while the worker still has rounds to make)
+            ++mainDone;
         }
         worker.join();
-        QCOMPARE(made.load(), 2000);
+        QVERIFY(made.load() >= kRounds);
+        QVERIFY2(overlapped > 0, "the two sides never ran at the same time");
         QCOMPARE(mixed.load(), 0);
         QCOMPARE(system.offMain.load(), 0);
     }
@@ -196,6 +209,79 @@ private Q_SLOTS:
         QCOMPARE(systemLocale().toString(1234567.5, 'f', 1), QStringLiteral("1.234.567,5"));
         QLocale::setDefault(QLocale(QLocale::English, QLocale::UnitedStates));
         QCOMPARE(systemLocale().toString(1234567.5, 'f', 1), QStringLiteral("1,234,567.5"));
+    }
+
+    // A person's own signs and date order reach a file opened on a worker as they reach the main thread's: a German region with "." for the decimal sign and "," for groups reads
+    // "1.5" in a file of values as 1.5, and splits a line at the comma (the delimiter follows the decimal sign); typing "1.5" gives the same number.
+    void aCsvOpenedOnAWorkerReadsTheCustomDecimalSign()
+    {
+        const SystemDefault scope;
+        QLocale::setDefault(QLocale(QLocale::German, QLocale::Germany));
+        SystemLocale person = systemLocale();
+        person.decimalPoint = QStringLiteral(".");
+        person.groupSeparator = QStringLiteral(",");
+        setSystemLocaleForTest(person);
+        Workbook wb;
+        QString why, one, split;
+        bool opened = false;
+        onWorker([&] {
+            opened = odstest::openBytes("a,b;c\n1.5,2;3\n", QStringLiteral("a.csv"), &wb, &why);
+        });
+        QVERIFY2(opened, qPrintable(why));
+        Sheet s;
+        wb.readSheet(0, &s);
+        QCOMPARE(odstest::shown(wb, s, QStringLiteral("A1")), QStringLiteral("i:a"));   // (split at the comma: the decimal sign is a point)
+        QCOMPARE(odstest::shown(wb, s, QStringLiteral("A2")), QStringLiteral("n:1.5"));
+        jp::office::sheet::EntryOptions typed;
+        typed.locale = QLocale();
+        typed.signs = jp::office::sheet::LocaleSigns::of(systemLocale());
+        const auto r = jp::office::sheet::readEntry(QStringLiteral("1.5"), typed);
+        QVERIFY(r.ok);
+        QCOMPARE(r.entry.number, 1.5);
+    }
+
+    // A US region with the short date d/M/yyyy: "3/4/2026" in a file of values is April 3.
+    void aCsvOpenedOnAWorkerReadsTheCustomDateOrder()
+    {
+        const SystemDefault scope;
+        QLocale::setDefault(QLocale(QLocale::English, QLocale::UnitedStates));
+        SystemLocale person = systemLocale();
+        person.shortDate = QStringLiteral("d/M/yyyy");
+        setSystemLocaleForTest(person);
+        Workbook wb;
+        QString why;
+        bool opened = false;
+        onWorker([&] { opened = odstest::openBytes("a,b\n3/4/2026,x\n", QStringLiteral("a.csv"), &wb, &why); });
+        QVERIFY2(opened, qPrintable(why));
+        Sheet s;
+        wb.readSheet(0, &s);
+        const double april3 = double(QDate(1899, 12, 30).daysTo(QDate(2026, 4, 3)));
+        QCOMPARE(odstest::shown(wb, s, QStringLiteral("A2")), QStringLiteral("n:%1").arg(april3));
+        jp::office::sheet::EntryOptions typed;
+        typed.locale = QLocale();
+        typed.signs = jp::office::sheet::LocaleSigns::of(systemLocale());
+        QCOMPARE(jp::office::sheet::readEntry(QStringLiteral("3/4/2026"), typed).entry.number, april3);
+    }
+
+    // Sizes in a refusal message keep the person's own decimal sign; before any capture a read is the fixed default and is counted, and a worker cannot capture.
+    void sizesKeepTheDecimalSignAndAReadBeforeCaptureIsTheFixedDefault()
+    {
+        const SystemDefault scope;
+        QLocale::setDefault(QLocale(QLocale::English, QLocale::UnitedStates));
+        SystemLocale person = systemLocale();
+        person.decimalPoint = QStringLiteral(",");
+        person.groupSeparator = QStringLiteral(".");
+        setSystemLocaleForTest(person);
+        QVERIFY2(systemLocale().formattedDataSize(1536 * 1024, 1).contains(QLatin1Char(',')), qPrintable(systemLocale().formattedDataSize(1536 * 1024, 1)));
+        forgetSystemLocaleForTest();
+        const qint64 before = uncapturedSystemLocaleReadsForTest();
+        QString got;
+        onWorker([&] {
+            captureSystemLocale();   // (not the main thread: ignored)
+            got = systemLocale().toString(1.5);
+        });
+        QCOMPARE(got, QStringLiteral("1.5"));
+        QVERIFY(uncapturedSystemLocaleReadsForTest() > before);
     }
 };
 

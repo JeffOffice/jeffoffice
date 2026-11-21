@@ -1655,7 +1655,7 @@ void SheetObjects::addToSave(SaveChanges *changes)
                         }
                         if (overBudget && !fallbackNoted) {
                             fallbackNoted = true;
-                            if (m_saveNote) m_saveNote(QCoreApplication::translate("jp::crunch::SheetObjects", "The pictures that stand for equations come to more than %1, so the equations past that are saved as math alone.").arg(jp::workerLocale().formattedDataSize(m_fallbackLimit)));
+                            if (m_saveNote) m_saveNote(QCoreApplication::translate("jp::crunch::SheetObjects", "The pictures that stand for equations come to more than %1, so the equations past that are saved as math alone.").arg(jp::systemLocale().formattedDataSize(m_fallbackLimit)));
                         }
                         if (!png.isEmpty()) {
                             const QByteArray pic = "<xdr:pic><xdr:nvPicPr><xdr:cNvPr id=\"" + QByteArray::number(o->meta.id) + "\" name=\"" + o->meta.name.toHtmlEscaped().toUtf8() + "\"" + (o->meta.description.isEmpty() ? QByteArray() : " descr=\"" + o->meta.description.toHtmlEscaped().toUtf8() + "\"")

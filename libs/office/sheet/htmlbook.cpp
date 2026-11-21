@@ -36,7 +36,7 @@ QByteArray tabSeparated(const wml::HtmlTable &table)
 
 } // namespace
 
-std::shared_ptr<const HtmlBook> HtmlBook::open(const QByteArray &page, const Limits &limits, const QLocale &locale, WorkbookInfo *info, SharedStrings *shared, Styles *styles, QString *error)
+std::shared_ptr<const HtmlBook> HtmlBook::open(const QByteArray &page, const Limits &limits, const EntryLocale &locale, WorkbookInfo *info, SharedStrings *shared, Styles *styles, QString *error)
 {
     bool tooMany = false;
     QString why;
@@ -97,7 +97,7 @@ bool Workbook::openHtml(const QByteArray &file, const QString &path, QString *er
     Q_UNUSED(path)
     *this = Workbook();
     m_limits = limits;
-    const auto book = HtmlBook::open(file, limits, jp::workerLocale(), &m_info, &m_shared, &m_styles, error);
+    const auto book = HtmlBook::open(file, limits, EntryLocale::ofSystem(), &m_info, &m_shared, &m_styles, error);
     if (!book) {
         *this = Workbook();
         return false;

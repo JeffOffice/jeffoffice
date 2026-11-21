@@ -19,6 +19,7 @@
 #include <QByteArray>
 #include <QHash>
 #include <QLocale>
+#include "sheet/entry.h"
 #include <QSet>
 #include <QString>
 
@@ -40,7 +41,7 @@ struct CsvForm {
 bool isDelimitedName(const QString &path);
 
 // The form of a file from its bytes (as much as is needed) and its name (.tsv says tab when the lines don't).
-CsvForm detectCsvForm(const QByteArray &bytes, const QString &fileName, const QLocale &locale);
+CsvForm detectCsvForm(const QByteArray &bytes, const QString &fileName, const EntryLocale &locale);
 
 // The code page of the person's language, for a file that is not Unicode.
 int legacyCodePageFor(const QLocale &locale);
@@ -48,14 +49,14 @@ int legacyCodePageFor(const QLocale &locale);
 // The first rows of the file as the choices would read them, for the preview that is shown before the file is opened: the text of each field (cut to kCsvPreviewFieldChars), and for a
 // column read as a date, the date as year-month-day (or the text, if it is no date in that order). At most kCsvPreviewRows rows and kCsvPreviewColumns columns, from the first
 // kCsvPreviewBytes of the file. `form`, if given, gets the form the choices (or the file) come to; `columns` the number of columns the widest row has.
-QVector<QStringList> csvPreview(const QByteArray &file, const QString &fileName, const CsvImport &choices, const QLocale &locale, CsvForm *form = nullptr, int *columns = nullptr);
+QVector<QStringList> csvPreview(const QByteArray &file, const QString &fileName, const CsvImport &choices, const EntryLocale &locale, CsvForm *form = nullptr, int *columns = nullptr);
 
 class CsvBook : public ForeignBook {
 public:
     // The most characters of one field (a cell holds 32,767).
     static constexpr int kMaxFieldChars = 32767;
     // Reads the file's form and makes the sheet's name and the formats the typed entry asks for. False, with a message, if the file is empty or holds no text this can read.
-    static std::shared_ptr<const CsvBook> open(const QByteArray &file, const QString &fileName, const Limits &limits, const QLocale &locale, WorkbookInfo *info,
+    static std::shared_ptr<const CsvBook> open(const QByteArray &file, const QString &fileName, const Limits &limits, const EntryLocale &locale, WorkbookInfo *info,
                                                SharedStrings *shared, Styles *styles, QString *error);
     bool readSheet(int index, const Limits &limits, const std::function<bool(qint64)> &progress, qint64 stopAfterRow, qint64 screenRows, Sheet *out) const override;
     QStringList skipped() const override { return QStringList(); }
@@ -70,7 +71,7 @@ private:
     QByteArray m_data;
     CsvForm m_form;
     CsvImport m_import;
-    QLocale m_locale;
+    EntryLocale m_locale;
     qint64 m_skip = 0;                  // bytes before the data: the byte order mark and the `sep=` line
     QHash<QString, quint32> m_formats;  // the cell format of each number format code a typed entry asks for
     QSet<QString> m_words;              // the words a number, a date, or a time may have in it

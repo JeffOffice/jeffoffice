@@ -26,6 +26,7 @@ struct JO_COMMON_EXPORT SystemLocale {
     QLocale locale;            // (made from the names, never the system's own object)
     QString shortDate, longDate, shortTime, longTime, shortDateTime, longDateTime;   // the person's formats, as the system gave them
     QString decimalPoint, groupSeparator;
+    QString currencySign, amText, pmText;   // (the person's own: the currency sign, and the words for morning and afternoon)
     QStringList uiLanguages;
 
     // Dates and times in the person's formats (the strings above, with the month and day names of `locale`).
@@ -37,10 +38,19 @@ struct JO_COMMON_EXPORT SystemLocale {
     template <typename T, std::enable_if_t<std::is_integral_v<T>, int> = 0>
     QString toString(T number) const { return toString(static_cast<qint64>(number)); }
     QString toString(double number, char format = 'g', int precision = 6) const;
+    // A size in bytes ("1.5 MB"), with the person's decimal sign.
+    QString formattedDataSize(qint64 bytes, int precision = 2, QLocale::DataSizeFormats format = QLocale::DataSizeIecFormat) const;
 };
 
 // Main thread only: asks the system (through the default locale) and keeps the answer for every thread.
 JO_COMMON_EXPORT void captureSystemLocale();
+// Main thread only: asks again and keeps the answer if a format or sign differs from the copy's (the program's window brought to the front calls it).
+JO_COMMON_EXPORT void refreshSystemLocaleIfChanged();
+// For tests: how many reads found no capture yet (or came from a thread that is not the main one) and got the fixed default; and forgetting the capture and the main thread.
+JO_COMMON_EXPORT qint64 uncapturedSystemLocaleReadsForTest();
+JO_COMMON_EXPORT void forgetSystemLocaleForTest();
+// For tests: a person's settings as the copy (the calling thread is named the main one if there is no application object), for a test of a custom decimal sign or date order on any platform.
+JO_COMMON_EXPORT void setSystemLocaleForTest(const SystemLocale &person);
 // Any thread. (Called on the main thread it first takes the default locale again if that is not the copy's.)
 JO_COMMON_EXPORT SystemLocale systemLocale();
 

@@ -323,7 +323,7 @@ bool Package::load(const QByteArray &zip, QString *error, bool opc, qint64 maxIn
     // inflated.
     auto tooMuch = [&] {
         return fail(QCoreApplication::translate("Package", "The file would take more than %1 of memory to open, which is too much.")
-                        .arg(jp::workerLocale().formattedDataSize(maxInflated, 0, QLocale::DataSizeTraditionalFormat)));
+                        .arg(jp::systemLocale().formattedDataSize(maxInflated, 0, QLocale::DataSizeTraditionalFormat)));
     };
     qint64 declared = 0;
     QStringList order;
