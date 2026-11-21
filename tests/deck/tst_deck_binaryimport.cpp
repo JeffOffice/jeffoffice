@@ -259,6 +259,34 @@ private Q_SLOTS:
         QCOMPARE(href, QStringLiteral("https://example.org/site"));
     }
 
+    // A friendly name is the link's address only when it starts with a scheme: words that merely contain one, text with none, and a link that
+    // has a location are not.
+    void binaryPresentationFriendlyNameMustStartWithAScheme()
+    {
+        const auto hrefOf = [](const QString &friendly, bool asLocation) {
+            QByteArray file = buildPpt(false, false, true);
+            const QByteArray url = utf16(QStringLiteral("https://example.org/site"));
+            const qsizetype u = file.indexOf(url);
+            const qsizetype name = file.indexOf(utf16(QStringLiteral("the site")));
+            if (u <= 8 || name <= 8 || friendly.size() != 24) return QStringLiteral("setup failed");
+            file.replace(u, url.size(), utf16(friendly));
+            file[u - 8] = char(0x00);
+            if (asLocation) file[name - 8] = char(0x30);   // the other record becomes the location (instance 3)
+            else file[name - 6] = char(0xBB);
+            auto d = deck::importBinaryPresentation(file, nullptr);
+            if (!d) return QStringLiteral("no deck");
+            QTextDocument *body = placeholderStory(*d, *d->pages[2], QStringLiteral("ph:body:1"));
+            QString href;
+            for (auto f = body->begin().begin(); !f.atEnd(); ++f)
+                if (f.fragment().text() == QLatin1String("the site")) href = f.fragment().charFormat().anchorHref();
+            return href;
+        };
+        QCOMPARE(hrefOf(QStringLiteral("https://example.org/site"), false), QStringLiteral("https://example.org/site"));
+        QCOMPARE(hrefOf(QStringLiteral("just some plain text now"), false), QString());
+        QCOMPARE(hrefOf(QStringLiteral("see https://example.org/"), false), QString());
+        QCOMPARE(hrefOf(QStringLiteral("https://example.org/site"), true), QString());
+    }
+
     // An old binary presentation (.ppt, a show .pps, a template .pot) is
     // read, never written over: Save asks for a new name, suggesting the
     // newer kind beside it, and the old file stays as it was.

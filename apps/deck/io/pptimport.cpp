@@ -1307,8 +1307,12 @@ void Importer::readHyperlinks(const Rec &list)
         }
         // (Section 2.10.16 makes the target and the location optional: a link that has only the friendly name, which holds the
         // address, is a link to that address, as the original draws it.)
-        if (target.isEmpty() && location.isEmpty() && (friendly.contains(QLatin1String("://")) || friendly.startsWith(QLatin1String("mailto:"), Qt::CaseInsensitive)))
-            target = friendly;
+        if (target.isEmpty() && location.isEmpty()) {
+            const QString name = friendly.trimmed();
+            static const QRegularExpression scheme(QStringLiteral("^[A-Za-z][A-Za-z0-9+.-]{0,31}://"));
+            if (scheme.match(name).hasMatch() || name.startsWith(QLatin1String("mailto:"), Qt::CaseInsensitive))
+                target = name;
+        }
         const int zero = target.indexOf(QChar(0));
         if (zero >= 0) target.truncate(zero);
         if (target.isEmpty()) continue;
