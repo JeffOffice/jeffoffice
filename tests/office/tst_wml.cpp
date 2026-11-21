@@ -2946,6 +2946,56 @@ private Q_SLOTS:
         QVERIFY(settingsWithMailMerge(added, none).contains("<w:trackRevisions/>"));
     }
 
+    // A body of more sections than the limit is read as far as it, with a note, and more sections after it change nothing: the sections read are the limit for twice and four times as many.
+    void aBodyOfThousandsOfSectionsIsReadAsFarAsTheLimit()
+    {
+        const QByteArray one = "<w:p><w:pPr><w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr></w:pPr><w:r><w:t>s</w:t></w:r></w:p>";
+        int read[3] = {0, 0, 0};
+        for (int k = 0; k < 3; ++k) {
+            QByteArray body;
+            for (int i = 0; i < kMaxSections * (k + 1) / 2 + 100; ++i) body += one;
+            Document d;
+            QString err;
+            ReadNotes notes;
+            QVERIFY(readDocx(Made{body, {}, {}, {}}.build(), &d, &err, &notes));
+            for (const Block &b : d.body)
+                if (b.para.props.section) ++read[k];
+            QCOMPARE(notes.notes.size(), k == 0 ? 0 : 1);   // (more than the limit: one note; the first is 100 over the limit's half)
+            QCOMPARE(notes.leftOut, k != 0);
+        }
+        QCOMPARE(read[0], kMaxSections / 2 + 100);
+        QCOMPARE(read[1], kMaxSections);
+        QCOMPARE(read[2], kMaxSections);
+    }
+
+    // A paragraph of more characters than the limit keeps the limit's worth, with a note that counts it; twice the text keeps the same, and a paragraph under it is whole.
+    void aParagraphOfMillionsOfCharactersKeepsTheLimit()
+    {
+        qint64 kept[2] = {0, 0};
+        for (int k = 0; k < 2; ++k) {
+            QByteArray text;
+            for (int i = 0; i < kMaxParagraphChars * (k + 2) / 5; ++i) text += "word ";
+            Document d;
+            QString err;
+            ReadNotes notes;
+            QVERIFY(readDocx(Made{"<w:p><w:r><w:t xml:space=\"preserve\">" + text + "</w:t></w:r></w:p><w:p><w:r><w:t>after</w:t></w:r></w:p>", {}, {}, {}}.build(), &d, &err, &notes));
+            QCOMPARE(d.body.size(), 2);
+            for (const Inline &in : d.body[0].para.content) kept[k] += in.text.size();
+            QCOMPARE(d.body[1].para.content[0].text, QStringLiteral("after"));
+            QCOMPARE(notes.notes.size(), 1);
+            QVERIFY(notes.leftOut);
+        }
+        QCOMPARE(kept[0], qint64(kMaxParagraphChars));
+        QCOMPARE(kept[1], qint64(kMaxParagraphChars));
+        // Under the limit it is whole.
+        Document d;
+        QString err;
+        ReadNotes notes;
+        QVERIFY(readDocx(Made{"<w:p><w:r><w:t>" + QByteArray(kMaxParagraphChars / 2, 'x') + "</w:t></w:r></w:p>", {}, {}, {}}.build(), &d, &err, &notes));
+        QCOMPARE(d.body[0].para.content[0].text.size(), kMaxParagraphChars / 2);
+        QCOMPARE(notes.notes.size(), 0);
+    }
+
     // The outline of a tight wrap is read as shares of the frame; a file's points are bounded: the first kMostWrapPoints are kept, none is outside the reach, and fewer than three make none.
     void aWrapOutlineIsReadAsSharesAndHeldToTheLimits()
     {

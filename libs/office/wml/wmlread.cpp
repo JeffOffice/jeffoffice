@@ -62,7 +62,8 @@ public:
     const XmlTree &t;
     int footnotes = 0, endnotes = 0;
     // What the body holds so far; past the limits (wml.h) the rest is left out.
-    int paragraphs = 0, inlines = 0;
+    int paragraphs = 0, inlines = 0, sections = 0;
+    int cutParagraphs = 0;            // the paragraphs that had more characters than kMaxParagraphChars (the rest of each is left out)
     bool truncated = false;
     int standIns = 0;                 // the tables that are kept whole as XML, for want of room (or rows)
     bool tablesAsStandIns = false;    // a part whose tables are not laid out (a header, a footer, a note): they are stand-ins, as every table was
@@ -561,6 +562,17 @@ public:
         if (pr >= 0) p.props = pPr(pr);
         paragraphContent(n, &p.content, 0);
         inlines += int(p.content.size());
+        // (A paragraph of more characters than a page's lines can be laid out for keeps the first of them; what follows is left out, the pieces that are not text staying as they were.)
+        qint64 room = kMaxParagraphChars;
+        bool cut = false;
+        for (Inline &in : p.content) {
+            if (in.text.size() > room) {
+                in.text.truncate(int(room));
+                cut = true;
+            }
+            room -= in.text.size();
+        }
+        if (cut) ++cutParagraphs;
         return p;
     }
 
@@ -961,7 +973,7 @@ public:
     {
         for (int c = t.firstChild(n); c >= 0; c = t.next(c)) {
             if (inCell && t.is(c, "tcPr")) continue;   // (the cell's properties are in its Open block)
-            if (paragraphs >= kMaxParagraphs || inlines >= kMaxInlines) {
+            if (paragraphs >= kMaxParagraphs || inlines >= kMaxInlines || sections >= kMaxSections) {
                 truncated = true;
                 return;
             }
@@ -972,6 +984,7 @@ public:
                 ++paragraphs;
                 Block b;
                 b.para = paragraph(c);
+                if (b.para.props.section) ++sections;
                 out->push_back(std::move(b));
             } else if (name == "sectPr") {
                 if (last) {
@@ -1677,6 +1690,10 @@ bool readDocx(const QByteArray &zip, Document *doc, QString *error, ReadNotes *n
     reader.bodyContent(body, &doc->body, 0, &doc->lastSection, &doc->lastSectionStated);
     if (reader.truncated) {
         noteIt(QCoreApplication::translate("jp::office::wml", "The document is longer than this program can open: the end of it was left out."));
+        if (notes) notes->leftOut = true;
+    }
+    if (reader.cutParagraphs > 0) {
+        noteIt(QCoreApplication::translate("jp::office::wml", "%n paragraph is longer than this program can lay out: the rest of it was left out.", nullptr, reader.cutParagraphs));
         if (notes) notes->leftOut = true;
     }
     if (reader.standIns > 0)

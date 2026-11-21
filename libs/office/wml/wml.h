@@ -777,6 +777,10 @@ CompatOptions readCompatOptions(const QByteArray &settings);
 constexpr qint64 kMaxInflatedBytes = qint64(1) << 30;
 constexpr int kMaxParagraphs = 500000;
 constexpr int kMaxInlines = 1500000;
+// Sections, and the characters of one paragraph (the rest is left out, with a note). Real files, in the same public collections (1,799 documents, the older format among them): 1,447 sections
+// at the most (the next has 812), and 105,977 characters in the longest paragraph. Each limit is 10 times the most or more.
+constexpr int kMaxSections = 15000;
+constexpr int kMaxParagraphChars = 1100000;
 // An equation (m:oMath, m:oMathPara) is shown as a line of text of at most this many characters, from content nested at most this deep (the rest of it is kept as written
 // and left out of the line), and all the equations of a document show at most the last number of characters.
 constexpr int kMaxEquationChars = 4000;
