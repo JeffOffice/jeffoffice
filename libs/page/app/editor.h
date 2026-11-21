@@ -26,6 +26,7 @@ class QMimeData;
 class QStatusBar;
 class QThreadPool;
 class QWidget;
+#include "app/pastedefaults.h"
 #include <QUndoStack>
 #include <functional>
 #include <map>
@@ -75,6 +76,8 @@ public:
     // Each step holds two compressed snapshots of the whole publication, so the list keeps this many steps.
     static constexpr int kUndoSteps = 100;
     QUndoStack *undoStack() { return &m_undo; }
+    // Which document a copy made here is from: the stamp on the clipboard, for a paste to tell its own document from another (app/pastedefaults.h).
+    const QString &originId() const { return m_originId; }
 
     void setDocument(std::unique_ptr<Document> d, const QString &path = QString());
     QString filePath() const { return m_path; }
@@ -517,6 +520,7 @@ private:
     void resetGrammar();
     QStringList visibleStories() const;   // the stories of the objects on the surface (and the one being typed in)
     QUndoStack m_undo;
+    QString m_originId = newPasteDocumentId();   // what a copy made here says it came from (app/pastedefaults.h)
     bool m_cropOpen = false;   // a crop session holds a change open (cropSessions)
     int m_cropPage = 0;        // the slide and the selection it began with, which its step is filed under
     QStringList m_cropSel;

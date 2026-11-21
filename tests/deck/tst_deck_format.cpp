@@ -1,6 +1,13 @@
 // JeffDeck's tests of the Format pane: what each page changes, that every change undoes as one step, and that it comes back from a .pptx and
 // from an .odp. The pane itself is libs/page's (the pieces it is made of are tested with JeffPub's, in tst_pub_formatpane.cpp).
 #include "deckhelpers.h"
+#include "app/pastedefaults.h"
+#include "app/pasteoffer.h"
+#include "canvas/canvas.h"
+
+#include <QMimeData>
+#include <QScrollBar>
+#include <QToolButton>
 #include "../shell/shapetexttest.h"
 
 #include <QStandardItemModel>
@@ -1140,6 +1147,153 @@ private Q_SLOTS:
                     if (c->isChecked() && c->objectName().startsWith(QLatin1String("text.fit"))) checked = c;
         QVERIFY(checked);
         QCOMPARE(checked->objectName(), QStringLiteral("text.fit1"));
+    }
+
+    // After Paste a Paste Options button is by what was pasted. A choice takes the paste back and does it again in that form, as one step of Undo; the button goes with the next edit, with Esc, and
+    // when what was pasted is scrolled out of sight; the Ctrl key tapped by itself opens it.
+    void theButtonAfterAPasteOffersTheOtherFormsAsOneStep()
+    {
+        PaneGuard guard;
+        DeckWindow w;
+        w.show();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        Editor *ed = w.editor();
+        ed->surfaceItems().clear();
+        auto putOnClipboard = [] {
+            auto *mime = new QMimeData;
+            mime->setText(QStringLiteral("Some words"));
+            mime->setHtml(QStringLiteral("<p><b>Some</b> words</p>"));
+            QApplication::clipboard()->setMimeData(mime);
+        };
+        auto boldFirst = [&] {
+            const auto *t = dynamic_cast<TextItem *>(ed->surfaceItems().front().get());
+            QTextDocument *story = t ? ed->doc()->storyDoc(t->storyId) : nullptr;
+            return story && story->begin().begin().fragment().charFormat().fontWeight() >= QFont::DemiBold;
+        };
+        auto buttonOf = [&] { return w.canvas()->viewport()->findChild<QToolButton *>(QStringLiteral("pasteOptionsButton")); };
+        auto closePopup = [] {
+            if (QWidget *p = QApplication::activePopupWidget()) p->close();
+            QTRY_VERIFY(!QApplication::activePopupWidget());
+        };
+        const int before = ed->undoStack()->count();
+        putOnClipboard();
+        w.act(QStringLiteral("edit.paste"))->trigger();
+        QCOMPARE(ed->surfaceItems().size(), size_t(1));
+        QVERIFY(boldFirst());
+        QVERIFY(buttonOf());
+        QTRY_VERIFY(buttonOf()->isVisible());
+        // Keep Text Only: the same paste, in the other form, and one Undo takes all of it back.
+        QMenu *menu = buttonOf()->menu();
+        menu->popup(buttonOf()->mapToGlobal(QPoint(0, buttonOf()->height())));
+        QTRY_VERIFY(menu->isVisible());
+        QStringList names;
+        for (QAction *a : menu->actions()) names << a->objectName();
+        QVERIFY2(names.contains(QStringLiteral("pasteOption0")) && names.contains(QStringLiteral("pasteOption1")), qPrintable(names.join(QLatin1Char(' '))));
+        menu->findChild<QAction *>(QStringLiteral("pasteOption1"))->trigger();
+        closePopup();
+        QCOMPARE(ed->surfaceItems().size(), size_t(1));
+        QVERIFY(!boldFirst());
+        QCOMPARE(ed->undoStack()->count(), before + 1);
+        QVERIFY(buttonOf()->isVisible());   // (still offered: the choice is not an edit)
+        ed->undo();
+        QCOMPARE(ed->surfaceItems().size(), size_t(0));
+        QVERIFY(!buttonOf()->isVisible());
+        // Esc ends it, and the next edit does.
+        w.act(QStringLiteral("edit.paste"))->trigger();
+        QTRY_VERIFY(buttonOf()->isVisible());
+        QTest::keyClick(w.canvas(), Qt::Key_Escape);
+        QVERIFY(!buttonOf()->isVisible());
+        ed->undo();
+        w.act(QStringLiteral("edit.paste"))->trigger();
+        QTRY_VERIFY(buttonOf()->isVisible());
+        ed->beginChange(QStringLiteral("An edit"));
+        ed->endChange();
+        QVERIFY(!buttonOf()->isVisible());
+        ed->undo();
+        ed->undo();
+        // A copy made since is no longer what the choices would paste.
+        w.act(QStringLiteral("edit.paste"))->trigger();
+        QTRY_VERIFY(buttonOf()->isVisible());
+        putOnClipboard();
+        QVERIFY(!buttonOf()->isVisible());
+        ed->undo();
+        // Scrolled out of sight, it goes; back in sight, it is there.
+        w.act(QStringLiteral("edit.paste"))->trigger();
+        QTRY_VERIFY(buttonOf()->isVisible());
+        w.canvas()->setZoom(8.0);
+        w.canvas()->verticalScrollBar()->setValue(w.canvas()->verticalScrollBar()->maximum());
+        w.canvas()->horizontalScrollBar()->setValue(w.canvas()->horizontalScrollBar()->maximum());
+        QTRY_VERIFY(!buttonOf()->isVisible());
+        w.canvas()->zoomToFit(Canvas::Fit::WholePage);
+        QTRY_VERIFY(buttonOf()->isVisible());
+        // The Ctrl key tapped by itself opens the menu.
+        QTest::keyEvent(QTest::Press, w.canvas(), Qt::Key(PasteOffer::key()));
+        QTest::keyEvent(QTest::Release, w.canvas(), Qt::Key(PasteOffer::key()));
+        QTRY_VERIFY(QApplication::activePopupWidget());
+        closePopup();
+        // Cells on the clipboard are offered as a table, too.
+        ed->undo();
+        auto *cells = new QMimeData;
+        cells->setText(QStringLiteral("a\tb\nc\td"));
+        cells->setHtml(QStringLiteral("<table><tr><td>a</td><td>b</td></tr><tr><td>c</td><td>d</td></tr></table>"));
+        QApplication::clipboard()->setMimeData(cells);
+        w.act(QStringLiteral("edit.paste"))->trigger();
+        QTRY_VERIFY(buttonOf()->isVisible());
+        menu = buttonOf()->menu();
+        menu->popup(buttonOf()->mapToGlobal(QPoint(0, buttonOf()->height())));
+        QTRY_VERIFY(menu->isVisible());
+        QVERIFY(menu->findChild<QAction *>(QStringLiteral("pasteOption3")));
+        closePopup();
+    }
+
+    // Set Default Paste: Paste does what was set for where the content came from. From another program (no stamp) it is the third setting; a copy made in a window carries that window's stamp, so
+    // the same window sees "this presentation" and another window "another presentation". The Options > Advanced page has the three boxes.
+    void pasteTakesTheFormSetForWhereTheContentCameFrom()
+    {
+        PaneGuard guard;
+        Settings &st = Settings::get();
+        DeckWindow w, other;
+        w.show();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        Editor *ed = w.editor();
+        ed->surfaceItems().clear();
+        auto boldFirst = [&] {
+            const auto *t = dynamic_cast<TextItem *>(ed->surfaceItems().front().get());
+            QTextDocument *story = t ? ed->doc()->storyDoc(t->storyId) : nullptr;
+            return story && story->begin().begin().fragment().charFormat().fontWeight() >= QFont::DemiBold;
+        };
+        auto fromAnotherProgram = [] {
+            auto *mime = new QMimeData;
+            mime->setText(QStringLiteral("Some words"));
+            mime->setHtml(QStringLiteral("<p><b>Some</b> words</p>"));
+            QApplication::clipboard()->setMimeData(mime);
+        };
+        st.setValue(QStringLiteral("edit/pasteDefaultProgram"), 1);   // (Keep Text Only)
+        fromAnotherProgram();
+        w.act(QStringLiteral("edit.paste"))->trigger();
+        QCOMPARE(ed->surfaceItems().size(), size_t(1));
+        QVERIFY(!boldFirst());
+        ed->undo();
+        st.setValue(QStringLiteral("edit/pasteDefaultProgram"), 0);   // (Keep Source Formatting)
+        fromAnotherProgram();
+        w.act(QStringLiteral("edit.paste"))->trigger();
+        QVERIFY(boldFirst());
+        ed->undo();
+        // a copy made by this window says so
+        auto shape = std::make_shared<ShapeItem>();
+        shape->rect = QRectF(100, 100, 200, 100);
+        shape->storyId = ed->doc()->createStory(QStringLiteral("Words"));
+        ed->addItem(shape, true);
+        ed->copy();
+        const QMimeData *md = QApplication::clipboard()->mimeData();
+        QVERIFY(md);
+        QCOMPARE(pasteOriginOf(md, ed->originId()), PasteFrom::SameDocument);
+        QCOMPARE(pasteOriginOf(md, other.editor()->originId()), PasteFrom::OtherDocument);
+        // the Options page's rows are the three ways, each with the two forms
+        const QVector<PasteDefaultRow> rows = DeckWindow::pasteDefaultRows();
+        QCOMPARE(rows.size(), 3);
+        for (const PasteDefaultRow &row : rows) QCOMPARE(row.choices.size(), 2);
+        st.remove(QStringLiteral("edit/pasteDefaultProgram"));
     }
 
     // The right-click menu of an object has Paste Options (keep the source formatting, keep the text only, Paste Special), Save as Picture, Size and Position, Format, and Alt Text;

@@ -284,6 +284,7 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
 
 CrunchWindow::~CrunchWindow()
 {
+    delete m_pasteOffer;   // (the button does not call back a window that is closing)
     cancelRecovery();   // (the thread that makes a copy is waited for: it calls back into the window)
     forgetFilePassword();   // (the password the workbook is protected with is wiped with the window)
     delete m_filterPopup.data();   // (while the window is whole: its going stops the listing, which the window's own timer and run are for)
@@ -676,6 +677,8 @@ void CrunchWindow::createActions()
             places->setEnabled(m_fixedDecimals != 0);
             connect(fixed, &QCheckBox::toggled, places, &QWidget::setEnabled);
             layout->addRow(tr("Places"), places);
+            layout->addRow(new QLabel(tr("What Paste puts in, by where the cells were copied"), page));
+            layout->addRow(new PasteDefaultsSection(pasteDefaultRows(), page));
             return static_cast<QWidget *>(page);
         }, [this, choice] {
             if (*choice) {
@@ -689,6 +692,7 @@ void CrunchWindow::createActions()
                 if (auto *zeros = (*choice)->parentWidget() ? (*choice)->parentWidget()->findChild<QCheckBox *>(QStringLiteral("optionShowZeros")) : nullptr) setShowZeros(zeros->isChecked());
                 if (auto *inCell = (*choice)->parentWidget() ? (*choice)->parentWidget()->findChild<QCheckBox *>(QStringLiteral("optionEditInCell")) : nullptr) setEditInCell(inCell->isChecked());
                 if (auto *drag = (*choice)->parentWidget() ? (*choice)->parentWidget()->findChild<QCheckBox *>(QStringLiteral("optionDragEditing")) : nullptr) setDragEditing(drag->isChecked());
+                if (auto *defaults = (*choice)->parentWidget() ? (*choice)->parentWidget()->findChild<PasteDefaultsSection *>() : nullptr) defaults->apply();
             }
         }};
         auto newBook = std::make_shared<std::array<QPointer<QWidget>, 3>>();

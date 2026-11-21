@@ -115,6 +115,7 @@ void CrunchWindow::createEditing()
     connect(u, &QUndoStack::canRedoChanged, this, &CrunchWindow::updateEditActions);
     connect(u, &QUndoStack::indexChanged, this, &CrunchWindow::updateEditActions);   // (the oldest steps may be forgotten: Undo ends before them)
     connect(u, &QUndoStack::indexChanged, this, [this] { cancelCut(); });   // (any edit ends a cut)
+    connect(u, &QUndoStack::indexChanged, this, [this] { updatePasteOffer(); });   // (and the Paste Options button of the paste before it)
     connect(u, &QUndoStack::indexChanged, this, [this] {   // (and puts an end to Insert's keys putting in what was copied; a note's box taken by the keys is given up)
         m_clipEdited = true;
         m_view->endNoteKeys(false);

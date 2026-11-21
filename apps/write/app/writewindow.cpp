@@ -394,7 +394,7 @@ void WriteWindow::createFormatActions()
     mk("edit.redo", tr("Redo"), "redo-2", QKeySequence::Redo, [v] { v->redo(); });
     mk("edit.cut", tr("Cut"), "scissors", QKeySequence::Cut, [v] { v->cut(); });
     mk("edit.copy", tr("Copy"), "copy", QKeySequence::Copy, [v] { v->copy(); });
-    mk("edit.paste", tr("Paste"), "clipboard-paste", QKeySequence::Paste, [v] { v->paste(); });
+    mk("edit.paste", tr("Paste"), "clipboard-paste", QKeySequence::Paste, [v] { v->pasteDefault(); });
     mk("edit.selectAll", tr("Select All"), "", QKeySequence::SelectAll, [v] { v->selectAll(); });
 
     mk("fmt.bold", tr("Bold"), "bold", QKeySequence::Bold, [edit, v] { if (auto *typing = v->shapeEditor()) typing->toggleBold(); else edit([](write::WriteDoc &d, QTextCursor &c) { write::toggleBold(d, c); }); }, true);

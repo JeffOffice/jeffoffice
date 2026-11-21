@@ -43,10 +43,9 @@ void CrunchWindow::createClipboardActions()
     mk("edit.insertClip", tr("Insert Cut or Copied Cells"), "", QKeySequence(), [this] { insertClipCells(); }, false, false);
     using Options = crunch::EditSession::PasteOptions;
     mk("edit.paste", tr("Paste"), "clipboard-paste", QKeySequence::Paste, [this] {
-        Options o = defaultPasteOptions();
-        // (cells that were copied here or in another JeffCrunch window are pasted as the default says; text from other programs is only text)
-        const QMimeData *md = QApplication::clipboard()->mimeData();
-        if (!md || !md->hasFormat(QLatin1String(crunch::kClipMime))) o.what = Options::What::All;
+        // (cells that were copied here or in another JeffCrunch window are pasted as the default says for where they came from, once they are read; text from other programs is only text)
+        Options o;
+        o.useDefault = true;
         pasteClipboard(o);
     });
     mk("paste.values", tr("Values"), "", QKeySequence(), [this] {
@@ -98,6 +97,7 @@ void CrunchWindow::createClipboardActions()
     connect(m_view, &grid::GridView::copyBorderCleared, this, [this] { forgetClip(); });
     connect(m_view, &grid::GridView::selectionChanged, this, [this] { updateInsertClipAction(); });
     connect(QApplication::clipboard(), &QClipboard::dataChanged, this, [this] { onClipboardChanged(); });
+    createPasteOffer();
     updateEditActions();
 }
 
@@ -585,8 +585,9 @@ void CrunchWindow::pasteAsHyperlinks()
 
 // Paste: what the clipboard holds goes in at the selected cell. The cells this program copied or cut go in whole (a cut moves them), and text or an HTML table from another program is entered
 // cell by cell as if typed.
-void CrunchWindow::pasteClipboard(const crunch::EditSession::PasteOptions &options)
+void CrunchWindow::pasteClipboard(const crunch::EditSession::PasteOptions &given)
 {
+    crunch::EditSession::PasteOptions options = given;
     if (auto *line = qobject_cast<QLineEdit *>(QApplication::focusWidget())) {
         line->paste();
         return;
@@ -597,11 +598,13 @@ void CrunchWindow::pasteClipboard(const crunch::EditSession::PasteOptions &optio
     if (m_edit.active || !editingAllowed()) return;
     const QMimeData *md = QApplication::clipboard()->mimeData();
     if (!md) return;
+    if (!m_repasting) endPasteOffer();
     const CellRange target = selectedRange();
     const qint64 before = m_loader.changesMade();
     ClipData clip;
     using Options = crunch::EditSession::PasteOptions;
     const bool rich = md->hasFormat(QLatin1String(crunch::kClipMime)) && ClipData::fromBytes(md->data(QLatin1String(crunch::kClipMime)), &clip) && clip.valid();
+    if (options.useDefault) options = defaultPasteOptions(rich ? &clip : nullptr);
     QVector<QStringList> table;
     jp::office::sheet::CsvImport guessed;
     if (!rich) {
@@ -652,6 +655,7 @@ void CrunchWindow::pasteClipboard(const crunch::EditSession::PasteOptions &optio
     if (o.range.valid) {
         widenForCells(m_sheet, o.range);
         m_view->selectRange(o.range.row1, o.range.col1, o.range.row2, o.range.col2);
+        if (rich && !clip.cut) notePaste(o.range, options);   // (cells copied: the button offers the other forms of the paste)
     }
 }
 
@@ -676,11 +680,14 @@ bool CrunchWindow::clipGoesInByKey() const
 }
 
 // What a plain Paste of cells copied here does: as the default says.
-crunch::EditSession::PasteOptions CrunchWindow::defaultPasteOptions() const
+crunch::EditSession::PasteOptions CrunchWindow::defaultPasteOptions(const crunch::ClipData *clip) const
 {
     using Options = crunch::EditSession::PasteOptions;
     Options o;
-    o.what = Options::What(std::clamp(Settings::get().value(QStringLiteral("crunch/defaultPaste"), 0).toInt(), 0, int(Options::What::Comments)));
+    if (!clip) return o;   // (text from another program is only text)
+    const QVector<PasteDefaultRow> rows = pasteDefaultRows();
+    const PasteDefaultRow *row = PasteDefaultsSection::rowFor(rows, clip->token == m_session->token() ? PasteFrom::SameDocument : PasteFrom::OtherDocument);
+    o.what = Options::What(std::clamp(row ? PasteDefaultsSection::value(*row) : 0, 0, int(Options::What::Comments)));
     return o;
 }
 
@@ -708,7 +715,7 @@ void CrunchWindow::insertClipCells()
     const CellRange at = selectedRange();
     const qint64 before = m_loader.changesMade();
     const crunch::EditSession::Outcome o = doStructural([&] {
-        return clip.cut ? m_session->moveCellsInserting(m_sheet, clip.source, at.row1, at.col1, down) : m_session->insertCellsPasting(m_sheet, at.row1, at.col1, clip, down, defaultPasteOptions());
+        return clip.cut ? m_session->moveCellsInserting(m_sheet, clip.source, at.row1, at.col1, down) : m_session->insertCellsPasting(m_sheet, at.row1, at.col1, clip, down, defaultPasteOptions(&clip));
     });
     if (!o.ok) {
         if (!o.confirm) notice(tr("Insert"), o.problem);

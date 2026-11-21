@@ -248,6 +248,7 @@ DeckWindow::~DeckWindow()
         child->blockSignals(true);   // (destroyed is still sent)
     }
     qApp->removeEventFilter(this);   // (the filter of Full Screen and of the File screen)
+    delete m_pasteOffer;   // (the button does not call back a window that is closing)
 }
 
 QAction *DeckWindow::mk(const QString &id, const QString &text, const QString &iconName, const QKeySequence &key, const std::function<void()> &fn,
@@ -304,7 +305,7 @@ void DeckWindow::createActions()
     mk("edit.redo", tr("Redo"), "redo-2", QKeySequence::Redo, [ed] { ed->redo(); });
     mk("edit.cut", tr("Cut"), "scissors", QKeySequence::Cut, [this, ed] { if (slideListFocused()) cutSlides(); else ed->cut(); });
     mk("edit.copy", tr("Copy"), "copy", QKeySequence::Copy, [this, ed] { if (slideListFocused()) copySlides(); else ed->copy(); });
-    mk("edit.paste", tr("Paste"), "clipboard-paste", QKeySequence::Paste, [this, ed] { if (slideListFocused()) pasteSlides(true); else ed->paste(); });
+    mk("edit.paste", tr("Paste"), "clipboard-paste", QKeySequence::Paste, [this, ed] { if (slideListFocused()) pasteSlides(true); else pasteAndOffer(); });
     mk("edit.pasteKeep", tr("Keep Source Formatting"), "clipboard-paste", QKeySequence(), [ed] { ed->paste(false); });
     mk("edit.pasteText", tr("Keep Text Only"), "clipboard-type", QKeySequence(), [ed] { ed->paste(true); });
     mk("edit.pasteCells", tr("Spreadsheet Cells as Table"), "table", QKeySequence(), [ed] { ed->pasteCells(QApplication::clipboard()->mimeData()); });

@@ -109,10 +109,32 @@ void PageView::copy()
     mime->setText(text);
     mime->setHtml(f.toHtml());
     mime->setData(QStringLiteral("application/x-jeffwrite-fragment"), text.toUtf8());
+    stampPasteOrigin(mime, m_originId);
     s_copied = clip;
     s_copiedText = text;
     s_copiedWhole = selectionIsWholeWords(m_cursor);
     QApplication::clipboard()->setMimeData(mime);
+}
+
+// Set Default Paste: the forms Paste may take by default, by where the content came from. The numbers are the PasteKind of each.
+QVector<PasteDefaultRow> PageView::pasteDefaultRows()
+{
+    const QVector<PasteDefaultChoice> choices{{QCoreApplication::translate("jp::write::PageView", "Keep Source Formatting"), int(PasteKind::Keep)},
+                                              {QCoreApplication::translate("jp::write::PageView", "Merge Formatting"), int(PasteKind::Merge)},
+                                              {QCoreApplication::translate("jp::write::PageView", "Keep Text Only"), int(PasteKind::TextOnly)}};
+    return {PasteDefaultRow{PasteFrom::SameDocument, QCoreApplication::translate("jp::write::PageView", "Pasting within the same document"), QStringLiteral("edit/pasteDefaultSame"), choices, int(PasteKind::Keep)},
+            PasteDefaultRow{PasteFrom::OtherDocument, QCoreApplication::translate("jp::write::PageView", "Pasting between documents"), QStringLiteral("edit/pasteDefaultOther"), choices, int(PasteKind::Keep)},
+            PasteDefaultRow{PasteFrom::OtherProgram, QCoreApplication::translate("jp::write::PageView", "Pasting from other programs"), QStringLiteral("edit/pasteDefaultProgram"), choices, int(PasteKind::Keep)}};
+}
+
+// Paste, in the form that was set for where the content came from; a form this content cannot go in as (Merge Formatting for plain words with no formatting is the same as Keep) is Keep.
+void PageView::pasteDefault()
+{
+    const QVector<PasteDefaultRow> rows = pasteDefaultRows();
+    const PasteDefaultRow *row = PasteDefaultsSection::rowFor(rows, pasteOriginOf(QApplication::clipboard()->mimeData(), m_originId));
+    const PasteKind kind = row ? PasteKind(PasteDefaultsSection::value(*row)) : PasteKind::Keep;
+    if (kind == PasteKind::Keep || m_shapeEditor || !m_doc || !canPaste(kind)) paste();
+    else pasteAs(kind);
 }
 
 // Smart cut and paste (Options > Advanced): on unless turned off.

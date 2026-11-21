@@ -865,6 +865,7 @@ public:
         enum class Operation { None, Add, Subtract, Multiply, Divide } operation = Operation::None;
         bool skipBlanks = false;
         bool transpose = false;
+        bool useDefault = false; // the window decides `what` when it has read the clipboard (Set Default Paste: by where the cells were copied); not read by the session
         bool fileForm = false;   // pasteText: the texts are in the form a file has them (a point in a number, a formula in its English form), whatever the person's locale
     };
     // This workbook's name for the clipboard: a copy made here carries it.

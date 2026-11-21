@@ -13,6 +13,8 @@
 #include "app/filetasks.h"
 #include "app/infopage.h"
 #include "app/objectsdialog.h"
+#include "app/pastedefaults.h"
+#include "app/pasteoffer.h"
 #include "io/pdfcrypt.h"
 
 #include <tuple>
@@ -310,6 +312,7 @@ public:
     void openLinkSource(const QString &path) { openFile(path); }
     // Paste > Set Default Paste: what the Paste button and Ctrl+V put in (all, or values, formulas, and so on) when cells are on the clipboard; asked as the number of the choice.
     bool setDefaultPaste();
+    static QVector<PasteDefaultRow> pasteDefaultRows();   // Set Default Paste, for the Options page and for Paste
     void setDefaultPasteAsker(const std::function<bool(int *)> &asker) { m_defaultPasteAsker = asker; }
     // Insert > Icons: the icons the picker gave, each put on the sheet as a picture.
     bool insertIcons();
@@ -1330,6 +1333,25 @@ private:
     void copyStep();
     void publishClipboard(const QString &text);
     void pasteClipboard(const crunch::EditSession::PasteOptions &options);
+    // The Paste Options button after a paste of copied cells (crunchwindow_pasteoffer.cpp)
+    void createPasteOffer();
+    void endPasteOffer();
+    void updatePasteOffer();
+    bool pasteIsLast() const;
+    void notePaste(const jp::office::sheet::CellRange &range, const crunch::EditSession::PasteOptions &options);
+    bool repasteWith(const crunch::EditSession::PasteOptions &options);
+    QVector<PasteChoice> pasteOfferChoices();
+    PasteOffer *m_pasteOffer = nullptr;
+    struct PasteNote {
+        bool live = false;
+        QUndoStack *stack = nullptr;
+        int index = -1;
+        const QUndoCommand *top = nullptr;
+        int sheet = -1;
+        jp::office::sheet::CellRange range;
+        crunch::EditSession::PasteOptions options;
+    } m_pasteNote;
+    bool m_repasting = false;
     void pasteSpecial();
     void pasteTextImport();
     bool importPastedText(const QString &text, bool any);
@@ -1343,7 +1365,7 @@ private:
     void insertClipCells();
     void updateInsertClipAction();
     bool clipGoesInByKey() const;
-    crunch::EditSession::PasteOptions defaultPasteOptions() const;
+    crunch::EditSession::PasteOptions defaultPasteOptions(const crunch::ClipData *clip) const;
     void cancelCut();
     void widenForCells(int sheet, const jp::office::sheet::CellRange &cells);
     QString htmlOfClip(const crunch::ClipData &clip) const;

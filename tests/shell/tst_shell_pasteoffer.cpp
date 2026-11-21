@@ -130,6 +130,8 @@ private Q_SLOTS:
         QCOMPARE(separators, 1);
         QAction *second = menu->findChild<QAction *>(QStringLiteral("pasteOption1"));
         QVERIFY(second);
+        b.focus->clearFocus();
+        QVERIFY(!b.focus->hasFocus());
         second->trigger();
         QCOMPARE(b.ran, 10);
         QTRY_VERIFY(b.focus->hasFocus());

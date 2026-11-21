@@ -23,6 +23,7 @@
 
 #include <QAction>
 #include <QCheckBox>
+#include <QLabel>
 #include <QFormLayout>
 #include <QMessageBox>
 #include <QRegularExpression>
@@ -144,6 +145,7 @@ void DeckWindow::createDialogActions()
     mk("file.options", tr("Options"), "settings", QKeySequence(), [this] {
         struct Fields {
             QCheckBox *ruler = nullptr, *snap = nullptr, *insertKey = nullptr, *embedFonts = nullptr, *removePersonal = nullptr;
+            PasteDefaultsSection *pasteDefaults = nullptr;
         };
         auto f = std::make_shared<Fields>();
         QVector<OptionsPage> pages;
@@ -178,10 +180,14 @@ void DeckWindow::createDialogActions()
             f->insertKey->setObjectName(QStringLiteral("insertKeyOvertype"));
             f->insertKey->setChecked(Settings::get().value(QStringLiteral("edit/insertKey"), false).toBool());
             column->addWidget(f->insertKey);
+            column->addWidget(new QLabel(tr("What Paste does, by where the content came from"), page));
+            f->pasteDefaults = new PasteDefaultsSection(pasteDefaultRows(), page);
+            column->addWidget(f->pasteDefaults);
             column->addStretch(1);
             return page;
         }, [f] {
             Settings::get().setValue(QStringLiteral("edit/insertKey"), f->insertKey->isChecked());
+            f->pasteDefaults->apply();
             for (AppWindow *w : AppWindow::windows())
                 if (auto *deck = qobject_cast<DeckWindow *>(w)) deck->m_ed->syncOvertypeOption();
         }};

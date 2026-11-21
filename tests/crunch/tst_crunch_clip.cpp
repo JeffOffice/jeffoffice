@@ -13,6 +13,8 @@
 #include "crunchwindowhelpers.h"
 #include "editwindow.h"
 #include "grid/gridview.h"
+#include "app/pastedefaults.h"
+#include "app/pasteoffer.h"
 
 #include <QAction>
 #include <QApplication>
@@ -29,6 +31,7 @@
 #include <QSettings>
 #include <QSignalSpy>
 #include <QTemporaryDir>
+#include <QScrollBar>
 #include <QUndoStack>
 
 using namespace jp;
@@ -266,6 +269,119 @@ private Q_SLOTS:
         QVERIFY(s->paste(0, rangeOf(QStringLiteral("B1")), clip, o).ok);
         QCOMPARE(shown(e, QStringLiteral("B1")), QStringLiteral("50%"));
         QVERIFY(sides(QStringLiteral("B1")) != before);   // (the copy had none)
+    }
+
+    // After a paste of copied cells a Paste Options button is by the last pasted cell. A choice takes the paste back and does it again in that form, as one step of Undo; the button goes with the
+    // next edit, a copy elsewhere, and Esc, and with the cell scrolled out of sight (it is back when the cell is); the Ctrl key tapped by itself opens it; text from another program has none.
+    void theButtonAfterAPasteOffersTheOtherFormsAsOneStep()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "B1==A1*2", "B2=text"})));
+        auto buttonOf = [&] { return e.view()->viewport()->findChild<QToolButton *>(QStringLiteral("pasteOptionsButton")); };
+        auto closePopup = [] {
+            if (QWidget *p = QApplication::activePopupWidget()) p->close();
+            QTRY_VERIFY(!QApplication::activePopupWidget());
+        };
+        copyRange(e, QStringLiteral("A1:B2"));
+        QVERIFY(!buttonOf() || buttonOf()->isHidden());
+        paste(e, QStringLiteral("F5"));
+        QCOMPARE(formulaOf(e, QStringLiteral("G5")), QStringLiteral("=F5*2"));
+        QVERIFY(buttonOf());
+        QTRY_VERIFY(!buttonOf()->isHidden());
+        // the button is by the last cell pasted
+        const QRect last = e.view()->cellRect(5, 6);
+        QVERIFY(buttonOf()->geometry().left() > last.right() - 2 && buttonOf()->geometry().top() > last.bottom() - 2);
+        // Values: the same paste, as values, and one Undo takes all back
+        QMenu *menu = buttonOf()->menu();
+        menu->popup(buttonOf()->mapToGlobal(QPoint(0, buttonOf()->height())));
+        QTRY_VERIFY(menu->isVisible());
+        QAction *values = menu->findChild<QAction *>(QStringLiteral("pasteOption%1").arg(int(crunch::EditSession::PasteOptions::What::Values)));
+        QVERIFY(values);
+        values->trigger();
+        closePopup();
+        QVERIFY(e.settle());
+        QCOMPARE(formulaOf(e, QStringLiteral("G5")), QStringLiteral("2"));
+        QCOMPARE(e.valueAt(QStringLiteral("G5")), QStringLiteral("n:2"));
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+        QVERIFY(!buttonOf()->isHidden());   // (the choice is not an edit: the button stays)
+        // the choices go on from there: back to everything
+        menu->popup(buttonOf()->mapToGlobal(QPoint(0, buttonOf()->height())));
+        QTRY_VERIFY(menu->isVisible());
+        menu->findChild<QAction *>(QStringLiteral("pasteOption0"))->trigger();
+        closePopup();
+        QVERIFY(e.settle());
+        QCOMPARE(formulaOf(e, QStringLiteral("G5")), QStringLiteral("=F5*2"));
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("F5")), QStringLiteral("-"));
+        QVERIFY(buttonOf()->isHidden());
+        // Esc, the next edit, and a copy elsewhere each end it
+        paste(e, QStringLiteral("F5"));
+        QTRY_VERIFY(!buttonOf()->isHidden());
+        QTest::keyClick(e.view(), Qt::Key_Escape);
+        QVERIFY(buttonOf()->isHidden());
+        copyRange(e, QStringLiteral("A1:B2"));
+        paste(e, QStringLiteral("F8"));
+        QTRY_VERIFY(!buttonOf()->isHidden());
+        QVERIFY(e.win.w.session()->setNote(0, 9, 9, QStringLiteral("n"), QStringLiteral("Ann"), false, QStringLiteral("Note")).ok);
+        QVERIFY(buttonOf()->isHidden());
+        copyRange(e, QStringLiteral("A1:B2"));
+        paste(e, QStringLiteral("F12"));
+        QTRY_VERIFY(!buttonOf()->isHidden());
+        QApplication::clipboard()->setText(QStringLiteral("elsewhere"));
+        QVERIFY(buttonOf()->isHidden());
+        // scrolled out of sight it goes, and it is back with the cell
+        copyRange(e, QStringLiteral("A1:B2"));
+        paste(e, QStringLiteral("F16"));
+        QTRY_VERIFY(!buttonOf()->isHidden());
+        e.view()->verticalScrollBar()->setValue(e.view()->verticalScrollBar()->maximum());
+        QTRY_VERIFY(e.view()->cellRect(16, 6).isNull());
+        QVERIFY(buttonOf()->isHidden());
+        e.view()->verticalScrollBar()->setValue(0);
+        QTRY_VERIFY(!buttonOf()->isHidden());
+        // the Ctrl key tapped by itself opens the menu
+        QTest::keyEvent(QTest::Press, e.view(), Qt::Key(PasteOffer::key()));
+        QTest::keyEvent(QTest::Release, e.view(), Qt::Key(PasteOffer::key()));
+        QTRY_VERIFY(QApplication::activePopupWidget());
+        closePopup();
+        // text from another program, and a cut and paste, have no button
+        QApplication::clipboard()->setText(QStringLiteral("5\t6"));
+        paste(e, QStringLiteral("H1"));
+        QVERIFY(buttonOf()->isHidden());
+        copyRange(e, QStringLiteral("A1:B2"), "edit.cut");
+        paste(e, QStringLiteral("J1"));
+        QVERIFY(buttonOf()->isHidden());
+    }
+
+    // Set Default Paste: what Paste puts in is the form set for where the cells were copied, in this workbook or in another; a workbook with no choice for another follows the first, as it always did.
+    void pasteTakesTheFormSetForWhereTheCellsWereCopied()
+    {
+        using What = crunch::EditSession::PasteOptions::What;
+        Settings &st = Settings::get();
+        st.setValue(QStringLiteral("crunch/defaultPaste"), int(What::Values));
+        st.remove(QStringLiteral("crunch/defaultPasteBetween"));
+        EditWindow a, b;
+        QVERIFY(a.open(sheetOf({"A1=1", "B1==A1*2"})));
+        QVERIFY(b.open(sheetOf({"A1=9"})));
+        copyRange(a, QStringLiteral("A1:B1"));
+        paste(a, QStringLiteral("F5"));
+        QCOMPARE(formulaOf(a, QStringLiteral("G5")), QStringLiteral("2"));   // (this workbook: values)
+        paste(b, QStringLiteral("F5"));
+        QCOMPARE(formulaOf(b, QStringLiteral("G5")), QStringLiteral("2"));   // (another, none set for it: the first setting)
+        st.setValue(QStringLiteral("crunch/defaultPasteBetween"), int(What::All));
+        paste(b, QStringLiteral("F7"));
+        QCOMPARE(formulaOf(b, QStringLiteral("G7")), QStringLiteral("=F7*2"));   // (another: everything)
+        paste(a, QStringLiteral("F9"));
+        QCOMPARE(formulaOf(a, QStringLiteral("G9")), QStringLiteral("2"));   // (this one is still values)
+        // the Options page's boxes are the two ways, with what is kept
+        const auto rows = CrunchWindow::pasteDefaultRows();
+        QCOMPARE(rows.size(), 2);
+        PasteDefaultsSection section(rows);
+        QCOMPARE(section.findChild<QComboBox *>(QStringLiteral("pasteDefault0"))->currentData().toInt(), int(What::Values));
+        QCOMPARE(section.findChild<QComboBox *>(QStringLiteral("pasteDefault1"))->currentData().toInt(), int(What::All));
+        st.remove(QStringLiteral("crunch/defaultPaste"));
+        st.remove(QStringLiteral("crunch/defaultPasteBetween"));
     }
 
     // Paste Special > Column Widths gives the columns the widths of the copy, and Comments and Notes brings the notes; each is one step of Undo, and the clipboard form keeps both.

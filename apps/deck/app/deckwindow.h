@@ -21,6 +21,8 @@
 #include "app/slideshow.h"
 #include "app/objects.h"
 #include "app/objectsdialog.h"
+#include "app/pastedefaults.h"
+#include "app/pasteoffer.h"
 
 #include <optional>
 #include <QHash>
@@ -104,6 +106,7 @@ public:
     // The fonts of the presentation that this computer lacks (the bar after a presentation opens): where each is used, and how one is replaced in the file.
     jp::MissingFontsHost missingFontsHost();
     DeckCanvas *canvas() const { return m_canvas; }
+    static QVector<PasteDefaultRow> pasteDefaultRows();   // Set Default Paste: the ways of pasting and the forms of each
     SlidesPane *slidesPane() const { return m_slides; }
     // Brings the commands up to date with the selection at once (the window does it a moment after a change; a test does not wait for the moment).
     void refreshNow() { refreshUi(); }
@@ -587,6 +590,14 @@ private:
     void refreshCrop();
     void createPictureActions();  // deckwindow_insert.cpp: Online Pictures, Icons, This Device
     void createObjectActions();   // deckwindow_objects.cpp: objects of other apps
+    // The Paste Options button (deckwindow_pasteoffer.cpp)
+    void createPasteOffer();
+    void pasteAndOffer();
+    bool pasteOnce(int form);
+    bool repasteAs(int form);
+    void endPasteOffer();
+    void updatePasteOffer();
+    QVector<PasteChoice> pasteOfferChoices();
     void refreshObjectUi();
     void objectSaved(int editId, const QByteArray &part, const QByteArray &png, bool stale);
     void addInsertParts(struct RibbonParts &parts);
@@ -605,6 +616,9 @@ private:
     QPointer<PageAccessibilityPane> m_accessPane;
     QPointer<SelectionPane> m_selectionPane;
     DeckCanvas *m_canvas = nullptr;
+    PasteOffer *m_pasteOffer = nullptr;
+    quint64 m_changes = 0, m_pasteAt = 0;   // the changes the slide has had, and the count at the paste the button is for
+    bool m_pasteLive = false, m_pasting = false;
     Ribbon *m_ribbon = nullptr;
     SlidesPane *m_slides = nullptr;
     NotesPane *m_notes = nullptr;

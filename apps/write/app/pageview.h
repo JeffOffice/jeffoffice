@@ -7,6 +7,7 @@ namespace jp { class ShapeTextEdit; }
 // the story through the commands of core/editops.h.
 
 #include "app/pagepaint.h"
+#include "app/pastedefaults.h"
 #include "app/pasteoffer.h"
 #include "core/autoops.h"
 #include "core/contentcontrolops.h"
@@ -180,6 +181,9 @@ public:
     void cut();
     void copy();
     void paste();
+    // Paste in the form Set Default Paste says for where the clipboard's content came from (this document, another, or another program); Keep Source Formatting, Merge Formatting, or Keep Text Only.
+    void pasteDefault();
+    static QVector<PasteDefaultRow> pasteDefaultRows();
     // The Spike: Ctrl+F3 cuts the selection onto it (each cut is added after the ones before), Ctrl+Shift+F3 pastes everything on it, in order, as one step, and empties it. It is kept
     // while the program runs, and is the same for every window. (Formatting stays, as it does for a cut.)
     void cutToSpike();
@@ -759,6 +763,7 @@ private:
     bool redoLastPaste(const std::function<void()> &again);
     void runPaste(bool smart, const std::function<void()> &put, int from);
     QVector<jp::PasteChoice> pasteOfferChoices();
+    QString m_originId = newPasteDocumentId();   // what a copy made here says it came from
     PasteOffer *m_pasteOffer = nullptr;   // the button (shared: libs/shell/app/pasteoffer.h)
     void notePaste(int from, int selectionEnd, const PasteSource &from_, bool startedInTable, bool asCells = false);
     void updatePasteButton();

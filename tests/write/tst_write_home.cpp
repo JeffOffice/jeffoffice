@@ -5,6 +5,7 @@
 #include "core/workthread.h"
 #include "../isolatesettings.h"
 #include "app/widgets.h"
+#include "app/pastedefaults.h"
 #include "app/theme.h"
 #include <QTabWidget>
 #include "app/settings.h"
@@ -2816,6 +2817,109 @@ private Q_SLOTS:
         QCOMPARE(xml.count("<w:del "), 0);
         QCOMPARE(xml.count("<w:cellIns"), plain.count("<w:cellIns"));
         QCOMPARE(xml.count("<w:ins "), 2);
+    }
+
+    // Set Default Paste: what Paste does is the form set for where the content came from: this document, another document, or another program. The Options > Advanced page chooses them.
+    void pasteTakesTheFormSetForWhereTheContentCameFrom()
+    {
+        using Kind = PageView::PasteKind;
+        jp::Settings &st = jp::Settings::get();
+        jp::Settings::get().setValue(QStringLiteral("edit/smartCutPaste"), false);
+        auto setKinds = [&](Kind same, Kind other, Kind program) {
+            st.setValue(QStringLiteral("edit/pasteDefaultSame"), int(same));
+            st.setValue(QStringLiteral("edit/pasteDefaultOther"), int(other));
+            st.setValue(QStringLiteral("edit/pasteDefaultProgram"), int(program));
+        };
+        auto open1 = [](WriteWindow &w, const QByteArray &body) {
+            w.setNotifier([](const QString &, const QString &) {});
+            w.show();
+            w.setDocument(open(makeDocx(body)), QString());
+        };
+        auto lastBold = [](WriteWindow &w) {
+            QTextCursor at(w.document()->story());
+            at.movePosition(QTextCursor::End);
+            at.movePosition(QTextCursor::Left);
+            return at.charFormat().fontWeight() >= QFont::DemiBold;
+        };
+        auto copyBold = [](WriteWindow &w) {
+            QTextCursor c(w.document()->story());
+            c.setPosition(6);
+            c.setPosition(10, QTextCursor::KeepAnchor);
+            w.view()->setCursor(c);
+            w.view()->copy();
+        };
+        auto pasteAtEnd = [](WriteWindow &w) {
+            QTextCursor c(w.document()->story());
+            c.movePosition(QTextCursor::End);
+            w.view()->setCursor(c);
+            w.act(QStringLiteral("edit.paste"))->trigger();
+        };
+        const QByteArray body = para(run("plain ") + run("bold", "<w:b/>") + run(" end"));
+        // within the same document
+        {
+            setKinds(Kind::TextOnly, Kind::Keep, Kind::Keep);
+            WriteWindow w;
+            open1(w, body);
+            copyBold(w);
+            pasteAtEnd(w);
+            QCOMPARE(w.document()->story()->toPlainText(), QStringLiteral("plain bold endbold"));
+            QVERIFY(!lastBold(w));
+            setKinds(Kind::Keep, Kind::TextOnly, Kind::TextOnly);
+            WriteWindow w2;
+            open1(w2, body);
+            copyBold(w2);
+            pasteAtEnd(w2);
+            QVERIFY(lastBold(w2));
+        }
+        // between two documents of the program: the second window's paste of the first window's copy
+        {
+            setKinds(Kind::Keep, Kind::TextOnly, Kind::Keep);
+            WriteWindow a, b;
+            open1(a, body);
+            open1(b, para(run("tail ")));
+            copyBold(a);
+            pasteAtEnd(b);
+            QCOMPARE(b.document()->story()->toPlainText(), QStringLiteral("tail bold"));
+            QVERIFY(!lastBold(b));
+            setKinds(Kind::TextOnly, Kind::Keep, Kind::TextOnly);
+            WriteWindow c;
+            open1(c, para(run("tail ")));
+            pasteAtEnd(c);   // (a's copy is still on the clipboard)
+            QVERIFY(lastBold(c));
+        }
+        // from another program: the clipboard has no stamp of the program
+        {
+            WriteWindow w;
+            open1(w, para(run("tail ")));
+            auto *mime = new QMimeData;
+            mime->setHtml(QStringLiteral("<p>some <b>bold</b></p>"));
+            QApplication::clipboard()->setMimeData(mime);
+            setKinds(Kind::Keep, Kind::Keep, Kind::TextOnly);
+            pasteAtEnd(w);
+            QVERIFY(!lastBold(w));
+            auto *mime2 = new QMimeData;
+            mime2->setHtml(QStringLiteral("<p>some <b>bold</b></p>"));
+            QApplication::clipboard()->setMimeData(mime2);
+            setKinds(Kind::TextOnly, Kind::TextOnly, Kind::Keep);
+            WriteWindow w2;
+            open1(w2, para(run("tail ")));
+            pasteAtEnd(w2);
+            QVERIFY(lastBold(w2));
+        }
+        // the Options page: a box for each way, holding what is kept, and OK keeps what is chosen
+        {
+            setKinds(Kind::Merge, Kind::TextOnly, Kind::Keep);
+            const auto rows = PageView::pasteDefaultRows();
+            PasteDefaultsSection section(rows);
+            auto *same = section.findChild<QComboBox *>(QStringLiteral("pasteDefault0"));
+            auto *program = section.findChild<QComboBox *>(QStringLiteral("pasteDefault2"));
+            QVERIFY(same && program);
+            QCOMPARE(same->currentData().toInt(), int(Kind::Merge));
+            program->setCurrentIndex(program->findData(int(Kind::TextOnly)));
+            section.apply();
+            QCOMPARE(st.value(QStringLiteral("edit/pasteDefaultProgram")).toInt(), int(Kind::TextOnly));
+        }
+        setKinds(Kind::Keep, Kind::Keep, Kind::Keep);
     }
 
     // The keyboard: Ctrl tapped after a paste opens the options, the arrows and Enter choose, Esc ends the offer. Each way a tap is spoilt is checked against a tap that works in the same state.

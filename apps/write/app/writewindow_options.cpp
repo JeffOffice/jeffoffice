@@ -18,6 +18,7 @@
 #include <QFileDialog>
 #include <QFormLayout>
 #include <QHBoxLayout>
+#include <QLabel>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QSpinBox>
@@ -49,6 +50,7 @@ QVector<OptionsPage> WriteWindow::optionsPages()
     struct Fields {
         QCheckBox *marks = nullptr, *grid = nullptr;
         QComboBox *units = nullptr;
+        PasteDefaultsSection *pasteDefaults = nullptr;
         QCheckBox *ctrlLinks = nullptr, *dragText = nullptr, *replaces = nullptr, *insertKey = nullptr, *privacy = nullptr, *smart = nullptr, *embedFonts = nullptr;
     };
     auto f = std::make_shared<Fields>();
@@ -121,10 +123,14 @@ QVector<OptionsPage> WriteWindow::optionsPages()
         f->smart->setObjectName(QStringLiteral("smartCutPaste"));
         f->smart->setChecked(Settings::get().value(QStringLiteral("edit/smartCutPaste"), true).toBool());
         form->addRow(f->smart);
+        form->addRow(new QLabel(QCoreApplication::translate("Dialogs", "What Paste does, by where the content came from"), page));
+        f->pasteDefaults = new PasteDefaultsSection(write::PageView::pasteDefaultRows(), page);
+        form->addRow(f->pasteDefaults);
         return page;
     }, [this, f] {
         Settings::get().setUnit(static_cast<Unit>(f->units->currentData().toInt()));
         Settings::get().setValue(QStringLiteral("edit/smartCutPaste"), f->smart->isChecked());
+        f->pasteDefaults->apply();
         m_ruler->update();   // (the ruler's marks are in the unit chosen)
         Settings::get().setValue(QStringLiteral("edit/ctrlClickLinks"), f->ctrlLinks->isChecked());
         Settings::get().setValue(QStringLiteral("edit/dragText"), f->dragText->isChecked());

@@ -2,6 +2,7 @@
 
 #include <QSet>
 #include <QThreadPool>
+#include "app/pastedefaults.h"
 #include "app/pastetable.h"
 #include "app/pictureask.h"
 #include "app/settings.h"
@@ -1842,6 +1843,7 @@ void Editor::copy()
         QTextCursor tc(&tmp);
         tc.insertFragment(frag);
         md->setData(QStringLiteral("application/x-jeffpub-text"), QJsonDocument(storyToJson(&tmp)).toJson(QJsonDocument::Compact));
+        stampPasteOrigin(md, m_originId);
         QApplication::clipboard()->setMimeData(md);
         return;
     }
@@ -1862,6 +1864,7 @@ void Editor::copy()
         }
         auto *md = new QMimeData;
         md->setText(lines.join(QLatin1Char('\n')));
+        stampPasteOrigin(md, m_originId);
         QApplication::clipboard()->setMimeData(md);
         return;
     }
@@ -1917,6 +1920,7 @@ void Editor::copy()
     ItemList list;
     for (const auto &id : ids) list.push_back(m_doc->itemPtr(id));
     md->setImageData(Renderer::renderItemsToImage(ctx, list, 2.0));
+    stampPasteOrigin(md, m_originId);
     QApplication::clipboard()->setMimeData(md);
 }
 
