@@ -384,7 +384,7 @@ void SheetObjects::themeChanged()
         for (const std::shared_ptr<Object> &o : s.objects) {
             if (!o->built || o->deleted) continue;
             if (o->meta.kind == ObjectKind::Chart) {
-                if (!o->chart || o->chart != o->fileChart) continue;   // (a chart made or changed here has the colors it was given)
+                if (!o->chart || !o->fileChart || o->added) continue;   // (a chart made here has the colors it was given; one changed here is read again for what still follows the theme)
                 o->chartStale = true;
                 o->drawnKey = 0;
                 if (shown) m_layer.invalidate(o->id);
@@ -625,7 +625,8 @@ QByteArray SheetObjects::diagramPicture(int sheet, int id)
 void SheetObjects::freshChart(int sheet, Object &o)
 {
     o.chartStale = false;
-    if (!o.chart || o.chart != o.fileChart) return;   // (a chart made or changed here has the colors it was given)
+    if (!o.chart || !o.fileChart || o.added) return;   // (a chart made here has the colors it was given)
+    const bool changedHere = o.chart != o.fileChart;
     Sheet &s = m_sheets[size_t(sheet)];
     std::shared_ptr<const Chart> chart = s.parsed.value(o.meta.chartPart);
     if (!chart) {
@@ -635,6 +636,30 @@ void SheetObjects::freshChart(int sheet, Object &o)
         if (!readChart(m_book->objectPackage().part(o.meta.chartPart), m_theme, ColorMap(), parsed.get(), &error)) return;
         chart = parsed;
         s.parsed.insert(o.meta.chartPart, chart);
+    }
+    if (changedHere) {
+        // A chart changed here keeps what was changed: only what still has the color the file's chart had (it follows the theme) takes the new theme's, and the chart's own palette and style colors are the new theme's.
+        auto merged = std::make_shared<Chart>(*o.chart);
+        const Chart &was = *o.fileChart;
+        if (merged->originalPalette.isEmpty()) merged->palette = chart->palette;
+        else merged->originalPalette = chart->palette;
+        if (merged->styleBase == was.styleBase) merged->styleBase = chart->styleBase;
+        if (merged->textColor == was.textColor) merged->textColor = chart->textColor;
+        merged->styleText = chart->styleText;
+        if (merged->plots.size() == chart->plots.size() && was.plots.size() == chart->plots.size()) {
+            for (qsizetype p = 0; p < merged->plots.size(); ++p) {
+                const bool same = merged->plots[p].series.size() == chart->plots[p].series.size() && was.plots[p].series.size() == chart->plots[p].series.size();
+                if (!same) continue;
+                for (qsizetype k = 0; k < merged->plots[p].series.size(); ++k) {
+                    ChartSeries &now = merged->plots[p].series[k];
+                    if (now.color == was.plots[p].series[k].color) now.color = chart->plots[p].series[k].color;
+                }
+            }
+        }
+        o.chart = merged;
+        o.fileChart = chart;
+        o.drawnKey = 0;
+        return;
     }
     o.chart = o.fileChart = chart;
     o.drawnKey = 0;

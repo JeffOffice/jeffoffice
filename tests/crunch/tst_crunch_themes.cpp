@@ -17,6 +17,13 @@
 #include "app/widgets.h"
 #include "io/zip.h"
 #include "../sheet/drawinghelpers.h"
+#include "../chartmenu.h"
+#include "app/chartdialogs.h"
+#include "app/ribbon.h"
+#include <QComboBox>
+#include "../withdialog.h"
+#include "office/chart.h"
+#include "sheet/chartedit.h"
 
 #include <QAction>
 #include <QFile>
@@ -224,6 +231,45 @@ QByteArray badThemeStyles()
     return stylesXml(QString(), xfs, fonts + QStringLiteral("</fonts>") + fills + QStringLiteral("</fills><borders count=\"1\"><border><left/><right/><top/><bottom/><diagonal/></border></borders>"));
 }
 
+// A workbook with a theme part whose one chart has its series (and its text) named by the theme: the file's chart, not one made here.
+QByteArray themedChartBook(const Theme &theme)
+{
+    QByteArray chart = chartPart(QStringLiteral("barChart"), {SeriesSpec{QString(), QStringLiteral("Sheet1!$A$2:$A$4"), QStringLiteral("Sheet1!$B$2:$B$4"), QStringLiteral("East"), {QStringLiteral("Q1"), QStringLiteral("Q2"), QStringLiteral("Q3")}, {10, 20, 30}}});
+    chart.insert(chart.indexOf("<c:cat>"), "<c:spPr><a:solidFill><a:schemeClr val=\"accent2\"/></a:solidFill></c:spPr>");
+    const QString anchors = twoCell(6, 8, 12, 14, chartFrame(3, QStringLiteral("rIdC"), QStringLiteral("Sales")));
+    return withThemePart(bookWithDrawing({dataSheet()}, drawingPart(anchors), {chartTarget(QStringLiteral("rIdC"), 1, chart)}), theme);
+}
+
+// The theme given from the Page Layout menu, as a click does (the name is the color set's).
+void pickThemeColors(EditWindow &e, const QString &name)
+{
+    auto *colors = e.win.w.findChild<QMenu *>(QStringLiteral("themeColorsMenu"));
+    QVERIFY(colors);
+    Q_EMIT colors->aboutToShow();
+    QAction *a = entry(colors, name);
+    QVERIFY(a);
+    a->trigger();
+}
+
+// The chart the window works with, picked as a click picks it, with its Current Selection box.
+struct PickedChart {
+    QComboBox *box = nullptr;
+    int count = 0;
+};
+
+void pickTheChart(EditWindow &e, PickedChart *result)
+{
+    PickedChart &out = *result;
+    crunch::SheetObjects *o = e.win.w.objects();
+    QTRY_VERIFY_WITH_TIMEOUT(o->shownSheet() == 0 && o->layer()->count() == 1, 10000);
+    o->layer()->select(o->idsOf(0).front());
+    QTRY_VERIFY_WITH_TIMEOUT(e.win.w.act(QStringLiteral("chartdesign.resetStyle"))->isEnabled(), 10000);
+    Ribbon *r = e.win.w.ribbon();
+    r->showTab(r->tab(QStringLiteral("Chart")));
+    out.box = chartPartBoxOn(r->tab(QStringLiteral("Chart")));
+    QTRY_VERIFY_WITH_TIMEOUT(out.box && out.box->count() == 3, 10000);
+}
+
 } // namespace
 
 class CrunchThemeTests : public QObject {
@@ -421,6 +467,124 @@ private Q_SLOTS:
         Theme inFile;
         QVERIFY(readTheme(saved.value(QStringLiteral("xl/theme/theme1.xml")), &inFile));
         QCOMPARE(inFile.colors[Theme::Accent1], set.colors[Theme::Accent1]);
+    }
+
+    // After a theme change the part box, Format Selection, and Reset to Match Style work on the chart as it is read again: a series reset takes the new theme's color, the chart area the new theme's
+    // text color, Undo gives the old ones back, and the saved file shows the same color when it is opened.
+    void afterAThemeChangeTheBoxAndResetUseTheReReadChart()
+    {
+        const Theme ours = ourTheme();
+        const ThemeColors set = builtinThemeColors().at(1);
+        QVERIFY(!(set.colors[Theme::Accent1] == ours.colors[Theme::Accent1]));
+        EditWindow e;
+        QVERIFY(e.open(themedChartBook(ours)));
+        QVERIFY(e.settle());
+        PickedChart picked;
+        pickTheChart(e, &picked);
+        QVERIFY(picked.box && picked.box->count() == 3);
+        crunch::SheetObjects *o = e.win.w.objects();
+        const int id = o->idsOf(0).front();
+        QCOMPARE(o->chartColorOf(0, id), ours.colors[Theme::Accent2]);
+        pickChartPart(picked.box, 2);   // (the series)
+        pickThemeColors(e, set.name);
+        QCOMPARE(o->chartColorOf(0, id), set.colors[Theme::Accent2]);
+        const Chart now = o->chartNow(0, id);
+        QCOMPARE(now.palette.value(0), set.colors[Theme::Accent1]);
+        QCOMPARE(now.originalPalette.isEmpty() ? now.palette.value(0) : now.originalPalette.value(0), set.colors[Theme::Accent1]);
+        QCOMPARE(picked.box->currentIndex(), 2);   // (the part that was picked is still the one)
+        // Format Selection shows the series of the re-read chart
+        withDialog([&] { e.win.w.act(QStringLiteral("chartdesign.formatSelection"))->trigger(); }, QStringLiteral("formatChartPartDialog"), [&](QDialog *d) {
+            auto *dialog = static_cast<jp::FormatChartPartDialog *>(d);
+            QCOMPARE(dialog->currentPart(), 2);
+        });
+        // Reset to Match Style on the series: the new theme's color for the series
+        const int steps = e.win.w.undoStack()->count();
+        e.win.w.act(QStringLiteral("chartdesign.resetStyle"))->trigger();
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        const QColor reset = chartStyleSeriesColor(o->chartNow(0, id), 0, 1);
+        QCOMPARE(reset, set.colors[Theme::Accent1]);
+        QCOMPARE(o->chartColorOf(0, id), reset);
+        QCOMPARE(partLookOf(o->chartNow(0, id), ChartPart::Series, 0).fill, reset);
+        // Undo and Redo
+        e.win.w.undoStack()->undo();
+        QCOMPARE(o->chartColorOf(0, id), set.colors[Theme::Accent2]);
+        e.win.w.undoStack()->redo();
+        QCOMPARE(partLookOf(o->chartNow(0, id), ChartPart::Series, 0).fill, reset);
+        // the chart area: the new theme's text color
+        pickChartPart(picked.box, 0);
+        const QColor text = o->chartNow(0, id).styleText;
+        QCOMPARE(text, set.colors[Theme::Dark1]);
+        QVERIFY(text != ours.colors[Theme::Dark1] || set.colors[Theme::Dark1] == ours.colors[Theme::Dark1]);
+        // saved through the window and opened again: the same color
+        QVERIFY(saveNow(e));
+        EditWindow again;
+        QVERIFY(again.win.open(e.copyOfFile()));
+        QVERIFY(again.settle());
+        crunch::SheetObjects *o2 = again.win.w.objects();
+        QTRY_VERIFY_WITH_TIMEOUT(o2->shownSheet() == 0 && o2->layer()->count() == 1, 10000);
+        QCOMPARE(o2->chartColorOf(0, o2->idsOf(0).front()), reset);
+    }
+
+    // The chart's own Colors: "default" gives the palette of the theme as it is now, not the one the chart had when it was read, for a chart not yet edited and for one edited before the change.
+    void chartColorsDefaultGivesTheNewThemesPalette()
+    {
+        const Theme ours = ourTheme();
+        const ThemeColors set = builtinThemeColors().at(1);
+        for (const bool editedFirst : {false, true}) {
+            EditWindow e;
+            QVERIFY(e.open(themedChartBook(ours)));
+            QVERIFY(e.settle());
+            PickedChart picked;
+            pickTheChart(e, &picked);
+            QVERIFY(picked.box && picked.box->count() == 3);
+            crunch::SheetObjects *o = e.win.w.objects();
+            const int id = o->idsOf(0).front();
+            auto *menu = e.win.w.findChild<QMenu *>(QStringLiteral("chartColorsMenu"));
+            QVERIFY(menu);
+            QCOMPARE(menu->actions().size(), chartColorSchemeCount());
+            if (editedFirst) {
+                menu->actions().value(2)->trigger();   // (a scheme of the chart's own: the chart is edited from now on)
+                QVERIFY(o->chartNow(0, id).palette.value(0) != ours.colors[Theme::Accent1]);
+            }
+            pickThemeColors(e, set.name);
+            menu->actions().value(0)->trigger();   // (the first is the theme's own)
+            const Chart now = o->chartNow(0, id);
+            QVERIFY2(now.palette.value(0) == set.colors[Theme::Accent1], editedFirst ? "edited first" : "not edited");
+            QCOMPARE(now.palette.value(1), set.colors[Theme::Accent2]);
+            QCOMPARE(o->chartColorOf(0, id), set.colors[Theme::Accent1]);
+        }
+    }
+
+    // A series the user recolored in this session keeps that color through a theme change; what follows the theme changes.
+    void aHandColoredSeriesKeepsItsColorThroughAThemeChange()
+    {
+        const Theme ours = ourTheme();
+        const ThemeColors set = builtinThemeColors().at(1);
+        EditWindow e;
+        QVERIFY(e.open(themedChartBook(ours)));
+        QVERIFY(e.settle());
+        PickedChart picked;
+        pickTheChart(e, &picked);
+        QVERIFY(picked.box && picked.box->count() == 3);
+        crunch::SheetObjects *o = e.win.w.objects();
+        const int id = o->idsOf(0).front();
+        pickChartPart(picked.box, 2);
+        withDialog([&] { e.win.w.act(QStringLiteral("chartdesign.formatSelection"))->trigger(); }, QStringLiteral("formatChartPartDialog"), [](QDialog *d) {
+            static_cast<jp::FormatChartPartDialog *>(d)->setFill(QColor(0x12, 0x34, 0x56));
+        });
+        QCOMPARE(o->chartColorOf(0, id), QColor(0x12, 0x34, 0x56));
+        pickThemeColors(e, set.name);
+        QCOMPARE(o->chartColorOf(0, id), QColor(0x12, 0x34, 0x56));
+        QCOMPARE(partLookOf(o->chartNow(0, id), ChartPart::Series, 0).fill, QColor(0x12, 0x34, 0x56));
+        QCOMPARE(o->chartNow(0, id).styleText, set.colors[Theme::Dark1]);
+        e.win.w.undoStack()->undo();   // (the theme)
+        QCOMPARE(o->chartColorOf(0, id), QColor(0x12, 0x34, 0x56));
+        QVERIFY(saveNow(e));
+        EditWindow again;
+        QVERIFY(again.win.open(e.copyOfFile()));
+        QVERIFY(again.settle());
+        QTRY_VERIFY_WITH_TIMEOUT(again.win.w.objects()->layer()->count() == 1, 10000);
+        QCOMPARE(again.win.w.objects()->chartColorOf(0, again.win.w.objects()->idsOf(0).front()), QColor(0x12, 0x34, 0x56));
     }
 
     // A workbook with no theme part takes none: no step, and the menus offer nothing.

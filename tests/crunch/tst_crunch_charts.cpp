@@ -1426,14 +1426,6 @@ private Q_SLOTS:
         QCOMPARE(design.currentPart(), 2);
     }
 
-    // After a theme change the chart is read again (the themes branch's freshChart hook in apps/crunch/core/sheetobjects.cpp): the Current Selection box, Format Selection, and Reset to Match Style
-    // use that chart, with its new palette and its new style color. Ready for when the hook is there: pick a series, give it a color of its own, change the theme, then expect the box's series
-    // to be the ones of the re-read chart, Format Selection's dialog to show the re-read chart's colors, and Reset to give the new palette's color (chartStyleSeriesColor of the re-read chart).
-    void afterAThemeChangeTheBoxAndResetUseTheReReadChart()
-    {
-        QSKIP("the freshChart hook (SheetObjects, apps/crunch/core/sheetobjects.cpp) has not landed: the themes branch is not in origin/main yet");
-    }
-
     // The window reads the chart once for a change of what is picked: the box and the chart's elements are of that one read (a cell read is counted).
     void pickingAChartReadsItsCellsOnce()
     {
