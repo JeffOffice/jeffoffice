@@ -168,33 +168,43 @@ private Q_SLOTS:
         const QString inGerman = systemLocale().toString(day, QLocale::LongFormat) + systemLocale().toString(1234567.5, 'f', 1);
         QVERIFY(inEnglish != inGerman);
         system.offMain = 0;
-        std::atomic<int> made{0}, mixed{0}, mainDone{0}, ready{0};
-        std::atomic<bool> workerRunning{false};
+        // A handshake, not luck: each side counts a round toward its 2,000 only when the other side's progress counter moved since its own last round, so every counted round was
+        // interleaved with the other side's. Both loops run until both quotas are met; the hang guard bounds iterations, never time.
+        std::atomic<int> workerProgress{0}, mainProgress{0}, workerQuota{0}, mainQuota{0}, mixed{0}, ready{0};
         constexpr int kRounds = 2000;
+        constexpr int kGuard = 20000000;
+        std::atomic<bool> guardHit{false};
         WorkThread worker([&] {
             ++ready;
             while (ready.load() < 2) QThread::yieldCurrentThread();   // (start barrier)
-            workerRunning = true;
-            // (both sides run until each has done its rounds: the worker goes on while the main thread is still changing the locale)
-            for (int i = 0; made.load() < kRounds || mainDone.load() < kRounds; ++i) {
+            int seen = mainProgress.load();
+            for (int i = 0; (workerQuota.load() < kRounds || mainQuota.load() < kRounds); ++i) {
+                if (i >= kGuard) { guardHit = true; break; }
                 const SystemLocale person = systemLocale();
                 const QString text = person.toString(day, QLocale::LongFormat) + person.toString(1234567.5, 'f', 1);
                 if (text != inEnglish && text != inGerman) ++mixed;
-                if (made.load() < kRounds) ++made;
+                ++workerProgress;
+                const int now = mainProgress.load();
+                if (now != seen) { seen = now; if (workerQuota.load() < kRounds) ++workerQuota; }
+                else QThread::yieldCurrentThread();
             }
         });
         ++ready;
         while (ready.load() < 2) QThread::yieldCurrentThread();
-        int overlapped = 0;
-        for (int i = 0; i < kRounds; ++i) {
+        int seen = workerProgress.load();
+        for (int i = 0; (workerQuota.load() < kRounds || mainQuota.load() < kRounds); ++i) {
+            if (i >= kGuard) { guardHit = true; break; }
             QLocale::setDefault(i % 2 ? german : english);
             captureSystemLocale();
             systemLocale();
-            if (workerRunning.load() && made.load() < kRounds) ++overlapped;   // (a round of the main thread while the worker still has rounds to make)
-            ++mainDone;
+            ++mainProgress;
+            const int now = workerProgress.load();
+            if (now != seen) { seen = now; if (mainQuota.load() < kRounds) ++mainQuota; }
+            else QThread::yieldCurrentThread();
         }
         worker.join();
-        QVERIFY(made.load() >= kRounds);
+        QVERIFY2(!guardHit.load(), "the two sides did not interleave within the iteration bound");
+        const int overlapped = mainQuota.load();
         QVERIFY2(overlapped > 0, "the two sides never ran at the same time");
         QCOMPARE(mixed.load(), 0);
         QCOMPARE(system.offMain.load(), 0);

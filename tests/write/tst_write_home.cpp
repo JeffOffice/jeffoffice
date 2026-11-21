@@ -1715,10 +1715,17 @@ private Q_SLOTS:
         jp::captureSystemLocale();
         const QString inGerman = jp::systemLocale().toString(QDate(2026, 11, 20), QLocale::LongFormat) + jp::systemLocale().toString(1234567);
         QVERIFY(inEnglish != inGerman);
-        std::atomic<int> rounds{0}, odd{0};
+        // A handshake, not luck: a round counts toward the 2,000 only when the other side's progress counter moved since this side's last round; the guard bounds iterations, not time.
+        std::atomic<int> workerProgress{0}, mainProgress{0}, workerQuota{0}, mainQuota{0}, odd{0}, ready{0};
+        std::atomic<bool> guardHit{false};
+        constexpr int kGuard = 20000000;
         {
             jp::WorkThread worker([&] {
-                for (int i = 0; i < 2000; ++i) {
+                ++ready;
+                while (ready.load() < 2) QThread::yieldCurrentThread();
+                int seen = mainProgress.load();
+                for (int i = 0; workerQuota.load() < 2000 || mainQuota.load() < 2000; ++i) {
+                    if (i >= kGuard) { guardHit = true; break; }
                     QLockFile lock(normalTemplatePath() + QStringLiteral(".lock"));
                     if (lock.tryLock(1000)) {
                         QFile f(normalTemplatePath());
@@ -1729,18 +1736,31 @@ private Q_SLOTS:
                     const jp::SystemLocale person = jp::systemLocale();
                     const QString text = person.toString(QDate(2026, 11, 20), QLocale::LongFormat) + person.toString(1234567);
                     if (text != inEnglish && text != inGerman) ++odd;
-                    ++rounds;
+                    ++workerProgress;
+                    const int now = mainProgress.load();
+                    if (now != seen) { seen = now; if (workerQuota.load() < 2000) ++workerQuota; }
+                    else QThread::yieldCurrentThread();
                 }
             });
-            for (int i = 0; i < 2000; ++i) {
+            ++ready;
+            while (ready.load() < 2) QThread::yieldCurrentThread();
+            int seen = workerProgress.load();
+            for (int i = 0; workerQuota.load() < 2000 || mainQuota.load() < 2000; ++i) {
+                if (i >= kGuard) { guardHit = true; break; }
                 QLocale::setDefault(i % 2 ? german : english);
                 jp::captureSystemLocale();
                 jp::systemLocale();
+                ++mainProgress;
+                const int now = workerProgress.load();
+                if (now != seen) { seen = now; if (mainQuota.load() < 2000) ++mainQuota; }
+                else QThread::yieldCurrentThread();
             }
         }
         QLocale::setDefault(before);
         jp::captureSystemLocale();
-        QCOMPARE(rounds.load(), 2000);
+        QVERIFY2(!guardHit.load(), "the two sides did not interleave within the iteration bound");
+        QCOMPARE(workerQuota.load(), 2000);
+        QCOMPARE(mainQuota.load(), 2000);
         QCOMPARE(odd.load(), 0);
         QCOMPARE(normalTemplateState(), NormalTemplateState::Usable);
         QFile::remove(normalTemplatePath());
