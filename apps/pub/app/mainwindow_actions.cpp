@@ -999,7 +999,7 @@ void MainWindow::createActions()
     });
     connect(ed, &Editor::busyEnded, this, [this] {
         for (QDialog *d : findChildren<QDialog *>(QStringLiteral("busyBox"), Qt::FindDirectChildrenOnly)) {
-            d->disconnect();
+            d->disconnect(d);   // (only its own connections: a wildcard disconnect also cuts the style sheet's hold on the destroyed signal)
             d->close();
         }
     });
