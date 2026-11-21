@@ -130,10 +130,9 @@ QString FieldContext::resolve(const QString &code, const QString &language) cons
     if (kind == "page") {
         // Numbered from the publication's first page number, in its style
         // unless the field names one (Format Page Numbers).
-        const qint64 from = doc ? qint64(doc->firstPageNumber()) - 1 : 0;
-        // (A presentation may start at any 32-bit number: the sum stays inside it, and a step from the lowest one.)
-        auto at = [from](int page) { return int(std::clamp<qint64>(page + from, std::numeric_limits<int>::min() + 1, std::numeric_limits<int>::max())); };
-        const QString style = arg.isEmpty() && doc ? doc->pageNumberFormat() : arg;
+        // The shown number of a page counts its section's start and keeps inside 32 bits (a presentation may start at any number).
+        auto at = [&](int page) { return doc ? doc->pageNumberShown(page) : page; };
+        const QString style = arg.isEmpty() && doc ? doc->pageNumberFormatOf(pageNumber) : arg;
         auto shown = [&](int n) { return pageNumberText(n, style); };
         // The next or previous linked box's page; "#" without one, as in Publisher.
         if (arg == "next") return nextPage > 0 ? QString::number(at(nextPage)) : QStringLiteral("#");
@@ -461,7 +460,9 @@ QString FieldContext::key(bool withClock) const
     // With Format Page Numbers' settings, which change every page number.
     return QStringLiteral("%1/%2/%3/%4/%5/%6/%7/%8/%9").arg(pageNumber).arg(pageCount).arg(mergeRecord).arg(continuedOnPage).arg(continuedFromPage)
         .arg(nextPage).arg(prevPage).arg(withClock ? now.toString("yyyyMMddhhmm") : QString())
-        .arg(doc ? QString::number(doc->firstPageNumber()) + doc->pageNumberFormat() + QLatin1Char('/') + QString::number(doc->pageTotal()) + QLatin1Char('/') + QString::number(doc->sectionPageTotal()) : QString());
+        .arg(doc ? QString::number(doc->firstPageNumber()) + doc->pageNumberFormat() + QLatin1Char('/') + QString::number(doc->pageTotal()) + QLatin1Char('/') + QString::number(doc->sectionPageTotal())
+        // (and the number this page shows, and the ones its linked boxes name, which a section can change)
+        + QLatin1Char('/') + QString::number(doc->pageNumberShown(pageNumber)) + doc->pageNumberFormatOf(pageNumber) + QLatin1Char('/') + QString::number(nextPage > 0 ? doc->pageNumberShown(nextPage) : 0) + QLatin1Char('/') + QString::number(prevPage > 0 ? doc->pageNumberShown(prevPage) : 0) : QString());
 }
 
 QString LayoutEnv::key() const

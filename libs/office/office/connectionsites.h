@@ -6,8 +6,10 @@
 
 namespace jp {
 
-// How many sites the object has.
+// How many sites the object has: the sites its geometry has, then the glue points of its own (ShapeItem::gluePoints), whose numbers follow them.
 int connectionSiteCount(const Item &it);
+// How many of them its geometry has (the numbers from this one on are glue points).
+int geometrySiteCount(const Item &it);
 // A site's place in page coordinates, turned and flipped with the object. `vertical` says whether a line leaves it upright.
 QPointF connectionSite(const Item &it, int site, bool *vertical = nullptr);
 // The site on a side of the object (0 top, 1 left, 2 bottom, 3 right): the one that leaves that way and is nearest the side's middle; -1 for none.

@@ -6,6 +6,7 @@
 #include "core/texteffects.h"
 
 #include <QString>
+#include <QTextCharFormat>
 
 namespace jp::formatpresets {
 
@@ -30,6 +31,12 @@ void applyGlow(Effects &fx, int i, const ColorRef &color);
 void applyTextShadow(TextEffects &fx, int i);
 void applyTextReflection(TextEffects &fx, int i);
 void applyTextGlow(TextEffects &fx, int i, const QColor &color);
+
+// Text Styles: ready-made looks for letters that set the fill, the outline, and the effects together, each replacing what the letters had of those three (the size, the font, and the
+// rest of the format stay). textStyleName(i) names them; applying one to a format the effects of which are a style of this list gives the same format again.
+int textStyleCount();
+QString textStyleName(int i);
+void applyTextStyle(QTextCharFormat &cf, int i, const ColorScheme &scheme);
 
 // Soft edges of 1, 2.5, 5, 10, 25, and 50 points.
 int softEdgeCount();

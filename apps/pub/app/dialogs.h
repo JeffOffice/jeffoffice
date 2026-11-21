@@ -52,6 +52,8 @@ void optionsDialog(QWidget *p, Editor *ed);
 void pageNumberDialog(QWidget *p, Editor *ed);
 // Format Page Numbers: the numbers' style and the first page's number.
 void pageNumberFormatDialog(QWidget *p, Editor *ed);
+// Insert Section: the current page starts a section whose page numbers begin again, in a format of its own.
+void sectionDialog(QWidget *p, Editor *ed);
 void documentPropertiesDialog(QWidget *p, Editor *ed, int tab = 0);   // 1 = Commercial Print
 void measurementWindow(QWidget *p, Editor *ed);
 void hyphenationDialog(QWidget *p, Editor *ed);

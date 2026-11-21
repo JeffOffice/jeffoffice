@@ -1,5 +1,8 @@
 #include "app/formatpresets.h"
 
+#include "app/formatops.h"
+#include "text/textprops.h"
+
 #include <QCoreApplication>
 #include <algorithm>
 #include <iterator>
@@ -183,5 +186,62 @@ QString softEdgeName(int i)
 }
 
 void applySoftEdge(Effects &fx, int i) { fx.softEdge = kSoftEdges[std::clamp(i, 0, softEdgeCount() - 1)]; }
+
+namespace {
+
+// What a text style sets: the fill (a scheme slot, or -1 for clear letters), the outline (a slot, or -1 for none) and its weight, and which effect it adds.
+enum class Look { Plain, Shadow, SoftShadow, Glow, Reflection, Emboss, Engrave };
+struct TextStyleDef {
+    const char *name;
+    int fill, outline;
+    double weight;
+    Look look;
+};
+const TextStyleDef kTextStyles[] = {
+    {QT_TRANSLATE_NOOP("TextStyle", "Plain"), Main, -1, 0, Look::Plain},
+    {QT_TRANSLATE_NOOP("TextStyle", "Outline"), -1, Main, 1, Look::Plain},
+    {QT_TRANSLATE_NOOP("TextStyle", "Bold Outline"), -1, Accent1, 2, Look::Plain},
+    {QT_TRANSLATE_NOOP("TextStyle", "Filled Outline"), Accent1, Main, 1, Look::Plain},
+    {QT_TRANSLATE_NOOP("TextStyle", "Shadow"), Main, -1, 0, Look::Shadow},
+    {QT_TRANSLATE_NOOP("TextStyle", "Soft Shadow"), Accent1, -1, 0, Look::SoftShadow},
+    {QT_TRANSLATE_NOOP("TextStyle", "Outlined Shadow"), Accent2, Main, 0.75, Look::Shadow},
+    {QT_TRANSLATE_NOOP("TextStyle", "Glow"), Main, -1, 0, Look::Glow},
+    {QT_TRANSLATE_NOOP("TextStyle", "Colored Glow"), Accent3, -1, 0, Look::Glow},
+    {QT_TRANSLATE_NOOP("TextStyle", "Reflection"), Accent1, -1, 0, Look::Reflection},
+    {QT_TRANSLATE_NOOP("TextStyle", "Emboss"), Main, -1, 0, Look::Emboss},
+    {QT_TRANSLATE_NOOP("TextStyle", "Engrave"), Main, -1, 0, Look::Engrave},
+};
+
+} // namespace
+
+int textStyleCount() { return int(std::size(kTextStyles)); }
+
+QString textStyleName(int i)
+{
+    return QCoreApplication::translate("TextStyle", kTextStyles[std::clamp(i, 0, textStyleCount() - 1)].name);
+}
+
+void applyTextStyle(QTextCharFormat &cf, int i, const ColorScheme &scheme)
+{
+    const TextStyleDef &d = kTextStyles[std::clamp(i, 0, textStyleCount() - 1)];
+    // What the three leave behind from another style goes first: the outline, the effects of the list, and the marks that draw letters raised or cut in.
+    formatops::setTextOutlineNone(cf);
+    cf.clearProperty(tp::GlowRef);
+    cf.setProperty(tp::Emboss, d.look == Look::Emboss);
+    cf.setProperty(tp::Engrave, d.look == Look::Engrave);
+    if (d.fill < 0) formatops::setTextFillNone(cf);
+    else formatops::setTextFill(cf, ColorRef::scheme(SchemeSlot(d.fill)));
+    if (d.outline >= 0) {
+        formatops::setTextOutline(cf, ColorRef::scheme(SchemeSlot(d.outline)));
+        formatops::setTextOutlineWeight(cf, d.weight);
+    }
+    formatops::changeTextEffects(cf, [&](TextEffects &fx) {
+        fx = TextEffects();
+        if (d.look == Look::Shadow) applyTextShadow(fx, 0);
+        else if (d.look == Look::SoftShadow) applyTextShadow(fx, 1);
+        else if (d.look == Look::Glow) applyTextGlow(fx, 1, ColorRef::scheme(d.fill == Main ? Accent1 : SchemeSlot(d.fill)).resolve(scheme));
+        else if (d.look == Look::Reflection) applyTextReflection(fx, 0);
+    });
+}
 
 } // namespace jp::formatpresets

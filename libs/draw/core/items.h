@@ -228,6 +228,9 @@ public:
     void scaleInto(const QRectF &from, const QRectF &to) override;
 };
 
+// The most glue points a shape holds (what a file may say is held to it).
+constexpr int kMostGluePoints = 16;
+
 class ShapeItem : public Item {
 public:
     ShapeItem();
@@ -238,6 +241,9 @@ public:
     QString shape = QStringLiteral("rect");
     QVector<double> adj;        // adjustment handle values (0..1)
     QPainterPath customPath;    // edited points, frame-local; overrides shape when not empty
+    // Glue points of the shape's own: connection sites a connector can be attached to, after the sites its geometry has. Each is a place in the frame as a share of its width
+    // and height (0 to 1 on each axis), so that it keeps its place when the shape is sized. At most kMostGluePoints.
+    QVector<QPointF> gluePoints;
     QString storyId;            // text inside the shape
     QMarginsF insets{7.2, 3.6, 7.2, 3.6};
     VAlign valign = VAlign::Middle;

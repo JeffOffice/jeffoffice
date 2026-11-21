@@ -48,6 +48,15 @@ Right-click a page in the page list for a menu with **Insert Blank Page**, **Ins
 
 Click **View > Layout > Two-Page Spread** to see pages as an open book. Page 1 stands alone on the right. Then pages 2 and 3 sit together, then 4 and 5, and so on. Click **Single Page** to go back. For a book, pair this with a two-page master.
 
+## Sections: number the pages again
+
+A section is a run of pages whose page numbers count on their own. The first section starts at page 1. To start another (a front part numbered i, ii, iii, then chapters that begin again at 1), go to the page where it begins and click **Insert > Pages > Section > Insert Section…**. In the window:
+
+- Check **Start numbering again at this page** and give the number it gets (1 to 1,000), or leave it unchecked to go on counting from the page before.
+- Pick a **Number format** (1, a, A, i, I), or **Same as the section before**.
+
+Every page after it, up to the next page that starts a section, counts and looks as you set. Page number fields, and the number shown beside a page in the Pages list, follow the section. The first page has no section of its own; **Insert > Header & Footer > Format Page Numbers** sets how the first section counts. To join a section to the one before it, go to the page where it starts and choose **Section > Merge with Previous Section**. Each is one step of Undo, and the sections are kept when you save the file as a JeffPub file. A `.pub` file keeps the numbering of the first section only.
+
 ## Related
 
 - [Master pages, headers, and page numbers](master-pages)

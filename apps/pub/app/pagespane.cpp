@@ -4,6 +4,7 @@
 #include "app/editor.h"
 #include "app/icons.h"
 #include "app/mainwindow.h"
+#include "text/textengine.h"
 
 #include <QAction>
 #include <QContextMenuEvent>
@@ -123,7 +124,11 @@ void PagesPane::refresh(bool thumbnailsOnly)
     }
     for (int i = 0; i < n; ++i) {
         const Page &pg = *m_ed->doc()->pages[i];
-        item(i)->setText(pg.title.isEmpty() ? QString::number(i + 1) : QStringLiteral("%1  %2").arg(i + 1).arg(pg.title));
+        // A page that shows another number than its place in the publication (a section counts again, or in a format of its own) shows it after its place.
+        const int shownNumber = m_ed->doc()->pageNumberShown(i + 1);
+        const QString shown = pageNumberText(shownNumber, m_ed->doc()->pageNumberFormatOf(i + 1));
+        const QString place = shown == QString::number(i + 1) ? QString::number(i + 1) : QStringLiteral("%1 (%2)").arg(i + 1).arg(shown);
+        item(i)->setText(pg.title.isEmpty() ? place : QStringLiteral("%1  %2").arg(place).arg(pg.title));
         // Screen readers say "Page 3", not just "3".
         item(i)->setData(Qt::AccessibleTextRole, pg.title.isEmpty() ? tr("Page %1").arg(i + 1) : tr("Page %1, %2").arg(i + 1).arg(pg.title));
     }

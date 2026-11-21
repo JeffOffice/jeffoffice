@@ -31,6 +31,19 @@ QVector<ConnectionSite> sitesOf(const Item &it, const QSizeF &size)
     return connectionSites(preset, size, standard);
 }
 
+// The shape's glue points of its own (sites after the ones its geometry has).
+int glueCount(const Item &it)
+{
+    return it.type() == ItemType::Shape ? int(std::min<qsizetype>(static_cast<const ShapeItem &>(it).gluePoints.size(), kMostGluePoints)) : 0;
+}
+
+// The side (0 top, 1 left, 2 bottom, 3 right) a glue point at this share of the frame is nearest.
+int glueSide(const QPointF &share)
+{
+    const double d[kConnectionSites] = {share.y(), share.x(), 1 - share.y(), 1 - share.x()};
+    return int(std::min_element(d, d + kConnectionSites) - d);
+}
+
 QSizeF frameSize(const Item &it)
 {
     return it.type() == ItemType::Group ? it.bounds().size() : it.rect.size();
@@ -38,7 +51,7 @@ QSizeF frameSize(const Item &it)
 
 } // namespace
 
-int connectionSiteCount(const Item &it)
+int geometrySiteCount(const Item &it)
 {
     QString preset;
     if (it.type() == ItemType::Shape && static_cast<const ShapeItem &>(it).customPath.isEmpty()) preset = static_cast<const ShapeItem &>(it).shape;
@@ -46,6 +59,8 @@ int connectionSiteCount(const Item &it)
     const int count = preset.isEmpty() ? -1 : standardConnectionSiteCount(preset);
     return count > 0 ? count : kConnectionSites;
 }
+
+int connectionSiteCount(const Item &it) { return geometrySiteCount(it) + glueCount(it); }
 
 int connectionSiteOnSide(const Item &it, int side)
 {
@@ -57,6 +72,7 @@ int connectionSiteOnSide(const Item &it, int side)
 
 int sideOfConnectionSite(const Item &it, int site)
 {
+    if (const int own = site - geometrySiteCount(it); own >= 0 && own < glueCount(it)) return glueSide(static_cast<const ShapeItem &>(it).gluePoints[own]);
     const QVector<ConnectionSite> sites = sitesOf(it, frameSize(it));
     if (sites.isEmpty()) return site >= 0 && site < kConnectionSites ? site : -1;
     if (site < 0 || site >= sites.size()) return -1;
@@ -66,6 +82,19 @@ int sideOfConnectionSite(const Item &it, int site)
 
 QPointF connectionSite(const Item &it, int site, bool *vertical)
 {
+    if (const int own = site - geometrySiteCount(it); own >= 0 && own < glueCount(it)) {
+        // A glue point of the shape's own: its place in the frame, leaving by the side it is nearest.
+        const QPointF share = static_cast<const ShapeItem &>(it).gluePoints[own];
+        const QSizeF size = frameSize(it);
+        static const QPointF out[kConnectionSites] = {{0, -1}, {-1, 0}, {0, 1}, {1, 0}};
+        const QTransform t = it.transform();
+        const QPointF l(share.x() * size.width(), share.y() * size.height()), p = t.map(l);
+        if (vertical) {
+            const QPointF n = t.map(l + out[glueSide(share)]) - p;
+            *vertical = std::abs(n.y()) > std::abs(n.x());
+        }
+        return p;
+    }
     const bool group = it.type() == ItemType::Group;
     const QSizeF sz = frameSize(it);
     const QTransform t = group ? QTransform::fromTranslate(it.bounds().left(), it.bounds().top()) : it.transform();

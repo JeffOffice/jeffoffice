@@ -8,6 +8,7 @@
 #include "app/grammarcheck.h"
 #include "core/document.h"
 #include "core/items.h"
+#include "core/pathops.h"
 #include "core/style.h"
 #include "render/renderer.h"
 
@@ -297,6 +298,31 @@ public:
     // `why`, when nothing is selected, the page has no master page, or an object is part of a chain of linked text boxes or has an embedded object kept with its page.
     bool sendToMaster(QString *why = nullptr);
     bool sendToPage(QString *why = nullptr);
+    // Merge Shapes: the selected shapes become one shape (union, combine, subtract, or intersect) or the pieces they cut one another into (fragment), made on the page
+    // with the look of the shape selected first; the shapes it replaces go. At least two shapes, at most pathops::kMostShapes, none locked, in a group, or artwork. One
+    // step of Undo; the new shapes are selected. False, with the reason in `why`, when it is refused or nothing is left. `*made` is the number of shapes it made.
+    bool mergeShapes(pathops::Op op, QString *why = nullptr, int *made = nullptr);
+    // Convert to Curve, Polygon, or Contour: each selected shape gets an outline of its own that Edit Points reshapes (the points of its curves, of straight lines, or of the
+    // outline of its line, which then is its fill). Break Apart: a shape with several subpaths becomes one shape for each. One step of Undo. The same refusals as above.
+    enum class Convert { Curve, Polygon, Contour };
+    bool convertOutline(Convert how, QString *why = nullptr);
+    bool breakApart(QString *why = nullptr, int *made = nullptr);
+    // Reroute Connectors: each connector that is attached to a selected object (or is selected itself) takes, at each end that is attached, the connection site of its object
+    // that lies nearest the other end, so that the path is the shortest. One step of Undo. False, with the reason in `why`, when no connector is attached to the selection
+    // or each is on its shortest path already. `*changed` is the number of connectors that moved.
+    bool rerouteConnectors(QString *why = nullptr, int *changed = nullptr);
+    // Sections: the page (not the first) starts a section whose page numbers begin again at `start` (0: they go on) and are in format 0 to 4 of Document::pageNumberFormats
+    // (-1: the format goes on); a page that starts one already gets the new settings. Merge with Previous Section takes the section break off the page. One step of Undo
+    // each. False, with the reason in `why`, for the first page, a page that does not exist, or (merging) a page that starts no section; and from a master page's view.
+    bool startSection(int page, int start, int format, QString *why = nullptr);
+    bool mergeSection(int page, QString *why = nullptr);
+    // Glue points: a shape's own connection sites (after the ones its geometry has), put where `at` is on the page, which must be on the shape's frame; at most
+    // kMostGluePoints. Removing one lets go of the connectors attached to it and moves the numbers of the shape's later sites in the connectors attached to them. One step of Undo
+    // each. False, with the reason in `why`, when the point is outside the frame, the shape has the most, there is no such point, or the object is no shape.
+    bool addGluePoint(const QString &shapeId, const QPointF &at, QString *why = nullptr);
+    bool removeGluePoint(const QString &shapeId, int index, QString *why = nullptr);
+    // The glue point of the shape within `reach` points of `at` on the page (its number, counted among the glue points), or -1.
+    int gluePointAt(const QString &shapeId, const QPointF &at, double reach) const;
     void rotateSelection(double deg);
     void flipSelection(bool horizontal);
     void settleScratch(const QStringList &ids);   // move items between page and scratch area

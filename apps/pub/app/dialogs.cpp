@@ -1615,6 +1615,42 @@ void pageNumberFormatDialog(QWidget *p, Editor *ed)
     });
 }
 
+void sectionDialog(QWidget *p, Editor *ed)
+{
+    Document *d = ed->doc();
+    const int page = ed->currentPage();
+    if (page < 0 || page >= int(d->pages.size())) return;
+    const Page &pg = *d->pages[page];
+    Dlg dlg(p, QCoreApplication::translate("Dialogs", "Section"));
+    dlg.d.setObjectName(QStringLiteral("sectionDialog"));
+    auto *form = new QFormLayout();
+    auto *restart = new QCheckBox(QCoreApplication::translate("Dialogs", "Start numbering again at this page"), &dlg.d);
+    restart->setObjectName(QStringLiteral("restart"));
+    auto *start = new QSpinBox(&dlg.d);
+    start->setObjectName(QStringLiteral("start"));
+    start->setRange(1, 1000);
+    start->setValue(pg.startsSection && pg.sectionStart > 0 ? pg.sectionStart : 1);
+    restart->setChecked(pg.startsSection && pg.sectionStart > 0);
+    start->setEnabled(restart->isChecked());
+    QObject::connect(restart, &QCheckBox::toggled, start, &QSpinBox::setEnabled);
+    auto *format = new QComboBox(&dlg.d);
+    format->setObjectName(QStringLiteral("format"));
+    format->addItems({QCoreApplication::translate("Dialogs", "Same as the section before"), QStringLiteral("1, 2, 3, ..."), QStringLiteral("a, b, c, ..."), QStringLiteral("A, B, C, ..."),
+                      QStringLiteral("i, ii, iii, ..."), QStringLiteral("I, II, III, ...")});
+    format->setCurrentIndex(pg.startsSection ? pg.sectionFormat + 1 : 0);
+    form->addRow(restart);
+    form->addRow(QCoreApplication::translate("Dialogs", "Start numbering at"), start);
+    form->addRow(QCoreApplication::translate("Dialogs", "Number format"), format);
+    dlg.v->addLayout(form);
+    auto *note = new QLabel(QCoreApplication::translate("Dialogs", "The section runs from this page to the next page that starts one. Page numbers in it count and look as set here."), &dlg.d);
+    note->setWordWrap(true);
+    dlg.v->addWidget(note);
+    if (!dlg.exec()) return;
+    QString why;
+    if (!ed->startSection(page, restart->isChecked() ? start->value() : 0, format->currentIndex() - 1, &why) && !why.isEmpty())
+        jp::plainInformation(p, QCoreApplication::translate("Dialogs", "Section"), why);
+}
+
 // ---------------- Properties ----------------
 void documentPropertiesDialog(QWidget *p, Editor *ed, int tab)
 {

@@ -20,8 +20,10 @@
 #include <QStringList>
 #include <QTextBlock>
 #include <QTextLayout>
+#include <algorithm>
 #include <atomic>
 #include <functional>
+#include <limits>
 #include <memory>
 
 class QPainter;
@@ -39,6 +41,9 @@ public:
     virtual ~FieldSource() = default;
     virtual int firstPageNumber() const = 0;
     virtual QString pageNumberFormat() const = 0;
+    // The number a page shows (1-based page of the publication) and its format: the first page number counted on, and the format of the whole, unless a publication has sections that count again.
+    virtual int pageNumberShown(int page) const { return int(std::clamp<qint64>(qint64(page) + firstPageNumber() - 1, std::numeric_limits<int>::min() + 1, std::numeric_limits<int>::max())); }
+    virtual QString pageNumberFormatOf(int page) const { Q_UNUSED(page) return pageNumberFormat(); }
     // For a word processor's page numbers that carry a chapter's ("2-3"): what comes before the number of a page, the chapter's number and its separator; none for a publication.
     virtual QString pageNumberPrefix() const { return QString(); }
     virtual QString businessField(const QString &key) const = 0;

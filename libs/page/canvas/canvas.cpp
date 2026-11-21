@@ -781,6 +781,13 @@ void Canvas::paintHandles(QPainter &p, Item *it)
             p.setBrush(Qt::white);
             p.drawRect(QRectF(c - QPointF(3.5, 3.5), QSizeF(7, 7)));
         }
+        // (the glue points: blue diamonds)
+        p.setPen(QPen(Qt::white, 1));
+        p.setBrush(QColor(70, 120, 200));
+        for (const QPointF &q : s->gluePoints) {
+            const QPointF c = pageToView(t.map(QPointF(q.x() * s->rect.width(), q.y() * s->rect.height())));
+            p.drawPolygon(QPolygonF({c + QPointF(0, -5), c + QPointF(5, 0), c + QPointF(0, 5), c + QPointF(-5, 0)}));
+        }
         return;
     }
     const bool crop = m_ed->cropItem == it->id;
@@ -1530,6 +1537,13 @@ void Canvas::mousePressEvent(QMouseEvent *e)
     if (e->button() == Qt::MiddleButton) {
         m_drag = Drag::Pan;
         viewport()->setCursor(Qt::ClosedHandCursor);
+        return;
+    }
+    if (e->button() == Qt::LeftButton && (e->modifiers() & Qt::ShiftModifier) && !m_ed->pointsItem.isEmpty()) {
+        // Edit Points: Shift+click puts a glue point (a connection site of the shape's own) where the pointer is, or takes the one that is there away.
+        QString why;
+        const int near = m_ed->gluePointAt(m_ed->pointsItem, m_pressPage, 6.0 / ppp());
+        if (near >= 0 ? !m_ed->removeGluePoint(m_ed->pointsItem, near, &why) : !m_ed->addGluePoint(m_ed->pointsItem, m_pressPage, &why)) Q_EMIT m_ed->status(why);
         return;
     }
     if (e->button() == Qt::RightButton) {

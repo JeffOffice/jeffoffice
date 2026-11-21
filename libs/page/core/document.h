@@ -126,6 +126,11 @@ struct Page : PageBase {
     QString title;
     QString notesStoryId;   // a slide's speaker notes
     bool hidden = false;    // a slide the slide show skips
+    // Sections: a page that starts a section numbers its pages again from `sectionStart` (0: the number goes on from the page before) and, with `sectionFormat` 0 to 4, in
+    // that format of Document::pageNumberFormats (-1: the format goes on). The first page has no section of its own: Format Page Numbers sets how the first section counts.
+    bool startsSection = false;
+    int sectionStart = 0;
+    int sectionFormat = -1;
 };
 
 struct PageSetup {
@@ -440,6 +445,12 @@ public:
     // What its fields read (FieldSource).
     int firstPageNumber() const override { return setup.firstPageNumber; }
     QString pageNumberFormat() const override { return setup.pageNumberFormat; }
+    // The number a page shows (1-based page) and its format, as the sections of the pages set them; a page past the last goes on from it.
+    int pageNumberShown(int page) const override;
+    QString pageNumberFormatOf(int page) const override;
+    // The formats a section can choose: "" 1 2 3, "alpha", "ALPHA", "roman", and "ROMAN"; and how many sections a file can have (one for each page after the first, and no more).
+    static const QStringList &pageNumberFormats();
+    int sectionCount() const;   // the sections: one more than the pages that start one
     QString pageNumberPrefix() const override { return flowPagePrefix; }
     QString pageRefText(const QString &bookmark) const override { return flowPageRefs.value(bookmark); }
     int pageTotal() const override { return flowPageTotal; }

@@ -1692,6 +1692,39 @@ bool Document::routeConnectors()
     return any;
 }
 
+const QStringList &Document::pageNumberFormats()
+{
+    static const QStringList formats{QString(), QStringLiteral("alpha"), QStringLiteral("ALPHA"), QStringLiteral("roman"), QStringLiteral("ROMAN")};
+    return formats;
+}
+
+int Document::sectionCount() const
+{
+    int n = 1;
+    for (int i = 1; i < int(pages.size()); ++i) n += pages[i]->startsSection;
+    return n;
+}
+
+int Document::pageNumberShown(int page) const
+{
+    int n = setup.firstPageNumber;
+    const int upTo = std::min<int>(std::max(page, 1), int(pages.size()));
+    for (int i = 1; i < upTo; ++i) {
+        const Page &p = *pages[i];
+        n = p.startsSection && p.sectionStart > 0 ? p.sectionStart : n + 1;
+    }
+    return n + (page > upTo ? page - upTo : 0);
+}
+
+QString Document::pageNumberFormatOf(int page) const
+{
+    QString format = setup.pageNumberFormat;
+    const int upTo = std::min<int>(std::max(page, 1), int(pages.size()));
+    for (int i = 1; i < upTo; ++i)
+        if (const Page &p = *pages[i]; p.startsSection && p.sectionFormat >= 0 && p.sectionFormat < pageNumberFormats().size()) format = pageNumberFormats()[p.sectionFormat];
+    return format;
+}
+
 // What the styles come to, kept until `styles` is written to: the styles as they were (a write to Document::styles makes its own copy of them, so
 // a pointer that has changed says they have), where each name is, and each style with what its bases set.
 struct StyleSet {
@@ -2303,6 +2336,11 @@ QJsonObject Document::toJson() const
         if (!p->title.isEmpty()) po["title"] = p->title;
         if (!p->notesStoryId.isEmpty()) po["notes"] = p->notesStoryId;
         if (p->hidden) po["hidden"] = true;
+        if (p->startsSection) {
+            po["section"] = true;
+            if (p->sectionStart > 0) po["sectionStart"] = p->sectionStart;
+            if (p->sectionFormat >= 0) po["sectionFormat"] = p->sectionFormat;
+        }
         ps.append(po);
     }
     for (auto it = stories.cbegin(); it != stories.cend(); ++it) {
@@ -2444,6 +2482,12 @@ void Document::fromJson(const QJsonObject &o)
         p->title = po["title"].toString();
         p->notesStoryId = po["notes"].toString();
         p->hidden = po["hidden"].toBool();
+        // (the first page has no section of its own; a number is held to what Format Page Numbers allows, a format to the five there are)
+        p->startsSection = po["section"].toBool() && !pages.isEmpty();
+        if (p->startsSection) {
+            p->sectionStart = std::clamp(po["sectionStart"].toInt(0), 0, 1000);
+            p->sectionFormat = std::clamp(po["sectionFormat"].toInt(-1), -1, int(pageNumberFormats().size()) - 1);
+        }
         pages << p;
     }
     scratch = itemsF(o["scratch"]);

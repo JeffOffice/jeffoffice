@@ -439,6 +439,11 @@ void MainWindow::createActions()
     });
     mk("ins.pageCount", tr("Insert Page Count"), "", QKeySequence(), [ed] { ed->insertField(QStringLiteral("pages")); });
     mk("ins.pageNumberFormat", tr("Format Page Numbers…"), "", QKeySequence(), [this] { pageNumberFormatDialog(this, m_ed); });
+    mk("page.sectionStart", tr("Insert Section…"), "section", QKeySequence(), [this] { sectionDialog(this, m_ed); });
+    mk("page.sectionMerge", tr("Merge with Previous Section"), "file-minus-2", QKeySequence(), [this] {
+        QString why;
+        if (!m_ed->mergeSection(m_ed->currentPage(), &why)) statusBar()->showMessage(why, 6000);
+    });
     mk("ins.pageNumberRemove", tr("Remove Page Numbers"), "eraser", QKeySequence(), [this] {
         if (removePageNumbers(m_ed) == 0) statusBar()->showMessage(tr("The master pages have no page numbers to remove."), 6000);
     });
@@ -955,8 +960,28 @@ void MainWindow::createActions()
         if (s->customPath.isEmpty())
             m_ed->change(tr("Edit Points"), [&] { s->customPath = shapePath(s->shape, s->rect.size(), s->adj); });
         m_ed->setPointsItem(s->id);
-        statusBar()->showMessage(tr("Drag a point to reshape. Ctrl+click a point to delete it, or an edge to add one. Press Esc when done."), 8000);
+        statusBar()->showMessage(tr("Drag a point to reshape. Ctrl+click a point to delete it, or an edge to add one. Shift+click puts a glue point for connectors on the shape, or takes it away. Press Esc when done."), 10000);
     });
+    // Merge Shapes and Convert (libs/page/app/editor_shapes.cpp): the result or the reason it was refused goes on the status bar.
+    auto shapeResult = [this](bool ok, const QString &why, int made) {
+        if (!ok) statusBar()->showMessage(why, 6000);
+        else if (made > 1) statusBar()->showMessage(tr("Made %n shapes.", "", made), 6000);
+    };
+    const struct { const char *id; pathops::Op op; const char *icon; } merges[] = {{"shape.union", pathops::Op::Union, "combine"}, {"shape.combine", pathops::Op::Combine, "merge"},
+        {"shape.subtract", pathops::Op::Subtract, "square-minus"}, {"shape.intersect", pathops::Op::Intersect, "blend"}, {"shape.fragment", pathops::Op::Fragment, "slice"}};
+    const QString mergeNames[] = {tr("Union"), tr("Combine"), tr("Subtract"), tr("Intersect"), tr("Fragment")};
+    for (int i = 0; i < 5; ++i)
+        mk(QLatin1String(merges[i].id), mergeNames[i], merges[i].icon, QKeySequence(), [ed, shapeResult, op = merges[i].op] {
+            QString why;
+            int made = 0;
+            const bool ok = ed->mergeShapes(op, &why, &made);
+            shapeResult(ok, why, made);
+        });
+    mk("shape.toCurve", tr("Convert to Curve"), "spline", QKeySequence(), [ed, shapeResult] { QString why; shapeResult(ed->convertOutline(Editor::Convert::Curve, &why), why, 0); });
+    mk("shape.toPolygon", tr("Convert to Polygon"), "hexagon", QKeySequence(), [ed, shapeResult] { QString why; shapeResult(ed->convertOutline(Editor::Convert::Polygon, &why), why, 0); });
+    mk("shape.toContour", tr("Convert to Contour"), "pen-tool", QKeySequence(), [ed, shapeResult] { QString why; shapeResult(ed->convertOutline(Editor::Convert::Contour, &why), why, 0); });
+    mk("shape.breakApart", tr("Break Apart"), "split", QKeySequence(), [ed, shapeResult] { QString why; int made = 0; const bool ok = ed->breakApart(&why, &made); shapeResult(ok, why, made); });
+    mk("shape.reroute", tr("Reroute Connectors"), "cable", QKeySequence(), [ed, shapeResult] { QString why; shapeResult(ed->rerouteConnectors(&why), why, 0); });
     mk("line.draw", tr("Line"), "minus", QKeySequence(), [ed] { ed->setTool(Tool::Line); });
     mk("line.arrow", tr("Arrow"), "move-right", QKeySequence(), [ed] { ed->setTool(Tool::Arrow); });
     mk("line.double", tr("Double Arrow"), "move-horizontal", QKeySequence(), [ed] { ed->setTool(Tool::DoubleArrow); });
@@ -1169,6 +1194,11 @@ void MainWindow::createActions()
     for (int i = 0; i < formatpresets::reflectionCount(); ++i)
         mk(QStringLiteral("tb.refl.%1").arg(i), formatpresets::reflectionName(i), "", QKeySequence(), [ed, i] {
             ed->editCharFormats([i](QTextCharFormat &cf) { formatops::changeTextEffects(cf, [i](TextEffects &fx) { formatpresets::applyTextReflection(fx, i); }); }, tr("Text Reflection"));
+        });
+    // Text Styles (the shared presets): fill, outline, and effects of the letters together, one step of Undo.
+    for (int i = 0; i < formatpresets::textStyleCount(); ++i)
+        mk(QStringLiteral("textstyle.%1").arg(i), formatpresets::textStyleName(i), "", QKeySequence(), [this, i] {
+            m_ed->editCharFormats([this, i](QTextCharFormat &cf) { formatpresets::applyTextStyle(cf, i, m_ed->doc()->colors); }, tr("Text Style"));
         });
     mk("tb.trueSmallCaps", tr("True Small Caps"), "", QKeySequence(), [boolProp] { boolProp(tp::TrueSmallCaps, tr("Small Caps")); }, true);
     mk("tb.swash", tr("Swash"), "", QKeySequence(), [boolProp] { boolProp(tp::Swash, tr("Swash")); }, true);

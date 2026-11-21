@@ -48,6 +48,33 @@ Double-click the shape and type. You can also select it and press **Enter**, or 
 - A yellow diamond handle, on shapes that have one, adjusts the shape's form. On a rounded rectangle, it sets how round the corners are.
 - **Edit Points** lets you move the corners. White squares mark each point. Drag a point to move it. **Ctrl**+click a point to delete it, or **Ctrl**+click an edge to add one. Press **Esc** when you are done.
 
+## Glue points for connectors
+
+A connector attaches to the connection points a shape has (the middle of each side, and more on some shapes). To add one of your own, select the shape, click **Edit Points**, and **Shift**+click where the point should be. A blue diamond marks it. Connectors can attach to it like to any other connection point, and follow the shape when it is moved or sized: the point keeps its place in the shape (a quarter of the way across stays a quarter of the way across). **Shift**+click a diamond to take it away; connectors attached to it are let go. A shape holds up to 16 glue points of its own. Each change is one step of Undo, and the points are kept when you save the file as a JeffPub file. A `.pub` file keeps a connector on the side its glue point is nearest.
+
+## Merge shapes and convert outlines
+
+Select two or more shapes on the same page, then click **Shape Format > Insert Shapes > Merge Shapes**. The new shape has the fill and line of the shape you selected first, and sits where the old ones were. The old shapes go, and so does any text in them. Each choice is one step of Undo, and the new shapes are left selected.
+
+- **Union** makes one shape of everything the shapes cover.
+- **Combine** keeps what only one of the shapes covers and cuts out the places where they overlap.
+- **Subtract** keeps the first shape you selected without the others.
+- **Intersect** keeps only what every shape covers.
+- **Fragment** cuts the shapes into every piece they make with one another. Each piece is a shape of its own.
+
+You can merge up to 64 shapes at once, and a result that would be cut into more than 256 pieces is refused. A shape that is locked, inside a group, or artwork stays as it is, and the status bar says so. A merged shape is a shape with points of its own, so **Edit Points** reshapes it, and it is kept in the file like any other.
+
+**Shape Format > Insert Shapes > Convert** changes how the selected shapes are drawn:
+
+- **Convert to Curve** gives the shape an outline of its own, so that its points can be moved (**Edit Points** does the same when you start to edit).
+- **Convert to Polygon** makes every curve of the outline out of short straight lines.
+- **Convert to Contour** makes the line of the shape a shape of its own, filled with the line's color. The shape needs a line.
+- **Break Apart** makes a shape that has several parts (as a union of shapes that do not touch has) into one shape for each part. A ring breaks into its outer circle and its hole, each filled.
+
+## Reroute connectors
+
+A connector is a line whose ends are attached to shapes (draw it from one shape's connection point to another's). Select a shape, or the connector, and click **Shape Format > Insert Shapes > Reroute Connectors**. Each connector attached to the shape moves each attached end to the connection point of its shape that is nearest the other end, so the path is the shortest one. It is one step of Undo. If every connector is on its shortest path already, the status bar says so.
+
 ## Related
 
 - [Move, align, group, and layer objects](arrange)

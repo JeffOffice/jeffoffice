@@ -98,7 +98,8 @@
     {"name": "Insert", "keytip": "N", "groups": [
       {"name": "Pages", "keytip": "ZP", "items": [
         {"large": "page.insert", "keytip": "BP", "split": true, "menu": ["page.insert", "page.insertDup", "page.insertDialog"]},
-        {"large": {"id": "ribbon.catalogPages", "text": "Catalog Pages", "icon": "book-copy"}, "keytip": "CP"}
+        {"large": {"id": "ribbon.catalogPages", "text": "Catalog Pages", "icon": "book-copy"}, "keytip": "CP"},
+        {"large": {"id": "ribbon.section", "text": "Section", "icon": "section"}, "keytip": "SC", "menu": ["page.sectionStart", "page.sectionMerge"]}
       ]},
       {"name": "Tables", "keytip": "ZT", "items": [
         {"widget": "tableButtonPlain", "keytip": "TB"}
@@ -349,7 +350,8 @@
           {"widget": "textFill", "keytip": "TX"},
           {"widget": "textOutline", "keytip": "TO"},
           {"widget": "textGlow", "keytip": "TG"}]},
-        {"small": {"id": "ribbon.textReflection", "text": "Reflection", "icon": "flip-vertical-2"}, "keytip": "RF", "menu": ["tb.refl.none", "tb.refl.0", "tb.refl.1", "tb.refl.2"]}
+        {"small": {"id": "ribbon.textReflection", "text": "Reflection", "icon": "flip-vertical-2"}, "keytip": "RF", "menu": ["tb.refl.none", "tb.refl.0", "tb.refl.1", "tb.refl.2"]},
+        {"small": {"id": "ribbon.textStyles", "text": "Text Styles", "icon": "swatch-book"}, "keytip": "TS", "menu": ["textstyle.0", "textstyle.1", "textstyle.2", "textstyle.3", "textstyle.4", "textstyle.5", "textstyle.6", "textstyle.7", "textstyle.8", "textstyle.9", "textstyle.10", "textstyle.11"]}
       ]},
       {"name": "Typography", "keytip": "ZY", "items": [
         {"large": {"id": "ribbon.dropCap", "text": "Drop Cap", "icon": "a-large-small"}, "keytip": "DC", "menu": [
@@ -373,6 +375,9 @@
         {"widget": "shapesButton", "keytip": "SH"},
         {"row": [{"widget": "changeShapeButton", "keytip": "CH"}]},
         {"small": "shape.editPoints", "keytip": "EP"},
+        {"small": {"id": "ribbon.mergeShapes", "text": "Merge Shapes", "icon": "combine"}, "keytip": "MS", "menu": ["shape.union", "shape.combine", "shape.subtract", "shape.intersect", "shape.fragment"]},
+        {"small": {"id": "ribbon.convertShape", "text": "Convert", "icon": "spline"}, "keytip": "CV", "menu": ["shape.toCurve", "shape.toPolygon", "shape.toContour", "-", "shape.breakApart"]},
+        {"small": "shape.reroute", "keytip": "RR"},
         {"small": "ins.textbox", "keytip": "TB"}
       ]},
       {"name": "Shape Styles", "keytip": "ZY", "launcher": "formatShape", "launcherTip": "Format Shape", "launcherKeytip": "FO", "items": [

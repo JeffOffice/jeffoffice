@@ -571,6 +571,11 @@ QJsonObject ShapeItem::toJson() const
     if (!customPath.isEmpty()) o["path"] = pathJson(customPath);
     // Overlapping outlines fill by winding (as SVG does by default).
     if (!customPath.isEmpty() && customPath.fillRule() == Qt::WindingFill) o["winding"] = true;
+    if (!gluePoints.isEmpty()) {
+        QJsonArray g;
+        for (const QPointF &q : gluePoints) g.append(QJsonArray{q.x(), q.y()});
+        o["glue"] = g;
+    }
     if (noWrap) o["noWrap"] = true;
     if (centerBlock) o["ctrBlock"] = true;
     if (columns > 1) {
@@ -606,6 +611,12 @@ void ShapeItem::fromJson(const QJsonObject &o)
     if (hasCornerRadius(shape) && !adj.isEmpty()) adj[0] = std::isfinite(adj[0]) ? std::clamp(adj[0], 0.0, 0.5) : 0;
     customPath = pathFrom(o["path"].toArray());
     if (o["winding"].toBool()) customPath.setFillRule(Qt::WindingFill);
+    gluePoints.clear();
+    for (const auto &v : o["glue"].toArray()) {
+        const QJsonArray q = v.toArray();
+        if (gluePoints.size() >= kMostGluePoints) break;
+        if (q.size() == 2 && std::isfinite(q[0].toDouble()) && std::isfinite(q[1].toDouble())) gluePoints.push_back(QPointF(std::clamp(q[0].toDouble(), 0.0, 1.0), std::clamp(q[1].toDouble(), 0.0, 1.0)));
+    }
     storyId = o["story"].toString();
     insets = marginsFrom(o["insets"], insets);
     valign = VAlign(std::clamp(o["valign"].toInt(int(VAlign::Middle)), 0, int(VAlign::Bottom)));

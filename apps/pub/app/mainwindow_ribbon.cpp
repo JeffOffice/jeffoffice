@@ -1143,6 +1143,10 @@ void MainWindow::refreshUi()
         act(id)->setEnabled(sel);
     for (const char *id : {"arr.eqW", "arr.eqH", "arr.eqBoth"}) act(id)->setEnabled(kind == "multi");
     act("arr.sendMaster")->setEnabled(sel);
+    act("page.sectionStart")->setEnabled(m_ed->masterView().isEmpty() && m_ed->currentPage() > 0);
+    act("page.sectionMerge")->setEnabled(m_ed->masterView().isEmpty() && m_ed->currentPage() >= 0 && m_ed->currentPage() < int(m_ed->doc()->pages.size()) && m_ed->doc()->pages[m_ed->currentPage()]->startsSection);
+    for (const char *id : {"shape.union", "shape.combine", "shape.subtract", "shape.intersect", "shape.fragment"}) act(id)->setEnabled(kind == "multi");
+    for (const char *id : {"shape.toCurve", "shape.toPolygon", "shape.toContour", "shape.breakApart", "shape.reroute"}) act(id)->setEnabled(sel);
     act("arr.sendMaster")->setText(m_ed->masterView().isEmpty() ? tr("Send to Master Page") : tr("Send to Page"));
     act("arr.group")->setEnabled(kind == "multi" || kind == "group");
     act("arr.group")->setText(kind == "group" ? tr("Ungroup") : tr("Group"));
