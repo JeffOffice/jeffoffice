@@ -465,6 +465,28 @@ private Q_SLOTS:
         QCOMPARE(again.valueAt(QStringLiteral("E4")), QStringLiteral("n:3"));
     }
 
+    // A control that was listed before the workbook could give its cell's value (the objects show from the first screen) has not looked at its cell yet: the first click on it
+    // still works it (Nov 20: the click wrote the cell, and the look that came after took the new value as the one it started from, so the box stayed unchecked and saved so).
+    void aClickBeforeTheControlHasLookedAtItsCellStillWorksIt()
+    {
+        EditWindow e;
+        QVERIFY(e.open(controlBook()));
+        QTRY_COMPARE(shownCount(e), 10);
+        crunch::SheetObjects *o = e.win.w.objects();
+        o->controls()->setValueSource({});
+        o->open(std::shared_ptr<jp::office::sheet::Workbook>(std::shared_ptr<void>(), const_cast<jp::office::sheet::Workbook *>(e.win.w.session()->workbook())));
+        o->show(0);
+        QTRY_COMPARE(shownCount(e), 10);
+        CrunchWindow *w = &e.win.w;
+        o->controls()->setValueSource([w](int sheet, quint32 row, quint32 col) { return w->session()->valueAt(sheet, row, col); });
+        const int id = idOf(e, QStringLiteral("Check Box 1"));
+        QCOMPARE(o->controls()->controlOf(0, id).checked, 0);
+        click(e, rectOf(e, QStringLiteral("Check Box 1")).center());
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("E1")), QStringLiteral("b:1"));
+        QCOMPARE(o->controls()->controlOf(0, id).checked, 1);
+    }
+
     // Insert > Form Controls: a control of each kind goes on the sheet at the cell chosen, as one step of Undo; saved, it is a valid shape of the legacy drawing, and the file opens in
     // JeffCrunch with the control where it was.
     void formControlsCanBeInsertedAndReopen()

@@ -635,8 +635,13 @@ bool SheetControls::choose(int sheet, int id, int place, ControlOperation *out)
 
 bool SheetControls::operate(int sheet, const std::shared_ptr<Item> &item, const QPointF &fraction, const QSizeF &units)
 {
-    const FormControl &c = item->now;
     Sheet &s = sheetState(sheet);
+    // (a control that has not looked at its cell yet takes the cell as it is before the click: what its click writes is then a change it takes, not the first look)
+    if (m_values && m_book) {
+        ensureIndex();
+        look(sheet, *item, nullptr);
+    }
+    const FormControl &c = item->now;
     const QStringList lines = itemsOf(sheet, item->id);
     const ControlHit hit = controlHit(c, units, QPointF(fraction.x() * units.width(), fraction.y() * units.height()), int(lines.size()));
     if (hit.part == ControlPart::None) return false;
