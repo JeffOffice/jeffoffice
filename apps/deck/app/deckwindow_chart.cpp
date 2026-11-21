@@ -11,6 +11,7 @@
 #include "app/ribbonbuilder.h"
 
 #include <QAction>
+#include <QComboBox>
 #include <QStatusBar>
 
 namespace jp {
