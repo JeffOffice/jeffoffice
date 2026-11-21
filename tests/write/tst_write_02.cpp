@@ -2691,7 +2691,8 @@ void WriteTests::onlyTheParagraphsOnThePagesInViewAreChecked()
 
 void WriteTests::theSpellingMenuOffersSuggestionsIgnoreAllAndAddToDictionary()
 {
-    auto doc = textDoc({"This is adress test, and this is fine."});
+    // (Ignore All lasts for the whole run: the words this test and its neighbors ignore are their own, so no other test finds them gone, whatever the order)
+    auto doc = textDoc({"This is adresss test, and this is fine."});
     PageView view;
     view.resize(1000, 700);
     view.setDocument(doc.get());
@@ -2710,7 +2711,7 @@ void WriteTests::theSpellingMenuOffersSuggestionsIgnoreAllAndAddToDictionary()
         QVERIFY(addSpellingSuggestions(menu, &view));
         QStringList texts;
         for (QAction *a : menu.actions()) texts << a->text();
-        const QStringList wanted = spellingSuggestions(QStringLiteral("adress")).mid(0, 6);
+        const QStringList wanted = spellingSuggestions(QStringLiteral("adresss")).mid(0, 6);
         QVERIFY(!wanted.isEmpty());
         QCOMPARE(texts.mid(0, wanted.size()), wanted);
         QCOMPARE(texts[wanted.size()], QStringLiteral("Ignore All"));
@@ -2726,7 +2727,7 @@ void WriteTests::theSpellingMenuOffersSuggestionsIgnoreAllAndAddToDictionary()
     menu.actions().first()->trigger();
     QCOMPARE(doc->story()->toPlainText(), QStringLiteral("This is %1 test, and this is fine.").arg(chosen));
     doc->story()->undo();
-    QCOMPARE(doc->story()->toPlainText(), QStringLiteral("This is adress test, and this is fine."));
+    QCOMPARE(doc->story()->toPlainText(), QStringLiteral("This is adresss test, and this is fine."));
     // Ignore All lets the word go for the session, and the pages are drawn again.
     QMenu again;
     QVERIFY(addSpellingSuggestions(again, &view));
@@ -2879,9 +2880,9 @@ void WriteTests::reviewSpellingBeginsAtTheCaretAndComesBackToWhereItBegan()
     QCOMPARE(pane->word(), QString());
     QVERIFY(pane->complete());
     // Ignore All on the last one of a document with one left.
-    w.setDocument(textDoc({"Only zzlonely here."}), QString());
+    w.setDocument(textDoc({"Only zzsolitary here."}), QString());
     w.act("review.spelling")->trigger();
-    QCOMPARE(w.findChild<SpellPane *>()->word(), QStringLiteral("zzlonely"));
+    QCOMPARE(w.findChild<SpellPane *>()->word(), QStringLiteral("zzsolitary"));
     w.findChild<SpellPane *>()->findChild<QPushButton *>(QStringLiteral("spellIgnoreAll"))->click();
     QVERIFY(w.findChild<SpellPane *>()->complete());
     QCOMPARE(w.view()->spelling()->misspellingAt(6), qMakePair(-1, -1));

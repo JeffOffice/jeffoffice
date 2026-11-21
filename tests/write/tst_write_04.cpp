@@ -696,10 +696,10 @@ void WriteTests::theSpellingPaneWithAHeaderOpenLeavesTheHeader()
 
 
 // A document of a misspelled word in each place: the text, a table, a footnote, a header, and a footer (the words are in the order the pane goes through them).
-QByteArray WriteTests::spellingDocx(const QByteArray &body, const QByteArray &note, const QByteArray &head, const QByteArray &foot, const QByteArray &unusedHead)
+QByteArray WriteTests::spellingDocx(const QByteArray &body, const QByteArray &note, const QByteArray &head, const QByteArray &foot, const QByteArray &unusedHead, const QByteArray &cell)
 {
     const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"3000\"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:w=\"3000\" w:type=\"dxa\"/></w:tcPr>"
-                             "<w:p><w:r><w:t>zzcell</w:t></w:r></w:p></w:tc></w:tr></w:tbl>";
+                             "<w:p><w:r><w:t>" + cell + "</w:t></w:r></w:p></w:tc></w:tr></w:tbl>";
     const QByteArray text = "<w:p><w:r><w:t>" + body + "</w:t></w:r></w:p>" + table + citing("Cited", 2);
     QMap<QString, QString> refs{{"default", "rIdheader1"}, {"f-default", "rIdfooter1"}};
     QMap<QString, QByteArray> parts{{QStringLiteral("/word/header1.xml"), headerPart("hdr", {"<w:r><w:t>" + head + "</w:t></w:r>"})},
@@ -971,7 +971,7 @@ void WriteTests::ignoreAllAndAddToDictionaryWorkInTheStoriesBesidesTheText()
     Speller::setUserDictionaryPath(dir.filePath(QStringLiteral("custom.dic")));
     WriteWindow w;
     w.resize(1100, 800);
-    w.setDocument(open(spellingDocx("fine", " zzaddnote", "zzignorehead", "zzaddfoot")), QString());
+    w.setDocument(open(spellingDocx("fine", " zzaddnote", "zzignorehead", "zzaddfoot", QByteArray(), "zzignorecell")), QString());
     w.show();
     w.view()->paginateAll();
     w.act("review.spelling")->trigger();
@@ -979,7 +979,7 @@ void WriteTests::ignoreAllAndAddToDictionaryWorkInTheStoriesBesidesTheText()
     QVERIFY(pane);
     auto button = [&](const char *name) { return pane->findChild<QPushButton *>(QString::fromLatin1(name)); };
     QTRY_VERIFY(!pane->searching());
-    QCOMPARE(pane->word(), QStringLiteral("zzcell"));
+    QCOMPARE(pane->word(), QStringLiteral("zzignorecell"));
     button("spellIgnoreAll")->click();
     QTRY_VERIFY(!pane->searching());
     QCOMPARE(pane->word(), QStringLiteral("zzaddnote"));

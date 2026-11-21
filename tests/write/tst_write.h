@@ -1111,7 +1111,7 @@ private Q_SLOTS:
     static QByteArray footnotesPart(const QList<std::pair<int, QByteArray>> &notes);
     static QByteArray plainRun(const QByteArray &text);
     static QByteArray citing(const QByteArray &text, int id);
-    static QByteArray spellingDocx(const QByteArray &body = "zzbody", const QByteArray &note = " zznote", const QByteArray &head = "zzhead", const QByteArray &foot = "zzfoot", const QByteArray &unusedHead = QByteArray());
+    static QByteArray spellingDocx(const QByteArray &body = "zzbody", const QByteArray &note = " zznote", const QByteArray &head = "zzhead", const QByteArray &foot = "zzfoot", const QByteArray &unusedHead = QByteArray(), const QByteArray &cell = "zzcell");
     static QByteArray pageSection();
     static QByteArray notesDocx(const QByteArray &body, const QByteArray &notes, const QByteArray &settings = QByteArray());
     static QByteArray threeNotesBody();
