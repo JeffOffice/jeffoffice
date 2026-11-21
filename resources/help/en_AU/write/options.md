@@ -18,6 +18,7 @@ The **Save** page of the Options window has five choices.
 The **Display** page chooses what a window shows when it opens.
 
 - **Show formatting marks** turns on the paragraph marks and other signs that do not print. Each window can still turn them on or off with the **¶** button.
+- **Always show these formatting marks on the screen** keeps the chosen kinds of mark showing whether or not the **¶** button is on: tab characters, spaces (a no-break space shows as a small circle), paragraph marks, hidden text, optional hyphens (shown as a bar with a hook), and object anchors (a small anchor in the margin beside the line a floating picture or box is tied to). The **¶** button always shows all of them.
 - **Show table gridlines** draws the faint edges of table cells that have no lines.
 
 A change on this page applies to the window you are in at once, and to each window you open after it.

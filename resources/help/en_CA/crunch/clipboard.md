@@ -28,6 +28,12 @@ When you cut cells and paste them, the cells really move. Every formula that poi
 - **Skip blanks**: empty cells in the copy leave the cells they land on as they were.
 - **Transpose**: rows become columns and columns become rows.
 
+## The Paste Options button
+
+Right after you paste cells you copied in JeffCrunch, a small **Paste Options** button shows up by the last cell you pasted. Click it to pick another way to put the same cells in: **Keep Source Formatting** (everything), **Values**, **Formulas**, **Formatting**, **No Borders**, **Formulas and Number Formatting**, **Values and Number Formatting**, **Keep Source Column Widths**, or **Transpose**. JeffCrunch takes the paste back and does it again that way. The change is one step: a single **Undo** takes the whole paste back, however many times you changed your mind. Example: copy A1:B2, where B1 is **=A1*2**, and paste at F5. Choose **Values** and G5 holds the number 2 instead of **=F5*2**; choose **Keep Source Formatting** and the formula is back.
+
+From the keyboard, tap the **Ctrl** key (the **Control** key on a Mac) after a paste to open the button's menu, then use the arrow keys and **Enter** to choose. The button goes away when you change a cell or anything else in the workbook, copy something else, press **Esc**, or scroll the last pasted cell out of sight (it comes back when you scroll back). It is not offered after a cut and paste, or for text from another program.
+
 ## Paste Link, Paste as Hyperlink, and Paste Text Import
 
 Three more choices are in the arrow under **Paste**. They work on cells you copied in the same workbook, except the last one.
@@ -53,6 +59,8 @@ The same happens when you drag text from another program and drop it on the grid
 ## Set Default Paste
 
 **Set Default Paste** is the last choice in the arrow under **Paste**. It decides what the **Paste** button and **{key:Paste}** put in when you copied cells: everything (at first), or only the values, only the formulas, only the formatting, and so on. Example: choose *Values*, and a copied formula lands as the number it shows. The choice is kept for the next time. It does not change **Paste Special** or the choices in the menu, and text from other programs is pasted as it is. Choose *All* to go back.
+
+The same choice is on the **Editing** page of **Options**, in two boxes: one for cells you copied in this workbook, and one for cells you copied in another workbook. Until you choose one for another workbook, it follows the first.
 
 ## The Paste menu and pictures
 

@@ -15,7 +15,7 @@
 <context>
     <name>Dialogs</name>
     <message numerus="yes">
-        <location filename="../apps/pub/app/dialogs.cpp" line="+1990"/>
+        <location filename="../apps/pub/app/dialogs.cpp" line="+2026"/>
         <source>Added %n page(s) for the rest of the text.</source>
         <translation>
             <numerusform>Added %n page for the rest of the text.</numerusform>
@@ -121,7 +121,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../libs/office/sheet/xlssave.cpp" line="+772"/>
+        <location filename="../libs/office/sheet/xlssave.cpp" line="+773"/>
         <source>%n note(s) outside the old format&apos;s sheet size (past row 65,536 or column IV), which were left out</source>
         <translation>
             <numerusform>%n note is outside the old format&apos;s sheet size (past row 65,536 or column IV) and was left out.</numerusform>
@@ -158,6 +158,25 @@
         <translation>
             <numerusform>%n author name was cut to %1 characters.</numerusform>
             <numerusform>%n author names were cut to %1 characters.</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
+    <name>UndoHistory</name>
+    <message numerus="yes">
+        <location filename="../libs/shell/app/undohistory.cpp" line="+100"/>
+        <source>Redo %n action(s)</source>
+        <translation>
+            <numerusform>Redo %n action</numerusform>
+            <numerusform>Redo %n actions</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+0"/>
+        <source>Undo %n action(s)</source>
+        <translation>
+            <numerusform>Undo %n action</numerusform>
+            <numerusform>Undo %n actions</numerusform>
         </translation>
     </message>
 </context>
@@ -308,11 +327,27 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+911"/>
+        <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+913"/>
         <source>%n style(s) here have the same names as styles in %1, with another look. Replace them with the ones from %1?</source>
         <translation>
             <numerusform>%n style here has the same name as a style in %1, with another look. Replace it with the one from %1?</numerusform>
             <numerusform>%n styles here have the same names as styles in %1, with another look. Replace them with the ones from %1?</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+718"/>
+        <source>Redid %1 of %n action(s)</source>
+        <translation>
+            <numerusform>Redid %1 of %n action</numerusform>
+            <numerusform>Redid %1 of %n actions</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+0"/>
+        <source>Undid %1 of %n action(s)</source>
+        <translation>
+            <numerusform>Undid %1 of %n action</numerusform>
+            <numerusform>Undid %1 of %n actions</numerusform>
         </translation>
     </message>
 </context>
@@ -327,11 +362,27 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+288"/>
+        <location line="+476"/>
+        <source>Saved %1, with %n slide(s) as pictures.</source>
+        <translation>
+            <numerusform>Saved %1, with %n slide as a picture.</numerusform>
+            <numerusform>Saved %1, with %n slides as pictures.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+296"/>
         <source>Saved %1, but %n object(s) can&apos;t be saved in this kind of file yet.</source>
         <translation>
             <numerusform>Saved %1, but %n object can&apos;t be saved in this kind of file yet.</numerusform>
             <numerusform>Saved %1, but %n objects can&apos;t be saved in this kind of file yet.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../apps/deck/app/deckwindow_info.cpp" line="+312"/>
+        <source>Author field on %n slide(s)</source>
+        <translation>
+            <numerusform>Author field on %n slide</numerusform>
+            <numerusform>Author field on %n slides</numerusform>
         </translation>
     </message>
 </context>
@@ -397,6 +448,14 @@
             <numerusform>Saved %n pictures.</numerusform>
         </translation>
     </message>
+    <message numerus="yes">
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+972"/>
+        <source>Made %n shapes.</source>
+        <translation>
+            <numerusform>Made %n shape.</numerusform>
+            <numerusform>Made %n shapes.</numerusform>
+        </translation>
+    </message>
 </context>
 <context>
     <name>jp::NamesDialog</name>
@@ -421,6 +480,17 @@
     </message>
 </context>
 <context>
+    <name>jp::PageAccess</name>
+    <message numerus="yes">
+        <location filename="../libs/page/core/pageaccess.cpp" line="+458"/>
+        <source>%n more link(s) do not say where they go. Use words that name the page each one opens.</source>
+        <translation>
+            <numerusform>%n more link does not say where it goes. Use words that name the page it opens.</numerusform>
+            <numerusform>%n more links do not say where they go. Use words that name the page each one opens.</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>jp::ReviewPane</name>
     <message numerus="yes">
         <location filename="../apps/write/app/reviewpane.cpp" line="+259"/>
@@ -428,6 +498,17 @@
         <translation>
             <numerusform>%n more change is inside a text box that is not listed here, and is done only by Accept All Changes and Reject All Changes.</numerusform>
             <numerusform>%n more changes are inside text boxes that are not listed here, and are done only by Accept All Changes and Reject All Changes.</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
+    <name>jp::WriteFindPane</name>
+    <message numerus="yes">
+        <location filename="../apps/write/app/writefindpane.cpp" line="+973"/>
+        <source>%n text box was too large to change.</source>
+        <translation>
+            <numerusform>%n text box was too large to change.</numerusform>
+            <numerusform>%n text boxes were too large to change.</numerusform>
         </translation>
     </message>
 </context>
@@ -523,7 +604,7 @@
 <context>
     <name>jp::crunch::SheetObjects</name>
     <message numerus="yes">
-        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+1199"/>
+        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+1200"/>
         <source>The file stores this object together with %n other(s), so they can&apos;t be deleted one at a time.</source>
         <translation>
             <numerusform>The file stores this object together with %n other object, so they can&apos;t be deleted one at a time.</numerusform>
@@ -580,7 +661,7 @@
 <context>
     <name>jp::office::sheet::Ods</name>
     <message numerus="yes">
-        <location filename="../libs/office/sheet/ods.cpp" line="+1995"/>
+        <location filename="../libs/office/sheet/ods.cpp" line="+1996"/>
         <source>%n note(s) cut to %1 characters</source>
         <translation>
             <numerusform>%n note cut to %1 characters</numerusform>

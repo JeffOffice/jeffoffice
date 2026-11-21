@@ -106,6 +106,12 @@ On the **Home** tab, the **Clear** button has a menu. **Clear All** empties the 
 
 **{key:Undo}** undoes the last change, and **{key:Redo}** does it again. They are also on the quick toolbar at the top. Each cell you type in is one step, and so is each clearing. Undo puts the cell back the way it was: its value, its formula, its format, and the formulas that depend on it. JeffCrunch remembers up to 1,000 steps, fewer when they changed very many cells, so that it never takes much memory.
 
+**Go back several steps at once.** On the quick toolbar, **Undo** and **Redo** each have an arrow beside them. Click the arrow to see the steps, the newest first (up to 100 are listed). Move the pointer down the list to mark how many steps you mean (the line under the list says, for example, "Undo 3 actions"), and click to do them. Choosing the third step undoes the first three. The steps stay in order, so Redo brings them back the same way.
+
+## Repeat
+
+**F4** does your last command again on the cells that are selected now. Example: make **A1** bold, select **C4:C9**, and press **F4**, and the cells in C4:C9 become bold, in one step you can undo. Repeat works for formatting, cell styles, clearing, and inserting or deleting rows and columns. The tip on the button, or the **Repeat** command, names what it would do ("Repeat Bold"). **Ctrl+Y** repeats too, but only when there is no step to redo (while there is one, **Ctrl+Y** is Redo). While you type a formula, **F4** still changes a reference between relative and fixed, as before. Commands that open a box, and typing in a cell, are not repeated.
+
 ## While JeffCrunch works the formulas out
 
 When you change a cell, JeffCrunch works out the formulas that depend on it in the background. The cell you changed shows its new contents at once, and the other cells update a moment later; the status bar says **Calculating** until they have. You can go on typing meanwhile.

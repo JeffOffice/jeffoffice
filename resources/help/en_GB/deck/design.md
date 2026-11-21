@@ -1,5 +1,5 @@
 # Slide size, background, and footers
-<!-- keywords: design, theme, themes, variants, variant, colors, fonts, create new theme colors, create new theme fonts, custom colors, theme file, thmx, save current theme, reset theme, background styles, slide master, layouts, browse for themes, apply to all slides, apply to selected slides, slide size, widescreen, 16:9, standard, 4:3, aspect ratio, ensure fit, background, background color, format background, header, footer, slide number, date, title slide, colours, create new theme colours, custom colours, background colour -->
+<!-- keywords: design, theme, themes, variants, variant, colors, fonts, create new theme colors, create new theme fonts, custom colors, theme file, thmx, save current theme, reset theme, background styles, slide master, layouts, browse for themes, apply to all slides, apply to selected slides, slide size, widescreen, 16:9, standard, 4:3, aspect ratio, ensure fit, custom slide size, number slides from, first slide number, start at, background, background color, format background, header, footer, slide number, date, title slide, colours, create new theme colours, custom colours, background colour -->
 
 The **Design** tab changes how every slide looks: its theme, its shape, its background, and the footer along its bottom edge.
 
@@ -14,6 +14,8 @@ A check mark shows the size the presentation has now. When you choose the other 
 
 A presentation opened from a file can have a size that is neither of these. It keeps that size, and neither choice is checked.
 
+**Custom Slide Size** has a list of sizes, a width and a height, Landscape or Portrait, and the way the notes pages are turned. **Number slides from** is the number the first slide counts from, so that a slide number on the slides, the printed pages, and the pages of a saved .pptx file start there. It can be any whole number, zero or negative too, up to about two billion either way; a file from another program with a number past that is opened with the nearest one, and the notes at the open say so. Slide numbers on the slides and the printed pages show it. A PDF bookmark of a slide with a title is the title, with the slide's number in front when the numbers don't start at 1 ("7. Title"), and a bookmark of a slide without a title is "Slide 7"; the pictures you export are still named by the slide's place ("Slide 1.png", "Slide 2.png") so they sort in order. A .odp file does not keep the number, and Check Compatibility says so. Changing the size, the number, or the notes pages is one step of Ctrl+Z.
+
 ## Background
 
 Click **Design > Customise > Format Background**. Choose a **Solid fill colour** from the theme's colours or a colour of your own. Then click:
@@ -27,12 +29,16 @@ Check **Hide background graphics** to stop the pictures and shapes of the slide 
 
 A footer is a line of small text along the bottom of a slide. It can hold the date, the slide number, and a line of your own words. It shows on the slide, and so it prints and plays.
 
-1. Click **Insert > Text > Header and Footer**.
-2. Under **Include on slide**, check what you want: **Date and time**, **Slide number**, and **Footer**. For **Footer**, type the text in the box beside it.
+1. Click **Insert > Text > Header and Footer**. The window has two tabs, **Slide** and **Notes and Handouts**.
+2. On the **Slide** tab, under **Include on slide**, check what you want: **Date and time**, **Slide number**, and **Footer**. For **Footer**, type the text in the box beside it.
 3. Check **Don't show on title slide** to leave the first slide clean.
 4. Click **Apply** for the slide you are on, or **Apply to All** for every slide. With **Apply to All**, slides you add later get the footer too.
 
+The **Notes and Handouts** tab has the **Date**, **Header**, **Footer**, and **Page number** that print at the top and bottom of notes pages and handouts. Check what you want and type the words beside it; leave **Date** empty to print today's date. They go to the notes pages and the handouts together, and **Apply** and **Apply to All** save them with what you chose on the **Slide** tab, as one step of Undo. The same choices are in **Header & Footer** on the Print page of the File screen.
+
 The date and the slide number are fields, which keep themselves right: the date is today's, and the number follows the slide's place when you move it.
+
+To put the presentation's title, its author, its file name, or its number of slides into the words of a box, click into the box, then choose **Insert**, **Field**, and the one you want. Each is a field, so it changes when the presentation does: edit the title in **File**, **Info** and the words follow. **Number of Slides** counts every slide in the presentation, hidden slides included, and shows the same number on every slide and in every section. A saved file keeps all four as fields: they show the words they had when you saved, and they follow the presentation again when you open it in JeffDeck. Another program may show only the words. When **Remove personal information from this file when saving** is on, an **Author** field is saved with no words, so the file holds no author's name; the field is still there when you open the file. **Inspect Document** lists how many slides have an Author field. The slide number and the date stay fields in both kinds of file.
 
 ## Themes
 

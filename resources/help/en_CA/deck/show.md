@@ -1,5 +1,5 @@
 # Play the slide show and use Presenter View
-<!-- keywords: slide show, play, present, start, full screen, from beginning, from current slide, presenter view, rehearse, rehearsal, timer, notes, next slide, two screens, monitors, black screen, white screen, keys, esc, end show, hidden slides, links, right-click, menu, pen, highlighter, laser pointer, eraser, ink, ink color, annotations, draw, keep ink, set up slide show, show type, kiosk, loop, loop continuously, without animation, show slides, advance slides, manually, custom show, custom slide show, rehearse timings, recording, use timings, timings, pen color, laser pointer color, show presentation on, swap, screens, monitor, edit notes, ink colour, pen colour, laser pointer colour -->
+<!-- keywords: slide show, play, present, start, full screen, from beginning, from current slide, presenter view, rehearse, rehearsal, timer, notes, next slide, two screens, monitors, black screen, white screen, keys, esc, end show, hidden slides, links, right-click, menu, pen, highlighter, laser pointer, eraser, ink, ink color, annotations, draw, keep ink, arrow options, hide the pointer, hide the arrow, last viewed, menu key, set up slide show, show type, kiosk, loop, loop continuously, without animation, show slides, advance slides, manually, custom show, custom slide show, rehearse timings, recording, use timings, timings, pen color, laser pointer color, show presentation on, swap, screens, monitor, edit notes, ink colour, pen colour, laser pointer colour -->
 
 The slide show plays your slides one at a time, full screen. Presenter View is a second window just for you, with your notes, a timer, and a look at the next slide. You can write on the slides while you talk, play only some of the slides, and record how long each slide takes.
 
@@ -22,7 +22,7 @@ Hidden slides are skipped. After the last slide, a black screen says "End of sli
 - **Black screen:** press B or the period key. Press it again to bring the slide back. **White screen:** press W or the comma key.
 - **End the show:** press Esc.
 
-**Right-click** to open the show's menu. It has **Next**, **Previous**, **Go to Slide**, **Pointer Options**, **Screen** (black or white), and **End Show**.
+**Right-click** to open the show's menu. It has **Next**, **Previous**, **Last Viewed** (back to the slide that was on the screen before this one), **Go to Slide**, **Pointer Options**, **Screen** (black or white), and **End Show**.
 
 If a slide has animations, each click or key plays the next step before the show moves on. See [Animations](animations). If a slide has **On Mouse Click** turned off in its transition settings, a click does not move on, but the keys do. See [Transitions between slides](transitions).
 
@@ -40,6 +40,10 @@ You can write on a slide while the show plays. What you draw is called **ink**. 
 - **Back to the arrow:** press **Ctrl+A** or **Esc**. Esc ends the show only when the arrow is already out.
 
 While the pen, highlighter, or eraser is chosen, a click does not move on to the next slide. Use the keys to move, or go back to the arrow.
+
+**Arrow Options** is in the same menu, under **Pointer Options**. **Automatic** (Ctrl+U) shows the arrow in a show that is in a window and keeps it out of sight on a full screen, **Visible** always shows it, and **Hidden** (Ctrl+H) never shows it, even over a link. While you rehearse timings the arrow always shows, because you click the bar with it. The choice lasts until you close the program, so the next show starts with it. On a Mac the keys are Control+U and Control+H with the key marked Control, because Command+H hides the program.
+
+To open the show's menu without a mouse, press the Menu key or Shift+F10. The menu opens on the window you are looking at: Presenter View when it is open, else the show. Press Esc once to close the menu and stay in the show; a second Esc ends the show.
 
 To change the colour, right-click, then click **Pointer Options > Ink Colour**. The pen and the highlighter each keep their own colour. The pen starts with the colour you chose in **Set Up Slide Show**, and the highlighter starts yellow.
 

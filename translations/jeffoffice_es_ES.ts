@@ -1486,6 +1486,10 @@ No se puede leer el fichero.</translation>
         <translation type="unfinished">Todos los ficheros (*)</translation>
     </message>
     <message>
+        <source>File Name</source>
+        <translation>Nombre de fichero</translation>
+    </message>
+    <message>
         <source>Embed fonts in the file</source>
         <translation type="unfinished">Insertar fuentes en el fichero</translation>
     </message>
@@ -1873,10 +1877,6 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
     <message>
         <source>Field that holds picture file names:</source>
         <translation type="unfinished">Campo que contiene los nombres de fichero de imagen:</translation>
-    </message>
-    <message>
-        <source>Drag a point to reshape. Ctrl+click a point to delete it, or an edge to add one. Press Esc when done.</source>
-        <translation type="unfinished">Arrastre un punto para cambiar la forma. Pulse Ctrl y haga clic en un punto para eliminarlo, o en un borde para agregar uno. Pulse Esc cuando termine.</translation>
     </message>
     <message>
         <source>Keyboard Shortcuts: every command's keys, and how to use JeffPub without a mouse.</source>

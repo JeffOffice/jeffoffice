@@ -58,11 +58,11 @@ An **effect** is a look added around an object. Each section has a box to turn i
 **Size**:
 
 - **Height** and **Width** are in the unit you chose in the options (inches, for example). You can type another unit, such as **2 cm**.
-- **Rotation** turns the object, in degrees.
+- **Rotation** turns the object, in degrees. **More Rotation Options**, in the **Arrange** menu, opens this page.
 - **Scale height** and **Scale width** are percents. For a picture, 100% is the size the picture has in its file. For anything else they say 100% and make the object bigger or smaller by the percent you type.
 - **Lock aspect ratio** keeps the proportions: a new width changes the height to match, and the other way round. A picture starts with it on. It also decides whether dragging a corner keeps the proportions. Hold **Shift** while you drag to do the opposite.
 
-**Position**: **Horizontal position** and **Vertical position** say where the object's top left corner is, measured from the top left corner of the slide.
+**Position**: **Horizontal position** and **Vertical position** say where the object is, measured from the top left corner of the slide. **Position from** chooses what is measured: the object's **Top left corner** or its **Centre**. A number you type puts that point there. The choice changes only what the boxes show; the object and the saved file are the same either way.
 
 **Text Box** shows for text boxes and shapes:
 
@@ -85,6 +85,7 @@ When only pictures are selected, the **Picture** page shows:
 
 - **Brightness** and **Contrast** make the picture lighter or darker, and make the light and dark parts differ more or less.
 - **Recolor** can make the picture **Greyscale**, or **Black and White**. **Black and white level** says how light a spot must be to turn white.
+- **Saturation** makes the colours stronger or weaker: -100% is grey, 0% leaves them as they are, and 100% is as strong as they go.
 - **Transparency** lets what is behind the picture show through.
 - **Crop** shows where the whole picture is in its frame. **Picture width** and **Picture height** are the size of the whole picture. **Offset X** and **Offset Y** move it from the frame's middle. What is outside the frame is cut away, but it is kept. For handles you can drag, use **Crop** on the **Picture Format** tab.
 

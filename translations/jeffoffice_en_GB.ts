@@ -511,6 +511,13 @@ Download it from %2 now? (%3, once.)</translation>
     </message>
 </context>
 <context>
+    <name>TextStyle</name>
+    <message>
+        <source>Colored Glow</source>
+        <translation>Coloured Glow</translation>
+    </message>
+</context>
+<context>
     <name>Theme</name>
     <message>
         <source>The theme has no colors.</source>
@@ -762,6 +769,34 @@ Download it from %2 now? (%3, once.)</translation>
         <translation>More Outline Colours…</translation>
     </message>
     <message>
+        <source>Saturation: -100% (Gray)</source>
+        <translation>Saturation: -100% (Grey)</translation>
+    </message>
+    <message>
+        <source>Grayscale</source>
+        <translation>Greyscale</translation>
+    </message>
+    <message>
+        <source>Set Transparent Color</source>
+        <translation>Set Transparent Colour</translation>
+    </message>
+    <message>
+        <source>Click the color in the picture that is to be clear.</source>
+        <translation>Click the colour in the picture that is to be clear.</translation>
+    </message>
+    <message>
+        <source>No Transparent Color</source>
+        <translation>No Transparent Colour</translation>
+    </message>
+    <message>
+        <source>Transparent Color</source>
+        <translation>Transparent Colour</translation>
+    </message>
+    <message>
+        <source>Click a color in a picture that is selected.</source>
+        <translation>Click a colour in a picture that is selected.</translation>
+    </message>
+    <message>
         <source>Theme Colors</source>
         <translation>Theme Colours</translation>
     </message>
@@ -950,6 +985,10 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>Grayscale</source>
         <translation>Greyscale</translation>
+    </message>
+    <message>
+        <source>Center</source>
+        <translation>Centre</translation>
     </message>
     <message>
         <source>Top Centered</source>
