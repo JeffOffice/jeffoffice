@@ -11,7 +11,10 @@
 #include "savedok.h"
 #include "sheet/sheetreader.h"
 
+#include "app/undohistory.h"
+
 #include <QAction>
+#include <QFile>
 #include <QMenu>
 #include <QSignalSpy>
 #include <QUndoStack>
@@ -29,6 +32,14 @@ QColor lookFill(EditWindow &e, const QString &ref)
     parseCellRef(ref, &r, &c);
     const grid::GridSheet &gs = e.view()->sheet();
     return QColor::fromRgb(gs.lookOf(r, c, gs.styleOf(r, c, gs.cellAt(r, c))).fg);
+}
+
+grid::CellLook lookOf(EditWindow &e, const QString &ref)
+{
+    quint32 r = 0, c = 0;
+    parseCellRef(ref, &r, &c);
+    const grid::GridSheet &gs = e.view()->sheet();
+    return gs.lookOf(r, c, gs.styleOf(r, c, gs.cellAt(r, c)));
 }
 
 QAction *entryOf(QMenu *menu, const QString &text)
@@ -112,6 +123,120 @@ private Q_SLOTS:
         QCOMPARE(lookFill(again, QStringLiteral("A2")), drawn);
         const grid::GridSheet &gs = again.view()->sheet();
         QVERIFY(gs.lookOf(1, 0, gs.styleOf(1, 0, gs.cellAt(1, 0))).pattern == grid::PatternKind::Solid);
+    }
+
+    // Repeat (F4) does the last format command again on the cells selected now, as one step of Undo, and the result is kept by the window's own save and open.
+    void repeatDoesTheLastFormatAgainAsOneStep()
+    {
+        EditWindow e;
+        QVERIFY(e.openBlank());
+        QVERIFY(e.settle());
+        auto *repeat = e.win.w.findChild<QAction *>(QStringLiteral("edit.repeat"));
+        QVERIFY(repeat);
+        QVERIFY(!repeat->isEnabled());
+        e.select(QStringLiteral("A1"));
+        const int s0 = e.win.w.undoStack()->count();
+        e.win.w.findChild<QAction *>(QStringLiteral("fmt.bold"))->trigger();
+        QCOMPARE(e.win.w.undoStack()->count(), s0 + 1);
+        QVERIFY(lookOf(e, QStringLiteral("A1")).bold);
+        QVERIFY(repeat->isEnabled());
+        QVERIFY(repeat->toolTip().contains(QStringLiteral("Bold")));
+        e.view()->selectRange(1, 1, 2, 1);   // B2:B3
+        const int steps = e.win.w.undoStack()->count();
+        repeat->trigger();
+        QVERIFY(lookOf(e, QStringLiteral("B2")).bold && lookOf(e, QStringLiteral("B3")).bold);
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        e.win.w.undoStack()->undo();
+        QVERIFY(!lookOf(e, QStringLiteral("B2")).bold && !lookOf(e, QStringLiteral("B3")).bold);
+        e.win.w.undoStack()->redo();
+        QVERIFY(lookOf(e, QStringLiteral("B2")).bold);
+        // a style, then Repeat gives the same style to the new selection
+        e.select(QStringLiteral("C1"));
+        auto *gallery = e.win.w.findChild<QMenu *>(QStringLiteral("stylesMenu"));
+        QVERIFY(gallery);
+        Q_EMIT gallery->aboutToShow();
+        QAction *good = entryOf(gallery, QStringLiteral("Good"));
+        QVERIFY(good);
+        good->trigger();
+        const QRgb first = lookOf(e, QStringLiteral("C1")).fg;
+        e.select(QStringLiteral("D1"));
+        QVERIFY(repeat->toolTip().contains(QStringLiteral("Cell Style")));
+        repeat->trigger();
+        QCOMPARE(lookOf(e, QStringLiteral("D1")).fg, first);
+        QVERIFY(first != 0);
+        // a row inserted, then again at the new selection
+        e.select(QStringLiteral("A5"));
+        e.win.w.findChild<QAction *>(QStringLiteral("cells.insert.rows"))->trigger();
+        const int rowsBefore = e.win.w.undoStack()->count();
+        e.select(QStringLiteral("A9"));
+        repeat->trigger();
+        QCOMPARE(e.win.w.undoStack()->count(), rowsBefore + 1);
+        // saved and opened by the window
+        QVERIFY(e.settle());
+        const QString path = e.folder.dir.filePath(QStringLiteral("repeated.xlsx"));
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.saveAs(path) && savedOk(saved));
+        EditWindow again;
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray bytes = f.readAll();
+        f.close();
+        QVERIFY(again.open(bytes));
+        QVERIFY(again.settle());
+        QVERIFY(lookOf(again, QStringLiteral("B2")).bold && lookOf(again, QStringLiteral("B3")).bold);
+        QCOMPARE(lookOf(again, QStringLiteral("D1")).fg, first);
+    }
+
+    // Ctrl+Y repeats only while there is nothing to redo (while Redo has a step the key is Redo), and a command that was refused is not kept to repeat.
+    void ctrlYRepeatsOnlyWhenThereIsNothingToRedo()
+    {
+        EditWindow e;
+        QVERIFY(e.openBlank());
+        QVERIFY(e.settle());
+        auto *key = e.win.w.findChild<QAction *>(QStringLiteral("edit.repeat.ctrlY"));
+        QVERIFY(key);
+        e.select(QStringLiteral("A1"));
+        e.win.w.findChild<QAction *>(QStringLiteral("fmt.italic"))->trigger();
+        QVERIFY(key->isEnabled());
+        e.win.w.undoStack()->undo();
+        QTRY_VERIFY(!key->isEnabled());   // (a step to redo: Ctrl+Y is Redo)
+        e.win.w.undoStack()->redo();
+        QTRY_VERIFY(key->isEnabled());
+        key->trigger();
+        QVERIFY(lookOf(e, QStringLiteral("A1")).italic);
+    }
+
+    // The Undo and Redo buttons have a list of steps, newest first: a click on one does it and the steps before it, as the steps themselves.
+    void theHistoryListOnUndoDoesTheStepsUpToTheOneChosen()
+    {
+        EditWindow e;
+        QVERIFY(e.openBlank());
+        QVERIFY(e.settle());
+        for (const char *cell : {"A1", "A2", "A3"}) {
+            e.select(QString::fromLatin1(cell));
+            e.win.w.findChild<QAction *>(QStringLiteral("fmt.bold"))->trigger();
+        }
+        e.select(QStringLiteral("B1"));
+        e.win.w.findChild<QAction *>(QStringLiteral("fmt.italic"))->trigger();
+        auto *undoList = e.win.w.findChild<jp::UndoHistoryMenu *>(QStringLiteral("undoHistoryMenu"));
+        auto *redoList = e.win.w.findChild<jp::UndoHistoryMenu *>(QStringLiteral("redoHistoryMenu"));
+        QVERIFY(undoList && redoList);
+        Q_EMIT undoList->aboutToShow();
+        QCOMPARE(undoList->shownSteps(), 4);
+        undoList->markSteps(3);
+        QCOMPARE(undoList->marked(), 3);
+        const int top = e.win.w.undoStack()->index();
+        undoList->choose(3);
+        QCOMPARE(e.win.w.undoStack()->index(), top - 3);
+        QVERIFY(!lookOf(e, QStringLiteral("B1")).italic);
+        QVERIFY(!lookOf(e, QStringLiteral("A3")).bold && !lookOf(e, QStringLiteral("A2")).bold);
+        QVERIFY(lookOf(e, QStringLiteral("A1")).bold);
+        Q_EMIT redoList->aboutToShow();
+        QCOMPARE(redoList->shownSteps(), 3);
+        redoList->choose(2);
+        QCOMPARE(e.win.w.undoStack()->index(), top - 1);
+        QVERIFY(lookOf(e, QStringLiteral("A2")).bold && lookOf(e, QStringLiteral("A3")).bold);
+        QVERIFY(!lookOf(e, QStringLiteral("B1")).italic);
     }
 };
 

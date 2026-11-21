@@ -278,14 +278,19 @@ private:
     {
         QJsonValue cmd = v;
         QString k;
+        QJsonValue menuSpec;
+        bool split = false;
         if (v.isObject()) {
-            allow(v.toObject(), {"cmd", "keytip"}, QStringLiteral("a quick access button"));
+            allow(v.toObject(), {"cmd", "keytip", "menu", "split"}, QStringLiteral("a quick access button"));
             cmd = v.toObject().value(QLatin1String("cmd"));
             k = keytipOf(v.toObject());
+            menuSpec = v.toObject().value(QLatin1String("menu"));
+            split = flag(v.toObject(), "split");
         }
         QAction *a = command(cmd);
         if (!a) return;
-        QToolButton *b = m_r->addQuickAccess(a);
+        if (split && menuSpec.isUndefined()) problem(QStringLiteral("\"split\" needs a \"menu\""));
+        QToolButton *b = m_r->addQuickAccess(a, menu(menuSpec, m_menuParent), split);
         if (!k.isEmpty()) setKeytip(b, k);
     }
 

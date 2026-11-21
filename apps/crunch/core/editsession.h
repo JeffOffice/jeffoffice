@@ -343,6 +343,7 @@ public:
     const jp::office::sheet::Workbook *workbook() const { return m_book ? m_book->book.get() : nullptr; }
     // Whether there is a step to undo that is still held (the oldest steps may have been forgotten: see kUndoBytes).
     bool canUndo() const;
+    int firstUndoableIndex() const { return firstHeldStep(); }   // (the history list shows the steps from the newest down to this index)
     // How many steps the last save made Undo forget (those up to a step that deleted rows, columns, or cells).
     int stepsForgottenBySave() const { return m_forgotBySave; }
     // The bytes the steps hold, and the most they may (a test sets it).

@@ -552,6 +552,10 @@ void CrunchWindow::createActions()
     mk("file.close", tr("Close"), "circle-x", QKeySequence::Close, [this] { close(); });
     mk("edit.undo", tr("Undo"), "undo-2", QKeySequence::Undo, [this] { undoRedo(false); }, false, false);
     mk("edit.redo", tr("Redo"), "redo-2", QKeySequence::Redo, [this] { undoRedo(true); }, false, false);
+    m_repeat = new jp::RepeatCommand(this);
+    connect(m_repeat, &jp::RepeatCommand::changed, this, [this] { updateRepeatActions(); });
+    mk("edit.repeat", tr("Repeat"), "repeat", QKeySequence(Qt::Key_F4), [this] { runRepeat(); }, false, false);
+    mk("edit.repeat.ctrlY", tr("Repeat"), QString(), QKeySequence(Qt::CTRL | Qt::Key_Y), [this] { runRepeat(); }, false, false);
     mk("file.options", tr("Options"), "settings", QKeySequence(), [this] {
         // The shared pages (General, Proofing), then Editing: where the selection goes after Enter.
         Editor stand;

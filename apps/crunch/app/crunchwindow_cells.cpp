@@ -147,6 +147,7 @@ void CrunchWindow::insertLines(bool rows)
         if (!o.confirm) notice(tr("Insert"), o.problem);
         return;
     }
+    m_repeat->record(rows ? tr("Insert Rows") : tr("Insert Columns"), [this, rows] { insertLines(rows); });
     if (m_loader.changesMade() != before) m_calculating = true;
 }
 
@@ -161,6 +162,7 @@ void CrunchWindow::deleteLines(bool rows)
         if (!o.confirm) notice(tr("Delete"), o.problem);
         return;
     }
+    m_repeat->record(rows ? tr("Delete Rows") : tr("Delete Columns"), [this, rows] { deleteLines(rows); });
     if (m_loader.changesMade() != before) m_calculating = true;
 }
 

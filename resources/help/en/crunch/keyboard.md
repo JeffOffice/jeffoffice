@@ -41,6 +41,7 @@ On a Mac, the **Command** key (⌘) does what **Ctrl** does in the tables below,
 | Alt+Enter | Start a new line in the cell |
 | Delete | Clear the selected cells |
 | {key:Undo}, {key:Redo} | Undo, redo |
+| F4 | Repeat the last command on the selected cells (Ctrl+Y does too, when there is nothing to redo) |
 | {key:Save} | Save |
 | {key:Cut}, {key:Copy}, {key:Paste} | Cut, copy, paste (Esc takes away the border of the cells copied) |
 | Ctrl+Alt+V | Paste Special |

@@ -2,6 +2,7 @@
 // EditSession (core/editsession.h), which holds the worker back for the moment the cell is put in; the worker works out what depends on it and tells the window in batches.
 
 #include "app/crunchwindow.h"
+#include "app/undohistory.h"
 #include "core/invalidcells.h"
 #include "app/sortdialog.h"
 #include "grid/pagelayoutview.h"
@@ -18,6 +19,7 @@
 #include "app/sheettabs.h"
 #include "core/sheetobjects.h"
 #include "core/editsession.h"
+#include "app/undohistory.h"
 #include "grid/gridview.h"
 #include "sheet/cellref.h"
 
@@ -150,6 +152,8 @@ void CrunchWindow::updateEditActions()
     const bool open = m_session && !m_saving && !isReadOnly() && !m_argsDialog;
     const bool stepping = m_applying || (m_session && m_session->isSlicing());   // (Undo and Redo wait while a large change is being put in)
     if (m_pasteOffer) m_pasteOffer->refreshBusy();
+    m_repeat->setRedoAvailable(u && u->canRedo());
+    updateRepeatActions();
     act("edit.undo")->setEnabled(open && !stepping && m_session->canUndo());
     act("edit.redo")->setEnabled(open && !stepping && u->canRedo());
     act("edit.undo")->setToolTip(jp::plainToolTip(u && m_session->canUndo() ? (KeyMap::shownKey(act("edit.undo")).isEmpty() ? tr("Undo %1").arg(u->undoText()) : tr("Undo %1 (%2)").arg(u->undoText(), KeyMap::shownKey(act("edit.undo")))) : tr("Undo")));
@@ -658,6 +662,51 @@ void CrunchWindow::undoRedo(bool redo)
         return;
     }
     undoRedoNow(redo);
+}
+
+// Repeat: the last command done again on the cells selected now (F4; Ctrl+Y while there is nothing to redo). While a formula is being typed F4 is the key that changes the fixed parts of a reference.
+void CrunchWindow::runRepeat()
+{
+    if (m_edit.active) {
+        if (auto *line = qobject_cast<QLineEdit *>(QApplication::focusWidget()); line && formulaTyped(line)) cycleFixedParts(line);
+        return;
+    }
+    if (m_saving || m_applying || m_argsDialog) return;
+    m_repeat->run();
+}
+
+void CrunchWindow::updateRepeatActions()
+{
+    const bool open = m_session && !m_saving && !isReadOnly() && !m_argsDialog && !m_applying;
+    act("edit.repeat")->setEnabled(open && m_repeat->available());
+    act("edit.repeat.ctrlY")->setEnabled(open && m_repeat->ctrlYEnabled());
+    act("edit.repeat")->setToolTip(jp::plainToolTip(m_repeat->tip()));
+}
+
+// The steps the history list on Undo or Redo shows, newest (nearest) first, and doing the first `count` of them.
+QMenu *CrunchWindow::buildHistoryMenu(QWidget *owner, bool redo)
+{
+    return new jp::UndoHistoryMenu(redo, [this, redo] {
+        QStringList names;
+        QUndoStack *u = undoStack();
+        if (!u || !m_session) return names;
+        if (redo) {
+            for (int i = u->index(); i < u->count() && names.size() < jp::UndoHistoryMenu::kMaxShown; ++i) names << u->text(i);
+        } else {
+            for (int i = u->index() - 1; i >= m_session->firstUndoableIndex() && names.size() < jp::UndoHistoryMenu::kMaxShown; --i) names << u->text(i);
+        }
+        return names;
+    }, [this, redo](int count) { stepThroughHistory(redo, count); }, owner);
+}
+
+void CrunchWindow::stepThroughHistory(bool redo, int count)
+{
+    for (int i = 0; i < count; ++i) {
+        QUndoStack *u = undoStack();
+        const int before = u ? u->index() : 0;
+        undoRedo(redo);
+        if (!u || u->index() == before) break;   // (a step that was refused, or that waits for a password, ends the run)
+    }
 }
 
 void CrunchWindow::undoRedoNow(bool redo)

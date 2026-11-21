@@ -52,6 +52,7 @@
 #include "sheet/sheetreader.h"
 #include "sheet/tablestyle.h"
 
+#include "app/repeat.h"
 #include <QElapsedTimer>
 #include <QTimer>
 #include <optional>
@@ -2063,6 +2064,11 @@ private:
     void stopPasswordJob();
     std::shared_ptr<PasswordJob> m_passwordJob;
     void undoRedoNow(bool redo);
+    void runRepeat();
+    void updateRepeatActions();
+    QMenu *buildHistoryMenu(QWidget *owner, bool redo);
+    void stepThroughHistory(bool redo, int count);
+    jp::RepeatCommand *m_repeat = nullptr;
     grid::Selection m_lastSelectable;
     bool m_revertingSelection = false;
     AnchorHooks m_anchorHooks;

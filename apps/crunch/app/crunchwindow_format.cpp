@@ -318,6 +318,7 @@ bool CrunchWindow::formatSelection(const FormatChange &change, const QString &te
         notice(tr("Format Cells"), o.problem);
         return false;
     }
+    m_repeat->record(text, [this, change, text] { formatSelection(change, text); });
     updateFormatState();
     return true;
 }
@@ -794,6 +795,7 @@ void CrunchWindow::clearCommand(int what)
     if (!o.ok) notice(tr("Clear"), o.problem);
     else if (!o.problem.isEmpty()) notice(tr("Clear"), o.problem, false);   // (something was left, and is said)
     if (o.ok && what == 0 && m_loader.changesMade() != before) m_calculating = true;
+    if (o.ok) m_repeat->record(what == 0 ? tr("Clear All") : tr("Clear Formats"), [this, what] { clearCommand(what); });
     updateFormatState();
 }
 
@@ -954,6 +956,7 @@ void CrunchWindow::applyCellStyle(const QString &name)
     const crunch::EditSession::Outcome o = m_session->applyStyleNamed(m_sheet, selectedRange(), name, tr("Cell Style"));
     m_formatting = false;
     if (!o.ok) notice(tr("Cell Styles"), o.problem);
+    else m_repeat->record(tr("Cell Style"), [this, name] { applyCellStyle(name); });
     updateFormatState();
 }
 
@@ -1196,6 +1199,8 @@ void CrunchWindow::formatRibbonParts(RibbonParts &parts)
     parts.menus[QStringLiteral("borders")] = [this](QWidget *owner) { return buildBordersMenu(owner); };
     parts.menus[QStringLiteral("orientation")] = [this](QWidget *owner) { return buildOrientationMenu(owner); };
     parts.menus[QStringLiteral("cellStyles")] = [this](QWidget *owner) { return buildStylesMenu(owner); };
+    parts.menus[QStringLiteral("undoHistory")] = [this](QWidget *owner) { return buildHistoryMenu(owner, false); };
+    parts.menus[QStringLiteral("redoHistory")] = [this](QWidget *owner) { return buildHistoryMenu(owner, true); };
     parts.launchers[QStringLiteral("font")] = [this] { formatCellsDialog(2); };
     parts.launchers[QStringLiteral("alignment")] = [this] { formatCellsDialog(1); };
     parts.launchers[QStringLiteral("number")] = [this] { formatCellsDialog(0); };
