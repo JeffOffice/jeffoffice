@@ -19,6 +19,7 @@
 #include <QLineEdit>
 #include <QPushButton>
 #include <QSpinBox>
+#include <QTabWidget>
 #include <QVBoxLayout>
 
 namespace jp {
@@ -41,11 +42,12 @@ QDialogButtonBox *applyButtons(QDialog *dlg, bool *all)
 }
 } // namespace
 
-HeaderFooterDialog::HeaderFooterDialog(const deck::FooterOptions &o, QWidget *parent) : QDialog(parent), m_start(o)
+HeaderFooterDialog::HeaderFooterDialog(const deck::FooterOptions &o, QWidget *parent, const deck::PrintHeaderFooter *print) : QDialog(parent), m_start(o)
 {
     setWindowTitle(tr("Header & Footer"));
     setObjectName(QStringLiteral("headerFooterDialog"));
-    auto *lay = new QVBoxLayout(this);
+    auto *outer = new QVBoxLayout(this);
+    auto *lay = new QVBoxLayout();
     lay->addWidget(new QLabel(tr("Include on slide")));
     m_date = new QCheckBox(tr("Date and time"));
     m_date->setObjectName(QStringLiteral("date"));
@@ -73,13 +75,25 @@ HeaderFooterDialog::HeaderFooterDialog(const deck::FooterOptions &o, QWidget *pa
     lay->addLayout(footerRow);
     lay->addSpacing(6);
     lay->addWidget(m_skipTitle);
-    lay->addWidget(applyButtons(this, &m_all));
+    if (print) {
+        auto *tabs = new QTabWidget(this);
+        tabs->setObjectName(QStringLiteral("headerFooterTabs"));
+        auto *slidePage = new QWidget(tabs);
+        slidePage->setLayout(lay);
+        tabs->addTab(slidePage, tr("Slide"));
+        m_print = new PrintHeaderFooterPanel(*print, tabs);
+        tabs->addTab(m_print, tr("Notes and Handouts"));
+        outer->addWidget(tabs);
+    } else {
+        outer->addLayout(lay);
+    }
+    outer->addWidget(applyButtons(this, &m_all));
 }
 
-PrintHeaderFooterDialog::PrintHeaderFooterDialog(const deck::PrintHeaderFooter &start, QWidget *parent) : QDialog(parent)
+deck::PrintHeaderFooter HeaderFooterDialog::printChoice() const { return m_print ? m_print->choice() : deck::PrintHeaderFooter(); }
+
+PrintHeaderFooterPanel::PrintHeaderFooterPanel(const deck::PrintHeaderFooter &start, QWidget *parent) : QWidget(parent)
 {
-    setWindowTitle(tr("Header & Footer"));
-    setObjectName(QStringLiteral("printHeaderFooterDialog"));
     auto *lay = new QVBoxLayout(this);
     lay->addWidget(new QLabel(tr("Include on notes pages and handouts")));
     auto *form = new QFormLayout();
@@ -104,13 +118,9 @@ PrintHeaderFooterDialog::PrintHeaderFooterDialog(const deck::PrintHeaderFooter &
     m_number->setObjectName(QStringLiteral("hfPageNumber"));
     m_number->setChecked(start.pageNumber);
     lay->addWidget(m_number);
-    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
-    connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
-    connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
-    lay->addWidget(buttons);
 }
 
-deck::PrintHeaderFooter PrintHeaderFooterDialog::choice() const
+deck::PrintHeaderFooter PrintHeaderFooterPanel::choice() const
 {
     deck::PrintHeaderFooter hf;
     hf.date = m_date->isChecked();
@@ -121,6 +131,19 @@ deck::PrintHeaderFooter PrintHeaderFooterDialog::choice() const
     hf.footerText = m_footerText->text();
     hf.pageNumber = m_number->isChecked();
     return hf;
+}
+
+PrintHeaderFooterDialog::PrintHeaderFooterDialog(const deck::PrintHeaderFooter &start, QWidget *parent) : QDialog(parent)
+{
+    setWindowTitle(tr("Header & Footer"));
+    setObjectName(QStringLiteral("printHeaderFooterDialog"));
+    auto *lay = new QVBoxLayout(this);
+    m_panel = new PrintHeaderFooterPanel(start, this);
+    lay->addWidget(m_panel);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
+    connect(buttons, &QDialogButtonBox::accepted, this, &QDialog::accept);
+    connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::reject);
+    lay->addWidget(buttons);
 }
 
 deck::FooterOptions HeaderFooterDialog::options() const

@@ -22,34 +22,50 @@ namespace jp {
 
 class ColorButton;
 class LinkTargetPicker;
+class PrintHeaderFooterPanel;
 
 // What to show on the slides (the date, the slide number, a line of text),
 // for the slide being edited (Apply) or for all of them (Apply to All).
 class HeaderFooterDialog : public QDialog {
     Q_OBJECT
 public:
-    HeaderFooterDialog(const deck::FooterOptions &options, QWidget *parent = nullptr);
+    // With `print` given, the window has two tabs, Slide and Notes and Handouts (what is printed at the top and bottom of those pages).
+    HeaderFooterDialog(const deck::FooterOptions &options, QWidget *parent = nullptr, const deck::PrintHeaderFooter *print = nullptr);
     deck::FooterOptions options() const;
+    // What the Notes and Handouts tab says (the choice given back as it was when there is no such tab).
+    deck::PrintHeaderFooter printChoice() const;
     // Whether Apply to All was chosen (else Apply, to the slide being edited).
     bool applyToAll() const { return m_all; }
 
 private:
     QCheckBox *m_date, *m_number, *m_footer, *m_skipTitle;
     QLineEdit *m_text;
+    PrintHeaderFooterPanel *m_print = nullptr;
     deck::FooterOptions m_start;   // as it was given: what the dialog doesn't show (a date's text, the field's code, ...) is given back as it was
     bool m_all = false;
 };
 
-// What to print at the top and bottom of notes pages and handouts: the date, a header, a footer, and the page number.
-class PrintHeaderFooterDialog : public QDialog {
+// The boxes for what to print at the top and bottom of notes pages and handouts: the date, a header, a footer, and the page number.
+class PrintHeaderFooterPanel : public QWidget {
     Q_OBJECT
 public:
-    PrintHeaderFooterDialog(const deck::PrintHeaderFooter &start, QWidget *parent = nullptr);
+    PrintHeaderFooterPanel(const deck::PrintHeaderFooter &start, QWidget *parent = nullptr);
     deck::PrintHeaderFooter choice() const;
 
 private:
     QCheckBox *m_date, *m_header, *m_footer, *m_number;
     QLineEdit *m_dateText, *m_headerText, *m_footerText;
+};
+
+// The same, in a window of its own (from the File screen's Print page).
+class PrintHeaderFooterDialog : public QDialog {
+    Q_OBJECT
+public:
+    PrintHeaderFooterDialog(const deck::PrintHeaderFooter &start, QWidget *parent = nullptr);
+    deck::PrintHeaderFooter choice() const { return m_panel->choice(); }
+
+private:
+    PrintHeaderFooterPanel *m_panel;
 };
 
 // A solid color for the background of the slide being edited (Apply) or of
