@@ -52022,7 +52022,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Ctrl</translation>
     </message>
     <message>
-        <location line="+60"/>
+        <location line="+61"/>
         <location line="+1"/>
         <source>Paste Options</source>
         <translation type="unfinished">Параметри вставки</translation>

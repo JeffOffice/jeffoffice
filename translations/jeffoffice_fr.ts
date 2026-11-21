@@ -51969,7 +51969,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
         <translation type="unfinished">Ctrl</translation>
     </message>
     <message>
-        <location line="+60"/>
+        <location line="+61"/>
         <location line="+1"/>
         <source>Paste Options</source>
         <translation type="unfinished">Options de collage</translation>

@@ -51969,7 +51969,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
         <translation type="unfinished">Strg</translation>
     </message>
     <message>
-        <location line="+60"/>
+        <location line="+61"/>
         <location line="+1"/>
         <source>Paste Options</source>
         <translation type="unfinished">Einfügeoptionen</translation>
