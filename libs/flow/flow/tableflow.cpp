@@ -1357,6 +1357,7 @@ void TableFragment::paint(QPainter *p, const TablePaint &o) const
     PaintOptions po;
     po.output = o.output;
     po.showSpecial = o.marks;
+    po.specialKinds = o.markKinds;
     po.selFrom = o.selFrom;
     po.selTo = o.selTo;
     for (const Placed &pl : placed) {

@@ -713,6 +713,10 @@ void drawBoxSide(QPainter *p, const tp::BoxSide &s, const QRectF &r, bool horizo
         return;
     }
     QPen pen(color, w, s.style == QLatin1String("dotted") ? Qt::DotLine : Qt::DashLine);
+    // (Patterns are in widths of the line: the dash-dot forms of the standard, and the short dashes.)
+    if (s.style == QLatin1String("dotDash")) pen.setDashPattern({4, 2, 1, 2});
+    else if (s.style == QLatin1String("dotDotDash")) pen.setDashPattern({4, 2, 1, 2, 1, 2});
+    else if (s.style == QLatin1String("dashSmallGap")) pen.setDashPattern({4, 1});
     pen.setCapStyle(Qt::FlatCap);
     p->save();
     p->setPen(pen);
@@ -6980,14 +6984,18 @@ void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
                 const double base = l.position().y() - frameY(frame) + l.ascent();
                 for (int k = l.textStart(); k < l.textStart() + l.textLength(); ++k) {
                     const QChar ch = B->disp[k];
-                    if (ch == ' ' || ch == '\t' || ch == QChar::LineSeparator) {
+                    // (A no-break space is marked as a space is, and an optional hyphen is marked where it is not the one a line ends with, which is drawn as a hyphen.)
+                    const bool lineEnd = k == l.textStart() + l.textLength() - 1;
+                    const int kind = ch == ' ' || ch == QChar(0x00A0) ? tp::special::Space : ch == '\t' ? tp::special::Tab : ch == QChar::LineSeparator ? tp::special::Paragraph
+                                     : ch == QChar(0x00AD) && !lineEnd ? tp::special::OptionalHyphen : 0;
+                    if (kind && (o.specialKinds & kind)) {
                         const double x1 = l.cursorToX(k), x2 = l.cursorToX(k + 1);
-                        const QString mark = ch == ' ' ? QStringLiteral("·") : ch == '\t' ? QStringLiteral("→") : QStringLiteral("↵");
+                        const QString mark = ch == ' ' ? QStringLiteral("·") : ch == QChar(0x00A0) ? QStringLiteral("°") : ch == '\t' ? QStringLiteral("→") : ch == QChar(0x00AD) ? QStringLiteral("¬") : QStringLiteral("↵");
                         const double w = advanceOf(sf, mark);
                         drawPlainText(p, QPointF((x1 + x2 - w) / 2, base), sf, mark);
                     }
                 }
-                if (i == B->lines.size() - 1) drawPlainText(p, QPointF(l.cursorToX(l.textStart() + l.textLength()) + 1, base), sf, QStringLiteral("¶"));
+                if (i == B->lines.size() - 1 && (o.specialKinds & tp::special::Paragraph)) drawPlainText(p, QPointF(l.cursorToX(l.textStart() + l.textLength()) + 1, base), sf, QStringLiteral("¶"));
             }
         }
     }

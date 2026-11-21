@@ -5,6 +5,7 @@
 #include "core/editops.h"
 #include "core/fieldops.h"
 #include "core/findops.h"
+#include "core/pictureops.h"
 #include "core/styleops.h"
 #include "core/writeprops.h"
 #include "flow/flowdocument.h"
@@ -854,9 +855,9 @@ bool WriteFindPane::holdsMark(const QString &plain, int from, int to)
 bool WriteFindPane::holdsMark(const QString &plain, const QTextCursor &match) { return holdsMark(plain, match.selectionStart(), match.selectionEnd()); }
 
 // Swaps every match in one story (the text, or a header, a footer, or a note), as one edit of that story; how many.
-int WriteFindPane::replaceInStory(QTextDocument *story, QString *problem)
+int WriteFindPane::replaceInStory(QTextDocument *story, QString *problem, StoryWords *given)
 {
-    StoryWords *text = wordsOfStory(story);
+    StoryWords *text = given ? given : wordsOfStory(story);
     if (!text) return 0;
     const bool wild = m_wild->isChecked();
     const write::FindPattern pattern = wild || codesTyped() ? write::wildcardPattern(patternText(), m_case->isChecked()) : write::FindPattern();
@@ -886,6 +887,34 @@ int WriteFindPane::replaceInStory(QTextDocument *story, QString *problem)
     return n;
 }
 
+// Swaps every match in the words of the text boxes and shapes of the text, each box's words as a story of their own, put back in the box (as the step the swaps are part of); how many.
+int WriteFindPane::replaceInTextBoxes(QString *problem)
+{
+    write::WriteDoc *doc = m_win->document();
+    QTextDocument *body = doc->story();
+    QVector<int> at;
+    for (QTextBlock b = body->begin(); b.isValid(); b = b.next())
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            const QTextFragment f = it.fragment();
+            if (!f.charFormat().hasProperty(write::prop::Atom)) continue;
+            for (int i = 0; i < int(f.length()); ++i)
+                if (write::isDrawnObjectAt(body, f.position() + i)) at.push_back(f.position() + i);
+        }
+    int n = 0;
+    for (const int position : at) {
+        const write::PictureInfo info = write::pictureAt(*doc, body, position);
+        if (!info.valid || !info.editable || (info.kind != write::DrawnKind::Shape && info.kind != write::DrawnKind::TextBox)) continue;
+        std::unique_ptr<QTextDocument> words = write::textBoxStory(*doc, position);
+        if (!words || words->toPlainText().trimmed().isEmpty()) continue;
+        StoryWords text(words.get());
+        if (text.dirty) text.rebuild();
+        const int swapped = replaceInStory(words.get(), problem, &text);
+        if (!problem->isEmpty()) return n;
+        if (swapped > 0 && write::setTextBoxStory(*doc, position, words.get())) n += swapped;
+    }
+    return n;
+}
+
 void WriteFindPane::replaceAll()
 {
     const QString q = m_find->text();
@@ -899,6 +928,7 @@ void WriteFindPane::replaceAll()
             n += replaceInStory(d, &problem);
             if (!problem.isEmpty()) break;
         }
+    if (problem.isEmpty()) n += replaceInTextBoxes(&problem);
     if (!problem.isEmpty()) {
         m_status->setText(problem);
         return;

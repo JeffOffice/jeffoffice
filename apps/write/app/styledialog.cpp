@@ -5,6 +5,7 @@
 #include "app/uistyle.h"
 #include "app/writedialogs.h"
 
+#include "app/normaltemplateui.h"
 #include "app/widgets.h"
 #include "core/editops.h"
 #include "core/styleops.h"
@@ -93,6 +94,7 @@ bool styleDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor, const QStr
     type->setObjectName(QStringLiteral("styleType"));
     type->addItem(QCoreApplication::translate("jp::write::StyleDialog", "Paragraph"), QStringLiteral("paragraph"));
     type->addItem(QCoreApplication::translate("jp::write::StyleDialog", "Character"), QStringLiteral("character"));
+    type->addItem(QCoreApplication::translate("jp::write::StyleDialog", "Linked (paragraph and character)"), QStringLiteral("linked"));
     type->setCurrentIndex(character ? 1 : 0);
     type->setEnabled(!modify);
     form->addRow(QCoreApplication::translate("jp::write::StyleDialog", "Style type"), type);
@@ -214,6 +216,11 @@ bool styleDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor, const QStr
     automatic->setObjectName(QStringLiteral("styleAutomatic"));
     automatic->setChecked(start.autoRedefine);
     automatic->setEnabled(!character);
+    auto *scope = new QComboBox(&dlg);
+    scope->setObjectName(QStringLiteral("styleScope"));
+    scope->addItem(QCoreApplication::translate("jp::write::StyleDialog", "Only in this document"), false);
+    scope->addItem(QCoreApplication::translate("jp::write::StyleDialog", "New documents based on this template"), true);
+    form->addRow(QCoreApplication::translate("jp::write::StyleDialog", "Available in"), scope);
     v->addWidget(gallery);
     v->addWidget(automatic);
     auto *problem = new QLabel(&dlg);
@@ -288,6 +295,16 @@ bool styleDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor, const QStr
         if (modify) done = modifyStyle(*doc, *cursor, modifyId, def, &why);
         else done = !createStyle(*doc, *cursor, def, &why, true).isEmpty();
         if (!done) problem->setText(why);
+        // For new documents too: the Normal template gets the same style (a style of the person's that it lacks is made in it).
+        if (done && scope->currentData().toBool()) {
+            const QString id = modify ? modifyId : QString();
+            setNormalTemplate(&dlg, [&](WriteDoc &target) {
+                QTextCursor at(target.story());
+                QString ignored;
+                if (modify && styleOfDocument(target, id)) modifyStyle(target, at, id, def, &ignored);
+                else createStyle(target, at, def, &ignored, false);
+            });
+        }
         return done;
     };
     dlg.exec();

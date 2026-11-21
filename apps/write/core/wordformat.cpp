@@ -698,6 +698,7 @@ tp::BoxSide sideOf(const std::optional<Border> &b)
     const QString v = b->val;
     s.style = v == QLatin1String("double") || v == QLatin1String("triple") || v.startsWith(QLatin1String("thinThick")) || v.startsWith(QLatin1String("thickThin")) ? QStringLiteral("double")
               : v == QLatin1String("dotted") ? QStringLiteral("dotted")
+              : v == QLatin1String("dotDash") || v == QLatin1String("dotDotDash") || v == QLatin1String("dashSmallGap") ? v   // (the dash-dot forms the text engine draws as they are)
               : v.startsWith(QLatin1String("dash")) || v.startsWith(QLatin1String("dot")) ? QStringLiteral("dashed")
                                                                                          : QStringLiteral("single");
     s.eighths = std::clamp(b->size, 1, 96);

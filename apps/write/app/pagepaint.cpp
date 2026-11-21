@@ -6,10 +6,13 @@
 #include "core/spellcheck.h"
 #include "core/tableops.h"
 
+#include "flow/flowdocument.h"
+
 #include <QCoreApplication>
 #include <QFontMetricsF>
 #include <QPainter>
 #include <QPainterPath>
+#include <QTextBlock>
 #include <QTextDocument>
 #include <algorithm>
 
@@ -106,6 +109,50 @@ void paintCellFound(QPainter *p, const flow::MaterializedPage &page, const PageD
                 }
         });
         p->restore();
+    }
+}
+
+// A small anchor in the margin beside the line of each object that is set at a place on the page and is anchored in the text of the page (the page's body story, as the
+// positions of its text have it). Where the margin is too narrow the anchor stands just inside the page's edge.
+void paintAnchorMarks(QPainter *p, flow::MaterializedPage &page, LayoutCache *layouts, const RenderOptions &opt)
+{
+    const QString bodyId = bodyStoryId(page);
+    const Story *body = bodyId.isEmpty() ? nullptr : page.doc->story(bodyId);
+    if (!body || !body->doc || !layouts) return;
+    QVector<int> anchors;
+    for (QTextBlock b = body->doc->begin(); b.isValid(); b = b.next())
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            const QTextFragment f = it.fragment();
+            if (!f.charFormat().hasProperty(flow::fp::AnchorId)) continue;
+            for (int i = 0; i < int(f.length()); ++i) anchors.push_back(f.position() + i);
+        }
+    if (anchors.isEmpty()) return;
+    for (const QString &id : page.boxes) {
+        const Item *item = page.doc->item(id);
+        if (!item || item->type() != ItemType::Text) continue;
+        const auto *box = static_cast<const TextItem *>(item);
+        const LayoutCache::FrameLayout fl = layouts->textFrame(*page.doc, *box, page.number, opt);
+        if (!fl.layout || fl.frame < 0) continue;
+        for (const int at : anchors) {
+            int frame = 0;
+            QRectF inText;
+            if (!fl.layout->caretRect(at, &frame, &inText) || frame != fl.frame) continue;
+            const QRectF line = box->transform().mapRect(inText);
+            const double x = std::max(1.0, page.bodyArea.left() - 11.0), y = line.top() + 1;
+            p->save();
+            p->setRenderHint(QPainter::Antialiasing);
+            p->setPen(QPen(QColor(90, 120, 200), 0.9));
+            p->setBrush(Qt::NoBrush);
+            p->drawEllipse(QPointF(x + 4, y + 2), 1.6, 1.6);
+            p->drawLine(QPointF(x + 4, y + 3.6), QPointF(x + 4, y + 10));
+            p->drawLine(QPointF(x + 2, y + 5), QPointF(x + 6, y + 5));
+            QPainterPath hook;
+            hook.moveTo(x + 0.5, y + 7.5);
+            hook.quadTo(x + 1.5, y + 11, x + 4, y + 10);
+            hook.quadTo(x + 6.5, y + 11, x + 7.5, y + 7.5);
+            p->drawPath(hook);
+            p->restore();
+        }
     }
 }
 
@@ -217,6 +264,7 @@ void paintPage(QPainter *p, flow::MaterializedPage &page, LayoutCache *layouts, 
     ctx.opt.output = d.output;
     ctx.opt.textOutput = d.textOutput;
     ctx.opt.showSpecial = d.marks;
+    ctx.opt.specialKinds = d.markKinds;
     ctx.opt.shadeFields = d.shadeFields && !d.output;
     ctx.opt.grayscale = d.grayscale;
     ctx.opt.maxImageDpi = d.maxImageDpi;
@@ -318,9 +366,11 @@ void paintPage(QPainter *p, flow::MaterializedPage &page, LayoutCache *layouts, 
     }
     Renderer::paintPage(p, ctx, 0);
     if (d.controls && !d.output && !d.controls->isEmpty()) paintControlMarks(p, page, layouts, ctx.opt, d);
+    if (!d.output && (d.markKinds & tp::special::Anchor) && d.marks && !d.editedStory) paintAnchorMarks(p, page, layouts, ctx.opt);
     flow::TablePaint tables;
     tables.output = d.textOutput;
     tables.marks = d.marks;
+    tables.markKinds = d.markKinds;
     tables.selFrom = d.selectionFrom;
     tables.selTo = d.selectionTo;
     if (d.tagger) d.tagger->install(&tables);

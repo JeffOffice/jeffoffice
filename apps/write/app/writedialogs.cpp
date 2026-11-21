@@ -766,6 +766,7 @@ bool paragraphBordersDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
         if (!(b.left == before.left)) mixed |= boxpart::Left;
         if (!(b.bottom == before.bottom)) mixed |= boxpart::Bottom;
         if (!(b.right == before.right)) mixed |= boxpart::Right;
+        if (!(b.between == before.between)) mixed |= boxpart::Between;
         if (!(b.fill == before.fill)) mixed |= boxpart::Fill;
     }
     QDialog dlg(parent);
@@ -775,7 +776,7 @@ bool paragraphBordersDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     auto *sides = new jp::Section(QCoreApplication::translate("jp::write::Dialogs", "Borders"), &dlg);
     auto *sv = new QHBoxLayout(sides);
     const tp::BoxSide *firstSide = nullptr;
-    for (const tp::BoxSide *s : {&before.top, &before.left, &before.bottom, &before.right})
+    for (const tp::BoxSide *s : {&before.top, &before.left, &before.bottom, &before.right, &before.between})
         if (!firstSide && s->visible()) firstSide = s;
     const tp::BoxSide shown = firstSide ? *firstSide : tp::BoxSide{QStringLiteral("single"), 4, 1, QColor()};
     auto side = [&](const char *name, const QString &text, const tp::BoxSide &now, int part) {
@@ -790,6 +791,7 @@ bool paragraphBordersDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     };
     QCheckBox *top = side("top", QCoreApplication::translate("jp::write::Dialogs", "Top"), before.top, boxpart::Top), *left = side("left", QCoreApplication::translate("jp::write::Dialogs", "Left"), before.left, boxpart::Left),
               *bottom = side("bottom", QCoreApplication::translate("jp::write::Dialogs", "Bottom"), before.bottom, boxpart::Bottom), *right = side("right", QCoreApplication::translate("jp::write::Dialogs", "Right"), before.right, boxpart::Right);
+    QCheckBox *between = side("between", QCoreApplication::translate("jp::write::Dialogs", "Between"), before.between, boxpart::Between);
     auto *box = new QPushButton(QCoreApplication::translate("jp::write::Dialogs", "Box"), sides);
     box->setObjectName(QStringLiteral("box"));
     auto *none = new QPushButton(QCoreApplication::translate("jp::write::Dialogs", "None"), sides);
@@ -803,7 +805,7 @@ bool paragraphBordersDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
         }
     });
     QObject::connect(none, &QPushButton::clicked, &dlg, [=] {
-        for (QCheckBox *c : {top, left, bottom, right}) {
+        for (QCheckBox *c : {top, left, bottom, right, between}) {
             c->setTristate(false);
             c->setChecked(false);
         }
@@ -814,7 +816,9 @@ bool paragraphBordersDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     style->setObjectName(QStringLiteral("style"));
     const QList<QPair<QString, QString>> styles = {{QCoreApplication::translate("jp::write::Dialogs", "Single line"), QStringLiteral("single")}, {QCoreApplication::translate("jp::write::Dialogs", "Double line"), QStringLiteral("double")},
                                                    {QCoreApplication::translate("jp::write::Dialogs", "Thick line"), QStringLiteral("thick")}, {QCoreApplication::translate("jp::write::Dialogs", "Dotted"), QStringLiteral("dotted")},
-                                                   {QCoreApplication::translate("jp::write::Dialogs", "Dashed"), QStringLiteral("dashed")}};
+                                                   {QCoreApplication::translate("jp::write::Dialogs", "Dashed"), QStringLiteral("dashed")},
+                                                   {QCoreApplication::translate("jp::write::Dialogs", "Short dashes"), QStringLiteral("dashSmallGap")}, {QCoreApplication::translate("jp::write::Dialogs", "Dash-dot"), QStringLiteral("dotDash")},
+                                                   {QCoreApplication::translate("jp::write::Dialogs", "Dash-dot-dot"), QStringLiteral("dotDotDash")}};
     for (const auto &s : styles) style->addItem(s.first, s.second);
     style->setCurrentIndex(std::max(0, style->findData(shown.style)));
     // The widths a line can have, in eighths of a point as the file counts them.
@@ -878,6 +882,7 @@ bool paragraphBordersDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor)
     decide(left, boxpart::Left, before.left, &after.left);
     decide(bottom, boxpart::Bottom, before.bottom, &after.bottom);
     decide(right, boxpart::Right, before.right, &after.right);
+    decide(between, boxpart::Between, before.between, &after.between);
     if (fillSet) {
         parts |= boxpart::Fill;
         after.fill = fillColor.isNone() ? QColor() : fillColor.resolve(doc->flow().env.colors);

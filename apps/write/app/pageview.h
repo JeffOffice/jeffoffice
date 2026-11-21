@@ -131,6 +131,10 @@ public:
     void setShadeFields(bool on);   // the fields shaded gray on the screen (never in print or a PDF)
     bool shadeFields() const { return m_shadeFields; }
     bool showMarks() const { return m_marks; }
+    // The kinds of mark (tp::special bits) shown whether or not Show/Hide is on (Options > Display), and the kinds the page shows now.
+    void setAlwaysMarks(int kinds);
+    int alwaysMarks() const { return m_alwaysMarks; }
+    int shownMarks() const { return m_marks ? int(tp::special::All) : m_alwaysMarks; }
     // The words the Find pane found, as ranges of the document's text: drawn on a yellow band until it sets none.
     void setFindHighlights(const QVector<QPair<int, int>> &ranges);
     const QVector<QPair<int, int>> &findHighlights() const { return m_findHighlights; }
@@ -702,6 +706,7 @@ private:
     bool m_sideToSide = false, m_draft = false, m_web = false, m_showBodyInHeader = true;
     void fitWebWidth();
     bool m_marks = false;
+    int m_alwaysMarks = 0;
     QVector<QPair<int, int>> m_findHighlights;
     QVector<ControlMark> m_controlMarks;
     bool m_controlsDirty = true;

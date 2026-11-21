@@ -27,8 +27,29 @@
 
 namespace jp {
 
+namespace {
+// The kinds of formatting mark Options > Display can keep on, with the words for each (the bit, the name the box has, and its label).
+struct MarkKind {
+    int bit;
+    const char *name;
+    const char *label;
+};
+const MarkKind *markKinds(int *count)
+{
+    static const MarkKind kinds[] = {{tp::special::Tab, "alwaysTabs", QT_TRANSLATE_NOOP("Dialogs", "Tab characters")},
+                                     {tp::special::Space, "alwaysSpaces", QT_TRANSLATE_NOOP("Dialogs", "Spaces")},
+                                     {tp::special::Paragraph, "alwaysParagraphs", QT_TRANSLATE_NOOP("Dialogs", "Paragraph marks")},
+                                     {tp::special::Hidden, "alwaysHidden", QT_TRANSLATE_NOOP("Dialogs", "Hidden text")},
+                                     {tp::special::OptionalHyphen, "alwaysHyphens", QT_TRANSLATE_NOOP("Dialogs", "Optional hyphens")},
+                                     {tp::special::Anchor, "alwaysAnchors", QT_TRANSLATE_NOOP("Dialogs", "Object anchors")}};
+    *count = int(sizeof(kinds) / sizeof(kinds[0]));
+    return kinds;
+}
+} // namespace
+
 void WriteWindow::applyDisplayDefaults()
 {
+    m_view->setAlwaysMarks(Settings::get().value(QStringLiteral("view/alwaysMarks"), 0).toInt());
     const bool marks = Settings::get().value(QStringLiteral("view/marks"), false).toBool();
     const bool grid = Settings::get().value(QStringLiteral("view/gridlines"), false).toBool();
     act(QStringLiteral("view.marks"))->setChecked(marks);
@@ -49,6 +70,7 @@ QVector<OptionsPage> WriteWindow::optionsPages()
 {
     struct Fields {
         QCheckBox *marks = nullptr, *grid = nullptr;
+        QVector<QCheckBox *> always;   // one for each of the marks of displayMarkKinds()
         QComboBox *units = nullptr;
         PasteDefaultsSection *pasteDefaults = nullptr;
         QCheckBox *ctrlLinks = nullptr, *dragText = nullptr, *replaces = nullptr, *insertKey = nullptr, *privacy = nullptr, *smart = nullptr, *embedFonts = nullptr;
@@ -81,6 +103,18 @@ QVector<OptionsPage> WriteWindow::optionsPages()
         f->marks->setObjectName(QStringLiteral("startWithMarks"));
         f->marks->setChecked(st.value(QStringLiteral("view/marks"), false).toBool());
         form->addRow(f->marks);
+        form->addRow(new QLabel(QCoreApplication::translate("Dialogs", "Always show these formatting marks on the screen"), page));
+        int n = 0;
+        const MarkKind *kinds = markKinds(&n);
+        const int kept = st.value(QStringLiteral("view/alwaysMarks"), 0).toInt();
+        f->always.clear();
+        for (int i = 0; i < n; ++i) {
+            auto *box = new QCheckBox(QCoreApplication::translate("Dialogs", kinds[i].label), page);
+            box->setObjectName(QString::fromLatin1(kinds[i].name));
+            box->setChecked((kept & kinds[i].bit) != 0);
+            f->always << box;
+            form->addRow(box);
+        }
         f->grid = new QCheckBox(QCoreApplication::translate("Dialogs", "Show table gridlines when a window opens"), page);
         f->grid->setObjectName(QStringLiteral("startWithGridlines"));
         f->grid->setChecked(st.value(QStringLiteral("view/gridlines"), false).toBool());
@@ -89,6 +123,11 @@ QVector<OptionsPage> WriteWindow::optionsPages()
     }, [this, f] {
         Settings::get().setValue(QStringLiteral("view/marks"), f->marks->isChecked());
         Settings::get().setValue(QStringLiteral("view/gridlines"), f->grid->isChecked());
+        int n = 0, bits = 0;
+        const MarkKind *kinds = markKinds(&n);
+        for (int i = 0; i < n && i < f->always.size(); ++i)
+            if (f->always[i]->isChecked()) bits |= kinds[i].bit;
+        Settings::get().setValue(QStringLiteral("view/alwaysMarks"), bits);
         applyDisplayDefaults();
     }};
     pages << OptionsPage{QCoreApplication::translate("Dialogs", "Advanced"), [f] {

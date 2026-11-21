@@ -16,12 +16,15 @@
 #include "app/privacy.h"
 #include "app/trust.h"
 #include "app/pageview.h"
+#include "app/writefindpane.h"
 #include "app/writeinfo.h"
 #include "app/writewindow.h"
 #include "core/appinfo.h"
 #include "core/editops.h"
 #include "core/themeops.h"
 #include "core/styleops.h"
+#include "core/textboxops.h"
+#include "core/normaltemplate.h"
 #include "core/pagesetup.h"
 #include "core/writeprops.h"
 #include "core/pictureops.h"
@@ -934,6 +937,250 @@ private Q_SLOTS:
         QVERIFY(first.contains(top) && first.contains(bottom) && first.contains(bar) && first.contains("<w:left w:val=\"single\" w:sz=\"12\" w:space=\"3\" w:color=\"0000FF\"/>"));
         QVERIFY(first.contains("<w:right "));
         QVERIFY(!second.contains("<w:top") && second.contains("<w:bottom w:val=\"single\" w:sz=\"4\" w:space=\"1\" w:color=\"auto\"/>") && second.contains("<w:right "));
+    }
+
+    // The Borders and Shading box also sets the line between paragraphs and the dash-dot and short-dash lines: one step, kept as w:between and the line's name in `.docx` saved and opened through
+    // the window, with the paragraph nobody touched written back as it was (ECMA-376 Part 1 sections 17.3.1.24 and 17.18.2).
+    void theBoxSetsTheLineBetweenParagraphsAndMoreLineStyles()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QByteArray kept = "<w:p><w:pPr><w:pBdr><w:top w:val=\"triple\" w:sz=\"18\" w:space=\"2\" w:color=\"auto\"/></w:pBdr></w:pPr><w:r><w:t>kept</w:t></w:r></w:p>";
+        auto window = windowOn(dir, headingsDocx("<w:p><w:r><w:t>one</w:t></w:r></w:p><w:p><w:r><w:t>two</w:t></w:r></w:p>" + kept));
+        QVERIFY(window);
+        WriteWindow &w = *window;
+        Quiet quiet(w);
+        QTextCursor &sel = w.view()->cursor();
+        sel.setPosition(1);
+        sel.setPosition(w.document()->story()->findBlockByNumber(1).position() + 2, QTextCursor::KeepAnchor);
+        const quint64 serial = w.document()->nextStepSerial();
+        withDialog([&] { w.act(QStringLiteral("para.bordersShading"))->trigger(); }, QStringLiteral("paragraphBordersDialog"), [](QDialog *d) {
+            QCheckBox *between = d->findChild<QCheckBox *>(QStringLiteral("between"));
+            QVERIFY(between);
+            QVERIFY(!between->isChecked());
+            between->setChecked(true);
+            auto *style = d->findChild<QComboBox *>(QStringLiteral("style"));
+            for (const char *name : {"dotDash", "dotDotDash", "dashSmallGap"}) QVERIFY(style->findData(QString::fromLatin1(name)) >= 0);
+            style->setCurrentIndex(style->findData(QStringLiteral("dotDash")));
+        });
+        QCOMPARE(w.document()->nextStepSerial(), serial + 1);
+        auto boxOf = [](WriteWindow &win, int block) {
+            QTextCursor c(win.document()->story()->findBlockByNumber(block));
+            return write::paragraphBoxAt(c);
+        };
+        for (int block : {0, 1}) {
+            QCOMPARE(boxOf(w, block).between.style, QStringLiteral("dotDash"));
+            QVERIFY(!boxOf(w, block).top.visible());
+        }
+        QVERIFY(!boxOf(w, 2).between.visible());
+        QVERIFY(saveInto(w, dir, QStringLiteral("between.docx")));
+        office::Package package;
+        package.read(fileBytes(dir.filePath(QStringLiteral("between.docx"))));
+        const QByteArray xml = package.part(QStringLiteral("/word/document.xml"));
+        QCOMPARE(xml.count("<w:between w:val=\"dotDash\" w:sz=\"4\" w:space=\"1\" w:color=\"auto\"/>"), 2);
+        QVERIFY(xml.contains(QByteArray(kept).replace("<w:t>", "<w:t xml:space=\"preserve\">")));   // (the paragraph nobody edited is written as it was)
+        QCOMPARE(xml.count("<w:pBdr>"), 3);
+        WriteWindow v;
+        Quiet quietV(v);
+        QVERIFY(v.openFile(dir.filePath(QStringLiteral("between.docx"))));
+        QCOMPARE(boxOf(v, 0).between.style, QStringLiteral("dotDash"));
+        QVERIFY(boxOf(v, 2).top.visible());   // (the triple line is kept as the file wrote it, whatever the page draws)
+        // One Undo takes it back, one Redo puts it again.
+        QVERIFY(w.document()->undo());
+        QVERIFY(!boxOf(w, 0).between.visible() && !boxOf(w, 1).between.visible());
+        QVERIFY(w.document()->redo());
+        QCOMPARE(boxOf(w, 1).between.style, QStringLiteral("dotDash"));
+    }
+
+    // Options > Display keeps chosen formatting marks on (tab characters, spaces, paragraph marks, hidden text, optional hyphens, object anchors), whether or not Show/Hide is on; the page marks
+    // an optional hyphen (not where a line ends with it), a no-break space, and the anchor of a floating object in the margin; Show/Hide shows them all; the marks are never in the printed page.
+    void theDisplayPageKeepsChosenMarksOnAndThePageMarksHyphensNoBreakSpacesAndAnchors()
+    {
+        auto markPixels = [](WriteWindow &win) {
+            win.refreshNow();
+            const QImage page = win.view()->viewport()->grab().toImage().convertToFormat(QImage::Format_RGB32);
+            int n = 0;
+            for (int y = 0; y < page.height(); ++y)
+                for (int x = 0; x < page.width(); ++x) {
+                    const QColor c(page.pixel(x, y));
+                    n += c.blue() - c.red() > 20;   // (the marks are blue, the text black or gray)
+                }
+            return n;
+        };
+        auto choose = [](WriteWindow &win, const QStringList &names) {
+            QVector<OptionsPage> pages = win.optionsPages();
+            QList<QWidget *> built;
+            for (const OptionsPage &p : pages) built << p.build();
+            for (QWidget *page : built)
+                for (QCheckBox *box : page->findChildren<QCheckBox *>())
+                    if (box->objectName().startsWith(QLatin1String("always"))) box->setChecked(names.contains(box->objectName()));
+            for (const OptionsPage &p : pages)
+                if (p.apply) p.apply();
+            qDeleteAll(built);
+        };
+        const QScopeGuard restore([] { Settings::get().setValue(QStringLiteral("view/alwaysMarks"), 0); Settings::get().setValue(QStringLiteral("view/marks"), false); });
+        jp::initCore();
+        WriteWindow hyphen;
+        Quiet quietH(hyphen);
+        hyphen.resize(900, 700);
+        hyphen.show();
+        typeText(*hyphen.document(), hyphen.view()->cursor(), QStringLiteral("ab\u00ADcd"));
+        const QImage printed = hyphen.view()->pageImage(0, 700);
+        const int plainH = markPixels(hyphen);   // (a little of the text is bluish at its edges)
+        choose(hyphen, {QStringLiteral("alwaysSpaces")});
+        QCOMPARE(markPixels(hyphen), plainH);   // (spaces are marked: this text has none)
+        choose(hyphen, {QStringLiteral("alwaysHyphens")});
+        QCOMPARE(hyphen.view()->alwaysMarks(), int(tp::special::OptionalHyphen));
+        QVERIFY2(markPixels(hyphen) > plainH, "an optional hyphen is marked");
+        QVERIFY(!hyphen.view()->showMarks());
+        QCOMPARE(hyphen.view()->pageImage(0, 700), printed);   // (a printed page never has the marks)
+        WriteWindow gap;
+        Quiet quietG(gap);
+        gap.resize(900, 700);
+        gap.show();
+        typeText(*gap.document(), gap.view()->cursor(), QStringLiteral("ab\u00A0cd"));
+        QCOMPARE(gap.view()->alwaysMarks(), int(tp::special::OptionalHyphen));   // (a window opened later starts with what Options kept)
+        const int plainG = markPixels(gap);   // (this text has a no-break space and no optional hyphen)
+        choose(gap, {QStringLiteral("alwaysSpaces")});
+        QVERIFY2(markPixels(gap) > plainG, "a no-break space is marked with the spaces");
+        // Show/Hide shows every kind; the choice of Options is what is on when it is off.
+        choose(gap, {});
+        QCOMPARE(markPixels(gap), plainG);
+        gap.act(QStringLiteral("view.marks"))->trigger();
+        QVERIFY(gap.view()->showMarks());
+        QVERIFY(markPixels(gap) > plainG);
+        gap.act(QStringLiteral("view.marks"))->trigger();
+        QCOMPARE(markPixels(gap), plainG);
+        // The anchor of a floating text box.
+        WriteWindow anchored;
+        Quiet quietA(anchored);
+        anchored.resize(900, 700);
+        anchored.show();
+        typeText(*anchored.document(), anchored.view()->cursor(), QStringLiteral("anchor here"));
+        QTextCursor at(anchored.document()->story());
+        at.setPosition(3);
+        QCOMPARE(write::insertTextBoxAt(*anchored.document(), at, QPointF(300, 200), QPointF(400, 260)), write::PictureResult::Ok);
+        const int plainA = markPixels(anchored);
+        choose(anchored, {QStringLiteral("alwaysAnchors")});
+        QVERIFY2(markPixels(anchored) > plainA, "the anchor of a floating object is marked");
+    }
+
+    // Create Style makes a linked style (a paragraph style and a character style that name each other, ECMA-376 Part 1 section 17.7.4.6) and can make it for new documents too; Modify Style on the
+    // paragraph style gives the character style its look, in one step; both kept in `.docx` saved and opened through the window, and a paragraph nobody edited written back as it was.
+    void aLinkedStyleIsMadeAndFollowedAndCanBeMadeForNewDocuments()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QFile::remove(write::normalTemplatePath());
+        const QScopeGuard cleanup([] { QFile::remove(write::normalTemplatePath()); });
+        const QByteArray kept = "<w:p><w:pPr><w:spacing w:before=\"37\"/></w:pPr><w:r><w:rPr><w:i/></w:rPr><w:t>kept</w:t></w:r></w:p>";
+        auto window = windowOn(dir, headingsDocx("<w:p><w:r><w:t>Alpha beta</w:t></w:r></w:p>" + kept));
+        QVERIFY(window);
+        WriteWindow &w = *window;
+        Quiet quiet(w);
+        QTextCursor &sel = w.view()->cursor();
+        sel.setPosition(1);
+        sel.setPosition(5, QTextCursor::KeepAnchor);
+        quint64 serial = w.document()->nextStepSerial();
+        withDialog([&] { w.act(QStringLiteral("style.new"))->trigger(); }, QStringLiteral("styleDialog"), [](QDialog *d) {
+            d->findChild<QLineEdit *>(QStringLiteral("styleName"))->setText(QStringLiteral("Pair"));
+            auto *type = d->findChild<QComboBox *>(QStringLiteral("styleType"));
+            type->setCurrentIndex(type->findData(QStringLiteral("linked")));
+            d->findChild<QCheckBox *>(QStringLiteral("styleBold"))->setChecked(true);
+            auto *scope = d->findChild<QComboBox *>(QStringLiteral("styleScope"));
+            QVERIFY(scope);
+            scope->setCurrentIndex(1);
+        });
+        QCOMPARE(w.document()->nextStepSerial(), serial + 1);
+        auto pair = [](WriteWindow &win) {
+            const office::wml::Style *p = win.document()->styleSheet().find(QStringLiteral("Pair"));
+            const office::wml::Style *c = win.document()->styleSheet().find(QStringLiteral("PairChar"));
+            return std::make_pair(p ? std::optional<office::wml::Style>(*p) : std::nullopt, c ? std::optional<office::wml::Style>(*c) : std::nullopt);
+        };
+        auto made = pair(w);
+        QVERIFY(made.first && made.second);
+        QCOMPARE(made.first->type, QStringLiteral("paragraph"));
+        QCOMPARE(made.first->link, QStringLiteral("PairChar"));
+        QCOMPARE(made.second->type, QStringLiteral("character"));
+        QCOMPARE(made.second->link, QStringLiteral("Pair"));
+        QCOMPARE(made.second->name, QStringLiteral("Pair Char"));
+        QCOMPARE(made.second->rPr.bold, std::optional<bool>(true));
+        // New documents have it: a window opened now starts from the template.
+        WriteWindow fresh;
+        Quiet quietF(fresh);
+        QVERIFY(fresh.document()->styleSheet().find(QStringLiteral("Pair")) && fresh.document()->styleSheet().find(QStringLiteral("PairChar")));
+        QCOMPARE(fresh.document()->styleSheet().find(QStringLiteral("Pair"))->link, QStringLiteral("PairChar"));
+        // Modify the paragraph style: its character style takes the size, in the one step.
+        serial = w.document()->nextStepSerial();
+        withDialog([&] { w.act(QStringLiteral("style.modify"))->trigger(); }, QStringLiteral("styleDialog"), [](QDialog *d) { d->findChild<QComboBox *>(QStringLiteral("styleSize"))->setEditText(QStringLiteral("22")); });
+        QCOMPARE(w.document()->nextStepSerial(), serial + 1);
+        made = pair(w);
+        QCOMPARE(made.first->rPr.size, std::optional<int>(44));
+        QCOMPARE(made.second->rPr.size, std::optional<int>(44));
+        // Saved and opened through the window.
+        QVERIFY(saveInto(w, dir, QStringLiteral("linked.docx")));
+        office::Package package;
+        package.read(fileBytes(dir.filePath(QStringLiteral("linked.docx"))));
+        const QByteArray styles = package.part(QStringLiteral("/word/styles.xml")), xml = package.part(QStringLiteral("/word/document.xml"));
+        QVERIFY(styles.contains("<w:link w:val=\"PairChar\"/>") && styles.contains("<w:link w:val=\"Pair\"/>"));
+        QVERIFY(xml.contains(QByteArray(kept).replace("<w:t>", "<w:t xml:space=\"preserve\">")));
+        WriteWindow v;
+        Quiet quietV(v);
+        QVERIFY(v.openFile(dir.filePath(QStringLiteral("linked.docx"))));
+        const auto back = pair(v);
+        QVERIFY(back.first && back.second);
+        QCOMPARE(back.second->rPr.size, std::optional<int>(44));
+        // One Undo takes the look off both.
+        QVERIFY(w.document()->undo());
+        made = pair(w);
+        QCOMPARE(made.first->rPr.size, std::optional<int>());
+        QCOMPARE(made.second->rPr.size, std::optional<int>());
+        QVERIFY(w.document()->redo());
+        QCOMPARE(pair(w).second->rPr.size, std::optional<int>(44));
+    }
+
+    // Replace All also swaps the words in text boxes: one step with the swaps in the text, one Undo takes all back; the saved `.docx`, opened through the window, has the new words in the box and
+    // the other words of the box, and the box's look, as they were.
+    void replaceAllReachesTheWordsInTextBoxes()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        WriteWindow w;
+        Quiet quiet(w);
+        w.resize(900, 700);
+        w.show();
+        typeText(*w.document(), w.view()->cursor(), QStringLiteral("cat on the mat"));
+        QTextCursor at(w.document()->story());
+        at.setPosition(3);
+        QCOMPARE(write::insertTextBoxAt(*w.document(), at, QPointF(300, 200), QPointF(420, 260)), write::PictureResult::Ok);
+        int box = -1;
+        for (int i = 0; i < w.document()->story()->characterCount() && box < 0; ++i)
+            if (write::isDrawnObjectAt(w.document()->story(), i)) box = i;
+        QVERIFY(box >= 0);
+        auto words = [&](WriteWindow &win, int position) {
+            const auto got = write::textBoxText(*win.document(), position);
+            return got ? got->join(QLatin1Char('|')) : QString();
+        };
+        QVERIFY(write::setTextBoxText(*w.document(), box, {QStringLiteral("a cat sat"), QStringLiteral("cat cat")}));
+        w.showFindPane();
+        WriteFindPane *pane = w.findPane();
+        pane->findBox()->setText(QStringLiteral("cat"));
+        pane->replaceBox()->setText(QStringLiteral("dog"));
+        pane->replaceAll();
+        QCOMPARE(words(w, box), QStringLiteral("a dog sat|dog dog"));
+        QVERIFY(w.document()->story()->toPlainText().startsWith(QLatin1String("dog")));
+        QVERIFY(saveInto(w, dir, QStringLiteral("boxes.docx")));
+        WriteWindow v;
+        Quiet quietV(v);
+        QVERIFY(v.openFile(dir.filePath(QStringLiteral("boxes.docx"))));
+        int vbox = -1;
+        for (int i = 0; i < v.document()->story()->characterCount() && vbox < 0; ++i)
+            if (write::isDrawnObjectAt(v.document()->story(), i)) vbox = i;
+        QVERIFY(vbox >= 0);
+        QCOMPARE(words(v, vbox), QStringLiteral("a dog sat|dog dog"));
+        QVERIFY(w.document()->undo());
+        QCOMPARE(words(w, box), QStringLiteral("a cat sat|cat cat"));
+        QVERIFY(w.document()->story()->toPlainText().startsWith(QLatin1String("cat")));
     }
 
     // A font color picked from the palette's theme row is the color the swatch showed (a tint as files have it), in the window and in the file saved and opened again, for every slot and every tint the picker offers.

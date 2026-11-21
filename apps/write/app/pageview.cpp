@@ -160,7 +160,7 @@ void PageView::setDocument(WriteDoc *doc)
     m_rendered.clear();
     m_recent.clear();
     m_doc = doc;
-    if (m_doc) m_doc->setShowHiddenText(m_marks);
+    if (m_doc) m_doc->setShowHiddenText((shownMarks() & tp::special::Hidden) != 0);
     m_rects.clear();
     m_rowTops.clear();
     m_knownPages = 0;
@@ -602,7 +602,14 @@ void PageView::setFindSideMatcher(const std::function<QVector<QPair<int, int>>(c
 void PageView::setShowMarks(bool on)
 {
     m_marks = on;
-    if (m_doc) m_doc->setShowHiddenText(on);
+    if (m_doc) m_doc->setShowHiddenText((shownMarks() & tp::special::Hidden) != 0);
+    viewport()->update();
+}
+
+void PageView::setAlwaysMarks(int kinds)
+{
+    m_alwaysMarks = kinds & tp::special::All;
+    if (m_doc) m_doc->setShowHiddenText((shownMarks() & tp::special::Hidden) != 0);
     viewport()->update();
 }
 
@@ -727,7 +734,8 @@ void PageView::paintEvent(QPaintEvent *e)
             p.translate(dev.topLeft());
             p.scale(s, s);
             PageDrawing d;
-            d.marks = m_marks;
+            d.marks = shownMarks() != 0;
+            d.markKinds = shownMarks();
             d.gridlines = m_gridlines;
             d.shadeFields = m_shadeFields;
             d.draft = m_draft || m_web;

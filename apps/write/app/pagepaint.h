@@ -30,6 +30,7 @@ struct PageDrawing {
     int selectionFrom = -1, selectionTo = -1;   // the selected text, as positions in the document
     bool shadeFields = false;                    // fields shaded (screen only)
     bool marks = false;                          // paragraph marks, tabs, and spaces drawn
+    int markKinds = tp::special::All;            // which of them (tp::special bits)
     bool output = false;                         // a printer or a PDF: no screen-only marks
     TextOutput textOutput = TextOutput::Picture;
     int pageCount = 1;

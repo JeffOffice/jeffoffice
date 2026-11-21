@@ -290,6 +290,7 @@ struct PaintOptions {
     int selFrom = -1, selTo = -1;   // document positions
     QColor selColor = QColor(51, 153, 255, 90);
     bool showSpecial = false;       // ¶, ·, →
+    int specialKinds = tp::special::All;   // which of them (tp::special bits)
     bool shadeFields = false;
     bool showSpelling = false;
     QVector<QPair<int, int>> misspelled;  // document ranges

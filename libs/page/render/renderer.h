@@ -33,6 +33,7 @@ struct RenderOptions {
     QDateTime now;
     bool shadeFields = false;
     bool showSpecial = false;
+    int specialKinds = tp::special::All;   // which marks (tp::special bits)
     bool tableGridlines = false;   // dashed gridlines along the edges of table cells that have no line (screen only: never printed, exported, or saved)
     bool grayscale = false;
     // Text editing visuals for one story.

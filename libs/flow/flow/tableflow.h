@@ -295,6 +295,7 @@ struct TableFragment;
 struct TablePaint {
     TextOutput output = TextOutput::Picture;
     bool marks = false;                     // paragraph marks and the like
+    int markKinds = tp::special::All;       // which of them (tp::special bits)
     int selFrom = -1, selTo = -1;           // the selected text, as document positions
     // Draws the objects set in the text of a stretch of a cell (its inline pictures and shapes), the painter placed as the text's lines are; none are drawn when unset.
     std::function<void(QPainter *, const StoryLayout &)> objects;

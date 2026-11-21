@@ -94,7 +94,8 @@ private:
     QString whereIs(QTextDocument *story, int page);
     QVector<QTextDocument *> sideStories();
     bool lastMatchBefore(QTextDocument *story, int before, QTextCursor *found, QString *problem);
-    int replaceInStory(QTextDocument *story, QString *problem);
+    int replaceInStory(QTextDocument *story, QString *problem, StoryWords *given = nullptr);
+    int replaceInTextBoxes(QString *problem);
     bool selectionIsMatch();
     static bool holdsMark(const QString &plain, int from, int to);
     static bool holdsMark(const QString &plain, const QTextCursor &match);

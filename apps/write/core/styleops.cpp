@@ -433,6 +433,8 @@ QString createStyle(WriteDoc &doc, QTextCursor &c, const Style &def, QString *pr
     const QString name = def.name.trimmed();
     if (const QString why = styleNameProblem(doc, name); !why.isEmpty()) return fail(why);
     Style s = def;
+    // A linked style is a paragraph style with a character style of the same look beside it (named for it, with " Char"), each naming the other (w:link; ECMA-376 Part 1 section 17.7.4.6).
+    const bool linked = def.type == QLatin1String("linked");
     s.type = def.type == QLatin1String("character") ? QStringLiteral("character") : QStringLiteral("paragraph");
     if (!s.basedOn.isEmpty())
         if (const QString why = styleBasedOnProblem(doc, QString(), s.basedOn, s.type); !why.isEmpty()) return fail(why);
@@ -443,11 +445,25 @@ QString createStyle(WriteDoc &doc, QTextCursor &c, const Style &def, QString *pr
     s.isDefault = false;
     s.link.clear();
     s.raw.clear();
+    Style twin;
+    if (linked) {
+        const QString twinName = name + QStringLiteral(" Char");
+        if (const QString why = styleNameProblem(doc, twinName); !why.isEmpty()) return fail(why);
+        twin.name = twinName;
+        twin.id = newStyleId(doc, twinName);
+        twin.type = QStringLiteral("character");
+        twin.customStyle = true;
+        twin.qFormat = s.qFormat;
+        twin.rPr = s.rPr;
+        twin.link = s.id;
+        s.link = twin.id;
+    }
     QTextCursor edit(doc.story());
     edit.beginEditBlock();
     addBuiltinInStep(doc, s.basedOn);
     addBuiltinInStep(doc, s.next);
     doc.putStyle(s);
+    if (linked) doc.putStyle(twin);
     touchStyles(doc);
     if (apply) {
         if (s.type == QLatin1String("character")) applyCharacterStyle(doc, c, s.id);
@@ -494,12 +510,25 @@ bool modifyStyle(WriteDoc &doc, QTextCursor &c, const QString &id, const Style &
     StyleSheet before = doc.styleSheet();
     const QSet<QString> paragraphs = old.type == QLatin1String("paragraph") ? descendantsOf(before, old.id, old.type) : QSet<QString>();
     const QSet<QString> characters = old.type == QLatin1String("character") ? descendantsOf(before, old.id, old.type) : QSet<QString>();
+    // A linked style's character style takes the paragraph style's look when that changes (the file's pair stays as it is otherwise).
+    std::optional<Style> twin;
+    QSet<QString> twinRuns;
+    if (s.type == QLatin1String("paragraph") && !s.link.isEmpty() && !(s.rPr == old.rPr && s.qFormat == old.qFormat))
+        if (const Style *t = before.find(s.link); t && t->type == QLatin1String("character") && t->link == s.id) {
+            Style changed = *t;
+            changed.rPr = s.rPr;
+            changed.qFormat = s.qFormat;
+            changed.raw.clear();
+            twin = changed;
+            twinRuns = descendantsOf(before, t->id, t->type);
+        }
     QTextCursor edit(doc.story());
     edit.beginEditBlock();
     addBuiltinInStep(doc, s.basedOn);
     addBuiltinInStep(doc, s.next);
     doc.putStyle(s);
-    restyleText(doc, before, paragraphs, characters);
+    if (twin) doc.putStyle(*twin);
+    restyleText(doc, before, paragraphs, characters | twinRuns);
     touchStyles(doc);
     edit.endEditBlock();
     if (!doc.settleStyleEdit()) return fail(QCoreApplication::translate("jp::write::Styles", "The document keeps no history, so the style was not changed."));

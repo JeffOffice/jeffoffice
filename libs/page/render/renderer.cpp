@@ -977,6 +977,7 @@ static void paintText(QPainter *p, const PaintContext &ctx, const TextItem &t)
         PaintOptions po;
         po.shadeFields = ctx.opt.shadeFields;
         po.showSpecial = ctx.opt.showSpecial;
+        po.specialKinds = ctx.opt.specialKinds;
         po.output = ctx.opt.textOutput;
         po.plainLinesOnly = ctx.opt.plainLinesOnly;
         const QVector<TextItem *> chain = ctx.doc->chainOf(t.id);
@@ -1232,6 +1233,7 @@ static void paintShape(QPainter *p, const PaintContext &ctx, const ShapeItem &s)
             PaintOptions po;
             po.shadeFields = ctx.opt.shadeFields;
             po.showSpecial = ctx.opt.showSpecial;
+        po.specialKinds = ctx.opt.specialKinds;
             po.output = ctx.opt.textOutput;
             if (ctx.opt.editStory == s.storyId) { po.selFrom = ctx.opt.selFrom; po.selTo = ctx.opt.selTo; }
             if (ctx.opt.found.contains(s.storyId)) po.found = ctx.opt.found.value(s.storyId);
@@ -1347,6 +1349,7 @@ static void paintTable(QPainter *p, const PaintContext &ctx, const TableItem &t)
                 PaintOptions po;
                 po.shadeFields = ctx.opt.shadeFields;
                 po.showSpecial = ctx.opt.showSpecial;
+        po.specialKinds = ctx.opt.specialKinds;
                 po.output = ctx.opt.textOutput;
                 if (ctx.opt.editStory == c.halfStory(half)) { po.selFrom = ctx.opt.selFrom; po.selTo = ctx.opt.selTo; }
                 if (ctx.opt.found.contains(c.halfStory(half))) po.found = ctx.opt.found.value(c.halfStory(half));
