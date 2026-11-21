@@ -1215,7 +1215,8 @@ private Q_SLOTS:
         // The engine's field is worked out once for each place it shows (here a page of its own), however often the pass asks.
         auto cost = [&](int page, int times) {
             auto fresh = std::make_shared<jp::FieldWork>();
-            for (int i = 0; i < times; ++i) QCOMPARE(at(fresh, page).resolve(numpages), QStringLiteral("4"));
+            for (int i = 0; i < times; ++i)
+                if (at(fresh, page).resolve(numpages) != QStringLiteral("4")) return qint64(-1);
             return fresh->spent.load();
         };
         const qint64 once = cost(1, 1);
