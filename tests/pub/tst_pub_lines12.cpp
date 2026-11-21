@@ -895,6 +895,36 @@ private Q_SLOTS:
         ed->mergeStepHook = nullptr;
     }
 
+    // The busy box going leaves what others hung on its destroyed signal (the style sheet holds one): only its own connections are cut.
+    void whatOthersHungOnTheBusyBoxSurvivesItsEnd()
+    {
+        jp::MainWindow w;
+        w.resize(1200, 900);
+        w.show();
+        jp::Editor *ed = w.editor();
+        ed->setDocument(jp::Document::blank(QSizeF(612, 792)));
+        QStringList ids;
+        for (int i = 0; i < 3; ++i) {
+            ids << addShape(ed, QRectF(10, 10, 100, 100));
+            shapeAt(ed, i)->customPath = scribble(150, 7 + i);
+        }
+        ed->select(ids);
+        QObject sink;
+        int boxGone = 0;
+        bool hung = false;
+        connect(ed, &jp::Editor::busyStarted, &sink, [&](const QString &, std::atomic<bool> *) {
+            auto *box = w.findChild<QDialog *>(QStringLiteral("busyBox"));
+            if (!box) return;
+            hung = true;
+            connect(box, &QObject::destroyed, &sink, [&boxGone] { ++boxGone; });
+        });
+        QString why;
+        int made = 0;
+        QVERIFY2(ed->mergeShapes(jp::pathops::Op::Union, &why, &made), qPrintable(why));
+        QVERIFY(hung);
+        QTRY_COMPARE(boxGone, 1);
+    }
+
     // Every outline a merge makes is closed (it ends where it began), so that the stroke of one joins at its start: a fragment of ovals and a rectangle had open ones.
     void mergeResultsAreClosedOutlines()
     {
