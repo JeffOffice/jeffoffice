@@ -54,6 +54,7 @@ void WriteWindow::createStyleActions()
     }, true);
     painter->setToolTip(tr("Copy Formatting: click to paint once, double-click to keep painting, and press Esc to stop."));
     mk("fmt.stopHighlighting", tr("Stop Highlighting"), "", QKeySequence(), [this] { stopHighlighting(); });
+    act(QStringLiteral("fmt.stopHighlighting"))->setEnabled(false);
     mk("edit.copyFormat", tr("Copy Format"), "", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_C), [this] {
         if (!m_doc) return;
         m_brush = write::copyFormat(*m_doc, m_view->cursor());
@@ -134,6 +135,7 @@ void WriteWindow::startHighlighting(const QString &name)
     if (m_painter != PainterMode::Off) setPainterMode(PainterMode::Off);
     m_highlighting = true;
     m_highlightName = name;
+    act(QStringLiteral("fmt.stopHighlighting"))->setEnabled(true);
     m_view->setTextDragAllowed(false);
     statusBar()->showMessage(tr("Highlighting: select the text to highlight. Choose Stop Highlighting or press Esc to stop."));
 }
@@ -143,6 +145,7 @@ void WriteWindow::stopHighlighting()
     if (!m_highlighting) return;
     m_highlighting = false;
     m_highlightName.clear();
+    act(QStringLiteral("fmt.stopHighlighting"))->setEnabled(false);
     m_view->setTextDragAllowed(m_painter == PainterMode::Off);
     statusBar()->clearMessage();
 }

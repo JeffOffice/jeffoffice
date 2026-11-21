@@ -586,6 +586,7 @@ void WriteWindow::refreshUi()
     }
     QTextCursor &c = m_view->cursor();
     act("edit.undo")->setEnabled(m_doc->canUndo());
+    act(QStringLiteral("fmt.stopHighlighting"))->setEnabled(m_highlighting);
     act("edit.redo")->setEnabled(m_doc->canRedo());
     for (const char *id : {"edit.cut", "edit.copy"}) act(QString::fromLatin1(id))->setEnabled(c.hasSelection());
     // The look of the selection (of its start, when it is long): checked when all of it has it.

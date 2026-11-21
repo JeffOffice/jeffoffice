@@ -1379,6 +1379,8 @@ void WriteTests::pointerHighlightingStaysOnUntilStopHighlightingOrEscapeAndEachS
     PageView *view = w->view();
     QAction *stop = w->act(QStringLiteral("fmt.stopHighlighting"));
     QVERIFY(stop);
+    w->refreshNow();
+    QVERIFY(!stop->isEnabled());
     QVERIFY(!w->highlighting());
     const QString yellow = write::highlightNames().first();
     auto highlighted = [&](int at) { return !styCharAt(*w->document(), at).stringProperty(tp::HighlightRefP).isEmpty(); };
@@ -1394,6 +1396,9 @@ void WriteTests::pointerHighlightingStaysOnUntilStopHighlightingOrEscapeAndEachS
     QCOMPARE(w->document()->nextStepSerial(), start);
     w->startHighlighting(yellow);
     QVERIFY(w->highlighting());
+    QVERIFY(stop->isEnabled());
+    w->refreshNow();
+    QVERIFY(stop->isEnabled());
     drag(6, 10);
     drag(23, 30);
     QVERIFY(highlighted(7));
