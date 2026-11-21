@@ -1264,6 +1264,7 @@ const StoryLayout *Renderer::shapeTextLayout(const PaintContext &ctx, const Shap
     spec.ctx.doc = ctx.doc;
     spec.ctx.pageNumber = ctx.pageNumber;
     spec.ctx.pageCount = ctx.pageCount;
+    spec.ctx.work = ctx.fieldWork;
     spec.ctx.mergeRecord = ctx.opt.mergeRecord;
     if (origin) *origin = tr.topLeft();
     // A shape that says its text shrinks to fit has it at the scale the file gives (and the spacing taken off), as a text box's does.
@@ -1288,6 +1289,7 @@ const StoryLayout *Renderer::cellLayout(const PaintContext &ctx, const TableItem
     spec.ctx.doc = ctx.doc;
     spec.ctx.pageNumber = ctx.pageNumber;
     spec.ctx.pageCount = ctx.pageCount;
+    spec.ctx.work = ctx.fieldWork;
     spec.ctx.mergeRecord = ctx.opt.mergeRecord;
     // A half of a divided cell wraps its text around the other half. Turned text is laid out on its side.
     if (c.divided()) {
@@ -2059,6 +2061,7 @@ void Renderer::paintPage(QPainter *p, const PaintContext &ctx, int pageIndex)
     PaintContext c = ctx;
     c.pageNumber = pageIndex + 1;
     c.pageCount = doc.pages.size();
+    c.fieldWork = std::make_shared<FieldWork>();
     const QRectF pr(QPointF(0, 0), doc.pageSize());
     MasterPage *m = doc.masterFor(pg);
     const QVector<MasterPage *> chain = doc.masterChain(m);

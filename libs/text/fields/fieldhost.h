@@ -39,10 +39,18 @@ public:
 // The Env that answers from the host (it holds nothing of the host's but what it asks: keep the host alive while the Env is used).
 Env makeEnv(const FieldHost &host);
 // The result of the instruction ("PAGE \* roman"), or none where the engine leaves it as it is.
-std::optional<QString> evaluate(const FieldHost &host, const QString &instruction);
+// With `work`, the steps the evaluation took are added to it, counted in the engine's own units: one and a letter for each character of the code, the steps of a formula, and the
+// steps of the wildcard matches of IF.
+struct Work {
+    qint64 steps = 0;
+};
+std::optional<QString> evaluate(const FieldHost &host, const QString &instruction, Work *work = nullptr);
 
 // A date or time in a format of the Qt letters libs/text keeps its codes in ("M/d/yyyy h:mm AP"), worked out by the engine's date picture; none where the format has a
 // letter the picture has no equal for (then the caller shows it as before). The one implementation of date pictures, for the field engine and for formatters like the merge's.
 std::optional<QString> dateFromQtFormat(const QDateTime &when, const QString &format, const QLocale &locale);
+// Whether a field of this kind ("date", "time", "datetime") shows a format's letters all: a date field shows no time letters and a time field no date letters in the old way, so the
+// engine, which shows every letter, is used only where the format has no letter the kind leaves out.
+bool dateFieldKindFits(const QString &kind, const QString &format);
 
 } // namespace jp::fields

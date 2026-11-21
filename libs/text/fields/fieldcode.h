@@ -99,6 +99,7 @@ struct Env {
     QLocale locale;   // the language of the names of months and days a date shows: the field's own where the document says it, else the program's
     std::function<std::optional<BookmarkInfo>(const QString &)> bookmark;
     std::function<void(const QString &name, BookmarkInfo *)> bookmarkPage;   // fills `page` and `pageIndex` of a bookmark's info (asked only when a page number is shown)
+    qint64 globSteps = 0;                                                    // the steps the wildcard matcher of IF has taken in this evaluation (counted here; each match has its own bound)
     qint64 *formulaBudget = nullptr;                                         // the steps the formulas of the pass have left (see evaluateFormula)
     std::function<std::optional<QString>(const QString &name, const Code &code)> noteNumber;    // NOTEREF: the number of the note the bookmark holds the reference of
     std::function<std::optional<QString>(const QString &style, const Code &code)> styleRef;     // STYLEREF
@@ -120,7 +121,7 @@ std::optional<QString> compute(const Code &code, Env &env);
 bool dependsOnTheMachine(const QString &name);
 // The fields this engine works out.
 bool isKnown(const QString &name);
-// Counted work, for tests: the steps the glob matcher of IF has taken since the count was reset.
+// Counted work, for tests: the steps the glob matcher of IF has taken in all evaluations since the count was reset (a tally for tests only; the engine's own is Env::globSteps).
 qint64 globStepsForTest();
 void resetGlobStepsForTest();
 // The text a reference shows when what it refers to is missing.

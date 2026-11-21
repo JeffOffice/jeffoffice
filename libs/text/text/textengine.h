@@ -7,18 +7,20 @@
 
 #include "core/color.h"
 #include "core/valign.h"
-#include "fields/fieldcode.h"
 #include "text/textprops.h"
 
 #include <QDateTime>
 #include <QFont>
 #include <QHash>
+#include <QLocale>
+#include <QMutex>
 #include <QLineF>
 #include <QPolygonF>
 #include <QSizeF>
 #include <QStringList>
 #include <QTextBlock>
 #include <QTextLayout>
+#include <atomic>
 #include <functional>
 #include <memory>
 
@@ -26,6 +28,7 @@ class QPainter;
 class QTextDocument;
 
 namespace jp {
+namespace fields { struct Properties; }
 
 // What fields and notes read from the publication they're in: its page
 // numbering, business information, mail merge, and the text of its stories
@@ -82,7 +85,7 @@ public:
     virtual int bookmarkPosition(const QString &name) const { Q_UNUSED(name) return -1; }
     virtual QString pageRefText(const QString &bookmark) const { Q_UNUSED(bookmark) return QString(); }
     // The properties of the document a field of the shared engine shows (a title, an author, the file name): empty for a document that has none.
-    virtual fields::Properties fieldProperties() const { return fields::Properties(); }
+    virtual fields::Properties fieldProperties() const;
 };
 
 // A page's number as a field shows it, in a format ("", "roman", "ROMAN", "alpha", "ALPHA", "dash", or a w:numFmt value of libs/base/text/numbersystems.h: "thaiNumbers"...).
@@ -97,8 +100,21 @@ double originalAverageCharEm(const QString &family, bool bold, bool italic);
 QDateTime fieldNow();
 void setFieldClock(const QDateTime &moment);
 
+// The work the fields of one layout pass share: the steps the shared field engine may take for all of them together (a file can carry any number of fields, each of which may take the most
+// one may), and the texts already worked out for a code (the same code in many stories is worked out once). The passes that make one (a page being painted) hand it to every context they
+// make; a field with no pass of its own (`FieldContext::work` null) has the whole budget to itself and is worked out each time.
+constexpr qint64 kMostFieldPassSteps = 2000000;
+struct FieldWork {
+    std::atomic<qint64> left{kMostFieldPassSteps};
+    std::atomic<qint64> spent{0};
+    QMutex lock;
+    QHash<QString, QString> shown;   // by code and place, at most kMostFieldTexts of them
+};
+constexpr int kMostFieldTexts = 4096;
+
 struct FieldContext {
     const FieldSource *doc = nullptr;
+    std::shared_ptr<FieldWork> work;   // the pass this belongs to (null: none)
     int pageNumber = 1;           // 1-based
     int pageCount = 1;
     int mergeRecord = -1;         // -1 shows «Field» codes
@@ -665,6 +681,13 @@ QString makeDateFieldCode(const QString &kind, const QString &format, const QStr
 QString dateFieldKindOf(const QString &format);
 // The date, the time, or both of `moment` in the format and the language (the program's own for an empty one).
 QString dateFieldText(const QString &kind, const QString &format, const QString &language, const QDateTime &moment);
+// What a date field's code ("date:M/d/yyyy|de-DE") shows at the moment: the shared field engine's text where it is the same as dateFieldText's by construction, else dateFieldText's. A code with
+// no language of its own shows in `noLanguage` (the program passes the system's).
+QString dateFieldTextOf(const QString &code, const QDateTime &moment, const QLocale &noLanguage);
+// The type text a presentation file of the newer kind gives a field of the shared engine ("fld:TITLE": "jo-title"; section 21.1.2.2.4 of the standard's part 1 reserves only two types and
+// allows other text), and the code a type text stands for; empty for one that is not ours.
+QString engineFieldType(const QString &code);
+QString engineFieldCode(const QString &type);
 // The languages the Date and Time dialogs offer (the program's languages and common ones), a tag and the name in that language itself, and the
 // formats to offer in one (its own short and long dates, then the usual ones).
 struct DateLanguage {

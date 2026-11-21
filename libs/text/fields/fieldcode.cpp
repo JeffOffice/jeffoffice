@@ -7,6 +7,7 @@
 #include <QCoreApplication>
 #include <QHash>
 #include <QRegularExpression>
+#include <QScopeGuard>
 #include <QSet>
 #include <algorithm>
 #include <cmath>
@@ -17,7 +18,8 @@ namespace jp::fields {
 namespace {
 
 constexpr qint64 kMostSequence = 2147483647;
-qint64 g_globSteps = 0;
+// Test-only tally of the glob matcher's steps over all evaluations (relaxed, written once per match); the engine's own count is Env::globSteps.
+std::atomic<qint64> g_testGlobSteps{0};
 
 bool isSwitchToken(const QString &t) { return t.size() >= 2 && t[0] == QLatin1Char('\\'); }
 
@@ -919,14 +921,17 @@ bool numberOf(const QString &s, double *v)
 
 // A pattern with * (any run) and ? (any one character), compared without regard to case, in time at most the product of the two lengths; past that many steps (a pattern and a text that
 // are both huge) it says there is no match.
-bool wildcardMatch(const QString &pattern, const QString &text)
+bool wildcardMatch(const QString &pattern, const QString &text, Env &env)
 {
     const qsizetype m = pattern.size(), n = text.size();
     const qint64 most = qint64(kMostCodeChars) * kMostCodeChars;
     qint64 steps = 0;
+    const auto done = qScopeGuard([&] {
+        env.globSteps += steps;
+        g_testGlobSteps.fetch_add(steps, std::memory_order_relaxed);
+    });
     qsizetype p = 0, t = 0, star = -1, mark = 0;
     while (t < n) {
-        ++g_globSteps;
         if (++steps > most) return false;
         if (p < m && pattern[p] == QLatin1Char('*')) {
             while (p < m && pattern[p] == QLatin1Char('*')) ++p;   // (a run of stars is one)
@@ -947,10 +952,10 @@ bool wildcardMatch(const QString &pattern, const QString &text)
 }
 
 // Whether the pattern has a wildcard at all; if it has none, the whole of the two strings are compared.
-bool matches(const QString &pattern, const QString &text)
+bool matches(const QString &pattern, const QString &text, Env &env)
 {
     if (!pattern.contains(QLatin1Char('*')) && !pattern.contains(QLatin1Char('?'))) return pattern.size() == text.size() && pattern.compare(text, Qt::CaseInsensitive) == 0;
-    return wildcardMatch(pattern, text);
+    return wildcardMatch(pattern, text, env);
 }
 
 std::optional<QString> propertyValue(const Properties &p, const QString &nameIn, const Code &code, const QLocale &locale)
@@ -1032,7 +1037,7 @@ std::optional<QString> sequenceText(const Code &code, Env &env)
     return formatNumber(counter, code.general);
 }
 
-std::optional<QString> condition(const Code &code)
+std::optional<QString> condition(const Code &code, Env &env)
 {
     QStringList w = code.arguments;
     if (w.size() != 5) return std::nullopt;
@@ -1040,8 +1045,8 @@ std::optional<QString> condition(const Code &code)
     double a = 0, b = 0;
     const bool numeric = numberOf(w[0], &a) && numberOf(w[2], &b);
     bool result;
-    if (op == QLatin1String("=")) result = numeric ? a == b : matches(w[2], w[0]);
-    else if (op == QLatin1String("<>")) result = numeric ? a != b : !matches(w[2], w[0]);
+    if (op == QLatin1String("=")) result = numeric ? a == b : matches(w[2], w[0], env);
+    else if (op == QLatin1String("<>")) result = numeric ? a != b : !matches(w[2], w[0], env);
     else if (op == QLatin1String("<")) result = numeric ? a < b : w[0].compare(w[2], Qt::CaseInsensitive) < 0;
     else if (op == QLatin1String("<=")) result = numeric ? a <= b : w[0].compare(w[2], Qt::CaseInsensitive) <= 0;
     else if (op == QLatin1String(">")) result = numeric ? a > b : w[0].compare(w[2], Qt::CaseInsensitive) > 0;
@@ -1052,8 +1057,8 @@ std::optional<QString> condition(const Code &code)
 
 } // namespace
 
-qint64 globStepsForTest() { return g_globSteps; }
-void resetGlobStepsForTest() { g_globSteps = 0; }
+qint64 globStepsForTest() { return g_testGlobSteps.load(std::memory_order_relaxed); }
+void resetGlobStepsForTest() { g_testGlobSteps.store(0, std::memory_order_relaxed); }
 
 QString referenceSourceNotFound() { return QCoreApplication::translate("jp::write::Fields", "Error: the bookmark this refers to is missing."); }
 QString bookmarkNotDefined() { return QCoreApplication::translate("jp::write::Fields", "Error: no bookmark by this name."); }
@@ -1135,13 +1140,13 @@ std::optional<QString> compute(const Code &code, Env &env)
         return showNumber(code, size);
     }
     if (n == QLatin1String("QUOTE")) return formatText(code.arguments.join(QLatin1Char(' ')), code.general);
-    if (n == QLatin1String("IF")) return condition(code);
+    if (n == QLatin1String("IF")) return condition(code, env);
     if (n == QLatin1String("COMPARE")) {
         // (The same comparison as IF makes, shown as 1 for true and 0 for false.)
         if (code.arguments.size() != 3) return std::nullopt;
         Code asIf = code;
         asIf.arguments << QStringLiteral("1") << QStringLiteral("0");
-        return condition(asIf);
+        return condition(asIf, env);
     }
     if (n == QLatin1String("=")) {
         const std::optional<double> v = evaluateFormula(code.expression, env.number, env.formulaBudget, env.cells);

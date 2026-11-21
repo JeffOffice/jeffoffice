@@ -4,6 +4,7 @@
 #include "core/items.h"
 
 #include "core/fonts.h"
+#include "fields/fieldhost.h"
 #include "core/texteffects.h"
 #include "text/hyphenation.h"
 #include "text/numbersystems.h"
@@ -18,7 +19,6 @@
 #include <QFontMetricsF>
 #include <QJsonDocument>
 #include <QJsonObject>
-#include "fields/fieldhost.h"
 
 #include <QMutex>
 #include <QLinearGradient>
@@ -120,6 +120,8 @@ QString pageNumberText(int n, const QString &style)
     return QString::number(n);
 }
 
+fields::Properties FieldSource::fieldProperties() const { return fields::Properties(); }
+
 QString FieldContext::resolve(const QString &code, const QString &language) const
 {
     const QString kind = code.section(':', 0, 0);
@@ -158,7 +160,8 @@ QString FieldContext::resolve(const QString &code, const QString &language) cons
         return QString::number(total > 0 ? total : pageCount);
     }
     if (kind == QLatin1String("fld")) {
-        // A field of the shared engine (DOCPROPERTY, TITLE, AUTHOR, FILENAME, NUMPAGES...), worked out from the document's own answers.
+        // A field of the shared engine (DOCPROPERTY, TITLE, AUTHOR, FILENAME, NUMPAGES...), worked out from the document's own answers. The fields of a pass take at most its budget of
+        // steps together (past it a field shows nothing, as one the engine leaves as it is does), and a code at one place is worked out once.
         struct Host : fields::FieldHost {
             const FieldContext &ctx;
             explicit Host(const FieldContext &c) : ctx(c) {}
@@ -167,20 +170,30 @@ QString FieldContext::resolve(const QString &code, const QString &language) cons
             fields::Properties properties() const override { return ctx.doc ? ctx.doc->fieldProperties() : fields::Properties(); }
             QDateTime now() const override { return ctx.now; }
         } host(*this);
-        return fields::evaluate(host, arg).value_or(QString());
+        FieldWork alone;
+        FieldWork &pass = work ? *work : alone;
+        const QString place = QStringLiteral("%1/%2/%3/").arg(pageNumber).arg(pageCount).arg(now.toSecsSinceEpoch() / 60) + arg;
+        if (work) {
+            QMutexLocker hold(&pass.lock);
+            const auto known = pass.shown.constFind(place);
+            if (known != pass.shown.constEnd()) return *known;
+        }
+        if (pass.left.load() <= 0) return QString();
+        fields::Work cost;
+        const QString text = fields::evaluate(host, arg, &cost).value_or(QString());
+        pass.left -= cost.steps;
+        pass.spent += cost.steps;
+        if (work) {
+            QMutexLocker hold(&pass.lock);
+            if (pass.shown.size() < kMostFieldTexts) pass.shown.insert(place, text);
+        }
+        return text;
     }
     if (kind == "sectionpages") {
         const int total = doc ? doc->sectionPageTotal() : 0;
         return QString::number(total > 0 ? total : pageCount);
     }
-    if (kind == "date" || kind == "time" || kind == "datetime") {
-        const DateFieldCode dc = splitDateFieldCode(code);
-        const QString fallback = kind == "date" ? QStringLiteral("MMMM d, yyyy") : kind == "time" ? QStringLiteral("h:mm AP") : QStringLiteral("M/d/yyyy h:mm AP");
-        // The shared engine's date picture, where it has an equal for every letter of the format.
-        if (const auto text = fields::dateFromQtFormat(now, dc.format.isEmpty() ? fallback : dc.format, dc.language.isEmpty() ? QLocale::system() : QLocale(dc.language)))
-            return *text;
-        return dateFieldText(dc.kind, dc.format.isEmpty() ? fallback : dc.format, dc.language, now);
-    }
+    if (kind == "date" || kind == "time" || kind == "datetime") return dateFieldTextOf(code, now, QLocale::system());
     if (kind == "biz") {
         // "address:oneline" joins a multi-line value with commas, for use inside a line.
         const bool oneLine = arg.endsWith(QLatin1String(":oneline"));
@@ -288,6 +301,40 @@ QString dateFieldText(const QString &kind, const QString &format, const QString 
         return kind == QLatin1String("date") ? moment.date().toString(format) : kind == QLatin1String("time") ? moment.time().toString(format) : moment.toString(format);
     const QLocale locale(language);
     return kind == QLatin1String("date") ? locale.toString(moment.date(), format) : kind == QLatin1String("time") ? locale.toString(moment.time(), format) : locale.toString(moment, format);
+}
+
+QString dateFieldTextOf(const QString &code, const QDateTime &moment, const QLocale &noLanguage)
+{
+    const DateFieldCode dc = splitDateFieldCode(code);
+    const QString fallback = dc.kind == QLatin1String("date") ? QStringLiteral("MMMM d, yyyy") : dc.kind == QLatin1String("time") ? QStringLiteral("h:mm AP") : QStringLiteral("M/d/yyyy h:mm AP");
+    const QString format = dc.format.isEmpty() ? fallback : dc.format;
+    // The shared engine's date picture, where its text is the old way's by construction (see dateFromQtFormat); the old way otherwise.
+    if (fields::dateFieldKindFits(dc.kind, format))
+        if (const auto text = fields::dateFromQtFormat(moment, format, dc.language.isEmpty() || !isLanguageTag(dc.language) ? noLanguage : QLocale(dc.language))) return *text;
+    return dateFieldText(dc.kind, format, dc.language, moment);
+}
+
+namespace {
+const struct { QLatin1String type, code; } kEngineFieldTypes[] = {
+    {QLatin1String("jo-title"), QLatin1String("fld:TITLE")},
+    {QLatin1String("jo-author"), QLatin1String("fld:AUTHOR")},
+    {QLatin1String("jo-filename"), QLatin1String("fld:FILENAME")},
+    {QLatin1String("jo-slidecount"), QLatin1String("fld:NUMPAGES")},
+};
+} // namespace
+
+QString engineFieldType(const QString &code)
+{
+    for (const auto &t : kEngineFieldTypes)
+        if (code == t.code) return QString(t.type);
+    return QString();
+}
+
+QString engineFieldCode(const QString &type)
+{
+    for (const auto &t : kEngineFieldTypes)
+        if (type == t.type) return QString(t.code);
+    return QString();
 }
 
 QVector<DateLanguage> dateLanguages()

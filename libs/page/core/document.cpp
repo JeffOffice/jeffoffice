@@ -1,4 +1,5 @@
 #include "core/document.h"
+#include "fields/fieldcode.h"
 #include "office/connectionsites.h"
 #include "office/embeddedfonts.h"
 #include "core/remotepath.h"

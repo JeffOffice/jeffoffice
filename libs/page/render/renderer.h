@@ -119,6 +119,7 @@ struct PaintContext {
     RenderOptions opt;
     int pageNumber = 1;           // 1-based number of the page being drawn
     int pageCount = 1;
+    std::shared_ptr<FieldWork> fieldWork;   // the budget and the texts of the fields of the page being drawn (paintPage makes one; null: each field has its own)
     // For a caller that moves things on a page (a slide show's animations).
     // Unset, a page is painted as it is. `around` is called for each of the
     // page's own objects, not the master pages' (and not when transparency is

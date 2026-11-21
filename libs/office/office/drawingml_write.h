@@ -38,7 +38,7 @@ struct DrawingWriteContext {
     // A picture's file bytes and format ("png", "jpeg", "emf"...) by image id.
     std::function<QByteArray(const QString &imageId, QString *format)> imageBytes;
     std::function<const QTextDocument *(const QString &storyId)> storyDoc;
-    // The words a field of the shared engine ("fld:TITLE") shows now: the standard has no field type for them (section 21.1.2.2.4 of the standard's part 1), so they are written as text.
+    // The words a field of the shared engine ("fld:TITLE") shows now: they are the cached text of a field with a type of ours (see engineFieldType).
     std::function<QString(const QString &code)> fieldText;
     // A movie's or sound's bytes, content type, and file extension by media
     // id (PictureItem::mediaId). Unset, a picture that plays one the file

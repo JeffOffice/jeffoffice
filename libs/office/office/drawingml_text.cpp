@@ -587,6 +587,8 @@ QString fieldCodeOfType(const QString &type);
 QString fieldCodeOf(const QString &type, const QString &language = QString())
 {
     const QString code = fieldCodeOfType(type);
+    // A field of the shared engine (a title, an author, a file name, the slides' number) has no language of its format.
+    if (code.startsWith(QLatin1String("fld:"))) return code;
     // A date in a language other than English is in the formats that language has for the type, and keeps the language.
     if (code.isEmpty() || type == QLatin1String("slidenum") || language.isEmpty() || language.compare(QLatin1String("en-US"), Qt::CaseInsensitive) == 0 || language.size() > 16) return code;
     DateFieldCode dc = splitDateFieldCode(code);
@@ -597,6 +599,7 @@ QString fieldCodeOf(const QString &type, const QString &language = QString())
 QString fieldCodeOfType(const QString &type)
 {
     if (type == QLatin1String("slidenum")) return QStringLiteral("page");
+    if (const QString own = engineFieldCode(type); !own.isEmpty()) return own;
     static const struct { QLatin1String type, code; } dates[] = {
         {QLatin1String("datetime"), QLatin1String("date:M/d/yyyy")},
         {QLatin1String("datetime1"), QLatin1String("date:M/d/yyyy")},
@@ -850,7 +853,7 @@ void Reader::paragraph(const QDomElement &p)
         const QString fieldLanguage = rPr.isNull() ? QString() : at(rPr, QLatin1String("lang"));
         QString code = isField ? fieldCodeOf(at(c, QLatin1String("type")), fieldLanguage) : QString();
         // A presentation file of the open document kind keeps a date's own format on the field (jpfmt), as the other kind of file has no place for one.
-        if (!code.isEmpty() && code != QLatin1String("page")) {
+        if (!code.isEmpty() && code != QLatin1String("page") && !code.startsWith(QLatin1String("fld:"))) {
             const QString own = at(c, QLatin1String("jpfmt"));
             if (!own.isEmpty() && own.size() <= 64) {
                 code = makeDateFieldCode(dateFieldKindOf(own), own, fieldLanguage.compare(QLatin1String("en-US"), Qt::CaseInsensitive) == 0 ? QString() : fieldLanguage);
