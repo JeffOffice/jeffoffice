@@ -23267,7 +23267,7 @@ Sumber: %3</translation>
         <translation type="unfinished">Buku kerja baru sedang disiapkan. Dapat diubah sebentar lagi.</translation>
     </message>
     <message>
-        <location line="+134"/>
+        <location line="+135"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+888"/>
         <location filename="../apps/crunch/app/crunchwindow_windows.cpp" line="+108"/>
         <source>%1 (%2)</source>
@@ -23357,8 +23357,8 @@ Sumber: %3</translation>
         <translation type="unfinished">Jumlah</translation>
     </message>
     <message>
-        <location line="-261"/>
-        <location line="+280"/>
+        <location line="-262"/>
+        <location line="+281"/>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="+190"/>
         <location filename="../apps/crunch/app/crunchwindow_cells.cpp" line="+117"/>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="+187"/>
@@ -23601,12 +23601,12 @@ Sumber: %3</translation>
         <translation type="unfinished">Tawarkan untuk melengkapi teks dari sel di atas dan di bawah (Pelengkapan Otomatis)</translation>
     </message>
     <message>
-        <location line="-486"/>
+        <location line="-487"/>
         <source>End</source>
         <translation type="unfinished">Akhir</translation>
     </message>
     <message>
-        <location line="+380"/>
+        <location line="+381"/>
         <location line="+2"/>
         <source>Repeat</source>
         <translation type="unfinished">Ulangi</translation>
@@ -33964,7 +33964,7 @@ Berkas tidak dapat dibaca.</translation>
         <translation type="unfinished">Presentasi1</translation>
     </message>
     <message>
-        <location line="+190"/>
+        <location line="+192"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
@@ -50931,7 +50931,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <name>jp::OutlineView</name>
     <message>
         <location filename="../apps/deck/app/outlineview.cpp" line="+229"/>
-        <location line="+196"/>
+        <location line="+207"/>
         <location line="+191"/>
         <source>Outline</source>
         <translation type="unfinished">Garis Besar</translation>

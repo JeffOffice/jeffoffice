@@ -23282,20 +23282,20 @@ Source : %3</translation>
 <context>
     <name>jp::CrunchWindow</name>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+327"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+328"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+888"/>
         <location filename="../apps/crunch/app/crunchwindow_windows.cpp" line="+108"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
     <message>
-        <location line="-134"/>
+        <location line="-135"/>
         <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+197"/>
         <source>The new workbook is getting ready. It can be changed in a moment.</source>
         <translation type="unfinished">Le nouveau classeur est en cours de préparation. Il pourra être modifié dans un instant.</translation>
     </message>
     <message>
-        <location line="+190"/>
+        <location line="+191"/>
         <source>Name box</source>
         <translation type="unfinished">Zone Nom</translation>
     </message>
@@ -23356,8 +23356,8 @@ Source : %3</translation>
         <translation>Maximum</translation>
     </message>
     <message>
-        <location line="-261"/>
-        <location line="+280"/>
+        <location line="-262"/>
+        <location line="+281"/>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="+190"/>
         <location filename="../apps/crunch/app/crunchwindow_cells.cpp" line="+117"/>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="+187"/>
@@ -23392,12 +23392,12 @@ Source : %3</translation>
         <translation type="unfinished">Prêt</translation>
     </message>
     <message>
-        <location line="-280"/>
+        <location line="-281"/>
         <source>End</source>
         <translation type="unfinished">Fin</translation>
     </message>
     <message>
-        <location line="+317"/>
+        <location line="+318"/>
         <source>Zoom</source>
         <translation>Zoom</translation>
     </message>
@@ -34003,7 +34003,7 @@ Le fichier est illisible.</translation>
         <translation type="unfinished">Présentation1</translation>
     </message>
     <message>
-        <location line="+190"/>
+        <location line="+192"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
@@ -50983,7 +50983,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     <name>jp::OutlineView</name>
     <message>
         <location filename="../apps/deck/app/outlineview.cpp" line="+229"/>
-        <location line="+196"/>
+        <location line="+207"/>
         <location line="+191"/>
         <source>Outline</source>
         <translation type="unfinished">Plan</translation>

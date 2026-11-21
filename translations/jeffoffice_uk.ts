@@ -23309,7 +23309,7 @@ Source: %3</source>
         <translation type="unfinished">Нова книга готується. Її можна буде змінити за мить.</translation>
     </message>
     <message>
-        <location line="+134"/>
+        <location line="+135"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+888"/>
         <location filename="../apps/crunch/app/crunchwindow_windows.cpp" line="+108"/>
         <source>%1 (%2)</source>
@@ -23399,8 +23399,8 @@ Source: %3</source>
         <translation type="unfinished">Сума</translation>
     </message>
     <message>
-        <location line="-261"/>
-        <location line="+280"/>
+        <location line="-262"/>
+        <location line="+281"/>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="+190"/>
         <location filename="../apps/crunch/app/crunchwindow_cells.cpp" line="+117"/>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="+187"/>
@@ -23643,12 +23643,12 @@ Source: %3</source>
         <translation type="unfinished">Пропонувати завершити текст із комірок вище й нижче (автозавершення)</translation>
     </message>
     <message>
-        <location line="-486"/>
+        <location line="-487"/>
         <source>End</source>
         <translation type="unfinished">Кінець</translation>
     </message>
     <message>
-        <location line="+380"/>
+        <location line="+381"/>
         <location line="+2"/>
         <source>Repeat</source>
         <translation type="unfinished">Повтор</translation>
@@ -34042,7 +34042,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Презентація 1</translation>
     </message>
     <message>
-        <location line="+190"/>
+        <location line="+192"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
@@ -51035,7 +51035,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <name>jp::OutlineView</name>
     <message>
         <location filename="../apps/deck/app/outlineview.cpp" line="+229"/>
-        <location line="+196"/>
+        <location line="+207"/>
         <location line="+191"/>
         <source>Outline</source>
         <translation type="unfinished">Структура</translation>

@@ -23282,20 +23282,20 @@ Origine: %3</translation>
 <context>
     <name>jp::CrunchWindow</name>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+327"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+328"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+888"/>
         <location filename="../apps/crunch/app/crunchwindow_windows.cpp" line="+108"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
     <message>
-        <location line="-134"/>
+        <location line="-135"/>
         <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+197"/>
         <source>The new workbook is getting ready. It can be changed in a moment.</source>
         <translation type="unfinished">La nuova cartella di lavoro è in preparazione. Sarà possibile modificarla tra un istante.</translation>
     </message>
     <message>
-        <location line="+190"/>
+        <location line="+191"/>
         <source>Name box</source>
         <translation type="unfinished">Casella Nome</translation>
     </message>
@@ -23356,8 +23356,8 @@ Origine: %3</translation>
         <translation>Massimo</translation>
     </message>
     <message>
-        <location line="-261"/>
-        <location line="+280"/>
+        <location line="-262"/>
+        <location line="+281"/>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="+190"/>
         <location filename="../apps/crunch/app/crunchwindow_cells.cpp" line="+117"/>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="+187"/>
@@ -23392,12 +23392,12 @@ Origine: %3</translation>
         <translation type="unfinished">Pronto</translation>
     </message>
     <message>
-        <location line="-280"/>
+        <location line="-281"/>
         <source>End</source>
         <translation type="unfinished">Fine</translation>
     </message>
     <message>
-        <location line="+317"/>
+        <location line="+318"/>
         <source>Zoom</source>
         <translation>Zoom</translation>
     </message>
@@ -34003,7 +34003,7 @@ Impossibile leggere il file.</translation>
         <translation type="unfinished">Presentazione1</translation>
     </message>
     <message>
-        <location line="+190"/>
+        <location line="+192"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
@@ -50983,7 +50983,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     <name>jp::OutlineView</name>
     <message>
         <location filename="../apps/deck/app/outlineview.cpp" line="+229"/>
-        <location line="+196"/>
+        <location line="+207"/>
         <location line="+191"/>
         <source>Outline</source>
         <translation type="unfinished">Contorno</translation>
