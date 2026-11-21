@@ -283,7 +283,7 @@ private:
         int supbook, first, last;
     };
     QVector<Xti> m_xtis;
-    QHash<qint64, int> m_xtiIndex;
+    QHash<quint64, int> m_xtiIndex;
     // the other workbooks formulas read ("[1]Sheet1!A1"): each link's address and the sheets formulas name, as the file's book records list them
     std::shared_ptr<ExternalBooks> m_links;
     QVector<QStringList> m_linkSheets;
@@ -546,7 +546,7 @@ private:
     }
     int linkXtiFor(int book, int first, int last)
     {
-        const qint64 key = (qint64(book) << 40) | (qint64(first) << 20) | qint64(last);
+        const quint64 key = (quint64(quint32(book)) << 40) | (quint64(quint16(first)) << 20) | quint64(quint16(last));   // (no sheet, -1, is written as 0xFFFF: it is packed as that)
         auto it = m_xtiIndex.constFind(key);
         if (it != m_xtiIndex.cend()) return it.value();
         if (m_xtis.size() >= 60000 || book > kMaxLinks) return -1;
@@ -558,7 +558,7 @@ private:
 
     int xtiFor(int first, int last)
     {
-        const qint64 key = (qint64(first) << 20) | qint64(last);
+        const quint64 key = (quint64(quint16(first)) << 20) | quint64(quint16(last));   // (-1, a sheet that is not there, is written as 0xFFFF and packed as that)
         auto it = m_xtiIndex.constFind(key);
         if (it != m_xtiIndex.cend()) return it.value();
         if (m_xtis.size() >= 60000) return -1;

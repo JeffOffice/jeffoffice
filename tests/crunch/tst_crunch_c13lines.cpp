@@ -12,6 +12,7 @@
 #include "sheet/sheetreader.h"
 
 #include "app/undohistory.h"
+#include "../sheet/sheethelpers.h"
 
 #include <QAction>
 #include <QFile>
@@ -237,6 +238,34 @@ private Q_SLOTS:
         QCOMPARE(e.win.w.undoStack()->index(), top - 1);
         QVERIFY(lookOf(e, QStringLiteral("A2")).bold && lookOf(e, QStringLiteral("A3")).bold);
         QVERIFY(!lookOf(e, QStringLiteral("B1")).italic);
+    }
+
+    // The old binary form's list of sheets a formula names writes a reference to a sheet that is not there with the place 0xFFFF (sheet index -1 is packed unsigned, no shift of a negative number),
+    // and a 3-D range of sheets and a formula of the other sheet are written beside it; the window's save and open keep them.
+    void theOldFormatSaveWritesAReferenceToAMissingSheet()
+    {
+        EditWindow e;
+        const QString one = QStringLiteral("<row r=\"1\"><c r=\"A1\"><f>Gone!A1</f><v>0</v></c><c r=\"B1\"><f>SUM(Sheet1:Sheet2!A2)</f><v>3</v></c><c r=\"C1\"><f>Sheet2!A2*2</f><v>4</v></c></row>"
+                                            "<row r=\"2\"><c r=\"A2\"><v>1</v></c></row>");
+        const QString two = QStringLiteral("<row r=\"2\"><c r=\"A2\"><v>2</v></c></row>");
+        QVERIFY(e.open(buildXlsx({worksheet(one), worksheet(two)}, QByteArray(), QString(), QString(), QByteArray())));
+        QVERIFY(e.settle());
+        const QString path = e.folder.dir.filePath(QStringLiteral("gone.xls"));
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        e.win.w.setLossAsker([](const QString &, const QString &) { return CrunchWindow::LossAnswer::Continue; });
+        QVERIFY(e.win.w.saveAs(path, true));
+        QTRY_VERIFY_WITH_TIMEOUT(!e.win.w.isSaving(), 60000);
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray bytes = f.readAll();
+        f.close();
+        QVERIFY(bytes.startsWith(QByteArray::fromHex("d0cf11e0a1b11ae1")));
+        QVERIFY(bytes.contains(QByteArray::fromHex("0000ffffffff")));   // (the entry of the list for a sheet that is gone: this workbook, from 0xFFFF to 0xFFFF)
+        EditWindow again;
+        QVERIFY(again.open(bytes, QStringLiteral("gone.xls")));
+        QVERIFY(again.settle());
+        QCOMPARE(again.valueAt(QStringLiteral("B1")), e.valueAt(QStringLiteral("B1")));
+        QCOMPARE(again.valueAt(QStringLiteral("C1")), e.valueAt(QStringLiteral("C1")));
     }
 };
 
