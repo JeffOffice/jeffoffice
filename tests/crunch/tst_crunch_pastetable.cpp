@@ -42,7 +42,6 @@ private Q_SLOTS:
     // the cells show for their numbers.
     void aCopyOfStyledCellsPastesAsATableWithItsLook()
     {
-        
         EditWindow e;
         QVERIFY(e.open(sheetOf({"A1=Total", "B1=1234.5", "A2=plain", "B2=0.25"})));
         auto run = [&](const char *id) {
@@ -64,9 +63,16 @@ private Q_SLOTS:
         run("fmt.currency");
         e.select(QStringLiteral("B2"));
         run("fmt.percent");
+        // (a window an earlier class left may still publish its own copy from a 0 ms timer: clear first, wait for this copy's own HTML, and read the clipboard once)
+        QApplication::clipboard()->clear();
         copyRange(e, QStringLiteral("A1:B2"));
+        QTRY_VERIFY(QApplication::clipboard()->mimeData()->html().contains(QLatin1String("Archivo Black")));
+        QMimeData copied;
+        copied.setHtml(QApplication::clipboard()->mimeData()->html());
+        copied.setText(QApplication::clipboard()->mimeData()->text());
+        const QByteArray html = copied.html().toUtf8();
         jp::Editor ed;
-        QCOMPARE(ed.pasteHtmlTable(QApplication::clipboard()->mimeData()), jp::PastedTableResult::Ok);
+        QCOMPARE(ed.pasteHtmlTable(&copied), jp::PastedTableResult::Ok);
         auto *t = dynamic_cast<jp::TableItem *>(ed.doc()->pages[0]->items.back().get());
         QVERIFY(t);
         QCOMPARE(t->rows, 2);
@@ -76,8 +82,8 @@ private Q_SLOTS:
         QCOMPARE(story(0, 1)->toPlainText(), e.shownAt(QStringLiteral("B1")));
         QCOMPARE(story(1, 1)->toPlainText(), e.shownAt(QStringLiteral("B2")));
         QVERIFY(e.shownAt(QStringLiteral("B2")).contains(QLatin1Char('%')));
-        QCOMPARE(t->cell(0, 0).fill.color, jp::ColorRef::rgb(QColor(0xFF, 0xFF, 0x00)));
-        QVERIFY(t->cell(1, 0).fill.isNone());
+        QVERIFY2(t->cell(0, 0).fill.color == jp::ColorRef::rgb(QColor(0xFF, 0xFF, 0x00)), html.constData());
+        QVERIFY2(t->cell(1, 0).fill.isNone(), html.constData());
         QCOMPARE(t->cell(0, 0).border.left.color, jp::ColorRef::rgb(QColor(Qt::black)));
         QCOMPARE(t->cell(0, 0).border.bottom.width, 0.75);
         QVERIFY(t->cell(1, 0).border.left.isNone());
