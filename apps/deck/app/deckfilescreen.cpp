@@ -16,6 +16,7 @@
 #include "canvas/canvas.h"
 #include "core/appinfo.h"
 #include "core/deck.h"
+#include "core/themes.h"
 #include "io/deckoutput.h"
 #include "io/presentationdefaults.h"
 #include "render/renderer.h"
@@ -143,7 +144,9 @@ QWidget *DeckFileScreen::buildPage(const QString &key)
 }
 
 // ---------------- New ----------------
-void DeckFileScreen::startBlank()
+void DeckFileScreen::startBlank() { startFrom([] { return deck::newDefaultPresentation(); }); }
+
+void DeckFileScreen::startFrom(const std::function<std::unique_ptr<Document>()> &make)
 {
     // A new presentation nobody has touched gives way; any other stays, and
     // the new one opens in a window of its own (as Open does).
@@ -151,10 +154,13 @@ void DeckFileScreen::startBlank()
     Editor *ed = m_win->editor();
     ed->flushTyping();
     if (ed->isModified() || !ed->filePath().isEmpty()) {
-        m_win->act("file.new")->trigger();
+        auto *w = new DeckWindow();
+        w->setAttribute(Qt::WA_DeleteOnClose);
+        w->editor()->setDocument(make());
+        w->show();
     } else {
         ed->endTextEdit();
-        ed->setDocument(deck::newDefaultPresentation());
+        ed->setDocument(make());
         m_win->canvas()->zoomToFit(Canvas::Fit::WholePage);
     }
     Q_EMIT closeRequested();
@@ -179,6 +185,25 @@ QWidget *DeckFileScreen::buildNew()
     row->addWidget(tile);
     row->addStretch(1);
     v->addLayout(row);
+    // The built-in themes, each in its four variants, shown as the first slide of a presentation made in it.
+    v->addWidget(sectionLabel(tr("Themes"), w));
+    const QSize small(168, 105);
+    for (int theme = 0; theme < deck::builtinThemeCount(); ++theme) {
+        auto *themeRow = new QHBoxLayout();
+        const QVector<deck::Variant> variants = deck::builtinThemeVariants(theme);
+        for (int variant = 0; variant < int(variants.size()); ++variant) {
+            auto made = deck::themePresentation(theme, variant);
+            QImage shot = deck::slideImage(*made, &cache, 0, qRound((small.width() - 16) * dpr));
+            shot.setDevicePixelRatio(dpr);
+            auto *themed = new StartTile(variant == 0 ? deck::builtinThemeName(theme) : variants[size_t(variant)].colors.name,
+                                         paperPixmap(shot, small, dpr), w);
+            themed->setObjectName(QStringLiteral("themeTile%1_%2").arg(theme).arg(variant));
+            connect(themed, &QAbstractButton::clicked, this, [this, theme, variant] { startFrom([=] { return deck::themePresentation(theme, variant); }); });
+            themeRow->addWidget(themed);
+        }
+        themeRow->addStretch(1);
+        v->addLayout(themeRow);
+    }
     // The templates a person saved: a presentation made from one is a new presentation (the template stays as it was).
     v->addWidget(myTemplatesPanel(w, {QStringLiteral("*.potx"), QStringLiteral("*.otp")}, QStringLiteral("file"), [this](const QString &path) {
         m_win->openFile(path);
@@ -634,6 +659,13 @@ QWidget *DeckFileScreen::buildExport()
         if (m_win->exportSlidePicturesAsk()) Q_EMIT closeRequested();
     });
     v->addWidget(slides);
+    auto *pictureDeck = new ActionCard(QStringLiteral("images"), tr("Save as Presentation of Pictures"),
+                                       tr("A new presentation with every slide as one picture, with its notes. It looks the same everywhere, and its text can't be changed. You choose the width."), w);
+    pictureDeck->setObjectName(QStringLiteral("exportPicturePresentation"));
+    connect(pictureDeck, &QAbstractButton::clicked, this, [this] {
+        if (m_win->exportPicturePresentationAsk()) Q_EMIT closeRequested();
+    });
+    v->addWidget(pictureDeck);
     auto *mail = new ActionCard(QStringLiteral("mail"), tr("Make an Email"), tr("A message file with the presentation, or a PDF of it, in it. Open it in your email program, add who it is for, and send it."), w);
     mail->setObjectName(QStringLiteral("exportEmail"));
     connect(mail, &QAbstractButton::clicked, this, [this] {

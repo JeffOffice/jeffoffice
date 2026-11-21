@@ -4,9 +4,13 @@
 
 #include "app/filescreen.h"
 
+#include <functional>
+#include <memory>
+
 namespace jp {
 
 class DeckWindow;
+class Document;
 
 class DeckFileScreen : public FileScreen {
     Q_OBJECT
@@ -21,6 +25,7 @@ private:
     QWidget *buildExport();
     QWidget *buildAbout();
     void startBlank();
+    void startFrom(const std::function<std::unique_ptr<Document>()> &make);
     DeckWindow *m_win;
 };
 
