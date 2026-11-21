@@ -1745,7 +1745,7 @@ void WriteTests::anOutlinedBulletOfAMeasuredFontIsItsBoxOutlined()
 }
 
 
-// A section break in the middle of a long document lays out the pages around it, not those before it again; and Enter in a document of twenty
+// A section break in the middle of a long document lays out the pages around it, not those before it again; and Enter in a document of twelve
 // thousand sections makes no more than the sections it changed (counted, not timed).
 void WriteTests::editingSectionsTouchesOnlyWhatChanged()
 {
@@ -1760,18 +1760,18 @@ void WriteTests::editingSectionsTouchesOnlyWhatChanged()
     QVERIFY2(doc->pager().pagesLaidOut() - laid < 12, qPrintable(QString::number(doc->pager().pagesLaidOut() - laid)));
     QCOMPARE(doc->sectionCount(), 2);
     QVERIFY(doc->pager().pageCount() >= pages);   // (and the rest settles, one page more for the section's own)
-    // Twenty thousand sections.
+    // Twelve thousand sections (under the limit of sections a file is read to).
     QByteArray body;
     const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr>";
-    for (int i = 0; i < 20000; ++i) body += "<w:p><w:pPr>" + sect + "</w:pPr><w:r><w:t>section " + QByteArray::number(i) + "</w:t></w:r></w:p>";
+    for (int i = 0; i < 12000; ++i) body += "<w:p><w:pPr>" + sect + "</w:pPr><w:r><w:t>section " + QByteArray::number(i) + "</w:t></w:r></w:p>";
     auto many = open(makeDocx(body, kStyles));
-    QCOMPARE(many->sectionCount(), 20001);
+    QCOMPARE(many->sectionCount(), 12001);
     const qint64 made = many->sectionsMadeForTest();
     QTextCursor m(many->story());
-    m.setPosition(many->story()->findBlockByNumber(10000).position() + 5);
+    m.setPosition(many->story()->findBlockByNumber(6000).position() + 5);
     insertParagraph(*many, m);
     QVERIFY2(many->sectionsMadeForTest() - made <= 3, qPrintable(QString::number(many->sectionsMadeForTest() - made)));
-    QCOMPARE(many->sectionCount(), 20001);   // (the break stays with the second half: still 20,000 breaks and the last)
+    QCOMPARE(many->sectionCount(), 12001);   // (the break stays with the second half: still 12,000 breaks and the last)
     insertText(*many, m, QStringLiteral("x"));
     QVERIFY(many->sectionsMadeForTest() - made <= 3);
     // A page setup change of one section makes one.

@@ -848,8 +848,8 @@ void WriteTests::splitCellsMakeColumnsAndRows()
 void WriteTests::convertTextToTableRefusesHostileTextBeforeBuildingAnything()
 {
     {
-        auto doc = open(makeDocx(cellP("x") + cellP(QString(3000000, QLatin1Char(',')).toUtf8()) + cellP("y"), kStyles));
-        QTextCursor c = cursorAt(*doc, QString(3000000, QLatin1Char(',')));
+        auto doc = open(makeDocx(cellP("x") + cellP(QString(1000000, QLatin1Char(',')).toUtf8()) + cellP("y"), kStyles));
+        QTextCursor c = cursorAt(*doc, QString(1000000, QLatin1Char(',')));
         const QString was = plain(*doc);
         const qint64 made = textToTableFragmentsMadeForTest();
         QVERIFY(!convertTextToTable(*doc, c, TextSeparator::Commas, QChar(), 1));

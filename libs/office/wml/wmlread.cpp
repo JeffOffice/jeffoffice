@@ -1693,7 +1693,7 @@ bool readDocx(const QByteArray &zip, Document *doc, QString *error, ReadNotes *n
         if (notes) notes->leftOut = true;
     }
     if (reader.cutParagraphs > 0) {
-        noteIt(QCoreApplication::translate("jp::office::wml", "%n paragraph is longer than this program can lay out: the rest of it was left out.", nullptr, reader.cutParagraphs));
+        noteIt(QCoreApplication::translate("jp::office::wml", "A paragraph is longer than this program can lay out: the rest of it was left out."));
         if (notes) notes->leftOut = true;
     }
     if (reader.standIns > 0)
