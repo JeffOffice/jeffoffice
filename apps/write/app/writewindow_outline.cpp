@@ -22,7 +22,7 @@ void WriteWindow::createOutlineActions()
 {
     mk("view.outline", tr("Outline"), "list-tree", QKeySequence(), [this] { setOutlineMode(act("view.outline")->isChecked()); }, true);
     // Print Layout is the other view: choosing it leaves the outline.
-    disconnect(act("view.printLayout"), nullptr, nullptr, nullptr);
+    disconnect(act("view.printLayout"), &QAction::triggered, nullptr, nullptr);
     connect(act("view.printLayout"), &QAction::triggered, this, [this] {
         setOutlineMode(false);
         setDraftView(false);

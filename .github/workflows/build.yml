@@ -608,6 +608,11 @@ jobs:
         if: runner.os == 'Linux' && matrix.part == 'checks'
         run: python3 tools/check_threads.py
 
+      # No wildcard disconnect on a QObject: it also cuts the style sheet's hold on a widget's destroyed signal (Nov 21: release 0.44 was held by a crash).
+      - name: Disconnect check
+        if: runner.os == 'Linux' && matrix.part == 'checks'
+        run: python3 tools/check_disconnect.py
+
       # Every class with Q_OBJECT or Q_GADGET in libs/ is exported from the shared library (JO_COMMON_EXPORT): on Windows a connect through
       # a signal's address from a program only matches the library's own when the class is exported and imported.
       - name: Export macro check
