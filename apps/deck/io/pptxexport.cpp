@@ -530,8 +530,12 @@ public:
     Exporter(const Document &doc, PresentationKind kind, bool embedFonts, const QVector<EmbeddedFace> &keptFonts, const QByteArray &thumbnail, bool macros = false)
         : m_doc(doc), m_kind(kind), m_macros(macros), m_callerSkipped(nullptr), m_embedFonts(embedFonts), m_keptFonts(keptFonts), m_thumbnail(thumbnail), m_thumbnailGiven(true) {}
     QByteArray run(QString *error);
+    // With the names out (Remove personal information) an Author field is written with no text.
+    void setNamesOut(bool out) { m_namesOut = out; }
 
 private:
+    bool m_namesOut = false;
+    std::shared_ptr<FieldWork> m_fieldWork = std::make_shared<FieldWork>();   // (the fields of one file take one budget together)
     struct MasterOut {
         const MasterPage *page = nullptr;
         QVector<int> layouts;     // in m_layouts
@@ -791,9 +795,11 @@ office::DrawingWriteContext Exporter::context(const QString &part)
     ctx.storyDoc = [this](const QString &storyId) { return m_doc.storyDoc(storyId); };
     ctx.slideCount = int(m_doc.pages.size());
     ctx.fieldText = [this](const QString &code) {
+        if (m_namesOut && code == QLatin1String("fld:AUTHOR")) return QString();
         FieldContext fc;
         fc.doc = &m_doc;
         fc.pageCount = int(m_doc.pages.size());
+        fc.work = m_fieldWork;
         return fc.resolve(code);
     };
     ctx.droppedLinks = &m_droppedLinks;
@@ -2372,7 +2378,7 @@ static void settleFits(Document &doc)
             }
 }
 
-QByteArray exportPresentation(const Document &doc, QString *error, QStringList *skipped, PresentationKind kind, bool embedFonts, bool macros)
+QByteArray exportPresentation(const Document &doc, QString *error, QStringList *skipped, PresentationKind kind, bool embedFonts, bool macros, bool namesOut)
 {
     bool live = false;
     for (const auto &page : doc.pages)
@@ -2381,9 +2387,13 @@ QByteArray exportPresentation(const Document &doc, QString *error, QStringList *
         const std::unique_ptr<Document> fitted = Document::fromSnapshot(doc.snapshot());
         settleFits(*fitted);
         fitted->fieldFilePath = doc.fieldFilePath;
-        return Exporter(*fitted, kind, skipped, embedFonts, macros).run(error);
+        Exporter exporter(*fitted, kind, skipped, embedFonts, macros);
+        exporter.setNamesOut(namesOut);
+        return exporter.run(error);
     }
-    return Exporter(doc, kind, skipped, embedFonts, macros).run(error);
+    Exporter exporter(doc, kind, skipped, embedFonts, macros);
+    exporter.setNamesOut(namesOut);
+    return exporter.run(error);
 }
 
 ExportSnapshot snapshotForExport(const Document &doc)
@@ -2410,7 +2420,7 @@ bool savePresentationFile(const Document &doc, const QString &path, QString *err
         if (error) *error = why;
         return false;
     };
-    QByteArray bytes = exportPresentation(doc, error, skipped, kindOfFileName(path), embedFonts, isMacroEnabledFileName(path));
+    QByteArray bytes = exportPresentation(doc, error, skipped, kindOfFileName(path), embedFonts, isMacroEnabledFileName(path), removePersonal);
     if (bytes.isEmpty()) return false;
     if (removePersonal) bytes = office::removePersonalFromPackage(bytes, nullptr, personalProblems);
     if (!password.isEmpty()) {

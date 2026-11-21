@@ -152,7 +152,8 @@ bool Reader::hasText(const QDomElement &body) const
                 } else if (n.isElement()) {
                     const QDomElement c = n.toElement();
                     const QString t = tagOf(c);
-                    if (t == QLatin1String("text:page-number") || t == QLatin1String("presentation:date-time") || t == QLatin1String("text:date")) return true;
+                    if (t == QLatin1String("text:page-number") || t == QLatin1String("presentation:date-time") || t == QLatin1String("text:date") || t == QLatin1String("text:title") ||
+                        t == QLatin1String("text:initial-creator") || t == QLatin1String("text:file-name") || t == QLatin1String("text:page-count")) return true;
                     if (t == QLatin1String("draw:frame") || t == QLatin1String("draw:custom-shape") || t == QLatin1String("office:annotation")) continue;
                     if (any(c, depth + 1)) return true;
                 }
@@ -529,6 +530,10 @@ private:
             } else if (t == QLatin1String("presentation:date-time") || (t == QLatin1String("text:date") && at(c, "text:fixed") != QLatin1String("true"))
                        || (t == QLatin1String("text:time") && at(c, "text:fixed") != QLatin1String("true"))) {
                 field(t == QLatin1String("text:time") ? QStringLiteral("datetime10") : QStringLiteral("datetime1"), c, bag, href, at(c, "style:data-style-name"));
+            } else if (t == QLatin1String("text:title") || t == QLatin1String("text:initial-creator") || t == QLatin1String("text:file-name") || t == QLatin1String("text:page-count")) {
+                // (A field of the shared engine, written as the standard's own text field of the same name.)
+                field(t == QLatin1String("text:title") ? QStringLiteral("jo-title") : t == QLatin1String("text:initial-creator") ? QStringLiteral("jo-author")
+                      : t == QLatin1String("text:file-name") ? QStringLiteral("jo-filename") : QStringLiteral("jo-slidecount"), c, bag, href);
             } else if (t == QLatin1String("presentation:footer") || t == QLatin1String("presentation:header")) {
                 // The text of a footer is the page's, kept where the page says it.
                 continue;

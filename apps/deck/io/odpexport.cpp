@@ -1142,9 +1142,11 @@ QByteArray Exporter::run(QString *error)
 
 } // namespace odpw
 
-QByteArray exportOdp(const Document &doc, bool asTemplate, QString *error, QStringList *skipped)
+QByteArray exportOdp(const Document &doc, bool asTemplate, QString *error, QStringList *skipped, bool namesOut)
 {
-    return odpw::Exporter(doc, asTemplate, skipped).run(error);
+    odpw::Exporter exporter(doc, asTemplate, skipped);
+    exporter.setNamesOut(namesOut);
+    return exporter.run(error);
 }
 
 bool saveOdpFile(const Document &doc, const QString &path, QString *error, QStringList *skipped, bool removePersonal, QStringList *personalProblems, const QString &password)
@@ -1155,7 +1157,7 @@ bool saveOdpFile(const Document &doc, const QString &path, QString *error, QStri
     };
     if (path.isEmpty()) return fail(QCoreApplication::translate("OdpExport", "There's no file name to save to."));
     const bool asTemplate = path.endsWith(QLatin1String(".otp"), Qt::CaseInsensitive);
-    QByteArray bytes = exportOdp(doc, asTemplate, error, skipped);
+    QByteArray bytes = exportOdp(doc, asTemplate, error, skipped, removePersonal);
     if (bytes.isEmpty()) return false;
     if (removePersonal) bytes = office::removePersonalFromPackage(bytes, nullptr, personalProblems);
     if (!password.isEmpty()) {

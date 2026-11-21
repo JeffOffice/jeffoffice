@@ -44,7 +44,7 @@ namespace jp::deck {
 // The presentation as the bytes of an .odp file (an .otp when `asTemplate`).
 // Empty, with the reason in `error`, if it can't be written. `skipped` gets
 // one line for each kind of thing that was left out.
-QByteArray exportOdp(const Document &doc, bool asTemplate = false, QString *error = nullptr, QStringList *skipped = nullptr);
+QByteArray exportOdp(const Document &doc, bool asTemplate = false, QString *error = nullptr, QStringList *skipped = nullptr, bool namesOut = false);
 
 // Writes the file at `path`, an .otp when its ending is that. The old file
 // stays whole until the new one is complete.

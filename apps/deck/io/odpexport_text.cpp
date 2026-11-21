@@ -497,12 +497,18 @@ void Exporter::writeParagraph(X &x, Scope &sc, const QTextBlock &b, bool inList,
             if (field == QLatin1String("page")) {
                 x.open("text:page-number").text(QStringLiteral("<number>")).close();
             } else if (field.startsWith(QLatin1String("fld:"))) {
-                // A field of the shared engine is written as the words it shows.
+                // A field of the shared engine is one of the standard's own text fields (title, initial creator, file name, page count: sections 7.5.10, 7.5.2, 7.3.9, and 7.5.18.2 of its
+                // part 3; the 1.2 schema has them wherever a paragraph's content goes) with the words it shows now.
                 FieldContext fc;
                 fc.doc = &m_doc;
                 fc.pageCount = int(m_doc.pages.size());
-                Spacing again;
-                writeText(x, fc.resolve(field), again);
+                fc.work = m_fieldWork;
+                const QString shown = m_namesOut && field == QLatin1String("fld:AUTHOR") ? QString() : fc.resolve(field);
+                const char *tag = field == QLatin1String("fld:TITLE") ? "text:title" : field == QLatin1String("fld:AUTHOR") ? "text:initial-creator" : field == QLatin1String("fld:FILENAME") ? "text:file-name" : "text:page-count";
+                x.open(tag);
+                if (field == QLatin1String("fld:FILENAME")) x.attr("text:display", "name-and-extension");
+                if (field != QLatin1String("fld:NUMPAGES")) x.attr("text:fixed", "false");
+                x.text(shown).close();
             } else {
                 bool isTime = false;
                 const QString style = dateStyle(*sc.styles, field, &isTime);

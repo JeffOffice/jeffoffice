@@ -49,8 +49,9 @@ office::MacroProject presentationMacros(const Document &doc);
 // uses (the styles it uses, each with all its characters: "Embed fonts in the
 // file"), as io/pptxfonts.h says; the fonts the file this came from carried
 // are written back whatever it is, while the presentation uses them.
+// With `namesOut` an Author field is written with no text (Remove personal information).
 QByteArray exportPresentation(const Document &doc, QString *error = nullptr, QStringList *skipped = nullptr,
-                              PresentationKind kind = PresentationKind::Presentation, bool embedFonts = false, bool macros = false);
+                              PresentationKind kind = PresentationKind::Presentation, bool embedFonts = false, bool macros = false, bool namesOut = false);
 // What a copy of the presentation needs to be made on another thread while the window goes on being edited: taken (snapshotForExport) on the thread that owns the presentation, made into
 // the file's bytes (exportSnapshot) anywhere. The same bytes exportPresentation gives for the presentation as it was when the snapshot was taken.
 // Everything that the text layout or the renderer must do (the picture of the first slide) is done when the snapshot is taken: neither may be used from another thread.

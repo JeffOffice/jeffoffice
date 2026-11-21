@@ -290,6 +290,27 @@ QVector<InspectItem> DeckWindow::inspectItems()
                      },
                      [this] { return removePersonalInformation(); },
                      true, QString()});
+    // An Author field shows the author's name in the text of a slide: a file saved with Remove personal information on holds it with no text, and one saved without holds the name.
+    const auto authorSlides = [](const Document &d) {
+        int n = 0;
+        for (const auto &page : d.pages) {
+            bool found = false;
+            for (const ItemPtr &it : page->items) {
+                QString story;
+                if (const auto *t = dynamic_cast<const TextItem *>(it.get())) story = t->storyId;
+                else if (const auto *sh = dynamic_cast<const ShapeItem *>(it.get())) story = sh->storyId;
+                const QTextDocument *text = story.isEmpty() ? nullptr : d.storyDoc(story);
+                for (QTextBlock b = text ? text->begin() : QTextBlock(); b.isValid() && !found; b = b.next())
+                    for (auto f = b.begin(); !f.atEnd() && !found; ++f) found = f.fragment().charFormat().stringProperty(tp::Field) == QLatin1String("fld:AUTHOR");
+                if (found) break;
+            }
+            n += found;
+        }
+        return n;
+    };
+    if (const int authors = authorSlides(*m_ed->doc()); authors > 0)
+        items.push_back({tr("Author field on %n slide(s)", nullptr, authors), tr("A field that shows the author's name in the text of a slide. With Remove personal information on, it is saved with no text."),
+                         [doc, authorSlides] { return authorSlides(*doc()); }, [] { return 0; }, false, QString()});
     items.push_back({tr("Hidden slides"), tr("Slides that are set to be hidden: the slide show skips them, but they are in the file. Show them to see what they hold."),
                      [doc] {
                          int n = 0;

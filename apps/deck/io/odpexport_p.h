@@ -112,8 +112,12 @@ class Exporter {
 public:
     Exporter(const Document &doc, bool asTemplate, QStringList *skipped);
     QByteArray run(QString *error);
+    // With the names out (Remove personal information) an Author field is written with no text.
+    void setNamesOut(bool out) { m_namesOut = out; }
 
 private:
+    bool m_namesOut = false;
+    std::shared_ptr<FieldWork> m_fieldWork = std::make_shared<FieldWork>();   // (the fields of one file take one budget together)
     // One style:master-page: the slide master with, when the layout has graphics of its own, that layout.
     struct MasterOut {
         const MasterPage *master = nullptr;
