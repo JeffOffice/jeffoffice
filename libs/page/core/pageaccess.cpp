@@ -5,6 +5,7 @@
 #include "render/renderer.h"
 
 #include <QCoreApplication>
+#include <QHash>
 #include <QTextBlock>
 #include <QTextDocument>
 
@@ -259,11 +260,36 @@ QVector<int> outOfReadingOrder(const ItemList &items, const QSizeF &pageSize)
     return out;
 }
 
+bool linkTextSaysWhere(const QString &words, const QString &address)
+{
+    const QString text = words.simplified().toCaseFolded();
+    if (text.isEmpty()) return true;
+    static const QStringList empty = {QStringLiteral("here"), QStringLiteral("click here"), QStringLiteral("link"), QStringLiteral("this link"), QStringLiteral("this"), QStringLiteral("more"),
+                                      QStringLiteral("read more"), QStringLiteral("click"), QStringLiteral("page"), QStringLiteral("this page")};
+    if (empty.contains(text)) return false;
+    // The address itself (or the start of one) is read out letter by letter.
+    return !(text == address.simplified().toCaseFolded() || text.startsWith(QLatin1String("http://")) || text.startsWith(QLatin1String("https://")) || text.startsWith(QLatin1String("www.")));
+}
+
 QVector<PageAccessIssue> checkPageAccessibility(const Document &doc, bool slides, const std::function<QString(int)> &titleOf, int most)
 {
     QVector<PageAccessIssue> out;
     const LayoutEnv env = Renderer::layoutEnv(doc);
+    QHash<QString, int> firstWithTitle;
     for (int p = 0; p < doc.pages.size() && out.size() < most; ++p) {
+        if (titleOf) {
+            const QString title = titleOf(p).simplified().toCaseFolded();
+            if (!title.isEmpty()) {
+                const auto seen = firstWithTitle.constFind(title);
+                if (seen == firstWithTitle.cend())
+                    firstWithTitle.insert(title, p);
+                else
+                    out.push_back({PageAccessIssue::DuplicateTitle, PageAccessIssue::Tip, p, QString(),
+                                   QCoreApplication::translate("jp::PageAccess", "Slide %1 has the same title as slide %2. People who use a screen reader find a slide by its title, so each should have its own.")
+                                       .arg(p + 1)
+                                       .arg(seen.value() + 1)});
+            }
+        }
         if (titleOf && titleOf(p).trimmed().isEmpty())
             out.push_back({PageAccessIssue::NoPageTitle, PageAccessIssue::Warning, p, QString(),
                            QCoreApplication::translate("jp::PageAccess", "Slide %1 has no title. People who use a screen reader find a slide by its title.").arg(p + 1)});
@@ -292,6 +318,42 @@ QVector<PageAccessIssue> checkPageAccessibility(const Document &doc, bool slides
                                (slides ? QCoreApplication::translate("jp::PageAccess", "Videos need captions for people who can't hear them. Check the video on slide %1.")
                                        : QCoreApplication::translate("jp::PageAccess", "Videos need captions for people who can't hear them. Check the video on page %1."))
                                    .arg(p + 1)});
+        });
+        // A table with merged cells, and a link that says nothing of where it goes.
+        walkItems(doc.pages[p]->items, [&](const ItemPtr &it) {
+            if (out.size() >= most || it->decorative) return;
+            if (it->type() == ItemType::Table) {
+                const auto &t = static_cast<const TableItem &>(*it);
+                bool merged = false;
+                for (int row = 0; row < t.rows && !merged; ++row)
+                    for (int col = 0; col < t.cols && !merged; ++col) merged = t.cell(row, col).covered || t.cell(row, col).rowSpan > 1 || t.cell(row, col).colSpan > 1;
+                if (merged)
+                    out.push_back({PageAccessIssue::MergedCells, PageAccessIssue::Warning, p, it->id,
+                                   (slides ? QCoreApplication::translate("jp::PageAccess", "A table on slide %1 has merged cells. A screen reader can lose its place in them, so keep each cell of a table whole.")
+                                           : QCoreApplication::translate("jp::PageAccess", "A table on page %1 has merged cells. A screen reader can lose its place in them, so keep each cell of a table whole."))
+                                       .arg(p + 1)});
+            }
+            QStringList stories;
+            if (it->type() == ItemType::Text) stories << static_cast<const TextItem &>(*it).storyId;
+            else if (it->type() == ItemType::Shape) stories << static_cast<const ShapeItem &>(*it).storyId;
+            else if (it->type() == ItemType::Table)
+                for (const TableCell &c : static_cast<const TableItem &>(*it).cells) stories << c.storyId << c.storyId2;
+            for (const QString &sid : std::as_const(stories)) {
+                const QTextDocument *sd = sid.isEmpty() ? nullptr : doc.storyDoc(sid);
+                if (!sd || out.size() >= most) continue;
+                QString unclear;
+                for (QTextBlock b = sd->begin(); b.isValid() && unclear.isEmpty(); b = b.next())
+                    for (QTextBlock::iterator f = b.begin(); !f.atEnd() && unclear.isEmpty(); ++f) {
+                        const QTextCharFormat cf = f.fragment().charFormat();
+                        if (cf.isAnchor() && !linkTextSaysWhere(f.fragment().text(), cf.anchorHref())) unclear = f.fragment().text().trimmed();
+                    }
+                if (!unclear.isEmpty())
+                    out.push_back({PageAccessIssue::UnclearLink, PageAccessIssue::Warning, p, it->id,
+                                   (slides ? QCoreApplication::translate("jp::PageAccess", "The link \"%1\" on slide %2 does not say where it goes. Use words that name the page it opens.")
+                                           : QCoreApplication::translate("jp::PageAccess", "The link \"%1\" on page %2 does not say where it goes. Use words that name the page it opens."))
+                                       .arg(unclear.left(60))
+                                       .arg(p + 1)});
+            }
         });
         // Text that is hard to read against what is behind it, in each object that has some (those in groups too), where the text is.
         const Page &pg = *doc.pages[p];

@@ -16,7 +16,7 @@ namespace jp {
 class Document;
 
 struct PageAccessIssue {
-    enum Kind { MissingAltText, NoPageTitle, LowContrast, ReadingOrder, NoTableHeader, NoCaptions };
+    enum Kind { MissingAltText, NoPageTitle, LowContrast, ReadingOrder, NoTableHeader, NoCaptions, DuplicateTitle, UnclearLink, MergedCells };
     enum Level { Error, Warning, Tip };
     Kind kind = MissingAltText;
     Level level = Warning;
@@ -36,9 +36,13 @@ double neededContrast(double points, bool bold);
 // page (a backdrop) are not read, so are not counted. `pageSize` is the page's, for the backdrop (empty: no backdrop).
 QVector<int> outOfReadingOrder(const ItemList &items, const QSizeF &pageSize = QSizeF());
 
+// Whether the words of a link say where it goes: false for none, for the address itself, and for words such as "here" and "read more".
+bool linkTextSaysWhere(const QString &words, const QString &address);
+
 // The problems found, page by page (at most `most`). A picture with no alt text is an error, and so is a shape with no words in it (an object marked as decoration is left alone).
 // A table whose first row is not marked as a header row is a warning; a video with no caption track is a tip. (A table or a video marked as decoration is left alone.)
-// `titleOf` (may be empty) gives the title of a page; with it, a page with an empty title is a warning. `slides` says "slide" where the messages say "page".
+// A table with merged cells is a warning (a screen reader loses its place in them); a link whose words are its own address, or say nothing of where it goes (here, link, read more), is a warning.
+// `titleOf` (may be empty) gives the title of a page; with it, a page with an empty title is a warning, and a page whose title another page has is a tip. `slides` says "slide" where the messages say "page".
 QVector<PageAccessIssue> checkPageAccessibility(const Document &doc, bool slides = false, const std::function<QString(int)> &titleOf = {}, int most = kMaxPageAccessIssues);
 
 } // namespace jp
