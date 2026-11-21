@@ -167,6 +167,7 @@ private Q_SLOTS:
             QCOMPARE(w.editor()->doc()->item(id)->rotation, 0.0);
             w.editor()->redo();
             QCOMPARE(w.editor()->doc()->item(id)->rotation, 37.0);
+            w.showFormatPane(false);   // (the pane stays open for later windows otherwise)
             QVERIFY(w.saveTo(path));
         }
         DeckWindow b;
@@ -209,6 +210,7 @@ private Q_SLOTS:
             QCOMPARE(w.editor()->doc()->item(id)->rect, QRectF(300, 100, 200, 100));
             from->setCurrentIndex(0);
             QCOMPARE(x->value(), 300.0);
+            w.showFormatPane(false);   // (the pane stays open for later windows otherwise)
             QVERIFY(w.saveTo(path));
         }
         DeckWindow b;
@@ -485,6 +487,7 @@ private Q_SLOTS:
             QCOMPARE(pic()->saturationMove(), -100.0);
             w.editor()->undo();
             QCOMPARE(pic()->saturationMove(), 50.0);
+            w.showFormatPane(false);   // (the pane stays open for later windows otherwise)
             QVERIFY(w.saveTo(path));
         }
         DeckWindow b;
