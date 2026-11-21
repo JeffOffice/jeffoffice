@@ -390,6 +390,7 @@ private Q_SLOTS:
             {QStringLiteral("tbl.gridlines"), QStringLiteral("it draws the edges of the cells that have no line, and the tables the checks make have lines; the window's tests check the drawing")},
             {QStringLiteral("anim.painter"), QStringLiteral("it arms the animation painter, and nothing shows until a shape is clicked")},
             {QStringLiteral("review.wordCount"), QStringLiteral("it tells the counts in a message and changes nothing")},
+            {QStringLiteral("win.moveSplit"), QStringLiteral("it starts a mode in which the arrow keys move a divider, and nothing shows until a key is pressed; the window tests press the keys")},
             {QStringLiteral("win.cascade"), QStringLiteral("it sets the open windows in a stack, and with one window the window keeps its place on the screen the checks run on; the window tests cascade two windows")},
         };
         m_app.neverRun = {{QStringLiteral("pagemaster.close"), QStringLiteral("it closes the Notes Master or Handout Master view, and waits until one is open (the window tests open them)")}};

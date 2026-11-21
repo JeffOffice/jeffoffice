@@ -2,6 +2,8 @@
 // Move Split: the arrow keys move the divider between two panes of a window (a way to size panes without a mouse). The first divider is
 // chosen at the start, Tab goes on to the next one, and Enter, Esc, or a click ends it. Built once for every app's window (View > Window).
 
+#include "core/export.h"
+
 #include <QList>
 #include <QObject>
 #include <QPointer>
@@ -10,7 +12,7 @@ class QSplitter;
 
 namespace jp {
 
-class SplitMover : public QObject {
+class JO_COMMON_EXPORT SplitMover : public QObject {
     Q_OBJECT
 public:
     explicit SplitMover(QObject *parent = nullptr);
