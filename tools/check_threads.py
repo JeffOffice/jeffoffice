@@ -26,48 +26,28 @@ USE = re.compile(r"\bstd::(thread|jthread|async)\b")
 
 # The system's locale, by any route.
 LOCALE = re.compile(
-    r"QLocale::system\s*\(|\bQSystemLocale\b|Qt::(SystemLocale\w*|LocalDate|DefaultLocale\w*|TextDate)\b|\bQLocale\s*\(\s*\)|\bQLocale\s+\w+\s*(;|\{\s*\})"
-    r"|\blocaleAwareCompare\b|\bQCollator\s+\w+\s*(;|\{\s*\})|\bQCollator\s*\(\s*\)|\buiLanguages\s*\(|\bQLocale::setDefault\b|%L\d"
+    r"QLocale::system\s*\(|\bQSystemLocale\b|Qt::(SystemLocale\w*|LocalDate|DefaultLocale\w*|TextDate)\b|\bQLocale\s*\(\s*\)|\bQLocale\s+(?!m_)\w+(?<!_)\s*(;|\{\s*\})"
+    r"|\blocaleAwareCompare\b|\bQCollator\s+(?!m_)\w+(?<!_)\s*(;|\{\s*\})|\bQCollator\s*\(\s*\)|\buiLanguages\s*\(|\bQLocale::setDefault\b|%L\d"
     r"|\.toString\(\s*(QStringLiteral\()?\"[^\"]*(yy|MM|dd|HH|hh|mm|ss)")
+# A date, a time, or a date and time written with no format, or with one that is not a literal, is written in the system's locale: the receiver's name says what it is (a heuristic: names that
+# hold a date or a time; QString::toString and the like are not matched).
+DATEISH = re.compile(r"\b\w*(?:[Dd]ate|[Tt]ime|[Dd]ay|[Ww]hen|[Ss]tamp|[Mm]odified|[Cc]reated)\w*(?:\(\))?\.toString\(\s*(?:\)|(?!Qt::|QStringLiteral|QLatin1|\"|QLocale|loc|locale)[A-Za-z_])")
 # A file that starts a thread of its own is never excused by a folder below: what the thread's body calls is in it.
 STARTS = re.compile(r"QThread::create|\bWorkThread\b|\brunDetached\b|QThreadPool|QtConcurrent::")
 
-# Where the system's locale may be used, each with the reason. A path is a glob from the root; a folder's files are all in it.
-ALLOWED = [
-    ("libs/base/core/syslocale.*", "the one place that asks the system, on the main thread"),
-    # Widget code: QWidget classes, dialogs, and window controllers run on the main thread (Qt's own rule), and show the person's own formats and signs.
-    ("apps/*/app/*", "window and dialog code of an app: main thread"),
-    ("libs/*/app/*", "window and dialog code of a shared layer: main thread"),
-    ("libs/shell/grid/*", "the grid widget and its painting: main thread"),
-    # An app's own main thread work that is not widget code: what a window's edit session says about an edit it is asked to make (its refusals name the limits in the person's number
-    # format) and reads from what the person types (their own decimal and date formats). The session lives on the main thread; the calculation worker gets the book, not the session.
-    ("apps/crunch/core/edit*.cpp", "edit session: plans and refusals made on the main thread"),
-    ("apps/crunch/core/editsession.h", "the session's own locale, set on the main thread"),
-    ("libs/office/sheet/csv.h", "a member the opener fills from the copy of jp::systemLocale()"),
-    ("apps/crunch/core/dataform.cpp", "data form: main thread, reads what the person types"),
-    ("apps/crunch/core/validationedit.cpp", "validation editing: main thread, reads what the person types"),
-    ("apps/crunch/core/errorcheck.cpp", "error checking of typed text: main thread"),
-    ("apps/crunch/core/printjob.cpp", "the print job's labels and tags: made on the main thread"),
-    ("apps/crunch/core/spellwalk.cpp", "the proofing language, asked on the main thread before the walk"),
-    ("apps/crunch/core/sheetobjects.cpp", "refusal texts of the object edits: main thread"),
-    ("apps/crunch/core/advancedfilter.h", "the person's locale as the default of a parse made on the main thread"),
-    ("apps/write/core/*ops.cpp", "document edits the window makes: main thread"),
-    ("apps/write/core/field*.cpp", "fields are updated by the window: main thread"),
-    ("apps/write/core/field*.h", "fields are updated by the window: main thread"),
-    ("apps/write/core/templates.cpp", "page size of a new document: main thread"),
-    ("apps/write/core/textexport.cpp", "export from the window: main thread"),
-    ("apps/write/core/printing.cpp", "printing is made by the window: main thread"),
-    ("apps/write/core/writedoc.cpp", "page size of a new document: main thread"),
-    ("apps/pub/templates/*", "templates are built by the window: main thread (the threads there only paint pictures)"),
-    ("apps/pub/io/importers.cpp", "an import started from the window: main thread"),
-    ("apps/deck/io/deckoutput.cpp", "slide output made by the window: main thread"),
-    ("libs/office/sheet/entry.*", "typed entry: the main thread's own parse, in the person's own signs"),
-    ("libs/office/sheet/headerfooter.h", "member that a print job fills from its main thread"),
-    ("libs/page/core/*", "pages and merge sources are made by the window: main thread"),
-    ("libs/translate/translate/languages.cpp", "the list of languages for the pane: main thread"),
-    ("libs/translate/translate/translator.cpp", "a message made on the main thread"),
-    ("libs/shell/app/*", "shell window code: main thread"),
-]
+# Where the system's locale may be used: one line for each FILE in tools/check_threads_allowed.txt ("path | reason"), never a folder.
+# A file that a thread-starting file includes (the thread's body may call into it) must say "main thread only, checked: <how>". The heuristic: the stem of the file's name equals the stem of
+# a header that a file matching STARTS includes, or of that file itself.
+INCLUDE = re.compile(r'#include\s+"([^"]+)"')
+
+
+def load_allowed() -> dict:
+    out = {}
+    for line in (ROOT / "tools" / "check_threads_allowed.txt").read_text(encoding="utf-8").splitlines():
+        if line.strip() and not line.startswith("#"):
+            path, _, reason = line.partition(" | ")
+            out[path.strip()] = reason.strip()
+    return out
 
 
 def code_of(line: str) -> str:
@@ -75,30 +55,50 @@ def code_of(line: str) -> str:
     return line.split("//", 1)[0]
 
 
-def allowed(rel: str, text: str) -> bool:
-    if STARTS.search(text):
-        return rel.endswith(("syslocale.cpp", "syslocale.h"))
-    return any(fnmatch.fnmatchcase(rel, pattern) for pattern, _ in ALLOWED)
-
-
 def main() -> int:
     bad, locale_bad, held = [], [], 0
+    table = load_allowed()
+    used = set()
+    texts = {}
+    for top in ("libs", "apps"):
+        for path in sorted((ROOT / top).rglob("*")):
+            if path.suffix in (".cpp", ".h", ".mm", ".inc") and "third_party" not in path.parts:
+                texts[str(path.relative_to(ROOT))] = path.read_text(encoding="utf-8", errors="replace")
+    reached = set()   # stems of files that a thread-starting file is, or includes
+    for rel, text in texts.items():
+        if STARTS.search(text) and not rel.endswith(("syslocale.cpp", "syslocale.h")):
+            reached.add(pathlib.PurePosixPath(rel).stem)
+            reached.update(pathlib.PurePosixPath(m.group(1)).stem for m in INCLUDE.finditer(text))
     for top in ("libs", "apps", "tests"):
         for path in sorted((ROOT / top).rglob("*")):
             if path.suffix not in (".cpp", ".h", ".mm", ".inc") or "third_party" in path.parts:
                 continue
             text = path.read_text(encoding="utf-8", errors="replace")
             rel = str(path.relative_to(ROOT))
-            ok_locale = top == "tests" or allowed(rel, text)
+            starts = bool(STARTS.search(text)) and not rel.endswith(("syslocale.cpp", "syslocale.h"))
+            if rel.endswith(("syslocale.cpp", "syslocale.h")):
+                ok_locale = True
+            elif top == "tests":
+                ok_locale = True
+            elif starts:
+                ok_locale = False   # (a file that starts a thread is never excused: what the thread's body calls is in it)
+            elif rel in table:
+                ok_locale = True
+                if pathlib.PurePosixPath(rel).stem in reached and not table[rel].startswith("main thread only, checked:"):
+                    locale_bad.append(f"{rel}: called from a file that starts a thread: its line in tools/check_threads_allowed.txt must begin \"main thread only, checked: <how>\"")
+            else:
+                ok_locale = False
             for number, line in enumerate(text.splitlines(), 1):
                 code = code_of(line)
                 if USE.search(code):
                     bad.append(f"{rel}:{number}: {line.strip()[:120]}")
-                elif LOCALE.search(code):
+                elif LOCALE.search(code) or DATEISH.search(code):
                     if ok_locale:
                         held += 1
+                        used.add(rel)
                     else:
                         locale_bad.append(f"{rel}:{number}: {line.strip()[:120]}")
+    locale_bad += [f"{rel}: listed in tools/check_threads_allowed.txt but uses the system's locale nowhere: take the line out" for rel in sorted(set(table) - used)]
     if bad:
         print("\n".join(bad))
         print(f"{len(bad)} problem(s): the C++ library's threads: use jp::WorkThread or jp::runDetached (libs/base/core/workthread.h)")

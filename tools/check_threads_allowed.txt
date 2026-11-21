@@ -1,0 +1,100 @@
+# One line for each file that may use the system's locale: path | reason. tools/check_threads.py reads it.
+# A file that a file starting a thread includes (or that is such a file's own header) needs a reason that begins "main thread only, checked:" and says how.
+libs/office/sheet/entry.h | typed entry: the main thread's own parse, in the person's own signs
+libs/office/sheet/headerfooter.h | member that a print job fills from its main thread
+libs/page/app/commentspane.cpp | window and dialog code of a shared layer: main thread
+libs/page/app/editor_text.cpp | window and dialog code of a shared layer: main thread
+libs/page/app/optionsdialog.cpp | window and dialog code of a shared layer: main thread
+libs/page/app/textdialogs.cpp | window and dialog code of a shared layer: main thread
+libs/shell/app/filetasks.cpp | main thread only, checked: fills a list widget of recent files from the window; the saves that start threads in crunchwindow_save do not call it
+libs/shell/app/i18n.cpp | window and dialog code of a shared layer: main thread
+libs/shell/app/infopage.cpp | window and dialog code of a shared layer: main thread
+libs/shell/app/keymap.cpp | window and dialog code of a shared layer: main thread
+libs/shell/app/objectsdialog.cpp | window and dialog code of a shared layer: main thread
+libs/shell/app/settings.cpp | main thread only, checked: reads and writes the settings of the window (units, decimal mark of a ruler box); no thread's body includes it
+libs/shell/app/telemetry.cpp | main thread only, checked: the usage report is made by the window's timer; the save threads only ask whether it is on
+libs/shell/app/translatepane.cpp | window and dialog code of a shared layer: main thread
+libs/shell/app/uistyle.cpp | main thread only, checked: upper-cases a label of a widget; the threads that include it paint nothing
+libs/shell/app/versionhistory.cpp | main thread only, checked: a list widget of the version dialog; the version threads hand it finished data
+libs/shell/grid/condformat.cpp | the grid widget and its painting: main thread
+libs/shell/grid/stats.cpp | the grid widget and its painting: main thread
+libs/text/text/textengine.cpp | main thread only, checked: dateFieldText runs when layout updates a field, and layout is main thread only (core/threadcheck.h guardOnlyCache)
+libs/translate/translate/languages.cpp | main thread only, checked: sorts the language list of the pane on the main thread; translator.cpp's worker gets the finished list
+apps/crunch/app/crunchwindow.cpp | main thread only, checked: the change box of a window dialog; its save, copy, and recover threads are in other files
+apps/crunch/app/crunchwindow_cells.cpp | window and dialog code of an app: main thread
+apps/crunch/app/crunchwindow_charts.cpp | window and dialog code of an app: main thread
+apps/crunch/app/crunchwindow_clip.cpp | window and dialog code of an app: main thread
+apps/crunch/app/crunchwindow_cond.cpp | window and dialog code of an app: main thread
+apps/crunch/app/crunchwindow_csv.cpp | window and dialog code of an app: main thread
+apps/crunch/app/crunchwindow_edit.cpp | window and dialog code of an app: main thread
+apps/crunch/app/crunchwindow_file.cpp | window and dialog code of an app: main thread
+apps/crunch/app/crunchwindow_filter.cpp | window and dialog code of an app: main thread
+apps/crunch/app/crunchwindow_format.cpp | window and dialog code of an app: main thread
+apps/crunch/app/crunchwindow_formulas.cpp | window and dialog code of an app: main thread
+apps/crunch/app/crunchwindow_objectformat.cpp | window and dialog code of an app: main thread
+apps/crunch/app/crunchwindow_ops.cpp | window and dialog code of an app: main thread
+apps/crunch/app/crunchwindow_outline.cpp | window and dialog code of an app: main thread
+apps/crunch/app/crunchwindow_page.cpp | window and dialog code of an app: main thread
+apps/crunch/app/crunchwindow_pagelayout.cpp | window and dialog code of an app: main thread
+apps/crunch/app/crunchwindow_pivot.cpp | window and dialog code of an app: main thread
+apps/crunch/app/crunchwindow_point.cpp | window and dialog code of an app: main thread
+apps/crunch/app/crunchwindow_tabs2.cpp | window and dialog code of an app: main thread
+apps/crunch/app/crunchwindow_text.cpp | window and dialog code of an app: main thread
+apps/crunch/app/crunchwindow_views.cpp | window and dialog code of an app: main thread
+apps/crunch/app/filterdialogs.cpp | window and dialog code of an app: main thread
+apps/crunch/app/filterpopup.cpp | window and dialog code of an app: main thread
+apps/crunch/app/forecastdialog.cpp | window and dialog code of an app: main thread
+apps/crunch/app/formatdialog.h | window and dialog code of an app: main thread
+apps/crunch/app/otherformats.cpp | main thread only, checked: the dialog that lists what another format leaves out; saves call it after the thread finished
+apps/crunch/app/pagesetupdialog.cpp | window and dialog code of an app: main thread
+apps/crunch/app/textimportdialog.cpp | window and dialog code of an app: main thread
+apps/crunch/app/textimportdialog.h | window and dialog code of an app: main thread
+apps/crunch/app/threadspane.cpp | window and dialog code of an app: main thread
+apps/crunch/core/advancedfilter.h | the person's locale as the default of a parse made on the main thread
+apps/crunch/core/dataform.cpp | data form: main thread, reads what the person types
+apps/crunch/core/editfilter.cpp | edit session: plans and refusals made on the main thread
+apps/crunch/core/editfind.cpp | edit session: plans and refusals made on the main thread
+apps/crunch/core/editflash.cpp | edit session: plans and refusals made on the main thread
+apps/crunch/core/editformat.cpp | edit session: plans and refusals made on the main thread
+apps/crunch/core/editnotes.cpp | edit session: plans and refusals made on the main thread
+apps/crunch/core/editops.cpp | edit session: plans and refusals made on the main thread
+apps/crunch/core/editpaste.cpp | edit session: plans and refusals made on the main thread
+apps/crunch/core/editprecision.cpp | edit session: plans and refusals made on the main thread
+apps/crunch/core/editsession.cpp | edit session: plans and refusals made on the main thread
+apps/crunch/core/editsheets.cpp | edit session: plans and refusals made on the main thread
+apps/crunch/core/editsize.cpp | edit session: plans and refusals made on the main thread
+apps/crunch/core/editsort.cpp | edit session: plans and refusals made on the main thread
+apps/crunch/core/edittables.cpp | edit session: plans and refusals made on the main thread
+apps/crunch/core/errorcheck.cpp | error checking of typed text: main thread
+apps/crunch/core/printjob.cpp | the print job's labels and tags: made on the main thread
+apps/crunch/core/spellwalk.cpp | the proofing language, asked on the main thread before the walk
+apps/crunch/core/validationedit.cpp | validation editing: main thread, reads what the person types
+apps/deck/app/animationdialogs.cpp | window and dialog code of an app: main thread
+apps/deck/app/deckwindow_info.cpp | window and dialog code of an app: main thread
+apps/deck/app/deckwindow_media.cpp | window and dialog code of an app: main thread
+apps/deck/app/deckwindow_save.cpp | window and dialog code of an app: main thread
+apps/deck/app/presenterview.cpp | window and dialog code of an app: main thread
+apps/deck/io/deckoutput.cpp | slide output made by the window: main thread
+apps/pub/app/dialogs.cpp | window and dialog code of an app: main thread
+apps/pub/app/mainwindow.cpp | window and dialog code of an app: main thread
+apps/pub/app/mainwindow_info.cpp | window and dialog code of an app: main thread
+apps/pub/io/importers.cpp | an import started from the window: main thread
+apps/write/app/reviewpane.cpp | window and dialog code of an app: main thread
+apps/write/app/writewindow.cpp | main thread only, checked: a refusal message of the window; writewindow_protect's thread only encrypts
+apps/write/app/writewindow_fields.cpp | window and dialog code of an app: main thread
+apps/write/app/writewindow_file.cpp | window and dialog code of an app: main thread
+apps/write/app/writewindow_info.cpp | window and dialog code of an app: main thread
+apps/write/app/writewindow_output.cpp | window and dialog code of an app: main thread
+apps/write/core/citeops.cpp | document edits the window makes: main thread
+apps/write/core/contentcontrolops.cpp | document edits the window makes: main thread
+apps/write/core/fieldcode.h | fields are updated by the window: main thread
+apps/write/core/fieldops.cpp | document edits the window makes: main thread
+apps/write/core/fieldscan.cpp | fields are updated by the window: main thread
+apps/write/core/homeops.cpp | document edits the window makes: main thread
+apps/write/core/indexops.cpp | document edits the window makes: main thread
+apps/write/core/insertops.cpp | document edits the window makes: main thread
+apps/write/core/printing.cpp | printing is made by the window: main thread
+apps/write/core/tableops.cpp | document edits the window makes: main thread
+apps/write/core/templates.cpp | main thread only, checked: page size of a new document, made by the window; pub's template threads paint pictures only
+apps/write/core/textexport.cpp | export from the window: main thread
+apps/write/core/writedoc.cpp | page size of a new document: main thread

@@ -20,6 +20,10 @@ for c in check_layers check_translate_calls check_plurals check_plain_text check
 if ! UISTYLE=$(python3 tools/check_ui_style.py 2>&1); then
   echo "FAIL!  : check_ui_style: $(echo "$UISTYLE" | tail -1)" >> "$L"; echo "STYLE CHECK FAILED" >> "$L"; echo DONE >> "$L"; exit 1
 fi
+# (threads and the system's locale: a problem fails the gate at once, like the dialog style)
+if ! THREADS=$(python3 tools/check_threads.py 2>&1); then
+  echo "FAIL!  : check_threads: $(echo "$THREADS" | tail -1)" >> "$L"; echo "THREADS CHECK FAILED" >> "$L"; echo DONE >> "$L"; exit 1
+fi
 echo "== hex escapes: $(git diff origin/main...HEAD 2>/dev/null | grep -cE '^\+.*\\x[0-9A-Fa-f]{2}[0-9A-Fa-f]')" >> "$L"
 if ! JO_JOBS=${JO_JOBS:-12} sh /home/user/code/jeffpub79/.claude/agents-kit/wtbuild.sh $SUITES > "$L.build" 2>&1; then
   tail -15 "$L.build" >> "$L"; echo "BUILD FAILED" >> "$L"; exit 1
