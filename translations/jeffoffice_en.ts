@@ -512,7 +512,7 @@
 <context>
     <name>jp::crunch::PrintJob</name>
     <message numerus="yes">
-        <location filename="../apps/crunch/core/printjob.cpp" line="+1451"/>
+        <location filename="../apps/crunch/core/printjob.cpp" line="+1531"/>
         <source>%n link(s) have an address longer than %1 characters, so they can&apos;t be clicked in the PDF.</source>
         <translation>
             <numerusform>%n link has an address longer than %1 characters, so it can&apos;t be clicked in the PDF.</numerusform>

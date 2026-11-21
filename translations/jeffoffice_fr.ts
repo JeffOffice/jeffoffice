@@ -70298,12 +70298,12 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
 <context>
     <name>jp::crunch::PrintJob</name>
     <message>
-        <location filename="../apps/crunch/core/printjob.cpp" line="+229"/>
+        <location filename="../apps/crunch/core/printjob.cpp" line="+231"/>
         <source>Cell %1: </source>
         <translation type="unfinished">Cellule %1 : </translation>
     </message>
     <message>
-        <location line="+76"/>
+        <location line="+138"/>
         <source>This sheet has no cells to print.</source>
         <translation type="unfinished">Cette feuille ne contient aucune cellule à imprimer.</translation>
     </message>
@@ -70314,7 +70314,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     </message>
     <message>
         <location line="+9"/>
-        <location line="+142"/>
+        <location line="+158"/>
         <source>There is nothing to print.</source>
         <translation type="unfinished">Il n&apos;y a rien à imprimer.</translation>
     </message>

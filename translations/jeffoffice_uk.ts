@@ -70353,12 +70353,12 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::crunch::PrintJob</name>
     <message>
-        <location filename="../apps/crunch/core/printjob.cpp" line="+229"/>
+        <location filename="../apps/crunch/core/printjob.cpp" line="+231"/>
         <source>Cell %1: </source>
         <translation type="unfinished">Комірка %1: </translation>
     </message>
     <message>
-        <location line="+76"/>
+        <location line="+138"/>
         <source>This sheet has no cells to print.</source>
         <translation type="unfinished">На цьому аркуші немає комірок для друку.</translation>
     </message>
@@ -70369,7 +70369,7 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+9"/>
-        <location line="+142"/>
+        <location line="+158"/>
         <source>There is nothing to print.</source>
         <translation type="unfinished">Немає чого друкувати.</translation>
     </message>

@@ -70298,12 +70298,12 @@ Impossibile applicare la password al file.</translation>
 <context>
     <name>jp::crunch::PrintJob</name>
     <message>
-        <location filename="../apps/crunch/core/printjob.cpp" line="+229"/>
+        <location filename="../apps/crunch/core/printjob.cpp" line="+231"/>
         <source>Cell %1: </source>
         <translation type="unfinished">Cella %1: </translation>
     </message>
     <message>
-        <location line="+76"/>
+        <location line="+138"/>
         <source>This sheet has no cells to print.</source>
         <translation type="unfinished">Questo foglio non contiene celle da stampare.</translation>
     </message>
@@ -70314,7 +70314,7 @@ Impossibile applicare la password al file.</translation>
     </message>
     <message>
         <location line="+9"/>
-        <location line="+142"/>
+        <location line="+158"/>
         <source>There is nothing to print.</source>
         <translation type="unfinished">Non c&apos;è nulla da stampare.</translation>
     </message>

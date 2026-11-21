@@ -70298,12 +70298,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
 <context>
     <name>jp::crunch::PrintJob</name>
     <message>
-        <location filename="../apps/crunch/core/printjob.cpp" line="+229"/>
+        <location filename="../apps/crunch/core/printjob.cpp" line="+231"/>
         <source>Cell %1: </source>
         <translation type="unfinished">Cel %1: </translation>
     </message>
     <message>
-        <location line="+76"/>
+        <location line="+138"/>
         <source>This sheet has no cells to print.</source>
         <translation type="unfinished">Dit blad bevat geen cellen om af te drukken.</translation>
     </message>
@@ -70314,7 +70314,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     </message>
     <message>
         <location line="+9"/>
-        <location line="+142"/>
+        <location line="+158"/>
         <source>There is nothing to print.</source>
         <translation type="unfinished">Er is niets om af te drukken.</translation>
     </message>
