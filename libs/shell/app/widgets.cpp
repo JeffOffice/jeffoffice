@@ -379,10 +379,10 @@ namespace {
 
 class EyedropperOverlay : public QWidget {
 public:
-    EyedropperOverlay(QWidget *window, std::function<void(const QColor &)> done)
-        : QWidget(window), m_done(std::move(done))
+    EyedropperOverlay(QWidget *window, std::function<void(const QColor &)> done, std::function<void(const QPoint &)> point = {})
+        : QWidget(window), m_done(std::move(done)), m_point(std::move(point))
     {
-        m_shot = window->grab().toImage();
+        if (!m_point) m_shot = window->grab().toImage();
         setGeometry(window->rect());
         setMouseTracking(true);
         setCursor(Qt::CrossCursor);
@@ -408,6 +408,14 @@ protected:
     }
     void mousePressEvent(QMouseEvent *e) override
     {
+        if (m_point) {
+            // Only where was clicked is wanted (the caller looks it up in what it shows).
+            auto point = m_point;
+            const QPoint at = e->position().toPoint();
+            deleteLater();
+            if (e->button() == Qt::LeftButton) point(at);
+            return;
+        }
         const QColor c = colorAt(e->position().toPoint());
         auto done = m_done;
         deleteLater();
@@ -420,6 +428,7 @@ protected:
     void paintEvent(QPaintEvent *) override
     {
         // A swatch beside the cursor with the color under it.
+        if (m_point) return;
         const QColor c = colorAt(m_pos);
         if (!c.isValid()) return;
         QPainter p(this);
@@ -438,9 +447,15 @@ private:
     QImage m_shot;
     QPoint m_pos;
     std::function<void(const QColor &)> m_done;
+    std::function<void(const QPoint &)> m_point;
 };
 
 } // namespace
+
+void pickPointFromWindow(QWidget *window, std::function<void(const QPoint &)> done)
+{
+    if (window) new EyedropperOverlay(window, {}, std::move(done));
+}
 
 void pickColorFromWindow(QWidget *window, std::function<void(const QColor &)> done)
 {

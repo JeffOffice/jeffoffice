@@ -306,6 +306,9 @@ public:
     bool changePictureFromFile(const QString &path = QString());
     // The color the selected pictures have clear (Set Transparent Color picks it from the window).
     void setPictureTransparentColor(const QColor &color);
+    // Set Transparent Color at a click (in the window's coordinates): the color is that of the picture's own pixel there, from the picture as it was put in, not from what is
+    // drawn (zoom, recoloring, and smoothing change that). False, with a word in the status bar, when the click is not on a selected picture.
+    bool setTransparentColorAt(const QPoint &windowPoint);
     // A movie ("video") or a sound ("audio") from a file, put on the slide as the presentation program does: kept in the
     // presentation, with its first picture as the poster and the timing that plays it in the click sequence. False, with
     // the reason shown, when the file can't be put on the slide. (deckwindow_media.cpp)

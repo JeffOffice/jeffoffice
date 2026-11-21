@@ -343,12 +343,13 @@ void PictureItem::scaleInto(const QRectF &from, const QRectF &to)
 double PictureItem::saturationMove() const
 {
     for (const BlipEffect &e : blipEffects)
-        if (e.kind == BlipEffect::Hsl) return std::clamp(e.saturation, -1.0, 1.0) * 100;
+        if (e.kind == BlipEffect::Hsl) return std::isfinite(e.saturation) ? std::clamp(e.saturation, -1.0, 1.0) * 100 : 0;
     return 0;
 }
 
 void PictureItem::setSaturationMove(double percent)
 {
+    if (!std::isfinite(percent)) return;   // (not a number: nothing is changed)
     const double move = std::clamp(percent, -100.0, 100.0) / 100;
     for (qsizetype i = 0; i < blipEffects.size(); ++i) {
         BlipEffect &e = blipEffects[i];

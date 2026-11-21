@@ -120,8 +120,9 @@ void DeckWindow::createCropActions()
     // Set Transparent Color picks a color from what the window shows; the pictures selected then have that color clear.
     mk("pic.transparent", tr("Set Transparent Color"), "pipette", QKeySequence(), [this] {
         QPointer<DeckWindow> self(this);
-        pickColorFromWindow(this, [self](const QColor &c) {
-            if (self && c.isValid()) self->setPictureTransparentColor(c);
+        statusBar()->showMessage(tr("Click the color in the picture that is to be clear."), 8000);
+        pickPointFromWindow(this, [self](const QPoint &at) {
+            if (self) self->setTransparentColorAt(at);
         });
     });
     mk("pic.transparentNone", tr("No Transparent Color"), QString(), QKeySequence(), [onPictures] {
@@ -158,6 +159,29 @@ void DeckWindow::cropPictureToShape(const QString &shape)
     m_ed->forEachSelected(tr("Crop to Shape"), [shape](Item *it) {
         if (auto *p = dynamic_cast<PictureItem *>(it); p && !p->imageId.isEmpty()) p->maskShape = shape;
     });
+}
+
+bool DeckWindow::setTransparentColorAt(const QPoint &windowPoint)
+{
+    const QPointF page = m_canvas->toPage(QPointF(m_canvas->viewport()->mapFrom(this, windowPoint)));
+    const QString id = m_canvas->itemAt(page);
+    const auto *pic = dynamic_cast<const PictureItem *>(m_ed->doc()->item(id));
+    auto refuse = [this] {
+        statusBar()->showMessage(tr("Click a color in a picture that is selected."), 6000);
+        return false;
+    };
+    if (!pic || !m_ed->selection().contains(id) || pic->imageId.isEmpty() || !pic->mediaKind.isEmpty() || !pic->chartXml.isEmpty()) return refuse();
+    // The point in the picture's own pixels: back through the object's turn and flip, then across the picture's frame (a crop moves it) to the pixel.
+    const QImage source = m_ed->doc()->image(pic->imageId);
+    const QPointF local = pic->transform().inverted().map(page);
+    if (source.isNull() || pic->imgRect.width() <= 0 || pic->imgRect.height() <= 0) return refuse();
+    const int x = int(std::floor((local.x() - pic->imgRect.x()) / pic->imgRect.width() * source.width()));
+    const int y = int(std::floor((local.y() - pic->imgRect.y()) / pic->imgRect.height() * source.height()));
+    if (x < 0 || y < 0 || x >= source.width() || y >= source.height()) return refuse();
+    const QColor color = source.pixelColor(x, y);
+    if (color.alpha() == 0) return refuse();
+    setPictureTransparentColor(color);
+    return true;
 }
 
 void DeckWindow::setPictureTransparentColor(const QColor &color)

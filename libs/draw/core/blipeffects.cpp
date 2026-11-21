@@ -115,6 +115,11 @@ QJsonObject BlipEffect::toJson() const
     return o;
 }
 
+namespace {
+// A number a file gave: not a number counts as none, and it is held to -limit..limit.
+double sane(double v, double limit) { return std::isfinite(v) ? std::clamp(v, -limit, limit) : 0.0; }
+} // namespace
+
 BlipEffect BlipEffect::fromJson(const QJsonObject &o)
 {
     BlipEffect e;
@@ -132,7 +137,7 @@ BlipEffect BlipEffect::fromJson(const QJsonObject &o)
         break;
     case ColorReplace: e.color = colorFrom(o["color"].toObject()); break;
     case Duotone: e.color = colorFrom(o["dark"].toObject()); e.color2 = colorFrom(o["light"].toObject()); break;
-    case Hsl: e.hue = o["hue"].toDouble(); e.saturation = o["sat"].toDouble(); e.lightness = o["lum"].toDouble(); break;
+    case Hsl: e.hue = sane(o["hue"].toDouble(), 360); e.saturation = sane(o["sat"].toDouble(), 1); e.lightness = sane(o["lum"].toDouble(), 1); break;
     case Tint: e.hue = o["hue"].toDouble(); e.amount = o["amt"].toDouble(); break;
     }
     return e;

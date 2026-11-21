@@ -227,6 +227,8 @@ private:
 // Eyedropper: a crosshair over `window` until a click picks the color under
 // it (from a snapshot of the window) or Escape cancels.
 void pickColorFromWindow(QWidget *window, std::function<void(const QColor &)> done);
+// The same cross-hair, for where a click is (in the window's coordinates) and not for a color: the caller says what is there, from what it shows.
+void pickPointFromWindow(QWidget *window, std::function<void(const QPoint &)> done);
 
 // The Colors dialog: a Standard tab of swatches and a Custom tab that takes
 // RGB, HSL or CMYK values (a CMYK color keeps its ink amounts) and a hex
