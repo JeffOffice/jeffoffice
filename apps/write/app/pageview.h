@@ -7,6 +7,7 @@ namespace jp { class ShapeTextEdit; }
 // the story through the commands of core/editops.h.
 
 #include "app/pagepaint.h"
+#include "app/pasteoffer.h"
 #include "core/autoops.h"
 #include "core/contentcontrolops.h"
 #include "core/editops.h"
@@ -757,11 +758,10 @@ private:
     } m_choice;
     bool redoLastPaste(const std::function<void()> &again);
     void runPaste(bool smart, const std::function<void()> &put, int from);
-    void fillPasteMenu();
-    QToolButton *m_pasteButton = nullptr;
+    QVector<jp::PasteChoice> pasteOfferChoices();
+    PasteOffer *m_pasteOffer = nullptr;   // the button (shared: libs/shell/app/pasteoffer.h)
     void notePaste(int from, int selectionEnd, const PasteSource &from_, bool startedInTable, bool asCells = false);
     void updatePasteButton();
-    bool m_ctrlTap = false;   // Ctrl went down and nothing else since
     write::AutoFix m_autoFix;
     int m_autoFixCaret = -1;
     QPointer<QTextDocument> m_autoFixStory;
