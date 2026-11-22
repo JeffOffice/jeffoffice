@@ -58,10 +58,10 @@ Save the workbook afterward to keep the clean copy.
 
 **Remove personal information from this file when saving**, under the cards, does it every time you save, for any file, without changing the document you have open. It is the same box as in **Options**, and the same in every JeffOffice app.
 
-## Check .csv Compatibility
+## Check Compatibility for .csv
 
-Click **Check .csv Compatibility** to see what a .csv file would leave out of your workbook. A .csv file holds only the values of one sheet. The list names the other sheets, the formulas (the file has their results), the pictures, charts, notes, pivot tables, and the rest that your workbook has, and always the number formats, fonts, colours, and column widths. It also lists the choices kept in the file's properties, such as Mark as Final and Always Open Read-Only. It saves nothing. Choose **Save as .xlsx** when you save to keep them all.
+Pick **.csv** in **Check Compatibility** to see what a .csv file would leave out of your workbook. A .csv file holds only the values of one sheet. The list names the other sheets, the formulas (the file has their results), the pictures, charts, notes, pivot tables, and the rest that your workbook has, the defined names and tables, and always everything that is not a value, such as number formats, fonts, colours, borders, column widths, merged cells, frozen panes, filters, conditional formatting, data validation, links, and print settings. It also lists the choices kept in the file's properties, such as Mark as Final and Always Open Read-Only. It saves nothing. Choose **Save as .xlsx** when you save to keep them all.
 
 ## Check Compatibility
 
-Click **Check Compatibility** to see what an older file, an .xls file, would not hold. It lists the parts of the workbook that would be left out or cut to fit, such as charts, notes, or rows past the old limit. It saves nothing, and your workbook stays as it is.
+Click **Check Compatibility**, then pick **.xls**, **.ods**, or **.csv** to see what that kind of file would not hold. It lists the parts of the workbook that would be left out or cut to fit, such as charts, notes, or rows past the old limit, and the choices kept in the file itself, Mark as Final and Always Open Read-Only, when they are on. It saves nothing, and your workbook stays as it is.

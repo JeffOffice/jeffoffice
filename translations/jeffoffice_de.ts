@@ -8930,7 +8930,7 @@ Jetzt von %2 herunterladen? (%3, einmalig.)</translation>
 <context>
     <name>OdpExport</name>
     <message>
-        <location filename="../apps/deck/io/odpexport.cpp" line="+433"/>
+        <location filename="../apps/deck/io/odpexport.cpp" line="+434"/>
         <location line="+9"/>
         <source>Slide Master</source>
         <translation type="unfinished">Folienmaster</translation>
@@ -8952,7 +8952,12 @@ Jetzt von %2 herunterladen? (%3, einmalig.)</translation>
         <translation type="unfinished">Masterseite &quot;%1&quot;</translation>
     </message>
     <message>
-        <location line="+195"/>
+        <location line="+193"/>
+        <source>comments on the slides (they are left out of the file)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
         <location line="+5"/>
         <source>Slide %1</source>
         <translation type="unfinished">Folie %1</translation>
@@ -8994,7 +8999,7 @@ Jetzt von %2 herunterladen? (%3, einmalig.)</translation>
         <translation type="unfinished">Die Präsentationsdatei konnte nicht erstellt werden.</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+23"/>
         <source>There&apos;s no file name to save to.</source>
         <translation type="unfinished">Es ist kein Dateiname zum Speichern vorhanden.</translation>
     </message>
@@ -15604,6 +15609,21 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">Drucktitel und Seitenumbrüche zwischen Spalten</translation>
     </message>
     <message>
+        <location line="+3"/>
+        <source>links in cells (the text stays, and the link is gone)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>links in cells (the file has them, but they are lost when it is opened here again)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>print settings (the file has them, but they are lost when it is opened here again)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+8"/>
         <location line="+67"/>
         <source>formatting inside a text</source>
@@ -15627,7 +15647,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">Diagramme</translation>
     </message>
     <message>
-        <location line="-128"/>
+        <location line="-134"/>
         <source>chart sheets (%1): this format has no sheet that is a chart, so the chart on each is left out; move it onto a worksheet to keep it</source>
         <translation type="unfinished">Diagrammblätter (%1): Dieses Format kennt kein Blatt, das ein Diagramm ist, daher wird das Diagramm auf jedem dieser Blätter weggelassen. Verschieben Sie es auf ein Arbeitsblatt, um es zu behalten.</translation>
     </message>
@@ -15637,7 +15657,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">Blätter, die Dialoge oder Makros sind (%1)</translation>
     </message>
     <message>
-        <location line="+88"/>
+        <location line="+94"/>
         <source>formulas that fill the cells beside them (each is saved with the values it gave)</source>
         <translation type="unfinished">Formeln, die die daneben liegenden Zellen füllen (jede wird mit dem Wert gespeichert, den sie ergeben hat)</translation>
     </message>
@@ -15775,8 +15795,8 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">Eine Formel wird von anderen Zellen gemeinsam genutzt und wird dort gelesen, wo diese sich befinden.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/odssave.cpp" line="+232"/>
-        <location filename="../libs/office/sheet/xlssave.cpp" line="+232"/>
+        <location filename="../libs/office/sheet/odssave.cpp" line="+233"/>
+        <location filename="../libs/office/sheet/xlssave.cpp" line="+233"/>
         <source>%1 formulas the format cannot hold (they keep the value they came to)</source>
         <translation type="unfinished">%1 Formeln, die das Format nicht aufnehmen kann (sie behalten ihren berechneten Wert)</translation>
     </message>
@@ -15786,11 +15806,11 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">Datentabellen für Was-wäre-wenn-Analysen (ihre Zellen behalten ihre Zahlen)</translation>
     </message>
     <message>
-        <location line="+768"/>
+        <location line="+771"/>
         <location line="+244"/>
         <location line="+44"/>
         <location filename="../libs/office/sheet/xlssave.cpp" line="-36"/>
-        <location line="+817"/>
+        <location line="+820"/>
         <location line="+14"/>
         <source>The save was stopped.</source>
         <translation type="unfinished">Das Speichern wurde abgebrochen.</translation>
@@ -15960,7 +15980,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">Die Arbeitsmappe ruft mehr als 255 verschiedene Funktionen über ihre Namen auf, was das alte Format nicht speichern kann.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlssave.cpp" line="-1105"/>
+        <location filename="../libs/office/sheet/xlssave.cpp" line="-1108"/>
         <source>The workbook is larger than the old format can hold.</source>
         <translation type="unfinished">Die Arbeitsmappe ist größer, als das alte Format aufnehmen kann.</translation>
     </message>
@@ -15970,7 +15990,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">Die Arbeitsmappe konnte nicht mit dem Kennwort geschützt werden.</translation>
     </message>
     <message>
-        <location line="+129"/>
+        <location line="+132"/>
         <source>colors past the 56 the format holds (each is the nearest of the first 56)</source>
         <translation type="unfinished">Farben über die 56 hinaus, die das Format aufnehmen kann (jede wird durch die ähnlichste der ersten 56 ersetzt)</translation>
     </message>
@@ -22634,6 +22654,58 @@ Quelle: %3</translation>
     </message>
 </context>
 <context>
+    <name>jp::CompatibilityDialog</name>
+    <message numerus="yes">
+        <location filename="../libs/base/core/lossnotes.h" line="+32"/>
+        <source>And %n more.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../libs/shell/app/compatdialog.cpp" line="+17"/>
+        <source>The mark that the %1 is final.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The choice to always open the %1 for reading only.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Something went wrong.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+28"/>
+        <source>Couldn&apos;t check what a %1 file would leave out of this %2, so nothing is said either way. %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <location line="+67"/>
+        <source>Check Compatibility</source>
+        <translation type="unfinished">Kompatibilität prüfen</translation>
+    </message>
+    <message>
+        <location line="-64"/>
+        <source>Pick a kind of file to see what it can&apos;t hold of this file. Nothing is saved.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Kind of file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+36"/>
+        <source>Checking…</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>jp::CompressPictures</name>
     <message>
         <location filename="../libs/shell/app/compresspictures.cpp" line="+22"/>
@@ -23282,20 +23354,20 @@ Quelle: %3</translation>
 <context>
     <name>jp::CrunchWindow</name>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+328"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+330"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+888"/>
         <location filename="../apps/crunch/app/crunchwindow_windows.cpp" line="+108"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
     <message>
-        <location line="-135"/>
+        <location line="-137"/>
         <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+198"/>
         <source>The new workbook is getting ready. It can be changed in a moment.</source>
         <translation type="unfinished">Die neue Arbeitsmappe wird vorbereitet. Sie kann in Kürze bearbeitet werden.</translation>
     </message>
     <message>
-        <location line="+191"/>
+        <location line="+193"/>
         <source>Name box</source>
         <translation type="unfinished">Namenfeld</translation>
     </message>
@@ -23356,15 +23428,15 @@ Quelle: %3</translation>
         <translation>Maximum</translation>
     </message>
     <message>
-        <location line="-262"/>
-        <location line="+281"/>
+        <location line="-264"/>
+        <location line="+283"/>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="+190"/>
         <location filename="../apps/crunch/app/crunchwindow_cells.cpp" line="+117"/>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="+187"/>
         <location line="+125"/>
         <location line="+5"/>
-        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="+137"/>
-        <location line="+22"/>
+        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="+156"/>
+        <location line="+70"/>
         <location line="+28"/>
         <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="+99"/>
         <location filename="../apps/crunch/app/crunchwindow_drawborder.cpp" line="+40"/>
@@ -23392,12 +23464,12 @@ Quelle: %3</translation>
         <translation type="unfinished">Bereit</translation>
     </message>
     <message>
-        <location line="-281"/>
+        <location line="-283"/>
         <source>End</source>
         <translation type="unfinished">Ende</translation>
     </message>
     <message>
-        <location line="+318"/>
+        <location line="+320"/>
         <source>Zoom</source>
         <translation>Zoom</translation>
     </message>
@@ -23592,10 +23664,10 @@ Quelle: %3</translation>
     <message>
         <location line="+7"/>
         <location line="+586"/>
-        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-151"/>
+        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-216"/>
         <location line="+6"/>
         <location line="+14"/>
-        <location line="+102"/>
+        <location line="+167"/>
         <location line="+14"/>
         <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="-25"/>
         <location line="+6"/>
@@ -27289,7 +27361,7 @@ Die Datei ist nicht vorhanden.</translation>
         <translation type="unfinished">Als .xlsx speichern…</translation>
     </message>
     <message>
-        <location line="-136"/>
+        <location line="-201"/>
         <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="+40"/>
         <source>The workbook is still being read. Save it when the status bar says Ready.</source>
         <translation type="unfinished">Die Arbeitsmappe wird noch gelesen. Speichern Sie sie, wenn in der Statusleiste „Bereit“ angezeigt wird.</translation>
@@ -27302,41 +27374,65 @@ Die Datei ist nicht vorhanden.</translation>
         <translation type="unfinished">Speichern nach Abschluss der Berechnung…</translation>
     </message>
     <message>
-        <location line="+61"/>
-        <location line="+7"/>
-        <location line="+23"/>
-        <location line="+5"/>
-        <location filename="../apps/crunch/app/crunchwindow_info.cpp" line="+127"/>
-        <location line="+4"/>
-        <source>Check Compatibility</source>
-        <translation type="unfinished">Kompatibilität prüfen</translation>
-    </message>
-    <message>
-        <location line="-35"/>
-        <location filename="../apps/crunch/app/crunchwindow_info.cpp" line="-4"/>
+        <location line="+135"/>
         <source>The workbook is still being read. Check it when the status bar says Ready.</source>
         <translation type="unfinished">Die Arbeitsmappe wird noch gelesen. Prüfen Sie sie, wenn in der Statusleiste &quot;Bereit&quot; steht.</translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location line="-58"/>
         <source>Checking what an .xls file can hold…</source>
         <translation type="unfinished">Es wird geprüft, was eine .xls-Datei speichern kann…</translation>
     </message>
     <message>
-        <location line="+23"/>
+        <location line="-13"/>
+        <source>The cell being edited could not be accepted, so the workbook could not be checked. Finish or cancel the edit, and try again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Checking what an .ods file can hold…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+32"/>
+        <location line="+83"/>
         <source>Cut or changed to fit: %1</source>
         <translation type="unfinished">Abgeschnitten oder angepasst: %1</translation>
     </message>
     <message>
-        <location line="-31"/>
-        <location line="+32"/>
-        <location filename="../apps/crunch/app/crunchwindow_info.cpp" line="+4"/>
+        <location line="-59"/>
+        <source>There is no workbook to check.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The workbook is being saved or copied right now. Check it when that is done.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <location line="+48"/>
+        <location filename="../apps/crunch/app/crunchwindow_info.cpp" line="+131"/>
         <source>workbook</source>
         <translation type="unfinished">Arbeitsmappe</translation>
     </message>
     <message>
-        <location line="-4"/>
+        <location line="-46"/>
+        <source>Older spreadsheet (.xls)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>OpenDocument spreadsheet (.ods)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Text with commas (.csv)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+36"/>
         <source>Save Copy</source>
         <translation type="unfinished">Kopie speichern</translation>
     </message>
@@ -27429,7 +27525,7 @@ Die Datei ist nicht vorhanden.</translation>
         <translation type="unfinished">Überschreiben</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-110"/>
+        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-175"/>
         <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+64"/>
         <location filename="../apps/crunch/app/crunchwindow_savecopy.cpp" line="+78"/>
         <location filename="../apps/crunch/app/crunchwindow_versions.cpp" line="-6"/>
@@ -27589,7 +27685,7 @@ Die Datei ist nicht vorhanden.</translation>
         <translation type="unfinished">%1 gespeichert</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="+91"/>
+        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="+156"/>
         <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="-60"/>
         <location line="+54"/>
         <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+3"/>
@@ -30157,7 +30253,7 @@ Die Datei kann nicht gelesen werden.</translation>
         <translation type="unfinished">Nachschlagen</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_info.cpp" line="-64"/>
+        <location filename="../apps/crunch/app/crunchwindow_info.cpp" line="-63"/>
         <source>Objects</source>
         <translation type="unfinished">Objekte</translation>
     </message>
@@ -30167,17 +30263,7 @@ Die Datei kann nicht gelesen werden.</translation>
         <translation type="unfinished">Die Objekte in der Arbeitsmappe: was jedes ist sowie Öffnen, Umwandeln in ein Bild oder Löschen.</translation>
     </message>
     <message>
-        <location line="+4"/>
-        <source>Check .csv Compatibility</source>
-        <translation type="unfinished">.csv-Kompatibilität prüfen</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>See what a .csv file would leave out of this workbook, without saving.</source>
-        <translation type="unfinished">Anzeigen, was eine .csv-Datei aus dieser Arbeitsmappe weglassen würde, ohne zu speichern.</translation>
-    </message>
-    <message>
-        <location line="+6"/>
+        <location line="+9"/>
         <source>This file has more properties than %1 reads, so the mark can&apos;t be added.</source>
         <translation type="unfinished">Diese Datei hat mehr Eigenschaften, als %1 lesen kann, daher kann die Markierung nicht hinzugefügt werden.</translation>
     </message>
@@ -30212,22 +30298,17 @@ Die Datei kann nicht gelesen werden.</translation>
         <translation type="unfinished">Diese Arbeitsmappe wird wieder zum Bearbeiten geöffnet. Speichern Sie sie, um diese Auswahl beizubehalten.</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+8"/>
+        <source>The password: the .csv file is written without it, so anyone can read it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
         <source>The rest of the sheet: it was read only in part, so the file has only the part that was read.</source>
         <translation type="unfinished">Der restliche Blattbereich: Er wurde nur teilweise gelesen, daher enthält die Datei nur den gelesenen Teil.</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>The mark that the workbook is final.</source>
-        <translation type="unfinished">Die Markierung, dass die Arbeitsmappe abgeschlossen ist.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>The choice to always open the workbook for reading only.</source>
-        <translation type="unfinished">Die Auswahl, die Arbeitsmappe immer nur zum Lesen zu öffnen.</translation>
-    </message>
-    <message>
-        <location line="+24"/>
+        <location line="+19"/>
         <source>Marked as final: open for reading only</source>
         <translation type="unfinished">Als final markiert: Nur zum Lesen geöffnet</translation>
     </message>
@@ -33880,7 +33961,7 @@ Die Datei kann nicht gelesen werden.</translation>
     <message>
         <location line="+1"/>
         <location line="+22"/>
-        <location filename="../apps/deck/app/deckwindow_info.cpp" line="+135"/>
+        <location filename="../apps/deck/app/deckwindow_info.cpp" line="+136"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+1"/>
         <location line="+22"/>
         <source>Slides</source>
@@ -34018,7 +34099,7 @@ Die Datei kann nicht gelesen werden.</translation>
         <location line="+1"/>
         <location line="+59"/>
         <location line="+1"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+389"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+405"/>
         <source>Open</source>
         <translation type="unfinished">Öffnen</translation>
     </message>
@@ -35499,8 +35580,8 @@ Die Datei kann nicht gelesen werden.</translation>
         <location line="+7"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="-93"/>
         <location line="+215"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-212"/>
-        <location line="+86"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-227"/>
+        <location line="+101"/>
         <source>%1 couldn&apos;t save &quot;%2&quot;.
 %3%4</source>
         <translation type="unfinished">%1 konnte „%2“ nicht speichern.
@@ -36436,9 +36517,9 @@ Die Datei kann nicht gelesen werden.</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow.cpp" line="+0"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-213"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-228"/>
         <location line="+111"/>
-        <location line="+53"/>
+        <location line="+68"/>
         <location line="+1"/>
         <location line="+48"/>
         <location line="+3"/>
@@ -36446,7 +36527,7 @@ Die Datei kann nicht gelesen werden.</translation>
         <translation type="unfinished">Speichern</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-215"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-230"/>
         <location line="+73"/>
         <source>Save As</source>
         <translation type="unfinished">Speichern unter</translation>
@@ -36535,17 +36616,7 @@ Die Datei kann nicht gelesen werden.</translation>
         <translation type="unfinished">&quot;%1&quot; wurde in Meine Vorlagen gespeichert.</translation>
     </message>
     <message>
-        <location line="+22"/>
-        <source>The mark that the presentation is final.</source>
-        <translation type="unfinished">Die Markierung, dass die Präsentation abgeschlossen ist.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>The choice to always open the presentation for reading only.</source>
-        <translation type="unfinished">Die Option, die Präsentation immer nur schreibgeschützt zu öffnen.</translation>
-    </message>
-    <message>
-        <location line="+8"/>
+        <location line="+46"/>
         <source>A copy can&apos;t be saved over &quot;%1&quot;. Choose another name.</source>
         <translation type="unfinished">Eine Kopie kann nicht über &quot;%1&quot; gespeichert werden. Wählen Sie einen anderen Namen.</translation>
     </message>
@@ -36566,7 +36637,12 @@ Die Datei kann nicht gelesen werden.</translation>
         <translation type="unfinished">%1 gespeichert</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+1"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-92"/>
+        <source>animations (the file has them, but they are lost when it is opened here again)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+93"/>
         <source>Saved %1. Left out, as this kind of file can&apos;t hold it: %2</source>
         <translation type="unfinished">%1 wurde gespeichert. Weggelassen, da dieser Dateityp es nicht aufnehmen kann: %2</translation>
     </message>
@@ -38438,13 +38514,19 @@ Die Datei kann nicht gelesen werden.</translation>
         <translation type="unfinished">Zu &quot;%1&quot; zurückgekehrt. Speichern Sie die Präsentation, um sie zu behalten.</translation>
     </message>
     <message>
-        <location line="+30"/>
-        <source>Check Compatibility</source>
-        <translation type="unfinished">Kompatibilität prüfen</translation>
+        <location line="+29"/>
+        <source>OpenDocument presentation (.odp)</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+0"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-51"/>
+        <location line="+1"/>
+        <source>OpenDocument template (.otp)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-2"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-73"/>
+        <location line="+22"/>
         <source>presentation</source>
         <translation type="unfinished">Präsentation</translation>
     </message>
@@ -60535,7 +60617,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     </message>
     <message>
         <location line="+87"/>
-        <location filename="../apps/write/app/writewindow_info.cpp" line="+255"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="+257"/>
         <source>document</source>
         <translation type="unfinished">Dokument</translation>
     </message>
@@ -60584,11 +60666,13 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     </message>
     <message>
         <location line="+19"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="+8"/>
         <source>This document is protected with a password, and a .rtf file can&apos;t hold one. Save it as a .docx file, or remove the password first (File &gt; Info).</source>
         <translation type="unfinished">Dieses Dokument ist mit einem Kennwort geschützt, und eine .rtf-Datei kann keines speichern. Speichern Sie es als .docx-Datei oder entfernen Sie zuerst das Kennwort (Datei &gt; Info).</translation>
     </message>
     <message>
         <location line="+4"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="+16"/>
         <source>This document is protected with a password, and a plain text file can&apos;t hold one. Save it as a .docx file, or remove the password first (File &gt; Info).</source>
         <translation type="unfinished">Dieses Dokument ist mit einem Kennwort geschützt, und eine Nur-Text-Datei kann keines speichern. Speichern Sie es als .docx-Datei oder entfernen Sie zuerst das Kennwort (Datei &gt; Info).</translation>
     </message>
@@ -61562,7 +61646,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation>Formatierung</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_info.cpp" line="-218"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="-243"/>
         <source>Pages</source>
         <translation>Seiten</translation>
     </message>
@@ -61662,12 +61746,68 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Das Dokument wird beim Speichern mit einem Kennwort geschützt.</translation>
     </message>
     <message>
+        <location line="+46"/>
+        <location line="+17"/>
+        <source>There is no document to check.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-2"/>
+        <source>OpenDocument text (.odt)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Rich Text Format (.rtf)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Plain text (.txt)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>The fonts, colors, and other formatting.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Pictures, charts, and equations.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Tables as tables (the words in them stay, one after another).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Headers and footers, with the words in them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Comments and footnotes, with the words in them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Bookmarks, and links to them or to web pages (the words stay).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Tracked changes and content controls (the words stay).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../apps/write/app/writewindow_file.cpp" line="+46"/>
         <source>Some versions kept before couldn&apos;t be given the new password, and stay as they were.</source>
         <translation type="unfinished">Einige zuvor gespeicherte Versionen konnten nicht mit dem neuen Kennwort versehen werden und bleiben unverändert.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_info.cpp" line="+13"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="-68"/>
         <location filename="../apps/write/app/writewindow_review.cpp" line="+1"/>
         <source>Comments</source>
         <translation>Kommentare</translation>
@@ -61746,21 +61886,6 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <location line="+8"/>
         <source>Inspect Document</source>
         <translation type="unfinished">Dokument prüfen</translation>
-    </message>
-    <message>
-        <location line="+19"/>
-        <source>%1 (in .rtf files)</source>
-        <translation type="unfinished">%1 (in .rtf-Dateien)</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>The choice to always open the document for reading only.</source>
-        <translation type="unfinished">Die Option, das Dokument immer nur zum Lesen zu öffnen.</translation>
-    </message>
-    <message>
-        <location line="+7"/>
-        <source>Check Compatibility</source>
-        <translation type="unfinished">Kompatibilität prüfen</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_review.cpp" line="+10"/>
@@ -71478,9 +71603,19 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Makros</translation>
     </message>
     <message>
-        <location line="+4"/>
-        <source>number formats, fonts, colors, and column widths</source>
-        <translation type="unfinished">Zahlenformate, Schriftarten, Farben und Spaltenbreiten</translation>
+        <location line="+8"/>
+        <source>defined names</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>tables</source>
+        <translation type="unfinished">Tabellen</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>everything that is not a value, such as number formats, fonts, colors, borders, column widths, merged cells, frozen panes, filters, conditional formatting, data validation, links, and print settings</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+8"/>
@@ -80316,7 +80451,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     </message>
     <message>
         <location line="+6"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="+859"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="+860"/>
         <source>charts past the %1 a document may have</source>
         <translation type="unfinished">Diagramme, die die Anzahl von %1 überschreiten, die ein Dokument haben darf</translation>
     </message>
@@ -80371,13 +80506,13 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     </message>
     <message>
         <location line="+433"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="-815"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-816"/>
         <source>content nested too deeply</source>
         <translation type="unfinished">zu tief verschachtelter Inhalt</translation>
     </message>
     <message>
         <location line="+342"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="+2178"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="+2180"/>
         <source>tables nested too deeply</source>
         <translation type="unfinished">zu tief verschachtelte Tabellen</translation>
     </message>
@@ -80534,7 +80669,13 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Markierungen „Rechtschreibung nicht prüfen“</translation>
     </message>
     <message>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="-1524"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-2157"/>
+        <location line="+2098"/>
+        <source>content controls (the text in them is kept)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-1466"/>
         <source>form fields (kept as the text they show)</source>
         <translation type="unfinished">Formularfelder (als angezeigter Text beibehalten)</translation>
     </message>
@@ -80575,17 +80716,17 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     </message>
     <message>
         <location line="+18"/>
-        <location line="+138"/>
+        <location line="+139"/>
         <source>tracked changes in headers, footers, and notes (saved as they stand now)</source>
         <translation type="unfinished">nachverfolgte Änderungen in Kopf- und Fußzeilen sowie Notizen (im aktuellen Zustand gespeichert)</translation>
     </message>
     <message>
-        <location line="-99"/>
+        <location line="-100"/>
         <source>equations that can&apos;t be kept as formulas (kept as plain text)</source>
         <translation type="unfinished">Formeln, die nicht als Formeln beibehalten werden können (als reiner Text beibehalten)</translation>
     </message>
     <message>
-        <location line="+418"/>
+        <location line="+419"/>
         <source>a table with more cells than are kept</source>
         <translation type="unfinished">eine Tabelle mit mehr Zellen als beibehalten werden</translation>
     </message>
@@ -80598,6 +80739,20 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <location line="+3"/>
         <source>footnote columns (the footnotes are saved in one column)</source>
         <translation type="unfinished">Fußnotenspalten (die Fußnoten werden in einer Spalte gespeichert)</translation>
+    </message>
+</context>
+<context>
+    <name>rtf</name>
+    <message>
+        <location filename="../libs/office/rtf/rtfwrite.cpp" line="+489"/>
+        <location line="+18"/>
+        <source>bookmarks, and the links that go to them (the words stay)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>content controls (the text in them is kept)</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 </TS>

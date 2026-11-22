@@ -121,7 +121,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../libs/office/sheet/xlssave.cpp" line="+773"/>
+        <location filename="../libs/office/sheet/xlssave.cpp" line="+777"/>
         <source>%n note(s) outside the old format&apos;s sheet size (past row 65,536 or column IV), which were left out</source>
         <translation>
             <numerusform>%n note is outside the old format&apos;s sheet size (past row 65,536 or column IV) and was left out.</numerusform>
@@ -196,6 +196,17 @@
         <translation>
             <numerusform>Lines left out: %1. A word can&apos;t have a space or a control character in it, or be longer than %n letter.</numerusform>
             <numerusform>Lines left out: %1. A word can&apos;t have a space or a control character in it, or be longer than %n letters.</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
+    <name>jp::CompatibilityDialog</name>
+    <message numerus="yes">
+        <location filename="../libs/base/core/lossnotes.h" line="+32"/>
+        <source>And %n more.</source>
+        <translation>
+            <numerusform>And 1 more.</numerusform>
+            <numerusform>And %n more.</numerusform>
         </translation>
     </message>
 </context>
@@ -370,7 +381,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+296"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+312"/>
         <source>Saved %1, but %n object(s) can&apos;t be saved in this kind of file yet.</source>
         <translation>
             <numerusform>Saved %1, but %n object can&apos;t be saved in this kind of file yet.</numerusform>
@@ -378,7 +389,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/deck/app/deckwindow_info.cpp" line="+313"/>
+        <location filename="../apps/deck/app/deckwindow_info.cpp" line="+314"/>
         <source>Author field on %n slide(s)</source>
         <translation>
             <numerusform>Author field on %n slide</numerusform>

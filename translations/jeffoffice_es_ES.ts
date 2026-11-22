@@ -1404,10 +1404,6 @@ The file can't be read.</source>
 No se puede leer el fichero.</translation>
     </message>
     <message>
-        <source>See what a .csv file would leave out of this workbook, without saving.</source>
-        <translation type="unfinished">Vea qué se perdería de este libro en un fichero .csv, sin guardar.</translation>
-    </message>
-    <message>
         <source>This file has more properties than %1 reads, so the mark can't be added.</source>
         <translation type="unfinished">Este fichero tiene más propiedades de las que %1 puede leer, así que no se puede añadir la marca.</translation>
     </message>
@@ -2318,10 +2314,6 @@ No se pudo aplicar la contraseña al fichero.</translation>
     <message>
         <source>Linked pictures and objects, and fields that read another file. Removing turns fields into text and takes out the linked ones. Web links stay.</source>
         <translation type="unfinished">Imágenes y objetos vinculados, y campos que leen otro fichero. Al quitarlos, los campos se convierten en texto y se eliminan los vinculados. Los vínculos web se conservan.</translation>
-    </message>
-    <message>
-        <source>%1 (in .rtf files)</source>
-        <translation type="unfinished">%1 (en ficheros .rtf)</translation>
     </message>
     <message>
         <source>File Name</source>

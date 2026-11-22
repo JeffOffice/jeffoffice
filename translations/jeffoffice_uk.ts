@@ -8937,7 +8937,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>OdpExport</name>
     <message>
-        <location filename="../apps/deck/io/odpexport.cpp" line="+433"/>
+        <location filename="../apps/deck/io/odpexport.cpp" line="+434"/>
         <location line="+9"/>
         <source>Slide Master</source>
         <translation type="unfinished">Зразок слайдів</translation>
@@ -8959,7 +8959,12 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Головна сторінка «%1»</translation>
     </message>
     <message>
-        <location line="+195"/>
+        <location line="+193"/>
+        <source>comments on the slides (they are left out of the file)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
         <location line="+5"/>
         <source>Slide %1</source>
         <translation type="unfinished">Слайд %1</translation>
@@ -9001,7 +9006,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Не вдалося зібрати файл презентації.</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+23"/>
         <source>There&apos;s no file name to save to.</source>
         <translation type="unfinished">Немає імені файлу для збереження.</translation>
     </message>
@@ -15329,8 +15334,8 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">групи, вкладені глибше за %1</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/odssave.cpp" line="+232"/>
-        <location filename="../libs/office/sheet/xlssave.cpp" line="+232"/>
+        <location filename="../libs/office/sheet/odssave.cpp" line="+233"/>
+        <location filename="../libs/office/sheet/xlssave.cpp" line="+233"/>
         <source>%1 formulas the format cannot hold (they keep the value they came to)</source>
         <translation type="unfinished">%1 формул, які формат не може зберегти (вони зберігають значення, яке мали)</translation>
     </message>
@@ -15340,11 +15345,11 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">таблиці даних аналізу «що якщо» (їхні комірки зберігають числа, які містять)</translation>
     </message>
     <message>
-        <location line="+768"/>
+        <location line="+771"/>
         <location line="+244"/>
         <location line="+44"/>
         <location filename="../libs/office/sheet/xlssave.cpp" line="-36"/>
-        <location line="+817"/>
+        <location line="+820"/>
         <location line="+14"/>
         <source>The save was stopped.</source>
         <translation type="unfinished">Збереження було зупинено.</translation>
@@ -15460,6 +15465,21 @@ Open it in your email program, add recipients and send.</source>
         <location line="+1"/>
         <source>print titles and page breaks between columns</source>
         <translation type="unfinished">заголовки для друку та розриви сторінок між стовпцями</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>links in cells (the text stays, and the link is gone)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>links in cells (the file has them, but they are lost when it is opened here again)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>print settings (the file has them, but they are lost when it is opened here again)</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
@@ -16217,7 +16237,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">Формула є спільною для інших комірок і обчислюється там, де вони розміщені.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlssave.cpp" line="-1105"/>
+        <location filename="../libs/office/sheet/xlssave.cpp" line="-1108"/>
         <source>The workbook is larger than the old format can hold.</source>
         <translation type="unfinished">Книга більша, ніж може зберегти старий формат.</translation>
     </message>
@@ -16227,7 +16247,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">Книгу не вдалося захистити паролем.</translation>
     </message>
     <message>
-        <location line="+129"/>
+        <location line="+132"/>
         <source>colors past the 56 the format holds (each is the nearest of the first 56)</source>
         <translation type="unfinished">Кольорів понад 56, які підтримує формат (кожен замінено найближчим із перших 56)</translation>
     </message>
@@ -22655,6 +22675,59 @@ Source: %3</source>
     </message>
 </context>
 <context>
+    <name>jp::CompatibilityDialog</name>
+    <message numerus="yes">
+        <location filename="../libs/base/core/lossnotes.h" line="+32"/>
+        <source>And %n more.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location filename="../libs/shell/app/compatdialog.cpp" line="+17"/>
+        <source>The mark that the %1 is final.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The choice to always open the %1 for reading only.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Something went wrong.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+28"/>
+        <source>Couldn&apos;t check what a %1 file would leave out of this %2, so nothing is said either way. %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <location line="+67"/>
+        <source>Check Compatibility</source>
+        <translation type="unfinished">Перевірити сумісність</translation>
+    </message>
+    <message>
+        <location line="-64"/>
+        <source>Pick a kind of file to see what it can&apos;t hold of this file. Nothing is saved.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Kind of file</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+36"/>
+        <source>Checking…</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>jp::CompressPictures</name>
     <message>
         <location filename="../libs/shell/app/compresspictures.cpp" line="+22"/>
@@ -23309,7 +23382,7 @@ Source: %3</source>
         <translation type="unfinished">Нова книга готується. Її можна буде змінити за мить.</translation>
     </message>
     <message>
-        <location line="+135"/>
+        <location line="+137"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+888"/>
         <location filename="../apps/crunch/app/crunchwindow_windows.cpp" line="+108"/>
         <source>%1 (%2)</source>
@@ -23399,15 +23472,15 @@ Source: %3</source>
         <translation type="unfinished">Сума</translation>
     </message>
     <message>
-        <location line="-262"/>
-        <location line="+281"/>
+        <location line="-264"/>
+        <location line="+283"/>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="+190"/>
         <location filename="../apps/crunch/app/crunchwindow_cells.cpp" line="+117"/>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="+187"/>
         <location line="+125"/>
         <location line="+5"/>
-        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="+137"/>
-        <location line="+22"/>
+        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="+156"/>
+        <location line="+70"/>
         <location line="+28"/>
         <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="+99"/>
         <location filename="../apps/crunch/app/crunchwindow_drawborder.cpp" line="+40"/>
@@ -23493,10 +23566,10 @@ Source: %3</source>
     <message>
         <location line="+7"/>
         <location line="+586"/>
-        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-151"/>
+        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-216"/>
         <location line="+6"/>
         <location line="+14"/>
-        <location line="+102"/>
+        <location line="+167"/>
         <location line="+14"/>
         <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="-25"/>
         <location line="+6"/>
@@ -23643,12 +23716,12 @@ Source: %3</source>
         <translation type="unfinished">Пропонувати завершити текст із комірок вище й нижче (автозавершення)</translation>
     </message>
     <message>
-        <location line="-487"/>
+        <location line="-489"/>
         <source>End</source>
         <translation type="unfinished">Кінець</translation>
     </message>
     <message>
-        <location line="+381"/>
+        <location line="+383"/>
         <location line="+2"/>
         <source>Repeat</source>
         <translation type="unfinished">Повторити</translation>
@@ -25908,7 +25981,7 @@ Source: %3</source>
         <translation type="unfinished">Введіть два значення, між якими мають бути комірки.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-136"/>
+        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-201"/>
         <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="-78"/>
         <source>The workbook is still being read. Save it when the status bar says Ready.</source>
         <translation type="unfinished">Книгу ще читають. Збережіть її, коли в рядку стану з&apos;явиться «Готово».</translation>
@@ -25928,41 +26001,65 @@ Source: %3</source>
         <translation type="unfinished">Збереження %1…</translation>
     </message>
     <message>
-        <location line="+42"/>
-        <location line="+7"/>
-        <location line="+23"/>
-        <location line="+5"/>
-        <location filename="../apps/crunch/app/crunchwindow_info.cpp" line="-165"/>
-        <location line="+4"/>
-        <source>Check Compatibility</source>
-        <translation type="unfinished">Перевірити сумісність</translation>
-    </message>
-    <message>
-        <location line="-35"/>
-        <location filename="../apps/crunch/app/crunchwindow_info.cpp" line="-4"/>
+        <location line="+116"/>
         <source>The workbook is still being read. Check it when the status bar says Ready.</source>
         <translation type="unfinished">Книгу ще читають. Перевірте її, коли в рядку стану з&apos;явиться «Готово».</translation>
     </message>
     <message>
-        <location line="+11"/>
+        <location line="-58"/>
         <source>Checking what an .xls file can hold…</source>
         <translation type="unfinished">Перевірка того, що може зберегти файл .xls…</translation>
     </message>
     <message>
-        <location line="+23"/>
+        <location line="-13"/>
+        <source>The cell being edited could not be accepted, so the workbook could not be checked. Finish or cancel the edit, and try again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Checking what an .ods file can hold…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+32"/>
+        <location line="+83"/>
         <source>Cut or changed to fit: %1</source>
         <translation type="unfinished">Обрізано або змінено, щоб вмістити: %1</translation>
     </message>
     <message>
-        <location line="-31"/>
-        <location line="+32"/>
-        <location filename="../apps/crunch/app/crunchwindow_info.cpp" line="+4"/>
+        <location line="-59"/>
+        <source>There is no workbook to check.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The workbook is being saved or copied right now. Check it when that is done.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <location line="+48"/>
+        <location filename="../apps/crunch/app/crunchwindow_info.cpp" line="-161"/>
         <source>workbook</source>
         <translation type="unfinished">книга</translation>
     </message>
     <message>
-        <location line="-18"/>
+        <location line="-46"/>
+        <source>Older spreadsheet (.xls)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>OpenDocument spreadsheet (.ods)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Text with commas (.csv)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+22"/>
         <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="-60"/>
         <location line="+54"/>
         <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+86"/>
@@ -27751,7 +27848,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">(функцію ще не використано)</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_info.cpp" line="-64"/>
+        <location filename="../apps/crunch/app/crunchwindow_info.cpp" line="-63"/>
         <source>Objects</source>
         <translation type="unfinished">Об&apos;єкти</translation>
     </message>
@@ -27761,17 +27858,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Об&apos;єкти книги: що кожен із них являє собою, а також відкриття, перетворення на малюнок або видалення.</translation>
     </message>
     <message>
-        <location line="+4"/>
-        <source>Check .csv Compatibility</source>
-        <translation type="unfinished">Перевірити сумісність із .csv</translation>
-    </message>
-    <message>
-        <location line="+0"/>
-        <source>See what a .csv file would leave out of this workbook, without saving.</source>
-        <translation type="unfinished">Перегляньте, що файл .csv втратив би з цієї книги, без збереження.</translation>
-    </message>
-    <message>
-        <location line="+6"/>
+        <location line="+9"/>
         <source>This file has more properties than %1 reads, so the mark can&apos;t be added.</source>
         <translation type="unfinished">У цьому файлі більше властивостей, ніж може прочитати %1, тож позначку не можна додати.</translation>
     </message>
@@ -27806,22 +27893,17 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Цю книгу знову відкриватимуть для редагування. Збережіть її, щоб зберегти цей вибір.</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+8"/>
+        <source>The password: the .csv file is written without it, so anyone can read it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
         <source>The rest of the sheet: it was read only in part, so the file has only the part that was read.</source>
         <translation type="unfinished">Решта аркуша: його було прочитано лише частково, тому файл містить лише прочитану частину.</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>The mark that the workbook is final.</source>
-        <translation type="unfinished">Позначка, що книгу позначено як остаточну.</translation>
-    </message>
-    <message>
-        <location line="+1"/>
-        <source>The choice to always open the workbook for reading only.</source>
-        <translation type="unfinished">Вибір відкривати книгу завжди лише для читання.</translation>
-    </message>
-    <message>
-        <location line="+24"/>
+        <location line="+19"/>
         <source>Marked as final: open for reading only</source>
         <translation type="unfinished">Позначено як остаточний: відкривається лише для читання</translation>
     </message>
@@ -30675,7 +30757,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Не збережено: %1 змінено іншою програмою.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-110"/>
+        <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-175"/>
         <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+52"/>
         <location filename="../apps/crunch/app/crunchwindow_savecopy.cpp" line="+78"/>
         <location filename="../apps/crunch/app/crunchwindow_versions.cpp" line="-6"/>
@@ -33919,7 +34001,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+1"/>
         <location line="+22"/>
-        <location filename="../apps/deck/app/deckwindow_info.cpp" line="+135"/>
+        <location filename="../apps/deck/app/deckwindow_info.cpp" line="+136"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+1"/>
         <location line="+22"/>
         <source>Slides</source>
@@ -34057,7 +34139,7 @@ The file can&apos;t be read.</source>
         <location line="+1"/>
         <location line="+59"/>
         <location line="+1"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+389"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+405"/>
         <source>Open</source>
         <translation type="unfinished">Відкрити</translation>
     </message>
@@ -35528,9 +35610,9 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow.cpp" line="+0"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-339"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-354"/>
         <location line="+111"/>
-        <location line="+53"/>
+        <location line="+68"/>
         <location line="+1"/>
         <location line="+48"/>
         <location line="+3"/>
@@ -35585,8 +35667,8 @@ The file can&apos;t be read.</source>
         <location line="+7"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+139"/>
         <location line="+215"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-89"/>
-        <location line="+86"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-104"/>
+        <location line="+101"/>
         <source>%1 couldn&apos;t save &quot;%2&quot;.
 %3%4</source>
         <translation type="unfinished">%1 не вдалося зберегти «%2».
@@ -36263,13 +36345,19 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Ви перейшли до «%1». Збережіть презентацію, щоб зберегти зміни.</translation>
     </message>
     <message>
-        <location line="+30"/>
-        <source>Check Compatibility</source>
-        <translation type="unfinished">Перевірити сумісність</translation>
+        <location line="+29"/>
+        <source>OpenDocument presentation (.odp)</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+0"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-51"/>
+        <location line="+1"/>
+        <source>OpenDocument template (.otp)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-2"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-73"/>
+        <location line="+22"/>
         <source>presentation</source>
         <translation type="unfinished">презентацію</translation>
     </message>
@@ -37538,7 +37626,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Стрілки ліворуч і праворуч зменшують і збільшують масштаб.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-235"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-250"/>
         <location line="+73"/>
         <source>Save As</source>
         <translation type="unfinished">Зберегти як</translation>
@@ -37627,17 +37715,12 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Збережено «%1» у Моїх шаблонах.</translation>
     </message>
     <message>
-        <location line="+22"/>
-        <source>The mark that the presentation is final.</source>
-        <translation type="unfinished">Позначка про те, що презентацію завершено.</translation>
+        <location line="+27"/>
+        <source>animations (the file has them, but they are lost when it is opened here again)</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>The choice to always open the presentation for reading only.</source>
-        <translation type="unfinished">Вибір завжди відкривати презентацію лише для читання.</translation>
-    </message>
-    <message>
-        <location line="+8"/>
+        <location line="+19"/>
         <source>A copy can&apos;t be saved over &quot;%1&quot;. Choose another name.</source>
         <translation type="unfinished">Копію не можна зберегти поверх «%1». Виберіть іншу назву.</translation>
     </message>
@@ -37991,7 +38074,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Зверху праворуч</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_info.cpp" line="-356"/>
+        <location filename="../apps/deck/app/deckwindow_info.cpp" line="-354"/>
         <location filename="../apps/deck/app/deckwindow_show.cpp" line="+10"/>
         <source>Objects</source>
         <translation type="unfinished">Об&apos;єкти</translation>
@@ -59463,11 +59546,13 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+19"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="+265"/>
         <source>This document is protected with a password, and a .rtf file can&apos;t hold one. Save it as a .docx file, or remove the password first (File &gt; Info).</source>
         <translation type="unfinished">Цей документ захищено паролем, а файл .rtf не може його зберігати. Збережіть його як файл .docx або спочатку видаліть пароль (Файл &gt; Відомості).</translation>
     </message>
     <message>
         <location line="+4"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="+16"/>
         <source>This document is protected with a password, and a plain text file can&apos;t hold one. Save it as a .docx file, or remove the password first (File &gt; Info).</source>
         <translation type="unfinished">Цей документ захищено паролем, а файл звичайного тексту не може його зберігати. Збережіть його як файл .docx або спочатку видаліть пароль (Файл &gt; Відомості).</translation>
     </message>
@@ -59549,7 +59634,7 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+8"/>
-        <location filename="../apps/write/app/writewindow_info.cpp" line="+255"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="-24"/>
         <source>document</source>
         <translation type="unfinished">документ</translation>
     </message>
@@ -60062,7 +60147,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Автоматично</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_info.cpp" line="-218"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="-219"/>
         <source>Pages</source>
         <translation>Сторінки</translation>
     </message>
@@ -60243,19 +60328,60 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Перевірити документ</translation>
     </message>
     <message>
-        <location line="+19"/>
-        <source>%1 (in .rtf files)</source>
-        <translation type="unfinished">%1 (у файлах .rtf)</translation>
+        <location line="+14"/>
+        <location line="+17"/>
+        <source>There is no document to check.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-2"/>
+        <source>OpenDocument text (.odt)</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>The choice to always open the document for reading only.</source>
-        <translation type="unfinished">Вибір: завжди відкривати документ лише для читання.</translation>
+        <source>Rich Text Format (.rtf)</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+7"/>
-        <source>Check Compatibility</source>
-        <translation type="unfinished">Перевірити сумісність</translation>
+        <location line="+9"/>
+        <source>Plain text (.txt)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>The fonts, colors, and other formatting.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Pictures, charts, and equations.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Tables as tables (the words in them stay, one after another).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Headers and footers, with the words in them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Comments and footnotes, with the words in them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Bookmarks, and links to them or to web pages (the words stay).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Tracked changes and content controls (the words stay).</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_insert.cpp" line="-94"/>
@@ -71542,9 +71668,19 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">макроси</translation>
     </message>
     <message>
-        <location line="+4"/>
-        <source>number formats, fonts, colors, and column widths</source>
-        <translation type="unfinished">формати чисел, шрифти, кольори та ширину стовпців</translation>
+        <location line="+8"/>
+        <source>defined names</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>tables</source>
+        <translation type="unfinished">таблиці</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>everything that is not a value, such as number formats, fonts, colors, borders, column widths, merged cells, frozen panes, filters, conditional formatting, data validation, links, and print settings</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+8"/>
@@ -80404,7 +80540,7 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+6"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="+859"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="+860"/>
         <source>charts past the %1 a document may have</source>
         <translation type="unfinished">діаграми перевищують %1, які може мати документ</translation>
     </message>
@@ -80459,13 +80595,13 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+433"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="-815"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-816"/>
         <source>content nested too deeply</source>
         <translation type="unfinished">вкладений вміст занадто глибокий</translation>
     </message>
     <message>
         <location line="+342"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="+2178"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="+2180"/>
         <source>tables nested too deeply</source>
         <translation type="unfinished">таблиці занадто глибоко вкладені</translation>
     </message>
@@ -80622,7 +80758,13 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">позначки «не перевіряти правопис»</translation>
     </message>
     <message>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="-1524"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-2157"/>
+        <location line="+2098"/>
+        <source>content controls (the text in them is kept)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-1466"/>
         <source>form fields (kept as the text they show)</source>
         <translation type="unfinished">поля форм (збережено як текст, який вони показують)</translation>
     </message>
@@ -80663,17 +80805,17 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+18"/>
-        <location line="+138"/>
+        <location line="+139"/>
         <source>tracked changes in headers, footers, and notes (saved as they stand now)</source>
         <translation type="unfinished">відстежувані зміни в колонтитулах, нижніх колонтитулах і виносках (збережено в поточному вигляді)</translation>
     </message>
     <message>
-        <location line="-99"/>
+        <location line="-100"/>
         <source>equations that can&apos;t be kept as formulas (kept as plain text)</source>
         <translation type="unfinished">рівняння, які не можна зберегти як формули (збережено як звичайний текст)</translation>
     </message>
     <message>
-        <location line="+418"/>
+        <location line="+419"/>
         <source>a table with more cells than are kept</source>
         <translation type="unfinished">таблиця з більшою кількістю комірок, ніж зберігається</translation>
     </message>
@@ -80686,6 +80828,20 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+3"/>
         <source>footnote columns (the footnotes are saved in one column)</source>
         <translation type="unfinished">колонки виносок (виноски зберігаються в одній колонці)</translation>
+    </message>
+</context>
+<context>
+    <name>rtf</name>
+    <message>
+        <location filename="../libs/office/rtf/rtfwrite.cpp" line="+489"/>
+        <location line="+18"/>
+        <source>bookmarks, and the links that go to them (the words stay)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>content controls (the text in them is kept)</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 </TS>

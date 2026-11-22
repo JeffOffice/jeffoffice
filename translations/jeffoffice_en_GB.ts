@@ -1330,6 +1330,10 @@ Download it from %2 now? (%3, once.)</translation>
         <translation>Capitalise Words</translation>
     </message>
     <message>
+        <source>The fonts, colors, and other formatting.</source>
+        <translation>The fonts, colours, and other formatting.</translation>
+    </message>
+    <message>
         <source>No Color</source>
         <translation>No Colour</translation>
     </message>
@@ -1395,8 +1399,8 @@ Download it from %2 now? (%3, once.)</translation>
 <context>
     <name>jp::crunch::OtherFormats</name>
     <message>
-        <source>number formats, fonts, colors, and column widths</source>
-        <translation>number formats, fonts, colours, and column widths</translation>
+        <source>everything that is not a value, such as number formats, fonts, colors, borders, column widths, merged cells, frozen panes, filters, conditional formatting, data validation, links, and print settings</source>
+        <translation>everything that is not a value, such as number formats, fonts, colours, borders, column widths, merged cells, frozen panes, filters, conditional formatting, data validation, links, and print settings</translation>
     </message>
 </context>
 <context>
