@@ -1361,6 +1361,9 @@ private Q_SLOTS:
     void aTextBoxKeepsItsWordsWhenItsContentDeclaresAPrefixItself();
     void aKeptDrawingWithAnUnboundPrefixIsStillRead();
     void aTableWithNoWidthAnywhereShowsItsCells();
+    void aTableWithNoGridSharesTheTextWidthAmongItsColumns();
+    void aTableWithNoGridHonorsPercentWidths();
+    void aNestedTableWithNoGridSharesItsCellsWidth();
     void clearingTheFormattingKeepsACustomNoteMark();
     void aLevelsOutlineEffectIsLookedForOncePerLevel();
     void theNoteSeparatorIsCutPerSection();

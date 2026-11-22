@@ -59,6 +59,8 @@ public:
     // The width in points of the text area of the cell the next paragraph is in (the cell's columns less the table's margins in the cell), 0 when it is in no
     // cell or its table has no grid to say.
     double cellWidth() const;
+    // The width of the text area a table that is not in a cell is laid out in (its section's): what a table with no widths of its own shares among its columns.
+    void setTextWidth(double width) { m_textWidth = width; }
     // Pieces that come after a cell's last paragraph when that is not a paragraph of its own (the cell ends in a table), kept with the cell.
     void addTail(const QVector<office::wml::Block> &pieces);
 
@@ -84,6 +86,14 @@ private:
     int m_compat;
     QVector<int> m_rowCounts;                           // how many rows each table of the body has, in the order the tables come
     int m_tables = 0;
+    double m_textWidth = 468;
+    // What a table says of its columns, found before the tables come: how many its rows take, and the width each of its first row's cells says (points, and a share of the table's
+    // when it is in percent), for a table with no grid.
+    struct Columns {
+        int count = 0;
+        QVector<double> points, share;
+    };
+    QVector<Columns> m_columns;
     QHash<QString, std::shared_ptr<office::wml::TableLayer>> m_layers;
     QVector<Level> m_levels;
     QVector<int> m_cells;                               // the keys of the cells open, outermost first

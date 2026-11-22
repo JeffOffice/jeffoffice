@@ -1798,6 +1798,111 @@ void WriteTests::aTableWithNoWidthAnywhereShowsItsCells()
 }
 
 
+namespace {
+
+const char kLetterOneInch[] = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+
+// A row of cells with no width of their own, each of them with a word.
+QByteArray gridlessRow(int cells, const QByteArray &cellPr = QByteArray())
+{
+    QByteArray row = "<w:tr>";
+    for (int i = 0; i < cells; ++i) row += "<w:tc>" + (cellPr.isEmpty() ? QByteArray() : "<w:tcPr>" + cellPr + "</w:tcPr>") + "<w:p><w:r><w:t>W" + QByteArray::number(i) + "</w:t></w:r></w:p></w:tc>";
+    return row + "</w:tr>";
+}
+
+// The columns of each table of a document, the outermost first (the tables as the cells' records have them).
+QVector<QVector<double>> tableColumns(WriteDoc &doc)
+{
+    QVector<QVector<double>> out;
+    QSet<const flow::TableData *> seen;
+    for (int key = 1; key <= doc.flow().tables.count(); ++key)
+        if (const flow::CellRecord *rec = doc.flow().tables.get(key))
+            if (rec->table && !seen.contains(rec->table.get())) {
+                seen.insert(rec->table.get());
+                out << rec->table->columns;
+            }
+    return out;
+}
+
+double sumOf(const QVector<double> &v)
+{
+    double total = 0;
+    for (double d : v) total += d;
+    return total;
+}
+
+}   // namespace
+
+
+// A table that gives no grid and no width of a cell shares the width of the text among its columns (the rule for automatic layout), however many there are: the last cell is in the
+// text area, and each column has a width.
+void WriteTests::aTableWithNoGridSharesTheTextWidthAmongItsColumns()
+{
+    for (const int cells : {10, 40}) {
+        auto doc = open(makeDocx("<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr>" + gridlessRow(cells) + gridlessRow(cells) + "</w:tbl>", QByteArray(), QByteArray(), kLetterOneInch));
+        QVERIFY(doc);
+        const QVector<QVector<double>> tables = tableColumns(*doc);
+        QCOMPARE(tables.size(), 1);
+        QCOMPARE(int(tables[0].size()), cells);
+        QVERIFY2(qAbs(sumOf(tables[0]) - 468) < 0.5, qPrintable(QString::number(sumOf(tables[0]))));
+        const auto page = doc->pager().materialize(0);
+        QVERIFY(!page->tables.empty());
+        const auto &layout = *page->tables[0]->layout;
+        QCOMPARE(layout.cellCount(), 2 * cells);
+        for (int i = 0; i < layout.cellCount(); ++i) {
+            QVERIFY(layout.cell(i).w > 1);
+            QVERIFY2(layout.cell(i).x + layout.cell(i).w <= 468.5, qPrintable(QString::number(i)));
+        }
+    }
+}
+
+
+// The width a table says (in points, or in percent of the text) is what its columns share, and a cell that says a percent takes that share of it.
+void WriteTests::aTableWithNoGridHonorsPercentWidths()
+{
+    auto columnsOf = [&](const QByteArray &tblW, const QByteArray &cellA, const QByteArray &cellB, const QByteArray &cellC) {
+        QByteArray row = "<w:tr>";
+        int n = 0;
+        for (const QByteArray &pr : {cellA, cellB, cellC})
+            row += "<w:tc>" + (pr.isEmpty() ? QByteArray() : "<w:tcPr>" + pr + "</w:tcPr>") + "<w:p><w:r><w:t>P" + QByteArray::number(n++) + "</w:t></w:r></w:p></w:tc>";
+        row += "</w:tr>";
+        auto doc = open(makeDocx("<w:tbl><w:tblPr>" + tblW + "</w:tblPr>" + row + "</w:tbl>", QByteArray(), QByteArray(), kLetterOneInch));
+        return doc ? tableColumns(*doc) : QVector<QVector<double>>();
+    };
+    // Half the text's width, three equal columns.
+    auto a = columnsOf("<w:tblW w:w=\"2500\" w:type=\"pct\"/>", QByteArray(), QByteArray(), QByteArray());
+    QCOMPARE(a.size(), 1);
+    QCOMPARE(int(a[0].size()), 3);
+    QVERIFY2(qAbs(sumOf(a[0]) - 234) < 0.5, qPrintable(QString::number(sumOf(a[0]))));
+    // Cells of 10 and 30 percent of the table, the third taking what is left.
+    auto b = columnsOf("<w:tblW w:w=\"5000\" w:type=\"pct\"/>", "<w:tcW w:w=\"500\" w:type=\"pct\"/>", "<w:tcW w:w=\"1500\" w:type=\"pct\"/>", QByteArray());
+    QCOMPARE(b.size(), 1);
+    QCOMPARE(int(b[0].size()), 3);
+    QVERIFY(qAbs(b[0][0] - 46.8) < 0.5);
+    QVERIFY(qAbs(b[0][1] - 140.4) < 0.5);
+    QVERIFY(qAbs(b[0][2] - 280.8) < 0.5);
+    // A width in points is the table's width.
+    auto c = columnsOf("<w:tblW w:w=\"4800\" w:type=\"dxa\"/>", QByteArray(), QByteArray(), QByteArray());
+    QCOMPARE(c.size(), 1);
+    QVERIFY(qAbs(sumOf(c[0]) - 240) < 0.5);
+}
+
+
+// A table with no grid in a cell of another with none shares the width of that cell (less its margins), not the text's.
+void WriteTests::aNestedTableWithNoGridSharesItsCellsWidth()
+{
+    const QByteArray inner = "<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr>" + gridlessRow(3) + "</w:tbl>";
+    const QByteArray body = "<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tr><w:tc><w:p><w:r><w:t>Outer</w:t></w:r></w:p>" + inner + "<w:p/></w:tc><w:tc><w:p><w:r><w:t>Next</w:t></w:r></w:p></w:tc></w:tr></w:tbl>";
+    auto doc = open(makeDocx(body, QByteArray(), QByteArray(), kLetterOneInch));
+    QVERIFY(doc);
+    const QVector<QVector<double>> tables = tableColumns(*doc);
+    QCOMPARE(tables.size(), 2);
+    QVERIFY(qAbs(sumOf(tables[0]) - 468) < 0.5);
+    QCOMPARE(int(tables[1].size()), 3);
+    QVERIFY2(qAbs(sumOf(tables[1]) - (234 - 10.8)) < 0.5, qPrintable(QString::number(sumOf(tables[1]))));
+}
+
+
 // Clearing the formatting leaves a note reference's custom mark as it was: the next automatic note is still the first, and the file still says the mark follows.
 void WriteTests::clearingTheFormattingKeepsACustomNoteMark()
 {

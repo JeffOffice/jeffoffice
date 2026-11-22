@@ -135,18 +135,34 @@ double points(const TableWidth &w) { return w.type == QLatin1String("dxa") || w.
 TableBuilder::TableBuilder(flow::FlowDocument *flow, const StyleSheet *sheet, int compatMode, const QVector<Block> &body) : m_flow(flow), m_sheet(sheet), m_compat(compatMode)
 {
     // The rows of each table, counted before the tables come.
-    QVector<int> open;
+    QVector<int> open, col;
     for (const Block &b : body) {
         if (!b.isRaw || b.role == Inline::Single) continue;
         if (tagIs(b, "tbl")) {
             if (b.role == Inline::Open) {
                 open.push_back(int(m_rowCounts.size()));
+                col.push_back(0);
                 m_rowCounts.push_back(0);
+                m_columns.push_back(Columns());
             } else if (!open.isEmpty()) {
                 open.removeLast();
+                col.removeLast();
             }
         } else if (tagIs(b, "tr") && b.role == Inline::Open && !open.isEmpty()) {
             ++m_rowCounts[open.last()];
+            col.last() = b.table ? std::clamp(b.table->gridBefore, 0, kMaxTableColumns) : 0;
+        } else if (tagIs(b, "tc") && b.role == Inline::Open && !open.isEmpty() && b.table) {
+            Columns &c = m_columns[open.last()];
+            const int span = std::clamp(b.table->span, 1, kMaxTableColumns);
+            // (The cells of the first row: a column is one of them, bounded by the most a table may have.)
+            if (m_rowCounts[open.last()] == 1)
+                for (int k = 0; k < span && c.points.size() < kMaxTableColumns; ++k) {
+                    const office::wml::TableWidth &w = b.table->cellWidth;
+                    c.points << (w.type == QLatin1String("dxa") && w.w > 0 ? w.w / 20.0 / span : 0.0);
+                    c.share << (w.type == QLatin1String("pct") && w.w > 0 ? w.w / 5000.0 / span : 0.0);
+                }
+            col.last() = std::min(col.last() + span, kMaxTableColumns);
+            c.count = std::max(c.count, col.last());
         }
     }
 }
@@ -246,6 +262,25 @@ void TableBuilder::take(const Block &blk, QVector<Block> *pending)
             l.table = std::make_shared<flow::TableData>();
             flow::TableData &t = *l.table;
             for (int w : direct.grid) t.columns << w / 20.0;
+            // A table with no grid and no width in points for its cells is laid out by the rule for automatic layout: its columns share the width it has (its own, in points or in
+            // percent of the text, else the text's, less its indent), each cell that says a percent taking that share of it. (The width is not measured from the cells' content.)
+            const Columns &said = m_tables - 1 < m_columns.size() ? m_columns[m_tables - 1] : Columns();
+            if (direct.grid.isEmpty() && said.count > 0 && std::none_of(said.points.cbegin(), said.points.cend(), [](double w) { return w > 0; })) {
+                const double enclosing = cellWidth();
+                const double room = std::max(1.0, (enclosing > 0 ? enclosing : m_textWidth) - std::max(0.0, points(m.indent)));
+                const TableWidth says = direct.width.stated() ? direct.width : m.width;
+                const double whole = says.type == QLatin1String("dxa") && says.w > 0 ? says.w / 20.0
+                                     : says.type == QLatin1String("pct") && says.w > 0 ? std::min(says.w / 5000.0, 1.0) * (enclosing > 0 ? enclosing : m_textWidth) : room;
+                double claimed = 0;
+                int open = said.count;
+                for (int i = 0; i < said.count; ++i)
+                    if (i < said.share.size() && said.share[i] > 0) {
+                        claimed += said.share[i] * whole;
+                        --open;
+                    }
+                const double each = open > 0 ? (claimed < whole ? (whole - claimed) / open : whole / said.count) : 0;
+                for (int i = 0; i < said.count; ++i) t.columns << (i < said.share.size() && said.share[i] > 0 ? said.share[i] * whole : each);
+            }
             // Margins inside a cell, unless a cell says: the table's own, else its style's, else the usual (a little at the sides).
             t.margins = QMarginsF(m.marLeft ? points(*m.marLeft) : 5.4, m.marTop ? points(*m.marTop) : 0, m.marRight ? points(*m.marRight) : 5.4, m.marBottom ? points(*m.marBottom) : 0);
             t.top = lineOf(m.top).value_or(flow::TableLine());

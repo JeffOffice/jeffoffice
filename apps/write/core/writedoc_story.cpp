@@ -820,6 +820,7 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
                 }
                 pending.clear();
             }
+            tables.setTextWidth(sectionText.value(blockNumber, 468.0));
             tables.take(blk, &pending);
             layer = tables.layer();
             continue;
