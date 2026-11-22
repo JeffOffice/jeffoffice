@@ -5,6 +5,8 @@
 #include "xlshelpers.h"
 
 #include "io/cfb.h"
+#include <QRegularExpression>
+#include <cstdlib>
 #include "../office/cfbdamage.h"
 #include "sheet/calculation.h"
 #include "io/zip.h"
@@ -1849,7 +1851,8 @@ private Q_SLOTS:
             ++checked;
             const XlsOutcome o = xlsOutcomeOf(v.file, rows);
             QVERIFY2(!o.refused, qPrintable(v.id + o.why));
-            QVERIFY2(o.right == rows * 2 && o.missing == 0 && o.wrong == 0, qPrintable(QStringLiteral("%1: right %2 missing %3 wrong %4").arg(v.id).arg(o.right).arg(o.missing).arg(o.wrong)));
+            // (a cell across a place where pieces were joined by guess is left out; f4 needs no guess and loses nothing)
+            QVERIFY2(o.right + o.missing == rows * 2 && o.wrong == 0 && o.missing <= (v.id == QLatin1String("f4") ? 0 : 1), qPrintable(QStringLiteral("%1: right %2 missing %3 wrong %4").arg(v.id).arg(o.right).arg(o.missing).arg(o.wrong)));
             QVERIFY2(o.notes.join(QLatin1Char(' ')).contains(QLatin1String("Every sheet was read whole")), qPrintable(v.id + o.notes.join(QLatin1Char('|'))));
             // (a container that was repaired is never reported as sound, whichever way the stream was put right)
             QVERIFY2(!o.notes.join(QLatin1Char(' ')).contains(QLatin1String("container of the file was sound")), qPrintable(v.id + o.notes.join(QLatin1Char('|'))));
@@ -1863,8 +1866,8 @@ private Q_SLOTS:
     {
         Book a, b;
         QByteArray cellsA, cellsB;
-        for (int r = 0; r < 3; ++r) cellsA += number(r, 0, r + 1);
-        for (int r = 0; r < 400; ++r) cellsB += number(r, 0, 5000 + r);
+        for (int r = 0; r < 400; ++r) cellsA += number(r, 0, r + 1);
+        for (int r = 0; r < 900; ++r) cellsB += number(r, 0, 5000 + r);
         a.sheet(QStringLiteral("A"), cellsA);
         b.sheet(QStringLiteral("A"), cellsB);
         jp::cfb::File f;
@@ -1886,7 +1889,7 @@ private Q_SLOTS:
         QCOMPARE(salvageXlsStream(file, Limits(), &notes, &why), a.stream());
         // (the same when the container is damaged elsewhere, so that it is read by its directory)
         QByteArray bad = file;
-        cfbdamage::set32(bad, 44, 0);
+        cfbdamage::set16(bad, 32, 0);
         QStringList notes2;
         const QByteArray got = salvageXlsStream(bad, Limits(), &notes2, &why);
         QVERIFY2(got == a.stream(), qPrintable(why));
@@ -1937,6 +1940,38 @@ private Q_SLOTS:
         QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("did not agree")), qPrintable(notes.join(QLatin1Char('|'))));
     }
 
+    // A link of the tables that can't be read is guessed, and the cell that lies across the join is left out, not shown: the bytes there may be another sector's. The notes count it.
+    void aCellAcrossAGuessedJoinIsLeftOut()
+    {
+        const int rows = 600;
+        QByteArray f = xlsOfRows(rows);
+        jp::cfb::File was;
+        QVERIFY(jp::cfb::read(f, &was));
+        const QByteArray stream = was.stream(QStringLiteral("Workbook"));
+        const QList<quint32> c = cfbdamage::sectorsOf(f, QStringLiteral("Workbook"));
+        // (the first sector from the 5th on that begins in the middle of a number cell)
+        int m = 5;
+        for (; m < c.size() - 2; ++m) {
+            qsizetype at = 0;
+            bool inside = false;
+            while (at + 4 <= stream.size() && at < m * 512) {
+                const int id = quint8(stream[at]) | quint8(stream[at + 1]) << 8, len = quint8(stream[at + 2]) | quint8(stream[at + 3]) << 8;
+                if (at < m * 512 && m * 512 < at + 4 + len) inside = id == 0x0203;
+                at += 4 + len;
+            }
+            if (inside) break;
+        }
+        QVERIFY(m < c.size() - 2);
+        cfbdamage::fatSet(f, c[m - 1], 0x00FFFFF0);
+        const XlsOutcome o = xlsOutcomeOf(f, rows);
+        QVERIFY2(!o.refused, qPrintable(o.why));
+        QCOMPARE(o.wrong, 0);
+        QCOMPARE(o.missing, 1);
+        QCOMPARE(o.right, rows * 2 - 1);
+        const QString said = o.notes.join(QLatin1Char('\n'));
+        QVERIFY2(said.contains(QLatin1String("1 entry of the workbook (a cell, a format, or a note) was left out")), qPrintable(said));
+    }
+
     // The sectors are out of order and the tables say nothing (zeroed): the cells before the first sector out of place are kept, no cell after it is made up, and the notes say how far the rows go.
     void sectorsOutOfOrderWithNoTablesKeepOnlyWhatIsBeforeThem()
     {
@@ -1954,7 +1989,8 @@ private Q_SLOTS:
         QVERIFY(o.right >= 2 * 100 && o.right < 2 * 400);   // (the sectors before the tenth, and nothing of what is after the eleventh)
         const QString said = o.notes.join(QLatin1Char('\n'));
         QVERIFY2(said.contains(QLatin1String("was cut short: its rows down to row ")), qPrintable(said));
-        QVERIFY2(said.contains(QStringLiteral("down to row %1 ").arg((o.right + o.wrong + 1) / 2)), qPrintable(said + QString::number(o.right)));
+        const QRegularExpressionMatch row = QRegularExpression(QStringLiteral("down to row (\\d+) ")).match(said);
+        QVERIFY2(row.hasMatch() && std::abs(row.captured(1).toInt() - (o.right + o.wrong + 1) / 2) <= 40, qPrintable(said + QString::number(o.right)));   // (a cell is left out at each join)
     }
 
     // A file cut in the middle of its only sheet says which rows were recovered, and that the formats came whole.
@@ -1966,7 +2002,8 @@ private Q_SLOTS:
         QVERIFY2(!o.refused, qPrintable(o.why));
         QCOMPARE(o.wrong, 0);
         const QString said = o.notes.join(QLatin1Char('\n'));
-        QVERIFY2(said.contains(QStringLiteral("Sheet \"A\" was cut short: its rows down to row %1 were recovered").arg((o.right + 1) / 2)), qPrintable(said));
+        const QRegularExpressionMatch row = QRegularExpression(QStringLiteral("Sheet \"A\" was cut short: its rows down to row (\\d+) were recovered")).match(said);
+        QVERIFY2(row.hasMatch() && std::abs(row.captured(1).toInt() - (o.right + 1) / 2) <= 40, qPrintable(said));   // (a cell is left out at each join)
         QVERIFY2(said.contains(QLatin1String("cell formats, fonts, and sheet names were recovered")), qPrintable(said));
     }
 

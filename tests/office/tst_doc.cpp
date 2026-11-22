@@ -503,6 +503,19 @@ int directoryEntryOf(const QByteArray &file, const QString &name)
 }
 void zeroSector(QByteArray &f, int n) { f.replace((n + 1) * 512, 512, QByteArray(512, '\0')); }
 
+// `got` against `want`: the same, except that a paragraph left out across a place where pieces were joined by guess is blank. The number left blank, or -1 if any other paragraph differs.
+int blanksAgainst(const QStringList &got, const QStringList &want)
+{
+    if (got.size() != want.size()) return -1;
+    int blank = 0;
+    for (int i = 0; i < got.size(); ++i) {
+        if (got[i] == want[i]) continue;
+        if (!got[i].trimmed().isEmpty()) return -1;
+        ++blank;
+    }
+    return blank;
+}
+
 QStringList repairedParagraphs(const QByteArray &file, QStringList *notes, QString *error = nullptr)
 {
     const QByteArray fixed = doc::salvageDoc(file, notes, error);
@@ -2903,7 +2916,7 @@ private Q_SLOTS:
             QVERIFY(got.size() <= paras.size());   // (the text comes first in the stream, and the cut is in what follows it until 75 percent)
             if (percent == 45) QVERIFY(got.size() < paras.size());
             got.removeLast();   // (the last may be cut in the middle)
-            QCOMPARE(got, paras.mid(0, got.size()));
+            QVERIFY2(blanksAgainst(got, paras.mid(0, got.size())) >= 0, qPrintable(QString::number(percent)));   // (a paragraph across a guessed join is blank, never another's text)
             QVERIFY2(got.size() <= before, qPrintable(QString::number(percent)));   // (less of the file, less of the text)
             before = int(got.size());
             QVERIFY(notes.join(QLatin1Char(' ')).contains(QLatin1String("cut short")));
@@ -2923,7 +2936,7 @@ private Q_SLOTS:
         zeroSector(bad, int(le32At(bad, 76)));
         Document plain;
         QVERIFY(!read(bad, &plain) || bodyTexts(plain) != paras);
-        QCOMPARE(repairedParagraphs(bad, &notes), paras);
+        QVERIFY2(blanksAgainst(repairedParagraphs(bad, &notes), paras) >= 0, qPrintable(notes.join(QLatin1Char('|'))));
         QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("directory")), qPrintable(notes.join(QLatin1Char('|'))));
     }
 
@@ -2950,7 +2963,7 @@ private Q_SLOTS:
         setLe32(bad, fat + int(start + 5) * 4, start + 1);   // (a later sector leads back to the second)
         Document plain;
         QVERIFY(!read(bad, &plain, nullptr) || bodyTexts(plain) != paras);
-        QCOMPARE(repairedParagraphs(bad, &notes), paras);
+        QVERIFY2(blanksAgainst(repairedParagraphs(bad, &notes), paras) >= 0, qPrintable(notes.join(QLatin1Char('|'))));
         QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("directory")), qPrintable(notes.join(QLatin1Char('|'))));   // (the chain was guessed from the directory)
         // the directory's own chain too
         QByteArray bad2 = repairableDoc(&paras);
@@ -3330,7 +3343,10 @@ private Q_SLOTS:
         for (const cfbdamage::Variant &v : std::as_const(all)) {
             QStringList notes;
             QString why;
-            QCOMPARE(repairedParagraphs(v.file, &notes, &why), paras);
+            const int blank = blanksAgainst(repairedParagraphs(v.file, &notes, &why), paras);
+            QVERIFY2(blank >= 0 && blank <= int(paras.size()) / 5, qPrintable(v.id + why));
+            // (a paragraph is left blank only where the notes say pieces were joined by guess, and then they say how many)
+            QCOMPARE(blank > 0, notes.join(QLatin1Char(' ')).contains(QLatin1String("left blank")));
             ++checked;
         }
         QCOMPARE(checked, 19);
@@ -3421,6 +3437,37 @@ private Q_SLOTS:
         const QByteArray got = now.stream(QStringLiteral("WordDocument"));
         QVERIFY2(got.size() <= original.size() + 511 && got.left(original.size()) == original, qPrintable(QString::number(got.size()) + QLatin1Char(' ') + QString::number(original.size())));
         QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("did not agree")), qPrintable(notes.join(QLatin1Char('|'))));
+    }
+
+    // A link of the tables that can't be read is guessed, and the paragraph that lies across the join is left blank, not shown: its bytes may be another sector's. The notes count it.
+    void aParagraphAcrossAGuessedJoinIsLeftBlank()
+    {
+        QStringList paras, notes;
+        const QByteArray good = repairableDoc(&paras);
+        jp::cfb::File was;
+        QVERIFY(jp::cfb::read(good, &was));
+        const QByteArray stream = was.stream(QStringLiteral("WordDocument"));
+        const QList<quint32> c = cfbdamage::sectorsOf(good, QStringLiteral("WordDocument"));
+        const qsizetype textStart = stream.indexOf("Paragraph 0 of");
+        QVERIFY(textStart > 0);
+        int m = 3;
+        for (; m < c.size() - 1; ++m) {
+            const qsizetype j = m * 512;
+            if (j > textStart + 100 && stream[j - 1] != '\r' && stream[j] != '\r' && stream.mid(j - 20, 40).contains("Paragraph")) break;
+        }
+        QVERIFY(m < c.size() - 1);
+        QByteArray bad = good;
+        cfbdamage::fatSet(bad, c[m - 1], 0x00FFFFF0);
+        const QStringList got = repairedParagraphs(bad, &notes);
+        QCOMPARE(int(got.size()), int(paras.size()));
+        int different = 0;
+        for (int i = 0; i < got.size(); ++i) {
+            if (got[i] == paras[i]) continue;
+            ++different;
+            QVERIFY2(got[i].trimmed().isEmpty(), qPrintable(got[i]));
+        }
+        QCOMPARE(different, 1);
+        QVERIFY2(notes.join(QLatin1Char('\n')).contains(QLatin1String("1 paragraph was left blank")), qPrintable(notes.join(QLatin1Char('|'))));
     }
 
     // The mere fact that the tables were guessed is said, and a sound container says nothing.

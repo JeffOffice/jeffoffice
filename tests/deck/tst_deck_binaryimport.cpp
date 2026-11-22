@@ -1666,7 +1666,13 @@ private Q_SLOTS:
             QString why;
             auto d = repaired(v.file, &notes, &why);
             QVERIFY2(d, qPrintable(v.id + QLatin1Char(' ') + why));
-            QVERIFY2(titles(*d) == (QStringList{"Plan", "Quarterly Results"}), qPrintable(v.id));
+            if (notes.join(QLatin1Char(' ')).contains(QLatin1String("left out because it lay across"))) {
+                // (a part across a place where pieces were joined by guess is left out: a slide may be lost, and none is another's)
+                QVERIFY2(!d->pages.empty() && d->pages.size() <= 2, qPrintable(v.id));
+                for (const QString &t : titles(*d)) QVERIFY2(t == QLatin1String("Plan") || t == QLatin1String("Quarterly Results") || t.isEmpty(), qPrintable(v.id + t));
+            } else {
+                QVERIFY2(titles(*d) == (QStringList{"Plan", "Quarterly Results"}), qPrintable(v.id));
+            }
         }
         for (const cfbdamage::Variant &v : cfbdamage::miniDamage(buildPpt())) {
             QStringList notes;
@@ -1677,7 +1683,9 @@ private Q_SLOTS:
                 QVERIFY(!why.isEmpty());
             } else {
                 QVERIFY2(d, qPrintable(v.id + QLatin1Char(' ') + why));
-                QCOMPARE(int(d->pages.size()), 2);
+                // (the small streams of a damaged mini container are joined by guess at every small sector: a slide may lose a part, and is not another's)
+                if (notes.join(QLatin1Char(' ')).contains(QLatin1String("left out because it lay across"))) QVERIFY2(!d->pages.empty() && d->pages.size() <= 2, qPrintable(v.id));
+                else QCOMPARE(int(d->pages.size()), 2);
             }
         }
     }
@@ -1699,6 +1707,50 @@ private Q_SLOTS:
         const QByteArray got = now.stream(pptDocumentStream());
         QVERIFY2(got.size() <= original.size() + 511 && got.left(original.size()) == original, qPrintable(QString::number(got.size()) + QLatin1Char(' ') + QString::number(original.size())));
         QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("did not agree")), qPrintable(notes.join(QLatin1Char('|'))));
+    }
+
+    // A link of the tables that can't be read is guessed, and the part of the presentation that lies across the join is left out (its type is made one that nothing acts on), not shown.
+    void aPartAcrossAGuessedJoinIsLeftOut()
+    {
+        const QByteArray big = bigDeck();
+        jp::cfb::File was;
+        QVERIFY(jp::cfb::read(big, &was));
+        const QByteArray original = was.stream(pptDocumentStream());
+        const QList<quint32> c = cfbdamage::sectorsOf(big, pptDocumentStream());
+        // (the first sector from the 2nd on that begins inside a record: the innermost one is the part left out)
+        auto innermost = [&](qint64 j) -> qint64 {
+            qint64 from = 0, to = original.size();
+            for (int depth = 0; depth < 64; ++depth) {
+                bool inside = false;
+                for (qint64 pos = from; pos + 8 <= to;) {
+                    const qint64 len = qFromLittleEndian<quint32>(original.constData() + pos + 4), end = pos + 8 + len;
+                    if (len > to - pos - 8) return -1;
+                    if (end <= j) { pos = end; continue; }
+                    if (pos >= j) return -1;
+                    if ((qFromLittleEndian<quint16>(original.constData() + pos) & 0xF) == 0xF && j >= pos + 8) { from = pos + 8; to = end; inside = true; break; }
+                    return pos;
+                }
+                if (!inside) return -1;
+            }
+            return -1;
+        };
+        int m = 1;
+        qint64 part = -1;
+        for (; m < c.size() - 1 && (part = innermost(qint64(m) * 512)) < 0; ++m) {}
+        QVERIFY2(part >= 0, qPrintable(QString::number(c.size())));
+        QByteArray bad = big;
+        cfbdamage::fatSet(bad, c[m - 1], 0x00FFFFF0);
+        QStringList notes;
+        const QByteArray fixed = deck::salvagePresentation(bad, &notes, nullptr);
+        QVERIFY(!fixed.isEmpty());
+        jp::cfb::File now;
+        QVERIFY(jp::cfb::read(fixed, &now));
+        const QByteArray got = now.stream(pptDocumentStream());
+        QVERIFY(got.size() >= original.size());
+        QByteArray expected = original;
+        qToLittleEndian(quint16(9999), expected.data() + part + 2);
+        QCOMPARE(got.left(original.size()), expected);
+        QVERIFY2(notes.join(QLatin1Char('\n')).contains(QLatin1String("1 part of the presentation (a shape, a line of text, or a picture) was left out")), qPrintable(notes.join(QLatin1Char('|'))));
     }
 
     // A developer's hook, not a test: JO_REPAIR_TABLE names a file the outcome of each kind of damage is appended to.

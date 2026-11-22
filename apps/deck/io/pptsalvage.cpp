@@ -49,6 +49,35 @@ QVector<Top> topRecords(QByteArrayView d, qint64 *end)
     return out;
 }
 
+// Leaves out the part of the presentation that lies across `join`, a place where pieces of the file were joined by guess: the innermost record whose bytes run across it is given a type
+// no reader acts on (a container holding it keeps its other records). 1 if one was left out, 0 if the join falls between records.
+int dropAcrossJoin(QByteArray &d, qint64 join)
+{
+    qint64 from = 0, to = d.size();
+    for (int depth = 0; depth < 64; ++depth) {
+        bool inside = false;
+        for (qint64 pos = from; pos + 8 <= to;) {
+            const qint64 len = u32(d, pos + 4), end = pos + 8 + len;
+            if (len > to - pos - 8) return 0;
+            if (end <= join) {
+                pos = end;
+                continue;
+            }
+            if (pos >= join) return 0;
+            if ((u16(d, pos) & 0xF) == 0xF && join >= pos + 8) {
+                from = pos + 8;
+                to = end;
+                inside = true;
+                break;
+            }
+            qToLittleEndian(quint16(9999), d.data() + pos + 2);
+            return 1;
+        }
+        if (!inside) return 0;
+    }
+    return 0;
+}
+
 QByteArray record(quint16 type, const QByteArray &data)
 {
     QByteArray r(8, '\0');
@@ -162,6 +191,12 @@ QByteArray salvagePresentation(const QByteArray &file, QStringList *notes, QStri
     const QByteArray oldUser = found.streams.value(QStringLiteral("Current User"));
     if (u32(oldUser, 12) == kTokenEncrypted) return protectedFile();
     QStringList said = found.notes;
+    int dropped = 0;
+    {
+        QByteArray d = found.streams.value(QStringLiteral("PowerPoint Document"));
+        for (qint64 j : found.joins.value(QStringLiteral("PowerPoint Document"))) dropped += dropAcrossJoin(d, j);
+        found.streams.insert(QStringLiteral("PowerPoint Document"), d);
+    }
 
     g_opens = 0;
     auto opens = [&](const CfbSalvage &s, QString *because) {
@@ -241,6 +276,7 @@ QByteArray salvagePresentation(const QByteArray &file, QStringList *notes, QStri
     }
     if (!found.streams.contains(QStringLiteral("Pictures")) && (!found.directoryRead || ((found.cutShort || found.tablesGuessed) && found.directoryNames.contains(QStringLiteral("Pictures"), Qt::CaseInsensitive))))
         said << QCoreApplication::translate("jp::deck::PptSalvage", "The pictures of the presentation, if it had any, could not be found.");
+    if (dropped > 0) said << QCoreApplication::translate("jp::deck::PptSalvage", "%n part of the presentation (a shape, a line of text, or a picture) was left out because it lay across a place where pieces of the file were joined by a guess.", nullptr, dropped);
     if (notes) *notes = said;
     return jp::office::rebuildCompoundFile(found);
 }

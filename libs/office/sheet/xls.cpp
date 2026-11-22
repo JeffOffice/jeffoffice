@@ -1468,6 +1468,47 @@ jp::office::CfbWish::End workbookEnd(QByteArrayView d)
     return out;
 }
 
+// Leaves out every entry of the workbook that lies across a place where pieces of the file were joined by guess (a cell, or whatever record it is, with the records that continue it): the
+// record is given an id that no reader acts on. A begin or end record that lies across one can't be left out, so the stream stops before it. Returns how many entries were left out.
+int dropAcrossJoins(QByteArray *d, const QVector<qint64> &joins)
+{
+    struct Rec {
+        qsizetype at, end;
+        int id;
+    };
+    QVector<Rec> recs;
+    qsizetype at = 0;
+    while (at + 4 <= d->size()) {
+        const int id = quint8((*d)[at]) | quint8((*d)[at + 1]) << 8, len = quint8((*d)[at + 2]) | quint8((*d)[at + 3]) << 8;
+        if (id == 0 || id >= 0x2000 || at + 4 + len > d->size()) break;
+        recs.push_back({at, at + 4 + len, id});
+        at += 4 + len;
+    }
+    QSet<int> done;
+    int dropped = 0;
+    for (qint64 j : joins) {
+        const auto it = std::upper_bound(recs.cbegin(), recs.cend(), j, [](qint64 v, const Rec &r) { return v < r.end; });   // (the first record that ends after j)
+        if (it == recs.cend() || it->at >= j) continue;
+        int first = int(it - recs.cbegin()), last = first;
+        while (first > 0 && recs[first].id == 0x003C) --first;   // (a continued record is dropped whole)
+        while (last + 1 < recs.size() && recs[last + 1].id == 0x003C) ++last;
+        if (done.contains(first)) continue;
+        done.insert(first);
+        ++dropped;
+        bool structure = false;
+        for (int i = first; i <= last; ++i) structure |= isBof(quint16(recs[i].id)) || recs[i].id == kEof;
+        if (structure) {
+            d->truncate(recs[first].at);
+            return dropped;
+        }
+        for (int i = first; i <= last; ++i) {
+            (*d)[recs[i].at] = char(0xFF);
+            (*d)[recs[i].at + 1] = char(0x1F);
+        }
+    }
+    return dropped;
+}
+
 // What became of the sheets, in words: each sheet that is cut short (with how far its cells go) or is gone, and what was read whole.
 QStringList sheetReport(const QByteArray &stream, const Limits &limits)
 {
@@ -1553,6 +1594,7 @@ QByteArray salvageXlsStream(const QByteArray &file, const Limits &limits, QStrin
     QString why;
     if (jp::office::salvageCompoundFile(file, {wish}, &found, &why)) {
         QByteArray stream = found.streams.value(QStringLiteral("Workbook"));
+        const int dropped = dropAcrossJoins(&stream, found.joins.value(QStringLiteral("Workbook")));
         const bool sound = found.how.value(QStringLiteral("Workbook")) == jp::office::CfbSalvage::How::Whole && found.notes.isEmpty() && !found.repaired;
         if (!sound) {
             // (what the container gave that is not records, in a stream that was put together from sectors that were not all the stream's: the records before it are kept)
@@ -1572,6 +1614,7 @@ QByteArray salvageXlsStream(const QByteArray &file, const Limits &limits, QStrin
                 *notes << QCoreApplication::translate("jp::office::sheet::Xls", "The container of the file was sound. A sheet that is damaged keeps the cells before the damage.");
             } else {
                 *notes << found.notes;
+                if (dropped > 0) *notes << QCoreApplication::translate("jp::office::sheet::Xls", "%n entry of the workbook (a cell, a format, or a note) was left out because it lay across a place where pieces of the file were joined by a guess.", nullptr, dropped);
                 const QStringList report = sheetReport(stream, limits);
                 if (report.isEmpty()) *notes << QCoreApplication::translate("jp::office::sheet::Xls", "A sheet that was cut short keeps the cells before the cut; whatever came after it is lost.");
                 else *notes << report;

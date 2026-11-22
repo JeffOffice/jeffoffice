@@ -8,6 +8,7 @@
 #include <QtEndian>
 
 #include <algorithm>
+#include <array>
 #include <memory>
 
 namespace jp::office::doc {
@@ -131,6 +132,32 @@ bool findText(const Span &wd, qint64 chars, qint64 from, qint64 *at, bool *unico
     return false;
 }
 
+// Leaves blank the paragraph that lies across each place where pieces of the file were joined by guess: the characters of the run between the paragraph marks on either side of the join
+// become spaces. `ranges` are the stretches of the stream that hold text (first byte, end, and whether two bytes make a character). Returns how many paragraphs were left blank.
+int blankAcrossJoins(QByteArray *wd, const QVector<qint64> &joins, const QVector<std::array<qint64, 3>> &ranges)
+{
+    int blanked = 0;
+    qint64 lastEnd = -1;
+    for (qint64 j : joins)
+        for (const auto &r : ranges) {
+            const qint64 from = r[0], to = r[1], unit = r[2] ? 2 : 1;
+            if (j <= from || j >= to || to > wd->size() || (j - from) % unit != 0) continue;
+            auto mark = [&](qint64 o) { return unit == 1 ? quint8((*wd)[qsizetype(o)]) == 13 : quint8((*wd)[qsizetype(o)]) == 13 && (*wd)[qsizetype(o) + 1] == 0; };
+            qint64 a = j - unit, b = j;
+            while (a >= from && !mark(a)) a -= unit;
+            while (b + unit <= to && !mark(b)) b += unit;
+            a += unit;
+            if (b + unit > to && !mark(b)) b = to;   // (the text ends without a mark)
+            if (a >= lastEnd) ++blanked;
+            lastEnd = std::max(lastEnd, b);
+            for (qint64 o = a; o < b; o += unit) {
+                (*wd)[qsizetype(o)] = ' ';
+                if (unit == 2) (*wd)[qsizetype(o) + 1] = 0;
+            }
+        }
+    return blanked;
+}
+
 } // namespace
 
 SalvageWork salvageWorkForTest() { return g_work; }
@@ -245,6 +272,23 @@ QByteArray salvageDoc(const QByteArray &file, QStringList *notes, QString *error
         QString ignored;
         return !toDocxPackage(rebuildCompoundFile(s), &ignored, nullptr).isEmpty();
     };
+    // (where pieces were joined by guess in the text, the paragraph that lies across the join is left blank)
+    int blanked = 0;
+    const QVector<qint64> textJoins = found.joins.value(QStringLiteral("WordDocument"));
+    if (!textJoins.isEmpty() && found.streams.contains(tableName)) {
+        QByteArray wdNow = found.streams.value(QStringLiteral("WordDocument"));
+        const Span wdSpan(wdNow);
+        const QByteArray tbl = found.streams.value(tableName);
+        const Span tableSpan(tbl);
+        const Fib::Fc clx = fib.at(Fib::Clx);
+        PieceTable table;
+        bool truncated = false;
+        QVector<std::array<qint64, 3>> ranges;
+        if (clx.lcb > 0 && qint64(clx.fc) + clx.lcb <= tbl.size() && table.read(tableSpan.sub(clx.fc, clx.lcb), wdSpan, fib.ccpText, &truncated))
+            for (const Piece &p : table.pieces()) ranges.push_back({p.fc, p.fc + (p.cp1 - p.cp0) * (p.unicode ? 2 : 1), p.unicode ? 1 : 0});
+        blanked = blankAcrossJoins(&wdNow, textJoins, ranges);
+        found.streams.insert(QStringLiteral("WordDocument"), wdNow);
+    }
     bool plain = !found.streams.contains(tableName) || !reads(found);
     if (plain) {
         const QByteArray wdBytes = found.streams.value(QStringLiteral("WordDocument"));
@@ -276,6 +320,7 @@ QByteArray salvageDoc(const QByteArray &file, QStringList *notes, QString *error
         put32(header, at.pairs + Fib::Clx * 8 + 4, quint32(clx.size()));
         for (qint64 k : {16, 20, 28, 32, 36, 40}) put32(header, at.ccp + k, 0);   // (the stories after the main text)
         put32(header, at.ccp + 12, quint32(length));
+        if (blanked == 0) blanked = blankAcrossJoins(&header, textJoins, {{start, start + length * (wide ? 2 : 1), wide ? 1 : 0}});
         found.streams.insert(QStringLiteral("WordDocument"), header);
         found.streams.insert(tableName, clx);
         found.streams.remove(QStringLiteral("Data"));
@@ -287,6 +332,7 @@ QByteArray salvageDoc(const QByteArray &file, QStringList *notes, QString *error
     } else if (!found.streams.contains(QStringLiteral("Data")) && (!found.directoryRead || ((found.cutShort || found.tablesGuessed) && found.directoryNames.contains(QStringLiteral("Data"), Qt::CaseInsensitive)))) {
         said << QCoreApplication::translate("jp::office::doc::Salvage", "The pictures of the document, if it had any, could not be found.");
     }
+    if (blanked > 0) said << QCoreApplication::translate("jp::office::doc::Salvage", "%n paragraph was left blank because it lay across a place where pieces of the file were joined by a guess.", nullptr, blanked);
     if (notes) *notes = said;
     return rebuildCompoundFile(found);
 }
