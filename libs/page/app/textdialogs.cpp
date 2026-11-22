@@ -259,6 +259,7 @@ void paragraphDialog(QWidget *p, Editor *ed, int tab)
 {
     const QTextBlockFormat bf = ed->currentBlockFormat();
     Dlg dlg(p, QCoreApplication::translate("Dialogs", "Paragraph"));
+    dlg.d.setObjectName(QStringLiteral("paragraphDialog"));
     auto *tabs = new QTabWidget(&dlg.d);
     auto *t1 = new QWidget();
     auto *f1 = new QFormLayout(t1);
@@ -266,9 +267,15 @@ void paragraphDialog(QWidget *p, Editor *ed, int tab)
     align->addItems({QCoreApplication::translate("Dialogs", "Left"), QCoreApplication::translate("Dialogs", "Center"), QCoreApplication::translate("Dialogs", "Right"), QCoreApplication::translate("Dialogs", "Justified"), QCoreApplication::translate("Dialogs", "Distributed")});
     const Qt::Alignment al = bf.alignment() & Qt::AlignHorizontal_Mask;
     align->setCurrentIndex(bf.boolProperty(tp::Distribute) ? 4 : al == Qt::AlignHCenter ? 1 : al == Qt::AlignRight ? 2 : al == Qt::AlignJustify ? 3 : 0);
-    auto *left = measure(bf.leftMargin(), t1, 0), *first = measure(bf.textIndent(), t1, -2000), *right = measure(bf.rightMargin(), t1, 0);
-    first->setMinimum(-2000);
+    // Indents can be negative (text hanging into the frame's margin), as the first line's always could.
+    auto *left = measure(bf.leftMargin(), t1, -2000), *first = measure(bf.textIndent(), t1, -2000), *right = measure(bf.rightMargin(), t1, -2000);
     auto *before = points(bf.topMargin(), t1), *after = points(bf.bottomMargin(), t1);
+    // What the fields showed when the dialog opened: only a field the person changed is written back.
+    left->setObjectName(QStringLiteral("leftIndent"));
+    first->setObjectName(QStringLiteral("firstLineIndent"));
+    right->setObjectName(QStringLiteral("rightIndent"));
+    before->setObjectName(QStringLiteral("spaceBefore"));
+    const double left0 = left->value(), first0 = first->value(), right0 = right->value(), before0 = before->value(), after0 = after->value();
     auto *lineType = new QComboBox(t1);
     lineType->addItems({QCoreApplication::translate("Dialogs", "Single"), QCoreApplication::translate("Dialogs", "Multiple (sp)"), QCoreApplication::translate("Dialogs", "Exactly (pt)"), QCoreApplication::translate("Dialogs", "At least (pt)")});
     auto *lineVal = new DecimalSpin(t1);
@@ -365,11 +372,11 @@ void paragraphDialog(QWidget *p, Editor *ed, int tab)
     const Qt::Alignment als[] = {Qt::AlignLeft, Qt::AlignHCenter, Qt::AlignRight, Qt::AlignJustify, Qt::AlignJustify};
     f.setAlignment(als[align->currentIndex()]);
     f.setProperty(tp::Distribute, align->currentIndex() == 4);
-    f.setLeftMargin(left->value());
-    f.setTextIndent(first->value());
-    f.setRightMargin(right->value());
-    f.setTopMargin(before->value());
-    f.setBottomMargin(after->value());
+    if (left->value() != left0) f.setLeftMargin(left->value());
+    if (first->value() != first0) f.setTextIndent(first->value());
+    if (right->value() != right0) f.setRightMargin(right->value());
+    if (before->value() != before0) f.setTopMargin(before->value());
+    if (after->value() != after0) f.setBottomMargin(after->value());
     switch (lineType->currentIndex()) {
     case 0: f.setLineHeight(100, QTextBlockFormat::ProportionalHeight); break;
     case 1: f.setLineHeight(lineVal->value() * 100, QTextBlockFormat::ProportionalHeight); break;

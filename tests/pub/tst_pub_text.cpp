@@ -3617,6 +3617,53 @@ private Q_SLOTS:
         for (const auto &li : lines) QVERIFY(li.rect.width() > 50);
     }
 
+    // The Paragraph dialog shows a negative indent and keeps it: pressing OK on a paragraph that hangs into the frame's margin
+    // does not reset it to 0, and a field the person did not touch is not written back.
+    void theParagraphDialogKeepsNegativeIndents()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        auto box = std::static_pointer_cast<jp::TextItem>(ed->newTextBox(QRectF(72, 72, 300, 200), QStringLiteral("a hanging paragraph")));
+        ed->addItem(box);
+        ed->beginTextEdit(box->id, 0);
+        QTextBlockFormat bf;
+        bf.setLeftMargin(-54);
+        bf.setRightMargin(-10);
+        bf.setTextIndent(20);
+        bf.setTopMargin(3);
+        QTextCursor c(ed->editDoc()->firstBlock());
+        c.setBlockFormat(bf);
+        ed->setCursor(c);
+        auto spin = [](QDialog *d, const char *name) { return d->findChild<QDoubleSpinBox *>(QString::fromLatin1(name)); };
+        // OK with nothing changed.
+        double shown = 0;
+        withDialog([&] { w.act(QStringLiteral("para.dialog"))->trigger(); }, QStringLiteral("paragraphDialog"), [&](QDialog *d) { shown = spin(d, "leftIndent")->value(); });
+        QCOMPARE(shown, -54.0);
+        QTextBlockFormat got = ed->editDoc()->firstBlock().blockFormat();
+        QCOMPARE(got.leftMargin(), -54.0);
+        QCOMPARE(got.rightMargin(), -10.0);
+        QCOMPARE(got.textIndent(), 20.0);
+        // Another field changed: the indents stay.
+        withDialog([&] { w.act(QStringLiteral("para.dialog"))->trigger(); }, QStringLiteral("paragraphDialog"), [&](QDialog *d) { spin(d, "spaceBefore")->setValue(9); });
+        got = ed->editDoc()->firstBlock().blockFormat();
+        QCOMPARE(got.topMargin(), 9.0);
+        QCOMPARE(got.leftMargin(), -54.0);
+        QCOMPARE(got.rightMargin(), -10.0);
+        // A negative value can be typed.
+        withDialog([&] { w.act(QStringLiteral("para.dialog"))->trigger(); }, QStringLiteral("paragraphDialog"), [&](QDialog *d) { spin(d, "leftIndent")->setValue(-30); spin(d, "rightIndent")->setValue(-4); });
+        got = ed->editDoc()->firstBlock().blockFormat();
+        QCOMPARE(got.leftMargin(), -30.0);
+        QCOMPARE(got.rightMargin(), -4.0);
+        // An indent past what the field can show (the file's) is not clamped to it by pressing OK.
+        bf.setLeftMargin(-3000);
+        c = QTextCursor(ed->editDoc()->firstBlock());
+        c.setBlockFormat(bf);
+        ed->setCursor(c);
+        withDialog([&] { w.act(QStringLiteral("para.dialog"))->trigger(); }, QStringLiteral("paragraphDialog"), [&](QDialog *d) { spin(d, "spaceBefore")->setValue(2); });
+        QCOMPARE(ed->editDoc()->firstBlock().blockFormat().leftMargin(), -3000.0);
+        ed->endTextEdit();
+    }
+
     // A text box's hyphenation zone is kept in a .pub file with its story's
     // hyphenation setting, in every box of a linked chain.
     void pubTextBoxHyphenationZoneKept()
