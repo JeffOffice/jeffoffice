@@ -21,6 +21,8 @@
 #include "../localepin.h"
 #include "../sheet/drawinghelpers.h"
 #include "sheet/xlsxsave.h"
+#include "sheet/drawingsave.h"
+#include "core/sheetobjects.h"
 #include "../privacyhooks.h"
 #include "../packedpackagecheck.h"
 #include "office/privacy.h"
@@ -131,6 +133,24 @@ QByteArray everythingBook()
     return zip.finish();
 }
 
+// The element with its object set to be hidden.
+QString hideElement(QString element) { return element.replace(QStringLiteral("<xdr:cNvPr "), QStringLiteral("<xdr:cNvPr hidden=\"1\" ")); }
+
+const QString kMc = QStringLiteral("http://schemas.openxmlformats.org/markup-compatibility/2006");
+
+// A workbook whose first sheet has the drawing that the anchors make (and the parts it names).
+QByteArray drawingBookOf(const QString &anchors, const QVector<drawtest::DrawingTarget> &targets = {})
+{
+    return drawtest::bookWithDrawing({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>"))}, drawtest::drawingPart(anchors), targets);
+}
+
+InspectItem inspectItemOf(EditWindow &e, const char *title)
+{
+    for (const InspectItem &i : e.win.w.inspectItems())
+        if (i.title == QLatin1String(title)) return i;
+    return InspectItem();
+}
+
 // A workbook whose drawing holds a picture that shows and four objects set to be hidden (a chart, a picture, a shape, and a text box), each with a name that can be looked for in the file.
 QByteArray hiddenObjectsBook()
 {
@@ -141,7 +161,8 @@ QByteArray hiddenObjectsBook()
         + drawtest::twoCell(7, 9, 9, 12, drawtest::pictureElement(3, QStringLiteral("rIdI1"), QStringLiteral("ShownPicture")))
         + drawtest::twoCell(1, 9, 3, 12, hide(drawtest::pictureElement(4, QStringLiteral("rIdI2"), QStringLiteral("HiddenSecretPicture"))))
         + drawtest::twoCell(1, 13, 3, 15, hide(drawtest::shapeElement(5, QStringLiteral("HiddenSecretShape"), QStringLiteral("rect"), QStringLiteral("HiddenSecretLabel"))))
-        + drawtest::twoCell(4, 13, 6, 15, textBox);
+        + drawtest::twoCell(4, 13, 6, 15, textBox)
+        + drawtest::twoCell(10, 9, 12, 12, hide(drawtest::pictureElement(7, QStringLiteral("rIdI1"), QStringLiteral("HiddenSharedPicture"))));
     drawtest::SeriesSpec series;
     series.valRef = QStringLiteral("Sheet1!$A$1:$A$2");
     series.values = {1, 2};
@@ -151,7 +172,14 @@ QByteArray hiddenObjectsBook()
     };
     add(QStringLiteral("xl/drawings/drawing1.xml"), drawtest::drawingPart(anchors), QStringLiteral("application/vnd.openxmlformats-officedocument.drawing+xml"), 0, QStringLiteral("rIdD1"), QStringLiteral("drawing"),
         QStringLiteral("../drawings/drawing1.xml"));
-    add(QStringLiteral("xl/charts/chart1.xml"), drawtest::chartPart(QStringLiteral("barChart"), {series}), QStringLiteral("application/vnd.openxmlformats-officedocument.drawingml.chart+xml"));
+    QByteArray chart = drawtest::chartPart(QStringLiteral("barChart"), {series});
+    chart.replace("</c:chartSpace>", "<c:externalData r:id=\"rIdW1\"><c:autoUpdate val=\"0\"/></c:externalData></c:chartSpace>");
+    add(QStringLiteral("xl/charts/chart1.xml"), chart, QStringLiteral("application/vnd.openxmlformats-officedocument.drawingml.chart+xml"));
+    add(QStringLiteral("xl/charts/_rels/chart1.xml.rels"),
+        QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+                   "<Relationship Id=\"rIdW1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/package\" Target=\"/xl/embeddings/chartbook1.xlsx\"/></Relationships>"),
+        QString());
+    add(QStringLiteral("xl/embeddings/chartbook1.xlsx"), QByteArray("HiddenSecretEmbeddedBook"), QStringLiteral("application/octet-stream"));
     add(QStringLiteral("xl/media/image1.png"), drawtest::pngBytes(20, 20, Qt::red), QStringLiteral("image/png"));
     add(QStringLiteral("xl/media/image2.png"), drawtest::pngBytes(24, 24, Qt::blue), QStringLiteral("image/png"));
     add(QStringLiteral("xl/drawings/_rels/drawing1.xml.rels"),
@@ -843,6 +871,50 @@ private Q_SLOTS:
         QCOMPARE(item->count(), 0);
     }
 
+    // Rows a filter hides stay hidden and are not in the count of hidden rows, and the row says how many there are, so "None found" is never read as "no hidden rows".
+    void inspectSaysHowManyRowsAFilterHides()
+    {
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>7</v></c></row><row r=\"2\"><c r=\"A2\"><v>200</v></c></row><row r=\"3\"><c r=\"A3\"><v>2</v></c></row>"
+                                            "<row r=\"4\"><c r=\"A4\"><v>3</v></c></row>");
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows)})));
+        QVERIFY(e.settle());
+        jp::office::sheet::AutoFilter filter;
+        filter.ref = jp::office::sheet::CellRange{0, 0, 3, 0, true};
+        jp::office::sheet::FilterColumn condition;
+        condition.kind = jp::office::sheet::FilterColumn::Kind::Custom;
+        condition.column = 0;
+        condition.conditions.append({jp::office::sheet::FilterColumn::Op::Greater, QStringLiteral("100")});
+        filter.columns.append(condition);
+        QVERIFY(e.win.w.session()->setFilter(0, filter, QStringLiteral("Filtering")).ok);
+        QVERIFY(e.settle());
+        const InspectItem item = inspectItemOf(e, "Hidden rows and columns");
+        QCOMPARE(item.count(), 0);   // (the filter's rows are not counted)
+        QVERIFY2(item.unread().startsWith(QLatin1String("2 row")), qPrintable(item.unread()));
+        InspectDialog box(QStringLiteral("Inspect"), {item}, nullptr);
+        QVERIFY(box.summaries().first().contains(QLatin1String("Not fully checked")));
+    }
+
+    // Show All on the names a file hides is one step of Undo for all of them, however many (5,000 here), and each is shown after it and hidden again by that one step.
+    void inspectShowsThousandsOfHiddenNamesInOneStep()
+    {
+        QString names;
+        const int total = 5000;
+        for (int i = 0; i < total; ++i) names += QStringLiteral("<definedName name=\"Hid_name_%1\" hidden=\"1\">Sheet1!$A$1</definedName>").arg(i);
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>"))}, QByteArray(), QString(), QString(), QByteArray(), QStringList({"Sheet1"}), names), QStringLiteral("many.xlsx")));
+        QVERIFY(e.settle());
+        QCOMPARE(inspectItemOf(e, "Hidden names").count(), total);
+        const int steps = e.win.w.undoStack()->count();
+        QCOMPARE(inspectItemOf(e, "Hidden names").remove(), total);
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+        QCOMPARE(inspectItemOf(e, "Hidden names").count(), 0);
+        e.win.w.undoStack()->undo();
+        QCOMPARE(inspectItemOf(e, "Hidden names").count(), total);
+        e.win.w.undoStack()->redo();
+        QCOMPARE(inspectItemOf(e, "Hidden names").count(), 0);
+    }
+
     // Inspect finds the objects a file hides (a chart, a picture, a shape, and a text box), and Remove All takes them out of the file whole, with the parts only they used, in every form the
     // workbook is saved in; the object that shows, and the rest of the file, stay as they were.
     void inspectTakesHiddenObjectsOutOfEveryFormat()
@@ -850,7 +922,7 @@ private Q_SLOTS:
         EditWindow e;
         QVERIFY(e.open(hiddenObjectsBook(), QStringLiteral("hidden.xlsx")));
         QVERIFY(e.settle());
-        const QStringList secrets = {QStringLiteral("HiddenSecretChart"), QStringLiteral("HiddenSecretPicture"), QStringLiteral("HiddenSecretShape"), QStringLiteral("HiddenSecretTextBox"), QStringLiteral("HiddenSecretWords")};
+        const QStringList secrets = {QStringLiteral("HiddenSecretChart"), QStringLiteral("HiddenSecretPicture"), QStringLiteral("HiddenSecretShape"), QStringLiteral("HiddenSecretTextBox"), QStringLiteral("HiddenSecretWords"), QStringLiteral("HiddenSharedPicture"), QStringLiteral("HiddenSecretEmbeddedBook")};
         const auto itemOf = [&]() -> InspectItem {
             for (const InspectItem &i : e.win.w.inspectItems())
                 if (i.title == QLatin1String("Hidden objects")) return i;
@@ -858,11 +930,11 @@ private Q_SLOTS:
         };
         const InspectItem item = itemOf();
         QVERIFY(!item.title.isEmpty());
-        QCOMPARE(item.count(), 4);
+        QCOMPARE(item.count(), 5);
         QVERIFY(item.removable);
         const QMap<QString, QByteArray> before = partsOf(e.path);
         QVERIFY(before.value(QStringLiteral("xl/drawings/drawing1.xml")).contains("HiddenSecretPicture"));
-        QCOMPARE(item.remove(), 4);
+        QCOMPARE(item.remove(), 5);
         QCOMPARE(itemOf().count(), 0);
         QCOMPARE(itemOf().remove(), 0);
         QVERIFY(saveAndWaitHere(e.win.w));
@@ -872,6 +944,10 @@ private Q_SLOTS:
         QVERIFY(now.contains(QStringLiteral("xl/media/image1.png")));
         QVERIFY(!now.contains(QStringLiteral("xl/media/image2.png")));
         QVERIFY(!now.contains(QStringLiteral("xl/charts/chart1.xml")));
+        QVERIFY(!now.contains(QStringLiteral("xl/charts/_rels/chart1.xml.rels")));
+        QVERIFY(!now.contains(QStringLiteral("xl/embeddings/chartbook1.xlsx")));
+        QVERIFY(now.value(QStringLiteral("xl/drawings/_rels/drawing1.xml.rels")).contains("rIdI1"));
+        QVERIFY(!now.value(QStringLiteral("xl/drawings/_rels/drawing1.xml.rels")).contains("rIdI2"));
         QCOMPARE(now.value(QStringLiteral("xl/media/image1.png")), before.value(QStringLiteral("xl/media/image1.png")));
         QCOMPARE(now.value(QStringLiteral("xl/worksheets/sheet1.xml")), before.value(QStringLiteral("xl/worksheets/sheet1.xml")));
         QVERIFY(!now.value(QStringLiteral("[Content_Types].xml")).contains("chart1.xml"));
@@ -889,6 +965,133 @@ private Q_SLOTS:
         QVERIFY(again.settle());
         for (const InspectItem &i : again.win.w.inspectItems())
             if (i.title == QLatin1String("Hidden objects")) QCOMPARE(i.count(), 0);
+    }
+
+    // Inspect reads the drawing's bytes, so no kind of object is skipped: a hidden shape inside a group that shows, one inside an alternate-content wrapper (in the anchor, and around the anchor),
+    // a hidden table frame, and a hidden chart whose part is missing are all counted and taken out, and what shows (the group, its other shape, the shape beside) stays. A plain save first
+    // does not make the count forget them.
+    void inspectReachesTheObjectsTheReaderSkips()
+    {
+        const QString secrets[] = {QStringLiteral("NestedHiddenShape"), QStringLiteral("WrappedHiddenShape"), QStringLiteral("HiddenTableFrame"), QStringLiteral("HiddenOrphanChart"), QStringLiteral("TopWrappedHidden")};
+        const QString table = QStringLiteral("<xdr:graphicFrame macro=\"\"><xdr:nvGraphicFramePr><xdr:cNvPr id=\"14\" name=\"HiddenTableFrame\"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr>"
+                                             "<xdr:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"0\" cy=\"0\"/></xdr:xfrm><a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/table\"/></a:graphic></xdr:graphicFrame>");
+        const QString wrapped = QStringLiteral("<mc:AlternateContent xmlns:mc=\"%1\"><mc:Choice Requires=\"a14\" xmlns:a14=\"http://schemas.microsoft.com/office/drawing/2010/main\">%2</mc:Choice><mc:Fallback/></mc:AlternateContent>");
+        const QString anchors = drawtest::twoCell(1, 1, 4, 3, drawtest::groupElement(10, hideElement(drawtest::shapeElement(11, QStringLiteral("NestedHiddenShape"))) + drawtest::shapeElement(12, QStringLiteral("NestedShownShape"))))
+            + drawtest::twoCell(1, 5, 3, 7, wrapped.arg(kMc, hideElement(drawtest::shapeElement(13, QStringLiteral("WrappedHiddenShape")))))
+            + drawtest::twoCell(5, 1, 8, 3, hideElement(table))
+            + drawtest::twoCell(5, 5, 8, 7, hideElement(drawtest::chartFrame(15, QStringLiteral("rIdNone"), QStringLiteral("HiddenOrphanChart"))))
+            + wrapped.arg(kMc, drawtest::twoCell(9, 1, 12, 3, hideElement(drawtest::shapeElement(16, QStringLiteral("TopWrappedHidden")))))
+            + drawtest::twoCell(9, 5, 12, 7, drawtest::shapeElement(17, QStringLiteral("ShownShape")));
+        EditWindow e;
+        QVERIFY(e.open(drawingBookOf(anchors), QStringLiteral("kinds.xlsx")));
+        QVERIFY(e.settle());
+        QCOMPARE(inspectItemOf(e, "Hidden objects").count(), 5);
+        QVERIFY(inspectItemOf(e, "Hidden objects").unread().isEmpty());
+        QVERIFY(saveAndWaitHere(e.win.w));   // (a save that takes nothing out: the file still has them, and the count says so)
+        QCOMPARE(inspectItemOf(e, "Hidden objects").count(), 5);
+        QCOMPARE(inspectItemOf(e, "Hidden objects").remove(), 5);
+        QCOMPARE(inspectItemOf(e, "Hidden objects").count(), 0);
+        QVERIFY(saveAndWaitHere(e.win.w));
+        for (const QString &secret : secrets) QVERIFY2(!fileHolds(e.path, secret), qPrintable(secret));
+        const QByteArray drawing = partsOf(e.path).value(QStringLiteral("xl/drawings/drawing1.xml"));
+        for (const char *kept : {"NestedShownShape", "ShownShape", "name=\"Group\""}) QVERIFY2(drawing.contains(kept), kept);
+        for (const char *name : {"copy.ods", "copy.xls"}) {
+            const QString target = e.folder.dir.filePath(QString::fromLatin1(name));
+            QSignalSpy copied(&e.win.w, &CrunchWindow::copyExported);
+            QVERIFY(e.win.w.saveAs(target, true));
+            QVERIFY(copied.count() > 0 || copied.wait(20000));
+            for (const QString &secret : secrets) QVERIFY2(!fileHolds(target, secret), qPrintable(QString::fromLatin1(name) + QLatin1Char(' ') + secret));
+        }
+        QFile f(e.path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray reopened = f.readAll();
+        f.close();
+        EditWindow again;
+        QVERIFY(again.open(reopened, QStringLiteral("again.xlsx")));
+        QVERIFY(again.settle());
+        QCOMPARE(inspectItemOf(again, "Hidden objects").count(), 0);
+    }
+
+    // A drawing of the old kind (pictures, text boxes, and controls in a vmlDrawing part) is not read, so the row says how many shapes it could not judge, and does not say "None found"; a part
+    // that holds only the boxes of notes has nothing it could not judge.
+    void inspectSaysItCannotJudgeOldStyleDrawings()
+    {
+        const QByteArray notesOnly = "<xml><v:shape id=\"s1\"><x:ClientData ObjectType=\"Note\"><x:Row>3</x:Row></x:ClientData></v:shape></xml>";
+        const QByteArray withOthers = "<xml><v:shape id=\"s1\"><x:ClientData ObjectType=\"Note\"><x:Row>3</x:Row></x:ClientData></v:shape>"
+                                      "<v:shape id=\"s2\"><v:imagedata/></v:shape><v:shape id=\"s3\"><v:textbox/><x:ClientData ObjectType=\"Button\"/></v:shape><v:shapetype id=\"t\"/></xml>";
+        const QString kinds[] = {QStringLiteral("notes"), QStringLiteral("others")};
+        for (int k = 0; k < 2; ++k) {
+            QVector<ExtraPart> parts;
+            parts.append({QStringLiteral("xl/drawings/vmlDrawing1.vml"), k == 0 ? notesOnly : withOthers, QString(), 0, QStringLiteral("rIdV"), QStringLiteral("vmlDrawing"), QStringLiteral("../drawings/vmlDrawing1.vml")});
+            EditWindow e;
+            QVERIFY(e.open(withParts(buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>"))}), parts), QStringLiteral("old.xlsx")));
+            QVERIFY(e.settle());
+            const InspectItem item = inspectItemOf(e, "Hidden objects");
+            QCOMPARE(item.count(), 0);
+            QVERIFY2(k == 0 ? item.unread().isEmpty() : item.unread().startsWith(QLatin1String("2 shape")), qPrintable(kinds[k] + QLatin1Char(' ') + item.unread()));
+            InspectDialog box(QStringLiteral("Inspect"), {item}, nullptr);
+            QVERIFY2(box.summaries().first().contains(QLatin1String(k == 0 ? "None found" : "Not fully checked")), qPrintable(box.summaries().first()));
+        }
+    }
+
+    // A drawing past the limit of what is looked through is counted as far as it was, and the row says the rest was not: Remove All does not claim they are gone, and the shape past the
+    // limit is still in the file.
+    void inspectSaysWhenADrawingWasNotLookedThroughToTheEnd()
+    {
+        struct Reset {
+            ~Reset() { office::sheet::setHiddenScanLimit(0); }
+        } reset;
+        QString anchors = drawtest::twoCell(1, 1, 3, 3, hideElement(drawtest::shapeElement(2, QStringLiteral("EarlyHiddenShape"))));
+        for (int i = 0; i < 40; ++i) anchors += drawtest::twoCell(4, 1 + i, 6, 2 + i, drawtest::shapeElement(10 + i, QStringLiteral("Plain%1").arg(i)));
+        anchors += drawtest::twoCell(1, 50, 3, 52, hideElement(drawtest::shapeElement(99, QStringLiteral("LateHiddenShape"))));
+        const QByteArray book = drawingBookOf(anchors);
+        // (the limit counts the tags looked at: 40 is about the first anchor and a half)
+        office::sheet::setHiddenScanLimit(40);
+        EditWindow e;
+        QVERIFY(e.open(book, QStringLiteral("long.xlsx")));
+        QVERIFY(e.settle());
+        const InspectItem item = inspectItemOf(e, "Hidden objects");
+        QCOMPARE(item.count(), 1);
+        QVERIFY2(item.unread().startsWith(QLatin1String("1 drawing")), qPrintable(item.unread()));
+        QCOMPARE(item.remove(), 1);
+        const InspectItem after = inspectItemOf(e, "Hidden objects");
+        QCOMPARE(after.count(), 0);
+        QVERIFY(!after.unread().isEmpty());
+        InspectDialog box(QStringLiteral("Inspect"), {after}, nullptr);
+        QVERIFY2(box.summaries().first().contains(QLatin1String("Not fully checked")) && !box.summaries().first().contains(QLatin1String("None found")), qPrintable(box.summaries().first()));
+        QVERIFY(saveAndWaitHere(e.win.w));
+        QVERIFY(!fileHolds(e.path, QStringLiteral("EarlyHiddenShape")));
+        QVERIFY(fileHolds(e.path, QStringLiteral("LateHiddenShape")));
+        // (looked through to the end, the late one is found too)
+        office::sheet::setHiddenScanLimit(0);
+        EditWindow whole;
+        QVERIFY(whole.open(book, QStringLiteral("whole.xlsx")));
+        QVERIFY(whole.settle());
+        QCOMPARE(inspectItemOf(whole, "Hidden objects").count(), 2);
+        QVERIFY(inspectItemOf(whole, "Hidden objects").unread().isEmpty());
+    }
+
+    // A drawing large enough to be read on a worker (more than SheetObjects::kParseApartBytes) is counted in full when Inspect is asked at once after opening, before that read is done: the count
+    // is made on the asking thread from the bytes (one inflate and one scan of the part), so it never waits and is never short.
+    void inspectCountsALargeDrawingAtOnceAfterOpening()
+    {
+        QString anchors;
+        const int total = 900;
+        for (int i = 0; i < total; ++i) {
+            QString shape = drawtest::shapeElement(2 + i, QStringLiteral("Shape%1").arg(i), QStringLiteral("rect"), QStringLiteral("Some words of text to make the part larger %1").arg(i));
+            if (i == 5 || i == total - 1) shape = hideElement(shape);
+            anchors += drawtest::twoCell(1, i % 50, 3, i % 50 + 1, shape);
+        }
+        const QByteArray book = drawingBookOf(anchors);
+        QVERIFY(drawtest::drawingPart(anchors).size() > crunch::SheetObjects::kParseApartBytes);
+        EditWindow e;
+        QVERIFY(e.open(book, QStringLiteral("large.xlsx")));
+        // (no settle: nothing waited for the worker)
+        QCOMPARE(inspectItemOf(e, "Hidden objects").count(), 2);
+        QVERIFY(inspectItemOf(e, "Hidden objects").unread().isEmpty());
+        QCOMPARE(inspectItemOf(e, "Hidden objects").remove(), 2);
+        QVERIFY(e.settle());
+        QCOMPARE(inspectItemOf(e, "Hidden objects").count(), 0);
     }
 
     // Inspect finds the names a file hides, and Show All makes them show (the names stay: a formula may read one); the step can be undone, and what is saved, in every form, has none hidden.

@@ -7,8 +7,10 @@
 #include <QLocale>
 #include <QTextStream>
 #include <QRegularExpression>
+#include <QSet>
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 #include <set>
 
@@ -79,7 +81,11 @@ const QRegularExpression &relAttributeRe()
     return re;
 }
 
+std::atomic<int> g_hiddenScanLimit{kMaxHiddenScanTags};
+
 } // namespace
+
+void setHiddenScanLimit(int tags) { g_hiddenScanLimit = tags > 0 ? tags : kMaxHiddenScanTags; }
 
 QStringList namedRelationships(const QByteArray &xml)
 {
@@ -119,6 +125,128 @@ bool removeDrawingObjects(const QByteArray &xml, const std::vector<int> &ordinal
     *out = result;
     *changed = *out != xml;
     return true;
+}
+
+HiddenInDrawing hiddenObjectsOf(const QByteArray &xml, int maxTags)
+{
+    static const QSet<QByteArray> objects = {"sp", "pic", "grpSp", "cxnSp", "graphicFrame", "contentPart"};
+    struct Open {
+        QByteArray local;
+        qsizetype start = 0;
+        bool hiddenObject = false;
+        bool nestedOne = false;
+    };
+    if (maxTags <= 0) maxTags = g_hiddenScanLimit;
+    HiddenInDrawing out;
+    std::vector<Open> stack;
+    int ordinal = -1, tags = 0;
+    Tag t;
+    qsizetype pos = 0;
+    while (xmlscan::nextTag(xml, pos, &t)) {
+        pos = t.end;
+        if (++tags > maxTags) {
+            out.complete = false;
+            break;
+        }
+        if (t.closing) {
+            if (stack.empty()) break;
+            const Open top = stack.back();
+            stack.pop_back();
+            if (top.nestedOne) out.nested.push_back({ordinal, top.start, t.end});
+            continue;
+        }
+        if (stack.size() == 1) ++ordinal;
+        if (t.local == "cNvPr" && stack.size() >= 3) {
+            bool found = false;
+            const QByteArrayView value = xmlscan::attribute(QByteArrayView(xml).mid(t.start, t.end - t.start), "hidden", &found);
+            const bool hidden = found && (value == "1" || value == "true");
+            Open &object = stack[stack.size() - 2];
+            if (hidden && objects.contains(object.local)) {
+                bool outer = true, inGroup = false;
+                for (size_t k = 1; k + 2 < stack.size(); ++k) {
+                    if (stack[k].hiddenObject) outer = false;
+                    if (stack[k].local == "grpSp") inGroup = true;
+                }
+                if (outer) {
+                    object.hiddenObject = true;
+                    if (inGroup) object.nestedOne = true;
+                    else if (out.whole.empty() || out.whole.back() != ordinal) out.whole.push_back(ordinal);
+                }
+            }
+        }
+        if (!t.selfClosing) stack.push_back({QByteArray(t.local.toByteArray()), t.start, false, false});
+    }
+    // (what is inside a child of the root that is taken out whole is taken out with it)
+    const std::set<int> whole(out.whole.begin(), out.whole.end());
+    out.nested.erase(std::remove_if(out.nested.begin(), out.nested.end(), [&](const HiddenInDrawing::Nested &n) { return whole.count(n.ordinal) > 0; }), out.nested.end());
+    return out;
+}
+
+bool removeNestedHiddenObjects(const QByteArray &xml, QByteArray *out, bool *changed, QStringList *relIds, int *removed)
+{
+    *out = xml;
+    *changed = false;
+    if (removed) *removed = 0;
+    HiddenInDrawing found = hiddenObjectsOf(xml);
+    if (found.nested.empty()) return true;
+    // (the whole ones are not in this part's nested list only if they are taken out first: here every hidden object inside a group goes, and the rest of the part is not touched)
+    std::sort(found.nested.begin(), found.nested.end(), [](const HiddenInDrawing::Nested &a, const HiddenInDrawing::Nested &b) { return a.begin < b.begin; });
+    QByteArray result;
+    qsizetype copied = 0;
+    int n = 0;
+    for (const HiddenInDrawing::Nested &h : found.nested) {
+        if (h.begin < copied) continue;
+        result += xml.mid(copied, h.begin - copied);
+        copied = h.end;
+        ++n;
+        if (relIds)
+            for (const QString &id : namedRelationships(xml.mid(h.begin, h.end - h.begin)))
+                if (!relIds->contains(id)) *relIds << id;
+    }
+    result += xml.mid(copied);
+    *out = result;
+    *changed = *out != xml;
+    if (removed) *removed = n;
+    return true;
+}
+
+int legacyDrawingShapes(const QByteArray &vml, int maxTags)
+{
+    static const QSet<QByteArray> shapes = {"shape", "rect", "oval", "roundrect", "line", "polyline", "curve", "arc", "image"};
+    struct Open {
+        bool shape = false, note = false;
+    };
+    std::vector<Open> stack;
+    if (maxTags <= 0) maxTags = g_hiddenScanLimit;
+    int n = 0, tags = 0;
+    Tag t;
+    qsizetype pos = 0;
+    while (xmlscan::nextTag(vml, pos, &t)) {
+        pos = t.end;
+        if (++tags > maxTags) break;
+        if (t.closing) {
+            if (stack.empty()) break;
+            if (stack.back().shape && !stack.back().note) ++n;
+            stack.pop_back();
+            continue;
+        }
+        const bool shape = shapes.contains(t.local.toByteArray());
+        if (t.local == "ClientData") {
+            const QByteArrayView type = xmlscan::attribute(QByteArrayView(vml).mid(t.start, t.end - t.start), "ObjectType");
+            if (type == "Note")
+                for (size_t k = stack.size(); k-- > 0;)
+                    if (stack[k].shape) {
+                        stack[k].note = true;
+                        break;
+                    }
+        }
+        if (t.selfClosing) {
+            if (shape) ++n;
+        } else {
+            stack.push_back({shape, false});
+        }
+    }
+    return n;
 }
 
 bool reorderDrawingChildren(const QByteArray &xml, const std::vector<int> &order, QByteArray *out, bool *changed)

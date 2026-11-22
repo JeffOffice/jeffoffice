@@ -1243,6 +1243,8 @@ public:
     QString nameProblem(const NameDraft &draft, int id) const;
     Outcome defineName(const NameDraft &draft, int *made = nullptr);
     Outcome changeName(int id, const NameDraft &draft);
+    // Every name that is set to be hidden is shown, as one step of Undo (one pass over the names, which are at most kMaxDefinedNames); `shown` is how many.
+    Outcome showHiddenNames(int *shown = nullptr);
     Outcome removeName(int id);
     // Names made from the labels round a block of cells, as one step (core/namesfromcells.h): how many were made, and how many were left out (a label that made no name, a repeat, and a name
     // that is there already is not made again).

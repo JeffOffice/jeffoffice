@@ -437,6 +437,12 @@ void SheetObjects::list(int sheet, Sheet &s)
     s.drawingPart = drawingPartOf(m_book->objectPackage(), entry.part);
     if (!s.drawingPart.isEmpty() && m_drawingOwner.value(s.drawingPart.toLower(), sheet) != sheet) s.drawingPart.clear();
     if (s.drawingPart.isEmpty()) return;
+    {
+        const HiddenInDrawing found = hiddenObjectsOf(m_book->objectPackage().part(s.drawingPart));
+        s.hiddenComplete = found.complete;
+        for (const int ordinal : found.whole) s.hidden.push_back({ordinal, false});
+        for (const HiddenInDrawing::Nested &n : found.nested) s.hidden.push_back({n.ordinal, true});
+    }
     QString why;
     const std::shared_ptr<QDomDocument> parsedApart = std::move(s.parsedDoc);   // (what a worker made, if one did)
     s.parsedDoc.reset();
@@ -960,16 +966,25 @@ DrawingCounts SheetObjects::counts(int sheet)
     return s.counts;
 }
 
+int SheetObjects::hiddenLive(const Sheet &s) const
+{
+    if (s.hiddenDropped || s.drawingPart.isEmpty()) return 0;
+    QSet<int> deleted;   // (the hidden objects inside a group that a person deleted went with it)
+    for (const std::shared_ptr<Object> &o : s.objects)
+        if (o->deleted && !o->added && !o->gone && o->meta.ordinal >= 0) deleted.insert(o->meta.ordinal);
+    int n = 0;
+    for (const Sheet::HiddenAt &h : s.hidden)
+        if (!(h.nested && deleted.contains(h.ordinal))) ++n;
+    return n;
+}
+
 int SheetObjects::hiddenCount()
 {
     if (!m_book) return 0;
     int n = 0;
     for (size_t i = 0; i < m_sheets.size() && i < size_t(m_book->info().sheets.size()); ++i) {
         if (m_book->info().sheets[int(i)].deleted) continue;
-        const Sheet &s = sheetState(int(i));
-        if (s.hiddenDropped || s.drawingPart.isEmpty()) continue;
-        for (const DrawingObject &d : s.drawing.objects)
-            if (d.hidden) ++n;
+        n += hiddenLive(sheetState(int(i)));
     }
     return n;
 }
@@ -981,14 +996,28 @@ int SheetObjects::dropHidden()
     for (size_t i = 0; i < m_sheets.size() && i < size_t(m_book->info().sheets.size()); ++i) {
         if (m_book->info().sheets[int(i)].deleted) continue;
         Sheet &s = sheetState(int(i));
-        if (s.hiddenDropped || s.drawingPart.isEmpty()) continue;
-        for (const DrawingObject &d : s.drawing.objects)
-            if (d.hidden) {
-                s.hiddenDropped = true;
-                break;
-            }
+        if (hiddenLive(s) > 0) s.hiddenDropped = true;
     }
     return n;
+}
+
+SheetObjects::HiddenUnread SheetObjects::hiddenUnread()
+{
+    HiddenUnread out;
+    if (!m_book) return out;
+    for (size_t i = 0; i < m_sheets.size() && i < size_t(m_book->info().sheets.size()); ++i) {
+        if (m_book->info().sheets[int(i)].deleted) continue;
+        Sheet &s = sheetState(int(i));
+        if (!s.drawingPart.isEmpty() && !s.hiddenComplete) ++out.longDrawings;
+        if (s.oldStyleShapes < 0) {
+            s.oldStyleShapes = 0;
+            const Package &package = m_book->objectPackage();
+            for (const Relationship &r : package.relationshipsOfType(m_book->info().sheets[int(i)].part, QStringLiteral("/vmlDrawing")))
+                if (!r.external && package.hasPart(r.target)) s.oldStyleShapes += legacyDrawingShapes(package.part(r.target));
+        }
+        out.oldStyleShapes += s.oldStyleShapes;
+    }
+    return out;
 }
 
 std::vector<SheetObjects::ObjectInfo> SheetObjects::describe(int sheet)
@@ -1536,14 +1565,31 @@ void SheetObjects::addToSave(SaveChanges *changes)
         std::vector<int> removedOrdinals;
         for (const std::shared_ptr<Object> &o : s.objects)
             if (o->deleted && !o->added && !o->gone && o->meta.ordinal >= 0) removedOrdinals.push_back(o->meta.ordinal);
-        std::vector<const DrawingObject *> hiddenOnes;   // (the objects the file hides, taken out for Inspect)
-        if (s.hiddenDropped)
-            for (const DrawingObject &d : std::as_const(s.drawing.objects))
-                if (d.hidden && d.ordinal >= 0) {
-                    removedOrdinals.push_back(d.ordinal);
-                    hiddenOnes.push_back(&d);
+        const std::vector<int> deletedOrdinals = removedOrdinals;   // (the objects a person deleted)
+        std::vector<const DrawingObject *> hiddenOnes;   // (the objects the file hides that go with a chart part only they used)
+        s.hiddenAfterSave.clear();
+        s.hiddenAfterSaveSet = true;
+        s.hiddenWholeGone = 0;
+        if (s.hiddenDropped) {
+            for (const Sheet::HiddenAt &h : s.hidden) {
+                if (h.nested) {
+                    changes->removedNestedHidden.insert(s.drawingPart);
+                    continue;
                 }
+                if (std::find(deletedOrdinals.begin(), deletedOrdinals.end(), h.ordinal) != deletedOrdinals.end()) continue;
+                removedOrdinals.push_back(h.ordinal);
+                ++s.hiddenWholeGone;
+                for (const DrawingObject &d : std::as_const(s.drawing.objects))
+                    if (d.hidden && d.ordinal == h.ordinal && !d.chartPart.isEmpty()) hiddenOnes.push_back(&d);
+            }
+        }
         std::sort(removedOrdinals.begin(), removedOrdinals.end());
+        removedOrdinals.erase(std::unique(removedOrdinals.begin(), removedOrdinals.end()), removedOrdinals.end());
+        if (!s.hiddenDropped)
+            for (const Sheet::HiddenAt &h : s.hidden) {
+                if (h.nested && std::find(deletedOrdinals.begin(), deletedOrdinals.end(), h.ordinal) != deletedOrdinals.end()) continue;
+                s.hiddenAfterSave.push_back({h.ordinal - int(std::lower_bound(removedOrdinals.begin(), removedOrdinals.end(), h.ordinal) - removedOrdinals.begin()), h.nested});
+            }
         const int survivors = std::max(0, s.drawing.rootChildren - int(removedOrdinals.size()));
         std::vector<std::pair<std::shared_ptr<Object>, int>> placed;   // (object, its place among the children after what is above), in the order they are drawn
         int addedSoFar = 0;
@@ -1583,10 +1629,10 @@ void SheetObjects::addToSave(SaveChanges *changes)
         for (size_t k = 0; k < perm.size(); ++k) inverse[size_t(perm[k])] = int(k);
         for (const auto &p : placed) p.first->savedOrdinal = size_t(p.second) < inverse.size() ? inverse[size_t(p.second)] : p.second;
         if (reordered) changes->drawingOrder[s.drawingPart] = perm;
-        for (const DrawingObject *d : hiddenOnes) {
-            changes->removedObjects[s.drawingPart].push_back(d->ordinal);
-            if (!d->chartPart.isEmpty()) deletedParts.insert(d->chartPart.toLower());
-        }
+        for (const DrawingObject *d : hiddenOnes) deletedParts.insert(d->chartPart.toLower());
+        if (s.hiddenDropped)
+            for (const Sheet::HiddenAt &h : s.hidden)
+                if (!h.nested) changes->removedObjects[s.drawingPart].push_back(h.ordinal);
         for (const std::shared_ptr<Object> &o : s.objects) {
             if (o->deleted) {
                 if (!o->added && !o->gone && !s.drawingPart.isEmpty()) {
@@ -1907,11 +1953,14 @@ void SheetObjects::saved()
         }
         if (s.hiddenDropped) {
             // (the file has none of those it hid now)
-            for (const DrawingObject &d : std::as_const(s.drawing.objects))
-                if (d.hidden) ++removedNow;
+            removedNow += s.hiddenWholeGone;
             s.counts.hidden = 0;
             s.hiddenDropped = false;
         }
+        if (s.hiddenAfterSaveSet) s.hidden = s.hiddenAfterSave;
+        s.hiddenAfterSaveSet = false;
+        s.hiddenAfterSave.clear();
+        s.hiddenWholeGone = 0;
         s.drawing.rootChildren = std::max(0, s.drawing.rootChildren - removedNow) + addedNow;
         QVector<DrawingObject> kept;
         for (DrawingObject d : std::as_const(s.drawing.objects))

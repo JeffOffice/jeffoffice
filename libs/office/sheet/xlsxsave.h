@@ -375,6 +375,9 @@ struct SaveChanges {
     // Drawing objects a person deleted: for each drawing part (by its name), the places of their elements among the children of the part's root (DrawingObject::ordinal). What they leave
     // unused (the relationships of the drawing, and the chart or picture parts nothing else in the package relates to, with their own relationships and types) goes with them.
     std::map<QString, std::vector<int>> removedObjects;
+    // Drawing parts (by name) whose hidden objects that are inside groups that stay are taken out (the objects hidden on their own are in removedObjects): found in the part as it is when it is
+    // saved, with what only they used.
+    std::set<QString> removedNestedHidden;
     // Two-cell anchors whose places are written again, by the drawing part and the place of the element (DrawingObject::ordinal): an object that keeps its size when cells are resized (editAs
     // "oneCell" or "absolute") is where its size and place now put it. Applied before the objects are taken away (the places are the part's as it was).
     std::map<QString, std::map<int, DrawingAnchor>> anchors;

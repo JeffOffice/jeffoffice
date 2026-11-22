@@ -20,6 +20,34 @@ namespace jp::office::sheet {
 // was taken out.
 bool removeDrawingObjects(const QByteArray &xml, const std::vector<int> &ordinals, QByteArray *out, bool *changed, QStringList *relIds = nullptr);
 
+// The most tags hiddenObjectsOf looks at in one drawing part (the rest of the part is not looked at, and the answer says so).
+constexpr int kMaxHiddenScanTags = 4000000;
+
+// The objects a drawing part hides (their name's element says hidden), found by reading its tags, not by building a tree, so that no object is skipped for its kind (a shape, a picture, a
+// group, a line, a chart, a table, a slicer, or anything else with a name), or for being wrapped in an alternate-content element, or for being past the limit of objects that are read.
+// An object that is a child of the root's child (or alone in the wrapper) is taken out whole with that child: its place is in `whole`. A hidden object inside a group that is not hidden is
+// taken out alone: its place is in `nested`, with the child of the root it is in, and its bytes. `complete` is false when the part had more tags than `maxTags`: what comes after is not looked at.
+struct HiddenInDrawing {
+    struct Nested {
+        int ordinal = 0;
+        qsizetype begin = 0, end = 0;
+    };
+    std::vector<int> whole;
+    std::vector<Nested> nested;
+    bool complete = true;
+};
+HiddenInDrawing hiddenObjectsOf(const QByteArray &xml, int maxTags = 0);
+// What `maxTags` is when it is 0 (for a test: a small number, then back to kMaxHiddenScanTags with 0).
+void setHiddenScanLimit(int tags);
+
+// The drawing part without the hidden objects that are inside groups that stay (the whole ones are left to removeDrawingObjects). `removed` is how many; `relIds` is told the relationship ids
+// of what was taken out. `changed` says whether the output is not the input.
+bool removeNestedHiddenObjects(const QByteArray &xml, QByteArray *out, bool *changed, QStringList *relIds = nullptr, int *removed = nullptr);
+
+// The shapes of an old-style drawing part (the form that held pictures, text boxes, and controls before the drawing part above), not counting those that are a note's box: this program does not
+// read them, so it can't say whether one is hidden. (At most `maxTags` tags are looked at; 0 is the limit above.)
+int legacyDrawingShapes(const QByteArray &vml, int maxTags = 0);
+
 // The relationship ids (the values of r:embed, r:link, r:id, and r:pict attributes) a part names.
 QStringList namedRelationships(const QByteArray &xml);
 

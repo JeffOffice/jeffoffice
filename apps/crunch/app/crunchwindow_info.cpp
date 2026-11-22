@@ -290,7 +290,16 @@ QVector<InspectItem> CrunchWindow::inspectItems()
                          updateEditActions();
                          return n;
                      },
-                     true, tr("Show All")});
+                     true, tr("Show All"),
+                     [session, book] {
+                         // (the rows a filter hides are the filter's, and stay: the row says how many, so that "None found" is not taken to mean there are no hidden rows)
+                         int n = 0;
+                         for (int i = 0; i < book->info().sheets.size(); ++i) {
+                             if (book->info().sheets[i].deleted) continue;
+                             n += int(session->hiddenRowsIn(i, 0, jp::office::sheet::kMaxRows - 1, false).size());
+                         }
+                         return n > 0 ? tr("%n row(s) hidden by a filter are not included here. Clear the filter to show them.", nullptr, n) : QString();
+                     }});
     // Hidden names: names that are set to be hidden (they are not in the Names list of other programs, and a formula may read one). They are shown, not taken out: a formula that reads one would break.
     items.push_back({tr("Hidden names"), tr("Names that are set to be hidden: they are not offered in lists of names, but they are in the file. Show them to see what they stand for."),
                      [session] {
@@ -301,17 +310,7 @@ QVector<InspectItem> CrunchWindow::inspectItems()
                      },
                      [this, session] {
                          int n = 0;
-                         for (int i = 0; i < session->names().slots(); ++i) {
-                             if (!session->nameListed(i) || !session->names().at(i).hidden) continue;
-                             const crunch::NameEntry &e = session->names().at(i);
-                             crunch::EditSession::NameDraft d;
-                             d.name = e.name;
-                             d.scope = e.scope;
-                             d.comment = e.comment;
-                             d.hidden = false;
-                             d.text = session->nameTextOf(i);
-                             if (session->changeName(i, d).ok) ++n;
-                         }
+                         session->showHiddenNames(&n);
                          updateEditActions();
                          return n;
                      },
@@ -327,7 +326,15 @@ QVector<InspectItem> CrunchWindow::inspectItems()
                          updateEditActions();
                          return n;
                      },
-                     true, QString()});
+                     true, QString(),
+                     [this] {
+                         if (!m_objects) return QString();
+                         const crunch::SheetObjects::HiddenUnread u = m_objects->hiddenUnread();
+                         QStringList said;
+                         if (u.longDrawings > 0) said << tr("%n drawing(s) are too big to check all the way through, so hidden objects past the part checked are not counted.", nullptr, u.longDrawings);
+                         if (u.oldStyleShapes > 0) said << tr("%n shape(s) of an older kind can't be read by this check, so it can't say whether any are hidden.", nullptr, u.oldStyleShapes);
+                         return said.join(QLatin1Char(' '));
+                     }});
     // Headers and footers
     items.push_back({tr("Headers and footers"), tr("Text printed at the top and the bottom of every page, which can hold names and file paths."),
                      [session, book] {

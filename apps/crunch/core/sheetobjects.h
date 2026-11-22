@@ -183,10 +183,19 @@ public:
     const Limits &limits() const { return m_limits; }
     // The objects put there since the file was read or saved that are not taken away, and the points of the charts that are new or changed, in the whole workbook.
     int addedCount() const;
-    // The objects the file hides (they are not drawn, and none is in the layer), in the sheets that are not deleted, not counting those Remove All of Inspect has already taken out; and the taking out:
-    // they are left out of the next save with the parts only they used. A sheet whose drawing is still being read apart is not counted yet.
+    // The objects the file hides (they are not drawn, and none is in the layer, or is a place to pick one), in the sheets that are not deleted: those hidden on their own and those hidden inside
+    // a group that shows, found in the bytes of each drawing part, so that no kind is skipped. Not counted: those Remove All of Inspect has already taken out, and those inside an object a person
+    // deleted. The count is made when the sheet's drawing is listed, and a sheet that is still being read apart is listed then (here, at once), so it is complete. dropHidden takes them out of the
+    // next save, with the pictures and chart parts only they used.
     int hiddenCount();
     int dropHidden();
+    // What the count could not look at: the drawings that were too long to look through to the end (the rest of each is not counted), and the shapes of old-style drawings (this program does not
+    // read them, so it cannot say whether one is hidden).
+    struct HiddenUnread {
+        int longDrawings = 0;
+        int oldStyleShapes = 0;
+    };
+    HiddenUnread hiddenUnread();
     qint64 chartPointsHeld() const;
     qint64 pastedBytesHeld() const;
     // The points a chart reads or holds (the cells its references name, up to what a series may read, and the numbers it holds for what has no reference).
@@ -390,6 +399,16 @@ private:
     struct Sheet {
         bool listed = false;
         bool hiddenDropped = false;                    // the objects the file hides are to be left out of the next save
+        struct HiddenAt {
+            int ordinal = 0;                           // the place of the child of the drawing's root that holds it (it is taken out whole when it is not `nested`)
+            bool nested = false;                       // it is inside a group that stays
+        };
+        std::vector<HiddenAt> hidden;                  // the objects the file hides (see hiddenCount)
+        std::vector<HiddenAt> hiddenAfterSave;         // the same, as the places are once the next save is written
+        bool hiddenAfterSaveSet = false;
+        int hiddenWholeGone = 0;                       // how many children of the root that save takes out whole for being hidden
+        bool hiddenComplete = true;                    // the drawing was looked through to the end
+        int oldStyleShapes = -1;                       // the shapes of its old-style drawings (not counted until asked)
         bool parsing = false;                          // its drawing part is being parsed on a worker
         bool showPending = false;                      // and the sheet is to be shown when it is
         std::shared_ptr<QDomDocument> parsedDoc;       // what the worker made, until the drawing is listed
@@ -409,6 +428,7 @@ private:
         std::vector<std::weak_ptr<Object>> readers;    // the charts that have a record of the cells they read (a change of cells looks at these alone)
     };
     Sheet &sheetState(int sheet);
+    int hiddenLive(const Sheet &s) const;   // the objects of the sheet that hiddenCount counts
     void list(int sheet, Sheet &s);
     // The sheet's objects into the layer, its drawing listed.
     void showNow(int sheet);

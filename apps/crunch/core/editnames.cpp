@@ -198,6 +198,36 @@ EditSession::Outcome EditSession::changeName(int id, const NameDraft &draft)
     return out;
 }
 
+EditSession::Outcome EditSession::showHiddenNames(int *shown)
+{
+    Outcome out;
+    if (shown) *shown = 0;
+    QString why;
+    if (!canEdit(&why)) {
+        out.ok = false;
+        out.problem = why;
+        return out;
+    }
+    Step step;
+    for (int id = 0; id < m_nameTable.slots(); ++id) {
+        if (!nameListed(id) || !m_nameTable.at(id).hidden) continue;
+        NameEdit e;
+        e.id = id;
+        e.before = m_nameTable.at(id);
+        e.after = e.before;
+        e.after.hidden = false;
+        m_book->calc->nameText(e.before.scope, e.before.name, &e.textBefore);
+        { bool has = false; e.taggedBefore = m_book->calc->nameTagged(e.before.scope, e.before.name, &has); }
+        e.textAfter = e.textBefore;
+        e.taggedAfter = e.taggedBefore;
+        step.names.push_back(std::move(e));
+    }
+    if (step.names.empty()) return out;
+    if (shown) *shown = int(step.names.size());
+    pushStep(std::move(step), tr("Show Names"));
+    return out;
+}
+
 EditSession::Outcome EditSession::removeName(int id)
 {
     Outcome out;

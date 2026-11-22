@@ -2617,12 +2617,23 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
     }
     // (what the objects taken away relate to: the links of the drawing they alone used, and the parts nothing else relates to)
     std::vector<std::pair<QString, QStringList>> released;
+    // (the hidden objects inside groups that stay are taken out first, in the part as it is now; the ids they named are let go of with the others unless what stays names them too)
+    std::map<QString, QStringList> nestedIds;
+    for (const QString &part : changes.removedNestedHidden) {
+        QByteArray xml, now;
+        bool changed = false;
+        const int index = partBytes(part, &xml);
+        if (index >= 0 && removeNestedHiddenObjects(xml, &now, &changed, &nestedIds[part]) && changed) replaced.insert(index, now);
+    }
     for (const auto &[part, ordinals] : changes.removedObjects) {
         QByteArray xml, now;
         bool changed = false;
         QStringList ids;
         const int index = partBytes(part, &xml);
         if (index >= 0 && removeDrawingObjects(xml, ordinals, &now, &changed, &ids) && changed) {
+            for (const QString &id : nestedIds[part])
+                if (!ids.contains(id)) ids << id;
+            nestedIds.erase(part);
             replaced.insert(index, now);
             // a diagram's data part names the link of its drawing, which goes with it
             for (const QString &id : QStringList(ids)) {
@@ -2635,6 +2646,13 @@ bool saveXlsx(const Workbook &book, const SaveChanges &requested, QByteArray *ou
             for (const QString &id : namedRelationships(now)) ids.removeAll(id);
             if (!ids.isEmpty()) released.emplace_back(part, ids);
         }
+    }
+    for (const auto &[part, named] : nestedIds) {
+        QByteArray xml;
+        QStringList ids = named;
+        if (ids.isEmpty() || partBytes(part, &xml) < 0) continue;
+        for (const QString &id : namedRelationships(xml)) ids.removeAll(id);
+        if (!ids.isEmpty()) released.emplace_back(part, ids);
     }
     // (the drawing of header and footer pictures taken out, and what only it related to)
     for (const HeaderWrite &w : headerWrites)
