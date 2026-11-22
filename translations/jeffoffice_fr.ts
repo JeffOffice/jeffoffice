@@ -71561,7 +71561,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">La tâche est interrompue à %1 pages.</translation>
     </message>
     <message>
-        <location line="+135"/>
+        <location line="+136"/>
         <source>There was not room to make the pages gray, so some are in color.</source>
         <translation type="unfinished">Il n&apos;y avait pas assez de place pour rendre les pages en niveaux de gris, si bien que certaines sont en couleur.</translation>
     </message>
@@ -73453,7 +73453,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
 <context>
     <name>jp::office::sheet::Ods</name>
     <message>
-        <location filename="../libs/office/sheet/ods.cpp" line="+76"/>
+        <location filename="../libs/office/sheet/ods.cpp" line="+83"/>
         <source>Part of the file has more settings on one item than any real file has, so it can&apos;t be read.</source>
         <translation type="unfinished">Une partie du fichier comporte plus de paramètres sur un même élément que tout fichier réel : elle ne peut donc pas être lue.</translation>
     </message>
@@ -73470,7 +73470,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     <message>
         <location line="+1"/>
         <location line="+65"/>
-        <location line="+1092"/>
+        <location line="+1093"/>
         <location line="+43"/>
         <location line="+105"/>
         <location line="+265"/>
@@ -73478,27 +73478,27 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Le fichier commence par des instructions que ce programme n&apos;autorise pas ; il ne peut donc pas être lu.</translation>
     </message>
     <message>
-        <location line="-1569"/>
+        <location line="-1570"/>
         <source>The file is damaged: it is not written as a spreadsheet file should be.</source>
         <translation type="unfinished">Le fichier est endommagé : il n&apos;est pas écrit comme un fichier de feuille de calcul devrait l&apos;être.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+863"/>
+        <location line="+864"/>
         <location line="+22"/>
         <source>The file is damaged, or its parts come to more than this program reads.</source>
         <translation type="unfinished">Le fichier est endommagé, ou ses parties dépassent ce que ce programme peut lire.</translation>
     </message>
     <message>
-        <location line="-836"/>
-        <location line="+1609"/>
-        <location filename="../libs/office/sheet/odsstyles.cpp" line="+594"/>
+        <location line="-837"/>
+        <location line="+1610"/>
+        <location filename="../libs/office/sheet/odsstyles.cpp" line="+614"/>
         <source>The read was stopped.</source>
         <translation type="unfinished">La lecture a été interrompue.</translation>
     </message>
     <message>
-        <location line="-1606"/>
-        <location line="+1083"/>
+        <location line="-1607"/>
+        <location line="+1084"/>
         <location line="+22"/>
         <location line="+43"/>
         <location line="+67"/>
@@ -73508,14 +73508,14 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Le fichier contient des éléments imbriqués plus profondément que dans tout fichier réel.</translation>
     </message>
     <message>
-        <location line="-1449"/>
-        <location line="+1044"/>
+        <location line="-1450"/>
+        <location line="+1045"/>
         <location line="+12"/>
         <source>The file is damaged.</source>
         <translation type="unfinished">Le fichier est endommagé.</translation>
     </message>
     <message>
-        <location line="-1032"/>
+        <location line="-1033"/>
         <location line="+123"/>
         <location line="+25"/>
         <source>The file has more styles than any real file has.</source>
@@ -73542,7 +73542,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Le fichier cite plus de polices que tout fichier réel.</translation>
     </message>
     <message>
-        <location line="+627"/>
+        <location line="+628"/>
         <source>The spreadsheet is larger than this program reads.</source>
         <translation type="unfinished">La feuille de calcul dépasse la taille que ce programme peut lire.</translation>
     </message>

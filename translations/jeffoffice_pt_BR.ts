@@ -71561,7 +71561,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">O trabalho é interrompido em %1 páginas.</translation>
     </message>
     <message>
-        <location line="+135"/>
+        <location line="+136"/>
         <source>There was not room to make the pages gray, so some are in color.</source>
         <translation type="unfinished">Não havia espaço para deixar as páginas em tons de cinza, então algumas estão em cores.</translation>
     </message>
@@ -73453,7 +73453,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
 <context>
     <name>jp::office::sheet::Ods</name>
     <message>
-        <location filename="../libs/office/sheet/ods.cpp" line="+76"/>
+        <location filename="../libs/office/sheet/ods.cpp" line="+83"/>
         <source>Part of the file has more settings on one item than any real file has, so it can&apos;t be read.</source>
         <translation type="unfinished">Parte do arquivo tem mais configurações em um item do que qualquer arquivo real, por isso não pode ser lida.</translation>
     </message>
@@ -73470,7 +73470,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     <message>
         <location line="+1"/>
         <location line="+65"/>
-        <location line="+1092"/>
+        <location line="+1093"/>
         <location line="+43"/>
         <location line="+105"/>
         <location line="+265"/>
@@ -73478,27 +73478,27 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">O arquivo começa com instruções que este programa não permite, por isso não pode ser lido.</translation>
     </message>
     <message>
-        <location line="-1569"/>
+        <location line="-1570"/>
         <source>The file is damaged: it is not written as a spreadsheet file should be.</source>
         <translation type="unfinished">O arquivo está danificado: não está escrito como um arquivo de planilha deveria estar.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+863"/>
+        <location line="+864"/>
         <location line="+22"/>
         <source>The file is damaged, or its parts come to more than this program reads.</source>
         <translation type="unfinished">O arquivo está danificado ou suas partes excedem o que este programa lê.</translation>
     </message>
     <message>
-        <location line="-836"/>
-        <location line="+1609"/>
-        <location filename="../libs/office/sheet/odsstyles.cpp" line="+594"/>
+        <location line="-837"/>
+        <location line="+1610"/>
+        <location filename="../libs/office/sheet/odsstyles.cpp" line="+614"/>
         <source>The read was stopped.</source>
         <translation type="unfinished">A leitura foi interrompida.</translation>
     </message>
     <message>
-        <location line="-1606"/>
-        <location line="+1083"/>
+        <location line="-1607"/>
+        <location line="+1084"/>
         <location line="+22"/>
         <location line="+43"/>
         <location line="+67"/>
@@ -73508,14 +73508,14 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">O arquivo tem itens aninhados em mais níveis do que qualquer arquivo real.</translation>
     </message>
     <message>
-        <location line="-1449"/>
-        <location line="+1044"/>
+        <location line="-1450"/>
+        <location line="+1045"/>
         <location line="+12"/>
         <source>The file is damaged.</source>
         <translation type="unfinished">O arquivo está danificado.</translation>
     </message>
     <message>
-        <location line="-1032"/>
+        <location line="-1033"/>
         <location line="+123"/>
         <location line="+25"/>
         <source>The file has more styles than any real file has.</source>
@@ -73542,7 +73542,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <translation type="unfinished">O arquivo cita mais fontes do que qualquer arquivo real.</translation>
     </message>
     <message>
-        <location line="+627"/>
+        <location line="+628"/>
         <source>The spreadsheet is larger than this program reads.</source>
         <translation type="unfinished">A planilha é maior do que este programa consegue ler.</translation>
     </message>

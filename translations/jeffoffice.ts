@@ -71351,7 +71351,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+135"/>
+        <location line="+136"/>
         <source>There was not room to make the pages gray, so some are in color.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -73236,7 +73236,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::office::sheet::Ods</name>
     <message>
-        <location filename="../libs/office/sheet/ods.cpp" line="+76"/>
+        <location filename="../libs/office/sheet/ods.cpp" line="+83"/>
         <source>Part of the file has more settings on one item than any real file has, so it can&apos;t be read.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -73253,7 +73253,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+1"/>
         <location line="+65"/>
-        <location line="+1092"/>
+        <location line="+1093"/>
         <location line="+43"/>
         <location line="+105"/>
         <location line="+265"/>
@@ -73261,27 +73261,27 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-1569"/>
+        <location line="-1570"/>
         <source>The file is damaged: it is not written as a spreadsheet file should be.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+863"/>
+        <location line="+864"/>
         <location line="+22"/>
         <source>The file is damaged, or its parts come to more than this program reads.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-836"/>
-        <location line="+1609"/>
-        <location filename="../libs/office/sheet/odsstyles.cpp" line="+594"/>
+        <location line="-837"/>
+        <location line="+1610"/>
+        <location filename="../libs/office/sheet/odsstyles.cpp" line="+614"/>
         <source>The read was stopped.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-1606"/>
-        <location line="+1083"/>
+        <location line="-1607"/>
+        <location line="+1084"/>
         <location line="+22"/>
         <location line="+43"/>
         <location line="+67"/>
@@ -73291,14 +73291,14 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-1449"/>
-        <location line="+1044"/>
+        <location line="-1450"/>
+        <location line="+1045"/>
         <location line="+12"/>
         <source>The file is damaged.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-1032"/>
+        <location line="-1033"/>
         <location line="+123"/>
         <location line="+25"/>
         <source>The file has more styles than any real file has.</source>
@@ -73325,7 +73325,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+627"/>
+        <location line="+628"/>
         <source>The spreadsheet is larger than this program reads.</source>
         <translation type="unfinished"></translation>
     </message>
