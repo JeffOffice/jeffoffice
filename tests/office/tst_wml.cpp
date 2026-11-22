@@ -1052,6 +1052,9 @@ private Q_SLOTS:
         QVERIFY(std::abs(shapes[0].contrast - 0.5) < 1e-9 && std::abs(shapes[0].bright + 0.2) < 1e-9);
         shapes = readShapes("<w:pict " + ns + "><v:shape id='r' type='#_x0000_t75' style='width:54pt;height:36pt'><v:imagedata r:id='rId4' gain='lots' blacklevel='1e999'/></v:shape></w:pict>");
         QVERIFY(shapes[0].contrast == 0 && shapes[0].bright == 0);
+        // One of the two alone is not a washout, and is as the picture is.
+        shapes = readShapes("<w:pict " + ns + "><v:shape id='s' type='#_x0000_t75' style='width:54pt;height:36pt'><v:imagedata r:id='rId4' gain='61604f'/></v:shape></w:pict>");
+        QVERIFY(shapes[0].contrast == 0 && shapes[0].bright == 0);
     }
 
     // The way a text box's words run is in the style of its text box: a vertical layout flow reads down, with the bottom-to-top alternate it reads up, and either alone is none.

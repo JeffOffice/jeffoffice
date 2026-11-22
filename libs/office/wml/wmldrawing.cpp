@@ -347,8 +347,11 @@ public:
                 // The picture's contrast (gain, a factor: 1 is as it is) and brightness (blacklevel, the offset of the middle, which is half of the brightness's share).
                 bool gainGiven = false, levelGiven = false;
                 const double gain = numberOf(t.attr(c, "gain"), &gainGiven), level = numberOf(t.attr(c, "blacklevel"), &levelGiven);
-                if (gainGiven && gain >= 0) s.contrast = contrastOfFactor(gain);
-                if (levelGiven) s.bright = std::clamp(level * 2, -1.0, 1.0);
+                // (Both are given together, as a washout writes them: a gain alone, the file of V022's header, is drawn as the reference draws it, unchanged.)
+                if (gainGiven && levelGiven && gain >= 0) {
+                    s.contrast = contrastOfFactor(gain);
+                    s.bright = std::clamp(level * 2, -1.0, 1.0);
+                }
             } else if (name == "bordertop" || name == "borderleft" || name == "borderbottom" || name == "borderright") {
                 // (Eighths of a point, as a paragraph border's size is: no more than a hundred points, and a number that is not one is none.)
                 const QString type = t.attr(c, "type");
