@@ -1458,7 +1458,7 @@ Artikel achterpagina	4</translation>
 <context>
     <name>Canvas</name>
     <message>
-        <location filename="../libs/page/canvas/canvas.cpp" line="+180"/>
+        <location filename="../libs/page/canvas/canvas.cpp" line="+181"/>
         <source>Page</source>
         <translation>Pagina</translation>
     </message>
@@ -2646,7 +2646,7 @@ Artikel achterpagina	4</translation>
     <name>Dialogs</name>
     <message>
         <location filename="../libs/page/app/textdialogs.cpp" line="+97"/>
-        <location filename="../apps/pub/app/dialogs.cpp" line="+117"/>
+        <location filename="../apps/pub/app/dialogs.cpp" line="+118"/>
         <source>No Color</source>
         <translation type="unfinished">Geen kleur</translation>
     </message>
@@ -5370,7 +5370,7 @@ Artikel achterpagina	4</translation>
     </message>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="-15"/>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="+461"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+462"/>
         <location filename="../apps/write/app/writewindow.cpp" line="+826"/>
         <source>Save</source>
         <translation type="unfinished">Opslaan</translation>
@@ -6614,7 +6614,7 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">geen PDF die door dit programma is gemaakt</translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/pub/io/pubexport.cpp" line="+2411"/>
+        <location filename="../apps/pub/io/pubexport.cpp" line="+2412"/>
         <source>%n object(s) couldn&apos;t be saved to .pub</source>
         <translation type="unfinished">
             <numerusform>%n object kan niet worden opgeslagen als .pub</numerusform>
@@ -8095,7 +8095,7 @@ Opslaan zonder reservekopie?</translation>
         <translation type="unfinished">Het bestand bevat geen rijen.</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/importers.cpp" line="+476"/>
+        <location filename="../apps/pub/io/importers.cpp" line="+477"/>
         <source>%1 (merged)</source>
         <translation type="unfinished">%1 (samengevoegd)</translation>
     </message>
@@ -8930,7 +8930,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
 <context>
     <name>OdpExport</name>
     <message>
-        <location filename="../apps/deck/io/odpexport.cpp" line="+432"/>
+        <location filename="../apps/deck/io/odpexport.cpp" line="+433"/>
         <location line="+9"/>
         <source>Slide Master</source>
         <translation type="unfinished">Diamodel</translation>
@@ -9009,7 +9009,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Objecten midden in tekst worden weggelaten.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/io/odpexport_motion.cpp" line="+608"/>
+        <location filename="../apps/deck/io/odpexport_motion.cpp" line="+609"/>
         <source>Effects that start when an object is clicked can&apos;t be saved in this kind of file, except those that play a movie or sound.</source>
         <translation type="unfinished">Effecten die starten wanneer op een object wordt geklikt, kunnen in dit type bestand niet worden opgeslagen, behalve effecten die een film of geluid afspelen.</translation>
     </message>
@@ -9034,7 +9034,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">De laatste dia van het weer te geven bereik kan niet worden opgeslagen; de voorstelling loopt door tot het einde.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/io/odpexport_shape.cpp" line="+214"/>
+        <location filename="../apps/deck/io/odpexport_shape.cpp" line="+215"/>
         <source>Equations that can&apos;t be saved as formulas are saved as pictures.</source>
         <translation type="unfinished">Vergelijkingen die niet als formules kunnen worden opgeslagen, worden opgeslagen als afbeeldingen.</translation>
     </message>
@@ -10441,7 +10441,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
 <context>
     <name>PptxExport</name>
     <message>
-        <location filename="../apps/deck/io/pptxexport.cpp" line="+828"/>
+        <location filename="../apps/deck/io/pptxexport.cpp" line="+829"/>
         <source>%1: a table, chart, or other frame that can&apos;t be read was left out.</source>
         <translation type="unfinished">%1: een onleesbare tabel, grafiek of ander kader is weggelaten.</translation>
     </message>
@@ -16592,7 +16592,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
 <context>
     <name>TableOfContents</name>
     <message>
-        <location filename="../apps/pub/app/toc.cpp" line="+200"/>
+        <location filename="../apps/pub/app/toc.cpp" line="+201"/>
         <location line="+16"/>
         <source>Insert Table of Contents</source>
         <translation type="unfinished">Inhoudsopgave invoegen</translation>
@@ -21046,7 +21046,7 @@ Desktop publishing</translation>
 <context>
     <name>jp::CatalogPane</name>
     <message>
-        <location filename="../apps/pub/app/taskpane.cpp" line="+616"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="+617"/>
         <source>Choose the list of products or items (a spreadsheet, a CSV file or a list you type).</source>
         <translation type="unfinished">Kies de lijst met producten of items (een spreadsheet, een CSV-bestand of een lijst die u typt).</translation>
     </message>
@@ -33880,7 +33880,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+1"/>
         <location line="+22"/>
-        <location filename="../apps/deck/app/deckwindow_info.cpp" line="+134"/>
+        <location filename="../apps/deck/app/deckwindow_info.cpp" line="+135"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+1"/>
         <location line="+22"/>
         <source>Slides</source>
@@ -39105,7 +39105,7 @@ Het bestand kan niet worden gelezen.</translation>
 <context>
     <name>jp::Editor</name>
     <message>
-        <location filename="../libs/page/app/editor.cpp" line="+161"/>
+        <location filename="../libs/page/app/editor.cpp" line="+162"/>
         <source>Publication1</source>
         <translation type="unfinished">Publicatie1</translation>
     </message>
@@ -46053,7 +46053,7 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+36"/>
-        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+347"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+348"/>
         <location line="+1"/>
         <location line="+717"/>
         <source>Zoom</source>
@@ -51012,7 +51012,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::PageAccess</name>
     <message>
-        <location filename="../libs/page/core/pageaccess.cpp" line="+268"/>
+        <location filename="../libs/page/core/pageaccess.cpp" line="+269"/>
         <source>here, click here, link, this link, this, more, read more, click, page, this page</source>
         <comment>Words and phrases that do not say where a link goes, separated by commas and spaces; translate each one for your language</comment>
         <translation type="unfinished">hier, klik hier, koppeling, deze koppeling, deze, meer, lees meer, klik, pagina, deze pagina</translation>

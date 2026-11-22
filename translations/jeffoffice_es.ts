@@ -1458,7 +1458,7 @@ Artículo de contraportada	4</translation>
 <context>
     <name>Canvas</name>
     <message>
-        <location filename="../libs/page/canvas/canvas.cpp" line="+180"/>
+        <location filename="../libs/page/canvas/canvas.cpp" line="+181"/>
         <source>Page</source>
         <translation>Página</translation>
     </message>
@@ -2646,7 +2646,7 @@ Artículo de contraportada	4</translation>
     <name>Dialogs</name>
     <message>
         <location filename="../libs/page/app/textdialogs.cpp" line="+97"/>
-        <location filename="../apps/pub/app/dialogs.cpp" line="+117"/>
+        <location filename="../apps/pub/app/dialogs.cpp" line="+118"/>
         <source>No Color</source>
         <translation type="unfinished">Sin color</translation>
     </message>
@@ -5370,7 +5370,7 @@ Artículo de contraportada	4</translation>
     </message>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="-15"/>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="+461"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+462"/>
         <location filename="../apps/write/app/writewindow.cpp" line="+826"/>
         <source>Save</source>
         <translation type="unfinished">Guardar</translation>
@@ -6614,7 +6614,7 @@ Artículo de contraportada	4</translation>
         <translation type="unfinished">no es un PDF creado por este programa</translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/pub/io/pubexport.cpp" line="+2411"/>
+        <location filename="../apps/pub/io/pubexport.cpp" line="+2412"/>
         <source>%n object(s) couldn&apos;t be saved to .pub</source>
         <translation type="unfinished">
             <numerusform>No se pudo guardar %n objeto en .pub</numerusform>
@@ -8095,7 +8095,7 @@ Save without a backup?</source>
         <translation type="unfinished">El archivo no tiene filas.</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/importers.cpp" line="+476"/>
+        <location filename="../apps/pub/io/importers.cpp" line="+477"/>
         <source>%1 (merged)</source>
         <translation type="unfinished">%1 (combinado)</translation>
     </message>
@@ -8930,7 +8930,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>OdpExport</name>
     <message>
-        <location filename="../apps/deck/io/odpexport.cpp" line="+432"/>
+        <location filename="../apps/deck/io/odpexport.cpp" line="+433"/>
         <location line="+9"/>
         <source>Slide Master</source>
         <translation type="unfinished">Patrón de diapositivas</translation>
@@ -9009,7 +9009,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Los objetos situados en medio del texto se omiten.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/io/odpexport_motion.cpp" line="+608"/>
+        <location filename="../apps/deck/io/odpexport_motion.cpp" line="+609"/>
         <source>Effects that start when an object is clicked can&apos;t be saved in this kind of file, except those that play a movie or sound.</source>
         <translation type="unfinished">Los efectos que se inician al hacer clic en un objeto no se pueden guardar en este tipo de archivo, salvo los que reproducen un vídeo o un sonido.</translation>
     </message>
@@ -9034,7 +9034,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">No se puede guardar la última diapositiva del intervalo que se va a mostrar; la presentación continúa hasta el final.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/io/odpexport_shape.cpp" line="+214"/>
+        <location filename="../apps/deck/io/odpexport_shape.cpp" line="+215"/>
         <source>Equations that can&apos;t be saved as formulas are saved as pictures.</source>
         <translation type="unfinished">Las ecuaciones que no se pueden guardar como fórmulas se guardan como imágenes.</translation>
     </message>
@@ -10441,7 +10441,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>PptxExport</name>
     <message>
-        <location filename="../apps/deck/io/pptxexport.cpp" line="+828"/>
+        <location filename="../apps/deck/io/pptxexport.cpp" line="+829"/>
         <source>%1: a table, chart, or other frame that can&apos;t be read was left out.</source>
         <translation type="unfinished">%1: se omitió una tabla, un gráfico u otro marco que no se puede leer.</translation>
     </message>
@@ -16592,7 +16592,7 @@ Open it in your email program, add recipients and send.</source>
 <context>
     <name>TableOfContents</name>
     <message>
-        <location filename="../apps/pub/app/toc.cpp" line="+200"/>
+        <location filename="../apps/pub/app/toc.cpp" line="+201"/>
         <location line="+16"/>
         <source>Insert Table of Contents</source>
         <translation type="unfinished">Insertar tabla de contenido</translation>
@@ -21046,7 +21046,7 @@ Autoedición</translation>
 <context>
     <name>jp::CatalogPane</name>
     <message>
-        <location filename="../apps/pub/app/taskpane.cpp" line="+616"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="+617"/>
         <source>Choose the list of products or items (a spreadsheet, a CSV file or a list you type).</source>
         <translation type="unfinished">Elija la lista de productos o artículos (una hoja de cálculo, un archivo CSV o una lista que escriba).</translation>
     </message>
@@ -33880,7 +33880,7 @@ No se puede leer el archivo.</translation>
     <message>
         <location line="+1"/>
         <location line="+22"/>
-        <location filename="../apps/deck/app/deckwindow_info.cpp" line="+134"/>
+        <location filename="../apps/deck/app/deckwindow_info.cpp" line="+135"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+1"/>
         <location line="+22"/>
         <source>Slides</source>
@@ -39105,7 +39105,7 @@ No se puede leer el archivo.</translation>
 <context>
     <name>jp::Editor</name>
     <message>
-        <location filename="../libs/page/app/editor.cpp" line="+161"/>
+        <location filename="../libs/page/app/editor.cpp" line="+162"/>
         <source>Publication1</source>
         <translation type="unfinished">Publicación1</translation>
     </message>
@@ -46053,7 +46053,7 @@ Origen: %3</translation>
     </message>
     <message>
         <location line="+36"/>
-        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+347"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+348"/>
         <location line="+1"/>
         <location line="+717"/>
         <source>Zoom</source>
@@ -51012,7 +51012,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
 <context>
     <name>jp::PageAccess</name>
     <message>
-        <location filename="../libs/page/core/pageaccess.cpp" line="+268"/>
+        <location filename="../libs/page/core/pageaccess.cpp" line="+269"/>
         <source>here, click here, link, this link, this, more, read more, click, page, this page</source>
         <comment>Words and phrases that do not say where a link goes, separated by commas and spaces; translate each one for your language</comment>
         <translation type="unfinished">aquí, haga clic aquí, enlace, este enlace, este, más, leer más, clic, página, esta página</translation>

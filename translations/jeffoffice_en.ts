@@ -15,7 +15,7 @@
 <context>
     <name>Dialogs</name>
     <message numerus="yes">
-        <location filename="../apps/pub/app/dialogs.cpp" line="+2026"/>
+        <location filename="../apps/pub/app/dialogs.cpp" line="+2027"/>
         <source>Added %n page(s) for the rest of the text.</source>
         <translation>
             <numerusform>Added %n page for the rest of the text.</numerusform>
@@ -26,7 +26,7 @@
 <context>
     <name>Export</name>
     <message numerus="yes">
-        <location filename="../apps/pub/io/pubexport.cpp" line="+2411"/>
+        <location filename="../apps/pub/io/pubexport.cpp" line="+2412"/>
         <source>%n object(s) couldn&apos;t be saved to .pub</source>
         <translation>
             <numerusform>%n object couldn&apos;t be saved to .pub</numerusform>
@@ -61,7 +61,7 @@
 <context>
     <name>Import</name>
     <message numerus="yes">
-        <location filename="../apps/pub/io/importers.cpp" line="+534"/>
+        <location filename="../apps/pub/io/importers.cpp" line="+535"/>
         <source>Created %n email file(s) in %1.</source>
         <translation>
             <numerusform>Created %n email file in %1.</numerusform>
@@ -378,7 +378,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/deck/app/deckwindow_info.cpp" line="+312"/>
+        <location filename="../apps/deck/app/deckwindow_info.cpp" line="+313"/>
         <source>Author field on %n slide(s)</source>
         <translation>
             <numerusform>Author field on %n slide</numerusform>
@@ -411,7 +411,7 @@
 <context>
     <name>jp::FindPane</name>
     <message numerus="yes">
-        <location filename="../apps/pub/app/taskpane.cpp" line="+332"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="+333"/>
         <source>JeffPub made %n replacement(s).</source>
         <translation>
             <numerusform>JeffPub made %n replacement.</numerusform>
@@ -433,7 +433,7 @@
 <context>
     <name>jp::MainWindow</name>
     <message numerus="yes">
-        <location filename="../apps/pub/app/mainwindow.cpp" line="+1684"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+1685"/>
         <source>Saved %n drawing(s).</source>
         <translation>
             <numerusform>Saved %n drawing.</numerusform>
@@ -482,7 +482,7 @@
 <context>
     <name>jp::PageAccess</name>
     <message numerus="yes">
-        <location filename="../libs/page/core/pageaccess.cpp" line="+458"/>
+        <location filename="../libs/page/core/pageaccess.cpp" line="+459"/>
         <source>%n more link(s) do not say where they go. Use words that name the page each one opens.</source>
         <translation>
             <numerusform>%n more link does not say where it goes. Use words that name the page it opens.</numerusform>
