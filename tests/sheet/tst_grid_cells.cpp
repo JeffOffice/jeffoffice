@@ -333,7 +333,7 @@ private Q_SLOTS:
         QCOMPARE(s.text, QStringLiteral("0.000451"));
         s = showValue(jp::calc::Value::number(0.00045050066), CellLook(), jp::calc::DateSystem::Date1900, 70, 7, kMeter);
         QCOMPARE(s.text, QStringLiteral("0.0004505"));
-        // "general" takes the width of the column: 52 pixels fit 6 of the widest digit (less the 6 the cell keeps)
+        // "general" takes the width of the column: 52 pixels fit 6 of the widest digit (less the 5 the cell keeps)
         s = show(jp::calc::Value::number(3.14159265358979), CellLook(), 52);
         QVERIFY(!s.hashes);
         QVERIFY(s.text.size() <= 6);
