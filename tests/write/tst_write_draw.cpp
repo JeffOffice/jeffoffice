@@ -1,6 +1,7 @@
 // Tests of JeffWrite's drawn objects: the shapes and text boxes a file holds and the ones Insert puts in, and the Picture Format and Shape Format commands. Each document is
 // built here from a few lines of XML.
 
+#include "core/workthread.h"
 #include "../isolatesettings.h"
 #include "../withdialog.h"
 #include "../chartmenu.h"
@@ -4572,6 +4573,23 @@ private Q_SLOTS:
             jp::shapePath(QStringLiteral("cloud"), hot);
             QVERIFY2(jp::presetEvaluationsForTest() == before, qPrintable(QStringLiteral("the cloud was worked out again after %1 other sizes").arg(i)));
         }
+    }
+
+    // What one thread worked out is found by the others (the count of a thread is what that thread worked out itself).
+    void aShapeWorkedOutOnAnotherThreadIsFoundHere()
+    {
+        const QSizeF size(71.3, 29.9);
+        qint64 made = -1;
+        jp::WorkThread other([&] {
+            const qint64 before = jp::presetEvaluationsForTest();
+            jp::shapePath(QStringLiteral("cloud"), size);
+            made = jp::presetEvaluationsForTest() - before;
+        });
+        other.join();
+        QCOMPARE(made, qint64(1));
+        const qint64 before = jp::presetEvaluationsForTest();
+        jp::shapePath(QStringLiteral("cloud"), size);
+        QCOMPARE(jp::presetEvaluationsForTest(), before);
     }
 
     // A sheet of every shape the library draws, at 120 x 80 with its default adjustments (JW_SHAPE_SHOTS=<folder>, file name in JW_SHAPE_SHOT_NAME).

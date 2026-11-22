@@ -171,7 +171,8 @@ QString Exporter::charAttrs(const QTextCharFormat &cf, bool)
     // an inner shadow, a glow, a reflection) have no form in this kind of file: they are kept, with an outline of the letters and a gradient fill,
     // in attributes of our own (other programs leave them alone).
     if (const QString list = cf.stringProperty(tp::TextFx); !list.isEmpty()) {
-        const TextEffects &fx = TextEffects::cached(list);
+        const std::shared_ptr<const TextEffects> fxHeld = TextEffects::cached(list);
+        const TextEffects &fx = *fxHeld;
         if (fx.outer.on) {
             const double a = qDegreesToRadians(fx.outer.angle);
             out += attrOf("fo:text-shadow", QStringLiteral("%1pt %2pt").arg(QString::number(fx.outer.distance * std::cos(a), 'f', 2), QString::number(fx.outer.distance * std::sin(a), 'f', 2)));

@@ -9,6 +9,7 @@
 #include "render/shapes.h"
 #include "app/formatpresets.h"
 #include "core/texteffects.h"
+#include "core/workthread.h"
 #include "text/textprops.h"
 #include <QDialogButtonBox>
 #include <QTextBlock>
@@ -354,6 +355,22 @@ private Q_SLOTS:
     }
     // Home > Effects > Text Styles: 12 ready-made looks (fill, outline, and effects together) for the selected letters, each replacing what the letters had of the three; one step of
     // Undo, kept in a saved file that the app opens again, and drawn (the pixels change).
+    // The effects of a run are parsed once for a string, whichever thread asks, and what a thread holds stays whole while other threads fill the cache past its size.
+    void textEffectsAreKeptOnceForAllThreads()
+    {
+        const QString json = QStringLiteral("{\"o\":{\"on\":true,\"d\":7}}");
+        const auto first = jp::TextEffects::cached(json);
+        const int parsed = jp::TextEffects::parsedCount();
+        jp::WorkThread other([&] {
+            QCOMPARE(jp::TextEffects::cached(json).get(), first.get());
+            for (int i = 0; i < 600; ++i) jp::TextEffects::cached(QStringLiteral("{\"o\":{\"on\":true,\"d\":%1}}").arg(1000 + i));
+        });
+        other.join();
+        QCOMPARE(jp::TextEffects::parsedCount(), parsed + 600);
+        QCOMPARE(first->outer.distance, jp::TextEffects::fromJson(json).outer.distance);   // (still whole, though the cache has let it go)
+        QCOMPARE(jp::TextEffects::cached(json)->outer.distance, first->outer.distance);
+    }
+
     void textStylesSetFillOutlineAndEffectsTogether()
     {
         QTemporaryDir dir;

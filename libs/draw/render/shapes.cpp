@@ -9,6 +9,7 @@
 #include <QtMath>
 #include <algorithm>
 #include <cmath>
+#include <mutex>
 
 namespace jp {
 
@@ -133,15 +134,20 @@ Evaluated evaluatePreset(const ShapeDef &d, const QSizeF &size, const QVector<do
         Evaluated value;
         quint64 used = 0;
     };
-    thread_local QHash<QByteArray, Kept> cache;
-    thread_local quint64 clock = 0;
+    // (Shared by the threads that draw, under a lock that is held for a lookup or an insert, never while a shape is worked out.)
+    static std::mutex lock;
+    static QHash<QByteArray, Kept> cache;
+    static quint64 clock = 0;
     QByteArray key = d.id.toLatin1();
     key.append(reinterpret_cast<const char *>(&size), sizeof(QSizeF));
     key.append(reinterpret_cast<const char *>(adj.constData()), int(adj.size() * sizeof(double)));
-    const auto hit = cache.find(key);
-    if (hit != cache.end()) {
-        hit->used = ++clock;
-        return hit->value;
+    {
+        const std::lock_guard<std::mutex> guard(lock);
+        const auto hit = cache.find(key);
+        if (hit != cache.end()) {
+            hit->used = ++clock;
+            return hit->value;
+        }
     }
     ++g_presetEvaluations;
     Evaluated e;
@@ -164,6 +170,7 @@ Evaluated evaluatePreset(const ShapeDef &d, const QSizeF &size, const QVector<do
     }
     e.outline.setFillRule(Qt::WindingFill);
     e.textRect = e.geometry.textRect.isNull() ? QRectF(QPointF(0, 0), size) : e.geometry.textRect;
+    const std::lock_guard<std::mutex> guard(lock);
     if (cache.size() >= kMostCached) {
         QVector<quint64> times;
         times.reserve(cache.size());

@@ -5,6 +5,8 @@
 #include <QJsonObject>
 
 #include <algorithm>
+#include <atomic>
+#include <mutex>
 #include <cmath>
 #include <vector>
 
@@ -98,14 +100,24 @@ TextEffects TextEffects::fromJson(const QString &json)
     return e;
 }
 
-const TextEffects &TextEffects::cached(const QString &json)
+static std::atomic<int> s_parsed{0};
+int TextEffects::parsedCount() { return s_parsed.load(); }
+
+std::shared_ptr<const TextEffects> TextEffects::cached(const QString &json)
 {
     // A run's effects are looked at on every paint; the same few strings come back.
-    static thread_local QCache<QString, TextEffects> known(256);
-    if (const TextEffects *e = known.object(json)) return *e;
-    auto *parsed = new TextEffects(fromJson(json));
-    known.insert(json, parsed);
-    return *parsed;
+    static std::mutex lock;
+    static QCache<QString, std::shared_ptr<const TextEffects>> known(256);
+    {
+        const std::lock_guard<std::mutex> guard(lock);
+        if (const auto *e = known.object(json)) return *e;
+    }
+    auto parsed = std::make_shared<const TextEffects>(fromJson(json));
+    ++s_parsed;
+    const std::lock_guard<std::mutex> guard(lock);
+    if (const auto *e = known.object(json)) return *e;   // (another thread was first)
+    known.insert(json, new std::shared_ptr<const TextEffects>(parsed));
+    return parsed;
 }
 
 TextEffects defaultTextShadow()

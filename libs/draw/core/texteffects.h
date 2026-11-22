@@ -6,6 +6,7 @@
 #include <QColor>
 #include <QImage>
 #include <QString>
+#include <memory>
 
 namespace jp {
 
@@ -54,8 +55,10 @@ struct TextEffects {
     static QString noneJson() { return QStringLiteral("{}"); }
     QString toJson() const;
     static TextEffects fromJson(const QString &json);
-    // Parsed, and kept by its string for the next time.
-    static const TextEffects &cached(const QString &json);
+    // Parsed, and kept by its string for the next time (by all threads, under a lock; the caller holds what it is given, so another thread making room for more cannot take it away).
+    static std::shared_ptr<const TextEffects> cached(const QString &json);
+    // How many strings `cached` has parsed so far (a test counts them).
+    static int parsedCount();
 };
 
 // A radius, a distance, or a blur of an effect on words: no more than this many points, as a shape's effects are (real files use up to
