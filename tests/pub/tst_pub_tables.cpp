@@ -2950,6 +2950,66 @@ private Q_SLOTS:
         for (const char *key : {"vertical", "hyph", "hyphZone"}) QVERIFY2(!plain.contains(QLatin1String(key)), key);
     }
 
+    // Through the window's own Save and Open: a table's cell fills (a merged cell's too) are on the same cells after a .pub is
+    // saved and opened, after that file is saved and opened again, and after a Save As in JeffPub's own format.
+    void tableFillsSurviveTheWindowsSaveAndOpen()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QColor red(200, 0, 0), green(0, 160, 0), blue(0, 0, 220);
+        auto fills = [&](jp::MainWindow &w) {
+            QStringList out;
+            const jp::Document *d = w.editor()->doc();
+            const jp::TableItem *t = nullptr;
+            jp::walkItems(d->pages[0]->items, [&](const jp::ItemPtr &it) {
+                if (it->type() == jp::ItemType::Table) t = static_cast<const jp::TableItem *>(it.get());
+            });
+            if (!t) return QStringList{QStringLiteral("no table")};
+            for (int r = 0; r < t->rows; ++r)
+                for (int c = 0; c < t->cols; ++c) {
+                    const jp::TableCell &cl = t->cell(r, c);
+                    out << (cl.fill.type == jp::Fill::Solid ? cl.fill.color.resolve(d->colors).name() : QStringLiteral("-"));
+                }
+            return out;
+        };
+        QStringList want;
+        {
+            jp::MainWindow a;
+            a.setNotifier([](const QString &, const QString &) {});
+            jp::Editor *ed = a.editor();
+            auto t = std::static_pointer_cast<jp::TableItem>(ed->newTable(QRectF(72, 72, 270, 90), 3, 3));
+            ed->addItem(t);
+            t->cell(1, 0).fill = jp::Fill::solid(jp::ColorRef::rgb(red));
+            t->cell(1, 1).colSpan = 2;
+            t->cell(1, 2).covered = true;
+            t->cell(1, 1).fill = jp::Fill::solid(jp::ColorRef::rgb(blue));
+            t->cell(2, 2).fill = jp::Fill::solid(jp::ColorRef::rgb(green));
+            QVERIFY(a.saveTo(dir.filePath(QStringLiteral("one.pub"))));
+            want = fills(a);
+        }
+        QCOMPARE(want.value(3), red.name());
+        QCOMPARE(want.value(8), green.name());
+        jp::MainWindow b;
+        b.setNotifier([](const QString &, const QString &) {});
+        QVERIFY(b.openFile(dir.filePath(QStringLiteral("one.pub"))));
+        const QStringList opened = fills(b);
+        QCOMPARE(opened.value(3), red.name());
+        QCOMPARE(opened.value(4), blue.name());
+        QCOMPARE(opened.value(8), green.name());
+        for (int i = 0; i < want.size(); ++i)
+            if (i != 5) QCOMPARE(opened.value(i), want.value(i));   // 5 is the cell the merged one covers
+        QVERIFY(b.saveTo(dir.filePath(QStringLiteral("two.pub"))));
+        jp::MainWindow c;
+        c.setNotifier([](const QString &, const QString &) {});
+        QVERIFY(c.openFile(dir.filePath(QStringLiteral("two.pub"))));
+        QCOMPARE(fills(c), opened);
+        QVERIFY(c.saveTo(dir.filePath(QStringLiteral("three.jpub"))));
+        jp::MainWindow d;
+        d.setNotifier([](const QString &, const QString &) {});
+        QVERIFY(d.openFile(dir.filePath(QStringLiteral("three.jpub"))));
+        QCOMPARE(fills(d), opened);
+    }
+
     // A cell's Text Direction turns its text 90 degrees as a text box's does:
     // the lines run down a tall, narrow cell, and it is drawn just as the
     // vertical text box is.
