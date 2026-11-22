@@ -503,8 +503,9 @@ void Calculation::releaseFormula(int sheet, qint32 formula)
     Formula &f = s.formulas[formula];
     if (f.text == kFreeFormula) return;   // (it is free already)
     if (s.cells.spills()) {
-        // (a formula that is let go of fills no block: the window is told its cells are empty, and the table has no block of it)
-        if (f.range >= 0 && f.range < s.ranges.size()) tellGoneBlock(sheet, s.ranges[f.range], CellRange(), s.ranges[f.range].row1, s.ranges[f.range].col1);
+        // (a formula that is let go of fills no block: the window is told its cells are empty, and the table has no block of it. One that held no block (a legacy array formula, whose members are cells the store
+        // holds) is not a spill: nothing is told of its range)
+        if (f.range >= 0 && f.range < s.ranges.size() && s.cells.spills()->mine().ofFormula(formula)) tellGoneBlock(sheet, s.ranges[f.range], CellRange(), s.ranges[f.range].row1, s.ranges[f.range].col1);
         dropSpillBlock(sheet, formula);
     }
     if (f.text >= 0) releaseText(sheet, f.text);

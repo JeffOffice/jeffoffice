@@ -636,6 +636,24 @@ private Q_SLOTS:
         QCOMPARE(b.calc->content(0, 0, 2).arrayRange.row2, 1u);
     }
 
+    // A formula with a range that is not a spill's (here a data table, whose members are cells the store holds; a legacy array formula is the same to the code, but edits refuse it before) that is let go
+    // of tells the window nothing of its members: it filled no block.
+    void aFormulaWithARangeThatIsNoSpillLetGoOfTellsNothingOfItsMembers()
+    {
+        SpillIndexSwitch on(true);
+        const QString rows = rowXml(1, constant("A1", "5") + QStringLiteral("<c r=\"F1\"><f t=\"dataTable\" ref=\"F1:F6\" r1=\"A1\"/><v>5</v></c>"))
+            + rowXml(2, constant("F2", "2")) + rowXml(3, constant("F3", "3")) + rowXml(4, constant("F4", "4")) + rowXml(5, constant("F5", "5")) + rowXml(6, constant("F6", "6"));
+        Book b;
+        QVERIFY(b.open(blank(rows)));
+        QVERIFY(b.calc->spillBlock(0, 0, 5).valid == false);   // (not a spill)
+        qint64 gone = 0;
+        b.calc->setResultSink([&](int, quint32, quint32, const Value &v) { if (v.isEmpty()) ++gone; });
+        QVERIFY(b.calc->setValue(0, b.row("F1"), b.col("F1"), Value::number(9)));   // (the formula of its first cell is let go of)
+        QVERIFY(b.settle());
+        QCOMPARE(gone, qint64(0));
+        QCOMPARE(b.at("F4"), QStringLiteral("n:4"));   // (its members are the cells they were)
+    }
+
     // A file's dynamic array: the anchor's array formula with the cell metadata that marks it, and the cached values of the cells it filled, read as saved.
     void aDynamicArrayOfAFileIsASpillShownAsSaved()
     {
