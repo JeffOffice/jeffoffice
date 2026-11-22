@@ -4289,6 +4289,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 B->markerImage = pictures.value(bytes);
                 if (!B->markerImage.isNull()) {
                     B->marker = QStringLiteral("\u2003");
+                    B->markerImageSide = env.slideLines ? 0.675 : 0.9;   // (a slide's: three quarters of that, as the reference drawings of picture bullets have it)
                     B->markerFit = false;
                     B->markerOutline = false;
                     B->markerAdv = 0;
@@ -6977,7 +6978,9 @@ void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
                 const QPointF at(B->markerX, l0.position().y() - frameY(frame) + l0.ascent());
                 if (!B->markerImage.isNull()) {
                     const double em = B->markerFont.pointSizeF() / fontPointFactor();
-                    p->drawImage(QRectF(at.x(), at.y() - em * 0.85, em * 0.9, em * 0.9), B->markerImage);
+                    // (centered on the line a 0.9 em picture would be: its top 0.85 em above the baseline)
+                    const double side = em * B->markerImageSide;
+                    p->drawImage(QRectF(at.x(), at.y() - em * 0.4 - side / 2, side, side), B->markerImage);
                 } else if (B->markerFit) drawFittedMarker(p, at, B->markerFont, B->marker, B->markerInk, B->markerRound, B->markerColor, B->markerOutline);
                 else if (B->markerOutline) drawOutlinedText(p, at, B->markerFont, B->marker, B->markerColor);
                 else drawPlainText(p, at, B->markerFont, B->marker);

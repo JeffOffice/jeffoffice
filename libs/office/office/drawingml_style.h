@@ -36,6 +36,8 @@ bool decorativeOf(const QDomElement &cNvPr);
 // The picture that relationship `rId` of the drawing's part links to, kept
 // with ctx.addImage; empty if the link isn't to a picture this can read.
 QString loadImage(const QString &rId, const StyleContext &sc, const QDomElement &from = QDomElement());
+// The name of the part that relationship `rId` links to (empty if it links to none inside the package); nothing is read or kept.
+QString loadImagePart(const QString &rId, const StyleContext &sc, const QDomElement &from = QDomElement());
 // The color effects the children of an a:blip list (a:lum, a:grayscl, a:biLevel, a:clrChange, a:clrRepl, a:duotone, a:hsl, a:tint), all of them,
 // in the order they are listed and no more than kMaxBlipEffects.
 QVector<BlipEffect> readBlipEffects(const QDomElement &blip, const StyleContext &sc);

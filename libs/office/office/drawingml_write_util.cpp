@@ -9,6 +9,7 @@
 #include "office/xml.h"
 
 #include <QBuffer>
+#include <QCryptographicHash>
 #include <QImage>
 #include <QPainter>
 #include <QRegularExpression>
@@ -236,13 +237,11 @@ QString relate(DrawingWriteContext &ctx, const QString &type, const QString &tar
     return id;
 }
 
-QString relatePicture(DrawingWriteContext &ctx, const QString &imageId)
+// The part a picture's bytes are stored in (one for each key: the picture stays once however many times it is named), and the relationship to it.
+static QString relateImage(DrawingWriteContext &ctx, const QString &key, QByteArray bytes, QString format)
 {
-    if (!ctx.package || !ctx.mediaParts || !ctx.imageBytes || imageId.isEmpty()) return QString();
-    QString part = ctx.mediaParts->value(imageId);
+    QString part = ctx.mediaParts->value(key);
     if (part.isEmpty()) {
-        QString format;
-        QByteArray bytes = ctx.imageBytes(imageId, &format);
         if (bytes.isEmpty()) return QString();
         // What the bytes are, whatever the format named, else the name.
         const QString sniffed = imageFormat(bytes);
@@ -260,9 +259,25 @@ QString relatePicture(DrawingWriteContext &ctx, const QString &imageId)
         } while (taken.contains(part));
         ctx.package->addDefault(QLatin1String(kind.extension), QLatin1String(kind.contentType));
         ctx.package->addPart(part, bytes, QLatin1String(kind.contentType));
-        ctx.mediaParts->insert(imageId, part);
+        ctx.mediaParts->insert(key, part);
     }
     return relate(ctx, QStringLiteral("image"), part);
+}
+
+QString relatePicture(DrawingWriteContext &ctx, const QString &imageId)
+{
+    if (!ctx.package || !ctx.mediaParts || !ctx.imageBytes || imageId.isEmpty()) return QString();
+    if (const QString part = ctx.mediaParts->value(imageId); !part.isEmpty()) return relate(ctx, QStringLiteral("image"), part);
+    QString format;
+    const QByteArray bytes = ctx.imageBytes(imageId, &format);
+    return relateImage(ctx, imageId, bytes, format);
+}
+
+QString relatePictureBytes(DrawingWriteContext &ctx, const QByteArray &bytes)
+{
+    if (!ctx.package || !ctx.mediaParts || bytes.isEmpty()) return QString();
+    // (a bullet's picture has no image id: it is kept under its own key, the bytes' hash)
+    return relateImage(ctx, QStringLiteral("bytes:") + QString::fromLatin1(QCryptographicHash::hash(bytes, QCryptographicHash::Sha1).toHex()), bytes, QString());
 }
 
 QString relateSvg(DrawingWriteContext &ctx, const QString &imageId)

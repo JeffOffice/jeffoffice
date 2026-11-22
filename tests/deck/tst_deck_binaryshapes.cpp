@@ -1467,6 +1467,94 @@ private Q_SLOTS:
         for (const auto &p : plain->pages) QCOMPARE(count(*p, QStringLiteral("ftr")) + count(*p, QStringLiteral("sldNum")), 0);
     }
 
+    // A picture bullet of an old presentation: the document's extension keeps the pictures ([MS-PPT] 2.9.72 and 2.9.73: a collection of entries by
+    // index, each a picture record), and says for each level of a kind of text which one its paragraphs use (2.9.37 and 2.9.38, a picture
+    // reference in the paragraph format, 2.9.14's bulletBlipRef). Here the body's first level uses the first picture; the second level has a
+    // bullet character of its own and none; a run of a slide's own extension (2.9.14 again) can name the second picture for its paragraphs.
+    // It is kept as the bullet when saved as a .pptx and opened, and again in the file saved from that.
+    void importBinaryPictureBulletsAreTheBulletsPictures()
+    {
+        auto png = [&](QRgb color) {
+            QImage image(6, 6, QImage::Format_ARGB32);
+            image.fill(color);
+            QByteArray bytes;
+            QBuffer buffer(&bytes);
+            buffer.open(QIODevice::WriteOnly);
+            image.save(&buffer, "PNG");
+            return bytes;
+        };
+        const QByteArray red = png(qRgb(200, 0, 0)), blue = png(qRgb(0, 0, 200));
+        // An entry: the kind of picture (6 is a PNG), a spare byte, and the picture record (0xF01E with one unique id and a tag byte).
+        auto entry = [&](quint16 index, const QByteArray &pngBytes) { return pptRec(0x07F9, raw({6, 6}) + pptRec(0xF01E, QByteArray(16, 'u') + raw({0xFF}) + pngBytes, 0x6E0), index); };
+        const QByteArray collection = pptBox(0x07F8, entry(0, red) + entry(1, blue));
+        // The body's styles: five levels with a picture reference at the first (0x00800000: its index), none at the second, and the fourth the second picture.
+        auto level = [&](qint16 ref, bool has) { return le(has ? 0x00800000 : 0, 4) + (has ? le(quint16(ref), 2) : QByteArray()) + le(0, 4); };
+        const QByteArray style9 = pptRec(0x0FAD, le(4, 2) + level(0, true) + level(0, false) + level(0, false) + level(1, true), 1);
+        // The slide's own: the first run names the second picture, the second runs's reference is the null one (0xFFFF), the third says nothing.
+        auto run = [&](quint32 masks, const QByteArray &fields) { return le(masks, 4) + fields + le(0, 4) + le(0, 4); };
+        const QByteArray outline = pptBox(4014, pptRec(4015, le(0x100, 4) + le(1, 4), 1) + pptRec(4012, run(0x00800000, le(1, 2)) + run(0x00800000, le(0xFFFF, 2)) + run(0, QByteArray())));
+        const QByteArray tags = pptBox(5000, pptBox(5002, pptRec(4026, utf16(QStringLiteral("___PPT9"))) + pptRec(5003, collection + style9 + outline)));
+        // Four paragraphs: three at the first level (each a run of its own), one at the second.
+        const QByteArray body = pptText(1, QStringLiteral("One\rTwo\rThree\rFour"), pfRun(4, 0, 0) + pfRun(4, 0, 0) + pfRun(6, 0, 0) + pfRun(4, 1, 0) + cfRun(19, 0));
+        QString err;
+        const QByteArray file = buildPpt(false, false, false, false, body, QByteArray(), QByteArray(), QByteArray(), QByteArray(), QByteArray(), 1016, tags);
+        auto d = deck::importBinaryPresentation(file, &err);
+        QVERIFY2(d, qPrintable(err));
+        auto pictureOf = [&](const Document &doc, int block) {
+            const QTextDocument *story = placeholderStory(doc, *doc.pages[0], QStringLiteral("ph:body:1"));
+            QTextBlock b = story ? story->firstBlock() : QTextBlock();
+            for (int i = 0; i < block && b.isValid(); ++i) b = b.next();
+            return b.isValid() && b.textList() ? b.textList()->format().property(jp::tp::BulletPicture).toByteArray() : QByteArray("(none)");
+        };
+        QCOMPARE(pictureOf(*d, 0), blue);   // (the slide's own run names the second picture)
+        QVERIFY(pictureOf(*d, 1).isEmpty());   // (its null reference says no picture)
+        QCOMPARE(pictureOf(*d, 2), red);   // (the level's)
+        QVERIFY(pictureOf(*d, 3).isEmpty());   // (the second level's own character)
+        // Saved through the window as a .pptx and opened, then saved from that and opened: the same pictures.
+        QTemporaryDir dir;
+        const QString oldPath = dir.filePath(QStringLiteral("old.ppt")), newPath = dir.filePath(QStringLiteral("new.pptx")), thirdPath = dir.filePath(QStringLiteral("third.pptx"));
+        QFile out(oldPath);
+        QVERIFY(out.open(QIODevice::WriteOnly));
+        out.write(file);
+        out.close();
+        {
+            DeckWindow w;
+            QVERIFY(w.openFile(oldPath));
+            w.setSavePathChooser([&](const QString &, const QString &) { return newPath; });
+            QVERIFY(w.save());
+            w.editor()->markSaved();
+        }
+        {
+            DeckWindow again;
+            QVERIFY(again.openFile(newPath));
+            const Document &doc = *again.editor()->doc();
+            QCOMPARE(pictureOf(doc, 0), blue);
+            QVERIFY(pictureOf(doc, 1).isEmpty());
+            QCOMPARE(pictureOf(doc, 2), red);
+            QVERIFY(pictureOf(doc, 3).isEmpty());
+            QVERIFY(again.save());   // (in place: the file has its own name)
+            again.editor()->markSaved();
+        }
+        DeckWindow third;
+        QVERIFY(third.openFile(newPath));
+        QCOMPARE(pictureOf(*third.editor()->doc(), 0), blue);
+        QCOMPARE(pictureOf(*third.editor()->doc(), 2), red);
+        // The file holds the two pictures as parts, each named by a picture bullet element of the slide, and is sound.
+        Exported saved;
+        QString why;
+        QVERIFY2(unpack(fileBytes(newPath), &saved, &why), qPrintable(why));
+        QVERIFY2(packageProblem(saved).isEmpty(), qPrintable(packageProblem(saved)));
+        const QString slideXml = part(saved, QStringLiteral("/ppt/slides/slide1.xml"));
+        QVERIFY2(slideXml.count(QLatin1String("<a:buBlip>")) >= 2, qPrintable(slideXml));
+        int pngs = 0;
+        for (auto it = saved.zip.constBegin(); it != saved.zip.constEnd(); ++it)
+            if (it.key().startsWith(QLatin1String("ppt/media/")) && (it.value() == red || it.value() == blue)) ++pngs;
+        QCOMPARE(pngs, 2);
+        Settings::get().removeRecentFile(oldPath);
+        Settings::get().removeRecentFile(newPath);
+        Settings::get().removeRecentFile(thirdPath);
+    }
+
     // The extension that comes with the outline's text (a slide's text, by its slide and its kind) can number the paragraphs of a run of the
     // text: the first run here is numbered the usual way ("1."), the second counts from 5 with a parenthesis ("5)", "6)"), the third has no
     // numbering and keeps the master's bullet. The entries go with the runs of paragraphs in order.

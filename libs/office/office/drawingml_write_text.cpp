@@ -420,6 +420,17 @@ void writeBullet(QXmlStreamWriter &w, const QTextBlock &b, QTextList *list, Draw
         }
         w.writeEndElement();
     }
+    // A picture bullet is its picture; where the picture can't be stored, the bullet is its character.
+    if (const QByteArray picture = lf.property(tp::BulletPicture).toByteArray(); !picture.isEmpty()) {
+        if (const QString rId = relatePictureBytes(ctx, picture); !rId.isEmpty()) {
+            begin(w, "a:buBlip");
+            begin(w, "a:blip");
+            attribute(w, "r:embed", rId);
+            w.writeEndElement();
+            w.writeEndElement();
+            return;
+        }
+    }
     QString custom = bf.stringProperty(tp::BulletChar);
     if (custom.isEmpty()) custom = lf.stringProperty(tp::BulletChar);
     const QTextListFormat::Style style = lf.style();

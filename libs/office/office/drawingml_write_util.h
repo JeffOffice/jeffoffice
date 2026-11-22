@@ -50,6 +50,8 @@ QString relate(DrawingWriteContext &ctx, const QString &type, const QString &tar
 // The relationship to a picture (the part is stored once for an image id);
 // empty if the context has no package or the picture has no bytes.
 QString relatePicture(DrawingWriteContext &ctx, const QString &imageId);
+// The same for picture bytes with no image id (a picture bullet's): stored once however many paragraphs use them.
+QString relatePictureBytes(DrawingWriteContext &ctx, const QByteArray &bytes);
 // The relationship to a picture's SVG (stored once for an image id, beside the
 // PNG relatePicture stores for it); empty when the picture is not an SVG, or
 // the context has no package.

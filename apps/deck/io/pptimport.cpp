@@ -65,6 +65,8 @@ constexpr qint64 kMaxTotalParagraphs = 200000, kMaxTotalPieces = 500000;
 constexpr int kMaxNotes = 20;
 constexpr int kMaxFooterChars = 1000;   // of a footer or a date text
 constexpr int kMaxPp9Entries = 20000;   // the runs of one text that its extension says more of
+constexpr int kMaxBulletPictures = 129;   // the entries of the picture bullets' collection (an entry's index is at most 0x80)
+constexpr qint64 kMaxBulletPictureBytes = 16 << 20;   // all the picture bullets' bytes together
 // The XML a writer kept for a shape or a theme: the most of one that is read, and of all of them.
 // The most pixels of a picture that has its brightness or contrast applied to them, or its tiles moved.
 constexpr qint64 kMaxAdjustedPixels = 16'000'000;
@@ -196,7 +198,7 @@ enum : quint16 {
     RT_TextCharsAtom = 4000, RT_StyleTextPropAtom = 4001, RT_MasterTextPropAtom = 4002, RT_TextMasterStyleAtom = 4003, RT_TextCFExceptionAtom = 4004,
     RT_TextPFExceptionAtom = 4005, RT_TextRulerAtom = 4006, RT_TextBytesAtom = 4008, RT_TextSpecialInfoAtom = 4010, RT_FontEntityAtom = 4023,
     RT_CString = 4026, RT_ExHyperlinkAtom = 4051, RT_ExHyperlink = 4055, RT_SlideNumberMCAtom = 4056, RT_HeadersFooters = 4057, RT_HeadersFootersAtom = 4058,
-    RT_StyleTextProp9Atom = 4012, RT_OutlineTextProps9 = 4014, RT_OutlineTextPropsHeader9Atom = 4015, RT_ProgTags = 5000, RT_ProgBinaryTag = 5002, RT_BinaryTagData = 5003,
+    RT_BlipCollection9 = 0x07F8, RT_BlipEntity9Atom = 0x07F9, RT_TextMasterStyle9Atom = 0x0FAD, RT_StyleTextProp9Atom = 4012, RT_OutlineTextProps9 = 4014, RT_OutlineTextPropsHeader9Atom = 4015, RT_ProgTags = 5000, RT_ProgBinaryTag = 5002, RT_BinaryTagData = 5003,
     RT_TextInteractiveInfoAtom = 4063, RT_SlideListWithText = 4080, RT_InteractiveInfo = 4082, RT_InteractiveInfoAtom = 4083, RT_UserEditAtom = 4085,
     RT_CurrentUserAtom = 4086, RT_DateTimeMCAtom = 4087, RT_GenericDateMCAtom = 4088, RT_HeaderMCAtom = 4089, RT_FooterMCAtom = 4090,
     RT_PersistDirectoryAtom = 6002,
@@ -343,6 +345,7 @@ void mergeCf(Cf &base, const Cf &over)
 struct StyleLevel {
     Pf pf;
     Cf cf;
+    int blip = -1;   // the picture bullet the level uses (an index into the file's picture bullets; -1 for none)
 };
 // One text type's style on a master (TextMasterStyleAtom): up to five levels,
 // each saying only what differs from the level before it.
@@ -352,6 +355,13 @@ struct TypeStyle {
     StyleLevel level[5];
 };
 using StyleSet = std::array<TypeStyle, TxTypes>;
+// The picture bullets a text type's levels name (TextMasterStyle9Atom): the index of a picture, kNoBlipSaid where a level says nothing of it,
+// kNoBlip where it says it has none (a null reference).
+constexpr int kNoBlipSaid = -2, kNoBlip = -1;
+struct Blips9 {
+    int level[5] = {kNoBlipSaid, kNoBlipSaid, kNoBlipSaid, kNoBlipSaid, kNoBlipSaid};
+};
+using BlipSet = std::array<Blips9, TxTypes>;
 
 TypeStyle readTextMasterStyle(const QByteArray &d, const Rec &r)
 {
@@ -419,6 +429,7 @@ struct LevelRun {
 
 // What the text extension (StyleTextProp9Atom) says of a run of paragraphs: that they are numbered, in which scheme and from which number.
 struct Pp9 {
+    int blip = kNoBlipSaid;   // the picture bullet the run's paragraphs use (the same indices as a master's)
     bool autoNumber = false;
     int scheme = 3;   // TextAutoNumberScheme: 3 is "1."
     int start = 1;
@@ -595,6 +606,7 @@ struct MasterInfo {
     bool title = false;
     QColor scheme[8];
     StyleSet styles;
+    BlipSet blips;   // the picture bullets its levels name
     QString name;
     QByteArray drawing;         // its drawing container (0xF002), header and all
     QMap<QString, QByteArray> shapeProps;   // the property records of its placeholder shapes, by type: what slides' placeholders take after
@@ -949,6 +961,7 @@ private:
     void readHyperlinks(const Rec &r);
     QVector<SlideEntry> readSlideList(const Rec &list);
     void readTextExtensions(const QVector<Rec> &documentRecords);
+    void readBulletPictures(const QByteArray &d, const Rec &collection);
     void readFontLists(const QVector<Rec> &documentRecords);
     QVector<Pp9> shapeTextExtension(const QByteArray &clientData) const;
     TextGroup readTextGroup(Records &rs, const QVector<Rec> &recs);
@@ -1041,6 +1054,9 @@ private:
     int m_layoutCount = 0;
     bool m_footers = false;
     QHash<const Page *, FooterSpec> m_slideFooters;
+    BlipSet m_blips;                        // the picture bullets the presentation's own levels name
+    QVector<QByteArray> m_bulletPictures;   // the picture bullets (PNG, JPEG, and the like), by index; empty for one that can't be drawn
+    qint64 m_bulletPictureBytes = 0;
     QHash<quint64, QVector<Pp9>> m_outlineProps9;   // by slide and kind of text (slideId << 8 | kind)   // the headers and footers a slide sets for itself
     QStringList m_notes;
     int m_extraNotes = 0;
@@ -1321,6 +1337,43 @@ void Importer::readHyperlinks(const Rec &list)
     }
 }
 
+// A TextMasterStyle9Atom (2.9.37): for each of its levels (at most five), the paragraph format's picture bullet (2.9.38 TextPFException9, and 2.9.14
+// for its fields: the numbering is read past) and the character format (2.9.17: an identifier only).
+static void readMasterStyle9(const QByteArray &d, const Rec &atom, Blips9 *out)
+{
+    Cursor c(d, atom.off, atom.end());
+    const int n = c.u16();
+    for (int i = 0; i < n && i < 5 && c.ok(); ++i) {
+        const quint32 paragraph = c.u32();
+        int blip = kNoBlipSaid;
+        if (paragraph & 0x00800000) {
+            const quint16 ref = c.u16();
+            blip = ref < kMaxBulletPictures ? int(ref) : kNoBlip;
+        }
+        if (paragraph & 0x02000000) c.u16();
+        if (paragraph & 0x01000000) c.skip(4);
+        const quint32 character = c.u32();
+        if (character & 0x00100000) c.u32();
+        if (!c.ok()) break;
+        out->level[i] = blip;
+    }
+}
+
+// The picture bullets' collection (2.9.72): its entries (2.9.73) hold a picture record each, by index. A picture that is not a raster one is
+// kept as empty (the bullet is then the character it would be); the entries and their bytes are limited.
+void Importer::readBulletPictures(const QByteArray &d, const Rec &collection)
+{
+    for (const Rec &e : m_ppt.in(collection)) {
+        if (e.type != RT_BlipEntity9Atom || e.inst >= kMaxBulletPictures || e.len < 10) continue;
+        QString format;
+        const QByteArray bytes = office::odrawBlip(d.mid(e.off + 2, e.len - 2), &format);
+        if (m_bulletPictures.size() <= e.inst) m_bulletPictures.resize(e.inst + 1);
+        if (bytes.isEmpty() || (format != QLatin1String("png") && format != QLatin1String("jpeg") && format != QLatin1String("bmp")) || m_bulletPictureBytes + bytes.size() > kMaxBulletPictureBytes) continue;
+        m_bulletPictureBytes += bytes.size();
+        m_bulletPictures[e.inst] = bytes;
+    }
+}
+
 // The entries of a StyleTextProp9Atom: for each run of paragraphs, its paragraph format (a bullet picture, numbering), character format, and special
 // info, each with the fields its mask names; only the numbering is kept. A text keeps at most kMaxPp9Entries of them.
 static QVector<Pp9> pp9Entries(const QByteArray &d, const Rec &atom)
@@ -1330,7 +1383,10 @@ static QVector<Pp9> pp9Entries(const QByteArray &d, const Rec &atom)
     while (c.ok() && c.left() >= 12 && entries.size() < kMaxPp9Entries) {
         Pp9 e;
         const quint32 paragraph = c.u32();
-        if (paragraph & 0x00800000) c.u16();   // the bullet's picture
+        if (paragraph & 0x00800000) {   // the bullet's picture (a BlipRef: an index, 0xFFFF for none)
+            const quint16 ref = c.u16();
+            e.blip = ref < kMaxBulletPictures ? int(ref) : kNoBlip;
+        }
         if (paragraph & 0x02000000) e.autoNumber = c.u16() != 0;
         if (paragraph & 0x01000000) {
             e.scheme = c.u16();
@@ -1396,6 +1452,8 @@ void Importer::readTextExtensions(const QVector<Rec> &documentRecords)
             const Rec *name = find(parts, RT_CString), *data = find(parts, RT_BinaryTagData);
             if (!name || !data || readChars(d, *name, true).section(QChar(0), 0, 0) != QLatin1String("___PPT9")) continue;
             for (const Rec &box : m_ppt.in(*data)) {
+                if (box.type == RT_BlipCollection9) readBulletPictures(d, box);
+                else if (box.type == RT_TextMasterStyle9Atom && box.inst < TxTypes) readMasterStyle9(d, box, &m_blips[box.inst]);
                 if (box.type != RT_OutlineTextProps9) continue;
                 const QVector<Rec> items = m_ppt.in(box);
                 for (int i = 0; i + 1 < items.size(); ++i) {
@@ -1808,7 +1866,17 @@ void Importer::readMasters()
         }
         for (const Rec &r : kids) {
             if (r.type == RT_TextMasterStyleAtom && r.inst < TxTypes) m->styles[r.inst] = readTextMasterStyle(d, r);
-            else if (r.type == RT_CString && r.inst == 2) m->name = readChars(d, r, true).section(QChar(0), 0, 0);
+            else if (r.type == RT_ProgTags) {
+                // (the master's own extension: its levels' picture bullets)
+                for (const Rec &tag : m_ppt.in(r)) {
+                    if (tag.type != RT_ProgBinaryTag) continue;
+                    const QVector<Rec> parts = m_ppt.in(tag);
+                    const Rec *name = find(parts, RT_CString), *data = find(parts, RT_BinaryTagData);
+                    if (!name || !data || readChars(d, *name, true).section(QChar(0), 0, 0) != QLatin1String("___PPT9")) continue;
+                    for (const Rec &box : m_ppt.in(*data))
+                        if (box.type == RT_TextMasterStyle9Atom && box.inst < TxTypes) readMasterStyle9(d, box, &m->blips[box.inst]);
+                }
+            } else if (r.type == RT_CString && r.inst == 2) m->name = readChars(d, r, true).section(QChar(0), 0, 0);
         }
         if (const Rec *pp = find(kids, RT_PPDrawing)) {
             for (const Rec &k : m_ppt.in(*pp))
@@ -2498,6 +2566,7 @@ StyleLevel Importer::resolve(int type, int level, const TextCtx &ctx) const
     int n = 0;
     for (int t = type; t >= 0 && n < 4; t = styleBase(t)) chain[n++] = t;
     const StyleSet *sets[3] = {&m_styles, ctx.masters && ctx.main ? &ctx.main->styles : nullptr, ctx.masters && ctx.title ? &ctx.title->styles : nullptr};
+    const BlipSet *blips[3] = {&m_blips, ctx.masters && ctx.main ? &ctx.main->blips : nullptr, ctx.masters && ctx.title ? &ctx.title->blips : nullptr};
     for (const StyleSet *set : sets) {
         if (!set) continue;
         for (int i = n - 1; i >= 0; --i) {
@@ -2507,6 +2576,22 @@ StyleLevel Importer::resolve(int type, int level, const TextCtx &ctx) const
                 mergeCf(out.cf, ts.level[k].cf);
             }
         }
+    }
+    // The picture bullet: what a level says of it (the same layers, each over the one before), else the level before's, unless the level names a
+    // bullet character of its own, which is then its bullet.
+    for (int k = 0; k <= level && k < 5; ++k) {
+        int said = kNoBlipSaid;
+        bool character = false;
+        for (int w = 0; w < 3; ++w) {
+            if (!sets[w]) continue;
+            for (int i = n - 1; i >= 0; --i) {
+                const TypeStyle &ts = (*sets[w])[chain[i]];
+                if (k < ts.levels && (ts.level[k].pf.has & PfBulletChar)) character = true;
+                if (const int blip = (*blips[w])[chain[i]].level[k]; blip != kNoBlipSaid) said = blip;
+            }
+        }
+        if (said != kNoBlipSaid) out.blip = said;
+        else if (character) out.blip = kNoBlip;
     }
     return out;
 }
@@ -2674,6 +2759,11 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
             pf.has |= PfTabs;
         }
         if (pfRun) mergePf(pf, pfRun->pf);
+        // The picture bullet: the level's, unless the paragraph's own bullet character replaces it, or its run in the text's extension says one.
+        int blip = base.blip;
+        if (pfRun && (pfRun->pf.has & PfBulletChar)) blip = kNoBlip;
+        if (pfRunNumber >= 0 && pfRunNumber < g.pp9.size() && g.pp9.at(pfRunNumber).blip != kNoBlipSaid) blip = g.pp9.at(pfRunNumber).blip;
+        const QByteArray bulletPicture = blip >= 0 && blip < m_bulletPictures.size() ? m_bulletPictures.at(blip) : QByteArray();
 
         // Its runs.
         Cf first = base.cf;
@@ -2847,8 +2937,9 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
             const QString color = (pf.flags & BulletOwnColor) ? ColorRef::rgb(colorOf(pf.bulletColor, ctx, QColor(Qt::black))).toString() : QString();
             // Paragraphs the text's extension numbers count instead of showing the mark.
             const Pp9 *numbered = pfRunNumber >= 0 && pfRunNumber < g.pp9.size() && g.pp9.at(pfRunNumber).autoNumber ? &g.pp9.at(pfRunNumber) : nullptr;
-            const QString key = QStringLiteral("%1|%2|%3|%4|%5|%6|%7|%8").arg(level).arg(numbered ? 0 : ch).arg(numbered ? QString() : font).arg(markSize).arg(color).arg(leftMargin)
-                                    .arg(numbered ? numbered->scheme : -1).arg(numbered ? numbered->start : 0);
+            const QByteArray picture = numbered ? QByteArray() : bulletPicture;
+            const QString key = QStringLiteral("%1|%2|%3|%4|%5|%6|%7|%8|%9").arg(level).arg(numbered ? 0 : ch).arg(numbered ? QString() : font).arg(markSize).arg(color).arg(leftMargin)
+                                    .arg(numbered ? numbered->scheme : -1).arg(numbered ? numbered->start : 0).arg(picture.isEmpty() ? -1 : blip);
             // (A list takes its items one by one at a cost that grows with its length, so a long run of bullets is cut into lists of at most 400.)
             // An empty paragraph is no item of a numbered list: it has no number, and the numbering goes on after it.
             if (numbered && list && key == listKey && start == end) {
@@ -2877,6 +2968,7 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
                 } else {
                     if (ch != 0x2022 || !font.isEmpty()) lf.setProperty(tp::BulletChar, QString(QChar(ch)));
                     if (!font.isEmpty()) lf.setProperty(tp::BulletFont, font);
+                    if (!picture.isEmpty()) lf.setProperty(tp::BulletPicture, picture);
                 }
                 if (!color.isEmpty()) lf.setProperty(tp::BulletColor, color);
                 if (markSize > 0) lf.setProperty(tp::BulletSize, markSize);

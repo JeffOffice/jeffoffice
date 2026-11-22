@@ -11,6 +11,7 @@
 #include "core/color.h"
 #include "core/texteffects.h"
 #include "office/drawingml_props.h"
+#include "office/drawingml_style.h"
 #include "office/xml.h"
 #include "text/textengine.h"
 #include "text/textprops.h"
@@ -108,6 +109,7 @@ struct Spacing {
 struct Bullet {
     enum Kind { Unset, None, Char, AutoNum, Blip } kind = Unset;
     QString text;               // buChar's character, or buAutoNum's scheme
+    QString picture;            // the part buBlip's picture is in (empty when it names none)
     int startAt = 1;
     enum Follow { NotSaid, Text, Own };
     Follow color = NotSaid, size = NotSaid, font = NotSaid;
@@ -155,6 +157,25 @@ Spacing spacingOf(const QDomElement &e)
         if (intOf(pts, QLatin1String("val"), &v) && v >= 0) s = {Spacing::Points, std::min<qint64>(v, 158400) / 100.0};
     }
     return s;
+}
+
+// The part an a:buBlip's picture is in.
+QString pictureOf(const QDomElement &buBlip, const DrawingContext &ctx)
+{
+    StyleContext sc;
+    sc.ctx = &ctx;
+    const QDomElement blip = firstChild(buBlip, QLatin1String("blip"));
+    return blip.isNull() ? QString() : loadImagePart(attrNs(blip, ns::R, QStringLiteral("embed")), sc, blip);
+}
+
+// The picture file of that part, when it is of a kind a bullet is drawn from (a raster one) and no larger than a bullet can use.
+QByteArray pictureBytes(const QString &part, const DrawingContext &ctx)
+{
+    constexpr qint64 kMostBulletPictureBytes = 4 << 20;
+    if (part.isEmpty() || !ctx.package || ctx.package->partSize(part) > kMostBulletPictureBytes) return QByteArray();
+    const QByteArray bytes = ctx.package->part(part);
+    const QString format = imageFormat(bytes);
+    return format == QLatin1String("png") || format == QLatin1String("jpeg") || format == QLatin1String("gif") || format == QLatin1String("bmp") ? bytes : QByteArray();
 }
 
 void mergeParagraph(ParaProps &p, const QDomElement &pPr, const DrawingContext &ctx)
@@ -222,6 +243,8 @@ void mergeParagraph(ParaProps &p, const QDomElement &pPr, const DrawingContext &
         } else if (name == QLatin1String("buBlip")) {
             p.bullet.kind = Bullet::Blip;
             p.bullet.text.clear();
+            // (the picture is read where a list is made of it)
+            p.bullet.picture = pictureOf(c, ctx);
         } else if (name == QLatin1String("tabLst")) {
             p.hasTabs = true;
             p.tabs.clear();
@@ -783,6 +806,8 @@ void Reader::addToList(const ParaProps &para, int level, const QString &key, dou
     } else {
         lf.setStyle(QTextListFormat::ListDisc);
         if (b.kind == Bullet::Char && !b.text.isEmpty()) lf.setProperty(tp::BulletChar, b.text);
+        if (b.kind == Bullet::Blip && !b.picture.isEmpty())
+            if (const QByteArray bytes = pictureBytes(b.picture, m_ctx); !bytes.isEmpty()) lf.setProperty(tp::BulletPicture, bytes);
     }
     if (b.color == Bullet::Own) lf.setProperty(tp::BulletColor, colorRefOf(b.colorValue));
     if (b.font == Bullet::Own) lf.setProperty(tp::BulletFont, b.fontValue);
@@ -957,7 +982,7 @@ void Reader::paragraph(const QDomElement &p)
     const double points = b.size == Bullet::Own ? (b.sizeValue.kind == Spacing::Percent ? b.sizeValue.value * firstSize : b.sizeValue.value) : 0;
     // Paragraphs whose bullets are the same in every way share a list.
     const QString key = QStringLiteral("%1|%2|%3|%4|%5|%6")
-                            .arg(int(b.kind)).arg(b.text).arg(b.kind == Bullet::AutoNum ? b.startAt : 0).arg(b.color == Bullet::Own ? colorRefOf(b.colorValue) : QString())
+                            .arg(int(b.kind)).arg(b.kind == Bullet::Blip ? b.picture : b.text).arg(b.kind == Bullet::AutoNum ? b.startAt : 0).arg(b.color == Bullet::Own ? colorRefOf(b.colorValue) : QString())
                             .arg(b.font == Bullet::Own ? b.fontValue : QString()).arg(points);
     addToList(para, level, key, firstSize);
 }

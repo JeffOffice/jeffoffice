@@ -461,6 +461,18 @@ QVector<BlipEffect> readBlipEffects(const QDomElement &blip, const StyleContext 
     return out;
 }
 
+QString loadImagePart(const QString &rId, const StyleContext &sc, const QDomElement &from)
+{
+    const DrawingContext &ctx = *sc.ctx;
+    QString part = sc.fromTheme && !ctx.themePart.isEmpty() ? ctx.themePart : ctx.part;
+    if (!sc.fromTheme && !from.isNull())
+        for (const auto &inherited : ctx.inheritedParts)
+            if (inherited.first == from.ownerDocument()) part = inherited.second;
+    if (rId.isEmpty() || !ctx.package || part.isEmpty()) return QString();
+    const Relationship rel = ctx.package->relationship(part, rId);
+    return !rel.id.isEmpty() && !rel.external ? rel.target : QString();
+}
+
 QString loadImage(const QString &rId, const StyleContext &sc, const QDomElement &from)
 {
     const DrawingContext &ctx = *sc.ctx;
