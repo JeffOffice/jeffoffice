@@ -1740,6 +1740,8 @@ private Q_SLOTS:
     void paginatorSettlesAnEditAfterAPartialSettle();
     void paginatorHandlesSpaceBeforeTallerThanAPage();
     void paginatorKeepsLongChainsWithTheNext();
+    void aKeptParagraphLaidOutAgainKeepsTheChainFlagItBegan();
+    void aKeptParagraphCutAcrossPagesLeavesTheChainAtThePageTop();
     void paginatorMakesAPageAfterABreakAtTheEnd();
     void paginatorLaysOutAHugeParagraph();
     void paginatorLaysOutHugeParagraphsInTime();

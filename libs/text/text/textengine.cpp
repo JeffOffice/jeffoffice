@@ -4449,7 +4449,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             double y, overflowY, rowH;
             QVector<Iv> row;
             int rowIdx;
-            bool rowActive, columnEmpty, overflow, blank;
+            bool rowActive, columnEmpty, overflow, blank, chain;
             QVector<double> used;
             QHash<qint64, double> reserve;
             QVector<Note> notes;
@@ -4484,7 +4484,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             if (sameStyle(b, head.previous())) before = 0;
             if (sameStyle(b, b.next())) after = 0;
         }
-        const Spot startSpot{f, c, y, overflowY, rowH, row, rowIdx, rowActive, columnEmpty, m_overflow, m_blankPast, m_used, reserve, m_notes, carry, seeded, noteHeights, flat};
+        const Spot startSpot{f, c, y, overflowY, rowH, row, rowIdx, rowActive, columnEmpty, m_overflow, m_blankPast, chainFromTop, m_used, reserve, m_notes, carry, seeded, noteHeights, flat};
         const bool breakPending = columnBreakNext;
         const bool windowCut = B->cut;
         const int windowCutAt = B->cutAt;
@@ -5343,7 +5343,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         };
         auto redo = [&](bool startNext, int breakAfter) {
             f = startSpot.f; c = startSpot.c; y = startSpot.y; overflowY = startSpot.overflowY; rowH = startSpot.rowH; row = startSpot.row;
-            rowIdx = startSpot.rowIdx; rowActive = startSpot.rowActive; rowPushed = 0; columnEmpty = startSpot.columnEmpty; m_overflow = startSpot.overflow; m_blankPast = startSpot.blank; m_used = startSpot.used;
+            rowIdx = startSpot.rowIdx; rowActive = startSpot.rowActive; rowPushed = 0; columnEmpty = startSpot.columnEmpty; chainFromTop = startSpot.chain; m_overflow = startSpot.overflow; m_blankPast = startSpot.blank; m_used = startSpot.used;
             reserve = startSpot.reserve;
             m_notes = startSpot.notes;
             carry = startSpot.carry;
@@ -5657,6 +5657,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         }
         if (!B->lines.isEmpty()) {
             const bool startedHere = B->lines.first().frame == startSpot.f && B->lines.first().column == startSpot.c, endsHere = B->lines.last().frame == B->lines.first().frame && B->lines.last().column == B->lines.first().column;
+            // (A paragraph that goes on past its column leaves the chain at the top of the column it ends in: what follows is kept with it, and none of it moves.)
             chainFromTop = (startedHere && endsHere ? chainFromTop : true) && bf.boolProperty(tp::KeepWithNext);
         }
         const bool cutBlock = B->cut;

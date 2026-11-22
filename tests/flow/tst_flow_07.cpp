@@ -1077,6 +1077,86 @@ void FlowTests::paginatorKeepsLongChainsWithTheNext()
 }
 
 
+// Where the paragraph kept with the next is laid out again in the column it began in (the tabs that end it first spilled a line into the next frame, and take no
+// room), the chain flag is what it was before the paragraph: the paragraph and the one after it are not parted at a frame's foot.
+void FlowTests::aKeptParagraphLaidOutAgainKeepsTheChainFlagItBegan()
+{
+    int parted = 0, together = 0;
+    for (int fillers = 1; fillers <= 12; ++fillers) {
+        for (int words = 3; words <= 14; ++words) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat body;
+            body.setFontPointSize(11);
+            body.setFontFamilies({QStringLiteral("Arimo")});
+            QVector<int> starts;
+            for (int i = 0; i < fillers + 2; ++i) {
+                QTextBlockFormat bf;
+                bf.setBottomMargin(0);
+                if (i == fillers) bf.setProperty(tp::KeepWithNext, true);
+                if (i == 0) c.setBlockFormat(bf); else c.insertBlock(bf);
+                starts << c.position();
+                QString text = QStringLiteral("filler");
+                if (i == fillers) {
+                    text.clear();
+                    for (int w = 0; w < words; ++w) text += QStringLiteral("wordy ");
+                    text += QStringLiteral("\t\t\t\t\t\t");
+                }
+                c.insertText(text, body);
+            }
+            StoryLayout lay;
+            LayoutEnv env;
+            env.wordLines = true;
+            lay.build(&doc, {plainFrame(240, 140), plainFrame(240, 140), plainFrame(240, 140)}, env);
+            int pOn = -1, qOn = -1;
+            for (const auto &l : lay.lineBriefs()) {
+                if (l.block == starts[fillers]) pOn = l.frame;
+                if (l.block == starts[fillers + 1] && qOn < 0) qOn = l.frame;
+            }
+            QVERIFY2(pOn >= 0 && qOn >= 0, "a paragraph is missing");
+            QVERIFY2(pOn == qOn, qPrintable(QStringLiteral("%1 fillers, %2 words: the kept paragraph ends in frame %3, the next begins in frame %4").arg(fillers).arg(words).arg(pOn).arg(qOn)));
+            (pOn > 0 ? parted : together)++;
+        }
+    }
+    QVERIFY(parted > 0 && together > 0);
+}
+
+
+// A paragraph kept with the next that is cut across frames leaves the chain at the top of the frame it goes on in: what follows it is not moved, and the lines
+// stand where they do without the keeping.
+void FlowTests::aKeptParagraphCutAcrossPagesLeavesTheChainAtThePageTop()
+{
+    int moved = 0;
+    for (int lines = 10; lines <= 70; lines += 3) {
+        QVector<int> frameOf[2];
+        for (int with = 0; with < 2; ++with) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat body;
+            body.setFontPointSize(11);
+            body.setFontFamilies({QStringLiteral("Arimo")});
+            for (int i = 0; i < 4; ++i) {
+                QTextBlockFormat bf;
+                bf.setBottomMargin(0);
+                if (with && i >= 1 && i <= 2) bf.setProperty(tp::KeepWithNext, true);
+                if (i == 0) c.setBlockFormat(bf); else c.insertBlock(bf);
+                QStringList text;
+                for (int k = 0; k < (i == 1 ? lines : 1); ++k) text << QStringLiteral("line");
+                c.insertText(text.join(QChar(QChar::LineSeparator)), body);
+            }
+            StoryLayout lay;
+            LayoutEnv env;
+            env.wordLines = true;
+            lay.build(&doc, {plainFrame(240, 140), plainFrame(240, 140), plainFrame(240, 140), plainFrame(240, 140), plainFrame(240, 140), plainFrame(240, 140), plainFrame(240, 140), plainFrame(240, 140), plainFrame(240, 140)}, env);
+            for (const auto &l : lay.lineBriefs()) frameOf[with] << l.frame;
+        }
+        QVERIFY2(frameOf[0] == frameOf[1], qPrintable(QStringLiteral("%1 lines: the keeping moved a line").arg(lines)));
+        moved += frameOf[0].size();
+    }
+    QVERIFY(moved > 0);
+}
+
+
 // A page break after the last paragraph makes a last page with nothing on it, as a break after the last line of a document does; so does a section
 // break, and the page is the next section's.
 void FlowTests::paginatorMakesAPageAfterABreakAtTheEnd()
