@@ -8,6 +8,7 @@
 #include "office/eot.h"
 #include "office/pptcrypt.h"
 #include "io/pptsalvage.h"
+#include "io/presentationfile.h"
 #include <QRegularExpression>
 
 class DeckBinaryImportTests : public QObject {
@@ -756,6 +757,47 @@ private:
         add(QStringLiteral("Pictures"), pictures);
         return cfb::write(f);
     }
+    // A file made for older programs too: at the top, streams of the older form (a Current User that holds no atom, a document that is not
+    // records), and `inner`'s streams in the storage PP97_DUALSTORAGE (or, without `storage`, at the top beside them is nothing).
+    // With `innerUser` given, that replaces the storage's Current User.
+    static QByteArray dualFileOf(const QByteArray &inner, const QByteArray &innerUser = QByteArray(), bool storage = true)
+    {
+        cfb::File good;
+        if (!cfb::read(inner, &good)) return QByteArray();
+        cfb::File f;
+        cfb::Entry root;
+        root.type = cfb::Entry::Root;
+        root.name = QStringLiteral("Root Entry");
+        f.entries << root;
+        auto add = [&](int parent, cfb::Entry::Type type, const QString &name, const QByteArray &data) {
+            cfb::Entry e;
+            e.type = type;
+            e.name = name;
+            e.data = data;
+            const int at = int(f.entries.size());
+            f.entries[parent].children << at;
+            f.entries << e;
+            return at;
+        };
+        add(0, cfb::Entry::Stream, QStringLiteral("Current User"), QByteArray("\x10\0\0\0Someone Else", 16));
+        add(0, cfb::Entry::Stream, pptDocumentStream(), raw({3, 0, 0, 0, 0xFF, 0xFF, 0, 0}) + QByteArray(64, 'x'));
+        if (!storage) return cfb::write(f);
+        const int dual = add(0, cfb::Entry::Storage, QStringLiteral("PP97_DUALSTORAGE"), QByteArray());
+        add(dual, cfb::Entry::Stream, QStringLiteral("Current User"), innerUser.isEmpty() ? good.stream(QStringLiteral("Current User")) : innerUser);
+        add(dual, cfb::Entry::Stream, pptDocumentStream(), good.stream(pptDocumentStream()));
+        add(dual, cfb::Entry::Stream, QStringLiteral("Pictures"), good.stream(QStringLiteral("Pictures")));
+        return cfb::write(f);
+    }
+    static std::unique_ptr<Document> openAsFile(const QByteArray &bytes, QString *err)
+    {
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("dual.ppt"));
+        QFile f(path);
+        if (!f.open(QIODevice::WriteOnly)) return nullptr;
+        f.write(bytes);
+        f.close();
+        return deck::importAnyPresentationFile(path, err);
+    }
     // A document with the slide master list `masters` and the slide list `slides` (and a drawing group, if given).
     static QByteArray pptDocumentOf(const QByteArray &slides, const QByteArray &masters = slidePersist(3, 0, 0x80000001), const QByteArray &drawingGroup = QByteArray())
     {
@@ -835,6 +877,57 @@ private Q_SLOTS:
         QVERIFY2(twice, qPrintable(err));
         QCOMPARE(twice->masters.size(), masters->masters.size());
         QVERIFY2(err.contains(QStringLiteral("master")), qPrintable(err));
+    }
+
+    // A file that holds its newer-form streams in the storage PP97_DUALSTORAGE (the top streams being of an older form, whose Current User
+    // holds no atom) is read from that storage. The specification names no such storage and requires the top Current User to be an atom,
+    // so this is the one added rule: only when the top one is not an atom. Fails when off: yes (refused as having no last edit).
+    void aPresentationInTheDualStorageIsOpened()
+    {
+        const QByteArray plain = pptOf(slidePersist(5, 0, 0x100), {{5, pptSlideOf(pptTinyShape().repeated(3))}});
+        QString err;
+        auto d = openAsFile(dualFileOf(plain), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(int(d->pages.size()), 1);
+        QCOMPARE(int(d->pages[0]->items.size()), 3);
+        // without the storage it is refused as before (fails when off: no, it pins what is kept)
+        err.clear();
+        QVERIFY(!openAsFile(dualFileOf(plain, QByteArray(), false), &err));
+        QVERIFY2(err.contains(QStringLiteral("which edit")), qPrintable(err));
+    }
+
+    // A dual storage that is itself broken is refused with a said reason, by the same bounds as any presentation: a last edit past the
+    // end, a stream cut short, and edits that go round in a circle. Fails when off: yes for the file that opens in the first test
+    // (these pin that the storage's records are not trusted any more than the top ones).
+    void aBrokenDualStorageIsRefusedWithinBounds()
+    {
+        QString err;
+        auto refusedWith = [&](const QByteArray &bytes, const char *word) {
+            err.clear();
+            auto d = openAsFile(bytes, &err);
+            return !d && err.contains(QLatin1String(word));
+        };
+        const QByteArray plain = pptOf(slidePersist(5, 0, 0x100), {{5, pptSlideOf(pptTinyShape())}});
+        // the storage's own Current User is no atom either
+        QVERIFY(refusedWith(dualFileOf(plain, QByteArray("\x10\0\0\0Someone Else", 16)), "which edit"));
+        // the last edit lies past the end of the stream
+        cfb::File good;
+        QVERIFY(cfb::read(plain, &good));
+        QByteArray far = good.stream(QStringLiteral("Current User"));
+        far.replace(16, 4, le(0x7FFFFFF0, 4));
+        QVERIFY(refusedWith(dualFileOf(plain, far), "cut short"));
+        // the stream is cut short in the middle of its last edit
+        cfb::File cut = good;
+        const QByteArray whole = good.stream(pptDocumentStream());
+        QVERIFY(cut.setStream(pptDocumentStream(), whole.left(whole.size() - 20)));
+        QVERIFY(refusedWith(dualFileOf(cfb::write(cut)), "cut short"));
+        // an edit that names itself as the one before it
+        QByteArray s = pptDocumentOf(slidePersist(5, 0, 0x100));
+        const quint32 directory = quint32(s.size());
+        s += persistDirectory({{1, 0}});
+        const quint32 edit = quint32(s.size());
+        s += userEdit(edit, directory, 1);
+        QVERIFY(refusedWith(dualFileOf(pptFileOf(s, edit)), "circle"));
     }
 
     // All the slides and masters together keep to one budget of shapes: a file of slides that each hold a drawing as big as is read

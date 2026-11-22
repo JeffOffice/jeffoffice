@@ -1018,6 +1018,7 @@ private:
     const QByteArray m_file;
     Document &m_doc;
     cfb::File m_cfb;
+    QString m_home;   // the storage the presentation's streams are in: none, or the one a file made for older programs too keeps its newer streams in
     Records m_ppt;
     QByteArray m_pictures;
     quint32 m_documentId = 0;
@@ -1102,11 +1103,21 @@ bool Importer::openStreams(QString *why)
         *why = QCoreApplication::translate("PptImport", "This is not a presentation: %1").arg(cfbWhy);
         return false;
     }
+    // A file made to be read by an older program as well has, at the top, streams of that program's own form (its Current User holds
+    // no atom), and the streams of this form in one storage; they are used when the top ones are not of this form.
+    m_home.clear();
+    const QByteArray top = m_cfb.stream(QStringLiteral("Current User"));
+    Rec topAtom;
+    if (top.isEmpty() || !recAt(top, 0, top.size(), &topAtom) || topAtom.type != RT_CurrentUserAtom) {
+        const QString dual = QStringLiteral("PP97_DUALSTORAGE/");
+        const QByteArray inner = m_cfb.stream(dual + QStringLiteral("Current User"));
+        if (!inner.isEmpty() && recAt(inner, 0, inner.size(), &topAtom) && topAtom.type == RT_CurrentUserAtom) m_home = dual;
+    }
     // The presentation's stream is named for the program that wrote it, ending " Document".
     QByteArray stream;
     bool found = false;
     for (const QString &path : m_cfb.streamPaths()) {
-        if (path.contains(QLatin1Char('/')) || !path.endsWith(QLatin1String(" Document"))) continue;
+        if (!path.startsWith(m_home) || path.mid(m_home.size()).contains(QLatin1Char('/')) || !path.endsWith(QLatin1String(" Document"))) continue;
         stream = m_cfb.stream(path);
         found = true;
         break;
@@ -1119,13 +1130,13 @@ bool Importer::openStreams(QString *why)
         return false;
     }
     m_ppt = Records(stream);
-    m_pictures = m_cfb.stream(QStringLiteral("Pictures"));
+    m_pictures = m_cfb.stream(m_home + QStringLiteral("Pictures"));
     return true;
 }
 
 bool Importer::readEdits(QString *why)
 {
-    const QByteArray user = m_cfb.stream(QStringLiteral("Current User"));
+    const QByteArray user = m_cfb.stream(m_home + QStringLiteral("Current User"));
     Rec cu;
     if (user.isEmpty() || !recAt(user, 0, user.size(), &cu) || cu.type != RT_CurrentUserAtom || cu.len < 16) {
         *why = QCoreApplication::translate("PptImport", "The presentation doesn't say which edit of it is the last, so it can't be read.");
