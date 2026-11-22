@@ -50,6 +50,7 @@ void SpillTable::erase(qint32 formula)
             list->second.erase(std::remove(list->second.begin(), list->second.end(), i), list->second.end());
             if (list->second.empty()) m_buckets.erase(list);
         }
+    m_bucketsInAll -= (qint64(r.row2 / kBlockRows) - r.row1 / kBlockRows + 1) * (qint64(r.col2 / kBlockCols) - r.col1 / kBlockCols + 1);
     m_rects[size_t(i)].formula = -1;
     m_free.push_back(i);
     m_byFormula.erase(at);
@@ -60,7 +61,8 @@ bool SpillTable::set(const SpillRect &r)
     erase(r.formula);
     if (r.row2 < r.row1 || r.col2 < r.col1) return false;
     const qint64 buckets = (qint64(r.row2 / kBlockRows) - r.row1 / kBlockRows + 1) * (qint64(r.col2 / kBlockCols) - r.col1 / kBlockCols + 1);
-    if (buckets > kMaxBuckets) return false;
+    if (buckets > kMaxBuckets || m_bucketsInAll + buckets > kMaxTableBuckets) return false;
+    m_bucketsInAll += buckets;
     qint32 i;
     if (!m_free.empty()) {
         i = m_free.back();

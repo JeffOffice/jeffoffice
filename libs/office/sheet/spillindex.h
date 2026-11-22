@@ -38,12 +38,14 @@ struct SpillRect {
 
 // A set of rectangles, found by the places they cover: a grid of buckets of kBlockRows rows by kBlockCols columns, each holding the rectangles that touch it. Blocks of one sheet never overlap, so a bucket
 // holds few (at most kBlockRows * kBlockCols / 2), however many blocks there are or where: 500 one-column blocks in a header row, or 200 columns of 5,000 rows, look at 8 or fewer to answer `at`.
-// A rectangle that would be in more than kMaxBuckets buckets is refused (a block is at most kMaxSpillCells cells, which is 3,200 buckets at the worst, a single column).
+// A rectangle that would be in more than kMaxBuckets buckets is refused (a block is at most kMaxSpillCells cells, which is 3,200 buckets at the worst, a single column), and so is one that would take
+// the table past kMaxTableBuckets in all (the table is copied each time it is published: 16,000 blocks of the most a block can be would be a gigabyte).
 class SpillTable {
 public:
     static constexpr quint32 kBlockRows = 64;
     static constexpr quint32 kBlockCols = 8;
     static constexpr qint64 kMaxBuckets = 4096;
+    static constexpr qint64 kMaxTableBuckets = 1 << 18;   // (about 25 MB, and 83 blocks of the most a block can be)
 
     bool empty() const { return m_byFormula.empty(); }
     size_t size() const { return m_byFormula.size(); }
@@ -52,7 +54,7 @@ public:
     // The block that holds the place, or null. `probes`, if given, is added the number of blocks looked at.
     const SpillRect *at(quint32 row, quint32 col, qint64 *probes = nullptr) const;
     const SpillRect *ofFormula(qint32 formula) const;
-    // Puts the formula's block (taking away the one it had). False, and the formula has no block, when the rectangle is in more than kMaxBuckets buckets.
+    // Puts the formula's block (taking away the one it had). False, and the formula has no block, when the rectangle is in more than kMaxBuckets buckets, or the table would be in more than kMaxTableBuckets.
     bool set(const SpillRect &r);
     void erase(qint32 formula);
     void clear() { *this = SpillTable(); }
@@ -115,6 +117,7 @@ private:
     std::unordered_map<qint32, qint32> m_byFormula;
     std::unordered_map<quint64, std::vector<qint32>> m_buckets;
     quint32 m_lastRow = 0, m_lastCol = 0;
+    qint64 m_bucketsInAll = 0;   // (the places of rectangles in buckets, all the table's)
 };
 
 // What a reader has of a sheet's blocks: the table (null for none) and what keeps it alive.

@@ -356,6 +356,7 @@ bool Calculation::registerSpill(int sheet, qint32 formula, const CellRange &rang
     if (!pub || !spillRegisterable(sheet, formula, range)) return false;
     if (pub->mine().meetsOther(range.row1, range.col1, range.row2, range.col2, formula)) return false;
     putSpillBlock(sheet, SpillRect{range.row1, range.col1, range.row2, range.col2, formula});
+    if (!pub->mine().ofFormula(formula)) return false;   // (the table is full: no block, and the cells the file stored are what they were)
     useExtent(sheet, range.row2, range.col2);
     return true;
 }

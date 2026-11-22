@@ -714,6 +714,44 @@ private Q_SLOTS:
         QVERIFY(!frozen.find(21, 1));
     }
 
+    // The blocks of a table are at most so many buckets in all (the table is copied each time it is published): a block that would pass the total is refused and has no block, and its cells, which the file
+    // stored, are read as they were; a block let go of makes room.
+    void theSpillTableHasATotalCapOnBuckets()
+    {
+        SpillTable t;
+        const quint32 rows = quint32(kMaxSpillCells);   // 3,125 buckets: one column of the most a spill can be
+        int accepted = 0;
+        for (qint32 f = 0; f < 400 && t.set(SpillRect{0, quint32(f), rows - 1, quint32(f), f}); ++f) ++accepted;
+        QVERIFY(accepted >= 1 && accepted < 400);
+        QVERIFY(qint64(accepted) * 3125 <= (1 << 18));
+        QVERIFY(!t.ofFormula(accepted));   // (the one refused has no block)
+        QCOMPARE(t.size(), size_t(accepted));
+        t.erase(0);
+        QVERIFY(t.set(SpillRect{0, quint32(accepted), rows - 1, quint32(accepted), accepted}));   // (room for one)
+        // the same by a file: many stored spills of the most a block can be
+        const int columns = 150;
+        QString rowsXml, second;
+        for (int c = 0; c < columns; ++c) {
+            const QString name = QStringLiteral("%1%2").arg(QChar('A' + c / 26)).arg(QChar('A' + c % 26));
+            rowsXml += QStringLiteral("<c r=\"%1%2\" cm=\"1\"><f t=\"array\" ref=\"%1%2:%1%3\">_xlfn.SEQUENCE(3)</f><v>1</v></c>").arg(name, QStringLiteral("1")).arg(kMaxSpillCells);
+            second += constant(name + QStringLiteral("2"), QStringLiteral("77"));
+        }
+        SpillIndexSwitch on(true);
+        Book b;
+        QString why;
+        QVERIFY(b.package.readLazy(withMetadata(blank(rowXml(1, rowsXml) + rowXml(2, second))), &why) && b.book.open(b.package, &why));
+        b.calc.reset(new Calculation(b.book));
+        QVERIFY(b.calc->load());
+        const size_t blocks = blocksOf(*b.calc, 0).size();
+        QVERIFY(blocks >= 1 && blocks < size_t(columns));
+        QVERIFY(qint64(blocks) * 3125 <= (1 << 18));
+        for (int c = 0; c < columns; ++c) {
+            const QString name = QStringLiteral("%1%2").arg(QChar('A' + c / 26)).arg(QChar('A' + c % 26));
+            QCOMPARE(b.at(name + QStringLiteral("2")), QStringLiteral("n:77"));   // (a refused block keeps what the file stored in it)
+            QCOMPARE(b.at(name + QStringLiteral("1")), QStringLiteral("n:1"));
+        }
+    }
+
     // A file's dynamic array: the anchor's array formula with the cell metadata that marks it, and the cached values of the cells it filled, read as saved.
     void aDynamicArrayOfAFileIsASpillShownAsSaved()
     {
