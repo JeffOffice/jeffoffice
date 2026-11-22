@@ -28,7 +28,8 @@ inline void boundLossNotes(QStringList *notes, qint64 *dropped)
 // The last line of a list that was cut, in the words the box uses.
 inline QString moreLossNotes(qint64 dropped)
 {
-    return QCoreApplication::translate("jp::CompatibilityDialog", "And %n more.", nullptr, int(qMin<qint64>(dropped, 2000000000)));
+    const int count = dropped > 2000000000 ? 2000000000 : int(dropped);
+    return QCoreApplication::translate("jp::CompatibilityDialog", "And %n more.", nullptr, count);
 }
 
 } // namespace jp
