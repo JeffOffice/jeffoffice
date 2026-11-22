@@ -64,6 +64,35 @@ class OfficeOdrawTests : public QObject {
         w += odU32(3) + odU16(0) + odU32(3) + odU16(0);
         return w + QByteArray(40, '\x01');
     }
+    // A metafile record: its size in words, its function, then its parameters.
+    static QByteArray odWmfRecord(quint16 fn, const QByteArray &params) { return odU32(quint32(3 + params.size() / 2)) + odU16(fn) + params; }
+    // A picture of one rectangle over the whole window, filled with the color `fill` (its top byte is the palette flag), after the palettes
+    // given (each a list of colors) are made and the one numbered `select` is selected.
+    static QByteArray odPaletteWmf(const QVector<QVector<QRgb>> &palettes, int select, quint32 fill)
+    {
+        QByteArray w = odWmfRecord(0x020C, odU16(100) + odU16(100)) + odWmfRecord(0x020B, odU16(0) + odU16(0));
+        for (const auto &colors : palettes) {
+            QByteArray entries = odU16(0x300) + odU16(quint16(colors.size()));
+            for (QRgb c : colors) entries += QByteArray(1, char(qRed(c))) + QByteArray(1, char(qGreen(c))) + QByteArray(1, char(qBlue(c))) + QByteArray(1, '\0');
+            w += odWmfRecord(0x00F7, entries);
+        }
+        w += odWmfRecord(0x0234, odU16(quint16(select)));
+        w += odWmfRecord(0x02FC, odU16(0) + odU32(fill) + odU16(0));   // a solid brush
+        w += odWmfRecord(0x02FA, odU16(5) + odU16(0) + odU16(0) + odU32(0));   // a pen that draws nothing
+        w += odWmfRecord(0x012D, odU16(quint16(palettes.size())));   // (the brush: the object after the palettes)
+        w += odWmfRecord(0x012D, odU16(quint16(palettes.size() + 1)));
+        w += odWmfRecord(0x041B, odU16(100) + odU16(100) + odU16(0) + odU16(0));
+        w += odWmfRecord(0x0000, QByteArray());
+        QByteArray head = odU16(1) + odU16(9) + odU16(0x300) + odU32(quint32((18 + w.size()) / 2)) + odU16(quint16(palettes.size() + 2)) + odU32(20) + odU16(0);
+        return head + w;
+    }
+    static QColor odMiddleOf(const QByteArray &wmf)
+    {
+        jp::Metafile mf;
+        if (!mf.load(wmf)) return QColor();
+        const QImage img = mf.toImage(40);
+        return QColor::fromRgb(img.pixel(img.width() / 2, img.height() / 2));
+    }
     // A DIB: the info header, a palette of `colors` entries, then rows.
     static QByteArray odDib(int w, int h, int bits, int colors, const QByteArray &rows)
     {
@@ -496,6 +525,36 @@ private Q_SLOTS:
         for (int i = 0; i < 20; ++i) page += pictU16(0x0031) + pictRect(0, 0, 100, 200);
         QVERIFY(!pictImage(odPict(200, 100, red + pictU16(0x0031) + pictRect(10, 20, 60, 120) + page), &work).isNull());
         QCOMPARE(work, qint64(0));
+    }
+
+    // A metafile color whose top byte is 1 names an entry of the selected logical palette, not the red, green, and blue in its low bytes (a plot
+    // made with a palette drew in the dark reds the index bytes spell). Fails when off: yes (the middle is then the dark red of 0x000001).
+    void metafileColorsNameEntriesOfTheSelectedPalette()
+    {
+        const QVector<QVector<QRgb>> one{{qRgb(255, 0, 0), qRgb(0, 255, 0), qRgb(0, 0, 255)}};
+        QCOMPARE(odMiddleOf(odPaletteWmf(one, 0, 0x01000001)), QColor(0, 255, 0));
+        QCOMPARE(odMiddleOf(odPaletteWmf(one, 0, 0x01000002)), QColor(0, 0, 255));
+        // an index past the palette's end, and a color with no flag, are the color the three low bytes give
+        QCOMPARE(odMiddleOf(odPaletteWmf(one, 0, 0x01000007)), QColor(7, 0, 0));
+        QCOMPARE(odMiddleOf(odPaletteWmf(one, 0, 0x00000001)), QColor(1, 0, 0));
+        // with no palette selected (the selection names a brush's place), the flag changes nothing
+        QCOMPARE(odMiddleOf(odPaletteWmf(one, 5, 0x01000001)), QColor(1, 0, 0));
+    }
+
+    // The entries read from all the palettes of one picture are 16,384 at most (1,024 of each): the seventeenth palette of 1,024 reads none, so a
+    // color naming its first entry is the color its low bytes give. Fails when off: yes (it comes out the palette's red).
+    void metafilePalettesAreReadWithinABudget()
+    {
+        QVector<QVector<QRgb>> many;
+        for (int i = 0; i < 17; ++i) many << QVector<QRgb>(1500, qRgb(255, 0, 0));   // (1,500 declared and held: 1,024 are read)
+        QCOMPARE(odMiddleOf(odPaletteWmf(many, 15, 0x01000000)), QColor(255, 0, 0));
+        QCOMPARE(odMiddleOf(odPaletteWmf(many, 16, 0x01000000)), QColor(0, 0, 0));
+        // a count that is more than the record holds reads what is there
+        QByteArray w = odPaletteWmf({{qRgb(255, 0, 0)}}, 0, 0x01000000);
+        const int at = w.indexOf(odU16(0x300) + odU16(1));
+        QVERIFY(at > 0);
+        w.replace(at + 2, 2, odU16(60000));
+        QCOMPARE(odMiddleOf(w), QColor(255, 0, 0));
     }
 
     void odrawBlipInflatesMetafiles()

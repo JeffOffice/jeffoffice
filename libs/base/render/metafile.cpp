@@ -50,6 +50,10 @@ struct Reader {
     float f32() { quint32 v = u32(); float f; std::memcpy(&f, &v, 4); return f; }
 };
 
+// The most entries of a logical palette that are read (the format's own count is 16 bits).
+constexpr int kMaxPaletteEntries = 1024;
+constexpr int kMaxPaletteTotal = 16384;   // and of all of a picture's together
+
 QColor colorRef(quint32 c) { return QColor(c & 0xFF, (c >> 8) & 0xFF, (c >> 16) & 0xFF); }
 
 struct Obj {
@@ -61,6 +65,8 @@ struct Obj {
     double escapement = 0;
     bool symbol = false;
     quint8 charset = 0;
+    QVector<QColor> palette;   // a logical palette's colors (kind Other)
+    bool hasPalette = false;
 };
 
 struct DC {
@@ -82,6 +88,7 @@ struct DC {
     int mapMode = 1;
     QTransform world;
     int arcDir = 1;   // 1 counter-clockwise, 2 clockwise
+    QVector<QColor> palette;   // the logical palette selected, whose entries a color made with the palette flag names
 };
 
 QPen makePen(quint32 style, double width, const QColor &c)
@@ -205,8 +212,15 @@ public:
 
 private:
     QColor mapped(const QColor &c) const { return recolor ? recolor(c) : c; }
-    QColor col(quint32 v) const { return mapped(colorRef(v)); }
+    // A color whose top byte is 1 names an entry of the selected logical palette (its low word is the index); one that names none, or no
+    // palette is selected, is the color its three low bytes give.
+    QColor col(quint32 v) const
+    {
+        if ((v >> 24) == 1 && (v & 0xFFFF) < quint32(m_dc.palette.size())) return mapped(m_dc.palette[int(v & 0xFFFF)]);
+        return mapped(colorRef(v));
+    }
     QPainter *m_p;
+    int m_paletteLeft = kMaxPaletteTotal;   // the palette entries still to be read, of all the palettes together
     bool m_emf;
     DC m_dc;
     QVector<DC> m_stack;
@@ -572,6 +586,18 @@ private:
             }
             case 0x0142: case 0x01F9: case 0x00F7: case 0x06FF: {
                 Obj o; o.kind = Obj::Other;
+                if (fn == 0x00F7) {
+                    // the version, the count of entries, then each as red, green, blue, and flags (no more entries than the record holds)
+                    a.u16();
+                    const int count = std::min<int>({int(a.u16()), kMaxPaletteEntries, m_paletteLeft});
+                    m_paletteLeft -= count;
+                    for (int i = 0; i < count && a.ok(4); ++i) {
+                        const quint8 r = a.u8(), g = a.u8(), b = a.u8();
+                        a.u8();
+                        o.palette.push_back(QColor(r, g, b));
+                    }
+                    o.hasPalette = true;
+                }
                 if (fn == 0x0142) {
                     a.u16(); a.u16();
                     o.kind = Obj::Brush;
@@ -590,6 +616,7 @@ private:
                 setSlot(newSlot(), fontObj(h, esc, wt, it, ul, so, cs, QString::fromLatin1(face)));
                 break;
             }
+            case 0x0234: { const quint16 i = a.u16(); if (i < m_objs.size() && m_objs[i].hasPalette) m_dc.palette = m_objs[i].palette; break; }
             case 0x012D: selectObject(a.u16()); break;
             case 0x01F0: { const quint16 i = a.u16(); if (i < m_objs.size()) m_objs[i] = Obj(); break; }
             case 0x0214: { const double y = a.s16(), x = a.s16(); m_dc.cur = QPointF(x, y); break; }
