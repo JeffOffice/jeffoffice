@@ -3042,6 +3042,8 @@ private Q_SLOTS:
             ed->addItem(t);
             for (int r = 0; r < 4; ++r)
                 for (int c = 0; c < 3; ++c) t->cell(r, c).fill = jp::Fill::solid(jp::ColorRef::rgb(base));
+            t->cell(0, 0).colSpan = 2;   // a merge in row 0, then a fill after it (its cell number is one less than its column)
+            t->cell(0, 1).covered = true;
             t->cell(0, 2).fill = jp::Fill::solid(jp::ColorRef::rgb(gold));
             t->cell(1, 0).fill = jp::Fill::solid(jp::ColorRef::rgb(red));
             t->cell(1, 1).colSpan = 2;
@@ -3066,7 +3068,7 @@ private Q_SLOTS:
         QCOMPARE(got.value(4), blue.name());
         QCOMPARE(got.value(6), green.name());
         QCOMPARE(got.value(11), red.name());
-        for (int i : {0, 1, 7, 8, 10}) QCOMPARE(got.value(i), base.name());   // (5 and 9 are under merged cells)
+        for (int i : {0, 7, 8, 10}) QCOMPARE(got.value(i), base.name());   // (1, 5, and 9 are under merged cells)
     }
 
     // A table with more fills than any real file holds (the writer is told to keep 5,000) reads only the first 1,000 of them, and the

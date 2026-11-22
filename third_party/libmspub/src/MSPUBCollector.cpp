@@ -1410,14 +1410,21 @@ std::function<void(void)> MSPUBCollector::paintShape(const ShapeInfo &info, cons
       std::map<unsigned, unsigned> fillByNumber;
       std::map<std::pair<unsigned, unsigned>, unsigned> fillByPlace;
       std::vector<const TableCellFormat *> rules;   // JeffPub: the rules (borders and diagonals), checked for every cell
+      // JeffPub: the form is the table's: any fill with field 04 makes every fill column (03) plus row (04, absent: row 0).
+      bool oldForm = false;
       for (const TableCellFormat &f : get(info.m_tableInfo).m_formats)
       {
         g_tableFormatsLookedAt++;
+        if (f.kind == 0 && f.hasRow)
+          oldForm = true;
         if (f.kind != 0)
           rules.push_back(&f);
+      }
+      for (const TableCellFormat &f : get(info.m_tableInfo).m_formats)
+      {
         if (f.kind != 0 || !f.hasColor)
           continue;
-        if (f.hasRow)
+        if (oldForm)
           fillByPlace[std::make_pair(f.f[4], f.f[3])] = f.color;
         else
           fillByNumber[f.f[3]] = f.color;
