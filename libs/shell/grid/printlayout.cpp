@@ -776,14 +776,6 @@ struct PaginateTask::Impl {
         return true;
     }
 
-    // Whether the breaks the person put in the rows (or the columns) cut the pages: not when the sheet is fitted to a number of pages that way, but yes when that number is left blank (0): the
-    // pages are then as many as the breaks and the rest of the sheet make.
-    bool breaksAreHeld(bool rowBreaks) const
-    {
-        if (!fit) return true;
-        return (rowBreaks ? q.setup.fitToHeight : q.setup.fitToWidth) == 0;
-    }
-
     bool pagesStep(Work &w)
     {
         const PageSetup &setup = q.setup;
@@ -791,8 +783,8 @@ struct PaginateTask::Impl {
             const CellRange &b = out.areas[area];
             if (w.spent()) return false;
             if (pageStage == 0) {
-                const std::vector<qint64> rowBreaks = breaksAreHeld(true) ? breaksIn(setup.rowBreaks, b.row1, b.row2) : std::vector<qint64>();
-                const std::vector<qint64> colBreaks = breaksAreHeld(false) ? breaksIn(setup.colBreaks, b.col1, b.col2) : std::vector<qint64>();
+                const std::vector<qint64> rowBreaks = setup.breaksAreHeld(true) ? breaksIn(setup.rowBreaks, b.row1, b.row2) : std::vector<qint64>();
+                const std::vector<qint64> colBreaks = setup.breaksAreHeld(false) ? breaksIn(setup.colBreaks, b.col1, b.col2) : std::vector<qint64>();
                 w.add(qint64(rowBreaks.size() + colBreaks.size()));
                 rowBands.clear();
                 colBands.clear();
@@ -967,8 +959,8 @@ struct PaginateTask::Impl {
         if (q.onlySelection || (q.setup.hasPrintArea() && !q.ignorePrintArea) || out.truncated || out.areas.size() != 1) return true;
         if (!trimReady) {
             const CellRange &b = out.areas[0];
-            if (breaksAreHeld(true)) rowBreakList = breaksIn(q.setup.rowBreaks, b.row1, b.row2);
-            if (breaksAreHeld(false)) colBreakList = breaksIn(q.setup.colBreaks, b.col1, b.col2);
+            if (q.setup.breaksAreHeld(true)) rowBreakList = breaksIn(q.setup.rowBreaks, b.row1, b.row2);
+            if (q.setup.breaksAreHeld(false)) colBreakList = breaksIn(q.setup.colBreaks, b.col1, b.col2);
             w.add(qint64(rowBreakList.size() + colBreakList.size()));
             trimReady = true;
         }

@@ -294,14 +294,14 @@ public:
     bool hasPageBreaks() const { return !m_breakRows.empty() || !m_breakCols.empty(); }
     // The sheet shown as the pages it prints on: the cells that print as they are and the rest shaded, each page numbered over its cells, the lines where pages begin and the edges of the
     // printed blocks (`areas`) grabbed and dragged. A page is the block of cells it prints (its number is what its fields show). Nothing here is the sheet's; the window gives the lists
-    // and does what a drag asks for. With `editable` off (breaks set by hand are not used when the sheet is fitted to pages) the lines and edges cannot be dragged.
+    // and does what a drag asks for. With `editRows` (`editCols`) off (breaks set by hand are not used in a direction the sheet is fitted to a number of pages) the lines across the rows (the columns) cannot be dragged, and with both off, nor can the edges.
     struct BreakPage {
         qint64 row1 = 0, row2 = -1, col1 = 0, col2 = -1;
         int number = 1;
     };
     void setBreakView(bool on);
     bool breakView() const { return m_breakView; }
-    void setBreakPages(std::vector<GridRange> areas, std::vector<BreakPage> pages, bool editable);
+    void setBreakPages(std::vector<GridRange> areas, std::vector<BreakPage> pages, bool editRows, bool editCols);
     const std::vector<GridRange> &breakAreas() const { return m_breakAreas; }
     // What is under a point of the viewport in the break view: a line where a page begins, or an edge of a printed block (0 top, 1 bottom, 2 left, 3 right).
     struct BreakGrab {
@@ -592,7 +592,7 @@ private:
     bool m_dragEditing = true;
     std::function<bool(const GridRange &, bool, const QPoint &)> m_altDrop;
     std::vector<PageBreakLine> m_breakRows, m_breakCols;
-    bool m_breakView = false, m_breakEditable = true;
+    bool m_breakView = false, m_breakEditRows = true, m_breakEditCols = true;
     std::vector<GridRange> m_breakAreas;
     std::vector<BreakPage> m_breakPageList;
     BreakGrab m_breakGrab;

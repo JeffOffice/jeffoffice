@@ -96,7 +96,7 @@ void CrunchWindow::showViewKind(int kind)
     if (m_chartSheetShown) kind = 0;   // (a chart sheet has no pages of cells to show)
     m_viewKind = kind;
     m_view->setBreakView(kind == 1);
-    if (kind != 1) m_view->setBreakPages({}, {}, false);
+    if (kind != 1) m_view->setBreakPages({}, {}, false, false);
     if (QAction *a = act(QStringLiteral("view.normal"))) a->setChecked(kind == 0);
     if (QAction *a = act(QStringLiteral("view.pageBreakView"))) a->setChecked(kind == 1);
     if (QAction *a = act(QStringLiteral("view.pageLayout"))) a->setChecked(kind == 2);
@@ -127,8 +127,9 @@ void CrunchWindow::sendBreakPages(const crunch::PrintJob &job, const PageSetup &
         p.number = first >= 0 ? job.numberOf(first + int(i)) : int(i) + 1;
         pages.push_back(p);
     }
-    // (a sheet fitted to pages uses no breaks of its own: its lines are not moved)
-    m_view->setBreakPages(std::move(areas), std::move(pages), !setup.fitToPage && m_session && m_session->canEdit());
+    // (a direction fitted to a number of pages uses no breaks of its own: its lines are not moved)
+    const bool canEdit = m_session && m_session->canEdit();
+    m_view->setBreakPages(std::move(areas), std::move(pages), canEdit && setup.breaksAreHeld(true), canEdit && setup.breaksAreHeld(false));
 }
 
 // A line where a page begins was dragged to `to` (-1: off the printed cells, to be taken away).

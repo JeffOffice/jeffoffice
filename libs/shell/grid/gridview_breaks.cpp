@@ -37,23 +37,24 @@ void GridView::setBreakView(bool on)
     viewport()->update();
 }
 
-void GridView::setBreakPages(std::vector<GridRange> areas, std::vector<BreakPage> pages, bool editable)
+void GridView::setBreakPages(std::vector<GridRange> areas, std::vector<BreakPage> pages, bool editRows, bool editCols)
 {
     if (areas.size() > kMaxBreakAreas) areas.resize(kMaxBreakAreas);
     if (pages.size() > kMaxBreakPages) pages.resize(kMaxBreakPages);
     // (the same pages and areas again, as a sheet shown again gives with none: nothing to draw)
     const auto samePage = [](const BreakPage &a, const BreakPage &b) { return a.row1 == b.row1 && a.row2 == b.row2 && a.col1 == b.col1 && a.col2 == b.col2 && a.number == b.number; };
-    if (editable == m_breakEditable && areas == m_breakAreas && pages.size() == m_breakPageList.size() && std::equal(pages.begin(), pages.end(), m_breakPageList.begin(), samePage)) return;
+    if (editRows == m_breakEditRows && editCols == m_breakEditCols && areas == m_breakAreas && pages.size() == m_breakPageList.size() && std::equal(pages.begin(), pages.end(), m_breakPageList.begin(), samePage)) return;
     m_breakAreas = std::move(areas);
     m_breakPageList = std::move(pages);
-    m_breakEditable = editable;
+    m_breakEditRows = editRows;
+    m_breakEditCols = editCols;
     viewport()->update();
 }
 
 GridView::BreakGrab GridView::breakGrabAt(const QPoint &vp) const
 {
     BreakGrab g;
-    if (!m_breakView || !m_breakEditable) return g;
+    if (!m_breakView || !(m_breakEditRows || m_breakEditCols)) return g;
     const QPoint p = mirror(vp);
     const GridLayout &L = m_sheet.layout();
     for (const Pane pane : {Pane::Corner, Pane::Top, Pane::Left, Pane::Body}) {
@@ -72,7 +73,7 @@ GridView::BreakGrab GridView::breakGrabAt(const QPoint &vp) const
             }
             return -1;
         };
-        for (auto it = first(m_breakRows, pv.firstRow); it != m_breakRows.end() && it->before <= pv.lastRow + 1; ++it) {
+        for (auto it = first(m_breakRows, pv.firstRow); m_breakEditRows && it != m_breakRows.end() && it->before <= pv.lastRow + 1; ++it) {
             const int y = L.yEdge(it->before, fr), x0 = L.xEdge(it->from, fc), x1 = L.xEdge(it->to + 1, fc);
             if (std::abs(p.y() - y) <= kGrab && p.x() >= x0 && p.x() <= x1) {
                 g.kind = BreakGrab::Kind::Line;
@@ -82,7 +83,7 @@ GridView::BreakGrab GridView::breakGrabAt(const QPoint &vp) const
                 return g;
             }
         }
-        for (auto it = first(m_breakCols, pv.firstCol); it != m_breakCols.end() && it->before <= pv.lastCol + 1; ++it) {
+        for (auto it = first(m_breakCols, pv.firstCol); m_breakEditCols && it != m_breakCols.end() && it->before <= pv.lastCol + 1; ++it) {
             const int x = L.xEdge(it->before, fc), y0 = L.yEdge(it->from, fr), y1 = L.yEdge(it->to + 1, fr);
             if (std::abs(p.x() - x) <= kGrab && p.y() >= y0 && p.y() <= y1) {
                 g.kind = BreakGrab::Kind::Line;

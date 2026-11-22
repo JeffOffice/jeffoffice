@@ -244,12 +244,12 @@ void CrunchWindow::pageBreakLines(const jp::grid::SheetPrint &print, const jp::o
 {
     // (the breaks set by hand, looked up in a set: a sheet of thousands of pages and of breaks is not searched once for each page)
     QSet<qint64> rowBreaks, colBreaks;
-    if (!setup.fitToPage) {
+    if (setup.breaksAreHeld(true))
         for (const jp::office::sheet::PageBreak &b : setup.rowBreaks)
             if (b.manual) rowBreaks.insert(qint64(b.before));
+    if (setup.breaksAreHeld(false))
         for (const jp::office::sheet::PageBreak &b : setup.colBreaks)
             if (b.manual) colBreaks.insert(qint64(b.before));
-    }
     for (const jp::grid::PageCut &page : print.pages) {
         if (page.area < 0 || size_t(page.area) >= print.areas.size()) continue;
         const jp::office::sheet::CellRange &area = print.areas[size_t(page.area)];
@@ -270,7 +270,7 @@ void CrunchWindow::updatePageBreaks()
     if (!m_view) return;
     if (!m_breaksArmed || !(act(QStringLiteral("view.pageBreaks"))->isChecked() || m_viewKind != 0) || !m_loaded || !m_haveCalc || m_chartSheetShown) {
         if (m_view->hasPageBreaks()) m_view->setPageBreaks({}, {});
-        if (m_view->breakView()) m_view->setBreakPages({}, {}, false);
+        if (m_view->breakView()) m_view->setBreakPages({}, {}, false, false);
         if (m_viewKind == 2 && !m_breaksArmed) dropLayoutJob();
         return;
     }
@@ -283,7 +283,7 @@ void CrunchWindow::updatePageBreaks()
     auto job = std::make_unique<crunch::PrintJob>(std::move(source), options);
     if (!job->beginBuild()) {
         if (m_view->hasPageBreaks()) m_view->setPageBreaks({}, {});
-        if (m_view->breakView()) m_view->setBreakPages({}, {}, false);
+        if (m_view->breakView()) m_view->setBreakPages({}, {}, false, false);
         if (m_viewKind == 2) dropLayoutJob();   // (nothing on the sheet to print: no pages)
         return;
     }

@@ -309,6 +309,7 @@ private Q_SLOTS:
     void thePageBreaksViewNumbersThePagesOverThePrintedCells();
     void draggingALineMovesABreakAsOneStep();
     void draggingALineOffTheCellsTakesItAway();
+    void aSheetFittedOnlyWideKeepsItsBreakLinesDraggable();
     void draggingAnEdgeOfThePrintedCellsSetsThePrintArea();
     void aFittedSheetCannotHaveItsLinesDragged();
     void theViewIsSavedAndComesBack();

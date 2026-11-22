@@ -4522,6 +4522,16 @@ void CrunchPrintTests::pageLinesComeFromTheCutsAndTheBreaks()
     rows.clear();
     CrunchWindow::pageBreakLines(print, setup, &rows, &cols);
     QVERIFY(!rows[0].manual);
+    setup.fitToWidth = 1;   // (but not in a direction left blank: pages down are as many as the breaks make)
+    setup.fitToHeight = 0;
+    rows.clear();
+    CrunchWindow::pageBreakLines(print, setup, &rows, &cols);
+    QVERIFY(rows[0].manual);
+    setup.fitToWidth = 0;
+    setup.fitToHeight = 1;
+    rows.clear();
+    CrunchWindow::pageBreakLines(print, setup, &rows, &cols);
+    QVERIFY(!rows[0].manual);
 }
 
 
@@ -4775,6 +4785,40 @@ void CrunchPrintTests::draggingALineMovesABreakAsOneStep()
     QTest::mouseRelease(e.view()->viewport(), Qt::LeftButton, Qt::NoModifier, moved);
     QCOMPARE(w.session()->pages().sheet(0).rowBreaks.size(), 1);
     QCOMPARE(w.session()->pages().sheet(0).rowBreaks[0].before, 20u);
+}
+
+
+// A sheet fitted to a number of pages wide with the pages down left blank cuts at the breaks set by hand, so the screen draws them solid and lets them be dragged, as the print does; one fitted
+// to a number of pages down ignores them (fails when off: yes, the line was dashed and not grabbed).
+void CrunchPrintTests::aSheetFittedOnlyWideKeepsItsBreakLinesDraggable()
+{
+    EditWindow e;
+    QVERIFY(e.open(rowsWithFormulas(100, {})));
+    CrunchWindow &w = e.win.w;
+    PageSetup p = w.session()->pages().sheet(0);
+    jp::office::sheet::PageBreak b;
+    b.before = 30;
+    b.max = 16383;
+    p.rowBreaks.append(b);
+    p.fitToPage = true;
+    p.fitToWidth = 1;
+    p.fitToHeight = 0;
+    QVERIFY(w.session()->setPageSetup(0, p, QStringLiteral("Break")).ok);
+    w.setViewKind(1);
+    e.view()->setZoom(0.4);
+    QTRY_VERIFY(e.view()->pageBreakRows().size() >= 2);
+    QTRY_COMPARE(e.view()->breakAreas().size(), size_t(1));
+    QCOMPARE(e.view()->pageBreakRows()[0].before, qint64(30));
+    QVERIFY(e.view()->pageBreakRows()[0].manual);
+    const grid::GridLayout &L = e.view()->sheet().layout();
+    const QPoint at(L.xEdge(1, false) + 5, L.yEdge(30, false));
+    QVERIFY(e.view()->breakGrabAt(at).kind == grid::GridView::BreakGrab::Kind::Line);
+    // the other way round: pages down are given, so the breaks are not used and the lines cannot be taken hold of
+    p.fitToWidth = 0;
+    p.fitToHeight = 1;
+    QVERIFY(w.session()->setPageSetup(0, p, QStringLiteral("Fit")).ok);
+    QTRY_VERIFY(e.view()->pageBreakRows().empty());
+    QVERIFY(e.view()->breakGrabAt(at).kind != grid::GridView::BreakGrab::Kind::Line);
 }
 
 

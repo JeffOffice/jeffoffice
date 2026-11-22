@@ -154,6 +154,13 @@ struct PageSetup {
     PrintTitles titles;
 
     bool hasPrintArea() const { return !printArea.isEmpty(); }
+    // Whether the breaks the person put in the rows (or the columns) cut the pages: not when the sheet is fitted to a number of pages that way, but yes when that number is left blank (0): the
+    // pages are then as many as the breaks and the rest of the sheet make.
+    bool breaksAreHeld(bool rowBreaks) const
+    {
+        if (!(fitToPage && (fitToWidth > 0 || fitToHeight > 0))) return true;
+        return (rowBreaks ? fitToHeight : fitToWidth) == 0;
+    }
     bool operator==(const PageSetup &o) const;
     bool operator!=(const PageSetup &o) const { return !(*this == o); }
 };
