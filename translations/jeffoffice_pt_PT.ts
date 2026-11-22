@@ -59,7 +59,7 @@
         <translation type="unfinished">Nenhuma</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_animations.cpp" line="+106"/>
+        <location filename="../apps/deck/app/deckwindow_animations.cpp" line="+107"/>
         <source>The animations on this slide can&apos;t be changed here.</source>
         <translation type="unfinished">Não é possível alterar aqui as animações deste diapositivo.</translation>
     </message>
@@ -38509,7 +38509,7 @@ Não é possível ler o ficheiro.</translation>
         <translation type="unfinished">Paisagem</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_equation.cpp" line="+157"/>
+        <location filename="../apps/deck/app/deckwindow_equation.cpp" line="+158"/>
         <source>Equation…</source>
         <translation type="unfinished">Equação…</translation>
     </message>
@@ -71764,7 +71764,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
 <context>
     <name>jp::crunch::SheetObjects</name>
     <message>
-        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+442"/>
+        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+444"/>
         <source>a drawing that could not be read (%1)</source>
         <translation type="unfinished">um desenho que não foi possível ler (%1)</translation>
     </message>

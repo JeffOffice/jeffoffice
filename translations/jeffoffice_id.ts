@@ -59,7 +59,7 @@
         <translation type="unfinished">Tidak Ada</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_animations.cpp" line="+106"/>
+        <location filename="../apps/deck/app/deckwindow_animations.cpp" line="+107"/>
         <source>The animations on this slide can&apos;t be changed here.</source>
         <translation type="unfinished">Animasi pada slaid ini tidak dapat diubah di sini.</translation>
     </message>
@@ -38466,7 +38466,7 @@ Berkas tidak dapat dibaca.</translation>
         <translation type="unfinished">Lanskap</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_equation.cpp" line="+157"/>
+        <location filename="../apps/deck/app/deckwindow_equation.cpp" line="+158"/>
         <source>Equation…</source>
         <translation>Persamaan...</translation>
     </message>
@@ -71699,7 +71699,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
 <context>
     <name>jp::crunch::SheetObjects</name>
     <message>
-        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+442"/>
+        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+444"/>
         <source>a drawing that could not be read (%1)</source>
         <translation type="unfinished">gambar yang tidak dapat dibaca (%1)</translation>
     </message>

@@ -59,7 +59,7 @@
         <translation type="unfinished">Нет</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_animations.cpp" line="+106"/>
+        <location filename="../apps/deck/app/deckwindow_animations.cpp" line="+107"/>
         <source>The animations on this slide can&apos;t be changed here.</source>
         <translation type="unfinished">Анимации на этом слайде здесь нельзя изменить.</translation>
     </message>
@@ -38552,7 +38552,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Альбомная</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_equation.cpp" line="+157"/>
+        <location filename="../apps/deck/app/deckwindow_equation.cpp" line="+158"/>
         <source>Equation…</source>
         <translation>Формула…</translation>
     </message>
@@ -71829,7 +71829,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::crunch::SheetObjects</name>
     <message>
-        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+442"/>
+        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+444"/>
         <source>a drawing that could not be read (%1)</source>
         <translation type="unfinished">рисунок, который не удалось прочитать (%1)</translation>
     </message>
