@@ -99,7 +99,10 @@ jobs:
       - name: Find the snap
         if: steps.creds.outputs.have == 'true'
         id: file
-        run: echo "snap=$(ls snap-out/*.snap)" >> "$GITHUB_OUTPUT"
+        run: |
+          set -- snap-out/*.snap
+          if [ "$#" != 1 ] || [ ! -f "$1" ]; then echo "::error::expected one snap in snap-out, found $#"; exit 1; fi
+          echo "snap=$1" >> "$GITHUB_OUTPUT"
 
       - uses: snapcore/action-publish@214b86e5ca036ead1668c79afb81e550e6c54d40 # v1.2.0
         if: steps.creds.outputs.have == 'true'

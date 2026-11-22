@@ -63,8 +63,22 @@ jobs:
           esac
           run=""
           if [ -n "$kind" ]; then
-            run=$(gh api "repos/${{ github.repository }}/actions/workflows/build.yml/runs?head_sha=${{ github.sha }}&event=$kind&status=success&per_page=20" \
-                    --jq '[.workflow_runs[] | select(.id != ${{ github.run_id }} and ((.display_title // "") | startswith("cache refresh ") | not))][0].id // empty' 2>/dev/null || true)
+            # (only a plain run id counts as an answer: an error body, an HTML page, or several lines is "no answer", tried again a few times, and then
+            # means "no whole run found", so that the commit is built and tested; text must never reach the output file)
+            ok=""
+            for try in 1 2 3; do
+              ans=$(gh api "repos/${{ github.repository }}/actions/workflows/build.yml/runs?head_sha=${{ github.sha }}&event=$kind&status=success&per_page=20" \
+                      --jq '[.workflow_runs[] | select(.id != ${{ github.run_id }} and ((.display_title // "") | startswith("cache refresh ") | not))][0].id // empty' 2>/dev/null) && st=0 || st=$?
+              if [ "$st" = 0 ]; then
+                if [ -z "$ans" ]; then ok=1; break; fi
+                case "$ans" in
+                  *[!0-9]*) ;;
+                  *) run=$ans; ok=1; break ;;
+                esac
+              fi
+              if [ "$try" != 3 ]; then sleep 5; fi
+            done
+            if [ -z "$ok" ]; then echo "::notice::The look-up for an earlier whole run failed three times: this commit is built and tested."; fi
           fi
           echo "run=$run" >> "$GITHUB_OUTPUT"
           if [ -n "$run" ]; then
@@ -112,7 +126,7 @@ jobs:
         shell: bash
         run: |
           v=$(sed -n 's/^VERSION=\${FFMPEG_VERSION:-\(.*\)}$/\1/p' ffmpeg-src/tools/build_ffmpeg.sh)
-          [ -n "$v" ] || { echo "::error::no FFmpeg version found in tools/build_ffmpeg.sh"; exit 1; }
+          case "$v" in ""|*[!A-Za-z0-9._-]*) echo "::error::no FFmpeg version found in tools/build_ffmpeg.sh"; exit 1 ;; esac
           echo "version=$v" >> "$GITHUB_OUTPUT"
 
       - name: Our FFmpeg (cache)
@@ -700,7 +714,8 @@ jobs:
             ccache --show-stats
             # (what the Save step looks at: a build that compiled nothing leaves the cache as it was restored; "unknown" saves)
             m=$(ccache --print-stats 2>/dev/null | awk -F'\t' '$1 == "cache_miss" {print $2}')
-            echo "misses=${m:-unknown}" >> "$GITHUB_OUTPUT"
+            case "$m" in ""|*[!0-9]*) m=unknown ;; esac
+            echo "misses=$m" >> "$GITHUB_OUTPUT"
             ccache --cleanup
           fi
 
