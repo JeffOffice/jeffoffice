@@ -351,6 +351,31 @@ private Q_SLOTS:
         Settings::get().removeRecentFile(newPath);
     }
 
+    // The master's background is read again for a slide with a scheme of its own once for each scheme, not once for each slide: 30 slides on two
+    // schemes read it twice, and each stands on the color of its own scheme.
+    void slidesOnTheSameOwnSchemeReadTheMasterBackgroundOnce()
+    {
+        const QByteArray props = le(0x0181, 2) + le(0x08000000, 4) + le(0x01BF, 2) + le(0x00120012, 4) + le(0x01FF, 2) + le(0x00080000, 4);
+        const QByteArray background = pptBox(0xF004, pptRec(0xF00A, le(0x500, 4) + le(0xC00, 4), 0, 2) + pptRec(0xF00B, props, 3, 3));
+        auto scheme = [](int red) {
+            return pptRec(2032, pptColor(red, 0x40, 0x90, 0) + pptColor(0x11, 0x22, 0x33, 0) + pptColor(0xDD, 0xDD, 0xCC, 0) + pptColor(0x44, 0x55, 0x66, 0)
+                                    + pptColor(0x77, 0x88, 0x99, 0) + pptColor(0xAA, 0xBB, 0xCC, 0) + pptColor(1, 2, 3, 0) + pptColor(4, 5, 6, 0), 1);
+        };
+        QByteArray entries;
+        QVector<QPair<quint32, QByteArray>> records;
+        for (int i = 0; i < 30; ++i) {
+            entries += slidePersist(5 + i, 0, 0x100 + i);
+            records.append({quint32(5 + i), pptBox(1006, slideAtom(1, QByteArray(), 0x80000001, 0, 5) + scheme(i % 2 ? 0x20 : 0x10) + pptDrawing())});
+        }
+        QString err;
+        auto d = deck::importBinaryPresentation(pptOf(entries, records, QByteArray(), QByteArray(), slidePersist(3, 0, 0x80000001), background), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(int(d->pages.size()), 30);
+        QCOMPARE(jp::deck::lastPptImportWorkForTest().backgroundsRead, qint64(2));
+        for (int i = 0; i < 30; ++i)
+            QCOMPARE(d->pages[i]->background, Fill::solid(ColorRef::rgb(QColor(i % 2 ? 0x20 : 0x10, 0x40, 0x90))));
+    }
+
     // A slide that follows its master's background but has a color scheme of its own: the master's fill is the scheme's background
     // color, and the slide stands on its own scheme's (the master's own page keeps the master scheme's).
     static QByteArray slideWithOwnSchemeOnMasterBackground(bool followScheme)
@@ -737,7 +762,7 @@ private:
         return pptBox(1000, pptRec(1001, le(5760, 4) + le(4320, 4) + le(4320, 4) + le(5760, 4) + le(5, 4) + le(10, 4) + le(0, 4) + le(0, 4) + le(1, 2) + le(0, 2) + le(0, 4))
                                 + drawingGroup + pptBox(4080, masters, 1) + pptBox(4080, slides, 0));
     }
-    static QByteArray pptMasterOf() { return pptBox(1016, slideAtom(1, QByteArray("\x01\x02", 2), 0, 0, 3) + colorScheme(1) + pptDrawing()); }
+    static QByteArray pptMasterOf(const QByteArray &background = QByteArray()) { return pptBox(1016, slideAtom(1, QByteArray("\x01\x02", 2), 0, 0, 3) + colorScheme(1) + pptDrawing(background)); }
     static QByteArray pptSlideOf(const QByteArray &shapes) { return pptBox(1006, slideAtom(1, QByteArray(), 0x80000001, 0, 7) + pptDrawing(shapes)); }
     // A rectangle that is only a place: 40 bytes.
     static QByteArray pptTinyShape() { return pptBox(0xF004, pptRec(0xF00A, le(0x500, 4) + le(0xA00, 4), 1, 2) + pptRec(0xF010, le(100, 2) + le(200, 2) + le(300, 2) + le(400, 2))); }
@@ -749,11 +774,11 @@ private:
     }
     // A presentation of the slide list `slides`, the records (persist id and record) after the master, and one edit.
     static QByteArray pptOf(const QByteArray &slides, const QVector<QPair<quint32, QByteArray>> &records, const QByteArray &drawingGroup = QByteArray(),
-                            const QByteArray &pictures = QByteArray(), const QByteArray &masters = slidePersist(3, 0, 0x80000001))
+                            const QByteArray &pictures = QByteArray(), const QByteArray &masters = slidePersist(3, 0, 0x80000001), const QByteArray &masterBackground = QByteArray())
     {
         QByteArray s = pptDocumentOf(slides, masters, drawingGroup);
         QVector<QPair<quint32, quint32>> at{{1, 0}, {3, quint32(s.size())}};
-        s += pptMasterOf();
+        s += pptMasterOf(masterBackground);
         for (const auto &r : records) {
             at << qMakePair(r.first, quint32(s.size()));
             s += r.second;

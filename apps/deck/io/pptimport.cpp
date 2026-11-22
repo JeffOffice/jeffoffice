@@ -1025,6 +1025,7 @@ private:
     QSet<qint64> m_directories;   // the persist directories read, by offset: one named by many edits is read once
     qint64 m_persistRead = 0;
     bool m_persistFull = false;
+    QHash<QByteArray, Fill> m_backgroundsUnder;   // masters' backgrounds read again for a scheme (see backgroundUnder)
 
     // What the document says.
     QStringList m_fonts;
@@ -1962,13 +1963,19 @@ const Fill &Importer::backgroundOf(const MasterInfo &m) const
 Fill Importer::backgroundUnder(const MasterInfo &m, const QColor *scheme)
 {
     const MasterInfo &owner = m.title && (m.flags & 4) && m.main ? *m.main : m;
+    // (by the master and the scheme: the slides that share a scheme read it once)
+    QByteArray key(reinterpret_cast<const char *>(&owner), sizeof(&owner));
+    for (int i = 0; i < 8; ++i) key += QByteArray::number(scheme[i].rgba(), 16) + ',';
+    if (const auto found = m_backgroundsUnder.constFind(key); found != m_backgroundsUnder.constEnd()) return found.value();
     PageState st;
     st.scheme = scheme;
     m_state = &st;
+    ++g_work.backgroundsRead;
     Fill bg = office::odrawBackground(owner.drawing, drawingContext());
     m_state = nullptr;
     noteShapeLimit();
     if (bg.isNone()) bg = Fill::solid(ColorRef::rgb(scheme[0]));
+    m_backgroundsUnder.insert(key, bg);
     return bg;
 }
 
