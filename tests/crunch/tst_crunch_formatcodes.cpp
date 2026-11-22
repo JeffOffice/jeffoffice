@@ -42,6 +42,19 @@ private Q_SLOTS:
     }
 
     // The code a category's options make, and the options read back from it: for every combination the dialog offers.
+    void theLastAnswerIsKeptWhoeverAsks()
+    {
+        categoryOf(QStringLiteral("h:mm"));   // (so the kept answer is of another code, whatever ran before)
+        const int before = categoriesWorked();
+        const NumberCategory first = categoryOf(QStringLiteral("0.000%"));
+        QCOMPARE(categoriesWorked(), before + 1);
+        QCOMPARE(categoryOf(QStringLiteral("0.000%")), first);
+        QCOMPARE(categoryOf(QStringLiteral("0.000%")), first);
+        QCOMPARE(categoriesWorked(), before + 1);
+        categoryOf(QStringLiteral("yyyy-mm-dd"));
+        QCOMPARE(categoriesWorked(), before + 2);
+    }
+
     void optionsMakeCodesAndComeBack()
     {
         QCOMPARE(codeFor(NumberCategory::Number, {2, false, 0, QString(), true}), QStringLiteral("0.00"));

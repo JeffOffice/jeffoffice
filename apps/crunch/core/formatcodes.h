@@ -30,6 +30,8 @@ struct FormatType {
 QString categoryName(NumberCategory category);
 // The category a code is in (Custom for one that is none of the others).
 NumberCategory categoryOf(const QString &code);
+// How many codes `categoryOf` has worked out (an answer kept from the last ask does not count).
+int categoriesWorked();
 // The code a category makes of its options (the code of General and Text have no options; the lists of Date, Time, Fraction, and Special are `typesFor`).
 QString codeFor(NumberCategory category, const NumberOptions &options);
 // The options of a code of Number, Currency, Accounting, Percentage, or Scientific, as the dialog would have made it (false, and the options as far as they are known, for a code it would

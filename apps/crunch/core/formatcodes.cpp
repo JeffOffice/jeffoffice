@@ -3,6 +3,8 @@
 #include "calc/numfmt.h"
 
 #include <QCoreApplication>
+#include <QMutex>
+#include <atomic>
 #include <QRegularExpression>
 
 namespace jp::crunch {
@@ -235,14 +237,23 @@ NumberCategory categoryOfUncached(const QString &code)
 
 } // namespace
 
+static std::atomic<int> s_categoriesWorked{0};
+int categoriesWorked() { return s_categoriesWorked.load(); }
+
 NumberCategory categoryOf(const QString &code)
 {
     // (the buttons of formatting ask this each time the cursor goes to a cell of another format, so the patterns are made once, and the last answer is kept)
-    thread_local QString lastCode;
-    thread_local NumberCategory lastCategory = NumberCategory::General;
-    thread_local bool haveLast = false;
-    if (haveLast && code == lastCode) return lastCategory;
+    static QMutex mutex;
+    static QString lastCode;
+    static NumberCategory lastCategory = NumberCategory::General;
+    static bool haveLast = false;
+    {
+        const QMutexLocker lock(&mutex);
+        if (haveLast && code == lastCode) return lastCategory;
+    }
     const NumberCategory category = categoryOfUncached(code);
+    s_categoriesWorked.fetch_add(1);
+    const QMutexLocker lock(&mutex);
     lastCode = code;
     lastCategory = category;
     haveLast = true;
