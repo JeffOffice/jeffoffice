@@ -2480,6 +2480,8 @@ void Importer::showFooters(const FooterSpec &document)
         const auto set = m_slideFooters.constFind(page.get());
         const FooterSpec &spec = set != m_slideFooters.cend() ? set.value() : document;
         if (!spec.set) continue;
+        // A slide that does not show its master's objects takes no footers from the presentation's record (they are the master's objects).
+        if (set == m_slideFooters.cend() && !page->showMasterItems) continue;
         FooterOptions o = footerOptionsOf(spec);
         // A footer whose text the record leaves out is the master's footer place's.
         if (o.footer && o.footerText.isEmpty()) o.footerText = masterFooterText(*page);

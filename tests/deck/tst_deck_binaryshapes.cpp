@@ -2465,6 +2465,28 @@ private Q_SLOTS:
         for (const auto &p : silent->pages) QCOMPARE(placeholdersOf(*p, ftr), 0);
     }
 
+    // A slide that does not show its master's objects takes no footer from the presentation's record (the footer places are the master's objects);
+    // the slide that does show them gets it.
+    void importBinaryGivesNoFootersToASlideWithoutItsMastersObjects()
+    {
+        QString err;
+        const QByteArray file = buildPpt(false, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), masterFooterPlaces(QStringLiteral("Seminar")), QByteArray(), 1016,
+                                         footersBox(0, 0x20));
+        cfb::File f;
+        cfb::read(file, &f);
+        QByteArray stream = f.stream(QStringLiteral("PowerPoint Document"));
+        const QByteArray from = le(1, 4) + QByteArray("\x0D\x0E\0\0\0\0\0\0", 8) + le(0x80000001, 4) + le(0x200, 4) + le(7, 2);
+        const qsizetype at = stream.indexOf(from);
+        QVERIFY(at > 0);
+        stream.replace(at + from.size() - 2, 2, le(6, 2));
+        f.setStream(QStringLiteral("PowerPoint Document"), stream);
+        auto d = deck::importBinaryPresentation(cfb::write(f), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVERIFY(!d->pages[0]->showMasterItems);
+        QCOMPARE(placeholdersOf(*d->pages[0], QStringLiteral("ftr")), 0);
+        QCOMPARE(placeholdersOf(*d->pages[1], QStringLiteral("ftr")), 1);
+    }
+
     // A date typed in the master's date place (a whole line, not the program's date field) is what each slide shows that the record says shows a
     // date without saying which: not today's, and none of its own text. A record that names the text, or says it is today's, wins over it; a
     // slide whose own record hides the date has none, and a document with no record shows none.
