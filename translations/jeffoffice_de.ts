@@ -8954,7 +8954,7 @@ Jetzt von %2 herunterladen? (%3, einmalig.)</translation>
     <message>
         <location line="+193"/>
         <source>comments on the slides (they are left out of the file)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kommentare zu den Folien (sie werden nicht in die Datei übernommen)</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -15611,17 +15611,17 @@ Open it in your email program, add recipients and send.</source>
     <message>
         <location line="+3"/>
         <source>links in cells (the text stays, and the link is gone)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Links in Zellen (der Text bleibt, der Link geht verloren)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>links in cells (the file has them, but they are lost when it is opened here again)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Links in Zellen (die Datei enthält sie, aber sie gehen verloren, wenn sie hier erneut geöffnet wird)</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>print settings (the file has them, but they are lost when it is opened here again)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Druckeinstellungen (die Datei enthält sie, aber sie gehen verloren, wenn sie hier erneut geöffnet wird)</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -22659,29 +22659,29 @@ Quelle: %3</translation>
         <location filename="../libs/base/core/lossnotes.h" line="+32"/>
         <source>And %n more.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>Und %n weiterer.</numerusform>
+            <numerusform>Und %n weitere.</numerusform>
         </translation>
     </message>
     <message>
         <location filename="../libs/shell/app/compatdialog.cpp" line="+17"/>
         <source>The mark that the %1 is final.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Die Markierung, dass die %1 als endgültig gekennzeichnet ist.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The choice to always open the %1 for reading only.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Die Option, die %1 immer nur zum Lesen zu öffnen.</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Something went wrong.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Etwas ist schiefgelaufen.</translation>
     </message>
     <message>
         <location line="+28"/>
         <source>Couldn&apos;t check what a %1 file would leave out of this %2, so nothing is said either way. %3</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Es konnte nicht geprüft werden, was eine %1-Datei aus dieser %2 weglassen würde, daher wird dazu nichts gesagt. %3</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -22692,17 +22692,17 @@ Quelle: %3</translation>
     <message>
         <location line="-64"/>
         <source>Pick a kind of file to see what it can&apos;t hold of this file. Nothing is saved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Wählen Sie einen Dateityp aus, um zu sehen, was darin von dieser Datei nicht enthalten sein kann. Es wird nichts gespeichert.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Kind of file</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dateityp</translation>
     </message>
     <message>
         <location line="+36"/>
         <source>Checking…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Wird geprüft…</translation>
     </message>
 </context>
 <context>
@@ -27386,12 +27386,12 @@ Die Datei ist nicht vorhanden.</translation>
     <message>
         <location line="-13"/>
         <source>The cell being edited could not be accepted, so the workbook could not be checked. Finish or cancel the edit, and try again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Die bearbeitete Zelle konnte nicht übernommen werden, daher konnte die Arbeitsmappe nicht geprüft werden. Beenden oder abbrechen Sie die Bearbeitung und versuchen Sie es erneut.</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>Checking what an .ods file can hold…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Was eine .ods-Datei enthalten kann, wird geprüft…</translation>
     </message>
     <message>
         <location line="+32"/>
@@ -27402,12 +27402,12 @@ Die Datei ist nicht vorhanden.</translation>
     <message>
         <location line="-59"/>
         <source>There is no workbook to check.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Es gibt keine Arbeitsmappe zum Prüfen.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The workbook is being saved or copied right now. Check it when that is done.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Die Arbeitsmappe wird gerade gespeichert oder kopiert. Prüfen Sie sie, wenn das abgeschlossen ist.</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -27419,17 +27419,17 @@ Die Datei ist nicht vorhanden.</translation>
     <message>
         <location line="-46"/>
         <source>Older spreadsheet (.xls)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Älteres Tabellenkalkulationsformat (.xls)</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>OpenDocument spreadsheet (.ods)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">OpenDocument-Tabelle (.ods)</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Text with commas (.csv)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Text mit Kommas (.csv)</translation>
     </message>
     <message>
         <location line="+36"/>
@@ -30300,7 +30300,7 @@ Die Datei kann nicht gelesen werden.</translation>
     <message>
         <location line="+8"/>
         <source>The password: the .csv file is written without it, so anyone can read it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Das Kennwort: Die .csv-Datei wird ohne Kennwort geschrieben, daher kann sie jeder lesen.</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -36639,7 +36639,7 @@ Die Datei kann nicht gelesen werden.</translation>
     <message>
         <location filename="../apps/deck/app/deckwindow_save.cpp" line="-92"/>
         <source>animations (the file has them, but they are lost when it is opened here again)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Animationen (die Datei enthält sie, aber sie gehen verloren, wenn sie hier erneut geöffnet wird)</translation>
     </message>
     <message>
         <location line="+93"/>
@@ -38516,12 +38516,12 @@ Die Datei kann nicht gelesen werden.</translation>
     <message>
         <location line="+29"/>
         <source>OpenDocument presentation (.odp)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">OpenDocument-Präsentation (.odp)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>OpenDocument template (.otp)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">OpenDocument-Vorlage (.otp)</translation>
     </message>
     <message>
         <location line="-2"/>
@@ -61749,57 +61749,57 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <location line="+46"/>
         <location line="+17"/>
         <source>There is no document to check.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Es gibt kein Dokument zum Prüfen.</translation>
     </message>
     <message>
         <location line="-2"/>
         <source>OpenDocument text (.odt)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">OpenDocument-Text (.odt)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Rich Text Format (.rtf)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rich Text Format (.rtf)</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>Plain text (.txt)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Reiner Text (.txt)</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The fonts, colors, and other formatting.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Die Schriftarten, Farben und andere Formatierungen.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Pictures, charts, and equations.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bilder, Diagramme und Formeln.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Tables as tables (the words in them stay, one after another).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tabellen als Tabellen (die Wörter darin bleiben, eines nach dem anderen).</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Headers and footers, with the words in them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kopf- und Fußzeilen mit den Wörtern darin.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Comments and footnotes, with the words in them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kommentare und Fußnoten mit den Wörtern darin.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Bookmarks, and links to them or to web pages (the words stay).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Textmarken sowie Links zu ihnen oder zu Webseiten (die Wörter bleiben erhalten).</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Tracked changes and content controls (the words stay).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nachverfolgte Änderungen und Inhaltssteuerelemente (die Wörter bleiben erhalten).</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_file.cpp" line="+46"/>
@@ -71605,7 +71605,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     <message>
         <location line="+8"/>
         <source>defined names</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">definierte Namen</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -71615,7 +71615,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     <message>
         <location line="+1"/>
         <source>everything that is not a value, such as number formats, fonts, colors, borders, column widths, merged cells, frozen panes, filters, conditional formatting, data validation, links, and print settings</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">alles, was kein Wert ist, etwa Zahlenformate, Schriftarten, Farben, Rahmen, Spaltenbreiten, verbundene Zellen, fixierte Bereiche, Filter, bedingte Formatierung, Datenüberprüfung, Links und Druckeinstellungen</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -80672,7 +80672,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <location filename="../libs/office/odt/odtwritebody.cpp" line="-2157"/>
         <location line="+2098"/>
         <source>content controls (the text in them is kept)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Inhaltssteuerelemente (der Text darin bleibt erhalten)</translation>
     </message>
     <message>
         <location line="-1466"/>
@@ -80747,12 +80747,12 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <location filename="../libs/office/rtf/rtfwrite.cpp" line="+489"/>
         <location line="+18"/>
         <source>bookmarks, and the links that go to them (the words stay)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Textmarken und die Links, die zu ihnen führen (die Wörter bleiben erhalten)</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>content controls (the text in them is kept)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Inhaltssteuerelemente (der Text darin bleibt erhalten)</translation>
     </message>
 </context>
 </TS>

@@ -8947,7 +8947,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location line="+193"/>
         <source>comments on the slides (they are left out of the file)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">komentar pada slaid (tidak disertakan dalam berkas)</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -15255,17 +15255,17 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
     <message>
         <location line="+22"/>
         <source>links in cells (the text stays, and the link is gone)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">tautan dalam sel (teksnya tetap, dan tautannya hilang)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>links in cells (the file has them, but they are lost when it is opened here again)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">tautan dalam sel (berkas memilikinya, tetapi hilang saat dibuka lagi di sini)</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>print settings (the file has them, but they are lost when it is opened here again)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">pengaturan cetak (berkas memilikinya, tetapi hilang saat dibuka lagi di sini)</translation>
     </message>
     <message>
         <location line="+14"/>
@@ -22638,28 +22638,28 @@ Sumber: %3</translation>
         <location filename="../libs/base/core/lossnotes.h" line="+32"/>
         <source>And %n more.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
+            <numerusform>Dan %n lagi.</numerusform>
         </translation>
     </message>
     <message>
         <location filename="../libs/shell/app/compatdialog.cpp" line="+17"/>
         <source>The mark that the %1 is final.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tanda bahwa %1 bersifat final.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The choice to always open the %1 for reading only.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pilihan untuk selalu membuka %1 hanya untuk dibaca.</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Something went wrong.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Terjadi kesalahan.</translation>
     </message>
     <message>
         <location line="+28"/>
         <source>Couldn&apos;t check what a %1 file would leave out of this %2, so nothing is said either way. %3</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tidak dapat memeriksa apa yang tidak akan disertakan oleh berkas %1 dalam %2 ini, sehingga tidak ada keterangan apa pun. %3</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -22670,17 +22670,17 @@ Sumber: %3</translation>
     <message>
         <location line="-64"/>
         <source>Pick a kind of file to see what it can&apos;t hold of this file. Nothing is saved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pilih jenis berkas untuk melihat apa yang tidak dapat ditampung dari berkas ini. Tidak ada yang disimpan.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Kind of file</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Jenis berkas</translation>
     </message>
     <message>
         <location line="+36"/>
         <source>Checking…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Memeriksa…</translation>
     </message>
 </context>
 <context>
@@ -25669,12 +25669,12 @@ Sumber: %3</translation>
     <message>
         <location line="-13"/>
         <source>The cell being edited could not be accepted, so the workbook could not be checked. Finish or cancel the edit, and try again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sel yang sedang diedit tidak dapat diterima, sehingga buku kerja tidak dapat diperiksa. Selesaikan atau batalkan pengeditan, lalu coba lagi.</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>Checking what an .ods file can hold…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Memeriksa apa yang dapat ditampung berkas .ods…</translation>
     </message>
     <message>
         <location line="+32"/>
@@ -25685,12 +25685,12 @@ Sumber: %3</translation>
     <message>
         <location line="-59"/>
         <source>There is no workbook to check.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tidak ada buku kerja untuk diperiksa.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The workbook is being saved or copied right now. Check it when that is done.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Buku kerja sedang disimpan atau disalin. Periksa setelah proses itu selesai.</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -25702,17 +25702,17 @@ Sumber: %3</translation>
     <message>
         <location line="-46"/>
         <source>Older spreadsheet (.xls)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Spreadsheet lama (.xls)</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>OpenDocument spreadsheet (.ods)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Spreadsheet OpenDocument (.ods)</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Text with commas (.csv)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Teks dengan koma (.csv)</translation>
     </message>
     <message>
         <location line="+22"/>
@@ -27852,7 +27852,7 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
     <message>
         <location line="+8"/>
         <source>The password: the .csv file is written without it, so anyone can read it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kata sandi: berkas .csv ditulis tanpa kata sandi, sehingga siapa pun dapat membacanya.</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -36604,7 +36604,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location filename="../apps/deck/app/deckwindow_save.cpp" line="-92"/>
         <source>animations (the file has them, but they are lost when it is opened here again)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">animasi (berkas memilikinya, tetapi hilang saat dibuka lagi di sini)</translation>
     </message>
     <message>
         <location line="+93"/>
@@ -38472,12 +38472,12 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+29"/>
         <source>OpenDocument presentation (.odp)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Presentasi OpenDocument (.odp)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>OpenDocument template (.otp)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Templat OpenDocument (.otp)</translation>
     </message>
     <message>
         <location line="-2"/>
@@ -60086,57 +60086,57 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+46"/>
         <location line="+17"/>
         <source>There is no document to check.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tidak ada dokumen untuk diperiksa.</translation>
     </message>
     <message>
         <location line="-2"/>
         <source>OpenDocument text (.odt)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Teks OpenDocument (.odt)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Rich Text Format (.rtf)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rich Text Format (.rtf)</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>Plain text (.txt)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Teks polos (.txt)</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The fonts, colors, and other formatting.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Font, warna, dan format lainnya.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Pictures, charts, and equations.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gambar, bagan, dan persamaan.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Tables as tables (the words in them stay, one after another).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tabel sebagai tabel (kata-kata di dalamnya tetap, satu demi satu).</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Headers and footers, with the words in them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Header dan footer, beserta kata-katanya.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Comments and footnotes, with the words in them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Komentar dan catatan kaki, beserta kata-katanya.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Bookmarks, and links to them or to web pages (the words stay).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Penanda, dan tautan ke penanda tersebut atau ke halaman web (kata-katanya tetap).</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Tracked changes and content controls (the words stay).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Perubahan yang dilacak dan kontrol konten (kata-katanya tetap).</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_file.cpp" line="-194"/>
@@ -71540,7 +71540,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+8"/>
         <source>defined names</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">nama yang ditentukan</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -71550,7 +71550,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+1"/>
         <source>everything that is not a value, such as number formats, fonts, colors, borders, column widths, merged cells, frozen panes, filters, conditional formatting, data validation, links, and print settings</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">semua yang bukan nilai, seperti format angka, font, warna, bingkai, lebar kolom, sel tergabung, panel beku, filter, pemformatan bersyarat, validasi data, tautan, dan pengaturan cetak</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -80583,7 +80583,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location filename="../libs/office/odt/odtwritebody.cpp" line="-2157"/>
         <location line="+2098"/>
         <source>content controls (the text in them is kept)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">kontrol konten (teks di dalamnya tetap disimpan)</translation>
     </message>
     <message>
         <location line="-1466"/>
@@ -80658,12 +80658,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location filename="../libs/office/rtf/rtfwrite.cpp" line="+489"/>
         <location line="+18"/>
         <source>bookmarks, and the links that go to them (the words stay)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">penanda, dan tautan yang mengarah ke penanda tersebut (kata-katanya tetap)</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>content controls (the text in them is kept)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">kontrol konten (teks di dalamnya tetap disimpan)</translation>
     </message>
 </context>
 </TS>

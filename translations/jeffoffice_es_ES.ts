@@ -295,6 +295,10 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>OdpExport</name>
     <message>
+        <source>comments on the slides (they are left out of the file)</source>
+        <translation type="unfinished">comentarios de las diapositivas (se omiten del fichero)</translation>
+    </message>
+    <message>
         <source>diagrams are saved as pictures: their parts can't be edited in this kind of file.</source>
         <translation type="unfinished">los diagramas se guardan como imágenes: sus partes no se pueden editar en este tipo de fichero.</translation>
     </message>
@@ -1010,6 +1014,14 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Dos hojas del libro comparten datos, algo que no ocurre en ningún fichero real.</translation>
     </message>
     <message>
+        <source>links in cells (the file has them, but they are lost when it is opened here again)</source>
+        <translation type="unfinished">vínculos en celdas (el fichero los tiene, pero se pierden al volver a abrirlo aquí)</translation>
+    </message>
+    <message>
+        <source>print settings (the file has them, but they are lost when it is opened here again)</source>
+        <translation type="unfinished">opciones de impresión (el fichero las tiene, pero se pierden al volver a abrirlo aquí)</translation>
+    </message>
+    <message>
         <source>links to other workbooks (the formulas and the addresses stay, but the copy does not keep the values they last read from the linked files)</source>
         <translation type="unfinished">vínculos a otros libros (las fórmulas y las direcciones se conservan, pero la copia no guarda los valores que leyeron por última vez de los ficheros vinculados)</translation>
     </message>
@@ -1259,6 +1271,21 @@ Download it from %2 now? (%3, once.)</source>
     </message>
 </context>
 <context>
+    <name>jp::CompatibilityDialog</name>
+    <message>
+        <source>Couldn't check what a %1 file would leave out of this %2, so nothing is said either way. %3</source>
+        <translation type="unfinished">No se pudo comprobar qué perdería un fichero %1 de este %2, así que no se indica nada al respecto. %3</translation>
+    </message>
+    <message>
+        <source>Pick a kind of file to see what it can't hold of this file. Nothing is saved.</source>
+        <translation type="unfinished">Elija un tipo de fichero para ver qué no puede contener de este fichero. No se guarda nada.</translation>
+    </message>
+    <message>
+        <source>Kind of file</source>
+        <translation type="unfinished">Tipo de fichero</translation>
+    </message>
+</context>
+<context>
     <name>jp::CrunchFileScreen</name>
     <message>
         <source>Open a Text File</source>
@@ -1332,6 +1359,10 @@ El fichero no existe.</translation>
     <message>
         <source>Checking what an .xls file can hold…</source>
         <translation type="unfinished">Comprobando lo que puede contener un fichero .xls…</translation>
+    </message>
+    <message>
+        <source>Checking what an .ods file can hold…</source>
+        <translation type="unfinished">Comprobando lo que puede contener un fichero .ods…</translation>
     </message>
     <message>
         <source>This workbook is protected with a password, but a copy in this kind of file can't be. The copy you are saving will not be protected: anyone who has it can read it.</source>
@@ -1418,6 +1449,10 @@ No se puede leer el fichero.</translation>
     <message>
         <source>A text file, an .xls file, and an .ods file can't hold this choice. Save the workbook as an .xlsx file first.</source>
         <translation type="unfinished">Un fichero de texto, un fichero .xls y un fichero .ods no pueden conservar esta opción. Guarde primero el libro como fichero .xlsx.</translation>
+    </message>
+    <message>
+        <source>The password: the .csv file is written without it, so anyone can read it.</source>
+        <translation type="unfinished">La contraseña: el fichero .csv se guarda sin ella, así que cualquiera puede leerlo.</translation>
     </message>
     <message>
         <source>The rest of the sheet: it was read only in part, so the file has only the part that was read.</source>
@@ -1544,6 +1579,10 @@ No se puede leer el fichero.</translation>
     <message>
         <source>The macros in this presentation aren't saved, because a .%1 file can't hold them.</source>
         <translation type="unfinished">No se guardan las macros de esta presentación, porque un fichero .%1 no puede contenerlas.</translation>
+    </message>
+    <message>
+        <source>animations (the file has them, but they are lost when it is opened here again)</source>
+        <translation type="unfinished">animaciones (el fichero las tiene, pero se pierden al volver a abrirlo aquí)</translation>
     </message>
     <message>
         <source>Saved %1. Left out, as this kind of file can't hold it: %2</source>

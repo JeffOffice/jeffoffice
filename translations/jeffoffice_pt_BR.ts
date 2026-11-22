@@ -8954,7 +8954,7 @@ Baixá-lo de %2 agora? (%3, uma única vez.)</translation>
     <message>
         <location line="+193"/>
         <source>comments on the slides (they are left out of the file)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">comentários nos slides (eles são omitidos do arquivo)</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -15611,17 +15611,17 @@ Abra-o no seu programa de email, adicione os destinatários e envie.</translatio
     <message>
         <location line="+3"/>
         <source>links in cells (the text stays, and the link is gone)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">links nas células (o texto permanece, e o link é removido)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>links in cells (the file has them, but they are lost when it is opened here again)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">links nas células (o arquivo os tem, mas eles são perdidos ao abri-lo novamente aqui)</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>print settings (the file has them, but they are lost when it is opened here again)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">configurações de impressão (o arquivo as tem, mas elas são perdidas ao abri-lo novamente aqui)</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -22659,29 +22659,29 @@ Fonte: %3</translation>
         <location filename="../libs/base/core/lossnotes.h" line="+32"/>
         <source>And %n more.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>E mais %n.</numerusform>
+            <numerusform>E mais %n.</numerusform>
         </translation>
     </message>
     <message>
         <location filename="../libs/shell/app/compatdialog.cpp" line="+17"/>
         <source>The mark that the %1 is final.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">A marca de que o %1 está finalizado.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The choice to always open the %1 for reading only.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">A opção de sempre abrir o %1 somente para leitura.</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Something went wrong.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Algo deu errado.</translation>
     </message>
     <message>
         <location line="+28"/>
         <source>Couldn&apos;t check what a %1 file would leave out of this %2, so nothing is said either way. %3</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Não foi possível verificar o que um arquivo %1 deixaria de fora deste %2, então nada é informado. %3</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -22692,17 +22692,17 @@ Fonte: %3</translation>
     <message>
         <location line="-64"/>
         <source>Pick a kind of file to see what it can&apos;t hold of this file. Nothing is saved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Escolha um tipo de arquivo para ver o que ele não pode conter deste arquivo. Nada é salvo.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Kind of file</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tipo de arquivo</translation>
     </message>
     <message>
         <location line="+36"/>
         <source>Checking…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Verificando…</translation>
     </message>
 </context>
 <context>
@@ -27386,12 +27386,12 @@ O arquivo não existe.</translation>
     <message>
         <location line="-13"/>
         <source>The cell being edited could not be accepted, so the workbook could not be checked. Finish or cancel the edit, and try again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">A célula em edição não pôde ser aceita, então a pasta de trabalho não pôde ser verificada. Conclua ou cancele a edição e tente novamente.</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>Checking what an .ods file can hold…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Verificando o que um arquivo .ods pode conter…</translation>
     </message>
     <message>
         <location line="+32"/>
@@ -27402,12 +27402,12 @@ O arquivo não existe.</translation>
     <message>
         <location line="-59"/>
         <source>There is no workbook to check.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Não há pasta de trabalho para verificar.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The workbook is being saved or copied right now. Check it when that is done.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">A pasta de trabalho está sendo salva ou copiada agora. Verifique quando isso terminar.</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -27419,17 +27419,17 @@ O arquivo não existe.</translation>
     <message>
         <location line="-46"/>
         <source>Older spreadsheet (.xls)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Planilha mais antiga (.xls)</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>OpenDocument spreadsheet (.ods)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Planilha OpenDocument (.ods)</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Text with commas (.csv)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Texto separado por vírgulas (.csv)</translation>
     </message>
     <message>
         <location line="+36"/>
@@ -30300,7 +30300,7 @@ Não é possível ler o arquivo.</translation>
     <message>
         <location line="+8"/>
         <source>The password: the .csv file is written without it, so anyone can read it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">A senha: o arquivo .csv é gravado sem ela, então qualquer pessoa pode lê-lo.</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -36639,7 +36639,7 @@ Não é possível ler o arquivo.</translation>
     <message>
         <location filename="../apps/deck/app/deckwindow_save.cpp" line="-92"/>
         <source>animations (the file has them, but they are lost when it is opened here again)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">animações (o arquivo as tem, mas elas são perdidas ao abri-lo novamente aqui)</translation>
     </message>
     <message>
         <location line="+93"/>
@@ -38516,12 +38516,12 @@ Não é possível ler o arquivo.</translation>
     <message>
         <location line="+29"/>
         <source>OpenDocument presentation (.odp)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Apresentação OpenDocument (.odp)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>OpenDocument template (.otp)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Modelo OpenDocument (.otp)</translation>
     </message>
     <message>
         <location line="-2"/>
@@ -61749,57 +61749,57 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <location line="+46"/>
         <location line="+17"/>
         <source>There is no document to check.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Não há documento para verificar.</translation>
     </message>
     <message>
         <location line="-2"/>
         <source>OpenDocument text (.odt)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Texto OpenDocument (.odt)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Rich Text Format (.rtf)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rich Text Format (.rtf)</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>Plain text (.txt)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Texto simples (.txt)</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The fonts, colors, and other formatting.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">As fontes, cores e outras formatações.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Pictures, charts, and equations.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Imagens, gráficos e equações.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Tables as tables (the words in them stay, one after another).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tabelas como tabelas (as palavras nelas permanecem, uma após a outra).</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Headers and footers, with the words in them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cabeçalhos e rodapés, com as palavras neles.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Comments and footnotes, with the words in them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Comentários e notas de rodapé, com as palavras neles.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Bookmarks, and links to them or to web pages (the words stay).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Indicadores, e links para eles ou para páginas da web (as palavras permanecem).</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Tracked changes and content controls (the words stay).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Alterações controladas e controles de conteúdo (as palavras permanecem).</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_file.cpp" line="+46"/>
@@ -71605,7 +71605,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     <message>
         <location line="+8"/>
         <source>defined names</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">nomes definidos</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -71615,7 +71615,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
     <message>
         <location line="+1"/>
         <source>everything that is not a value, such as number formats, fonts, colors, borders, column widths, merged cells, frozen panes, filters, conditional formatting, data validation, links, and print settings</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">tudo o que não é valor, como formatos de número, fontes, cores, bordas, larguras de coluna, células mescladas, painéis congelados, filtros, formatação condicional, validação de dados, links e configurações de impressão</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -80672,7 +80672,7 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <location filename="../libs/office/odt/odtwritebody.cpp" line="-2157"/>
         <location line="+2098"/>
         <source>content controls (the text in them is kept)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">controles de conteúdo (o texto neles é mantido)</translation>
     </message>
     <message>
         <location line="-1466"/>
@@ -80747,12 +80747,12 @@ A senha não pôde ser aplicada ao arquivo.</translation>
         <location filename="../libs/office/rtf/rtfwrite.cpp" line="+489"/>
         <location line="+18"/>
         <source>bookmarks, and the links that go to them (the words stay)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">indicadores, e os links que levam a eles (as palavras permanecem)</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>content controls (the text in them is kept)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">controles de conteúdo (o texto neles é mantido)</translation>
     </message>
 </context>
 </TS>

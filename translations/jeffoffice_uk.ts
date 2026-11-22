@@ -8961,7 +8961,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+193"/>
         <source>comments on the slides (they are left out of the file)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">коментарі до слайдів (їх буде пропущено у файлі)</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -15469,17 +15469,17 @@ Open it in your email program, add recipients and send.</source>
     <message>
         <location line="+3"/>
         <source>links in cells (the text stays, and the link is gone)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">посилання в комірках (текст залишиться, а посилання буде втрачено)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>links in cells (the file has them, but they are lost when it is opened here again)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">посилання в комірках (файл їх містить, але вони будуть втрачені під час повторного відкриття тут)</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>print settings (the file has them, but they are lost when it is opened here again)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">параметри друку (файл їх містить, але вони будуть втрачені під час повторного відкриття тут)</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -22680,30 +22680,30 @@ Source: %3</source>
         <location filename="../libs/base/core/lossnotes.h" line="+32"/>
         <source>And %n more.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>Ще %n</numerusform>
+            <numerusform>Ще %n</numerusform>
+            <numerusform>Ще %n</numerusform>
         </translation>
     </message>
     <message>
         <location filename="../libs/shell/app/compatdialog.cpp" line="+17"/>
         <source>The mark that the %1 is final.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Позначка, що %1 є остаточним.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The choice to always open the %1 for reading only.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Варіант завжди відкривати %1 лише для читання.</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Something went wrong.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Щось пішло не так.</translation>
     </message>
     <message>
         <location line="+28"/>
         <source>Couldn&apos;t check what a %1 file would leave out of this %2, so nothing is said either way. %3</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Не вдалося перевірити, що файл %1 не збереже у цьому %2, тому нічого не повідомляється. %3</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -22714,17 +22714,17 @@ Source: %3</source>
     <message>
         <location line="-64"/>
         <source>Pick a kind of file to see what it can&apos;t hold of this file. Nothing is saved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Виберіть тип файлу, щоб побачити, що в ньому не зберігатиметься з цього файлу. Нічого не зберігається.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Kind of file</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Тип файлу</translation>
     </message>
     <message>
         <location line="+36"/>
         <source>Checking…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Перевірка…</translation>
     </message>
 </context>
 <context>
@@ -26013,12 +26013,12 @@ Source: %3</source>
     <message>
         <location line="-13"/>
         <source>The cell being edited could not be accepted, so the workbook could not be checked. Finish or cancel the edit, and try again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Комірку, що редагується, не вдалося прийняти, тому книгу не вдалося перевірити. Завершіть або скасуйте редагування та спробуйте знову.</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>Checking what an .ods file can hold…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Перевірка того, що може зберегти файл .ods…</translation>
     </message>
     <message>
         <location line="+32"/>
@@ -26029,12 +26029,12 @@ Source: %3</source>
     <message>
         <location line="-59"/>
         <source>There is no workbook to check.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Немає книги для перевірки.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The workbook is being saved or copied right now. Check it when that is done.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Книгу зараз зберігають або копіюють. Перевірте її, коли це завершиться.</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -26046,17 +26046,17 @@ Source: %3</source>
     <message>
         <location line="-46"/>
         <source>Older spreadsheet (.xls)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Старіша електронна таблиця (.xls)</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>OpenDocument spreadsheet (.ods)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Електронна таблиця OpenDocument (.ods)</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Text with commas (.csv)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Текст із комами (.csv)</translation>
     </message>
     <message>
         <location line="+22"/>
@@ -27895,7 +27895,7 @@ This file is protected with a password. Password:</source>
     <message>
         <location line="+8"/>
         <source>The password: the .csv file is written without it, so anyone can read it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Пароль: файл .csv записується без нього, тож його може прочитати будь-хто.</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -36347,12 +36347,12 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+29"/>
         <source>OpenDocument presentation (.odp)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Презентація OpenDocument (.odp)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>OpenDocument template (.otp)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Шаблон презентації OpenDocument (.otp)</translation>
     </message>
     <message>
         <location line="-2"/>
@@ -37717,7 +37717,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+27"/>
         <source>animations (the file has them, but they are lost when it is opened here again)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">анімації (файл їх містить, але вони будуть втрачені під час повторного відкриття тут)</translation>
     </message>
     <message>
         <location line="+19"/>
@@ -60331,57 +60331,57 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+14"/>
         <location line="+17"/>
         <source>There is no document to check.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Немає документа для перевірки.</translation>
     </message>
     <message>
         <location line="-2"/>
         <source>OpenDocument text (.odt)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Текст OpenDocument (.odt)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Rich Text Format (.rtf)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Текст у форматі RTF (.rtf)</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>Plain text (.txt)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Простий текст (.txt)</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The fonts, colors, and other formatting.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Шрифти, кольори та інше форматування.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Pictures, charts, and equations.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Малюнки, діаграми й формули.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Tables as tables (the words in them stay, one after another).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Таблиці як таблиці (слова в них залишаться, одне за одним).</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Headers and footers, with the words in them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Верхні та нижні колонтитули разом зі словами в них.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Comments and footnotes, with the words in them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Коментарі та виноски разом зі словами в них.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Bookmarks, and links to them or to web pages (the words stay).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Закладки та посилання на них або на веб-сторінки (слова залишаться).</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Tracked changes and content controls (the words stay).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Відстежувані зміни та елементи керування вмістом (слова залишаться).</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_insert.cpp" line="-94"/>
@@ -71670,7 +71670,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+8"/>
         <source>defined names</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">визначені імена</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -71680,7 +71680,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+1"/>
         <source>everything that is not a value, such as number formats, fonts, colors, borders, column widths, merged cells, frozen panes, filters, conditional formatting, data validation, links, and print settings</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">усе, що не є значенням, зокрема числові формати, шрифти, кольори, рамки, ширину стовпців, об&apos;єднані комірки, закріплені області, фільтри, умовне форматування, перевірку даних, посилання та параметри друку</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -80761,7 +80761,7 @@ The password couldn&apos;t be put on the file.</source>
         <location filename="../libs/office/odt/odtwritebody.cpp" line="-2157"/>
         <location line="+2098"/>
         <source>content controls (the text in them is kept)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">елементи керування вмістом (текст у них зберігається)</translation>
     </message>
     <message>
         <location line="-1466"/>
@@ -80836,12 +80836,12 @@ The password couldn&apos;t be put on the file.</source>
         <location filename="../libs/office/rtf/rtfwrite.cpp" line="+489"/>
         <location line="+18"/>
         <source>bookmarks, and the links that go to them (the words stay)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">закладки та посилання, що на них ведуть (слова залишаться)</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>content controls (the text in them is kept)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">елементи керування вмістом (текст у них зберігається)</translation>
     </message>
 </context>
 </TS>
