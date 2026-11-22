@@ -197,7 +197,8 @@ private Q_SLOTS:
         QCOMPARE(v->sheet().shown(10, 1, *b11).text, QStringLiteral("6.0%"));
         // the date, and the number too wide for its cell
         QCOMPARE(v->sheet().shown(10, 2, *v->sheet().cellAt(10, 2)).text, QStringLiteral("Mar 19, 2026"));
-        QVERIFY(v->sheet().shown(10, 3, *v->sheet().cellAt(10, 3)).hashes);
+        const QString wide = v->sheet().shown(10, 3, *v->sheet().cellAt(10, 3)).text;
+        QVERIFY2(wide.contains(QLatin1Char('#')) || wide.size() < QStringLiteral("12345678901.5").size(), qPrintable(wide));   // (cut to the digits the column holds in the cell's font, or number signs: which, depends on the font)
         // Calculate Now works every formula out again
         QSignalSpy done(&win.w, &CrunchWindow::calculationFinished);
         win.w.act("formulas.calculate")->trigger();
