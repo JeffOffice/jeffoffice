@@ -55,6 +55,8 @@
 
 #include <QCheckBox>
 #include <QScopeGuard>
+#include <QScrollArea>
+#include <QScrollBar>
 #include <QDirIterator>
 #include <QFile>
 #include <QLineEdit>
@@ -997,6 +999,24 @@ private Q_SLOTS:
         QVERIFY(QTest::qWaitForWindowExposed(&dialog));
         QDir().mkpath(dir);
         QVERIFY(dialog.grab().save(dir + QStringLiteral("/write-compat.png")));
+        // the other states: a check that could not be made, and a list that was cut ("And N more.")
+        auto states = [&](const QString &name, const std::function<void(const jp::CompatDone &)> &lost) {
+            jp::CompatHost host = a.compatHost();
+            host.formats[0].lost = lost;
+            jp::CompatibilityDialog box(host, 0, nullptr);
+            box.resize(520, 300);
+            box.show();
+            QVERIFY(QTest::qWaitForWindowExposed(&box));
+            if (auto *scroll = box.findChild<QScrollArea *>()) scroll->verticalScrollBar()->setValue(scroll->verticalScrollBar()->maximum());   // (the end of a long list, where it says how many more)
+            QVERIFY(box.grab().save(dir + name));
+        };
+        states(QStringLiteral("/write-compat-could-not.png"), [](const jp::CompatDone &done) { done(jp::CompatAnswer::failed(QStringLiteral("The workbook is still being read. Check it when the status bar says Ready."))); });
+        states(QStringLiteral("/write-compat-more.png"), [](const jp::CompatDone &done) {
+            QStringList many;
+            for (int i = 1; i <= 230; ++i) many << QStringLiteral("Part %1 of the file").arg(i);
+            done(jp::CompatAnswer(many));
+        });
+
     }
 
     void alwaysOpenReadOnlyIsKeptInTheFileAndOpensItForReadingOnly()
