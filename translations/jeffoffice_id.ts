@@ -10288,7 +10288,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Tata Letak Kustom</translation>
     </message>
     <message>
-        <location line="+267"/>
+        <location line="+268"/>
         <source>And %1 more.</source>
         <translation type="unfinished">Dan %1 lainnya.</translation>
     </message>
@@ -10303,7 +10303,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Ini bukan presentasi: %1</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+24"/>
         <location line="+22"/>
         <source>The presentation is protected with a password, so it has to be opened with the password.</source>
         <translation type="unfinished">Presentasi ini dilindungi kata sandi, sehingga harus dibuka dengan kata sandi tersebut.</translation>

@@ -10295,7 +10295,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Aangepaste indeling</translation>
     </message>
     <message>
-        <location line="+267"/>
+        <location line="+268"/>
         <source>And %1 more.</source>
         <translation type="unfinished">En nog %1.</translation>
     </message>
@@ -10310,7 +10310,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Dit is geen presentatie: %1</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+24"/>
         <location line="+22"/>
         <source>The presentation is protected with a password, so it has to be opened with the password.</source>
         <translation type="unfinished">De presentatie is beveiligd met een wachtwoord en moet daarom met het wachtwoord worden geopend.</translation>

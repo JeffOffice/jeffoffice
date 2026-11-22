@@ -10295,7 +10295,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
         <translation type="unfinished">Esquema Personalizado</translation>
     </message>
     <message>
-        <location line="+267"/>
+        <location line="+268"/>
         <source>And %1 more.</source>
         <translation type="unfinished">E mais %1.</translation>
     </message>
@@ -10310,7 +10310,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
         <translation type="unfinished">Isto não é uma apresentação: %1</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+24"/>
         <location line="+22"/>
         <source>The presentation is protected with a password, so it has to be opened with the password.</source>
         <translation type="unfinished">A apresentação está protegida com palavra-passe, por isso tem de ser aberta com a palavra-passe.</translation>

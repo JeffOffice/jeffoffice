@@ -10295,7 +10295,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Diseño personalizado</translation>
     </message>
     <message>
-        <location line="+267"/>
+        <location line="+268"/>
         <source>And %1 more.</source>
         <translation type="unfinished">Y %1 más.</translation>
     </message>
@@ -10310,7 +10310,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Esto no es una presentación: %1</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+24"/>
         <location line="+22"/>
         <source>The presentation is protected with a password, so it has to be opened with the password.</source>
         <translation type="unfinished">La presentación está protegida con contraseña, así que debe abrirse con la contraseña.</translation>

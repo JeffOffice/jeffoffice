@@ -10295,7 +10295,7 @@ Jetzt von %2 herunterladen? (%3, einmalig.)</translation>
         <translation type="unfinished">Benutzerdefiniertes Layout</translation>
     </message>
     <message>
-        <location line="+267"/>
+        <location line="+268"/>
         <source>And %1 more.</source>
         <translation type="unfinished">Und %1 weitere.</translation>
     </message>
@@ -10310,7 +10310,7 @@ Jetzt von %2 herunterladen? (%3, einmalig.)</translation>
         <translation type="unfinished">Dies ist keine Präsentation: %1</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+24"/>
         <location line="+22"/>
         <source>The presentation is protected with a password, so it has to be opened with the password.</source>
         <translation type="unfinished">Die Präsentation ist mit einem Kennwort geschützt und muss daher mit dem Kennwort geöffnet werden.</translation>

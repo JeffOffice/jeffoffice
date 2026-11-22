@@ -10302,7 +10302,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Пользовательский макет</translation>
     </message>
     <message>
-        <location line="+267"/>
+        <location line="+268"/>
         <source>And %1 more.</source>
         <translation type="unfinished">И ещё %1.</translation>
     </message>
@@ -10317,7 +10317,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Это не презентация: %1</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+24"/>
         <location line="+22"/>
         <source>The presentation is protected with a password, so it has to be opened with the password.</source>
         <translation type="unfinished">Презентация защищена паролем, поэтому её нужно открыть с паролем.</translation>
