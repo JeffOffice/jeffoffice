@@ -947,7 +947,10 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
                 // (One that text wraps around, as the attribute's default says, takes no room either where it has no side set: the text lines up beside it.)
                 const QString wrap = attributeOfTag(ch.xml, QStringLiteral("wrap"));
                 const bool textBeside = wrap != QLatin1String("notBeside") && wrap != QLatin1String("none");
-                if ((!at.isEmpty() || textBeside) && attributeOfTag(ch.xml, QStringLiteral("vAnchor")) != QLatin1String("page")) bf.setProperty(tp::OutOfFlow, true);
+                // (One set at the text's own place, in a header or a footer, over an empty paragraph, takes none either, though text is kept from beside it: the number of a footer that has an empty
+                // line after it is drawn at that line, and the footer is not as tall as both. Over text, the text goes below it.)
+                const bool atText = attributeOfTag(ch.xml, QStringLiteral("vAnchor")) == QLatin1String("text") && !textBeside && blockNumber + 1 < body.size() && !body[blockNumber + 1].isRaw && body[blockNumber + 1].para.content.isEmpty();
+                if ((!at.isEmpty() || textBeside || atText) && attributeOfTag(ch.xml, QStringLiteral("vAnchor")) != QLatin1String("page")) bf.setProperty(tp::OutOfFlow, true);
             }
         }
         if (!p.attrs.isEmpty()) setStored(bf, prop::ParaAttrs, p.attrs);

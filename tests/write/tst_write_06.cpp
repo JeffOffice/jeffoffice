@@ -1276,6 +1276,26 @@ void WriteTests::aFrameParagraphInAFooterTakesNoRoom()
 }
 
 
+// The same for a frame that keeps text from beside it (the number of a footer that is an empty line, then the number, then another empty line): set at the text's own place
+// it takes no room, and the footer is as tall as its two empty lines.
+void WriteTests::aFooterFrameAtTheTextsPlaceTakesNoRoomEither()
+{
+    const QByteArray sect = "<w:sectPr><w:footerReference w:type=\"default\" r:id=\"rIdfooter1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/>"
+                            "<w:pgMar w:top=\"1080\" w:right=\"1440\" w:bottom=\"720\" w:left=\"1440\" w:header=\"720\" w:footer=\"1080\" w:gutter=\"0\"/></w:sectPr>";
+    auto bottomOf = [&](const QByteArray &frame, const QByteArray &after) {
+        const QByteArray number = "<w:pPr>" + frame + "</w:pPr><w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText> PAGE </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>";
+        auto doc = open(makeDocxWithParts(paragraphs(60, 40), sect, {{QStringLiteral("/word/footer1.xml"), headerPart("ftr", {QByteArray(), number, after})}}));
+        return doc->pager().page(0).content.bottom();
+    };
+    const QByteArray frame = "<w:framePr w:w=\"9361\" w:wrap=\"notBeside\" w:vAnchor=\"text\" w:hAnchor=\"text\" w:x=\"1\" w:y=\"1\"/>";
+    const double overEmpty = bottomOf(frame, QByteArray()), noFrame = bottomOf(QByteArray(), QByteArray());
+    const double overText = bottomOf(frame, "<w:r><w:t>text</w:t></w:r>");
+    // Over an empty paragraph the frame's line is not one of the footer's: the text goes lower than with the number as a line of its own. Over text, the text goes below it.
+    QVERIFY2(overEmpty - noFrame > 5, qPrintable(QStringLiteral("%1 %2").arg(overEmpty).arg(noFrame)));
+    QVERIFY2(overEmpty - overText > 5, qPrintable(QStringLiteral("%1 %2").arg(overEmpty).arg(overText)));
+}
+
+
 // A shape in the header that the text goes round (a banner in a text box, set from the page's top) holds the page's text off: the text begins under it, where the margin
 // alone would let it go behind.
 void WriteTests::aHeadersWrappedShapeMovesTheTextBelowIt()

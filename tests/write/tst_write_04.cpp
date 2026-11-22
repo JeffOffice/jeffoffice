@@ -141,7 +141,7 @@ void WriteTests::anEmptyHeaderParagraphWithNoStyleHasTheDefaultSizeWhereTheFileH
 
 
 // A frame in a header that text wraps around (the attribute's default) takes no room under the header's other paragraphs, whether or not it names a side; one that lets no text
-// beside it does take its own lines.
+// beside it takes its own lines over text, and none over an empty paragraph.
 void WriteTests::aHeaderFrameTextWrapsAroundTakesNoRoomWhateverItsSide()
 {
     const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/>"
@@ -161,7 +161,11 @@ void WriteTests::aHeaderFrameTextWrapsAroundTakesNoRoomWhateverItsSide()
     QCOMPARE(bodyTop({framed(around, "7"), QByteArray()}), alone);
     QCOMPARE(bodyTop({framed(around, QByteArray()), QByteArray()}), alone);
     QCOMPARE(bodyTop({framed("w:wrap=\"auto\" w:vAnchor=\"text\" w:hAnchor=\"margin\" w:y=\"1\"", "7"), QByteArray()}), alone);
-    QVERIFY(bodyTop({framed("w:w=\"9361\" w:wrap=\"notBeside\" w:vAnchor=\"text\" w:hAnchor=\"text\" w:y=\"1\"", "7"), QByteArray()}) > alone + 5);
+    // One that lets no text beside it takes its own lines over text, and none over an empty paragraph (it is drawn at that paragraph's line).
+    const QByteArray apart = "w:w=\"9361\" w:wrap=\"notBeside\" w:vAnchor=\"text\" w:hAnchor=\"text\" w:y=\"1\"";
+    const QByteArray text = "<w:r><w:t>text</w:t></w:r>";
+    QVERIFY(bodyTop({framed(apart, "7"), text}) > bodyTop({text}) + 5);
+    QCOMPARE(bodyTop({framed(apart, "7"), QByteArray()}), alone);
     // The frame is written back as it was, opened and saved as it is or with its header opened for editing.
     for (const bool edit : {false, true}) {
         auto doc = open(makeDocxWithParts(paragraphs(2, 10), sect, {{QStringLiteral("/word/header1.xml"), headerPart("hdr", {framed(around, "7"), QByteArray()})}}));

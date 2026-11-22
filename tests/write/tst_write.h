@@ -1271,6 +1271,7 @@ private Q_SLOTS:
     void aNegativeMultipleOfTheLineIsReadAsItsSize();
     void aListNumberHasTheSizeItsLevelGives();
     void aFrameParagraphInAFooterTakesNoRoom();
+    void aFooterFrameAtTheTextsPlaceTakesNoRoomEither();
     void aHeadersWrappedShapeMovesTheTextBelowIt();
     void aHeaderFrameSetAtAPlaceOnThePageIsATextBoxThere();
     void aHeaderFrameOfTooManyParagraphsIsTextOfTheHeader();
