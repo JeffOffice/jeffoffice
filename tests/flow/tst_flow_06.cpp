@@ -290,7 +290,7 @@ struct RulesPicture {
     RuleRuns across, down;
     int top = 0, bottom = 0;   // (device rows of the first rule's start and of the last rule's end)
 
-    bool paint(double ratio, double scale, double offset, TableLine::Style style = TableLine::Style::Single)
+    bool paint(double ratio, double scale, double offset, TableLine::Style leftStyle = TableLine::Style::Single, TableLine::Style topStyle = TableLine::Style::Single)
     {
         fillStory(fd.story(), 2, 3, {}, 4, 6);
         TestTable spec;
@@ -298,11 +298,13 @@ struct RulesPicture {
         spec.cols = 3;
         spec.columnWidth = 100;
         spec.margins = QMarginsF(6, 6, 6, 6);
-        spec.setTable = [style](TableData &t) {
+        spec.setTable = [leftStyle, topStyle](TableData &t) {
             TableLine line;
-            line.style = style;
+            line.style = TableLine::Style::Single;
             line.width = 1;
             t.top = t.left = t.bottom = t.right = t.insideH = t.insideV = line;
+            t.left.style = leftStyle;
+            t.top.style = topStyle;
         };
         addTable(fd, spec);
         Paginator pg(&fd);
@@ -343,6 +345,21 @@ struct RulesPicture {
         top = across.starts.first();
         bottom = across.starts.last() + across.lengths.last();
         return true;
+    }
+
+    // The first dark pixel from the left on a device row, and the last dark one on a column's run of rows (-1 for none).
+    int firstDarkInRow(int y) const
+    {
+        for (int x = 0; x < image.width(); ++x)
+            if (image.pixelColor(x, y).red() < 128) return x;
+        return -1;
+    }
+
+    int firstDarkInColumn(int x) const
+    {
+        for (int y = 0; y < image.height(); ++y)
+            if (image.pixelColor(x, y).red() < 128) return y;
+        return -1;
     }
 
     // Every rule down is one run of black from the first rule across to the last: no gap at a row.
@@ -393,6 +410,37 @@ void FlowTests::aTableRuleInAPictureIsWholeDevicePixelsAtAnyRatio()
             for (int length : r.lengths) QVERIFY2(length == thick, qPrintable(QStringLiteral("ratio %1: a rule %2 pixels thick, not %3").arg(ratio).arg(length).arg(thick)));
         }
     }
+}
+
+
+// Where a solid rule meets a rule of another kind (double, dashed, dotted) at the table's corner, the ends are flush: the solid one neither stops short (a gap) nor goes on
+// past the other's outer edge, within a pixel. Once with the left rule of the other kind and the top one solid, once the other way round.
+void FlowTests::aSolidRuleMeetingAnotherKindOfRuleHasNoGapOrOvershoot()
+{
+    const TableLine::Style solid = TableLine::Style::Single;
+    for (double ratio : {1.0, 2.0})
+        for (auto style : {TableLine::Style::Double, TableLine::Style::Dashed, TableLine::Style::Dotted}) {
+            const QString where = QStringLiteral("ratio %1 style %2: ").arg(ratio).arg(int(style));
+            {
+                RulesPicture pic;   // (the top rule is solid and ends at the left rule)
+                QVERIFY(pic.paint(ratio, 4.0 / 3, 0, style, solid));
+                const int topX = pic.firstDarkInRow(pic.top + pic.across.lengths.first() / 2);
+                int leftMost = pic.image.width();
+                for (int y = pic.top + pic.across.lengths.first(); y < pic.across.starts[1]; ++y)
+                    if (const int x = pic.firstDarkInRow(y); x >= 0) leftMost = std::min(leftMost, x);
+                QVERIFY2(std::abs(topX - leftMost) <= 1, qPrintable(where + QStringLiteral("the top rule begins at %1, the left rule's edge is at %2").arg(topX).arg(leftMost)));
+            }
+            {
+                RulesPicture pic;   // (the left rule is solid and ends at the top rule)
+                QVERIFY(pic.paint(ratio, 4.0 / 3, 0, solid, style));
+                const int leftX = pic.down.starts.first() + pic.down.lengths.first() / 2;
+                const int leftY = pic.firstDarkInColumn(leftX);
+                int topMost = pic.image.height();
+                for (int x = pic.down.starts.first() + pic.down.lengths.first(); x < pic.down.starts[1]; ++x)
+                    if (const int y = pic.firstDarkInColumn(x); y >= 0) topMost = std::min(topMost, y);
+                QVERIFY2(std::abs(leftY - topMost) <= 1, qPrintable(where + QStringLiteral("the left rule begins at %1, the top rule's edge is at %2").arg(leftY).arg(topMost)));
+            }
+        }
 }
 
 

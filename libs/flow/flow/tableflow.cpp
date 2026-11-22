@@ -1310,7 +1310,7 @@ std::vector<EdgePart> edgeParts(TableLayout &t, int index, bool top)
 
 // A solid rule that runs along an axis, in a picture of a page: a rule is whole pixels, as the page's own renderers draw them (each edge of the rule's rectangle goes to the
 // nearest pixel line, and a rule is never under a pixel wide), not a smear over the two pixels it straddles. False where the picture is turned or slanted.
-bool strokeWholePixels(QPainter *p, const TableLine &line, QPointF a, QPointF b)
+bool strokeWholePixels(QPainter *p, const TableLine &line, QPointF a, QPointF b, bool fromFar)
 {
     // (In device pixels at any device pixel ratio: the logical coordinates go through the painter's own device transform, and the rectangle is filled with that scale taken off again.)
     const QTransform t = p->deviceTransform(), toDevice = p->transform().inverted() * t;
@@ -1325,16 +1325,15 @@ bool strokeWholePixels(QPainter *p, const TableLine &line, QPointF a, QPointF b)
         if (to <= from) to = from + 1;
         return std::pair<int, int>(from, to);
     };
-    // (The thickness is the width's alone, in whole pixels and never under one; where the rule falls is snapped on its own, so equal rules are equally thick wherever they are.)
-    const int thick = std::max(1, int(std::floor(line.width * (horizontal ? t.m22() : t.m11()) + 0.5)));
-    auto snapThick = [thick](double center) {
-        const int from = int(std::floor(center - thick / 2.0 + 0.5 + 1e-6));
-        return std::pair<int, int>(from, from + thick);
-    };
-    const auto across = horizontal ? snapThick(da.y()) : snapThick(da.x());
-    // (Each end goes on by half the thickness, to the edge of the rule that crosses it there, so a corner has no notch.)
-    const double reach = thick / 2.0;
-    const auto along = horizontal ? snap(std::min(da.x(), db.x()) - reach, std::max(da.x(), db.x()) + reach) : snap(std::min(da.y(), db.y()) - reach, std::max(da.y(), db.y()) + reach);
+    // (The thickness is the width's alone, in whole pixels and never under one; where the rule falls is snapped on its own, by the edge on the outside, so equal rules are
+    // equally thick wherever they are, and a rule ends where the rule across it begins.)
+    const double widthPx = line.width * (horizontal ? t.m22() : t.m11());
+    const int thick = std::max(1, int(std::floor(widthPx + 0.5)));
+    const double center = horizontal ? da.y() : da.x();
+    // (A rule drawn up from an edge, as a table's foot is, keeps that edge: its far side is the one that is snapped.)
+    const int from = fromFar ? int(std::floor(center + widthPx / 2 + 0.5 + 1e-6)) - thick : int(std::floor(center - widthPx / 2 + 0.5 + 1e-6));
+    const std::pair<int, int> across(from, from + thick);
+    const auto along = horizontal ? snap(std::min(da.x(), db.x()), std::max(da.x(), db.x())) : snap(std::min(da.y(), db.y()), std::max(da.y(), db.y()));
     const QRect box = horizontal ? QRect(QPoint(along.first, across.first), QPoint(along.second - 1, across.second - 1)) : QRect(QPoint(across.first, along.first), QPoint(across.second - 1, along.second - 1));
     p->save();
     p->setWorldTransform(toDevice.inverted());
@@ -1344,10 +1343,10 @@ bool strokeWholePixels(QPainter *p, const TableLine &line, QPointF a, QPointF b)
     return true;
 }
 
-void strokeLine(QPainter *p, const TableLine &line, QPointF a, QPointF b, bool picture)
+void strokeLine(QPainter *p, const TableLine &line, QPointF a, QPointF b, bool picture, bool fromFar = false)
 {
     if (!line.visible()) return;
-    if (picture && strokeWholePixels(p, line, a, b)) return;
+    if (picture && strokeWholePixels(p, line, a, b, fromFar)) return;
     double w = line.width;
     // On the screen a line is at least a pixel wide, as a thin line in a picture of a page is.
     if (picture) {
@@ -1463,11 +1462,11 @@ void TableFragment::paint(QPainter *p, const TablePaint &o) const
             if (cut && !td.spaced) {
                 const TableLine bottom = lineBetween(bottomCell.bottom, std::nullopt, true, false, td.insideH, td.bottom);
                 const double up = roomOf(bottom) / 2;
-                strokeLine(p, bottom, r.bottomLeft() - QPointF(0, up), r.bottomRight() - QPointF(0, up), picture);
+                strokeLine(p, bottom, r.bottomLeft() - QPointF(0, up), r.bottomRight() - QPointF(0, up), picture, true);
             } else {
                 for (const EdgePart &e : edgeParts(*layout, index, false)) {
                     const double up = roomOf(e.line) / 2;
-                    strokeLine(p, e.line, QPointF(r.left() + e.x0 - c.x, r.bottom() - up), QPointF(r.left() + e.x1 - c.x, r.bottom() - up), picture);
+                    strokeLine(p, e.line, QPointF(r.left() + e.x0 - c.x, r.bottom() - up), QPointF(r.left() + e.x1 - c.x, r.bottom() - up), picture, true);
                 }
             }
         }
@@ -1480,7 +1479,7 @@ void TableFragment::paint(QPainter *p, const TablePaint &o) const
         const QRectF whole = rect();
         const double down = roomOf(d.top) / 2, up = roomOf(d.bottom) / 2;
         strokeLine(p, d.top, whole.topLeft() + QPointF(0, down), whole.topRight() + QPointF(0, down), picture);
-        strokeLine(p, d.bottom, whole.bottomLeft() - QPointF(0, up), whole.bottomRight() - QPointF(0, up), picture);
+        strokeLine(p, d.bottom, whole.bottomLeft() - QPointF(0, up), whole.bottomRight() - QPointF(0, up), picture, true);
         strokeLine(p, d.left, whole.topLeft(), whole.bottomLeft(), picture);
         strokeLine(p, d.right, whole.topRight(), whole.bottomRight(), picture);
     }
