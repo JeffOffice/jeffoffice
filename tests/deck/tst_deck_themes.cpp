@@ -1,10 +1,15 @@
 // JeffDeck's tests of themes and variants.
 #include "deckhelpers.h"
+#include "../isolatesettings.h"
 #include "../withdialog.h"
 #include "app/userdefaults.h"
 #include "app/themedialogs.h"
 #include "office/themelib.h"
 #include "io/presentationdefaults.h"
+
+#include <QProcess>
+#include <cstdio>
+#include <QTemporaryDir>
 
 struct BackdropDeck {
     std::unique_ptr<Document> doc;
@@ -2989,6 +2994,7 @@ private Q_SLOTS:
     // ---- Set as default: the theme and the slide size that new presentations start from ----
     void newPresentationsStartFromTheDefaultThemeAndSlideSize()
     {
+        jptest::TestModeGuard testMode;   // (the default theme file is in the program's data folder: a test folder of this process, not one the parts of the run share)
         using namespace jp::deck;
         QFile::remove(deck::defaultThemePath());
         deck::clearDefaultSlideSize();
@@ -3011,6 +3017,7 @@ private Q_SLOTS:
     // The theme file is read once and kept until it changes; one over 50 MB is not read at all.
     void theDefaultThemeFileIsReadOnceAndAgainOnlyWhenItChanges()
     {
+        jptest::TestModeGuard testMode;   // (the default theme file is in the program's data folder: a test folder of this process, not one the parts of the run share)
         using namespace jp::deck;
         QFile::remove(defaultThemePath());
         QVERIFY(setDefaultTheme(*themePresentation(3)));
@@ -3025,6 +3032,7 @@ private Q_SLOTS:
 
     void aDefaultThemeFileOverFiftyMegabytesIsNotRead()
     {
+        jptest::TestModeGuard testMode;   // (the default theme file is in the program's data folder: a test folder of this process, not one the parts of the run share)
         using namespace jp::deck;
         QFile::remove(defaultThemePath());
         {
@@ -3040,6 +3048,7 @@ private Q_SLOTS:
 
     void theDesignTabSetsTheDefaultThemeAndSlideSize()
     {
+        jptest::TestModeGuard testMode;   // (the default theme file is in the program's data folder: a test folder of this process, not one the parts of the run share)
         using namespace jp::deck;
         QFile::remove(deck::defaultThemePath());
         deck::clearDefaultSlideSize();
@@ -3055,6 +3064,71 @@ private Q_SLOTS:
         QCOMPARE(deck::newDefaultPresentation()->pageSize(), w.editor()->doc()->pageSize());
         QFile::remove(deck::defaultThemePath());
         deck::clearDefaultSlideSize();
+    }
+
+    // The programs of one job run in parts side by side (tools/ci_tests.sh): one part's default theme must never be the start of another part's new presentation. Two copies of this program
+    // run at the same time, one with a default theme in place, the other making a new presentation. Isolated, as every run is, the second sees the built-in theme; in the one data folder
+    // the isolation prevents (shared on purpose here), it sees the theme the first wrote: so the check can fail, and does when the isolation is off.
+    void appDataHelper()
+    {
+        using namespace jp::deck;
+        const QByteArray mode = qgetenv("JP_APPDATA_HELPER");
+        if (mode.isEmpty()) return;   // (the helper of the test below: nothing in an ordinary run)
+        if (mode == "write") {
+            QVERIFY(setDefaultTheme(*themePresentation(3)));
+            std::fputs("JPHELPER ready\n", stdout);
+            std::fflush(stdout);
+            while (std::fgetc(stdin) != EOF) {}   // (until the partner has looked: its end of the pipe closes)
+            QFile::remove(defaultThemePath());
+        } else {
+            std::fputs(themeOf(*newDefaultPresentation()).name == themeOf(*newPresentation()).name ? "JPHELPER white\n" : "JPHELPER theme\n", stdout);
+            std::fflush(stdout);
+        }
+    }
+
+    void twoProgramsAtOnceKeepTheirDefaultThemesApart()
+    {
+        QTemporaryDir shared;
+        QVERIFY(shared.isValid());
+        const auto readerSees = [&](bool oneFolder) {
+            QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+            env.remove(QStringLiteral("JP_TEST_SHARED_DATA"));
+            if (oneFolder) env.insert(QStringLiteral("JP_TEST_SHARED_DATA"), shared.path());
+            const QStringList args{QStringLiteral("--class"), QStringLiteral("DeckThemeTests"), QStringLiteral("appDataHelper")};
+            QProcess writer;
+            env.insert(QStringLiteral("JP_APPDATA_HELPER"), QStringLiteral("write"));
+            writer.setProcessEnvironment(env);
+            writer.start(QCoreApplication::applicationFilePath(), args);
+            QByteArray seen;
+            for (int i = 0; i < 1200 && !seen.contains("JPHELPER ready"); ++i) {   // (bounded by count: each wait is 100 ms at most, and ends when it has output)
+                writer.waitForReadyRead(100);
+                seen += writer.readAllStandardOutput();
+                if (writer.state() == QProcess::NotRunning) break;
+            }
+            QString answer = QStringLiteral("the writer did not get ready");
+            if (seen.contains("JPHELPER ready")) {
+                QProcess reader;
+                env.insert(QStringLiteral("JP_APPDATA_HELPER"), QStringLiteral("read"));
+                reader.setProcessEnvironment(env);
+                reader.start(QCoreApplication::applicationFilePath(), args);
+                reader.waitForFinished(120000);
+                const QByteArray out = reader.readAllStandardOutput();
+                answer = out.contains("JPHELPER white") ? QStringLiteral("white") : out.contains("JPHELPER theme") ? QStringLiteral("theme") : QStringLiteral("no answer");
+            }
+            writer.closeWriteChannel();
+            if (!writer.waitForFinished(120000)) {
+                writer.kill();
+                writer.waitForFinished();
+            }
+            return answer;
+        };
+        QCOMPARE(readerSees(true), QStringLiteral("theme"));    // (one folder: the failure the isolation prevents; if this says white, the check cannot fail)
+        QCOMPARE(readerSees(false), QStringLiteral("white"));   // (what every run does)
+#if !(defined(Q_OS_UNIX) && !defined(Q_OS_MACOS))
+        // (Windows and macOS: the shared helpers kept their files in Qt's test folders under the one name)
+        for (QStandardPaths::StandardLocation where : {QStandardPaths::GenericDataLocation, QStandardPaths::GenericCacheLocation, QStandardPaths::GenericConfigLocation})
+            QDir(QStandardPaths::writableLocation(where) + QStringLiteral("/jptest-shared")).removeRecursively();
+#endif
     }
 };
 

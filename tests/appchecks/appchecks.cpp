@@ -371,10 +371,17 @@ void isolateSettings()
     static QTemporaryDir settings;
     QSettings::setPath(QSettings::NativeFormat, QSettings::UserScope, settings.path());
     QSettings::setPath(QSettings::IniFormat, QSettings::UserScope, settings.path());
+    // (the programs of one job run in parts side by side and used to share the name "qttest", and so one data folder: the name is this process's own, as in tests/isolatesettings.h,
+    // which every test program includes and which has already turned test mode on and named the process on Windows and macOS)
     QStandardPaths::setTestModeEnabled(true);
+    const QString appName = QCoreApplication::applicationName();
+    const QString mine = QStringLiteral("-") + QString::number(QCoreApplication::applicationPid());
+    if (!appName.endsWith(mine)) QCoreApplication::setApplicationName(appName + mine);
     // (what the runs save as templates goes to the program's data folder: taken away again when the program ends)
     qAddPostRoutine([] {
         const QString run = QString::number(QCoreApplication::applicationPid());
+        QDir(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)).removeRecursively();
+        QDir(QStandardPaths::writableLocation(QStandardPaths::CacheLocation)).removeRecursively();
         QDir templates(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation) + QStringLiteral("/Templates"));
         for (const QString &name : templates.entryList({QStringLiteral("saved-%1-*").arg(run)}, QDir::Files)) templates.remove(name);
     });

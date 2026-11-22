@@ -115,8 +115,9 @@ xargs -P "$jobs" -L 1 bash -c 'id=$1; prog=$2; shard=$3; shift 3; started=$(date
     h="$PWD/.part-home/$id"; mkdir -p "$h"
     case "$(uname -s)" in
     Linux) export HOME="$h" XDG_CONFIG_HOME="$h/.config" XDG_DATA_HOME="$h/.local/share" XDG_CACHE_HOME="$h/.cache" ;;
-    MINGW*|MSYS*) mkdir -p "$h/Roaming" "$h/Local"; APPDATA=$(cygpath -w "$h/Roaming"); LOCALAPPDATA=$(cygpath -w "$h/Local"); export APPDATA LOCALAPPDATA ;;
     esac
+    # (Windows and macOS: no variable moves the data and cache folders there, Qt asks the system and ignores APPDATA, LOCALAPPDATA, and HOME. Each test program
+    # isolates itself: tests/isolatesettings.h turns on Qt test mode and names the process uniquely, and the folders are taken away at exit.)
     export JP_CLASS_TIMES=1
     "build/$prog'"$ext"'" "$@" -v1 -o "$id-results.txt,txt" -o -,txt > "$id.log" 2>&1; echo $? > "$id.code"
     echo "$id finished in $(( $(date +%s) - started )) s"' _ < "$parts"

@@ -24,6 +24,19 @@ inline QString realSettingsFolder()
     return folder;
 }
 
+#if !(defined(Q_OS_UNIX) && !defined(Q_OS_MACOS))
+// Folders a run that was killed left in Qt's test folders (named "jptest-" and the process number) are taken away once they are a day old. Only the names this header makes.
+inline void removeStaleTestFolders()
+{
+    const QDateTime limit = QDateTime::currentDateTime().addDays(-1);
+    for (QStandardPaths::StandardLocation where : {QStandardPaths::GenericDataLocation, QStandardPaths::GenericCacheLocation, QStandardPaths::GenericConfigLocation}) {
+        const QDir root(QStandardPaths::writableLocation(where));
+        for (const QFileInfo &fi : root.entryInfoList({QStringLiteral("jptest-*")}, QDir::Dirs | QDir::NoDotAndDotDot))
+            if (fi.lastModified() < limit) QDir(fi.absoluteFilePath()).removeRecursively();
+    }
+}
+#endif
+
 // Where this run's settings are.
 inline const QString &isolatedSettingsFolder()
 {
@@ -40,9 +53,26 @@ inline const QString &isolatedSettingsFolder()
         qputenv("JP_SETTINGS_FOLDER", dir.path().toUtf8());
 #if defined(Q_OS_UNIX) && !defined(Q_OS_MACOS)
         // (the data and cache folders too: recovery copies, versions, templates, and what else the apps keep there. Where the environment cannot move them, a test that writes there uses TestModeGuard.)
-        qputenv("XDG_DATA_HOME", (dir.path() + QStringLiteral("/data")).toUtf8());
+        // (JP_TEST_SHARED_DATA: a helper process of the isolation test is given the folder its partner has, to show what the isolation prevents)
+        qputenv("XDG_DATA_HOME", qEnvironmentVariableIsSet("JP_TEST_SHARED_DATA") ? qgetenv("JP_TEST_SHARED_DATA") : (dir.path() + QStringLiteral("/data")).toUtf8());
         qputenv("XDG_CACHE_HOME", (dir.path() + QStringLiteral("/cache")).toUtf8());
         qputenv("XDG_STATE_HOME", (dir.path() + QStringLiteral("/state")).toUtf8());
+#else
+        // (Windows and macOS: Qt asks the system for these folders and ignores APPDATA, LOCALAPPDATA, and HOME, so the environment cannot move them. Qt's test mode puts them under a
+        // "qttest" folder in the home instead, and the program's name in them is made this process's own, because the parts of one program run side by side (tools/ci_tests.sh) and
+        // would share one default theme, one My Templates, one dictionary. This runs before the first standard path is asked for; the folders are taken away when the process ends.
+        // A helper process of the isolation test, started with JP_TEST_SHARED_DATA, takes the one name that its partner takes too.)
+        QStandardPaths::setTestModeEnabled(true);
+        QCoreApplication::setApplicationName(qEnvironmentVariableIsSet("JP_TEST_SHARED_DATA") ? QStringLiteral("jptest-shared") : QStringLiteral("jptest-") + QString::number(QCoreApplication::applicationPid()));
+        removeStaleTestFolders();
+        static const struct Cleaner {
+            ~Cleaner()
+            {
+                if (qEnvironmentVariableIsSet("JP_TEST_SHARED_DATA")) return;   // (the test that started the helpers takes these away)
+                for (QStandardPaths::StandardLocation where : {QStandardPaths::AppDataLocation, QStandardPaths::CacheLocation, QStandardPaths::AppConfigLocation})
+                    QDir(QStandardPaths::writableLocation(where)).removeRecursively();
+            }
+        } cleaner;
 #endif
         return true;
     }();
@@ -91,8 +121,10 @@ inline bool settingsStayInTheRunsFolder()
 // while the guard is up the folder is this process's own (its process number is in the name), and it is taken away again with the guard.
 struct TestModeGuard {
     QString nameBefore;
+    bool modeBefore = false;
     TestModeGuard()
     {
+        modeBefore = QStandardPaths::isTestModeEnabled();   // (on Windows and macOS the whole run is in test mode: the guard leaves it so)
         nameBefore = QCoreApplication::applicationName();
         QStandardPaths::setTestModeEnabled(true);
         QCoreApplication::setApplicationName(nameBefore + QLatin1Char('-') + QString::number(QCoreApplication::applicationPid()));
@@ -101,7 +133,7 @@ struct TestModeGuard {
     {
         QDir(QStandardPaths::writableLocation(QStandardPaths::AppDataLocation)).removeRecursively();
         QCoreApplication::setApplicationName(nameBefore);
-        QStandardPaths::setTestModeEnabled(false);
+        QStandardPaths::setTestModeEnabled(modeBefore);
     }
     TestModeGuard(const TestModeGuard &) = delete;
     TestModeGuard &operator=(const TestModeGuard &) = delete;
