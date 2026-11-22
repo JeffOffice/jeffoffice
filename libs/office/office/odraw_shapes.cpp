@@ -499,8 +499,9 @@ private:
         pic->imgRect = QRectF(-l * w, -t * h, w, h);
         pic->brightness = pictureBrightness(p);
         pic->contrast = pictureContrast(p);
-        // Where the host makes the picture as adjusted, it does.
-        if (ctx.adjusted && !pic->imageId.isEmpty() && (pic->brightness != 0 || pic->contrast != 0)) {
+        // Where the host makes the picture as adjusted, it does: not one with a clear color, which is the color the picture has before
+        // the brightness and contrast change it, and a made picture has lost it (white at the least brightness and most contrast is black).
+        if (ctx.adjusted && !pic->imageId.isEmpty() && !p.has(0x0107) && (pic->brightness != 0 || pic->contrast != 0)) {
             const QString changed = ctx.adjusted(pic->imageId, pic->brightness, pic->contrast);
             if (!changed.isEmpty() && changed != pic->imageId) {
                 pic->imageId = changed;

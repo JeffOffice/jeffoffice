@@ -2179,6 +2179,38 @@ private Q_SLOTS:
         QVERIFY(qAbs(pic->contrast + 16.0) < 0.01);
     }
 
+    // A picture with a transparent color is not made over by the host: the color is the one the picture has, before the brightness and contrast
+    // change it, and a made picture has them gone already (white raised to black by the least brightness and most contrast is no longer white).
+    void odrawPictureWithAClearColorKeepsItsOwnPixelsForTheHost()
+    {
+        OdrawContext ctx = odContext();
+        QStringList asked;
+        ctx.adjusted = [&](const QString &id, double brightness, double contrast) {
+            asked << QStringLiteral("%1 %2 %3").arg(id).arg(brightness, 0, 'f', 1).arg(contrast, 0, 'f', 1);
+            return id + QLatin1Char('+');
+        };
+        const ItemList read = readOdrawShapes(odDrawing(odShape(75, 0xA00, {{0x0104, 3, {}, true}, {0x0109, 0xFFFF8000}, {0x0108, 0x7FFFFFFF}, {0x013F, 0x00060006}, {0x0107, 0x00FFFFFF}},
+                                                                 odClientAnchor(0, 0, 10, 10))), ctx);
+        QVERIFY(!read.empty());
+        const PictureItem *pic = static_cast<PictureItem *>(read[0].get());
+        QVERIFY(asked.isEmpty());
+        QCOMPARE(pic->imageId, QStringLiteral("pic3"));
+        QVERIFY(pic->hasTransparentColor);
+        QCOMPARE(pic->brightness, -100.0);
+        QVERIFY(pic->contrast > 0);
+        // Drawn from the settings: the white is clear and the black stays, not a block of black.
+        QImage two(2, 1, QImage::Format_ARGB32);
+        two.setPixel(0, 0, qRgb(255, 255, 255));
+        two.setPixel(1, 0, qRgb(0, 0, 0));
+        const QImage drawn = jp::applyBlipEffects(two, pic->colorEffects());
+        QCOMPARE(qAlpha(drawn.pixel(0, 0)), 0);
+        QCOMPARE(qAlpha(drawn.pixel(1, 0)), 255);
+        // Without a clear color the host still makes the picture over.
+        const ItemList plain = readOdrawShapes(odDrawing(odShape(75, 0xA00, {{0x0104, 3, {}, true}, {0x0109, 0xFFFF8000}}, odClientAnchor(0, 0, 10, 10))), ctx);
+        QCOMPARE(asked.size(), 1);
+        QCOMPARE(static_cast<PictureItem *>(plain[0].get())->imageId, QStringLiteral("pic3+"));
+    }
+
     // A fill of the background kind shows the page's own background where the shape is: the host says what that is, given the place.
     void odrawFillsWithThePagesBackground()
     {
