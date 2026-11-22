@@ -1655,6 +1655,77 @@ void WriteTests::aCustomMarkNoteInATableCellIsDrawnAndKept()
 }
 
 
+// A content control in a text box keeps its words when its properties use an extension prefix that only the document's root declares (a text box's content is read as a document
+// of its own), and the words are kept through the program's own open and save.
+void WriteTests::aContentControlInATextBoxWithAnExtensionPrefixKeepsItsWords()
+{
+    auto text = [](const char *t) { return QByteArray("<w:r><w:t xml:space=\"preserve\">") + t + "</w:t></w:r>"; };
+    const QByteArray control = "<w:sdt><w:sdtPr><w:id w:val=\"5\"/><w15:appearance w15:val=\"hidden\"/><w:text/></w:sdtPr><w:sdtContent><w:p>" + text("CONTROLWORDS here") + "</w:p></w:sdtContent></w:sdt>";
+    const QByteArray box = "<w:p><w:r><w:drawing><wp:anchor xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\" simplePos=\"0\" "
+                           "relativeHeight=\"1\" behindDoc=\"0\" locked=\"0\" layoutInCell=\"1\" allowOverlap=\"1\"><wp:simplePos x=\"0\" y=\"0\"/><wp:positionH relativeFrom=\"page\"><wp:posOffset>914400</wp:posOffset></wp:positionH>"
+                           "<wp:positionV relativeFrom=\"page\"><wp:posOffset>914400</wp:posOffset></wp:positionV><wp:extent cx=\"3000000\" cy=\"2000000\"/><wp:wrapNone/><wp:docPr id=\"1\" name=\"Box\"/>"
+                           "<a:graphic xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:graphicData uri=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\">"
+                           "<wps:wsp xmlns:wps=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\"><wps:cNvSpPr txBox=\"1\"/><wps:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"3000000\" cy=\"2000000\"/></a:xfrm>"
+                           "<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></wps:spPr><wps:txbx><w:txbxContent>" + control + "</w:txbxContent></wps:txbx><wps:bodyPr/></wps:wsp></a:graphicData></a:graphic></wp:anchor></w:drawing></w:r></w:p>";
+    office::PackageWriter w;
+    const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+    w.addPart(QStringLiteral("/word/document.xml"), xml(QByteArray("<w:document ") + kNs + " xmlns:w15=\"http://schemas.microsoft.com/office/word/2012/wordml\"><w:body>" + box + "<w:p>" + text("Body") + "</w:p></w:body></w:document>"),
+              QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+    w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+    const QByteArray package = w.finish();
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString first = dir.filePath(QStringLiteral("first.docx")), second = dir.filePath(QStringLiteral("second.docx"));
+    {
+        QFile f(first);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(package);
+    }
+    WriteWindow win;
+    QVERIFY(win.openFile(first));
+    QVERIFY(boxWithText(*win.document()->pager().materialize(0), QStringLiteral("CONTROLWORDS here")));
+    QVERIFY(win.saveTo(second));
+    WriteWindow again;
+    QVERIFY(again.openFile(second));
+    QVERIFY(boxWithText(*again.document()->pager().materialize(0), QStringLiteral("CONTROLWORDS here")));
+    QFile saved(second);
+    QVERIFY(saved.open(QIODevice::ReadOnly));
+    QVERIFY(documentXml(saved.readAll()).contains(QLatin1String("<w15:appearance w15:val=\"hidden\"/>")));
+}
+
+
+// A table that gives no width anywhere (no grid, no width of a cell), its row inside a row-level content control, shows its cells: their columns are equal, not of no width.
+void WriteTests::aTableWithNoWidthAnywhereShowsItsCells()
+{
+    auto text = [](const char *t) { return QByteArray("<w:r><w:t xml:space=\"preserve\">") + t + "</w:t></w:r>"; };
+    const QByteArray body = "<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:sdt><w:sdtPr><w:id w:val=\"1001\"/></w:sdtPr><w:sdtContent><w:tr><w:tc><w:p>" + text("SDTCELLONE") +
+                            "</w:p></w:tc><w:tc><w:p>" + text("SDTCELLTWO") + "</w:p></w:tc></w:tr></w:sdtContent></w:sdt></w:tbl>";
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString first = dir.filePath(QStringLiteral("first.docx")), second = dir.filePath(QStringLiteral("second.docx"));
+    {
+        QFile f(first);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(makeDocx(body));
+    }
+    WriteWindow win;
+    QVERIFY(win.openFile(first));
+    auto cells = [&](WriteWindow &w) {
+        const auto page = w.document()->pager().materialize(0);
+        if (page->tables.empty() || page->tables[0]->layout->cellCount() != 2) return false;
+        return page->tables[0]->layout->cell(0).w > 10 && page->tables[0]->layout->cell(1).w > 10;
+    };
+    QVERIFY(cells(win));
+    QVERIFY(win.saveTo(second));
+    WriteWindow again;
+    QVERIFY(again.openFile(second));
+    QVERIFY(cells(again));
+    QFile saved(second);
+    QVERIFY(saved.open(QIODevice::ReadOnly));
+    QVERIFY(documentXml(saved.readAll()).contains(QLatin1String("<w:sdt><w:sdtPr><w:id w:val=\"1001\"/></w:sdtPr><w:sdtContent><w:tr>")));
+}
+
+
 // Clearing the formatting leaves a note reference's custom mark as it was: the next automatic note is still the first, and the file still says the mark follows.
 void WriteTests::clearingTheFormattingKeepsACustomNoteMark()
 {

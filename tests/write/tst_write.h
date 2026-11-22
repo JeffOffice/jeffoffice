@@ -1355,6 +1355,8 @@ private Q_SLOTS:
     void theNotesOfAPageAreLaidOutTheSameWithATableInTheDocument();
     void aCustomMarkTakesNoNumberAmongTheNotesOfATablesPage();
     void aCustomMarkNoteInATableCellIsDrawnAndKept();
+    void aContentControlInATextBoxWithAnExtensionPrefixKeepsItsWords();
+    void aTableWithNoWidthAnywhereShowsItsCells();
     void clearingTheFormattingKeepsACustomNoteMark();
     void aLevelsOutlineEffectIsLookedForOncePerLevel();
     void theNoteSeparatorIsCutPerSection();

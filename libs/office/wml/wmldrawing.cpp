@@ -144,7 +144,10 @@ QByteArray declarations()
            "xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" "
            "xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\" xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\" "
            "xmlns:wps=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\" xmlns:wpg=\"http://schemas.microsoft.com/office/word/2010/wordprocessingGroup\" "
-           "xmlns:w14=\"http://schemas.microsoft.com/office/word/2010/wordml\" xmlns:wp14=\"http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing\"";
+           "xmlns:w14=\"http://schemas.microsoft.com/office/word/2010/wordml\" xmlns:wp14=\"http://schemas.microsoft.com/office/word/2010/wordprocessingDrawing\" "
+           "xmlns:w15=\"http://schemas.microsoft.com/office/word/2012/wordml\" xmlns:w16=\"http://schemas.microsoft.com/office/word/2018/wordml\" xmlns:w16cid=\"http://schemas.microsoft.com/office/word/2016/wordml/cid\" "
+           "xmlns:w16se=\"http://schemas.microsoft.com/office/word/2015/wordml/symex\" xmlns:w16cex=\"http://schemas.microsoft.com/office/word/2018/wordml/cex\" "
+           "xmlns:w16sdtdh=\"http://schemas.microsoft.com/office/word/2020/wordml/sdtdatahash\"";
 }
 
 // A text box's content as a document of its own: the paragraphs it holds under a w:txbxContent that declares the prefixes.

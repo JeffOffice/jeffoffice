@@ -355,6 +355,8 @@ std::shared_ptr<TableLayout> TableLayout::make(const TableContext &ctx, int i0, 
         }
     fill = counted ? fill / counted : 72;
     while (widths.size() < columns) widths.push_back(fill);
+    // (A table that says no width anywhere, no grid and no width of a cell, has equal columns, not columns of no width.)
+    if (!counted) widths.fill(fill);
     t->m_xs.resize(widths.size() + 1);
     t->m_xs[0] = 0;
     for (int i = 0; i < widths.size(); ++i) t->m_xs[i + 1] = t->m_xs[i] + std::max(0.0, widths[i]);
