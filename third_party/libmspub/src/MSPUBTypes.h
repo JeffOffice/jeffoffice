@@ -184,8 +184,8 @@ struct ParagraphStyle
   boost::optional<unsigned> m_spaceBeforeEmu;
   boost::optional<unsigned> m_spaceAfterEmu;
   boost::optional<int> m_firstLineIndentEmu;
-  boost::optional<unsigned> m_leftIndentEmu;
-  boost::optional<unsigned> m_rightIndentEmu;
+  boost::optional<int> m_leftIndentEmu;   // JeffPub: signed, a hanging paragraph stores a negative one
+  boost::optional<int> m_rightIndentEmu;
   boost::optional<ListInfo> m_listInfo;
   std::vector<unsigned> m_tabStopsInEmu;
   // JeffPub: each tab's alignment (0 left, 1 right, 2 center, 3 decimal),

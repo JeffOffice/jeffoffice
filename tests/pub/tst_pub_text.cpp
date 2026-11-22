@@ -3567,6 +3567,56 @@ private Q_SLOTS:
         QCOMPARE(int(bd->findBlockByNumber(2).blockFormat().lineHeightType()), int(QTextBlockFormat::ProportionalHeight));
     }
 
+    // A paragraph's left and right indents are signed in a .pub file (a hanging paragraph stores its left
+    // indent as a negative number, -0.75 inch as 4294281496): read unsigned, the right indent came to about
+    // 4.3 billion EMU and the text frame's width went negative, one letter on each line. They are saved and
+    // read back through the window, with the sign.
+    void negativeParagraphIndentsKeptThroughSaveAndOpen()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        jp::MainWindow w;
+        w.resize(1200, 900);
+        w.show();
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        auto box = std::make_shared<jp::TextItem>();
+        box->rect = QRectF(72, 72, 300, 200);
+        box->storyId = doc->createStory();
+        QTextCursor c(doc->storyDoc(box->storyId));
+        c.select(QTextCursor::Document);
+        c.removeSelectedText();
+        QTextBlockFormat bf;
+        bf.setLeftMargin(-54);
+        bf.setRightMargin(-0.25);
+        bf.setTextIndent(65);
+        c.setBlockFormat(bf);
+        c.insertText(QStringLiteral("A hanging paragraph with enough words in it to need a few lines of the frame."));
+        doc->pages[0]->items.push_back(box);
+        w.editor()->setDocument(std::move(doc));
+        const QString path = dir.filePath(QStringLiteral("indents.pub"));
+        QVERIFY(w.saveTo(path));
+        jp::MainWindow again;
+        QVERIFY(again.openFile(path));
+        QTextDocument *bd = nullptr;
+        jp::walkItems(again.editor()->doc()->pages[0]->items, [&](const jp::ItemPtr &it) {
+            if (it->type() == jp::ItemType::Text) bd = again.editor()->doc()->storyDoc(static_cast<jp::TextItem *>(it.get())->storyId);
+        });
+        QVERIFY(bd);
+        const QTextBlockFormat got = bd->begin().blockFormat();
+        QVERIFY2(std::abs(got.leftMargin() + 54) < 0.1, qPrintable(QString::number(got.leftMargin())));
+        QVERIFY2(std::abs(got.rightMargin() + 0.25) < 0.1, qPrintable(QString::number(got.rightMargin())));
+        QVERIFY(std::abs(got.textIndent() - 65) < 0.1);
+        jp::FrameSpec fs;
+        fs.size = QSizeF(300, 2000);
+        fs.insets = QMarginsF(0, 0, 0, 0);
+        jp::StoryLayout lay;
+        lay.build(bd, {fs}, jp::LayoutEnv());
+        const auto lines = lay.lineInfo(0);
+        QVERIFY(!lines.isEmpty());
+        QVERIFY2(lines.size() <= 6, qPrintable(QString::number(lines.size())));
+        for (const auto &li : lines) QVERIFY(li.rect.width() > 50);
+    }
+
     // A text box's hyphenation zone is kept in a .pub file with its story's
     // hyphenation setting, in every box of a linked chain.
     void pubTextBoxHyphenationZoneKept()

@@ -1856,10 +1856,11 @@ ParagraphStyle MSPUBParser::getParagraphStyle(librevenge::RVNGInputStream *input
       ret.m_firstLineIndentEmu = (int)info.data;
       break;
     case PARAGRAPH_LEFT_INDENT:
-      ret.m_leftIndentEmu = info.data;
+      // JeffPub: signed (a hanging paragraph stores a negative left indent, and a right one can be as well)
+      ret.m_leftIndentEmu = (int)info.data;
       break;
     case PARAGRAPH_RIGHT_INDENT:
-      ret.m_rightIndentEmu = info.data;
+      ret.m_rightIndentEmu = (int)info.data;
       break;
     case PARAGRAPH_TABS:
       input->seek(info.dataOffset + 4, librevenge::RVNG_SEEK_SET);

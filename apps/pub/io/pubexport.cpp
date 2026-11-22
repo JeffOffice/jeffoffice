@@ -981,8 +981,8 @@ QVector<B> PubWriter::paraBlocks(const QTextBlock &block)
     else if (a & Qt::AlignJustify) p << u16(0x04, 3, 0x12);
     // Indents (EMU; the first line's can be negative for a hanging indent).
     if (std::abs(f.textIndent()) > 0.001) p << u32(0x0c, quint32(qint32(emu(f.textIndent()))), 0x22);
-    if (f.leftMargin() > 0.001) p << u32(0x0d, quint32(emu(f.leftMargin())), 0x22);
-    if (f.rightMargin() > 0.001) p << u32(0x0e, quint32(emu(f.rightMargin())), 0x22);
+    if (std::abs(f.leftMargin()) > 0.001) p << u32(0x0d, quint32(qint32(emu(f.leftMargin()))), 0x22);
+    if (std::abs(f.rightMargin()) > 0.001) p << u32(0x0e, quint32(qint32(emu(f.rightMargin()))), 0x22);
     // Spacing is always written, so Publisher's Normal style (6 pt after,
     // 1.19 lines) doesn't fill in where JeffPub has none.
     p << u32(0x12, quint32(emu(std::max(0.0, f.topMargin()))), 0x22) << u32(0x13, quint32(emu(std::max(0.0, f.bottomMargin()))), 0x22);
