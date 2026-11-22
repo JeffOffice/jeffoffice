@@ -19,6 +19,7 @@
 #include "text/textprops.h"
 #include "wml/wmlhtmlread.h"
 #include "render/shapes.h"
+#include "text/textengine.h"
 
 #include <QApplication>
 #include <QBuffer>

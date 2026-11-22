@@ -23,6 +23,7 @@
 #include <QDoubleSpinBox>
 #include "app/theme.h"
 #include "app/settings.h"
+#include "text/textengine.h"
 
 // What the program's settings hold for the grid, put back when the test ends (the dialog writes them).
 static auto keepGridSettings()

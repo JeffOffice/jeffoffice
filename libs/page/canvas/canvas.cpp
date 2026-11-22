@@ -12,6 +12,7 @@
 #include "render/shapes.h"
 #include "text/textprops.h"
 #include "core/textdirection.h"
+#include "text/textengine.h"
 
 #include <QApplication>
 #include <QFileInfo>

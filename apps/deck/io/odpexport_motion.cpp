@@ -8,6 +8,7 @@
 #include "core/comments.h"
 #include "core/sections.h"
 #include "core/syslocale.h"
+#include "text/textengine.h"
 
 #include <QCoreApplication>
 #include <QDateTime>

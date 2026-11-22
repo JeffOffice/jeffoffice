@@ -28,6 +28,7 @@
 #include "render/svgexport.h"
 #include <QXmlStreamReader>
 #include "../settingguard.h"
+#include "text/textengine.h"
 
 // The middle color of the first page of a PDF at a place (points from its top left, drawn on white), and the mean gray of a rectangle.
 static QColor colorAt(const QByteArray &bytes, const QPointF &at)

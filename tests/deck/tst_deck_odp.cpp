@@ -11,6 +11,7 @@
 #include "office/mathobject.h"
 #include "wml/wmlmathedit.h"
 #include "wml/wmlmathpath.h"
+#include "text/textengine.h"
 
 namespace odptest {
 

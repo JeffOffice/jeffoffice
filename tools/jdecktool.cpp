@@ -23,6 +23,7 @@
 #include "io/presentationfile.h"
 #include "render/renderer.h"
 #include "text/textprops.h"
+#include "text/textengine.h"
 
 #include <QBuffer>
 #include <QCryptographicHash>

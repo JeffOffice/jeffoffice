@@ -2,6 +2,7 @@
 #include "deckhelpers.h"
 #include "app/linkedmedia.h"
 #include "app/trust.h"
+#include "text/textengine.h"
 #include <QThread>
 #ifndef Q_OS_WIN
 #include <sys/stat.h>

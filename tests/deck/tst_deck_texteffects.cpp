@@ -2,6 +2,7 @@
 #include <QComboBox>
 #include <QTabWidget>
 #include "deckhelpers.h"
+#include "text/textengine.h"
 
 class DeckTextEffectsTests : public QObject {
     Q_OBJECT

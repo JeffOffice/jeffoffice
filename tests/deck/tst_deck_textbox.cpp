@@ -6,6 +6,7 @@
 #include "io/zip.h"
 
 #include "app/theme.h"
+#include "text/textengine.h"
 
 #include <QDir>
 #include <QKeyEvent>

@@ -70,6 +70,7 @@
 #include <QMimeData>
 #include <QTextDocumentFragment>
 #include "app/plaintext.h"
+#include "text/textengine.h"
 
 namespace jp {
 

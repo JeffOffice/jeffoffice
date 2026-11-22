@@ -37,6 +37,7 @@
 #include "wml/wmlmathpath.h"
 #include "text/textprops.h"
 #include "core/syslocale.h"
+#include "text/textengine.h"
 
 #include <QBuffer>
 #include <QCryptographicHash>

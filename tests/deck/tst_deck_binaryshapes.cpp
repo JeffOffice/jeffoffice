@@ -2,6 +2,7 @@
 #include "deckhelpers.h"
 #include "render/metafile.h"
 #include "core/blipeffects.h"
+#include "text/textengine.h"
 
 class DeckBinaryShapesTests : public QObject {
     Q_OBJECT

@@ -16,6 +16,7 @@
 #include "render/renderer.h"
 #include "render/shapes.h"
 #include "text/textprops.h"
+#include "text/textengine.h"
 
 #include <QCoreApplication>
 #include <QJsonDocument>

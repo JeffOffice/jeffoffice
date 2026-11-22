@@ -40,6 +40,7 @@
 #include <QTextDocumentFragment>
 #include <QXmlStreamReader>
 #include "app/plaintext.h"
+#include "text/textengine.h"
 
 namespace jp {
 

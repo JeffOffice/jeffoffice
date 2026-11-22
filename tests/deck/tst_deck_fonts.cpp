@@ -1,5 +1,6 @@
 // JeffDeck's tests of fonts a file carries.
 #include "deckhelpers.h"
+#include "text/textengine.h"
 
 class DeckFontsTests : public QObject {
     Q_OBJECT

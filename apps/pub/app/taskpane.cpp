@@ -39,6 +39,7 @@
 #include <QTreeWidget>
 #include <QVBoxLayout>
 #include "app/plaintext.h"
+#include "text/textengine.h"
 
 namespace jp {
 

@@ -3,6 +3,7 @@
 #include "core/items.h"
 
 #include "office/xml.h"
+#include "text/textengine.h"
 
 #include <QDomDocument>
 #include <QPaintDevice>

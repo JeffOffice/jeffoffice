@@ -19,6 +19,7 @@
 #include "office/package.h"
 #include "office/privacy.h"
 #include "core/syslocale.h"
+#include "text/textengine.h"
 #include <QBuffer>
 #include <QCoreApplication>
 #include <QDateTime>

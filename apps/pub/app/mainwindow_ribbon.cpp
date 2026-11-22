@@ -54,6 +54,7 @@
 #include <QComboBox>
 #include <QFile>
 #include "app/plaintext.h"
+#include "text/textengine.h"
 
 namespace jp {
 

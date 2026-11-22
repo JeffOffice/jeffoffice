@@ -5,7 +5,8 @@
 #include "core/document.h"
 #include "core/fill.h"
 #include "core/stylefwd.h"
-#include "text/textengine.h"
+#include "text/textenginefwd.h"
+#include "text/textprops.h"
 
 #include <QDateTime>
 #include <QHash>

@@ -10,6 +10,7 @@
 #include <QScrollBar>
 #include <QToolButton>
 #include "../shell/shapetexttest.h"
+#include "text/textengine.h"
 
 #include <QStandardItemModel>
 

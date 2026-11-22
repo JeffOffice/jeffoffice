@@ -114,6 +114,7 @@
 #include <QProgressDialog>
 #include "app/plaintext.h"
 #include "app/trust.h"
+#include "text/textengine.h"
 
 namespace jp {
 

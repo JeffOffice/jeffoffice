@@ -20,6 +20,7 @@
 
 #include "../settingguard.h"
 #include "../withdialog.h"
+#include "text/textengine.h"
 
 #include <QFile>
 #include <QStatusBar>

@@ -16,6 +16,7 @@
 #include "app/equationedit.h"
 #include "render/renderer.h"
 #include "render/shapes.h"
+#include "text/textengine.h"
 
 #include <QBuffer>
 #include <QCryptographicHash>

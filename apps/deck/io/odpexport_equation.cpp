@@ -5,6 +5,7 @@
 #include "core/items.h"
 #include "office/mathobject.h"
 #include "wml/wmlmathpath.h"
+#include "text/textengine.h"
 
 #include <QCoreApplication>
 

@@ -6,7 +6,7 @@
 #include "core/fill.h"
 #include "core/itemsfwd.h"
 #include "office/customprop.h"
-#include "text/textengine.h"
+#include "text/fieldsource.h"
 
 #include <QByteArray>
 #include <QDateTime>

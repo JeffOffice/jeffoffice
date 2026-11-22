@@ -5,6 +5,7 @@
 #include "core/media.h"
 #include "core/transition.h"
 #include "render/renderer.h"
+#include "text/textengine.h"
 
 #include <QHash>
 #include <QPainter>

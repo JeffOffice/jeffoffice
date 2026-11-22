@@ -3,6 +3,7 @@
 
 #include "core/document.h"
 #include "render/renderer.h"
+#include "text/textengine.h"
 
 #include <QCoreApplication>
 #include <QHash>

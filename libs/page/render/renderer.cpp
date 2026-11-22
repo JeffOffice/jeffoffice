@@ -16,6 +16,7 @@
 #include "wml/wmlmathedit.h"
 #include "wml/wmlmathpath.h"
 #include "text/textprops.h"
+#include "text/textengine.h"
 
 #include <atomic>
 #include <QCache>
