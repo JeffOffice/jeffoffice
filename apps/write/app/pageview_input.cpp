@@ -2,6 +2,7 @@
 
 #include "app/pageview.h"
 #include "app/pasteoffer.h"
+#include "flow/borderpaint.h"
 #include "app/shapetextedit.h"
 
 #include "core/autoops.h"
@@ -900,6 +901,13 @@ void PageView::keyPressEvent(QKeyEvent *e)
         e->accept();
         return;
     }
+    if (e->key() == Qt::Key_Escape && m_tableMove.active) {
+        // (a pull of the table by its move handle is let go: nothing is changed)
+        m_tableMove = TableMove();
+        viewport()->update();
+        e->accept();
+        return;
+    }
     if (e->key() == Qt::Key_Escape && m_columnDrag.active) {
         // (a pull of a border or of the table's handle is let go: nothing is changed)
         m_columnDrag.active = false;
@@ -1034,7 +1042,7 @@ void PageView::mousePressEvent(QMouseEvent *e)
         const Hit hit = hitAt(e->position().toPoint());
         const int at = positionAt(hit);
         if (hit.page >= 0 && at >= 0) {
-            m_toolDrag = {true, hit.page, at, hit.point, hit.point};
+            m_toolDrag = {true, hit.page, at, hit.point, hit.point, {hit.point}};
             viewport()->update();
             e->accept();
             return;
@@ -1046,6 +1054,20 @@ void PageView::mousePressEvent(QMouseEvent *e)
             toggleHeadingCollapsed(heading);
             e->accept();
             return;
+        }
+        if (QRect mh; !m_readOnly && moveHandleInView(&mh) && mh.adjusted(-2, -2, 2, 2).contains(e->position().toPoint())) {
+            QRectF box, table;
+            int page = 0, position = 0;
+            if (moveHandle(&box, &page, &position, &table)) {
+                m_tableMove = TableMove();
+                m_tableMove.active = true;
+                m_tableMove.position = position;
+                m_tableMove.page = page;
+                m_tableMove.startPx = e->position().toPoint();
+                m_tableMove.now = hitAt(m_tableMove.startPx).point;
+                e->accept();
+                return;
+            }
         }
         if (tableHandleAt(e->position().toPoint(), &m_columnDrag)) {
             m_columnDrag.active = true;
@@ -1132,7 +1154,23 @@ void PageView::mouseMoveEvent(QMouseEvent *e)
 {
     if (m_toolDrag.active) {
         const Hit hit = hitAt(e->position().toPoint());
-        if (hit.page == m_toolDrag.page) m_toolDrag.to = hit.point;
+        if (hit.page == m_toolDrag.page) {
+            m_toolDrag.to = hit.point;
+            // (the border painter keeps the way the pointer went, a point for every two points of the page or so, and no more than the pieces that are looked at)
+            if (m_tableTool == TableTool::PaintBorder && !m_toolDrag.path.empty() && int(m_toolDrag.path.size()) <= flow::kMostPaintPieces && QLineF(m_toolDrag.path.back(), hit.point).length() >= 2) m_toolDrag.path.push_back(hit.point);
+        }
+        viewport()->update();
+        return;
+    }
+    if (m_tableMove.active) {
+        if (!(e->buttons() & Qt::LeftButton)) {
+            m_tableMove = TableMove();
+        } else {
+            if ((e->position().toPoint() - m_tableMove.startPx).manhattanLength() >= QApplication::startDragDistance()) m_tableMove.moved = true;
+            const Hit hit = hitAt(e->position().toPoint());
+            m_tableMove.now = hit.point;
+            m_tableMove.target = m_tableMove.moved ? tableMoveTarget(hit) : -1;
+        }
         viewport()->update();
         return;
     }
@@ -1172,7 +1210,9 @@ void PageView::mouseMoveEvent(QMouseEvent *e)
         // The pointer says what a press on the selected picture would do, or that a press on a column's border would pull it.
         const PictureHandle h = pictureHandleAt(e->position().toPoint());
         ColumnDrag border;
-        const int shape = h == PictureHandle::None && tableHandleAt(e->position().toPoint(), &border) ? int(Qt::SizeFDiagCursor)
+        QRect moveBox;
+        const int shape = h == PictureHandle::None && moveHandleInView(&moveBox) && moveBox.adjusted(-2, -2, 2, 2).contains(e->position().toPoint()) ? int(Qt::SizeAllCursor)
+                          : h == PictureHandle::None && tableHandleAt(e->position().toPoint(), &border) ? int(Qt::SizeFDiagCursor)
                           : h == PictureHandle::None && columnBorderAt(e->position().toPoint(), &border) ? int(border.row ? Qt::SplitVCursor : Qt::SplitHCursor)
                           : h == PictureHandle::None ? int(Qt::IBeamCursor) : h == PictureHandle::Body ? int(Qt::SizeAllCursor)
                           : (h == PictureHandle::Rotate || h == PictureHandle::Adjust) ? int(Qt::PointingHandCursor)
@@ -1260,11 +1300,31 @@ void PageView::finishShapeDraw(const QPoint &viewportPos, Qt::KeyboardModifiers 
     Q_EMIT notice(m_doc->pictureNotice.isEmpty() ? (box ? QCoreApplication::translate("jp::write::Pictures", "A text box can't be put here.") : QCoreApplication::translate("jp::write::Pictures", "That shape can't be put here.")) : m_doc->pictureNotice);
 }
 
+// Where a table pulled by its move handle would go if let go at `hit`: the start of the paragraph there, outside every table (-1: there is none).
+int PageView::tableMoveTarget(const Hit &hit)
+{
+    if (!m_doc || hit.page < 0 || m_hf.active || m_note.active) return -1;
+    const int at = positionAt(hit);
+    if (at < 0 || at >= m_doc->story()->characterCount()) return -1;
+    const QTextBlock b = m_doc->story()->findBlock(at);
+    return b.isValid() && !inTable(b) ? b.position() : -1;
+}
+
+void PageView::setBorderPen(const flow::TableLine &line)
+{
+    m_borderPen = line;
+    viewport()->update();
+}
+
 void PageView::finishTableTool(const QPoint &viewportPos)
 {
     const ToolDrag d = m_toolDrag;
     m_toolDrag = ToolDrag();
     viewport()->update();
+    if (m_tableTool == TableTool::PaintBorder) {
+        finishBorderPaint(d);
+        return;
+    }
     if (!m_doc || d.position < 0 || d.position >= m_doc->story()->characterCount()) return;
     const Hit hit = hitAt(viewportPos);
     const QPointF delta = hit.page == d.page ? hit.point - d.from : QPointF();
@@ -1309,6 +1369,36 @@ void PageView::mouseReleaseEvent(QMouseEvent *e)
     }
     if (m_toolDrag.active) {
         finishTableTool(e->position().toPoint());
+        return;
+    }
+    if (m_tableMove.active) {
+        const TableMove d = m_tableMove;
+        m_tableMove = TableMove();
+        viewport()->update();
+        if (!m_doc || d.position < 0 || d.position >= m_doc->story()->characterCount()) return;
+        QTextCursor c(m_doc->story());
+        if (!d.moved) {
+            // A click on the handle selects the whole table.
+            c.setPosition(d.position);
+            write::selectInTable(*m_doc, c, write::TableUnit::Table);
+            m_cursor = c;
+            caretMoved();
+            viewport()->update();
+            return;
+        }
+        const int target = tableMoveTarget(hitAt(e->position().toPoint()));
+        if (target < 0) {
+            Q_EMIT notice(QCoreApplication::translate("jp::write::PageView", "Drop the table between paragraphs, not inside a table."));
+            return;
+        }
+        if (write::moveTable(*m_doc, c, d.position, target)) {
+            m_cursor = c;
+            refresh();
+            caretMoved();
+            Q_EMIT contentChanged();
+        } else if (!m_doc->tableNotice.isEmpty()) {
+            Q_EMIT notice(m_doc->tableNotice);
+        }
         return;
     }
     if (m_columnDrag.active) {

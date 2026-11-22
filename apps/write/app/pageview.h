@@ -6,6 +6,8 @@ namespace jp { class ShapeTextEdit; }
 // worked out. The view also takes the keyboard and the mouse: the caret is drawn on the page that holds it, and what is typed goes to
 // the story through the commands of core/editops.h.
 
+#include "flow/tabledata.h"
+#include <vector>
 #include "app/pagepaint.h"
 #include "app/pastedefaults.h"
 #include "app/pasteoffer.h"
@@ -420,7 +422,10 @@ public:
 
     // The pen and the eraser of Draw Table: with the pen, a drag outside a table draws one cell of that size, and a drag across a cell draws a line that divides it (across or down, by the
     // way the drag goes); with the eraser, a drag from one cell to the next joins them. Esc, or setting None, lets the tool go.
-    enum class TableTool { None, Draw, Erase };
+    enum class TableTool { None, Draw, Erase, PaintBorder };
+    // The border painter's pen: dragging along the lines of a table with PaintBorder on puts this line on them (a line that is not visible takes the borders off).
+    void setBorderPen(const flow::TableLine &line);
+    const flow::TableLine &borderPen() const { return m_borderPen; }
     void setTableTool(TableTool tool);
     TableTool tableTool() const { return m_tableTool; }
 
@@ -623,10 +628,12 @@ private:
     };
     ColumnDrag m_columnDrag;
     TableTool m_tableTool = TableTool::None;
+    flow::TableLine m_borderPen{flow::TableLine::Style::Single, 0.5, QColor()};
     struct ToolDrag {
         bool active = false;
         int page = -1, position = -1;       // where it began: the page, and the place in the text
         QPointF from, to;                   // on that page, in points
+        std::vector<QPointF> path;          // the border painter: the points the pointer has been through
     };
     ToolDrag m_toolDrag;
     ShapeTextEdit *m_shapeEditor = nullptr;
@@ -635,10 +642,26 @@ private:
     QString m_shapeDraw;   // the shape the pointer is drawing (its preset), empty when it is not
     void finishShapeDraw(const QPoint &viewportPos, Qt::KeyboardModifiers modifiers);
     void finishTableTool(const QPoint &viewportPos);
+    void finishBorderPaint(const ToolDrag &drag);
     // The border of a column or a row of a table on the page under the pointer (within a few pixels of a cell's right or bottom edge, one column or row wide), or false.
     bool columnBorderAt(const QPoint &viewportPos, ColumnDrag *found);
     // The resize handle at the lower right corner of the table the caret is in: its box on the page and where the table is (or false). The handle is drawn there, and pulling it sets the table's width.
     bool tableHandle(QRectF *box, int *page, int *cellPosition, QRectF *table);
+    // The move handle at the upper left corner of the same table: a click on it selects the table, and pulling it moves the table to before the paragraph where it is let go (a line shows where).
+    bool moveHandle(QRectF *box, int *page, int *cellPosition, QRectF *table);
+    struct TableMove {
+        bool active = false, moved = false;
+        int position = 0, page = 0, target = -1;   // a place in the table, the page, and the place in the text the table would go before (-1: none)
+        QPoint startPx;
+        QPointF now;
+    };
+    TableMove m_tableMove;
+    int tableMoveTarget(const Hit &hit);
+public:
+    // For the table the caret is in: its move handle's box, and its cells' boxes (each with its first place in the text), in the view's own pixels. False when the caret is in no table, or it is not on a page.
+    bool moveHandleInView(QRect *box);
+    bool cellBoxesInView(QVector<QPair<int, QRect>> *cells);
+private:
     bool tableHandleAt(const QPoint &viewportPos, ColumnDrag *found);
     int m_hoverCursorShape = -1;
     // The small triangle by a heading (Collapse and expand): the heading the pointer is on (its paragraph's place, -1 for none), the triangle's box on the viewport for a heading, and the heading under a point.

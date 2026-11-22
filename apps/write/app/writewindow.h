@@ -1,6 +1,7 @@
 #pragma once
 // JeffWrite's main window: the ribbon, the pages, and the status bar, with the File screen over them.
 
+#include "flow/tabledata.h"
 #include "app/appwindow.h"
 #include "app/chartdesign.h"
 #include "app/compatdialog.h"
@@ -681,6 +682,9 @@ private:
     QList<FontCombo *> m_fontCombos;
     QList<SizeCombo *> m_sizeCombos;
     QList<ColorButton *> m_colorButtons;
+    flow::TableLine m_penLine{flow::TableLine::Style::Single, 0.5, QColor()};   // the border painter's line (Table Design: Pen Style, Pen Weight, Pen Color); no Border is erasing
+    bool m_penErases = false;
+    void applyBorderPen();
     QList<ColorButton *> m_fontColorButtons;   // (the ones that set the font color: their palette makes a tint as the file does)
     ColorScheme fontColorScheme() const;
     office::Theme m_openedTheme;   // the document's theme as it was opened (Reset to the template's theme)

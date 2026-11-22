@@ -118,6 +118,15 @@ qint64 tableFontMeasuresMadeForTest();
 enum class TableUnit { Cell, Row, Column, Table };
 void selectInTable(WriteDoc &doc, QTextCursor &c, TableUnit unit);
 
+// Moves the table (the innermost one) that the position `tablePosition` is in to just before the paragraph at `to`, which must be outside every table. One step that undoes;
+// the table is selected afterward (`c`). The table keeps its cells' words, formatting, shading, and borders. False (nothing done, and `tableNotice` says why) where `to` is in a
+// table, or is the table's own place, or is where the story is locked.
+bool moveTable(WriteDoc &doc, QTextCursor &c, int tablePosition, int to);
+
+// Moves the table the caret is in up past the paragraph before it, or down past the one after it (the keyboard's way of moving a table). One step that undoes; the table is
+// selected afterward. False (and `tableNotice` says why) when there is no paragraph outside a table in that direction.
+bool moveTableByParagraph(WriteDoc &doc, QTextCursor &c, bool up);
+
 // The cells the selection covers are made one (the text of each in turn; empty cells add no paragraph), or one cell is made columns by rows cells.
 bool canMergeCells(WriteDoc &doc, const QTextCursor &c);
 bool mergeCells(WriteDoc &doc, QTextCursor &c);
@@ -129,6 +138,14 @@ namespace BorderSide {
 enum : int { Top = 1, Left = 2, Bottom = 4, Right = 8, InsideH = 16, InsideV = 32, Outside = 15, Inside = 48, All = 63 };
 }
 void setBorders(WriteDoc &doc, QTextCursor &c, int sides, const flow::TableLine &line);
+// The border painter: each (cell, side) has the line put on it, or taken off with a line that is not visible. `cell` is the place in the story of the
+// cell's first paragraph (flow::TableFragment::CellBox::from), `side` one of BorderSide::Top, Left, Bottom, and Right. The cells are those of the table the first
+// one is in; one step that undoes. False (nothing done) when nothing was changed. Changes of borders are not recorded as tracked changes, as the Borders commands are not.
+struct BorderEdge {
+    int cell = 0;
+    int side = 0;
+};
+bool paintBorderEdges(WriteDoc &doc, const QVector<BorderEdge> &edges, const flow::TableLine &line);
 // Shading of the selected cells (an invalid color: none).
 void setShading(WriteDoc &doc, QTextCursor &c, const QColor &fill);
 // The nine positions of text in a cell: across as the paragraphs' alignment, down as the cell's.

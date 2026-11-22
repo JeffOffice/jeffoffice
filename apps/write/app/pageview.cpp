@@ -1,4 +1,5 @@
 #include "app/pageview.h"
+#include "flow/borderpaint.h"
 #include "core/items.h"
 
 #include "app/icons.h"
@@ -834,6 +835,37 @@ void PageView::paintEvent(QPaintEvent *e)
             p.restore();
         }
     }
+    {
+        // The table's move handle (a square with a cross of arrows), and while the table is pulled, a line before the paragraph it would go to.
+        QRectF box, table;
+        int page = 0, position = 0;
+        if (moveHandle(&box, &page, &position, &table) && page < m_rects.size()) {
+            const QRectF pr = m_rects[page].translated(-sx, -sy);
+            const QRectF b(pr.left() + box.left() * s, pr.top() + box.top() * s, std::max(6.0, box.width() * s), std::max(6.0, box.height() * s));
+            p.save();
+            p.setRenderHint(QPainter::Antialiasing, false);
+            p.setBrush(Qt::white);
+            p.setPen(QPen(uiAccent(), 1));
+            p.drawRect(b);
+            const QPointF c = b.center();
+            const double arm = b.width() / 2 - 1.5;
+            p.drawLine(QPointF(c.x() - arm, c.y()), QPointF(c.x() + arm, c.y()));
+            p.drawLine(QPointF(c.x(), c.y() - arm), QPointF(c.x(), c.y() + arm));
+            p.restore();
+        }
+        if (m_tableMove.active && m_tableMove.moved && m_tableMove.target >= 0) {
+            int tp = 0;
+            QLineF line;
+            if (caretLine(m_tableMove.target, &tp, &line) && tp < m_rects.size()) {
+                const QRectF pr = m_rects[tp].translated(-sx, -sy);
+                p.save();
+                p.setPen(QPen(uiAccent(), 2));
+                const double y = pr.top() + line.y1() * s;
+                p.drawLine(QPointF(pr.left() + 36 * s, y), QPointF(pr.right() - 36 * s, y));
+                p.restore();
+            }
+        }
+    }
     if (m_toolDrag.active && !m_shapeDraw.isEmpty() && m_toolDrag.page >= 0 && m_toolDrag.page < m_rects.size()) {
         // The shape being drawn: its box (or a line) as the drag would make it now.
         const double s = scale();
@@ -854,6 +886,15 @@ void PageView::paintEvent(QPaintEvent *e)
         p.save();
         p.setPen(QPen(QColor(0x2B, 0x57, 0xB5), 1, Qt::DashLine));
         const QTextBlock under = m_doc && m_toolDrag.position >= 0 && m_toolDrag.position < m_doc->story()->characterCount() ? m_doc->story()->findBlock(m_toolDrag.position) : QTextBlock();
+        if (m_tableTool == TableTool::PaintBorder) {
+            // The way the pen has gone, in the pen's color (the automatic one is black), as wide as its line on the screen.
+            QColor shown = m_borderPen.visible() && m_borderPen.color.isValid() ? m_borderPen.color : QColor(0, 0, 0);
+            if (!m_borderPen.visible()) shown = QColor(0xC0, 0x39, 0x2B);
+            p.setPen(QPen(shown, std::max(1.0, m_borderPen.width * s), m_borderPen.visible() ? Qt::SolidLine : Qt::DashLine));
+            QPolygonF way;
+            for (const QPointF &pt : m_toolDrag.path) way << QPointF(pr.left() + pt.x() * s, pr.top() + pt.y() * s);
+            p.drawPolyline(way);
+        } else
         if (m_tableTool == TableTool::Draw && under.isValid() && !inTable(under)) p.drawRect(QRectF(a, b).normalized());
         else p.drawLine(a, b);
         p.restore();
@@ -1199,6 +1240,68 @@ bool PageView::tableHandle(QRectF *box, int *page, int *cellPosition, QRectF *ta
         *page = at;
         *cellPosition = m_cursor.position();
         *table = rect;
+        return true;
+    }
+    return false;
+}
+
+void PageView::finishBorderPaint(const ToolDrag &drag)
+{
+    const auto r = rendered(drag.page);
+    if (!m_doc || !r || !r->page || drag.path.empty()) return;
+    const double reach = 4.0 / std::max(0.1, scale());
+    for (const auto &fragment : r->page->tables) {
+        if (!fragment->rect().adjusted(-reach, -reach, reach, reach).contains(drag.path.front())) continue;
+        std::vector<flow::PaintCell> cells;
+        for (const flow::TableFragment::CellBox &cb : fragment->cellBoxes()) cells.push_back({cb.box, cb.from});
+        QVector<write::BorderEdge> edges;
+        for (const flow::PaintedSide &s : flow::sidesUnderPath(cells, drag.path, reach))
+            edges.push_back({s.key, s.side == flow::CellSide::Top ? write::BorderSide::Top : s.side == flow::CellSide::Left ? write::BorderSide::Left : s.side == flow::CellSide::Bottom ? write::BorderSide::Bottom : write::BorderSide::Right});
+        m_doc->tableNotice.clear();
+        if (write::paintBorderEdges(*m_doc, edges, m_borderPen)) {
+            refresh();
+            caretMoved();
+            Q_EMIT contentChanged();
+        } else if (edges.isEmpty()) {
+            Q_EMIT notice(QCoreApplication::translate("jp::write::PageView", "Drag along the lines of a table to draw or erase its borders."));
+        }
+        return;
+    }
+}
+
+bool PageView::moveHandle(QRectF *box, int *page, int *cellPosition, QRectF *table)
+{
+    QRectF resize;
+    if (!tableHandle(&resize, page, cellPosition, table)) return false;
+    const double side = 8.0 / std::max(0.1, scale());
+    *box = QRectF(table->left() - side - 1.0 / std::max(0.1, scale()), table->top() - side - 1.0 / std::max(0.1, scale()), side, side);
+    return true;
+}
+
+bool PageView::moveHandleInView(QRect *box)
+{
+    QRectF b, table;
+    int page = 0, position = 0;
+    if (!moveHandle(&b, &page, &position, &table) || page >= m_rects.size()) return false;
+    const double s = scale();
+    const QRectF pr = m_rects[page].translated(-horizontalScrollBar()->value(), -verticalScrollBar()->value());
+    *box = QRectF(pr.left() + b.left() * s, pr.top() + b.top() * s, std::max(6.0, b.width() * s), std::max(6.0, b.height() * s)).toAlignedRect();
+    return true;
+}
+
+bool PageView::cellBoxesInView(QVector<QPair<int, QRect>> *cells)
+{
+    QRectF b, table;
+    int page = 0, position = 0;
+    if (!moveHandle(&b, &page, &position, &table) || page >= m_rects.size()) return false;
+    const auto r = rendered(page);
+    if (!r || !r->page) return false;
+    const double s = scale();
+    const QRectF pr = m_rects[page].translated(-horizontalScrollBar()->value(), -verticalScrollBar()->value());
+    for (const auto &fragment : r->page->tables) {
+        if (fragment->floating || fragment->cellRect(position).isEmpty()) continue;
+        for (const flow::TableFragment::CellBox &cb : fragment->cellBoxes())
+            cells->push_back({cb.from, QRectF(pr.left() + cb.box.left() * s, pr.top() + cb.box.top() * s, cb.box.width() * s, cb.box.height() * s).toAlignedRect()});
         return true;
     }
     return false;

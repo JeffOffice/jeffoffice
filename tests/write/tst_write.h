@@ -1870,6 +1870,20 @@ private Q_SLOTS:
     void deletingTheFootnoteWhileItIsReadIsSafe();
     void footnotesAreScannedForMissingFontsAndReplaced();
     void textThatNamesNoFontIsReplacedThroughTheDefaultFont();
+    void thePathOfABorderPainterPaintsTheSidesItRunsAlong();
+    void aBorderPainterPathIsCutAtTheMostPiecesItLooksAt();
+    void paintingBordersPutsALineOnBothCellsInOneStepAndTheFileKeepsIt();
+    void draggingTheBorderPainterAlongALinePutsTheBorderOnBothSides();
+    void theBorderPainterWithNoBorderAsItsStyleErasesTheLinesItIsDraggedAlong();
+    void paintedBordersSurviveSaveAndOpenInEveryFormat();
+    void paintingBordersWithTrackChangesOnIsNotRecordedAsTheOtherBorderCommandsAreNot();
+    void theBorderPainterIsInTheTableDesignTabAndTheCellMenu();
+    void aTableHandleAtTheCornerMovesTheTableWhenPulledAndSelectsItWhenClicked();
+    void movingATableKeepsItsCellsAndBordersThroughEveryFormat();
+    void movingATableWithTrackChangesOnIsOneStepLikeMovingText();
+    void moveTableUpAndDownGoPastOneParagraphEach();
+    void showNotesGoesFromAMarkToItsNoteAndBackAndFromTheTextToTheNearestMark();
+    void picturesOfTheBorderPainterTheMoveHandleAndShowNotes();
 
 public:
     static std::unique_ptr<WriteDoc> speechDoc();

@@ -12,6 +12,10 @@ JeffWrite puts the reference in the text and a new note at the foot of the page 
 
 Notes are numbered in the order of their references in the text. If you add a footnote before others, each later note goes up by one, and the reference in the text shows the new number too.
 
+## Go between a reference and its note
+
+Put the caret next to a footnote's reference, then click **References > Show Notes**. The caret goes into the note at the foot of the page. Click **Show Notes** again, and the caret goes back to just after the reference. With the caret in the text but not next to a reference, **Show Notes** goes to the note of the nearest reference after the caret (or before it, if there is none after). It works in Print Layout view, where the notes are shown. Endnotes are not edited in place, so **Show Notes** is for footnotes.
+
 ## Use a mark of your own
 
 Open the box from **References > Footnote and Endnote**, and look at **New note** at the bottom. Choose **Footnote** or **Endnote**, type a mark such as \* or †† in **Custom mark** (or click **Symbol...** to pick one), and click **Insert**. The reference in the text and the note both begin with your mark instead of a number. A note with its own mark takes no number, so the notes after it are not counted any differently. Leave **Custom mark** empty and **Insert** numbers the note as usual. Insert is one step, so **Undo** takes back the reference, the mark, and the note together.

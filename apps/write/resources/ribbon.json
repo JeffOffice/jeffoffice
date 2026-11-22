@@ -924,6 +924,10 @@
               "keytip": "V"
             },
             {
+              "small": "refs.showNotes",
+              "keytip": "W"
+            },
+            {
               "small": "refs.convertNotes",
               "keytip": "C"
             },
@@ -1901,6 +1905,28 @@
               "menu": "@tableBorders"
             }
           ]
+        },
+        {
+          "name": "Draw Borders",
+          "keytip": "ZP",
+          "items": [
+            {
+              "widget": "penStyle",
+              "keytip": "PS"
+            },
+            {
+              "widget": "penWeight",
+              "keytip": "PW"
+            },
+            {
+              "widget": "penColor",
+              "keytip": "PC"
+            },
+            {
+              "large": "table.paintBorder",
+              "keytip": "BP"
+            }
+          ]
         }
       ]
     },
@@ -1930,6 +1956,14 @@
             {
               "small": "table.gridlines",
               "keytip": "TG"
+            },
+            {
+              "small": "table.moveUp",
+              "keytip": "MU"
+            },
+            {
+              "small": "table.moveDown",
+              "keytip": "MD"
             }
           ]
         },

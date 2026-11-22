@@ -591,7 +591,7 @@ void WriteWindow::refreshUi()
             a->setEnabled(has);
     }
     if (!has) {
-        for (const char *id : {"refs.updateTable", "refs.removeTable", "refs.nextFootnote", "refs.previousFootnote", "refs.nextEndnote", "refs.previousEndnote", "fields.update", "fields.unlink", "fields.lock", "fields.unlock", "fields.toggleCode", "fields.toggleAllCodes"}) act(QString::fromLatin1(id))->setEnabled(false);
+        for (const char *id : {"refs.updateTable", "refs.removeTable", "refs.nextFootnote", "refs.previousFootnote", "refs.showNotes", "refs.nextEndnote", "refs.previousEndnote", "fields.update", "fields.unlink", "fields.lock", "fields.unlock", "fields.toggleCode", "fields.toggleAllCodes"}) act(QString::fromLatin1(id))->setEnabled(false);
         refreshTableUi();
         refreshPictureUi();
         refreshMailUi();
@@ -716,6 +716,7 @@ void WriteWindow::refreshUi()
             const int here = c.position();
             act("refs.nextFootnote")->setEnabled(inText && write::nextNoteReference(*m_doc, here, true, false) >= 0);
             act("refs.previousFootnote")->setEnabled(inText && write::nextNoteReference(*m_doc, here, false, false) >= 0);
+            act("refs.showNotes")->setEnabled(m_view->inNote() || (inText && (write::nextNoteReference(*m_doc, here, true, false) >= 0 || write::nextNoteReference(*m_doc, here, false, false) >= 0)));
             act("refs.nextEndnote")->setEnabled(inText && write::nextNoteReference(*m_doc, here, true, true) >= 0);
             act("refs.previousEndnote")->setEnabled(inText && write::nextNoteReference(*m_doc, here, false, true) >= 0);
         }

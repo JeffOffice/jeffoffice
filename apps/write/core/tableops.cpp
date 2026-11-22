@@ -1658,6 +1658,102 @@ void setBorders(WriteDoc &doc, QTextCursor &c, int sides, const flow::TableLine 
     });
 }
 
+bool moveTable(WriteDoc &doc, QTextCursor &c, int tablePosition, int to)
+{
+    QTextDocument *story = doc.story();
+    if (to < 0 || to >= story->characterCount() || tablePosition < 0 || tablePosition >= story->characterCount()) return false;
+    doc.tableNotice.clear();
+    if (inTable(story->findBlock(to))) return refuse(doc, QCoreApplication::translate("jp::write::Tables", "Drop the table between paragraphs, not inside a table."));
+    QTextCursor whole(story);
+    whole.setPosition(tablePosition);
+    if (!inTable(whole.block())) return false;
+    selectInTable(doc, whole, TableUnit::Table);
+    if (!whole.hasSelection()) return false;
+    to = story->findBlock(to).position();
+    const int start = whole.selectionStart(), end = whole.selectionEnd();
+    const QTextBlock after = story->findBlock(end).next();
+    if (!after.isValid() || inTable(after)) return refuse(doc, QCoreApplication::translate("jp::write::Tables", "A table can only be moved where a paragraph follows it."));
+    if (to >= start && to <= after.position()) return false;   // (where it is)
+    // The table's blocks (each has its cell's key in its format, and the cells' records stay where they are): the blocks' formats are kept, a copy of the words is put in at the new place
+    // (in a block of its own, made for it), and the old blocks are taken out, as one step.
+    QVector<QTextBlockFormat> formats;
+    for (QTextBlock b = story->findBlock(start); b.isValid() && b.position() < end; b = b.next()) formats.push_back(b.blockFormat());
+    const QTextBlockFormat afterFormat = after.blockFormat();
+    const int removed = after.position() - start;
+    const QTextDocumentFragment fragment = whole.selection();
+    TableCommand command(doc);
+    QTextCursor edit(story);
+    edit.beginEditBlock();
+    QTextCursor cutFrom(story), cutTo(story), put(story);
+    cutFrom.setPosition(start);
+    cutTo.setPosition(after.position());
+    put.setPosition(to);
+    put.insertBlock();
+    put.movePosition(QTextCursor::PreviousBlock);
+    const int placed = put.position();
+    put.insertFragment(fragment);
+    QTextBlock nb = story->findBlock(placed);
+    for (int i = 0; i < formats.size() && nb.isValid(); ++i, nb = nb.next()) QTextCursor(nb).setBlockFormat(formats[i]);
+    QTextCursor cut(story);
+    cut.setPosition(cutFrom.position());
+    cut.setPosition(cutTo.position(), QTextCursor::KeepAnchor);
+    cut.removeSelectedText();
+    QTextCursor(story->findBlock(cutFrom.position())).setBlockFormat(afterFormat);
+    edit.endEditBlock();
+    c = QTextCursor(story);
+    c.setPosition(std::min(placed > start ? placed - removed : placed, story->characterCount() - 1));
+    selectInTable(doc, c, TableUnit::Table);
+    return true;
+}
+
+bool moveTableByParagraph(WriteDoc &doc, QTextCursor &c, bool up)
+{
+    QTextDocument *story = doc.story();
+    doc.tableNotice.clear();
+    QTextBlock first = story->findBlock(c.position()), last = first;
+    if (!inTable(first)) return false;
+    while (first.previous().isValid() && inTable(first.previous())) first = first.previous();
+    while (last.next().isValid() && inTable(last.next())) last = last.next();
+    int target = -1;
+    if (up) {
+        if (first.previous().isValid()) target = first.previous().position();
+    } else if (last.next().isValid() && last.next().next().isValid()) {
+        QTextBlock after = last.next().next();
+        while (inTable(after) && after.previous().isValid() && inTable(after.previous()) && after.previous() != last.next()) after = after.previous();
+        target = after.position();
+    }
+    if (target < 0) return refuse(doc, up ? QCoreApplication::translate("jp::write::Tables", "There is no paragraph above the table to move it past.")
+                                           : QCoreApplication::translate("jp::write::Tables", "There is no paragraph below the table to move it past."));
+    return moveTable(doc, c, first.position(), target);
+}
+
+bool paintBorderEdges(WriteDoc &doc, const QVector<BorderEdge> &edges, const flow::TableLine &line)
+{
+    if (edges.isEmpty()) return false;
+    TableCommand command(doc);
+    QTextCursor at(tableStory(doc));
+    at.setPosition(std::clamp(edges.first().cell, 0, std::max(0, tableStory(doc)->characterCount() - 1)));
+    bool changed = false;
+    editTable(doc, at, [&](XTable &x, const View &v, const Area &) {
+        QHash<int, int> sides;   // the cells' first places and the sides asked for
+        for (const BorderEdge &e : edges) sides[e.cell] |= e.side;
+        for (XRow &r : x.rows)
+            for (XCell &cell : r.cells) {
+                const int wanted = sides.value(v.layout->cell(cell.li).from, 0);
+                if (!wanted) continue;
+                QByteArray group;
+                if (wanted & BorderSide::Top) group += borderXml("top", line);
+                if (wanted & BorderSide::Left) group += borderXml("left", line);
+                if (wanted & BorderSide::Bottom) group += borderXml("bottom", line);
+                if (wanted & BorderSide::Right) group += borderXml("right", line);
+                cell.open = patchPr(cell.open, kCell, {{"tcBorders", "<w:tcBorders>" + group + "</w:tcBorders>"}});
+                changed = true;
+            }
+        return changed;
+    });
+    return changed;
+}
+
 void setCellAlignment(WriteDoc &doc, QTextCursor &c, Qt::Alignment across, flow::CellAlign down)
 {
     TableCommand command(doc);

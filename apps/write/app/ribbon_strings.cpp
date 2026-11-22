@@ -17,6 +17,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Bibliography"),
     QT_TRANSLATE_NOOP("Ribbon", "Borders"),
     QT_TRANSLATE_NOOP("Ribbon", "Borders and Shading"),
+    QT_TRANSLATE_NOOP("Ribbon", "Draw Borders"),
     QT_TRANSLATE_NOOP("Ribbon", "Breaks"),
     QT_TRANSLATE_NOOP("Ribbon", "Bring Forward"),
     QT_TRANSLATE_NOOP("Ribbon", "Built-In Equations"),

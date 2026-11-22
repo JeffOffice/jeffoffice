@@ -20,6 +20,7 @@
 #include <QPainter>
 #include <QPixmap>
 #include <QStatusBar>
+#include <QToolButton>
 #include <QWidgetAction>
 
 namespace jp {
@@ -128,6 +129,8 @@ void WriteWindow::createTableActions()
     cmd(QStringLiteral("table.deleteRows"), tr("Delete Rows"), "grid-2x2-x", [](write::WriteDoc &d, QTextCursor &c) { write::deleteTableRows(d, c); });
     cmd(QStringLiteral("table.deleteColumns"), tr("Delete Columns"), "table-columns-split", [](write::WriteDoc &d, QTextCursor &c) { write::deleteTableColumns(d, c); });
     cmd(QStringLiteral("table.deleteTable"), tr("Delete Table"), "trash-2", [](write::WriteDoc &d, QTextCursor &c) { write::deleteTable(d, c); });
+    mk("table.moveUp", tr("Move Table Up"), "arrow-up", QKeySequence(), [this] { tableCommand([](write::WriteDoc &d, QTextCursor &c) { write::moveTableByParagraph(d, c, true); }); });
+    mk("table.moveDown", tr("Move Table Down"), "arrow-down", QKeySequence(), [this] { tableCommand([](write::WriteDoc &d, QTextCursor &c) { write::moveTableByParagraph(d, c, false); }); });
     cmd(QStringLiteral("table.selectTable"), tr("Select Table"), "table", [](write::WriteDoc &d, QTextCursor &c) { write::selectInTable(d, c, write::TableUnit::Table); });
     cmd(QStringLiteral("table.selectRow"), tr("Select Row"), "rows-2", [](write::WriteDoc &d, QTextCursor &c) { write::selectInTable(d, c, write::TableUnit::Row); });
     cmd(QStringLiteral("table.selectColumn"), tr("Select Column"), "columns-2", [](write::WriteDoc &d, QTextCursor &c) { write::selectInTable(d, c, write::TableUnit::Column); });
@@ -179,7 +182,18 @@ void WriteWindow::createTableActions()
         m_view->setTableTool(act("table.eraser")->isChecked() ? write::PageView::TableTool::Erase : write::PageView::TableTool::None);
         m_view->setFocus(Qt::OtherFocusReason);
     }, true);
+    // The border painter: the pen's line (Pen Style, Pen Weight, and Pen Color) goes on the lines of a table that the pointer is dragged along; with No Border as the style it takes them off.
+    mk("table.paintBorder", tr("Border Painter"), "paintbrush", QKeySequence(), [this] {
+        if (!m_doc || refuseIfReadOnly()) {
+            act("table.paintBorder")->setChecked(false);
+            return;
+        }
+        applyBorderPen();
+        m_view->setTableTool(act("table.paintBorder")->isChecked() ? write::PageView::TableTool::PaintBorder : write::PageView::TableTool::None);
+        m_view->setFocus(Qt::OtherFocusReason);
+    }, true);
     connect(m_view, &write::PageView::tableToolChanged, this, [this] {
+        act("table.paintBorder")->setChecked(m_view->tableTool() == write::PageView::TableTool::PaintBorder);
         act("table.draw")->setChecked(m_view->tableTool() == write::PageView::TableTool::Draw);
         act("table.eraser")->setChecked(m_view->tableTool() == write::PageView::TableTool::Erase);
     });
@@ -367,6 +381,63 @@ void WriteWindow::tableRibbonParts(RibbonParts &parts)
         m_colorButtons << b;
         return b;
     };
+    // The pen of the border painter.
+    parts.widgets[QStringLiteral("penColor")] = [this]() -> QWidget * {
+        auto *color = new ColorButton(QStringLiteral("pen-line"), tr("Pen Color"), false, QString());
+        color->setText(tr("Pen Color"));
+        color->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+        color->setCurrent(m_penLine.color.isValid() ? ColorRef::rgb(m_penLine.color) : ColorRef::rgb(QColor(0, 0, 0)));
+        connect(color, &ColorButton::colorPicked, this, [this](const ColorRef &c) {
+            if (!m_doc) return;
+            m_penLine.color = c.resolve(m_doc->flow().env.colors);
+            applyBorderPen();
+        });
+        m_colorButtons << color;
+        return color;
+    };
+    parts.widgets[QStringLiteral("penWeight")] = [this]() -> QWidget * {
+        auto *menu = new QMenu(this);
+        for (double w : {0.25, 0.5, 0.75, 1.0, 1.5, 2.25, 3.0, 4.5, 6.0}) {
+            QAction *a = menu->addAction(tr("%1 pt").arg(w));
+            connect(a, &QAction::triggered, this, [this, w] {
+                m_penLine.width = w;
+                applyBorderPen();
+            });
+        }
+        auto *b = new QToolButton();
+        b->setText(tr("Pen Weight"));
+        b->setToolTip(tr("Pen Weight: how thick the lines are that the Border Painter draws."));
+        b->setIcon(icon("minus"));
+        b->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+        b->setPopupMode(QToolButton::InstantPopup);
+        b->setMenu(menu);
+        b->setAutoRaise(true);
+        return b;
+    };
+    parts.widgets[QStringLiteral("penStyle")] = [this]() -> QWidget * {
+        auto *menu = new QMenu(this);
+        const struct { QString name; flow::TableLine::Style style; } styles[] = {{tr("Single"), flow::TableLine::Style::Single}, {tr("Double"), flow::TableLine::Style::Double},
+                                                                                  {tr("Triple"), flow::TableLine::Style::Triple}, {tr("Dotted"), flow::TableLine::Style::Dotted},
+                                                                                  {tr("Dashed"), flow::TableLine::Style::Dashed}, {tr("No Border"), flow::TableLine::Style::None}};
+        for (const auto &s : styles) {
+            const flow::TableLine::Style style = s.style;
+            QAction *a = menu->addAction(s.name);
+            connect(a, &QAction::triggered, this, [this, style] {
+                m_penErases = style == flow::TableLine::Style::None;
+                if (!m_penErases) m_penLine.style = style;
+                applyBorderPen();
+            });
+        }
+        auto *b = new QToolButton();
+        b->setText(tr("Pen Style"));
+        b->setToolTip(tr("Pen Style: the kind of line the Border Painter draws. No Border makes it erase borders."));
+        b->setIcon(icon("minus"));
+        b->setToolButtonStyle(Qt::ToolButtonTextBesideIcon);
+        b->setPopupMode(QToolButton::InstantPopup);
+        b->setMenu(menu);
+        b->setAutoRaise(true);
+        return b;
+    };
     // Height and width of the row and column the cursor is in.
     for (int which = 0; which < 2; ++which) {
         parts.widgets[which == 0 ? QStringLiteral("tableRowHeight") : QStringLiteral("tableColumnWidth")] = [this, which]() -> QWidget * {
@@ -474,6 +545,14 @@ void WriteWindow::refreshTableUi()
     if (auto *g = qobject_cast<Gallery *>(m_tableStyleGallery)) g->setCurrent(props.style);
 }
 
+// The line the border painter draws: the pen's, or none (it erases).
+void WriteWindow::applyBorderPen()
+{
+    flow::TableLine line = m_penLine;
+    if (m_penErases) line.style = flow::TableLine::Style::None;
+    m_view->setBorderPen(line);
+}
+
 // The part of the right-click menu for a cell.
 void WriteWindow::addTableContextMenu(QMenu &menu)
 {
@@ -484,10 +563,13 @@ void WriteWindow::addTableContextMenu(QMenu &menu)
     for (const char *id : {"table.deleteCells", "table.deleteRows", "table.deleteColumns", "table.deleteTable"}) remove->addAction(act(QString::fromLatin1(id)));
     auto *select = menu.addMenu(tr("Select"));
     for (const char *id : {"table.selectTable", "table.selectRow", "table.selectColumn", "table.selectCell"}) select->addAction(act(QString::fromLatin1(id)));
+    auto *move = menu.addMenu(tr("Move Table"));
+    for (const char *id : {"table.moveUp", "table.moveDown"}) move->addAction(act(QString::fromLatin1(id)));
     menu.addAction(act("table.merge"));
     menu.addAction(act("table.split"));
     menu.addSeparator();
     menu.addAction(act("table.bordersShading"));
+    menu.addAction(act("table.paintBorder"));
     auto *fit = menu.addMenu(tr("Fit"));
     for (const char *id : {"table.autofitContents", "table.autofitWindow", "table.fixedWidth"}) fit->addAction(act(QString::fromLatin1(id)));
     menu.addAction(act("table.distributeRows"));

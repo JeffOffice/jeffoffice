@@ -124,6 +124,25 @@ void WriteWindow::createFieldActions()
     };
     mk("refs.nextFootnote", tr("Next Footnote"), "arrow-down", QKeySequence(), [note] { note(true, false); });
     mk("refs.previousFootnote", tr("Previous Footnote"), "arrow-up", QKeySequence(), [note] { note(false, false); });
+    // Show Notes: from a footnote's mark to its note, and from the note back to its mark; with the caret elsewhere in the text, to the note of the nearest mark after it (else before it).
+    mk("refs.showNotes", tr("Show Notes"), "notebook-text", QKeySequence(), [this, after] {
+        if (!m_doc) return;
+        if (m_view->inNote()) {
+            m_view->leaveNote(true);
+            after();
+            return;
+        }
+        if (!inText(m_view)) return;
+        const int here = m_view->cursor().position();
+        int mark = write::footnoteReferenceAt(*m_doc, here) >= 0 ? here : -1;
+        if (mark < 0) {
+            const int next = write::nextNoteReference(*m_doc, here, true, false);
+            mark = next >= 0 ? next + 1 : write::nextNoteReference(*m_doc, here, false, false) + 1;
+        }
+        if (mark <= 0) statusBar()->showMessage(tr("This document has no footnotes."), 5000);
+        else if (!m_view->openNoteAt(mark)) statusBar()->showMessage(tr("Notes can be shown in Print Layout view."), 6000);
+        after();
+    });
     mk("refs.nextEndnote", tr("Next Endnote"), "arrow-down", QKeySequence(), [note] { note(true, true); });
     mk("refs.previousEndnote", tr("Previous Endnote"), "arrow-up", QKeySequence(), [note] { note(false, true); });
 }
