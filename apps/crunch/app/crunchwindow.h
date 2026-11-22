@@ -5,7 +5,6 @@
 
 #include "app/appwindow.h"
 #include "app/compatdialog.h"
-#include "core/workthread.h"
 #include <atomic>
 #include <memory>
 #include "app/missingfonts.h"
@@ -1892,7 +1891,7 @@ private:
     bool m_linkTyping = false;  // an entry is being typed in the bar for that shape
     QHash<quint64, QString> m_barcodeFailed;           // by barcode: the text of its cell that it could not be made from
     bool m_loading = false, m_calculating = false, m_haveFirstScreen = false, m_haveCalc = false;
-    std::unique_ptr<jp::WorkThread> m_compatWorker;               // the check Check Compatibility is running (one at a time)
+    std::shared_ptr<void> m_compatWorker;                         // the worker of the check Check Compatibility is running (one at a time; letting go of it waits for it)
     std::shared_ptr<std::atomic<bool>> m_compatCancel;            // its flag to stop
     qint64 m_compatStarted = 0;
     qint64 m_changesNoted = 0;             // the changes the worker has been sent that the window has taken note of (WorkbookLoader::changesMade)

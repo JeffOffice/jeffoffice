@@ -6,6 +6,7 @@
 #include "app/crunchwindow.h"
 
 #include "app/compatdialog.h"
+#include "core/workthread.h"
 #include "app/lossywarning.h"
 #include "app/oldformat.h"
 #include "app/otherformats.h"
@@ -132,7 +133,7 @@ void CrunchWindow::findCopyLosses(bool xls, const CompatDone &done)
     auto cancel = std::make_shared<std::atomic<bool>>(false);
     m_compatCancel = cancel;
     ++m_compatStarted;
-    m_compatWorker = std::make_unique<jp::WorkThread>([self, book, snapshot, xls, done, cancel] {
+    auto work = [self, book, snapshot, xls, done, cancel] {
         const std::function<bool()> stopped = [cancel] { return cancel->load(); };
         struct Alive {
             Alive() { ++compatAliveForTest(); }
@@ -160,7 +161,8 @@ void CrunchWindow::findCopyLosses(bool xls, const CompatDone &done)
             answer.more = copyReport.notKeptMore + copyReport.trimmedMore;
             done(answer);
         }, Qt::QueuedConnection);
-    });
+    };
+    m_compatWorker = std::shared_ptr<void>(new jp::WorkThread(work), [](void *p) { delete static_cast<jp::WorkThread *>(p); });
 }
 
 std::atomic<int> &compatAliveForTest()
