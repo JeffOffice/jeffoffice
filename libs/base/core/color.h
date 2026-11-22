@@ -81,9 +81,19 @@ QColor mix(const QColor &a, const QColor &b, double t);  // t = share of b
 // survive saving and reach a CMYK PDF unchanged.
 QString colorToString(const QColor &c);
 
-// While a separation plate is drawn, every color resolves through this
-// filter (spot plates) on the drawing thread; an empty function turns it off.
-void setColorFilter(std::function<QColor(const QColor &)> filter);
+// While a ColorFilterScope lives, every color resolves through its filter (spot plates) on the drawing thread that made it; an empty function
+// turns filtering off for the length of the scope. Scopes nest, and a thread that has none sees no filter.
+class ColorFilterScope {
+public:
+    explicit ColorFilterScope(std::function<QColor(const QColor &)> filter);
+    ~ColorFilterScope();
+    ColorFilterScope(const ColorFilterScope &) = delete;
+    ColorFilterScope &operator=(const ColorFilterScope &) = delete;
+
+private:
+    std::function<QColor(const QColor &)> m_filter;
+    const std::function<QColor(const QColor &)> *m_before;
+};
 
 // While a CMYK PDF is written, colors given as inks with a screen color
 // resolve to their inks. Held by an InkOutput for the length of the output;

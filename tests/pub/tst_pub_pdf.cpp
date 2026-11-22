@@ -10,6 +10,7 @@
 #include <QToolButton>
 #include "app/ribbon.h"
 #include "io/importers.h"
+#include "core/workthread.h"
 #include <QJsonArray>
 #include "io/pdftags.h"
 #include "io/pdftransparency.h"
@@ -2752,9 +2753,32 @@ private Q_SLOTS:
         }
         QCOMPARE(ref.resolve(scheme).toRgb(), QColor(29, 31, 25));
         QColor seen;
-        jp::setColorFilter([&](const QColor &c) { seen = c; return c; });
+        {
+            jp::ColorFilterScope filter([&](const QColor &c) { seen = c; return c; });
+            ref.resolve(scheme);
+            QCOMPARE(seen.spec(), QColor::Cmyk);   // plates see the inks
+            // (a filter is the drawing thread's own: another thread draws with the screen colors)
+            seen = QColor();
+            jp::WorkThread other([&] { ref.resolve(scheme); });
+            other.join();
+            QVERIFY(!seen.isValid());
+            {
+                jp::ColorFilterScope off({});   // (an empty function turns filtering off for its scope)
+                ref.resolve(scheme);
+                QVERIFY(!seen.isValid());
+            }
+            ref.resolve(scheme);
+            QVERIFY(seen.isValid());
+        }
+        seen = QColor();
         ref.resolve(scheme);
-        jp::setColorFilter({});
+        QVERIFY(!seen.isValid());   // (and gone with its scope)
+        seen = QColor(Qt::black);
+        {
+            jp::InkOutput inks;
+            jp::ColorFilterScope filter([&](const QColor &c) { seen = c; return c; });
+            ref.resolve(scheme);
+        }
         QCOMPARE(seen.spec(), QColor::Cmyk);   // plates see the inks
 
         // A process-color publication's PDF carries the inks.

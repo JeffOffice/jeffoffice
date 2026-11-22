@@ -24,12 +24,11 @@ QColor mix(const QColor &a, const QColor &b, double t)
 // The plate filter and the ink mode belong to the thread drawing the plate
 // or writing the PDF: a picture drawn elsewhere at the same time keeps its
 // screen colors.
-static std::function<QColor(const QColor &)> &colorFilter()
-{
-    thread_local std::function<QColor(const QColor &)> f;
-    return f;
-}
-void setColorFilter(std::function<QColor(const QColor &)> filter) { colorFilter() = std::move(filter); }
+// (A pointer, so nothing runs at the end of a thread: the function itself is a member of the ColorFilterScope that is in force, on the caller's stack.)
+static thread_local const std::function<QColor(const QColor &)> *t_colorFilter = nullptr;
+static bool filtering() { return t_colorFilter && *t_colorFilter; }
+ColorFilterScope::ColorFilterScope(std::function<QColor(const QColor &)> filter) : m_filter(std::move(filter)), m_before(t_colorFilter) { t_colorFilter = &m_filter; }
+ColorFilterScope::~ColorFilterScope() { t_colorFilter = m_before; }
 
 static thread_local int s_inkOutputs = 0;
 bool keepInks() { return s_inkOutputs > 0; }
@@ -41,7 +40,7 @@ QColor ColorRef::resolve(const ColorScheme &s) const
     QColor c;
     switch (m_kind) {
     case None: return QColor(Qt::transparent);
-    case Rgb: c = m_shown.isValid() && !keepInks() && !colorFilter() ? m_shown : m_rgb; break;
+    case Rgb: c = m_shown.isValid() && !keepInks() && !filtering() ? m_shown : m_rgb; break;
     case Scheme:
         c = s.slot(m_slot);
         if (s.shade && (m_lighten > 0 || m_darken > 0)) {
@@ -52,7 +51,7 @@ QColor ColorRef::resolve(const ColorScheme &s) const
         if (m_darken > 0) c = mix(c, Qt::black, m_darken / 100.0);
         break;
     }
-    return colorFilter() ? colorFilter()(c) : c;
+    return filtering() ? (*t_colorFilter)(c) : c;
 }
 
 QString colorToString(const QColor &c)

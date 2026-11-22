@@ -11,6 +11,7 @@
 #include "render/renderer.h"
 #include "text/textprops.h"
 
+#include <optional>
 #include <QBuffer>
 #include <QCheckBox>
 #include <QComboBox>
@@ -696,23 +697,23 @@ void renderPlateInto(QPainter *p, const PaintContext &ctx, int page, int plate)
     const QVector<QColor> spots = d->print.usesSpots() ? d->print.spotColors : QVector<QColor>{};
     PaintContext pc = ctx;
     LayoutCache plateCache;
+    std::optional<ColorFilterScope> filter;
     pc.cache = &plateCache;
     if (plate >= 4) {
         const QColor spot = spots.value(plate - 4);
-        setColorFilter([spot](const QColor &c) {
+        filter.emplace([spot](const QColor &c) {
             const double a = spotAmount(c, spot);
             return a < 0 ? QColor(255, 255, 255, c.alpha()) : QColor::fromRgbF(float(1 - a), float(1 - a), float(1 - a), c.alphaF());
         });
         pc.opt.skipPictures = true;
     } else if (!spots.isEmpty()) {
-        setColorFilter([spots](const QColor &c) {
+        filter.emplace([spots](const QColor &c) {
             for (const QColor &s : spots)
                 if (spotAmount(c, s) > 0) return QColor(255, 255, 255, c.alpha());
             return c;
         });
     }
     Renderer::paintPage(p, pc, page);
-    setColorFilter({});
 }
 
 QImage renderPlate(const Document &doc, int page, int plate, double dpi)
