@@ -1527,7 +1527,7 @@ QByteArray salvageXlsStream(const QByteArray &file, const Limits &limits, QStrin
     QString why;
     if (jp::office::salvageCompoundFile(file, {wish}, &found, &why)) {
         QByteArray stream = found.streams.value(QStringLiteral("Workbook"));
-        const bool sound = found.how.value(QStringLiteral("Workbook")) == jp::office::CfbSalvage::How::Whole && found.notes.isEmpty();
+        const bool sound = found.how.value(QStringLiteral("Workbook")) == jp::office::CfbSalvage::How::Whole && found.notes.isEmpty() && !found.repaired;
         if (!sound) {
             // (what the container gave that is not records, in a stream that was put together from sectors that were not all the stream's: the records before it are kept)
             qint64 walked = 0;

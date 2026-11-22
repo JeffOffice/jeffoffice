@@ -57,6 +57,7 @@ struct CfbSalvage {
     bool cutShort = false;               // a stream ran past the end of the file
     bool tablesGuessed = false;          // a chain of sectors had to be guessed
     bool directoryRead = false;
+    bool repaired = false;               // a stream was read other than as the directory and tables give it (its size and its tables did not agree): the container was not sound
     bool miniUnread = false;             // the container's mini stream was not read (its header gives a size of mini sector the format does not have)
     QStringList notes;                   // what was done, in words
 };

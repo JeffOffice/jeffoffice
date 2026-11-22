@@ -296,6 +296,7 @@ bool salvageCompoundFile(const QByteArray &file, const QVector<CfbWish> &wishes,
     for (const CfbWish &w : wishes) {
         QByteArray found;
         bool fromDirectory = false;
+        bool lengthened = false;   // the tables gave the stream more than the directory's size, or the sectors after a break were taken
         const DirEntry *producer = nullptr;   // the directory entry the reading came from: the other readings of the stream are of this one alone
         auto accept = [&](const QByteArray &data) {
             if (data.isEmpty() || data.size() > limits.maxStreamBytes || data.size() > work) return false;
@@ -329,6 +330,7 @@ bool salvageCompoundFile(const QByteArray &file, const QVector<CfbWish> &wishes,
                 if (data.size() <= found.size() || !accept(data)) continue;
                 found = data;
                 fromDirectory = true;
+                lengthened = true;
             }
         };
         auto fromSound = [&] {
@@ -365,6 +367,7 @@ bool salvageCompoundFile(const QByteArray &file, const QVector<CfbWish> &wishes,
             }
         }
         longest();
+        if (lengthened) out->repaired = true;
         CfbSalvage::How how = fromDirectory ? CfbSalvage::How::Directory : CfbSalvage::How::Whole;
         if (found.isEmpty() && w.validBytes && w.looksLike) {
             // 3. a scan: every place the stream could start, as far as the caller's own check says it is
@@ -427,6 +430,7 @@ bool salvageCompoundFile(const QByteArray &file, const QVector<CfbWish> &wishes,
     if (byDirectory) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "The container of the file was damaged, so its parts were followed from its directory, as far as the file goes.");
     if (byScan) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "The directory of the file was damaged or gone, so its parts were found by their own records.");
     if (out->tablesGuessed && (byDirectory || byScan)) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "Where the tables of sectors were damaged, each sector was taken to follow the one before it in the file, so a value where two sectors meet may be wrong.");
+    if (out->repaired) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "The size the file gives for a part and the lists of where its pieces are stored did not agree, so the part was read as far as its pieces go.");
     if (out->miniUnread) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "The small parts kept in the mini stream of the file could not be read.");
     if (out->cutShort && (byDirectory || byScan)) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "The file was cut short; what came after the cut is lost.");
     if (!missing.isEmpty()) {

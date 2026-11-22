@@ -1851,6 +1851,9 @@ private Q_SLOTS:
             QVERIFY2(!o.refused, qPrintable(v.id + o.why));
             QVERIFY2(o.right == rows * 2 && o.missing == 0 && o.wrong == 0, qPrintable(QStringLiteral("%1: right %2 missing %3 wrong %4").arg(v.id).arg(o.right).arg(o.missing).arg(o.wrong)));
             QVERIFY2(o.notes.join(QLatin1Char(' ')).contains(QLatin1String("Every sheet was read whole")), qPrintable(v.id + o.notes.join(QLatin1Char('|'))));
+            // (a container that was repaired is never reported as sound, whichever way the stream was put right)
+            QVERIFY2(!o.notes.join(QLatin1Char(' ')).contains(QLatin1String("container of the file was sound")), qPrintable(v.id + o.notes.join(QLatin1Char('|'))));
+            QVERIFY2(o.notes.join(QLatin1Char(' ')).contains(QLatin1String("did not agree")), qPrintable(v.id + o.notes.join(QLatin1Char('|'))));
         }
         QCOMPARE(checked, 4);
     }
