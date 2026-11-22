@@ -224,9 +224,12 @@ public:
     static qint64 wrapShapesForTest();
     // How many times a page has been laid out, the passes that find where its walls are included: for tests of what asking for a page costs.
     qint64 pagePassesForTest() const { return m_passes; }
-    // How many layouts one page may be set while its walls are found, in all (the first with none, the settling, the flips, a table moved, and the last without the objects that did not
-    // settle): past it the objects that have not settled are not walls of the page, as when they never settle. A page of ordinary text settles in two or three.
-    static constexpr int kMostPageLayouts = 8;
+    // How much counted work (the rooms charged to columns, and the segment tests the lines asked of them) one page's layouts may cost in all while its walls are found: past it the objects
+    // that have not settled are not walls of the page, as when they never settle. A page with no outline to go round counts none, however many times it is laid out (a page of ordinary
+    // text settles in two or three, a busy one in nineteen); one whose outlines are hostile was 7,000,000 or more.
+    static constexpr qint64 kMostPageWrapWork = 1000000;
+    // The most work any page's layouts cost so far (for tests).
+    qint64 worstPageWrapWorkForTest() const { return m_worstPageWork; }
     // How many times the frames of a header or footer were made, and how far down the page its wrapped shapes reach was worked out (each once for a story as it is, not for each page):
     // for tests of what a page costs.
     qint64 headerFramesMadeForTest() const { return m_headerFramesMade; }
@@ -613,6 +616,8 @@ private:
     int m_valid = 0, m_high = 0, m_dirtyEnd = 0;
     qint64 m_laidOut = 0;
     qint64 m_passes = 0;
+    qint64 m_worstPageWork = 0;
+    mutable qint64 m_wrapCharged = 0;   // the work rooms were charged to columns' budgets, in all
     qint64 m_headerFramesMade = 0, m_headerReachesMade = 0;
     qint64 m_charsCopied = 0;
     qint64 m_fragmentCharsRead = 0;

@@ -2031,9 +2031,8 @@ void WriteTests::theDocumentsOfTheRandomCommandsHaveObjectsTheTextGoesRound()
 }
 
 // A document of a thousand paragraphs, each with a picture whose tight wrap outline has the most points and crosses itself (the wrap polygon of a file), at the distances a file may
-// ask (3, 36, and 400 points): the pages are set in counted work. The rooms are made once for each picture (not for each of its moves between layouts), no page is laid out more than
-// kMostPageLayouts + 3 times, and the work of each room is held to a page's budget. Fails when the cap, the room's key, or the budget is off: the layouts were
-// 36 a page, the rooms 8 for each picture, and a document took 40 to 400 seconds.
+// ask (3, 36, and 400 points): the pages are set in counted work. The rooms are made once for each picture (not for each of its moves between layouts), the work of a page's layouts (the rooms charged to its columns and the segment tests of its lines) stays under twice kMostPageWrapWork, and the work of each room is held to a page's
+// budget. Fails when the cap, the room's key, or the budget is off: a page cost up to 7,700,000 in 28 to 46 layouts, the rooms were 8 for each picture, and a document took 40 to 400 seconds.
 void WriteTests::aThousandPicturesWithTangledWrapOutlinesAreSetInCountedWork()
 {
     for (const int distance : {3, 36, 400}) {
@@ -2062,7 +2061,7 @@ void WriteTests::aThousandPicturesWithTangledWrapOutlinesAreSetInCountedWork()
         const QString at = QStringLiteral("distance %1").arg(distance);
         const qint64 made = jp::WrapRoom::madeForTest() - made0, work = jp::WrapRoom::workForTest() - work0, columns = flow::Paginator::wrapColumnsForTest() - columns0;
         QVERIFY2(made <= 1024, qPrintable(at + QStringLiteral(": %1 rooms").arg(made)));
-        QVERIFY2(pager.pagePassesForTest() <= pager.pagesLaidOut() * (flow::Paginator::kMostPageLayouts + 3), qPrintable(at + QStringLiteral(": %1 layouts for %2 pages").arg(pager.pagePassesForTest()).arg(pager.pagesLaidOut())));
+        QVERIFY2(pager.worstPageWrapWorkForTest() > 0 && pager.worstPageWrapWorkForTest() <= 2 * flow::Paginator::kMostPageWrapWork, qPrintable(at + QStringLiteral(": %1 work on the worst page").arg(pager.worstPageWrapWorkForTest())));
         QVERIFY2(work <= made * jp::kMostWrapWorkPerPage && columns > 0, qPrintable(at + QStringLiteral(": %1 work in %2 columns").arg(work).arg(columns)));
     }
 }

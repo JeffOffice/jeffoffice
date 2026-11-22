@@ -13,6 +13,7 @@
 #include <QTextList>
 #include <algorithm>
 #include <limits>
+#include <functional>
 
 namespace jp::flow {
 
@@ -208,8 +209,10 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
     // again until they agree (the paragraph's top an object is set from is where the paragraph would be without it: that is what the engine's `pushed` is for). `moveBefore`:
     // the paragraph that a table set at a place goes over the foot from, as the page is when its walls are settled. `cycle`: where they do not settle, the walls of the layouts
     // that follow one another again and again.
-    const qint64 layouts0 = m_passes;
-    auto spent = [&] { return m_passes - layouts0; };
+    const qint64 charged0 = m_wrapCharged, queried0 = jp::WrapRoom::queryWorkOnThread();
+    // (The work of the page's layouts so far: the rooms charged to columns and the segments the lines asked, which is what a hostile outline makes dear; ordinary pages count none.)
+    auto workDone = [&] { return (m_wrapCharged - charged0) + (jp::WrapRoom::queryWorkOnThread() - queried0); };
+    struct Worst { Paginator *p; std::function<qint64()> w; ~Worst() { p->m_worstPageWork = std::max(p->m_worstPageWork, w()); } } worst{this, workDone};
     auto settle = [&](Run &run, QVector<Wrapped> &used, int cutAt, int *moveBefore, QVector<QVector<Wrapped>> *cycle) {
         QVector<QVector<Wrapped>> seen;
         bool agreed = true;
@@ -228,7 +231,7 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
                 }
                 break;
             }
-            if (spent() >= kMostPageLayouts) break;
+            if (workDone() >= kMostPageWrapWork) break;
             seen << used;
             used = want;
             run = layoutPageWith(index, st, used, cutAt);
@@ -259,7 +262,7 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
         std::sort(flipping.begin(), flipping.end(), std::greater<int>());
         if (flipping.size() > kWrapFlips) flipping.resize(kWrapFlips);
         for (const int paragraph : flipping) {
-            if (spent() >= kMostPageLayouts) break;
+            if (workDone() >= kMostPageWrapWork) break;
             Run shorter = layoutPageWith(index, st, {}, paragraph);
             if (!shorter.cut) continue;
             QVector<Wrapped> walls;

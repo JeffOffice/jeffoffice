@@ -179,6 +179,7 @@ QRectF wrapSideWall(const QRectF &room, const QRectF &frame, bool textLeft, bool
 namespace {
 
 std::atomic<qint64> g_roomsMade{0}, g_roomWork{0};
+thread_local qint64 t_queryWork = 0;   // segment tests answered on this thread (a page's layouts are set on one)
 constexpr double kCoordinateLimit = 1e7;
 
 bool usable(const QPointF &p) { return std::isfinite(p.x()) && std::isfinite(p.y()); }
@@ -371,6 +372,7 @@ bool WrapRoom::spans(double y0, double y1, double *left, double *right) const
     // (A room of more than kWrapRoomRowPieces pieces answers from its rows, read once: a question costs the rows of the band, never the pieces.)
     if (m_pieces.size() > kWrapRoomRowPieces) return rowSpans(y0, y1, left, right);
     m_queryWork.fetch_add(m_pieces.size());
+    t_queryWork += m_pieces.size();
     double l = 1e300, r = -1e300;
     for (const Piece &piece : m_pieces) {
         if (piece.bottom <= y0 || piece.top >= y1) continue;
@@ -433,6 +435,7 @@ bool WrapRoom::rowSpans(double y0, double y1, double *left, double *right) const
     std::call_once(m_rowsOnce, [&] { buildRows(); });
     const int rows = int(m_rowLeft.size());
     m_queryWork.fetch_add(1);
+    ++t_queryWork;
     const int k0 = std::clamp(int(std::floor((y0 - m_bounds.top()) / m_rowStep)), 0, rows - 1), k1 = std::clamp(int(std::ceil((y1 - m_bounds.top()) / m_rowStep)) - 1, 0, rows - 1);
     double l = 1e300, r = -1e300;
     for (int k = k0; k <= k1; ++k) { l = std::min(l, m_rowLeft[k]); r = std::max(r, m_rowRight[k]); }
@@ -511,6 +514,7 @@ std::shared_ptr<const WrapRoom> WrapRoom::mapped(const QTransform &matrix) const
 }
 
 qint64 WrapRoom::madeForTest() { return g_roomsMade.load(); }
+qint64 WrapRoom::queryWorkOnThread() { return t_queryWork; }
 qint64 WrapRoom::workForTest() { return g_roomWork.load(); }
 
 namespace {

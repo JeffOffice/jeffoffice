@@ -255,6 +255,7 @@ std::shared_ptr<const jp::WrapRoom> Paginator::wrapOutlineRoom(const FloatingObj
     if (!made.room || budget.shapes <= 0 || budget.work < made.work) return nullptr;
     --budget.shapes;
     budget.work -= made.work;
+    m_wrapCharged += made.work + 1;
     return made.room;
 }
 
