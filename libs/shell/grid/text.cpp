@@ -20,12 +20,6 @@ TextMeter::~TextMeter() = default;
 
 double textRoom(double cellWidth, const CellLook &look) { return cellWidth - 2 * kCellPadding - indentPixels(look); }
 
-int charsFor(double cellWidth, int digitWidth)
-{
-    if (digitWidth <= 0) return 1;
-    return std::max(1, int((cellWidth - 5) / digitWidth));
-}
-
 Shown showValue(const jp::calc::Value &given, const CellLook &look, jp::calc::DateSystem system, double cellWidth, int maxDigitWidth, const TextMeter &meter, const jp::calc::NumberSymbols *symbols, double fitWidth)
 {
     using jp::calc::Value;
@@ -39,17 +33,17 @@ Shown showValue(const jp::calc::Value &given, const CellLook &look, jp::calc::Da
     case Value::Kind::Number: {
         s.kind = Kind::Number;
         const double room = textRoom(cellWidth, look);
-        // A General number takes the characters the column holds in the cell's own font: the column's pixels less the 5 it keeps, by the width of one digit of that font
-        // (not of the default font's digits, which the column's width in characters is counted in).
-        int digit = int(std::lround(meter.width(QStringLiteral("0"), look)));
-        if (digit <= 0) digit = maxDigitWidth;
-        const jp::calc::Formatted f = look.format.format(v.number(), system, charsFor(fitWidth > 0 ? fitWidth : cellWidth, digit), symbols);
+        // A General number has the most digits whose text, in the cell's own font, leaves generalFitPadding of the column free (the column's width in characters is counted in the
+        // default font's digits, so a number in another font is measured, not counted).
+        const double column = (fitWidth > 0 ? fitWidth : cellWidth) - indentPixels(look);
+        const jp::calc::GeneralFits fits = [&](const QString &t) { return meter.fitWidth(t, look) + generalFitPadding(t) <= column; };
+        const jp::calc::Formatted f = look.format.format(v.number(), system, 0, symbols, &fits);
         s.text = f.text;
         if (f.color > 0) s.color = 0xFF000000u | jp::calc::formatColorRgb(f.color);
         s.fillAt = f.fillAt;
         s.fillChar = f.fillChar;
         s.width = f.failed ? room + 1 : meter.width(s.text, look);
-        if (f.failed || s.width > room) {
+        if (f.failed || (look.hasFormat && s.width > room)) {
             // too wide for the cell, or a value the format cannot show: the cell is filled with "#"
             const double one = std::max(1.0, meter.width(QStringLiteral("#"), look));
             const int count = std::max(1, int(room / one));

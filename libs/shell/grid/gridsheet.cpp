@@ -91,14 +91,16 @@ double GridSheet::widthOfShown(double shown, int maxDigitWidth)
 namespace {
 
 // The width in pixels a cell's text needs, in a column wide enough for any text.
-// (A number is shown in as many digits as the column holds by the digit width of the cell's own font, charsFor: the column must hold that many of those digits, or the number
-// falls back to a shorter form.)
+// (A General number needs the width its text measures in the cell's font, as the font the machine does not choose, and the padding the column keeps free of it: the rule that fits it to a
+// column, so the number shows whole in the width that is made, and the width is the same on every machine. Another format's number is counted in the digits of the cell's font.)
 double neededPixels(const Shown &s, const CellLook &look, int maxDigitWidth, const TextMeter &meter)
 {
     double need = s.width + 2 * kCellPadding + (look.indent > 0 ? look.indent * 9.0 : 0.0);
+    if (s.kind != Kind::Number) return need;
+    if (!look.hasFormat) return meter.fitWidth(s.text, look) + generalFitPadding(s.text) + (look.indent > 0 ? look.indent * 9.0 : 0.0);
     int digit = int(std::lround(meter.width(QStringLiteral("0"), look)));
     if (digit <= 0) digit = maxDigitWidth;
-    if (s.kind == Kind::Number && digit > 0) need = std::max(need, 5.0 + double(s.text.size()) * digit);
+    if (digit > 0) need = std::max(need, 5.0 + double(s.text.size()) * digit);
     return need;
 }
 

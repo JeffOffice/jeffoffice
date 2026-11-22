@@ -4,6 +4,7 @@
 #include <QTextLine>
 #include <QTextOption>
 
+#include "core/fonts.h"
 #include "grid/sparklinepaint.h"
 #include "sheet/cellref.h"
 
@@ -168,7 +169,31 @@ public:
         return face(look)->width(text);
     }
     double lineHeight(const CellLook &look) const override { return face(look)->lineSpacing(); }
-    void reset() { m_faces.clear(); }
+    // The exact size's advances (the font made 32 times as large, whole pixels, and the sum divided by 32), in the family the machine does not choose (jp::measuringFamily).
+    double fitWidth(const QString &text, const CellLook &look) const override
+    {
+        if (text.isEmpty()) return 0;
+        const size_t id = look.fontId;
+        if (id >= m_fitFaces.size()) m_fitFaces.resize(id + 1);
+        Fit &e = m_fitFaces[id];
+        if (!e.face) {
+            const double em = std::max(1.0, look.pointSize * 96.0 / 72.0);
+            e.scale = std::clamp(4096.0 / em, 1.0, 32.0);
+            QFont f(jp::measuringFamily(look.family));
+            f.setPixelSize(std::max(1, int(std::lround(em * e.scale))));
+            f.setBold(look.bold);
+            f.setItalic(look.italic);
+            f.setKerning(false);
+            f.setHintingPreference(QFont::PreferNoHinting);
+            e.face = std::make_unique<GridPainter::GlyphFace>(f);
+        }
+        return e.face->width(text) / e.scale;
+    }
+    void reset()
+    {
+        m_faces.clear();
+        m_fitFaces.clear();
+    }
 
 private:
     const GridPainter::GlyphFace *face(const CellLook &look) const
@@ -188,6 +213,11 @@ private:
         return e.get();
     }
     mutable std::vector<std::unique_ptr<GridPainter::GlyphFace>> m_faces;
+    struct Fit {
+        std::unique_ptr<GridPainter::GlyphFace> face;
+        double scale = 1;
+    };
+    mutable std::vector<Fit> m_fitFaces;
 };
 
 GridPainter::GridPainter(GridSheet *sheet) : m_sheet(sheet), m_meter(new QtMeter)

@@ -32,7 +32,21 @@ public:
     double width(const QString &text, const CellLook &) const override { return 7.0 * text.size(); }
 };
 
+// The widths of Arial at 10 points (13.33 pixels), as the exact-size measure gives them: a digit 7.4209, a minus 4.4434, a point 3.7070, an E 8.8999, a plus 7.7925, other characters like a digit.
+// The practice workbooks' reference pages were measured against these (the columns of 46 and 53 pixels of the pivot sheet among them).
+class ArialMeter : public TextMeter {
+public:
+    double width(const QString &text, const CellLook &) const override { return fitWidth(text, CellLook()); }
+    double fitWidth(const QString &text, const CellLook &) const override
+    {
+        double w = 0;
+        for (const QChar c : text) w += c == QLatin1Char('-') ? 4.4434 : c == QLatin1Char('.') ? 3.7070 : c == QLatin1Char('E') ? 8.8999 : c == QLatin1Char('+') ? 7.7925 : 7.4209;
+        return w;
+    }
+};
+
 const FixedMeter kMeter;
+const ArialMeter kArialMeter;
 const SmallFontMeter kSmallFontMeter;
 const LargeFontMeter kLargeFontMeter;
 
@@ -326,7 +340,7 @@ private Q_SLOTS:
         QCOMPARE(s.text, QStringLiteral("3.142"));
         QVERIFY(!s.hashes);
         s = showValue(jp::calc::Value::number(3.14159265358979), CellLook(), jp::calc::DateSystem::Date1900, 64, 7, kSmallFontMeter);
-        QCOMPARE(s.text, QStringLiteral("3.1415927"));   // (59 pixels hold 9 digits of 6: more than the default's 8)
+        QCOMPARE(s.text, QStringLiteral("3.14159265"));   // (60 of the 64 pixels hold 10 characters of 6: more than the default's 8)
         QVERIFY(!s.hashes);
         // a page is drawn in the printer's pixels, wider than the screen's (70 and 64 here), and the digits that fit are those of the screen's column: 8, not 9
         s = showValue(jp::calc::Value::number(0.00045050066), CellLook(), jp::calc::DateSystem::Date1900, 70, 7, kMeter, nullptr, 64);
@@ -704,7 +718,79 @@ private Q_SLOTS:
             g.setMeter(meters[i]);
             g.setData(data);
             const double pixels = g.fitWidthOfCell(0, 0) * LookTable(&styles).maxDigitWidth();   // (a width is in characters of the default font's digit)
-            QVERIFY2(pixels >= 5 + 14 * digits[i] && pixels < 5 + 14 * digits[i] + 8, qPrintable(QString::number(pixels)));
+            QVERIFY2(pixels >= 4 + 14 * digits[i] && pixels < 4 + 14 * digits[i] + 8, qPrintable(QString::number(pixels)));
+        }
+    }
+
+    // A General number has the most digits whose text, measured in the cell's font, leaves 4 pixels of its column free (the 5 of padding the specification names, less the gridline's one), or
+    // 6 in scientific notation.
+    // The cases are from the practice workbooks, where the reference program's pages show what it did with the same numbers in the same columns: its pivot sheet's -39780 in a column of
+    // 46 pixels and -110720 in one of 53 (a count of 6 and 7 characters in digits of 7 pixels would have cut both), a column of 54 in which 3.8E+06 does not fit and 4E+06 does, and
+    // a number that fits no way at all is number signs.
+    void aGeneralNumberIsFittedByItsMeasuredWidth()
+    {
+        const struct {
+            double value;
+            double column;
+            const char *want;
+        } cases[] = {
+            {-39780, 46, "-39780"},                    // 41.55 + 4 <= 46
+            {-110720, 53, "-110720"},                  // 48.97 + 4 <= 53 (a pad of 4.1 would cut it)
+            {-110720, 52, "-1E+05"},                   // (one pixel less: the scientific form is the one that fits, with 6 free: 43.4 + 6 <= 52)
+            {-110720, 49, "#####"},                    // (and 43.4 + 6 > 49: nothing fits, number signs fill the 43 pixels of room)
+            {500622, 49, "500622"},
+            {3824570, 54, "4E+06"},                    // (7 digits are 51.95 + 4 = 55.95: in 54 pixels only the scientific form fits)
+            {3824570, 56, "3824570"},
+            {12345678, 64, "12345678"},                // 59.37 + 4 = 63.37
+            {12345678, 63, "1.2E+07"},                 // (1.23E+07 is 57.5 and scientific notation keeps 6 free: 63.5)
+            {12345678, 57, "1.2E+07"},                 // 50.08 + 6 = 56.08
+            {12345678, 56, "1E+07"},
+            {-0.005801362018816872, 64, "-0.0058"},    // -0.005801 is 60.10 + 4 = 64.10 (one digit more than the column holds)
+            {-0.005801362018816872, 65, "-0.005801"},
+            {5.5653866129032261, 200, "5.565386613"},  // (a wide column: the 11 characters of the standard, not 15 digits)
+            {12345678.0, 30, "###"},                   // 1E+07 is 38.9 + 4 > 30: number signs, not a cut-off number
+            {0.0, 11, "#"},                            // (not even a digit fits: 7.42 + 4 > 11)
+            {0.0, 12, "0"},
+        };
+        for (const auto &c : cases) {
+            const Shown s = showValue(jp::calc::Value::number(c.value), CellLook(), jp::calc::DateSystem::Date1900, c.column, 7, kArialMeter);
+            QVERIFY2(s.text == QString::fromLatin1(c.want), qPrintable(QStringLiteral("%1 in %2 pixels: got [%3], wanted [%4]").arg(c.value, 0, 'g', 17).arg(c.column).arg(s.text, QString::fromLatin1(c.want))));
+            QCOMPARE(s.hashes, QString::fromLatin1(c.want).startsWith(QLatin1Char('#')));
+        }
+        // a number with a format of its own is not fitted by this rule: it is the format's text, or number signs when that is wider than the cell
+        const Shown fixed = showValue(jp::calc::Value::number(-110720), lookWithFormat(QStringLiteral("0.00")), jp::calc::DateSystem::Date1900, 53, 7, kArialMeter);
+        QVERIFY(fixed.hashes);
+        // a page's columns are the printer's; the screen's decide what shows
+        const Shown page = showValue(jp::calc::Value::number(-110720), CellLook(), jp::calc::DateSystem::Date1900, 57, 7, kArialMeter, nullptr, 52);
+        QCOMPARE(page.text, QStringLiteral("-1E+05"));
+        QVERIFY(!page.hashes);
+    }
+
+    // The width a fitted column is made leaves its numbers whole by the same rule.
+    void aFittedColumnShowsItsNumbersWhole()
+    {
+        const double values[] = {-110720, 500622, 3824570, -0.005801362018816872, 12345678901234.0, 99999.5, 1.5e20, -2.5e-12};
+        for (const double v : values) {
+            Sheet sheet;
+            sheet.cells.add(numberCell(0, 0, v));
+            sheet.cells.finish();
+            Styles styles;
+            styles.fonts = {FontSpec()};
+            styles.formats = {CellFormat()};
+            styles.cellXfs = {0};
+            GridData data;
+            data.styles = &styles;
+            data.sheet = &sheet;
+            GridSheet g;
+            g.setMeter(&kArialMeter);
+            g.setData(data);
+            const int mdw = LookTable(&styles).maxDigitWidth();
+            const QString whole = showValue(jp::calc::Value::number(v), CellLook(), jp::calc::DateSystem::Date1900, 1e9, mdw, kArialMeter).text;
+            const int pixels = GridSheet::columnPixels(g.fitWidthOfCell(0, 0), mdw);
+            const Shown at = showValue(jp::calc::Value::number(v), CellLook(), jp::calc::DateSystem::Date1900, pixels, mdw, kArialMeter);
+            QVERIFY2(at.text == whole && !at.hashes, qPrintable(QStringLiteral("%1: [%2] in %3 pixels, whole is [%4]").arg(v, 0, 'g', 17).arg(at.text).arg(pixels).arg(whole)));
+            const Shown narrower = showValue(jp::calc::Value::number(v), CellLook(), jp::calc::DateSystem::Date1900, pixels - 8, mdw, kArialMeter);
+            QVERIFY2(narrower.text != whole, qPrintable(QStringLiteral("%1 in %2 pixels still [%3]").arg(v, 0, 'g', 17).arg(pixels - 8).arg(narrower.text)));
         }
     }
 

@@ -206,6 +206,36 @@ private Q_SLOTS:
     // Windows, with no fonts at all) draws every letter as wide as the font is tall.
     void initTestCase() { jp::initCore(); }
 
+    // A number is fitted to its column by the width of its text in the cell's font, and a font that is not installed is measured in its stand-in, or in Arimo when it has none: never in the
+    // font the system picks, whose digits are other widths on every machine. (Here "No Such Family 7" and the real Arimo must give a column of the same width.)
+    void aFontThatIsNotInstalledIsMeasuredInItsStandIn()
+    {
+        QCOMPARE(jp::measuringFamily(QStringLiteral("No Such Family 7")), QStringLiteral("Arimo"));
+        QCOMPARE(jp::measuringFamily(QStringLiteral("6x13")), QStringLiteral("Arimo"));
+        QCOMPARE(jp::measuringFamily(QStringLiteral("Arimo")), QStringLiteral("Arimo"));
+        QCOMPARE(jp::measuringFamily(QStringLiteral("Carlito")), QStringLiteral("Carlito"));
+        const QString calibri = jp::measuringFamily(QStringLiteral("Calibri"));
+        QVERIFY2(calibri == QLatin1String("Carlito") || calibri == QLatin1String("Calibri"), qPrintable(calibri));
+        QCOMPARE(jp::measuringFamily(QStringLiteral("tahoma")) == QLatin1String("tahoma"), jp::familyInstalled(QStringLiteral("tahoma")));
+        Fixture f;
+        FontSpec unknown, arimo;
+        unknown.name = QStringLiteral("No Such Family 7");
+        unknown.size = 10;
+        arimo.name = QStringLiteral("Arimo");
+        arimo.size = 10;
+        f.styles.fonts = {f.styles.fonts.first(), unknown, arimo};
+        CellFormat a, b;
+        a.font = 1;
+        b.font = 2;
+        const quint32 inUnknown = f.format(a), inArimo = f.format(b);
+        f.number(0, 0, 12345678901234.0, inUnknown);
+        f.number(1, 0, 12345678901234.0, inArimo);
+        f.build();
+        const double fitUnknown = f.grid.fitWidthOfCell(0, 0), fitArimo = f.grid.fitWidthOfCell(1, 0);
+        QVERIFY(fitArimo > 0);
+        QCOMPARE(fitUnknown, fitArimo);
+    }
+
     // A page for a PDF/A file has nothing see-through: a color with alpha is drawn as it looks laid on what is beneath it (a bar on its cell's fill), and one without alpha is as it is.
     void aColorWithAlphaIsLaidOnWhatIsBeneathIt()
     {

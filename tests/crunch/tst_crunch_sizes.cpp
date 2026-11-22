@@ -218,8 +218,11 @@ private Q_SLOTS:
         QVERIFY(columnPx(e, 0) > was);
         QCOMPARE(e.win.w.undoStack()->count(), 1);
         const int wide = columnPx(e, 0);
-        const double text = e.view()->sheet().shown(1, 0, *e.view()->sheet().cellAt(1, 0)).width;
-        QVERIFY2(wide >= text && wide <= text + 12, qPrintable(QStringLiteral("%1 against %2").arg(wide).arg(text)));
+        const grid::Shown shown = e.view()->sheet().shown(1, 0, *e.view()->sheet().cellAt(1, 0));
+        const double text = shown.width;
+        // (the number shows whole in the width it made: a General number is fitted by its text measured in the cell's font, as the font the machine does not choose, so the width the
+        // window draws it in may differ from that by a pixel or two on a machine whose own font for the family has other digits)
+        QVERIFY2(!shown.hashes && shown.text == QStringLiteral("12345678901234") && wide <= text + 12 && wide >= text - 12, qPrintable(QStringLiteral("%1 against %2").arg(wide).arg(text)));
         pressUndo(&e.win.w);
         QCOMPARE(columnPx(e, 0), was);                                                 // (one step took both)
         QCOMPARE(e.valueAt(QStringLiteral("A2")), QStringLiteral("-"));
