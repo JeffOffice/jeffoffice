@@ -19,6 +19,8 @@
 #include "editwindow.h"
 #include "office/packageprops.h"
 #include "../localepin.h"
+#include "../sheet/drawinghelpers.h"
+#include "sheet/xlsxsave.h"
 #include "../privacyhooks.h"
 #include "../packedpackagecheck.h"
 #include "office/privacy.h"
@@ -59,6 +61,73 @@ bool saveAndWaitHere(CrunchWindow &w)
     QSignalSpy saved(&w, &CrunchWindow::saved);
     if (!w.save()) return false;
     return (saved.count() > 0 || saved.wait(20000)) && saved.last().value(1).toBool();
+}
+
+// A workbook with what people really have: a formula, two sheets, a defined name, a number format, a fill and borders, merged cells, a note, a chart, a picture, a table, a filter, conditional
+// formatting, data validation, frozen panes, a link, a column width, print settings, and a formula that spills.
+QByteArray everythingBook()
+{
+    auto text = [](const QString &ref, const QString &t, const QString &style = QString()) {
+        return QStringLiteral("<c r=\"%1\"%3 t=\"inlineStr\"><is><t>%2</t></is></c>").arg(ref, t, style.isEmpty() ? QString() : QStringLiteral(" s=\"%1\"").arg(style));
+    };
+    const QString rows = QStringLiteral("<row r=\"1\">") + text("A1", "Item") + QStringLiteral("<c r=\"B1\" s=\"1\"><v>1234.5</v></c><c r=\"C1\"><f>B1*2</f><v>2469</v></c>") + text("E1", "Key") + text("F1", "Val")
+        + QStringLiteral("</row><row r=\"2\">") + text("A2", "go") + QStringLiteral("<c r=\"B2\" s=\"2\"><v>5</v></c>") + text("E2", "a") + QStringLiteral("<c r=\"F2\"><v>1</v></c></row><row r=\"3\">")
+        + text("A3", "merged") + text("E3", "b") + QStringLiteral("<c r=\"F3\"><v>2</v></c></row><row r=\"4\">") + text("A4", "noted") + QStringLiteral("<c r=\"B4\"><v>-3</v></c></row>")
+        + QStringLiteral("<row r=\"5\"><c r=\"A5\" cm=\"1\"><f t=\"array\" ref=\"A5:A7\">_xlfn.SEQUENCE(3)</f><v>1</v></c></row><row r=\"6\"><c r=\"A6\"><v>2</v></c></row><row r=\"7\"><c r=\"A7\"><v>3</v></c></row>");
+    const QString head = QStringLiteral("<dimension ref=\"A1:F7\"/><sheetViews><sheetView workbookViewId=\"0\"><pane xSplit=\"1\" ySplit=\"1\" topLeftCell=\"B2\" activePane=\"bottomRight\" state=\"frozen\"/></sheetView></sheetViews>"
+                                        "<cols><col min=\"1\" max=\"1\" width=\"28\" customWidth=\"1\"/></cols>");
+    const QString after = QStringLiteral("<mergeCells count=\"1\"><mergeCell ref=\"A3:B3\"/></mergeCells>"
+                                         "<conditionalFormatting sqref=\"B1:B4\"><cfRule type=\"cellIs\" priority=\"1\" operator=\"lessThan\"><formula>0</formula></cfRule></conditionalFormatting>"
+                                         "<dataValidations count=\"1\"><dataValidation type=\"list\" sqref=\"D2\"><formula1>\"yes,no\"</formula1></dataValidation></dataValidations>"
+                                         "<hyperlinks><hyperlink ref=\"A2\" r:id=\"rIdH\" display=\"go\"/></hyperlinks>"
+                                         "<pageMargins left=\"0.7\" right=\"0.7\" top=\"0.75\" bottom=\"0.75\" header=\"0.3\" footer=\"0.3\"/><pageSetup orientation=\"landscape\" paperSize=\"9\"/>"
+                                         "<drawing r:id=\"rIdD1\"/><legacyDrawing r:id=\"rIdV\"/>");
+    const QByteArray second = worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\" t=\"inlineStr\"><is><t>second</t></is></c></row><row r=\"2\"><c r=\"A2\"><v>4</v></c></row><row r=\"3\"><c r=\"A3\"><v>9</v></c></row>"),
+                                        QStringLiteral("<autoFilter ref=\"A1:A3\"/>"));
+    const QByteArray styles = stylesXml(QStringLiteral("<numFmt numFmtId=\"164\" formatCode=\"#,##0.00 &quot;units&quot;\"/>"),
+                                        QStringLiteral("<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\"/><xf numFmtId=\"164\" fontId=\"0\" fillId=\"0\" borderId=\"0\" applyNumberFormat=\"1\"/>"
+                                                       "<xf numFmtId=\"0\" fontId=\"0\" fillId=\"2\" borderId=\"1\" applyFill=\"1\" applyBorder=\"1\"/>"),
+                                        QStringLiteral("<fonts count=\"1\"><font><sz val=\"11\"/><name val=\"Calibri\"/></font></fonts>"
+                                                       "<fills count=\"3\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill>"
+                                                       "<fill><patternFill patternType=\"solid\"><fgColor rgb=\"FFFFFF00\"/><bgColor indexed=\"64\"/></patternFill></fill></fills>"
+                                                       "<borders count=\"2\"><border><left/><right/><top/><bottom/><diagonal/></border>"
+                                                       "<border><left style=\"thin\"><color auto=\"1\"/></left><right style=\"thin\"><color auto=\"1\"/></right><top style=\"thin\"><color auto=\"1\"/></top>"
+                                                       "<bottom style=\"thin\"><color auto=\"1\"/></bottom><diagonal/></border></borders>"));
+    QByteArray book = buildXlsx({worksheet(rows, after, head), second}, QByteArray(), QString(), QString(), styles, QStringList({"Data", "Notes"}), QStringLiteral("<definedName name=\"Total\">Data!$B$1:$B$4</definedName>"));
+    book = withTables(book, {QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<table xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\" id=\"1\" name=\"Pairs\" displayName=\"Pairs\" ref=\"E1:F3\" totalsRowShown=\"0\">"
+                                            "<autoFilter ref=\"E1:F3\"/><tableColumns count=\"2\"><tableColumn id=\"1\" name=\"Key\"/><tableColumn id=\"2\" name=\"Val\"/></tableColumns><tableStyleInfo name=\"TableStyleMedium2\" showRowStripes=\"1\"/></table>")});
+    drawtest::SeriesSpec series;
+    series.valRef = QStringLiteral("Data!$B$1:$B$4");
+    series.values = {1234.5, 5, 0, -3};
+    QVector<ExtraPart> parts;
+    auto add = [&](const QString &name, const QByteArray &data, const QString &type, int sheet = -1, const QString &id = QString(), const QString &rel = QString(), const QString &target = QString()) {
+        parts.append({name, data, type, sheet, id, rel, target});
+    };
+    add(QStringLiteral("xl/drawings/drawing1.xml"), drawtest::drawingPart(drawtest::twoCell(7, 0, 12, 8, drawtest::chartFrame(2, QStringLiteral("rIdC1"))) + drawtest::twoCell(7, 9, 9, 12, drawtest::pictureElement(3, QStringLiteral("rIdI1")))),
+        QStringLiteral("application/vnd.openxmlformats-officedocument.drawing+xml"), 0, QStringLiteral("rIdD1"), QStringLiteral("drawing"), QStringLiteral("../drawings/drawing1.xml"));
+    add(QStringLiteral("xl/charts/chart1.xml"), drawtest::chartPart(QStringLiteral("barChart"), {series}), QStringLiteral("application/vnd.openxmlformats-officedocument.drawingml.chart+xml"));
+    add(QStringLiteral("xl/media/image1.png"), drawtest::pngBytes(20, 20, Qt::red), QStringLiteral("image/png"));
+    add(QStringLiteral("xl/drawings/_rels/drawing1.xml.rels"),
+        QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+                   "<Relationship Id=\"rIdC1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart\" Target=\"/xl/charts/chart1.xml\"/>"
+                   "<Relationship Id=\"rIdI1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/image\" Target=\"/xl/media/image1.png\"/></Relationships>"),
+        QString());
+    add(QStringLiteral("xl/comments1.xml"),
+        QByteArray("<?xml version=\"1.0\"?><comments xmlns=\"http://schemas.openxmlformats.org/spreadsheetml/2006/main\"><authors><author>a</author></authors><commentList><comment ref=\"A4\" authorId=\"0\"><text><t>Note words</t></text></comment></commentList></comments>"),
+        QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.comments+xml"), 0, QStringLiteral("rIdC"), QStringLiteral("comments"), QStringLiteral("../comments1.xml"));
+    add(QStringLiteral("xl/drawings/vmlDrawing1.vml"),
+        QByteArray("<xml><v:shape id=\"s1\"><x:ClientData ObjectType=\"Note\"><x:Anchor>1, 15, 3, 2, 3, 15, 5, 16</x:Anchor><x:Row>3</x:Row><x:Column>0</x:Column></x:ClientData></v:shape></xml>"), QString(), 0, QStringLiteral("rIdV"),
+        QStringLiteral("vmlDrawing"), QStringLiteral("../drawings/vmlDrawing1.vml"));
+    add(QStringLiteral("xl/metadata.xml"), office::sheet::dynamicArrayMetadataXml(), QStringLiteral("application/vnd.openxmlformats-officedocument.spreadsheetml.sheetMetadata+xml"));
+    book = withParts(book, parts);
+    // (the link goes to a web address: its relationship is external)
+    QMap<QString, QByteArray> zipParts;
+    jp::readZip(book, zipParts);
+    QByteArray &rels = zipParts[QStringLiteral("xl/worksheets/_rels/sheet1.xml.rels")];
+    rels.replace("</Relationships>", "<Relationship Id=\"rIdH\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/hyperlink\" Target=\"https://example.com/\" TargetMode=\"External\"/></Relationships>");
+    jp::ZipWriter zip;
+    for (auto it = zipParts.cbegin(); it != zipParts.cend(); ++it) zip.add(it.key(), it.value(), true);
+    return zip.finish();
 }
 
 } // namespace
@@ -459,6 +528,161 @@ private Q_SLOTS:
         e.win.w.exportCsv(e.folder.dir.filePath(QStringLiteral("clear.csv")));
         QTRY_VERIFY_WITH_TIMEOUT(!e.win.told.isEmpty(), 20000);
         QVERIFY2(e.win.told.join(QLatin1Char('|')).contains(line), qPrintable(e.win.told.join(QLatin1Char('|'))));
+    }
+
+    // What the .xls, .ods, and .csv lists say and what a save keeps (the table is written to JO_TRUTH_DIR/crunch-truth.txt when that is set): a workbook with each thing people really have, saved through
+    // the window's own save, opened again in a window, and saved as an .xlsx to look in. A thing that is gone and not listed is a failure, and so is one that is listed and kept.
+    void whatEachKindListsIsWhatItsSaveLoses()
+    {
+        using Parts = QMap<QString, QByteArray>;
+        struct Thing {
+            QString name;
+            std::function<bool(const Parts &)> in;
+            QRegularExpression listedBy;
+        };
+        auto all = [](const Parts &p, const QString &prefix) {
+            QString out;
+            for (auto it = p.cbegin(); it != p.cend(); ++it)
+                if (it.key().startsWith(prefix) && !it.key().endsWith(QLatin1String(".rels"))) out += QString::fromUtf8(it.value());
+            return out;
+        };
+        auto sheets = [&](const Parts &p) { return all(p, QStringLiteral("xl/worksheets/")); };
+        auto hasPart = [](const Parts &p, const QString &prefix) {
+            for (auto it = p.cbegin(); it != p.cend(); ++it)
+                if (it.key().startsWith(prefix)) return true;
+            return false;
+        };
+        auto re = [](const char *t) { return QRegularExpression(QString::fromLatin1(t), QRegularExpression::CaseInsensitiveOption); };
+        const QVector<Thing> things = {
+            {QStringLiteral("formula"), [&](const Parts &p) { return sheets(p).contains(QLatin1String("B1*2")); }, re("(^|\\n)formulas \\(")},
+            {QStringLiteral("second sheet"), [&](const Parts &p) { return all(p, QStringLiteral("xl/workbook.xml")).count(QLatin1String("<sheet ")) >= 2; }, re("other sheet")},
+            {QStringLiteral("defined name"), [&](const Parts &p) { return all(p, QStringLiteral("xl/workbook.xml")).contains(QLatin1String("name=\"Total\"")); }, re("defined names")},
+            {QStringLiteral("number format"), [&](const Parts &p) { return all(p, QStringLiteral("xl/styles.xml")).contains(QLatin1String("units")); }, re("number formats")},
+            {QStringLiteral("fill"), [&](const Parts &p) { return all(p, QStringLiteral("xl/styles.xml")).contains(QLatin1String("FFFF00")); }, re("colors|fills")},
+            {QStringLiteral("border"), [&](const Parts &p) { return all(p, QStringLiteral("xl/styles.xml")).contains(QLatin1String("style=\"thin\"")); }, re("borders")},
+            {QStringLiteral("merged cells"), [&](const Parts &p) { return sheets(p).contains(QLatin1String("<mergeCell ")); }, re("merged")},
+            {QStringLiteral("note"), [&](const Parts &p) { return all(p, QStringLiteral("xl/comments")).contains(QLatin1String("Note words")); }, re("notes")},
+            {QStringLiteral("chart"), [&](const Parts &p) { return hasPart(p, QStringLiteral("xl/charts/chart")); }, re("chart")},
+            {QStringLiteral("picture"), [&](const Parts &p) { return hasPart(p, QStringLiteral("xl/media/")); }, re("picture")},
+            {QStringLiteral("table"), [&](const Parts &p) { return hasPart(p, QStringLiteral("xl/tables/table")); }, re("(?<!pivot )(?<!data )tables")},
+            {QStringLiteral("filter"), [&](const Parts &p) { return sheets(p).contains(QLatin1String("<autoFilter")); }, re("filter")},
+            {QStringLiteral("conditional formatting"), [&](const Parts &p) { return sheets(p).contains(QLatin1String("<conditionalFormatting")); }, re("conditional formatting")},
+            {QStringLiteral("data validation"), [&](const Parts &p) { return sheets(p).contains(QLatin1String("<dataValidation ")); }, re("data validation")},
+            {QStringLiteral("frozen panes"), [&](const Parts &p) { return sheets(p).contains(QLatin1String("state=\"frozen\"")); }, re("frozen|freeze")},
+            {QStringLiteral("hyperlink"), [&](const Parts &p) { return sheets(p).contains(QLatin1String("<hyperlink ")); }, re("links")},
+            {QStringLiteral("column width"), [&](const Parts &p) { return sheets(p).contains(QLatin1String("customWidth=\"1\"")); }, re("column widths")},
+            {QStringLiteral("print settings"), [&](const Parts &p) { return sheets(p).contains(QLatin1String("orientation=\"landscape\"")); }, re("print")},
+            {QStringLiteral("spilled formula"), [&](const Parts &p) { return sheets(p).contains(QLatin1String("cm=\"")); }, re("fill the cells beside|(^|\\n)formulas \\(")},
+        };
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        // (saved through the window's own path: a save, a csv, or a copy says how it ended on its own signal)
+        auto saveInto = [](Window &w, const QString &path, bool asCopy) {
+            QSignalSpy saved(&w.w, &CrunchWindow::saved), csv(&w.w, &CrunchWindow::csvExported), copy(&w.w, &CrunchWindow::copyExported);
+            if (!w.w.saveAs(path, asCopy)) return false;
+            if (!QTest::qWaitFor([&] { return saved.count() + csv.count() + copy.count() > 0; }, 120000)) return false;
+            for (QSignalSpy *spy : {&saved, &csv, &copy})
+                if (spy->count() > 0) return spy->last().value(1).toBool();
+            return false;
+        };
+        auto xlsxOf = [&](Window &w, const QString &name) {
+            const QString path = dir.filePath(name);
+            return saveInto(w, path, true) ? partsOf(path) : Parts();
+        };
+        const QString book = dir.filePath(QStringLiteral("every.xlsx"));
+        {
+            QFile f(book);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(everythingBook());
+        }
+        Window a;
+        QVERIFY(a.open(book));
+        const Parts inFixture = xlsxOf(a, QStringLiteral("fixture-copy.xlsx"));
+        QVERIFY(!inFixture.isEmpty());
+        QStringList log, missing, hidden, over;
+        for (const Thing &t : things)
+            if (!t.in(inFixture)) missing << t.name;
+        log << QStringLiteral("not in the workbook as the window saves it: ") + missing.join(QStringLiteral(", "));
+        const QVector<jp::CompatFormat> formats = a.w.compatHost().formats;
+        QCOMPARE(formats.size(), 3);
+        for (int k = 0; k < formats.size(); ++k) {
+            const QString ending = formats[k].format;
+            QStringList lines;
+            bool got = false;
+            formats[k].lost([&](const jp::CompatAnswer &answer) {
+                lines = answer.found;
+                got = true;
+            });
+            QTRY_VERIFY_WITH_TIMEOUT(got, 120000);
+            const QString listed = lines.join(QLatin1Char('\n'));
+            const QString path = dir.filePath(QStringLiteral("saved") + ending);
+            QVERIFY2(saveInto(a, path, false), qPrintable(ending));
+            Window b;
+            QVERIFY2(b.open(path), qPrintable(ending));
+            const Parts parts = xlsxOf(b, QStringLiteral("again%1.xlsx").arg(k));
+            QVERIFY2(!parts.isEmpty(), qPrintable(ending));
+            log << QStringLiteral("== %1: the list says:\n   %2").arg(ending, lines.join(QStringLiteral("\n   ")));
+            for (const Thing &t : things) {
+                if (missing.contains(t.name)) continue;
+                const bool kept = t.in(parts), isListed = t.listedBy.match(listed).hasMatch();
+                log << QStringLiteral("%1 | %2 | listed=%3 | kept=%4").arg(ending, t.name, isListed ? QStringLiteral("yes") : QStringLiteral("no"), kept ? QStringLiteral("yes") : QStringLiteral("no"));
+                if (!kept && !isListed) hidden << ending + QLatin1Char(' ') + t.name;
+                if (kept && isListed) over << ending + QLatin1Char(' ') + t.name;
+            }
+        }
+        // the password: .xls and .ods keep it (the saved file asks for it); .csv is written in the clear and the list says so
+        {
+            Window p;
+            const QString second = dir.filePath(QStringLiteral("protected.xlsx"));   // (a file that is open in a window is not opened in a second)
+            QVERIFY(QFile::copy(book, second));
+            QVERIFY(p.open(second));
+            p.w.anchorHooks().setFilePasswordAsker = [](SetFilePasswordRequest *r) {
+                r->password = QStringLiteral("one");
+                r->remove = false;
+                return true;
+            };
+            p.w.act(QStringLiteral("protect.password"))->trigger();
+            const QVector<jp::CompatFormat> pformats = p.w.compatHost().formats;
+            for (int k = 0; k < pformats.size(); ++k) {
+                const QString ending = pformats[k].format;
+                QStringList lines;
+                bool got = false;
+                pformats[k].lost([&](const jp::CompatAnswer &answer) {
+                    lines = answer.found;
+                    got = true;
+                });
+                QTRY_VERIFY_WITH_TIMEOUT(got, 120000);
+                const bool isListed = lines.join(QLatin1Char('\n')).contains(QLatin1String("password"), Qt::CaseInsensitive);
+                const QString path = dir.filePath(QStringLiteral("locked") + ending);
+                QVERIFY2(saveInto(p, path, false), qPrintable(ending));
+                bool kept = false;
+                if (k == 2) {
+                    QFile f(path);
+                    QVERIFY(f.open(QIODevice::ReadOnly));
+                    kept = !f.readAll().contains("Item");   // (a protected file does not hold its words as they are)
+                } else {
+                    Window b;
+                    bool asked = false;
+                    b.w.anchorHooks().filePasswordAsker = [&asked](FilePasswordRequest *r) {
+                        asked = true;
+                        r->password = QStringLiteral("one");
+                        return true;
+                    };
+                    QVERIFY2(b.open(path), qPrintable(ending));
+                    kept = asked;
+                }
+                log << QStringLiteral("%1 | password | listed=%2 | kept=%3").arg(ending, isListed ? QStringLiteral("yes") : QStringLiteral("no"), kept ? QStringLiteral("yes") : QStringLiteral("no"));
+                if (!kept && !isListed) hidden << ending + QStringLiteral(" password");
+                if (kept && isListed) over << ending + QStringLiteral(" password");
+            }
+        }
+        const QString out = qEnvironmentVariable("JO_TRUTH_DIR");
+        if (!out.isEmpty()) {
+            QFile f(out + QStringLiteral("/crunch-truth.txt"));
+            if (f.open(QIODevice::WriteOnly)) f.write(log.join(QLatin1Char('\n')).toUtf8());
+        }
+        QVERIFY2(hidden.isEmpty(), qPrintable(QStringLiteral("lost and not listed: ") + hidden.join(QStringLiteral("; "))));
+        QVERIFY2(over.isEmpty(), qPrintable(QStringLiteral("listed but kept: ") + over.join(QStringLiteral("; "))));
     }
 
     // A picture of Check Compatibility (JO_SHOT_DIR names the folder; nothing is made without it).

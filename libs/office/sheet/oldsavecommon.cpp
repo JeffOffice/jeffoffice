@@ -141,6 +141,12 @@ void Features::note(const Sheet &sheet)
     // (the old form writes the page setup; OpenDocument's page styles are written as far as margins, orientation, scale, and the texts of headers and footers)
     if (!sheet.page.headerFooter.pictures.isEmpty()) add(QT_TRANSLATE_NOOP("Sheet", "pictures in headers and footers"));
     if (m_kind == CopyKind::Ods && (sheet.page.titles.hasRows || sheet.page.titles.hasCols || !sheet.page.colBreaks.isEmpty())) add(QT_TRANSLATE_NOOP("Sheet", "print titles and page breaks between columns"));
+    // (the old form writes no links; an OpenDocument copy writes them and the page setup, but this program does not read them back from one, so a workbook opened again has neither)
+    if (!sheet.links.isEmpty()) {
+        if (m_kind == CopyKind::Xls) add(QT_TRANSLATE_NOOP("Sheet", "links in cells (the text stays, and the link is gone)"));
+        else add(QT_TRANSLATE_NOOP("Sheet", "links in cells (the file has them, but they are lost when it is opened here again)"));
+    }
+    if (m_kind == CopyKind::Ods && sheet.page != PageSetup()) add(QT_TRANSLATE_NOOP("Sheet", "print settings (the file has them, but they are lost when it is opened here again)"));
     if (!sheet.importedCharts.isEmpty()) add(QT_TRANSLATE_NOOP("Sheet", "charts"));   // (read from the older form, and written only to an .xlsx)
     for (const QString &s : sheet.notKept) m_found.insert(s);
     for (const ImportedNote &n : sheet.importedNotes)

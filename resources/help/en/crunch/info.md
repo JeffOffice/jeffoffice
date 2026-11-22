@@ -60,7 +60,7 @@ Save the workbook afterward to keep the clean copy.
 
 ## Check Compatibility for .csv
 
-Pick **.csv** in **Check Compatibility** to see what a .csv file would leave out of your workbook. A .csv file holds only the values of one sheet. The list names the other sheets, the formulas (the file has their results), the pictures, charts, notes, pivot tables, and the rest that your workbook has, and always the number formats, fonts, colors, and column widths. It also lists the choices kept in the file's properties, such as Mark as Final and Always Open Read-Only. It saves nothing. Choose **Save as .xlsx** when you save to keep them all.
+Pick **.csv** in **Check Compatibility** to see what a .csv file would leave out of your workbook. A .csv file holds only the values of one sheet. The list names the other sheets, the formulas (the file has their results), the pictures, charts, notes, pivot tables, and the rest that your workbook has, the defined names and tables, and always everything that is not a value, such as number formats, fonts, colors, borders, column widths, merged cells, frozen panes, filters, conditional formatting, data validation, links, and print settings. It also lists the choices kept in the file's properties, such as Mark as Final and Always Open Read-Only. It saves nothing. Choose **Save as .xlsx** when you save to keep them all.
 
 ## Check Compatibility
 

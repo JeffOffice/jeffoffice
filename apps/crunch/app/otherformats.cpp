@@ -207,7 +207,13 @@ QStringList leftOutOfCsv(const jp::office::sheet::Workbook &book, qint64 formula
     }
     // (a pivot table made in this session has no part in the package yet: the model says)
     if (book.pivots().tableCount() > 0 && !out.contains(QCoreApplication::translate("jp::crunch::OtherFormats", "pivot tables"))) out << QCoreApplication::translate("jp::crunch::OtherFormats", "pivot tables");
-    out << QCoreApplication::translate("jp::crunch::OtherFormats", "number formats, fonts, colors, and column widths");
+    // (defined names and tables are in the workbook's own list; the rest, which is in each sheet, is named as examples, since a file of values holds none of it)
+    int names = 0;
+    for (const auto &name : book.info().definedNames)
+        if (!name.hidden && !name.name.startsWith(QLatin1String("_xlnm."))) ++names;
+    if (names > 0) out << QCoreApplication::translate("jp::crunch::OtherFormats", "defined names");
+    if (!book.tables().isEmpty()) out << QCoreApplication::translate("jp::crunch::OtherFormats", "tables");
+    out << QCoreApplication::translate("jp::crunch::OtherFormats", "everything that is not a value, such as number formats, fonts, colors, borders, column widths, merged cells, frozen panes, filters, conditional formatting, data validation, links, and print settings");
     return out;
 }
 
