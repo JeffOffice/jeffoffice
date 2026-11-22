@@ -1408,7 +1408,7 @@ std::shared_ptr<const XlsBook> XlsBook::open(const QByteArray &stream, bool hasM
     return g.run(hasMacros, info, shared, styles, error);
 }
 
-XlsBook::End XlsBook::endAt(qsizetype offset, qint64 *work) const
+XlsBook::End XlsBook::endAt(qsizetype offset, qint64 *work, qsizetype *endOut) const
 {
     Scanner sc(m_data, offset);
     Rec r;
@@ -1419,9 +1419,25 @@ XlsBook::End XlsBook::endAt(qsizetype offset, qint64 *work) const
         --*work;
         if (r.pos + r.len > m_data.size()) return End::CutShort;
         if (isBof(r.id)) ++depth;
-        else if (r.id == kEof && --depth == 0) return End::Whole;
+        else if (r.id == kEof && --depth == 0) {
+            if (endOut) *endOut = r.pos + r.len;
+            return End::Whole;
+        }
     }
     return End::CutShort;
+}
+
+qsizetype XlsBook::wholeEnd(qint64 *work) const
+{
+    qsizetype best = 0;
+    auto look = [&](qsizetype offset) {
+        qsizetype end = 0;
+        if (endAt(offset, work, &end) == End::Whole) best = std::max(best, end);
+    };
+    look(0);
+    for (const Place &p : m_places)
+        if (p.offset >= 0) look(p.offset);
+    return best;
 }
 
 namespace {
@@ -1599,9 +1615,19 @@ QByteArray salvageXlsStream(const QByteArray &file, const Limits &limits, QStrin
         if (!sound) {
             // (what the container gave that is not records, in a stream that was put together from sectors that were not all the stream's: the records before it are kept)
             qint64 walked = 0;
-            const qsizetype good = recordBytes(stream, &walked);
+            qsizetype good = recordBytes(stream, &walked);
             g_salvageRecords += walked;
             g_salvageStream = stream.size();
+            // (a damaged stretch in the middle of one sheet does not take the sheets after it: each is read at the place the globals give, and the stream is kept to the last that ends whole)
+            WorkbookInfo info;
+            SharedStrings shared;
+            Styles styles;
+            QString ignored;
+            const std::shared_ptr<const XlsBook> whole = XlsBook::open(stream, false, limits, &info, &shared, &styles, &ignored);
+            if (whole) {
+                qint64 work = 2 * qint64(stream.size()) + (1 << 20);
+                good = std::max(good, whole->wholeEnd(&work));
+            }
             bool zeros = true;
             for (qsizetype i = good; i < stream.size() && zeros; ++i) zeros = stream[i] == 0;
             if (!zeros && good > 8) {

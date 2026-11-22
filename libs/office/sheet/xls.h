@@ -53,6 +53,8 @@ public:
     // where the workbook says (Missing). Unchecked if `*work` (records it may still walk, counted down) ran out first.
     enum class End { Whole, CutShort, Missing, Unchecked };
     End globalsEnd(qint64 *work) const { return endAt(0, work); }
+    // The offset where the last substream that ends whole (the globals, or a sheet at the place the globals give) ends, 0 if none does; `*work` as above.
+    qsizetype wholeEnd(qint64 *work) const;
     End sheetEnd(int index, qint64 *work) const { return index >= 0 && index < m_places.size() ? endAt(m_places[index].offset, work) : End::Missing; }
 
     // What the file holds that is not read, in words ("charts", "pictures and other drawing objects", ...), for the person to be told.
@@ -69,7 +71,7 @@ private:
     friend class XlsGlobals;
     friend class XlsSheetReader;
 
-    End endAt(qsizetype offset, qint64 *work) const;
+    End endAt(qsizetype offset, qint64 *work, qsizetype *endOut = nullptr) const;
 
     struct Place {
         qsizetype offset = -1;

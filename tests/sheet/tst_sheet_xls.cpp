@@ -1972,6 +1972,43 @@ private Q_SLOTS:
         QVERIFY2(said.contains(QLatin1String("1 entry of the workbook (a cell, a format, or a note) was left out")), qPrintable(said));
     }
 
+    // A stretch of damage in the middle of the first sheet: that sheet keeps the cells before it, and the sheets after it, which the globals place by their own offsets, are kept whole.
+    void sheetsAfterADamagedStretchAreKept()
+    {
+        Book b;
+        for (int i = 0; i < 3; ++i) {
+            QByteArray cells;
+            for (int r = 0; r < 100; ++r) cells += number(r, 0, i * 1000 + r);
+            b.sheet(QStringLiteral("S%1").arg(i), cells);
+        }
+        QByteArray stream = b.stream();
+        const qsizetype second = stream.indexOf(QByteArray("\x09\x08\x10\x00", 4), stream.indexOf(QByteArray("\x09\x08\x10\x00", 4), 4) + 1);   // (the 2nd sheet's begin record)
+        QVERIFY(second > 0);
+        const qsizetype first = stream.indexOf(QByteArray("\x09\x08\x10\x00", 4), 12 + 4);
+        QVERIFY(first > 0 && first < second);
+        // (one cell's record gets an id that no record has: the stretch is not records to a reader that walks them, and the reader steps over it by its length)
+        qsizetype at = first;
+        while (at < first + 600) at += 4 + (quint8(stream[at + 2]) | quint8(stream[at + 3]) << 8);
+        stream[at] = char(0xFF);
+        stream[at + 1] = char(0x3F);
+        const QByteArray raw = QByteArray(37, 'j') + stream + QByteArray(100, '\0');
+        QStringList notes;
+        QString why;
+        const QByteArray got = salvageXlsStream(raw, Limits(), &notes, &why);
+        QVERIFY2(!got.isEmpty(), qPrintable(why));
+        Workbook wb;
+        QVERIFY2(wb.openBinary(got, &why), qPrintable(why));
+        QCOMPARE(int(wb.info().sheets.size()), 3);
+        Sheet s0, s1, s2;
+        wb.readSheet(0, &s0);
+        QVERIFY(wb.readSheet(1, &s1));
+        QVERIFY(wb.readSheet(2, &s2));
+        QCOMPARE(shown(wb, s1, QStringLiteral("A100")), QStringLiteral("n:%1").arg(1099));
+        QCOMPARE(shown(wb, s2, QStringLiteral("A100")), QStringLiteral("n:%1").arg(2099));
+        QCOMPARE(shown(wb, s0, QStringLiteral("A1")), QStringLiteral("n:0"));
+        QCOMPARE(shown(wb, s0, QStringLiteral("A100")), QStringLiteral("n:99"));   // (the first sheet's cells after the stretch are read too)
+    }
+
     // The sectors are out of order and the tables say nothing (zeroed): the cells before the first sector out of place are kept, no cell after it is made up, and the notes say how far the rows go.
     void sectorsOutOfOrderWithNoTablesKeepOnlyWhatIsBeforeThem()
     {
