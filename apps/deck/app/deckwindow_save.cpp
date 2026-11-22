@@ -5,6 +5,7 @@
 #include "app/deckcanvas.h"
 #include "app/uistyle.h"
 #include "app/deckwindow.h"
+#include "core/animation.h"
 
 #include "app/editor.h"
 #include "app/filedialogs.h"
@@ -211,6 +212,12 @@ CompatAnswer DeckWindow::odpFound(bool tmpl)
             m_lossCache.bump();   // (a failure is not kept: the next ask works it out again)
             return QStringList();
         }
+        // (the file holds the animations, but this program does not read them back from an .odp file: a presentation opened again has none)
+        for (const auto &page : m_ed->doc()->pages)
+            if (!deck::readAnimations(*page).effects.empty()) {
+                skipped << tr("animations (the file has them, but they are lost when it is opened here again)");
+                break;
+            }
         return skipped;
     });
     if (!failure.isEmpty()) return CompatAnswer::failed(failure);
