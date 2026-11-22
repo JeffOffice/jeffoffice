@@ -6616,7 +6616,7 @@ Back page story	4</source>
         <translation type="unfinished">файл PDF не был создан этой программой</translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/pub/io/pubexport.cpp" line="+2396"/>
+        <location filename="../apps/pub/io/pubexport.cpp" line="+2411"/>
         <source>%n object(s) couldn&apos;t be saved to .pub</source>
         <translation type="unfinished">
             <numerusform>Не удалось сохранить %n объект в .pub</numerusform>
@@ -54378,7 +54378,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::SelectionPane</name>
     <message>
-        <location filename="../libs/shell/app/selectionpane.cpp" line="+21"/>
+        <location filename="../libs/shell/app/selectionpane.cpp" line="+29"/>
         <source>Selection Pane</source>
         <translation type="unfinished">Область выделения</translation>
     </message>

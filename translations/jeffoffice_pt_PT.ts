@@ -6614,7 +6614,7 @@ Artigo da contracapa	4</translation>
         <translation type="unfinished">não é um PDF criado por este programa</translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/pub/io/pubexport.cpp" line="+2396"/>
+        <location filename="../apps/pub/io/pubexport.cpp" line="+2411"/>
         <source>%n object(s) couldn&apos;t be saved to .pub</source>
         <translation type="unfinished">
             <numerusform>Não foi possível guardar %n objeto em .pub</numerusform>
@@ -54324,7 +54324,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
 <context>
     <name>jp::SelectionPane</name>
     <message>
-        <location filename="../libs/shell/app/selectionpane.cpp" line="+21"/>
+        <location filename="../libs/shell/app/selectionpane.cpp" line="+29"/>
         <source>Selection Pane</source>
         <translation type="unfinished">Painel de Seleção</translation>
     </message>

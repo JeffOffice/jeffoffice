@@ -6612,7 +6612,7 @@ Berita halaman belakang	4</translation>
         <translation type="unfinished">bukan PDF yang ditulis program ini</translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/pub/io/pubexport.cpp" line="+2396"/>
+        <location filename="../apps/pub/io/pubexport.cpp" line="+2411"/>
         <source>%n object(s) couldn&apos;t be saved to .pub</source>
         <translation type="unfinished">
             <numerusform>%n objek tidak dapat disimpan ke .pub</numerusform>
@@ -54270,7 +54270,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
 <context>
     <name>jp::SelectionPane</name>
     <message>
-        <location filename="../libs/shell/app/selectionpane.cpp" line="+21"/>
+        <location filename="../libs/shell/app/selectionpane.cpp" line="+29"/>
         <source>Selection Pane</source>
         <translation type="unfinished">Panel Pilihan</translation>
     </message>

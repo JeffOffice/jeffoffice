@@ -6614,7 +6614,7 @@ Article de dernière page	4</translation>
         <translation type="unfinished">ce PDF n&apos;a pas été créé par ce programme</translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/pub/io/pubexport.cpp" line="+2396"/>
+        <location filename="../apps/pub/io/pubexport.cpp" line="+2411"/>
         <source>%n object(s) couldn&apos;t be saved to .pub</source>
         <translation type="unfinished">
             <numerusform>%n objet n&apos;a pas pu être enregistré au format .pub</numerusform>
@@ -54324,7 +54324,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
 <context>
     <name>jp::SelectionPane</name>
     <message>
-        <location filename="../libs/shell/app/selectionpane.cpp" line="+21"/>
+        <location filename="../libs/shell/app/selectionpane.cpp" line="+29"/>
         <source>Selection Pane</source>
         <translation type="unfinished">Volet Sélection</translation>
     </message>
