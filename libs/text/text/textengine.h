@@ -688,6 +688,13 @@ struct HandBoldWork {
     quint64 stroked = 0;
 };
 HandBoldWork &handBoldWork();
+// For tests: the number of kept outlines after which a draw clears them and a function called, off the lock, after each outline is kept.
+struct HandBoldHooks {
+    int limit = 20000;
+    void (*afterKept)() = nullptr;
+};
+HandBoldHooks &handBoldHooks();
+void drawHandBoldForTest(QPainter *p, const QTextLine &line, const QTextCharFormat &cf);   // (as a picture draws the Courier stand-in's light stroke)
 
 // A picture bullet's picture is read from a file, so it is held to what a bullet can use: no more than kMostBulletPicturePixels as the file declares
 // (width times height), decoded once and kept at most kBulletPictureSide pixels a side, and the kept ones together at most kMostBulletPictureCachePixels.

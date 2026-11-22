@@ -694,6 +694,12 @@ QTextCharFormat withEastAsianFaces(const QTextCharFormat &format, const QString 
     return out;
 }
 
+HandBoldHooks &handBoldHooks()
+{
+    static HandBoldHooks hooks;
+    return hooks;
+}
+
 HandBoldWork &handBoldWork()
 {
     jp::threadcheck::guiOnlyCache();
@@ -1051,9 +1057,10 @@ void drawHandBold(QPainter *p, const QTextLine &line, int s, int e, const QTextC
         QHash<QPair<quint64, quint32>, QPainterPath> outlines;
     };
     static Strokes kept;   // (for all threads; memoLock is held for a find or an add)
+    static quint32 nextFace = 0;   // (a face's number is never given again, after the kept ones are cleared too: a letter a thread keeps later for a face it numbered before the clear is still that face's)
     {
         const std::lock_guard<std::mutex> guard(memoLock());
-        if (kept.outlines.size() > 20000) kept = Strokes();
+        if (kept.outlines.size() > handBoldHooks().limit) kept = Strokes();
     }
     QPainterPathStroker stroker;
     stroker.setWidth(w);
@@ -1070,7 +1077,7 @@ void drawHandBold(QPainter *p, const QTextLine &line, int s, int e, const QTextC
         {
             const std::lock_guard<std::mutex> guard(memoLock());
             auto f = kept.faces.find(faceKey);
-            if (f == kept.faces.end()) f = kept.faces.insert(faceKey, quint32(kept.faces.size()));
+            if (f == kept.faces.end()) f = kept.faces.insert(faceKey, nextFace++);
             face = f.value();
         }
         const QList<quint32> glyphs = g.glyphIndexes();
@@ -1090,8 +1097,11 @@ void drawHandBold(QPainter *p, const QTextLine &line, int s, int e, const QTextC
             if (!have) {
                 outline = stroker.createStroke(raw.pathForGlyph(glyphs[k]));
                 ++handBoldWork().stroked;
-                const std::lock_guard<std::mutex> guard(memoLock());
-                kept.outlines.insert(key, outline);
+                {
+                    const std::lock_guard<std::mutex> guard(memoLock());
+                    kept.outlines.insert(key, outline);
+                }
+                if (handBoldHooks().afterKept) handBoldHooks().afterKept();
             }
             p->save();
             p->translate(where[k]);
@@ -1193,6 +1203,11 @@ double hangTrailingSpaces(const PtLine &line, const QString &disp, const QTextOp
     return (center ? (width - ink) / 2 : right ? width - ink : 0) - left;
 }
 } // namespace
+
+void drawHandBoldForTest(QPainter *p, const QTextLine &line, const QTextCharFormat &cf)
+{
+    drawHandBold(p, line, line.textStart(), line.textStart() + line.textLength(), cf, TextOutput::Picture);
+}
 
 // Whether text is long, and of the letters and digits of the ASCII alone, between which no line may break (none of the places a line may break by the rules of the standard are among them).
 static bool breaksNowhere(const QString &text)

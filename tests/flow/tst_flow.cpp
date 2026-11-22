@@ -1641,6 +1641,68 @@ void FlowTests::theCourierStrokeIsWorkedOutOncePerLetterAndRun()
 }
 
 
+// The kept outlines are shared by the threads, and a thread that clears them (they passed their limit) must not leave another thread's face name
+// the letters of a different one: thread A has kept a letter of a face, thread B clears and keeps another face's letters, and A's next letters are A's own.
+namespace {
+std::atomic<int> g_strokeKept{0};
+std::promise<void> g_firstKept, g_otherDone;
+std::shared_future<void> g_otherDoneFuture;
+void strokeKeptHook()
+{
+    if (g_strokeKept.fetch_add(1) != 0) return;   // (only the first letter kept, the first thread's)
+    g_firstKept.set_value();
+    g_otherDoneFuture.wait();
+}
+QImage handBoldImage(int pixelSize)
+{
+    QFont f;
+    f.setPixelSize(pixelSize);
+    QTextLayout tl(QStringLiteral("abc"), f);
+    tl.beginLayout();
+    QTextLine line = tl.createLine();
+    line.setLineWidth(1000);
+    tl.endLayout();
+    QTextCharFormat cf;
+    cf.setProperty(tp::HandBold, 3);
+    cf.setForeground(Qt::black);
+    cf.setFontPointSize(60);
+    QImage img(200, 60, QImage::Format_ARGB32);
+    img.fill(Qt::white);
+    QPainter p(&img);
+    drawHandBoldForTest(&p, line, cf);
+    p.end();
+    return img;
+}
+}
+
+void FlowTests::aStrokeKeptByAnotherThreadIsNeverTakenForAnotherFaces()
+{
+    jp::initCore();
+    handBoldHooks().limit = 0;   // (every draw begins by clearing what is kept)
+    const QImage want = handBoldImage(12);
+    QVERIFY(want != handBoldImage(24));
+    handBoldWork() = HandBoldWork();
+    g_strokeKept = 0;
+    g_firstKept = std::promise<void>();
+    g_otherDone = std::promise<void>();
+    g_otherDoneFuture = g_otherDone.get_future().share();
+    handBoldHooks().afterKept = strokeKeptHook;
+    QImage first, second;
+    {
+        jp::WorkThread a([&] { first = handBoldImage(12); });
+        QVERIFY(g_firstKept.get_future().wait_for(std::chrono::seconds(60)) == std::future_status::ready);
+        {
+            jp::WorkThread b([&] { second = handBoldImage(24); });
+        }
+        g_otherDone.set_value();
+    }
+    handBoldHooks() = HandBoldHooks();
+    QVERIFY(first == want);
+    QVERIFY(second == handBoldImage(24));
+    QCOMPARE(handBoldWork().stroked, quint64(2 * 3));   // (abc, for each of the two faces: the first thread did not take the other's)
+}
+
+
 // A word processor's missing face, measured, is drawn in a stand-in whose letters take the original's widths, the difference from the stand-in's going into the
 // spacing after each letter. Where the stand-in's capital I is much narrower than the original's, the letters of a word shared that difference unevenly (the first
 // letter of a run kept all of its own after it), and the gap beside the I was wide enough for a reader of the page's text to take "I llinois", "I ncludes", and

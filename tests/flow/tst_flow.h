@@ -6,6 +6,7 @@
 #include "core/document.h"
 #include "core/fonts.h"
 #include "core/items.h"
+#include "core/workthread.h"
 #include "flow/flowdocument.h"
 #include "flow/paginator.h"
 #include "flow/tableflow.h"
@@ -20,6 +21,9 @@
 #include <QElapsedTimer>
 #include <QImage>
 #include <QTextBoundaryFinder>
+#include <QTextLayout>
+#include <atomic>
+#include <future>
 #include <QJsonDocument>
 #include <QJsonObject>
 #include <QPainter>
@@ -1409,6 +1413,7 @@ private Q_SLOTS:
     void courierNewIsDrawnInAThinFaceAndSetAsItself();
     void theCourierStrokeLeavesTheLettersWhereTheyAre();
     void theCourierStrokeIsWorkedOutOncePerLetterAndRun();
+    void aStrokeKeptByAnotherThreadIsNeverTakenForAnotherFaces();
     void wordLettersShareTheirWidthsEvenly();
     void underlinedSpacesPastTheLineEndAreUnderlinedToo();
     void anUnderlinedTabThatEndsALineIsUnderlinedAsFarAsItGoes();
