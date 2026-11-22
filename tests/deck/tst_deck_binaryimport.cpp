@@ -1,5 +1,6 @@
 // JeffDeck's tests of old binary presentations: the container, its limits, and damaged files.
 #include "deckhelpers.h"
+#include "../office/cfbdamage.h"
 #include "../timing.h"
 
 #include "core/embeddedfonts.h"
@@ -1653,6 +1654,54 @@ private Q_SLOTS:
         QCOMPARE(placeholderStory(*e, *e->pages[0], QStringLiteral("ph:body:1"))->begin().begin().fragment().charFormat().fontFamilies().toStringList(), QStringList{"Beta Serif"});
         deck::EmbeddedFonts::release(d.get());
         deck::EmbeddedFonts::release(e.get());
+    }
+    // Every kind of damage to the container of a presentation that leaves its sectors in the file: both slides come back; the stream's size wrong too (the tables say how long it is).
+    void aPresentationWithADamagedContainerIsRepairedWhole()
+    {
+        const QByteArray big = bigDeck();
+        QList<cfbdamage::Variant> all = cfbdamage::sectorDamage(big, pptDocumentStream(), QStringLiteral("Current User"));
+        all += cfbdamage::headerDamage(big);
+        for (const cfbdamage::Variant &v : std::as_const(all)) {
+            QStringList notes;
+            QString why;
+            auto d = repaired(v.file, &notes, &why);
+            QVERIFY2(d, qPrintable(v.id + QLatin1Char(' ') + why));
+            QVERIFY2(titles(*d) == (QStringList{"Plan", "Quarterly Results"}), qPrintable(v.id));
+        }
+        for (const cfbdamage::Variant &v : cfbdamage::miniDamage(buildPpt())) {
+            QStringList notes;
+            QString why;
+            auto d = repaired(v.file, &notes, &why);
+            if (v.id == QLatin1String("g6")) {
+                QVERIFY(!d);
+                QVERIFY(!why.isEmpty());
+            } else {
+                QVERIFY2(d, qPrintable(v.id + QLatin1Char(' ') + why));
+                QCOMPARE(int(d->pages.size()), 2);
+            }
+        }
+    }
+
+    // A developer's hook, not a test: JO_REPAIR_TABLE names a file the outcome of each kind of damage is appended to.
+    void repairTable()
+    {
+        const QString out = qEnvironmentVariable("JO_REPAIR_TABLE");
+        if (out.isEmpty()) QSKIP("JO_REPAIR_TABLE is not set");
+        QFile log(out);
+        QVERIFY(log.open(QIODevice::Append | QIODevice::Text));
+        const QByteArray big = bigDeck();
+        QList<cfbdamage::Variant> all = cfbdamage::sectorDamage(big, pptDocumentStream(), QStringLiteral("Current User"));
+        all += cfbdamage::cuts(big);
+        all += cfbdamage::headerDamage(big);
+        all += cfbdamage::miniDamage(buildPpt());
+        for (const cfbdamage::Variant &v : std::as_const(all)) {
+            const bool plainOpens = deck::importBinaryPresentation(v.file) != nullptr;
+            QStringList notes;
+            QString why;
+            auto d = repaired(v.file, &notes, &why);
+            const QString line = d ? QStringLiteral("opened|%1 slides of 2: %2").arg(d->pages.size()).arg(titles(*d).join(QLatin1Char(','))) : QStringLiteral("REFUSED: ") + why;
+            log.write(QStringLiteral("ppt|%1|%2|plain %3|%4|%5\n").arg(v.id, v.what, plainOpens ? QStringLiteral("opens") : QStringLiteral("refuses"), line, notes.join(QLatin1Char(' '))).toUtf8());
+        }
     }
 };
 

@@ -1,6 +1,7 @@
 // Tests of libs/office/doc: reading an old binary word processing file into the document the .docx reader makes. Every file is built in
 // memory by dochelpers.h; the hostile ones are that file changed.
 #include "dochelpers.h"
+#include "cfbdamage.h"
 #include "doc/doccrypt.h"
 #include "office/package.h"
 
@@ -3308,6 +3309,116 @@ private Q_SLOTS:
                          && work.picturesRead <= doc::kMaxPictures && work.styleSteps <= 4096 * (doc::kMaxStyleDepth + 2),
                      qPrintable(QStringLiteral("round %1: %2 bytes, %3 elements, %4 shape visits, %5 pictures, %6 style steps").arg(round).arg(work.outputBytes).arg(work.outputElements).arg(work.shapeVisits).arg(work.picturesRead).arg(work.styleSteps)));
             QVERIFY2(one.elapsed() < 3000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QStringLiteral("round %1 (%2) took %3 ms").arg(round).arg(name).arg(one.elapsed())));
+        }
+    }
+    // Every kind of damage to the container of a document that leaves its sectors in the file: all of the text comes back (and the one with the size of the stream wrong too: the tables
+    // say how long the stream is), and a container whose first small sector is gone says why nothing was found.
+    void aDocumentWithADamagedContainerIsRepairedWhole()
+    {
+        QStringList paras;
+        const QByteArray big = repairableDoc(&paras);
+        QList<cfbdamage::Variant> all = cfbdamage::sectorDamage(big, QStringLiteral("WordDocument"), QStringLiteral("1Table"));
+        all += cfbdamage::headerDamage(big);
+        int checked = 0;
+        for (const cfbdamage::Variant &v : std::as_const(all)) {
+            QStringList notes;
+            QString why;
+            QCOMPARE(repairedParagraphs(v.file, &notes, &why), paras);
+            ++checked;
+        }
+        QCOMPARE(checked, 19);
+        const QByteArray small = simple(QStringLiteral("Hello world\rSecond paragraph\r")).build();
+        for (const cfbdamage::Variant &v : cfbdamage::miniDamage(small)) {
+            QStringList notes;
+            QString why;
+            if (v.id == QLatin1String("g6")) {
+                QVERIFY(repairedParagraphs(v.file, &notes, &why).isEmpty());
+                QVERIFY(!why.isEmpty());
+            } else {
+                QCOMPARE(repairedParagraphs(v.file, &notes, &why), (QStringList{"Hello world", "Second paragraph"}));
+            }
+        }
+    }
+
+    // The container's own tables read a chain that stops short, or runs into itself, or a directory that gives less than the tables hold: the sectors are all there, and the whole stream is read.
+    void aStreamThatItsTablesCutShortIsReadToItsEnd()
+    {
+        jp::cfb::File f;
+        jp::cfb::Entry root;
+        root.type = jp::cfb::Entry::Root;
+        root.name = QStringLiteral("Root Entry");
+        f.entries.push_back(root);
+        jp::cfb::Entry e;
+        e.type = jp::cfb::Entry::Stream;
+        e.name = QStringLiteral("S");
+        for (int i = 0; i < 10000; ++i) e.data.append(char(i * 7 + i / 251));
+        f.entries[0].children.push_back(1);
+        f.entries.push_back(e);
+        const QByteArray good = jp::cfb::write(f);
+        const QList<quint32> c = cfbdamage::sectorsOf(good, QStringLiteral("S"));
+        QCOMPARE(c.size(), 20);
+        jp::office::CfbWish w;
+        w.name = QStringLiteral("S");
+        w.soundFirst = true;
+        for (int kind = 0; kind < 4; ++kind) {
+            QByteArray bad = good;
+            if (kind == 0) cfbdamage::fatSet(bad, c[7], cfbdamage::kEnd);
+            if (kind == 1) cfbdamage::fatSet(bad, c[7], c[2]);
+            if (kind == 2) cfbdamage::fatSet(bad, c[7], 0x00FFFFF0);
+            if (kind == 3) cfbdamage::set32(bad, cfbdamage::entryOf(bad, QStringLiteral("S")) + 120, 5000);
+            jp::office::CfbSalvage out;
+            QString why;
+            QVERIFY2(jp::office::salvageCompoundFile(bad, {w}, &out, &why), qPrintable(why));
+            const QByteArray got = out.streams.value(QStringLiteral("S"));
+            QVERIFY2(got.size() >= 10000 && got.left(10000) == e.data, qPrintable(QString::number(kind) + QLatin1Char(' ') + QString::number(got.size())));
+            QVERIFY(kind == 3 || got.size() == 10000);
+        }
+    }
+
+    // The mere fact that the tables were guessed is said, and a sound container says nothing.
+    void aTableThatHadToBeGuessedIsSaid()
+    {
+        QStringList paras, notes;
+        const QByteArray good = repairableDoc(&paras);
+        QByteArray bad = good;
+        cfbdamage::fatSet(bad, cfbdamage::sectorsOf(good, QStringLiteral("WordDocument"))[3], cfbdamage::kEnd);
+        QVERIFY(!doc::salvageDoc(bad, &notes, nullptr).isEmpty());
+        QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("each sector was taken to follow the one before it")), qPrintable(notes.join(QLatin1Char('|'))));
+    }
+
+    // A developer's hook, not a test: JO_REPAIR_TABLE names a file the outcome of each kind of damage is appended to.
+    void repairTable()
+    {
+        const QString out = qEnvironmentVariable("JO_REPAIR_TABLE");
+        if (out.isEmpty()) QSKIP("JO_REPAIR_TABLE is not set");
+        QFile log(out);
+        QVERIFY(log.open(QIODevice::Append | QIODevice::Text));
+        QStringList paras;
+        const QByteArray big = repairableDoc(&paras);
+        QList<cfbdamage::Variant> all = cfbdamage::sectorDamage(big, QStringLiteral("WordDocument"), QStringLiteral("1Table"));
+        all += cfbdamage::cuts(big);
+        all += cfbdamage::headerDamage(big);
+        const QByteArray small = simple(QStringLiteral("Hello world\rSecond paragraph\r")).build();
+        all += cfbdamage::miniDamage(small);
+        for (const cfbdamage::Variant &v : std::as_const(all)) {
+            const bool mini = v.id.startsWith(QLatin1Char('g'));
+            const QStringList want = mini ? QStringList{"Hello world", "Second paragraph"} : paras;
+            Document plain;
+            const bool plainOpens = read(v.file, &plain);
+            QStringList notes;
+            QString why;
+            const QByteArray fixed = doc::salvageDoc(v.file, &notes, &why);
+            Document d;
+            QString line;
+            if (fixed.isEmpty() || !read(fixed, &d)) {
+                line = QStringLiteral("REFUSED: ") + why;
+            } else {
+                const QStringList got = bodyTexts(d);
+                int right = 0, wrong = 0;
+                for (int i = 0; i < got.size() && i < want.size(); ++i) (got[i] == want[i] ? right : wrong)++;
+                line = QStringLiteral("opened|right %1 missing %2 wrong %3").arg(right).arg(int(want.size()) - right - wrong).arg(wrong);
+            }
+            log.write(QStringLiteral("doc|%1|%2|plain %3|%4|%5\n").arg(v.id, v.what, plainOpens ? QStringLiteral("opens") : QStringLiteral("refuses"), line, notes.join(QLatin1Char(' '))).toUtf8());
         }
     }
 };

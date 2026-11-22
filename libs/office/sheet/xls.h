@@ -29,6 +29,16 @@ bool startsCompoundFile(const QByteArray &head);
 // none is found. `notes` says in words what was done and what may be missing. The file is looked through once, and at most 64 places are tried.
 QByteArray salvageXlsStream(const QByteArray &file, const Limits &limits, QStringList *notes, QString *error);
 
+// What the last salvage looked at, for a test of the bounds: the records walked to tell whether each sheet ends where it should (at most twice the stream and a megabyte over all sheets,
+// however many sheets name the same place), the sheets read to tell how far their cells go (at most kSalvageSheetsReported), and the records walked to cut the stream where its records stop.
+constexpr int kSalvageSheetsReported = 8;
+struct XlsSalvageWork {
+    qint64 recordsWalked = 0;
+    qint64 streamBytes = 0;
+    int sheetsRead = 0;
+};
+XlsSalvageWork salvageXlsWorkForTest();
+
 class XlsBook {
 public:
     // Reads the workbook stream's globals: fills `info` (sheets, names, date system, how it calculates, the view), `shared`, and `styles`. False, with a message, if the
@@ -38,6 +48,12 @@ public:
 
     // Reads sheet `index` into `out` (cleared first). True if all of its records were read; else `out` has what came before the problem and out->error says what it was.
     bool readSheet(int index, const Limits &limits, const std::function<bool(qint64)> &progress, Sheet *out) const;
+
+    // Where a substream of the workbook (the globals, or sheet `index`) ends: with its own end of file record (Whole), or the stream stops first (CutShort), or its first record is not
+    // where the workbook says (Missing). Unchecked if `*work` (records it may still walk, counted down) ran out first.
+    enum class End { Whole, CutShort, Missing, Unchecked };
+    End globalsEnd(qint64 *work) const { return endAt(0, work); }
+    End sheetEnd(int index, qint64 *work) const { return index >= 0 && index < m_places.size() ? endAt(m_places[index].offset, work) : End::Missing; }
 
     // What the file holds that is not read, in words ("charts", "pictures and other drawing objects", ...), for the person to be told.
     QStringList skipped() const { return m_skipped; }
@@ -52,6 +68,8 @@ private:
     XlsBook() = default;
     friend class XlsGlobals;
     friend class XlsSheetReader;
+
+    End endAt(qsizetype offset, qint64 *work) const;
 
     struct Place {
         qsizetype offset = -1;

@@ -106,11 +106,42 @@ public:
         return true;
     }
 
-    // The bytes of a stream, `size` of them from `start`: through the tables where they are known, else as the next sector after the last. `contiguous` takes no table as known.
-    QByteArray stream(const DirEntry &e, bool contiguous)
+    // How a stream's sectors are found: through the tables where they are known and else as the next sector after the last, or as one run of sectors (no table taken as known), or
+    // through the tables to where they end, whatever size the directory gives (a directory that says less than the tables hold).
+    enum class Mode { Tables, Contiguous, ToEnd };
+
+    // True if the tables lead from the last sector the directory's size needs to another one (the stream holds more than the directory says).
+    bool runsPastItsSize(const DirEntry &e)
+    {
+        if (e.size == 0 || e.size >= quint64(m_lim.maxStreamBytes) || e.size < m_cutoff) return false;
+        const qint64 count = qint64((e.size + quint64(m_ss) - 1) / quint64(m_ss));
+        quint32 cur = e.start;
+        QSet<quint32> seen;
+        for (qint64 i = 0; i < count; ++i) {
+            if (qint64(cur) >= m_sectors || seen.contains(cur) || cur >= quint32(m_fat.size())) return false;
+            seen.insert(cur);
+            if (i + 1 < count) cur = m_fat[qsizetype(cur)];
+        }
+        const quint32 next = m_fat[qsizetype(cur)];
+        return qint64(next) < m_sectors && !seen.contains(next);
+    }
+
+    // The bytes of a stream, `size` of them from `start` (in the mode's way: see Mode).
+    QByteArray stream(const DirEntry &e, Mode mode)
     {
         if (e.size == 0 || e.size > quint64(m_lim.maxStreamBytes)) return QByteArray();
+        const bool contiguous = mode == Mode::Contiguous;
         QByteArray out;
+        if (mode == Mode::ToEnd) {
+            if (e.size < m_cutoff || !runsPastItsSize(e)) return QByteArray();
+            QSet<quint32> seen;
+            const qint64 most = std::min<qint64>(m_sectors, m_lim.maxStreamBytes / m_ss);
+            for (quint32 n = e.start; qint64(n) < m_sectors && !seen.contains(n) && seen.size() < most; n = n < quint32(m_fat.size()) ? m_fat[qsizetype(n)] : kFree) {
+                seen.insert(n);
+                out.append(sector(n).toByteArray());
+            }
+            return out;
+        }
         if (e.size < m_cutoff) {
             if (!m_haveMini) return QByteArray();
             const qint64 count = qint64((e.size + quint64(m_mss) - 1) / quint64(m_mss));
@@ -278,12 +309,30 @@ bool salvageCompoundFile(const QByteArray &file, const QVector<CfbWish> &wishes,
                 for (const DirEntry &e : std::as_const(tolerant.entries))
                     if (e.type == 2 && (e.name.compare(w.name, Qt::CaseInsensitive) == 0) == bool(exact) && nameIs(w, e.name)) named << &e;
             for (int i = 0; i < named.size() && i < limits.maxEntryTries && found.isEmpty(); ++i)
-                for (bool contiguous : {false, true}) {
-                    const QByteArray data = tolerant.stream(*named[i], contiguous);
+                for (Tolerant::Mode mode : {Tolerant::Mode::Tables, Tolerant::Mode::Contiguous}) {
+                    const QByteArray data = tolerant.stream(*named[i], mode);
                     if (!accept(data)) continue;
                     found = data;
                     fromDirectory = true;
                     break;
+                }
+        };
+        // A stream that came out shorter than the directory says, or that the tables say is longer than the directory does, is read the other ways too, and the longest is kept: a chain
+        // that ends in the middle of a stream (a damaged table) reads as a short stream in a sound container, and the sectors are all there.
+        auto longest = [&] {
+            if (!opened || found.isEmpty()) return;
+            QVector<const DirEntry *> named;
+            for (const DirEntry &e : std::as_const(tolerant.entries))
+                if (e.type == 2 && nameIs(w, e.name)) named << &e;
+            bool suspect = false;
+            for (int i = 0; i < named.size() && i < limits.maxEntryTries; ++i) suspect |= quint64(found.size()) < named[i]->size || tolerant.runsPastItsSize(*named[i]);
+            if (!suspect) return;
+            for (int i = 0; i < named.size() && i < limits.maxEntryTries; ++i)
+                for (Tolerant::Mode mode : {Tolerant::Mode::Tables, Tolerant::Mode::Contiguous, Tolerant::Mode::ToEnd}) {
+                    const QByteArray data = tolerant.stream(*named[i], mode);
+                    if (data.size() <= found.size() || !accept(data)) continue;
+                    found = data;
+                    fromDirectory = true;
                 }
         };
         auto fromSound = [&] {
@@ -311,6 +360,7 @@ bool salvageCompoundFile(const QByteArray &file, const QVector<CfbWish> &wishes,
                 fromDirectory = false;
             }
         }
+        longest();
         CfbSalvage::How how = fromDirectory ? CfbSalvage::How::Directory : CfbSalvage::How::Whole;
         if (found.isEmpty() && w.validBytes && w.looksLike) {
             // 3. a scan: every place the stream could start, as far as the caller's own check says it is
@@ -372,6 +422,7 @@ bool salvageCompoundFile(const QByteArray &file, const QVector<CfbWish> &wishes,
     }
     if (byDirectory) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "The container of the file was damaged, so its parts were followed from its directory, as far as the file goes.");
     if (byScan) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "The directory of the file was damaged or gone, so its parts were found by their own records.");
+    if (out->tablesGuessed && (byDirectory || byScan)) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "Where the tables of sectors were damaged, each sector was taken to follow the one before it in the file, so a value where two sectors meet may be wrong.");
     if (out->miniUnread) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "The small parts kept in the mini stream of the file could not be read.");
     if (out->cutShort && (byDirectory || byScan)) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "The file was cut short; what came after the cut is lost.");
     if (!missing.isEmpty()) {

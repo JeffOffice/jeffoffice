@@ -5,6 +5,7 @@
 #include "xlshelpers.h"
 
 #include "io/cfb.h"
+#include "../office/cfbdamage.h"
 #include "sheet/calculation.h"
 #include "io/zip.h"
 #include "sheet/oldsave.h"
@@ -29,6 +30,57 @@ void scrubTheStack()
 {
     volatile char junk[65536];
     for (size_t i = 0; i < sizeof(junk); ++i) junk[i] = char(0xA5);
+}
+
+
+// What Open and Repair makes of a damaged workbook: how many of the numbers written (2 columns, `rows` rows, on the sheet "A") come back right, how many are missing, how many are wrong.
+struct XlsOutcome {
+    bool plainOpens = false, refused = true;
+    QString why;
+    int right = 0, missing = 0, wrong = 0;
+    QStringList notes;
+};
+XlsOutcome xlsOutcomeOf(const QByteArray &file, int rows)
+{
+    XlsOutcome o;
+    Workbook plain;
+    QString ignored;
+    o.plainOpens = plain.openBinary(file, &ignored);
+    const QByteArray stream = salvageXlsStream(file, Limits(), &o.notes, &o.why);
+    Workbook wb;
+    Sheet s;
+    if (stream.isEmpty() || !wb.openBinary(stream, &o.why) || wb.info().sheets.isEmpty() || !wb.readSheet(0, &s)) {
+        o.missing = rows * 2;
+        return o;
+    }
+    o.refused = false;
+    for (int r = 0; r < rows; ++r)
+        for (int c = 0; c < 2; ++c) {
+            const QString got = shown(wb, s, QStringLiteral("%1%2").arg(QChar('A' + c)).arg(r + 1));
+            if (got == QLatin1String("none") || got == QLatin1String("-")) ++o.missing;
+            else if (got == QStringLiteral("n:%1").arg(r * 10 + c)) ++o.right;
+            else ++o.wrong;
+        }
+    return o;
+}
+QByteArray xlsOfRows(int rows, const QStringList &extra = QStringList())
+{
+    QByteArray cells;
+    for (int r = 0; r < rows; ++r)
+        for (int c = 0; c < 2; ++c) cells += number(r, c, r * 10 + c);
+    Book b;
+    b.sheet(QStringLiteral("A"), cells);
+    jp::cfb::File f;
+    jp::cfb::read(b.file(), &f);
+    for (const QString &name : extra) {
+        jp::cfb::Entry e;
+        e.type = jp::cfb::Entry::Stream;
+        e.name = name;
+        e.data = QByteArray(6000, 'x');
+        f.entries[0].children << int(f.entries.size());
+        f.entries << e;
+    }
+    return jp::cfb::write(f);
 }
 
 } // namespace
@@ -1784,6 +1836,119 @@ private Q_SLOTS:
         QVERIFY(!why.isEmpty());
         QVERIFY(!none.openFile(dir.filePath(QStringLiteral("missing.xls")), &why));
         QVERIFY(!why.isEmpty());
+    }
+    // Open and Repair of a workbook whose container has a damaged chain of sectors, a directory that says too little, or sectors out of order beyond what the tables can say.
+    void aBrokenChainInASoundLookingContainerIsReadWhole()
+    {
+        const int rows = 600;
+        const QByteArray big = xlsOfRows(rows, {QStringLiteral("Other")});
+        const QList<cfbdamage::Variant> all = cfbdamage::sectorDamage(big, QStringLiteral("Workbook"), QStringLiteral("Other"));
+        int checked = 0;
+        for (const cfbdamage::Variant &v : all) {
+            if (v.id != QLatin1String("b") && v.id != QLatin1String("c") && v.id != QLatin1String("d") && v.id != QLatin1String("f4")) continue;
+            ++checked;
+            const XlsOutcome o = xlsOutcomeOf(v.file, rows);
+            QVERIFY2(!o.refused, qPrintable(v.id + o.why));
+            QVERIFY2(o.right == rows * 2 && o.missing == 0 && o.wrong == 0, qPrintable(QStringLiteral("%1: right %2 missing %3 wrong %4").arg(v.id).arg(o.right).arg(o.missing).arg(o.wrong)));
+            QVERIFY2(o.notes.join(QLatin1Char(' ')).contains(QLatin1String("Every sheet was read whole")), qPrintable(v.id + o.notes.join(QLatin1Char('|'))));
+        }
+        QCOMPARE(checked, 4);
+    }
+
+    // The sectors are out of order and the tables say nothing (zeroed): the cells before the first sector out of place are kept, no cell after it is made up, and the notes say how far the rows go.
+    void sectorsOutOfOrderWithNoTablesKeepOnlyWhatIsBeforeThem()
+    {
+        const int rows = 600;
+        QByteArray f = xlsOfRows(rows);
+        const QList<quint32> c = cfbdamage::sectorsOf(f, QStringLiteral("Workbook"));
+        QVERIFY(c.size() > 20);
+        const QByteArray one = f.mid(cfbdamage::sectorAt(int(c[10])), 512), two = f.mid(cfbdamage::sectorAt(int(c[11])), 512);
+        f.replace(cfbdamage::sectorAt(int(c[10])), 512, two);
+        f.replace(cfbdamage::sectorAt(int(c[11])), 512, one);
+        for (quint32 n : c) cfbdamage::fatSet(f, n, 0xFFFFFFFF);
+        const XlsOutcome o = xlsOutcomeOf(f, rows);
+        QVERIFY2(!o.refused, qPrintable(o.why));
+        QVERIFY2(o.wrong <= 1, qPrintable(QString::number(o.wrong)));   // (the one record that is joined to the sector that is not its own may read wrong: the tables that would say are gone)
+        QVERIFY(o.right >= 2 * 100 && o.right < 2 * 400);   // (the sectors before the tenth, and nothing of what is after the eleventh)
+        const QString said = o.notes.join(QLatin1Char('\n'));
+        QVERIFY2(said.contains(QLatin1String("was cut short: its rows down to row ")), qPrintable(said));
+        QVERIFY2(said.contains(QStringLiteral("down to row %1 ").arg((o.right + o.wrong + 1) / 2)), qPrintable(said + QString::number(o.right)));
+    }
+
+    // A file cut in the middle of its only sheet says which rows were recovered, and that the formats came whole.
+    void aSheetCutShortSaysHowFarItsRowsGo()
+    {
+        const int rows = 600;
+        const QByteArray cut = cfbdamage::cuts(xlsOfRows(rows))[1].file;   // (50 percent)
+        const XlsOutcome o = xlsOutcomeOf(cut, rows);
+        QVERIFY2(!o.refused, qPrintable(o.why));
+        QCOMPARE(o.wrong, 0);
+        const QString said = o.notes.join(QLatin1Char('\n'));
+        QVERIFY2(said.contains(QStringLiteral("Sheet \"A\" was cut short: its rows down to row %1 were recovered").arg((o.right + 1) / 2)), qPrintable(said));
+        QVERIFY2(said.contains(QLatin1String("cell formats, fonts, and sheet names were recovered")), qPrintable(said));
+    }
+
+    // Many sheets lost with the end of the file: the report lists the first few and says there are more, and the records walked to tell them apart stay inside the bound.
+    void theReportOfManyDamagedSheetsIsBounded()
+    {
+        Book b;
+        for (int i = 0; i < 30; ++i) {
+            QByteArray cells;
+            for (int r = 0; r < 100; ++r) cells += number(r, 0, r);
+            b.sheet(QStringLiteral("S%1").arg(i), cells);
+        }
+        const QByteArray stream = b.stream();
+        // (the file ends in the middle of the 10th sheet: that one is cut short, and the 20 after it are gone)
+        qsizetype from = 0;
+        for (int i = 0; i < 10; ++i) from = stream.indexOf(QByteArray("\x09\x08\x10\x00", 4), from + 1);
+        QVERIFY(from > 0);
+        const QByteArray cut = stream.left(from + 300);
+        QStringList notes;
+        QString why;
+        const QByteArray got = salvageXlsStream(cut, Limits(), &notes, &why);
+        QVERIFY2(!got.isEmpty(), qPrintable(why));
+        const XlsSalvageWork work = salvageXlsWorkForTest();
+        QCOMPARE(work.sheetsRead, 1);   // (the one cut short is read for how far its rows go; the lost ones have nothing to read)
+        QVERIFY2(work.recordsWalked > 0 && work.recordsWalked <= 2 * qint64(got.size()) + (1 << 20), qPrintable(QString::number(work.recordsWalked)));
+        const QString said = notes.join(QLatin1Char('\n'));
+        QCOMPARE(said.count(QLatin1String("was cut short")), 1);
+        QCOMPARE(said.count(QLatin1String("is empty, because")), kSalvageSheetsReported - 1);   // (the report lists the first 8 that are damaged or lost, and says there are more)
+        QVERIFY2(said.contains(QLatin1String("More sheets were damaged or lost than are listed here.")), qPrintable(said));
+    }
+
+    // A stream found by its first record, in a file with something after it that is not records, is kept to its records (the end of what the container gave is not taken for the workbook's).
+    void whatFollowsTheRecordsOfARepairedStreamIsLeftOut()
+    {
+        Book b;
+        b.sheet(QStringLiteral("A"), number(0, 0, 7));
+        const QByteArray raw = QByteArray(37, 'j') + b.stream() + QByteArray(1000, char(0xFF));
+        QStringList notes;
+        QString why;
+        QCOMPARE(salvageXlsStream(raw, Limits(), &notes, &why), b.stream());
+        // (zeros after the records are the padding of a sector and are not a loss)
+        QCOMPARE(salvageXlsStream(QByteArray(37, 'j') + b.stream() + QByteArray(100, '\0'), Limits(), &notes, &why).left(b.stream().size()), b.stream());
+    }
+
+    // A developer's hook, not a test: JO_REPAIR_TABLE names a file the outcome of each kind of damage is appended to.
+    void repairTable()
+    {
+        const QString out = qEnvironmentVariable("JO_REPAIR_TABLE");
+        if (out.isEmpty()) QSKIP("JO_REPAIR_TABLE is not set");
+        QFile log(out);
+        QVERIFY(log.open(QIODevice::Append | QIODevice::Text));
+        const int rows = 600;
+        const QByteArray big = xlsOfRows(rows, {QStringLiteral("Other")});
+        QList<cfbdamage::Variant> all = cfbdamage::sectorDamage(big, QStringLiteral("Workbook"), QStringLiteral("Other"));
+        all += cfbdamage::cuts(big);
+        all += cfbdamage::headerDamage(big);
+        const QByteArray small = xlsOfRows(30);
+        all += cfbdamage::miniDamage(small);
+        for (const cfbdamage::Variant &v : std::as_const(all)) {
+            const int n = v.id.startsWith(QLatin1Char('g')) ? 30 : rows;
+            const XlsOutcome o = xlsOutcomeOf(v.file, n);
+            log.write(QStringLiteral("xls|%1|%2|plain %3|%4|right %5 missing %6 wrong %7|%8\n").arg(v.id, v.what, o.plainOpens ? QStringLiteral("opens") : QStringLiteral("refuses"),
+                          o.refused ? QStringLiteral("REFUSED: ") + o.why : QStringLiteral("opened")).arg(o.right).arg(o.missing).arg(o.wrong).arg(o.notes.join(QLatin1Char(' '))).toUtf8());
+        }
     }
 };
 

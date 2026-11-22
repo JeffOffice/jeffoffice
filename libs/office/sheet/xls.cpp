@@ -1408,8 +1408,100 @@ std::shared_ptr<const XlsBook> XlsBook::open(const QByteArray &stream, bool hasM
     return g.run(hasMacros, info, shared, styles, error);
 }
 
+XlsBook::End XlsBook::endAt(qsizetype offset, qint64 *work) const
+{
+    Scanner sc(m_data, offset);
+    Rec r;
+    if (offset < 0 || !sc.next(&r) || !isBof(r.id) || r.pos + r.len > m_data.size()) return End::Missing;
+    int depth = 1;
+    while (sc.next(&r)) {
+        if (*work <= 0) return End::Unchecked;
+        --*work;
+        if (r.pos + r.len > m_data.size()) return End::CutShort;
+        if (isBof(r.id)) ++depth;
+        else if (r.id == kEof && --depth == 0) return End::Whole;
+    }
+    return End::CutShort;
+}
+
+namespace {
+
+std::atomic<qint64> g_salvageRecords{0}, g_salvageStream{0};
+std::atomic<int> g_salvageSheetsRead{0};
+
+// The bytes of the stream that are records one after the other (each whole, with an id the format has): where the stream is damaged or runs into what is not records, it stops.
+qsizetype recordBytes(const QByteArray &d, qint64 *walked)
+{
+    qsizetype at = 0;
+    while (at + 4 <= d.size()) {
+        const int id = quint8(d[at]) | quint8(d[at + 1]) << 8, len = quint8(d[at + 2]) | quint8(d[at + 3]) << 8;
+        if (id == 0 || id >= 0x2000 || at + 4 + len > d.size()) break;
+        at += 4 + len;
+        ++*walked;
+    }
+    return at;
+}
+
+// What became of the sheets, in words: each sheet that is cut short (with how far its cells go) or is gone, and what was read whole.
+QStringList sheetReport(const QByteArray &stream, const Limits &limits)
+{
+    QStringList out;
+    WorkbookInfo info;
+    SharedStrings shared;
+    Styles styles;
+    QString ignored;
+    const std::shared_ptr<const XlsBook> book = XlsBook::open(stream, false, limits, &info, &shared, &styles, &ignored);
+    if (!book) return out;
+    qint64 work = 2 * qint64(stream.size()) + (1 << 20);
+    const qint64 start = work;
+    int damaged = 0, whole = 0, unchecked = 0, read = 0;
+    for (int i = 0; i < info.sheets.size(); ++i) {
+        const QString name = info.sheets[i].name;
+        const XlsBook::End end = book->sheetEnd(i, &work);
+        if (end == XlsBook::End::Whole) {
+            ++whole;
+        } else if (end == XlsBook::End::Unchecked) {
+            ++unchecked;
+        } else if (++damaged <= kSalvageSheetsReported) {
+            if (end == XlsBook::End::Missing) {
+                out << QCoreApplication::translate("jp::office::sheet::Xls", "Sheet \"%1\" is empty, because its data could not be found in the file.").arg(name);
+                continue;
+            }
+            Sheet s;
+            quint32 last = 0;
+            bool any = false;
+            ++read;
+            book->readSheet(i, limits, nullptr, &s);   // (cut short: it says so, and keeps the cells before)
+            s.cells.forEach([&](quint32 row, quint32, const Cell &c) {
+                if (c.type != CellType::Empty) {
+                    any = true;
+                    last = std::max(last, row);
+                }
+            });
+            out << (any ? QCoreApplication::translate("jp::office::sheet::Xls", "Sheet \"%1\" was cut short: its rows down to row %2 were recovered, and what came after them is lost.").arg(name).arg(qulonglong(last) + 1)
+                        : QCoreApplication::translate("jp::office::sheet::Xls", "Sheet \"%1\" was cut short before any cell could be read.").arg(name));
+        }
+    }
+    if (damaged > kSalvageSheetsReported) out << QCoreApplication::translate("jp::office::sheet::Xls", "More sheets were damaged or lost than are listed here.");
+    if (unchecked > 0) out << QCoreApplication::translate("jp::office::sheet::Xls", "The sheets of this file were too many to check one by one, so some may be cut short.");
+    if (whole > 0 && damaged > 0) out << QCoreApplication::translate("jp::office::sheet::Xls", "The other sheets were read whole.");
+    if (whole > 0 && damaged == 0 && unchecked == 0) out << QCoreApplication::translate("jp::office::sheet::Xls", "Every sheet was read whole.");
+    qint64 globalsWork = 1 << 20;
+    if (book->globalsEnd(&globalsWork) == XlsBook::End::Whole) out << QCoreApplication::translate("jp::office::sheet::Xls", "The cell formats, fonts, and sheet names were recovered.");
+    else out << QCoreApplication::translate("jp::office::sheet::Xls", "The front of the file, which holds the cell formats and fonts, was cut short, so some formatting may be missing.");
+    g_salvageRecords += start - work;
+    g_salvageSheetsRead += read;
+    return out;
+}
+
+} // namespace
+
+XlsSalvageWork salvageXlsWorkForTest() { return {g_salvageRecords, g_salvageStream, g_salvageSheetsRead}; }
+
 QByteArray salvageXlsStream(const QByteArray &file, const Limits &limits, QStringList *notes, QString *error)
 {
+    g_salvageRecords = g_salvageStream = 0;
+    g_salvageSheetsRead = 0;
     if (file.size() > limits.fileBytes) {
         if (error) *error = QCoreApplication::translate("jp::office::sheet::Xls", "The file is too large to repair.");
         return QByteArray();
@@ -1434,13 +1526,29 @@ QByteArray salvageXlsStream(const QByteArray &file, const Limits &limits, QStrin
     jp::office::CfbSalvage found;
     QString why;
     if (jp::office::salvageCompoundFile(file, {wish}, &found, &why)) {
-        const QByteArray stream = found.streams.value(QStringLiteral("Workbook"));
+        QByteArray stream = found.streams.value(QStringLiteral("Workbook"));
+        const bool sound = found.how.value(QStringLiteral("Workbook")) == jp::office::CfbSalvage::How::Whole && found.notes.isEmpty();
+        if (!sound) {
+            // (what the container gave that is not records, in a stream that was put together from sectors that were not all the stream's: the records before it are kept)
+            qint64 walked = 0;
+            const qsizetype good = recordBytes(stream, &walked);
+            g_salvageRecords += walked;
+            g_salvageStream = stream.size();
+            bool zeros = true;
+            for (qsizetype i = good; i < stream.size() && zeros; ++i) zeros = stream[i] == 0;
+            if (!zeros && good > 8) {
+                const QByteArray head = stream.left(good);
+                if (reads(head)) stream = head;
+            }
+        }
         if (notes) {
-            if (found.how.value(QStringLiteral("Workbook")) == jp::office::CfbSalvage::How::Whole && found.notes.isEmpty()) {
+            if (sound) {
                 *notes << QCoreApplication::translate("jp::office::sheet::Xls", "The container of the file was sound. A sheet that is damaged keeps the cells before the damage.");
             } else {
                 *notes << found.notes;
-                *notes << QCoreApplication::translate("jp::office::sheet::Xls", "A sheet that was cut short keeps the cells before the cut; whatever came after it is lost.");
+                const QStringList report = sheetReport(stream, limits);
+                if (report.isEmpty()) *notes << QCoreApplication::translate("jp::office::sheet::Xls", "A sheet that was cut short keeps the cells before the cut; whatever came after it is lost.");
+                else *notes << report;
             }
         }
         return stream;
