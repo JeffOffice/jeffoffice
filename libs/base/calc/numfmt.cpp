@@ -208,8 +208,13 @@ bool generalText(const Dec &d0, bool negative, int maxChars, QString *out)
     }
     for (int sig = 15; sig >= 1; --sig) {
         Dec d = d0;
-        if (d.digits.size() > sig) roundDec(&d, sig - d.point);
-        QString t = generalOf(d, sig);
+        int shownSig = sig;
+        if (d.digits.size() > sig) {
+            roundDec(&d, sig - d.point);
+            // (a value that rounds up to one more digit, 99999999999.9 to 100000000000, is a whole number of that many digits, not one past the digits the form has)
+            if (d.point == d0.point + 1 && d0.point <= sig && d.point <= 15) shownSig = d.point;
+        }
+        QString t = generalOf(d, shownSig);
         const bool tooLong = maxChars > 0 && t.contains(QLatin1Char('.')) && !t.contains(QLatin1Char('E')) && t.size() > kGeneralFractionChars;
         if (negative) t.prepend(QLatin1Char('-'));
         if (!tooLong && (maxChars <= 0 || t.size() <= maxChars)) {

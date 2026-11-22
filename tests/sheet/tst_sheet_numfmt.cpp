@@ -464,6 +464,48 @@ private Q_SLOTS:
         QCOMPARE(fmt(QStringLiteral("General"), 5.5653866129032261), QStringLiteral("5.56538661290323"));
     }
 
+    // A value that rounds up to one more digit is a whole number of that many digits (not scientific notation), and the rounded value's digits decide, around
+    // 10^10, 10^11, and 10^15; small numbers go to scientific notation below 0.0001, rounded up or not.
+    void generalRoundedUpAWholeNumberIsNotScientific()
+    {
+        const struct { double v; const char *want; } cases[] = {
+            {99999999999.9, "100000000000"},
+            {99999999999.5, "100000000000"},
+            {-99999999999.9, "-100000000000"},
+            {99999999999.4, "99999999999"},
+            {9999999999.99, "10000000000"},
+            {9999999999.5, "10000000000"},
+            {9999999999.4, "9999999999"},
+            {999999999.4, "999999999.4"},
+            {-9999999999.99, "-10000000000"},
+            {99999999.9999, "100000000"},
+            {999999999999.5, "1000000000000"},
+            {12345678901.4, "12345678901"},
+            {100000000000.0, "100000000000"},
+            {999999999999999.0, "999999999999999"},
+            {99999999999999.9, "100000000000000"},
+            {-99999999999999.9, "-100000000000000"},
+            {999999999999999.5, "1E+15"},
+            {1e15, "1E+15"},
+            {-1e15, "-1E+15"},
+            {0.0001, "0.0001"},
+            {std::nextafter(0.0001, 0.0), "0.0001"},
+            {0.00009999, "9.999E-05"},
+            {-0.00009999, "-9.999E-05"},
+            {0.00001, "1E-05"},
+            {1.5e-5, "1.5E-05"},
+            {0.000123456789, "0.000123457"},
+            {-0.000123456789, "-0.000123457"},
+        };
+        for (const auto &c : cases) {
+            const QString got = fmt(QStringLiteral("General"), c.v, DateSystem::Date1900, 40);
+            QVERIFY2(got == QString::fromLatin1(c.want), qPrintable(QStringLiteral("%1: got [%2], wanted [%3]").arg(c.v, 0, 'g', 17).arg(got, QString::fromLatin1(c.want))));
+        }
+        // in a column of 6 characters, 99999.9 is the 6 digits of its rounding, not 1E+05
+        QCOMPARE(fmt(QStringLiteral("General"), 99999.9, DateSystem::Date1900, 6), QStringLiteral("100000"));
+        QCOMPARE(fmt(QStringLiteral("General"), 99999.9, DateSystem::Date1900, 5), QStringLiteral("1E+05"));
+    }
+
     // "%" multiplies by 100 each time; E+ E- E show a value in scientific notation, with the exponent a multiple of the integer places.
     void percentAndScientific()
     {
