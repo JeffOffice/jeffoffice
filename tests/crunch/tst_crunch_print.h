@@ -211,6 +211,7 @@ private Q_SLOTS:
     void aTaggedPdfHasTheCellsAsATable();
     void theTaggedCellsHaveHeadersAndSpans();
     void aGrayJobIsTaggedLikeAColorOne();
+    void aPrintedNumberShowsTheCharactersTheScreenShows();
     void savedAndEmailedPdfsAreTagged();
     void theTaggedCellsAreReadRowByRow();
     void aPdfTooBigToTagIsMadeUntaggedAndSaysSo();

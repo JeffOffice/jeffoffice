@@ -6,6 +6,7 @@
 #include <QKeyEvent>
 #include <QProcess>
 #include <QRegularExpression>
+#include <QSet>
 #include <functional>
 #include "core/fonts.h"
 #include <QPdfWriter>
@@ -750,6 +751,46 @@ void CrunchPrintTests::aGrayJobIsTaggedLikeAColorOne()
     const PdfDocument doc(pdf);
     QVERIFY(doc.isValid());
     QVERIFY2(doc.text(0).contains(QStringLiteral("gray words")), "the page is a picture, not words");
+}
+
+// A number with a fraction shows as many characters on a printed page as on the screen: the printed page's columns are in the printer's units, and the characters that fit are counted in the
+// screen's column (a page cut from columns of a different size would show other digits than the cell does).
+void CrunchPrintTests::aPrintedNumberShowsTheCharactersTheScreenShows()
+{
+    QString rows;
+    const double widths[] = {8.43, 9.3, 10.2, 11.1, 12.4, 13.3};
+    QString cols = QStringLiteral("<cols>");
+    QString one, two;
+    for (int i = 0; i < 6; ++i) {
+        cols += QStringLiteral("<col min=\"%1\" max=\"%1\" width=\"%2\" customWidth=\"1\"/>").arg(i + 1).arg(widths[i]);
+        const QString ref = QString(QLatin1Char(char('A' + i)));
+        one += QStringLiteral("<c r=\"%1\"><v>3.14159265358979</v></c>").arg(ref + QLatin1Char('1'));
+        two += QStringLiteral("<c r=\"%1\"><v>0.0279780254170123</v></c>").arg(ref + QLatin1Char('2'));
+    }
+    cols += QStringLiteral("</cols>");
+    rows = QStringLiteral("<row r=\"1\">%1</row><row r=\"2\">%2</row>").arg(one, two);
+    EditWindow e;
+    QVERIFY(e.open(buildXlsx({worksheet(rows, QString(), cols)})));
+    QStringList onScreen;
+    for (quint32 r = 0; r < 2; ++r)
+        for (quint32 c = 0; c < 6; ++c) onScreen << e.win.w.view()->sheet().shown(r, c, *e.win.w.view()->sheet().cellAt(r, c)).text;
+    QSet<int> lengths;
+    for (const QString &t : onScreen) {
+        QVERIFY2(!t.contains(QLatin1Char('#')), qPrintable(onScreen.join(QLatin1Char(' '))));
+        lengths.insert(int(t.size()));
+    }
+    QVERIFY2(lengths.size() >= 3, qPrintable(onScreen.join(QLatin1Char(' '))));
+    const QString path = e.folder.dir.filePath(QStringLiteral("numbers.pdf"));
+    QString why;
+    QVERIFY2(e.win.w.exportPdfTo(path, crunch::PrintJobOptions(), QString(), &why), qPrintable(why));
+    QFile f(path);
+    QVERIFY(f.open(QIODevice::ReadOnly));
+    const PdfDocument doc(f.readAll());
+    QVERIFY(doc.isValid());
+    QStringList printed = doc.text(0).split(QRegularExpression(QStringLiteral("\\s+")), Qt::SkipEmptyParts);
+    printed.sort();
+    onScreen.sort();
+    QCOMPARE(printed, onScreen);
 }
 
 // The PDFs of Print > Save as PDF and of Make an Email are tagged as an export's are (the Export page's choice, on unless turned off).
