@@ -508,8 +508,8 @@ jp::CompatHost DeckWindow::compatHost()
     host.markedFinal = [this] { return markedAsFinal(); };
     host.alwaysReadOnly = [this] { return alwaysOpensReadOnly(); };
     const QString what = tr("presentation");
-    host.formats.push_back({tr("OpenDocument presentation (.odp)"), QStringLiteral(".odp"), QStringLiteral(".pptx"), what, [this](const std::function<void(const QStringList &)> &done) { done(odpFound(false)); }});
-    host.formats.push_back({tr("OpenDocument template (.otp)"), QStringLiteral(".otp"), QStringLiteral(".potx"), what, [this](const std::function<void(const QStringList &)> &done) { done(odpFound(true)); }});
+    host.formats.push_back({tr("OpenDocument presentation (.odp)"), QStringLiteral(".odp"), QStringLiteral(".pptx"), what, [this](const CompatDone &done) { done(odpFound(false)); }});
+    host.formats.push_back({tr("OpenDocument template (.otp)"), QStringLiteral(".otp"), QStringLiteral(".potx"), what, [this](const CompatDone &done) { done(odpFound(true)); }});
     return host;
 }
 

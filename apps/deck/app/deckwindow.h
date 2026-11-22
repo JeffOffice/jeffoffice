@@ -386,7 +386,7 @@ public:
     // On failure, says why and leaves the presentation unsaved.
     bool saveTo(const QString &path, bool asCopy = false);
     QStringList odpLosses(const QString &path);   // what an .odp file would leave out, worked out by writing it to memory
-    QStringList odpFound(bool tmpl);             // what the writer itself leaves out (a template or not), without the file's own choices
+    jp::CompatAnswer odpFound(bool tmpl);            // what the writer itself leaves out (a template or not), without the file's own choices
     jp::CompatHost compatHost();
     void checkCompatibility(int format = 0);    // File > Info: the same list, without saving (the shared box, libs/shell/app/compatdialog.h)
     // What Save As asks for a name with: the file dialog, unless this stands

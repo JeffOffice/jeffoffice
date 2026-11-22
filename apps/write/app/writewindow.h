@@ -323,6 +323,7 @@ public:
     void inspectDocument();
     // Lists what an .odt file can't hold of the document; Check Compatibility offers it with .rtf and .txt (the shared box, libs/shell/app/compatdialog.h).
     QStringList incompatibilities();
+    jp::CompatAnswer odtAnswer();   // the same, or that it could not be worked out
     jp::CompatHost compatHost();
     void checkCompatibility(int format = 0);
     // Mark as Final: the document is saved, then held for reading only; off, it can be edited again.

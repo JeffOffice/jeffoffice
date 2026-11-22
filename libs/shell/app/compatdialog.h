@@ -10,19 +10,31 @@
 #include <QStringList>
 #include <QVector>
 #include <functional>
+#include <initializer_list>
 
 class QComboBox;
 class QLabel;
 
 namespace jp {
 
+// What a check came to: the list of what the kind can't hold, or that the check could not be made (and why). A check that could not be made is never shown as "nothing is lost".
+struct CompatAnswer {
+    QStringList found;   // what the kind can't hold, one phrase each
+    QString couldNot;    // when not empty: no check was made; why, as a sentence
+    CompatAnswer() = default;
+    CompatAnswer(const QStringList &list) : found(list) {}
+    CompatAnswer(std::initializer_list<QString> list) : found(list) {}
+    static CompatAnswer failed(const QString &why);
+};
+using CompatDone = std::function<void(const CompatAnswer &)>;
+
 struct CompatFormat {
     QString label;       // as the picker shows it, "OpenDocument text (.odt)"
     QString format;      // ".odt"
     QString ownFormat;   // the app's own full format, ".docx"
     QString what;        // what the file holds, for a sentence: "document"
-    // Works out what the kind can't hold and calls `done` with the list: at once, or later when it takes another thread. It is never called after the box is gone.
-    std::function<void(const std::function<void(const QStringList &)> &done)> lost;
+    // Works out what the kind can't hold and calls `done` with the answer: at once, or later when it takes another thread. It is never called after the box is gone.
+    std::function<void(const CompatDone &done)> lost;
 };
 
 struct CompatHost {
@@ -38,11 +50,11 @@ constexpr int kCompatMaxLineChars = 400;
 // The two choices a file holds that no other kind does, as lines of the list (each only when it is on).
 JO_COMMON_EXPORT QStringList compatFileChoices(const QString &what, bool markedFinal, bool alwaysReadOnly);
 
-// The list the box shows for a kind: what the app found, bounded, then the file's choices.
-JO_COMMON_EXPORT QStringList compatLines(const CompatFormat &format, const CompatHost &host, const QStringList &found);
+// The list the box shows for a kind: what the app found (empty when no check was made), bounded, then the file's choices.
+JO_COMMON_EXPORT QStringList compatLines(const CompatFormat &format, const CompatHost &host, const CompatAnswer &answer);
 
 // The sentence and the list for a kind (lossyReport of compatLines).
-JO_COMMON_EXPORT QString compatReport(const CompatFormat &format, const CompatHost &host, const QStringList &found);
+JO_COMMON_EXPORT QString compatReport(const CompatFormat &format, const CompatHost &host, const CompatAnswer &answer);
 
 class JO_COMMON_EXPORT CompatibilityDialog : public QDialog {
     Q_OBJECT

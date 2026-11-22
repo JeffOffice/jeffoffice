@@ -332,6 +332,30 @@ private Q_SLOTS:
         QVERIFY(e.win.w.grab().save(dir + QStringLiteral("/crunch-info.png")));
     }
 
+    // A check that cannot be made says so, for each kind, and never "nothing is lost": no workbook, and the same window once a workbook is read.
+    void checkCompatibilitySaysWhenItCouldNotCheck()
+    {
+        {
+            Window blank;
+            const jp::CompatHost host = blank.w.compatHost();
+            QCOMPARE(host.formats.size(), 3);
+            for (int kind = 0; kind < 3; ++kind) {
+                jp::CompatibilityDialog box(host, kind, nullptr);
+                QVERIFY2(box.reportText().startsWith(QLatin1String("Couldn't check")), qPrintable(box.reportText()));
+                QVERIFY(!box.reportText().contains(QLatin1String("Nothing in this")));
+            }
+        }
+        EditWindow e;
+        e.path = e.folder.write(QStringLiteral("book.xlsx"), editBook());
+        QVERIFY(e.win.w.openFile(e.path));
+        QSignalSpy loaded(&e.win.w, &CrunchWindow::calculationFinished);
+        QTRY_VERIFY_WITH_TIMEOUT(loaded.count() > 0, 120000);
+        // once it is read, the same box checks
+        e.win.told.clear();
+        e.win.w.checkCompatibility(2);
+        QVERIFY2(!e.win.told.isEmpty() && !e.win.told.last().contains(QLatin1String("Couldn't check")), qPrintable(e.win.told.join(QLatin1Char('|'))));
+    }
+
     // A picture of Check Compatibility (JO_SHOT_DIR names the folder; nothing is made without it).
     void shotCheckCompatibility()
     {

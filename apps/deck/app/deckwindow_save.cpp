@@ -200,20 +200,27 @@ bool embedFontsOnSave() { return Settings::get().value(QStringLiteral("save/embe
 
 // What the open document kind would leave out of the presentation: what the writer leaves out (found by writing to memory as a save would, kept until the presentation changes; nothing is put on
 // disk), and the mark that it is final. Check Compatibility lists the same.
-QStringList DeckWindow::odpFound(bool tmpl)
+CompatAnswer DeckWindow::odpFound(bool tmpl)
 {
-    return m_lossCache.get(tmpl ? QStringLiteral("otp") : QStringLiteral("odp"), [&] {
+    QString failure;
+    const QStringList found = m_lossCache.get(tmpl ? QStringLiteral("otp") : QStringLiteral("odp"), [&] {
         QStringList skipped;
         QString err;
-        deck::exportOdp(*m_ed->doc(), tmpl, &err, &skipped);
+        if (deck::exportOdp(*m_ed->doc(), tmpl, &err, &skipped).isEmpty()) {
+            failure = err;
+            m_lossCache.bump();   // (a failure is not kept: the next ask works it out again)
+            return QStringList();
+        }
         return skipped;
     });
+    if (!failure.isEmpty()) return CompatAnswer::failed(failure);
+    return found;
 }
 
 QStringList DeckWindow::odpLosses(const QString &path)
 {
     const bool tmpl = deck::presentationKindOf(path) == deck::PresentationKind::Template;
-    return odpFound(tmpl) + compatFileChoices(tr("presentation"), markedAsFinal(), alwaysOpensReadOnly());
+    return odpFound(tmpl).found + compatFileChoices(tr("presentation"), markedAsFinal(), alwaysOpensReadOnly());
 }
 
 bool DeckWindow::saveTo(const QString &path, bool asCopy)

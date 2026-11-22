@@ -463,7 +463,8 @@ public:
     bool exportCopy(const QString &path);
     // Check Compatibility: works out what an .xls file would not hold, as a copy would, and says it; writes nothing.
     jp::CompatHost compatHost();
-    void findCopyLosses(bool xls, const std::function<void(const QStringList &)> &done);
+    void findCopyLosses(bool xls, const jp::CompatDone &done);
+    QString cannotCheckNow() const;   // why the workbook can't be checked just now (empty: it can)
     void checkCompatibility(int format = 0);   // File > Info: the shared box (libs/shell/app/compatdialog.h) for .xls, .ods, and .csv
     // Version History (File > Info): named copies of the workbook kept on this computer, one for each time it is asked for (see libs/shell/app/versionstore.h). Each needs a file the workbook was
     // saved as. `saveVersion` takes the workbook as it is now, in the background, and `versionKept` says when it is over; `restoreVersion` keeps what the workbook is now as a version first,

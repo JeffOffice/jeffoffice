@@ -235,14 +235,17 @@ void WriteWindow::inspectDocument()
 // What an .odt file would leave out of the document, by the writer's own list (nothing is put on disk).
 QStringList WriteWindow::incompatibilities()
 {
-    QStringList kept;
-    if (!m_doc) return kept;
+    return odtAnswer().found;
+}
+
+CompatAnswer WriteWindow::odtAnswer()
+{
+    if (!m_doc) return CompatAnswer::failed(tr("There is no document to check."));
     QString err;
     QStringList notKept;
     const QByteArray bytes = m_doc->toOdt(&err, &notKept);
-    if (bytes.isEmpty()) kept << err;
-    else kept = notKept;
-    return kept;
+    if (bytes.isEmpty()) return CompatAnswer::failed(err);
+    return notKept;
 }
 
 // The kinds Check Compatibility offers: each one a way to save that is not a .docx, with the list its own writer gives.
@@ -252,17 +255,16 @@ jp::CompatHost WriteWindow::compatHost()
     host.markedFinal = [this] { return m_doc && m_doc->markedAsFinal(); };
     host.alwaysReadOnly = [this] { return alwaysOpensReadOnly(); };
     const QString what = tr("document");
-    host.formats.push_back({tr("OpenDocument text (.odt)"), QStringLiteral(".odt"), QStringLiteral(".docx"), what, [this](const std::function<void(const QStringList &)> &done) { done(incompatibilities()); }});
-    host.formats.push_back({tr("Rich Text Format (.rtf)"), QStringLiteral(".rtf"), QStringLiteral(".docx"), what, [this](const std::function<void(const QStringList &)> &done) {
+    host.formats.push_back({tr("OpenDocument text (.odt)"), QStringLiteral(".odt"), QStringLiteral(".docx"), what, [this](const CompatDone &done) { done(odtAnswer()); }});
+    host.formats.push_back({tr("Rich Text Format (.rtf)"), QStringLiteral(".rtf"), QStringLiteral(".docx"), what, [this](const CompatDone &done) {
+        if (!m_doc) return done(CompatAnswer::failed(tr("There is no document to check.")));
         QStringList kept;
         QString err;
-        if (m_doc) {
-            if (m_doc->toRtf(&err, &kept).isEmpty()) kept = QStringList{err};
-            if (m_fileProtected) kept << tr("The password.");
-        }
+        if (m_doc->toRtf(&err, &kept).isEmpty()) return done(CompatAnswer::failed(err));
+        if (m_fileProtected) kept << tr("The password.");
         done(kept);
     }});
-    host.formats.push_back({tr("Plain text (.txt)"), QStringLiteral(".txt"), QStringLiteral(".docx"), what, [this](const std::function<void(const QStringList &)> &done) {
+    host.formats.push_back({tr("Plain text (.txt)"), QStringLiteral(".txt"), QStringLiteral(".docx"), what, [this](const CompatDone &done) {
         QStringList kept;
         if (m_doc) kept << tr("Everything but the words: the fonts, pictures, tables, and other formatting.");
         if (m_fileProtected) kept << tr("The password.");

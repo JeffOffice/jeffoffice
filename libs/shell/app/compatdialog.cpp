@@ -17,10 +17,17 @@ QStringList compatFileChoices(const QString &what, bool markedFinal, bool always
     return lines;
 }
 
-QStringList compatLines(const CompatFormat &format, const CompatHost &host, const QStringList &found)
+CompatAnswer CompatAnswer::failed(const QString &why)
+{
+    CompatAnswer answer;
+    answer.couldNot = why.isEmpty() ? QCoreApplication::translate("jp::CompatibilityDialog", "Something went wrong.") : why;
+    return answer;
+}
+
+QStringList compatLines(const CompatFormat &format, const CompatHost &host, const CompatAnswer &answer)
 {
     QStringList lines;
-    for (const QString &line : found) {
+    for (const QString &line : answer.found) {
         if (lines.size() >= kCompatMaxLines) break;
         lines << (line.size() > kCompatMaxLineChars ? line.left(kCompatMaxLineChars) + QChar(0x2026) : line);
     }
@@ -29,9 +36,11 @@ QStringList compatLines(const CompatFormat &format, const CompatHost &host, cons
     return lines;
 }
 
-QString compatReport(const CompatFormat &format, const CompatHost &host, const QStringList &found)
+QString compatReport(const CompatFormat &format, const CompatHost &host, const CompatAnswer &answer)
 {
-    return lossyReport({QString(), format.what, format.format, format.ownFormat, compatLines(format, host, found)});
+    if (!answer.couldNot.isEmpty())
+        return QCoreApplication::translate("jp::CompatibilityDialog", "Couldn't check what a %1 file would leave out of this %2, so nothing is said either way. %3").arg(format.format, format.what, answer.couldNot);
+    return lossyReport({QString(), format.what, format.format, format.ownFormat, compatLines(format, host, answer)});
 }
 
 CompatibilityDialog::CompatibilityDialog(const CompatHost &host, int first, QWidget *parent) : QDialog(parent), m_host(host)
@@ -72,11 +81,11 @@ void CompatibilityDialog::work()
     m_report->setText(QCoreApplication::translate("jp::CompatibilityDialog", "Checking…"));
     const CompatFormat format = m_host.formats[index];
     const QPointer<CompatibilityDialog> self(this);
-    format.lost([self, generation, format](const QStringList &found) {
+    format.lost([self, generation, format](const CompatAnswer &answer) {
         // (an answer for a kind that is no longer picked, or to a box that is gone, is dropped)
         if (!self || self->m_generation != generation) return;
         self->m_working = false;
-        self->m_report->setText(compatReport(format, self->m_host, found));
+        self->m_report->setText(compatReport(format, self->m_host, answer));
     });
 }
 
@@ -91,9 +100,8 @@ void showCompatibility(QWidget *parent, const CompatHost &host, int first, const
     if (notifier) {
         const int index = first >= 0 && first < host.formats.size() ? first : 0;
         const CompatFormat format = host.formats[index];
-        format.lost([format, host, title, notifier](const QStringList &found) {
-            const QStringList lines = compatLines(format, host, found);
-            notifier(title, lossyReport({QString(), format.what, format.format, format.ownFormat, lines}), !lines.isEmpty());
+        format.lost([format, host, title, notifier](const CompatAnswer &answer) {
+            notifier(title, compatReport(format, host, answer), !answer.couldNot.isEmpty() || !compatLines(format, host, answer).isEmpty());
         });
         return;
     }
