@@ -3,6 +3,7 @@
 
 #include <QCoreApplication>
 #include <QDataStream>
+#include <QIODevice>
 #include <QImage>
 #include <QJsonArray>
 #include <QLinearGradient>
