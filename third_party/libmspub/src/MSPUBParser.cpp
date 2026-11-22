@@ -1078,6 +1078,8 @@ bool MSPUBParser::parseShape(librevenge::RVNGInputStream *input,
                     break;
                   }
                 }
+                if (jpTraceOn())
+                  fprintf(stderr, "CELLPOS n=%u rows=%u-%u cols=%u-%u split=%u\n", unsigned(ti.m_cells.size()), currentCell.m_startRow, currentCell.m_endRow, currentCell.m_startColumn, currentCell.m_endColumn, currentCell.m_split);
                 ti.m_cells.push_back(currentCell);
               }
             }

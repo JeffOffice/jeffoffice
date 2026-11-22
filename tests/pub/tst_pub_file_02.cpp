@@ -192,6 +192,52 @@ void PubFileTests::pubWriterTable()
     }
 
 
+// A table cell fill names its cell by the cell's number in the table's cell list (a merged cell counts once), so fills below the first row
+// read back on the right cells.
+void PubFileTests::pubTableFillsInLaterRows()
+{
+    auto doc = jp::Document::blank(QSizeF(612, 792));
+    auto t = std::make_shared<jp::TableItem>();
+    t->rows = 3;
+    t->cols = 3;
+    t->colW = {80, 90, 100};
+    t->rowH = {30, 30, 30};
+    t->rect = QRectF(72, 144, 0, 0);
+    t->syncRect();
+    t->cells.resize(9);
+    for (auto &cl : t->cells) cl.storyId = doc->createStory(QStringLiteral("x"));
+    const QColor red(200, 0, 0), green(0, 160, 0), blue(0, 0, 220);
+    t->cell(1, 0).fill = jp::Fill::solid(jp::ColorRef::rgb(red));
+    t->cell(2, 2).fill = jp::Fill::solid(jp::ColorRef::rgb(green));
+    t->cell(1, 1).colSpan = 2;
+    t->cell(1, 2).covered = true;
+    t->cell(1, 1).fill = jp::Fill::solid(jp::ColorRef::rgb(blue));
+    doc->pages[0]->items.push_back(t);
+
+    QTemporaryDir dir;
+    const QString path = dir.filePath(QStringLiteral("fills-later-rows.pub"));
+    QString err;
+    QVERIFY2(jp::exportPublisher(*doc, path, &err), qPrintable(err));
+    auto back = jp::importPublisherFile(path, &err);
+    QVERIFY2(back, qPrintable(err));
+    const jp::TableItem *bt = nullptr;
+    jp::walkItems(back->pages[0]->items, [&](const jp::ItemPtr &it) {
+        if (it->type() == jp::ItemType::Table) bt = static_cast<const jp::TableItem *>(it.get());
+    });
+    QVERIFY(bt);
+    QCOMPARE(bt->rows, 3);
+    QCOMPARE(bt->cols, 3);
+    auto fillOf = [&](int r, int c) { return bt->cell(r, c).fill.type == jp::Fill::Solid ? bt->cell(r, c).fill.color.resolve(back->colors) : QColor(); };
+    QCOMPARE(fillOf(1, 0), red);
+    QCOMPARE(fillOf(1, 1), blue);
+    QCOMPARE(fillOf(2, 2), green);
+    QVERIFY(!fillOf(0, 0).isValid());
+    QVERIFY(!fillOf(0, 2).isValid());
+    QVERIFY(!fillOf(2, 0).isValid());
+    QVERIFY(!fillOf(2, 1).isValid());
+}
+
+
 // Line weights and a list's indent are written as 32-bit lengths, so a damaged huge one stops at 1584 points
 // (the largest weight Publisher offers) instead of wrapping around to something small or nothing.
 void PubFileTests::pubLineWeightsAndListIndentsDoNotWrap()

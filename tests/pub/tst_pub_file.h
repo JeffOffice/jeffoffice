@@ -115,6 +115,7 @@ private Q_SLOTS:
     void pubWriterTwoMasters();
     void pubWriterPages();
     void pubWriterTable();
+    void pubTableFillsInLaterRows();
     void pubLineWeightsAndListIndentsDoNotWrap();
     void pubWriterObjects();
     void pubInkPacking();

@@ -2014,6 +2014,7 @@ QByteArray PubWriter::write(QStringList *skipped)
                 // A cell divided by a diagonal is two cells at one place: the
                 // first half in its row and column, the second listed after
                 // the grid (with the same frame and its own text).
+                QHash<int, int> recordOf;   // grid place -> the cell's number in the list
                 QVector<B> halfRecs;
                 QVector<Frame> halfFrames;
                 QVector<const QTextDocument *> halfDocs;
@@ -2056,6 +2057,7 @@ QByteArray PubWriter::write(QStringList *skipped)
                               << u32(0x0c, quint32(emu(c.margins.top()))) << u32(0x0d, quint32(emu(c.margins.bottom()))) << u32(0x0e, 114300);
                             return rec(0x00, f);
                         };
+                        recordOf.insert(row * tb->cols + col, int(cellRecs.size()));
                         cellRecs << fields(divided ? divided | 4 : 0);
                         if (divided && roomForHalves <= 0) {
                             ++droppedHalves;
@@ -2101,7 +2103,7 @@ QByteArray PubWriter::write(QStringList *skipped)
                                                  list(0x6d, grid, 0x90), u32(0x70, 0xfffffffdu), u32(0xb7, 0)}});
                 cw.put(cellsSeq, {0x63, seq, {u16(0x01, quint32(cellRecs.size())), list(0x02, cellRecs)}});
 
-                // Fills: one record per grid cell, naming its column (03) and row (04).
+                // Fills: one record per grid cell, naming its cell by the cell's number in the table's cell list (03).
                 auto formatShape = [&](const QVector<Prop> &o, const QVector<Prop> &t, const QVector<B> &where, int shapeType = 1, quint32 flags = 0x0a00) {
                     if (m_cellFormats.size() >= 1000) {   // one id block's worth
                         ++droppedFormats;
@@ -2118,20 +2120,15 @@ QByteArray PubWriter::write(QStringList *skipped)
                 for (int row = 0; row < tb->rows; ++row) {
                     for (int col = 0; col < tb->cols; ++col) {
                         const TableCell &c = tb->cell(row, col);
-                        if (c.covered || c.fill.type != Fill::Solid) continue;
+                        if (c.covered || c.fill.type != Fill::Solid || !recordOf.contains(row * tb->cols + col)) continue;
                         const quint32 color = bgr(c.fill.color.resolve(m_doc.colors));
-                        for (int r = row; r < std::min(tb->rows, row + std::max(1, c.rowSpan)); ++r) {
-                            for (int k = col; k < std::min(tb->cols, col + std::max(1, c.colSpan)); ++k) {
-                                QVector<B> where;
-                                if (k) where << u32(0x03, quint32(k));
-                                if (r) where << u32(0x04, quint32(r));
-                                QVector<Prop> o = {{0x0181, color}, {0x0183, 0}, {0x01bf, 0x001f001c}, {0x01ff, 0x00080000}, {0x0285, 0},
-                                                   {0x02cb, 0}, {0x02cc, 0}, {0x02ce, 0}, {0x02cf, 0}};
-                                QVector<Prop> t = {{0x01bf, 0x00600000}, {0x01ff, 0x00400040}};
-                                t << kShadowFlags;
-                                formatShape(o, t, where);
-                            }
-                        }
+                        QVector<B> where;
+                        if (const int n = recordOf.value(row * tb->cols + col)) where << u32(0x03, quint32(n));
+                        QVector<Prop> o = {{0x0181, color}, {0x0183, 0}, {0x01bf, 0x001f001c}, {0x01ff, 0x00080000}, {0x0285, 0},
+                                           {0x02cb, 0}, {0x02cc, 0}, {0x02ce, 0}, {0x02cf, 0}};
+                        QVector<Prop> t = {{0x01bf, 0x00600000}, {0x01ff, 0x00400040}};
+                        t << kShadowFlags;
+                        formatShape(o, t, where);
                     }
                 }
                 // A diagonal's line is a line shape (type 20) with its color and

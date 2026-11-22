@@ -1464,7 +1464,9 @@ std::function<void(void)> MSPUBCollector::paintShape(const ShapeInfo &info, cons
               };
               for (const TableCellFormat &f : tinfo.m_formats)
               {
-                if (f.kind == 0 && f.f[3] >= c0 && f.f[3] < c1 && f.f[4] >= r0 && f.f[4] < r1 && f.hasColor)
+                // A fill names its cell by the cell's number in the table's cell list (field 03; 04 is absent).
+                const bool fillHere = f.kind == 0 && f.hasColor && f.f[3] == tableLayout[row][col].m_cell;
+                if (fillHere)
                   cellProps.insert("fo:background-color", getColorString(ColorReference(f.color).getFinalColor(m_paletteColors)));
                 else if (f.kind == 1 && f.f[5] < c1 && f.f[7] > c0)
                 {
