@@ -17,12 +17,18 @@ using namespace jp::grid;
 namespace {
 
 // Seven for every character, whatever the font: the width of a digit of the usual default font.
+class SmallFontMeter : public TextMeter {
+public:
+    double width(const QString &text, const CellLook &) const override { return 6.0 * text.size(); }
+};
+
 class FixedMeter : public TextMeter {
 public:
     double width(const QString &text, const CellLook &) const override { return 7.0 * text.size(); }
 };
 
 const FixedMeter kMeter;
+const SmallFontMeter kSmallFontMeter;
 
 CellLook lookWithFormat(const QString &code, HAlign h = HAlign::General)
 {
@@ -303,9 +309,17 @@ private Q_SLOTS:
         QVERIFY(!s.hashes);
         QCOMPARE(s.text, QStringLiteral("a very long text indeed"));
         QVERIFY(!show(jp::calc::Value::error(jp::calc::ErrorKind::Value), CellLook(), 20).hashes);
-        // "general" takes the width of the column: 52 pixels fit 6 of the widest digit (less the 5 the cell keeps)
-        QCOMPARE(charsFor(52, 7), 6);
-        QCOMPARE(charsFor(3, 7), 1);
+        // "general" takes the characters the column holds in the cell's own font: its digits are 6 pixels wide, the default font's 7, and 73 pixels hold 11 of the
+        // cell's and 9 of the default's
+        s = showValue(jp::calc::Value::number(5.5653866129032261), CellLook(), jp::calc::DateSystem::Date1900, 73, 7, kSmallFontMeter);
+        QCOMPARE(s.text, QStringLiteral("5.565386613"));
+        QVERIFY(!s.hashes);
+        // a page is drawn in the printer's pixels, wider than the screen's (70 and 64 here), and the digits that fit are those of the screen's column: 8, not 9
+        s = showValue(jp::calc::Value::number(0.00045050066), CellLook(), jp::calc::DateSystem::Date1900, 70, 7, kMeter, nullptr, 64);
+        QCOMPARE(s.text, QStringLiteral("0.000451"));
+        s = showValue(jp::calc::Value::number(0.00045050066), CellLook(), jp::calc::DateSystem::Date1900, 70, 7, kMeter);
+        QCOMPARE(s.text, QStringLiteral("0.0004505"));
+        // "general" takes the width of the column: 52 pixels fit 6 of the widest digit (less the 6 the cell keeps)
         s = show(jp::calc::Value::number(3.14159265358979), CellLook(), 52);
         QVERIFY(!s.hashes);
         QVERIFY(s.text.size() <= 6);

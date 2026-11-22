@@ -53,11 +53,11 @@ struct Shown {
 constexpr double kCellPadding = 3;
 double textRoom(double cellWidth, const CellLook &look);
 
-// What the value shows in a cell of `cellWidth`, in the look. `generalChars` is how many characters a "general" number may take (from the width: see charsFor()).
+// What the value shows in a cell of `cellWidth`, in the look. A "general" number takes the characters the column holds by the digit width of the cell's font (charsFor()) of `fitWidth` (the column of the screen: a page is drawn in the printer's pixels, and the digits that fit are those of the screen's; 0: `cellWidth`).
 // With `symbols`, a number shows the person's decimal mark and digit grouping (the number format codes stay as the file has them).
-Shown showValue(const jp::calc::Value &value, const CellLook &look, jp::calc::DateSystem system, double cellWidth, int maxDigitWidth, const TextMeter &meter, const jp::calc::NumberSymbols *symbols = nullptr);
-// The characters of the widest digit that fit in a column of this width.
-int charsFor(double cellWidth, int maxDigitWidth);
+Shown showValue(const jp::calc::Value &value, const CellLook &look, jp::calc::DateSystem system, double cellWidth, int maxDigitWidth, const TextMeter &meter, const jp::calc::NumberSymbols *symbols = nullptr, double fitWidth = 0);
+// The characters of a digit's width that fit in a column of this width.
+int charsFor(double cellWidth, int digitWidth);
 
 // A formula as the formula bar and Show Formulas give it: the prefixes a file writes before the functions that are newer than its format and before names of its own are left
 // out (they are kept in the model, for saving).

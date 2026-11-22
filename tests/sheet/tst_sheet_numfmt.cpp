@@ -441,6 +441,29 @@ private Q_SLOTS:
         QVERIFY(checked > 39000);
     }
 
+    // A General number that has a fraction shows at most 11 characters in a cell, without its minus sign but with its decimal mark and leading zeros (the
+    // standard's "General" format, 18.8.30), however wide the column is; a whole number, and a number in scientific notation, are not held to it. A text
+    // made of a number (width 0) keeps its 15 digits.
+    void generalInACellShowsElevenCharactersAtMost()
+    {
+        const struct { double v; const char *want; } cases[] = {
+            {5.5653866129032261, "5.565386613"},
+            {-5.5653866129032261, "-5.565386613"},
+            {1.664162759276, "1.664162759"},
+            {0.0279780254170123, "0.027978025"},
+            {123456789.123456, "123456789.1"},
+            {12345678901.5, "12345678902"},
+            {0.5, "0.5"},
+            {123456789012.0, "123456789012"},
+            {1.23456789012345e-10, "1.23456789012345E-10"},
+        };
+        for (const auto &c : cases) {
+            const QString got = fmt(QStringLiteral("General"), c.v, DateSystem::Date1900, 40);
+            QVERIFY2(got == QString::fromLatin1(c.want), qPrintable(QStringLiteral("%1: got [%2], wanted [%3]").arg(c.v, 0, 'g', 17).arg(got, QString::fromLatin1(c.want))));
+        }
+        QCOMPARE(fmt(QStringLiteral("General"), 5.5653866129032261), QStringLiteral("5.56538661290323"));
+    }
+
     // "%" multiplies by 100 each time; E+ E- E show a value in scientific notation, with the exponent a multiple of the integer places.
     void percentAndScientific()
     {

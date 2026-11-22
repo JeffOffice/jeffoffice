@@ -196,6 +196,10 @@ QString generalOf(const Dec &d, int sig)
     return t;
 }
 
+// ECMA-376 18.8.30 ("General" format, Numbers): in a cell, a number with a fraction shows at most 11 characters, not counting a minus sign but counting the
+// decimal mark and leading zeros. (A whole number, scientific notation, and the text a number is turned into, which has no width, are not held to it.)
+constexpr int kGeneralFractionChars = 11;
+
 bool generalText(const Dec &d0, bool negative, int maxChars, QString *out)
 {
     if (d0.zero()) {
@@ -206,8 +210,9 @@ bool generalText(const Dec &d0, bool negative, int maxChars, QString *out)
         Dec d = d0;
         if (d.digits.size() > sig) roundDec(&d, sig - d.point);
         QString t = generalOf(d, sig);
+        const bool tooLong = maxChars > 0 && t.contains(QLatin1Char('.')) && !t.contains(QLatin1Char('E')) && t.size() > kGeneralFractionChars;
         if (negative) t.prepend(QLatin1Char('-'));
-        if (maxChars <= 0 || t.size() <= maxChars) {
+        if (!tooLong && (maxChars <= 0 || t.size() <= maxChars)) {
             *out = t;
             return true;
         }

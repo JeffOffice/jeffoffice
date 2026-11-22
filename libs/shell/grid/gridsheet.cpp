@@ -52,6 +52,13 @@ void GridSheet::setMeter(const TextMeter *meter)
     m_texts.clear();
 }
 
+void GridSheet::setFitColumns(const Axis *cols)
+{
+    if (cols) m_fitCols = *cols;
+    else m_fitCols.reset();
+    m_texts.clear();
+}
+
 int GridSheet::columnPixels(double chars, int maxDigitWidth)
 {
     if (!(chars > 0) || maxDigitWidth <= 0) return 0;
@@ -84,7 +91,7 @@ double GridSheet::widthOfShown(double shown, int maxDigitWidth)
 namespace {
 
 // The width in pixels a cell's text needs, in a column wide enough for any text.
-// (A number is shown in as many digits as the column's width holds by the digit width it is counted in, charsFor: the column must hold that many, or the number
+// (A number is shown in as many digits as the column holds by the digit width of the cell's font, charsFor: the column must hold that many, or the number
 // falls back to a shorter form, whatever its font's digits measure.)
 double neededPixels(const Shown &s, const CellLook &look, int maxDigitWidth)
 {
@@ -697,20 +704,25 @@ Shown GridSheet::shown(quint32 row, quint32 col, const Cell &cell) const
     if (found != m_texts.end()) return found->second;
     ++m_textsMade;
     double width = columnWidth(col);
+    double fit = m_fitCols ? double(m_fitCols->size(col)) : 0.0;
     const int m = m_layout.merges.at(row, col);
     if (m >= 0) {
         const jp::office::sheet::CellRange &r = m_layout.merges.range(m);
         width = 0;
+        fit = 0;
         // (a merge of many columns is counted to the most the grid ever shows)
-        for (quint32 c = r.col1; c <= r.col2 && c < r.col1 + 1024; ++c) width += columnWidth(c);
+        for (quint32 c = r.col1; c <= r.col2 && c < r.col1 + 1024; ++c) {
+            width += columnWidth(c);
+            if (m_fitCols) fit += double(m_fitCols->size(c));
+        }
     }
     Shown s;
     if (m_showFormulas && cell.hasFormula() && m_data.sheet && !m_data.sheet->formulaText(cell).isEmpty())
-        s = showValue(jp::calc::Value::text(QLatin1Char('=') + displayFormula(m_data.sheet->formulaText(cell))), lookOf(row, col, cell.style), m_data.dateSystem, width, m_looks.maxDigitWidth(), *m_meter, &m_symbols);
+        s = showValue(jp::calc::Value::text(QLatin1Char('=') + displayFormula(m_data.sheet->formulaText(cell))), lookOf(row, col, cell.style), m_data.dateSystem, width, m_looks.maxDigitWidth(), *m_meter, &m_symbols, fit);
     else {
         jp::calc::Value v = valueOf(row, col, cell);
         if (m_errors != ErrorDisplay::Shown && v.isError()) v = m_errors == ErrorDisplay::Blank ? jp::calc::Value() : m_errors == ErrorDisplay::Dash ? jp::calc::Value::text(QStringLiteral("--")) : jp::calc::Value::error(jp::calc::ErrorKind::NA);
-        s = showValue(v, lookOf(row, col, cell.style), m_data.dateSystem, width, m_looks.maxDigitWidth(), *m_meter, &m_symbols);
+        s = showValue(v, lookOf(row, col, cell.style), m_data.dateSystem, width, m_looks.maxDigitWidth(), *m_meter, &m_symbols, fit);
     }
     // Where it sits in the grid's places: a text with the general alignment begins on the side its direction says (a number is at the right, true, false, and errors in the middle), and in
     // a sheet that reads right to left the places are mirrored for the screen, so left and right change.

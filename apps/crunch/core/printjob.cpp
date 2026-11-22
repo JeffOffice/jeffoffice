@@ -627,6 +627,7 @@ void PrintJob::fillContext(Context &c, const SheetInfo &info, bool forBackdrop)
     c.grid->setData(data);
     c.grid->layout().cols = info.cols;
     c.grid->layout().rows = info.rows;
+    if (info.geometry) c.grid->setFitColumns(&info.geometry->layout.cols);   // (a number's digits are fitted to the screen's column, as the original's are)
     c.grid->setErrorDisplay(info.setup.errors == jp::office::sheet::PrintErrors::Blank ? GridSheet::ErrorDisplay::Blank
                             : info.setup.errors == jp::office::sheet::PrintErrors::Dash  ? GridSheet::ErrorDisplay::Dash
                             : info.setup.errors == jp::office::sheet::PrintErrors::NA    ? GridSheet::ErrorDisplay::NA

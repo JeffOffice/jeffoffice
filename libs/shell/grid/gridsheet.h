@@ -59,6 +59,8 @@ public:
     const GridData &data() const { return m_data; }
     // How text is measured (a fixed width of 7 for each character until one is given).
     void setMeter(const TextMeter *meter);
+    // The columns a General number is fitted to when they are not the ones the cells are drawn in (a page: the screen's columns; none: the layout's own).
+    void setFitColumns(const Axis *cols);
 
     GridLayout &layout() { return m_layout; }
     const GridLayout &layout() const { return m_layout; }
@@ -226,6 +228,7 @@ private:
     GridLayout m_layout;
     LookTable m_looks;
     const TextMeter *m_meter = nullptr;
+    std::optional<Axis> m_fitCols;
     mutable std::unordered_map<quint64, Shown> m_texts;
     RichSource m_rich;
     mutable qint64 m_textsMade = 0;
