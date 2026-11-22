@@ -886,8 +886,8 @@ private Q_SLOTS:
         QCOMPARE(colsOf(p), QStringLiteral("0-9 0-9 0-9"));       // (681.6 less 36: 645.6 pixels, 10 columns)
     }
 
-    // The original does not print the blank pages at the end of the print order: the pages after the last one that has a cell, a column or row format, a merged range, or an object. Blank pages
-    // before the last page with something are printed. (Measured on 1,283 sheets of the collection: 20 more page counts agree, none fewer.)
+    // The original does not print the blank pages at the end of the print order: the pages after the last one that has a cell, a merged range, or an object. Blank pages
+    // before the last page with something are printed. (Measured on 1,283 sheets of the collection: 20 more page counts agree, none fewer; a format of whole columns or rows does not count, see below.)
     void blankPagesAtTheEndOfThePrintOrderAreNotPrinted()
     {
         // cells at A1, C100, and M1: columns 0-9 hold three pages (rows 0-44, 45-89, 90-99), columns 10-12 three more, of which only the first has the cell at M1
@@ -917,7 +917,7 @@ private Q_SLOTS:
         QCOMPARE(f.run().pages.size(), size_t(6));
     }
 
-    void aColumnFormatARowFormatAMergeOrAnObjectKeepsItsPageAtTheEnd()
+    void aMergeOrAnObjectKeepsItsPageAtTheEnd()
     {
         // the pages of columns 10-12 below the first are at the end, and blank, until something is on them
         auto build = [](Fixture &f) {
@@ -928,33 +928,6 @@ private Q_SLOTS:
         Fixture base(99, 2);
         build(base);
         QCOMPARE(base.run().pages.size(), size_t(4));
-        // a format for the columns
-        Fixture col(99, 2);
-        build(col);
-        jp::office::sheet::ColumnSpan span;
-        span.first = 10;
-        span.last = 12;
-        span.style = 2;   // (the fill that shows)
-        withFormats(&col);
-        col.sheet.columns.append(span);
-        QCOMPARE(col.run().pages.size(), size_t(6));
-        // a format for a row that the last page holds (and a format of none, which is no format)
-        Fixture row(99, 2);
-        build(row);
-        withFormats(&row);
-        jp::office::sheet::RowSpec rs;
-        rs.row = 95;
-        rs.customFormat = true;
-        rs.style = 2;
-        row.sheet.rowSpecs.append(rs);
-        QCOMPARE(row.run().pages.size(), size_t(6));
-        Fixture none(99, 2);
-        build(none);
-        rs.style = 0;
-        none.sheet.rowSpecs.append(rs);
-        span.style = 0;
-        none.sheet.columns.append(span);
-        QCOMPARE(none.run().pages.size(), size_t(4));
         // a merged range of empty cells in the last page
         Fixture merged(99, 2);
         build(merged);
@@ -976,6 +949,39 @@ private Q_SLOTS:
         box.h = 10;
         obj.request.objects = {box};
         QCOMPARE(obj.run().pages.size(), size_t(6));
+    }
+
+    // A format given to whole columns or rows (a fill that shows) is no cell: the original does not print the pages it covers at the end of the print order. (Measured on 1,283 sheets: 16 more
+    // page counts agree in 5 workbooks, none fewer.) A cell that has the same format is a cell, and keeps its page.
+    void aFormatOfWholeColumnsOrRowsDoesNotKeepPagesAtTheEnd()
+    {
+        auto build = [](Fixture &f) {
+            f.sheet.cells.add(numberAt(0, 0));
+            f.sheet.cells.add(numberAt(0, 12));
+            f.sheet.cells.finish();
+        };
+        Fixture col(99, 2);
+        build(col);
+        jp::office::sheet::ColumnSpan span;
+        span.first = 10;
+        span.last = 12;
+        span.style = 2;   // (the fill that shows)
+        withFormats(&col);
+        col.sheet.columns.append(span);
+        QCOMPARE(col.run().pages.size(), size_t(4));
+        Fixture row(99, 2);
+        build(row);
+        withFormats(&row);
+        jp::office::sheet::RowSpec rs;
+        rs.row = 95;
+        rs.customFormat = true;
+        rs.style = 2;
+        row.sheet.rowSpecs.append(rs);
+        QCOMPARE(row.run().pages.size(), size_t(4));
+        Fixture cell(99, 2);
+        withFormats(&cell);
+        endOf(&cell, 2, true);
+        QCOMPARE(cell.run().pages.size(), size_t(6));
     }
 
     // A print area is printed whole, blank pages at its end too (measured: the original does so, and the trimming made one sheet in 45 with a print area wrong).
@@ -1076,7 +1082,7 @@ private Q_SLOTS:
     }
 
     // The pages at the end are looked at as the used range is: the same answer for "has something". A format that shows (a fill or a border) keeps its page, an empty bordered cell too; one that does
-    // not (a number format, a font) leaves it blank; and so for the formats of a column and of a row.
+    // not (a number format, a font) leaves it blank.
     void aFormatThatDoesNotShowLeavesAPageAtTheEndBlank()
     {
         Fixture none(99, 2);
@@ -1093,27 +1099,6 @@ private Q_SLOTS:
         endOf(&plain, 3, true);
         withFormats(&plain);
         QCOMPARE(plain.run().pages.size(), size_t(4));
-        // a column and a row
-        for (quint32 style : {2u, 3u}) {
-            Fixture col(99, 2);
-            endOf(&col);
-            withFormats(&col);
-            jp::office::sheet::ColumnSpan span;
-            span.first = 10;
-            span.last = 12;
-            span.style = style;
-            col.sheet.columns.append(span);
-            QCOMPARE(col.run().pages.size(), size_t(style == 2 ? 6 : 4));
-            Fixture row(99, 2);
-            endOf(&row);
-            withFormats(&row);
-            jp::office::sheet::RowSpec rs;
-            rs.row = 95;
-            rs.customFormat = true;
-            rs.style = style;
-            row.sheet.rowSpecs.append(rs);
-            QCOMPARE(row.run().pages.size(), size_t(style == 2 ? 6 : 4));
-        }
     }
 
     void aBorderedEmptyCellKeepsTheLastPage()

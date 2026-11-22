@@ -644,12 +644,7 @@ struct PaginateTask::Impl {
 
     // the blank pages at the end
     bool trimReady = false;
-    int specStage = 0;
-    size_t specAt = 0, colAt = 0;
-    QVector<jp::office::sheet::RowSpec> rowSpecs;
     ShowCache shows;
-    std::vector<quint32> formattedRows;
-    std::vector<std::pair<quint32, quint32>> formattedCols;
 
     explicit Impl(const PrintRequest &request) : q(request), shows(request.styles)
     {
@@ -930,7 +925,7 @@ struct PaginateTask::Impl {
         return axis.nextVisible(*(at - 1) - 1) == first;
     }
 
-    // Whether the page has something of the sheet on it: a cell that holds something or has a format that shows, a format of its columns or of one of its rows that shows, a merged range, a text that
+    // Whether the page has something of the sheet on it: a cell that holds something or has a format that shows (a format of a whole column or row is no cell and does not count), a merged range, a text that
     // spills into it, a note printed with the cells, an object; and a page that gridlines or headings are printed on, or that a break the person put in begins, is printed as it is.
     bool pageHasSomething(const PageCut &p, Work &w)
     {
@@ -947,10 +942,6 @@ struct PaginateTask::Impl {
                                    &walk);
         w.add(1 + walk.stepped + walk.compared);
         if (found) return true;
-        for (const auto &span : formattedCols)
-            if (qint64(span.first) <= p.col2 && qint64(span.second) >= p.col1) return true;
-        const auto row = std::lower_bound(formattedRows.begin(), formattedRows.end(), quint32(p.row1));
-        if (row != formattedRows.end() && qint64(*row) <= p.row2) return true;
         if (reaches(p)) return true;
         if (q.objects.empty()) return false;
         const double x0 = double(cols.position(p.col1)) / c.colFine, x1 = double(cols.position(p.col2 + 1)) / c.colFine;
@@ -967,23 +958,6 @@ struct PaginateTask::Impl {
     {
         if (q.onlySelection || (q.setup.hasPrintArea() && !q.ignorePrintArea) || out.truncated || out.areas.size() != 1) return true;
         if (!trimReady) {
-            if (specStage == 0) {
-                rowSpecs = q.sheet->placedRowSpecs();
-                specStage = 1;
-            }
-            while (specAt < size_t(rowSpecs.size())) {
-                if (w.spent()) return false;
-                const jp::office::sheet::RowSpec &r = rowSpecs[qsizetype(specAt++)];
-                if (r.customFormat && shows.formatShown(r.style)) formattedRows.push_back(r.row);
-                w.add();
-            }
-            std::sort(formattedRows.begin(), formattedRows.end());
-            while (colAt < size_t(q.sheet->columns.size())) {
-                if (w.spent()) return false;
-                const jp::office::sheet::ColumnSpan &s = q.sheet->columns[qsizetype(colAt++)];
-                if (shows.formatShown(s.style)) formattedCols.emplace_back(s.first, s.last);
-                w.add();
-            }
             const CellRange &b = out.areas[0];
             if (!q.setup.fitToPage || !(q.setup.fitToWidth > 0 || q.setup.fitToHeight > 0)) {
                 rowBreakList = breaksIn(q.setup.rowBreaks, b.row1, b.row2);
