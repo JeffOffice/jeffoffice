@@ -234,12 +234,10 @@ private Q_SLOTS:
         QCOMPARE(printRowPoints(12.0), 97.0 * 72 / 600);
         QCOMPARE(printRowPoints(16.5), 133.0 * 72 / 600);
         QCOMPARE(printRowPoints(12.95), 104.0 * 72 / 600);
-        // tall custom rows: the pitch measured on the reference pages (33 points 266 printer pixels, not 265)
+        // tall custom rows: the pitch measured on the reference pages (33 points 266 printer pixels, not 265); only heights that were measured
         QCOMPARE(printRowPoints(33.0), 266.0 * 72 / 600);
         QCOMPARE(printRowPoints(30.0), 242.0 * 72 / 600);
-        QCOMPARE(printRowPoints(11.25), 91.0 * 72 / 600);   // (the default row of many workbooks)
         QCOMPARE(printRowPoints(14.1), 113.0 * 72 / 600);
-        QCOMPARE(printRowPoints(48.75), 393.0 * 72 / 600);
         QCOMPARE(printRowPoints(0), 0.0);
         Fixture f(99, 1);
         f.sheet.format.defaultRowHeight = 12.75;

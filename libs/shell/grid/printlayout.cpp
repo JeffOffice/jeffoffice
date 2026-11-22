@@ -39,8 +39,8 @@ double printColumnPoints(double fileWidth, int digitPixels, int dpi)
 double printRowPoints(double filePoints, int dpi)
 {
     if (!(filePoints > 0)) return 0;
-    // (the printer makes a point of height 8.06 of its pixels at 600 to the inch, adds a third of a pixel, and cuts what is over: measured on the reference pages' row pitch, 96% of 4,349 rows within 0.1 point)
-    const double px = std::floor(filePoints * double(dpi) / 75.0 * 1.0075 + 0.35);
+    // (empirical: 97/12 = 8.083 printer pixels to the point, cut to whole pixels, i.e. the pixels there are to the point times 0.97; measured on 4,349 rows of the reference pages between 11.25 and 48.75 points at a 600 dpi device, 95.6% within 0.1 point, and the heights between are not all fixed by it)
+    const double px = std::floor(filePoints * double(dpi) * 97.0 / 7200.0);
     return px * 72.0 / double(dpi);
 }
 
