@@ -7875,7 +7875,7 @@ Save without a backup?</source>
 <context>
     <name>GridView</name>
     <message>
-        <location filename="../libs/shell/grid/gridview_breaks.cpp" line="+204"/>
+        <location filename="../libs/shell/grid/gridview_breaks.cpp" line="+205"/>
         <source>Page %1</source>
         <translation type="unfinished">Сторінка %1</translation>
     </message>
@@ -29288,7 +29288,7 @@ This file is protected with a password. Password:</source>
         <location line="+3"/>
         <location line="+5"/>
         <location line="+4"/>
-        <location filename="../apps/crunch/app/crunchwindow_views.cpp" line="+175"/>
+        <location filename="../apps/crunch/app/crunchwindow_views.cpp" line="+176"/>
         <source>Print area</source>
         <translation type="unfinished">Область друку</translation>
     </message>
@@ -32282,7 +32282,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Перед відновленням «%1»</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_views.cpp" line="-102"/>
+        <location filename="../apps/crunch/app/crunchwindow_views.cpp" line="-103"/>
         <source>Normal</source>
         <translation type="unfinished">Звичайний</translation>
     </message>
@@ -32302,7 +32302,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Повноекранний режим</translation>
     </message>
     <message>
-        <location line="+94"/>
+        <location line="+95"/>
         <source>A sheet can have only %1 page breaks of each kind, so that break was left where it is.</source>
         <translation type="unfinished">На аркуші може бути лише %1 розривів сторінок кожного виду, тому цей розрив залишено на місці.</translation>
     </message>
@@ -51469,12 +51469,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Сторінок по вертикалі, або 0, щоб використати стільки, скільки потрібно</translation>
     </message>
     <message>
-        <location line="+7"/>
-        <source>Choose &quot;any number of&quot; to let that direction take as many pages as it needs. The page breaks you set are ignored while the cells are being shrunk to fit.</source>
-        <translation type="unfinished">Виберіть «будь-яка кількість», щоб дозволити цьому напрямку використовувати стільки сторінок, скільки потрібно. Встановлені вами розриви сторінок ігноруються, поки комірки зменшуються, щоб вміститися.</translation>
-    </message>
-    <message>
-        <location line="+8"/>
+        <location line="+15"/>
         <source>Paper size</source>
         <translation>Розмір паперу</translation>
     </message>
@@ -51550,7 +51545,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation>Якість друку</translation>
     </message>
     <message>
-        <location line="-3"/>
+        <location line="-26"/>
+        <source>Choose &quot;any number of&quot; to let that direction take as many pages as it needs. The page breaks you set are ignored only in a direction that is fitted to a number of pages.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+23"/>
         <location line="+1"/>
         <source>%1 dots per inch</source>
         <translation type="unfinished">%1 точок на дюйм</translation>

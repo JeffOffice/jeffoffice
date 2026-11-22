@@ -7869,7 +7869,7 @@ Guardar sem cópia de segurança?</translation>
 <context>
     <name>GridView</name>
     <message>
-        <location filename="../libs/shell/grid/gridview_breaks.cpp" line="+204"/>
+        <location filename="../libs/shell/grid/gridview_breaks.cpp" line="+205"/>
         <source>Page %1</source>
         <translation type="unfinished">Página %1</translation>
     </message>
@@ -24220,7 +24220,7 @@ Origem: %3</translation>
         <translation type="unfinished">Ecrã Completo</translation>
     </message>
     <message>
-        <location line="+94"/>
+        <location line="+95"/>
         <source>A sheet can have only %1 page breaks of each kind, so that break was left where it is.</source>
         <translation type="unfinished">Uma folha só pode ter %1 quebras de página de cada tipo, pelo que essa quebra ficou onde está.</translation>
     </message>
@@ -51416,12 +51416,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">Páginas na vertical, ou 0 para as que forem necessárias</translation>
     </message>
     <message>
-        <location line="+7"/>
-        <source>Choose &quot;any number of&quot; to let that direction take as many pages as it needs. The page breaks you set are ignored while the cells are being shrunk to fit.</source>
-        <translation type="unfinished">Escolha &quot;qualquer número de&quot; para permitir que essa direção ocupe as páginas de que precisar. As quebras de página definidas são ignoradas enquanto as células são reduzidas para caber.</translation>
-    </message>
-    <message>
-        <location line="+8"/>
+        <location line="+15"/>
         <source>Paper size</source>
         <translation>Tamanho do papel</translation>
     </message>
@@ -51497,7 +51492,12 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation>Qualidade de impressão</translation>
     </message>
     <message>
-        <location line="-3"/>
+        <location line="-26"/>
+        <source>Choose &quot;any number of&quot; to let that direction take as many pages as it needs. The page breaks you set are ignored only in a direction that is fitted to a number of pages.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+23"/>
         <location line="+1"/>
         <source>%1 dots per inch</source>
         <translation type="unfinished">%1 pontos por polegada</translation>

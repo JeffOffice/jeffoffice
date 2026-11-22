@@ -7863,7 +7863,7 @@ Simpan tanpa cadangan?</translation>
 <context>
     <name>GridView</name>
     <message>
-        <location filename="../libs/shell/grid/gridview_breaks.cpp" line="+204"/>
+        <location filename="../libs/shell/grid/gridview_breaks.cpp" line="+205"/>
         <source>Page %1</source>
         <translation type="unfinished">Halaman %1</translation>
     </message>
@@ -28594,7 +28594,7 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <location line="+3"/>
         <location line="+5"/>
         <location line="+4"/>
-        <location filename="../apps/crunch/app/crunchwindow_views.cpp" line="+175"/>
+        <location filename="../apps/crunch/app/crunchwindow_views.cpp" line="+176"/>
         <source>Print area</source>
         <translation type="unfinished">Area Cetak</translation>
     </message>
@@ -31315,7 +31315,7 @@ The file can&apos;t be read.</source>
 Berkas tidak dapat dibaca.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_views.cpp" line="-102"/>
+        <location filename="../apps/crunch/app/crunchwindow_views.cpp" line="-103"/>
         <source>Normal</source>
         <translation type="unfinished">Normal</translation>
     </message>
@@ -31335,7 +31335,7 @@ Berkas tidak dapat dibaca.</translation>
         <translation type="unfinished">Layar Penuh</translation>
     </message>
     <message>
-        <location line="+94"/>
+        <location line="+95"/>
         <source>A sheet can have only %1 page breaks of each kind, so that break was left where it is.</source>
         <translation type="unfinished">Sebuah lembar hanya dapat memiliki %1 pemisah halaman untuk setiap jenis, sehingga pemisah tersebut dibiarkan di tempatnya.</translation>
     </message>
@@ -51363,12 +51363,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Halaman ke bawah, atau 0 untuk sebanyak yang diperlukan</translation>
     </message>
     <message>
-        <location line="+7"/>
-        <source>Choose &quot;any number of&quot; to let that direction take as many pages as it needs. The page breaks you set are ignored while the cells are being shrunk to fit.</source>
-        <translation type="unfinished">Pilih &quot;berapa pun jumlahnya&quot; agar arah tersebut menggunakan sebanyak halaman yang dibutuhkan. Pemisah halaman yang Anda atur diabaikan saat sel diperkecil agar pas.</translation>
-    </message>
-    <message>
-        <location line="+8"/>
+        <location line="+15"/>
         <source>Paper size</source>
         <translation>Ukuran kertas</translation>
     </message>
@@ -51444,7 +51439,12 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation>Kualitas cetak</translation>
     </message>
     <message>
-        <location line="-3"/>
+        <location line="-26"/>
+        <source>Choose &quot;any number of&quot; to let that direction take as many pages as it needs. The page breaks you set are ignored only in a direction that is fitted to a number of pages.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+23"/>
         <location line="+1"/>
         <source>%1 dots per inch</source>
         <translation type="unfinished">%1 titik per inci</translation>
