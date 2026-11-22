@@ -52,5 +52,5 @@ libs/page/app/tableedit.cpp | 1 | trivially destructible (integer counters, flag
 libs/page/canvas/canvasaccessible.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
 libs/page/core/chartobject.cpp | 3 | needs a decision: QVector and QHash caches of decoded and described charts
 libs/page/core/document.cpp | 2 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
-libs/page/render/renderer.cpp | 6 | needs a decision: the SVG cache (a std::list of kept pictures); the other uses are integer counters
+libs/page/render/renderer.cpp | 4 | needs a decision: the SVG cache (a std::list of kept pictures); the other uses are integer counters
 libs/text/text/textengine.cpp | 16 | needs a decision: QHash stroke caches and QPointer-holding "kept" records; the other uses are integers and pointers
