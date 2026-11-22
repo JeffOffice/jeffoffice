@@ -641,6 +641,8 @@ struct Shape {
     // reads as a document of its own. Its geometry, fill, line, effects, and turn are read from it by the one who draws the shape (the shared drawing reader).
     QByteArray wsp;
     double inset[4] = {7.2, 3.6, 7.2, 3.6};   // left, top, right, bottom
+    // How a text box's words run (VML's layout-flow of the box's style, and mso-layout-flow-alt): 0 across, 1 turned a quarter clockwise (they read down), 2 turned back a quarter (they read up).
+    int textFlow = 0;
     // A picture's cut edges, each a share of the whole picture (a negative one is room left round it), the color of it that is clear ("RRGGBB"),
     // and the border it is drawn with (its weight in points, 0 for none, and its color).
     double cropL = 0, cropT = 0, cropR = 0, cropB = 0;

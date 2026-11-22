@@ -1305,6 +1305,7 @@ private Q_SLOTS:
     void aRaisedOrLoweredPictureInTheLineMovesTheLineByTheRun();
     void letteringOnAPathIsTextArtInTheShapesColors();
     void aSeeThroughFillIsDrawnSeeThrough();
+    void aTextBoxWithAVerticalLayoutFlowTurnsItsWords();
     void aPicturesGainAndBlackLevelDrawItWashedOut();
     void aHorizontalRuleIsAsWideAsItsShareOfTheText();
     void aShapeOfAKindIsThatShape();

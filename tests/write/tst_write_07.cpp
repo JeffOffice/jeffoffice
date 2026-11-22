@@ -199,6 +199,32 @@ void WriteTests::aPicturesGainAndBlackLevelDrawItWashedOut()
 }
 
 
+// A text box whose layout flow is vertical (the side tabs of a handbook's chapters) has its words turned a quarter, reading down, or up with the bottom-to-top alternate, and keeps
+// all of them in one line along its length; a box that says neither is across.
+void WriteTests::aTextBoxWithAVerticalLayoutFlowTurnsItsWords()
+{
+    auto boxOf = [&](const QByteArray &flow) {
+        auto doc = open(makeDocx("<w:p><w:r><w:t>Text</w:t></w:r><w:r><w:pict " + QByteArray(kVml) + "><v:shape id=\"t\" type=\"#_x0000_t202\" style=\"position:absolute;margin-left:300pt;margin-top:20pt;width:18pt;height:160pt;z-index:3\">"
+                                 "<v:textbox style=\"" + flow + "\" inset=\"0,0,0,0\"><w:txbxContent><w:p><w:r><w:t>Day-of-Event Activities</w:t></w:r></w:p></w:txbxContent></v:textbox></v:shape></w:pict></w:r></w:p>", kStyles));
+        std::shared_ptr<TextItem> box;
+        if (!doc) return box;
+        const auto page = doc->pager().materialize(0);
+        for (const auto &item : page->doc->pages[0]->items)
+            if (auto t = std::dynamic_pointer_cast<TextItem>(item); t && !t->storyId.isEmpty() && page->doc->story(t->storyId)->doc->toPlainText().contains(QLatin1String("Day-of-Event"))) box = t;
+        return box;
+    };
+    const auto up = boxOf("layout-flow:vertical;mso-layout-flow-alt:bottom-to-top");
+    QVERIFY(up);
+    QVERIFY(up->vertical && up->turnedBack);
+    const auto down = boxOf("layout-flow:vertical");
+    QVERIFY(down);
+    QVERIFY(down->vertical && !down->turnedBack);
+    const auto across = boxOf("mso-next-textbox:#a");
+    QVERIFY(across);
+    QVERIFY(!across->vertical && !across->turnedBack);
+}
+
+
 // A horizontal rule is set in its line, as wide as its share of the text's width (all of it when it says none), as high as it says, in its fill, and set across the
 // line as it is aligned.
 void WriteTests::aHorizontalRuleIsAsWideAsItsShareOfTheText()

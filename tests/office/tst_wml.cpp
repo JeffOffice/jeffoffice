@@ -1054,6 +1054,23 @@ private Q_SLOTS:
         QVERIFY(shapes[0].contrast == 0 && shapes[0].bright == 0);
     }
 
+    // The way a text box's words run is in the style of its text box: a vertical layout flow reads down, with the bottom-to-top alternate it reads up, and either alone is none.
+    void readsATextBoxsLayoutFlow()
+    {
+        const QByteArray ns = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\"";
+        auto flowOf = [&](const char *style) {
+            const QVector<Shape> shapes = readShapes("<w:pict " + ns + "><v:shape id='t' type='#_x0000_t202' style='position:absolute;width:18pt;height:160pt'><v:textbox style='" + QByteArray(style) +
+                                                     "'><w:txbxContent><w:p><w:r><w:t>Tab</w:t></w:r></w:p></w:txbxContent></v:textbox></v:shape></w:pict>");
+            return shapes.size() == 1 && shapes[0].kind == Shape::TextBox ? shapes[0].textFlow : -1;
+        };
+        QCOMPARE(flowOf("layout-flow:vertical"), 1);
+        QCOMPARE(flowOf("layout-flow:vertical;mso-layout-flow-alt:bottom-to-top;mso-next-textbox:#_x0000_s2115"), 2);
+        QCOMPARE(flowOf("mso-next-textbox:#a;LAYOUT-FLOW: Vertical"), 1);
+        QCOMPARE(flowOf("mso-layout-flow-alt:bottom-to-top"), 0);
+        QCOMPARE(flowOf("layout-flow:horizontal"), 0);
+        QCOMPARE(flowOf(""), 0);
+    }
+
     // The sides a picture's border is set on (each with its weight; the others have none), the color it is drawn in ("this" is the picture's own line color), and a shape's own
     // numbers (a list in which an empty place or a word is not a number).
     void readsAPicturesBorderSidesAndColorAndAShapesNumbers()

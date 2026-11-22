@@ -409,6 +409,10 @@ public:
                     s.textBox = textBoxXml(t, content);
                     if (s.kind != Shape::Picture) s.kind = Shape::TextBox;
                 }
+                // (The box's own style: its words read down when the layout flow is vertical, and up where the alternate flow is bottom to top.)
+                const QHash<QString, QString> box = styleOf(t.attr(c, "style"));
+                if (box.value(QStringLiteral("layout-flow")).toLower() == QLatin1String("vertical"))
+                    s.textFlow = box.value(QStringLiteral("mso-layout-flow-alt")).toLower() == QLatin1String("bottom-to-top") ? 2 : 1;
                 const QStringList in = t.attr(c, "inset").split(QLatin1Char(','));
                 if (!t.attr(c, "inset").isEmpty())
                     for (int i = 0; i < 4 && i < in.size(); ++i)

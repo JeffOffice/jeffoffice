@@ -2066,6 +2066,8 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
                 }
                 auto box = std::make_shared<TextItem>();
                 box->rect = QRectF(0, 0, s.width, s.height);
+                box->vertical = s.textFlow != 0;
+                box->turnedBack = s.textFlow == 2;
                 o.insets = QMarginsF(s.inset[0], s.inset[1], s.inset[2], s.inset[3]);
                 o.linkId = s.linkId;
                 o.linkSeq = s.linkSeq;
