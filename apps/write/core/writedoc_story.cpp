@@ -2128,6 +2128,9 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
                 lastObject = lid;
             }
     }
+    // An object set in the line stands as far above or below its baseline as the run's position says (w:position, in half points; a lowered object hangs below the baseline).
+    if (inlinePicture && !format->hasProperty(tp::InlineHangBelow) && format->intProperty(prop::Raised) != 0)
+        format->setProperty(tp::InlineHangBelow, std::clamp(-format->intProperty(prop::Raised) / 2.0, -1000.0, 1000.0));
     if (firstObject > 0) format->setProperty(flow::fp::AnchorId, firstObject);
     if (firstObject > 0 || inlinePicture || sawHidden) format->setProperty(tp::Field, QStringLiteral("raw:"));   // (the anchor shows nothing of its own)
     return firstObject > 0 || inlinePicture || sawHidden;

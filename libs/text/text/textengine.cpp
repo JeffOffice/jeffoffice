@@ -3762,7 +3762,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         box.size = QSizeF(sane(item->rect.width(), 20000), sane(item->rect.height(), 20000));
                         box.pad = QMarginsF(sane(item->wrap.left, 1000), sane(item->wrap.top, 1000), sane(item->wrap.right, 1000), sane(item->wrap.bottom, 1000));
                         // (How far it hangs below the baseline is the run's own, set by the program that sets such an object, never read from the item.)
-                        box.hangBelow = sane(cf.doubleProperty(tp::InlineHangBelow), 1000);
+                        box.hangBelow = std::isfinite(cf.doubleProperty(tp::InlineHangBelow)) ? std::clamp(cf.doubleProperty(tp::InlineHangBelow), -1000.0, 1000.0) : 0.0;   // (negative: the object stands raised)
                     }
                     QTextCharFormat of = rf;
                     of.setFontLetterSpacingType(QFont::AbsoluteSpacing);

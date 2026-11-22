@@ -1301,6 +1301,7 @@ private Q_SLOTS:
     void aLineIsNotBrokenAfterASlash();
     void aRuleAnchoredAtAParagraphsEndIsDrawnAsTheFileSaysIt();
     void aPictureIsCutKeyedAndBordered();
+    void aRaisedOrLoweredPictureInTheLineMovesTheLineByTheRun();
     void letteringOnAPathIsTextArtInTheShapesColors();
     void aHorizontalRuleIsAsWideAsItsShareOfTheText();
     void aShapeOfAKindIsThatShape();

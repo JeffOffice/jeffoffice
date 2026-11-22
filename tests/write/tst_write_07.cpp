@@ -68,6 +68,38 @@ void WriteTests::aPictureIsCutKeyedAndBordered()
 }
 
 
+// A run's position (w:position, in half points) raises or lowers an object set in its line: the line grows above its baseline by what the object is raised, and a lowered
+// object stands that far under the baseline, the line's room under it.
+void WriteTests::aRaisedOrLoweredPictureInTheLineMovesTheLineByTheRun()
+{
+    auto bodyOf = [&](const QByteArray &position) {
+        return "<w:p><w:r><w:t xml:space=\"preserve\">Before </w:t></w:r><w:r><w:rPr>" + position + "</w:rPr><w:pict " + QByteArray(kVml) +
+               "><v:shape id=\"p\" type=\"#_x0000_t75\" style=\"width:100pt;height:50pt\"><v:imagedata r:id=\"rIdPic\"/></v:shape></w:pict></w:r></w:p>";
+    };
+    auto height = [&](const QByteArray &position) {
+        auto doc = open(makeDocxWithPicture(bodyOf(position)));
+        if (!doc) return -1.0;
+        const auto lines = doc->pager().lines(0);
+        return lines.isEmpty() ? -1.0 : lines[0].rect.height();
+    };
+    const double plain = height(QByteArray());
+    const double raised = height("<w:position w:val=\"40\"/>");
+    const double lowered = height("<w:position w:val=\"-24\"/>");
+    const double deep = height("<w:position w:val=\"-200\"/>");
+    QVERIFY(plain > 50);
+    // (Raised 20 points, the object reaches 20 points higher above the baseline and nothing under it changes.)
+    QVERIFY2(std::abs(raised - plain - 20) < 0.3, qPrintable(QStringLiteral("plain %1, raised 20 points %2").arg(plain).arg(raised)));
+    // (Lowered 12 points, the object's bottom is 12 under the baseline, so the line is no taller than the object, where plain it is the object and the text's descent.)
+    QVERIFY2(lowered < plain - 0.5 && lowered > 49.9, qPrintable(QStringLiteral("plain %1, lowered 12 points %2").arg(plain).arg(lowered)));
+    // (Lowered 100 points, the line is the text's ascent above the baseline and the 100 under it.)
+    QVERIFY2(deep > 100 && deep < 100 + 0.5 * plain, qPrintable(QStringLiteral("lowered 100 points %1").arg(deep)));
+    // (The program's own save keeps the position as the file had it.)
+    auto saved = open(makeDocxWithPicture(bodyOf("<w:position w:val=\"-24\"/>")));
+    QVERIFY(saved);
+    QVERIFY(documentXml(saved->toDocx()).contains("<w:position w:val=\"-24\"/>"));
+}
+
+
 // Lettering on a path (a banner's text, the file's text on a path) is its text set to fill its frame, in the shape's colors, with the shadow it has.
 void WriteTests::letteringOnAPathIsTextArtInTheShapesColors()
 {
