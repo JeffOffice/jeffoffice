@@ -1,6 +1,7 @@
 #include "grid/printpaint.h"
 
 #include "grid/hfpicturecache.h"
+#include "grid/text.h"
 
 #include <QFontMetricsF>
 #include <QHash>
@@ -63,7 +64,7 @@ int &mostSheetTags()
 
 PagePainter::PagePainter(GridSheet *sheet) : m_sheet(sheet), m_painter(std::make_unique<GridPainter>(sheet))
 {
-    m_base.setFamily(QStringLiteral("Calibri"));
+    m_base.setFamily(drawFamily(QStringLiteral("Calibri")));
     m_base.setPointSizeF(11);
 }
 
@@ -86,7 +87,7 @@ void PagePainter::artifact(QPainter *p, bool on)
 
 void PagePainter::setBaseFont(const QString &family, double points)
 {
-    if (!family.isEmpty()) m_base.setFamily(family);
+    if (!family.isEmpty()) m_base.setFamily(drawFamily(family));
     if (points > 0) m_base.setPointSizeF(std::min(points, 409.0));
 }
 
@@ -385,7 +386,7 @@ void PagePainter::paintHeaderFooterText(QPainter *p, const QString &code, const 
                 piece.shift = 0;
                 if (run.superscript || run.subscript) size *= 0.65;
                 piece.font = m_base;
-                if (!run.font.isEmpty()) piece.font.setFamily(run.font);
+                if (!run.font.isEmpty()) piece.font.setFamily(drawFamily(run.font));
                 piece.font.setPixelSize(std::max(1, int(std::lround(size * U))));
                 piece.font.setBold(run.bold);
                 piece.font.setItalic(run.italic);

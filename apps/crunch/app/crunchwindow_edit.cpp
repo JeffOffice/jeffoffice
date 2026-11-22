@@ -35,6 +35,7 @@
 #include <QTextEdit>
 #include <QUndoStack>
 #include "app/plaintext.h"
+#include "grid/text.h"
 
 namespace jp {
 
@@ -307,7 +308,7 @@ void CrunchWindow::placeEditor()
     const grid::GridSheet &gs = m_view->sheet();
     const std::optional<grid::Cell> cell = gs.cellAt(m_edit.row, m_edit.col);
     const grid::CellLook &look = gs.looks().look(gs.styleOf(m_edit.row, m_edit.col, cell));
-    QFont f(look.family.isEmpty() ? m_view->font().family() : look.family);
+    QFont f(look.family.isEmpty() ? m_view->font().family() : grid::drawFamily(look.family));
     f.setPixelSize(std::max(9, int(std::lround(look.pointSize * 96.0 / 72.0 * (onPages ? m_pageView->zoom() : m_view->zoom())))));
     f.setBold(look.bold);
     f.setItalic(look.italic);

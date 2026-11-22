@@ -4,11 +4,14 @@
 // colors and on counts, never on the shape of a letter, so they hold on every system's fonts.
 #include <QRawFont>
 #include <QFontInfo>
+#include <QFontDatabase>
+#include <QGuiApplication>
 #include <QFontMetricsF>
 #include "core/fonts.h"
 #include "sheethelpers.h"
 
 #include "grid/painter.h"
+#include "grid/text.h"
 #include "grid/sparklinepaint.h"
 #include <QElapsedTimer>
 
@@ -842,7 +845,32 @@ private Q_SLOTS:
             f.build();
             return f.render(QRect(0, 0, 300, 40));
         };
-        QCOMPARE(drawn(QStringLiteral("No Such Family 7")), drawn(QStringLiteral("Arimo")));
+        // (whatever the machine's own default family is: set one that is not Arimo while drawing)
+        const QFont saved = QGuiApplication::font();
+        for (const QString &fam : QFontDatabase::families()) {
+            if (fam != QLatin1String("Arimo") && jp::familyInstalled(fam)) {
+                QGuiApplication::setFont(QFont(fam));
+                break;
+            }
+        }
+        QCOMPARE(jp::grid::drawFamily(QStringLiteral("No Such Family 7")), QStringLiteral("Arimo"));
+        const QImage unknown = drawn(QStringLiteral("No Such Family 7")), arimo = drawn(QStringLiteral("Arimo"));
+        QGuiApplication::setFont(saved);
+        QCOMPARE(unknown, arimo);
+    }
+
+    // An installed family that the program does not bundle is still drawn in itself.
+    void anInstalledFontIsDrawnInItself()
+    {
+        QString found;
+        for (const QString &fam : QFontDatabase::families()) {
+            if (jp::familyInstalled(fam) && !jp::bundledFamilies().contains(fam)) {
+                found = fam;
+                break;
+            }
+        }
+        if (found.isEmpty()) QSKIP("no installed family that is not bundled");
+        QCOMPARE(jp::grid::drawFamily(found), found);
     }
 
     void emptyTextsMissingFontsAndOtherScriptsAreDrawn()
