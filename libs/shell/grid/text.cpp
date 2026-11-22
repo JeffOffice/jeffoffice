@@ -42,7 +42,7 @@ Shown showValue(const jp::calc::Value &given, const CellLook &look, jp::calc::Da
         // A General number takes the characters the column holds in the cell's own font: the column's pixels less the 5 it keeps, by the width of one digit of that font
         // (not of the default font's digits, which the column's width in characters is counted in).
         int digit = int(std::lround(meter.width(QStringLiteral("0"), look)));
-        if (digit <= 0 || (maxDigitWidth > 0 && digit > maxDigitWidth)) digit = maxDigitWidth;   // (a column is made to hold its number by the default font's digits: a font of wider ones does not cut it)
+        if (digit <= 0) digit = maxDigitWidth;
         const jp::calc::Formatted f = look.format.format(v.number(), system, charsFor(fitWidth > 0 ? fitWidth : cellWidth, digit), symbols);
         s.text = f.text;
         if (f.color > 0) s.color = 0xFF000000u | jp::calc::formatColorRgb(f.color);

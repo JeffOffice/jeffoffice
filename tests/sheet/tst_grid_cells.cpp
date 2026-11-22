@@ -22,6 +22,11 @@ public:
     double width(const QString &text, const CellLook &) const override { return 6.0 * text.size(); }
 };
 
+class LargeFontMeter : public TextMeter {
+public:
+    double width(const QString &text, const CellLook &) const override { return 11.0 * text.size(); }
+};
+
 class FixedMeter : public TextMeter {
 public:
     double width(const QString &text, const CellLook &) const override { return 7.0 * text.size(); }
@@ -29,6 +34,7 @@ public:
 
 const FixedMeter kMeter;
 const SmallFontMeter kSmallFontMeter;
+const LargeFontMeter kLargeFontMeter;
 
 CellLook lookWithFormat(const QString &code, HAlign h = HAlign::General)
 {
@@ -313,6 +319,14 @@ private Q_SLOTS:
         // cell's and 9 of the default's
         s = showValue(jp::calc::Value::number(5.5653866129032261), CellLook(), jp::calc::DateSystem::Date1900, 73, 7, kSmallFontMeter);
         QCOMPARE(s.text, QStringLiteral("5.565386613"));
+        QVERIFY(!s.hashes);
+        // and a font of larger digits than the default's (11 pixels, as an 18-point font has) holds fewer: 64 pixels hold 5 of them, not the default's 8, so the number
+        // is cut to the digits that fit and is not filled with number signs
+        s = showValue(jp::calc::Value::number(3.14159265358979), CellLook(), jp::calc::DateSystem::Date1900, 64, 7, kLargeFontMeter);
+        QCOMPARE(s.text, QStringLiteral("3.142"));
+        QVERIFY(!s.hashes);
+        s = showValue(jp::calc::Value::number(3.14159265358979), CellLook(), jp::calc::DateSystem::Date1900, 64, 7, kSmallFontMeter);
+        QCOMPARE(s.text, QStringLiteral("3.1415927"));   // (59 pixels hold 9 digits of 6: more than the default's 8)
         QVERIFY(!s.hashes);
         // a page is drawn in the printer's pixels, wider than the screen's (70 and 64 here), and the digits that fit are those of the screen's column: 8, not 9
         s = showValue(jp::calc::Value::number(0.00045050066), CellLook(), jp::calc::DateSystem::Date1900, 70, 7, kMeter, nullptr, 64);
@@ -669,6 +683,31 @@ private Q_SLOTS:
     }
 
     // A cell's text is made once and kept; a change of values or formats makes the texts again, and the cache holds only as many as a screen shows.
+    // A column fitted to a number holds all its digits in the digits of the cell's own font: a font of wider digits than the default's makes it wider, and one of
+    // narrower digits makes it narrower.
+    void aFittedColumnHoldsTheNumberInTheDigitsOfItsFont()
+    {
+        Sheet sheet;
+        sheet.cells.add(numberCell(0, 0, 12345678901234.0));
+        sheet.cells.finish();
+        Styles styles;
+        styles.fonts = {FontSpec()};
+        styles.formats = {CellFormat()};
+        styles.cellXfs = {0};
+        GridData data;
+        data.styles = &styles;
+        data.sheet = &sheet;
+        const TextMeter *meters[] = {&kLargeFontMeter, &kMeter, &kSmallFontMeter};
+        const double digits[] = {11, 7, 6};
+        for (int i = 0; i < 3; ++i) {
+            GridSheet g;
+            g.setMeter(meters[i]);
+            g.setData(data);
+            const double pixels = g.fitWidthOfCell(0, 0) * LookTable(&styles).maxDigitWidth();   // (a width is in characters of the default font's digit)
+            QVERIFY2(pixels >= 5 + 14 * digits[i] && pixels < 5 + 14 * digits[i] + 8, qPrintable(QString::number(pixels)));
+        }
+    }
+
     void whatCellsSayIsMadeOnceAndKept()
     {
         Sheet sheet;

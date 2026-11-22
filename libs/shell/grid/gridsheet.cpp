@@ -91,12 +91,14 @@ double GridSheet::widthOfShown(double shown, int maxDigitWidth)
 namespace {
 
 // The width in pixels a cell's text needs, in a column wide enough for any text.
-// (A number is shown in as many digits as the column holds by the digit width of the cell's font, charsFor: the column must hold that many, or the number
-// falls back to a shorter form, whatever its font's digits measure.)
-double neededPixels(const Shown &s, const CellLook &look, int maxDigitWidth)
+// (A number is shown in as many digits as the column holds by the digit width of the cell's own font, charsFor: the column must hold that many of those digits, or the number
+// falls back to a shorter form.)
+double neededPixels(const Shown &s, const CellLook &look, int maxDigitWidth, const TextMeter &meter)
 {
     double need = s.width + 2 * kCellPadding + (look.indent > 0 ? look.indent * 9.0 : 0.0);
-    if (s.kind == Kind::Number && maxDigitWidth > 0) need = std::max(need, 5.0 + double(s.text.size()) * maxDigitWidth);
+    int digit = int(std::lround(meter.width(QStringLiteral("0"), look)));
+    if (digit <= 0) digit = maxDigitWidth;
+    if (s.kind == Kind::Number && digit > 0) need = std::max(need, 5.0 + double(s.text.size()) * digit);
     return need;
 }
 
@@ -109,7 +111,7 @@ double GridSheet::fitWidthOfCell(quint32 row, quint32 col) const
     const CellLook &look = lookOf(row, col, cell->style);
     const Shown s = showValue(valueOf(row, col, *cell), look, m_data.dateSystem, 1e9, m_looks.maxDigitWidth(), *m_meter, &m_symbols);
     if (s.kind == Kind::Empty || s.width <= 0) return 0;
-    return widthForPixels(int(std::ceil(neededPixels(s, look, m_looks.maxDigitWidth()))), m_looks.maxDigitWidth());
+    return widthForPixels(int(std::ceil(neededPixels(s, look, m_looks.maxDigitWidth(), *m_meter))), m_looks.maxDigitWidth());
 }
 
 double GridSheet::fitWidth(quint32 col, qint64 limit) const
@@ -126,7 +128,7 @@ double GridSheet::formulaPixels(quint32 row, quint32 col) const
     if (look.wrap) return 0;
     ++m_measured;
     const Shown s = showValue(jp::calc::Value::text(QLatin1Char('=') + displayFormula(m_data.sheet->formulaText(*cell))), look, m_data.dateSystem, 1e9, m_looks.maxDigitWidth(), *m_meter, &m_symbols);
-    return s.kind != Kind::Empty && s.width > 0 ? neededPixels(s, look, m_looks.maxDigitWidth()) : 0;
+    return s.kind != Kind::Empty && s.width > 0 ? neededPixels(s, look, m_looks.maxDigitWidth(), *m_meter) : 0;
 }
 
 double GridSheet::fitPixels(quint32 col, qint64 limit, bool formulasOnly) const
@@ -146,7 +148,7 @@ double GridSheet::fitPixels(quint32 col, qint64 limit, bool formulasOnly) const
         const bool formula = m_showFormulas && cell.hasFormula() && !m_data.sheet->formulaText(cell).isEmpty();
         const Shown s = showValue(formula ? jp::calc::Value::text(QLatin1Char('=') + displayFormula(m_data.sheet->formulaText(cell))) : valueOf(cellRow, cellCol, cell), look, m_data.dateSystem, 1e9,
                                   m_looks.maxDigitWidth(), *m_meter, &m_symbols);
-        if (s.kind != Kind::Empty && s.width > 0) widest = std::max(widest, neededPixels(s, look, m_looks.maxDigitWidth()));
+        if (s.kind != Kind::Empty && s.width > 0) widest = std::max(widest, neededPixels(s, look, m_looks.maxDigitWidth(), *m_meter));
         return true;
     });
     return widest;
