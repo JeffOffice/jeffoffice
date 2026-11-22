@@ -505,7 +505,11 @@ private Q_SLOTS:
         QTextCharFormat big;
         big.setFontPointSize(31);
         c.insertBlock(QTextBlockFormat(), big);
-        c.insertBlock(QTextBlockFormat(), cf);
+        QTextCharFormat mark = cf;
+        mark.setFontPointSize(33);
+        QTextBlockFormat marked;
+        marked.setProperty(jp::tp::EmptyLineMark, true);
+        c.insertBlock(marked, mark);
         c.insertText(QString(QChar::LineSeparator), cf);
         auto t = std::make_shared<TextItem>();
         t->rect = QRectF(0, 0, 400, 300);
@@ -540,6 +544,24 @@ private Q_SLOTS:
         QVERIFY(!back->lastBlock().text().isEmpty());
         // The empty paragraph, and the one that ends in a break (its empty last line is as tall as the paragraph mark).
         QCOMPARE(int(elementsNamed(r.spTree, "endParaRPr").size()), 2);
+    }
+
+    // A paragraph that ends in a break and has no mark of its own (the text alone sets the size) writes none, and reads back with none.
+    void dmlWriteBreakParagraphWithoutAMarkOfItsOwnWritesNone()
+    {
+        WriteRound r;
+        const QString id = r.addStory();
+        QTextCursor c(r.story(id));
+        QTextCharFormat big;
+        big.setFontPointSize(40);
+        c.setBlockCharFormat(big);
+        c.insertText(QStringLiteral("Hi") + QString(QChar::LineSeparator), big);
+        auto t = std::make_shared<TextItem>();
+        t->rect = QRectF(0, 0, 400, 300);
+        t->storyId = id;
+        QVERIFY2(r.run({t}), qPrintable(r.error));
+        QCOMPARE(int(elementsNamed(r.spTree, "endParaRPr").size()), 0);
+        QVERIFY(!r.storyOf(r.items[0])->firstBlock().blockFormat().boolProperty(jp::tp::EmptyLineMark));
     }
 
     void dmlWriteHyperlinksAreRelationshipsMadeOnce()

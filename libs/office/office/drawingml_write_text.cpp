@@ -530,8 +530,8 @@ void writeParagraph(QXmlStreamWriter &w, const QTextBlock &b, DrawingWriteContex
         if (f.isValid() && writeFragment(w, f.text(), f.charFormat(), ctx)) wrote = true;
         if (f.isValid() && !f.text().isEmpty()) endsInBreak = f.text().endsWith(QChar(QChar::LineSeparator));
     }
-    // The mark after the last letter says how tall an empty paragraph is, and an empty last line after a line break.
-    if (!wrote || endsInBreak) writeRunProperties(w, "a:endParaRPr", b.charFormat(), ctx, false);
+    // The mark after the last letter says how tall an empty paragraph is, and (where the paragraph has a mark of its own) an empty last line after a line break.
+    if (!wrote || (endsInBreak && b.blockFormat().boolProperty(tp::EmptyLineMark))) writeRunProperties(w, "a:endParaRPr", b.charFormat(), ctx, false);
     w.writeEndElement();
 }
 

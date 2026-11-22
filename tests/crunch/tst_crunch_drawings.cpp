@@ -20,6 +20,9 @@
 #include "office/xml.h"
 
 #include <QDir>
+#include <QImage>
+#include <QPainter>
+#include <QtSvg/QSvgRenderer>
 #include <QMenu>
 #include <QRegularExpression>
 #include <QSet>
@@ -348,6 +351,38 @@ class CrunchDrawingTests : public QObject {
 
 private Q_SLOTS:
     void initTestCase() { jp::initCore(); }
+
+    // A diagram's shape whose text ends in a line break, with a 40 point run and no end-of-paragraph mark: its empty last line is as tall as the run, so the
+    // first line sits where it does when a second line of the same size follows (the text is in the middle of the shape).
+    void aDiagramShapeEndingInALineBreakKeepsTheRunsSizeForTheEmptyLine()
+    {
+        const auto topInk = [](const QString &tail) {
+            const QString run = QStringLiteral("<a:rPr lang=\"en-US\" sz=\"4000\"><a:solidFill><a:srgbClr val=\"000000\"/></a:solidFill></a:rPr>");
+            const QString xml = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\"?><dsp:drawing xmlns:dgm=\"%1\" xmlns:dsp=\"%2\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">"
+                                               "<dsp:spTree><dsp:nvGrpSpPr><dsp:cNvPr id=\"0\" name=\"\"/><dsp:cNvGrpSpPr/></dsp:nvGrpSpPr><dsp:grpSpPr/>"
+                                               "<dsp:sp modelId=\"{AAAAAAAA-0000-4000-8000-000000000001}\"><dsp:nvSpPr><dsp:cNvPr id=\"0\" name=\"\"/><dsp:cNvSpPr/></dsp:nvSpPr>"
+                                               "<dsp:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"3657600\" cy=\"2743200\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom><a:noFill/></dsp:spPr>"
+                                               "<dsp:txBody><a:bodyPr lIns=\"0\" tIns=\"0\" rIns=\"0\" bIns=\"0\" anchor=\"ctr\"><a:noAutofit/></a:bodyPr><a:lstStyle/>"
+                                               "<a:p><a:pPr algn=\"ctr\"/><a:r>%3<a:t>HHH</a:t></a:r><a:br>%3</a:br>%4</a:p></dsp:txBody><dsp:txXfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"3657600\" cy=\"2743200\"/></dsp:txXfrm></dsp:sp>"
+                                               "</dsp:spTree></dsp:drawing>")
+                                    .arg(diagramtest::dgmNs(), diagramtest::dspNs(), run, tail);
+            const QByteArray svg = jp::diagramDrawingSvg(xml.toUtf8(), QStringLiteral("/xl/drawings/drawing1.xml"), nullptr, office::Theme(), QSizeF(288, 216), QSizeF(288, 216), nullptr, nullptr);
+            QImage img(288, 216, QImage::Format_ARGB32);
+            img.fill(Qt::white);
+            QSvgRenderer r(svg);
+            QPainter p(&img);
+            r.render(&p);
+            p.end();
+            for (int y = 0; y < img.height(); ++y)
+                for (int x = 0; x < img.width(); ++x)
+                    if (qGray(img.pixel(x, y)) < 100) return y;
+            return -1;
+        };
+        const int alone = topInk(QString());
+        const int followed = topInk(QStringLiteral("<a:r><a:rPr lang=\"en-US\" sz=\"4000\"><a:solidFill><a:srgbClr val=\"FFFFFF\"/></a:solidFill></a:rPr><a:t>H</a:t></a:r>"));
+        QVERIFY(alone > 0 && followed > 0);
+        QVERIFY2(qAbs(alone - followed) <= 1, qPrintable(QString::number(alone) + QStringLiteral(" vs ") + QString::number(followed)));
+    }
 
     // The objects of the sheet in view are made between events after it is shown, put where their anchors say, over the cells.
     void objectsAreShownOverTheCells()

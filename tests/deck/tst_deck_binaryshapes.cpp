@@ -732,6 +732,36 @@ private Q_SLOTS:
         QVERIFY2(qAbs(lines[1].rect.height() - 1.2 * 20) < 0.5, qPrintable(QString::number(lines[1].rect.height())));
     }
 
+    // A paragraph of a newer-format file with a 40 point run and a line break at its end, and no end-of-paragraph mark: the empty last line is as tall
+    // as the run (the paragraph's own size), as it was before the mark was read for it.
+    void newerFormatEmptyLastLineWithoutAMarkKeepsTheRunsSize()
+    {
+        // (A mark the file does give, of 20 points, sets the empty line: 24 points tall.)
+        for (const QString &brk : {QStringLiteral("<a:br><a:rPr lang=\"en-US\" sz=\"4000\"/></a:br>"), QStringLiteral("<a:br/>"),
+                                   QStringLiteral("<a:br/><a:endParaRPr lang=\"en-US\" sz=\"2000\"/>")}) {
+            Parts p = samplePptx();
+            QString xml = QString::fromUtf8(p.data["/ppt/slides/slide1.xml"].xml);
+            xml.replace(QStringLiteral("</p:spTree>"),
+                        QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"30\" name=\"Broken\"/><p:cNvSpPr txBox=\"1\"/><p:nvPr/></p:nvSpPr><p:spPr>") + xfrm(0, 0, 4572000, 2743200)
+                            + QStringLiteral("</p:spPr><p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang=\"en-US\" sz=\"4000\"/><a:t>Hi</a:t></a:r>") + brk
+                            + QStringLiteral("</a:p></p:txBody></p:sp></p:spTree>"));
+            p.data["/ppt/slides/slide1.xml"].xml = xml.toUtf8();
+            QString err;
+            auto d = deck::importPresentation(pack(p), &err);
+            QVERIFY2(d, qPrintable(err));
+            const TextItem *box = nullptr;
+            for (const auto &it : d->pages[0]->items)
+                if (it->name == QLatin1String("Broken")) box = static_cast<const TextItem *>(it.get());
+            QVERIFY(box);
+            LayoutCache cache;
+            const auto lines = cache.textFrame(*d, *box, 1, RenderOptions()).layout->lineInfo(0);
+            QCOMPARE(int(lines.size()), 2);
+            QVERIFY2(qAbs(lines[0].rect.height() - 1.2 * 40) < 0.5, qPrintable(QString::number(lines[0].rect.height())));
+            const double wanted = brk.contains(QLatin1String("endParaRPr")) ? 1.2 * 20 : lines[0].rect.height();
+            QVERIFY2(qAbs(lines[1].rect.height() - wanted) < 0.5, qPrintable(brk + QStringLiteral(" ") + QString::number(lines[1].rect.height())));
+        }
+    }
+
     // Saved through the window under a new name and opened again, that empty last line is still the paragraph mark's size.
     void emptyLastLineKeepsTheParagraphMarksSizeThroughTheWindowsSave()
     {

@@ -931,6 +931,8 @@ void Reader::paragraph(const QDomElement &p)
             }
     }
     if (!tabs.isEmpty()) bf.setTabPositions(tabs);
+    // A mark of its own sizes the empty last line after a line break.
+    if (!firstChild(p, QLatin1String("endParaRPr")).isNull()) bf.setProperty(tp::EmptyLineMark, true);
 
     if (m_first) {
         m_cursor.setBlockFormat(bf);

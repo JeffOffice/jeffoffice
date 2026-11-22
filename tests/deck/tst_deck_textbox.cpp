@@ -111,6 +111,48 @@ private Q_SLOTS:
         QVERIFY(std::abs(box->rect.left() - 100) < 3);
     }
 
+    // Typed in the program: 40 point text, then Shift+Enter, in the order a person does it (the size first, or the text first and then selected).
+    // The empty last line is as tall as the text.
+    void typedLargeTextThenShiftEnterLeavesALargeEmptyLine()
+    {
+        for (const bool sizeFirst : {true, false}) {
+            DeckWindow w;
+            w.resize(1200, 800);
+            w.show();
+            QVERIFY(QTest::qWaitForWindowExposed(&w));
+            Editor *ed = w.editor();
+            ed->setDocument(oneSlide());
+            w.act(QStringLiteral("insert.textBox"))->trigger();
+            drag(w, QPointF(100, 100), QPointF(500, 300));
+            TextItem *box = textBoxOf(ed);
+            QVERIFY(box);
+            QVERIFY(ed->isEditingText());
+            w.canvas()->setFocus();
+            if (sizeFirst) {
+                ed->setFontSize(40);
+                ed->typeText(QStringLiteral("Hi"));
+            } else {
+                ed->typeText(QStringLiteral("Hi"));
+                QTextCursor all = ed->cursor();
+                all.select(QTextCursor::BlockUnderCursor);
+                all.movePosition(QTextCursor::StartOfBlock);
+                all.movePosition(QTextCursor::EndOfBlock, QTextCursor::KeepAnchor);
+                ed->setCursor(all);
+                ed->setFontSize(40);
+                QTextCursor end = ed->cursor();
+                end.movePosition(QTextCursor::EndOfBlock);
+                ed->setCursor(end);
+            }
+            QTest::keyClick(w.canvas(), Qt::Key_Return, Qt::ShiftModifier);
+            ed->endTextEdit();
+            LayoutCache cache;
+            const auto lines = cache.textFrame(*ed->doc(), *box, 1, RenderOptions()).layout->lineInfo(0);
+            QCOMPARE(int(lines.size()), 2);
+            QVERIFY2(qAbs(lines[0].rect.height() - 1.2 * 40) < 0.5, qPrintable(QString::number(lines[0].rect.height())));
+            QVERIFY2(qAbs(lines[1].rect.height() - lines[0].rect.height()) < 0.5, qPrintable(QString::number(sizeFirst) + QStringLiteral(" ") + QString::number(lines[1].rect.height())));
+        }
+    }
+
     void escapeAndAnotherToolPutTheTextBoxToolDown()
     {
         DeckWindow w;

@@ -132,6 +132,7 @@ enum : int {
     BulletPicture,                               // QByteArray (list format): the bytes of the picture (PNG or JPEG) that is the bullet (a word processor's picture bullet), drawn in place of the marker's character (LayoutEnv::wordLines)
     DirectProps,                                 // QString (char and block formats): the properties the text was given by hand, ",id,id," (the rest come from its style: a style change reaches them)
     BarTabs,                                     // QString (block): the places, in points from the text area's edge and separated by spaces, of a word processor's bar tab stops: a vertical line on each line of the paragraph (LayoutEnv::wordLines)
+    EmptyLineMark,                               // bool (block): the file gave the paragraph's end mark a text format of its own, and an empty last line after a line break is as tall as it (LayoutEnv::slideLines); layout only
 };
 
 // How tracked changes are shown in the lines (LayoutEnv::revisionView, and the same number as the story's property kRevisionViewProperty, which the places that have no environment

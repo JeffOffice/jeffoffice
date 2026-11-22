@@ -2792,10 +2792,12 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
         // (A paragraph that ends in a line break has an empty last line, which is as tall as the paragraph mark's text: the run that holds the
         // mark, not the one the paragraph starts in, sets it; [MS-PPT] 2.9.44 and the text body's terminating paragraph break.)
         Cf markCf = first;
+        bool markOwn = false;
         if (end > start && text.at(qsizetype(end - 1)) == QChar(0x0B))
             if (const int i = cfIndex.at(end); i >= 0) {
                 markCf = base.cf;
                 mergeCf(markCf, g.cf.at(i).cf);
+                markOwn = true;
             }
         const QTextCharFormat blockFormat = charFormat(markCf, ctx);
         QTextBlockFormat bf;
@@ -2826,6 +2828,7 @@ QString Importer::buildStory(const TextGroup &g, int type, const TextCtx &ctx)
             }
             bf.setTabPositions(tabs);
         }
+        if (markOwn) bf.setProperty(tp::EmptyLineMark, true);
         if (firstBlock) {
             cur.setBlockFormat(bf);
             cur.setBlockCharFormat(blockFormat);
