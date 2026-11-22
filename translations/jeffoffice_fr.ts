@@ -16363,7 +16363,7 @@ Ouvrez-le dans votre logiciel de messagerie, ajoutez les destinataires et envoye
         <translation type="unfinished">Automatique</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/slideshow.cpp" line="+2506"/>
+        <location filename="../apps/deck/app/slideshow.cpp" line="+2514"/>
         <source>Screen %1</source>
         <translation type="unfinished">Écran %1</translation>
     </message>

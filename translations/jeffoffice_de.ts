@@ -16363,7 +16363,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">Automatisch</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/slideshow.cpp" line="+2506"/>
+        <location filename="../apps/deck/app/slideshow.cpp" line="+2514"/>
         <source>Screen %1</source>
         <translation type="unfinished">Bildschirm %1</translation>
     </message>

@@ -16363,7 +16363,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <translation type="unfinished">Automatisch</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/slideshow.cpp" line="+2506"/>
+        <location filename="../apps/deck/app/slideshow.cpp" line="+2514"/>
         <source>Screen %1</source>
         <translation type="unfinished">Scherm %1</translation>
     </message>

@@ -16346,7 +16346,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
         <translation type="unfinished">Otomatis</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/slideshow.cpp" line="+2506"/>
+        <location filename="../apps/deck/app/slideshow.cpp" line="+2514"/>
         <source>Screen %1</source>
         <translation type="unfinished">Layar %1</translation>
     </message>

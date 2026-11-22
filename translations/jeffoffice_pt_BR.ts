@@ -16363,7 +16363,7 @@ Abra-o no seu programa de email, adicione os destinatários e envie.</translatio
         <translation>Automático</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/slideshow.cpp" line="+2506"/>
+        <location filename="../apps/deck/app/slideshow.cpp" line="+2514"/>
         <source>Screen %1</source>
         <translation type="unfinished">Tela %1</translation>
     </message>

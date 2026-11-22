@@ -16380,7 +16380,7 @@ Open it in your email program, add recipients and send.</source>
         <translation>Автоматически</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/slideshow.cpp" line="+2506"/>
+        <location filename="../apps/deck/app/slideshow.cpp" line="+2514"/>
         <source>Screen %1</source>
         <translation type="unfinished">Экран %1</translation>
     </message>
