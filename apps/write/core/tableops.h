@@ -126,6 +126,7 @@ bool moveTable(WriteDoc &doc, QTextCursor &c, int tablePosition, int to);
 // Moves the table the caret is in up past the paragraph before it, or down past the one after it (the keyboard's way of moving a table). One step that undoes; the table is
 // selected afterward. False (and `tableNotice` says why) when there is no paragraph outside a table in that direction.
 bool moveTableByParagraph(WriteDoc &doc, QTextCursor &c, bool up);
+bool canMoveTableByParagraph(WriteDoc &doc, const QTextCursor &c, bool up);
 
 // The cells the selection covers are made one (the text of each in turn; empty cells add no paragraph), or one cell is made columns by rows cells.
 bool canMergeCells(WriteDoc &doc, const QTextCursor &c);

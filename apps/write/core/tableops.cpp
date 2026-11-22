@@ -1706,25 +1706,39 @@ bool moveTable(WriteDoc &doc, QTextCursor &c, int tablePosition, int to)
     return true;
 }
 
-bool moveTableByParagraph(WriteDoc &doc, QTextCursor &c, bool up)
+namespace {
+// The place before which the table the caret is in would go if it moved past a paragraph up or down (-1: there is none), and the place of the table's first paragraph.
+int tableStepTarget(WriteDoc &doc, const QTextCursor &c, bool up, int *firstPosition)
 {
     QTextDocument *story = doc.story();
-    doc.tableNotice.clear();
     QTextBlock first = story->findBlock(c.position()), last = first;
-    if (!inTable(first)) return false;
+    if (!inTable(first)) return -1;
     while (first.previous().isValid() && inTable(first.previous())) first = first.previous();
     while (last.next().isValid() && inTable(last.next())) last = last.next();
-    int target = -1;
-    if (up) {
-        if (first.previous().isValid()) target = first.previous().position();
-    } else if (last.next().isValid() && last.next().next().isValid()) {
-        QTextBlock after = last.next().next();
-        while (inTable(after) && after.previous().isValid() && inTable(after.previous()) && after.previous() != last.next()) after = after.previous();
-        target = after.position();
-    }
+    *firstPosition = first.position();
+    if (up) return first.previous().isValid() ? first.previous().position() : -1;
+    if (!last.next().isValid() || !last.next().next().isValid()) return -1;
+    QTextBlock after = last.next().next();
+    while (inTable(after) && after.previous().isValid() && inTable(after.previous()) && after.previous() != last.next()) after = after.previous();
+    return after.position();
+}
+} // namespace
+
+bool canMoveTableByParagraph(WriteDoc &doc, const QTextCursor &c, bool up)
+{
+    int first = 0;
+    return tableStepTarget(doc, c, up, &first) >= 0;
+}
+
+bool moveTableByParagraph(WriteDoc &doc, QTextCursor &c, bool up)
+{
+    doc.tableNotice.clear();
+    int first = 0;
+    const int target = tableStepTarget(doc, c, up, &first);
+    if (!inTable(doc.story()->findBlock(c.position()))) return false;
     if (target < 0) return refuse(doc, up ? QCoreApplication::translate("jp::write::Tables", "There is no paragraph above the table to move it past.")
                                            : QCoreApplication::translate("jp::write::Tables", "There is no paragraph below the table to move it past."));
-    return moveTable(doc, c, first.position(), target);
+    return moveTable(doc, c, first, target);
 }
 
 bool paintBorderEdges(WriteDoc &doc, const QVector<BorderEdge> &edges, const flow::TableLine &line)
