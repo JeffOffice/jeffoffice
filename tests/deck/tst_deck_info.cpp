@@ -925,6 +925,22 @@ private Q_SLOTS:
         QVERIFY2(kinds[0].contains(QLatin1String(".odp")) && kinds[1].contains(QLatin1String(".otp")), qPrintable(kinds.join(QLatin1Char('|'))));
     }
 
+    // The real box, every kind picked in it.
+    void everyKindCanBePickedInTheRealBox()
+    {
+        DeckWindow a;
+        Quiet quiet(a);
+        a.editor()->setDocument(sample());
+        const jp::CompatHost host = a.compatHost();
+        jp::CompatibilityDialog box(host, 0, nullptr);
+        QCOMPARE(box.formatCount(), 2);
+        for (int kind = 0; kind < box.formatCount(); ++kind) {
+            box.choose(kind);
+            QVERIFY(!box.working());
+            QVERIFY2(box.reportText().contains(host.formats[kind].format) && !box.reportText().startsWith(QLatin1String("Couldn't check")), qPrintable(box.reportText()));
+        }
+    }
+
     // The list the .odp writer builds is bounded where it is built: a hundred and fifty slides with a frame that can't be read are one line each up to the bound, then one line that counts the rest.
     void theOdpListIsBoundedWhereItIsBuiltAndTheBoxSaysHowManyMore()
     {

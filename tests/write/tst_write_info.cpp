@@ -881,6 +881,23 @@ private Q_SLOTS:
         QVERIFY(!b.alwaysOpensReadOnly());
     }
 
+    // The real box, every kind picked in it.
+    void everyKindCanBePickedInTheRealBox()
+    {
+        WriteWindow a;
+        Quiet quiet(a);
+        typeText(*a.document(), a.view()->cursor(), QStringLiteral("Words"));
+        const CompatHost host = a.compatHost();
+        CompatibilityDialog box(host, 0, nullptr);
+        QCOMPARE(box.formatCount(), 3);
+        for (int kind = 0; kind < box.formatCount(); ++kind) {
+            box.choose(kind);
+            QVERIFY(!box.working());
+            QVERIFY2(box.reportText().contains(host.formats[kind].format) && !box.reportText().startsWith(QLatin1String("Couldn't check")), qPrintable(box.reportText()));
+        }
+        QVERIFY(box.reportText().contains(QLatin1String("fonts")));   // (the .txt kind lists what it keeps no part of)
+    }
+
     // A password stops an .rtf or a .txt save, and the box says that, in the words of the save's own notice (not as something lost); the .odt kind, which holds one, does not.
     void checkCompatibilitySaysAPasswordStopsRtfAndTxtAndTheSaveAgrees()
     {
