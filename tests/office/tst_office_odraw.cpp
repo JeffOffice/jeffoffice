@@ -68,7 +68,7 @@ class OfficeOdrawTests : public QObject {
     static QByteArray odWmfRecord(quint16 fn, const QByteArray &params) { return odU32(quint32(3 + params.size() / 2)) + odU16(fn) + params; }
     // A picture of one rectangle over the whole window, filled with the color `fill` (its top byte is the palette flag), after the palettes
     // given (each a list of colors) are made and the one numbered `select` is selected.
-    static QByteArray odPaletteWmf(const QVector<QVector<QRgb>> &palettes, int select, quint32 fill)
+    static QByteArray odPaletteWmf(const QVector<QVector<QRgb>> &palettes, int select, quint32 fill, const QByteArray &changes = QByteArray())
     {
         QByteArray w = odWmfRecord(0x020C, odU16(100) + odU16(100)) + odWmfRecord(0x020B, odU16(0) + odU16(0));
         for (const auto &colors : palettes) {
@@ -77,6 +77,7 @@ class OfficeOdrawTests : public QObject {
             w += odWmfRecord(0x00F7, entries);
         }
         w += odWmfRecord(0x0234, odU16(quint16(select)));
+        w += changes;   // (records that change the palette selected, as written after it is selected)
         w += odWmfRecord(0x02FC, odU16(0) + odU32(fill) + odU16(0));   // a solid brush
         w += odWmfRecord(0x02FA, odU16(5) + odU16(0) + odU16(0) + odU32(0));   // a pen that draws nothing
         w += odWmfRecord(0x012D, odU16(quint16(palettes.size())));   // (the brush: the object after the palettes)
@@ -86,6 +87,44 @@ class OfficeOdrawTests : public QObject {
         QByteArray head = odU16(1) + odU16(9) + odU16(0x300) + odU32(quint32((18 + w.size()) / 2)) + odU16(quint16(palettes.size() + 2)) + odU32(20) + odU16(0);
         return head + w;
     }
+    // Palette entries as written in a record: red, green, blue, and flags.
+    static QByteArray odPalEntries(const QVector<QRgb> &colors)
+    {
+        QByteArray e;
+        for (QRgb c : colors) e += QByteArray(1, char(qRed(c))) + QByteArray(1, char(qGreen(c))) + QByteArray(1, char(qBlue(c))) + QByteArray(1, '\0');
+        return e;
+    }
+    // An enhanced-form record: its type, its size in bytes, then its parameters.
+    static QByteArray odEmfRecord(quint32 type, const QByteArray &params) { return odU32(type) + odU32(quint32(8 + params.size())) + params; }
+    // A picture of one rectangle over the whole of it, filled with the color `fill`, after the records in `before` (which make and change palettes).
+    static QByteArray odPaletteEmf(const QByteArray &before, quint32 fill)
+    {
+        QByteArray head = odU32(1) + odU32(88) + odU32(0) + odU32(0) + odU32(99) + odU32(99) + odU32(0) + odU32(0) + odU32(2646) + odU32(2646);
+        head += odU32(0x464D4520u) + odU32(0x10000) + odU32(0) + odU32(0) + odU16(0) + odU16(0) + odU32(0) + odU32(0) + odU32(0);
+        head += odU32(0) + odU32(0) + odU32(0) + odU32(0);
+        QByteArray w = head + before;
+        w += odEmfRecord(39, odU32(10) + odU32(0) + odU32(fill) + odU32(0));   // a solid brush
+        w += odEmfRecord(37, odU32(10));
+        w += odEmfRecord(37, odU32(0x80000008u));   // the stock pen that draws nothing
+        w += odEmfRecord(43, odU32(0) + odU32(0) + odU32(100) + odU32(100));
+        w += odEmfRecord(14, odU32(0) + odU32(0) + odU32(0));
+        return w;
+    }
+    static QByteArray odEmfCreatePalette(quint32 ih, const QVector<QRgb> &colors, int declared = -1)
+    {
+        return odEmfRecord(49, odU32(ih) + odU16(0x300) + odU16(quint16(declared < 0 ? colors.size() : declared)) + odPalEntries(colors));
+    }
+    static QByteArray odEmfPaletteEntries(quint32 type, quint32 ih, quint32 start, const QVector<QRgb> &colors, int declared = -1)
+    {
+        return odEmfRecord(type, odU32(ih) + odU32(start) + odU32(quint32(declared < 0 ? colors.size() : declared)) + odPalEntries(colors));
+    }
+    static QByteArray odEmfSelectPalette(quint32 ih) { return odEmfRecord(48, odU32(ih)); }
+    static QByteArray odEmfResizePalette(quint32 ih, quint32 n) { return odEmfRecord(51, odU32(ih) + odU32(n)); }
+    static QByteArray odWmfPaletteEntries(quint16 fn, quint16 start, const QVector<QRgb> &colors, int declared = -1)
+    {
+        return odWmfRecord(fn, odU16(start) + odU16(quint16(declared < 0 ? colors.size() : declared)) + odPalEntries(colors));
+    }
+    static QByteArray odWmfResizePalette(quint16 n) { return odWmfRecord(0x0139, odU16(n)); }
     static QColor odMiddleOf(const QByteArray &wmf)
     {
         jp::Metafile mf;
@@ -555,6 +594,81 @@ private Q_SLOTS:
         QVERIFY(at > 0);
         w.replace(at + 2, 2, odU16(60000));
         QCOMPARE(odMiddleOf(w), QColor(255, 0, 0));
+    }
+
+    // The enhanced form names palette entries too: a palette made and selected by handle, with the same rules for an index past the end or no
+    // palette selected. Fails when off: yes (the middle is then the dark red of 0x000001).
+    void metafileEnhancedColorsNameEntriesOfTheSelectedPalette()
+    {
+        const QVector<QRgb> three{qRgb(255, 0, 0), qRgb(0, 255, 0), qRgb(0, 0, 255)};
+        const QByteArray made = odEmfCreatePalette(1, three) + odEmfSelectPalette(1);
+        QCOMPARE(odMiddleOf(odPaletteEmf(made, 0x01000001)), QColor(0, 255, 0));
+        QCOMPARE(odMiddleOf(odPaletteEmf(made, 0x01000002)), QColor(0, 0, 255));
+        QCOMPARE(odMiddleOf(odPaletteEmf(made, 0x01000007)), QColor(7, 0, 0));
+        QCOMPARE(odMiddleOf(odPaletteEmf(odEmfCreatePalette(1, three), 0x01000001)), QColor(1, 0, 0));   // none selected
+        QCOMPARE(odMiddleOf(odPaletteEmf(odEmfCreatePalette(1, three) + odEmfSelectPalette(2), 0x01000001)), QColor(1, 0, 0));   // no such palette
+    }
+
+    // Records that change a palette after it is made, in the enhanced form: set entries (and animate, treated alike), and resize. Entries past
+    // the palette's end are not written, a count beyond the record reads what the record holds, and a palette made larger is black in its new
+    // entries. Fails when off: yes (each color then stays what it was made).
+    void metafileEnhancedPaletteChanges()
+    {
+        const QVector<QRgb> three{qRgb(255, 0, 0), qRgb(0, 255, 0), qRgb(0, 0, 255)};
+        const QByteArray made = odEmfCreatePalette(1, three) + odEmfSelectPalette(1);
+        QCOMPARE(odMiddleOf(odPaletteEmf(made + odEmfPaletteEntries(50, 1, 1, {qRgb(9, 8, 7)}), 0x01000001)), QColor(9, 8, 7));
+        QCOMPARE(odMiddleOf(odPaletteEmf(made + odEmfPaletteEntries(78, 1, 2, {qRgb(1, 2, 3)}), 0x01000002)), QColor(1, 2, 3));
+        // entries run from the start given; the one past the end is not written (the palette does not grow)
+        QCOMPARE(odMiddleOf(odPaletteEmf(made + odEmfPaletteEntries(50, 1, 2, {qRgb(5, 5, 5), qRgb(6, 6, 6)}), 0x01000003)), QColor(3, 0, 0));
+        QCOMPARE(odMiddleOf(odPaletteEmf(made + odEmfPaletteEntries(50, 1, 2, {qRgb(5, 5, 5), qRgb(6, 6, 6)}), 0x01000002)), QColor(5, 5, 5));
+        // a start past the end, and a handle that is no palette, change nothing
+        QCOMPARE(odMiddleOf(odPaletteEmf(made + odEmfPaletteEntries(50, 1, 0xFFFFFFFFu, {qRgb(5, 5, 5)}), 0x01000000)), QColor(255, 0, 0));
+        QCOMPARE(odMiddleOf(odPaletteEmf(made + odEmfPaletteEntries(50, 7, 0, {qRgb(5, 5, 5)}), 0x01000000)), QColor(255, 0, 0));
+        // a count beyond what the record holds
+        QCOMPARE(odMiddleOf(odPaletteEmf(made + odEmfPaletteEntries(50, 1, 0, {qRgb(4, 4, 4)}, 60000), 0x01000000)), QColor(4, 4, 4));
+        QCOMPARE(odMiddleOf(odPaletteEmf(made + odEmfPaletteEntries(50, 1, 0, {qRgb(4, 4, 4)}, 60000), 0x01000001)), QColor(0, 255, 0));
+        // resize: larger (new entries black, old kept), then smaller (the entries past the new end are gone)
+        QCOMPARE(odMiddleOf(odPaletteEmf(made + odEmfResizePalette(1, 5), 0x01000004)), QColor(0, 0, 0));
+        QCOMPARE(odMiddleOf(odPaletteEmf(made + odEmfResizePalette(1, 5) + odEmfPaletteEntries(50, 1, 4, {qRgb(7, 7, 7)}), 0x01000004)), QColor(7, 7, 7));
+        QCOMPARE(odMiddleOf(odPaletteEmf(made + odEmfResizePalette(1, 5), 0x01000001)), QColor(0, 255, 0));
+        QCOMPARE(odMiddleOf(odPaletteEmf(made + odEmfResizePalette(1, 1), 0x01000001)), QColor(1, 0, 0));
+    }
+
+    // The 16-bit form's records that change the palette selected: set entries (0x0037), animate (0x0436), and resize (0x0139). Fails when off: yes.
+    void metafilePaletteChanges()
+    {
+        const QVector<QVector<QRgb>> one{{qRgb(255, 0, 0), qRgb(0, 255, 0), qRgb(0, 0, 255)}};
+        auto middle = [&](const QByteArray &changes, quint32 fill) { return odMiddleOf(odPaletteWmf(one, 0, fill, changes)); };
+        QCOMPARE(middle(odWmfPaletteEntries(0x0037, 1, {qRgb(9, 8, 7)}), 0x01000001), QColor(9, 8, 7));
+        QCOMPARE(middle(odWmfPaletteEntries(0x0436, 0, {qRgb(1, 2, 3)}), 0x01000000), QColor(1, 2, 3));
+        QCOMPARE(middle(odWmfPaletteEntries(0x0037, 2, {qRgb(5, 5, 5), qRgb(6, 6, 6)}), 0x01000003), QColor(3, 0, 0));   // not written past the end
+        QCOMPARE(middle(odWmfPaletteEntries(0x0037, 9, {qRgb(5, 5, 5)}), 0x01000000), QColor(255, 0, 0));   // a start past the end
+        QCOMPARE(middle(odWmfPaletteEntries(0x0037, 0, {qRgb(4, 4, 4)}, 60000), 0x01000000), QColor(4, 4, 4));   // a count beyond the record
+        QCOMPARE(middle(odWmfPaletteEntries(0x0037, 0, {qRgb(4, 4, 4)}, 60000), 0x01000001), QColor(0, 255, 0));
+        QCOMPARE(middle(odWmfResizePalette(5), 0x01000004), QColor(0, 0, 0));
+        QCOMPARE(middle(odWmfResizePalette(5), 0x01000001), QColor(0, 255, 0));
+        QCOMPARE(middle(odWmfResizePalette(1), 0x01000001), QColor(1, 0, 0));
+    }
+
+    // Changes count against the same limits: a palette is at most 1,024 entries however far it is resized, and growing counts against the
+    // picture's 16,384: after sixteen palettes of 1,024 are read, a seventeenth cannot grow. Fails when off: yes (the entry is then red).
+    void metafilePaletteChangesAreLimited()
+    {
+        const QVector<QRgb> red{qRgb(255, 0, 0)};
+        const QByteArray made = odEmfCreatePalette(1, red) + odEmfSelectPalette(1);
+        // 1,024 at most: entry 1,023 can be written, and entry 1,024 is past the end
+        const QByteArray big = made + odEmfResizePalette(1, 60000);
+        QCOMPARE(odMiddleOf(odPaletteEmf(big + odEmfPaletteEntries(50, 1, 1023, {qRgb(7, 7, 7)}), 0x010003FF)), QColor(7, 7, 7));
+        QCOMPARE(odMiddleOf(odPaletteEmf(big + odEmfPaletteEntries(50, 1, 1024, {qRgb(7, 7, 7)}), 0x01000400)), QColor(0, 4, 0));
+        // the picture's budget
+        QByteArray spent;
+        for (quint32 i = 0; i < 16; ++i) spent += odEmfCreatePalette(i + 1, QVector<QRgb>(1024, qRgb(1, 1, 1)));
+        spent += odEmfCreatePalette(20, red) + odEmfSelectPalette(20) + odEmfResizePalette(20, 5) + odEmfPaletteEntries(50, 20, 0, {qRgb(255, 0, 0)});
+        QCOMPARE(odMiddleOf(odPaletteEmf(spent, 0x01000000)), QColor(0, 0, 0));
+        // and the same for the 16-bit form
+        QVector<QVector<QRgb>> many(16, QVector<QRgb>(1024, qRgb(1, 1, 1)));
+        many << QVector<QRgb>{};
+        QCOMPARE(odMiddleOf(odPaletteWmf(many, 16, 0x01000000, odWmfResizePalette(5) + odWmfPaletteEntries(0x0037, 0, {qRgb(255, 0, 0)}))), QColor(0, 0, 0));
     }
 
     void odrawBlipInflatesMetafiles()

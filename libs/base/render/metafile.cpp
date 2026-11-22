@@ -88,7 +88,7 @@ struct DC {
     int mapMode = 1;
     QTransform world;
     int arcDir = 1;   // 1 counter-clockwise, 2 clockwise
-    QVector<QColor> palette;   // the logical palette selected, whose entries a color made with the palette flag names
+    int palette = -1;   // the object number of the logical palette selected, whose entries a color made with the palette flag names
 };
 
 QPen makePen(quint32 style, double width, const QColor &c)
@@ -216,8 +216,58 @@ private:
     // palette is selected, is the color its three low bytes give.
     QColor col(quint32 v) const
     {
-        if ((v >> 24) == 1 && (v & 0xFFFF) < quint32(m_dc.palette.size())) return mapped(m_dc.palette[int(v & 0xFFFF)]);
+        if ((v >> 24) == 1) {
+            const Obj *o = paletteObj(quint32(m_dc.palette));
+            if (o && (v & 0xFFFF) < quint32(o->palette.size())) return mapped(o->palette[int(v & 0xFFFF)]);
+        }
         return mapped(colorRef(v));
+    }
+    // The logical palette an object number names, or none.
+    Obj *paletteObj(quint32 i)
+    {
+        return i < quint32(m_objs.size()) && m_objs[int(i)].hasPalette ? &m_objs[int(i)] : nullptr;
+    }
+    const Obj *paletteObj(quint32 i) const
+    {
+        return i < quint32(m_objs.size()) && m_objs[int(i)].hasPalette ? &m_objs[int(i)] : nullptr;
+    }
+    // A logical palette as a record gives it: the version, the count of entries, then each as red, green, blue, and flags (no more entries than
+    // the record holds); the count is charged to the picture's budget as it is declared.
+    void readPalette(Reader &a, Obj &o)
+    {
+        a.u16();
+        const int count = std::min<int>({int(a.u16()), kMaxPaletteEntries, m_paletteLeft});
+        m_paletteLeft -= count;
+        for (int i = 0; i < count && a.ok(4); ++i) {
+            const quint8 r = a.u8(), g = a.u8(), b = a.u8();
+            a.u8();
+            o.palette.push_back(QColor(r, g, b));
+        }
+        o.hasPalette = true;
+    }
+    // Entries written over those of a palette from `start`: only those the palette holds, and no more than the record holds.
+    static void setPaletteEntries(Obj &o, quint32 start, quint32 count, Reader &a)
+    {
+        for (quint32 i = 0; i < count && a.ok(4); ++i) {
+            const quint64 at = quint64(start) + i;
+            if (at >= quint64(o.palette.size())) break;
+            const quint8 r = a.u8(), g = a.u8(), b = a.u8();
+            a.u8();
+            o.palette[int(at)] = QColor(r, g, b);
+        }
+    }
+    // A palette made larger (black in its new entries) or smaller: never past the most one holds, and what it grows by is charged to the budget.
+    void resizePalette(Obj &o, quint32 size)
+    {
+        const int want = int(std::min<quint32>(size, kMaxPaletteEntries));
+        if (want > o.palette.size()) {
+            const int grow = std::min<int>(want - o.palette.size(), m_paletteLeft);
+            m_paletteLeft -= grow;
+            o.palette.resize(o.palette.size() + grow);
+            for (int i = o.palette.size() - grow; i < o.palette.size(); ++i) o.palette[i] = QColor(0, 0, 0);
+        } else {
+            o.palette.resize(want);
+        }
     }
     QPainter *m_p;
     int m_paletteLeft = kMaxPaletteTotal;   // the palette entries still to be read, of all the palettes together
@@ -586,18 +636,7 @@ private:
             }
             case 0x0142: case 0x01F9: case 0x00F7: case 0x06FF: {
                 Obj o; o.kind = Obj::Other;
-                if (fn == 0x00F7) {
-                    // the version, the count of entries, then each as red, green, blue, and flags (no more entries than the record holds)
-                    a.u16();
-                    const int count = std::min<int>({int(a.u16()), kMaxPaletteEntries, m_paletteLeft});
-                    m_paletteLeft -= count;
-                    for (int i = 0; i < count && a.ok(4); ++i) {
-                        const quint8 r = a.u8(), g = a.u8(), b = a.u8();
-                        a.u8();
-                        o.palette.push_back(QColor(r, g, b));
-                    }
-                    o.hasPalette = true;
-                }
+                if (fn == 0x00F7) readPalette(a, o);
                 if (fn == 0x0142) {
                     a.u16(); a.u16();
                     o.kind = Obj::Brush;
@@ -616,7 +655,14 @@ private:
                 setSlot(newSlot(), fontObj(h, esc, wt, it, ul, so, cs, QString::fromLatin1(face)));
                 break;
             }
-            case 0x0234: { const quint16 i = a.u16(); if (i < m_objs.size() && m_objs[i].hasPalette) m_dc.palette = m_objs[i].palette; break; }
+            case 0x0234: { const quint16 i = a.u16(); if (paletteObj(i)) m_dc.palette = i; break; }
+            // The palette selected is changed: its entries from a start (set, and animate, which is treated alike), or its size.
+            case 0x0037: case 0x0436: {
+                const quint16 start = a.u16(), count = a.u16();
+                if (Obj *o = paletteObj(quint32(m_dc.palette))) setPaletteEntries(*o, start, count, a);
+                break;
+            }
+            case 0x0139: { const quint16 n = a.u16(); if (Obj *o = paletteObj(quint32(m_dc.palette))) resizePalette(*o, n); break; }
             case 0x012D: selectObject(a.u16()); break;
             case 0x01F0: { const quint16 i = a.u16(); if (i < m_objs.size()) m_objs[i] = Obj(); break; }
             case 0x0214: { const double y = a.s16(), x = a.s16(); m_dc.cur = QPointF(x, y); break; }
@@ -852,6 +898,14 @@ private:
                 break;
             }
             case 40: { const quint32 ih = a.u32(); if (ih < quint32(m_objs.size())) m_objs[ih] = Obj(); break; }
+            case 49: { const quint32 ih = a.u32(); Obj o; o.kind = Obj::Other; readPalette(a, o); setSlot(ih, o); break; }
+            case 48: { const quint32 ih = a.u32(); if (paletteObj(ih)) m_dc.palette = int(ih); break; }
+            case 50: case 78: {
+                const quint32 ih = a.u32(), start = a.u32(), count = a.u32();
+                if (Obj *o = paletteObj(ih)) setPaletteEntries(*o, start, count, a);
+                break;
+            }
+            case 51: { const quint32 ih = a.u32(), n = a.u32(); if (Obj *o = paletteObj(ih)) resizePalette(*o, n); break; }
             case 54: {
                 const QPointF p2 = pt32();
                 if (m_inPath) m_path.lineTo(p2);
