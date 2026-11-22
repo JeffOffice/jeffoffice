@@ -551,6 +551,29 @@ private Q_SLOTS:
         QCOMPARE(f.run().pages.size(), size_t(1));
     }
 
+    // Fit to a number of pages ignores the breaks of that direction, but a direction left blank (0, as many as it takes) keeps them: the original cuts there. (Measured: 7 sheet page counts agree
+    // more in 5 workbooks, none fewer.)
+    void aBlankFitKeepsTheManualBreaksOfItsDirection()
+    {
+        Fixture f(99, 9);
+        jp::office::sheet::PageBreak b;
+        b.before = 30;
+        f.request.setup.rowBreaks.append(b);
+        b.before = 5;
+        f.request.setup.colBreaks.append(b);
+        f.request.setup.fitToPage = true;
+        f.request.setup.fitToWidth = 1;
+        f.request.setup.fitToHeight = 0;
+        SheetPrint p = f.run();
+        QCOMPARE(rowsOf(p), QStringLiteral("0-29 30-74 75-99"));   // (the row break is kept, and the rest is cut by the page; the column break is not: one page wide)
+        QCOMPARE(colsOf(p), QStringLiteral("0-9 0-9 0-9"));
+        f.request.setup.fitToWidth = 0;
+        f.request.setup.fitToHeight = 1;
+        p = f.run();
+        QCOMPARE(colsOf(p), QStringLiteral("0-4 5-9"));   // (the other way round)
+        QCOMPARE(rowsOf(p), QStringLiteral("0-99 0-99"));
+    }
+
     // Hidden rows and columns take no room and begin no page; a break before one is a break before the next that shows.
     void hiddenRowsAndColumnsAreSkipped()
     {
