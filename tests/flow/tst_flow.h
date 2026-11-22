@@ -1676,6 +1676,7 @@ private Q_SLOTS:
     void aSpacedTableThatGoesOnAfterAPageBreakHasItsFrameAtTheBreak();
     void aSpacedTablePaintsTheLineOfEveryCellsFoot();
     void aTableRuleInAPictureIsWholePixels();
+    void equalTableRulesAreEquallyThickAtAnyZoomAndOffset();
     void aCellAcrossColumnsHasTheLineOfEveryCellAboveIt();
     void ofTwoLinesAtAnEdgeTheOneOfTheGreaterWeightIsTheLine();
     void aRowOfASetHeightHasItsMarginsAndLinesBesidesWhenAtLeastAndInsideItWhenExact();

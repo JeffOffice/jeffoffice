@@ -1319,14 +1319,21 @@ bool strokeWholePixels(QPainter *p, const TableLine &line, QPointF a, QPointF b)
     if (horizontal == vertical) return false;
     const QPointF da = t.map(a), db = t.map(b);
     auto snap = [](double lo, double hi) {
-        const int from = int(std::floor(lo + 0.5));
-        int to = int(std::floor(hi + 0.5));
+        const int from = int(std::floor(lo + 0.5 + 1e-6));
+        int to = int(std::floor(hi + 0.5 + 1e-6));
         if (to <= from) to = from + 1;
         return std::pair<int, int>(from, to);
     };
-    const double half = line.width * (horizontal ? t.m22() : t.m11()) / 2;
-    const auto across = horizontal ? snap(da.y() - half, da.y() + half) : snap(da.x() - half, da.x() + half);
-    const auto along = horizontal ? snap(std::min(da.x(), db.x()), std::max(da.x(), db.x())) : snap(std::min(da.y(), db.y()), std::max(da.y(), db.y()));
+    // (The thickness is the width's alone, in whole pixels and never under one; where the rule falls is snapped on its own, so equal rules are equally thick wherever they are.)
+    const int thick = std::max(1, int(std::floor(line.width * (horizontal ? t.m22() : t.m11()) + 0.5)));
+    auto snapThick = [thick](double center) {
+        const int from = int(std::floor(center - thick / 2.0 + 0.5 + 1e-6));
+        return std::pair<int, int>(from, from + thick);
+    };
+    const auto across = horizontal ? snapThick(da.y()) : snapThick(da.x());
+    // (Each end goes on by half the thickness, to the edge of the rule that crosses it there, so a corner has no notch.)
+    const double reach = thick / 2.0;
+    const auto along = horizontal ? snap(std::min(da.x(), db.x()) - reach, std::max(da.x(), db.x()) + reach) : snap(std::min(da.y(), db.y()) - reach, std::max(da.y(), db.y()) + reach);
     const QRect box = horizontal ? QRect(QPoint(along.first, across.first), QPoint(along.second - 1, across.second - 1)) : QRect(QPoint(across.first, along.first), QPoint(across.second - 1, along.second - 1));
     p->save();
     p->resetTransform();

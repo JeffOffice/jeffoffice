@@ -274,60 +274,124 @@ void FlowTests::aSpacedTablePaintsTheLineOfEveryCellsFoot()
 }
 
 
+namespace {
+
+// Runs of black on a strip of device pixels: where each rule across the strip begins and how thick it is, and how many pixels are neither black nor white.
+struct RuleRuns {
+    QVector<int> starts, lengths;
+    int gray = 0;
+};
+
+// A 3 by 3 table of 1 point rules, painted into a picture with the device pixel ratio `ratio`, at the page scale `scale`, moved by (offset, offset) first (in picture
+// units, as a scroll position is). The strips are in device pixels: down the first column's margin (the rules across) and along the first row's top margin (the rules down).
+struct RulesPicture {
+    FlowDocument fd;
+    QImage image;
+    RuleRuns across, down;
+    int top = 0, bottom = 0;   // (device rows of the first rule's start and of the last rule's end)
+
+    bool paint(double ratio, double scale, double offset, TableLine::Style style = TableLine::Style::Single)
+    {
+        fillStory(fd.story(), 2, 3, {}, 4, 6);
+        TestTable spec;
+        spec.rows = 3;
+        spec.cols = 3;
+        spec.columnWidth = 100;
+        spec.margins = QMarginsF(6, 6, 6, 6);
+        spec.setTable = [style](TableData &t) {
+            TableLine line;
+            line.style = style;
+            line.width = 1;
+            t.top = t.left = t.bottom = t.right = t.insideH = t.insideV = line;
+        };
+        addTable(fd, spec);
+        Paginator pg(&fd);
+        const auto page = pg.materialize(0);
+        if (!page || page->tables.size() != 1) return false;
+        const TableFragment &f = *page->tables[0];
+        image = QImage(int((fd.section(0).pageSize().width() * scale + 4) * ratio), int((fd.section(0).pageSize().height() * scale + 4) * ratio), QImage::Format_ARGB32_Premultiplied);
+        image.setDevicePixelRatio(ratio);
+        image.fill(Qt::white);
+        {
+            QPainter painter(&image);
+            painter.setRenderHint(QPainter::Antialiasing);   // (as the page's pictures are drawn)
+            painter.translate(offset, offset);
+            painter.scale(scale, scale);
+            f.paint(&painter, TablePaint());
+        }
+        auto runs = [&](bool vertical) {
+            RuleRuns r;
+            int run = 0;
+            const int from = int(((vertical ? f.origin.y() : f.origin.x()) * scale + offset) * ratio) - 3;
+            const int to = int((vertical ? (f.origin.y() + f.height) * scale + offset : (f.origin.x() + 300) * scale + offset) * ratio) + 3;
+            for (int i = from; i <= to; ++i) {
+                const QColor c = vertical ? image.pixelColor(int(((f.origin.x() + 3) * scale + offset) * ratio), i) : image.pixelColor(i, int(((f.origin.y() + 3) * scale + offset) * ratio));
+                if (c.red() > 10 && c.red() < 245) ++r.gray;
+                if (c.red() <= 10) {
+                    if (run == 0) r.starts << i;
+                    ++run;
+                } else if (run > 0) {
+                    r.lengths << run;
+                    run = 0;
+                }
+            }
+            return r;
+        };
+        across = runs(true);
+        down = runs(false);
+        if (across.starts.isEmpty()) return false;
+        top = across.starts.first();
+        bottom = across.starts.last() + across.lengths.last();
+        return true;
+    }
+
+    // Every rule down is one run of black from the first rule across to the last: no gap at a row.
+    int gapsInRulesDown() const
+    {
+        int gaps = 0;
+        for (int i = 0; i < down.starts.size(); ++i)
+            for (int x = down.starts[i]; x < down.starts[i] + down.lengths[i]; ++x)
+                for (int y = top; y < bottom; ++y)
+                    if (image.pixelColor(x, y).red() > 10) ++gaps;
+        return gaps;
+    }
+};
+
+} // namespace
+
+
 // In a picture of a page a table's rule is whole pixels, as the page's own renderers draw it: black through its width (never smeared in grays over the two pixels
 // it straddles), and one run of pixels for each rule, at a page scale where a point is not a whole number of pixels.
 void FlowTests::aTableRuleInAPictureIsWholePixels()
 {
-    FlowDocument fd;
-    fillStory(fd.story(), 2, 3, {}, 4, 6);
-    TestTable spec;
-    spec.rows = 3;
-    spec.cols = 3;
-    spec.columnWidth = 100;
-    spec.margins = QMarginsF(6, 6, 6, 6);
-    spec.setTable = [](TableData &t) {
-        TableLine line;
-        line.style = TableLine::Style::Single;
-        line.width = 1;
-        t.top = t.left = t.bottom = t.right = t.insideH = t.insideV = line;
-    };
-    addTable(fd, spec);
-    Paginator pg(&fd);
-    const auto page = pg.materialize(0);
-    QVERIFY(page && page->tables.size() == 1);
-    const TableFragment &f = *page->tables[0];
-    const double scale = 4.0 / 3;   // (a page at 96 dots to the inch)
-    QImage image(int(fd.section(0).pageSize().width() * scale) + 2, int(fd.section(0).pageSize().height() * scale) + 2, QImage::Format_ARGB32_Premultiplied);
-    image.fill(Qt::white);
-    {
-        QPainter painter(&image);
-        painter.setRenderHint(QPainter::Antialiasing);   // (as the page's pictures are drawn)
-        painter.scale(scale, scale);
-        f.paint(&painter, TablePaint());
+    RulesPicture pic;
+    QVERIFY(pic.paint(1, 4.0 / 3, 0));
+    for (const RuleRuns &r : {pic.across, pic.down}) {
+        QVERIFY2(r.gray == 0, qPrintable(QStringLiteral("%1 pixels of gray").arg(r.gray)));
+        QCOMPARE(r.lengths.size(), 4);
+        for (int length : r.lengths) QCOMPARE(length, 1);
     }
-    // (A strip across the table inside the cells' space: past the text, so only the rules are on it. Down the first column's margin for the rules across; along the first row's
-    // top margin for the rules down.)
-    auto runs = [&](bool down) {
-        QVector<int> lengths;
-        int gray = 0, run = 0;
-        const int from = int(down ? f.origin.y() * scale : f.origin.x() * scale) - 2, to = int(down ? (f.origin.y() + f.height) * scale : (f.origin.x() + 300) * scale) + 2;
-        for (int i = from; i <= to; ++i) {
-            const QColor c = down ? image.pixelColor(int((f.origin.x() + 3) * scale), i) : image.pixelColor(i, int((f.origin.y() + 3) * scale));
-            if (c.red() > 10 && c.red() < 245) ++gray;
-            if (c.red() <= 10) ++run;
-            else if (run > 0) {
-                lengths << run;
-                run = 0;
+}
+
+
+// A rule's thickness comes from its width alone, never from where it falls: equal rules are equally thick at any zoom and any fractional scroll position, and the rules
+// of neighboring cells neither leave a gap nor double up.
+void FlowTests::equalTableRulesAreEquallyThickAtAnyZoomAndOffset()
+{
+    for (double ratio : {1.0})
+        for (double scale : {0.9, 1.1, 1.25, 4.0 / 3})
+            for (double offset : {0.0, 0.25, 0.5, 0.75}) {
+                const QString where = QStringLiteral("ratio %1 zoom %2 offset %3: ").arg(ratio).arg(scale).arg(offset);
+                RulesPicture pic;
+                QVERIFY(pic.paint(ratio, scale, offset));
+                const int thick = std::max(1, int(std::floor(ratio * scale + 0.5)));
+                for (const RuleRuns &r : {pic.across, pic.down}) {
+                    QVERIFY2(r.gray == 0, qPrintable(where + QStringLiteral("%1 pixels of gray").arg(r.gray)));
+                    QVERIFY2(r.lengths.size() == 4, qPrintable(where + QStringLiteral("%1 rules").arg(r.lengths.size())));
+                    for (int length : r.lengths) QVERIFY2(length == thick, qPrintable(where + QStringLiteral("a rule %1 pixels thick, not %2").arg(length).arg(thick)));
+                }
+                QVERIFY2(pic.gapsInRulesDown() == 0, qPrintable(where + QStringLiteral("%1 pixels of a rule down are not black").arg(pic.gapsInRulesDown())));
             }
-        }
-        return QPair<QVector<int>, int>(lengths, gray);
-    };
-    for (bool down : {true, false}) {
-        const auto r = runs(down);
-        QVERIFY2(r.second == 0, qPrintable(QStringLiteral("%1 pixels of gray on the strip %2").arg(r.second).arg(down ? "down" : "across")));
-        QCOMPARE(r.first.size(), down ? 4 : 4);
-        for (int length : r.first) QVERIFY2(length == 1 || length == 2, qPrintable(QString::number(length)));
-    }
 }
 
 
