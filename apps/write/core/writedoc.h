@@ -672,6 +672,17 @@ public:
     office::Relationship mainRelationship(const QString &id) const;
     // The address of a link in a story: the relationship `id` of the part the story is of (a header's or a footer's, the footnotes'; with `endnote`, the endnotes'), else of the main part.
     QString linkAddress(const QTextDocument *story, const QString &id, bool endnote = false) const;
+    // The relationships of the part a story is of (a header's or a footer's, the footnotes'), or the main part's for the body: the Ids a link in that story names are these.
+    QVector<office::Relationship> storyRelationships(const QTextDocument *story) const;
+    // The name of the part a story other than the body is of (empty for the body).
+    QString storyPartName(const QTextDocument *story) const;
+    // Like forgetExternalLink, for a link of the part a story is of: the Id is that part's own.
+    void forgetStoryLink(const QTextDocument *story, const QString &id)
+    {
+        const QString part = storyPartName(story);
+        if (part.isEmpty()) m_madeLinks.insert(id);
+        else m_madePartLinks.insert({part, id});
+    }
     // A kept part's bytes (and its content type); empty if the document has no such part.
     QByteArray partData(const QString &absoluteName, QString *contentType = nullptr) const;
     // A diagram of the text drawn from the drawing its data part names (`dataId`, a link of `links`, those of `part`), shown at `width` by `height` points: the picture as SVG, the drawing at its own
@@ -837,6 +848,7 @@ private:
     QVector<int> m_objectPending;                  // the forms a command touched that have no step yet
     quint64 m_objectsSeen = 0;                     // the serial the next step had when the pending ones were last attached
     qsizetype m_collectAt = 2000;
+    QSet<QPair<QString, QString>> m_madePartLinks;   // (the part, the Id) of the links to addresses outside the file in a header, a footer, or the footnotes that Inspect took out
     QSet<QString> m_madeLinks;                     // the Ids of the relationships to addresses outside the file that the program added (a link taken back by Undo leaves its own unused)
     QSet<QString> m_ownedParts;                    // the parts only another part's relationship names (a chart's workbook) that were put in or let go of: left out of the file when no relationship names them
     QHash<QString, QString> m_madeMedia;           // the pictures' parts the program added: the Id of the relationship, and the part

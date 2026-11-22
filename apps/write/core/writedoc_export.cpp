@@ -254,7 +254,7 @@ void WriteDoc::exportInto(BlockSink &sink, QTextDocument *whose, QTextBlock firs
 // the history that can bring a picture back, and only the file leaves them out.
 void WriteDoc::pruneUnusedMedia(office::wml::Document *out) const
 {
-    if (m_madeMedia.isEmpty() && m_madeLinks.isEmpty() && m_ownedParts.isEmpty()) return;
+    if (m_madeMedia.isEmpty() && m_madeLinks.isEmpty() && m_madePartLinks.isEmpty() && m_ownedParts.isEmpty()) return;
     QSet<QString> named;
     // (Every quoted value is a candidate, in either quote character, each closed by the same one: a relationship's Id is whatever the file chose, "rId7" or 'img1', and the attribute that
     // names it is the format's, not ours to list.)
@@ -293,6 +293,24 @@ void WriteDoc::pruneUnusedMedia(office::wml::Document *out) const
                 out->mainRelationships.removeAt(i);
                 break;
             }
+    }
+    // (the same for the links of a header, a footer, or the footnotes: their Ids are their own, so each is looked for in its own story)
+    for (const auto &[part, id] : std::as_const(m_madePartLinks)) {
+        bool stillNamed = false;
+        for (const QTextDocument *side : sideStories()) {
+            if (storyPartName(side) != part) continue;
+            for (QTextBlock b = side->begin(); b.isValid() && !stillNamed; b = b.next())
+                for (QTextBlock::iterator it = b.begin(); !it.atEnd() && !stillNamed; ++it) {
+                    const QTextCharFormat cf = it.fragment().charFormat();
+                    if (cf.hasProperty(prop::Atom) && storedBytes(cf, prop::Atom).contains(id.toLatin1())) stillNamed = true;
+                }
+        }
+        if (stillNamed) continue;
+        for (auto rel = out->partRelationships.begin(); rel != out->partRelationships.end(); ++rel) {
+            if (rel.key().compare(part, Qt::CaseInsensitive) != 0) continue;
+            for (qsizetype i = rel.value().size() - 1; i >= 0; --i)
+                if (rel.value()[i].id == id && rel.value()[i].external) rel.value().removeAt(i);
+        }
     }
     for (auto it = m_madeMedia.cbegin(); it != m_madeMedia.cend(); ++it) {
         if (named.contains(it.key())) continue;

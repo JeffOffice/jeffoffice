@@ -77,6 +77,20 @@ QString WriteDoc::linkAddress(const QTextDocument *story, const QString &id, boo
     return mainRelationship(id).target;
 }
 
+QString WriteDoc::storyPartName(const QTextDocument *story) const
+{
+    for (const HeaderPart &h : m_headerParts)
+        if (h.story.get() == story) return h.name;
+    if (story && story != this->story() && footnoteIdOf(story)) return QStringLiteral("/word/footnotes.xml");
+    return QString();
+}
+
+QVector<Relationship> WriteDoc::storyRelationships(const QTextDocument *story) const
+{
+    const QString part = storyPartName(story);
+    return part.isEmpty() ? m_wml.mainRelationships : m_wml.partRelationships.value(part);
+}
+
 WriteDoc::HeaderPart *WriteDoc::addHeaderPart(bool footer, std::shared_ptr<QTextDocument> story, const QString &copyRelationshipsOf, bool withRelationship)
 {
     HeaderPart part;

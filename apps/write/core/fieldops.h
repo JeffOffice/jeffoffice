@@ -115,6 +115,8 @@ UpdateReport updateFieldsAt(WriteDoc &doc, const QTextCursor &c);
 
 // Each field the selection touches (the one the caret is in) becomes the text of its result. Returns how many.
 int unlinkFields(WriteDoc &doc, const QTextCursor &c);
+// The same for a story other than the body (a header, a footer, or the footnotes): `c` is a cursor of `story`.
+int unlinkFieldsIn(WriteDoc &doc, QTextDocument *story, const QTextCursor &c);
 // Locks (or unlocks) the fields the selection touches (Ctrl+F11, Ctrl+Shift+F11). Returns how many were changed.
 int lockFields(WriteDoc &doc, const QTextCursor &c, bool lock);
 // Shows the codes of the field at the caret (Shift+F9), or of every field (Alt+F9, with `all`), in braces in place of the results, or shows the results again. A view only: the file is

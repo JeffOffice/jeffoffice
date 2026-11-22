@@ -970,9 +970,10 @@ QVector<int> fieldsTouched(const StoryScan &scan, const QTextCursor &c, bool nes
 
 } // namespace
 
-int unlinkFields(WriteDoc &doc, const QTextCursor &c)
+int unlinkFields(WriteDoc &doc, const QTextCursor &c) { return unlinkFieldsIn(doc, doc.story(), c); }
+
+int unlinkFieldsIn(WriteDoc &doc, QTextDocument *story, const QTextCursor &c)
 {
-    QTextDocument *story = doc.story();
     const StoryScan scan = scanStory(story, false);
     QVector<int> chosen;
     for (int i : fieldsTouched(scan, c, false))

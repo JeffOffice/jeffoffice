@@ -30,10 +30,10 @@ QVector<QPair<int, int>> hiddenRuns(const QTextDocument *story)
 }
 
 // The Ids of the body's links to addresses outside the file that are not web addresses (a hyperlink is one; a linked picture or object is not).
-QSet<QString> fileLinkIds(const WriteDoc &doc)
+QSet<QString> fileLinkIds(const WriteDoc &doc, const QTextDocument *story)
 {
     QSet<QString> ids;
-    for (const office::Relationship &r : doc.mainRelationships())
+    for (const office::Relationship &r : doc.storyRelationships(story))
         if (r.external && !r.type.endsWith(QLatin1String("/hyperlink"))) ids.insert(r.id);
     return ids;
 }
@@ -53,11 +53,11 @@ bool namesAnId(const QByteArray &bytes, const QSet<QString> &ids)
 }
 
 // The pictures and objects of the body that name a link to a file, as (position, length) runs, with the Ids they name.
-QVector<QPair<int, int>> linkedAtoms(const WriteDoc &doc, const QSet<QString> &ids, QSet<QString> *named = nullptr)
+QVector<QPair<int, int>> linkedAtoms(const QTextDocument *story, const QSet<QString> &ids, QSet<QString> *named = nullptr)
 {
     QVector<QPair<int, int>> runs;
     if (ids.isEmpty()) return runs;
-    for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next())
+    for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
         for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
             const QTextFragment fr = it.fragment();
             const QTextCharFormat cf = fr.charFormat();
@@ -72,9 +72,18 @@ QVector<QPair<int, int>> linkedAtoms(const WriteDoc &doc, const QSet<QString> &i
     return runs;
 }
 
+// The first word of a field the text holds as a group (a field in a header, a footer, or the footnotes keeps its runs whole, so it has no name of its own): the word of its instruction.
+QString groupFieldWord(const QByteArray &raw)
+{
+    static const QRegularExpression instruction(QStringLiteral("(?:w:instr=\"|<w:instrText[^>]*>)\\s*(?:&quot;)?\\s*([A-Za-z]+)"));
+    const QRegularExpressionMatch m = instruction.match(QString::fromUtf8(raw.left(4096)));
+    return m.hasMatch() ? m.captured(1).toUpper() : QString();
+}
+
 bool isFileLinkField(const FieldPlace &f)
 {
     static const QSet<QString> names = {QStringLiteral("INCLUDEPICTURE"), QStringLiteral("INCLUDETEXT"), QStringLiteral("LINK"), QStringLiteral("DDE"), QStringLiteral("DDEAUTO")};
+    if (f.name.isEmpty() && f.form == FieldPlace::Group) return names.contains(groupFieldWord(f.groupRaw));
     return names.contains(f.name);
 }
 
@@ -194,9 +203,11 @@ int removeCustomXml(WriteDoc &doc)
 int externalLinkCount(WriteDoc &doc)
 {
     int n = 0;
-    for (const auto &run : linkedAtoms(doc, fileLinkIds(doc))) n += run.second;
-    const StoryScan scan = scanStory(doc.story(), false);
-    for (const FieldPlace &f : scan.fields) n += isFileLinkField(f);
+    for (QTextDocument *story : allStories(doc)) {
+        for (const auto &run : linkedAtoms(story, fileLinkIds(doc, story))) n += run.second;
+        const StoryScan scan = scanStory(story, false);
+        for (const FieldPlace &f : scan.fields) n += isFileLinkField(f);
+    }
     return n;
 }
 
@@ -204,34 +215,36 @@ int removeExternalLinks(WriteDoc &doc)
 {
     int n = 0;
     const WriteDoc::StepGroup group(doc);
-    // (the fields first: each becomes its result; the last in the story goes first, so the places of the rest do not move; the count of fields found is the most turns)
-    const int most = int(scanStory(doc.story(), false).fields.size());
-    for (int turn = 0; turn < most; ++turn) {
-        const StoryScan scan = scanStory(doc.story(), false);
-        int last = -1;
-        for (int i = 0; i < scan.fields.size(); ++i)
-            if (isFileLinkField(scan.fields[i]) && (last < 0 || scan.fields[i].begin > scan.fields[last].begin)) last = i;
-        if (last < 0) break;
-        QTextCursor c(doc.story());
-        c.setPosition(scan.fields[last].begin);
-        c.setPosition(std::min(scan.fields[last].end + 1, doc.story()->characterCount() - 1), QTextCursor::KeepAnchor);
-        if (unlinkFields(doc, c) == 0) break;
-        ++n;
+    for (QTextDocument *story : allStories(doc)) {
+        // (the fields first: each becomes its result; the last in the story goes first, so the places of the rest do not move; the count of fields found is the most turns)
+        const int most = int(scanStory(story, false).fields.size());
+        for (int turn = 0; turn < most; ++turn) {
+            const StoryScan scan = scanStory(story, false);
+            int last = -1;
+            for (int i = 0; i < scan.fields.size(); ++i)
+                if (isFileLinkField(scan.fields[i]) && (last < 0 || scan.fields[i].begin > scan.fields[last].begin)) last = i;
+            if (last < 0) break;
+            QTextCursor c(story);
+            c.setPosition(scan.fields[last].begin);
+            c.setPosition(std::min(scan.fields[last].end + 1, story->characterCount() - 1), QTextCursor::KeepAnchor);
+            if (unlinkFieldsIn(doc, story, c) == 0) break;
+            ++n;
+        }
+        const QSet<QString> ids = fileLinkIds(doc, story);
+        QSet<QString> named;
+        const QVector<QPair<int, int>> runs = linkedAtoms(story, ids, &named);
+        QTextCursor c(story);
+        c.beginEditBlock();
+        for (qsizetype i = runs.size() - 1; i >= 0; --i) {
+            c.setPosition(runs[i].first);
+            c.setPosition(runs[i].first + runs[i].second, QTextCursor::KeepAnchor);
+            c.removeSelectedText();
+            n += runs[i].second;
+        }
+        c.endEditBlock();
+        // (the file's own link to the address goes when nothing names it: see WriteDoc::forgetExternalLink)
+        for (const QString &id : std::as_const(named)) doc.forgetStoryLink(story, id);
     }
-    const QSet<QString> ids = fileLinkIds(doc);
-    QSet<QString> named;
-    const QVector<QPair<int, int>> runs = linkedAtoms(doc, ids, &named);
-    QTextCursor c(doc.story());
-    c.beginEditBlock();
-    for (qsizetype i = runs.size() - 1; i >= 0; --i) {
-        c.setPosition(runs[i].first);
-        c.setPosition(runs[i].first + runs[i].second, QTextCursor::KeepAnchor);
-        c.removeSelectedText();
-        n += runs[i].second;
-    }
-    c.endEditBlock();
-    // (the file's own link to the address goes when nothing names it: see WriteDoc::forgetExternalLink)
-    for (const QString &id : std::as_const(named)) doc.forgetExternalLink(id);
     if (n > 0) doc.setModified(true);
     return n;
 }

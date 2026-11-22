@@ -50,7 +50,7 @@ Click **Inspect Document** before you send a document to someone. It lists what 
 - **Hidden text** is text set to be hidden. It does not show or print, but it is in the file.
 - **Headers and footers** are the text at the top and bottom of the pages.
 - **Custom XML data** is data that other programs added to the file. You can't see it on a page.
-- **External links** are links to other files, not web links: a picture or an object that is only linked (it shows a file that is not in the document), and a field that takes its text or picture from another file (INCLUDEPICTURE, INCLUDETEXT, LINK, DDE, and DDEAUTO). **Remove All** turns each field into the text it shows now, takes out each linked picture or object, and leaves the link out of the file when you save. The other files are not touched. Links in headers, footers, and footnotes are not counted, and web links stay.
+- **External links** are links to other files, not web links: a picture or an object that is only linked (it shows a file that is not in the document), and a field that takes its text or picture from another file (INCLUDEPICTURE, INCLUDETEXT, LINK, DDE, and DDEAUTO). **Remove All** turns each field into the text it shows now, takes out each linked picture or object, and leaves the link out of the file when you save. The other files are not touched. Links in headers, footers, and footnotes are counted and removed too. Web links stay.
 
 Click **Remove All** next to a kind to take it out. You can undo what changes the text with **Ctrl+Z**. Save the document afterward to keep the clean copy.
 

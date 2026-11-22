@@ -1471,6 +1471,71 @@ private Q_SLOTS:
         QVERIFY(!partOf(saved, QStringLiteral("/word/document.xml")).contains("INCLUDETEXT"));
     }
 
+    // Links to other files in a header and in a footnote are found and taken out like the body's: the relationship Ids of each part are its own (the same Id names a web link in the body), and
+    // the saved file, in every form, has no address of either file.
+    void inspectFindsLinksToOtherFilesInHeadersAndFootnotes()
+    {
+        const QByteArray picture = "<w:r><w:drawing><wp:inline xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\"><wp:extent cx=\"914400\" cy=\"914400\"/><wp:docPr id=\"1\" name=\"Linked\"/>"
+                                   "<a:graphic xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\">"
+                                   "<pic:pic xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"><pic:nvPicPr><pic:cNvPr id=\"0\" name=\"p.png\"/><pic:cNvPicPr/></pic:nvPicPr>"
+                                   "<pic:blipFill><a:blip r:link=\"rId9\"/></pic:blipFill><pic:spPr/></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>";
+        auto withField = [&](const char *file, const char *shown) {
+            return picture + "<w:fldSimple w:instr=\" INCLUDETEXT &quot;" + QByteArray(file) + "&quot; \"><w:r><w:t>" + shown + "</w:t></w:r></w:fldSimple>";
+        };
+        const QByteArray body = "<w:p><w:r><w:t>Body</w:t></w:r><w:hyperlink r:id=\"rId9\"><w:r><w:t>web</w:t></w:r></w:hyperlink><w:r><w:footnoteReference w:id=\"2\"/></w:r></w:p>"
+                                "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdH\"/></w:sectPr>";
+        const QByteArray header = QByteArray("<w:hdr ") + kNs + "><w:p>" + withField("headfile.docx", "from the header file") + "</w:p></w:hdr>";
+        const QByteArray notes = QByteArray("<w:footnotes ") + kNs + "><w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:footnote>"
+                                 "<w:footnote w:id=\"2\"><w:p><w:r><w:footnoteRef/></w:r>" + withField("footfile.docx", "from the note file") + "</w:p></w:footnote></w:footnotes>";
+        const QVector<Extra> extra = {{QStringLiteral("https://example.com/"), QString(), QByteArray(), kRel + QStringLiteral("hyperlink"), QString(), QStringLiteral("rId9"), true},
+                                      {QStringLiteral("/word/header1.xml"), kWord + QStringLiteral("header+xml"), header, kRel + QStringLiteral("header"), QString(), QStringLiteral("rIdH")},
+                                      {QStringLiteral("file:///C:/headpictures/h.png"), QString(), QByteArray(), kRel + QStringLiteral("image"), QStringLiteral("/word/header1.xml"), QStringLiteral("rId9"), true},
+                                      {QStringLiteral("/word/footnotes.xml"), kWord + QStringLiteral("footnotes+xml"), notes, kRel + QStringLiteral("footnotes"), QString(), QStringLiteral("rIdN")},
+                                      {QStringLiteral("file:///C:/footpictures/f.png"), QString(), QByteArray(), kRel + QStringLiteral("image"), QStringLiteral("/word/footnotes.xml"), QStringLiteral("rId9"), true}};
+        WriteWindow w;
+        QString err;
+        w.setDocument(WriteDoc::fromDocx(makeDocx(body, extra), &err, nullptr), QString());
+        WriteDoc &doc = *w.document();
+        const auto itemOf = [&]() -> InspectItem {
+            for (const InspectItem &i : w.inspectItems())
+                if (i.title == QLatin1String("External links")) return i;
+            return InspectItem();
+        };
+        InspectItem links = itemOf();
+        QVERIFY(!links.title.isEmpty());
+        // a picture and a field in the header, the same in the footnote; the body has only a web link
+        QCOMPARE(links.count(), 4);
+        QCOMPARE(links.remove(), 4);
+        QCOMPARE(itemOf().count(), 0);
+        QVERIFY(doc.headerFooterStory(0, false, 0)->toPlainText().contains(QLatin1String("from the header file")));   // (the field's result stays as text)
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        setLossyStandIn([](const LossyAsk &, bool *) { return LossyChoice::SaveAnyway; });   // (the box that says what another form loses stands aside)
+        const auto standDown = qScopeGuard([] { setLossyStandIn({}); });
+        for (const char *name : {"out.docx", "out.odt", "out.rtf"}) {
+            QVERIFY2(saveInto(w, dir, QString::fromLatin1(name)), name);
+            const QByteArray bytes = fileBytes(dir.filePath(QString::fromLatin1(name)));
+            QVERIFY(!bytes.isEmpty());
+            QMap<QString, QByteArray> parts;
+            if (!jp::readZip(bytes, parts)) parts.insert(QStringLiteral("whole"), bytes);
+            for (auto it = parts.cbegin(); it != parts.cend(); ++it)
+                for (const char *gone : {"headpictures", "footpictures", "headfile", "footfile", "INCLUDETEXT"})
+                    QVERIFY2(!it.value().contains(gone), qPrintable(QString::fromLatin1(name) + QLatin1Char(' ') + it.key() + QLatin1Char(' ') + QString::fromLatin1(gone)));
+            if (QLatin1String(name) == QLatin1String("out.docx")) {
+                QVERIFY(parts.value(QStringLiteral("word/_rels/document.xml.rels")).contains("https://example.com/"));   // (the web link stays)
+                QVERIFY(parts.value(QStringLiteral("word/header1.xml")).contains("from the header file"));
+                QVERIFY(parts.value(QStringLiteral("word/footnotes.xml")).contains("from the note file"));
+                QString again;
+                auto reread = WriteDoc::fromDocx(bytes, &again, nullptr);
+                QVERIFY2(reread, qPrintable(again));
+                WriteWindow w2;
+                w2.setDocument(std::move(reread), QString());
+                for (const InspectItem &i : w2.inspectItems())
+                    if (i.title == QLatin1String("External links")) QCOMPARE(i.count(), 0);
+            }
+        }
+    }
+
     void inspectRemovesHeadersAndFooters()
     {
         WriteWindow w;
