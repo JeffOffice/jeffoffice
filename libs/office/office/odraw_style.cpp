@@ -185,8 +185,11 @@ Fill gradientFill(const Props &p, const OdrawContext &ctx, int type, const QColo
     f.gradType = type == 5 ? Fill::Rectangular : type == 6 ? Fill::PathGrad : Fill::Linear;
     if (type == 5) {
         // The focus: the middle of the rectangle the fill goes to (the fill-to properties, fractions of the shape; none is its top left corner).
-        f.focusX = std::clamp((p.fixed(0x018D, 0) + p.fixed(0x018F, 0)) / 2, 0.0, 1.0);
-        f.focusY = std::clamp((p.fixed(0x018E, 0) + p.fixed(0x0190, 0)) / 2, 0.0, 1.0);
+        const double fx = (p.fixed(0x018D, 0) + p.fixed(0x018F, 0)) / 2, fy = (p.fixed(0x018E, 0) + p.fixed(0x0190, 0)) / 2;
+        if (std::isfinite(fx) && std::isfinite(fy)) {
+            f.focusX = std::clamp(fx, 0.0, 1.0);
+            f.focusY = std::clamp(fy, 0.0, 1.0);
+        }
     }
     if (!fromCenter) {
         // The first color runs toward 270 - a degrees for a stored angle a of

@@ -114,10 +114,19 @@ bool fillFromElement(const QDomElement &e, const StyleContext &sc, Fill *out)
                 if (f.gradType == Fill::Rectangular) {
                     // The focus: the middle of the rectangle the gradient goes to (its sides are the distances from the shape's sides, in 1000ths of a percent).
                     const QDomElement to = childNamed(path, "fillToRect");
-                    auto side = [&](const char *name) { return std::clamp(attr(to, QString::fromLatin1(name)).toDouble() / 100000.0, 0.0, 1.0); };
+                    bool finite = true;
+                    auto side = [&](const char *name) {
+                        const double v = attr(to, QString::fromLatin1(name)).toDouble() / 100000.0;
+                        finite = finite && std::isfinite(v);
+                        return std::clamp(v, 0.0, 1.0);
+                    };
                     if (!to.isNull()) {
-                        f.focusX = (side("l") + 1 - side("r")) / 2;
-                        f.focusY = (side("t") + 1 - side("b")) / 2;
+                        const double fx = (side("l") + 1 - side("r")) / 2, fy = (side("t") + 1 - side("b")) / 2;
+                        // (a side that is not a number is no side: the focus stays where it is without a rectangle)
+                        if (finite) {
+                            f.focusX = fx;
+                            f.focusY = fy;
+                        }
                     }
                 }
             } else {

@@ -2519,6 +2519,55 @@ private Q_SLOTS:
         QVERIFY(qAbs(back.focusX) < 0.01 && qAbs(back.focusY) < 0.01);
     }
 
+    // The sample presentation with one shape on its first slide shaded from a rectangle (the fill-to sides as the file words them), in a file.
+    static QString shadedFile(const QTemporaryDir &dir, const QString &sides)
+    {
+        Parts p = samplePptx();
+        const QString shape = QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"30\" name=\"Shaded\"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr>") + xfrm(914400, 914400, 1828800, 914400)
+            + QStringLiteral("<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom><a:gradFill><a:gsLst><a:gs pos=\"0\"><a:srgbClr val=\"FF0000\"/></a:gs><a:gs pos=\"100000\"><a:srgbClr val=\"0000FF\"/></a:gs></a:gsLst>"
+                             "<a:path path=\"rect\"><a:fillToRect %1/></a:path></a:gradFill></p:spPr></p:sp>").arg(sides);
+        p.data["/ppt/slides/slide1.xml"].xml = slideXml(QString(), QString(), shape).toUtf8();
+        const QString path = dir.filePath(QStringLiteral("shaded.pptx"));
+        QFile f(path);
+        if (!f.open(QIODevice::WriteOnly)) return QString();
+        f.write(pack(p));
+        return path;
+    }
+    static const Item *shadedItem(const DeckWindow &w)
+    {
+        for (const auto &it : w.editor()->doc()->pages[0]->items)
+            if (it->name == QLatin1String("Shaded")) return it.get();
+        return nullptr;
+    }
+
+    // A fill-to side that is not a number (nan, inf) is no side at all: the focus stays where it is without one, and the saved file has whole numbers
+    // in range for every side, not what rounding a non-number gives.
+    void shadeWithSidesThatAreNotNumbersIsSavedWithNumbers()
+    {
+        QTemporaryDir dir;
+        const QString path = shadedFile(dir, QStringLiteral("l=\"nan\" t=\"inf\" r=\"-inf\" b=\"nan\""));
+        QVERIFY(!path.isEmpty());
+        const QString saved = dir.filePath(QStringLiteral("saved.pptx"));
+        DeckWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        QVERIFY(w.openFile(path));
+        const Item *item = shadedItem(w);
+        QVERIFY(item);
+        QVERIFY(std::isfinite(item->fill.focusX) && std::isfinite(item->fill.focusY));
+        QCOMPARE(item->fill.focusX, Fill().focusX);
+        QCOMPARE(item->fill.focusY, Fill().focusY);
+        w.setSavePathChooser([&](const QString &, const QString &) { return saved; });
+        QVERIFY(w.saveAs());
+        QFile f(saved);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        QMap<QString, QByteArray> parts;
+        QVERIFY(readZip(f.readAll(), parts));
+        const QString xml = QString::fromUtf8(parts.value(QStringLiteral("ppt/slides/slide1.xml")));
+        const QRegularExpressionMatch m = QRegularExpression(QStringLiteral("<a:fillToRect l=\"(\\d+)\" t=\"(\\d+)\" r=\"(\\d+)\" b=\"(\\d+)\"")).match(xml);
+        QVERIFY2(m.hasMatch(), qPrintable(xml.mid(xml.indexOf(QLatin1String("fillToRect")), 120)));
+        for (int i = 1; i <= 4; ++i) QVERIFY(m.captured(i).toInt() >= 0 && m.captured(i).toInt() <= 100000);
+    }
+
     // A date typed in the master's date place (a whole line, not the program's date field) is what each slide shows that the record says shows a
     // date without saying which: not today's, and none of its own text. A record that names the text, or says it is today's, wins over it; a
     // slide whose own record hides the date has none, and a document with no record shows none.
