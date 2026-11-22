@@ -896,6 +896,50 @@ private Q_SLOTS:
         QVERIFY2(err.contains(QStringLiteral("which edit")), qPrintable(err));
     }
 
+    // Each two-storage file built here (one slide, and three slides of their own) is opened in the window, saved through the window as an open
+    // document file and as a newer presentation file, and each of those opened again: the same count of slides, and of shapes on the last.
+    // Fails when off: yes (the window refuses the file, so there is nothing to save).
+    void aDualStorageFileIsSavedAndReopenedInBothFormats()
+    {
+        QByteArray three;
+        for (int i = 0; i < 3; ++i) three += slidePersist(5 + i, 0, 0x100 + i);
+        const QByteArray one = pptOf(slidePersist(5, 0, 0x100), {{5, pptSlideOf(pptTinyShape().repeated(3))}});
+        const QByteArray many = pptOf(three, {{5, pptSlideOf(pptTinyShape())}, {6, pptSlideOf(pptTinyShape().repeated(2))}, {7, pptSlideOf(pptTinyShape().repeated(3))}});
+        const struct { QByteArray file; int slides; } fixtures[] = {{one, 1}, {many, 3}};
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        int n = 0;
+        for (const auto &fx : fixtures) {
+            const QString source = dir.filePath(QStringLiteral("dual%1.ppt").arg(++n));
+            QFile f(source);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(dualFileOf(fx.file));
+            f.close();
+            for (const QString &ending : {QStringLiteral(".pptx"), QStringLiteral(".odp")}) {
+                const QString target = dir.filePath(QStringLiteral("saved%1").arg(n) + ending);
+                int lastShapes = 0;
+                {
+                    DeckWindow w;
+                    w.setNotifier([](const QString &, const QString &) {});
+                    QVERIFY(w.openFile(source));
+                    QCOMPARE(int(w.editor()->doc()->pages.size()), fx.slides);
+                    w.setSavePathChooser([&](const QString &, const QString &) { return target; });
+                    QVERIFY(w.saveAs());
+                    w.editor()->markSaved();
+                    lastShapes = int(w.editor()->doc()->pages.back()->items.size());
+                }
+                DeckWindow again;
+                again.setNotifier([](const QString &, const QString &) {});
+                QVERIFY2(again.openFile(target), qPrintable(target));
+                QCOMPARE(int(again.editor()->doc()->pages.size()), fx.slides);
+                QCOMPARE(int(again.editor()->doc()->pages.back()->items.size()), lastShapes);
+                again.editor()->markSaved();
+                Settings::get().removeRecentFile(target);
+            }
+            Settings::get().removeRecentFile(source);
+        }
+    }
+
     // A dual storage that is itself broken is refused with a said reason, by the same bounds as any presentation: a last edit past the
     // end, a stream cut short, and edits that go round in a circle. Fails when off: yes for the file that opens in the first test
     // (these pin that the storage's records are not trusted any more than the top ones).
