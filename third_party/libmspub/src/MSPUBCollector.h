@@ -54,7 +54,13 @@ public:
 
   MSPUBCollector(librevenge::RVNGDrawingInterface *painter);
   // JeffPub: table cell fills and borders (see TableCellFormat).
-  void addTableCellFormat(unsigned tableSeqNum, const TableCellFormat &format) { m_tableCellFormats[tableSeqNum].push_back(format); }
+  // At most 1,000 a table (the most a table of a real publication holds is 169; JeffPub writes up to 1,000); later ones are left out.
+  void addTableCellFormat(unsigned tableSeqNum, const TableCellFormat &format)
+  {
+    std::vector<TableCellFormat> &formats = m_tableCellFormats[tableSeqNum];
+    if (formats.size() < 1000)
+      formats.push_back(format);
+  }
   virtual ~MSPUBCollector();
 
   // collector functions

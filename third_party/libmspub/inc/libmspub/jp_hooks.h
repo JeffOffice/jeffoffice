@@ -15,6 +15,8 @@ void setDecodeHook(DecodeHook hook);
 unsigned long long calculationsDoneForTest();
 // How many dates, hyperlinks, and objects set in text the spans of text have looked at since the program began (each span looks only at those over it): a count for tests of cost.
 unsigned long long tokensLookedAtForTest();
+// How many table cell formats (fills and rules) the table writer has looked at since the program began: a count for tests of cost.
+unsigned long long tableFormatsLookedAtForTest();
 }
 
 #endif

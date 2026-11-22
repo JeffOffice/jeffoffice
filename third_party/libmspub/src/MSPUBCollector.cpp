@@ -41,7 +41,7 @@
 namespace libmspub
 {
 
-extern unsigned long long g_calculationsDone, g_tokensLookedAt;   // JeffPub: counted for tests (jp_hooks.h)
+extern unsigned long long g_calculationsDone, g_tokensLookedAt, g_tableFormatsLookedAt;   // JeffPub: counted for tests (jp_hooks.h)
 
 namespace
 {
@@ -1406,6 +1406,23 @@ std::function<void(void)> MSPUBCollector::paintShape(const ShapeInfo &info, cons
       ParagraphTexts_t paraTexts;
       mapTableTextToCells(text, tableCellTextEnds, getCalculatedEncoding(), paraToCellMap, paraTexts);
 
+      // JeffPub: the table's cell fills by cell number, and by place (column 03, row 04: earlier JeffPub files).
+      std::map<unsigned, unsigned> fillByNumber;
+      std::map<std::pair<unsigned, unsigned>, unsigned> fillByPlace;
+      std::vector<const TableCellFormat *> rules;   // JeffPub: the rules (borders and diagonals), checked for every cell
+      for (const TableCellFormat &f : get(info.m_tableInfo).m_formats)
+      {
+        g_tableFormatsLookedAt++;
+        if (f.kind != 0)
+          rules.push_back(&f);
+        if (f.kind != 0 || !f.hasColor)
+          continue;
+        if (f.hasRow)
+          fillByPlace[std::make_pair(f.f[4], f.f[3])] = f.color;
+        else
+          fillByNumber[f.f[3]] = f.color;
+      }
+
       for (unsigned row = 0; row != tableLayout.shape()[0]; ++row)
       {
         librevenge::RVNGPropertyList rowProps;
@@ -1462,13 +1479,19 @@ std::function<void(void)> MSPUBCollector::paintShape(const ShapeInfo &info, cons
                 s.append(getColorString(ColorReference(f.hasColor ? f.color : 0).getFinalColor(m_paletteColors)));
                 return s;
               };
-              for (const TableCellFormat &f : tinfo.m_formats)
+              // JeffPub: a fill names its cell by the cell's number in the table's cell list (field 03; 04 is absent), or,
+              // in files of earlier JeffPub versions, by column (03) and row (04): looked up in the indexes below.
+              const auto byNumber = fillByNumber.find(tableLayout[row][col].m_cell);
+              const auto byPlace = fillByPlace.find(std::make_pair(row, col));
+              if (byPlace != fillByPlace.end())
+                cellProps.insert("fo:background-color", getColorString(ColorReference(byPlace->second).getFinalColor(m_paletteColors)));
+              else if (byNumber != fillByNumber.end())
+                cellProps.insert("fo:background-color", getColorString(ColorReference(byNumber->second).getFinalColor(m_paletteColors)));
+              for (const TableCellFormat *rule : rules)
               {
-                // A fill names its cell by the cell's number in the table's cell list (field 03; 04 is absent).
-                const bool fillHere = f.kind == 0 && f.hasColor && f.f[3] == tableLayout[row][col].m_cell;
-                if (fillHere)
-                  cellProps.insert("fo:background-color", getColorString(ColorReference(f.color).getFinalColor(m_paletteColors)));
-                else if (f.kind == 1 && f.f[5] < c1 && f.f[7] > c0)
+                const TableCellFormat &f = *rule;
+                g_tableFormatsLookedAt++;
+                if (f.kind == 1 && f.f[5] < c1 && f.f[7] > c0)
                 {
                   if (f.f[4] == r0) cellProps.insert("fo:border-top", border(f));
                   if (f.f[4] == r1) cellProps.insert("fo:border-bottom", border(f));

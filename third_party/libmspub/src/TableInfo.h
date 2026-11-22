@@ -44,7 +44,9 @@ struct CellInfo
 // JeffPub: a cell fill or border from the table's formatting shapes.
 // Publisher keeps these as drawing shapes with no page placement; their
 // client anchor names the table (field 2) and the cells:
-//   kind 0 (field 1 absent): fill of the cell at column field 3, row field 4.
+//   kind 0 (field 1 absent): fill of the cell numbered field 3 in the table's
+//           cell list (field 4 absent; a fill with field 4, as earlier
+//           JeffPub versions wrote, names column field 3 and row field 4).
 //   kind 1: horizontal rule on row boundary field 4 (= field 6), from
 //           column field 5 up to (not including) column field 7.
 //   kind 2: vertical rule on column boundary field 5 (= field 7), from row
@@ -56,6 +58,7 @@ struct CellInfo
 struct TableCellFormat
 {
   unsigned kind = 0;
+  bool hasRow = false;   // field 4 was present
   unsigned f[8] = {0, 0, 0, 0, 0, 0, 0, 0};
   bool hasColor = false;
   unsigned color = 0;

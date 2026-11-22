@@ -2,6 +2,8 @@
 #include "pubhelpers.h"
 #include "app/pastetable.h"
 #include "app/tableedit.h"
+#include "io/importers.h"
+#include <libmspub/jp_hooks.h>
 #include <QElapsedTimer>
 #include "text/textprops.h"
 #include "wml/wmlhtmlread.h"
@@ -3008,6 +3010,102 @@ private Q_SLOTS:
         d.setNotifier([](const QString &, const QString &) {});
         QVERIFY(d.openFile(dir.filePath(QStringLiteral("three.jpub"))));
         QCOMPARE(fills(d), opened);
+    }
+
+    // Files earlier JeffPub versions wrote name a fill's cell by column (03) and row (04), one record per grid cell: they still open with
+    // each fill on its own cell (rows below the first, merged cells), saved and opened through the window.
+    void tableFillsOfEarlierFilesStillOpen()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QColor red(200, 0, 0), green(0, 160, 0), blue(0, 0, 220), gold(220, 180, 0), base(240, 240, 240);
+        auto cellFills = [](jp::MainWindow &w) {
+            QStringList out;
+            const jp::Document *d = w.editor()->doc();
+            const jp::TableItem *t = nullptr;
+            jp::walkItems(d->pages[0]->items, [&](const jp::ItemPtr &it) {
+                if (it->type() == jp::ItemType::Table) t = static_cast<const jp::TableItem *>(it.get());
+            });
+            if (!t) return QStringList{QStringLiteral("no table")};
+            for (int r = 0; r < t->rows; ++r)
+                for (int c = 0; c < t->cols; ++c) {
+                    const jp::TableCell &cl = t->cell(r, c);
+                    out << (cl.fill.type == jp::Fill::Solid ? cl.fill.color.resolve(d->colors).name() : QStringLiteral("-"));
+                }
+            return out;
+        };
+        {
+            jp::MainWindow a;
+            a.setNotifier([](const QString &, const QString &) {});
+            jp::Editor *ed = a.editor();
+            auto t = std::static_pointer_cast<jp::TableItem>(ed->newTable(QRectF(72, 72, 270, 120), 4, 3));
+            ed->addItem(t);
+            for (int r = 0; r < 4; ++r)
+                for (int c = 0; c < 3; ++c) t->cell(r, c).fill = jp::Fill::solid(jp::ColorRef::rgb(base));
+            t->cell(0, 2).fill = jp::Fill::solid(jp::ColorRef::rgb(gold));
+            t->cell(1, 0).fill = jp::Fill::solid(jp::ColorRef::rgb(red));
+            t->cell(1, 1).colSpan = 2;
+            t->cell(1, 2).covered = true;
+            t->cell(1, 1).fill = jp::Fill::solid(jp::ColorRef::rgb(blue));
+            t->cell(2, 0).rowSpan = 2;
+            t->cell(3, 0).covered = true;
+            t->cell(2, 0).fill = jp::Fill::solid(jp::ColorRef::rgb(green));
+            t->cell(3, 2).fill = jp::Fill::solid(jp::ColorRef::rgb(red));
+            jp::setOldTableFillFormForTest(true);
+            const bool saved = a.saveTo(dir.filePath(QStringLiteral("old.pub")));
+            jp::setOldTableFillFormForTest(false);
+            QVERIFY(saved);
+        }
+        jp::MainWindow b;
+        b.setNotifier([](const QString &, const QString &) {});
+        QVERIFY(b.openFile(dir.filePath(QStringLiteral("old.pub"))));
+        const QStringList got = cellFills(b);
+        QCOMPARE(got.size(), 12);
+        QCOMPARE(got.value(2), gold.name());
+        QCOMPARE(got.value(3), red.name());
+        QCOMPARE(got.value(4), blue.name());
+        QCOMPARE(got.value(6), green.name());
+        QCOMPARE(got.value(11), red.name());
+        for (int i : {0, 1, 7, 8, 10}) QCOMPARE(got.value(i), base.name());   // (5 and 9 are under merged cells)
+    }
+
+    // A table with more fills than any real file holds (the writer is told to keep 5,000) reads only the first 1,000 of them, and the
+    // table writer's work is counted in formats: one look at each fill, not one for every cell.
+    void aTableWithHugeNumbersOfFillsIsReadWithinALimit()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const int n = 70, cells = n * n;
+        {
+            jp::MainWindow a;
+            a.setNotifier([](const QString &, const QString &) {});
+            jp::Editor *ed = a.editor();
+            auto t = std::static_pointer_cast<jp::TableItem>(ed->newTable(QRectF(36, 36, 540, 700), n, n));
+            ed->addItem(t);
+            for (int r = 0; r < n; ++r)
+                for (int c = 0; c < n; ++c) t->cell(r, c).fill = jp::Fill::solid(jp::ColorRef::rgb(QColor(10 + c, 20 + r, 30)));
+            jp::setCellFormatLimitForTest(5000);
+            const bool saved = a.saveTo(dir.filePath(QStringLiteral("many.pub")));
+            jp::setCellFormatLimitForTest(1000);
+            QVERIFY(saved);
+        }
+        const auto before = libmspub::tableFormatsLookedAtForTest();
+        jp::MainWindow b;
+        b.setNotifier([](const QString &, const QString &) {});
+        QVERIFY(b.openFile(dir.filePath(QStringLiteral("many.pub"))));
+        const auto looked = libmspub::tableFormatsLookedAtForTest() - before;
+        const jp::Document *d = b.editor()->doc();
+        const jp::TableItem *t = nullptr;
+        jp::walkItems(d->pages[0]->items, [&](const jp::ItemPtr &it) {
+            if (it->type() == jp::ItemType::Table) t = static_cast<const jp::TableItem *>(it.get());
+        });
+        QVERIFY(t);
+        int filled = 0;
+        for (int r = 0; r < t->rows; ++r)
+            for (int c = 0; c < t->cols; ++c) filled += t->cell(r, c).fill.type == jp::Fill::Solid;
+        QCOMPARE(t->rows * t->cols, cells);
+        QCOMPARE(filled, 1000);
+        QCOMPARE(looked, 1000ull);
     }
 
     // A cell's Text Direction turns its text 90 degrees as a text box's does:

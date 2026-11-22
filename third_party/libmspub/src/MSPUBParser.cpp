@@ -975,7 +975,7 @@ bool MSPUBParser::parseShape(librevenge::RVNGInputStream *input,
         MSPUB_DEBUG_MSG(("ERROR: Wrong number of rows or columns found in table definition.\n"));
         return true;
       }
-      if (jpTraceOn())
+      if (jpTraceOn())   // JeffPub
       {
         fprintf(stderr, "TABLESIZE table=%u rows(emu)=", chunk.seqNum);
         for (unsigned h : rowHeightsInEmu) fprintf(stderr, "%u,", h);
@@ -2915,6 +2915,7 @@ void MSPUBParser::parseEscherShape(librevenge::RVNGInputStream *input, const Esc
         for (unsigned k = 1; k < 8; ++k)
           if (byId.count(k)) f.f[k] = byId[k];
         f.kind = f.f[1];
+        f.hasRow = byId.count(4) != 0;   // JeffPub: field 4 present means an earlier JeffPub file's fill (column 3, row 4)
         input->seek(sp.contentsOffset, librevenge::RVNG_SEEK_SET);
         if (findEscherContainer(input, sp, cFopt, OFFICE_ART_FOPT))
         {
@@ -2929,7 +2930,7 @@ void MSPUBParser::parseEscherShape(librevenge::RVNGInputStream *input, const Esc
           }
           if (unsigned *w = getIfExists(v.m_scalarValues, FIELDID_LINE_WIDTH))
             f.widthEmu = *w;
-          if (jpTraceOn())
+          if (jpTraceOn())   // JeffPub
           {
             fprintf(stderr, "TABLEFMTPROPS table=%u kind=%u f3=%u:", f.f[2], f.kind, f.f[3]);
             for (const auto &kv : v.m_scalarValues) fprintf(stderr, " %x=%x", unsigned(kv.first), kv.second);

@@ -96,6 +96,10 @@ void renderPlateInto(QPainter *p, const PaintContext &ctx, int page, int plate);
 // thumbnail: page 1 for the file's preview picture (about 160 pixels across,
 // as Publisher makes it), or none.
 bool exportPublisher(const Document &doc, const QString &path, QString *error, const QImage &thumbnail = QImage());
+// For tests: write table cell fills as earlier versions did (a record per grid cell, column in 03 and row in 04), to check such files still open.
+void setOldTableFillFormForTest(bool on);
+// For tests: how many cell fills and rules the writer keeps for a table (1000 by default), raised to build a file with more than a reader accepts.
+void setCellFormatLimitForTest(int limit);
 // What a .pub file would lose of the publication's lists (empty when nothing): each a short phrase for a message ("the levels of list items"). A .jpub file keeps all of them.
 QStringList publisherListLosses(const Document &doc);
 // Everything a .pub file would lose of the publication, one phrase each (empty when nothing): hidden objects, the lists, and what the writer leaves out, found by writing it to memory.

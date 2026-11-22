@@ -759,6 +759,9 @@ QByteArray guidBytes(quint32 a, quint16 b, quint16 c, const QByteArray &d8)
     return o;
 }
 
+bool g_oldTableFillForm = false;   // set by tests only
+int g_cellFormatLimit = 1000;   // one id block's worth; raised by tests only
+
 // ---------------------------------------------------------------- the writer
 class PubWriter {
 public:
@@ -2105,7 +2108,7 @@ QByteArray PubWriter::write(QStringList *skipped)
 
                 // Fills: one record per grid cell, naming its cell by the cell's number in the table's cell list (03).
                 auto formatShape = [&](const QVector<Prop> &o, const QVector<Prop> &t, const QVector<B> &where, int shapeType = 1, quint32 flags = 0x0a00) {
-                    if (m_cellFormats.size() >= 1000) {   // one id block's worth
+                    if (m_cellFormats.size() >= g_cellFormatLimit) {   // one id block's worth
                         ++droppedFormats;
                         return;
                     }
@@ -2122,6 +2125,21 @@ QByteArray PubWriter::write(QStringList *skipped)
                         const TableCell &c = tb->cell(row, col);
                         if (c.covered || c.fill.type != Fill::Solid || !recordOf.contains(row * tb->cols + col)) continue;
                         const quint32 color = bgr(c.fill.color.resolve(m_doc.colors));
+                        if (g_oldTableFillForm) {   // earlier versions: a record per grid cell, column in 03 and row in 04
+                            for (int r = row; r < std::min(tb->rows, row + std::max(1, c.rowSpan)); ++r) {
+                                for (int k = col; k < std::min(tb->cols, col + std::max(1, c.colSpan)); ++k) {
+                                    QVector<B> at;
+                                    if (k) at << u32(0x03, quint32(k));
+                                    if (r) at << u32(0x04, quint32(r));
+                                    QVector<Prop> o = {{0x0181, color}, {0x0183, 0}, {0x01bf, 0x001f001c}, {0x01ff, 0x00080000}, {0x0285, 0},
+                                                       {0x02cb, 0}, {0x02cc, 0}, {0x02ce, 0}, {0x02cf, 0}};
+                                    QVector<Prop> t = {{0x01bf, 0x00600000}, {0x01ff, 0x00400040}};
+                                    t << kShadowFlags;
+                                    formatShape(o, t, at);
+                                }
+                            }
+                            continue;
+                        }
                         QVector<B> where;
                         if (const int n = recordOf.value(row * tb->cols + col)) where << u32(0x03, quint32(n));
                         QVector<Prop> o = {{0x0181, color}, {0x0183, 0}, {0x01bf, 0x001f001c}, {0x01ff, 0x00080000}, {0x0285, 0},
@@ -3218,6 +3236,9 @@ QStringList publisherLosses(const Document &doc)
     for (const QString &p : std::as_const(phrases)) out << (p.isEmpty() ? p : p.at(0).toUpper() + p.mid(1));
     return out;
 }
+
+void setOldTableFillFormForTest(bool on) { g_oldTableFillForm = on; }
+void setCellFormatLimitForTest(int limit) { g_cellFormatLimit = limit; }
 
 bool exportPublisher(const Document &doc, const QString &path, QString *error, const QImage &thumbnail)
 {
