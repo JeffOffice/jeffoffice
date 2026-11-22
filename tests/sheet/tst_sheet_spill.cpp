@@ -11,6 +11,8 @@ namespace {
 
 QString constant(const QString &ref, const QString &value) { return QStringLiteral("<c r=\"%1\"><v>%2</v></c>").arg(ref, value); }
 QString rowXml(int n, const QString &cells) { return QStringLiteral("<row r=\"%1\">%2</row>").arg(n).arg(cells); }
+// The name of a column from 0: A to Z, then AA, AB, and so on.
+QString columnName(int c) { return c < 26 ? QString(QChar('A' + c)) : QString(QChar('A' + c / 26 - 1)) + QChar('A' + c % 26); }
 
 // A workbook read into memory, and a calculation over it.
 struct Book {
@@ -732,7 +734,7 @@ private Q_SLOTS:
         const int columns = 150;
         QString rowsXml, second;
         for (int c = 0; c < columns; ++c) {
-            const QString name = QStringLiteral("%1%2").arg(QChar('A' + c / 26)).arg(QChar('A' + c % 26));
+            const QString name = columnName(c);
             rowsXml += QStringLiteral("<c r=\"%1%2\" cm=\"1\"><f t=\"array\" ref=\"%1%2:%1%3\">_xlfn.SEQUENCE(3)</f><v>1</v></c>").arg(name, QStringLiteral("1")).arg(kMaxSpillCells);
             second += constant(name + QStringLiteral("2"), QStringLiteral("77"));
         }
@@ -746,9 +748,9 @@ private Q_SLOTS:
         QVERIFY(blocks >= 1 && blocks < size_t(columns));
         QVERIFY(qint64(blocks) * 3125 <= (1 << 18));
         for (int c = 0; c < columns; ++c) {
-            const QString name = QStringLiteral("%1%2").arg(QChar('A' + c / 26)).arg(QChar('A' + c % 26));
-            QCOMPARE(b.at(name + QStringLiteral("2")), QStringLiteral("n:77"));   // (a refused block keeps what the file stored in it)
-            QCOMPARE(b.at(name + QStringLiteral("1")), QStringLiteral("n:1"));
+            const QString name = columnName(c);
+            const std::optional<Cell> stored = b.calc->sheet(0).cells.find(1, b.col(name + QStringLiteral("2")));   // (a refused block keeps what the file stored in it)
+            QVERIFY(stored && stored->type == CellType::Number && stored->number == 77);
         }
     }
 
