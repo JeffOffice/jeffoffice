@@ -356,15 +356,21 @@ std::shared_ptr<const WrapRoom> WrapRoom::around(const QList<QPolygonF> &rawRing
         budget.work -= room->m_points.size();
     }
     room->finish();
+    // (The rows a busy room answers from are read when it is first asked; what that costs is charged now, and a budget that has not enough left leaves the object its rectangle.)
+    const int rowN = room->rowCount();
+    const qint64 rows = rowN ? room->rowWork(rowN) : 0;
+    if (budget.work < rows) return nullptr;
+    budget.work -= rows;
+    g_roomWork += rows;
     return room;
 }
 
 bool WrapRoom::spans(double y0, double y1, double *left, double *right) const
 {
     if (m_pieces.isEmpty() || !(y1 > y0) || m_bounds.bottom() <= y0 || m_bounds.top() >= y1) return false;
-    const qint64 cost = m_pieces.size();
-    // (A room asked for more than a page asks is read into rows once; its answers then cost the rows of the band, not the pieces.)
-    if (m_pieces.size() > 64 && m_queryWork.fetch_add(cost) + cost > kWrapRoomExactWork) return rowSpans(y0, y1, left, right);
+    // (A room of more than kWrapRoomRowPieces pieces answers from its rows, read once: a question costs the rows of the band, never the pieces.)
+    if (m_pieces.size() > kWrapRoomRowPieces) return rowSpans(y0, y1, left, right);
+    m_queryWork.fetch_add(m_pieces.size());
     double l = 1e300, r = -1e300;
     for (const Piece &piece : m_pieces) {
         if (piece.bottom <= y0 || piece.top >= y1) continue;
@@ -378,18 +384,46 @@ bool WrapRoom::spans(double y0, double y1, double *left, double *right) const
     return true;
 }
 
+// The rows a busy room is read into: kWrapRoomRows, or fewer (never under 32) when the pieces cross so many that reading them would cost more than kWrapRoomRowWork segment tests.
+int WrapRoom::rowCount() const
+{
+    if (m_pieces.size() <= kWrapRoomRowPieces) return 0;
+    int rows = kWrapRoomRows;
+    while (rows > 32 && rowWork(rows) > kWrapRoomRowWork) rows /= 2;
+    return rows;
+}
+
+// What the rows cost to make, in segment tests: each edge of a piece, once for each row it crosses.
+qint64 WrapRoom::rowWork(int rows) const
+{
+    const double step = std::max(m_bounds.height() / rows, 1e-9);
+    qint64 work = 0;
+    for (const Piece &piece : m_pieces) {
+        const QPointF *c = m_points.constData() + piece.first;
+        for (int i = 0; i < piece.count; ++i) {
+            const double ya = c[i].y(), yb = c[(i + 1) % piece.count].y();
+            const int r0 = std::clamp(int((std::min(ya, yb) - m_bounds.top()) / step), 0, rows - 1), r1 = std::clamp(int((std::max(ya, yb) - m_bounds.top()) / step), 0, rows - 1);
+            work += r1 - r0 + 1;
+        }
+    }
+    return work;
+}
+
 void WrapRoom::buildRows() const
 {
-    const int rows = kWrapRoomRows;
+    const int rows = rowCount();
     m_rowStep = std::max(m_bounds.height() / rows, 1e-9);
     m_rowLeft.fill(1e300, rows);
     m_rowRight.fill(-1e300, rows);
     for (const Piece &piece : m_pieces) {
         const QPointF *c = m_points.constData() + piece.first;
-        const int r0 = std::clamp(int((piece.top - m_bounds.top()) / m_rowStep), 0, rows - 1), r1 = std::clamp(int((piece.bottom - m_bounds.top()) / m_rowStep), 0, rows - 1);
-        for (int k = r0; k <= r1; ++k) {
-            const double y0 = m_bounds.top() + k * m_rowStep, y1 = y0 + m_rowStep;
-            for (int i = 0; i < piece.count; ++i) widen(c[i].x(), c[i].y(), c[(i + 1) % piece.count].x(), c[(i + 1) % piece.count].y(), y0, y1, m_rowLeft[k], m_rowRight[k]);
+        for (int i = 0; i < piece.count; ++i) {
+            const QPointF a = c[i], b = c[(i + 1) % piece.count];
+            const int r0 = std::clamp(int((std::min(a.y(), b.y()) - m_bounds.top()) / m_rowStep), 0, rows - 1), r1 = std::clamp(int((std::max(a.y(), b.y()) - m_bounds.top()) / m_rowStep), 0, rows - 1);
+            for (int k = r0; k <= r1; ++k) {
+                const double y0 = m_bounds.top() + k * m_rowStep;
+                widen(a.x(), a.y(), b.x(), b.y(), y0, y0 + m_rowStep, m_rowLeft[k], m_rowRight[k]);
+            }
         }
     }
 }
@@ -398,6 +432,7 @@ bool WrapRoom::rowSpans(double y0, double y1, double *left, double *right) const
 {
     std::call_once(m_rowsOnce, [&] { buildRows(); });
     const int rows = int(m_rowLeft.size());
+    m_queryWork.fetch_add(1);
     const int k0 = std::clamp(int(std::floor((y0 - m_bounds.top()) / m_rowStep)), 0, rows - 1), k1 = std::clamp(int(std::ceil((y1 - m_bounds.top()) / m_rowStep)) - 1, 0, rows - 1);
     double l = 1e300, r = -1e300;
     for (int k = k0; k <= k1; ++k) { l = std::min(l, m_rowLeft[k]); r = std::max(r, m_rowRight[k]); }

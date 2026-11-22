@@ -3326,7 +3326,7 @@ private Q_SLOTS:
             QVERIFY2(rl <= el + 1e-6 && rr >= er - 1e-6, qPrintable(QString("%1: room %2..%3 outline %4..%5").arg(y).arg(rl).arg(rr).arg(el).arg(er)));
             double gl, gr;
             extentOf(y - grow - 1 - (banded ? all.height() / jp::kWrapProfileBands : 0), y + 1 + grow + (banded ? all.height() / jp::kWrapProfileBands : 0), &gl, &gr);
-            const double slack = banded ? all.height() / jp::kWrapProfileBands * 2.5 : 1e-6;
+            const double slack = banded ? all.height() / jp::kWrapProfileBands * 2.5 : room->segments() > jp::kWrapRoomRowPieces ? all.height() / 32 * 2.5 : 1e-6;   // (a busy room answers from rows)
             QVERIFY2(rl >= gl - grow * 1.5 - slack - 1e-6 && rr <= gr + grow * 1.5 + slack + 1e-6, qPrintable(QString("%1: room %2..%3 reach %4..%5").arg(y).arg(rl).arg(rr).arg(gl).arg(gr)));
         }
         // A band through the whole of it is answered by one pass over the pieces: counted.
@@ -3336,30 +3336,38 @@ private Q_SLOTS:
         QVERIFY2(room->queryWork() - before <= room->segments(), qPrintable(QString::number(room->queryWork() - before)));
     }
 
-    // A room's answers are bounded too: past kWrapRoomExactWork segment tests (the text asked for more bands than a page has) it answers from rows it is read into once, an answer that
-    // holds the exact one and is no wider than the room; the count of work does not grow by the pieces any more.
-    void aRoomAskedForTooManyBandsAnswersFromRows()
+    // A room's answers are bounded too: a room of more than kWrapRoomRowPieces pieces answers from rows it is read into once (charged when it is made), an answer that holds the exact one
+    // and is no wider than the room; a question counts one, however many pieces the room has. Fails when the rows are off: a question then costs every piece.
+    void aBusyRoomAnswersFromRows()
     {
         const QPolygonF zig = randomZigZag(255, 300, 300, 1).toFillPolygon();
         jp::WrapBudget budget = jp::WrapBudget::forCall();
         const auto room = jp::WrapRoom::around(QList<QPolygonF>{zig}, 3, budget);
-        const auto fresh = jp::WrapRoom::around(QList<QPolygonF>{zig}, 3, budget);   // (asked nothing: its answers are exact)
         QVERIFY(room->segments() > 64);
-        double l = 0, r = 0, el = 0, er = 0;
-        qint64 asked = 0;
-        while (room->queryWork() <= jp::kWrapRoomExactWork) {
-            QVERIFY(room->spans(150, 151, &l, &r));
-            ++asked;
-            QVERIFY(asked < 1000000);
-        }
-        QVERIFY2(asked >= jp::kWrapRoomExactWork / room->segments(), qPrintable(QString::number(asked)));   // (not at the first question)
-        for (const double y : {20.0, 100.0, 150.0, 280.0}) {
-            QVERIFY(room->spans(y, y + 2, &l, &r));
-            QVERIFY(fresh->spans(y, y + 2, &el, &er));
-            QVERIFY2(l <= el + 1e-9 && r >= er - 1e-9, qPrintable(QString("%1: %2..%3 holds %4..%5").arg(y).arg(l).arg(r).arg(el).arg(er)));
+        QVERIFY(budget.work < jp::kMostWrapWorkPerCall - zig.size() * 5);   // (the rows were charged, beside the points and pieces)
+        double l = 0, r = 0;
+        const qint64 before = room->queryWork();
+        int asked = 0;
+        for (double y = 1; y < 299; y += 0.3, ++asked) {
+            double exactL = 1e300, exactR = -1e300;
+            for (int i = 0; i < zig.size(); ++i) {
+                const QPointF a = zig[i], b = zig[(i + 1) % zig.size()];
+                if (std::max(a.y(), b.y()) < y || std::min(a.y(), b.y()) > y + 2) continue;
+                for (const double yy : {std::max(y, std::min(a.y(), b.y())), std::min(y + 2, std::max(a.y(), b.y()))}) {
+                    const double x = a.y() == b.y() ? a.x() : a.x() + (yy - a.y()) * (b.x() - a.x()) / (b.y() - a.y());
+                    exactL = std::min(exactL, x);
+                    exactR = std::max(exactR, x);
+                }
+            }
+            if (!room->spans(y, y + 2, &l, &r)) { QVERIFY(exactL > exactR); continue; }
+            QVERIFY2(exactL > exactR || (l <= exactL + 1e-6 && r >= exactR - 1e-6), qPrintable(QString::number(y)));
             QVERIFY(l >= room->bounds().left() - 1e-9 && r <= room->bounds().right() + 1e-9);
         }
-        QVERIFY(fresh->queryWork() <= 4 * fresh->segments());
+        QVERIFY(asked > 900);
+        QCOMPARE(room->queryWork() - before, qint64(asked));
+        // A budget with less left than the rows cost makes no room.
+        jp::WrapBudget little{room->segments() + zig.size() + 100, 5};
+        QVERIFY(!jp::WrapRoom::around(QList<QPolygonF>{zig}, 3, little));
     }
 
     // The work of a page is counted: a budget with less left than an outline needs gives no room (the caller sets the object round its rectangle), and charges nothing for it.

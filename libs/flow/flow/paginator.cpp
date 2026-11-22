@@ -30,6 +30,8 @@ constexpr int kDenseNotes = 64;
 // How many times a page is laid out again to make the objects the text goes round and the lines agree about where each is, and the most the objects seen before are kept to
 // know that they go in circles.
 constexpr int kWrapPasses = 4;
+// How many of the objects that keep moving each other are tried one at a time as the one sent to the next page (a page's layouts are then at most 2 + kWrapPasses * (1 + kWrapFlips) + 3, whatever the page holds).
+constexpr int kWrapFlips = 8;
 // The most parts a page is laid out in (the sections that begin on it, one under another, as far as it goes).
 constexpr int kMostParts = 16;
 // The most references to bookmarks on a page that are looked at to find their pages (the rest show what the file had).
@@ -206,6 +208,8 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
     // again until they agree (the paragraph's top an object is set from is where the paragraph would be without it: that is what the engine's `pushed` is for). `moveBefore`:
     // the paragraph that a table set at a place goes over the foot from, as the page is when its walls are settled. `cycle`: where they do not settle, the walls of the layouts
     // that follow one another again and again.
+    const qint64 layouts0 = m_passes;
+    auto spent = [&] { return m_passes - layouts0; };
     auto settle = [&](Run &run, QVector<Wrapped> &used, int cutAt, int *moveBefore, QVector<QVector<Wrapped>> *cycle) {
         QVector<QVector<Wrapped>> seen;
         bool agreed = true;
@@ -224,6 +228,7 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
                 }
                 break;
             }
+            if (spent() >= kMostPageLayouts) break;
             seen << used;
             used = want;
             run = layoutPageWith(index, st, used, cutAt);
@@ -252,7 +257,9 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
                 if (!everywhere && w.paragraph >= 0 && !flipping.contains(w.paragraph)) flipping << w.paragraph;
             }
         std::sort(flipping.begin(), flipping.end(), std::greater<int>());
+        if (flipping.size() > kWrapFlips) flipping.resize(kWrapFlips);
         for (const int paragraph : flipping) {
+            if (spent() >= kMostPageLayouts) break;
             Run shorter = layoutPageWith(index, st, {}, paragraph);
             if (!shorter.cut) continue;
             QVector<Wrapped> walls;

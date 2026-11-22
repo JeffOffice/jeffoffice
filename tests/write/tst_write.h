@@ -1528,6 +1528,7 @@ private Q_SLOTS:
     void randomTableTabCommandsKeepTablesWholeAndOpenTheSame();
     void randomEditingOfTablesKeepsThemWholeAndTheLayoutRight();
     void theDocumentsOfTheRandomCommandsHaveObjectsTheTextGoesRound();
+    void aThousandPicturesWithTangledWrapOutlinesAreSetInCountedWork();
     void aShapeWithNoFillOrLineHasNone();
     void aTableSetAtAPlaceHasItsPlace();
     void aTableOfFramedParagraphsHasTheFramesPlace();

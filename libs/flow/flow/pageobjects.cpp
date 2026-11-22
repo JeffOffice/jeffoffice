@@ -228,7 +228,7 @@ qint64 Paginator::wrapColumnsForTest() { return g_wrapColumns.load(); }
 qint64 Paginator::wrapCandidatesForTest() { return g_wrapCandidates.load(); }
 qint64 Paginator::wrapShapesForTest() { return g_wrapShapes.load(); }
 
-// A Tight wrap's outline placed on the page (its points are shares of the frame), with the room round it that the object's distances ask for: segments, not a path (core/wrapoutline.h), so
+// A Tight wrap's outline in the frame's own place (its points are shares of the frame; the room's origin is the frame's corner), with the room round it that the object's distances ask for: segments, not a path (core/wrapoutline.h), so
 // that the text engine asks it which span of a line's band is blocked and nothing is clipped. Null when the column's budget has not enough left (the object is then its rectangle). A room
 // made once is kept (the same object in the next column is the same room, its rows read once), and is charged to each column's budget as it was made, so that a column's layout does not
 // depend on what the columns before it made.
@@ -236,25 +236,26 @@ std::shared_ptr<const jp::WrapRoom> Paginator::wrapOutlineRoom(const FloatingObj
 {
     const double distance = std::max({o.gap.left(), o.gap.right(), o.gap.top(), o.gap.bottom()});
     double sum = 0;
-    for (const QPointF &p : o.outline) sum += p.x() * 1.7 + p.y();
-    const auto key = std::make_tuple(w.rect.left(), w.rect.top(), w.rect.width(), w.rect.height(), distance, sum, int(o.outline.size()));
-    const auto kept = m_wrapRooms.find(key);
-    if (kept != m_wrapRooms.end()) {
-        const WrapRoomMade &made = kept->second;
-        if (budget.shapes <= 0 || budget.work < made.work) return nullptr;
-        --budget.shapes;
-        budget.work -= made.work;
-        return made.room;
-    }
-    QPolygonF placed;
-    for (const QPointF &p : o.outline) placed << QPointF(w.rect.left() + p.x() * w.rect.width(), w.rect.top() + p.y() * w.rect.height());
-    const qint64 work0 = budget.work;
-    const auto room = jp::WrapRoom::around(QList<QPolygonF>{placed}, distance, budget);
-    if (room) {
+    double sum2 = 0;
+    int at = 0;
+    for (const QPointF &p : o.outline) { sum += p.x() * 1.7 + p.y(); sum2 += (p.x() * 3.1 - p.y() * 0.7) * ++at; }
+    // (By the frame's size, not its place: the room is made with the frame's corner at 0, 0, and the caller shifts it to where the object is, so that an object that moves from one pass to the next has its room still.)
+    const auto key = std::make_tuple(sum2, 0.0, w.rect.width(), w.rect.height(), distance, sum, int(o.outline.size()));
+    auto kept = m_wrapRooms.find(key);
+    if (kept == m_wrapRooms.end()) {
+        // (Made once with a budget of its own, whoever asks and whatever the column has left: what a room costs is its own, and an outline too big for it is kept as none, so that it is not tried again.)
+        QPolygonF placed;
+        for (const QPointF &p : o.outline) placed << QPointF(p.x() * w.rect.width(), p.y() * w.rect.height());
+        jp::WrapBudget own = jp::WrapBudget::forPage();
+        const auto room = jp::WrapRoom::around(QList<QPolygonF>{placed}, distance, own);
         if (m_wrapRooms.size() >= 4096) m_wrapRooms.clear();
-        m_wrapRooms[key] = WrapRoomMade{room, work0 - budget.work};
+        kept = m_wrapRooms.emplace(key, WrapRoomMade{room, jp::WrapBudget::forPage().work - own.work}).first;
     }
-    return room;
+    const WrapRoomMade &made = kept->second;
+    if (!made.room || budget.shapes <= 0 || budget.work < made.work) return nullptr;
+    --budget.shapes;
+    budget.work -= made.work;
+    return made.room;
 }
 
 QVector<jp::WrapObstacle> Paginator::obstaclesFor(const QVector<Wrapped> &wrapped, const QRectF &column, const QVector<QRectF> &part) const
@@ -300,7 +301,7 @@ QVector<jp::WrapObstacle> Paginator::obstaclesFor(const QVector<Wrapped> &wrappe
                 continue;
             }
             if (room->isEmpty()) continue;
-            const QRectF pb = room->bounds();
+            const QRectF pb = room->bounds().translated(w.rect.topLeft());
             if (!pb.intersects(column)) continue;
             QPolygonF wall;
             if (o.side != FloatingObject::Side::Both) {
@@ -309,7 +310,7 @@ QVector<jp::WrapObstacle> Paginator::obstaclesFor(const QVector<Wrapped> &wrappe
                 wall.translate(-column.left(), -column.top());
             }
             jp::WrapObstacle ob(room, wall);
-            ob.shift = QPointF(-column.left(), -column.top());   // (the room is shared by the columns that have it: moved, not copied)
+            ob.shift = w.rect.topLeft() - column.topLeft();   // (the room is shared by the columns that have it: moved, not copied)
             out << ob;
             continue;
         } else if (!b.intersects(column)) {

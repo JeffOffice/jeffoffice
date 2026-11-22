@@ -2291,7 +2291,7 @@ private Q_SLOTS:
                 }
             }
             QCOMPARE(Renderer::wrapRoomsMadeForTest() - made0, qint64(1));
-            QVERIFY2(jp::WrapRoom::workForTest() - work0 <= 5000 + 5 * jp::kMostWrapOutlineSegments, qPrintable(QString::number(jp::WrapRoom::workForTest() - work0)));
+            QVERIFY2(jp::WrapRoom::workForTest() - work0 <= 5000 + 5 * jp::kMostWrapOutlineSegments + jp::kWrapRoomRowWork, qPrintable(QString::number(jp::WrapRoom::workForTest() - work0)));
         }
         // A picture away from the box is no work at all: no room, no work charged (and with a path of 100,000 elements, one not even read).
         {

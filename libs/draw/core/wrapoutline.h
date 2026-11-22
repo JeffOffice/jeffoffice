@@ -44,11 +44,12 @@ QPolygonF wrapOutlineOfAlpha(const QImage &image, int *scanned = nullptr);
 // What the room round an outline costs, in counted work (points flattened plus segments built; nothing is timed). The room is never made by the path clipper or the stroker: it is a
 // list of short segments, and the text engine asks it one thing, which horizontal span of a line's band is blocked, from those segments alone (a band costs one pass over them).
 // An outline of more than kMostWrapOutlineSegments points is read into at most kWrapProfileBands bands (the extent of each, a rectangle); a path of more than kMostWrapPathElements
-// elements is its bounding rectangle; a room that is asked for more than kWrapRoomExactWork segment tests (a page of text asks a few hundred times) is read once into kWrapRoomRows rows, and answers from them (a row's span: never less than the exact one, at most a row's height more). A page's budget (one pass, or one column of the
+// elements is its bounding rectangle; a room of more than kWrapRoomRowPieces pieces is read once into kWrapRoomRows rows (fewer, at least 32, when that would cost more than kWrapRoomRowWork segment tests), charged to the budget when it is made, and answers from them (a row's span: never less than the exact one, at most a row's height more). A page's budget (one pass, or one column of the
 // paginator) and a call's budget (outside a pass) are WrapBudget; past it, an object is its rectangle.
 constexpr int kMostWrapOutlineSegments = 512, kWrapProfileBands = 128, kMostWrapPathElements = 20000;
-constexpr qint64 kMostWrapWorkPerPage = 400000, kMostWrapWorkPerCall = 60000, kWrapRoomExactWork = 250000;
-constexpr int kWrapRoomRows = 256;
+constexpr qint64 kMostWrapWorkPerPage = 400000, kMostWrapWorkPerCall = 200000;
+constexpr int kWrapRoomRows = 256, kWrapRoomRowPieces = 64;
+constexpr qint64 kWrapRoomRowWork = 60000;
 constexpr int kMostWrapShapesPerCall = 64;
 struct WrapBudget {
     qint64 work = 0;
@@ -91,6 +92,8 @@ private:
     WrapRoom() = default;
     void finish();
     void buildRows() const;
+    int rowCount() const;
+    qint64 rowWork(int rows) const;
     bool rowSpans(double y0, double y1, double *left, double *right) const;
     QVector<QPointF> m_points;   // the pieces' corners, one piece after the other (a piece of two points is one segment, of three or four a convex shape)
     QVector<Piece> m_pieces;

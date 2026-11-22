@@ -5,6 +5,7 @@
 #include "core/document.h"
 #include "core/fill.h"
 #include "core/stylefwd.h"
+#include "core/wrapoutline.h"
 #include "text/textenginefwd.h"
 #include "text/textspecial.h"
 

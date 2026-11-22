@@ -863,6 +863,12 @@ QPainterPath Renderer::silhouette(const Document &doc, const Item &it)
     case ItemType::Line: {
         const auto &l = static_cast<const LineItem &>(it);
         const QPainterPath lp = l.path().translated(-l.rect.topLeft());
+        // (A path of more than kMostWrapPathElements elements is its rectangle: the stroker is not run on what a file holds without a limit.)
+        if (lp.elementCount() > kMostWrapPathElements) {
+            const double half = std::max(2.0, l.stroke.width) / 2;
+            p.addRect(lp.controlPointRect().adjusted(-half, -half, half, half));
+            break;
+        }
         QPainterPathStroker st;
         st.setWidth(std::max(2.0, l.stroke.width));
         p = st.createStroke(lp);

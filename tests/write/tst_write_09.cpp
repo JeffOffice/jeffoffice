@@ -2030,6 +2030,44 @@ void WriteTests::theDocumentsOfTheRandomCommandsHaveObjectsTheTextGoesRound()
     }
 }
 
+// A document of a thousand paragraphs, each with a picture whose tight wrap outline has the most points and crosses itself (the wrap polygon of a file), at the distances a file may
+// ask (3, 36, and 400 points): the pages are set in counted work. The rooms are made once for each picture (not for each of its moves between layouts), no page is laid out more than
+// kMostPageLayouts + 3 times, and the work of each room is held to a page's budget. Fails when the cap, the room's key, or the budget is off: the layouts were
+// 36 a page, the rooms 8 for each picture, and a document took 40 to 400 seconds.
+void WriteTests::aThousandPicturesWithTangledWrapOutlinesAreSetInCountedWork()
+{
+    for (const int distance : {3, 36, 400}) {
+        QByteArray body;
+        const QByteArray emu = QByteArray::number(distance * 12700);
+        for (int i = 0; i < 1024; ++i) {
+            QByteArray polygon = "<wp:wrapPolygon edited=\"0\"><wp:start x=\"0\" y=\"0\"/>";
+            for (int k = 1; k < jp::kMostWrapPoints; ++k) polygon += "<wp:lineTo x=\"" + QByteArray::number(k % 2 ? 21600 : 0) + "\" y=\"" + QByteArray::number(((k * 37 + i * 11) % 128) * 168) + "\"/>";
+            polygon += "</wp:wrapPolygon>";
+            body += "<w:p><w:r><w:drawing><wp:anchor xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" "
+                    "xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\" distT=\"" + emu + "\" distB=\"" + emu + "\" distL=\"" + emu + "\" distR=\"" + emu + "\" simplePos=\"0\" relativeHeight=\"" + QByteArray::number(i + 1) +
+                    "\" behindDoc=\"0\" locked=\"0\" layoutInCell=\"1\" allowOverlap=\"1\"><wp:simplePos x=\"0\" y=\"0\"/><wp:positionH relativeFrom=\"column\"><wp:posOffset>" + QByteArray::number((i % 5) * 900000) +
+                    "</wp:posOffset></wp:positionH><wp:positionV relativeFrom=\"paragraph\"><wp:posOffset>0</wp:posOffset></wp:positionV><wp:extent cx=\"1270000\" cy=\"1270000\"/>"
+                    "<wp:wrapTight wrapText=\"bothSides\">" + polygon + "</wp:wrapTight><wp:docPr id=\"" + QByteArray::number(i + 1) + "\" name=\"p\"/><a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\">"
+                    "<pic:pic><pic:nvPicPr><pic:cNvPr id=\"0\" name=\"p\"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip r:embed=\"rIdPic\"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>"
+                    "<pic:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"1270000\" cy=\"1270000\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:anchor></w:drawing></w:r>"
+                    "<w:r><w:t>The quick brown fox jumps over the lazy dog again and again. The quick brown fox jumps over the lazy dog again and again.</w:t></w:r></w:p>";
+        }
+        const qint64 made0 = jp::WrapRoom::madeForTest(), work0 = jp::WrapRoom::workForTest(), columns0 = flow::Paginator::wrapColumnsForTest();
+        auto doc = open(makeDocxWithPicture(body));
+        QVERIFY(doc);
+        auto &pager = doc->pager();
+        const int pages = pager.pageCount();
+        QVERIFY(pages >= 10);
+        for (int k = 0; k < pages; ++k) QVERIFY(!pager.lines(k).isEmpty());
+        const QString at = QStringLiteral("distance %1").arg(distance);
+        const qint64 made = jp::WrapRoom::madeForTest() - made0, work = jp::WrapRoom::workForTest() - work0, columns = flow::Paginator::wrapColumnsForTest() - columns0;
+        QVERIFY2(made <= 1024, qPrintable(at + QStringLiteral(": %1 rooms").arg(made)));
+        QVERIFY2(pager.pagePassesForTest() <= pager.pagesLaidOut() * (flow::Paginator::kMostPageLayouts + 3), qPrintable(at + QStringLiteral(": %1 layouts for %2 pages").arg(pager.pagePassesForTest()).arg(pager.pagesLaidOut())));
+        QVERIFY2(work <= made * jp::kMostWrapWorkPerPage && columns > 0, qPrintable(at + QStringLiteral(": %1 work in %2 columns").arg(work).arg(columns)));
+    }
+}
+
+
 
 // A shape that says it has no fill or no line has none (a shape's own fill is a color it was not given); one that says nothing is filled white, with a line, as the file's form has it.
 void WriteTests::aShapeWithNoFillOrLineHasNone()

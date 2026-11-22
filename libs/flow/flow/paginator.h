@@ -224,6 +224,9 @@ public:
     static qint64 wrapShapesForTest();
     // How many times a page has been laid out, the passes that find where its walls are included: for tests of what asking for a page costs.
     qint64 pagePassesForTest() const { return m_passes; }
+    // How many layouts one page may be set while its walls are found, in all (the first with none, the settling, the flips, a table moved, and the last without the objects that did not
+    // settle): past it the objects that have not settled are not walls of the page, as when they never settle. A page of ordinary text settles in two or three.
+    static constexpr int kMostPageLayouts = 8;
     // How many times the frames of a header or footer were made, and how far down the page its wrapped shapes reach was worked out (each once for a story as it is, not for each page):
     // for tests of what a page costs.
     qint64 headerFramesMadeForTest() const { return m_headerFramesMade; }
