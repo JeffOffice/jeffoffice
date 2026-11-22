@@ -1141,6 +1141,26 @@ QString sameWidthStandIn(const QString &family)
     return haveFamily(standIn) ? standIn : QString();
 }
 
+QString measuringFamily(const QString &family)
+{
+    // The family a text is measured in where the answer must be the same on every machine: the family when it is installed (or bundled), else the stand-in of the table above (or
+    // the stand-in less its last words: "Selawik Light" without that weight), else Arimo, which has the standard widths of the sans-serif fonts the sheets of the world use.
+    const QString fallback = QStringLiteral("Arimo");
+    if (const QString chosen = fontReplacement(family); !chosen.isEmpty() && familyInstalled(chosen)) return chosen;
+    if (!family.isEmpty() && familyInstalled(family)) return family;
+    static const QHash<QString, QString> lower = [] {
+        QHash<QString, QString> t;
+        for (auto it = table().cbegin(); it != table().cend(); ++it) t.insert(it.key().toLower(), it.value());
+        return t;
+    }();
+    for (QString standIn = lower.value(family.toLower()); !standIn.isEmpty();) {
+        if (familyInstalled(standIn)) return standIn;
+        if (!standIn.contains(QLatin1Char(' '))) break;
+        standIn.truncate(standIn.lastIndexOf(QLatin1Char(' ')));
+    }
+    return fallback;
+}
+
 QString automaticStandIn(const QString &family)
 {
     if (const QString standIn = standInOnThisPlatform(table().value(family)); !standIn.isEmpty()) return standIn;

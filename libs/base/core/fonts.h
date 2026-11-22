@@ -154,6 +154,10 @@ bool symbolBullet(const QString &family, uint code, SymbolBullet *out);
 // size by this before handing it to Qt so 1 layout unit = 1 point everywhere.
 double fontPointFactor();
 
+// The family to measure a text in when the answer must not depend on the machine: the family itself when it is installed or bundled, else the table's stand-in for it, else Arimo
+// (never the system's own pick, which is a different font, with other widths, on every machine).
+QString measuringFamily(const QString &family);
+
 // One-time setup shared by the app, tools and tests: fonts, substitutions,
 // and room for the very large pictures print publications use.
 void initCore();
