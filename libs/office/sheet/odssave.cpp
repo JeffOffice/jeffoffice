@@ -4,6 +4,7 @@
 // XML would; a document is never made past the size the reader accepts.
 
 #include "sheet/oldsave.h"
+#include "core/lossnotes.h"
 #include "sheet/notes.h"
 #include "sheet/odsnotes.h"
 
@@ -236,10 +237,12 @@ public:
             m_report->cells = m_cells;
             m_report->sheets = qint64(m_written.size());
             m_report->trimmed << m_trimmed;
+            m_report->trimmedMore += m_trimmedMore;
             m_report->formulaReasons = oldsave::topReasons(m_reasons);
             m_report->notKept << m_drawingNotes;
             m_report->notKept.removeDuplicates();
             std::sort(m_report->notKept.begin(), m_report->notKept.end());
+            jp::boundLossNotes(&m_report->notKept, &m_report->notKeptMore);
         }
         return true;
     }
@@ -280,6 +283,7 @@ private:
     QStringList m_sheetNames;
     QHash<QString, QString> m_nameOfFormula;
     QStringList m_trimmed;
+    qint64 m_trimmedMore = 0;
     QMap<QString, qint64> m_reasons;
     qint64 m_cells = 0, m_formulas = 0, m_formulasAsValues = 0, m_tablesAsValues = 0, m_textTotal = 0;
     bool m_printNames = false;
@@ -301,7 +305,7 @@ private:
     };
     QVector<SheetViewInfo> m_views;
 
-    void trim(const QString &what) { m_trimmed << what; }
+    void trim(const QString &what) { jp::addLossNote(&m_trimmed, what, &m_trimmedMore); }
 
     // ---- styles
 

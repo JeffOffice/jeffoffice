@@ -47,11 +47,11 @@ QString keyOf(const QString &path)
     return key;
 }
 
-QString listText(const QStringList &lost)
+QString listText(const QStringList &lost, int shown)
 {
     QStringList lines;
-    for (int i = 0; i < lost.size() && i < kLossyMaxShown; ++i) lines << lost.at(i);
-    if (lost.size() > kLossyMaxShown) lines << QCoreApplication::translate("jp::LossyWarning", "and %1 more").arg(lost.size() - kLossyMaxShown);
+    for (int i = 0; i < lost.size() && i < shown; ++i) lines << lost.at(i);
+    if (lost.size() > shown) lines << QCoreApplication::translate("jp::LossyWarning", "and %1 more").arg(lost.size() - shown);
     return lines.join(QLatin1Char('\n'));
 }
 
@@ -61,7 +61,7 @@ QString lossyReport(const LossyAsk &ask)
 {
     if (ask.lost.isEmpty()) return QCoreApplication::translate("jp::LossyWarning", "Nothing in this %1 is lost when it is saved as a %2 file.").arg(ask.what, ask.format);
     return QCoreApplication::translate("jp::LossyWarning", "A %1 file can't hold some of what this %2 has. If you save it that way, these parts are saved as they stand now or left out:\n\n%3")
-        .arg(ask.format, ask.what, listText(ask.lost));
+        .arg(ask.format, ask.what, listText(ask.lost, ask.shown));
 }
 
 QString lossyOwnFormatPath(const QString &path, const QString &ownFormat)

@@ -144,7 +144,9 @@ void CrunchWindow::findCopyLosses(bool xls, const CompatDone &done)
             if (!ok) return done(CompatAnswer::failed(message));
             QStringList lost = copyReport.notKept;
             for (const QString &what : std::as_const(copyReport.trimmed)) lost << tr("Cut or changed to fit: %1").arg(what);
-            done(lost);
+            CompatAnswer answer(lost);
+            answer.more = copyReport.notKeptMore + copyReport.trimmedMore;
+            done(answer);
         }, Qt::QueuedConnection);
     });
     connect(thread, &QThread::finished, thread, &QObject::deleteLater);

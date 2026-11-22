@@ -20,6 +20,7 @@ struct LossyAsk {
     QString format;       // the kind that can't hold it all, as ".odp"
     QString ownFormat;    // the app's own full format offered instead, as ".pptx"
     QStringList lost;     // what the kind can't hold, one phrase each
+    int shown = 12;       // the most of them the sentence lists (kLossyMaxShown); a box that scrolls gives more
 };
 
 // The most lines of the list that are shown in one box; the rest are counted.

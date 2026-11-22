@@ -246,6 +246,7 @@ private:
     bool m_template;
     QStringList *m_callerSkipped;
     QStringList m_skipped;
+    qint64 m_skippedMore = 0;   // lines left off the list (it keeps jp::kMaxLossNotes, libs/base/core/lossnotes.h)
     QSet<QString> m_said;
     DeckTheme m_theme;
     ColorScheme m_colors;

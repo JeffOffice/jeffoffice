@@ -12,6 +12,10 @@
 #include "core/crunchtemplates.h"
 #include "crunchbooks.h"
 #include "crunchwindowhelpers.h"
+#include "findbooks.h"
+#include "core/lossnotes.h"
+#include "sheet/oldsave.h"
+#include "office/package.h"
 #include "editwindow.h"
 #include "office/packageprops.h"
 #include "../localepin.h"
@@ -354,6 +358,33 @@ private Q_SLOTS:
         e.win.told.clear();
         e.win.w.checkCompatibility(2);
         QVERIFY2(!e.win.told.isEmpty() && !e.win.told.last().contains(QLatin1String("Couldn't check")), qPrintable(e.win.told.join(QLatin1Char('|'))));
+    }
+
+    // The .xls list is bounded where the writer builds it: three hundred defined names the old form can't hold are a hundred lines and a count of two hundred more (one line each before),
+    // and the box says "And 200 more."
+    void theXlsListIsBoundedWhereItIsBuiltAndTheBoxSaysHowManyMore()
+    {
+        QString names;
+        const QString longDefinition = QStringLiteral("1") + QStringLiteral("+1").repeated(6000);
+        for (int i = 0; i < 300; ++i) names += QStringLiteral("<definedName name=\"Big%1\">%2</definedName>").arg(i).arg(longDefinition);
+        const QByteArray bytes = bookOfSheets({{QStringLiteral("A1=1")}}, {}, {}, names);
+        {
+            office::Package package;
+            office::sheet::Workbook book;
+            QString why;
+            QVERIFY2(package.readLazy(bytes, &why) && book.open(package, &why), qPrintable(why));
+            QByteArray xls;
+            office::sheet::CopyReport report;
+            QVERIFY2(office::sheet::saveXls(book, &xls, &report, &why), qPrintable(why));
+            QCOMPARE(report.trimmed.size(), jp::kMaxLossNotes);
+            QCOMPARE(report.trimmedMore, qint64(200));
+        }
+        EditWindow e;
+        QVERIFY(e.open(bytes));
+        jp::CompatibilityDialog box(e.win.w.compatHost(), 0, nullptr);
+        QTRY_VERIFY_WITH_TIMEOUT(!box.working(), 60000);
+        QVERIFY2(box.reportText().contains(QLatin1String("And 200 more.")), qPrintable(box.reportText().right(120)));
+        QCOMPARE(box.reportText().count(QLatin1String("Cut or changed to fit")), jp::kMaxLossNotes);
     }
 
     // A picture of Check Compatibility (JO_SHOT_DIR names the folder; nothing is made without it).

@@ -20,6 +20,7 @@ namespace jp {
 // What a check came to: the list of what the kind can't hold, or that the check could not be made (and why). A check that could not be made is never shown as "nothing is lost".
 struct CompatAnswer {
     QStringList found;   // what the kind can't hold, one phrase each
+    qint64 more = 0;     // how many more lines the app counted but did not keep (its writer bounds its own list)
     QString couldNot;    // when not empty: no check was made; why, as a sentence
     CompatAnswer() = default;
     CompatAnswer(const QStringList &list) : found(list) {}
@@ -43,7 +44,7 @@ struct CompatHost {
     std::function<bool()> alwaysReadOnly;
 };
 
-// The most lines of one list that are kept, and the longest one line is.
+// The most lines of one list the box shows (the file's own choices and the line "And N more." included), and the longest one line is.
 constexpr int kCompatMaxLines = 200;
 constexpr int kCompatMaxLineChars = 400;
 

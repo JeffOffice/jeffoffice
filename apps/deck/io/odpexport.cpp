@@ -1,5 +1,6 @@
 #include "io/odpexport.h"
 #include "core/items.h"
+#include "core/lossnotes.h"
 #include "core/version.h"
 #include "core/blipeffects.h"
 
@@ -261,7 +262,7 @@ Exporter::Exporter(const Document &doc, bool asTemplate, QStringList *skipped)
 
 void Exporter::say(const QString &note)
 {
-    if (!m_skipped.contains(note)) m_skipped << note;
+    if (!m_skipped.contains(note)) jp::addLossNote(&m_skipped, note, &m_skippedMore);
 }
 
 void Exporter::sayOnce(const QString &key, const QString &note)
@@ -1138,6 +1139,7 @@ QByteArray Exporter::run(QString *error)
         if (error) *error = QCoreApplication::translate("OdpExport", "The presentation file could not be put together.");
         return QByteArray();
     }
+    if (m_skippedMore > 0) m_skipped << jp::moreLossNotes(m_skippedMore);
     if (m_callerSkipped) *m_callerSkipped += m_skipped;
     return bytes;
 }

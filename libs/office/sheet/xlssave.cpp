@@ -6,6 +6,7 @@
 // is named in the report.
 
 #include "sheet/oldsave.h"
+#include "core/lossnotes.h"
 
 #include <atomic>
 
@@ -235,8 +236,10 @@ public:
             m_report->cells = m_cellsWritten;
             m_report->sheets = qint64(m_written.size());
             m_report->trimmed << m_trimmed;
+            m_report->trimmedMore += m_trimmedMore;
             m_report->formulaReasons = oldsave::topReasons(m_reasons);
             std::sort(m_report->notKept.begin(), m_report->notKept.end());
+            jp::boundLossNotes(&m_report->notKept, &m_report->notKeptMore);
         }
         return true;
     }
@@ -263,6 +266,7 @@ private:
     QHash<int, int> m_placeToWritten;
     XlsCompileContext m_cx;
     QStringList m_trimmed;
+    qint64 m_trimmedMore = 0;
     // the notes: the drawing each sheet that has some is given, as the globals must list them
     struct Cluster {
         int drawing = 0;
@@ -318,7 +322,7 @@ private:
     };
     std::vector<NameRec> m_names;
 
-    void trim(const QString &what) { m_trimmed << what; }
+    void trim(const QString &what) { jp::addLossNote(&m_trimmed, what, &m_trimmedMore); }
 
     // ---- colors
 

@@ -1,10 +1,12 @@
 #include "app/compatdialog.h"
 #include "app/plaintext.h"
 #include "app/uistyle.h"
+#include "core/lossnotes.h"
 #include <QComboBox>
 #include <QCoreApplication>
 #include <QLabel>
 #include <QPointer>
+#include <QScrollArea>
 #include <QVBoxLayout>
 
 namespace jp {
@@ -26,21 +28,30 @@ CompatAnswer CompatAnswer::failed(const QString &why)
 
 QStringList compatLines(const CompatFormat &format, const CompatHost &host, const CompatAnswer &answer)
 {
+    // (the kind the app saves as its own holds the choices; every other kind leaves them out)
+    const QStringList choices = compatFileChoices(format.what, host.markedFinal && host.markedFinal(), host.alwaysReadOnly && host.alwaysReadOnly());
+    // The file's choices always stay inside the bound; when something is cut, the last line of the list says how many.
+    const qsizetype room = kCompatMaxLines - choices.size();
+    qint64 hidden = answer.more;
+    qsizetype keep = answer.found.size();
+    if (keep + (hidden > 0 ? 1 : 0) > room) {
+        keep = room - 1;
+        hidden += answer.found.size() - keep;
+    }
     QStringList lines;
-    for (const QString &line : answer.found) {
-        if (lines.size() >= kCompatMaxLines) break;
+    for (qsizetype i = 0; i < keep; ++i) {
+        const QString &line = answer.found[i];
         lines << (line.size() > kCompatMaxLineChars ? line.left(kCompatMaxLineChars) + QChar(0x2026) : line);
     }
-    // (the kind the app saves as its own holds the choices; every other kind leaves them out)
-    lines << compatFileChoices(format.what, host.markedFinal && host.markedFinal(), host.alwaysReadOnly && host.alwaysReadOnly());
-    return lines;
+    if (hidden > 0) lines << moreLossNotes(hidden);
+    return lines + choices;
 }
 
 QString compatReport(const CompatFormat &format, const CompatHost &host, const CompatAnswer &answer)
 {
     if (!answer.couldNot.isEmpty())
         return QCoreApplication::translate("jp::CompatibilityDialog", "Couldn't check what a %1 file would leave out of this %2, so nothing is said either way. %3").arg(format.format, format.what, answer.couldNot);
-    return lossyReport({QString(), format.what, format.format, format.ownFormat, compatLines(format, host, answer)});
+    return lossyReport({QString(), format.what, format.format, format.ownFormat, compatLines(format, host, answer), kCompatMaxLines});
 }
 
 CompatibilityDialog::CompatibilityDialog(const CompatHost &host, int first, QWidget *parent) : QDialog(parent), m_host(host)
@@ -62,7 +73,11 @@ CompatibilityDialog::CompatibilityDialog(const CompatHost &host, int first, QWid
     m_report->setWordWrap(true);
     m_report->setTextInteractionFlags(Qt::TextSelectableByMouse);
     m_report->setAlignment(Qt::AlignTop | Qt::AlignLeft);
-    layout->addWidget(m_report, 1);
+    auto *scroll = new QScrollArea(this);   // (a long list scrolls)
+    scroll->setWidgetResizable(true);
+    scroll->setFrameShape(QFrame::NoFrame);
+    scroll->setWidget(m_report);
+    layout->addWidget(scroll, 1);
     auto *buttons = new jp::ButtonBox(QDialogButtonBox::Close, this);
     connect(buttons, &QDialogButtonBox::rejected, this, &QDialog::accept);
     layout->addWidget(buttons);

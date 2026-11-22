@@ -33,6 +33,7 @@ constexpr int kMaxCopyHyperlinks = 65000;
 struct CopyReport {
     QStringList notKept;     // what the workbook has that the copy does not ("charts", "pictures", ...), in words
     QStringList trimmed;     // what was cut to fit ("rows past the 65,536th on Sheet1 (12 cells)", ...)
+    qint64 notKeptMore = 0, trimmedMore = 0;   // how many more of each were left off its list (a list keeps jp::kMaxLossNotes, libs/base/core/lossnotes.h)
     qint64 cells = 0;        // cells written
     qint64 formulas = 0;     // formulas written as formulas
     qint64 formulasAsValues = 0;   // formulas the format could not hold, written as the value they came to

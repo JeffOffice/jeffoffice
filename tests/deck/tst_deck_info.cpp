@@ -18,6 +18,10 @@
 #include "office/packageprops.h"
 
 #include "core/comments.h"
+#include "core/lossnotes.h"
+#include "io/odpexport.h"
+#include <QJsonArray>
+#include <QJsonObject>
 #include "io/zip.h"
 #include "app/settings.h"
 
@@ -917,6 +921,29 @@ private Q_SLOTS:
         }
         QCOMPARE(a.compatHost().formats.size(), 2);
         QVERIFY2(kinds[0].contains(QLatin1String(".odp")) && kinds[1].contains(QLatin1String(".otp")), qPrintable(kinds.join(QLatin1Char('|'))));
+    }
+
+    // The list the .odp writer builds is bounded where it is built: a hundred and fifty slides with a frame that can't be read are one line each up to the bound, then one line that counts the rest.
+    void theOdpListIsBoundedWhereItIsBuiltAndTheBoxSaysHowManyMore()
+    {
+        auto d = sample();
+        for (int i = 0; i < 150; ++i) deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("obj")));
+        for (auto &page : d->pages) {
+            QJsonArray unread;
+            unread.append(QJsonObject{{"xml", QStringLiteral("<p:graphicFrame xmlns:p=\"%1\"><p:nvGraphicFramePr><p:cNvPr id=\"8\" name=\"Diagram\"/><p:cNvGraphicFramePr/><p:nvPr/></p:nvGraphicFramePr></p:graphicFrame>").arg(QStringLiteral("http://schemas.openxmlformats.org/presentationml/2006/main"))}});
+            page->props[QStringLiteral("unread")] = unread;
+        }
+        const int slides = int(d->pages.size());
+        QStringList skipped;
+        QString err;
+        QVERIFY(!deck::exportOdp(*d, false, &err, &skipped).isEmpty());
+        QCOMPARE(skipped.size(), jp::kMaxLossNotes + 1);
+        QCOMPARE(skipped.last(), QStringLiteral("And %1 more.").arg(slides - jp::kMaxLossNotes));
+        DeckWindow a;
+        Quiet quiet(a);
+        a.editor()->setDocument(std::move(d));
+        jp::CompatibilityDialog box(a.compatHost(), 0, nullptr);
+        QVERIFY2(box.reportText().contains(QStringLiteral("And %1 more.").arg(slides - jp::kMaxLossNotes)), qPrintable(box.reportText().right(200)));
     }
 
     void inspectFindsNotesCommentsHiddenSlidesAndWhatIsOffTheSlide()

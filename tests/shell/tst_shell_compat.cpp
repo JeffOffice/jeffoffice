@@ -1,6 +1,7 @@
 // Check Compatibility, the shared box (libs/shell/app/compatdialog.h): the choices a file holds are listed for every other kind, a list is bounded, the picker shows the kind picked, an
 // answer that comes late for a kind no longer picked (or to a box that is gone) is dropped, and a window's stand-in for the box gets the first kind's report.
 #include "app/compatdialog.h"
+#include "core/lossnotes.h"
 #include "../testrunner.h"
 
 #include <QComboBox>
@@ -40,15 +41,53 @@ private Q_SLOTS:
         QVERIFY(compatReport(f, host, {}).contains(QLatin1String("always open")));
     }
 
-    void aListAndEachLineAreBounded()
+    // A list is bounded and says how many it left off ("And N more."); the file's own choices always stay inside the bound; each line is cut too.
+    void aListAndEachLineAreBoundedAndTheRestIsCounted()
     {
+        CompatHost host;
+        host.markedFinal = [] { return true; };
+        host.alwaysReadOnly = [] { return true; };
+        const CompatFormat f = plain(QStringLiteral(".x"), {});
+        const int room = kCompatMaxLines - 2;   // (the two choices keep their lines)
         QStringList many;
         for (int i = 0; i < kCompatMaxLines * 5; ++i) many << QStringLiteral("part %1").arg(i);
         many[0] = QString(kCompatMaxLineChars * 10, QLatin1Char('x'));
-        const QStringList lines = compatLines(plain(QStringLiteral(".x"), {}), CompatHost(), many);
+        const QStringList lines = compatLines(f, host, CompatAnswer(many));
         QCOMPARE(lines.size(), kCompatMaxLines);
         QCOMPARE(lines.first().size(), kCompatMaxLineChars + 1);
-        QCOMPARE(lines.last(), QStringLiteral("part %1").arg(kCompatMaxLines - 1));
+        QCOMPARE(lines[room - 2], QStringLiteral("part %1").arg(room - 2));
+        QCOMPARE(lines[room - 1], QStringLiteral("And %1 more.").arg(many.size() - (room - 1)));
+        QVERIFY(lines[room].contains(QLatin1String("is final")) && lines[room + 1].contains(QLatin1String("always open")));
+        // exactly what fits is all shown; one more than fits is cut to make room for the line that counts
+        QCOMPARE(compatLines(f, host, CompatAnswer(many.mid(0, room))).size(), kCompatMaxLines);
+        QVERIFY(!compatLines(f, host, CompatAnswer(many.mid(0, room))).join(QLatin1Char('|')).contains(QLatin1String("more.")));
+        QVERIFY(compatLines(f, host, CompatAnswer(many.mid(0, room + 1))).contains(QStringLiteral("And 2 more.")));
+        // what the app's own writer already left off is counted in too, even when the list is short
+        CompatAnswer short3(QStringList{QStringLiteral("a"), QStringLiteral("b"), QStringLiteral("c")});
+        short3.more = 7;
+        QCOMPARE(compatLines(f, CompatHost(), short3), (QStringList{QStringLiteral("a"), QStringLiteral("b"), QStringLiteral("c"), QStringLiteral("And 7 more.")}));
+        short3.more = 1;
+        QCOMPARE(compatLines(f, CompatHost(), short3).last(), QStringLiteral("And 1 more."));
+        // the one box shows it
+        QVERIFY(compatReport(f, host, CompatAnswer(many)).contains(QStringLiteral("And %1 more.").arg(many.size() - (room - 1))));
+    }
+
+    // The writers bound the lists they build: the first kMaxLossNotes, the rest counted.
+    void theWritersHelpersKeepTheFirstAndCountTheRest()
+    {
+        QStringList notes;
+        qint64 dropped = 0;
+        for (int i = 0; i < kMaxLossNotes * 3; ++i) addLossNote(&notes, QString::number(i), &dropped);
+        QCOMPARE(notes.size(), kMaxLossNotes);
+        QCOMPARE(dropped, qint64(kMaxLossNotes * 2));
+        QCOMPARE(notes.last(), QString::number(kMaxLossNotes - 1));
+        QStringList long_;
+        qint64 cut = 5;
+        for (int i = 0; i < kMaxLossNotes + 10; ++i) long_ << QString::number(i);
+        boundLossNotes(&long_, &cut);
+        QCOMPARE(long_.size(), kMaxLossNotes);
+        QCOMPARE(cut, qint64(15));
+        QCOMPARE(moreLossNotes(15), QStringLiteral("And 15 more."));
     }
 
     void thePickerShowsTheKindPickedAndAWorkingKindSaysSo()
