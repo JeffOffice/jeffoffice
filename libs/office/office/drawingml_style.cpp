@@ -111,6 +111,15 @@ bool fillFromElement(const QDomElement &e, const StyleContext &sc, Fill *out)
             if (!path.isNull()) {
                 const QString kind2 = attr(path, QStringLiteral("path"));
                 f.gradType = kind2 == QLatin1String("circle") ? Fill::Radial : kind2 == QLatin1String("shape") ? Fill::PathGrad : Fill::Rectangular;
+                if (f.gradType == Fill::Rectangular) {
+                    // The focus: the middle of the rectangle the gradient goes to (its sides are the distances from the shape's sides, in 1000ths of a percent).
+                    const QDomElement to = childNamed(path, "fillToRect");
+                    auto side = [&](const char *name) { return std::clamp(attr(to, QString::fromLatin1(name)).toDouble() / 100000.0, 0.0, 1.0); };
+                    if (!to.isNull()) {
+                        f.focusX = (side("l") + 1 - side("r")) / 2;
+                        f.focusY = (side("t") + 1 - side("b")) / 2;
+                    }
+                }
             } else {
                 double angle = std::fmod(parseAngle(attr(lin, QStringLiteral("ang")), 0), 360.0);
                 if (angle < 0) angle += 360;

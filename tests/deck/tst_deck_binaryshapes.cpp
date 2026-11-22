@@ -2487,6 +2487,38 @@ private Q_SLOTS:
         QCOMPARE(placeholdersOf(*d->pages[1], QStringLiteral("ftr")), 1);
     }
 
+    // A background shaded from the center with no fill-to rectangle has its first color in the top left corner, and a rectangular gradient with
+    // its focus there runs by the larger of the distances along the sides; the focus is kept in a .pptx saved and opened again.
+    void importBinaryShadeFromTheCornerKeepsItsFocus()
+    {
+        const QByteArray props = le(0x0180, 2) + le(5, 4) + le(0x0181, 2) + le(0x0000FF, 4) + le(0x0183, 2) + le(0xFF0000, 4) + le(0x01BF, 2) + le(0x00120012, 4) + le(0x01FF, 2) + le(0x00080000, 4);
+        const QByteArray background = pptBox(0xF004, pptRec(0xF00A, le(0x500, 4) + le(0xC00, 4), 0, 2) + pptRec(0xF00B, props, 5, 3));
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), background), &err);
+        QVERIFY2(d, qPrintable(err));
+        const Fill fill = d->master(d->master(d->pages[0]->masterId)->baseId)->background;
+        QCOMPARE(fill.type, Fill::Gradient);
+        QCOMPARE(fill.gradType, Fill::Rectangular);
+        QCOMPARE(fill.focusX, 0.0);
+        QCOMPARE(fill.focusY, 0.0);
+        const QRectF r(0, 0, 400, 200);
+        const QBrush brush = fill.brush(r, ColorScheme());
+        QImage img(400, 200, QImage::Format_ARGB32);
+        img.fill(Qt::transparent);
+        QPainter p(&img);
+        p.fillRect(r, brush);
+        p.end();
+        // The same distance along each side is the same color, and far from the corner it is not the color at the corner.
+        const QColor half = img.pixelColor(200, 5), same = img.pixelColor(200, 100), corner = img.pixelColor(2, 2), far = img.pixelColor(397, 197);
+        QVERIFY(half == same || qAbs(half.red() - same.red()) + qAbs(half.blue() - same.blue()) < 12);
+        QVERIFY(qAbs(corner.red() - far.red()) > 150);
+        auto again = viaPptx(*d, &err);
+        QVERIFY2(again, qPrintable(err));
+        const Fill back = again->master(again->master(again->pages[0]->masterId)->baseId)->background;
+        QCOMPARE(back.gradType, Fill::Rectangular);
+        QVERIFY(qAbs(back.focusX) < 0.01 && qAbs(back.focusY) < 0.01);
+    }
+
     // A date typed in the master's date place (a whole line, not the program's date field) is what each slide shows that the record says shows a
     // date without saying which: not today's, and none of its own text. A record that names the text, or says it is today's, wins over it; a
     // slide whose own record hides the date has none, and a document with no record shows none.

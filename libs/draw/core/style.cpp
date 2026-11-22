@@ -42,6 +42,44 @@ QImage Fill::patternTile(const ColorScheme &s) const
     return tile;
 }
 
+// The brush of a rectangular gradient whose first color is at a point other than the middle: the color at a point is the stops' at the
+// largest of its distances along each axis from the focus, each as a fraction of the way to the shape's edge on its side (a picture of
+// the shape's proportions made small, stretched by the brush's transform).
+QBrush Fill::rectangularBrush(const QGradientStops &gs, const QRectF &r) const
+{
+    constexpr int kSide = 256;
+    const double fx = std::clamp(focusX, 0.0, 1.0), fy = std::clamp(focusY, 0.0, 1.0);
+    QImage im(kSide, kSide, QImage::Format_ARGB32_Premultiplied);
+    auto at = [&](double t) {
+        if (gs.isEmpty()) return QColor(Qt::transparent);
+        if (t <= gs.first().first) return gs.first().second;
+        for (int i = 1; i < gs.size(); ++i)
+            if (t <= gs[i].first) {
+                const double span = gs[i].first - gs[i - 1].first, u = span > 1e-12 ? (t - gs[i - 1].first) / span : 1.0;
+                const QColor a = gs[i - 1].second, b = gs[i].second;
+                return QColor::fromRgbF(float(a.redF() + (b.redF() - a.redF()) * u), float(a.greenF() + (b.greenF() - a.greenF()) * u), float(a.blueF() + (b.blueF() - a.blueF()) * u),
+                                        float(a.alphaF() + (b.alphaF() - a.alphaF()) * u));
+            }
+        return gs.last().second;
+    };
+    QVector<QRgb> ramp(kSide + 1);
+    for (int i = 0; i <= kSide; ++i) ramp[i] = qPremultiply(at(double(i) / kSide).rgba());
+    for (int y = 0; y < kSide; ++y) {
+        const double v = (y + 0.5) / kSide, ty = v >= fy ? (fy < 1 ? (v - fy) / (1 - fy) : 0.0) : (fy > 0 ? (fy - v) / fy : 0.0);
+        QRgb *line = reinterpret_cast<QRgb *>(im.scanLine(y));
+        for (int x = 0; x < kSide; ++x) {
+            const double u = (x + 0.5) / kSide, tx = u >= fx ? (fx < 1 ? (u - fx) / (1 - fx) : 0.0) : (fx > 0 ? (fx - u) / fx : 0.0);
+            line[x] = ramp[int(std::clamp(std::max(tx, ty), 0.0, 1.0) * kSide + 0.5)];
+        }
+    }
+    QBrush b(im);
+    QTransform t;
+    t.translate(r.left(), r.top());
+    t.scale(std::max(r.width(), 1e-3) / kSide, std::max(r.height(), 1e-3) / kSide);
+    b.setTransform(t);
+    return b;
+}
+
 QBrush Fill::brush(const QRectF &r, const ColorScheme &s, const ImageLookup &img) const
 {
     switch (type) {
@@ -76,6 +114,7 @@ QBrush Fill::brush(const QRectF &r, const ColorScheme &s, const ImageLookup &img
             pb.setTransform(t);
             return pb;
         }
+        if (gradType == Rectangular && (focusX != 0.5 || focusY != 0.5)) return rectangularBrush(gs, r);
         const double rad = std::hypot(r.width(), r.height()) / 2;
         QRadialGradient g(r.center(), gradType == Rectangular ? std::max(r.width(), r.height()) / 2 * 1.15 : rad);
         g.setStops(gs);
@@ -127,6 +166,8 @@ QJsonObject Fill::toJson() const
         static const char *gt[] = {"linear", "radial", "rectangular", "path"};
         o["gradType"] = QString::fromLatin1(gt[gradType]);
         o["angle"] = angle;
+        if (focusX != 0.5) o["focusX"] = focusX;
+        if (focusY != 0.5) o["focusY"] = focusY;
         o["color2"] = color2.toString();
         if (!stops.isEmpty()) {
             QJsonArray a;
@@ -158,6 +199,8 @@ Fill Fill::fromJson(const QJsonObject &o)
     static const QStringList gt = {"linear", "radial", "rectangular", "path"};
     f.gradType = GradType(qMax(0, gt.indexOf(o["gradType"].toString())));
     f.angle = o["angle"].toDouble(90);
+    f.focusX = std::clamp(o["focusX"].toDouble(0.5), 0.0, 1.0);
+    f.focusY = std::clamp(o["focusY"].toDouble(0.5), 0.0, 1.0);
     f.color2 = ColorRef::fromString(o["color2"].toString());
     // (A file's stops are held to the most there are, each at a place on the gradient, as a presentation file's are read.)
     for (const auto &v : o["stops"].toArray()) {

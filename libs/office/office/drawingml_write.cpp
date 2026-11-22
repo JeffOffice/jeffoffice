@@ -95,7 +95,12 @@ void writeGradient(QXmlStreamWriter &w, const Fill &fill, const DrawingWriteCont
         begin(w, "a:path");
         attribute(w, "path", fill.gradType == Fill::Radial ? QStringLiteral("circle") : fill.gradType == Fill::PathGrad ? QStringLiteral("shape") : QStringLiteral("rect"));
         begin(w, "a:fillToRect");
-        for (const char *side : {"l", "t", "r", "b"}) attribute(w, side, QStringLiteral("50000"));
+        const double toLeft = fill.focusX, toTop = fill.focusY;
+        for (const char *side : {"l", "t", "r", "b"}) {
+            const char c = *side;
+            const double v = c == 'l' ? toLeft : c == 't' ? toTop : c == 'r' ? 1 - toLeft : 1 - toTop;
+            attribute(w, side, QString::number(int(std::lround(std::clamp(v, 0.0, 1.0) * 100000))));
+        }
         w.writeEndElement();
         w.writeEndElement();
     }

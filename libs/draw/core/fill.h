@@ -36,6 +36,7 @@ struct Fill {
 
     GradType gradType = Linear;
     double angle = 90;             // degrees, 90 = top to bottom
+    double focusX = 0.5, focusY = 0.5;   // a rectangular gradient's first color: where it is, as fractions of the shape's width and height
     QVector<GradientStop> stops;   // when empty, color -> color2
 
     ColorRef color2;               // gradient end, pattern background
@@ -54,6 +55,7 @@ struct Fill {
     bool isNone() const { return type == NoFill || (type == Solid && color.isNone()); }
 
     QBrush brush(const QRectF &r, const ColorScheme &s, const ImageLookup &img = {}) const;
+    QBrush rectangularBrush(const QGradientStops &stops, const QRectF &r) const;
     QImage patternTile(const ColorScheme &s) const;   // 8 x 8, the background clear when it has none
     QJsonObject toJson() const;
     static Fill fromJson(const QJsonObject &o);
