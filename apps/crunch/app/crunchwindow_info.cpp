@@ -4,6 +4,7 @@
 
 #include "core/appinfo.h"
 #include "core/outline.h"
+#include "core/sheetobjects.h"
 #include "app/compatdialog.h"
 #include "app/lossywarning.h"
 #include "app/settings.h"
@@ -290,6 +291,43 @@ QVector<InspectItem> CrunchWindow::inspectItems()
                          return n;
                      },
                      true, tr("Show All")});
+    // Hidden names: names that are set to be hidden (they are not in the Names list of other programs, and a formula may read one). They are shown, not taken out: a formula that reads one would break.
+    items.push_back({tr("Hidden names"), tr("Names that are set to be hidden: they are not offered in lists of names, but they are in the file. Show them to see what they stand for."),
+                     [session] {
+                         int n = 0;
+                         for (int i = 0; i < session->names().slots(); ++i)
+                             if (session->nameListed(i) && session->names().at(i).hidden) ++n;
+                         return n;
+                     },
+                     [this, session] {
+                         int n = 0;
+                         for (int i = 0; i < session->names().slots(); ++i) {
+                             if (!session->nameListed(i) || !session->names().at(i).hidden) continue;
+                             const crunch::NameEntry &e = session->names().at(i);
+                             crunch::EditSession::NameDraft d;
+                             d.name = e.name;
+                             d.scope = e.scope;
+                             d.comment = e.comment;
+                             d.hidden = false;
+                             d.text = session->nameTextOf(i);
+                             if (session->changeName(i, d).ok) ++n;
+                         }
+                         updateEditActions();
+                         return n;
+                     },
+                     true, tr("Show All")});
+    // Hidden objects: the charts, pictures, shapes, and text boxes the file hides (none is on the sheet, so none can be picked and deleted); Remove All leaves them out of the next save.
+    items.push_back({tr("Hidden objects"), tr("Charts, pictures, shapes, and text boxes that are set to be hidden: they do not show or print, but they are in the file. Removing them can't be undone."),
+                     [this] { return m_objects ? m_objects->hiddenCount() : 0; },
+                     [this] {
+                         const int n = m_objects ? m_objects->dropHidden() : 0;
+                         if (n == 0) return 0;
+                         m_protectionChanged = true; invalidateRecovery();
+                         setWindowModified(true);
+                         updateEditActions();
+                         return n;
+                     },
+                     true, QString()});
     // Headers and footers
     items.push_back({tr("Headers and footers"), tr("Text printed at the top and the bottom of every page, which can hold names and file paths."),
                      [session, book] {

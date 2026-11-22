@@ -25,6 +25,7 @@
 #include "../packedpackagecheck.h"
 #include "office/privacy.h"
 
+#include <QDir>
 #include <QScrollArea>
 #include <QScrollBar>
 #include <QAction>
@@ -128,6 +129,57 @@ QByteArray everythingBook()
     jp::ZipWriter zip;
     for (auto it = zipParts.cbegin(); it != zipParts.cend(); ++it) zip.add(it.key(), it.value(), true);
     return zip.finish();
+}
+
+// A workbook whose drawing holds a picture that shows and four objects set to be hidden (a chart, a picture, a shape, and a text box), each with a name that can be looked for in the file.
+QByteArray hiddenObjectsBook()
+{
+    auto hide = [](QString element) { return element.replace(QStringLiteral("<xdr:cNvPr "), QStringLiteral("<xdr:cNvPr hidden=\"1\" ")); };
+    QString textBox = hide(drawtest::shapeElement(6, QStringLiteral("HiddenSecretTextBox"), QStringLiteral("rect"), QStringLiteral("HiddenSecretWords")));
+    textBox.replace(QStringLiteral("<xdr:cNvSpPr/>"), QStringLiteral("<xdr:cNvSpPr txBox=\"1\"/>"));
+    const QString anchors = drawtest::twoCell(7, 0, 12, 8, hide(drawtest::chartFrame(2, QStringLiteral("rIdC1"), QStringLiteral("HiddenSecretChart"))))
+        + drawtest::twoCell(7, 9, 9, 12, drawtest::pictureElement(3, QStringLiteral("rIdI1"), QStringLiteral("ShownPicture")))
+        + drawtest::twoCell(1, 9, 3, 12, hide(drawtest::pictureElement(4, QStringLiteral("rIdI2"), QStringLiteral("HiddenSecretPicture"))))
+        + drawtest::twoCell(1, 13, 3, 15, hide(drawtest::shapeElement(5, QStringLiteral("HiddenSecretShape"), QStringLiteral("rect"), QStringLiteral("HiddenSecretLabel"))))
+        + drawtest::twoCell(4, 13, 6, 15, textBox);
+    drawtest::SeriesSpec series;
+    series.valRef = QStringLiteral("Sheet1!$A$1:$A$2");
+    series.values = {1, 2};
+    QVector<ExtraPart> parts;
+    auto add = [&](const QString &name, const QByteArray &data, const QString &type, int sheet = -1, const QString &id = QString(), const QString &rel = QString(), const QString &target = QString()) {
+        parts.append({name, data, type, sheet, id, rel, target});
+    };
+    add(QStringLiteral("xl/drawings/drawing1.xml"), drawtest::drawingPart(anchors), QStringLiteral("application/vnd.openxmlformats-officedocument.drawing+xml"), 0, QStringLiteral("rIdD1"), QStringLiteral("drawing"),
+        QStringLiteral("../drawings/drawing1.xml"));
+    add(QStringLiteral("xl/charts/chart1.xml"), drawtest::chartPart(QStringLiteral("barChart"), {series}), QStringLiteral("application/vnd.openxmlformats-officedocument.drawingml.chart+xml"));
+    add(QStringLiteral("xl/media/image1.png"), drawtest::pngBytes(20, 20, Qt::red), QStringLiteral("image/png"));
+    add(QStringLiteral("xl/media/image2.png"), drawtest::pngBytes(24, 24, Qt::blue), QStringLiteral("image/png"));
+    add(QStringLiteral("xl/drawings/_rels/drawing1.xml.rels"),
+        QByteArray("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<Relationships xmlns=\"http://schemas.openxmlformats.org/package/2006/relationships\">"
+                   "<Relationship Id=\"rIdC1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart\" Target=\"/xl/charts/chart1.xml\"/>"
+                   "<Relationship Id=\"rIdI1\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/image\" Target=\"/xl/media/image1.png\"/>"
+                   "<Relationship Id=\"rIdI2\" Type=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships/image\" Target=\"/xl/media/image2.png\"/></Relationships>"),
+        QString());
+    const QByteArray book = buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row><row r=\"2\"><c r=\"A2\"><v>2</v></c></row>"), QStringLiteral("<drawing r:id=\"rIdD1\"/>"))});
+    return withParts(book, parts);
+}
+
+// Whether the bytes hold the text, as the file writes it (one byte a letter, or two as the old form writes it).
+bool holdsText(const QByteArray &bytes, const QString &text)
+{
+    return bytes.contains(text.toUtf8()) || bytes.contains(QByteArray(reinterpret_cast<const char *>(text.utf16()), qsizetype(text.size() * 2)));
+}
+
+bool fileHolds(const QString &path, const QString &text)
+{
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly)) return false;
+    const QByteArray bytes = f.readAll();
+    QMap<QString, QByteArray> parts;
+    if (!jp::readZip(bytes, parts)) return holdsText(bytes, text);
+    for (auto it = parts.cbegin(); it != parts.cend(); ++it)
+        if (holdsText(it.value(), text)) return true;
+    return false;
 }
 
 } // namespace
@@ -789,6 +841,129 @@ private Q_SLOTS:
         QVERIFY(item->removable);
         QCOMPARE(item->remove(), 5);
         QCOMPARE(item->count(), 0);
+    }
+
+    // Inspect finds the objects a file hides (a chart, a picture, a shape, and a text box), and Remove All takes them out of the file whole, with the parts only they used, in every form the
+    // workbook is saved in; the object that shows, and the rest of the file, stay as they were.
+    void inspectTakesHiddenObjectsOutOfEveryFormat()
+    {
+        EditWindow e;
+        QVERIFY(e.open(hiddenObjectsBook(), QStringLiteral("hidden.xlsx")));
+        QVERIFY(e.settle());
+        const QStringList secrets = {QStringLiteral("HiddenSecretChart"), QStringLiteral("HiddenSecretPicture"), QStringLiteral("HiddenSecretShape"), QStringLiteral("HiddenSecretTextBox"), QStringLiteral("HiddenSecretWords")};
+        const auto itemOf = [&]() -> InspectItem {
+            for (const InspectItem &i : e.win.w.inspectItems())
+                if (i.title == QLatin1String("Hidden objects")) return i;
+            return InspectItem();
+        };
+        const InspectItem item = itemOf();
+        QVERIFY(!item.title.isEmpty());
+        QCOMPARE(item.count(), 4);
+        QVERIFY(item.removable);
+        const QMap<QString, QByteArray> before = partsOf(e.path);
+        QVERIFY(before.value(QStringLiteral("xl/drawings/drawing1.xml")).contains("HiddenSecretPicture"));
+        QCOMPARE(item.remove(), 4);
+        QCOMPARE(itemOf().count(), 0);
+        QCOMPARE(itemOf().remove(), 0);
+        QVERIFY(saveAndWaitHere(e.win.w));
+        const QMap<QString, QByteArray> now = partsOf(e.path);
+        for (const QString &s : secrets) QVERIFY2(!fileHolds(e.path, s), qPrintable(s));
+        QVERIFY(now.value(QStringLiteral("xl/drawings/drawing1.xml")).contains("ShownPicture"));
+        QVERIFY(now.contains(QStringLiteral("xl/media/image1.png")));
+        QVERIFY(!now.contains(QStringLiteral("xl/media/image2.png")));
+        QVERIFY(!now.contains(QStringLiteral("xl/charts/chart1.xml")));
+        QCOMPARE(now.value(QStringLiteral("xl/media/image1.png")), before.value(QStringLiteral("xl/media/image1.png")));
+        QCOMPARE(now.value(QStringLiteral("xl/worksheets/sheet1.xml")), before.value(QStringLiteral("xl/worksheets/sheet1.xml")));
+        QVERIFY(!now.value(QStringLiteral("[Content_Types].xml")).contains("chart1.xml"));
+        // the copies in the other forms
+        for (const char *name : {"copy.ods", "copy.ots", "copy.xls"}) {
+            const QString target = e.folder.dir.filePath(QString::fromLatin1(name));
+            QSignalSpy copied(&e.win.w, &CrunchWindow::copyExported);
+            QVERIFY(e.win.w.saveAs(target, true));
+            QVERIFY(copied.count() > 0 || copied.wait(20000));
+            for (const QString &s : secrets) QVERIFY2(!fileHolds(target, s), qPrintable(QString::fromLatin1(name) + QLatin1Char(' ') + s));
+        }
+        // and the file read again has the shown picture, and the item finds nothing
+        EditWindow again;
+        QVERIFY(again.open(QFile(e.path).exists() ? [&] { QFile f(e.path); f.open(QIODevice::ReadOnly); return f.readAll(); }() : QByteArray(), QStringLiteral("again.xlsx")));
+        QVERIFY(again.settle());
+        for (const InspectItem &i : again.win.w.inspectItems())
+            if (i.title == QLatin1String("Hidden objects")) QCOMPARE(i.count(), 0);
+    }
+
+    // Inspect finds the names a file hides, and Show All makes them show (the names stay: a formula may read one); the step can be undone, and what is saved, in every form, has none hidden.
+    void inspectShowsHiddenNames()
+    {
+        const QByteArray book = buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c><c r=\"B1\"><f>Quiet*2</f><v>2</v></c></row>"))}, QByteArray(), QString(), QString(), QByteArray(),
+                                          QStringList({"Sheet1"}), QStringLiteral("<definedName name=\"Quiet\" hidden=\"1\">Sheet1!$A$1</definedName><definedName name=\"Seen\">Sheet1!$A$1:$A$2</definedName>"));
+        EditWindow e;
+        QVERIFY(e.open(book, QStringLiteral("names.xlsx")));
+        QVERIFY(e.settle());
+        const auto itemOf = [&](EditWindow &w) -> InspectItem {
+            for (const InspectItem &i : w.win.w.inspectItems())
+                if (i.title == QLatin1String("Hidden names")) return i;
+            return InspectItem();
+        };
+        InspectItem item = itemOf(e);
+        QVERIFY(!item.title.isEmpty());
+        QCOMPARE(item.count(), 1);
+        QCOMPARE(item.action, QStringLiteral("Show All"));
+        QCOMPARE(item.remove(), 1);
+        QCOMPARE(itemOf(e).count(), 0);
+        e.win.w.undoStack()->undo();
+        QCOMPARE(itemOf(e).count(), 1);
+        e.win.w.undoStack()->redo();
+        QCOMPARE(itemOf(e).count(), 0);
+        QVERIFY(saveAndWaitHere(e.win.w));
+        const QMap<QString, QByteArray> now = partsOf(e.path);
+        const QByteArray workbook = now.value(QStringLiteral("xl/workbook.xml"));
+        QVERIFY2(workbook.contains("name=\"Quiet\"") && workbook.contains("name=\"Seen\"") && !workbook.contains("hidden=\"1\""), workbook.constData());
+        QVERIFY(now.value(QStringLiteral("xl/worksheets/sheet1.xml")).contains("Quiet*2"));
+        QFile f(e.path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray reopened = f.readAll();
+        f.close();
+        EditWindow again;
+        QVERIFY(again.open(reopened, QStringLiteral("again.xlsx")));
+        QVERIFY(again.settle());
+        QCOMPARE(itemOf(again).count(), 0);
+        QVERIFY(again.win.w.session()->names().find(-1, QStringLiteral("Quiet")) >= 0);
+        for (const char *name : {"copy.ods", "copy.xls"}) {
+            const QString target = e.folder.dir.filePath(QString::fromLatin1(name));
+            QSignalSpy copied(&e.win.w, &CrunchWindow::copyExported);
+            QVERIFY(e.win.w.saveAs(target, true));
+            QVERIFY(copied.count() > 0 || copied.wait(20000));
+            QFile c(target);
+            QVERIFY(c.open(QIODevice::ReadOnly));
+            EditWindow other;
+            QVERIFY(other.open(c.readAll(), QString::fromLatin1(name)));
+            QVERIFY(other.settle());
+            QCOMPARE(itemOf(other).count(), 0);
+            QVERIFY2(other.win.w.session()->names().find(-1, QStringLiteral("Quiet")) >= 0, name);
+        }
+    }
+
+    // Pictures of the Inspect box (JO_SHOT_DIR): what it listed before the objects and names the file hides were added, and now.
+    void shotInspect()
+    {
+        const QString dir = qEnvironmentVariable("JO_SHOT_DIR");
+        if (dir.isEmpty()) QSKIP("JO_SHOT_DIR is not set");
+        jp::applyUiTheme(1);
+        EditWindow e;
+        QVERIFY(e.open(hiddenObjectsBook(), QStringLiteral("hidden.xlsx")));
+        QVERIFY(e.settle());
+        QDir().mkpath(dir);
+        const QVector<InspectItem> now = e.win.w.inspectItems();
+        QVector<InspectItem> before;
+        for (const InspectItem &i : now)
+            if (i.title != QLatin1String("Hidden objects") && i.title != QLatin1String("Hidden names")) before.push_back(i);
+        int n = 0;
+        for (const QVector<InspectItem> &items : {before, now}) {
+            InspectDialog box(QStringLiteral("Inspect Workbook"), items, nullptr);
+            box.show();
+            QVERIFY(QTest::qWaitForWindowExposed(&box));
+            QVERIFY(box.grab().save(dir + (n++ == 0 ? QStringLiteral("/crunch-inspect-before.png") : QStringLiteral("/crunch-inspect-after.png"))));
+        }
     }
 
     void inspectFindsAndTakesOutHeadersAndFooters()

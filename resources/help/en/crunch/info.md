@@ -1,5 +1,5 @@
 # Info: properties, passwords, and Inspect
-<!-- keywords: info, properties, title, author, subject, keywords, categories, comments, company, manager, custom properties, mark as final, final, read-only, password, encrypt, protect, inspect workbook, personal information, hidden sheets, notes, external links, custom xml, show in folder, copy path, folder, path, version history, versions, go back -->
+<!-- keywords: info, properties, title, author, subject, keywords, categories, comments, company, manager, custom properties, mark as final, final, read-only, password, encrypt, protect, inspect workbook, personal information, hidden sheets, hidden names, hidden objects, notes, external links, custom xml, show in folder, copy path, folder, path, version history, versions, go back -->
 
 Click **File > Info** to see the facts about your workbook, and to protect it before you share it. Press **Esc** to go back to your workbook.
 
@@ -50,6 +50,8 @@ Click **Inspect Workbook** before you send a workbook to someone. It lists what 
 - **Document properties and personal information** are the author, the person who last saved it, the company, and the manager. **Remove All** clears them.
 - **Hidden sheets** are sheets that do not show as tabs. **Show All** shows them, so you can see what they hold, and delete the ones you don't want.
 - **Hidden rows and columns** are lines you hid by hand. Rows hidden by a filter are not counted. **Show All** shows them, so you can see what they hold.
+- **Hidden names** are names that are set to be hidden, so lists of names do not offer them. **Show All** shows them, so you can see what they stand for. They stay in the workbook, because a formula may read one.
+- **Hidden objects** are charts, pictures, shapes, and text boxes that are set to be hidden, so they do not show or print. **Remove All** takes them out of the file when you save, with the pictures and chart data only they used. This can't be undone.
 - **Headers and footers** are the text printed at the top and the bottom of every page. **Remove All** clears them on every sheet.
 - **External links** are links to values in other workbooks. **Remove All** turns each cell that reads one into the number or text it shows now, and leaves out the links when you save. A name that stood for a place in another workbook becomes **#REF!**, which is an error that says the place is gone. You can't undo this, so save a copy first if you may want the links back.
 - **Custom XML data** is data that other programs added to the file, which you can't see on a sheet. **Remove All** leaves it out when you save.

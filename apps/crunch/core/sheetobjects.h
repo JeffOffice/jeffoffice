@@ -183,6 +183,10 @@ public:
     const Limits &limits() const { return m_limits; }
     // The objects put there since the file was read or saved that are not taken away, and the points of the charts that are new or changed, in the whole workbook.
     int addedCount() const;
+    // The objects the file hides (they are not drawn, and none is in the layer), in the sheets that are not deleted, not counting those Remove All of Inspect has already taken out; and the taking out:
+    // they are left out of the next save with the parts only they used. A sheet whose drawing is still being read apart is not counted yet.
+    int hiddenCount();
+    int dropHidden();
     qint64 chartPointsHeld() const;
     qint64 pastedBytesHeld() const;
     // The points a chart reads or holds (the cells its references name, up to what a series may read, and the numbers it holds for what has no reference).
@@ -385,6 +389,7 @@ private:
     };
     struct Sheet {
         bool listed = false;
+        bool hiddenDropped = false;                    // the objects the file hides are to be left out of the next save
         bool parsing = false;                          // its drawing part is being parsed on a worker
         bool showPending = false;                      // and the sheet is to be shown when it is
         std::shared_ptr<QDomDocument> parsedDoc;       // what the worker made, until the drawing is listed
