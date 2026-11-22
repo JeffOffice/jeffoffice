@@ -1,5 +1,6 @@
 #include "io/odpexport.h"
 #include "core/items.h"
+#include "core/animation.h"
 #include "core/lossnotes.h"
 #include "core/version.h"
 #include "core/blipeffects.h"
@@ -821,6 +822,8 @@ void Exporter::writeSlides(X &x)
 void Exporter::writeSlide(X &x, int index)
 {
     const Page &page = *m_doc.pages[index];
+    if (comments::commentCount(page) > 0) say(QCoreApplication::translate("OdpExport", "comments on the slides (they are left out of the file)"));
+    if (!deck::readAnimations(page).effects.empty()) say(QCoreApplication::translate("OdpExport", "animations (the slides are saved without them)"));
     const MasterOut &master = pageOf(page);
     const Footer &f = m_footers[index];
     const QString name = uniquePageName(page.title.isEmpty() ? QCoreApplication::translate("OdpExport", "Slide %1").arg(index + 1) : page.title);

@@ -19,6 +19,8 @@
 
 #include "core/comments.h"
 #include "core/lossnotes.h"
+#include "core/transition.h"
+#include "core/animation.h"
 #include "io/odpexport.h"
 #include <QJsonArray>
 #include <QJsonObject>
@@ -944,6 +946,118 @@ private Q_SLOTS:
         a.editor()->setDocument(std::move(d));
         jp::CompatibilityDialog box(a.compatHost(), 0, nullptr);
         QVERIFY2(box.reportText().contains(QStringLiteral("And %1 more.").arg(slides - jp::kMaxLossNotes)), qPrintable(box.reportText().right(200)));
+    }
+
+    // What the .odp and .otp lists say and what a save keeps (the table is written to JO_TRUTH_DIR/deck-truth.txt when that is set): a presentation with each thing the lists name and others
+    // they don't, saved through the window's own save, opened again, and made into a .pptx to look in. A thing that is gone and not listed is a failure.
+    void whatEachKindListsIsWhatItsSaveLoses()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        auto d = sample();
+        deck::addSlide(*d, *deck::layoutOfType(*d, QStringLiteral("obj")));
+        QImage img(40, 40, QImage::Format_RGB32);
+        img.fill(Qt::red);
+        QByteArray png;
+        QBuffer buf(&png);
+        buf.open(QIODevice::WriteOnly);
+        img.save(&buf, "PNG");
+        auto pic = std::make_shared<PictureItem>();
+        pic->imageId = d->addImage(png, "png");
+        pic->rect = QRectF(100, 100, 120, 120);
+        pic->imgRect = QRectF(QPointF(0, 0), pic->rect.size());
+        d->pages[1]->items.push_back(pic);
+        auto table = std::make_shared<TableItem>();
+        table->rows = table->cols = 2;
+        table->colW = {100, 100};
+        table->rowH = {30, 30};
+        table->cells.resize(4);
+        table->rect = QRectF(40, 300, 200, 60);
+        d->pages[1]->items.push_back(table);
+        auto shape = std::make_shared<ShapeItem>();
+        shape->rect = QRectF(300, 300, 80, 30);
+        shape->sourceId = 11;
+        d->pages[1]->items.push_back(shape);
+        comments::addComment(*d->pages[1], comments::CommentAuthor{QStringLiteral("Cy"), QStringLiteral("C")}, QStringLiteral("Comment words"), QPointF(10, 10));
+        d->pages[2]->hidden = true;
+        deck::Transition tr;
+        tr.type = QStringLiteral("fade");
+        deck::setTransition(*d->pages[1], tr);
+        deck::AnimSequence seq;
+        seq.add(deck::makeAnim(QStringLiteral("entr.fade"), 11));
+        deck::setAnimations(*d, *d->pages[1], seq);
+        deck::FooterOptions fo;
+        fo.footer = true;
+        fo.footerText = QStringLiteral("Footer words");
+        deck::applyFooters(*d, fo);
+        DeckWindow a;
+        Quiet quiet(a);
+        a.editor()->setDocument(std::move(d));
+        setLossyStandIn([](const LossyAsk &, bool *) { return LossyChoice::SaveAnyway; });
+        auto reset = qScopeGuard([] { setLossyStandIn(nullptr); });
+        using Parts = QMap<QString, QByteArray>;
+        struct Thing {
+            QString name;
+            std::function<bool(const Parts &)> in;
+            QRegularExpression listedBy;
+        };
+        auto any = [](const Parts &p, const QString &prefix, const QByteArray &needle) {
+            for (auto it = p.cbegin(); it != p.cend(); ++it)
+                if (it.key().startsWith(prefix) && (needle.isEmpty() || it.value().contains(needle))) return true;
+            return false;
+        };
+        auto re = [](const char *t) { return QRegularExpression(QString::fromLatin1(t), QRegularExpression::CaseInsensitiveOption); };
+        const QVector<Thing> things = {
+            {QStringLiteral("speaker notes"), [&](const Parts &p) { return any(p, QStringLiteral("/ppt/notesSlides/"), "Say hello first"); }, re("notes")},
+            {QStringLiteral("comment"), [&](const Parts &p) { return any(p, QStringLiteral("/ppt/comments/"), QByteArray()) || any(p, QStringLiteral("/ppt/comments"), "Comment words"); }, re("comment")},
+            {QStringLiteral("picture"), [&](const Parts &p) { return any(p, QStringLiteral("/ppt/media/"), QByteArray()); }, re("picture")},
+            {QStringLiteral("table"), [&](const Parts &p) { return any(p, QStringLiteral("/ppt/slides/slide"), "<a:tbl>"); }, re("table")},
+            {QStringLiteral("hidden slide"), [&](const Parts &p) { return any(p, QStringLiteral("/ppt/slides/slide"), "show=\"0\""); }, re("hidden")},
+            {QStringLiteral("transition"), [&](const Parts &p) { return any(p, QStringLiteral("/ppt/slides/slide"), "transition"); }, re("transition")},
+            {QStringLiteral("animation"), [&](const Parts &p) { return any(p, QStringLiteral("/ppt/slides/slide"), "<p:timing"); }, re("animation")},
+            {QStringLiteral("footer text"), [&](const Parts &p) { return any(p, QStringLiteral("/ppt/slides/slide"), "Footer words"); }, re("footer")},
+        };
+        auto partsOfZip = [](const QByteArray &zip) {
+            Parts out;
+            office::Package package;
+            QString why;
+            if (package.readLazy(zip, &why))
+                for (const QString &name : package.partNames()) out.insert(name, package.part(name));
+            return out;
+        };
+        const Parts inFixture = partsOfZip(deck::exportPresentation(*a.editor()->doc()));
+        QStringList log, missing, hidden, over;
+        for (const Thing &t : things)
+            if (!t.in(inFixture)) missing << t.name;
+        log << QStringLiteral("not in the presentation as the window holds it: ") + missing.join(QStringLiteral(", "));
+        const QVector<CompatFormat> formats = a.compatHost().formats;
+        for (int k = 0; k < formats.size(); ++k) {
+            const QString ending = formats[k].format;
+            QStringList lines;
+            formats[k].lost([&](const CompatAnswer &answer) { lines = answer.found; });
+            const QString listed = lines.join(QLatin1Char('\n'));
+            const QString path = dir.filePath(QStringLiteral("saved") + ending);
+            QVERIFY(a.saveTo(path, true));
+            DeckWindow b;
+            Quiet quietB(b);
+            QVERIFY(b.openFile(path));
+            const Parts parts = partsOfZip(deck::exportPresentation(*b.editor()->doc()));
+            log << QStringLiteral("== %1: the list says:\n   %2").arg(ending, lines.join(QStringLiteral("\n   ")));
+            for (const Thing &t : things) {
+                if (missing.contains(t.name)) continue;
+                const bool kept = t.in(parts), isListed = t.listedBy.match(listed).hasMatch();
+                log << QStringLiteral("%1 | %2 | listed=%3 | kept=%4").arg(ending, t.name, isListed ? QStringLiteral("yes") : QStringLiteral("no"), kept ? QStringLiteral("yes") : QStringLiteral("no"));
+                if (!kept && !isListed) hidden << ending + QLatin1Char(' ') + t.name;
+                if (kept && isListed) over << ending + QLatin1Char(' ') + t.name;
+            }
+        }
+        const QString out = qEnvironmentVariable("JO_TRUTH_DIR");
+        if (!out.isEmpty()) {
+            QFile f(out + QStringLiteral("/deck-truth.txt"));
+            if (f.open(QIODevice::WriteOnly)) f.write(log.join(QLatin1Char('\n')).toUtf8());
+        }
+        QVERIFY2(hidden.isEmpty(), qPrintable(QStringLiteral("lost and not listed: ") + hidden.join(QStringLiteral("; "))));
+        QVERIFY2(over.isEmpty(), qPrintable(QStringLiteral("listed but kept: ") + over.join(QStringLiteral("; "))));
     }
 
     void inspectFindsNotesCommentsHiddenSlidesAndWhatIsOffTheSlide()
