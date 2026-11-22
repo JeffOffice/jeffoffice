@@ -258,6 +258,41 @@ private Q_SLOTS:
         QCOMPARE(boxes[4]->rect.height(), 25.0);
     }
 
+    // The text boolean properties (0x00BF): a frame grows to fit its text when bit 0x02 is set and its use bit 0x20000 says so; bit 0x01 is no flag
+    // of the set, and a bit without its use bit is the default. A set fAutoTextMargin (0x08, use bit 0x80000) takes the default margins.
+    void importBinaryFitShapeToTextIsBitTwoOfTheTextBooleans()
+    {
+        auto box = [&](quint32 id, quint32 booleans, const QVector<QPair<int, quint32>> &more = {}) {
+            QByteArray props = le(0x00BF, 2) + le(booleans, 4);
+            int count = 1;
+            for (const auto &p : more) {
+                props += le(quint16(p.first), 2) + le(p.second, 4);
+                ++count;
+            }
+            return pptBox(0xF004, pptRec(0xF00A, le(id, 4) + le(0xA00, 4), 1, 2) + pptRec(0xF00B, props, quint16(count), 3) + pptRec(0xF010, le(2000, 2) + le(200, 2) + le(2600, 2) + le(2400, 2))
+                                      + pptBox(0xF00D, pptText(4, QStringLiteral("Words"))));
+        };
+        const QByteArray shapes = box(0x500, 0x00020002) + box(0x501, 0x00010001) + box(0x502, 0x00020000) + box(0x503, 0x00000002) + box(0x504, 0x001F0012)
+                                  + box(0x505, 0x00080008, {{0x0081, 360000}, {0x0082, 180000}, {0x0083, 360000}, {0x0084, 180000}})
+                                  + box(0x506, 0x00080000, {{0x0081, 360000}});
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, QByteArray(), QByteArray(), shapes), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVector<const TextItem *> boxes;
+        for (const auto &it : d->pages[0]->items)
+            if (it->type() == ItemType::Text && it->role.isEmpty()) boxes << static_cast<const TextItem *>(it.get());
+        QCOMPARE(int(boxes.size()), 7);
+        QCOMPARE(int(boxes[0]->autofit), int(TextItem::GrowBox));
+        QCOMPARE(int(boxes[1]->autofit), int(TextItem::NoAutofit));
+        QCOMPARE(int(boxes[2]->autofit), int(TextItem::NoAutofit));
+        QCOMPARE(int(boxes[3]->autofit), int(TextItem::NoAutofit));
+        QCOMPARE(int(boxes[4]->autofit), int(TextItem::GrowBox));
+        // The default margins (7.2 and 3.6 points) where the box says so, and the file's own where it says not to.
+        QCOMPARE(boxes[5]->insets.left(), 7.2);
+        QCOMPARE(boxes[5]->insets.top(), 3.6);
+        QVERIFY(qAbs(boxes[6]->insets.left() - 28.3465) < 0.001);
+    }
+
     // A text box that doesn't wrap its text (wrapText 0x0085 = 2, the format's "none") keeps each paragraph on one line, however long it is,
     // and sets the line against the box as its alignment says: a left one starts at the left inset and runs out past the right edge, a
     // centered one is centered on the box and runs out of both sides, a right one ends at the right inset and runs out of the left. The

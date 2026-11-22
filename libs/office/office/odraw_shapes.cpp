@@ -119,6 +119,8 @@ double emuToPoints(qint64 emu) { return double(emu) / kEmuPerPoint; }
 
 QMarginsF textInsets(const Props &p)
 {
+    // (The text boolean properties 0x00BF: fAutoTextMargin, 0x08, says the shape takes its default margins whatever the four margin properties hold.)
+    if (p.flag(0x00BF, 0x08, false)) return QMarginsF(emuToPoints(91440), emuToPoints(45720), emuToPoints(91440), emuToPoints(45720));
     return QMarginsF(emuToPoints(p.integer(0x0081, 91440)), emuToPoints(p.integer(0x0082, 45720)), emuToPoints(p.integer(0x0083, 91440)),
                      emuToPoints(p.integer(0x0084, 45720)));
 }
@@ -362,7 +364,8 @@ private:
             const quint32 flow = p.value(0x0088, 0);
             t->vertical = flow == 1 || flow == 2 || flow == 3 || flow == 5;
             t->turnedBack = flow == 2;   // (reading upward: 270 degrees, as in a .pub file)
-            if (p.flag(0x00BF, 0x01, false)) t->autofit = TextItem::GrowBox;
+            // (The text boolean properties 0x00BF: fFitShapeToText is bit 0x02, with its use bit 0x20000; bit 0x01 is not one of them.)
+            if (p.flag(0x00BF, 0x02, false)) t->autofit = TextItem::GrowBox;
             item = t;
         } else if (ctx.presentation && type >= 189 && type <= 200) {
             item = makeButton(s, rect);

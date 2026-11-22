@@ -1098,7 +1098,7 @@ private Q_SLOTS:
         const QByteArray at = odClientAnchor(0, 0, 100, 50);
         const QByteArray text = odRecord(0, 0, 0xF00D, QByteArray("hello")) + odRecord(0, 0, 0xF011, QByteArray("cd"));
         // A text box: not filled, no line, the text's margins, where it sits, which way it runs.
-        ItemList items = readOdrawShapes(odDrawing(odShape(202, 0xA00, {{0x0081, 127000}, {0x0082, 63500}, {0x0083, 0}, {0x0084, 25400}, {0x0087, 2}, {0x0088, 1}, {0x00BF, 0x00010001}}, at, text)), ctx);
+        ItemList items = readOdrawShapes(odDrawing(odShape(202, 0xA00, {{0x0081, 127000}, {0x0082, 63500}, {0x0083, 0}, {0x0084, 25400}, {0x0087, 2}, {0x0088, 1}, {0x00BF, 0x00020002}}, at, text)), ctx);
         QCOMPARE(int(items.size()), 1);
         QVERIFY(items[0]->type() == ItemType::Text);
         auto *t = static_cast<TextItem *>(items[0].get());
