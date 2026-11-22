@@ -975,6 +975,14 @@ bool MSPUBParser::parseShape(librevenge::RVNGInputStream *input,
         MSPUB_DEBUG_MSG(("ERROR: Wrong number of rows or columns found in table definition.\n"));
         return true;
       }
+      if (jpTraceOn())
+      {
+        fprintf(stderr, "TABLESIZE table=%u rows(emu)=", chunk.seqNum);
+        for (unsigned h : rowHeightsInEmu) fprintf(stderr, "%u,", h);
+        fprintf(stderr, " cols(emu)=");
+        for (unsigned w : columnWidthsInEmu) fprintf(stderr, "%u,", w);
+        fprintf(stderr, "\n");
+      }
       boost::optional<unsigned> index;
       for (size_t i = 0; i < m_cellsChunkIndices.size(); ++i)
       {
@@ -2921,6 +2929,12 @@ void MSPUBParser::parseEscherShape(librevenge::RVNGInputStream *input, const Esc
           }
           if (unsigned *w = getIfExists(v.m_scalarValues, FIELDID_LINE_WIDTH))
             f.widthEmu = *w;
+          if (jpTraceOn())
+          {
+            fprintf(stderr, "TABLEFMTPROPS table=%u kind=%u f3=%u:", f.f[2], f.kind, f.f[3]);
+            for (const auto &kv : v.m_scalarValues) fprintf(stderr, " %x=%x", unsigned(kv.first), kv.second);
+            fprintf(stderr, "\n");
+          }
         }
         if (jpTraceOn())
           fprintf(stderr, "TABLEFMT table=%u kind=%u f3=%u f4=%u f5=%u f6=%u f7=%u color=%x width=%u\n", f.f[2], f.kind, f.f[3], f.f[4], f.f[5], f.f[6], f.f[7], f.color, f.widthEmu);
