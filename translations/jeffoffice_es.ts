@@ -19065,7 +19065,7 @@ Autoedición</translation>
         <translation type="unfinished">(Viene de la página %1)</translation>
     </message>
     <message>
-        <location line="+6793"/>
+        <location line="+6786"/>
         <source>Notes</source>
         <translation>Notas</translation>
     </message>
