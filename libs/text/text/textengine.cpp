@@ -44,6 +44,7 @@
 #include <QTextDocumentFragment>
 #include <QTextList>
 #include <atomic>
+#include <mutex>
 #include <cmath>
 #include <functional>
 #include <limits>
@@ -1009,6 +1010,13 @@ double handBoldWidth(int kind, double em, TextOutput out, double pxPerPt)
 
 // The stroke of [s, e) of a fine layout's line, over letters already drawn
 // (the painter is in fine units).
+// The answers kept below (the glyph outlines, and the last few answers about paragraphs, by the document, its revision, and the place in it) are the same for every thread that asks: they are kept for all of them, and this lock is held only
+// to read or to write one (never while an answer is worked out, and never while another is being kept).
+static std::mutex &memoLock()
+{
+    static std::mutex lock;
+    return lock;
+}
 void drawHandBold(QPainter *p, const QTextLine &line, int s, int e, const QTextCharFormat &cf, TextOutput out)
 {
     if (!cf.hasProperty(tp::HandBold) || cf.foreground().style() != Qt::SolidPattern) return;
@@ -1042,8 +1050,11 @@ void drawHandBold(QPainter *p, const QTextLine &line, int s, int e, const QTextC
         QHash<QString, quint32> faces;
         QHash<QPair<quint64, quint32>, QPainterPath> outlines;
     };
-    thread_local Strokes kept;
-    if (kept.outlines.size() > 20000) kept = Strokes();
+    static Strokes kept;   // (for all threads; memoLock is held for a find or an add)
+    {
+        const std::lock_guard<std::mutex> guard(memoLock());
+        if (kept.outlines.size() > 20000) kept = Strokes();
+    }
     QPainterPathStroker stroker;
     stroker.setWidth(w);
     stroker.setJoinStyle(Qt::MiterJoin);   // the PDF default
@@ -1055,20 +1066,36 @@ void drawHandBold(QPainter *p, const QTextLine &line, int s, int e, const QTextC
     for (const QGlyphRun &g : line.glyphRuns(s, e - s)) {
         const QRawFont raw = g.rawFont();
         const QString faceKey = raw.familyName() + QLatin1Char('|') + raw.styleName() + QLatin1Char('|') + QString::number(raw.pixelSize(), 'g', 10);
-        auto f = kept.faces.find(faceKey);
-        if (f == kept.faces.end()) f = kept.faces.insert(faceKey, quint32(kept.faces.size()));
+        quint32 face;
+        {
+            const std::lock_guard<std::mutex> guard(memoLock());
+            auto f = kept.faces.find(faceKey);
+            if (f == kept.faces.end()) f = kept.faces.insert(faceKey, quint32(kept.faces.size()));
+            face = f.value();
+        }
         const QList<quint32> glyphs = g.glyphIndexes();
         const QList<QPointF> where = g.positions();
         for (int k = 0; k < glyphs.size() && k < where.size(); ++k) {
-            const QPair<quint64, quint32> key((quint64(f.value()) << 32) | glyphs[k], width);
-            auto o = kept.outlines.find(key);
-            if (o == kept.outlines.end()) {
-                o = kept.outlines.insert(key, stroker.createStroke(raw.pathForGlyph(glyphs[k])));
+            const QPair<quint64, quint32> key((quint64(face) << 32) | glyphs[k], width);
+            QPainterPath outline;
+            bool have = false;
+            {
+                const std::lock_guard<std::mutex> guard(memoLock());
+                const auto o = kept.outlines.constFind(key);
+                if (o != kept.outlines.constEnd()) {
+                    outline = o.value();
+                    have = true;
+                }
+            }
+            if (!have) {
+                outline = stroker.createStroke(raw.pathForGlyph(glyphs[k]));
                 ++handBoldWork().stroked;
+                const std::lock_guard<std::mutex> guard(memoLock());
+                kept.outlines.insert(key, outline);
             }
             p->save();
             p->translate(where[k]);
-            p->drawPath(o.value());
+            p->drawPath(outline);
             p->restore();
         }
     }
@@ -1742,10 +1769,15 @@ static bool hasTrueSmallCaps(const QTextBlock &b)
         int revision = -1, position = -1, length = -1;
         bool small = false;
     };
-    thread_local Kept kept;
-    if (kept.doc && kept.doc == b.document() && kept.revision == b.document()->revision() && kept.position == b.position() && kept.length == b.length()) return kept.small;
-    kept = Kept{b.document(), b.document()->revision(), b.position(), b.length(), hasTrueSmallCapsOf(b)};
-    return kept.small;
+    static Kept kept;
+    {
+        const std::lock_guard<std::mutex> guard(memoLock());
+        if (kept.doc && kept.doc == b.document() && kept.revision == b.document()->revision() && kept.position == b.position() && kept.length == b.length()) return kept.small;
+    }
+    const Kept made{b.document(), b.document()->revision(), b.position(), b.length(), hasTrueSmallCapsOf(b)};
+    const std::lock_guard<std::mutex> guard(memoLock());
+    kept = made;
+    return made.small;
 }
 static bool hasTrueSmallCapsOf(const QTextBlock &b)
 {
@@ -1825,15 +1857,19 @@ static bool paragraphHasComplexScript(const QTextBlock &b)
         int revision = -1, position = -1, length = -1;
         bool complex = false;
     };
-    thread_local Kept kept[4];
-    thread_local int next = 0;
-    for (const Kept &k : kept)
-        if (k.doc && k.doc == b.document() && k.revision == b.document()->revision() && k.position == b.position() && k.length == b.length()) return k.complex;
+    static Kept kept[4];
+    static int next = 0;
+    {
+        const std::lock_guard<std::mutex> guard(memoLock());
+        for (const Kept &k : kept)
+            if (k.doc && k.doc == b.document() && k.revision == b.document()->revision() && k.position == b.position() && k.length == b.length()) return k.complex;
+    }
     g_paragraphCharsRead += b.length();
-    kept[next] = Kept{b.document(), b.document()->revision(), b.position(), b.length(), hasComplexScript(b.text())};
-    const bool complex = kept[next].complex;
+    const Kept made{b.document(), b.document()->revision(), b.position(), b.length(), hasComplexScript(b.text())};
+    const std::lock_guard<std::mutex> guard(memoLock());
+    kept[next] = made;
     next = (next + 1) % 4;
-    return complex;
+    return made.complex;
 }
 
 // Whether no paragraph of a document has such a letter (kept for a few documents, by revision and size, as the answer for one paragraph is).
@@ -1844,12 +1880,16 @@ static bool documentHasNoComplexScript(const QTextDocument *doc)
         int revision = -1, characters = -1;
         bool none = false;
     };
-    thread_local Kept kept[4];
-    thread_local int next = 0;
-    for (const Kept &k : kept)
-        if (k.doc && k.doc == doc && k.revision == doc->revision() && k.characters == doc->characterCount()) return k.none;
+    static Kept kept[4];
+    static int next = 0;
+    {
+        const std::lock_guard<std::mutex> guard(memoLock());
+        for (const Kept &k : kept)
+            if (k.doc && k.doc == doc && k.revision == doc->revision() && k.characters == doc->characterCount()) return k.none;
+    }
     bool none = true;
     for (QTextBlock b = doc->begin(); b.isValid() && none; b = b.next()) none = !paragraphHasComplexScript(b);
+    const std::lock_guard<std::mutex> guard(memoLock());
     kept[next] = Kept{doc, doc->revision(), doc->characterCount(), none};
     next = (next + 1) % 4;
     return none;
@@ -1976,16 +2016,19 @@ QStringList alignTabSpecsOf(const QTextBlock &b, int headPosition, int stop)
         QString spec;
         QStringList specs;
     };
-    static thread_local Kept kept[4];
-    static thread_local unsigned next = 0;
+    static Kept kept[4];
+    static unsigned next = 0;
     const QTextDocument *doc = b.document();
     const int revision = doc ? doc->revision() : -1;
-    Kept *use = nullptr;
-    for (Kept &k : kept)
-        if (doc && k.doc == doc && k.revision == revision && k.blockPosition == b.position() && k.headPosition == headPosition && k.lastBegin < stop) use = &k;
+    int use = -1;
     Kept state;
-    if (use) state = *use;
-    else {
+    {
+        const std::lock_guard<std::mutex> guard(memoLock());
+        for (int i = 0; i < 4; ++i)
+            if (doc && kept[i].doc == doc && kept[i].revision == revision && kept[i].blockPosition == b.position() && kept[i].headPosition == headPosition && kept[i].lastBegin < stop) use = i;
+        if (use >= 0) state = kept[use];
+    }
+    if (use < 0) {
         state.at = b.begin();
         state.offset = b.position() - headPosition;
     }
@@ -2003,8 +2046,9 @@ QStringList alignTabSpecsOf(const QTextBlock &b, int headPosition, int stop)
         for (int i = 0; !state.spec.isEmpty() && i < frag.length() && state.specs.size() < kMostAlignTabs; ++i) state.specs << state.spec;
     }
     g_runsPassed += passed;
-    if (doc && (use || passed > 64)) {
-        Kept &slot = use ? *use : kept[next++ % 4];
+    if (doc && (use >= 0 || passed > 64)) {
+        const std::lock_guard<std::mutex> guard(memoLock());
+        Kept &slot = use >= 0 ? kept[use] : kept[next++ % 4];
         slot = state;
         slot.doc = doc;
         slot.revision = revision;
@@ -2016,22 +2060,29 @@ QStringList alignTabSpecsOf(const QTextBlock &b, int headPosition, int stop)
 
 RunSeek findRun(const QTextBlock &block, int position)
 {
-    // (Kept for each thread: a few paragraphs' searches, as a page that holds the end of one paragraph and the start of another asks about both. A document that is gone, or edited,
+    // (Kept for all threads: a few paragraphs' searches, as a page that holds the end of one paragraph and the start of another asks about both. A document that is gone, or edited,
     // since, leaves nothing that is used: the revision changes with every edit, an undo too.)
     struct Kept {
         QPointer<const QTextDocument> doc;
         int revision = -1, blockPosition = -1, begin = 0;
         QTextBlock::iterator it;
     };
-    static thread_local Kept kept[4];
-    static thread_local unsigned next = 0;
+    static Kept kept[4];
+    static unsigned next = 0;
     const QTextDocument *doc = block.document();
     const int revision = doc ? doc->revision() : -1;
-    Kept *use = nullptr;
-    for (Kept &k : kept)
-        if (doc && k.doc == doc && k.revision == revision && k.blockPosition == block.position() && k.begin <= position && (!use || k.begin > use->begin)) use = &k;
-    QTextBlock::iterator it = use ? use->it : block.begin();
-    int begin = use ? use->begin : block.position();
+    int use = -1;
+    QTextBlock::iterator it = block.begin();
+    int begin = block.position();
+    {
+        const std::lock_guard<std::mutex> guard(memoLock());
+        for (int i = 0; i < 4; ++i)
+            if (doc && kept[i].doc == doc && kept[i].revision == revision && kept[i].blockPosition == block.position() && kept[i].begin <= position && (use < 0 || kept[i].begin > kept[use].begin)) use = i;
+        if (use >= 0) {
+            it = kept[use].it;
+            begin = kept[use].begin;
+        }
+    }
     qint64 passed = 0;
     for (; !it.atEnd(); ++it) {
         const int length = int(it.fragment().length());
@@ -2041,7 +2092,8 @@ RunSeek findRun(const QTextBlock &block, int position)
     }
     g_runsPassed += passed;
     if (doc) {
-        Kept &slot = use ? *use : kept[next++ % 4];
+        const std::lock_guard<std::mutex> guard(memoLock());
+        Kept &slot = use >= 0 ? kept[use] : kept[next++ % 4];
         slot.doc = doc;
         slot.revision = revision;
         slot.blockPosition = block.position();
@@ -2456,14 +2508,16 @@ struct RangeIndex {
     bool sorted = false;
     QVector<int> maxEnd;
 };
-static thread_local RangeIndex g_rangeIndex;
+// (A pointer to the index of the scope that is in force on this thread: nothing in storage of the thread has to be destroyed when it ends.)
+static thread_local const RangeIndex *t_rangeIndex = nullptr;
 
 struct RangeIndexScope {
-    RangeIndex before;
+    RangeIndex index;
+    const RangeIndex *before;
     explicit RangeIndexScope(const QVector<QTextLayout::FormatRange> &ranges)
-        : before(std::move(g_rangeIndex))
+        : before(t_rangeIndex)
     {
-        RangeIndex ix;
+        RangeIndex &ix = index;
         ix.data = ranges.constData();
         ix.n = ranges.size();
         ix.sorted = true;
@@ -2474,9 +2528,9 @@ struct RangeIndexScope {
             top = std::max(top, ranges[i].start + ranges[i].length);
             ix.maxEnd.push_back(top);
         }
-        g_rangeIndex = std::move(ix);
+        t_rangeIndex = &index;
     }
-    ~RangeIndexScope() { g_rangeIndex = std::move(before); }
+    ~RangeIndexScope() { t_rangeIndex = before; }
     RangeIndexScope(const RangeIndexScope &) = delete;
     RangeIndexScope &operator=(const RangeIndexScope &) = delete;
 };
@@ -2490,7 +2544,8 @@ struct RangeSpan {
 // The ranges that can reach the text from `from` for `len` characters: the whole list unless it is the indexed one.
 static RangeSpan rangesNear(const QVector<QTextLayout::FormatRange> &ranges, int from, int len)
 {
-    const RangeIndex &ix = g_rangeIndex;
+    static const RangeIndex none;
+    const RangeIndex &ix = t_rangeIndex ? *t_rangeIndex : none;
     if (!ix.sorted || ix.data != ranges.constData() || ix.n != ranges.size()) {
         g_rangesScanned += ranges.size();
         return {ranges.constData(), ranges.constData() + ranges.size()};
@@ -6381,7 +6436,8 @@ void StoryLayout::paintTextEffects(QPainter *p, int frame, bool over) const
                 gi = *known;
             } else {
                 if (seen.size() >= kMaxEffectListsSeen) continue;
-                const TextEffects &fx = TextEffects::cached(json);
+                const std::shared_ptr<const TextEffects> fxHeld = TextEffects::cached(json);
+                const TextEffects &fx = *fxHeld;
                 if ((over ? fx.inner.on : (fx.outer.on || fx.glow.on || fx.reflection.on)) && groups.size() < kMaxEffectLists) {
                     gi = int(groups.size());
                     groups.push_back(FxGroup{json, {}, {}, QRectF()});
@@ -6476,7 +6532,8 @@ void StoryLayout::paintTextEffects(QPainter *p, int frame, bool over) const
     for (int gi = 0; gi < groups.size(); ++gi) {
         const FxGroup &g = groups[gi];
         if (g.parts.isEmpty() || g.box.isNull()) continue;
-        const TextEffects &fx = TextEffects::cached(g.json);
+        const std::shared_ptr<const TextEffects> fxHeld = TextEffects::cached(g.json);
+        const TextEffects &fx = *fxHeld;
         if (!over) {
             if (fx.reflection.on) {
                 const TextReflection &r = fx.reflection;

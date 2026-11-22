@@ -533,6 +533,7 @@ private:
     // The characters of a paragraph that anchor an object (a position and the object's number each), found once for a story as it is.
     const QVector<std::pair<int, int>> &anchorCharsOf(const QTextBlock &b);
     QHash<int, QVector<std::pair<int, int>>> m_anchorChars;   // by the paragraph's position
+    QVector<std::pair<int, int>> m_looseAnchorChars;          // the answer for a paragraph of another story (held until the next ask)
     // Where an object is on the page (page coordinates) for the anchor it has: from the page, the margin, a strip of it, the column, the paragraph, or the line, as it says, and
     // kept on the page (down from the paragraph or the line).
     // (A table set at a place from its paragraph that would go over `limit`, the foot of the text area, is slid up to end at it, if it still begins at or below its paragraph: the

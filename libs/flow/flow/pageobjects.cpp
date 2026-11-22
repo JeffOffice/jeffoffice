@@ -22,7 +22,6 @@ const QVector<std::pair<int, int>> &Paginator::anchorCharsOf(const QTextBlock &b
 {
     // (Kept for the paragraphs of the document's story, by place in it; the header's and the footer's, and any other story's, are found each time they are asked for.)
     const bool mine = b.document() == m_doc->story();
-    static thread_local QVector<std::pair<int, int>> loose;
     if (mine) {
         const auto found = m_anchorChars.constFind(b.position());
         if (found != m_anchorChars.constEnd()) return found.value();
@@ -37,8 +36,8 @@ const QVector<std::pair<int, int>> &Paginator::anchorCharsOf(const QTextBlock &b
         for (int k = frag.position(); k < frag.position() + frag.length() && chars.size() < kMostObjects; ++k) chars.push_back({k, id});
     }
     if (!mine) {
-        loose = chars;
-        return loose;
+        m_looseAnchorChars = chars;
+        return m_looseAnchorChars;
     }
     if (m_anchorChars.size() >= 4096) m_anchorChars.clear();
     return m_anchorChars.insert(b.position(), chars).value();
