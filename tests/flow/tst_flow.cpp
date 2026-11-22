@@ -1477,6 +1477,45 @@ void FlowTests::wordLinesOfMeasuredFacesAreTheirOwn()
 }
 
 
+// The faces collected for the fonts that had no line row: Lucida Bright's line is its Windows ascent and descent, Wide Latin's (whose header says less) the same,
+// and a bold face keeps its own, Calisto MT Bold's with the header's gap the Windows numbers do not hold.
+void FlowTests::wordLinesOfMoreMeasuredFaces()
+{
+    struct Face { const char *family; double size; bool bold, italic; int winAscent, winDescent, ascent, descent, gap; };
+    const Face faces[] = {
+        {"Lucida Bright", 11, false, false, 1900, 432, 1980, 432, 0},
+        {"Wide Latin", 10, false, false, 1975, 546, 1616, 432, 0},
+        {"Calisto MT", 10, true, false, 1884, 465, 1538, 653, 228},
+        {"Agency FB", 12, true, false, 1977, 410, 2042, 410, 0},
+        {"Berlin Sans FB", 12, true, false, 1844, 440, 1857, 678, 0},
+        {"Tw Cen MT", 10, false, false, 1753, 477, 1753, 477, 0},
+        {"Kristen ITC", 10, false, false, 2105, 680, 2105, 680, 0},
+    };
+    auto doc = std::make_unique<QTextDocument>();
+    QTextCursor c(doc.get());
+    for (int i = 0; i < int(std::size(faces)); ++i) {
+        QTextCharFormat cf;
+        cf.setFontFamilies({QString::fromLatin1(faces[i].family)});
+        cf.setFontPointSize(faces[i].size);
+        if (faces[i].bold) cf.setFontWeight(QFont::Bold);
+        cf.setFontItalic(faces[i].italic);
+        if (i == 0) c.setBlockCharFormat(cf); else c.insertBlock(QTextBlockFormat(), cf);
+        c.insertText(QStringLiteral("Line %1").arg(i), cf);
+    }
+    LayoutEnv env;
+    env.wordLines = true;
+    StoryLayout lay;
+    lay.build(doc.get(), {plainFrame(400, 700)}, env);
+    const auto lines = lay.lineInfo(0);
+    QCOMPARE(lines.size(), int(std::size(faces)));
+    for (int i = 0; i < int(std::size(faces)); ++i) {
+        const Face &f = faces[i];
+        const double leading = std::max(0, f.gap - ((f.winAscent + f.winDescent) - (f.ascent + f.descent)));
+        const double height = (f.winAscent + f.winDescent + leading) / 2048.0 * f.size;
+        QVERIFY2(std::abs(lines[i].rect.height() - height) < 0.01, qPrintable(QStringLiteral("%1 (line %2) is %3 tall, not %4").arg(f.family).arg(i).arg(lines[i].rect.height()).arg(height)));
+    }
+}
+
 // A family that isn't on the machine is set as its stand-in is, Calibri's line; Times and Helvetica are the names of Times New Roman and Arial.
 void FlowTests::wordLinesOfMissingFamiliesAreTheStandIns()
 {

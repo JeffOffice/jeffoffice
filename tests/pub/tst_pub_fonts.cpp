@@ -119,6 +119,43 @@ private Q_SLOTS:
         QCOMPARE(jp::originalAverageCharEm(QStringLiteral("No Such Font"), false, false), -1.0);
     }
 
+    // Faces the first collection skipped (their fonts are in collections of faces): Cambria's regular face, the math font, and a Chinese font have widths now,
+    // and a paragraph in the first two breaks where they say (the math font's "(" is 0.415 em, Cambria's 0.382).
+    void addedFacesKeepTheirLetterWidths()
+    {
+        const struct { const char *family; char16_t letter; int units; } known[] = {{"Cambria", u'(', 782}, {"Cambria Math", u'(', 850}, {"SimSun", u'W', 1024}, {"SimSun", u' ', 1024}};
+        for (const auto &k : known) {
+            const QHash<char16_t, double> *widths = jp::originalLetterWidths(QString::fromLatin1(k.family), false, false);
+            QVERIFY2(widths, k.family);
+            QVERIFY2(std::abs(widths->value(k.letter) - k.units / 2048.0) < 0.0001, k.family);
+        }
+        for (const char *name : {"Cambria", "Cambria Math"}) {
+            const QString fam = QString::fromLatin1(name);
+            if (QFontDatabase::hasFamily(fam)) continue;
+            const QHash<char16_t, double> *widths = jp::originalLetterWidths(fam, false, false);
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat cf;
+            cf.setFontFamilies(QStringList{fam});
+            cf.setFontPointSize(10);
+            const QString text = QStringLiteral("(((( (((( (((( (((( (((( (((( (((( (((( (((( ((((");
+            c.insertText(text, cf);
+            jp::FrameSpec fs;
+            fs.size = QSizeF(106, 400);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            fs.hyphenate = false;
+            jp::StoryLayout lay;
+            lay.build(&doc, {fs}, jp::LayoutEnv());
+            // (Six words of "((((" and the spaces between them are 102.6 points wide in Cambria, 110.6 in the math font: 106 points hold six and five words.)
+            const double word = 4 * widths->value(u'(') * 10, space = widths->value(u' ') * 10;
+            const int perLine = int((106 + space) / (word + space));
+            QCOMPARE(perLine, name == QLatin1String("Cambria") ? 6 : 5);
+            const auto lines = lay.lineInfo(0);
+            QCOMPARE(lines.size(), (10 + perLine - 1) / perLine);
+            QCOMPARE(lines[0].text.trimmed().size(), perLine * 4 + perLine - 1);
+        }
+    }
+
     // A missing stock font's letters take the original's widths (from
     // recorded measurements), not its stand-in's, so lines break where they
     // break in Publisher (Gill Sans MT's "W" is 1.04 em; its stand-in's

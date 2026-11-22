@@ -1403,6 +1403,7 @@ private Q_SLOTS:
     void paginatorLeavesOutSpaceBeforeAtTheTopOfAPage();
     void wordLinesAreTheFontsWindowsMetrics();
     void wordLinesOfMeasuredFacesAreTheirOwn();
+    void wordLinesOfMoreMeasuredFaces();
     void wordLinesOfMissingFamiliesAreTheStandIns();
     void symbolFontCharactersAreTheirPicturesAtTheirOwnWidths();
     void courierNewIsDrawnInAThinFaceAndSetAsItself();
