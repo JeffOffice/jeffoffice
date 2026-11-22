@@ -24,6 +24,8 @@
 #include "office/privacy.h"
 
 #include <QAction>
+#include <QThread>
+#include <atomic>
 #include <QApplication>
 #include <QLabel>
 #include <QPushButton>
@@ -385,6 +387,54 @@ private Q_SLOTS:
         QTRY_VERIFY_WITH_TIMEOUT(!box.working(), 60000);
         QVERIFY2(box.reportText().contains(QLatin1String("And 200 more.")), qPrintable(box.reportText().right(120)));
         QCOMPARE(box.reportText().count(QLatin1String("Cut or changed to fit")), jp::kMaxLossNotes);
+    }
+
+    // Only one check runs at a time: a new pick stops the one running and waits for it, and the window's end does the same (counted, not timed: each held check leaves only when it is stopped).
+    void oneCheckRunsAtATimeAndTheWindowsEndStopsIt()
+    {
+        std::atomic<int> left{0};
+        jp::compatWorkerHookForTest() = [&left](const std::atomic<bool> &stop) {
+            for (int i = 0; i < 20000 && !stop.load(); ++i) QThread::msleep(1);   // (held until stopped; the count only keeps a broken run from waiting for ever)
+            if (stop.load()) ++left;
+        };
+        auto reset = qScopeGuard([] { jp::compatWorkerHookForTest() = nullptr; });
+        {
+            EditWindow e;
+            QVERIFY(e.open(editBook()));
+            {
+                jp::CompatibilityDialog box(e.win.w.compatHost(), 0, nullptr);   // (the first kind starts a check)
+                QCOMPARE(e.win.w.compatChecksStarted(), qint64(1));
+                QTRY_COMPARE_WITH_TIMEOUT(jp::compatAliveForTest().load(), 1, 20000);
+                box.choose(1);   // (stops the first and waits for it)
+                QCOMPARE(e.win.w.compatChecksStarted(), qint64(2));
+                QCOMPARE(left.load(), 1);
+                QTRY_COMPARE_WITH_TIMEOUT(jp::compatAliveForTest().load(), 1, 20000);
+                box.choose(2);   // (the .csv kind is worked out here: nothing starts)
+                QCOMPARE(e.win.w.compatChecksStarted(), qint64(2));
+                box.choose(0);
+                QCOMPARE(e.win.w.compatChecksStarted(), qint64(3));
+                QCOMPARE(left.load(), 2);
+                QTRY_COMPARE_WITH_TIMEOUT(jp::compatAliveForTest().load(), 1, 20000);
+            }   // (the box goes while a check runs)
+        }   // (and the window)
+        QCOMPARE(left.load(), 3);
+        QCOMPARE(jp::compatAliveForTest().load(), 0);
+    }
+
+    // The real box, every kind picked in it: each shows the kind it was asked for and, once it is worked out, a sentence that says what that kind holds.
+    void everyKindCanBePickedInTheRealBox()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        const jp::CompatHost host = e.win.w.compatHost();
+        jp::CompatibilityDialog box(host, 0, nullptr);
+        QCOMPARE(box.formatCount(), 3);
+        for (int kind = 0; kind < box.formatCount(); ++kind) {
+            box.choose(kind);
+            QTRY_VERIFY_WITH_TIMEOUT(!box.working(), 60000);
+            QVERIFY2(box.reportText().contains(host.formats[kind].format), qPrintable(box.reportText()));
+            QVERIFY(!box.reportText().startsWith(QLatin1String("Couldn't check")));
+        }
     }
 
     // A workbook with a password is written to a .csv file in the clear: the list says so, and the save asks with the same words before writing.

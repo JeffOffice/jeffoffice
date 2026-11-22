@@ -126,20 +126,32 @@ void CrunchWindow::findCopyLosses(bool xls, const CompatDone &done)
     setStatus(xls ? tr("Checking what an .xls file can hold…") : tr("Checking what an .ods file can hold…"));
     const std::shared_ptr<office::sheet::Workbook> book = m_loaded->book;
     const QPointer<CrunchWindow> self(this);
-    QThread *thread = QThread::create([self, book, snapshot, xls, done] {
+    // One check at a time, on the snapshot the save route takes: a new pick stops the one that is running (it looks at the flag as it goes) and waits for it, and the window's end does the same.
+    if (m_compatCancel) m_compatCancel->store(true);
+    m_compatWorker.reset();
+    auto cancel = std::make_shared<std::atomic<bool>>(false);
+    m_compatCancel = cancel;
+    ++m_compatStarted;
+    m_compatWorker = std::make_unique<jp::WorkThread>([self, book, snapshot, xls, done, cancel] {
+        const std::function<bool()> stopped = [cancel] { return cancel->load(); };
+        struct Alive {
+            Alive() { ++compatAliveForTest(); }
+            ~Alive() { --compatAliveForTest(); }
+        } alive;
+        if (compatWorkerHookForTest()) compatWorkerHookForTest()(*cancel);
         QByteArray xlsx, copy;
         QString message;
         office::sheet::SaveReport report;
         office::sheet::CopyReport copyReport;
-        bool ok = office::sheet::saveXlsx(*book, snapshot->changes, &xlsx, &message, &report);
+        bool ok = office::sheet::saveXlsx(*book, snapshot->changes, &xlsx, &message, &report, cancel.get());
         if (ok) {
             office::Package package;
             office::sheet::Workbook made;
             ok = package.readLazy(xlsx, &message) && made.open(package, &message);
-            if (ok) ok = xls ? office::sheet::saveXls(made, &copy, &copyReport, &message) : office::sheet::saveOds(made, &copy, &copyReport, &message);
+            if (ok) ok = xls ? office::sheet::saveXls(made, &copy, &copyReport, &message, stopped) : office::sheet::saveOds(made, &copy, &copyReport, &message, stopped);
         }
-        QMetaObject::invokeMethod(qApp, [self, ok, message, copyReport, done] {
-            if (!self) return;
+        QMetaObject::invokeMethod(qApp, [self, ok, message, copyReport, done, cancel] {
+            if (!self || cancel->load()) return;   // (a check that was stopped has no answer to give)
             self->setStatus(tr("Ready"));
             if (!ok) return done(CompatAnswer::failed(message));
             QStringList lost = copyReport.notKept;
@@ -149,8 +161,18 @@ void CrunchWindow::findCopyLosses(bool xls, const CompatDone &done)
             done(answer);
         }, Qt::QueuedConnection);
     });
-    connect(thread, &QThread::finished, thread, &QObject::deleteLater);
-    thread->start();
+}
+
+std::atomic<int> &compatAliveForTest()
+{
+    static std::atomic<int> alive{0};
+    return alive;
+}
+
+std::function<void(const std::atomic<bool> &)> &compatWorkerHookForTest()
+{
+    static std::function<void(const std::atomic<bool> &)> hook;
+    return hook;
 }
 
 // Why the workbook can't be checked just now, or empty when it can.

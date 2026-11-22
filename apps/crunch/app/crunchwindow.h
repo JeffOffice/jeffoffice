@@ -5,6 +5,9 @@
 
 #include "app/appwindow.h"
 #include "app/compatdialog.h"
+#include "core/workthread.h"
+#include <atomic>
+#include <memory>
 #include "app/missingfonts.h"
 #include "app/packandgo.h"
 #include "app/readaloud.h"
@@ -144,6 +147,10 @@ struct ControlOperation;
 enum class ObjectAlign;
 class SheetTabBar;
 }
+
+// For tests of Check Compatibility: how many checks' threads are running, and a function each calls first (given the flag that stops it).
+std::atomic<int> &compatAliveForTest();
+std::function<void(const std::atomic<bool> &)> &compatWorkerHookForTest();
 
 class CrunchWindow : public AppWindow, private ChartDesignHost {
     Q_OBJECT
@@ -465,7 +472,9 @@ public:
     // Check Compatibility: works out what an .xls file would not hold, as a copy would, and says it; writes nothing.
     jp::CompatHost compatHost();
     void findCopyLosses(bool xls, const jp::CompatDone &done);
-    QString cannotCheckNow() const;   // why the workbook can't be checked just now (empty: it can)
+    QString cannotCheckNow() const;
+    // For tests: how many checks of what a copy would lose were started, whether one is running (at most one is), and a function the check's thread calls first, given the flag that stops it.
+    qint64 compatChecksStarted() const { return m_compatStarted; }   // why the workbook can't be checked just now (empty: it can)
     void checkCompatibility(int format = 0);   // File > Info: the shared box (libs/shell/app/compatdialog.h) for .xls, .ods, and .csv
     // Version History (File > Info): named copies of the workbook kept on this computer, one for each time it is asked for (see libs/shell/app/versionstore.h). Each needs a file the workbook was
     // saved as. `saveVersion` takes the workbook as it is now, in the background, and `versionKept` says when it is over; `restoreVersion` keeps what the workbook is now as a version first,
@@ -1883,6 +1892,9 @@ private:
     bool m_linkTyping = false;  // an entry is being typed in the bar for that shape
     QHash<quint64, QString> m_barcodeFailed;           // by barcode: the text of its cell that it could not be made from
     bool m_loading = false, m_calculating = false, m_haveFirstScreen = false, m_haveCalc = false;
+    std::unique_ptr<jp::WorkThread> m_compatWorker;               // the check Check Compatibility is running (one at a time)
+    std::shared_ptr<std::atomic<bool>> m_compatCancel;            // its flag to stop
+    qint64 m_compatStarted = 0;
     qint64 m_changesNoted = 0;             // the changes the worker has been sent that the window has taken note of (WorkbookLoader::changesMade)
     bool m_linksOnOpenPending = false;     // the links of a file that was just opened are looked at once its calculation is done
     std::function<bool(int, int)> m_linksAsker;

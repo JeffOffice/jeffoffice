@@ -286,6 +286,8 @@ CrunchWindow::~CrunchWindow()
 {
     qApp->removeEventFilter(this);   // (the filter of the File screen: off before anything it reads goes)
     delete m_pasteOffer;   // (the button does not call back a window that is closing)
+    if (m_compatCancel) m_compatCancel->store(true);   // (a check of what a copy would lose is stopped and waited for, before anything it uses goes)
+    m_compatWorker.reset();
     cancelRecovery();   // (the thread that makes a copy is waited for: it calls back into the window)
     forgetFilePassword();   // (the password the workbook is protected with is wiped with the window)
     delete m_filterPopup.data();   // (while the window is whole: its going stops the listing, which the window's own timer and run are for)
