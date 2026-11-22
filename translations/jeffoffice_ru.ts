@@ -2262,7 +2262,7 @@ Back page story	4</source>
         <translation type="unfinished">Ваш текст здесь</translation>
     </message>
     <message>
-        <location filename="../libs/draw/core/style.cpp" line="+29"/>
+        <location filename="../libs/draw/core/style.cpp" line="+34"/>
         <source>Solid</source>
         <translation type="unfinished">Сплошная</translation>
     </message>
@@ -6033,7 +6033,7 @@ Back page story	4</source>
 <context>
     <name>DrawingWriter</name>
     <message>
-        <location filename="../libs/office/office/drawingml_write.cpp" line="+742"/>
+        <location filename="../libs/office/office/drawingml_write.cpp" line="+747"/>
         <location line="+162"/>
         <source>Placeholder</source>
         <translation type="unfinished">Заполнитель</translation>
@@ -10302,7 +10302,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Пользовательский макет</translation>
     </message>
     <message>
-        <location line="+265"/>
+        <location line="+267"/>
         <source>And %1 more.</source>
         <translation type="unfinished">И ещё %1.</translation>
     </message>
@@ -10373,7 +10373,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Образец слайдов пропущен: его содержимое совпадает с содержимым предыдущего образца.</translation>
     </message>
     <message>
-        <location line="+115"/>
+        <location line="+137"/>
         <source>Slide Master</source>
         <translation type="unfinished">Образец слайдов</translation>
     </message>
@@ -10405,7 +10405,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Слайд %1 пропущен: в презентации нет образца слайдов.</translation>
     </message>
     <message>
-        <location line="+421"/>
+        <location line="+430"/>
         <source>The presentation holds more text than can be read; the rest is left out.</source>
         <translation type="unfinished">Презентация содержит больше текста, чем можно прочитать; остальное пропущено.</translation>
     </message>

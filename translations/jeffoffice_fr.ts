@@ -2261,7 +2261,7 @@ Article de dernière page	4</translation>
         <translation type="unfinished">Votre texte ici</translation>
     </message>
     <message>
-        <location filename="../libs/draw/core/style.cpp" line="+29"/>
+        <location filename="../libs/draw/core/style.cpp" line="+34"/>
         <source>Solid</source>
         <translation type="unfinished">Continu</translation>
     </message>
@@ -6031,7 +6031,7 @@ Article de dernière page	4</translation>
 <context>
     <name>DrawingWriter</name>
     <message>
-        <location filename="../libs/office/office/drawingml_write.cpp" line="+742"/>
+        <location filename="../libs/office/office/drawingml_write.cpp" line="+747"/>
         <location line="+162"/>
         <source>Placeholder</source>
         <translation type="unfinished">Espace réservé</translation>
@@ -10295,7 +10295,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <translation type="unfinished">Disposition personnalisée</translation>
     </message>
     <message>
-        <location line="+265"/>
+        <location line="+267"/>
         <source>And %1 more.</source>
         <translation type="unfinished">Et %1 de plus.</translation>
     </message>
@@ -10366,7 +10366,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <translation type="unfinished">Un masque des diapositives a été ignoré : son contenu est identique à celui d&apos;un masque précédent.</translation>
     </message>
     <message>
-        <location line="+115"/>
+        <location line="+137"/>
         <source>Slide Master</source>
         <translation type="unfinished">Masque des diapositives</translation>
     </message>
@@ -10398,7 +10398,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <translation type="unfinished">La diapositive %1 a été ignorée : la présentation n&apos;a pas de masque des diapositives.</translation>
     </message>
     <message>
-        <location line="+421"/>
+        <location line="+430"/>
         <source>The presentation holds more text than can be read; the rest is left out.</source>
         <translation type="unfinished">La présentation contient plus de texte que ce qui peut être lu ; le reste est ignoré.</translation>
     </message>

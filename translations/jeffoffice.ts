@@ -2254,7 +2254,7 @@ Back page story	4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../libs/draw/core/style.cpp" line="+29"/>
+        <location filename="../libs/draw/core/style.cpp" line="+34"/>
         <source>Solid</source>
         <translation type="unfinished"></translation>
     </message>
@@ -6023,7 +6023,7 @@ Back page story	4</source>
 <context>
     <name>DrawingWriter</name>
     <message>
-        <location filename="../libs/office/office/drawingml_write.cpp" line="+742"/>
+        <location filename="../libs/office/office/drawingml_write.cpp" line="+747"/>
         <location line="+162"/>
         <source>Placeholder</source>
         <translation type="unfinished"></translation>
@@ -10268,7 +10268,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+265"/>
+        <location line="+267"/>
         <source>And %1 more.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -10339,7 +10339,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+115"/>
+        <location line="+137"/>
         <source>Slide Master</source>
         <translation type="unfinished"></translation>
     </message>
@@ -10371,7 +10371,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+421"/>
+        <location line="+430"/>
         <source>The presentation holds more text than can be read; the rest is left out.</source>
         <translation type="unfinished"></translation>
     </message>

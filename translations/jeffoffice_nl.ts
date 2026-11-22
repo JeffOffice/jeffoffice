@@ -2261,7 +2261,7 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">Uw tekst hier</translation>
     </message>
     <message>
-        <location filename="../libs/draw/core/style.cpp" line="+29"/>
+        <location filename="../libs/draw/core/style.cpp" line="+34"/>
         <source>Solid</source>
         <translation type="unfinished">Doorgetrokken</translation>
     </message>
@@ -6031,7 +6031,7 @@ Artikel achterpagina	4</translation>
 <context>
     <name>DrawingWriter</name>
     <message>
-        <location filename="../libs/office/office/drawingml_write.cpp" line="+742"/>
+        <location filename="../libs/office/office/drawingml_write.cpp" line="+747"/>
         <location line="+162"/>
         <source>Placeholder</source>
         <translation type="unfinished">Tijdelijke aanduiding</translation>
@@ -10295,7 +10295,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Aangepaste indeling</translation>
     </message>
     <message>
-        <location line="+265"/>
+        <location line="+267"/>
         <source>And %1 more.</source>
         <translation type="unfinished">En nog %1.</translation>
     </message>
@@ -10366,7 +10366,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Er is een diamodel weggelaten: het heeft dezelfde inhoud als een eerder diamodel.</translation>
     </message>
     <message>
-        <location line="+115"/>
+        <location line="+137"/>
         <source>Slide Master</source>
         <translation type="unfinished">Diamodel</translation>
     </message>
@@ -10398,7 +10398,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Dia %1 is weggelaten: de presentatie heeft geen diamodel.</translation>
     </message>
     <message>
-        <location line="+421"/>
+        <location line="+430"/>
         <source>The presentation holds more text than can be read; the rest is left out.</source>
         <translation type="unfinished">De presentatie bevat meer tekst dan kan worden gelezen; de rest is weggelaten.</translation>
     </message>

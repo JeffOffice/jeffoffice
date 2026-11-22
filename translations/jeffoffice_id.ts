@@ -2260,7 +2260,7 @@ Berita halaman belakang	4</translation>
         <translation type="unfinished">Teks Anda di Sini</translation>
     </message>
     <message>
-        <location filename="../libs/draw/core/style.cpp" line="+29"/>
+        <location filename="../libs/draw/core/style.cpp" line="+34"/>
         <source>Solid</source>
         <translation type="unfinished">Padat</translation>
     </message>
@@ -6029,7 +6029,7 @@ Berita halaman belakang	4</translation>
 <context>
     <name>DrawingWriter</name>
     <message>
-        <location filename="../libs/office/office/drawingml_write.cpp" line="+742"/>
+        <location filename="../libs/office/office/drawingml_write.cpp" line="+747"/>
         <location line="+162"/>
         <source>Placeholder</source>
         <translation type="unfinished">Placeholder</translation>
@@ -10288,7 +10288,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Tata Letak Kustom</translation>
     </message>
     <message>
-        <location line="+265"/>
+        <location line="+267"/>
         <source>And %1 more.</source>
         <translation type="unfinished">Dan %1 lainnya.</translation>
     </message>
@@ -10359,7 +10359,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Sebuah master slaid dilewati: isinya sama dengan master sebelumnya.</translation>
     </message>
     <message>
-        <location line="+115"/>
+        <location line="+137"/>
         <source>Slide Master</source>
         <translation type="unfinished">Master Slaid</translation>
     </message>
@@ -10391,7 +10391,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Slaid %1 dilewati: presentasi tidak memiliki master slaid.</translation>
     </message>
     <message>
-        <location line="+421"/>
+        <location line="+430"/>
         <source>The presentation holds more text than can be read; the rest is left out.</source>
         <translation type="unfinished">Presentasi memiliki lebih banyak teks daripada yang dapat dibaca; sisanya dilewati.</translation>
     </message>

@@ -2261,7 +2261,7 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">Inserire il testo qui</translation>
     </message>
     <message>
-        <location filename="../libs/draw/core/style.cpp" line="+29"/>
+        <location filename="../libs/draw/core/style.cpp" line="+34"/>
         <source>Solid</source>
         <translation type="unfinished">Continua</translation>
     </message>
@@ -6031,7 +6031,7 @@ Articolo dell&apos;ultima pagina	4</translation>
 <context>
     <name>DrawingWriter</name>
     <message>
-        <location filename="../libs/office/office/drawingml_write.cpp" line="+742"/>
+        <location filename="../libs/office/office/drawingml_write.cpp" line="+747"/>
         <location line="+162"/>
         <source>Placeholder</source>
         <translation type="unfinished">Segnaposto</translation>
@@ -10295,7 +10295,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <translation type="unfinished">Layout personalizzato</translation>
     </message>
     <message>
-        <location line="+265"/>
+        <location line="+267"/>
         <source>And %1 more.</source>
         <translation type="unfinished">E altri %1.</translation>
     </message>
@@ -10366,7 +10366,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <translation type="unfinished">Uno schema diapositiva è stato omesso: ha lo stesso contenuto di uno precedente.</translation>
     </message>
     <message>
-        <location line="+115"/>
+        <location line="+137"/>
         <source>Slide Master</source>
         <translation type="unfinished">Schema diapositiva</translation>
     </message>
@@ -10398,7 +10398,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <translation type="unfinished">La diapositiva %1 è stata omessa: la presentazione non ha uno schema diapositiva.</translation>
     </message>
     <message>
-        <location line="+421"/>
+        <location line="+430"/>
         <source>The presentation holds more text than can be read; the rest is left out.</source>
         <translation type="unfinished">La presentazione contiene più testo di quanto se ne possa leggere; il resto è stato omesso.</translation>
     </message>

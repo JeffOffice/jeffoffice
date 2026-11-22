@@ -2261,7 +2261,7 @@ Artículo de contraportada	4</translation>
         <translation type="unfinished">Escriba aquí el texto</translation>
     </message>
     <message>
-        <location filename="../libs/draw/core/style.cpp" line="+29"/>
+        <location filename="../libs/draw/core/style.cpp" line="+34"/>
         <source>Solid</source>
         <translation type="unfinished">Sólido</translation>
     </message>
@@ -6031,7 +6031,7 @@ Artículo de contraportada	4</translation>
 <context>
     <name>DrawingWriter</name>
     <message>
-        <location filename="../libs/office/office/drawingml_write.cpp" line="+742"/>
+        <location filename="../libs/office/office/drawingml_write.cpp" line="+747"/>
         <location line="+162"/>
         <source>Placeholder</source>
         <translation type="unfinished">Marcador de posición</translation>
@@ -10295,7 +10295,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Diseño personalizado</translation>
     </message>
     <message>
-        <location line="+265"/>
+        <location line="+267"/>
         <source>And %1 more.</source>
         <translation type="unfinished">Y %1 más.</translation>
     </message>
@@ -10366,7 +10366,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Se omitió un patrón de diapositivas: tiene el mismo contenido que uno anterior.</translation>
     </message>
     <message>
-        <location line="+115"/>
+        <location line="+137"/>
         <source>Slide Master</source>
         <translation type="unfinished">Patrón de diapositivas</translation>
     </message>
@@ -10398,7 +10398,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Se omitió la diapositiva %1: la presentación no tiene patrón de diapositivas.</translation>
     </message>
     <message>
-        <location line="+421"/>
+        <location line="+430"/>
         <source>The presentation holds more text than can be read; the rest is left out.</source>
         <translation type="unfinished">La presentación contiene más texto del que se puede leer; el resto se omite.</translation>
     </message>

@@ -2261,7 +2261,7 @@ Artikel auf der Rückseite	4</translation>
         <translation type="unfinished">Ihr Text hier</translation>
     </message>
     <message>
-        <location filename="../libs/draw/core/style.cpp" line="+29"/>
+        <location filename="../libs/draw/core/style.cpp" line="+34"/>
         <source>Solid</source>
         <translation type="unfinished">Durchgezogen</translation>
     </message>
@@ -6031,7 +6031,7 @@ Artikel auf der Rückseite	4</translation>
 <context>
     <name>DrawingWriter</name>
     <message>
-        <location filename="../libs/office/office/drawingml_write.cpp" line="+742"/>
+        <location filename="../libs/office/office/drawingml_write.cpp" line="+747"/>
         <location line="+162"/>
         <source>Placeholder</source>
         <translation type="unfinished">Platzhalter</translation>
@@ -10295,7 +10295,7 @@ Jetzt von %2 herunterladen? (%3, einmalig.)</translation>
         <translation type="unfinished">Benutzerdefiniertes Layout</translation>
     </message>
     <message>
-        <location line="+265"/>
+        <location line="+267"/>
         <source>And %1 more.</source>
         <translation type="unfinished">Und %1 weitere.</translation>
     </message>
@@ -10366,7 +10366,7 @@ Jetzt von %2 herunterladen? (%3, einmalig.)</translation>
         <translation type="unfinished">Ein Folienmaster wurde ausgelassen: Er hat denselben Inhalt wie ein vorheriger.</translation>
     </message>
     <message>
-        <location line="+115"/>
+        <location line="+137"/>
         <source>Slide Master</source>
         <translation type="unfinished">Folienmaster</translation>
     </message>
@@ -10398,7 +10398,7 @@ Jetzt von %2 herunterladen? (%3, einmalig.)</translation>
         <translation type="unfinished">Folie %1 wurde ausgelassen: Die Präsentation hat keinen Folienmaster.</translation>
     </message>
     <message>
-        <location line="+421"/>
+        <location line="+430"/>
         <source>The presentation holds more text than can be read; the rest is left out.</source>
         <translation type="unfinished">Die Präsentation enthält mehr Text, als gelesen werden kann; der Rest wird ausgelassen.</translation>
     </message>

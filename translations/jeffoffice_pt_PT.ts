@@ -2261,7 +2261,7 @@ Artigo da contracapa	4</translation>
         <translation type="unfinished">O seu texto aqui</translation>
     </message>
     <message>
-        <location filename="../libs/draw/core/style.cpp" line="+29"/>
+        <location filename="../libs/draw/core/style.cpp" line="+34"/>
         <source>Solid</source>
         <translation type="unfinished">Sólido</translation>
     </message>
@@ -6031,7 +6031,7 @@ Artigo da contracapa	4</translation>
 <context>
     <name>DrawingWriter</name>
     <message>
-        <location filename="../libs/office/office/drawingml_write.cpp" line="+742"/>
+        <location filename="../libs/office/office/drawingml_write.cpp" line="+747"/>
         <location line="+162"/>
         <source>Placeholder</source>
         <translation type="unfinished">Marcador de Posição</translation>
@@ -10295,7 +10295,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
         <translation type="unfinished">Esquema Personalizado</translation>
     </message>
     <message>
-        <location line="+265"/>
+        <location line="+267"/>
         <source>And %1 more.</source>
         <translation type="unfinished">E mais %1.</translation>
     </message>
@@ -10366,7 +10366,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
         <translation type="unfinished">Foi omitido um modelo global de diapositivos: tem o mesmo conteúdo que um anterior.</translation>
     </message>
     <message>
-        <location line="+115"/>
+        <location line="+137"/>
         <source>Slide Master</source>
         <translation type="unfinished">Modelo Global de Diapositivos</translation>
     </message>
@@ -10398,7 +10398,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
         <translation type="unfinished">O diapositivo %1 foi omitido: a apresentação não tem modelo global de diapositivos.</translation>
     </message>
     <message>
-        <location line="+421"/>
+        <location line="+430"/>
         <source>The presentation holds more text than can be read; the rest is left out.</source>
         <translation type="unfinished">A apresentação contém mais texto do que é possível ler; o restante foi omitido.</translation>
     </message>
