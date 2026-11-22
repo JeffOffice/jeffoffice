@@ -810,6 +810,37 @@ private Q_SLOTS:
         Settings::get().removeRecentFile(thirdPath);
     }
 
+    // A presentation opened from the newer file that an old one was saved as is saved again by File > Save, which writes over its own file.
+    void aReopenedPresentationIsSavedInPlace()
+    {
+        QTemporaryDir dir;
+        const QString oldPath = dir.filePath(QStringLiteral("old.ppt")), newPath = dir.filePath(QStringLiteral("new.pptx"));
+        QFile out(oldPath);
+        QVERIFY(out.open(QIODevice::WriteOnly));
+        out.write(buildPpt(false, false, false, false, pptText(1, QStringLiteral("Hi"), QByteArray())));
+        out.close();
+        {
+            DeckWindow w;
+            QVERIFY(w.openFile(oldPath));
+            w.setSavePathChooser([&](const QString &, const QString &) { return newPath; });
+            QVERIFY(w.save());
+            w.editor()->markSaved();
+        }
+        DeckWindow again;
+        QVERIFY(again.openFile(newPath));
+        QCOMPARE(again.editor()->filePath(), newPath);
+        again.setSavePathChooser([&](const QString &, const QString &) { return QString(); });   // (a name is not asked for: the file has one)
+        QVERIFY(again.save());
+        QVERIFY(!again.editor()->isModified());
+        QCOMPARE(again.editor()->filePath(), newPath);
+        // (nothing was asked of anyone: the window has no notifier or chooser answer to give, and the file opens again)
+        DeckWindow third;
+        QVERIFY(third.openFile(newPath));
+        QCOMPARE(third.editor()->doc()->pages.size(), again.editor()->doc()->pages.size());
+        Settings::get().removeRecentFile(oldPath);
+        Settings::get().removeRecentFile(newPath);
+    }
+
     // Objects on a slide, on its master, and in a group don't wrap text around them: text and objects overlap there.
     void importBinaryObjectsDoNotWrapText()
     {
