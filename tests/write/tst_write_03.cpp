@@ -932,6 +932,32 @@ void WriteTests::sectionsTakeTheHeadersOfTheSectionBefore()
     }
 
 
+// A file whose sections each name a footer of their own has every one drawn (a long manual has a hundred and more sections); past the most parts the program reads, a section has
+// the footer of the section before, and never none.
+void WriteTests::everySectionsOwnFooterIsDrawnHoweverManySectionsThereAre()
+{
+    const int sections = kMostHeaderParts + 40;
+    QByteArray body;
+    QMap<QString, QByteArray> parts;
+    for (int i = 1; i <= sections; ++i) {
+        const QByteArray n = QByteArray::number(i);
+        const QByteArray sect = "<w:sectPr><w:footerReference w:type=\"default\" r:id=\"rIdfooter" + n + "\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr>";
+        if (i < sections) body += "<w:p><w:pPr>" + sect + "</w:pPr><w:r><w:t>Body " + n + "</w:t></w:r></w:p>";
+        else body += "<w:p><w:r><w:t>Body " + n + "</w:t></w:r></w:p>" + sect;
+        parts.insert(QStringLiteral("/word/footer%1.xml").arg(i), headerPart("ftr", {"<w:r><w:t>FOOT" + n + "END</w:t></w:r>"}));
+    }
+    auto doc = open(makeDocxWithParts(body.left(body.lastIndexOf("<w:sectPr>")), body.mid(body.lastIndexOf("<w:sectPr>")), parts));
+    QVERIFY(doc);
+    QCOMPARE(doc->pager().pageCount(), sections);
+    for (int k = 0; k < sections; ++k) {
+        const auto page = doc->pager().materialize(k);
+        QVERIFY(page);
+        const int own = std::min(k + 1, kMostHeaderParts);
+        QVERIFY2(boxWithText(*page, QStringLiteral("FOOT%1END").arg(own)), qPrintable(QStringLiteral("page %1 has not its footer").arg(k + 1)));
+    }
+}
+
+
 // ---- editing a header or a footer (the story is edited as the text is; pages show it, and saving writes it)
 
 // Typing in a header changes it on every page that uses it, and only there: the first page has a header of its own, and so has a section that names one.

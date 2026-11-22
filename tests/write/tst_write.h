@@ -1023,6 +1023,7 @@ private Q_SLOTS:
     void unknownAttributesOnKnownElementsGoBackAsRead();
     void aFilesHeadersAndFootersAreDrawnAndKept();
     void sectionsTakeTheHeadersOfTheSectionBefore();
+    void everySectionsOwnFooterIsDrawnHoweverManySectionsThereAre();
     void typingInAHeaderChangesEveryPageThatUsesItAndOnlyThere();
     void anUneditedHeaderIsWrittenBackByteForByte();
     void anEditedHeaderKeepsWhatTheProgramCannotEdit();

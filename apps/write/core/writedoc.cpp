@@ -951,7 +951,16 @@ void WriteDoc::attachHeaders(int from)
         const HeaderRefs &refs = it.value();
         flow::Section &s = f.sections[i];
         const flow::Section *before = i > 0 ? &f.sections[i - 1] : nullptr;
-        auto pick = [&](const QString &id, const std::shared_ptr<QTextDocument> &inherited) { return id.isEmpty() ? inherited : headerStory(id); };
+        auto pick = [&](const QString &id, const std::shared_ptr<QTextDocument> &inherited) {
+            if (id.isEmpty()) return inherited;
+            std::shared_ptr<QTextDocument> own = headerStory(id);
+            // (A part past the most that are read is not nothing: the section shows what the one before shows.)
+            if (!own && m_headerParts.size() >= kMostHeaderParts) {
+                const Relationship rel = mainRelationship(id);
+                if (!rel.id.isEmpty() && !rel.external && !m_headerParts.contains(rel.target)) return inherited;
+            }
+            return own;
+        };
         s.header.odd = pick(refs.header[0], before ? before->header.odd : nullptr);
         s.header.first = pick(refs.header[1], before ? before->header.first : nullptr);
         s.header.even = pick(refs.header[2], before ? before->header.even : nullptr);
