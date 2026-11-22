@@ -2809,43 +2809,71 @@ private Q_SLOTS:
         }
     }
 
-    // A page of 20,000 objects: the pane lists them, Select All, a nudge, and a drag of a row 1,000 places each take about a second at most (the bound is three) (a list copied for each row, a search of the
-    // selection for each id, or a list built again for each change takes minutes).
+    // A page of 20,000 objects: the pane lists them, Select All, a nudge, and a drag of a row 1,000 places each do work that grows with the number of objects, not with its square
+    // (a list copied for each row, a search of the selection for each id, or a list built again for each change takes minutes). The work is counted (rows the pane reads and makes,
+    // objects the document walks, the index of where objects are made again), not timed; the time is only a very loose check that nothing is stuck.
     void aPageOfTwentyThousandObjectsIsHandledQuickly()
     {
+        const int n = 20000;
         jp::MainWindow w;
         w.resize(1200, 900);
         w.show();
         jp::Editor *ed = w.editor();
         ed->setDocument(jp::Document::blank(QSizeF(612, 792)));
-        for (int i = 0; i < 20000; ++i) {
+        for (int i = 0; i < n; ++i) {
             auto s = std::make_shared<jp::ShapeItem>();
             s->rect = QRectF(i % 500, i / 500, 5, 5);
             ed->doc()->pages[0]->items.push_back(s);
         }
         QElapsedTimer clock;
-        auto within = [&](const char *what, qint64 limit = 3000) {
+        clock.start();
+        auto stuck = [&](const char *what) {
             const qint64 ms = clock.elapsed();
             clock.restart();
-            QVERIFY2(ms < limit * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QStringLiteral("%1 took %2 ms").arg(QLatin1String(what)).arg(ms)));
+            QVERIFY2(ms < 60000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QStringLiteral("%1 took %2 ms").arg(QLatin1String(what)).arg(ms)));
         };
-        clock.start();
+        const qint64 rows0 = jp::SelectionPane::rowsTouchedForTest();
         w.act(QStringLiteral("arr.selectionPane"))->trigger();
         auto *list = w.findChild<QListWidget *>(QStringLiteral("selectionList"));
         QVERIFY(list);
-        QCOMPARE(list->count(), 20000);
-        within("opening the pane");
+        QCOMPARE(list->count(), n);
+        // Opening: each object is read once and made one row.
+        QCOMPARE(jp::SelectionPane::rowsTouchedForTest() - rows0, qint64(2 * n));
+        stuck("opening the pane");
+
+        const qint64 rows1 = jp::SelectionPane::rowsTouchedForTest(), refreshes1 = jp::SelectionPane::refreshesForTest();
+        const qint64 walked1 = jp::Document::itemsWalkedForTest();
+        const int indexed1 = ed->doc()->findIndexingsForTest();
         w.act(QStringLiteral("edit.selectAll"))->trigger();
-        QCOMPARE(int(ed->selection().size()), 20000);
+        QCOMPARE(int(ed->selection().size()), n);
         w.findChild<jp::SelectionPane *>(QStringLiteral("selectionPane"))->refresh();   // (the pane follows the selection)
         QCOMPARE(list->currentRow(), 0);
-        within("Select All", 1500);
+        // Select All: one pass over the objects, and the pane read again once or twice (its own refresh, and the one the change queued), its rows read and none made again.
+        QVERIFY2(jp::SelectionPane::refreshesForTest() - refreshes1 <= 2, qPrintable(QString::number(jp::SelectionPane::refreshesForTest() - refreshes1)));
+        QVERIFY2(jp::SelectionPane::rowsTouchedForTest() - rows1 <= 2 * n, qPrintable(QString::number(jp::SelectionPane::rowsTouchedForTest() - rows1)));
+        QVERIFY2(jp::Document::itemsWalkedForTest() - walked1 <= 2 * n, qPrintable(QString::number(jp::Document::itemsWalkedForTest() - walked1)));
+        QVERIFY(ed->doc()->findIndexingsForTest() - indexed1 <= 2);
+        stuck("Select All");
+
+        const qint64 walked2 = jp::Document::itemsWalkedForTest();
+        const int indexed2 = ed->doc()->findIndexingsForTest();
         ed->moveSelectionBy(3, 3);
-        within("a nudge");
+        // A nudge: each selected object is looked up in the index once, and the objects are walked once (more would be a search of the selection for each id).
+        QVERIFY2(jp::Document::itemsWalkedForTest() - walked2 <= 2 * n, qPrintable(QString::number(jp::Document::itemsWalkedForTest() - walked2)));
+        QVERIFY(ed->doc()->findIndexingsForTest() - indexed2 <= 2);
+        stuck("a nudge");
+
         const QString moved = ed->surfaceItems()[19999]->id;
+        const qint64 rows3 = jp::SelectionPane::rowsTouchedForTest(), refreshes3 = jp::SelectionPane::refreshesForTest(), moves3 = jp::SelectionPane::movesForTest();
+        const qint64 walked3 = jp::Document::itemsWalkedForTest();
         QVERIFY(list->model()->moveRow(QModelIndex(), 0, QModelIndex(), 1000));
         QCOMPARE(ed->surfaceItems()[19999 - 999]->id, moved);
-        within("a drag of 1,000 places");
+        // A drag of one row 1,000 places is one move handed to the app (not one for each place it passes), and the list is read at most twice.
+        QCOMPARE(jp::SelectionPane::movesForTest() - moves3, qint64(1));
+        QVERIFY2(jp::SelectionPane::refreshesForTest() - refreshes3 <= 2, qPrintable(QString::number(jp::SelectionPane::refreshesForTest() - refreshes3)));
+        QVERIFY2(jp::SelectionPane::rowsTouchedForTest() - rows3 <= 2 * n, qPrintable(QString::number(jp::SelectionPane::rowsTouchedForTest() - rows3)));
+        QVERIFY2(jp::Document::itemsWalkedForTest() - walked3 <= 2 * n, qPrintable(QString::number(jp::Document::itemsWalkedForTest() - walked3)));
+        stuck("a drag of 1,000 places");
     }
 };
 

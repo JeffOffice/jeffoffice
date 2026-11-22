@@ -15,6 +15,14 @@
 
 namespace jp {
 
+namespace {
+qint64 g_refreshes = 0, g_rowsTouched = 0, g_moves = 0;   // (for tests of cost)
+}
+
+qint64 SelectionPane::refreshesForTest() { return g_refreshes; }
+qint64 SelectionPane::rowsTouchedForTest() { return g_rowsTouched; }
+qint64 SelectionPane::movesForTest() { return g_moves; }
+
 SelectionPane::SelectionPane(QWidget *parent, const Source &source) : QDialog(parent), m_source(source)
 {
     setObjectName(m_source.title.isEmpty() ? QStringLiteral("selectionPane") : QStringLiteral("readingOrderPane"));
@@ -98,7 +106,10 @@ SelectionPane::SelectionPane(QWidget *parent, const Source &source) : QDialog(pa
         if (m_filling) return;
         Busy busy(this);
         const int to = row > start ? row - 1 : row;
-        if (m_source.move && to != start) m_source.move(start, to);
+        if (m_source.move && to != start) {
+            ++g_moves;
+            m_source.move(start, to);
+        }
         refresh();
     });
     connect(forward, &QPushButton::clicked, this, [this] { moveCurrent(-1); });
@@ -111,6 +122,7 @@ void SelectionPane::moveCurrent(int by)
 {
     const int from = m_list->currentRow(), to = from + by;
     if (from < 0 || to < 0 || to >= m_list->count() || !m_source.move) return;
+    ++g_moves;
     m_source.move(from, to);
     refresh();
 }
@@ -146,6 +158,8 @@ void SelectionPane::refresh()
     m_again = false;
     m_stale = false;
     const QVector<Row> rows = m_source.rows();
+    ++g_refreshes;
+    g_rowsTouched += rows.size();
     m_filling = true;
     int picked = -1;
     for (int i = 0; i < rows.size(); ++i)
@@ -156,16 +170,23 @@ void SelectionPane::refresh()
     if (m_list->count() == rows.size()) {
         for (int i = 0; i < rows.size(); ++i) {
             QListWidgetItem *item = m_list->item(i);
-            if (item->text() != rows[i].name) item->setText(rows[i].name);
+            if (item->text() != rows[i].name) {
+                item->setText(rows[i].name);
+                ++g_rowsTouched;
+            }
             if (m_source.show) {
                 const Qt::CheckState want = rows[i].shown ? Qt::Checked : Qt::Unchecked;
-                if (item->checkState() != want) item->setCheckState(want);
+                if (item->checkState() != want) {
+                    item->setCheckState(want);
+                    ++g_rowsTouched;
+                }
             }
         }
     } else {
         m_list->clear();
         for (int i = 0; i < rows.size(); ++i) {
             auto *item = new QListWidgetItem(rows[i].name);
+            ++g_rowsTouched;
             Qt::ItemFlags flags = item->flags() | Qt::ItemIsDragEnabled;
             flags &= ~Qt::ItemIsDropEnabled;
             if (m_source.rename) flags |= Qt::ItemIsEditable;

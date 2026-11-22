@@ -6,6 +6,7 @@
 #include "core/export.h"
 #include <QDialog>
 #include <QString>
+#include <QtGlobal>
 #include <QVector>
 #include <functional>
 
@@ -39,6 +40,10 @@ public:
     // The list again, but not at once and not while the pane is hidden: one refresh, at the end of the event-loop turn, however many changes asked for it (a page of thousands of objects
     // changes in thousands of ways in a turn); a hidden pane is made current when it is shown.
     void requestRefresh();
+    // For tests of cost: since the program began, the lists made again (refresh), the rows read from Sources and the list items made or changed for them, and the moves handed to Sources.
+    static qint64 refreshesForTest();
+    static qint64 rowsTouchedForTest();
+    static qint64 movesForTest();
 
 protected:
     void showEvent(QShowEvent *e) override;
