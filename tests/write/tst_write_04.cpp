@@ -140,6 +140,46 @@ void WriteTests::anEmptyHeaderParagraphWithNoStyleHasTheDefaultSizeWhereTheFileH
 }
 
 
+// A frame in a header that text wraps around (the attribute's default) takes no room under the header's other paragraphs, whether or not it names a side; one that lets no text
+// beside it does take its own lines.
+void WriteTests::aHeaderFrameTextWrapsAroundTakesNoRoomWhateverItsSide()
+{
+    const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdheader1\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/>"
+                            "<w:pgMar w:top=\"720\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+    auto bodyTop = [&](const QList<QByteArray> &header) {
+        auto doc = open(makeDocxWithParts(paragraphs(2, 10), sect, {{QStringLiteral("/word/header1.xml"), headerPart("hdr", header)}}));
+        if (!doc) return -1.0;
+        const auto p = doc->pager().materialize(0);
+        return p ? p->doc->item(p->boxes.first())->rect.top() : -1.0;
+    };
+    auto framed = [](const QByteArray &attributes, const QByteArray &text) {
+        return "<w:pPr><w:framePr " + attributes + "/></w:pPr>" + (text.isEmpty() ? QByteArray() : "<w:r><w:t>" + text + "</w:t></w:r>");
+    };
+    const double alone = bodyTop({QByteArray()});
+    QVERIFY(alone > 36);
+    const QByteArray around = "w:wrap=\"around\" w:vAnchor=\"text\" w:hAnchor=\"margin\" w:y=\"1\"";
+    QCOMPARE(bodyTop({framed(around, "7"), QByteArray()}), alone);
+    QCOMPARE(bodyTop({framed(around, QByteArray()), QByteArray()}), alone);
+    QCOMPARE(bodyTop({framed("w:wrap=\"auto\" w:vAnchor=\"text\" w:hAnchor=\"margin\" w:y=\"1\"", "7"), QByteArray()}), alone);
+    QVERIFY(bodyTop({framed("w:w=\"9361\" w:wrap=\"notBeside\" w:vAnchor=\"text\" w:hAnchor=\"text\" w:y=\"1\"", "7"), QByteArray()}) > alone + 5);
+    // The frame is written back as it was, opened and saved as it is or with its header opened for editing.
+    for (const bool edit : {false, true}) {
+        auto doc = open(makeDocxWithParts(paragraphs(2, 10), sect, {{QStringLiteral("/word/header1.xml"), headerPart("hdr", {framed(around, "7"), QByteArray()})}}));
+        QVERIFY(doc);
+        if (edit) {
+            QTextDocument *header = doc->editableHeaderFooter(0, false, 0);
+            QVERIFY(header);
+            QTextCursor c(header);
+            c.movePosition(QTextCursor::End);
+            c.insertText(QStringLiteral("!"));
+            c.deletePreviousChar();
+        }
+        const QByteArray out = partOf(doc->toDocx(), QStringLiteral("/word/header1.xml"));
+        QVERIFY2(out.contains(around), qPrintable(QString(edit ? "edited: " : "unedited: ") + QString::fromUtf8(out)));
+    }
+}
+
+
 // The mark size given to an unstyled header paragraph is the layout's alone: a file that is opened and saved, with its header opened for editing or not, has no size written
 // into the paragraphs that had none.
 void WriteTests::theHeaderMarkSizeIsNotWrittenBack()

@@ -1079,6 +1079,7 @@ private Q_SLOTS:
     void editingInAHeaderWorksAsInTheText();
     void aTallerHeaderPushesTheTextDownOnEveryPageThatUsesIt();
     void anEmptyHeaderParagraphWithNoStyleHasTheDefaultSizeWhereTheFileHasNoHeaderStyle();
+    void aHeaderFrameTextWrapsAroundTakesNoRoomWhateverItsSide();
     void theHeaderMarkSizeIsNotWrittenBack();
     void onlyALinksFieldResultCarriesTheNoBreakMark();
     void theViewFollowsTheHistoryIntoAndOutOfAHeader();

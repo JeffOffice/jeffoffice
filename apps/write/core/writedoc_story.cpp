@@ -944,7 +944,10 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
                 else if (at == QLatin1String("right")) bf.setAlignment(Qt::AlignRight);
                 else if (at == QLatin1String("left")) bf.setAlignment(Qt::AlignLeft);
                 else if (at == QLatin1String("outside") || at == QLatin1String("inside")) bf.setProperty(tp::PageSideAlign, at == QLatin1String("outside") ? 1 : 2);   // (the page's number says which side)
-                if (!at.isEmpty() && attributeOfTag(ch.xml, QStringLiteral("vAnchor")) != QLatin1String("page")) bf.setProperty(tp::OutOfFlow, true);
+                // (One that text wraps around, as the attribute's default says, takes no room either where it has no side set: the text lines up beside it.)
+                const QString wrap = attributeOfTag(ch.xml, QStringLiteral("wrap"));
+                const bool textBeside = wrap != QLatin1String("notBeside") && wrap != QLatin1String("none");
+                if ((!at.isEmpty() || textBeside) && attributeOfTag(ch.xml, QStringLiteral("vAnchor")) != QLatin1String("page")) bf.setProperty(tp::OutOfFlow, true);
             }
         }
         if (!p.attrs.isEmpty()) setStored(bf, prop::ParaAttrs, p.attrs);
