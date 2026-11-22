@@ -2,6 +2,7 @@
 
 #include "office/theme.h"
 
+#include <QCoreApplication>
 #include <QHash>
 #include <QRegularExpression>
 #include <QSet>
@@ -485,6 +486,7 @@ struct Writer {
                                 if (r.id == m.captured(1)) link = r.target;
                         if (link.isEmpty())
                             if (const auto m = anchor.match(tag); m.hasMatch()) link = QStringLiteral("#") + m.captured(1);
+                        if (link.startsWith(QLatin1Char('#'))) note(QCoreApplication::translate("rtf", "bookmarks, and the links that go to them (the words stay)"));
                         if (!link.isEmpty()) o += "{\\field{\\*\\fldinst HYPERLINK \"" + text(link) + "\"}{\\fldrslt ";
                         else o += "{";
                         links << !link.isEmpty();
@@ -499,7 +501,18 @@ struct Writer {
                     else if (!in.display.isEmpty()) o += group(in.props, in.display);
                     continue;
                 }
-                if (in.tag == QLatin1String("bookmarkStart") || in.tag == QLatin1String("bookmarkEnd") || in.tag == QLatin1String("proofErr")) continue;
+                if (in.tag == QLatin1String("bookmarkStart")) {
+                    // (a bookmark with a name that starts with an underscore is one the program keeps for itself: not the person's)
+                    static const QRegularExpression named(QStringLiteral("w:name\\s*=\\s*\"([^_\"][^\"]*)\""));
+                    if (named.match(QString::fromUtf8(in.raw)).hasMatch()) note(QCoreApplication::translate("rtf", "bookmarks, and the links that go to them (the words stay)"));
+                    continue;
+                }
+                if (in.tag == QLatin1String("bookmarkEnd") || in.tag == QLatin1String("proofErr")) continue;
+                if (in.tag == QLatin1String("sdt") || in.tag == QLatin1String("sdtContent")) {
+                    note(QCoreApplication::translate("rtf", "content controls (the text in them is kept)"));
+                    continue;
+                }
+                if (in.tag == QLatin1String("oMath") || in.tag == QLatin1String("oMathPara")) note(QStringLiteral("equations (their text is kept)"));
                 if (in.tag == QLatin1String("commentRangeStart") || in.tag == QLatin1String("commentRangeEnd")) {
                     note(QStringLiteral("comments"));
                     continue;

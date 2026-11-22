@@ -266,8 +266,16 @@ jp::CompatHost WriteWindow::compatHost()
     }});
     host.formats.push_back({tr("Plain text (.txt)"), QStringLiteral(".txt"), QStringLiteral(".docx"), what, [this](const CompatDone &done) {
         QStringList kept;
-        if (m_doc) kept << tr("Everything but the words: the fonts, pictures, tables, and other formatting.");
-        if (m_fileProtected) kept << tr("The password.");
+        if (m_doc) {
+            // (what a plain text file keeps: the words of the text, the words in tables one after another, and the words a link, bookmark, tracked change, or content control holds)
+            kept << tr("The fonts, colors, and other formatting.");
+            kept << tr("Pictures, charts, and equations.");
+            kept << tr("Tables as tables (the words in them stay, one after another).");
+            kept << tr("Headers and footers, with the words in them.");
+            kept << tr("Comments and footnotes, with the words in them.");
+            kept << tr("Bookmarks, and links to them or to web pages (the words stay).");
+            kept << tr("Tracked changes and content controls (the words stay).");
+        }
         done(kept);
     }});
     return host;

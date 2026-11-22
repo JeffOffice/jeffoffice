@@ -398,6 +398,102 @@ QVector<Extra> notesExtra(const QString &second = QStringLiteral("First note."))
     return {{QStringLiteral("/word/footnotes.xml"), kWord + QStringLiteral("footnotes+xml"), footnotesPart(second), kRel + QStringLiteral("footnotes"), QString(), QString()}};
 }
 
+// ---- Check Compatibility against what a save keeps: a document holding each thing the lists name, and others they don't, saved as each kind through the window's own save and opened again.
+struct TruthThing {
+    QString name;
+    QString phrase;   // words of the thing, unique in the document (empty for a thing with no words)
+    std::function<bool(const QMap<QString, QByteArray> &)> in;   // whether a .docx made from a document holds the thing
+    QRegularExpression listedBy;   // what a list that names it says
+};
+
+QMap<QString, QByteArray> partsOfZip(const QByteArray &zip)
+{
+    QMap<QString, QByteArray> out;
+    office::Package package;
+    QString why;
+    if (!package.readLazy(zip, &why)) return out;
+    for (const QString &name : package.partNames()) out.insert(name, package.part(name));
+    return out;
+}
+
+bool anyPart(const QMap<QString, QByteArray> &p, const QString &prefix, const QByteArray &needle)
+{
+    for (auto it = p.cbegin(); it != p.cend(); ++it)
+        if (it.key().startsWith(prefix) && (needle.isEmpty() || it.value().contains(needle))) return true;
+    return false;
+}
+
+QVector<TruthThing> truthThings()
+{
+    using P = QMap<QString, QByteArray>;
+    auto re = [](const char *s) { return QRegularExpression(QString::fromLatin1(s), QRegularExpression::CaseInsensitiveOption); };
+    return {
+        {QStringLiteral("body words"), QStringLiteral("Plain words one"), [](const P &p) { return anyPart(p, QStringLiteral("/word/document.xml"), "Plain words one"); }, re("(?!)")},
+        {QStringLiteral("bookmark"), QString(), [](const P &p) { return anyPart(p, QStringLiteral("/word/document.xml"), "w:name=\"Target\""); }, re("bookmark")},
+        {QStringLiteral("link to a bookmark"), QString(), [](const P &p) { return anyPart(p, QStringLiteral("/word/document.xml"), "w:anchor=\"Target\""); }, re("bookmark|link")},
+        {QStringLiteral("link to a web page"), QString(), [](const P &p) { return QString::fromUtf8(p.value(QStringLiteral("/word/document.xml"))).contains(QRegularExpression(QStringLiteral("<w:hyperlink[^>]*r:id="))); }, re("web")},
+        {QStringLiteral("comment"), QStringLiteral("Comment words"), [](const P &p) { return anyPart(p, QStringLiteral("/word/comments"), "Comment words"); }, re("comment")},
+        {QStringLiteral("footnote"), QStringLiteral("Footnote words"), [](const P &p) { return anyPart(p, QStringLiteral("/word/footnotes"), "Footnote words"); }, re("footnote")},
+        {QStringLiteral("picture"), QString(), [](const P &p) { return anyPart(p, QStringLiteral("/word/media/"), QByteArray()); }, re("picture")},
+        {QStringLiteral("table"), QStringLiteral("Cell words"), [](const P &p) { return anyPart(p, QStringLiteral("/word/document.xml"), "<w:tbl>"); }, re("table")},
+        {QStringLiteral("header"), QStringLiteral("Header words"), [](const P &p) { return anyPart(p, QStringLiteral("/word/header"), "Header words"); }, re("header")},
+        {QStringLiteral("footer"), QStringLiteral("Footer words"), [](const P &p) { return anyPart(p, QStringLiteral("/word/footer"), "Footer words"); }, re("footer")},
+        {QStringLiteral("equation"), QString(), [](const P &p) { return anyPart(p, QStringLiteral("/word/document.xml"), "oMath"); }, re("equation")},
+        {QStringLiteral("content control"), QStringLiteral("Control words"), [](const P &p) { return anyPart(p, QStringLiteral("/word/document.xml"), "<w:sdt>"); }, re("control|form field")},
+        {QStringLiteral("tracked change"), QStringLiteral("Inserted words"), [](const P &p) { return anyPart(p, QStringLiteral("/word/document.xml"), "<w:ins "); }, re("tracked")},
+        {QStringLiteral("chart"), QString(), [](const P &p) { return anyPart(p, QStringLiteral("/word/charts/"), QByteArray()); }, re("chart|drawing")},
+    };
+}
+
+QByteArray truthDocx()
+{
+    const QByteArray w = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"";
+    QImage image(20, 10, QImage::Format_RGB32);
+    image.fill(Qt::darkGreen);
+    QByteArray png;
+    QBuffer buffer(&png);
+    buffer.open(QIODevice::WriteOnly);
+    image.save(&buffer, "PNG");
+    auto drawing = [](const QByteArray &graphic, int id) {
+        return "<w:r><w:drawing><wp:inline xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\"><wp:extent cx=\"952500\" cy=\"476250\"/>"
+               "<wp:docPr id=\"" + QByteArray::number(id) + "\" name=\"Object " + QByteArray::number(id) + "\"/><a:graphic xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">" + graphic + "</a:graphic></wp:inline></w:drawing></w:r>";
+    };
+    const QByteArray picture = drawing("<a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"><pic:pic xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\">"
+                                       "<pic:nvPicPr><pic:cNvPr id=\"1\" name=\"p.png\"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill><a:blip xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" r:embed=\"rIdPic\"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill>"
+                                       "<pic:spPr><a:xfrm xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:off x=\"0\" y=\"0\"/><a:ext cx=\"952500\" cy=\"476250\"/></a:xfrm></pic:spPr></pic:pic></a:graphicData>", 1);
+    const QByteArray chart = drawing("<a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/chart\"><c:chart xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\" r:id=\"rIdChart\"/></a:graphicData>", 2);
+    const QByteArray chartPart = "<?xml version=\"1.0\"?><c:chartSpace xmlns:c=\"http://schemas.openxmlformats.org/drawingml/2006/chart\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><c:chart><c:plotArea><c:barChart><c:barDir val=\"col\"/><c:grouping val=\"clustered\"/>"
+                                 "<c:ser><c:idx val=\"0\"/><c:order val=\"0\"/><c:val><c:numLit><c:ptCount val=\"2\"/><c:pt idx=\"0\"><c:v>3</c:v></c:pt><c:pt idx=\"1\"><c:v>5</c:v></c:pt></c:numLit></c:val></c:ser><c:axId val=\"1\"/><c:axId val=\"2\"/></c:barChart>"
+                                 "<c:catAx><c:axId val=\"1\"/><c:scaling><c:orientation val=\"minMax\"/></c:scaling><c:delete val=\"0\"/><c:axPos val=\"b\"/><c:crossAx val=\"2\"/></c:catAx><c:valAx><c:axId val=\"2\"/><c:scaling><c:orientation val=\"minMax\"/></c:scaling><c:delete val=\"0\"/><c:axPos val=\"l\"/><c:crossAx val=\"1\"/></c:valAx></c:plotArea></c:chart></c:chartSpace>";
+    auto run = [](const char *text) { return QByteArray("<w:r><w:t>") + text + "</w:t></w:r>"; };
+    QByteArray body;
+    body += "<w:p>" + run("Plain words one") + "</w:p>";
+    body += "<w:p><w:bookmarkStart w:id=\"1\" w:name=\"Target\"/>" + run("Bookmarked words") + "<w:bookmarkEnd w:id=\"1\"/></w:p>";
+    body += "<w:p><w:hyperlink w:anchor=\"Target\">" + run("Link to bookmark words") + "</w:hyperlink></w:p>";
+    body += "<w:p><w:hyperlink r:id=\"rIdWeb\">" + run("Web link words") + "</w:hyperlink></w:p>";
+    body += "<w:p><w:commentRangeStart w:id=\"0\"/>" + run("Commented words") + "<w:commentRangeEnd w:id=\"0\"/><w:r><w:commentReference w:id=\"0\"/></w:r></w:p>";
+    body += "<w:p>" + run("Footnoted words") + "<w:r><w:footnoteReference w:id=\"2\"/></w:r></w:p>";
+    body += "<w:p>" + picture + "</w:p>";
+    body += "<w:p>" + chart + "</w:p>";
+    body += "<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"2000\"/><w:gridCol w:w=\"2000\"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:w=\"2000\" w:type=\"dxa\"/></w:tcPr><w:p>" + run("Cell words A") + "</w:p></w:tc>"
+            "<w:tc><w:tcPr><w:tcW w:w=\"2000\" w:type=\"dxa\"/></w:tcPr><w:p>" + run("Cell words B") + "</w:p></w:tc></w:tr></w:tbl>";
+    body += "<w:p><m:oMath xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"><m:r><m:t>x+1</m:t></m:r></m:oMath></w:p>";
+    body += "<w:p><w:sdt><w:sdtPr><w:alias w:val=\"Control\"/><w:text/></w:sdtPr><w:sdtContent>" + run("Control words") + "</w:sdtContent></w:sdt></w:p>";
+    body += "<w:p><w:ins w:id=\"5\" w:author=\"Ann\" w:date=\"2026-01-01T00:00:00Z\">" + run("Inserted words") + "</w:ins></w:p>";
+    body += "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdHead\"/><w:footerReference w:type=\"default\" r:id=\"rIdFoot\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+    const QByteArray head = "<?xml version=\"1.0\"?>";
+    QVector<Extra> extra;
+    extra << Extra{QStringLiteral("/word/header1.xml"), kWord + QStringLiteral("header+xml"), head + "<w:hdr " + w + "><w:p>" + run("Header words") + "</w:p></w:hdr>", kRel + QStringLiteral("header"), QString(), QStringLiteral("rIdHead")};
+    extra << Extra{QStringLiteral("/word/footer1.xml"), kWord + QStringLiteral("footer+xml"), head + "<w:ftr " + w + "><w:p>" + run("Footer words") + "</w:p></w:ftr>", kRel + QStringLiteral("footer"), QString(), QStringLiteral("rIdFoot")};
+    extra << Extra{QStringLiteral("/word/comments.xml"), kWord + QStringLiteral("comments+xml"), head + "<w:comments " + w + "><w:comment w:id=\"0\" w:author=\"Ann\" w:initials=\"A\" w:date=\"2026-01-01T00:00:00Z\"><w:p>" + run("Comment words") + "</w:p></w:comment></w:comments>", kRel + QStringLiteral("comments"), QString(), QString()};
+    QByteArray notes = footnotesPart(QStringLiteral("Footnote words"));
+    extra << Extra{QStringLiteral("/word/footnotes.xml"), kWord + QStringLiteral("footnotes+xml"), notes, kRel + QStringLiteral("footnotes"), QString(), QString()};
+    extra << Extra{QStringLiteral("/word/media/image1.png"), QStringLiteral("image/png"), png, kRel + QStringLiteral("image"), QString(), QStringLiteral("rIdPic")};
+    extra << Extra{QStringLiteral("/word/charts/chart1.xml"), QStringLiteral("application/vnd.openxmlformats-officedocument.drawingml.chart+xml"), chartPart, kRel + QStringLiteral("chart"), QString(), QStringLiteral("rIdChart")};
+    extra << Extra{QStringLiteral("https://example.com/truth"), QString(), QByteArray(), kRel + QStringLiteral("hyperlink"), QString(), QStringLiteral("rIdWeb"), true};
+    return makeDocx(body, extra);
+}
+
 struct Quiet {
     Quiet(WriteWindow &w) { w.setNotifier([this](const QString &, const QString &text) { said << text; }); }
     QStringList said;
@@ -774,7 +870,7 @@ private Q_SLOTS:
             QVERIFY2(quiet.said.last().contains(QLatin1String("always open the document for reading only")), qPrintable(quiet.said.last()));
         }
         a.checkCompatibility(2);
-        QVERIFY(quiet.said.last().contains(QLatin1String("Everything but the words")));
+        QVERIFY(quiet.said.last().contains(QLatin1String("The fonts, colors, and other formatting")));
         // the claim holds: an .odt saved from this window and opened again is neither final nor set to open read-only
         a.setReadOnly(false);
         QVERIFY(saveInto(a, dir, QStringLiteral("f.odt")));
@@ -783,6 +879,66 @@ private Q_SLOTS:
         QVERIFY(b.openFile(dir.filePath(QStringLiteral("f.odt"))));
         QVERIFY(!b.document()->markedAsFinal());
         QVERIFY(!b.alwaysOpensReadOnly());
+    }
+
+    // What the lists say and what a save keeps, for every kind the box offers (the table is written to JO_TRUTH_DIR/write-truth.txt when that is set): a document with each thing the
+    // lists name and others they don't, saved through the window's own save, opened again, and made into a .docx to look in. A thing that is gone and not listed is a failure.
+    void whatEachKindListsIsWhatItsSaveLoses()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        WriteWindow a;
+        Quiet quiet(a);
+        a.setTextFormChooser([](TextForm *, const QByteArray *) { return true; });
+        const QString source = dir.filePath(QStringLiteral("truth.docx"));
+        {
+            QFile f(source);
+            QVERIFY(f.open(QIODevice::WriteOnly) && f.write(truthDocx()) > 0);
+        }
+        QVERIFY(a.openFile(source));
+        const QVector<TruthThing> things = truthThings();
+        QString err;
+        const QMap<QString, QByteArray> inFixture = partsOfZip(a.document()->toDocx(&err));
+        QStringList table;
+        QStringList missing;
+        for (const TruthThing &t : things)
+            if (!t.in(inFixture)) missing << t.name;
+        table << QStringLiteral("not in the document as the window holds it: ") + missing.join(QStringLiteral(", "));
+        const QVector<CompatFormat> formats = a.compatHost().formats;
+        QStringList hidden, over;
+        for (int k = 0; k < formats.size(); ++k) {
+            const QString ending = formats[k].format;
+            QStringList lines;
+            formats[k].lost([&](const CompatAnswer &answer) { lines = answer.found; });
+            const QString listed = lines.join(QLatin1Char('\n'));
+            QVERIFY(saveInto(a, dir, QStringLiteral("saved") + ending));
+            WriteWindow b;
+            Quiet quietB(b);
+            QVERIFY(b.openFile(dir.filePath(QStringLiteral("saved") + ending)));
+            const QByteArray again = b.document()->toDocx(&err);
+            const QMap<QString, QByteArray> parts = partsOfZip(again);
+            const QString plain = b.document()->story()->toPlainText();
+            table << QStringLiteral("== %1: the list says:\n   %2").arg(ending, lines.join(QStringLiteral("\n   ")));
+            if (ending == QLatin1String(".txt")) table << QStringLiteral("the file holds: ") + QString::fromUtf8(fileBytes(dir.filePath(QStringLiteral("saved.txt")))).replace(QLatin1Char('\n'), QLatin1String(" / "));
+            for (const TruthThing &t : things) {
+                if (missing.contains(t.name)) continue;
+                bool kept = t.in(parts);
+                // (a Rich Text Format link is a field a .docx made from it doesn't show as a link: it is looked for in the file)
+                if (ending == QLatin1String(".rtf") && t.name == QLatin1String("link to a web page")) kept = fileBytes(dir.filePath(QStringLiteral("saved.rtf"))).contains("example.com/truth");
+                const bool wordsKept = t.phrase.isEmpty() ? false : plain.contains(t.phrase);
+                const bool isListed = t.listedBy.match(listed).hasMatch();
+                table << QStringLiteral("%1 | %2 | listed=%3 | kept=%4 | words kept=%5").arg(ending, t.name, isListed ? QStringLiteral("yes") : QStringLiteral("no"), kept ? QStringLiteral("yes") : QStringLiteral("no"), t.phrase.isEmpty() ? QStringLiteral("-") : wordsKept ? QStringLiteral("yes") : QStringLiteral("no"));
+                if (!kept && !isListed) hidden << ending + QLatin1Char(' ') + t.name;
+                if (kept && isListed) over << ending + QLatin1Char(' ') + t.name;
+            }
+        }
+        const QString out = qEnvironmentVariable("JO_TRUTH_DIR");
+        if (!out.isEmpty()) {
+            QFile f(out + QStringLiteral("/write-truth.txt"));
+            if (f.open(QIODevice::WriteOnly)) f.write(table.join(QLatin1Char('\n')).toUtf8());
+        }
+        QVERIFY2(hidden.isEmpty(), qPrintable(QStringLiteral("lost and not listed: ") + hidden.join(QStringLiteral("; "))));
+        QVERIFY2(over.isEmpty(), qPrintable(QStringLiteral("listed but kept: ") + over.join(QStringLiteral("; "))));
     }
 
     // A picture of Check Compatibility (JO_SHOT_DIR names the folder; nothing is made without it).
