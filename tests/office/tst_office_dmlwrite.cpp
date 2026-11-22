@@ -543,7 +543,14 @@ private Q_SLOTS:
         QVERIFY(back->firstBlock().next().next().text().isEmpty());
         QVERIFY(!back->lastBlock().text().isEmpty());
         // The empty paragraph, and the one that ends in a break (its empty last line is as tall as the paragraph mark).
-        QCOMPARE(int(elementsNamed(r.spTree, "endParaRPr").size()), 2);
+        const QVector<QDomElement> marks = elementsNamed(r.spTree, "endParaRPr");
+        QCOMPARE(int(marks.size()), 2);
+        // The second sits on the break paragraph, after its break, with the size the paragraph mark has.
+        QCOMPARE(marks[1].attribute(QStringLiteral("sz")), QStringLiteral("3300"));
+        QVERIFY(marks[1].previousSiblingElement().tagName().endsWith(QLatin1String("br")));
+        // Read again, the paragraph still has its mark's size for that empty line.
+        QVERIFY(back->lastBlock().blockFormat().boolProperty(jp::tp::EmptyLineMark));
+        QVERIFY(near(back->lastBlock().charFormat().fontPointSize(), 33));
     }
 
     // A paragraph that ends in a break and has no mark of its own (the text alone sets the size) writes none, and reads back with none.

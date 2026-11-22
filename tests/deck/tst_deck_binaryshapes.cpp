@@ -790,8 +790,24 @@ private Q_SLOTS:
         const auto lines = cache.textFrame(doc, *body, 1, RenderOptions()).layout->lineInfo(0);
         QCOMPARE(int(lines.size()), 2);
         QVERIFY2(qAbs(lines[1].rect.height() - 1.2 * 20) < 0.5, qPrintable(QString::number(lines[1].rect.height())));
+        // Saved once more from the newer file, and opened again: the same.
+        const QString thirdPath = dir.filePath(QStringLiteral("third.pptx"));
+        again.setSavePathChooser([&](const QString &, const QString &) { return thirdPath; });
+        QVERIFY(again.saveAs());
+        again.editor()->markSaved();
+        DeckWindow third;
+        QVERIFY(third.openFile(thirdPath));
+        Document &doc3 = *third.editor()->doc();
+        body = nullptr;
+        for (const auto &it : doc3.pages[0]->items)
+            if (it->role == QLatin1String("ph:body:1")) body = static_cast<const TextItem *>(it.get());
+        QVERIFY(body);
+        const auto lines3 = cache.textFrame(doc3, *body, 1, RenderOptions()).layout->lineInfo(0);
+        QCOMPARE(int(lines3.size()), 2);
+        QVERIFY2(qAbs(lines3[1].rect.height() - 1.2 * 20) < 0.5, qPrintable(QString::number(lines3[1].rect.height())));
         Settings::get().removeRecentFile(oldPath);
         Settings::get().removeRecentFile(newPath);
+        Settings::get().removeRecentFile(thirdPath);
     }
 
     // Objects on a slide, on its master, and in a group don't wrap text around them: text and objects overlap there.
