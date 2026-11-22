@@ -51494,7 +51494,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
     <message>
         <location line="-26"/>
         <source>Choose &quot;any number of&quot; to let that direction take as many pages as it needs. The page breaks you set are ignored only in a direction that is fitted to a number of pages.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Escolha &quot;qualquer número de&quot; para deixar essa direção usar quantas páginas forem necessárias. As quebras de página que definiu são ignoradas apenas numa direção que esteja ajustada a um número de páginas.</translation>
     </message>
     <message>
         <location line="+23"/>

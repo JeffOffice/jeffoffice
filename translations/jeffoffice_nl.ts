@@ -51494,7 +51494,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="-26"/>
         <source>Choose &quot;any number of&quot; to let that direction take as many pages as it needs. The page breaks you set are ignored only in a direction that is fitted to a number of pages.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kies &quot;een willekeurig aantal&quot; om die richting zoveel pagina&apos;s te laten gebruiken als nodig is. De paginaeinden die u hebt ingesteld, worden alleen genegeerd in een richting die is aangepast aan een aantal pagina&apos;s.</translation>
     </message>
     <message>
         <location line="+23"/>

@@ -51494,7 +51494,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
     <message>
         <location line="-26"/>
         <source>Choose &quot;any number of&quot; to let that direction take as many pages as it needs. The page breaks you set are ignored only in a direction that is fitted to a number of pages.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Wählen Sie &quot;beliebig viele&quot;, damit diese Richtung so viele Seiten nutzt, wie sie benötigt. Die von Ihnen festgelegten Seitenumbrüche werden nur in einer Richtung ignoriert, die auf eine bestimmte Seitenanzahl angepasst ist.</translation>
     </message>
     <message>
         <location line="+23"/>

@@ -51441,7 +51441,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     <message>
         <location line="-26"/>
         <source>Choose &quot;any number of&quot; to let that direction take as many pages as it needs. The page breaks you set are ignored only in a direction that is fitted to a number of pages.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pilih &quot;berapa saja&quot; agar arah tersebut menggunakan sebanyak halaman yang dibutuhkan. Pemisah halaman yang Anda atur hanya diabaikan pada arah yang dipaskan ke jumlah halaman tertentu.</translation>
     </message>
     <message>
         <location line="+23"/>
