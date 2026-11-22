@@ -46,6 +46,7 @@ struct RenderOptions {
     // PDF/A forbids transparency: draw any item that needs it as an opaque
     // patch already blended with what lies beneath (rendered at flattenDpi).
     bool flattenTransparency = false;
+    bool noWholePixels = false;   // a slide's edges are not made whole pixels (an object a slide show or a morph is moving; set for output flattened for a PDF)
     double flattenDpi = 300;
     // Text: the lines with see-through letters or effects are left out (StoryLayout::seeThroughLines; flattened output draws them as pictures of their own).
     bool plainLinesOnly = false;
@@ -193,8 +194,9 @@ public:
     static const StoryLayout *shapeTextLayout(const PaintContext &ctx, const ShapeItem &s, QPointF *origin, double *fitScale = nullptr, double *fitCut = nullptr);
     // half: 0, or 1 for the second half of a cell divided by a diagonal.
     static const StoryLayout *cellLayout(const PaintContext &ctx, const TableItem &t, int row, int col, QPointF *origin, int half = 0);
-    // wholePixels: a slide's solid rules and rectangle outlines into pixels are whole pixels (libs/draw/render/pixelsnap.h).
-    static void strokePath(QPainter *p, const QPainterPath &path, const Stroke &s, const ColorScheme &cs, bool wholePixels = false);
+    // snap: a slide's solid rules and rectangle outlines into pixels are whole pixels (libs/draw/render/pixelsnap.h); TableRule: a table's cell border, whose ends meet the rules across it.
+    enum class Snap { Off, Edges, TableRule };
+    static void strokePath(QPainter *p, const QPainterPath &path, const Stroke &s, const ColorScheme &cs, Snap snap = Snap::Off);
 };
 
 void boxBlur(QImage &img, int radius);

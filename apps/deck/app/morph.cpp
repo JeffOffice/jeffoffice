@@ -524,6 +524,7 @@ struct MorphFrames::Impl {
         ctx.cache = const_cast<LayoutCache *>(&cache);
         ctx.pageNumber = slideIndex + 1;
         ctx.pageCount = int(doc->pages.size());
+        ctx.opt.noWholePixels = true;   // (a transition moves its objects: their edges are not made whole pixels)
         return ctx;
     }
 

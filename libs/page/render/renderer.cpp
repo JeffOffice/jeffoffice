@@ -85,6 +85,13 @@ static ImageLookup lookupFor(const Document &doc)
     return [&doc](const QString &id) { return doc.image(id); };
 }
 
+// Whether a slide's edges are whole pixels: into pixels (a screen or a picture, not a PDF, paper, or output flattened for them), and not while the
+// caller moves the object (a slide show's animation or a morph: its edges would breathe).
+static bool wholePixelsFor(const PaintContext &ctx)
+{
+    return ctx.doc->slideText && !ctx.opt.noWholePixels && !ctx.opt.flattenTransparency && ctx.opt.textOutput == TextOutput::Picture;
+}
+
 // Whether a slide's drawing goes into pixels (a screen or a picture, not a PDF or paper), where its edges are whole pixels.
 static bool intoPixels(const QPainter *p) { return p->paintEngine() && p->paintEngine()->type() == QPaintEngine::Raster; }
 
@@ -121,7 +128,7 @@ static void fillSlidePath(QPainter *p, bool slide, const QPainterPath &path, con
     p->fillPath(path, brush);
 }
 
-void Renderer::strokePath(QPainter *p, const QPainterPath &path, const Stroke &s, const ColorScheme &cs, bool wholePixels)
+void Renderer::strokePath(QPainter *p, const QPainterPath &path, const Stroke &s, const ColorScheme &cs, Snap snap)
 {
     if (s.isNone()) return;
     QPen pen = s.pen(cs);
@@ -144,10 +151,11 @@ void Renderer::strokePath(QPainter *p, const QPainterPath &path, const Stroke &s
         return;
     }
     // A slide's solid rule or rectangle outline into pixels is whole pixels (a rotated, dashed, or gradient one is drawn as it was).
-    if (wholePixels && s.compound == Stroke::Single && !s.hasGradient() && pen.style() == Qt::SolidLine && intoPixels(p) && pen.capStyle() == Qt::FlatCap) {
+    if (snap != Snap::Off && s.compound == Stroke::Single && !s.hasGradient() && pen.style() == Qt::SolidLine && intoPixels(p) && pen.capStyle() == Qt::FlatCap) {
         QRectF rect;
         if (path.elementCount() == 2 && path.elementAt(0).type == QPainterPath::MoveToElement && path.elementAt(1).type == QPainterPath::LineToElement) {
-            if (fillWholePixelRule(p, QPointF(path.elementAt(0).x, path.elementAt(0).y), QPointF(path.elementAt(1).x, path.elementAt(1).y), pen.widthF(), pen.color())) return;
+            const QPointF a(path.elementAt(0).x, path.elementAt(0).y), b(path.elementAt(1).x, path.elementAt(1).y);
+            if (snap == Snap::TableRule ? fillWholePixelTableRule(p, a, b, pen.widthF(), pen.color()) : fillWholePixelRule(p, a, b, pen.widthF(), pen.color())) return;
         } else if (pathIsRect(path, &rect) && pen.joinStyle() == Qt::MiterJoin) {
             if (strokeWholePixelRect(p, rect, pen.widthF(), pen.color())) return;
         }
@@ -973,7 +981,7 @@ static void paintLine(QPainter *p, const PaintContext &ctx, const LineItem &l)
     QPainterPath path(pts.first());
     if (l.route == LineItem::Curved && pts.size() == 4) path.cubicTo(pts[1], pts[2], pts[3]);
     else for (int i = 1; i < pts.size(); ++i) path.lineTo(pts[i]);
-    Renderer::strokePath(p, path, l.stroke, cs, ctx.doc->slideText);
+    Renderer::strokePath(p, path, l.stroke, cs, wholePixelsFor(ctx) ? Renderer::Snap::Edges : Renderer::Snap::Off);
     QPen pen = l.stroke.pen(cs);
     pen.setStyle(Qt::SolidLine);
     pen.setJoinStyle(Qt::MiterJoin);
@@ -1015,7 +1023,7 @@ static void paintText(QPainter *p, const PaintContext &ctx, const TextItem &t)
     const bool shaped = boxIsShape(t);
     const QPainterPath outline = shaped ? boxOutline(t) : QPainterPath();
     if (!t.fill.isNone()) {
-        if (!shaped) fillSlideRect(p, ctx.doc->slideText, r, t.fill.brush(r, cs, lookupFor(*ctx.doc)));
+        if (!shaped) fillSlideRect(p, wholePixelsFor(ctx), r, t.fill.brush(r, cs, lookupFor(*ctx.doc)));
         else if (const ShapeDef *def = shapeDef(t.shape); !(def && def->open && t.customPath.isEmpty())) p->fillPath(outline, t.fill.brush(outline.boundingRect(), cs, lookupFor(*ctx.doc)));
     }
     const LayoutCache::FrameLayout fl = ctx.cache->textFrame(*ctx.doc, t, ctx.pageNumber, ctx.opt);
@@ -1072,7 +1080,7 @@ static void paintText(QPainter *p, const PaintContext &ctx, const TextItem &t)
         p->drawLine(QPointF(mark.center().x(), mark.top() + 3), QPointF(mark.center().x(), mark.bottom() - 3));
         p->restore();
     }
-    Renderer::strokePath(p, shaped ? outline : [&] { QPainterPath pp; pp.addRect(r); return pp; }(), t.stroke, cs, ctx.doc->slideText);
+    Renderer::strokePath(p, shaped ? outline : [&] { QPainterPath pp; pp.addRect(r); return pp; }(), t.stroke, cs, wholePixelsFor(ctx) ? Renderer::Snap::Edges : Renderer::Snap::Off);
 }
 
 // A picture field's picture for one record of the mail merge list: the file
@@ -1211,10 +1219,12 @@ static void paintPicture(QPainter *p, const PaintContext &ctx, const PictureItem
         p->save();
         // A slide's picture into pixels has whole-pixel edges (its place and its clip, a rectangle's).
         QRectF maskRect;
-        const bool wholeEdges = ctx.doc->slideText && intoPixels(p) && paintsAxisAligned(p) && pathIsRect(mask, &maskRect);
-        const QRectF imgPlace = wholeEdges ? wholePixelRectF(p, pic.imgRect) : pic.imgRect;
-        if (wholeEdges) p->setClipRect(wholePixelRectF(p, maskRect), Qt::IntersectClip);
-        else p->setClipPath(mask, Qt::IntersectClip);
+        const bool wholeEdges = wholePixelsFor(ctx) && intoPixels(p) && paintsAxisAligned(p) && pathIsRect(mask, &maskRect);
+        // (The clip is a quarter pixel wider here than the pixels it keeps: the picture itself is drawn in device pixels below, exactly.)
+        if (wholeEdges) {
+            const double q = 0.25 / std::max(ds, 1e-9);
+            p->setClipRect(wholePixelRectF(p, maskRect).adjusted(-q, -q, q, q), Qt::IntersectClip);
+        } else p->setClipPath(mask, Qt::IntersectClip);
         p->setRenderHint(QPainter::SmoothPixmapTransform);
         if (pic.transparency > 0) p->setOpacity(p->opacity() * (1 - pic.transparency));
         // Vector clip art and PDF pages print as vectors when they need no
@@ -1247,12 +1257,22 @@ static void paintPicture(QPainter *p, const PaintContext &ctx, const PictureItem
         } else {
             // Into pixels (a screen or an image, not a PDF, which keeps the picture whole): the size it covers.
             const bool pixels = p->paintEngine() && p->paintEngine()->type() == QPaintEngine::Raster;
-            p->drawImage(imgPlace, Renderer::processedImage(*ctx.doc, pic, dev, pixels ? QSizeF(imgPlace.width() * ds, imgPlace.height() * ds) : exact));
+            const auto place = wholeEdges ? wholePixelRectBox(p, pic.imgRect) : std::nullopt;
+            const auto visible = wholeEdges ? wholePixelRectBox(p, maskRect) : std::nullopt;
+            if (place && visible) {
+                // In device pixels, so that its edge pixels are exactly the picture's.
+                const QTransform toDevice = p->transform().inverted() * p->deviceTransform();
+                p->save();
+                p->setWorldTransform(toDevice.inverted());
+                p->setClipRect(*visible, Qt::IntersectClip);
+                p->drawImage(*place, Renderer::processedImage(*ctx.doc, pic, dev, pixels ? QSizeF(place->size()) : exact));
+                p->restore();
+            } else p->drawImage(pic.imgRect, Renderer::processedImage(*ctx.doc, pic, dev, pixels ? QSizeF(pic.imgRect.width() * ds, pic.imgRect.height() * ds) : exact));
             if (ctx.opt.textOutput == TextOutput::Pdf && !ctx.opt.flattenTransparency) paintDrawnWords(p, src, pic.imgRect, r);
         }
         p->restore();
     }
-    Renderer::strokePath(p, mask, pic.stroke, cs, ctx.doc->slideText);
+    Renderer::strokePath(p, mask, pic.stroke, cs, wholePixelsFor(ctx) ? Renderer::Snap::Edges : Renderer::Snap::Off);
 }
 
 static void paintShape(QPainter *p, const PaintContext &ctx, const ShapeItem &s)
@@ -1266,16 +1286,16 @@ static void paintShape(QPainter *p, const PaintContext &ctx, const ShapeItem &s)
         const QRectF bounds = shapePath(s.shape, r.size(), s.adj).boundingRect();
         for (const GeometryPath &part : parts) {
             if (s.fill.isNone() || part.fill == GeometryPath::None) continue;
-            fillSlidePath(p, ctx.doc->slideText, part.path, s.fill.brush(bounds, cs, lookupFor(*ctx.doc)));
+            fillSlidePath(p, wholePixelsFor(ctx), part.path, s.fill.brush(bounds, cs, lookupFor(*ctx.doc)));
             if (part.fill == GeometryPath::Lighten || part.fill == GeometryPath::LightenLess) p->fillPath(part.path, QColor(255, 255, 255, part.fill == GeometryPath::Lighten ? 120 : 60));
             if (part.fill == GeometryPath::Darken || part.fill == GeometryPath::DarkenLess) p->fillPath(part.path, QColor(0, 0, 0, part.fill == GeometryPath::Darken ? 90 : 45));
         }
         for (const GeometryPath &part : parts)
-            if (part.stroke) Renderer::strokePath(p, part.path, s.stroke, cs, ctx.doc->slideText);
+            if (part.stroke) Renderer::strokePath(p, part.path, s.stroke, cs, wholePixelsFor(ctx) ? Renderer::Snap::Edges : Renderer::Snap::Off);
     } else {
         const QPainterPath path = s.customPath.isEmpty() ? shapePath(s.shape, r.size(), s.adj) : s.customPath;
-        if (!(def && def->open) && !s.fill.isNone()) fillSlidePath(p, ctx.doc->slideText, path, s.fill.brush(path.boundingRect(), cs, lookupFor(*ctx.doc)));
-        Renderer::strokePath(p, path, s.stroke, cs, ctx.doc->slideText);
+        if (!(def && def->open) && !s.fill.isNone()) fillSlidePath(p, wholePixelsFor(ctx), path, s.fill.brush(path.boundingRect(), cs, lookupFor(*ctx.doc)));
+        Renderer::strokePath(p, path, s.stroke, cs, wholePixelsFor(ctx) ? Renderer::Snap::Edges : Renderer::Snap::Off);
     }
     if (!s.storyId.isEmpty()) {
         QPointF origin;
@@ -1363,13 +1383,13 @@ static void paintTable(QPainter *p, const PaintContext &ctx, const TableItem &t)
 {
     const ColorScheme &cs = ctx.doc->colors;
     const QRectF r(QPointF(0, 0), t.rect.size());
-    if (!t.fill.isNone()) fillSlideRect(p, ctx.doc->slideText, r, t.fill.brush(r, cs, lookupFor(*ctx.doc)));
+    if (!t.fill.isNone()) fillSlideRect(p, wholePixelsFor(ctx), r, t.fill.brush(r, cs, lookupFor(*ctx.doc)));
     for (int row = 0; row < t.rows; ++row)
         for (int col = 0; col < t.cols; ++col) {
             const TableCell &c = t.cell(row, col);
             if (c.covered) continue;
             const QRectF cr = t.cellRect(row, col);
-            if (!c.fill.isNone()) fillSlideRect(p, ctx.doc->slideText, cr, c.fill.brush(cr, cs, lookupFor(*ctx.doc)));
+            if (!c.fill.isNone()) fillSlideRect(p, wholePixelsFor(ctx), cr, c.fill.brush(cr, cs, lookupFor(*ctx.doc)));
         }
     if (!ctx.opt.output && ctx.opt.tableGridlines) {
         // Dashed, on the edges of the cells that have no line of their own.
@@ -1429,7 +1449,7 @@ static void paintTable(QPainter *p, const PaintContext &ctx, const TableItem &t)
                 QPainterPath pp;
                 pp.moveTo(a);
                 pp.lineTo(b);
-                Renderer::strokePath(p, pp, s, cs, ctx.doc->slideText);
+                Renderer::strokePath(p, pp, s, cs, wholePixelsFor(ctx) ? Renderer::Snap::TableRule : Renderer::Snap::Off);
             };
             edge(c.border.top, cr.topLeft(), cr.topRight());
             edge(c.border.bottom, cr.bottomLeft(), cr.bottomRight());
@@ -1438,7 +1458,7 @@ static void paintTable(QPainter *p, const PaintContext &ctx, const TableItem &t)
             if (c.diagonal == 1) edge(c.diagonalLine, cr.topLeft(), cr.bottomRight());
             if (c.diagonal == 2) edge(c.diagonalLine, cr.bottomLeft(), cr.topRight());
         }
-    Renderer::strokePath(p, [&] { QPainterPath pp; pp.addRect(r); return pp; }(), t.stroke, cs, ctx.doc->slideText);
+    Renderer::strokePath(p, [&] { QPainterPath pp; pp.addRect(r); return pp; }(), t.stroke, cs, wholePixelsFor(ctx) ? Renderer::Snap::Edges : Renderer::Snap::Off);
 }
 
 // Draws a long Text Art from a picture of it at the size it is drawn at, made when none is kept: into pixels (not a PDF), with the page's scale and place only (no turn), a solid
@@ -1948,6 +1968,7 @@ static void paintFlatLayer(QPainter *p, const PaintContext &c, const FlatLayer &
 static PaintContext withoutMarks(const PaintContext &c)
 {
     PaintContext x = c;
+    x.opt.noWholePixels = x.opt.noWholePixels || x.opt.flattenTransparency;
     x.opt.flattenTransparency = false;
     x.opt.plainLinesOnly = false;
     x.around = nullptr;
@@ -2121,6 +2142,7 @@ void Renderer::paintPage(QPainter *p, const PaintContext &ctx, int pageIndex)
     const QVector<MasterPage *> chain = doc.masterChain(m);
     const Fill bg = backgroundOf(pg, chain);
     if (ctx.opt.flattenTransparency) {
+        c.opt.noWholePixels = true;
         paintPageFlat(p, ctx, c, pg, m, chain, bg, pageIndex);
         return;
     }

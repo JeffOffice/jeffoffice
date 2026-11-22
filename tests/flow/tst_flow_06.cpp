@@ -424,6 +424,7 @@ void FlowTests::aSolidRuleMeetingAnotherKindOfRuleHasNoGapOrOvershoot()
             {
                 RulesPicture pic;   // (the top rule is solid and ends at the left rule)
                 QVERIFY(pic.paint(ratio, 4.0 / 3, 0, style, solid));
+                QVERIFY2(pic.across.lengths.size() >= 2 && pic.down.lengths.size() >= 2 && pic.down.starts.size() >= 2, qPrintable(where + QStringLiteral("the rules are not drawn as runs of black")));
                 const int topX = pic.firstDarkInRow(pic.top + pic.across.lengths.first() / 2);
                 int leftMost = pic.image.width();
                 for (int y = pic.top + pic.across.lengths.first(); y < pic.across.starts[1]; ++y)
@@ -433,6 +434,7 @@ void FlowTests::aSolidRuleMeetingAnotherKindOfRuleHasNoGapOrOvershoot()
             {
                 RulesPicture pic;   // (the left rule is solid and ends at the top rule)
                 QVERIFY(pic.paint(ratio, 4.0 / 3, 0, solid, style));
+                QVERIFY2(pic.across.lengths.size() >= 2 && pic.down.lengths.size() >= 2 && pic.down.starts.size() >= 2, qPrintable(where + QStringLiteral("the rules are not drawn as runs of black")));
                 const int leftX = pic.down.starts.first() + pic.down.lengths.first() / 2;
                 const int leftY = pic.firstDarkInColumn(leftX);
                 int topMost = pic.image.height();

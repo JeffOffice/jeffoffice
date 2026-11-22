@@ -2698,6 +2698,48 @@ private Q_SLOTS:
         QVERIFY(show.renderView(SlideShow::View{0, 0}, 0, size, 1.0) != show.renderView(SlideShow::View{0, 0}, 150, size, 1.0));
     }
 
+    // A shape that moves slowly keeps its width in every frame of the step: while it moves its edges are not made whole pixels (they would breathe between 20 and
+    // 21 pixels), and the frame where it has stopped is drawn with whole-pixel edges, as the slide at rest is.
+    void aSlowMoveKeepsItsWidthInEveryFrame()
+    {
+        auto d = showDeck(2);
+        Page &slide = *d->pages[0];
+        auto box = std::make_shared<ShapeItem>();
+        box->rect = QRectF(100.3, 300.4, 50.3, 40.3);
+        box->fill = Fill::solid(ColorRef::rgb(Qt::black));
+        box->stroke = Stroke();
+        box->sourceId = 30;
+        slide.items.push_back(box);
+        const double share = 2.0 / d->pageSize().width();   // (two points over the step)
+        const QByteArray path = QByteArray("M 0 0 L ") + QByteArray::number(share, 'f', 6) + " 0 E";
+        slide.props[QStringLiteral("timingXml")] = animTiming(animSteps({animPath(30, 4000, path.constData())}));
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        const QSize size(640, int(std::lround(640 * d->pageSize().height() / d->pageSize().width())));   // (the slide fills it: no bars)
+        const double ratio = 1.25;
+        QVector<double> widths;
+        for (int k = 0; k < 40; ++k) {
+            const QImage frame = show.renderView(SlideShow::View{0, 0}, k * 100.0, size, ratio);
+            const double sy = frame.height() / d->pageSize().height();
+            const int row = int((box->rect.center().y()) * sy);
+            double ink = 0;
+            for (int x = 0; x < frame.width(); ++x) ink += (255 - qGray(frame.pixel(x, row))) / 255.0;
+            widths << ink;
+        }
+        QVERIFY2(widths.first() > 10, "the shape is drawn");
+        const auto range = std::minmax_element(widths.begin(), widths.end());
+        QVERIFY2(*range.second - *range.first < 0.2, qPrintable(QStringLiteral("its width ran from %1 to %2 pixels").arg(*range.first).arg(*range.second)));
+        // At rest (the step played) it has whole-pixel edges.
+        const QImage rest = show.renderView(SlideShow::View{0, 0}, -1, size, ratio);
+        const int row = int(box->rect.center().y() * rest.height() / d->pageSize().height());
+        int partial = 0;
+        for (int x = 0; x < rest.width(); ++x) {
+            const int g = qGray(rest.pixel(x, row));
+            partial += g > 0 && g < 255;
+        }
+        QCOMPARE(partial, 0);
+    }
+
     // Prints what a frame of an effect costs on a busy slide, against drawing the slide whole.
     void showStepFrameTimes()
     {

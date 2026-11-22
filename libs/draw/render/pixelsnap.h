@@ -21,13 +21,17 @@ bool paintsAxisAligned(const QPainter *p);
 // one pixel), and where it falls is snapped on its own, by the edge on the outside; `fromFar` keeps the far edge (a rule drawn up from an edge) instead.
 // None unless a and b are on one axis.
 std::optional<QRect> wholePixelRuleBox(const QPainter *p, QPointF a, QPointF b, double width, bool fromFar = false);
-// The device pixels of a rectangle: each edge to the nearest pixel line, at least one pixel across.
+// A rule of a table's cell border: as above, and each end goes on to where a rule across it there ends (the same width), so that the rules of a table
+// meet and fill its corners and its inside crossings, and the two cells that share a rule draw it on the same pixels.
+std::optional<QRect> wholePixelTableRuleBox(const QPainter *p, QPointF a, QPointF b, double width);
+// The device pixels of a rectangle: each edge to the nearest pixel line. None where it is under a pixel across (it is drawn smoothed then).
 std::optional<QRect> wholePixelRectBox(const QPainter *p, const QRectF &r);
 
 // Fills a box of device pixels (without smoothing) with a brush.
 void fillDeviceBox(QPainter *p, const QRect &box, const QBrush &brush);
 // The rule, a rectangle, or a rectangle's outline (`width` thick, centered on its edges, the four bars one pixel run each, corners square) in whole pixels.
 bool fillWholePixelRule(QPainter *p, QPointF a, QPointF b, double width, const QBrush &brush, bool fromFar = false);
+bool fillWholePixelTableRule(QPainter *p, QPointF a, QPointF b, double width, const QBrush &brush);
 bool fillWholePixelRect(QPainter *p, const QRectF &r, const QBrush &brush);
 bool strokeWholePixelRect(QPainter *p, const QRectF &r, double width, const QColor &color);
 

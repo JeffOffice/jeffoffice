@@ -550,6 +550,7 @@ public:
         for (const deck::Effect &e : timeline.steps[step].effects)
             for (const deck::Behavior &b : e.behaviors)
                 if (b.target.shape > 0) targets.insert(b.target.shape);
+        m_targets = targets;
         m_first = int(items.size());
         for (int i = 0; i < int(items.size()); ++i)
             if (holdsTarget(*items[i], targets)) {
@@ -557,6 +558,7 @@ public:
                 m_last = i;
             }
         const deck::States rest = deck::statesAt(timeline, geometry, step, -1);
+        m_rest = rest;
         QSet<QString> above;
         for (int i = m_first; i < int(items.size()); ++i) above.insert(items[i]->id);
         m_below = paintSlide(doc, cache, slide, size, dpr, bars, &rest, above);
@@ -583,7 +585,8 @@ public:
         const QSize px = pixelsOf(m_size, m_ratio);
         QPainter p(&out);
         placeSlide(p, m_doc->pageSize(), px, m_ratio);
-        paintObjects(p, deck::statesAt(m_timeline, m_geometry, m_step, ms), m_first, m_last + 1);
+        const deck::States now = deck::statesAt(m_timeline, m_geometry, m_step, ms);
+        paintObjects(p, now, m_first, m_last + 1, now != m_rest);
         if (!m_above.isNull()) {
             p.resetTransform();
             p.setClipping(false);
@@ -594,7 +597,9 @@ public:
 
 private:
     // Objects `from` up to `to` of the page, with the states.
-    void paintObjects(QPainter &p, const deck::States &states, int from, int to)
+    // `moving`: the objects the step animates are drawn as they are (their edges are not made whole pixels while they move, or they breathe); the settled frame is
+    // drawn with whole-pixel edges, as the slide at rest is.
+    void paintObjects(QPainter &p, const deck::States &states, int from, int to, bool moving = false)
     {
         PaintContext ctx;
         ctx.doc = m_doc;
@@ -605,6 +610,7 @@ private:
         const ItemList &items = m_doc->pages[m_slide]->items;
         for (int i = from; i < to; ++i) {
             const Item &it = *items[i];
+            ctx.opt.noWholePixels = moving && holdsTarget(it, m_targets);
             ctx.around(&p, it, [&](QPainter *pp) { Renderer::paintItem(pp, ctx, it); });
         }
     }
@@ -617,6 +623,8 @@ private:
     deck::Timeline m_timeline;
     deck::Geometry m_geometry;
     int m_step;
+    QSet<int> m_targets;            // the shapes the step animates, by the number the file gave each
+    deck::States m_rest;            // the states once the step has played
     int m_first = 0, m_last = -1;   // the page's objects the step moves, the lowest and the highest
     QImage m_below, m_above;        // the page up to the first of them, opaque; the page above the last, on nothing
 };

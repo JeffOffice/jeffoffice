@@ -40,10 +40,30 @@ std::optional<QRect> wholePixelRuleBox(const QPainter *p, QPointF a, QPointF b, 
     return horizontal ? QRect(QPoint(along.first, from), QPoint(along.second - 1, from + thick - 1)) : QRect(QPoint(from, along.first), QPoint(from + thick - 1, along.second - 1));
 }
 
+std::optional<QRect> wholePixelTableRuleBox(const QPainter *p, QPointF a, QPointF b, double width)
+{
+    if (!paintsAxisAligned(p)) return std::nullopt;
+    const QTransform t = p->deviceTransform();
+    const bool horizontal = std::abs(a.y() - b.y()) < 1e-9, vertical = std::abs(a.x() - b.x()) < 1e-9;
+    if (horizontal == vertical) return std::nullopt;
+    const QPointF da = t.map(a), db = t.map(b);
+    const double widthPx = width * (horizontal ? t.m22() : t.m11());
+    const int thick = std::max(1, int(std::floor(widthPx + 0.5)));
+    const double center = horizontal ? da.y() : da.x();
+    const int from = nearestLine(center - widthPx / 2);
+    // (Along the rule, each end is where a rule across it there would end: its outer pixel line and its thickness on, so that rules meet and fill the corner.)
+    const double crossPx = width * (horizontal ? t.m11() : t.m22());
+    const int crossThick = std::max(1, int(std::floor(crossPx + 0.5)));
+    const double lo = horizontal ? std::min(da.x(), db.x()) : std::min(da.y(), db.y()), hi = horizontal ? std::max(da.x(), db.x()) : std::max(da.y(), db.y());
+    const int alongFrom = nearestLine(lo - crossPx / 2), alongTo = nearestLine(hi - crossPx / 2) + crossThick;
+    return horizontal ? QRect(QPoint(alongFrom, from), QPoint(alongTo - 1, from + thick - 1)) : QRect(QPoint(from, alongFrom), QPoint(from + thick - 1, alongTo - 1));
+}
+
 std::optional<QRect> wholePixelRectBox(const QPainter *p, const QRectF &r)
 {
     if (!paintsAxisAligned(p)) return std::nullopt;
     const QRectF d = p->deviceTransform().mapRect(r.normalized());
+    if (d.width() < 1 || d.height() < 1) return std::nullopt;   // (thinner than a pixel it is drawn smoothed, not made a whole pixel)
     const auto xs = snapSpan(d.left(), d.right()), ys = snapSpan(d.top(), d.bottom());
     return QRect(QPoint(xs.first, ys.first), QPoint(xs.second - 1, ys.second - 1));
 }
@@ -61,6 +81,14 @@ void fillDeviceBox(QPainter *p, const QRect &box, const QBrush &brush)
 bool fillWholePixelRule(QPainter *p, QPointF a, QPointF b, double width, const QBrush &brush, bool fromFar)
 {
     const auto box = wholePixelRuleBox(p, a, b, width, fromFar);
+    if (!box) return false;
+    fillDeviceBox(p, *box, brush);
+    return true;
+}
+
+bool fillWholePixelTableRule(QPainter *p, QPointF a, QPointF b, double width, const QBrush &brush)
+{
+    const auto box = wholePixelTableRuleBox(p, a, b, width);
     if (!box) return false;
     fillDeviceBox(p, *box, brush);
     return true;
