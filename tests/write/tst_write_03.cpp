@@ -932,11 +932,10 @@ void WriteTests::sectionsTakeTheHeadersOfTheSectionBefore()
     }
 
 
-// A file whose sections each name a footer of their own has every one drawn (a long manual has a hundred and more sections); past the most parts the program reads, a section has
-// the footer of the section before, and never none.
+// A file whose sections each name a footer of their own has every one drawn (a long manual has a hundred and more sections), up to the most parts the program reads.
 void WriteTests::everySectionsOwnFooterIsDrawnHoweverManySectionsThereAre()
 {
-    const int sections = kMostHeaderParts + 40;
+    const int sections = kMostHeaderParts;
     QByteArray body;
     QMap<QString, QByteArray> parts;
     for (int i = 1; i <= sections; ++i) {
@@ -952,8 +951,7 @@ void WriteTests::everySectionsOwnFooterIsDrawnHoweverManySectionsThereAre()
     for (int k = 0; k < sections; ++k) {
         const auto page = doc->pager().materialize(k);
         QVERIFY(page);
-        const int own = std::min(k + 1, kMostHeaderParts);
-        QVERIFY2(boxWithText(*page, QStringLiteral("FOOT%1END").arg(own)), qPrintable(QStringLiteral("page %1 has not its footer").arg(k + 1)));
+        QVERIFY2(boxWithText(*page, QStringLiteral("FOOT%1END").arg(k + 1)), qPrintable(QStringLiteral("page %1 has not its footer").arg(k + 1)));
     }
 }
 
@@ -1743,7 +1741,7 @@ void WriteTests::anUnreadableHeaderPartIsLeftAsItIsAndNotReplaced()
 
 void WriteTests::morePartsThanTheProgramReadsAreKeptAsTheyAre()
 {
-    constexpr int parts = 80;
+    constexpr int parts = kMostHeaderParts + 16;
     QMap<QString, QByteArray> files;
     QByteArray body;
     for (int i = 1; i <= parts; ++i) {

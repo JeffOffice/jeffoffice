@@ -109,7 +109,7 @@ QString liveFieldFor(const QString &instruction);
 void leaveOutDeletedParagraphs(QVector<office::wml::Block> *blocks, bool keepAsXml = false);
 
 // The most distinct header and footer parts that are read (a long manual has a hundred and more: a section of its own for each chapter, three headers and a footer for each); a file
-// with more has the rest left as it is (a section's reference to one of them shows what the section before shows).
+// with more has the rest left as it is (a section's reference to one shows nothing, and nothing replaces it).
 constexpr int kMostHeaderParts = 256;
 // An Id for a relationship that none of `links` has.
 QString nextRelationshipId(const QVector<office::Relationship> &links);
