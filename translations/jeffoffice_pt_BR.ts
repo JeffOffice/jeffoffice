@@ -10230,7 +10230,7 @@ Baixá-lo de %2 agora? (%3, uma única vez.)</translation>
 <context>
     <name>PptImport</name>
     <message>
-        <location filename="../apps/deck/io/pptimport.cpp" line="+784"/>
+        <location filename="../apps/deck/io/pptimport.cpp" line="+798"/>
         <source>Title Slide</source>
         <translation type="unfinished">Slide de Título</translation>
     </message>
@@ -10295,7 +10295,7 @@ Baixá-lo de %2 agora? (%3, uma única vez.)</translation>
         <translation type="unfinished">Layout personalizado</translation>
     </message>
     <message>
-        <location line="+261"/>
+        <location line="+265"/>
         <source>And %1 more.</source>
         <translation type="unfinished">E mais %1.</translation>
     </message>
@@ -10351,7 +10351,7 @@ Baixá-lo de %2 agora? (%3, uma única vez.)</translation>
         <translation type="unfinished">Não é possível usar o tamanho do slide do arquivo, por isso os slides têm 13,333 por 7,5 polegadas.</translation>
     </message>
     <message>
-        <location line="+553"/>
+        <location line="+599"/>
         <source>Only the first %1 slide masters are read.</source>
         <translation type="unfinished">Somente os primeiros %1 slides mestres são lidos.</translation>
     </message>
@@ -10366,7 +10366,7 @@ Baixá-lo de %2 agora? (%3, uma única vez.)</translation>
         <translation type="unfinished">Um slide mestre foi omitido: ele tem o mesmo conteúdo de um anterior.</translation>
     </message>
     <message>
-        <location line="+105"/>
+        <location line="+115"/>
         <source>Slide Master</source>
         <translation type="unfinished">Slide Mestre</translation>
     </message>
@@ -10398,7 +10398,7 @@ Baixá-lo de %2 agora? (%3, uma única vez.)</translation>
         <translation type="unfinished">O slide %1 foi omitido: a apresentação não tem slide mestre.</translation>
     </message>
     <message>
-        <location line="+405"/>
+        <location line="+421"/>
         <source>The presentation holds more text than can be read; the rest is left out.</source>
         <translation type="unfinished">A apresentação contém mais texto do que é possível ler; o restante foi omitido.</translation>
     </message>
@@ -10408,7 +10408,7 @@ Baixá-lo de %2 agora? (%3, uma única vez.)</translation>
         <translation type="unfinished">Um texto tem mais parágrafos do que é possível ler; o restante foi omitido.</translation>
     </message>
     <message>
-        <location line="+412"/>
+        <location line="+419"/>
         <source>The presentation is cut short or damaged: its document can&apos;t be found.</source>
         <translation type="unfinished">A apresentação está incompleta ou danificada: não foi possível encontrar o documento.</translation>
     </message>
@@ -19035,7 +19035,7 @@ Editoração eletrônica</translation>
         <translation type="unfinished">Ucraniano</translation>
     </message>
     <message>
-        <location filename="../libs/text/text/textengine.cpp" line="+213"/>
+        <location filename="../libs/text/text/textengine.cpp" line="+286"/>
         <source>«Greeting Line»</source>
         <translation type="unfinished">«Linha de saudação»</translation>
     </message>
@@ -19065,7 +19065,7 @@ Editoração eletrônica</translation>
         <translation type="unfinished">(Continuação da página %1)</translation>
     </message>
     <message>
-        <location line="+6780"/>
+        <location line="+6777"/>
         <source>Notes</source>
         <translation>Anotações</translation>
     </message>

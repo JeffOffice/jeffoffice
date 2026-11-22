@@ -10230,7 +10230,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
 <context>
     <name>PptImport</name>
     <message>
-        <location filename="../apps/deck/io/pptimport.cpp" line="+784"/>
+        <location filename="../apps/deck/io/pptimport.cpp" line="+798"/>
         <source>Title Slide</source>
         <translation type="unfinished">Titeldia</translation>
     </message>
@@ -10295,7 +10295,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Aangepaste indeling</translation>
     </message>
     <message>
-        <location line="+261"/>
+        <location line="+265"/>
         <source>And %1 more.</source>
         <translation type="unfinished">En nog %1.</translation>
     </message>
@@ -10351,7 +10351,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Het diaformaat in het bestand is onbruikbaar; de dia&apos;s zijn daarom 13,333 bij 7,5 inch.</translation>
     </message>
     <message>
-        <location line="+553"/>
+        <location line="+599"/>
         <source>Only the first %1 slide masters are read.</source>
         <translation type="unfinished">Alleen de eerste %1 diamodellen worden gelezen.</translation>
     </message>
@@ -10366,7 +10366,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Er is een diamodel weggelaten: het heeft dezelfde inhoud als een eerder diamodel.</translation>
     </message>
     <message>
-        <location line="+105"/>
+        <location line="+115"/>
         <source>Slide Master</source>
         <translation type="unfinished">Diamodel</translation>
     </message>
@@ -10398,7 +10398,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Dia %1 is weggelaten: de presentatie heeft geen diamodel.</translation>
     </message>
     <message>
-        <location line="+405"/>
+        <location line="+421"/>
         <source>The presentation holds more text than can be read; the rest is left out.</source>
         <translation type="unfinished">De presentatie bevat meer tekst dan kan worden gelezen; de rest is weggelaten.</translation>
     </message>
@@ -10408,7 +10408,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Een tekst bevat meer alinea&apos;s dan kunnen worden gelezen; de rest is weggelaten.</translation>
     </message>
     <message>
-        <location line="+412"/>
+        <location line="+419"/>
         <source>The presentation is cut short or damaged: its document can&apos;t be found.</source>
         <translation type="unfinished">De presentatie is afgebroken of beschadigd: het document is niet gevonden.</translation>
     </message>
@@ -19035,7 +19035,7 @@ Desktop publishing</translation>
         <translation type="unfinished">Oekraïens</translation>
     </message>
     <message>
-        <location filename="../libs/text/text/textengine.cpp" line="+213"/>
+        <location filename="../libs/text/text/textengine.cpp" line="+286"/>
         <source>«Greeting Line»</source>
         <translation type="unfinished">«Begroetingsregel»</translation>
     </message>
@@ -19065,7 +19065,7 @@ Desktop publishing</translation>
         <translation type="unfinished">(Vervolg van pagina %1)</translation>
     </message>
     <message>
-        <location line="+6780"/>
+        <location line="+6777"/>
         <source>Notes</source>
         <translation>Notities</translation>
     </message>

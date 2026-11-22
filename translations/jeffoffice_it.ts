@@ -10230,7 +10230,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
 <context>
     <name>PptImport</name>
     <message>
-        <location filename="../apps/deck/io/pptimport.cpp" line="+784"/>
+        <location filename="../apps/deck/io/pptimport.cpp" line="+798"/>
         <source>Title Slide</source>
         <translation type="unfinished">Diapositiva titolo</translation>
     </message>
@@ -10295,7 +10295,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <translation type="unfinished">Layout personalizzato</translation>
     </message>
     <message>
-        <location line="+261"/>
+        <location line="+265"/>
         <source>And %1 more.</source>
         <translation type="unfinished">E altri %1.</translation>
     </message>
@@ -10351,7 +10351,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <translation type="unfinished">Le dimensioni diapositiva indicate nel file non sono utilizzabili, quindi le diapositive misurano 13,333 x 7,5 pollici.</translation>
     </message>
     <message>
-        <location line="+553"/>
+        <location line="+599"/>
         <source>Only the first %1 slide masters are read.</source>
         <translation type="unfinished">Vengono letti solo i primi %1 schemi diapositiva.</translation>
     </message>
@@ -10366,7 +10366,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <translation type="unfinished">Uno schema diapositiva è stato omesso: ha lo stesso contenuto di uno precedente.</translation>
     </message>
     <message>
-        <location line="+105"/>
+        <location line="+115"/>
         <source>Slide Master</source>
         <translation type="unfinished">Schema diapositiva</translation>
     </message>
@@ -10398,7 +10398,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <translation type="unfinished">La diapositiva %1 è stata omessa: la presentazione non ha uno schema diapositiva.</translation>
     </message>
     <message>
-        <location line="+405"/>
+        <location line="+421"/>
         <source>The presentation holds more text than can be read; the rest is left out.</source>
         <translation type="unfinished">La presentazione contiene più testo di quanto se ne possa leggere; il resto è stato omesso.</translation>
     </message>
@@ -10408,7 +10408,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <translation type="unfinished">Un testo contiene più paragrafi di quanti se ne possano leggere; il resto è stato omesso.</translation>
     </message>
     <message>
-        <location line="+412"/>
+        <location line="+419"/>
         <source>The presentation is cut short or damaged: its document can&apos;t be found.</source>
         <translation type="unfinished">La presentazione è troncata o danneggiata: impossibile trovarne il documento.</translation>
     </message>
@@ -19035,7 +19035,7 @@ Desktop publishing</translation>
         <translation type="unfinished">Ucraino</translation>
     </message>
     <message>
-        <location filename="../libs/text/text/textengine.cpp" line="+213"/>
+        <location filename="../libs/text/text/textengine.cpp" line="+286"/>
         <source>«Greeting Line»</source>
         <translation type="unfinished">«Formula di apertura»</translation>
     </message>
@@ -19065,7 +19065,7 @@ Desktop publishing</translation>
         <translation type="unfinished">(Continua da pagina %1)</translation>
     </message>
     <message>
-        <location line="+6780"/>
+        <location line="+6777"/>
         <source>Notes</source>
         <translation>Note</translation>
     </message>

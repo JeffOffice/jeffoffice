@@ -10223,7 +10223,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
 <context>
     <name>PptImport</name>
     <message>
-        <location filename="../apps/deck/io/pptimport.cpp" line="+784"/>
+        <location filename="../apps/deck/io/pptimport.cpp" line="+798"/>
         <source>Title Slide</source>
         <translation type="unfinished">Slaid Judul</translation>
     </message>
@@ -10288,7 +10288,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Tata Letak Kustom</translation>
     </message>
     <message>
-        <location line="+261"/>
+        <location line="+265"/>
         <source>And %1 more.</source>
         <translation type="unfinished">Dan %1 lainnya.</translation>
     </message>
@@ -10344,7 +10344,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Ukuran slaid dalam berkas tidak dapat digunakan, sehingga slaid berukuran 13,333 x 7,5 inci.</translation>
     </message>
     <message>
-        <location line="+553"/>
+        <location line="+599"/>
         <source>Only the first %1 slide masters are read.</source>
         <translation type="unfinished">Hanya %1 master slaid pertama yang dibaca.</translation>
     </message>
@@ -10359,7 +10359,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Sebuah master slaid dilewati: isinya sama dengan master sebelumnya.</translation>
     </message>
     <message>
-        <location line="+105"/>
+        <location line="+115"/>
         <source>Slide Master</source>
         <translation type="unfinished">Master Slaid</translation>
     </message>
@@ -10391,7 +10391,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Slaid %1 dilewati: presentasi tidak memiliki master slaid.</translation>
     </message>
     <message>
-        <location line="+405"/>
+        <location line="+421"/>
         <source>The presentation holds more text than can be read; the rest is left out.</source>
         <translation type="unfinished">Presentasi memiliki lebih banyak teks daripada yang dapat dibaca; sisanya dilewati.</translation>
     </message>
@@ -10401,7 +10401,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Sebuah teks memiliki lebih banyak paragraf daripada yang dapat dibaca; sisanya dilewati.</translation>
     </message>
     <message>
-        <location line="+412"/>
+        <location line="+419"/>
         <source>The presentation is cut short or damaged: its document can&apos;t be found.</source>
         <translation type="unfinished">Presentasi terpotong atau rusak: dokumennya tidak dapat ditemukan.</translation>
     </message>
@@ -19018,7 +19018,7 @@ Penerbitan desktop</translation>
         <translation type="unfinished">Ukraina</translation>
     </message>
     <message>
-        <location filename="../libs/text/text/textengine.cpp" line="+213"/>
+        <location filename="../libs/text/text/textengine.cpp" line="+286"/>
         <source>«Greeting Line»</source>
         <translation type="unfinished">«Baris Salam»</translation>
     </message>
@@ -19048,7 +19048,7 @@ Penerbitan desktop</translation>
         <translation type="unfinished">(Lanjutan dari halaman %1)</translation>
     </message>
     <message>
-        <location line="+6780"/>
+        <location line="+6777"/>
         <source>Notes</source>
         <translation>Catatan</translation>
     </message>

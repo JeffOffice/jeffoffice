@@ -10230,7 +10230,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
 <context>
     <name>PptImport</name>
     <message>
-        <location filename="../apps/deck/io/pptimport.cpp" line="+784"/>
+        <location filename="../apps/deck/io/pptimport.cpp" line="+798"/>
         <source>Title Slide</source>
         <translation type="unfinished">Diapositive de titre</translation>
     </message>
@@ -10295,7 +10295,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <translation type="unfinished">Disposition personnalisée</translation>
     </message>
     <message>
-        <location line="+261"/>
+        <location line="+265"/>
         <source>And %1 more.</source>
         <translation type="unfinished">Et %1 de plus.</translation>
     </message>
@@ -10351,7 +10351,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <translation type="unfinished">La taille des diapositives indiquée dans le fichier est inutilisable ; les diapositives mesurent donc 13,333 × 7,5 pouces.</translation>
     </message>
     <message>
-        <location line="+553"/>
+        <location line="+599"/>
         <source>Only the first %1 slide masters are read.</source>
         <translation type="unfinished">Seuls les %1 premiers masques des diapositives sont lus.</translation>
     </message>
@@ -10366,7 +10366,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <translation type="unfinished">Un masque des diapositives a été ignoré : son contenu est identique à celui d&apos;un masque précédent.</translation>
     </message>
     <message>
-        <location line="+105"/>
+        <location line="+115"/>
         <source>Slide Master</source>
         <translation type="unfinished">Masque des diapositives</translation>
     </message>
@@ -10398,7 +10398,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <translation type="unfinished">La diapositive %1 a été ignorée : la présentation n&apos;a pas de masque des diapositives.</translation>
     </message>
     <message>
-        <location line="+405"/>
+        <location line="+421"/>
         <source>The presentation holds more text than can be read; the rest is left out.</source>
         <translation type="unfinished">La présentation contient plus de texte que ce qui peut être lu ; le reste est ignoré.</translation>
     </message>
@@ -10408,7 +10408,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <translation type="unfinished">Un texte contient plus de paragraphes que ce qui peut être lu ; le reste est ignoré.</translation>
     </message>
     <message>
-        <location line="+412"/>
+        <location line="+419"/>
         <source>The presentation is cut short or damaged: its document can&apos;t be found.</source>
         <translation type="unfinished">La présentation est tronquée ou endommagée : son document est introuvable.</translation>
     </message>
@@ -19035,7 +19035,7 @@ Publication assistée par ordinateur</translation>
         <translation type="unfinished">Ukrainien</translation>
     </message>
     <message>
-        <location filename="../libs/text/text/textengine.cpp" line="+213"/>
+        <location filename="../libs/text/text/textengine.cpp" line="+286"/>
         <source>«Greeting Line»</source>
         <translation type="unfinished">«Formule d&apos;appel»</translation>
     </message>
@@ -19065,7 +19065,7 @@ Publication assistée par ordinateur</translation>
         <translation type="unfinished">(Suite de la page %1)</translation>
     </message>
     <message>
-        <location line="+6780"/>
+        <location line="+6777"/>
         <source>Notes</source>
         <translation>Notes</translation>
     </message>

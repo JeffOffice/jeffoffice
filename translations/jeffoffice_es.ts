@@ -10230,7 +10230,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>PptImport</name>
     <message>
-        <location filename="../apps/deck/io/pptimport.cpp" line="+784"/>
+        <location filename="../apps/deck/io/pptimport.cpp" line="+798"/>
         <source>Title Slide</source>
         <translation type="unfinished">Diapositiva de título</translation>
     </message>
@@ -10295,7 +10295,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Diseño personalizado</translation>
     </message>
     <message>
-        <location line="+261"/>
+        <location line="+265"/>
         <source>And %1 more.</source>
         <translation type="unfinished">Y %1 más.</translation>
     </message>
@@ -10351,7 +10351,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">No se puede usar el tamaño de diapositiva del archivo, por lo que las diapositivas miden 13,333 por 7,5 pulgadas.</translation>
     </message>
     <message>
-        <location line="+553"/>
+        <location line="+599"/>
         <source>Only the first %1 slide masters are read.</source>
         <translation type="unfinished">Solo se leen los primeros %1 patrones de diapositivas.</translation>
     </message>
@@ -10366,7 +10366,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Se omitió un patrón de diapositivas: tiene el mismo contenido que uno anterior.</translation>
     </message>
     <message>
-        <location line="+105"/>
+        <location line="+115"/>
         <source>Slide Master</source>
         <translation type="unfinished">Patrón de diapositivas</translation>
     </message>
@@ -10398,7 +10398,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Se omitió la diapositiva %1: la presentación no tiene patrón de diapositivas.</translation>
     </message>
     <message>
-        <location line="+405"/>
+        <location line="+421"/>
         <source>The presentation holds more text than can be read; the rest is left out.</source>
         <translation type="unfinished">La presentación contiene más texto del que se puede leer; el resto se omite.</translation>
     </message>
@@ -10408,7 +10408,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Un texto tiene más párrafos de los que se pueden leer; el resto se omite.</translation>
     </message>
     <message>
-        <location line="+412"/>
+        <location line="+419"/>
         <source>The presentation is cut short or damaged: its document can&apos;t be found.</source>
         <translation type="unfinished">La presentación está incompleta o dañada: no se encuentra su documento.</translation>
     </message>
@@ -19035,7 +19035,7 @@ Autoedición</translation>
         <translation type="unfinished">Ucraniano</translation>
     </message>
     <message>
-        <location filename="../libs/text/text/textengine.cpp" line="+213"/>
+        <location filename="../libs/text/text/textengine.cpp" line="+286"/>
         <source>«Greeting Line»</source>
         <translation type="unfinished">«Línea de saludo»</translation>
     </message>
@@ -19065,7 +19065,7 @@ Autoedición</translation>
         <translation type="unfinished">(Viene de la página %1)</translation>
     </message>
     <message>
-        <location line="+6780"/>
+        <location line="+6777"/>
         <source>Notes</source>
         <translation>Notas</translation>
     </message>

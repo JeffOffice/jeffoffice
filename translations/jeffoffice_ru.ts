@@ -10237,7 +10237,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>PptImport</name>
     <message>
-        <location filename="../apps/deck/io/pptimport.cpp" line="+784"/>
+        <location filename="../apps/deck/io/pptimport.cpp" line="+798"/>
         <source>Title Slide</source>
         <translation type="unfinished">Титульный слайд</translation>
     </message>
@@ -10302,7 +10302,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Пользовательский макет</translation>
     </message>
     <message>
-        <location line="+261"/>
+        <location line="+265"/>
         <source>And %1 more.</source>
         <translation type="unfinished">И ещё %1.</translation>
     </message>
@@ -10358,7 +10358,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Размер слайда в файле нельзя использовать, поэтому слайды имеют размер 13,333 × 7,5 дюйма.</translation>
     </message>
     <message>
-        <location line="+553"/>
+        <location line="+599"/>
         <source>Only the first %1 slide masters are read.</source>
         <translation type="unfinished">Прочитаны только первые образцы слайдов: %1.</translation>
     </message>
@@ -10373,7 +10373,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Образец слайдов пропущен: его содержимое совпадает с содержимым предыдущего образца.</translation>
     </message>
     <message>
-        <location line="+105"/>
+        <location line="+115"/>
         <source>Slide Master</source>
         <translation type="unfinished">Образец слайдов</translation>
     </message>
@@ -10405,7 +10405,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Слайд %1 пропущен: в презентации нет образца слайдов.</translation>
     </message>
     <message>
-        <location line="+405"/>
+        <location line="+421"/>
         <source>The presentation holds more text than can be read; the rest is left out.</source>
         <translation type="unfinished">Презентация содержит больше текста, чем можно прочитать; остальное пропущено.</translation>
     </message>
@@ -10415,7 +10415,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Текст содержит больше абзацев, чем можно прочитать; остальные пропущены.</translation>
     </message>
     <message>
-        <location line="+412"/>
+        <location line="+419"/>
         <source>The presentation is cut short or damaged: its document can&apos;t be found.</source>
         <translation type="unfinished">Презентация обрезана или повреждена: не найден её документ.</translation>
     </message>
@@ -19052,7 +19052,7 @@ Desktop publishing</source>
         <translation type="unfinished">Украинский</translation>
     </message>
     <message>
-        <location filename="../libs/text/text/textengine.cpp" line="+213"/>
+        <location filename="../libs/text/text/textengine.cpp" line="+286"/>
         <source>«Greeting Line»</source>
         <translation type="unfinished">«Строка приветствия»</translation>
     </message>
@@ -19082,7 +19082,7 @@ Desktop publishing</source>
         <translation type="unfinished">(Продолжение со страницы %1)</translation>
     </message>
     <message>
-        <location line="+6780"/>
+        <location line="+6777"/>
         <source>Notes</source>
         <translation>Заметки</translation>
     </message>

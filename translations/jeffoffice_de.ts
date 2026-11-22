@@ -10230,7 +10230,7 @@ Jetzt von %2 herunterladen? (%3, einmalig.)</translation>
 <context>
     <name>PptImport</name>
     <message>
-        <location filename="../apps/deck/io/pptimport.cpp" line="+784"/>
+        <location filename="../apps/deck/io/pptimport.cpp" line="+798"/>
         <source>Title Slide</source>
         <translation type="unfinished">Titelfolie</translation>
     </message>
@@ -10295,7 +10295,7 @@ Jetzt von %2 herunterladen? (%3, einmalig.)</translation>
         <translation type="unfinished">Benutzerdefiniertes Layout</translation>
     </message>
     <message>
-        <location line="+261"/>
+        <location line="+265"/>
         <source>And %1 more.</source>
         <translation type="unfinished">Und %1 weitere.</translation>
     </message>
@@ -10351,7 +10351,7 @@ Jetzt von %2 herunterladen? (%3, einmalig.)</translation>
         <translation type="unfinished">Die Foliengröße in der Datei kann nicht verwendet werden, daher sind die Folien 13,333 × 7,5 Zoll groß.</translation>
     </message>
     <message>
-        <location line="+553"/>
+        <location line="+599"/>
         <source>Only the first %1 slide masters are read.</source>
         <translation type="unfinished">Nur die ersten %1 Folienmaster werden gelesen.</translation>
     </message>
@@ -10366,7 +10366,7 @@ Jetzt von %2 herunterladen? (%3, einmalig.)</translation>
         <translation type="unfinished">Ein Folienmaster wurde ausgelassen: Er hat denselben Inhalt wie ein vorheriger.</translation>
     </message>
     <message>
-        <location line="+105"/>
+        <location line="+115"/>
         <source>Slide Master</source>
         <translation type="unfinished">Folienmaster</translation>
     </message>
@@ -10398,7 +10398,7 @@ Jetzt von %2 herunterladen? (%3, einmalig.)</translation>
         <translation type="unfinished">Folie %1 wurde ausgelassen: Die Präsentation hat keinen Folienmaster.</translation>
     </message>
     <message>
-        <location line="+405"/>
+        <location line="+421"/>
         <source>The presentation holds more text than can be read; the rest is left out.</source>
         <translation type="unfinished">Die Präsentation enthält mehr Text, als gelesen werden kann; der Rest wird ausgelassen.</translation>
     </message>
@@ -10408,7 +10408,7 @@ Jetzt von %2 herunterladen? (%3, einmalig.)</translation>
         <translation type="unfinished">Ein Text hat mehr Absätze, als gelesen werden können; der Rest wird ausgelassen.</translation>
     </message>
     <message>
-        <location line="+412"/>
+        <location line="+419"/>
         <source>The presentation is cut short or damaged: its document can&apos;t be found.</source>
         <translation type="unfinished">Die Präsentation ist unvollständig oder beschädigt: Ihr Dokument wurde nicht gefunden.</translation>
     </message>
@@ -19035,7 +19035,7 @@ Desktop-Publishing</translation>
         <translation type="unfinished">Ukrainisch</translation>
     </message>
     <message>
-        <location filename="../libs/text/text/textengine.cpp" line="+213"/>
+        <location filename="../libs/text/text/textengine.cpp" line="+286"/>
         <source>«Greeting Line»</source>
         <translation type="unfinished">«Grußzeile»</translation>
     </message>
@@ -19065,7 +19065,7 @@ Desktop-Publishing</translation>
         <translation type="unfinished">(Fortsetzung von Seite %1)</translation>
     </message>
     <message>
-        <location line="+6780"/>
+        <location line="+6777"/>
         <source>Notes</source>
         <translation>Notizen</translation>
     </message>
