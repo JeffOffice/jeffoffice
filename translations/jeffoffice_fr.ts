@@ -19065,7 +19065,7 @@ Publication assistée par ordinateur</translation>
         <translation type="unfinished">(Suite de la page %1)</translation>
     </message>
     <message>
-        <location line="+6779"/>
+        <location line="+6780"/>
         <source>Notes</source>
         <translation>Notes</translation>
     </message>

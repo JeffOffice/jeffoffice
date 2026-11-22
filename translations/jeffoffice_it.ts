@@ -19065,7 +19065,7 @@ Desktop publishing</translation>
         <translation type="unfinished">(Continua da pagina %1)</translation>
     </message>
     <message>
-        <location line="+6779"/>
+        <location line="+6780"/>
         <source>Notes</source>
         <translation>Note</translation>
     </message>
