@@ -1354,6 +1354,7 @@ private Q_SLOTS:
     void theCheckBoxOfAnOutlinedBulletIsHollow();
     void theNotesOfAPageAreLaidOutTheSameWithATableInTheDocument();
     void aCustomMarkTakesNoNumberAmongTheNotesOfATablesPage();
+    void notesInTableCellsAndTheBodyAreNumberedWithoutTheCustomMarks();
     void aCustomMarkNoteInATableCellIsDrawnAndKept();
     void aContentControlInATextBoxWithAnExtensionPrefixKeepsItsWords();
     void aTextBoxKeepsItsWordsWithAnyPrefixTheRootDeclares();

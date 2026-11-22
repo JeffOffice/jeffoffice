@@ -1611,6 +1611,41 @@ void WriteTests::aCustomMarkTakesNoNumberAmongTheNotesOfATablesPage()
 }
 
 
+// Ordinary notes in the body and in a table cell, with a custom-mark note in another cell between them, are numbered 1, 2, and 3: the custom mark takes no number, and it is set as
+// its own note.
+void WriteTests::notesInTableCellsAndTheBodyAreNumberedWithoutTheCustomMarks()
+{
+    auto text = [](const char *t) { return QByteArray("<w:r><w:t xml:space=\"preserve\">") + t + "</w:t></w:r>"; };
+    auto ref = [](int id) { return "<w:r><w:footnoteReference w:id=\"" + QByteArray::number(id) + "\"/></w:r>"; };
+    const QByteArray custom = "<w:r><w:footnoteReference w:id=\"4\" w:customMarkFollows=\"1\"/><w:t>#</w:t></w:r>";
+    auto cell = [](const QByteArray &paragraph) { return "<w:tc><w:tcPr><w:tcW w:w=\"3000\" w:type=\"dxa\"/></w:tcPr><w:p>" + paragraph + "</w:p></w:tc>"; };
+    const QByteArray body = "<w:p>" + text("Body one") + ref(2) + "</w:p><w:tbl><w:tblPr><w:tblW w:w=\"6000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"3000\"/><w:gridCol w:w=\"3000\"/></w:tblGrid>"
+                            "<w:tr>" + cell(text("Cell one") + ref(3)) + cell(text("Cell two") + custom) + "</w:tr></w:tbl><w:p>" + text("Body two") + ref(5) + "</w:p>";
+    auto note = [&](int id, const char *t) { return "<w:footnote w:id=\"" + QByteArray::number(id) + "\"><w:p><w:r><w:footnoteRef/></w:r>" + text(t) + "</w:p></w:footnote>"; };
+    const QByteArray notes = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:footnote>" + note(2, " MIXA note") + note(3, " MIXB note") +
+                             "<w:footnote w:id=\"4\"><w:p>" + text("# MIXMARK note") + "</w:p></w:footnote>" + note(5, " MIXC note") + "</w:footnotes>";
+    const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+    auto doc = open(makeDocxWithParts(body, sect, {{QStringLiteral("/word/footnotes.xml"), notes}}));
+    QVERIFY(doc);
+    const auto page = doc->pager().materialize(0);
+    auto marks = [&](const QString &needle) {
+        QStringList out;
+        const TextItem *box = boxWithText(*page, needle);
+        if (!box) return QStringList{QStringLiteral("no box")};
+        for (QTextBlock b = page->doc->story(box->storyId)->doc->begin(); b.isValid(); b = b.next())
+            for (auto it = b.begin(); !it.atEnd(); ++it) {
+                const QString code = it.fragment().charFormat().stringProperty(tp::Field);
+                if (code.startsWith(QLatin1String("raw:"))) out << code;
+            }
+        return out;
+    };
+    QCOMPARE(marks(QStringLiteral("MIXA note")), (QStringList{QStringLiteral("raw:1")}));
+    QCOMPARE(marks(QStringLiteral("MIXB note")), (QStringList{QStringLiteral("raw:2")}));
+    QVERIFY(boxWithText(*page, QStringLiteral("# MIXMARK note")));
+    QCOMPARE(marks(QStringLiteral("MIXC note")), (QStringList{QStringLiteral("raw:3")}));
+}
+
+
 // A note whose reference says its mark follows it is drawn when the reference is in a table cell: the note has its own mark as its first text, and it is kept on save.
 void WriteTests::aCustomMarkNoteInATableCellIsDrawnAndKept()
 {
@@ -1645,8 +1680,14 @@ void WriteTests::aCustomMarkNoteInATableCellIsDrawnAndKept()
     const QByteArray savedBytes = saved.readAll();
     saved.close();
     const QString xml = documentXml(savedBytes);
-    QVERIFY(xml.contains(QRegularExpression(QStringLiteral("customMarkFollows=\"1\"[^>]*/><w:t[^>]*>13</w:t>"))));
-    QVERIFY(xml.contains(QRegularExpression(QStringLiteral("customMarkFollows=\"1\"[^>]*/><w:t[^>]*>14</w:t>"))));
+    // (The marks that follow a reference that says so, whatever order the reference's attributes are written in.)
+    QStringList followed;
+    static const QRegularExpression reference(QStringLiteral("<w:footnoteReference\\b([^>]*?)/?>\\s*(?:</w:footnoteReference>)?\\s*<w:t[^>]*>([^<]*)</w:t>"));
+    for (auto it = reference.globalMatch(xml); it.hasNext();) {
+        const QRegularExpressionMatch m = it.next();
+        if (m.captured(1).contains(QLatin1String("customMarkFollows=\"1\""))) followed << m.captured(2);
+    }
+    QCOMPARE(followed, (QStringList{QStringLiteral("13"), QStringLiteral("14")}));
     WriteWindow again;
     QVERIFY(again.openFile(second));
     const auto page2 = again.document()->pager().materialize(0);
