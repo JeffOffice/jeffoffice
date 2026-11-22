@@ -191,31 +191,75 @@ void Renderer::strokePath(QPainter *p, const QPainterPath &path, const Stroke &s
 
 // ---------- layout cache ----------
 namespace {
-thread_local qint64 g_wrapWork = 0;
-thread_local int g_wrapShapesLeft = std::numeric_limits<int>::max();
-thread_local qint64 g_wrapClipperLeft = std::numeric_limits<qint64>::max();
-thread_local qint64 g_wrapRoomsMade = 0;
+std::atomic<qint64> g_wrapWork{0};
 }
-qint64 Renderer::wrapRoomsMadeForTest() { return g_wrapRoomsMade; }
-qint64 Renderer::wrapWorkForTest() { return g_wrapWork; }
+qint64 Renderer::wrapRoomsMadeForTest() { return WrapRoom::madeForTest(); }
+qint64 Renderer::wrapWorkForTest() { return g_wrapWork.load(); }
 
 LayoutCache::Pass::Pass(LayoutCache *c) : m_c(c)
 {
-    if (m_c && m_c->m_pass++ == 0) { g_wrapShapesLeft = kMaxWrapShapesPerPage; g_wrapClipperLeft = kMostWrapClipperElementsPerPage; }
+    if (m_c && m_c->m_pass++ == 0) m_c->m_wrapBudget = WrapBudget::forPage();
 }
 LayoutCache::Pass::~Pass()
 {
     if (m_c && --m_c->m_pass == 0) {
         m_c->m_passFrames.clear();
         m_c->m_passWrapRooms.clear();
-        g_wrapShapesLeft = std::numeric_limits<int>::max();
-        g_wrapClipperLeft = std::numeric_limits<qint64>::max();
     }
 }
 
-QVector<QPolygonF> Renderer::wrapObstacles(const Document &doc, const TextItem &frame, bool *covered, LayoutCache *cache)
+// A side's wrap distance as a number: one that is not a number is 0 (as the layers hold a distance from a file).
+static double wrapSide(double v) { return std::isfinite(v) ? v : (v > 0 ? kMostWrapDistance : 0.0); }
+// The widest of an object's four distances, held to the most.
+static double wrapDistanceOf(const Wrap &w) { return boundedWrapDistance(std::max({wrapSide(w.left), wrapSide(w.right), wrapSide(w.top), wrapSide(w.bottom)})); }
+
+// Where an object's outline can be, on the page, from what is cheap to know (a stored polygon's points; a traced or drawn path's own bounds, which a path keeps; else the frame with its
+// own size round it): made before any outline is, so that an object that cannot reach a box costs nothing.
+static QRectF wrapReachOf(const Item &o, const Wrap &w, const QTransform &tr)
 {
-    QVector<QPolygonF> out;
+    QRectF local(QPointF(0, 0), o.rect.size());
+    if (!w.points.isEmpty()) local = w.points.boundingRect();
+    else if (o.type() == ItemType::Shape && !static_cast<const ShapeItem &>(o).customPath.isEmpty()) local = static_cast<const ShapeItem &>(o).customPath.controlPointRect();
+    else if (o.type() == ItemType::Text && !static_cast<const TextItem &>(o).customPath.isEmpty()) local = static_cast<const TextItem &>(o).customPath.controlPointRect();
+    else if (o.type() == ItemType::Line) {
+        const auto &l = static_cast<const LineItem &>(o);
+        const double half = std::max(2.0, l.stroke.width) + 1;
+        local = l.path().controlPointRect().translated(-l.rect.topLeft()).adjusted(-half, -half, half, half);
+    } else local = local.adjusted(-local.width(), -local.height(), local.width(), local.height());
+    if (!std::isfinite(local.left()) || !std::isfinite(local.top()) || !std::isfinite(local.right()) || !std::isfinite(local.bottom())) return QRectF(-1e7, -1e7, 2e7, 2e7);
+    return tr.mapRect(local);
+}
+
+// The room round an object's outline (a stored polygon, a line, or its silhouette), placed on the page; null when the budget has not enough left for it.
+static std::shared_ptr<const WrapRoom> wrapRoomOf(const Document &doc, const Item &o, const Wrap &w, const QTransform &tr, double d, WrapBudget &budget)
+{
+    if (!w.points.isEmpty()) return WrapRoom::around(QList<QPolygonF>{tr.map(w.points)}, d, budget);
+    // (A path of more than kMostWrapPathElements elements is its rectangle: not mapped, not read.)
+    auto rectOf = [&](const QPainterPath &path, double extra) -> std::shared_ptr<const WrapRoom> {
+        if (budget.shapes <= 0) return nullptr;
+        --budget.shapes;
+        return WrapRoom::ofRect(tr.mapRect(path.controlPointRect()).adjusted(-(d + extra), -(d + extra), d + extra, d + extra));
+    };
+    if (o.type() == ItemType::Line) {
+        // (A line's outline is its own path, as thick as its stroke: no stroker is run on what a file holds.)
+        const auto &l = static_cast<const LineItem &>(o);
+        const QPainterPath lp = l.path().translated(-l.rect.topLeft());
+        const double half = std::max(2.0, l.stroke.width) / 2;
+        if (lp.elementCount() > kMostWrapPathElements) return rectOf(lp, half);
+        if (budget.work < lp.elementCount()) return nullptr;
+        budget.work -= lp.elementCount();
+        return WrapRoom::around(tr.map(lp).toSubpathPolygons(), d, budget, true, half);
+    }
+    const QPainterPath local = Renderer::silhouette(doc, o);
+    if (local.elementCount() > kMostWrapPathElements) return rectOf(local, 0);
+    return WrapRoom::around(tr.map(local), d, budget);
+}
+
+QVector<WrapObstacle> Renderer::wrapObstacles(const Document &doc, const TextItem &frame, bool *covered, LayoutCache *cache)
+{
+    QVector<WrapObstacle> out;
+    WrapBudget callBudget = WrapBudget::forCall();   // (outside a pass: the work of this call is held too)
+    WrapBudget &budget = cache && cache->inPass() ? cache->wrapBudget() : callBudget;
     const auto loc = doc.find(frame.id);
     if (!loc.item) return out;
     const ItemList *list = nullptr;
@@ -256,6 +300,8 @@ QVector<QPolygonF> Renderer::wrapObstacles(const Document &doc, const TextItem &
         const Wrap &w = o->wrap;
         ++g_wrapWork;
         QPainterPath pagePath;
+        std::shared_ptr<const WrapRoom> room;
+        QRectF pb;
         bool covers = false, rectPath = false;
         if (w.mode == Wrap::Square || w.mode == Wrap::TopBottom) {
             rectPath = true;
@@ -263,42 +309,41 @@ QVector<QPolygonF> Renderer::wrapObstacles(const Document &doc, const TextItem &
             covers = b.contains(fb);
             if (w.mode == Wrap::TopBottom) { b.setLeft(-1e5); b.setRight(1e5); }
             pagePath.addRect(b);
+            pb = pagePath.boundingRect();
         } else {
-            // (The room round an object is made once in a pass, for all the boxes that the object is in front of.)
-            const double d = std::max({w.left, w.right, w.top, w.bottom});
+            // (The room round an object is made once in a pass, for all the boxes that the object is in front of, and only when one of them can reach it: what is known of it, how far it
+            // reaches and its room or that it is a rectangle, is kept for the pass. Nothing is made by the path clipper: the room is segments, and the text asks it for spans.)
+            const double d = wrapDistanceOf(w);
             const QTransform tr = o->transform();
             QString roomKey;
             if (cache && cache->inPass())
                 roomKey = QStringLiteral("%1|%2,%3,%4,%5,%6,%7|%8").arg(o->id).arg(tr.m11()).arg(tr.m12()).arg(tr.m21()).arg(tr.m22()).arg(tr.dx()).arg(tr.dy()).arg(d);
-            const auto kept = roomKey.isEmpty() ? cache->passWrapRooms().constEnd() : cache->passWrapRooms().constFind(roomKey);
-            if (!roomKey.isEmpty() && kept != cache->passWrapRooms().constEnd()) {
-                pagePath = *kept;
-                covers = pagePath.contains(fb);
+            LayoutCache::WrapEntry entry = roomKey.isEmpty() ? LayoutCache::WrapEntry() : cache->passWrapRooms().value(roomKey);
+            if (!entry.known) {
+                entry.known = true;
+                entry.reach = wrapReachOf(*o, w, tr);
+            }
+            bool reaches = entry.reach.adjusted(-(d + 1), -(d + 1), d + 1, d + 1).intersects(fb);
+            if (reaches && !entry.rect && !entry.room) {
+                entry.room = wrapRoomOf(doc, *o, w, tr, d, budget);
+                entry.rect = !entry.room;   // (the budget has not enough left: a rectangle stands in for the outline)
+                ++g_wrapWork;
+            }
+            if (!roomKey.isEmpty()) cache->passWrapRooms().insert(roomKey, entry);
+            if (!reaches) return;
+            if (entry.rect) {
+                const QRectF b = o->bounds().adjusted(-wrapSide(w.left), -wrapSide(w.top), wrapSide(w.right), wrapSide(w.bottom));
+                covers = b.contains(fb);
+                pagePath.addRect(b);
+                pb = b;
+                rectPath = true;
             } else {
-                QPainterPath local;
-                if (!w.points.isEmpty()) local.addPolygon(w.points);
-                else local = silhouette(doc, *o);
-                const QPainterPath placed = tr.map(local);
-                // An object that cannot reach this box, with the band round it, is no obstacle to it: nothing is made of its outline.
-                if (!placed.controlPointRect().adjusted(-(2.5 * d + 1), -(2.5 * d + 1), 2.5 * d + 1, 2.5 * d + 1).intersects(fb)) return;
-                const qint64 cost = placed.elementCount();
-                if (g_wrapShapesLeft <= 0 || g_wrapClipperLeft < std::min<qint64>(cost, kMostWrapPathElements)) {
-                    // (a rectangle around the object stands in for its outline)
-                    QRectF b = o->bounds().adjusted(-w.left, -w.top, w.right, w.bottom);
-                    covers = b.contains(fb);
-                    pagePath.addRect(b);
-                    rectPath = true;
-                } else {
-                    --g_wrapShapesLeft;
-                    g_wrapClipperLeft -= std::min<qint64>(cost, kMostWrapPathElements);
-                    ++g_wrapRoomsMade;
-                    pagePath = wrapRoomAround(placed, d);
-                    covers = pagePath.contains(fb);
-                    if (!roomKey.isEmpty()) cache->passWrapRooms().insert(roomKey, pagePath);
-                }
+                room = entry.room;
+                if (room->isEmpty()) return;
+                pb = room->bounds();
+                covers = room->covers(fb);
             }
         }
-        const QRectF pb = pagePath.boundingRect();
         if (!pb.intersects(fb)) return;
         // An object over the whole box never pushes its text aside, whatever
         // its wrap or fill (as Publisher draws a box under rectangles with
@@ -313,16 +358,16 @@ QVector<QPolygonF> Renderer::wrapObstacles(const Document &doc, const TextItem &
             out << inv.map(QPolygonF(wrapSideWall(pb, fb, w.side == Wrap::LeftOnly, w.side == Wrap::Largest)));
             return;
         }
-        if (w.side == Wrap::LeftOnly) { QPainterPath r; r.addRect(QRectF(pb.left(), pb.top(), 1e5, pb.height())); pagePath = pagePath.united(r); }
-        else if (w.side == Wrap::RightOnly) { QPainterPath r; r.addRect(QRectF(-1e5, pb.top(), pb.right() + 1e5, pb.height())); pagePath = pagePath.united(r); }
+        // The side the text is kept to is a wall from the room's edge out to the page's: a rectangle with the room (the one obstacle).
+        QRectF wall;
+        if (w.side == Wrap::LeftOnly) wall = QRectF(pb.left(), pb.top(), 1e5, pb.height());
+        else if (w.side == Wrap::RightOnly) wall = QRectF(-1e5, pb.top(), pb.right() + 1e5, pb.height());
         else if (w.side == Wrap::Largest) {
             const double leftSpace = pb.left() - fb.left(), rightSpace = fb.right() - pb.right();
-            QPainterPath r;
-            if (leftSpace >= rightSpace) r.addRect(QRectF(pb.left(), pb.top(), 1e5, pb.height()));
-            else r.addRect(QRectF(-1e5, pb.top(), pb.right() + 1e5, pb.height()));
-            pagePath = pagePath.united(r);
+            wall = leftSpace >= rightSpace ? QRectF(pb.left(), pb.top(), 1e5, pb.height()) : QRectF(-1e5, pb.top(), pb.right() + 1e5, pb.height());
         }
-        out << inv.map(pagePath.toFillPolygon());
+        if (room) out << WrapObstacle(room->mapped(inv), wall.isValid() ? inv.map(QPolygonF(wall)) : QPolygonF());
+        else out << inv.map(pagePath.toFillPolygon());
     };
     for (int i = idx + 1; i < int(list->size()) && out.size() < kMaxWrapObstacles && candidates < kMaxWrapCandidates; ++i) consider((*list)[i]);
     return out;
@@ -457,9 +502,7 @@ static QString specSig(const FrameSpec &s, bool withClock)
     for (const auto &o : s.obstacles) {
         const QRectF b = o.boundingRect();
         // The points' sum too, so moving a point inside the same bounds re-wraps.
-        double sum = 0;
-        for (const QPointF &pt : o) sum += pt.x() * 1.7 + pt.y();
-        k += QStringLiteral("o%1,%2,%3,%4,%5,%6").arg(b.x(), 0, 'f', 1).arg(b.y(), 0, 'f', 1).arg(b.width(), 0, 'f', 1).arg(b.height(), 0, 'f', 1).arg(o.size()).arg(sum, 0, 'f', 1);
+        k += QStringLiteral("o%1,%2,%3,%4,%5,%6").arg(b.x(), 0, 'f', 1).arg(b.y(), 0, 'f', 1).arg(b.width(), 0, 'f', 1).arg(b.height(), 0, 'f', 1).arg(o.room ? o.room->segments() : o.poly.size()).arg(o.signature(), 0, 'f', 1);
     }
     return k;
 }

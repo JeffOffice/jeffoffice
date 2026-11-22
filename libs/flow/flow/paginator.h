@@ -332,7 +332,7 @@ private:
     QVector<Wrapped> wrappersOf(const Run &run, int index, const PageStart &start, int *moveBefore = nullptr);
     // The frame-local polygons that a column on the page (its rectangle, page coordinates) has the objects in as places the text keeps out of (as the page layer finds them for the
     // text box that is made of the column: Renderer::wrapObstacles). `part`: the columns of the part of the page that the column is in (in page coordinates, the column among them).
-    QVector<QPolygonF> obstaclesFor(const QVector<Wrapped> &wrapped, const QRectF &column, const QVector<QRectF> &part) const;
+    QVector<jp::WrapObstacle> obstaclesFor(const QVector<Wrapped> &wrapped, const QRectF &column, const QVector<QRectF> &part) const;
     // The room a wrapped object takes: its rectangle and the distances round it (and what is kept clear under it). The distance above an object that is set from its paragraph or its
     // line does not reach up into the lines before them: they are laid out first, and the object is set from where the paragraph begins.
     // `columns`: the columns of the page (the part of it that holds the object's room is what counts) in page coordinates; without them, no column is whole.
@@ -342,7 +342,7 @@ private:
     // The columns of a laid-out page in page coordinates (`body`: the text area's rectangle). The columns of a section that another begins below on the page end where that one begins:
     // a wall across the columns it is in does not reach the ones below. One list for the wall (roomOf) of the lines, the objects' places, and the anchors' accounts.
     static QVector<QRectF> pageColumnsOf(const Run &run, const QRectF &body);
-    static QPainterPath wrapOutlinePath(const FloatingObject &o, const Wrapped &w);
+    static std::shared_ptr<const jp::WrapRoom> wrapOutlineRoom(const FloatingObject &o, const Wrapped &w, jp::WrapBudget &budget);
     bool breakContinuesAt(const StoryLayout::LineBrief &last, PageStart *next) const;
     int numberOf(int index) const;
     bool beginsPageOf(int section, const PageStart &page) const;   // the page is the first of the section (not the page after one that a continuous section began in the middle of)

@@ -3,10 +3,14 @@
 // it allowed), so the outline follows the frame when it is sized. A file's outline is bounded here, once, for every reader and for the editing commands.
 
 #include <QImage>
+#include <QList>
 #include <QPainterPath>
 #include <QPolygonF>
 #include <QSizeF>
+#include <QTransform>
 #include <QVector>
+#include <atomic>
+#include <memory>
 
 namespace jp {
 
@@ -16,7 +20,7 @@ constexpr double kWrapOutlineReach = 0.5;
 // The most room a wrap leaves round an object, in points (a distance from a file is held to 0 up to this, nan being 0).
 constexpr double kMostWrapDistance = 1584;
 // What a layer sets text around at most, the page layer and the paginator alike: a box's text goes round at most kMaxWrapObstacles objects, found among the next kMaxWrapCandidates (more would
-// be a page where every box wraps around every other), and no more than kMaxWrapShapesPerPage outlines are made (each costs about a millisecond) for a page's painting or a column's lines;
+// be a page where every box wraps around every other), and no more than kMaxWrapShapesPerPage outlines are made for a page's painting or a column's lines;
 // the objects after that budget wrap around their rectangles.
 constexpr int kMaxWrapObstacles = 32, kMaxWrapCandidates = 512, kMaxWrapShapesPerPage = 1024;
 // The unit DrawingML gives a polygon's coordinates: the frame's width and height are each this many.
@@ -36,21 +40,81 @@ QPolygonF wrapOutlineOfPath(const QPainterPath &path, const QSizeF &frame);
 // no alpha at all.
 constexpr qint64 kMostAlphaScanPixels = 16000000;
 QPolygonF wrapOutlineOfAlpha(const QImage &image, int *scanned = nullptr);
-// What one outline made into room costs at most, in path elements, and the share of its diagonal that a simplified outline may stray (a picture's outline of thousands of elements on a
-// small frame needs tens). A path with more has its points thinned to that tolerance (grown until it fits), then its convex hull, then its bounding rectangle; the input of the simplifier is
-// itself bounded by kMostWrapSimplifyInput points.
-constexpr int kMostWrapPathElements = 256, kMostWrapSimplifyInput = 4096;
-constexpr double kWrapSimplifyShare = 0.004;
-// The most path elements the page layer sends to the clipper for one pass over a page, all its text boxes together; the objects after that are set round as rectangles.
-constexpr qint64 kMostWrapClipperElementsPerPage = 40000;
-// The path as an outline of at most kMostWrapPathElements elements (unchanged when it has no more); the shape kept to the tolerance above, else its hull, else its bounds.
-QPainterPath wrapPathBounded(const QPainterPath &path);
-// How many rooms were made, and from how many elements in all (counted, for tests).
-qint64 wrapClipperCallsForTest();
-qint64 wrapClipperElementsForTest();
-// The room the text leaves round an outline already placed on the page: the outline and a band of `distance` round it (a distance of 0 or less is the outline alone, its inside solid: an outline that crosses itself has no holes). The page layer
-// and the paginator both take this, so that a line meets the same edge in both.
-QPainterPath wrapRoomAround(const QPainterPath &outline, double distance);
+// What the room round an outline costs, in counted work (points flattened plus segments built; nothing is timed). The room is never made by the path clipper or the stroker: it is a
+// list of short segments, and the text engine asks it one thing, which horizontal span of a line's band is blocked, from those segments alone (a band costs one pass over them).
+// An outline of more than kMostWrapOutlineSegments points is read into at most kWrapProfileBands bands (the extent of each, a rectangle); a path of more than kMostWrapPathElements
+// elements is its bounding rectangle; a room that is asked for more than kMostWrapRoomQueryWork segment tests answers with its bounds. A page's budget (one pass, or one column of the
+// paginator) and a call's budget (outside a pass) are WrapBudget; past it, an object is its rectangle.
+constexpr int kMostWrapOutlineSegments = 512, kWrapProfileBands = 128, kMostWrapPathElements = 20000;
+constexpr qint64 kMostWrapWorkPerPage = 400000, kMostWrapWorkPerCall = 60000, kMostWrapRoomQueryWork = 4000000;
+constexpr int kMostWrapShapesPerCall = 64;
+struct WrapBudget {
+    qint64 work = 0;
+    int shapes = 0;
+    static WrapBudget forPage() { return {kMostWrapWorkPerPage, kMaxWrapShapesPerPage}; }
+    static WrapBudget forCall() { return {kMostWrapWorkPerCall, kMostWrapShapesPerCall}; }
+};
+
+// The room round one outline placed on the page: the outline's inside and a band of `distance` round it (what the stroke of that width with bevel joins and the outline make
+// together; a distance of 0 or less is the outline alone, its inside solid: one that crosses itself has no holes). Immutable once made, shared by the text boxes that it is in front of.
+class WrapRoom {
+public:
+    // The room of the filled rings (each a closed outline; points that are not numbers dropped, coordinates held to 1e7) or, with `open`, of lines `halfWidth` thick (a line's
+    // own thickness) with distance beyond that. Null when the budget has not enough left (the caller sets the object round its rectangle); an empty room (no ring of three points
+    // or no length) answers no span. The budget is charged what was done.
+    static std::shared_ptr<const WrapRoom> around(const QList<QPolygonF> &rings, double distance, WrapBudget &budget, bool open = false, double halfWidth = 0);
+    // The room of a path: its flattened subpaths, as above (a path of more than kMostWrapPathElements elements is the rectangle of its control points).
+    static std::shared_ptr<const WrapRoom> around(const QPainterPath &outline, double distance, WrapBudget &budget);
+    // A rectangle's room, with the band.
+    static std::shared_ptr<const WrapRoom> ofRect(const QRectF &rect);
+    QRectF bounds() const { return m_bounds; }
+    bool isEmpty() const { return m_pieces.isEmpty(); }
+    // The span of the room within the band from y0 to y1 (the leftmost and rightmost it reaches there); false when it is not in the band. `work` is counted.
+    bool spans(double y0, double y1, double *left, double *right) const;
+    // Whether the room holds the whole of the rectangle (looked for along lines across it, at most 17 of them).
+    bool covers(const QRectF &rect) const;
+    // The room moved by `matrix`.
+    std::shared_ptr<const WrapRoom> mapped(const QTransform &matrix) const;
+    // A number that changes when the room's shape does, for a layout's key.
+    double signature() const { return m_signature; }
+    qint64 segments() const { return m_points.size(); }
+    // How many segment tests the room has answered with (counted, for tests).
+    qint64 queryWork() const { return m_queryWork.load(); }
+    // How many rooms were made, and the work they were charged, since the program began (counted, for tests).
+    static qint64 madeForTest();
+    static qint64 workForTest();
+
+private:
+    struct Piece { int first, count; double top, bottom; };
+    WrapRoom() = default;
+    void finish();
+    QVector<QPointF> m_points;   // the pieces' corners, one piece after the other (a piece of two points is one segment, of three or four a convex shape)
+    QVector<Piece> m_pieces;
+    QVector<QPointF> m_ring;     // the filled rings' points, one after the other
+    QVector<int> m_ringEnds;
+    QRectF m_bounds;
+    double m_signature = 0;
+    mutable std::atomic<qint64> m_queryWork{0};
+};
+
+// One thing a text frame's lines keep out of: a polygon (a rectangle for a box, a wall) or a room, the room's span within a line's band being asked of it. Frame-local.
+// `wall` (when it has points) goes with a room: the one-sided wall that keeps the text to one side of it, a rectangle (turned with the frame).
+struct WrapObstacle {
+    QPolygonF poly;
+    std::shared_ptr<const WrapRoom> room;
+    QPointF shift;
+    QPolygonF wall;
+    WrapObstacle() = default;
+    WrapObstacle(const QPolygonF &p) : poly(p) {}
+    WrapObstacle(std::shared_ptr<const WrapRoom> r, const QPolygonF &w = QPolygonF()) : room(std::move(r)), wall(w) {}
+    QRectF boundingRect() const;
+    void translate(double dx, double dy);
+    // The span of this within the band from y0 to y1 (frame-local), false when there is none (a shape with no area is none).
+    bool spans(double y0, double y1, double *left, double *right) const;
+    bool isPlain() const;   // (a rectangle: four corners, or five with the first again)
+    double signature() const;
+};
+
 // The wall of a rectangular room (the object and its distances) that keeps the text to one side: the one rectangle from the room's edge on the side the text is not on, out to
 // 1e5 points that way, as tall as the room (never a join of two, which came out as a sliver for some places). The text is on the left only (`textLeft`), on the right only, or on the
 // larger side of the room within `frame` (`largest`: the left when it is as wide as the right). The page layer and the paginator both take this.

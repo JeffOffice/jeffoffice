@@ -7,6 +7,7 @@
 
 #include "core/color.h"
 #include "core/valign.h"
+#include "core/wrapoutline.h"
 #include "text/textprops.h"
 #include "text/fieldsource.h"
 #include "text/textenginefwd.h"
@@ -98,7 +99,7 @@ struct FrameSpec {
     double hyphenZone = 18;         // points: hyphenate only if moving the word would leave more space
     double baselineGrid = 0;        // the page's baseline guides: spacing (0 = none)
     double baselineOrigin = 0;      // and one baseline's position, frame-local
-    QVector<QPolygonF> obstacles;   // frame-local, already expanded by wrap distances
+    QVector<WrapObstacle> obstacles;   // frame-local, already expanded by wrap distances (a polygon, or a room that answers which span of a line's band it blocks: core/wrapoutline.h)
     // The most that a word processor's note separator, and its notice under the notes, may each take on the page the frame is on (0: no limit): a file's own can be taller
     // than the page, and a quarter of the text area is what the paginator leaves them.
     double noteRoomLimit = 0;

@@ -1629,6 +1629,7 @@ private Q_SLOTS:
     void objectsBehindAndOverTheTextMoveNoLine();
     void tightWrapIsSquareWrapForNow();
     void aPageOfThousandsOfOutlinedObjectsIsSetAroundAtMostTheLimits();
+    void aColumnOfThousandsOfStoredZigZagsCostsCountedWorkAndStillBlocksTheirSpan();
     void objectsInTheMarginStripsAreWhereTheStripPutsThem();
     void aParagraphThatRunsOnPastTheObjectsPageIsWhole();
     void aParagraphOfSeveralPagesWithAWallLosesNoText();

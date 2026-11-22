@@ -85,8 +85,15 @@ public:
     // While a Pass is alive the publication is not changed (a page being painted), so the layout of each text box is worked out once: a chain of
     // boxes is set up whole for each of its boxes otherwise, the square of the chain's length.
     bool inPass() const { return m_pass > 0; }
-    // The room round an object that text goes round, for the pass (see Renderer::wrapObstacles).
-    QHash<QString, QPainterPath> &passWrapRooms() { return m_passWrapRooms; }
+    // What the pass knows of an object that text goes round (see Renderer::wrapObstacles): how far it reaches, and the room round it once it is made (or that it is a rectangle now, the
+    // budget having run out). The work left for the pass's rooms is counted here, in the pass, not in any thread's state: a pass on another cache has its own.
+    struct WrapEntry {
+        bool known = false, rect = false;
+        QRectF reach;
+        std::shared_ptr<const WrapRoom> room;
+    };
+    QHash<QString, WrapEntry> &passWrapRooms() { return m_passWrapRooms; }
+    WrapBudget &wrapBudget() { return m_wrapBudget; }
     class Pass {
     public:
         explicit Pass(LayoutCache *c);
@@ -116,7 +123,8 @@ private:
     QHash<QString, Entry> m_entries;
     int m_pass = 0;
     QHash<QString, FrameLayout> m_passFrames;   // by box and page, while a Pass is alive
-    QHash<QString, QPainterPath> m_passWrapRooms;   // the room round an object that text goes round, by object, place, and distance: made once for all the boxes
+    QHash<QString, WrapEntry> m_passWrapRooms;
+    WrapBudget m_wrapBudget = WrapBudget::forPage();   // the room round an object that text goes round, by object, place, and distance: made once for all the boxes
     QList<QImage> m_flatPatches;                // the last few flattened pictures
 };
 
@@ -193,8 +201,8 @@ public:
     // The objects looked at, and the wrap shapes made, for text boxes since the program began on this thread: a count for tests of cost.
     static qint64 wrapWorkForTest();
     static qint64 wrapRoomsMadeForTest();
-    // Wrap obstacles (frame-local polygons) for a text box on a page.
-    static QVector<QPolygonF> wrapObstacles(const Document &doc, const TextItem &frame, bool *covered = nullptr, LayoutCache *cache = nullptr);   // covered: an object in front wraps around the whole box
+    // Wrap obstacles (frame-local polygons and rooms) for a text box on a page.
+    static QVector<WrapObstacle> wrapObstacles(const Document &doc, const TextItem &frame, bool *covered = nullptr, LayoutCache *cache = nullptr);   // covered: an object in front wraps around the whole box
     static FrameSpec frameSpec(const Document &doc, const TextItem &t, int pageNumber, const RenderOptions &opt, LayoutCache *cache = nullptr);
     // Layout of the text inside a shape or a table cell, with its frame-local origin.
     static const StoryLayout *shapeTextLayout(const PaintContext &ctx, const ShapeItem &s, QPointF *origin, double *fitScale = nullptr, double *fitCut = nullptr);

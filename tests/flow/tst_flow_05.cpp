@@ -830,6 +830,60 @@ void FlowTests::aPageOfThousandsOfOutlinedObjectsIsSetAroundAtMostTheLimits()
 }
 
 
+// A column's worth of stored outlines of the most points (a zig-zag of 128 points that crosses itself, 1,024 objects, which is what a file may hold) is set round as counted work, not as
+// the path clipper's (which took a second for each: 15 to 20 minutes for the column): the work the rooms are charged is no more than a page's budget for every column, and the lines beside
+// one such object still keep out of its span (the object's width, and the distance) in the rows it fills. Take the budget away and the work is every object's; take the room away and the
+// lines run through the object.
+void FlowTests::aColumnOfThousandsOfStoredZigZagsCostsCountedWorkAndStillBlocksTheirSpan()
+{
+    auto zigzag = [](double seed) {
+        QPolygonF outline;
+        for (int i = 0; i < jp::kMostWrapPoints; ++i) outline << QPointF(i % 2 ? 1.0 : 0.0, ((i * 37 + int(seed * 100)) % 128) / 127.0);   // (a zig-zag from side to side, down and up: it crosses itself)
+        return outline;
+    };
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 200, 25, {}, 1, 3);
+        for (int i = 0; i < 1024; ++i) {
+            const int id = addWrapped(&fd, 30, 30, fd.story()->findBlockByNumber(i % 200).position(), FloatingObject::Wrap::Tight, 10 + (i % 20) * 22, 0, QMarginsF(3, 3, 3, 3));
+            fd.objects[size_t(id) - 1].outline = zigzag(i);
+        }
+        const qint64 columns0 = Paginator::wrapColumnsForTest(), work0 = jp::WrapRoom::workForTest(), made0 = jp::WrapRoom::madeForTest();
+        Paginator pg(&fd);
+        QVERIFY(pg.pageCount() >= 1);
+        for (int k = 0; k < pg.pageCount(); ++k) QVERIFY(!pg.lines(k).isEmpty());
+        const qint64 columns = Paginator::wrapColumnsForTest() - columns0, work = jp::WrapRoom::workForTest() - work0, made = jp::WrapRoom::madeForTest() - made0;
+        QVERIFY(columns > 0 && made > 0);
+        QVERIFY2(work <= columns * jp::kMostWrapWorkPerPage, qPrintable(QStringLiteral("%1 columns, %2 work").arg(columns).arg(work)));
+        QVERIFY2(made <= columns * jp::kMaxWrapShapesPerPage, qPrintable(QStringLiteral("%1 columns, %2 rooms").arg(columns).arg(made)));
+    }
+    // One such object among the text: the lines in the rows it fills do not touch its span.
+    {
+        FlowDocument fd;
+        fd.env.wordLines = true;
+        fillStory(fd.story(), 30, 25, {}, 20, 40);
+        const int id = addWrapped(&fd, 100, 100, fd.story()->findBlockByNumber(2).position() + 2, FloatingObject::Wrap::Tight, 100, 0, QMarginsF(3, 3, 3, 3));
+        QPolygonF outline;
+        for (int i = 0; i < jp::kMostWrapPoints; ++i) outline << QPointF(i % 2 ? 1.0 : 0.0, double(i) / (jp::kMostWrapPoints - 1));   // (a zig-zag from side to side all the way down)
+        fd.objects[size_t(id) - 1].outline = outline;
+        Paginator pg(&fd);
+        const auto page = pg.materialize(0);
+        QVERIFY(page);
+        const Item *obj = objectOfSize(*page, 100, 100);
+        QVERIFY(obj);
+        const QRectF frame = obj->rect;
+        int blocked = 0;
+        for (const PageLine &line : pageLines(pg, fd, 0)) {
+            if (line.rect.bottom() <= frame.top() + 1 || line.rect.top() >= frame.bottom() - 1) continue;
+            ++blocked;
+            QVERIFY2(line.rect.right() <= frame.left() + 0.5 || line.rect.left() >= frame.right() - 0.5, qPrintable(audit::rectText(line.rect) + " " + audit::rectText(frame)));
+        }
+        QVERIFY(blocked >= 3);
+    }
+}
+
+
 // Objects set in the strips between the page's edge and the margins: from the left strip's edge (the page's), the right strip's (the margin's), the top's and foot's;
 // aligned to the start, middle, or end of the strip. Inside and outside are the left and right strips across, and the top and foot down.
 void FlowTests::objectsInTheMarginStripsAreWhereTheStripPutsThem()

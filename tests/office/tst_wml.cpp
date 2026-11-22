@@ -19,6 +19,8 @@
 #include <QFile>
 #include <QFileInfo>
 #include <QFontDatabase>
+#include <QPainterPath>
+#include <QRandomGenerator>
 #include <QImage>
 #include <QTemporaryDir>
 #include <QUrl>
@@ -3161,77 +3163,215 @@ private Q_SLOTS:
         QCOMPARE(ok[0].gapRight, jp::kMostWrapDistance);
     }
 
-    // The room round an outline at distance 0 is the outline's whole inside, even one that crosses itself (a star's middle or a bow tie's waist is not a hole the text flows into).
+    // The room round an outline at distance 0 is the outline's whole inside, even one that crosses itself (a star's middle or a bow tie's waist is not a hole the text flows into): the
+    // span of a band through the middle runs from the outline's left to its right.
     void theRoomRoundAnOutlineThatCrossesItselfIsSolid()
     {
-        QPainterPath star;
-        QPolygonF points;
+        QPolygonF star;
         for (int i = 0; i < 5; ++i) {
             const double a = -M_PI / 2 + i * 4 * M_PI / 5;
-            points << QPointF(100 + 80 * std::cos(a), 100 + 80 * std::sin(a));
+            star << QPointF(100 + 80 * std::cos(a), 100 + 80 * std::sin(a));
         }
-        star.addPolygon(points);
-        QPainterPath bow;
-        bow.addPolygon(QPolygonF({QPointF(0, 0), QPointF(100, 100), QPointF(100, 0), QPointF(0, 100)}));
+        const QPolygonF bow({QPointF(0, 0), QPointF(100, 100), QPointF(100, 0), QPointF(0, 100)});
         for (const double distance : {0.0, -3.0, 4.0}) {
-            const QPolygonF room = jp::wrapRoomAround(star, distance).toFillPolygon();
-            QVERIFY2(room.containsPoint(QPointF(100, 100), Qt::OddEvenFill), qPrintable(QString::number(distance)));
-            QVERIFY2(room.containsPoint(QPointF(100, 100), Qt::WindingFill), qPrintable(QString::number(distance)));
-            QVERIFY2(jp::wrapRoomAround(star, distance).contains(QPointF(100, 100)), qPrintable(QString::number(distance)));
-            const QPolygonF waist = jp::wrapRoomAround(bow, distance).toFillPolygon();
-            QVERIFY2(waist.containsPoint(QPointF(80, 50), Qt::OddEvenFill) && waist.containsPoint(QPointF(20, 50), Qt::OddEvenFill), qPrintable(QString::number(distance)));   // (both halves of the bow tie)
+            jp::WrapBudget budget = jp::WrapBudget::forCall();
+            const auto room = jp::WrapRoom::around(QList<QPolygonF>{star}, distance, budget);
+            QVERIFY(room);
+            double l = 0, r = 0;
+            QVERIFY2(room->spans(99, 101, &l, &r), qPrintable(QString::number(distance)));
+            QVERIFY2(l < 100 - 40 && r > 100 + 40, qPrintable(QString::number(l) + " " + QString::number(r)));   // (the middle of the star is inside, between its points)
+            QVERIFY(room->covers(QRectF(90, 90, 20, 20)));
+            const auto tie = jp::WrapRoom::around(QList<QPolygonF>{bow}, distance, budget);
+            QVERIFY(tie->spans(49, 51, &l, &r));
+            QVERIFY2(l <= 0 - 0 + 1e-9 && r >= 100 - 1e-9, qPrintable(QString::number(distance)));   // (both halves of the bow tie, and the waist between)
+            QVERIFY(tie->covers(QRectF(2, 40, 5, 20)));   // (inside one half)
         }
-        // A distance that is huge or not a number is held to the most.
-        const QRectF big = jp::wrapRoomAround(star, 1e300).boundingRect();
-        QVERIFY2(big.width() < star.boundingRect().width() + 8 * jp::kMostWrapDistance && big.width() > star.boundingRect().width() + 1000, qPrintable(QString::number(big.width())));   // (a band of the most, not of 1e300)
-        QCOMPARE(jp::wrapRoomAround(star, std::nan("")).boundingRect().size().toSize(), star.boundingRect().size().toSize());
+        // A distance that is huge is held to the most; one that is not a number is 0.
+        jp::WrapBudget budget = jp::WrapBudget::forCall();
+        const QRectF big = jp::WrapRoom::around(QList<QPolygonF>{star}, 1e300, budget)->bounds();
+        QVERIFY2(big.width() < star.boundingRect().width() + 8 * jp::kMostWrapDistance && big.width() > star.boundingRect().width() + 1000, qPrintable(QString::number(big.width())));
+        const QRectF none = jp::WrapRoom::around(QList<QPolygonF>{star}, std::nan(""), budget)->bounds();
+        QCOMPARE(none.size().toSize(), star.boundingRect().size().toSize());
     }
 
-    // A traced outline of thousands of elements on a small picture is made into room from at most kMostWrapPathElements of them, whatever its length or shape (a zig-zag
-    // included), and the room still holds the object's bounds. The work is counted (the clipper's input), not timed: take the bound away and the count is the whole outline.
-    void anOutlineOfThousandsOfElementsIsBoundedBeforeTheClipper_data()
+    // The span a room blocks, as the text engine asks for it, is the extent of the outline within the line's band and a band of `distance` round it: here a diamond, whose
+    // band at its middle is as wide as the diamond and the distance, and whose band near its point is as wide as the point is there, with the distance's bevel.
+    void aRoomsSpanFollowsTheOutlineBandByBand()
     {
-        QTest::addColumn<int>("elements");
-        QTest::addColumn<double>("width");
-        QTest::addColumn<double>("height");
-        QTest::newRow("5000 on a 26 x 8 picture") << 5000 << 26.0 << 8.0;
-        QTest::newRow("50000 on a 26 x 8 picture") << 50000 << 26.0 << 8.0;
-        QTest::newRow("adversarial zig-zag, 50000 on a 300 x 300 picture") << 50000 << 300.0 << 300.0;
-        QTest::newRow("adversarial zig-zag, 5000 on a 300 x 300 picture") << 5000 << 300.0 << 300.0;
-    }
-    void anOutlineOfThousandsOfElementsIsBoundedBeforeTheClipper()
-    {
-        QFETCH(int, elements);
-        QFETCH(double, width);
-        QFETCH(double, height);
-        QPainterPath zig;
-        zig.moveTo(0, 0);
-        for (int i = 1; i < elements; ++i)
-            zig.lineTo(width * (i % 2 ? 1.0 : 0.0) * (0.5 + 0.5 * (i % 7) / 6.0) + (i % 2 ? 0 : 0), height * double(i) / elements * ((i / 2) % 2 ? 1.0 : 0.3) + (i % 3) * 0.1);
-        zig.closeSubpath();
-        QVERIFY(zig.elementCount() >= elements);
-        const QRectF bounds = zig.boundingRect();
-        const QPainterPath bounded = jp::wrapPathBounded(zig);
-        QVERIFY2(bounded.elementCount() <= jp::kMostWrapPathElements, qPrintable(QString::number(bounded.elementCount())));
-        QVERIFY(bounded.elementCount() >= 4);
-        // (What is kept reaches the object's sides within what was thinned away, or is the hull or the bounds: the text keeps off the object.)
-        const double slack = std::hypot(bounds.width(), bounds.height()) * jp::kWrapSimplifyShare * 4 + 0.5;
-        QVERIFY(bounded.boundingRect().adjusted(-slack, -slack, slack, slack).contains(bounds));
-        const qint64 calls0 = jp::wrapClipperCallsForTest(), elements0 = jp::wrapClipperElementsForTest();
-        const QPainterPath room = jp::wrapRoomAround(zig, 3);
-        QCOMPARE(jp::wrapClipperCallsForTest() - calls0, qint64(1));
-        QVERIFY2(jp::wrapClipperElementsForTest() - elements0 <= jp::kMostWrapPathElements, qPrintable(QString::number(jp::wrapClipperElementsForTest() - elements0)));
-        QVERIFY(room.boundingRect().adjusted(-slack, -slack, slack, slack).contains(bounds.adjusted(-3, -3, 3, 3)));
-        QVERIFY(room.elementCount() <= 16 * jp::kMostWrapPathElements);
+        const QPolygonF diamond({QPointF(100, 0), QPointF(200, 100), QPointF(100, 200), QPointF(0, 100)});
+        jp::WrapBudget budget = jp::WrapBudget::forCall();
+        const auto bare = jp::WrapRoom::around(QList<QPolygonF>{diamond}, 0, budget);
+        double l = 0, r = 0;
+        QVERIFY(bare->spans(99, 101, &l, &r));
+        QVERIFY(std::abs(l - 0) < 1.1 && std::abs(r - 200) < 1.1);
+        QVERIFY(bare->spans(10, 20, &l, &r));   // (the band's lower edge is the widest: 100 -+ 20)
+        QVERIFY2(std::abs(l - 80) < 1e-6 && std::abs(r - 120) < 1e-6, qPrintable(QString::number(l) + " " + QString::number(r)));
+        QVERIFY(!bare->spans(-30, -1, &l, &r));   // (above it: nothing)
+        QVERIFY(!bare->spans(-30, 0, &l, &r));    // (touching it only: nothing)
+        const auto wide = jp::WrapRoom::around(QList<QPolygonF>{diamond}, 10, budget);
+        QVERIFY(wide->spans(99, 101, &l, &r));
+        QVERIFY2(l <= -7 && l > -8 && r >= 207 && r < 208,   // (the stroke's bevel at the corner: 10 along the diagonal's normal, 7.07 across)
+                  qPrintable(QString::number(l) + " " + QString::number(r)));
+        QVERIFY(wide->spans(-8, -7, &l, &r));   // (the bevel above the point reaches 7.07)
+        QVERIFY2(l < 100 && r > 100 && r - l < 25, qPrintable(QString::number(l) + " " + QString::number(r)));
     }
 
-    // An outline within the bound, a shape's own for one, is made into room as it is: nothing for ordinary files moves.
-    void anOutlineWithinTheBoundIsLeftAsItIs()
+    // Hostile outlines are rooms made from counted work: whatever the shape (a zig-zag that crosses itself a hundred thousand times, a star of spikes, curves, a thousand tiny
+    // pieces) and whatever the distance, the room is made once from what the budget allows, the work charged is no more than that, no more than kMostWrapOutlineSegments of
+    // the outline's points are kept (a longer outline is its bands), and a line through it is blocked where the outline is (compared with a plain scan of the outline's own segments).
+    // Take the cap away and the room has all the outline's points; take the budget away and the charge exceeds it; the old code sent each of these to the path clipper for seconds to minutes.
+    static QPainterPath randomZigZag(int n, double w, double h, quint32 seed)
     {
-        QPainterPath ellipse;
-        ellipse.addEllipse(QRectF(0, 0, 200, 100));
-        QVERIFY(ellipse.elementCount() <= jp::kMostWrapPathElements);
-        QCOMPARE(jp::wrapPathBounded(ellipse), ellipse);
+        QRandomGenerator g(seed);
+        QPainterPath p;
+        p.moveTo(g.generateDouble() * w, g.generateDouble() * h);
+        for (int i = 1; i < n; ++i) p.lineTo(g.generateDouble() * w, g.generateDouble() * h);
+        p.closeSubpath();
+        return p;
+    }
+    static QPainterPath spikedStar(int n, double w)
+    {
+        QPainterPath p;
+        const double R = w / 2;
+        for (int i = 0; i < n; ++i) {
+            const double a = 2 * M_PI * i / n * (n / 2 - 1 + (n % 2)), r = (i % 2) ? R : R * 0.02;
+            const QPointF q(R + r * std::cos(a), R + r * std::sin(a));
+            if (i) p.lineTo(q); else p.moveTo(q);
+        }
+        p.closeSubpath();
+        return p;
+    }
+    static QPainterPath randomCurves(int n, double w)
+    {
+        QRandomGenerator g(9);
+        QPainterPath p;
+        p.moveTo(0, 0);
+        for (int i = 0; i < n / 3; ++i) p.cubicTo(g.generateDouble() * w, g.generateDouble() * w, g.generateDouble() * w, g.generateDouble() * w, g.generateDouble() * w, g.generateDouble() * w);
+        p.closeSubpath();
+        return p;
+    }
+    static QPainterPath manyTinyPieces(int pieces, double w)
+    {
+        QRandomGenerator g(5);
+        QPainterPath p;
+        for (int i = 0; i < pieces; ++i) {
+            const double x = g.generateDouble() * w, y = g.generateDouble() * w;
+            p.moveTo(x, y); p.lineTo(x + 1, y); p.lineTo(x + .5, y + 1); p.closeSubpath();
+        }
+        return p;
+    }
+    void hostileOutlinesAreRoomsMadeFromCountedWork_data()
+    {
+        QTest::addColumn<QPainterPath>("outline");
+        QTest::addColumn<double>("distance");
+        for (const double d : {0.0, 3.0, 36.0, 400.0}) {
+            const QByteArray at = " at " + QByteArray::number(d);
+            QTest::newRow(("random zig-zag of 255" + at).constData()) << randomZigZag(255, 300, 300, 1) << d;
+            QTest::newRow(("tiny random zig-zag of 255" + at).constData()) << randomZigZag(255, 10, 10, 2) << d;
+            QTest::newRow(("spiky star of 255" + at).constData()) << spikedStar(255, 300) << d;
+            QTest::newRow(("curves of 255" + at).constData()) << randomCurves(255, 300) << d;
+            QTest::newRow(("80 tiny pieces" + at).constData()) << manyTinyPieces(80, 300) << d;
+            QTest::newRow(("random zig-zag of 300" + at).constData()) << randomZigZag(300, 300, 300, 4) << d;
+            QTest::newRow(("random zig-zag of 5000" + at).constData()) << randomZigZag(5000, 300, 300, 3) << d;
+            QTest::newRow(("5000 tiny pieces" + at).constData()) << manyTinyPieces(5000, 300) << d;
+            QTest::newRow(("random zig-zag of 50000" + at).constData()) << randomZigZag(50000, 300, 300, 6) << d;
+        }
+    }
+    void hostileOutlinesAreRoomsMadeFromCountedWork()
+    {
+        QFETCH(QPainterPath, outline);
+        QFETCH(double, distance);
+        jp::WrapBudget budget = jp::WrapBudget::forCall();
+        const qint64 workBefore = jp::WrapRoom::workForTest(), madeBefore = jp::WrapRoom::madeForTest();
+        const auto room = jp::WrapRoom::around(outline, distance, budget);
+        QVERIFY(room);
+        QCOMPARE(jp::WrapRoom::madeForTest() - madeBefore, qint64(1));
+        // (Counted: the work charged is what the budget lost, which is no more than it had; the room's segments are bounded by the cap.)
+        const qint64 charged = jp::kMostWrapWorkPerCall - budget.work;
+        QVERIFY2(charged >= 0 && charged <= jp::kMostWrapWorkPerCall, qPrintable(QString::number(charged)));
+        QVERIFY2(jp::WrapRoom::workForTest() - workBefore <= jp::kMostWrapWorkPerCall, qPrintable(QString::number(jp::WrapRoom::workForTest() - workBefore)));
+        QVERIFY2(room->segments() <= 8 * jp::kMostWrapOutlineSegments, qPrintable(QString::number(room->segments())));
+        QVERIFY(!room->isEmpty());
+        // The outline's own segments, flattened as the room's builder does: the reference for a plain scan.
+        const QList<QPolygonF> rings = outline.toSubpathPolygons();
+        const double grow = jp::boundedWrapDistance(distance);
+        const QRectF all = outline.controlPointRect();
+        QVERIFY(room->bounds().adjusted(-1e-6, -1e-6, 1e-6, 1e-6).contains(outline.boundingRect().adjusted(-grow, -grow, grow, grow).intersected(room->bounds())) && room->bounds().adjusted(-1e-6, -1e-6, 1e-6, 1e-6).contains(outline.boundingRect()));
+        qint64 ringPoints = 0;
+        for (const QPolygonF &ring : rings) ringPoints += ring.size();
+        const bool banded = ringPoints > jp::kMostWrapOutlineSegments;   // (read in bands: the room's reach is a band's, not the segment's)
+        auto extentOf = [&](double y0, double y1, double *l, double *r) {
+            *l = 1e300; *r = -1e300;
+            for (const QPolygonF &ring : rings)
+                for (int i = 0; i < ring.size(); ++i) {
+                    const QPointF a = ring[i], b = ring[(i + 1) % ring.size()];
+                    if (std::max(a.y(), b.y()) < y0 || std::min(a.y(), b.y()) > y1) continue;
+                    for (const double t : {0.0, 1.0}) {
+                        QPointF p = a + (b - a) * t;
+                        if (p.y() >= y0 && p.y() <= y1) { *l = std::min(*l, p.x()); *r = std::max(*r, p.x()); }
+                    }
+                    if (a.y() != b.y())
+                        for (const double y : {y0, y1})
+                            if (y >= std::min(a.y(), b.y()) && y <= std::max(a.y(), b.y())) { const double x = a.x() + (y - a.y()) * (b.x() - a.x()) / (b.y() - a.y()); *l = std::min(*l, x); *r = std::max(*r, x); }
+                }
+        };
+        // Probe lines across the outline: the room's span covers the outline's own extent in the band; and (for an outline kept as it is, not read in bands) reaches
+        // no farther than the outline's extent in the band widened by the distance in y, and by the distance in x.
+        for (const double y : {all.top() + all.height() * 0.25, all.top() + all.height() * 0.5, all.top() + all.height() * 0.8}) {
+            double el, er, rl = 0, rr = 0;
+            extentOf(y, y + 1, &el, &er);
+            const bool blocked = room->spans(y, y + 1, &rl, &rr);
+            if (el > er) continue;   // (nothing of the outline in this band)
+            QVERIFY2(blocked, qPrintable(QString::number(y)));
+            QVERIFY2(rl <= el + 1e-6 && rr >= er - 1e-6, qPrintable(QString("%1: room %2..%3 outline %4..%5").arg(y).arg(rl).arg(rr).arg(el).arg(er)));
+            double gl, gr;
+            extentOf(y - grow - 1 - (banded ? all.height() / jp::kWrapProfileBands : 0), y + 1 + grow + (banded ? all.height() / jp::kWrapProfileBands : 0), &gl, &gr);
+            const double slack = banded ? all.height() / jp::kWrapProfileBands * 2.5 : 1e-6;
+            QVERIFY2(rl >= gl - grow * 1.5 - slack - 1e-6 && rr <= gr + grow * 1.5 + slack + 1e-6, qPrintable(QString("%1: room %2..%3 reach %4..%5").arg(y).arg(rl).arg(rr).arg(gl).arg(gr)));
+        }
+        // A band through the whole of it is answered by one pass over the pieces: counted.
+        double l, r;
+        const qint64 before = room->queryWork();
+        room->spans(all.top() + 1, all.top() + 2, &l, &r);
+        QVERIFY2(room->queryWork() - before <= room->segments(), qPrintable(QString::number(room->queryWork() - before)));
+    }
+
+    // A room's answers are bounded too: past kMostWrapRoomQueryWork segment tests it answers with its bounds (the text asked for more bands than any page has).
+    void aRoomAskedForTooManyBandsAnswersWithItsBounds()
+    {
+        const QPolygonF zig = randomZigZag(255, 300, 300, 1).toFillPolygon();
+        jp::WrapBudget budget = jp::WrapBudget::forCall();
+        const auto room = jp::WrapRoom::around(QList<QPolygonF>{zig}, 3, budget);
+        double l = 0, r = 0;
+        qint64 asked = 0;
+        while (room->queryWork() <= jp::kMostWrapRoomQueryWork) {
+            QVERIFY(room->spans(150, 151, &l, &r));
+            ++asked;
+            QVERIFY(asked < 100000);
+        }
+        QVERIFY(room->spans(150, 151, &l, &r));
+        QCOMPARE(l, room->bounds().left());
+        QCOMPARE(r, room->bounds().right());
+        QVERIFY2(asked >= jp::kMostWrapRoomQueryWork / room->segments() / 2, qPrintable(QString::number(asked)));   // (not at the first question)
+    }
+
+    // The work of a page is counted: a budget with less left than an outline needs gives no room (the caller sets the object round its rectangle), and charges nothing for it.
+    void aBudgetWithTooLittleLeftMakesNoRoom()
+    {
+        const QPainterPath zig = randomZigZag(255, 300, 300, 1);
+        jp::WrapBudget none{10, 5};
+        const qint64 made0 = jp::WrapRoom::madeForTest();
+        QVERIFY(!jp::WrapRoom::around(zig, 3, none));
+        QCOMPARE(none.work, qint64(10));
+        QCOMPARE(none.shapes, 5);
+        jp::WrapBudget noShapes{jp::kMostWrapWorkPerCall, 0};
+        QVERIFY(!jp::WrapRoom::around(zig, 3, noShapes));
+        QCOMPARE(jp::WrapRoom::madeForTest() - made0, qint64(0));
+        // Rooms until the shapes run out: each is charged one shape and its work.
+        jp::WrapBudget some{jp::kMostWrapWorkPerCall, 3};
+        int made = 0;
+        while (jp::WrapRoom::around(zig, 3, some)) ++made;
+        QCOMPARE(made, 3);
     }
 
     // Moving, adding, and taking away a point of an outline: a point is added only on an edge, never past the most, and an outline keeps three.

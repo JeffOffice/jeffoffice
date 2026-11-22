@@ -337,7 +337,7 @@ int main(int argc, char **argv)
                 const auto fl = cache.textFrame(*doc, *t, pi + 1, opt);
                 out << "p" << pi + 1 << " box " << t->rect.x() << "," << t->rect.y() << " " << t->rect.width() << "x" << t->rect.height()
                     << " autofit=" << t->autofit << " fit=" << fl.fitScale << " overflow=" << (fl.layout && fl.layout->overflow()) << "\n";
-                for (const QPolygonF &ob : Renderer::wrapObstacles(*doc, *t)) {
+                for (const auto &ob : Renderer::wrapObstacles(*doc, *t)) {
                     const QRectF b = ob.boundingRect();
                     out << "    obstacle " << b.x() << "," << b.y() << " " << b.width() << "x" << b.height() << "\n";
                 }

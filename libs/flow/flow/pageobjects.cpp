@@ -228,23 +228,23 @@ qint64 Paginator::wrapColumnsForTest() { return g_wrapColumns.load(); }
 qint64 Paginator::wrapCandidatesForTest() { return g_wrapCandidates.load(); }
 qint64 Paginator::wrapShapesForTest() { return g_wrapShapes.load(); }
 
-// A Tight wrap's outline placed on the page (its points are shares of the frame), with the room round it that the object's distances ask for.
-QPainterPath Paginator::wrapOutlinePath(const FloatingObject &o, const Wrapped &w)
+// A Tight wrap's outline placed on the page (its points are shares of the frame), with the room round it that the object's distances ask for: segments, not a path (core/wrapoutline.h), so
+// that the text engine asks it which span of a line's band is blocked and nothing is clipped. Null when the column's budget has not enough left (the object is then its rectangle).
+std::shared_ptr<const jp::WrapRoom> Paginator::wrapOutlineRoom(const FloatingObject &o, const Wrapped &w, jp::WrapBudget &budget)
 {
     QPolygonF placed;
     for (const QPointF &p : o.outline) placed << QPointF(w.rect.left() + p.x() * w.rect.width(), w.rect.top() + p.y() * w.rect.height());
-    QPainterPath path;
-    path.addPolygon(placed);
-    return jp::wrapRoomAround(path, std::max({o.gap.left(), o.gap.right(), o.gap.top(), o.gap.bottom()}));
+    return jp::WrapRoom::around(QList<QPolygonF>{placed}, std::max({o.gap.left(), o.gap.right(), o.gap.top(), o.gap.bottom()}), budget);
 }
 
-QVector<QPolygonF> Paginator::obstaclesFor(const QVector<Wrapped> &wrapped, const QRectF &column, const QVector<QRectF> &part) const
+QVector<jp::WrapObstacle> Paginator::obstaclesFor(const QVector<Wrapped> &wrapped, const QRectF &column, const QVector<QRectF> &part) const
 {
-    QVector<QPolygonF> out;
+    QVector<jp::WrapObstacle> out;
     ++g_wrapColumns;
-    // (As the page layer sets a box's text: round at most kMaxWrapObstacles objects, found among the first kMaxWrapCandidates, and outlines for kMaxWrapShapesPerPage of them; the rest are
-    // rectangles. A column's work is bounded whatever the story holds.)
-    int candidates = 0, shapesLeft = jp::kMaxWrapShapesPerPage;
+    // (As the page layer sets a box's text: round at most kMaxWrapObstacles objects, found among the first kMaxWrapCandidates, and outlines for as many of them as the column's budget of work
+    // holds (the same as a page's); the rest are rectangles. A column's work is bounded whatever the story holds, and nothing is made of an outline that cannot reach the column.)
+    int candidates = 0;
+    jp::WrapBudget budget = jp::WrapBudget::forPage();
     for (const Wrapped &w : wrapped) {
         if (out.size() >= jp::kMaxWrapObstacles || candidates >= jp::kMaxWrapCandidates) break;
         ++candidates;
@@ -253,26 +253,44 @@ QVector<QPolygonF> Paginator::obstaclesFor(const QVector<Wrapped> &wrapped, cons
         // A text box that does not reach into the column's text pushes none of it (by more than a hair: boxes are set edge to edge).
         if (o.item->type() == ItemType::Text && !w.rect.adjusted(0.55, 0.55, -0.55, -0.55).intersects(column)) continue;
         QRectF b = roomOf(o, w, &part);
-        const bool outlined = o.wrap == FloatingObject::Wrap::Tight && o.outline.size() >= 3 && shapesLeft > 0;
-        if (!outlined && !b.intersects(column)) continue;
+        const bool tight = o.wrap == FloatingObject::Wrap::Tight && o.outline.size() >= 3;
+        if (tight) {
+            // (The outline's reach first, from its points: one that cannot reach the column is nothing to make.)
+            double l = 1e300, t = 1e300, r = -1e300, bt = -1e300;
+            for (const QPointF &p : o.outline) {
+                const double x = w.rect.left() + p.x() * w.rect.width(), y = w.rect.top() + p.y() * w.rect.height();
+                l = std::min(l, x); r = std::max(r, x); t = std::min(t, y); bt = std::max(bt, y);
+            }
+            const double d = jp::boundedWrapDistance(std::max({o.gap.left(), o.gap.right(), o.gap.top(), o.gap.bottom()}));
+            if (!(l <= r) || !QRectF(QPointF(l, t), QPointF(r, bt)).adjusted(-(d + 1), -(d + 1), d + 1, d + 1).intersects(column)) continue;
+        }
+        const bool outlined = tight && budget.shapes > 0;
+        if (!tight && !b.intersects(column)) continue;
         if (o.wrap == FloatingObject::Wrap::TopBottom) {
             b.setLeft(-1e5);
             b.setRight(1e5);
         } else if (outlined) {
             // The outline the text goes round, as the page layer's wall makes it (core/wrapoutline.h), and the side asked for as the rectangle's is below.
             ++g_wrapShapes;
-            --shapesLeft;
-            QPainterPath path = wrapOutlinePath(o, w);
-            const QRectF pb = path.boundingRect();
+            const auto room = wrapOutlineRoom(o, w, budget);
+            if (!room) {
+                // (The budget has not enough left: the rectangle stands in for the outline.)
+                if (!b.intersects(column)) continue;
+                out << QPolygonF(b.translated(-column.left(), -column.top()));
+                continue;
+            }
+            if (room->isEmpty()) continue;
+            const QRectF pb = room->bounds();
             if (!pb.intersects(column)) continue;
+            QPolygonF wall;
             if (o.side != FloatingObject::Side::Both) {
                 const bool leftOnly = o.side == FloatingObject::Side::Left || (o.side == FloatingObject::Side::Largest && pb.left() - column.left() >= column.right() - pb.right());
-                QPainterPath beyond;
-                if (leftOnly) beyond.addRect(QRectF(pb.left(), pb.top(), 1e5, pb.height()));
-                else beyond.addRect(QRectF(-1e5, pb.top(), pb.right() + 1e5, pb.height()));
-                path = path.united(beyond);
+                wall = QPolygonF(leftOnly ? QRectF(pb.left(), pb.top(), 1e5, pb.height()) : QRectF(-1e5, pb.top(), pb.right() + 1e5, pb.height()));
+                wall.translate(-column.left(), -column.top());
             }
-            out << path.toFillPolygon().translated(-column.left(), -column.top());
+            out << jp::WrapObstacle(room->mapped(QTransform::fromTranslate(-column.left(), -column.top())), wall);
+            continue;
+        } else if (!b.intersects(column)) {
             continue;
         } else if (o.side != FloatingObject::Side::Both) {
             // The side asked for is the room beside it: the other side is a wall as well, the one rectangle (jp::wrapSideWall, which the page layer takes too).

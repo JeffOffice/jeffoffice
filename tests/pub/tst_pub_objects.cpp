@@ -2238,9 +2238,9 @@ private Q_SLOTS:
     }
 
     // Pictures with a traced outline of thousands of elements and wrap Through (no stored polygon) cost the page counted work, not the outline's size: the room round each is made
-    // from at most kMostWrapPathElements elements, once for all the boxes in a pass, only for a box it can reach, and no more than kMostWrapClipperElementsPerPage elements of them
-    // in a pass (the objects after that are rectangles). Take any of the four away and the count rises (the cache: 1 room becomes 10; the bound: 5000 elements a room; the budget:
-    // 640 rooms, not 156; the reach: every box makes every room).
+    // from segments (never by the path clipper), once for all the boxes in a pass, only for a box it can reach, and no more work than kMostWrapWorkPerPage in a pass (the objects
+    // after that are rectangles). Take any of the four away and the count rises (the cache: 1 room becomes 10; the cap: 5000 points a room; the budget: every room, not the
+    // few the work allows; the reach: every box makes every room).
     static std::shared_ptr<ShapeItem> tracedPicture(const QString &id, const QRectF &rect, int elements)
     {
         auto pic = std::make_shared<ShapeItem>();
@@ -2268,7 +2268,7 @@ private Q_SLOTS:
     void aTracedOutlineOfThousandsOfElementsCostsBoundedWork()
     {
         RenderOptions opt;
-        // One picture, ten boxes, one pass: one room is made, from at most the most elements, and the text still goes round the picture's bounds.
+        // One picture, ten boxes, one pass: one room is made, from at most the cap's segments, and the text still goes round the picture's bounds.
         {
             auto doc = Document::blank(QSizeF(612, 792));
             QVector<std::shared_ptr<TextItem>> boxes;
@@ -2276,29 +2276,57 @@ private Q_SLOTS:
             auto pic = tracedPicture(QStringLiteral("pic"), QRectF(120, 120, 26, 8), 5000);
             doc->pages[0]->items.push_back(pic);
             LayoutCache cache;
-            const qint64 made0 = Renderer::wrapRoomsMadeForTest(), elements0 = jp::wrapClipperElementsForTest();
+            const qint64 made0 = Renderer::wrapRoomsMadeForTest(), work0 = jp::WrapRoom::workForTest();
             {
                 LayoutCache::Pass pass(&cache);
                 for (const auto &b : boxes) {
                     const auto spec = Renderer::frameSpec(*doc, *b, 1, opt, &cache);
                     QCOMPARE(spec.obstacles.size(), 1);
                     QVERIFY(spec.obstacles.first().boundingRect().translated(b->rect.topLeft()).contains(pic->rect.adjusted(-2, -2, 2, 2)));
+                    QVERIFY(spec.obstacles.first().room);
+                    QVERIFY2(spec.obstacles.first().room->segments() <= 8 * jp::kMostWrapOutlineSegments, qPrintable(QString::number(spec.obstacles.first().room->segments())));
+                    double l = 0, r = 0;   // (a line through the middle of the picture is blocked from its left to its right, and the distance)
+                    QVERIFY(spec.obstacles.first().spans(pic->rect.center().y() - b->rect.top() - 0.5, pic->rect.center().y() - b->rect.top() + 0.5, &l, &r));
+                    QVERIFY2(l <= pic->rect.left() - b->rect.left() + 0.5 && r >= pic->rect.right() - b->rect.left() - 0.5, qPrintable(QString::number(l) + " " + QString::number(r)));
                 }
             }
             QCOMPARE(Renderer::wrapRoomsMadeForTest() - made0, qint64(1));
-            QVERIFY2(jp::wrapClipperElementsForTest() - elements0 <= jp::kMostWrapPathElements, qPrintable(QString::number(jp::wrapClipperElementsForTest() - elements0)));
+            QVERIFY2(jp::WrapRoom::workForTest() - work0 <= 5000 + 5 * jp::kMostWrapOutlineSegments, qPrintable(QString::number(jp::WrapRoom::workForTest() - work0)));
         }
-        // A picture away from the box is no work at all.
+        // A picture away from the box is no work at all: no room, no work charged (and with a path of 100,000 elements, one not even read).
         {
             auto doc = Document::blank(QSizeF(612, 792));
             auto b = textBoxAt(*doc, QStringLiteral("b"), QRectF(92, 92, 140, 150));
             doc->pages[0]->items.push_back(tracedPicture(QStringLiteral("far"), QRectF(400, 600, 26, 8), 5000));
-            const qint64 made0 = Renderer::wrapRoomsMadeForTest(), calls0 = jp::wrapClipperCallsForTest();
+            doc->pages[0]->items.push_back(tracedPicture(QStringLiteral("farther"), QRectF(450, 650, 26, 8), 100000));
+            const qint64 made0 = Renderer::wrapRoomsMadeForTest(), work0 = jp::WrapRoom::workForTest();
             QVERIFY(Renderer::frameSpec(*doc, *b, 1, opt).obstacles.isEmpty());
             QCOMPARE(Renderer::wrapRoomsMadeForTest() - made0, qint64(0));
-            QCOMPARE(jp::wrapClipperCallsForTest() - calls0, qint64(0));
+            QCOMPARE(jp::WrapRoom::workForTest() - work0, qint64(0));
         }
-        // Many pictures, many boxes, one pass: the clipper's work stays within the budget of a page.
+        // 600 far pictures of 100,000 elements and 50 boxes, in a pass and out of it: none is read.
+        {
+            auto doc = Document::blank(QSizeF(612, 792));
+            QVector<std::shared_ptr<TextItem>> boxes;
+            for (int i = 0; i < 50; ++i) {
+                boxes << textBoxAt(*doc, QStringLiteral("b%1").arg(i), QRectF(10 + (i % 10) * 12, 10 + (i / 10) * 12, 40, 30));
+                boxes.last()->wrap.mode = Wrap::None;   // (the boxes are no obstacles to each other here)
+            }
+            for (int j = 0; j < 600; ++j) doc->pages[0]->items.push_back(tracedPicture(QStringLiteral("p%1").arg(j), QRectF(300 + (j % 20) * 12, 300 + (j / 20) * 12, 10, 10), 100000));
+            LayoutCache cache;
+            const qint64 made0 = Renderer::wrapRoomsMadeForTest(), work0 = jp::WrapRoom::workForTest(), walked0 = Renderer::wrapWorkForTest();
+            int obstacles = 0;
+            {
+                LayoutCache::Pass pass(&cache);
+                for (const auto &b : boxes) obstacles += Renderer::frameSpec(*doc, *b, 1, opt, &cache).obstacles.size();
+            }
+            for (const auto &b : boxes) obstacles += Renderer::frameSpec(*doc, *b, 1, opt, &cache).obstacles.size();
+            QCOMPARE(obstacles, 0);
+            QCOMPARE(Renderer::wrapRoomsMadeForTest() - made0, qint64(0));
+            QCOMPARE(jp::WrapRoom::workForTest() - work0, qint64(0));
+            QVERIFY2(Renderer::wrapWorkForTest() - walked0 <= qint64(2) * 2 * 50 * jp::kMaxWrapCandidates, qPrintable(QString::number(Renderer::wrapWorkForTest() - walked0)));
+        }
+        // Many pictures, many boxes, one pass: the work stays within the budget of a page, and outside a pass within each call's.
         {
             auto doc = Document::blank(QSizeF(612, 792));
             QVector<std::shared_ptr<TextItem>> boxes;
@@ -2309,19 +2337,70 @@ private Q_SLOTS:
                     doc->pages[0]->items.push_back(tracedPicture(QStringLiteral("p%1_%2").arg(i).arg(j), QRectF(20 + j * 17, 24 + i * 38, 12, 8), 5000));
             }
             LayoutCache cache;
-            const qint64 made0 = Renderer::wrapRoomsMadeForTest(), calls0 = jp::wrapClipperCallsForTest(), elements0 = jp::wrapClipperElementsForTest();
+            const qint64 work0 = jp::WrapRoom::workForTest();
             int obstacles = 0;
             {
                 LayoutCache::Pass pass(&cache);
                 for (const auto &b : boxes) obstacles += Renderer::frameSpec(*doc, *b, 1, opt, &cache).obstacles.size();
             }
-            // (Every box is still set round 32 of them: the rest of the budget's objects are rectangles.)
+            // (Every box is still set round 32 of them: the rest, once the budget has run out, are rectangles.)
             QCOMPARE(obstacles, 20 * jp::kMaxWrapObstacles);
-            const qint64 made = Renderer::wrapRoomsMadeForTest() - made0;
-            QVERIFY2(made > 0 && made <= jp::kMostWrapClipperElementsPerPage / jp::kMostWrapPathElements, qPrintable(QString::number(made)));
-            QCOMPARE(jp::wrapClipperCallsForTest() - calls0, made);
-            QVERIFY2(jp::wrapClipperElementsForTest() - elements0 <= jp::kMostWrapClipperElementsPerPage, qPrintable(QString::number(jp::wrapClipperElementsForTest() - elements0)));
+            QVERIFY2(jp::WrapRoom::workForTest() - work0 > 0 && jp::WrapRoom::workForTest() - work0 <= jp::kMostWrapWorkPerPage, qPrintable(QString::number(jp::WrapRoom::workForTest() - work0)));
+            // Outside a pass: each call has the small budget of its own.
+            const qint64 call0 = jp::WrapRoom::workForTest();
+            for (const auto &b : boxes) QCOMPARE(Renderer::frameSpec(*doc, *b, 1, opt, &cache).obstacles.size(), jp::kMaxWrapObstacles);
+            QVERIFY2(jp::WrapRoom::workForTest() - call0 <= qint64(boxes.size()) * jp::kMostWrapWorkPerCall, qPrintable(QString::number(jp::WrapRoom::workForTest() - call0)));
         }
+    }
+
+    // A pass on one cache inside a pass on another leaves the first one's budget as it was (the budget is the pass's, not the thread's: the old state went back to unlimited when the inner pass
+    // ended, and the rest of the outer pass then made rooms without any limit).
+    void aPassInsideAPassOnAnotherCacheKeepsEachBudget()
+    {
+        LayoutCache outer, inner;
+        LayoutCache::Pass a(&outer);
+        outer.wrapBudget().work -= 1234;
+        const qint64 left = outer.wrapBudget().work;
+        QCOMPARE(left, jp::kMostWrapWorkPerPage - 1234);
+        {
+            LayoutCache::Pass b(&inner);
+            inner.wrapBudget().work = 7;
+        }
+        QCOMPARE(outer.wrapBudget().work, left);
+        QVERIFY(outer.inPass() && !inner.inPass());
+        // (and a new pass on the inner one starts with a whole page's.)
+        LayoutCache::Pass c(&inner);
+        QCOMPARE(inner.wrapBudget().work, jp::kMostWrapWorkPerPage);
+    }
+
+    // A wrap distance that is not a number is 0 (the room is the outline, as it was before), one that is huge is held to the most, and one side that is not a number is 0 beside the others.
+    void aWrapDistanceThatIsNotANumberWrapsAtZero()
+    {
+        auto doc = Document::blank(QSizeF(612, 792));
+        auto b = textBoxAt(*doc, QStringLiteral("b"), QRectF(92, 92, 140, 150));
+        auto pic = tracedPicture(QStringLiteral("p"), QRectF(120, 120, 40, 40), 20);
+        doc->pages[0]->items.push_back(pic);
+        auto spanAt = [&](double *l, double *r) {
+            const auto obstacles = Renderer::wrapObstacles(*doc, *b);
+            if (obstacles.size() != 1) return false;
+            return obstacles.first().spans(120 - 92 + 20, 120 - 92 + 21, l, r);
+        };
+        double l = 0, r = 0, l0 = 0, r0 = 0;
+        pic->wrap.left = pic->wrap.right = pic->wrap.top = pic->wrap.bottom = 0;
+        QVERIFY(spanAt(&l0, &r0));
+        pic->wrap.left = pic->wrap.right = pic->wrap.top = pic->wrap.bottom = std::nan("");
+        QVERIFY(spanAt(&l, &r));
+        QCOMPARE(l, l0);
+        QCOMPARE(r, r0);
+        pic->wrap.left = std::nan("");
+        pic->wrap.right = pic->wrap.top = pic->wrap.bottom = 3;
+        QVERIFY(spanAt(&l, &r));
+        QVERIFY2(l < l0 && l > l0 - 4 && r > r0, qPrintable(QString::number(l) + " " + QString::number(r)));   // (a side that is not a number is 0 beside the 3s: the widest holds)
+        // (A distance of 1e300 is held to the most, 1584 points: the room then holds the whole box, as a picture over the box does, and nothing is wrapped round it.)
+        pic->wrap.left = pic->wrap.right = pic->wrap.top = pic->wrap.bottom = 1e300;
+        bool covered = false;
+        QVERIFY(Renderer::wrapObstacles(*doc, *b, &covered).isEmpty());
+        QVERIFY(covered);
     }
 
 
@@ -2365,10 +2444,10 @@ private Q_SLOTS:
                     const bool textLeft = side == Wrap::LeftOnly || (side == Wrap::Largest && room.left() >= 400 - room.right());
                     const QRectF want = textLeft ? QRectF(QPointF(room.left(), room.top()), QPointF(1e5, room.bottom())) : QRectF(QPointF(-1e5 - t->rect.left(), room.top()), QPointF(room.right(), room.bottom()));
                     const QRectF got = walls[0].boundingRect();
-                    const QString what = QStringLiteral("side %1 mode %2 step %3: %4").arg(int(side)).arg(int(mode)).arg(step).arg(walls[0].size());
+                    const QString what = QStringLiteral("side %1 mode %2 step %3: %4").arg(int(side)).arg(int(mode)).arg(step).arg(walls[0].poly.size());
                     QVERIFY2(std::abs(got.top() - want.top()) < 0.01 && std::abs(got.bottom() - want.bottom()) < 0.01, qPrintable(what + QStringLiteral(" got %1,%2 want %3,%4").arg(got.top()).arg(got.bottom()).arg(want.top()).arg(want.bottom())));
                     QVERIFY2(textLeft ? std::abs(got.left() - want.left()) < 0.01 && got.right() > 1e4 : std::abs(got.right() - want.right()) < 0.01 && got.left() < -1e4, qPrintable(what));
-                    QVERIFY2(std::abs(areaOf(walls[0]) - got.width() * got.height()) < 1e-3 * got.width() * got.height(), qPrintable(what));
+                    QVERIFY2(std::abs(areaOf(walls[0].poly) - got.width() * got.height()) < 1e-3 * got.width() * got.height(), qPrintable(what));
                     ++checked;
                 }
         QCOMPARE(checked, 3 * 40);
@@ -2454,7 +2533,7 @@ private Q_SLOTS:
         QCOMPARE(s->wrap.points.size(), n);
         QVERIFY(std::abs(s->transform().map(s->wrap.points[ri]).x() - to.x()) < 2);
         double right = 0;
-        for (const QPolygonF &o : jp::Renderer::wrapObstacles(*d, *tb)) right = std::max(right, o.boundingRect().right());
+        for (const auto &o : jp::Renderer::wrapObstacles(*d, *tb)) right = std::max(right, o.boundingRect().right());
         // Obstacles are in the text box's own coordinates.
         QVERIFY2(right > to.x() - tb->rect.left() - 1, qPrintable(QString::number(right)));
         if (!qEnvironmentVariableIsEmpty("JP_SHOT_DIR")) { QTest::qWait(100); c->grab().save(qEnvironmentVariable("JP_SHOT_DIR") + "/wrappoints.png"); }

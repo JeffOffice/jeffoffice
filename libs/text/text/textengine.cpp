@@ -2110,20 +2110,15 @@ StoryLayout::~StoryLayout() = default;
 namespace {
 struct Iv { double x0, x1; };
 
-QVector<Iv> freeIntervals(const QVector<QPolygonF> &obstacles, double x0, double x1, double y0, double y1)
+QVector<Iv> freeIntervals(const QVector<WrapObstacle> &obstacles, double x0, double x1, double y0, double y1)
 {
     QVector<Iv> res{{x0, x1}};
-    for (const QPolygonF &poly : obstacles) {
-        const QRectF pb = poly.boundingRect();
+    for (const WrapObstacle &ob : obstacles) {
+        const QRectF pb = ob.boundingRect();
         if (pb.bottom() <= y0 || pb.top() >= y1 || pb.right() <= x0 || pb.left() >= x1) continue;
-        double bl = pb.left(), br = pb.right();
-        if (poly.size() > 4 || !poly.isClosed() || true) {
-            const QPolygonF clip = poly.intersected(QPolygonF(QRectF(pb.left() - 1, y0, pb.width() + 2, y1 - y0)));
-            if (clip.isEmpty()) continue;
-            const QRectF cb = clip.boundingRect();
-            if (cb.width() <= 0 && cb.height() <= 0) continue;
-            bl = cb.left(); br = cb.right();
-        }
+        // (The span of the obstacle within the band, from its segments: no path is clipped, so that a polygon of any shape costs one pass over its points.)
+        double bl, br;
+        if (!ob.spans(y0, y1, &bl, &br)) continue;
         QVector<Iv> next;
         for (const Iv &iv : res) {
             if (br <= iv.x0 || bl >= iv.x1) { next << iv; continue; }
@@ -3310,7 +3305,7 @@ void StoryLayout::build(const QTextDocument *doc, const QVector<FrameSpec> &fram
                 applied[fi] = s;
                 again = true;
             }
-            for (QPolygonF &poly : moved[fi].obstacles) poly.translate(0, -applied[fi]);
+            for (WrapObstacle &ob : moved[fi].obstacles) ob.translate(0, -applied[fi]);
         }
         if (!again) break;
         shifts = buildOnce(doc, moved, env);
@@ -4831,12 +4826,10 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                             if (env.wordLines) {
                                 double nearest = 1e18;
                                 bool plain = true;
-                                for (const QPolygonF &poly : frames[f].obstacles) {
-                                    const QRectF pb = poly.boundingRect();
+                                for (const WrapObstacle &ob : frames[f].obstacles) {
+                                    const QRectF pb = ob.boundingRect();
                                     if (pb.bottom() <= col.top() + y + touch || pb.top() >= col.top() + y + wrapH - touch || pb.right() <= x0 || pb.left() >= x1) continue;
-                                    plain &= poly.size() <= 5 && std::all_of(poly.cbegin(), poly.cend(), [&](const QPointF &pt) {
-                                        return (std::abs(pt.x() - pb.left()) < 1e-6 || std::abs(pt.x() - pb.right()) < 1e-6) && (std::abs(pt.y() - pb.top()) < 1e-6 || std::abs(pt.y() - pb.bottom()) < 1e-6);
-                                    });
+                                    plain &= ob.isPlain();
                                     nearest = std::min(nearest, pb.bottom() - col.top() - y);
                                 }
                                 if (plain && nearest < 1e17 && nearest > 0.001) step = nearest;

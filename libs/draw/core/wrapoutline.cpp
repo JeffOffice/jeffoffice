@@ -1,7 +1,6 @@
 #include "core/wrapoutline.h"
 
 #include <QPainter>
-#include <QPainterPathStroker>
 
 #include <algorithm>
 #include <atomic>
@@ -89,7 +88,8 @@ QPolygonF wrapOutlineOfPath(const QPainterPath &path, const QSizeF &frame)
     if (path.isEmpty() || path.elementCount() > 20000 || !(frame.width() > 0) || !(frame.height() > 0)) return QPolygonF();
     QPainterPath solid = path;
     solid.setFillRule(Qt::WindingFill);
-    solid = solid.simplified();
+    // (The path clipper is not run on a long path from a file: its time is that of the crossings, not of the elements. A short one is joined as it was.)
+    if (solid.elementCount() <= 256) solid = solid.simplified();
     const QList<QPolygonF> parts = solid.toSubpathPolygons();
     if (parts.size() > 1) {
         // (Several parts, or a hole: drawn small, and read as a picture is.)
@@ -178,123 +178,344 @@ QRectF wrapSideWall(const QRectF &room, const QRectF &frame, bool textLeft, bool
 
 namespace {
 
-std::atomic<qint64> g_clipperCalls{0}, g_clipperElements{0};
+std::atomic<qint64> g_roomsMade{0}, g_roomWork{0};
+constexpr double kCoordinateLimit = 1e7;
 
-// Douglas-Peucker on an open run, without recursion (a zig-zag would make the depth as long as the run): the indexes kept in `keep`.
-void simplifyRunFlat(const QPolygonF &in, double tol, QVector<bool> &keep)
+bool usable(const QPointF &p) { return std::isfinite(p.x()) && std::isfinite(p.y()); }
+QPointF held(const QPointF &p) { return QPointF(std::clamp(p.x(), -kCoordinateLimit, kCoordinateLimit), std::clamp(p.y(), -kCoordinateLimit, kCoordinateLimit)); }
+
+// A ring without the points that are not numbers, the point that repeats the one before it, and a last point that is the first.
+QPolygonF cleanRing(const QPolygonF &in, bool closed)
 {
-    QVector<QPair<int, int>> todo;
-    todo << qMakePair(0, int(in.size()) - 1);
-    while (!todo.isEmpty()) {
-        const auto [a, b] = todo.takeLast();
-        if (b <= a + 1) continue;
-        const QPointF p = in[a], q = in[b];
-        double best = -1;
-        int at = -1;
-        for (int i = a + 1; i < b; ++i) {
-            const double d = distanceToChord(in[i], p, q);
-            if (d > best) { best = d; at = i; }
-        }
-        if (best > tol) {
-            keep[at] = true;
-            todo << qMakePair(a, at) << qMakePair(at, b);
-        }
+    QPolygonF out;
+    for (const QPointF &raw : in) {
+        if (!usable(raw)) continue;
+        const QPointF p = held(raw);
+        if (out.isEmpty() || std::abs(p.x() - out.last().x()) > 1e-9 || std::abs(p.y() - out.last().y()) > 1e-9) out << p;
     }
+    if (closed && out.size() > 1 && std::abs(out.first().x() - out.last().x()) <= 1e-9 && std::abs(out.first().y() - out.last().y()) <= 1e-9) out.removeLast();
+    return out;
 }
 
-QPolygonF hullOf(QPolygonF pts)
+// The extent of a segment's part within the band y0..y1 (both ends in), widening [l, r].
+inline void widen(double ax, double ay, double bx, double by, double y0, double y1, double &l, double &r)
 {
-    std::sort(pts.begin(), pts.end(), [](const QPointF &a, const QPointF &b) { return a.x() < b.x() || (a.x() == b.x() && a.y() < b.y()); });
-    if (pts.size() < 3) return pts;
-    auto cross = [](const QPointF &o, const QPointF &a, const QPointF &b) { return (a.x() - o.x()) * (b.y() - o.y()) - (a.y() - o.y()) * (b.x() - o.x()); };
-    QPolygonF h(2 * pts.size());
-    int k = 0;
-    for (int i = 0; i < pts.size(); ++i) {
-        while (k >= 2 && cross(h[k - 2], h[k - 1], pts[i]) <= 0) --k;
-        h[k++] = pts[i];
+    const double lo = std::min(ay, by), hi = std::max(ay, by);
+    if (hi < y0 || lo > y1) return;
+    if (ay == by) {
+        l = std::min({l, ax, bx});
+        r = std::max({r, ax, bx});
+        return;
     }
-    for (int i = int(pts.size()) - 2, t = k + 1; i >= 0; --i) {
-        while (k >= t && cross(h[k - 2], h[k - 1], pts[i]) <= 0) --k;
-        h[k++] = pts[i];
-    }
-    h.resize(k - 1);
-    return h;
+    const double k = (bx - ax) / (by - ay);
+    const double ya = std::max(lo, y0), yb = std::min(hi, y1);
+    const double xa = ax + (ya - ay) * k, xb = ax + (yb - ay) * k;
+    l = std::min({l, xa, xb});
+    r = std::max({r, xa, xb});
 }
 
 } // namespace
 
-QPainterPath wrapPathBounded(const QPainterPath &path)
+std::shared_ptr<const WrapRoom> WrapRoom::ofRect(const QRectF &rect)
 {
-    if (path.elementCount() <= kMostWrapPathElements) return path;
-    const QRectF box = path.controlPointRect();
-    if (!(box.width() >= 0) || !(box.height() >= 0) || !std::isfinite(box.width()) || !std::isfinite(box.height())) return QPainterPath();
-    const double diag = std::hypot(box.width(), box.height());
-    QList<QPolygonF> rings = path.toFillPolygons();
+    std::shared_ptr<WrapRoom> room(new WrapRoom);
+    if (rect.isValid() && std::isfinite(rect.left()) && std::isfinite(rect.top()) && std::isfinite(rect.right()) && std::isfinite(rect.bottom()) && rect.width() > 0 && rect.height() > 0) {
+        const QRectF r = rect.intersected(QRectF(-kCoordinateLimit, -kCoordinateLimit, 2 * kCoordinateLimit, 2 * kCoordinateLimit));
+        room->m_points << r.topLeft() << r.topRight() << r.bottomRight() << r.bottomLeft();
+        room->m_pieces << Piece{0, 4, r.top(), r.bottom()};
+        room->m_ring = room->m_points;
+        room->m_ringEnds << 4;
+    }
+    room->finish();
+    ++g_roomsMade;
+    return room;
+}
+
+void WrapRoom::finish()
+{
+    double l = 1e300, t = 1e300, r = -1e300, b = -1e300, sum = 0;
+    for (const QPointF &p : m_points) {
+        l = std::min(l, p.x()); r = std::max(r, p.x());
+        t = std::min(t, p.y()); b = std::max(b, p.y());
+        sum += p.x() * 1.7 + p.y();
+    }
+    m_bounds = m_points.isEmpty() ? QRectF() : QRectF(QPointF(l, t), QPointF(r, b));
+    m_signature = sum + m_points.size();
+}
+
+std::shared_ptr<const WrapRoom> WrapRoom::around(const QPainterPath &outline, double distance, WrapBudget &budget)
+{
+    if (outline.elementCount() > kMostWrapPathElements) {
+        const QRectF box = outline.controlPointRect();
+        const double d = boundedWrapDistance(distance);
+        if (budget.shapes <= 0) return nullptr;
+        --budget.shapes;
+        return ofRect(box.adjusted(-d, -d, d, d));
+    }
+    // (Charged what flattening costs, before it is done.)
+    if (budget.work < outline.elementCount()) return nullptr;
+    const QList<QPolygonF> rings = outline.toSubpathPolygons(QTransform());
+    budget.work -= outline.elementCount();
+    return around(rings, distance, budget);
+}
+
+std::shared_ptr<const WrapRoom> WrapRoom::around(const QList<QPolygonF> &rawRings, double distance, WrapBudget &budget, bool open, double halfWidth)
+{
+    if (budget.shapes <= 0) return nullptr;
+    const double d = boundedWrapDistance(distance) + (std::isfinite(halfWidth) ? std::clamp(halfWidth, 0.0, kMostWrapDistance) : 0.0);
+    QList<QPolygonF> rings;
+    qint64 points = 0;
+    // (A ring of more than the cap's points is read in bands: its work is its points, so a budget that has less left does not read it.)
+    for (const QPolygonF &raw : rawRings) {
+        points += raw.size();
+        if (points > budget.work) return nullptr;
+        QPolygonF ring = cleanRing(raw, !open);
+        if (ring.size() >= (open ? 2 : 3)) rings << ring;
+    }
     qint64 total = 0;
-    for (const QPolygonF &r : rings) total += r.size();
-    auto fromRings = [&](const QList<QPolygonF> &rs) {
-        QPainterPath out;
-        out.setFillRule(Qt::WindingFill);
-        for (const QPolygonF &r : rs) out.addPolygon(r), out.closeSubpath();
-        return out;
+    for (const QPolygonF &ring : rings) total += ring.size();
+    budget.work -= points;
+    --budget.shapes;
+    std::shared_ptr<WrapRoom> room(new WrapRoom);
+    ++g_roomsMade;
+    g_roomWork += points;
+    auto addPiece = [&](std::initializer_list<QPointF> corners) {
+        Piece piece{int(room->m_points.size()), int(corners.size()), 1e300, -1e300};
+        for (const QPointF &c : corners) {
+            room->m_points << c;
+            piece.top = std::min(piece.top, c.y());
+            piece.bottom = std::max(piece.bottom, c.y());
+        }
+        room->m_pieces << piece;
     };
-    // (The longest run the simplifier is given is bounded first: a point close to the one kept before it is dropped, which costs one step each.)
-    const double tol0 = std::max(diag * kWrapSimplifyShare, 0.02);
-    QList<QPolygonF> thin;
-    qint64 thinTotal = 0;
-    for (const QPolygonF &r : rings) {
-        QPolygonF t;
-        for (const QPointF &p : r) {
-            if (!std::isfinite(p.x()) || !std::isfinite(p.y())) continue;
-            if (t.isEmpty() || std::hypot(p.x() - t.last().x(), p.y() - t.last().y()) >= tol0 * 0.5) t << p;
-        }
-        if (t.size() >= 3) { thin << t; thinTotal += t.size(); }
-    }
-    if (thin.isEmpty()) return QPainterPath();
-    if (thinTotal <= kMostWrapSimplifyInput) {
-        for (double tol = tol0; tol <= diag; tol *= 1.6) {
-            QList<QPolygonF> out;
-            qint64 n = 0;
-            for (const QPolygonF &r : thin) {
-                QPolygonF closed = r;
-                closed << r.first();
-                QVector<bool> keep(closed.size(), false);
-                keep.first() = keep.last() = true;
-                simplifyRunFlat(closed, tol, keep);
-                QPolygonF o;
-                for (int i = 0; i + 1 < closed.size(); ++i)
-                    if (keep[i]) o << closed[i];
-                if (o.size() >= 3) { out << o; n += o.size(); }
+    if (total > kMostWrapOutlineSegments) {
+        // The outline's extent in each of kWrapProfileBands bands from its top to its bottom, the band's rectangle and the distance round it: the work is its points, not the shapes' tangle.
+        double top = 1e300, bottom = -1e300;
+        for (const QPolygonF &ring : rings)
+            for (const QPointF &p : ring) { top = std::min(top, p.y()); bottom = std::max(bottom, p.y()); }
+        const double height = std::max(bottom - top, 1e-6), step = height / kWrapProfileBands;
+        QVector<double> lefts(kWrapProfileBands, 1e300), rights(kWrapProfileBands, -1e300);
+        for (const QPolygonF &ring : rings) {
+            const int n = int(ring.size());
+            for (int i = 0; i < n; ++i) {
+                const QPointF a = ring[i], b = ring[(i + 1) % n];
+                if (open && i + 1 == n) break;
+                const int b0 = std::clamp(int((std::min(a.y(), b.y()) - top) / step), 0, kWrapProfileBands - 1);
+                const int b1 = std::clamp(int((std::max(a.y(), b.y()) - top) / step), 0, kWrapProfileBands - 1);
+                // (A segment that crosses many bands is clipped to each: the work is bounded by the bands, and one segment crosses at most all of them.)
+                for (int k = b0; k <= b1; ++k) widen(a.x(), a.y(), b.x(), b.y(), top + k * step, top + (k + 1) * step, lefts[k], rights[k]);
             }
-            if (n <= kMostWrapPathElements) return out.isEmpty() ? QPainterPath() : fromRings(out);
         }
+        for (int k = 0; k < kWrapProfileBands; ++k) {
+            if (lefts[k] > rights[k]) continue;
+            const double y0 = top + k * step - d, y1 = top + (k + 1) * step + d;
+            addPiece({QPointF(lefts[k] - d, y0), QPointF(rights[k] + d, y0), QPointF(rights[k] + d, y1), QPointF(lefts[k] - d, y1)});
+        }
+        g_roomWork += room->m_points.size();
+        budget.work -= room->m_points.size();
+    } else {
+        for (const QPolygonF &ring : rings) {
+            const int n = int(ring.size());
+            if (!open) {
+                for (const QPointF &p : ring) room->m_ring << p;
+                room->m_ringEnds << int(room->m_ring.size());
+            }
+            // (A segment's piece for the band round it, with a wedge at each corner on the side the turn opens to, as a stroke with bevel joins is made.)
+            const int segments = open ? n - 1 : n;
+            auto normalOf = [&](int i) { const QPointF a = ring[i], b = ring[(i + 1) % n]; const double len = std::hypot(b.x() - a.x(), b.y() - a.y()); return QPointF((b.y() - a.y()) / len, -(b.x() - a.x()) / len); };
+            if (!(d > 0)) {
+                if (open) continue;
+                for (int i = 0; i < segments; ++i) addPiece({ring[i], ring[(i + 1) % n]});
+                continue;
+            }
+            for (int i = 0; i < segments; ++i) {
+                const QPointF a = ring[i], b = ring[(i + 1) % n], nm = normalOf(i) * d;
+                addPiece({a + nm, b + nm, b - nm, a - nm});
+                const bool hasNext = open ? i + 1 < segments : true;
+                if (!hasNext) continue;
+                const int j = (i + 1) % n;
+                const QPointF c = ring[(j + 1) % n];
+                const QPointF d1 = b - a, d2 = c - b;
+                const double turn = d1.x() * d2.y() - d1.y() * d2.x();
+                if (turn == 0) continue;
+                const QPointF n1 = normalOf(i) * (turn > 0 ? d : -d), n2 = normalOf(j) * (turn > 0 ? d : -d);
+                addPiece({b, b + n1, b + n2});
+            }
+            if (open) {
+                // (The ends of a line are squared, as the stroker's are.)
+                const QPointF a = ring.first(), b = ring.last();
+                const QPointF u = normalOf(0), v = normalOf(n - 2);
+                const QPointF ta(-u.y(), u.x()), tb(v.y(), -v.x());
+                if (d > 0) {
+                    addPiece({a - ta * d + u * d, a + u * d, a - u * d, a - ta * d - u * d});
+                    addPiece({b - tb * d + v * d, b + v * d, b - v * d, b - tb * d - v * d});
+                }
+            }
+        }
+        g_roomWork += room->m_points.size();
+        budget.work -= room->m_points.size();
     }
-    // (Too many points to keep the shape in the budget: the convex hull, and a rectangle when that has too many.)
-    QPolygonF all;
-    for (const QPolygonF &r : thin) all += r;
-    QPolygonF hull = hullOf(all);
-    if (hull.size() >= 3 && hull.size() <= kMostWrapPathElements) return fromRings({hull});
-    QPainterPath rect;
-    rect.addRect(box);
-    return rect;
+    room->finish();
+    return room;
 }
 
-QPainterPath wrapRoomAround(const QPainterPath &outline, double distance)
+bool WrapRoom::spans(double y0, double y1, double *left, double *right) const
 {
-    // (Filled by winding, so that the middle of a star is inside it as the stroke's band is: odd-even leaves it a hole.)
-    QPainterPath solid = wrapPathBounded(outline);
-    solid.setFillRule(Qt::WindingFill);
-    distance = boundedWrapDistance(distance);
-    ++g_clipperCalls;
-    g_clipperElements += solid.elementCount();
-    if (!(distance > 0)) return solid.simplified();
-    QPainterPathStroker st;
-    st.setWidth(distance * 2);
-    return solid.united(st.createStroke(solid));
+    if (m_pieces.isEmpty() || !(y1 > y0) || m_bounds.bottom() <= y0 || m_bounds.top() >= y1) return false;
+    const qint64 cost = m_pieces.size();
+    if (m_queryWork.fetch_add(cost) + cost > kMostWrapRoomQueryWork) {
+        // (Asked for more than a room's share: its bounds answer.)
+        *left = m_bounds.left();
+        *right = m_bounds.right();
+        return true;
+    }
+    double l = 1e300, r = -1e300;
+    for (const Piece &piece : m_pieces) {
+        if (piece.bottom <= y0 || piece.top >= y1) continue;
+        const QPointF *c = m_points.constData() + piece.first;
+        if (piece.count == 2) { widen(c[0].x(), c[0].y(), c[1].x(), c[1].y(), y0, y1, l, r); continue; }
+        for (int i = 0; i < piece.count; ++i) widen(c[i].x(), c[i].y(), c[(i + 1) % piece.count].x(), c[(i + 1) % piece.count].y(), y0, y1, l, r);
+    }
+    if (l > r) return false;
+    *left = l;
+    *right = r;
+    return true;
 }
 
-qint64 wrapClipperCallsForTest() { return g_clipperCalls.load(); }
-qint64 wrapClipperElementsForTest() { return g_clipperElements.load(); }
+bool WrapRoom::covers(const QRectF &rect) const
+{
+    if (m_pieces.isEmpty() || !rect.isValid() || !(rect.width() > 0) || !(rect.height() > 0) || !m_bounds.adjusted(-0.01, -0.01, 0.01, 0.01).contains(rect)) return false;
+    constexpr int rows = 17;
+    const double inset = std::min(0.01, rect.height() / 4);
+    for (int k = 0; k < rows; ++k) {
+        const double y = rect.top() + inset + (rect.height() - 2 * inset) * k / (rows - 1);
+        QVector<QPair<double, double>> cover;
+        for (const Piece &piece : m_pieces) {
+            if (piece.bottom < y || piece.top > y || piece.count < 3) continue;
+            double l = 1e300, r = -1e300;
+            const QPointF *c = m_points.constData() + piece.first;
+            for (int i = 0; i < piece.count; ++i) widen(c[i].x(), c[i].y(), c[(i + 1) % piece.count].x(), c[(i + 1) % piece.count].y(), y, y, l, r);
+            if (l <= r) cover << qMakePair(l, r);
+        }
+        // (The rings are filled by winding: the crossings of the line, left to right, give the intervals where the count is not 0.)
+        int start = 0;
+        for (int end : m_ringEnds) {
+            QVector<QPair<double, int>> crossings;
+            const int n = end - start;
+            for (int i = 0; i < n; ++i) {
+                const QPointF a = m_ring[start + i], b = m_ring[start + (i + 1) % n];
+                if ((a.y() <= y && b.y() > y) || (b.y() <= y && a.y() > y)) crossings << qMakePair(a.x() + (y - a.y()) * (b.x() - a.x()) / (b.y() - a.y()), a.y() < b.y() ? 1 : -1);
+            }
+            std::sort(crossings.begin(), crossings.end());
+            int wind = 0;
+            for (int i = 0; i < crossings.size(); ++i) {
+                const int before = wind;
+                wind += crossings[i].second;
+                if (before == 0 && wind != 0) {
+                    int j = i + 1, w2 = wind;
+                    for (; j < crossings.size(); ++j) { w2 += crossings[j].second; if (w2 == 0) break; }
+                    if (j < crossings.size()) cover << qMakePair(crossings[i].first, crossings[j].first);
+                }
+            }
+            start = end;
+        }
+        std::sort(cover.begin(), cover.end());
+        double reached = rect.left();
+        for (const auto &iv : cover) {
+            if (iv.first > reached + 0.01) break;
+            reached = std::max(reached, iv.second);
+        }
+        if (reached < rect.right() - 0.01) return false;
+    }
+    return true;
+}
+
+std::shared_ptr<const WrapRoom> WrapRoom::mapped(const QTransform &matrix) const
+{
+    std::shared_ptr<WrapRoom> room(new WrapRoom);
+    room->m_points.reserve(m_points.size());
+    for (const QPointF &p : m_points) room->m_points << held(matrix.map(p));
+    room->m_ring.reserve(m_ring.size());
+    for (const QPointF &p : m_ring) room->m_ring << held(matrix.map(p));
+    room->m_ringEnds = m_ringEnds;
+    for (const Piece &piece : m_pieces) {
+        Piece q{piece.first, piece.count, 1e300, -1e300};
+        for (int i = 0; i < piece.count; ++i) {
+            q.top = std::min(q.top, room->m_points[piece.first + i].y());
+            q.bottom = std::max(q.bottom, room->m_points[piece.first + i].y());
+        }
+        room->m_pieces << q;
+    }
+    room->finish();
+    return room;
+}
+
+qint64 WrapRoom::madeForTest() { return g_roomsMade.load(); }
+qint64 WrapRoom::workForTest() { return g_roomWork.load(); }
+
+namespace {
+// The span of a polygon (filled, closed) within the band: the extent of its edges there. A polygon with no area has none.
+bool polygonSpan(const QPolygonF &poly, double y0, double y1, double *left, double *right)
+{
+    const QRectF pb = poly.boundingRect();
+    if (poly.size() < 3 || !(pb.width() > 0) || !(pb.height() > 0) || pb.bottom() <= y0 || pb.top() >= y1) return false;
+    double l = 1e300, r = -1e300;
+    const int n = int(poly.size());
+    for (int i = 0; i < n; ++i) widen(poly[i].x(), poly[i].y(), poly[(i + 1) % n].x(), poly[(i + 1) % n].y(), y0, y1, l, r);
+    if (l > r) return false;
+    *left = l;
+    *right = r;
+    return true;
+}
+} // namespace
+
+QRectF WrapObstacle::boundingRect() const
+{
+    QRectF r = room ? room->bounds().translated(shift) : poly.boundingRect();
+    if (room && !wall.isEmpty()) r = r.united(wall.boundingRect());
+    return r;
+}
+
+void WrapObstacle::translate(double dx, double dy)
+{
+    poly.translate(dx, dy);
+    shift += QPointF(dx, dy);
+    wall.translate(dx, dy);
+}
+
+bool WrapObstacle::spans(double y0, double y1, double *left, double *right) const
+{
+    double l = 1e300, r = -1e300, a, b;
+    if (room) {
+        if (room->spans(y0 - shift.y(), y1 - shift.y(), &a, &b)) { l = a + shift.x(); r = b + shift.x(); }
+        if (polygonSpan(wall, y0, y1, &a, &b)) { l = std::min(l, a); r = std::max(r, b); }
+    } else if (polygonSpan(poly, y0, y1, &a, &b)) {
+        l = a;
+        r = b;
+    }
+    if (l > r) return false;
+    *left = l;
+    *right = r;
+    return true;
+}
+
+bool WrapObstacle::isPlain() const
+{
+    if (room) return false;
+    const QRectF pb = poly.boundingRect();
+    return poly.size() <= 5 && std::all_of(poly.cbegin(), poly.cend(), [&](const QPointF &pt) {
+        return (std::abs(pt.x() - pb.left()) < 1e-6 || std::abs(pt.x() - pb.right()) < 1e-6) && (std::abs(pt.y() - pb.top()) < 1e-6 || std::abs(pt.y() - pb.bottom()) < 1e-6);
+    });
+}
+
+double WrapObstacle::signature() const
+{
+    double sum = 0, wallSum = 0;
+    for (const QPointF &pt : wall) wallSum += pt.x() * 1.3 + pt.y() * 0.3;
+    if (room) sum = room->signature() + shift.x() * 3.1 + shift.y() * 0.7 + wallSum;
+    else for (const QPointF &pt : poly) sum += pt.x() * 1.7 + pt.y();
+    return sum;
+}
 
 QPolygonF wrapOutlineMoved(const QPolygonF &outline, int index, const QPointF &to)
 {
