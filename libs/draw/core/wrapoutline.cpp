@@ -429,7 +429,8 @@ void WrapRoom::buildRows() const
         const QPointF *c = m_points.constData() + piece.first;
         for (int i = 0; i < piece.count; ++i) {
             const QPointF a = c[i], b = c[(i + 1) % piece.count];
-            const int r0 = std::clamp(int((std::min(a.y(), b.y()) - m_bounds.top()) / m_rowStep), 0, rows - 1), r1 = std::clamp(int((std::max(a.y(), b.y()) - m_bounds.top()) / m_rowStep), 0, rows - 1);
+            const auto rowOf = [&](double y) { return int(std::clamp((y - m_bounds.top()) / m_rowStep, 0.0, double(rows - 1))); };
+            const int r0 = rowOf(std::min(a.y(), b.y())), r1 = rowOf(std::max(a.y(), b.y()));
             for (int k = r0; k <= r1; ++k) {
                 const double y0 = m_bounds.top() + k * m_rowStep;
                 widen(a.x(), a.y(), b.x(), b.y(), y0, y0 + m_rowStep, m_rowLeft[k], m_rowRight[k]);
@@ -444,7 +445,9 @@ bool WrapRoom::rowSpans(double y0, double y1, double *left, double *right) const
     const int rows = int(m_rowLeft.size());
     m_queryWork.fetch_add(1);
     ++t_queryWork;
-    const int k0 = std::clamp(int(std::floor((y0 - m_bounds.top()) / m_rowStep)), 0, rows - 1), k1 = std::clamp(int(std::ceil((y1 - m_bounds.top()) / m_rowStep)) - 1, 0, rows - 1);
+    // (Clamped as numbers before they are ints: a band far from a room of a tiny step is a row number no int holds.)
+    auto rowOf = [&](double v) { return int(std::clamp(v, 0.0, double(rows - 1))); };
+    const int k0 = rowOf(std::floor((y0 - m_bounds.top()) / m_rowStep)), k1 = rowOf(std::ceil((y1 - m_bounds.top()) / m_rowStep) - 1);
     double l = 1e300, r = -1e300;
     for (int k = k0; k <= k1; ++k) { l = std::min(l, m_rowLeft[k]); r = std::max(r, m_rowRight[k]); }
     if (l > r) return false;

@@ -3413,6 +3413,22 @@ private Q_SLOTS:
         QVERIFY2(flattened >= 1 && flattened <= 2, qPrintable(QString::number(flattened)));
     }
 
+    // A room of more than 64 pieces and almost no height has rows of a tiny step: a band far below its top is a row number past what an int holds, which must clamp (as a number) to the
+    // last row. Fails when the row is cast to int first: no (the cast is undefined, but x86 and ARM happen to land on the right row; this pins the answer, and a sanitizer build catches the cast).
+    void aTinyBusyRoomAnswersABandFarBelowIt()
+    {
+        QPolygonF zig;
+        for (int i = 0; i < 100; ++i) zig << QPointF(i % 2 ? 100 : 0, i * 1e-10);
+        jp::WrapBudget budget = jp::WrapBudget::forCall();
+        const auto room = jp::WrapRoom::around(QList<QPolygonF>{zig}, 0, budget);
+        QVERIFY(room);
+        QVERIFY(room->segments() > 64);
+        double l = 0, r = 0;
+        QVERIFY(room->spans(5e-9, 1e7, &l, &r));
+        QVERIFY(l <= 0 + 1e-6 && r >= 100 - 1e-6);
+        QVERIFY(room->spans(-1e7, 5e-9, &l, &r));
+    }
+
     // Moving, adding, and taking away a point of an outline: a point is added only on an edge, never past the most, and an outline keeps three.
     void aWrapOutlineIsEditedAPointAtATime()
     {
