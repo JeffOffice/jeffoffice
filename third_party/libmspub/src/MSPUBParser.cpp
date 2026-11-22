@@ -1878,7 +1878,7 @@ ParagraphStyle MSPUBParser::getParagraphStyle(librevenge::RVNGInputStream *input
               // JeffPub: 00 position, 01 alignment (low byte), 02 the
               // leader character (absent for none); read them all.
               input->seek(tabEntryInfo.dataOffset + 4, librevenge::RVNG_SEEK_SET);
-              unsigned position = 0;
+              int position = 0;   // JeffPub: signed (a stop left of the frame's edge is stored negative)
               int align = 0, leader = 0;
               bool hasPosition = false;
               while (stillReading(input, tabEntryInfo.dataOffset + tabEntryInfo.dataLength))
@@ -1887,7 +1887,7 @@ ParagraphStyle MSPUBParser::getParagraphStyle(librevenge::RVNGInputStream *input
                 if (jpTraceOn()) fprintf(stderr, "TABFIELD id=0x%x type=0x%x data=%u\n", tabInfo.id, tabInfo.type, tabInfo.data);
                 if (tabInfo.id == TAB_AMOUNT)
                 {
-                  position = tabInfo.data;
+                  position = (int)tabInfo.data;   // JeffPub: signed
                   hasPosition = true;
                 }
                 else if (tabInfo.id == 0x01)

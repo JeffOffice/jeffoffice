@@ -3745,6 +3745,41 @@ private Q_SLOTS:
         ed->endTextEdit();
     }
 
+    // A negative tab stop (a file stores one about half an inch left of the frame) is read with its sign, not as a stop thousands of inches away, and is dropped.
+    void aNegativeTabStopIsNotAStopFarAway()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        jp::MainWindow w;
+        w.resize(1200, 900);
+        w.show();
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        auto box = std::make_shared<jp::TextItem>();
+        box->rect = QRectF(72, 72, 300, 200);
+        box->storyId = doc->createStory();
+        QTextCursor c(doc->storyDoc(box->storyId));
+        c.select(QTextCursor::Document);
+        c.removeSelectedText();
+        QTextBlockFormat bf;
+        bf.setTabPositions({QTextOption::Tab(-36, QTextOption::LeftTab), QTextOption::Tab(72, QTextOption::LeftTab)});
+        c.setBlockFormat(bf);
+        c.insertText(QStringLiteral("a\tb"));
+        doc->pages[0]->items.push_back(box);
+        w.editor()->setDocument(std::move(doc));
+        const QString path = dir.filePath(QStringLiteral("tabs.pub"));
+        QVERIFY(w.saveTo(path));
+        jp::MainWindow again;
+        QVERIFY(again.openFile(path));
+        QTextDocument *bd = nullptr;
+        jp::walkItems(again.editor()->doc()->pages[0]->items, [&](const jp::ItemPtr &it) {
+            if (it->type() == jp::ItemType::Text) bd = again.editor()->doc()->storyDoc(static_cast<jp::TextItem *>(it.get())->storyId);
+        });
+        QVERIFY(bd);
+        const auto tabs = bd->begin().blockFormat().tabPositions();
+        QCOMPARE(int(tabs.size()), 1);
+        QVERIFY2(std::abs(tabs[0].position - 72) < 0.1, qPrintable(QString::number(tabs[0].position)));
+    }
+
     // A text box's hyphenation zone is kept in a .pub file with its story's
     // hyphenation setting, in every box of a linked chain.
     void pubTextBoxHyphenationZoneKept()

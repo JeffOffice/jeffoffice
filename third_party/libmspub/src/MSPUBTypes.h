@@ -187,7 +187,7 @@ struct ParagraphStyle
   boost::optional<int> m_leftIndentEmu;   // JeffPub: signed, a hanging paragraph stores a negative one
   boost::optional<int> m_rightIndentEmu;
   boost::optional<ListInfo> m_listInfo;
-  std::vector<unsigned> m_tabStopsInEmu;
+  std::vector<int> m_tabStopsInEmu;   // JeffPub: signed
   // JeffPub: each tab's alignment (0 left, 1 right, 2 center, 3 decimal),
   // and the list as Publisher stores it: kind (23 bullet, else a numbering
   // style), bullet character, and number punctuation (high half of 0x58).

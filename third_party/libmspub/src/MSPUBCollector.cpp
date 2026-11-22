@@ -2166,6 +2166,7 @@ librevenge::RVNGPropertyList MSPUBCollector::getParaStyleProps(const ParagraphSt
     librevenge::RVNGPropertyListVector tabs;
     for (size_t i = 0; i < style.m_tabStopsInEmu.size(); ++i)
     {
+      if (style.m_tabStopsInEmu[i] < 0) continue;   // JeffPub: a stop left of the frame's edge is none
       librevenge::RVNGPropertyList tab;
       tab.insert("style:position", double(style.m_tabStopsInEmu[i]) / EMUS_IN_INCH);
       const int a = i < style.m_tabAligns.size() ? style.m_tabAligns[i] : 0;
