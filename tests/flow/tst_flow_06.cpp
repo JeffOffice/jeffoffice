@@ -374,11 +374,33 @@ void FlowTests::aTableRuleInAPictureIsWholePixels()
 }
 
 
+// The same at a device pixel ratio that is not 1 (a display scaled to 125, 150, or 200 percent): a rule is whole DEVICE pixels, as thick as its width in device pixels
+// rounded (never under 1), and the same for every rule.
+void FlowTests::aTableRuleInAPictureIsWholeDevicePixelsAtAnyRatio()
+{
+    // (First that no rule is gray at any ratio, then how thick each is.)
+    for (double ratio : {1.0, 1.25, 1.5, 2.0}) {
+        RulesPicture pic;
+        QVERIFY(pic.paint(ratio, 4.0 / 3, 0));
+        QVERIFY2(pic.across.gray + pic.down.gray == 0, qPrintable(QStringLiteral("ratio %1: %2 pixels of gray").arg(ratio).arg(pic.across.gray + pic.down.gray)));
+    }
+    for (double ratio : {1.0, 1.25, 1.5, 2.0}) {
+        RulesPicture pic;
+        QVERIFY(pic.paint(ratio, 4.0 / 3, 0));
+        const int thick = std::max(1, int(std::floor(ratio * 4.0 / 3 + 0.5)));
+        for (const RuleRuns &r : {pic.across, pic.down}) {
+            QVERIFY2(r.lengths.size() == 4, qPrintable(QStringLiteral("ratio %1: %2 rules").arg(ratio).arg(r.lengths.size())));
+            for (int length : r.lengths) QVERIFY2(length == thick, qPrintable(QStringLiteral("ratio %1: a rule %2 pixels thick, not %3").arg(ratio).arg(length).arg(thick)));
+        }
+    }
+}
+
+
 // A rule's thickness comes from its width alone, never from where it falls: equal rules are equally thick at any zoom and any fractional scroll position, and the rules
 // of neighboring cells neither leave a gap nor double up.
 void FlowTests::equalTableRulesAreEquallyThickAtAnyZoomAndOffset()
 {
-    for (double ratio : {1.0})
+    for (double ratio : {1.0, 2.0})
         for (double scale : {0.9, 1.1, 1.25, 4.0 / 3})
             for (double offset : {0.0, 0.25, 0.5, 0.75}) {
                 const QString where = QStringLiteral("ratio %1 zoom %2 offset %3: ").arg(ratio).arg(scale).arg(offset);

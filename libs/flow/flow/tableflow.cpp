@@ -1312,8 +1312,9 @@ std::vector<EdgePart> edgeParts(TableLayout &t, int index, bool top)
 // nearest pixel line, and a rule is never under a pixel wide), not a smear over the two pixels it straddles. False where the picture is turned or slanted.
 bool strokeWholePixels(QPainter *p, const TableLine &line, QPointF a, QPointF b)
 {
-    const QTransform t = p->transform();
-    if (t != p->deviceTransform() || std::abs(t.m12()) > 1e-9 || std::abs(t.m21()) > 1e-9 || t.m11() <= 0 || t.m22() <= 0) return false;
+    // (In device pixels at any device pixel ratio: the logical coordinates go through the painter's own device transform, and the rectangle is filled with that scale taken off again.)
+    const QTransform t = p->deviceTransform(), toDevice = p->transform().inverted() * t;
+    if (!toDevice.isInvertible() || std::abs(t.m12()) > 1e-9 || std::abs(t.m21()) > 1e-9 || t.m11() <= 0 || t.m22() <= 0) return false;
     if (line.style != TableLine::Style::Single) return false;
     const bool horizontal = std::abs(a.y() - b.y()) < 1e-9, vertical = std::abs(a.x() - b.x()) < 1e-9;
     if (horizontal == vertical) return false;
@@ -1336,7 +1337,7 @@ bool strokeWholePixels(QPainter *p, const TableLine &line, QPointF a, QPointF b)
     const auto along = horizontal ? snap(std::min(da.x(), db.x()) - reach, std::max(da.x(), db.x()) + reach) : snap(std::min(da.y(), db.y()) - reach, std::max(da.y(), db.y()) + reach);
     const QRect box = horizontal ? QRect(QPoint(along.first, across.first), QPoint(along.second - 1, across.second - 1)) : QRect(QPoint(across.first, along.first), QPoint(across.second - 1, along.second - 1));
     p->save();
-    p->resetTransform();
+    p->setWorldTransform(toDevice.inverted());
     p->setRenderHint(QPainter::Antialiasing, false);
     p->fillRect(box, line.color.isValid() ? line.color : QColor(Qt::black));
     p->restore();
