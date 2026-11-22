@@ -609,7 +609,7 @@ private Q_SLOTS:
         QCOMPARE(odMiddleOf(odPaletteEmf(odEmfCreatePalette(1, three) + odEmfSelectPalette(2), 0x01000001)), QColor(1, 0, 0));   // no such palette
     }
 
-    // Records that change a palette after it is made, in the enhanced form: set entries (and animate, treated alike), and resize. Entries past
+    // Records that change a palette after it is made, in the enhanced form: set entries and resize. Entries past
     // the palette's end are not written, a count beyond the record reads what the record holds, and a palette made larger is black in its new
     // entries. Fails when off: yes (each color then stays what it was made).
     void metafileEnhancedPaletteChanges()
@@ -617,7 +617,8 @@ private Q_SLOTS:
         const QVector<QRgb> three{qRgb(255, 0, 0), qRgb(0, 255, 0), qRgb(0, 0, 255)};
         const QByteArray made = odEmfCreatePalette(1, three) + odEmfSelectPalette(1);
         QCOMPARE(odMiddleOf(odPaletteEmf(made + odEmfPaletteEntries(50, 1, 1, {qRgb(9, 8, 7)}), 0x01000001)), QColor(9, 8, 7));
-        QCOMPARE(odMiddleOf(odPaletteEmf(made + odEmfPaletteEntries(78, 1, 2, {qRgb(1, 2, 3)}), 0x01000002)), QColor(1, 2, 3));
+        // record 78 is a bit-block transfer, not a palette record: it changes nothing here
+        QCOMPARE(odMiddleOf(odPaletteEmf(made + odEmfPaletteEntries(78, 1, 2, {qRgb(1, 2, 3)}), 0x01000002)), QColor(0, 0, 255));
         // entries run from the start given; the one past the end is not written (the palette does not grow)
         QCOMPARE(odMiddleOf(odPaletteEmf(made + odEmfPaletteEntries(50, 1, 2, {qRgb(5, 5, 5), qRgb(6, 6, 6)}), 0x01000003)), QColor(3, 0, 0));
         QCOMPARE(odMiddleOf(odPaletteEmf(made + odEmfPaletteEntries(50, 1, 2, {qRgb(5, 5, 5), qRgb(6, 6, 6)}), 0x01000002)), QColor(5, 5, 5));

@@ -900,7 +900,7 @@ private:
             case 40: { const quint32 ih = a.u32(); if (ih < quint32(m_objs.size())) m_objs[ih] = Obj(); break; }
             case 49: { const quint32 ih = a.u32(); Obj o; o.kind = Obj::Other; readPalette(a, o); setSlot(ih, o); break; }
             case 48: { const quint32 ih = a.u32(); if (paletteObj(ih)) m_dc.palette = int(ih); break; }
-            case 50: case 78: {
+            case 50: {
                 const quint32 ih = a.u32(), start = a.u32(), count = a.u32();
                 if (Obj *o = paletteObj(ih)) setPaletteEntries(*o, start, count, a);
                 break;
