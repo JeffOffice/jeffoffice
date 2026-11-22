@@ -209,9 +209,10 @@ Paginator::Run Paginator::layoutPage(int index, const PageStart &st)
     // again until they agree (the paragraph's top an object is set from is where the paragraph would be without it: that is what the engine's `pushed` is for). `moveBefore`:
     // the paragraph that a table set at a place goes over the foot from, as the page is when its walls are settled. `cycle`: where they do not settle, the walls of the layouts
     // that follow one another again and again.
-    const qint64 charged0 = m_wrapCharged, queried0 = jp::WrapRoom::queryWorkOnThread();
+    const qint64 charged0 = m_wrapCharged;
+    m_pageRooms.clear();
     // (The work of the page's layouts so far: the rooms charged to columns and the segments the lines asked, which is what a hostile outline makes dear; ordinary pages count none.)
-    auto workDone = [&] { return (m_wrapCharged - charged0) + (jp::WrapRoom::queryWorkOnThread() - queried0); };
+    auto workDone = [&] { return (m_wrapCharged - charged0) + [&] { qint64 q = 0; for (const auto &r : m_pageRooms) q += r.first->queryWork() - r.second; return q; }(); };
     struct Worst { Paginator *p; std::function<qint64()> w; ~Worst() { p->m_worstPageWork = std::max(p->m_worstPageWork, w()); } } worst{this, workDone};
     auto settle = [&](Run &run, QVector<Wrapped> &used, int cutAt, int *moveBefore, QVector<QVector<Wrapped>> *cycle) {
         QVector<QVector<Wrapped>> seen;

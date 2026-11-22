@@ -89,8 +89,6 @@ public:
     // How many rooms were made, and the work they were charged, since the program began (counted, for tests).
     static qint64 madeForTest();
     static qint64 workForTest();
-    // The segment tests every room has answered on this thread, since it began (a page's layouts are one thread's: the difference over a page is the work of its questions).
-    static qint64 queryWorkOnThread();
 
 private:
     struct Piece { int first, count; double top, bottom; };

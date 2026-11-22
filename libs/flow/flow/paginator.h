@@ -23,6 +23,7 @@
 #include <deque>
 #include <map>
 #include <memory>
+#include <vector>
 #include <tuple>
 
 namespace jp::flow {
@@ -617,6 +618,7 @@ private:
     qint64 m_laidOut = 0;
     qint64 m_passes = 0;
     qint64 m_worstPageWork = 0;
+    mutable std::vector<std::pair<std::shared_ptr<const jp::WrapRoom>, qint64>> m_pageRooms;   // the rooms the page being laid out has had, with the segment tests each had answered by then
     mutable qint64 m_wrapCharged = 0;   // the work rooms were charged to columns' budgets, in all
     qint64 m_headerFramesMade = 0, m_headerReachesMade = 0;
     qint64 m_charsCopied = 0;

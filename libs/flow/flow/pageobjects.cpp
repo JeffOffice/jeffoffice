@@ -256,6 +256,8 @@ std::shared_ptr<const jp::WrapRoom> Paginator::wrapOutlineRoom(const FloatingObj
     --budget.shapes;
     budget.work -= made.work;
     m_wrapCharged += made.work + 1;
+    const bool known = std::any_of(m_pageRooms.begin(), m_pageRooms.end(), [&](const auto &r) { return r.first == made.room; });
+    if (!known) m_pageRooms.emplace_back(made.room, made.room->queryWork());
     return made.room;
 }
 
