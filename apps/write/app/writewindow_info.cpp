@@ -261,8 +261,9 @@ jp::CompatHost WriteWindow::compatHost()
         QStringList kept;
         QString err;
         if (m_doc->toRtf(&err, &kept).isEmpty()) return done(CompatAnswer::failed(err));
-        if (m_fileProtected) kept << tr("The password.");
-        done(kept);
+        CompatAnswer answer(kept);
+        if (m_fileProtected) answer.cannotSave = tr("This document is protected with a password, and a .rtf file can't hold one. Save it as a .docx file, or remove the password first (File > Info).");
+        done(answer);
     }});
     host.formats.push_back({tr("Plain text (.txt)"), QStringLiteral(".txt"), QStringLiteral(".docx"), what, [this](const CompatDone &done) {
         QStringList kept;
@@ -276,7 +277,9 @@ jp::CompatHost WriteWindow::compatHost()
             kept << tr("Bookmarks, and links to them or to web pages (the words stay).");
             kept << tr("Tracked changes and content controls (the words stay).");
         }
-        done(kept);
+        CompatAnswer answer(kept);
+        if (m_fileProtected) answer.cannotSave = tr("This document is protected with a password, and a plain text file can't hold one. Save it as a .docx file, or remove the password first (File > Info).");
+        done(answer);
     }});
     return host;
 }

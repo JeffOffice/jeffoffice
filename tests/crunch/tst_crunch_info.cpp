@@ -387,6 +387,28 @@ private Q_SLOTS:
         QCOMPARE(box.reportText().count(QLatin1String("Cut or changed to fit")), jp::kMaxLossNotes);
     }
 
+    // A workbook with a password is written to a .csv file in the clear: the list says so, and the save asks with the same words before writing.
+    void aPasswordIsListedForCsvAndTheSaveSaysTheSame()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        QVERIFY(!e.win.w.csvFound().join(QLatin1Char('|')).contains(QLatin1String("The password")));
+        e.win.w.anchorHooks().setFilePasswordAsker = [](SetFilePasswordRequest *r) {
+            r->password = QStringLiteral("one");
+            r->remove = false;
+            return true;
+        };
+        e.win.w.act(QStringLiteral("protect.password"))->trigger();
+        const QString line = QStringLiteral("The password: the .csv file is written without it, so anyone can read it.");
+        QVERIFY2(e.win.w.csvFound().contains(line), qPrintable(e.win.w.csvFound().join(QLatin1Char('|'))));
+        jp::CompatibilityDialog box(e.win.w.compatHost(), 2, nullptr);
+        QVERIFY(box.reportText().contains(line));
+        e.win.told.clear();
+        e.win.w.exportCsv(e.folder.dir.filePath(QStringLiteral("clear.csv")));
+        QTRY_VERIFY_WITH_TIMEOUT(!e.win.told.isEmpty(), 20000);
+        QVERIFY2(e.win.told.join(QLatin1Char('|')).contains(line), qPrintable(e.win.told.join(QLatin1Char('|'))));
+    }
+
     // A picture of Check Compatibility (JO_SHOT_DIR names the folder; nothing is made without it).
     void shotCheckCompatibility()
     {

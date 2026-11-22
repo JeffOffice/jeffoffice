@@ -881,6 +881,29 @@ private Q_SLOTS:
         QVERIFY(!b.alwaysOpensReadOnly());
     }
 
+    // A password stops an .rtf or a .txt save, and the box says that, in the words of the save's own notice (not as something lost); the .odt kind, which holds one, does not.
+    void checkCompatibilitySaysAPasswordStopsRtfAndTxtAndTheSaveAgrees()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        WriteWindow a;
+        Quiet quiet(a);
+        typeText(*a.document(), a.view()->cursor(), QStringLiteral("Secret words"));
+        protect(a, QStringLiteral("pw"));
+        setNewPasswordStandIn(nullptr);
+        for (int kind = 1; kind <= 2; ++kind) {
+            CompatibilityDialog box(a.compatHost(), kind, nullptr);
+            const QString said = box.reportText();
+            QVERIFY2(said.contains(QLatin1String("protected with a password, and a")) && said.contains(QLatin1String("can't hold one")), qPrintable(said));
+            QVERIFY(!said.contains(QLatin1String("The password.")));
+            quiet.said.clear();
+            QVERIFY(!saveInto(a, dir, kind == 1 ? QStringLiteral("p.rtf") : QStringLiteral("p.txt")));   // (the save refuses, with the same sentence)
+            QVERIFY2(!quiet.said.isEmpty() && said.startsWith(quiet.said.last()), qPrintable(quiet.said.join(QLatin1Char('|'))));
+        }
+        CompatibilityDialog odt(a.compatHost(), 0, nullptr);
+        QVERIFY(!odt.reportText().contains(QLatin1String("can't hold one")));
+    }
+
     // What the lists say and what a save keeps, for every kind the box offers (the table is written to JO_TRUTH_DIR/write-truth.txt when that is set): a document with each thing the
     // lists name and others they don't, saved through the window's own save, opened again, and made into a .docx to look in. A thing that is gone and not listed is a failure.
     void whatEachKindListsIsWhatItsSaveLoses()

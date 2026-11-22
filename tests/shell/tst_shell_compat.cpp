@@ -150,6 +150,26 @@ private Q_SLOTS:
         QVERIFY(!compatReport(host.formats[0], host, CompatAnswer::failed(QStringLiteral("x"))).contains(QLatin1String("can't hold")));
     }
 
+    // A kind that can't be saved at all just now is said as that, never as a loss; a list may follow.
+    void aKindThatCannotBeSavedIsSaidAsThatAndNotAsALoss()
+    {
+        CompatHost host;
+        host.formats << plain(QStringLiteral(".a"), {});
+        CompatAnswer blocked;
+        blocked.cannotSave = QStringLiteral("A .a file can't hold the password.");
+        QCOMPARE(compatReport(host.formats[0], host, blocked), QStringLiteral("A .a file can't hold the password."));
+        blocked.found = QStringList{QStringLiteral("Glows")};
+        const QString both = compatReport(host.formats[0], host, blocked);
+        QVERIFY(both.startsWith(QLatin1String("A .a file can't hold the password.\n\n")) && both.contains(QLatin1String("Glows")));
+        QStringList told;
+        bool warned = false;
+        CompatHost one;
+        one.formats << CompatFormat{QStringLiteral("A"), QStringLiteral(".a"), QStringLiteral(".own"), QStringLiteral("thing"), [blocked](const CompatDone &done) { CompatAnswer b; b.cannotSave = blocked.cannotSave; done(b); }};
+        showCompatibility(nullptr, one, 0, [&](const QString &, const QString &text, bool warn) { told << text; warned = warn; });
+        QCOMPARE(told, QStringList{QStringLiteral("A .a file can't hold the password.")});
+        QVERIFY(warned);
+    }
+
     void aWindowsStandInGetsTheFirstKindsReport()
     {
         CompatHost host;

@@ -112,7 +112,7 @@ bool CrunchWindow::exportCsv(const QString &path, const crunch::CsvWrite *forced
     // (a sheet that was read only in part is written in part: the person is told)
     const bool partial = m_loaded->calc && m_loaded->calc->notWhole().contains(sheetName);
     // (the person is told what the file will not have, naming what this workbook has of it, and may choose how it is written, or save the workbook as .xlsx instead)
-    const QString explanation = crunch::csvExportWarning(sheetName, how.separator, partial, crunch::leftOutOfCsv(*m_loaded->book, m_loaded->calc ? m_loaded->calc->formulaCount() : 0));
+    const QString explanation = crunch::csvExportWarning(sheetName, how.separator, partial, crunch::leftOutOfCsv(*m_loaded->book, m_loaded->calc ? m_loaded->calc->formulaCount() : 0) + csvPasswordNote());
     LossAnswer answer = LossAnswer::Continue;
     if (forced || m_lossAsker) {
         answer = askBeforeLosing(tr("Save"), explanation);

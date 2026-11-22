@@ -177,6 +177,7 @@ public:
     QString alwaysReadOnlyBlocked() const;
     void setAlwaysOpenReadOnly(bool on);
     // Check Compatibility for a .csv file: what the file would leave out of the workbook, said without saving (crunchwindow_info.cpp).
+    QStringList csvPasswordNote() const;   // the line for a workbook with a password (none without one)
     QStringList csvFound() const;    // what a .csv file leaves out, without the file's own choices
     QStringList csvLosses() const;   // the same with them
     int removePersonalInformation();

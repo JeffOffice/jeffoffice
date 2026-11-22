@@ -21,6 +21,7 @@ namespace jp {
 struct CompatAnswer {
     QStringList found;   // what the kind can't hold, one phrase each
     qint64 more = 0;     // how many more lines the app counted but did not keep (its writer bounds its own list)
+    QString cannotSave;  // when not empty: the kind can't be saved at all just now (a password the kind can't hold), said as that and not as something lost; the list may follow
     QString couldNot;    // when not empty: no check was made; why, as a sentence
     CompatAnswer() = default;
     CompatAnswer(const QStringList &list) : found(list) {}

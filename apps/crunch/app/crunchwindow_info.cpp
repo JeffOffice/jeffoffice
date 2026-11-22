@@ -106,12 +106,20 @@ void CrunchWindow::setAlwaysOpenReadOnly(bool on)
     if (m_fileScreen) showFileScreen(QStringLiteral("info"));
 }
 
+// A .csv file is plain text: a workbook protected with a password is written to it in the clear. The save question and the list in Check Compatibility both say so, in these words.
+QStringList CrunchWindow::csvPasswordNote() const
+{
+    if (!hasUserPassword()) return {};
+    return {tr("The password: the .csv file is written without it, so anyone can read it.")};
+}
+
 // What a .csv file leaves out, for the sheet in view: the list the save question gives (the other sheets, the formulas, the pictures and charts, and the rest the workbook has).
 QStringList CrunchWindow::csvFound() const
 {
     QStringList lost;
     if (!m_loaded || !m_loaded->book) return lost;
     lost = crunch::leftOutOfCsv(*m_loaded->book, m_loaded->calc ? m_loaded->calc->formulaCount() : 0);
+    lost << csvPasswordNote();
     if (m_loaded->calc && m_loaded->calc->notWhole().contains(m_loaded->book->info().sheets.value(m_sheet).name))
         lost << tr("The rest of the sheet: it was read only in part, so the file has only the part that was read.");
     return lost;

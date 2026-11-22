@@ -51,7 +51,9 @@ QString compatReport(const CompatFormat &format, const CompatHost &host, const C
 {
     if (!answer.couldNot.isEmpty())
         return QCoreApplication::translate("jp::CompatibilityDialog", "Couldn't check what a %1 file would leave out of this %2, so nothing is said either way. %3").arg(format.format, format.what, answer.couldNot);
-    return lossyReport({QString(), format.what, format.format, format.ownFormat, compatLines(format, host, answer), kCompatMaxLines});
+    const QStringList lines = compatLines(format, host, answer);
+    if (!answer.cannotSave.isEmpty()) return lines.isEmpty() ? answer.cannotSave : answer.cannotSave + QStringLiteral("\n\n") + lossyReport({QString(), format.what, format.format, format.ownFormat, lines, kCompatMaxLines});
+    return lossyReport({QString(), format.what, format.format, format.ownFormat, lines, kCompatMaxLines});
 }
 
 CompatibilityDialog::CompatibilityDialog(const CompatHost &host, int first, QWidget *parent) : QDialog(parent), m_host(host)
@@ -116,7 +118,7 @@ void showCompatibility(QWidget *parent, const CompatHost &host, int first, const
         const int index = first >= 0 && first < host.formats.size() ? first : 0;
         const CompatFormat format = host.formats[index];
         format.lost([format, host, title, notifier](const CompatAnswer &answer) {
-            notifier(title, compatReport(format, host, answer), !answer.couldNot.isEmpty() || !compatLines(format, host, answer).isEmpty());
+            notifier(title, compatReport(format, host, answer), !answer.couldNot.isEmpty() || !answer.cannotSave.isEmpty() || !compatLines(format, host, answer).isEmpty());
         });
         return;
     }
