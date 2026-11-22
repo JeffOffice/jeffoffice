@@ -1444,6 +1444,32 @@ void WriteTests::fullJustificationTakesInAWordWhereTheSpacesCanGiveWay()
 }
 
 
+// The same holds for a paragraph that begins with a tab (a number, a tab, the text): the text after the tab gives way as it does in any line, and a tab farther on, in a
+// later line, leaves the paragraph as it was.
+void WriteTests::fullJustificationTakesInAWordAfterATab()
+{
+    auto firstLineWords = [&](bool option, int rightMargin) {
+        QByteArray words;
+        for (int i = 0; i < 90; ++i) words += "abcdefg ";
+        const QByteArray body = "<w:p><w:pPr><w:jc w:val=\"both\"/></w:pPr><w:r><w:t>1.2</w:t><w:tab/><w:t xml:space=\"preserve\">" + words + "</w:t></w:r></w:p>";
+        const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"" + QByteArray::number(rightMargin) +
+                                "\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+        const QByteArray settings = option ? QByteArray("<w:compat><w:wpJustification/></w:compat>") : QByteArray();
+        auto doc = open(makeDocxWithParts(body, sect, {}, settings, kStyles));
+        const auto lines = doc->pager().lines(0);
+        if (lines.isEmpty()) return -1;
+        return int(doc->story()->toPlainText().mid(lines[0].pos, lines[0].end - lines[0].pos).trimmed().count(QLatin1Char(' ')));
+    };
+    int more = 0;
+    for (int margin = 1440; margin < 1440 + 20 * 60; margin += 20) {
+        const int plain = firstLineWords(false, margin), given = firstLineWords(true, margin);
+        QVERIFY2(plain > 0 && given >= plain, qPrintable(QString::number(margin) + ": " + QString::number(given) + " against " + QString::number(plain)));
+        more += given > plain;
+    }
+    QVERIFY2(more > 3, qPrintable(QString::number(more)));
+}
+
+
 // A list that Qt counts as the file does is counted by Qt (so that it goes on counting as the person edits it): only what it cannot count is given a marker of its own.
 // Here a definition has numbering ids that no paragraph uses, beside the one that is.
 void WriteTests::aListQtCanCountIsNotGivenMarkersOfItsOwn()

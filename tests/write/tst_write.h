@@ -1346,6 +1346,7 @@ private Q_SLOTS:
     void spaceShrinkingIsSharedWithThePageThatDrawsTheParagraph();
     void aLineThatExactlyFillsItsRoomStaysOne();
     void fullJustificationTakesInAWordWhereTheSpacesCanGiveWay();
+    void fullJustificationTakesInAWordAfterATab();
     void aListQtCanCountIsNotGivenMarkersOfItsOwn();
     void editingASharedListNumbersTheRestAgain();
     void aRestartAtOneLevelRestartsThatLevelOnly();

@@ -4231,7 +4231,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         B->shrunk.reset();
         B->shrinkKey.clear();
         if (env.wordLines && env.wordSpaceShrink > 0 && (al & Qt::AlignJustify) && !bf.boolProperty(tp::Distribute) && !hyphenate && B->disp.size() <= 2000 &&
-            !B->disp.contains(QLatin1Char('\t')) && !B->disp.contains(QChar::ObjectReplacementCharacter) && B->objects.isEmpty()) {
+            !B->disp.contains(QChar::ObjectReplacementCharacter) && B->objects.isEmpty()) {
             QString key = B->disp + QChar(1) + QString::number(env.wordSpaceShrink) + (B->lettersAdjusted ? QLatin1Char('a') : QLatin1Char('n')) + (m_span.keepRules ? QLatin1Char('k') : QLatin1Char('c'));
             for (const QTextLayout::FormatRange &r : std::as_const(ranges)) {
                 const QTextCharFormat &f = r.format;
@@ -5401,9 +5401,14 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             }
             B->shrunk.reset();
         }
-        if (!shrinkDone && env.wordLines && env.wordSpaceShrink > 0 && (al & Qt::AlignJustify) && !bf.boolProperty(tp::Distribute) && !B->cut && !hyphenate && B->lines.size() > 1 &&
-            B->lines.first().frame >= 0 && B->disp.size() <= 2000 && !B->disp.contains(QLatin1Char('\t')) && !B->disp.contains(QChar::ObjectReplacementCharacter) && B->objects.isEmpty()) {
+        // Tabs: only a paragraph whose tabs are all in its first line is worked on (the text after the last one begins where that line has it, and the spaces before it
+        // keep their width); any other paragraph with a tab is as it was.
+        const int tabEnd = int(B->disp.lastIndexOf(QLatin1Char('\t'))) + 1;
+        const bool tabsFit = tabEnd == 0 || (!B->lines.isEmpty() && B->lines.first().frame >= 0 && tabEnd <= PtLine(B->tl->lineAt(0)).textStart() + PtLine(B->tl->lineAt(0)).textLength());
+        if (!shrinkDone && tabsFit && env.wordLines && env.wordSpaceShrink > 0 && (al & Qt::AlignJustify) && !bf.boolProperty(tp::Distribute) && !B->cut && !hyphenate && B->lines.size() > 1 &&
+            B->lines.first().frame >= 0 && B->disp.size() <= 2000 && !B->disp.contains(QChar::ObjectReplacementCharacter) && B->objects.isEmpty()) {
             const int n = int(B->disp.size());
+            const double afterTab = tabEnd > 0 ? PtLine(B->tl->lineAt(0)).cursorToX(tabEnd) : 0.0;
             const double fitOffset = B->lettersAdjusted || !m_span.keepRules ? 0.0 : kRoomOffset;   // (as the lines were laid out)
             const QVector<QTextLayout::FormatRange> fine = [&] {
                 QVector<QTextLayout::FormatRange> out;
@@ -5453,7 +5458,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 double trailing = 0;
                 while (te > s0 && B->disp[te - 1].isSpace()) trailing += advance(--te);
                 double spaces = trailing;
-                for (int i = s0; i < te; ++i)
+                for (int i = k == 0 ? std::max(s0, tabEnd) : s0; i < te; ++i)
                     if (B->disp[i] == QLatin1Char(' ')) spaces += advance(i);
                 double word = 0;
                 for (int i = e0; i < n && !B->disp[i].isSpace() && i < e0 + 40; ++i) word += advance(i);
@@ -5474,7 +5479,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 QTextBoundaryFinder finder(QTextBoundaryFinder::Line, B->disp);
                 for (int p = finder.toNextBoundary(); p > 0 && p < n; p = finder.toNextBoundary()) allowed << p;
                 allowed << n;
-                struct Cut { int start = 0, end = 0, textEnd = 0; double share = 0, narrower = 0; };   // (share of a space given up; how much narrower each space of the line is)
+                struct Cut { int start = 0, end = 0, textEnd = 0, spaceFrom = 0; double share = 0, narrower = 0; };   // (share of a space given up; how much narrower each space of the line is)
                 QVector<Cut> cuts;
                 bool any = false, usable = at[n] > 0;
                 for (int pos = 0, k = 0; usable && pos < n && k <= n; ++k) {
@@ -5492,7 +5497,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         if (e > hard) break;
                         int te = e;
                         while (te > pos && B->disp[te - 1].isSpace()) --te;
-                        const double natural = at[te] - at[pos], give = env.wordSpaceShrink * (spaces[te] - spaces[pos]);
+                        const int from = pos == 0 && tabEnd > 0 && te > tabEnd ? tabEnd : pos;   // (the text after the tab, after where the tab left the line)
+                        const double natural = (from == pos ? 0.0 : afterTab) + at[te] - at[from], give = env.wordSpaceShrink * (spaces[te] - spaces[from]);
                         if (natural > limit + give) break;
                         cut.end = e;
                         cut.textEnd = te;
@@ -5501,10 +5507,12 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         usable = false;
                         break;
                     }
-                    const double natural = at[cut.textEnd] - at[pos], taken = spaces[cut.textEnd] - spaces[pos];
+                    const int from = pos == 0 && tabEnd > 0 && cut.textEnd > tabEnd ? tabEnd : pos;
+                    const double natural = (from == pos ? 0.0 : afterTab) + at[cut.textEnd] - at[from], taken = spaces[cut.textEnd] - spaces[from];
                     if (natural > limit && taken > 0) {
                         cut.share = std::min(env.wordSpaceShrink, (natural - limit + 0.15) / taken);
-                        cut.narrower = cut.share * taken / std::max(1, int(std::count(B->disp.cbegin() + cut.start, B->disp.cbegin() + cut.textEnd, QLatin1Char(' '))));
+                        cut.narrower = cut.share * taken / std::max(1, int(std::count(B->disp.cbegin() + from, B->disp.cbegin() + cut.textEnd, QLatin1Char(' '))));
+                        cut.spaceFrom = from;
                         any = true;
                     }
                     cuts << cut;
@@ -5517,8 +5525,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     QVector<Piece> pieces;
                     for (const Cut &cut : cuts) {
                         if (cut.share <= 0) continue;
-                        int from = cut.start;
-                        for (int i = cut.start; i < cut.textEnd; ++i) {
+                        int from = cut.spaceFrom;
+                        for (int i = cut.spaceFrom; i < cut.textEnd; ++i) {
                             if (B->disp[i] != QLatin1Char(' ') || !((i > 0 && B->disp[i - 1] == QLatin1Char(' ')) || (i + 1 < n && B->disp[i + 1] == QLatin1Char(' ')))) continue;
                             if (i > from) pieces << Piece{from, i, cut.narrower};
                             pieces << Piece{i, i + 1, cut.narrower};
