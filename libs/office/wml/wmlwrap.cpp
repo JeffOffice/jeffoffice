@@ -30,8 +30,8 @@ QPolygonF readWrapPolygon(const XmlTree &t, int wrap)
 QPolygonF readWrapPolygonXml(const QByteArray &wrapElement)
 {
     XmlTree t;
-    static const QByteArray open = "<x xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\">";
-    if (!t.parse(open + wrapElement + "</x>")) return QPolygonF();
+    static const QByteArray declared = " xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\"";
+    if (!t.parse("<x" + declared + XmlTree::placeholderDeclarations(wrapElement, XmlTree::declaredPrefixes(declared)) + ">" + wrapElement + "</x>")) return QPolygonF();
     return readWrapPolygon(t, t.firstChild(t.root()));
 }
 

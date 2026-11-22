@@ -1363,7 +1363,7 @@ TableMark readTableMark(TableMark::Kind kind, const QByteArray &bytes)
         " xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"";
     const char *closing = kind == TableMark::Table ? "</w:tbl>" : kind == TableMark::Row ? "</w:tr>" : "</w:tc>";
     XmlTree t;
-    if (!t.parse("<w:keep" + declarations + ">" + bytes + closing + "</w:keep>", nullptr)) return mark;
+    if (!t.parse("<w:keep" + declarations + XmlTree::placeholderDeclarations(bytes, XmlTree::declaredPrefixes(declarations)) + ">" + bytes + closing + "</w:keep>", nullptr)) return mark;
     const int element = t.firstChild(t.root());
     if (element < 0) return mark;
     Reader r(t);
@@ -1390,7 +1390,7 @@ const QByteArray kPropDeclarations =
 RunProps readRunPropsXml(const QByteArray &xml)
 {
     XmlTree t;
-    if (!t.parse("<w:keep" + kPropDeclarations + ">" + xml + "</w:keep>", nullptr)) return RunProps();
+    if (!t.parse("<w:keep" + kPropDeclarations + XmlTree::placeholderDeclarations(xml, XmlTree::declaredPrefixes(kPropDeclarations)) + ">" + xml + "</w:keep>", nullptr)) return RunProps();
     const int element = t.firstChild(t.root());
     if (element < 0 || !t.is(element, "rPr")) return RunProps();
     return Reader(t).rPr(element);
@@ -1399,7 +1399,7 @@ RunProps readRunPropsXml(const QByteArray &xml)
 ParaProps readParaPropsXml(const QByteArray &xml)
 {
     XmlTree t;
-    if (!t.parse("<w:keep" + kPropDeclarations + ">" + xml + "</w:keep>", nullptr)) return ParaProps();
+    if (!t.parse("<w:keep" + kPropDeclarations + XmlTree::placeholderDeclarations(xml, XmlTree::declaredPrefixes(kPropDeclarations)) + ">" + xml + "</w:keep>", nullptr)) return ParaProps();
     const int element = t.firstChild(t.root());
     if (element < 0 || !t.is(element, "pPr")) return ParaProps();
     return Reader(t).pPr(element);
@@ -1408,7 +1408,7 @@ ParaProps readParaPropsXml(const QByteArray &xml)
 SectionProps readSectionPropsXml(const QByteArray &xml)
 {
     XmlTree t;
-    if (!t.parse("<w:keep" + kPropDeclarations + ">" + xml + "</w:keep>", nullptr)) return SectionProps();
+    if (!t.parse("<w:keep" + kPropDeclarations + XmlTree::placeholderDeclarations(xml, XmlTree::declaredPrefixes(kPropDeclarations)) + ">" + xml + "</w:keep>", nullptr)) return SectionProps();
     const int element = t.firstChild(t.root());
     if (element < 0 || !t.is(element, "sectPr")) return SectionProps();
     return Reader(t).sectPr(element);

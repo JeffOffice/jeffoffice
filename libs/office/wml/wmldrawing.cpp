@@ -150,8 +150,30 @@ QByteArray declarations()
            "xmlns:w16sdtdh=\"http://schemas.microsoft.com/office/word/2020/wordml/sdtdatahash\"";
 }
 
-// A text box's content as a document of its own: the paragraphs it holds under a w:txbxContent that declares the prefixes.
-QByteArray textBoxXml(const XmlTree &t, int content) { return "<w:txbxContent " + declarations() + ">" + t.inner(content) + "</w:txbxContent>"; }
+// The prefixes declarations() declares (a prefix that the tree declares as well is not declared twice on one element).
+const QSet<QByteArray> &fixedPrefixes()
+{
+    static const QSet<QByteArray> prefixes = XmlTree::declaredPrefixes(declarations());
+    return prefixes;
+}
+
+// A text box's content as a document of its own: the paragraphs it holds under a w:txbxContent that declares the prefixes, the usual ones and every other that is in scope
+// where the content is in its part (the root's, and those of the elements round it, and its own): the content's words use whichever the part declares.
+QByteArray textBoxXml(const XmlTree &t, int content) { return "<w:txbxContent " + declarations() + t.declarationsInScope(content, fixedPrefixes()) + ">" + t.inner(content) + "</w:txbxContent>"; }
+
+// An element kept as written, under a root that declares the prefixes it may use: the usual ones, and the others of the part's own root (the element has those of the elements round
+// it on itself, and not the root's).
+QByteArray keptUnderRoot(const XmlTree &t, const QByteArray &element)
+{
+    return "<x " + declarations() + t.declarationsInScope(t.root(), fixedPrefixes()) + ">" + element + "</x>";
+}
+
+// The opening of a root for markup kept as written and read with no part round it: the usual prefixes, and a placeholder for each other the markup uses (what is in those
+// is not understood, and is not the reason the words round it are lost).
+QByteArray openForKept(const QByteArray &markup)
+{
+    return "<x " + declarations() + XmlTree::placeholderDeclarations(markup, fixedPrefixes()) + ">";
+}
 
 // What an object behind the text (a negative z-index in VML, behindDoc in DrawingML) is to the text: the order says only what is drawn over what, and a square or tight wrap is a
 // wall the text goes round whether the object is below the text or above it (practice documents V020 and V083 have their text go round such pictures). One that keeps text off
@@ -593,7 +615,7 @@ void readGroupMembers(const XmlTree &t, int group, const Shape &frame, const Gro
                 if (s.cropL + s.cropR >= 0.98 || s.cropT + s.cropB >= 0.98) s.cropL = s.cropT = s.cropR = s.cropB = 0;
             }
         } else {
-            s.wsp = "<x " + declarations() + ">" + t.raw(c) + "</x>";
+            s.wsp = keptUnderRoot(t, t.raw(c));
             for (int k = t.firstChild(c); k >= 0; k = t.next(k)) {
                 if (t.localName(k) == "txbx") {
                     const int content = childNamed(t, k, "txbxContent");
@@ -710,7 +732,7 @@ void readDrawing(const XmlTree &t, int drawing, QVector<Shape> *out)
             stack.pop_back();
             // (A shape that is a member of a group is not read as the whole of it: only one that is the drawing's own.)
             if (t.localName(n) == "wsp" && s.wsp.isEmpty() && t.parent(n) >= 0 && t.localName(t.parent(n)) == "graphicData") {
-                s.wsp = "<x " + declarations() + ">" + t.raw(n) + "</x>";
+                s.wsp = keptUnderRoot(t, t.raw(n));
                 shapeNode = n;
             }
             if (t.localName(n) == "blip" && s.embed.isEmpty()) {
@@ -753,7 +775,7 @@ void readDrawing(const XmlTree &t, int drawing, QVector<Shape> *out)
                 const int picNode = t.parent(t.parent(n));
                 for (int k = picNode >= 0 ? t.firstChild(picNode) : -1; k >= 0; k = t.next(k)) {
                     if (t.localName(k) != "spPr") continue;
-                    if (const QByteArray look = t.raw(k); look.size() <= 65536) s.picLook = "<x " + declarations() + ">" + look + "</x>";
+                    if (const QByteArray look = t.raw(k); look.size() <= 65536) s.picLook = keptUnderRoot(t, look);
                     for (int ln = t.firstChild(k); ln >= 0; ln = t.next(ln)) {
                         if (t.localName(ln) == "xfrm" && t.has(ln, "rot")) {
                             const double turn = std::fmod(t.attr(ln, "rot").toDouble() / 60000.0, 360.0);
@@ -832,9 +854,8 @@ void readDrawing(const XmlTree &t, int drawing, QVector<Shape> *out)
 QVector<Shape> readFallbackShapes(const QByteArray &xml)
 {
     QVector<Shape> out;
-    static const QByteArray open = "<x " + declarations() + ">";
     XmlTree tree;
-    if (!tree.parse(open + xml + "</x>", nullptr)) return out;
+    if (!tree.parse(openForKept(xml) + xml + "</x>", nullptr)) return out;
     const int root = tree.firstChild(tree.root());
     if (root < 0 || tree.localName(root) != "AlternateContent") return out;
     for (int c = tree.firstChild(root); c >= 0; c = tree.next(c)) {
@@ -856,9 +877,8 @@ static QVector<Shape> parseShapes(const QByteArray &xml)
 {
     QVector<Shape> out;
     // (An element kept as written has no declarations of the prefixes it uses: the usual ones are given on a root of their own.)
-    static const QByteArray open = "<x " + declarations() + ">";
     XmlTree tree;
-    if (!tree.parse(open + xml + "</x>", nullptr)) return out;
+    if (!tree.parse(openForKept(xml) + xml + "</x>", nullptr)) return out;
     const int root = tree.firstChild(tree.root());
     if (root < 0) return out;
     const QByteArray name = tree.localName(root);

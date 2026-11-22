@@ -18,6 +18,7 @@
 
 #include <QByteArray>
 #include <QHash>
+#include <QSet>
 #include <QString>
 #include <QVector>
 
@@ -92,6 +93,16 @@ public:
     // Everything between the start tag and the end tag, as written.
     QByteArray inner(int n) const;
     bool isEmptyElement(int n) const { return m_nodes[n].innerBegin == m_nodes[n].end; }
+
+    // The namespace declarations in scope at an element, its own and those of every element above it (the root's too), as ` xmlns:p="uri"` text, for a slice that is read as a
+    // document of its own (inner() has no start tag, and the root's declarations are what a slice taken out of the tree has not): the nearest binding of each prefix, and not a
+    // prefix of `skip` (the ones the text that is put before them declares already: a prefix declared twice on one element is not XML).
+    QByteArray declarationsInScope(int n, const QSet<QByteArray> &skip) const;
+    // The prefixes the ` xmlns:p="..."` declarations in a piece of text declare.
+    static QSet<QByteArray> declaredPrefixes(const QByteArray &declarations);
+    // Declarations, as a placeholder namespace for each, of the prefixes that the markup uses (in a tag or an attribute) and that neither `declared` nor the markup itself declares: a
+    // slice kept as written that uses a prefix its own part declared on a root is read with them, and what is in them is not understood, instead of the whole slice being refused.
+    static QByteArray placeholderDeclarations(const QByteArray &markup, const QSet<QByteArray> &declared);
 
     // The bytes it was read from.
     const QByteArray &source() const { return m_src; }

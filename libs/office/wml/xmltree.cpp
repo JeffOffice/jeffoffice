@@ -576,4 +576,90 @@ QByteArray XmlTree::inner(int n) const
     return m_src.mid(nd.innerBegin, nd.innerEnd - nd.innerBegin);
 }
 
+QByteArray XmlTree::declarationsInScope(int n, const QSet<QByteArray> &skip) const
+{
+    QByteArray out;
+    QSet<int> seen;
+    for (int a = n; a >= 0; a = m_nodes[a].parent) {
+        const Node &an = m_nodes[a];
+        for (quint32 k = 0; k < an.declCount; ++k) {
+            const Decl &d = m_decls[an.declBegin + k];
+            if (seen.contains(d.prefix)) continue;
+            seen.insert(d.prefix);
+            if (d.prefix != 0 && skip.contains(m_names[d.prefix])) continue;
+            out += d.prefix == 0 ? QByteArray(" xmlns=\"") : " xmlns:" + m_names[d.prefix] + "=\"";
+            out += m_src.mid(d.begin, d.end - d.begin) + '"';
+        }
+    }
+    return out;
+}
+
+QSet<QByteArray> XmlTree::declaredPrefixes(const QByteArray &declarations)
+{
+    QSet<QByteArray> out;
+    static const QByteArray key = "xmlns:";
+    for (qsizetype at = declarations.indexOf(key); at >= 0; at = declarations.indexOf(key, at + 1)) {
+        const qsizetype b = at + key.size();
+        const qsizetype e = declarations.indexOf('=', b);
+        if (e < 0) break;
+        out.insert(declarations.mid(b, e - b).trimmed());
+        if (out.size() >= 1024) break;
+    }
+    return out;
+}
+
+QByteArray XmlTree::placeholderDeclarations(const QByteArray &markup, const QSet<QByteArray> &declared)
+{
+    QSet<QByteArray> used;
+    const char *s = markup.constData();
+    const qsizetype n = markup.size();
+    auto note = [&](qsizetype b, qsizetype e) {
+        const char *colon = static_cast<const char *>(memchr(s + b, ':', size_t(e - b)));
+        if (!colon || used.size() >= 32) return;
+        const QByteArray prefix(s + b, qsizetype(colon - s - b));
+        if (!prefix.isEmpty() && prefix != "xml" && prefix != "xmlns") used.insert(prefix);
+    };
+    auto space = [](char c) { return c == ' ' || c == '\t' || c == '\n' || c == '\r'; };
+    qsizetype i = 0;
+    while (i < n) {
+        const char *lt = static_cast<const char *>(memchr(s + i, '<', size_t(n - i)));
+        if (!lt) break;
+        i = qsizetype(lt - s) + 1;
+        if (i >= n) break;
+        if (s[i] == '!' || s[i] == '?') {
+            const char *end = s[i] == '?' ? "?>" : markup.mid(i, 3) == "!--" ? "-->" : markup.mid(i, 8) == "![CDATA[" ? "]]>" : ">";
+            const qsizetype at = markup.indexOf(end, i);
+            if (at < 0) break;
+            i = at + qsizetype(strlen(end));
+            continue;
+        }
+        if (s[i] == '/') continue;
+        qsizetype b = i;
+        while (i < n && !space(s[i]) && s[i] != '>' && s[i] != '/') ++i;
+        note(b, i);
+        while (i < n && s[i] != '>') {
+            while (i < n && (space(s[i]) || s[i] == '/')) ++i;
+            b = i;
+            while (i < n && !space(s[i]) && s[i] != '=' && s[i] != '>' && s[i] != '/') ++i;
+            if (i > b) note(b, i);
+            while (i < n && space(s[i])) ++i;
+            if (i < n && s[i] == '=') {
+                ++i;
+                while (i < n && space(s[i])) ++i;
+                if (i < n && (s[i] == '"' || s[i] == '\'')) {
+                    const char *q = static_cast<const char *>(memchr(s + i + 1, s[i], size_t(n - i - 1)));
+                    if (!q) return QByteArray();
+                    i = qsizetype(q - s) + 1;
+                }
+            }
+        }
+    }
+    QByteArray out;
+    for (const QByteArray &prefix : std::as_const(used)) {
+        if (declared.contains(prefix) || markup.contains(" xmlns:" + prefix + "=") || markup.contains("\txmlns:" + prefix + "=") || markup.contains("\nxmlns:" + prefix + "=")) continue;
+        out += " xmlns:" + prefix + "=\"urn:jeffoffice:undeclared:" + prefix + "\"";
+    }
+    return out;
+}
+
 } // namespace jp::office::wml

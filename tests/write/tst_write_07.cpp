@@ -1694,6 +1694,78 @@ void WriteTests::aContentControlInATextBoxWithAnExtensionPrefixKeepsItsWords()
 }
 
 
+namespace {
+
+// A document of a body paragraph and a text box anchored before it, the box holding `content` (a w:txbxContent element, so that it may declare something itself); the root of the document
+// declares what `rootNs` says besides the usual prefixes.
+QByteArray documentWithATextBox(const QByteArray &rootNs, const QByteArray &content)
+{
+    const QByteArray box = "<w:p><w:r><w:drawing><wp:anchor xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\" simplePos=\"0\" "
+                           "relativeHeight=\"1\" behindDoc=\"0\" locked=\"0\" layoutInCell=\"1\" allowOverlap=\"1\"><wp:simplePos x=\"0\" y=\"0\"/><wp:positionH relativeFrom=\"page\"><wp:posOffset>914400</wp:posOffset></wp:positionH>"
+                           "<wp:positionV relativeFrom=\"page\"><wp:posOffset>914400</wp:posOffset></wp:positionV><wp:extent cx=\"3000000\" cy=\"2000000\"/><wp:wrapNone/><wp:docPr id=\"1\" name=\"Box\"/>"
+                           "<a:graphic xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:graphicData uri=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\">"
+                           "<wps:wsp xmlns:wps=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\"><wps:cNvSpPr txBox=\"1\"/><wps:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"3000000\" cy=\"2000000\"/></a:xfrm>"
+                           "<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></wps:spPr><wps:txbx>" + content + "</wps:txbx><wps:bodyPr/></wps:wsp></a:graphicData></a:graphic></wp:anchor></w:drawing></w:r></w:p>";
+    office::PackageWriter w;
+    w.addPart(QStringLiteral("/word/document.xml"), xml(QByteArray("<w:document ") + kNs + " " + rootNs + "><w:body>" + box + "<w:p><w:r><w:t>Body</w:t></w:r></w:p></w:body></w:document>"),
+              QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+    w.addRelationship(QStringLiteral("/"), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument"), QStringLiteral("/word/document.xml"));
+    return w.finish();
+}
+
+const char kUpgradeNs[] = "xmlns:w16du=\"http://schemas.microsoft.com/office/word/2023/wordml/word16du\"";
+
+}   // namespace
+
+
+// A text box keeps its words whatever prefix its content uses, so long as the document's root declares it: not only the prefixes the reader knows by name (a control's properties
+// with an element of the newest extension).
+void WriteTests::aTextBoxKeepsItsWordsWithAnyPrefixTheRootDeclares()
+{
+    const QByteArray content = "<w:txbxContent><w:sdt><w:sdtPr><w:id w:val=\"5\"/><w16du:dateUpgrade w16du:val=\"1\"/><w:text/></w:sdtPr><w:sdtContent><w:p><w:r><w:t>UPGRADEWORDS here</w:t></w:r></w:p></w:sdtContent></w:sdt></w:txbxContent>";
+    auto doc = open(documentWithATextBox(kUpgradeNs, content));
+    QVERIFY(doc);
+    QVERIFY(boxWithText(*doc->pager().materialize(0), QStringLiteral("UPGRADEWORDS here")));
+}
+
+
+// The same for an attribute of the unknown prefix on a paragraph of the box, which the root names in its list of what may be ignored.
+void WriteTests::aTextBoxKeepsItsWordsWithAnIgnorablePrefixAttribute()
+{
+    const QByteArray content = "<w:txbxContent><w:p w16du:paraMark=\"x\"><w:r><w:t>IGNORABLEWORDS here</w:t></w:r></w:p></w:txbxContent>";
+    const QByteArray root = QByteArray(kUpgradeNs) + " xmlns:mc=\"http://schemas.openxmlformats.org/markup-compatibility/2006\" mc:Ignorable=\"w16du\"";
+    auto doc = open(documentWithATextBox(root, content));
+    QVERIFY(doc);
+    QVERIFY(boxWithText(*doc->pager().materialize(0), QStringLiteral("IGNORABLEWORDS here")));
+}
+
+
+// A box whose content binds a prefix itself (the root has the same prefix for another namespace) keeps its words: its own binding is the one, and nothing is declared twice.
+void WriteTests::aTextBoxKeepsItsWordsWhenItsContentDeclaresAPrefixItself()
+{
+    const QByteArray content = "<w:txbxContent xmlns:w16du=\"urn:other\" xmlns:w14=\"http://schemas.microsoft.com/office/word/2010/wordml\"><w:p><w16du:mark w16du:v=\"1\"/><w:r><w:t>OWNPREFIXWORDS here</w:t></w:r>"
+                               "<w:r xmlns:w16du=\"urn:inner\"><w16du:x/><w:t> and more</w:t></w:r></w:p></w:txbxContent>";
+    auto doc = open(documentWithATextBox(kUpgradeNs, content));
+    QVERIFY(doc);
+    QVERIFY(boxWithText(*doc->pager().materialize(0), QStringLiteral("OWNPREFIXWORDS here")));
+}
+
+
+// A drawing kept as written, read with no part round it, keeps its text box when it uses a prefix that no declaration here binds: the prefix's elements and attributes are not
+// understood, and the rest is read.
+void WriteTests::aKeptDrawingWithAnUnboundPrefixIsStillRead()
+{
+    const QByteArray drawing = "<w:drawing xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\"><wp:anchor w16du:anchorId=\"1\" simplePos=\"0\"><wp:simplePos x=\"0\" y=\"0\"/>"
+                               "<wp:extent cx=\"3000000\" cy=\"2000000\"/><wp:wrapNone/><wp:docPr id=\"1\" name=\"Box\"/><a:graphic xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\">"
+                               "<a:graphicData uri=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\"><wps:wsp xmlns:wps=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\">"
+                               "<wps:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"3000000\" cy=\"2000000\"/></a:xfrm></wps:spPr><wps:txbx><w:txbxContent><w:p><w:r><w:t>KEPTWORDS</w:t></w:r></w:p>"
+                               "</w:txbxContent></wps:txbx></wps:wsp></a:graphicData></a:graphic></wp:anchor></w:drawing>";
+    const QVector<office::wml::Shape> shapes = office::wml::readShapes(drawing);
+    QVERIFY(!shapes.isEmpty());
+    QVERIFY(shapes[0].textBox.contains("KEPTWORDS"));
+}
+
+
 // A table that gives no width anywhere (no grid, no width of a cell), its row inside a row-level content control, shows its cells: their columns are equal, not of no width.
 void WriteTests::aTableWithNoWidthAnywhereShowsItsCells()
 {

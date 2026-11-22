@@ -1356,6 +1356,10 @@ private Q_SLOTS:
     void aCustomMarkTakesNoNumberAmongTheNotesOfATablesPage();
     void aCustomMarkNoteInATableCellIsDrawnAndKept();
     void aContentControlInATextBoxWithAnExtensionPrefixKeepsItsWords();
+    void aTextBoxKeepsItsWordsWithAnyPrefixTheRootDeclares();
+    void aTextBoxKeepsItsWordsWithAnIgnorablePrefixAttribute();
+    void aTextBoxKeepsItsWordsWhenItsContentDeclaresAPrefixItself();
+    void aKeptDrawingWithAnUnboundPrefixIsStillRead();
     void aTableWithNoWidthAnywhereShowsItsCells();
     void clearingTheFormattingKeepsACustomNoteMark();
     void aLevelsOutlineEffectIsLookedForOncePerLevel();
