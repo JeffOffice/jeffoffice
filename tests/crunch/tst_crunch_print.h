@@ -231,6 +231,7 @@ private Q_SLOTS:
     void thePageTabHasThePrintQuality();
     void changesInTheDialogGoBack();
     void marginsCanBeInCentimeters();
+    void theFitHintSaysBreaksAreIgnoredOnlyWhereAPageNumberIsGiven();
     void aPrintAreaThatIsNotCellsIsRefused();
     void anAreaTypedWithTheSheetsNameIsTaken();
     void theHeaderAndFooterPresetsAreMadeFromTheSheet();

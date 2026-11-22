@@ -542,7 +542,7 @@ void PageSetupDialog::buildPage(QWidget *tab)
     g->addWidget(m_fitRadio, 1, 0);
     g->addWidget(m_fitAcross, 1, 1);
     g->addWidget(m_fitDown, 1, 2);
-    auto *hint = new QLabel(tr("Choose \"any number of\" to let that direction take as many pages as it needs. The page breaks you set are ignored while the cells are being shrunk to fit."), size);
+    auto *hint = new QLabel(tr("Choose \"any number of\" to let that direction take as many pages as it needs. The page breaks you set are ignored only in a direction that is fitted to a number of pages."), size);
     hint->setWordWrap(true);
     g->addWidget(hint, 2, 0, 1, 3);
     (m_setup.fitToPage && (m_setup.fitToWidth > 0 || m_setup.fitToHeight > 0) ? m_fitRadio : m_scaleRadio)->setChecked(true);

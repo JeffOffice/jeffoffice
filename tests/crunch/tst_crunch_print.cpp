@@ -1708,6 +1708,21 @@ void CrunchPrintTests::marginsCanBeInCentimeters()
 }
 
 
+// The hint under the fit boxes tells the truth about the breaks set by hand: they are ignored only in a direction fitted to a number of pages, not when that direction says "any number of"
+// (fails when off: yes, the old text said they are ignored whenever the cells are shrunk to fit).
+void CrunchPrintTests::theFitHintSaysBreaksAreIgnoredOnlyWhereAPageNumberIsGiven()
+{
+    PageSetupRequest request;
+    PageSetupDialog d(request);
+    QString hint;
+    for (const QLabel *l : d.findChildren<QLabel *>())
+        if (l->text().contains(QStringLiteral("any number of"))) hint = l->text();
+    QVERIFY(!hint.isEmpty());
+    QVERIFY(hint.contains(QStringLiteral("ignored only in a direction that is fitted to a number of pages")));
+    QVERIFY(!hint.contains(QStringLiteral("while the cells are being shrunk")));
+}
+
+
 // A print area or titles that are not cells are refused where they are typed, with a reason; the dialog stays.
 void CrunchPrintTests::aPrintAreaThatIsNotCellsIsRefused()
 {
