@@ -7,6 +7,7 @@
 #include "office/privacy.h"
 #include "../settingguard.h"
 #include "app/recovery.h"
+#include "app/theme.h"
 #include "app/filetasks.h"
 #include "app/filescreen.h"
 #include "app/infopage.h"
@@ -751,6 +752,57 @@ private Q_SLOTS:
         QVERIFY(!c.isReadOnly());
     }
 
+    // Check Compatibility names the final mark and the read-only choice for every other kind, and what it says is what a save does: the .odt file has neither.
+    void checkCompatibilityNamesTheChoicesAFileHoldsAndTheOdtHasNeither()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        WriteWindow a;
+        Quiet quiet(a);
+        typeText(*a.document(), a.view()->cursor(), QStringLiteral("Final words"));
+        QVERIFY(saveInto(a, dir, QStringLiteral("f.docx")));
+        for (int kind = 0; kind < 3; ++kind) {
+            a.checkCompatibility(kind);
+            QVERIFY(!quiet.said.last().contains(QLatin1String("is final")) && !quiet.said.last().contains(QLatin1String("always open")));
+        }
+        a.setAlwaysOpenReadOnly(true);
+        a.setMarkedFinal(true);
+        QVERIFY(a.document()->markedAsFinal());
+        for (int kind = 0; kind < 3; ++kind) {
+            a.checkCompatibility(kind);
+            QVERIFY2(quiet.said.last().contains(QLatin1String("The mark that the document is final")), qPrintable(quiet.said.last()));
+            QVERIFY2(quiet.said.last().contains(QLatin1String("always open the document for reading only")), qPrintable(quiet.said.last()));
+        }
+        a.checkCompatibility(2);
+        QVERIFY(quiet.said.last().contains(QLatin1String("Everything but the words")));
+        // the claim holds: an .odt saved from this window and opened again is neither final nor set to open read-only
+        a.setReadOnly(false);
+        QVERIFY(saveInto(a, dir, QStringLiteral("f.odt")));
+        WriteWindow b;
+        b.setNotifier([](const QString &, const QString &) {});
+        QVERIFY(b.openFile(dir.filePath(QStringLiteral("f.odt"))));
+        QVERIFY(!b.document()->markedAsFinal());
+        QVERIFY(!b.alwaysOpensReadOnly());
+    }
+
+    // A picture of Check Compatibility (JO_SHOT_DIR names the folder; nothing is made without it).
+    void shotCheckCompatibility()
+    {
+        const QString dir = qEnvironmentVariable("JO_SHOT_DIR");
+        if (dir.isEmpty()) QSKIP("JO_SHOT_DIR is not set");
+        jp::initCore();
+        jp::applyUiTheme(1);
+        WriteWindow a;
+        Quiet quiet(a);
+        typeText(*a.document(), a.view()->cursor(), QStringLiteral("Words"));
+        a.setAlwaysOpenReadOnly(true);
+        jp::CompatibilityDialog dialog(a.compatHost(), 1, nullptr);
+        dialog.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&dialog));
+        QDir().mkpath(dir);
+        QVERIFY(dialog.grab().save(dir + QStringLiteral("/write-compat.png")));
+    }
+
     void alwaysOpenReadOnlyIsKeptInTheFileAndOpensItForReadingOnly()
     {
         QTemporaryDir dir;
@@ -818,7 +870,7 @@ private Q_SLOTS:
         QVERIFY(saveInto(a, dir, QStringLiteral("l.docx")));
         QVERIFY(a.alwaysReadOnlyBlocked().isEmpty());
         a.setAlwaysOpenReadOnly(true);
-        QVERIFY(a.incompatibilities().join(QLatin1Char('|')).contains(QLatin1String("always open")));
+        QVERIFY(jp::compatLines(a.compatHost().formats[0], a.compatHost(), a.incompatibilities()).join(QLatin1Char('|')).contains(QLatin1String("always open")));
         QVERIFY(saveInto(a, dir, QStringLiteral("l.odt")));
         QVERIFY(!a.alwaysOpensReadOnly());
         QVERIFY(!a.alwaysReadOnlyBlocked().isEmpty());

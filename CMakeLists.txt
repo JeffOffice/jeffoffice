@@ -346,6 +346,7 @@ qt_add_executable(jptests
   tests/pub/tst_pub_update.cpp
   tests/pub/tst_pub_window.cpp
   tests/shell/tst_shell_fileinfo.cpp
+  tests/shell/tst_shell_compat.cpp
   tests/shell/tst_shell_lossywarn.cpp
   tests/shell/tst_shell_linkpicker.cpp
   tests/shell/tst_shell_booklet.cpp

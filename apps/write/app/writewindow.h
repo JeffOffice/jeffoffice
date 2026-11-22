@@ -3,6 +3,7 @@
 
 #include "app/appwindow.h"
 #include "app/chartdesign.h"
+#include "app/compatdialog.h"
 #include "app/infopage.h"
 #include "app/recovery.h"
 #include "app/printpage.h"
@@ -320,9 +321,10 @@ public:
     // What Inspect Document looks for and can take out; the box shows them.
     QVector<InspectItem> inspectItems();
     void inspectDocument();
-    // Lists what an .odt file (the older kind this program writes) can't hold of the document.
+    // Lists what an .odt file can't hold of the document; Check Compatibility offers it with .rtf and .txt (the shared box, libs/shell/app/compatdialog.h).
     QStringList incompatibilities();
-    void checkCompatibility();
+    jp::CompatHost compatHost();
+    void checkCompatibility(int format = 0);
     // Mark as Final: the document is saved, then held for reading only; off, it can be edited again.
     void setMarkedFinal(bool on);
     // Encrypt with Password: asks for the password and keeps it; the file is written protected when it is saved.

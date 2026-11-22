@@ -4,6 +4,7 @@
 
 #include "core/appinfo.h"
 #include "core/outline.h"
+#include "app/compatdialog.h"
 #include "app/lossywarning.h"
 #include "app/settings.h"
 
@@ -68,7 +69,6 @@ QWidget *CrunchWindow::buildInfoPage(QWidget *parent)
         hideFileScreen();
         showObjects();
     }});
-    h.extraCards.push_back({QStringLiteral("infoCheckCsv"), QStringLiteral("list-checks"), tr("Check .csv Compatibility"), tr("See what a .csv file would leave out of this workbook, without saving."), [this] { checkCsvCompatibility(); }});
     return jp::buildInfoPage(parent, h);
 }
 
@@ -106,29 +106,21 @@ void CrunchWindow::setAlwaysOpenReadOnly(bool on)
     if (m_fileScreen) showFileScreen(QStringLiteral("info"));
 }
 
-// What a .csv file leaves out, for the sheet in view: the list the save question gives (the other sheets, the formulas, the pictures and charts, and the rest the workbook has), and the
-// choices kept in the file's properties.
-QStringList CrunchWindow::csvLosses() const
+// What a .csv file leaves out, for the sheet in view: the list the save question gives (the other sheets, the formulas, the pictures and charts, and the rest the workbook has).
+QStringList CrunchWindow::csvFound() const
 {
     QStringList lost;
     if (!m_loaded || !m_loaded->book) return lost;
     lost = crunch::leftOutOfCsv(*m_loaded->book, m_loaded->calc ? m_loaded->calc->formulaCount() : 0);
     if (m_loaded->calc && m_loaded->calc->notWhole().contains(m_loaded->book->info().sheets.value(m_sheet).name))
         lost << tr("The rest of the sheet: it was read only in part, so the file has only the part that was read.");
-    if (markedAsFinal()) lost << tr("The mark that the workbook is final.");
-    if (alwaysOpensReadOnly()) lost << tr("The choice to always open the workbook for reading only.");
     return lost;
 }
 
-void CrunchWindow::checkCsvCompatibility()
+// The same with the choices kept in the file's properties.
+QStringList CrunchWindow::csvLosses() const
 {
-    if (!m_session || !m_loaded || !m_loaded->book || m_saving) return;
-    if (m_loading || !m_haveCalc) {
-        notice(tr("Check Compatibility"), tr("The workbook is still being read. Check it when the status bar says Ready."));
-        return;
-    }
-    const QStringList lost = csvLosses();
-    notice(tr("Check Compatibility"), lossyReport({QString(), tr("workbook"), QStringLiteral(".csv"), QStringLiteral(".xlsx"), lost}), !lost.isEmpty());
+    return csvFound() + compatFileChoices(tr("workbook"), markedAsFinal(), alwaysOpensReadOnly());
 }
 
 void CrunchWindow::updateFinalNote()

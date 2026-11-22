@@ -2,6 +2,7 @@
 // document's facts and does what its cards ask.
 #include "app/writewindow.h"
 
+#include "app/compatdialog.h"
 #include "app/lossywarning.h"
 #include "app/pageview.h"
 #include "app/passworddialogs.h"
@@ -231,6 +232,7 @@ void WriteWindow::inspectDocument()
     updateTitle();
 }
 
+// What an .odt file would leave out of the document, by the writer's own list (nothing is put on disk).
 QStringList WriteWindow::incompatibilities()
 {
     QStringList kept;
@@ -240,19 +242,41 @@ QStringList WriteWindow::incompatibilities()
     const QByteArray bytes = m_doc->toOdt(&err, &notKept);
     if (bytes.isEmpty()) kept << err;
     else kept = notKept;
-    // (A Rich Text Format file is a way to save too: what it can't hold is listed with the format named.)
-    QString rtfErr;
-    QStringList rtfNotes;
-    if (!m_doc->toRtf(&rtfErr, &rtfNotes).isEmpty())
-        for (const QString &note : rtfNotes) kept << tr("%1 (in .rtf files)").arg(note);
-    if (alwaysOpensReadOnly()) kept << tr("The choice to always open the document for reading only.");
     return kept;
 }
 
-void WriteWindow::checkCompatibility()
+// The kinds Check Compatibility offers: each one a way to save that is not a .docx, with the list its own writer gives.
+jp::CompatHost WriteWindow::compatHost()
 {
-    const QStringList kept = incompatibilities();
-    notice(tr("Check Compatibility"), lossyReport({QString(), tr("document"), QStringLiteral(".odt"), QStringLiteral(".docx"), kept}), !kept.isEmpty());
+    CompatHost host;
+    host.markedFinal = [this] { return m_doc && m_doc->markedAsFinal(); };
+    host.alwaysReadOnly = [this] { return alwaysOpensReadOnly(); };
+    const QString what = tr("document");
+    host.formats.push_back({tr("OpenDocument text (.odt)"), QStringLiteral(".odt"), QStringLiteral(".docx"), what, [this](const std::function<void(const QStringList &)> &done) { done(incompatibilities()); }});
+    host.formats.push_back({tr("Rich Text Format (.rtf)"), QStringLiteral(".rtf"), QStringLiteral(".docx"), what, [this](const std::function<void(const QStringList &)> &done) {
+        QStringList kept;
+        QString err;
+        if (m_doc) {
+            if (m_doc->toRtf(&err, &kept).isEmpty()) kept = QStringList{err};
+            if (m_fileProtected) kept << tr("The password.");
+        }
+        done(kept);
+    }});
+    host.formats.push_back({tr("Plain text (.txt)"), QStringLiteral(".txt"), QStringLiteral(".docx"), what, [this](const std::function<void(const QStringList &)> &done) {
+        QStringList kept;
+        if (m_doc) kept << tr("Everything but the words: the fonts, pictures, tables, and other formatting.");
+        if (m_fileProtected) kept << tr("The password.");
+        done(kept);
+    }});
+    return host;
+}
+
+void WriteWindow::checkCompatibility(int format)
+{
+    if (!m_doc) return;
+    std::function<void(const QString &, const QString &, bool)> say;
+    if (m_notifier) say = [this](const QString &title, const QString &text, bool warn) { notice(title, text, warn); };
+    showCompatibility(this, compatHost(), format, say);
 }
 
 } // namespace jp

@@ -52,7 +52,7 @@ To open a protected file, open it as usual. JeffDeck asks for the password. If i
 
 ### Check Compatibility
 
-Click **Check Compatibility** to see what an **.odp** file can't hold of your presentation, without saving anything. The list comes from the same place JeffDeck uses when it saves, so it is exact. If nothing is listed, nothing is lost.
+Click **Check Compatibility**, then pick **.odp** or **.otp** to see what that kind of file can't hold of your presentation, without saving anything. The list comes from the same place JeffDeck uses when it saves, so it is exact. It also names the choices kept in the file itself, Mark as Final and Always Open Read-Only, when they are on, because no other kind holds them. If nothing is listed, nothing is lost.
 
 When you save as an .odp or .otp file, JeffDeck shows that list **before** it writes anything. Choose **Save Anyway**, **Save as .pptx** (the .pptx file is put beside it, and nothing is lost), or **Cancel**. Tick **Don't ask again for this file** and JeffDeck stops asking about that file until you close the program.
 

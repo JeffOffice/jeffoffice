@@ -5,6 +5,7 @@
 
 #include "app/crunchwindow.h"
 
+#include "app/compatdialog.h"
 #include "app/lossywarning.h"
 #include "app/oldformat.h"
 #include "app/otherformats.h"
@@ -101,26 +102,31 @@ bool CrunchWindow::exportCopy(const QString &path)
     return true;
 }
 
-void CrunchWindow::checkCompatibility()
+// What an .xls or an .ods copy would leave out of the workbook: the copy is made in memory as a save would make it (nothing is written), on another thread; `done` is called with the list.
+void CrunchWindow::findCopyLosses(bool xls, const std::function<void(const QStringList &)> &done)
 {
-    if (!m_session || !m_loaded || !m_loaded->book || m_saving) return;
-    if (!commitEdit()) return;
+    if (!m_session || !m_loaded || !m_loaded->book || m_saving || !commitEdit()) {
+        done({});
+        return;
+    }
     if (m_loading || !m_haveCalc) {
-        notice(tr("Check Compatibility"), tr("The workbook is still being read. Check it when the status bar says Ready."));
+        done({tr("The workbook is still being read. Check it when the status bar says Ready.")});
         return;
     }
     syncPanes();
     auto snapshot = std::make_shared<crunch::EditSession::Snapshot>();
     QString why;
     if (!m_session->takeSnapshot(snapshot.get(), &why, false)) {
-        notice(tr("Check Compatibility"), why);
+        done({why});
         return;
     }
     if (m_objects) m_objects->addToSave(&snapshot->changes);
-    setStatus(tr("Checking what an .xls file can hold…"));
+    snapshot->changes.keepOdfObjects = !xls;
+    snapshot->changes.keepOdfNotes = true;
+    setStatus(xls ? tr("Checking what an .xls file can hold…") : tr("Checking what an .ods file can hold…"));
     const std::shared_ptr<office::sheet::Workbook> book = m_loaded->book;
     const QPointer<CrunchWindow> self(this);
-    QThread *thread = QThread::create([self, book, snapshot] {
+    QThread *thread = QThread::create([self, book, snapshot, xls, done] {
         QByteArray xlsx, copy;
         QString message;
         office::sheet::SaveReport report;
@@ -130,22 +136,55 @@ void CrunchWindow::checkCompatibility()
             office::Package package;
             office::sheet::Workbook made;
             ok = package.readLazy(xlsx, &message) && made.open(package, &message);
-            if (ok) ok = office::sheet::saveXls(made, &copy, &copyReport, &message);
+            if (ok) ok = xls ? office::sheet::saveXls(made, &copy, &copyReport, &message) : office::sheet::saveOds(made, &copy, &copyReport, &message);
         }
-        QMetaObject::invokeMethod(qApp, [self, ok, message, copyReport] {
+        QMetaObject::invokeMethod(qApp, [self, ok, message, copyReport, done] {
             if (!self) return;
             self->setStatus(tr("Ready"));
-            if (!ok) {
-                self->notice(tr("Check Compatibility"), message);
-                return;
+            QStringList lost;
+            if (!ok) lost << message;
+            else {
+                lost = copyReport.notKept;
+                for (const QString &what : std::as_const(copyReport.trimmed)) lost << tr("Cut or changed to fit: %1").arg(what);
             }
-            QStringList lost = copyReport.notKept;
-            for (const QString &what : std::as_const(copyReport.trimmed)) lost << tr("Cut or changed to fit: %1").arg(what);
-            self->notice(tr("Check Compatibility"), lossyReport({QString(), tr("workbook"), QStringLiteral(".xls"), QStringLiteral(".xlsx"), lost}), !lost.isEmpty());
+            done(lost);
         }, Qt::QueuedConnection);
     });
     connect(thread, &QThread::finished, thread, &QObject::deleteLater);
     thread->start();
+}
+
+// The kinds Check Compatibility offers: .xls and .ods (a copy made in memory), and .csv (the sheet in view).
+jp::CompatHost CrunchWindow::compatHost()
+{
+    CompatHost host;
+    host.markedFinal = [this] { return markedAsFinal(); };
+    host.alwaysReadOnly = [this] { return alwaysOpensReadOnly(); };
+    const QString what = tr("workbook");
+    const QPointer<CrunchWindow> self(this);
+    host.formats.push_back({tr("Older spreadsheet (.xls)"), QStringLiteral(".xls"), QStringLiteral(".xlsx"), what, [self](const std::function<void(const QStringList &)> &done) {
+        if (self) self->findCopyLosses(true, done);
+    }});
+    host.formats.push_back({tr("OpenDocument spreadsheet (.ods)"), QStringLiteral(".ods"), QStringLiteral(".xlsx"), what, [self](const std::function<void(const QStringList &)> &done) {
+        if (self) self->findCopyLosses(false, done);
+    }});
+    host.formats.push_back({tr("Text with commas (.csv)"), QStringLiteral(".csv"), QStringLiteral(".xlsx"), what, [self](const std::function<void(const QStringList &)> &done) {
+        if (self) done(self->csvFound());
+    }});
+    return host;
+}
+
+void CrunchWindow::checkCompatibility(int format)
+{
+    if (!m_session || !m_loaded || !m_loaded->book || m_saving) return;
+    if (!commitEdit()) return;
+    if (m_loading || !m_haveCalc) {
+        notice(tr("Check Compatibility"), tr("The workbook is still being read. Check it when the status bar says Ready."));
+        return;
+    }
+    std::function<void(const QString &, const QString &, bool)> say;
+    if (m_notifier) say = [this](const QString &title, const QString &text, bool warn) { notice(title, text, warn); };
+    showCompatibility(this, compatHost(), format, say);
 }
 
 void CrunchWindow::onCopyMade(bool ok, const QString &message, const QString &path, const QByteArray &bytes, const QStringList &notKept, const QStringList &trimmed)

@@ -1160,7 +1160,8 @@ private Q_SLOTS:
         Quiet quiet(w);
         w.checkCompatibility();
         QVERIFY2(quiet.said.join('|').contains(QStringLiteral("dash-dot")), qPrintable(quiet.said.join('|')));
-        QVERIFY2(quiet.said.join(QLatin1Char('|')).contains(QStringLiteral(".rtf")), qPrintable(quiet.said.join(QLatin1Char('|'))));
+        w.checkCompatibility(1);   // (the .rtf kind of the shared box)
+        QVERIFY2(quiet.said.last().contains(QStringLiteral(".rtf")) && quiet.said.last().contains(QStringLiteral("dash-dot")), qPrintable(quiet.said.last()));
         auto tops = [&](WriteWindow &win) {
             QStringList out;
             for (QTextBlock b = win.document()->story()->begin(); b.isValid(); b = b.next()) {

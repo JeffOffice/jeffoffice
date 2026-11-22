@@ -3,6 +3,7 @@
 // edited with its notes below, and the status bar.
 
 #include "app/appwindow.h"
+#include "app/compatdialog.h"
 #include "app/lossywarning.h"
 #include "app/missingfonts.h"
 #include "app/packandgo.h"
@@ -385,7 +386,9 @@ public:
     // On failure, says why and leaves the presentation unsaved.
     bool saveTo(const QString &path, bool asCopy = false);
     QStringList odpLosses(const QString &path);   // what an .odp file would leave out, worked out by writing it to memory
-    void checkCompatibility();                  // File > Info: the same list, without saving
+    QStringList odpFound(bool tmpl);             // what the writer itself leaves out (a template or not), without the file's own choices
+    jp::CompatHost compatHost();
+    void checkCompatibility(int format = 0);    // File > Info: the same list, without saving (the shared box, libs/shell/app/compatdialog.h)
     // What Save As asks for a name with: the file dialog, unless this stands
     // in for it (tests). Given the name to suggest and the filter to start on;
     // returns the path chosen, empty for none.

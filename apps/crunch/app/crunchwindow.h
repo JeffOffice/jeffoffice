@@ -4,6 +4,7 @@
 // cell, in it with F2 or a double click, or in the formula bar), clears them with Delete, undoes and redoes, and saves the workbook as it was read with only what changed put in.
 
 #include "app/appwindow.h"
+#include "app/compatdialog.h"
 #include "app/missingfonts.h"
 #include "app/packandgo.h"
 #include "app/readaloud.h"
@@ -176,8 +177,8 @@ public:
     QString alwaysReadOnlyBlocked() const;
     void setAlwaysOpenReadOnly(bool on);
     // Check Compatibility for a .csv file: what the file would leave out of the workbook, said without saving (crunchwindow_info.cpp).
-    QStringList csvLosses() const;
-    void checkCsvCompatibility();
+    QStringList csvFound() const;    // what a .csv file leaves out, without the file's own choices
+    QStringList csvLosses() const;   // the same with them
     int removePersonalInformation();
     // Shows or hides the note on the status bar that says the workbook is marked as final and open for reading only.
     void updateFinalNote();
@@ -461,7 +462,9 @@ public:
     // workbook open here is not changed or marked saved. `copyExported` says when it is over. A path ending in .xls or .ods given to save() or saveAs() comes here.
     bool exportCopy(const QString &path);
     // Check Compatibility: works out what an .xls file would not hold, as a copy would, and says it; writes nothing.
-    void checkCompatibility();
+    jp::CompatHost compatHost();
+    void findCopyLosses(bool xls, const std::function<void(const QStringList &)> &done);
+    void checkCompatibility(int format = 0);   // File > Info: the shared box (libs/shell/app/compatdialog.h) for .xls, .ods, and .csv
     // Version History (File > Info): named copies of the workbook kept on this computer, one for each time it is asked for (see libs/shell/app/versionstore.h). Each needs a file the workbook was
     // saved as. `saveVersion` takes the workbook as it is now, in the background, and `versionKept` says when it is over; `restoreVersion` keeps what the workbook is now as a version first,
     // then puts the chosen one in the workbook's file and reads it again; `openVersionCopy` opens one in a window of its own, to look at beside this one.

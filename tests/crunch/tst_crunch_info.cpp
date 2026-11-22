@@ -285,14 +285,33 @@ private Q_SLOTS:
         QVERIFY(!before.contains(QLatin1String("always open")));
         e.win.w.setAlwaysOpenReadOnly(true);
         QVERIFY(e.win.w.csvLosses().join(QLatin1Char('|')).contains(QLatin1String("always open")));
-        // the Info page has the card, and it says the same in the shared sentence
-        std::unique_ptr<QWidget> page(e.win.w.buildInfoPage(nullptr));
-        auto *card = page->findChild<QAbstractButton *>(QStringLiteral("infoCheckCsv"));
-        QVERIFY(card);
-        card->click();
+        // Check Compatibility has the .csv kind in its one box, and it says the same in the shared sentence
+        e.win.w.checkCompatibility(2);
         QVERIFY(!e.win.told.isEmpty());
         QVERIFY2(e.win.told.last().contains(QLatin1String("A .csv file can't hold some of what this workbook has")), qPrintable(e.win.told.last()));
         QVERIFY(e.win.told.last().contains(QLatin1String("1 other sheet")));
+    }
+
+    // The .xls and .ods kinds of the shared box name the read-only choice too (the .xls check once left it out), only when it is on.
+    void checkCompatibilityNamesTheReadOnlyChoiceForXlsAndOds()
+    {
+        EditWindow e;
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>");
+        QVERIFY(e.open(buildXlsx({worksheet(rows)})));
+        for (int kind = 0; kind < 2; ++kind) {
+            e.win.told.clear();
+            e.win.w.checkCompatibility(kind);
+            QTRY_VERIFY_WITH_TIMEOUT(!e.win.told.isEmpty(), 20000);
+            QVERIFY(!e.win.told.last().contains(QLatin1String("always open")));
+        }
+        e.win.w.setAlwaysOpenReadOnly(true);
+        for (int kind = 0; kind < 2; ++kind) {
+            e.win.told.clear();
+            e.win.w.checkCompatibility(kind);
+            QTRY_VERIFY_WITH_TIMEOUT(!e.win.told.isEmpty(), 20000);
+            QVERIFY2(e.win.told.last().contains(QLatin1String("always open the workbook for reading only")), qPrintable(e.win.told.last()));
+        }
+        QCOMPARE(e.win.w.compatHost().formats.size(), 3);
     }
 
     // Pictures for a person to look at (JC_SHOT_DIR names the folder; nothing is made without it).
@@ -311,6 +330,24 @@ private Q_SLOTS:
         QTest::qWait(300);
         QDir().mkpath(dir);
         QVERIFY(e.win.w.grab().save(dir + QStringLiteral("/crunch-info.png")));
+    }
+
+    // A picture of Check Compatibility (JO_SHOT_DIR names the folder; nothing is made without it).
+    void shotCheckCompatibility()
+    {
+        const QString dir = qEnvironmentVariable("JO_SHOT_DIR");
+        if (dir.isEmpty()) QSKIP("JO_SHOT_DIR is not set");
+        jp::applyUiTheme(1);
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        e.win.w.setAlwaysOpenReadOnly(true);
+        jp::CompatibilityDialog dialog(e.win.w.compatHost(), 2, nullptr);
+        dialog.resize(520, 300);
+        dialog.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&dialog));
+        QTest::qWait(200);
+        QDir().mkpath(dir);
+        QVERIFY(dialog.grab().save(dir + QStringLiteral("/crunch-compat.png")));
     }
 
     void inspectFindsHiddenSheetsAndPersonalInformation()

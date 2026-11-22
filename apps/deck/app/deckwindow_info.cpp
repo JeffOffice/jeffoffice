@@ -5,6 +5,7 @@
 #include "app/deckcanvas.h"
 #include "app/deckfilescreen.h"
 #include "app/editor.h"
+#include "app/compatdialog.h"
 #include "app/lossywarning.h"
 #include "app/notespane.h"
 #include "app/outlineview.h"
@@ -500,15 +501,27 @@ void DeckWindow::versionHistory()
     if (m_fileScreen && m_fileScreen->isVisible()) showFileScreen(QStringLiteral("info"));
 }
 
-// Check Compatibility: what an .odp file would leave out of the presentation, by the writer's own list, said without saving.
-void DeckWindow::checkCompatibility()
+// Check Compatibility: what an .odp or .otp file would leave out of the presentation, by the writer's own list, said without saving.
+jp::CompatHost DeckWindow::compatHost()
+{
+    CompatHost host;
+    host.markedFinal = [this] { return markedAsFinal(); };
+    host.alwaysReadOnly = [this] { return alwaysOpensReadOnly(); };
+    const QString what = tr("presentation");
+    host.formats.push_back({tr("OpenDocument presentation (.odp)"), QStringLiteral(".odp"), QStringLiteral(".pptx"), what, [this](const std::function<void(const QStringList &)> &done) { done(odpFound(false)); }});
+    host.formats.push_back({tr("OpenDocument template (.otp)"), QStringLiteral(".otp"), QStringLiteral(".potx"), what, [this](const std::function<void(const QStringList &)> &done) { done(odpFound(true)); }});
+    return host;
+}
+
+void DeckWindow::checkCompatibility(int format)
 {
     if (!m_ed->doc()) return;
     m_notes->commit();
     if (m_outline) m_outline->commit();
     m_ed->endTextEdit();
-    QStringList lost = odpLosses(QStringLiteral("x.odp"));
-    notice(tr("Check Compatibility"), lossyReport({QString(), tr("presentation"), QStringLiteral(".odp"), QStringLiteral(".pptx"), lost}), !lost.isEmpty());
+    std::function<void(const QString &, const QString &, bool)> say;
+    if (m_notifier) say = [this](const QString &title, const QString &text, bool warn) { notice(title, text, warn); };
+    showCompatibility(this, compatHost(), format, say);
 }
 
 } // namespace jp

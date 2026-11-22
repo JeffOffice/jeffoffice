@@ -898,6 +898,27 @@ private Q_SLOTS:
         QVERIFY(!a.odpLosses(QStringLiteral("x.odp")).join(QLatin1Char('|')).contains(QLatin1String("always open")));
     }
 
+    // Check Compatibility is the shared box: .odp and .otp both name the choices a file holds, only when they are on.
+    void checkCompatibilityNamesTheReadOnlyChoiceForEachKind()
+    {
+        DeckWindow a;
+        Quiet quiet(a);
+        a.editor()->setDocument(sample());
+        for (int kind = 0; kind < 2; ++kind) {
+            a.checkCompatibility(kind);
+            QVERIFY(!quiet.said.isEmpty() && !quiet.said.last().contains(QLatin1String("always open")));
+        }
+        a.setAlwaysOpenReadOnly(true);
+        QStringList kinds;
+        for (int kind = 0; kind < 2; ++kind) {
+            a.checkCompatibility(kind);
+            QVERIFY2(quiet.said.last().contains(QLatin1String("always open the presentation for reading only")), qPrintable(quiet.said.last()));
+            kinds << quiet.said.last().section(QLatin1Char('\n'), 0, 0);
+        }
+        QCOMPARE(a.compatHost().formats.size(), 2);
+        QVERIFY2(kinds[0].contains(QLatin1String(".odp")) && kinds[1].contains(QLatin1String(".otp")), qPrintable(kinds.join(QLatin1Char('|'))));
+    }
+
     void inspectFindsNotesCommentsHiddenSlidesAndWhatIsOffTheSlide()
     {
         DeckWindow w;
@@ -1056,6 +1077,29 @@ private Q_SLOTS:
         QVERIFY(QTest::qWaitForWindowExposed(&dialog));
         QDir().mkpath(dir);
         QVERIFY(dialog.grab().save(dir + QStringLiteral("/deck-inspect.png")));
+    }
+
+    // A picture of Check Compatibility (JO_SHOT_DIR names the folder; nothing is made without it).
+    void shotCheckCompatibility()
+    {
+        const QString dir = qEnvironmentVariable("JO_SHOT_DIR");
+        if (dir.isEmpty()) QSKIP("JO_SHOT_DIR is not set");
+        jp::initCore();
+        jp::applyUiTheme(1);
+        DeckWindow w;
+        Quiet quiet(w);
+        auto d = sample();
+        deck::FooterOptions o;
+        o.footer = true;
+        o.footerText = QStringLiteral("Confidential: Acme");
+        deck::applyFooters(*d, o);
+        w.editor()->setDocument(std::move(d));
+        w.setAlwaysOpenReadOnly(true);
+        CompatibilityDialog dialog(w.compatHost(), 0, nullptr);
+        dialog.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&dialog));
+        QDir().mkpath(dir);
+        QVERIFY(dialog.grab().save(dir + QStringLiteral("/deck-compat.png")));
     }
 
     void versionsAreKeptAndGoneBackTo()

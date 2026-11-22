@@ -1,0 +1,69 @@
+#pragma once
+// Check Compatibility, the same box in every app (File > Info): the person picks a kind of file the app saves (an .odt, an .rtf; an .xls, an .ods, a .csv; an .odp), and the box says
+// what that kind can't hold of this file, in the sentence the save warning uses (libs/shell/app/lossywarning.h). Each app supplies the kinds and, for each, how its writer finds
+// what is left out. The two choices kept in the file itself (the final mark and "always open for reading only") are added here, once, for every kind that is not the app's own: no
+// other kind holds them.
+
+#include "app/lossywarning.h"
+#include "core/export.h"
+#include <QDialog>
+#include <QStringList>
+#include <QVector>
+#include <functional>
+
+class QComboBox;
+class QLabel;
+
+namespace jp {
+
+struct CompatFormat {
+    QString label;       // as the picker shows it, "OpenDocument text (.odt)"
+    QString format;      // ".odt"
+    QString ownFormat;   // the app's own full format, ".docx"
+    QString what;        // what the file holds, for a sentence: "document"
+    // Works out what the kind can't hold and calls `done` with the list: at once, or later when it takes another thread. It is never called after the box is gone.
+    std::function<void(const std::function<void(const QStringList &)> &done)> lost;
+};
+
+struct CompatHost {
+    QVector<CompatFormat> formats;
+    std::function<bool()> markedFinal;
+    std::function<bool()> alwaysReadOnly;
+};
+
+// The most lines of one list that are kept, and the longest one line is.
+constexpr int kCompatMaxLines = 200;
+constexpr int kCompatMaxLineChars = 400;
+
+// The two choices a file holds that no other kind does, as lines of the list (each only when it is on).
+JO_COMMON_EXPORT QStringList compatFileChoices(const QString &what, bool markedFinal, bool alwaysReadOnly);
+
+// The list the box shows for a kind: what the app found, bounded, then the file's choices.
+JO_COMMON_EXPORT QStringList compatLines(const CompatFormat &format, const CompatHost &host, const QStringList &found);
+
+// The sentence and the list for a kind (lossyReport of compatLines).
+JO_COMMON_EXPORT QString compatReport(const CompatFormat &format, const CompatHost &host, const QStringList &found);
+
+class JO_COMMON_EXPORT CompatibilityDialog : public QDialog {
+    Q_OBJECT
+public:
+    CompatibilityDialog(const CompatHost &host, int first, QWidget *parent);
+    // For tests: what the box says now, whether it is still working it out, and a choice from the picker.
+    QString reportText() const;
+    bool working() const { return m_working; }
+    int formatCount() const { return int(m_host.formats.size()); }
+    void choose(int index);
+
+private:
+    void work();
+    CompatHost m_host;
+    QComboBox *m_picker = nullptr;
+    QLabel *m_report = nullptr;
+    int m_generation = 0;
+    bool m_working = false;
+};
+
+// Runs the box. Where `notifier` is given (a test, or a window that says things in its status line) the first kind's report is handed to it instead, once it is worked out.
+JO_COMMON_EXPORT void showCompatibility(QWidget *parent, const CompatHost &host, int first, const std::function<void(const QString &title, const QString &text, bool warn)> &notifier);
+
+} // namespace jp

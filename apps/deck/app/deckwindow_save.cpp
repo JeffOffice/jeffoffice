@@ -200,18 +200,20 @@ bool embedFontsOnSave() { return Settings::get().value(QStringLiteral("save/embe
 
 // What the open document kind would leave out of the presentation: what the writer leaves out (found by writing to memory as a save would, kept until the presentation changes; nothing is put on
 // disk), and the mark that it is final. Check Compatibility lists the same.
-QStringList DeckWindow::odpLosses(const QString &path)
+QStringList DeckWindow::odpFound(bool tmpl)
 {
-    const bool tmpl = deck::presentationKindOf(path) == deck::PresentationKind::Template;
-    QStringList lost = m_lossCache.get(tmpl ? QStringLiteral("otp") : QStringLiteral("odp"), [&] {
+    return m_lossCache.get(tmpl ? QStringLiteral("otp") : QStringLiteral("odp"), [&] {
         QStringList skipped;
         QString err;
         deck::exportOdp(*m_ed->doc(), tmpl, &err, &skipped);
         return skipped;
     });
-    if (markedAsFinal()) lost << tr("The mark that the presentation is final.");
-    if (alwaysOpensReadOnly()) lost << tr("The choice to always open the presentation for reading only.");
-    return lost;
+}
+
+QStringList DeckWindow::odpLosses(const QString &path)
+{
+    const bool tmpl = deck::presentationKindOf(path) == deck::PresentationKind::Template;
+    return odpFound(tmpl) + compatFileChoices(tr("presentation"), markedAsFinal(), alwaysOpensReadOnly());
 }
 
 bool DeckWindow::saveTo(const QString &path, bool asCopy)
