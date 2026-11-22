@@ -1442,6 +1442,32 @@ qsizetype recordBytes(const QByteArray &d, qint64 *walked)
     return at;
 }
 
+// Whether a workbook's stream ends well: its records are whole and each substream a begin record opens is closed by an end record, the last record is an end record, and only zeros (the
+// padding of a sector) follow it. `prefix` is the bytes that are whole records from the start, however the stream ends.
+jp::office::CfbWish::End workbookEnd(QByteArrayView d)
+{
+    jp::office::CfbWish::End out;
+    qsizetype at = 0, lastEnd = -1;
+    int depth = 0;
+    bool started = false;
+    while (at + 4 <= d.size()) {
+        const int id = quint8(d[at]) | quint8(d[at + 1]) << 8, len = quint8(d[at + 2]) | quint8(d[at + 3]) << 8;
+        if (id == 0 || id >= 0x2000 || at + 4 + len > d.size()) break;
+        at += 4 + len;
+        if (isBof(id)) {
+            ++depth;
+            started = true;
+        } else if (id == kEof && depth > 0 && --depth == 0) {
+            lastEnd = at;
+        }
+    }
+    out.prefix = at;
+    bool zeros = true;
+    for (qsizetype i = at; i < d.size() && zeros; ++i) zeros = d[i] == 0;
+    if (started && depth == 0 && lastEnd == at && zeros) out.whole = at;
+    return out;
+}
+
 // What became of the sheets, in words: each sheet that is cut short (with how far its cells go) or is gone, and what was read whole.
 QStringList sheetReport(const QByteArray &stream, const Limits &limits)
 {
@@ -1520,8 +1546,8 @@ QByteArray salvageXlsStream(const QByteArray &file, const Limits &limits, QStrin
     wish.name = QStringLiteral("Workbook");
     wish.nameMatches = [](const QString &n) { return n.compare(QLatin1String("Workbook"), Qt::CaseInsensitive) == 0 || n.compare(QLatin1String("Book"), Qt::CaseInsensitive) == 0; };
     wish.looksLike = [](QByteArrayView from, const QMap<QString, QByteArray> &) { return from.startsWith(QByteArrayView(kBiff8, 8)) || from.startsWith(QByteArrayView(kBiff5, 8)); };
-    wish.soundFirst = true;   // (as before: the container as it is, then the workbook found by its first record at any byte of the file)
     wish.anyOffset = true;
+    wish.endsWell = [](QByteArrayView bytes, const QMap<QString, QByteArray> &) { return workbookEnd(bytes); };
     wish.validBytes = [&](QByteArrayView bytes, const QMap<QString, QByteArray> &) -> qint64 { return reads(QByteArray::fromRawData(bytes.constData(), bytes.size())) ? bytes.size() : 0; };
     jp::office::CfbSalvage found;
     QString why;

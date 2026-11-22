@@ -1024,6 +1024,7 @@ QByteArray DocWriter::build() const
         f.entries[0].children.push_back(int(f.entries.size()));
         f.entries.push_back(e);
     };
+    if (wd.size() >= 68 && qFromLittleEndian<quint16>(wd.constData() + 62) >= 1) qToLittleEndian(quint32(wd.size()), wd.data() + 64);   // (cbMac: the bytes of the stream that mean something, as the format says)
     stream(QStringLiteral("WordDocument"), wd);
     stream(QStringLiteral("1Table"), tbl);
     if (!data.isEmpty()) stream(QStringLiteral("Data"), data);

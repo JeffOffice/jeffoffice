@@ -1892,6 +1892,51 @@ private Q_SLOTS:
         QVERIFY2(got == a.stream(), qPrintable(why));
     }
 
+    // A directory that gives a stream three times its size, with a neighbor of valid records after it: the stream ends where its tables end, and none of the neighbor's records come with it.
+    void aSizeTooLargeDoesNotTakeTheNeighborsRecords()
+    {
+        // (the workbook's stream fills its last sector exactly, so that nothing but the neighbor's records follows its last record)
+        Book a, other;
+        QByteArray cellsA, cellsO;
+        for (int r = 0; r < 300; ++r) cellsO += number(r, 0, 9000 + r);
+        other.sheet(QStringLiteral("A"), cellsO);
+        int rows = 300;
+        for (; rows < 900; ++rows) {
+            QByteArray cells;
+            for (int r = 0; r < rows; ++r) cells += number(r, 0, r);
+            Book t;
+            t.sheet(QStringLiteral("A"), cells);
+            if (t.stream().size() % 512 == 0) {
+                cellsA = cells;
+                break;
+            }
+        }
+        QVERIFY(!cellsA.isEmpty());
+        a.sheet(QStringLiteral("A"), cellsA);
+        jp::cfb::File f;
+        jp::cfb::Entry root;
+        root.type = jp::cfb::Entry::Root;
+        root.name = QStringLiteral("Root Entry");
+        f.entries.push_back(root);
+        const QList<QPair<QString, QByteArray>> streams{{QStringLiteral("Workbook"), a.stream()}, {QStringLiteral("Other"), other.stream()}};
+        for (const auto &one : streams) {
+            jp::cfb::Entry e;
+            e.type = jp::cfb::Entry::Stream;
+            e.name = one.first;
+            e.data = one.second;
+            f.entries[0].children << int(f.entries.size());
+            f.entries << e;
+        }
+        QByteArray file = jp::cfb::write(f);
+        cfbdamage::set32(file, cfbdamage::entryOf(file, QStringLiteral("Workbook")) + 120, quint32(a.stream().size()) * 3);
+        QStringList notes;
+        QString why;
+        const QByteArray got = salvageXlsStream(file, Limits(), &notes, &why);
+        QVERIFY2(!got.isEmpty(), qPrintable(why));
+        QCOMPARE(got, a.stream());
+        QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("did not agree")), qPrintable(notes.join(QLatin1Char('|'))));
+    }
+
     // The sectors are out of order and the tables say nothing (zeroed): the cells before the first sector out of place are kept, no cell after it is made up, and the notes say how far the rows go.
     void sectorsOutOfOrderWithNoTablesKeepOnlyWhatIsBeforeThem()
     {

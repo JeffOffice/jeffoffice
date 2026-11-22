@@ -32,6 +32,7 @@ struct DirEntry {
     int type = 0;
     quint32 start = 0;
     quint64 size = 0;
+    int id = 0;   // its place in the directory
 };
 
 // A 128-byte block that could be a directory entry: a name of whole UTF-16 letters ended by a zero, and a type that exists.
@@ -91,6 +92,8 @@ public:
         const qint64 perSector = m_ss / 4;
         const qint64 most = std::min<qint64>({qint64(numFat), qint64(listed.size()), m_sectors / perSector + 2});
         m_fat.fill(kFree, qsizetype(most * perSector));
+        m_fatKnown.fill(0, m_fat.size());
+        for (quint32 k : seen) m_structural << k;   // (the sectors of the DIFAT chain)
         seen.clear();
         for (qint64 i = 0; i < most; ++i) {
             const quint32 id = listed[qsizetype(i)];
@@ -98,17 +101,23 @@ public:
             seen.insert(id);
             const QByteArrayView s = sector(id);
             if (s.size() < m_ss || allZero(s)) continue;
-            for (qint64 k = 0; k < perSector; ++k) m_fat[qsizetype(i * perSector + k)] = rd32(s, qsizetype(k * 4));
+            m_structural << id;
+            for (qint64 k = 0; k < perSector; ++k) {
+                m_fat[qsizetype(i * perSector + k)] = rd32(s, qsizetype(k * 4));
+                m_fatKnown[qsizetype(i * perSector + k)] = 1;
+            }
         }
         readDirectory(dirStart);
         miniUnread = !miniOk;
         if (miniOk) readMini(miniFatStart, numMiniFat);
+        buildOwners();
         return true;
     }
 
-    // How a stream's sectors are found: through the tables where they are known and else as the next sector after the last, or as one run of sectors (no table taken as known), or
-    // through the tables to where they end, whatever size the directory gives (a directory that says less than the tables hold).
-    enum class Mode { Tables, Contiguous, ToEnd };
+    // How a stream is read, in the order the caller tries them: through the tables as far as they go (to the directory's size), through the tables on past the directory's size to
+    // their own end, through the tables with each link that can't be read replaced by the next sector in the file, and as one run of sectors; the last also takes sectors the tables
+    // mark free, for want of anything else.
+    enum class Mode { Tables, PastSize, Guess, Contiguous, LastResort };
 
     // True if the tables lead from the last sector the directory's size needs to another one (the stream holds more than the directory says).
     bool runsPastItsSize(const DirEntry &e)
@@ -126,35 +135,102 @@ public:
         return qint64(next) < m_sectors && !seen.contains(next);
     }
 
-    // The bytes of a stream, `size` of them from `start` (in the mode's way: see Mode).
-    QByteArray stream(const DirEntry &e, Mode mode)
+    // One reading of a stream, and what was done to make it.
+    struct Reading {
+        QByteArray bytes;
+        QVector<qint64> joins;   // where a sector was joined to the one before it by guess (offsets in bytes)
+        bool cutShort = false;   // the file ended inside the stream
+        bool chainBroke = false; // the tables ended the stream before its size
+        bool guessed = false;
+        bool pastSize = false;   // the tables hold more than the directory's size
+        bool usedFree = false;
+        // as the file gives it: the tables and the directory agree and nothing was guessed
+        bool clean() const { return !cutShort && !chainBroke && !guessed && !pastSize; }
+    };
+
+    Reading read(const DirEntry &e, Mode mode)
     {
-        if (e.size == 0 || e.size > quint64(m_lim.maxStreamBytes)) return QByteArray();
-        const bool contiguous = mode == Mode::Contiguous;
-        QByteArray out;
-        if (mode == Mode::ToEnd) {
-            if (e.size < m_cutoff || !runsPastItsSize(e)) return QByteArray();
-            QSet<quint32> seen;
-            const qint64 most = std::min<qint64>(m_sectors, m_lim.maxStreamBytes / m_ss);
-            for (quint32 n = e.start; qint64(n) < m_sectors && !seen.contains(n) && seen.size() < most; n = n < quint32(m_fat.size()) ? m_fat[qsizetype(n)] : kFree) {
-                seen.insert(n);
-                out.append(sector(n).toByteArray());
+        Reading r;
+        if (e.size == 0 || e.size > quint64(m_lim.maxStreamBytes)) return r;
+        const bool mini = e.size < m_cutoff;
+        if (mini && !m_haveMini) return r;
+        if (mode == Mode::PastSize && (mini || !runsPastItsSize(e))) return r;
+        const QVector<quint32> &table = mini ? m_miniFat : m_fat;
+        const QVector<char> &known = mini ? m_miniKnown : m_fatKnown;
+        const QVector<qint32> &owner = mini ? m_miniOwner : m_owner;
+        const qint64 limit = mini ? qint64(m_mini.size() / m_mss) : m_sectors;
+        const qsizetype unit = mini ? m_mss : m_ss;
+        const qint64 count = mode == Mode::PastSize ? std::min<qint64>(limit, m_lim.maxStreamBytes / unit) : qint64((e.size + quint64(unit) - 1) / quint64(unit));
+        const bool allowFree = mode == Mode::LastResort;
+        r.pastSize = mode == Mode::Tables && !mini && runsPastItsSize(e);
+        // a sector a guess may take: in the file, not part of the container's own tables, not another stream's, and not marked free (unless nothing else is left)
+        auto usable = [&](quint32 n) {
+            if (qint64(n) >= limit) return false;
+            if (n < quint32(owner.size()) && owner[qsizetype(n)] != -1 && owner[qsizetype(n)] != e.id) return false;
+            if (n < quint32(known.size()) && known[qsizetype(n)]) {
+                const quint32 v = table[qsizetype(n)];
+                if (v == 0xFFFFFFFD || v == 0xFFFFFFFC) return false;
+                if (v == kFree && !allowFree) return false;
             }
-            return out;
+            return true;
+        };
+        QSet<quint32> seen;
+        quint32 cur = e.start;
+        qint64 pieces = 0;
+        const qint64 mostPieces = std::min<qint64>(count, limit + 1);
+        while (pieces < mostPieces) {
+            if (qint64(cur) >= limit) {
+                r.chainBroke = true;
+                break;
+            }
+            if (seen.contains(cur)) {
+                r.chainBroke = true;
+                break;
+            }
+            seen.insert(cur);
+            const QByteArrayView data = mini ? QByteArrayView(m_mini).mid(qsizetype(cur) * m_mss, m_mss) : sector(cur);
+            if (data.size() < unit) r.cutShort = true;
+            if (allowFree && cur < quint32(known.size()) && known[qsizetype(cur)] && table[qsizetype(cur)] == kFree) r.usedFree = true;
+            r.bytes.append(data.toByteArray());
+            ++pieces;
+            if (pieces == count) break;
+            const quint32 next = cur < quint32(table.size()) ? table[qsizetype(cur)] : kFree;
+            const bool tableOk = qint64(next) < limit && !seen.contains(next);
+            const bool wholeTables = mode == Mode::Tables || mode == Mode::PastSize;
+            if (wholeTables) {
+                if (!tableOk) {
+                    if (qint64(next) >= limit && next < 0xFFFFFFFC) r.cutShort = true;   // (a link to a place the file does not reach)
+                    else if (mode == Mode::Tables) r.chainBroke = true;
+                    break;
+                }
+                cur = next;
+                continue;
+            }
+            const quint32 after = cur + 1;
+            if (mode == Mode::Guess && tableOk) {
+                cur = next;
+                continue;
+            }
+            if (!usable(after) || seen.contains(after)) {
+                if (qint64(after) >= limit) r.cutShort = true;
+                else r.chainBroke = true;
+                break;
+            }
+            if (!(tableOk && next == after)) {
+                r.guessed = true;
+                r.joins << qint64(pieces) * unit;
+            }
+            cur = after;
         }
-        if (e.size < m_cutoff) {
-            if (!m_haveMini) return QByteArray();
-            const qint64 count = qint64((e.size + quint64(m_mss) - 1) / quint64(m_mss));
-            const QVector<quint32> c = chain(e.start, count, contiguous ? QVector<quint32>() : m_miniFat, m_mini.size() / m_mss, false);
-            for (quint32 m : c) out += m_mini.mid(qsizetype(m) * m_mss, m_mss);
-        } else {
-            const qint64 count = qint64((e.size + quint64(m_ss) - 1) / quint64(m_ss));
-            const QVector<quint32> c = chain(e.start, count, contiguous ? QVector<quint32>() : m_fat, m_sectors, true);
-            out.reserve(qsizetype(c.size()) * m_ss);
-            for (quint32 n : c) out.append(sector(n).toByteArray());
+        if (mode != Mode::PastSize && quint64(r.bytes.size()) < e.size && pieces < count) r.chainBroke = r.chainBroke || !r.cutShort;
+        if (mode != Mode::PastSize) r.bytes = r.bytes.left(qsizetype(e.size));
+        if (mini && m_miniGuessed) {
+            // (the container's mini stream was put together by guess: every mini sector may be joined wrongly)
+            r.guessed = true;
+            for (qint64 o = unit; o < r.bytes.size(); o += unit) r.joins << o;
         }
-        if (quint64(out.size()) < e.size) cutShort = true;   // (the file ended inside the stream: in its last sector, or before it)
-        return out.left(qsizetype(e.size));
+        while (!r.joins.isEmpty() && r.joins.last() >= r.bytes.size()) r.joins.removeLast();
+        return r;
     }
 
 private:
@@ -186,6 +262,7 @@ private:
                 cur = next;
             } else {
                 guessed = true;
+                ++m_guesses;
                 cur = cur + 1;
             }
         }
@@ -210,12 +287,14 @@ private:
             const quint32 after = cur + 1;
             if (qint64(after) < m_sectors && !seen.contains(after) && looksLikeDirectory(sector(after))) {
                 guessed = true;
+                ++m_guesses;
                 cur = after;
             } else {
                 break;
             }
         }
         for (quint32 n : sectors) {
+            m_structural << n;
             const QByteArrayView s = sector(n);
             for (qsizetype o = 0; o + 128 <= s.size(); o += 128) {
                 const QByteArrayView e = s.mid(o, 128);
@@ -227,6 +306,7 @@ private:
                 d.start = rd32(e, 116);
                 d.size = m_ss == 512 ? rd32(e, 120) : rd64(e, 120);
                 if (d.type == 5 && m_root.type != 5) m_root = d;
+                d.id = int(entries.size());
                 entries << d;
                 directoryRead = true;
             }
@@ -239,6 +319,7 @@ private:
         // (the root's chain is the mini stream)
         m_mini.clear();
         const qint64 count = qint64((m_root.size + quint64(m_ss) - 1) / quint64(m_ss));
+        const int guessesBefore = m_guesses;
         for (quint32 n : chain(m_root.start, count, m_fat, m_sectors, true)) m_mini.append(sector(n).toByteArray());
         m_mini = m_mini.left(qsizetype(m_root.size));
         if (m_mini.isEmpty()) return;
@@ -248,9 +329,37 @@ private:
             const QByteArrayView s = sector(n);
             const qsizetype before = m_miniFat.size();
             m_miniFat.resize(before + qsizetype(m_ss / 4));
-            for (qsizetype k = 0; k < m_ss / 4; ++k) m_miniFat[before + k] = s.size() < m_ss || allZero(s) ? kFree : rd32(s, k * 4);
+            const bool read = s.size() >= m_ss && !allZero(s);
+            m_miniFatRead << read;
+            for (qsizetype k = 0; k < m_ss / 4; ++k) m_miniFat[before + k] = read ? rd32(s, k * 4) : kFree;
         }
+        m_miniGuessed = m_guesses != guessesBefore;
         m_haveMini = true;
+    }
+
+    // Who holds each sector: nobody (-1), the container's own tables (-2), or the directory entry whose chain reaches it (by the tables as they read).
+    void buildOwners()
+    {
+        m_owner.fill(-1, qsizetype(m_sectors));
+        for (quint32 n : std::as_const(m_structural))
+            if (qint64(n) < m_sectors) m_owner[qsizetype(n)] = -2;
+        const qint64 minis = m_haveMini ? m_mini.size() / m_mss : 0;
+        m_miniOwner.fill(-1, qsizetype(minis));
+        m_miniKnown.fill(0, m_miniFat.size());
+        for (qsizetype i = 0; i < m_miniFat.size(); ++i) m_miniKnown[i] = m_miniFatRead.value(i / qsizetype(m_ss / 4), false);
+        for (const DirEntry &e : std::as_const(entries)) {
+            if (e.size == 0 || (e.type != 2 && e.type != 5)) continue;
+            const bool mini = e.type == 2 && e.size < m_cutoff;
+            if (mini && !m_haveMini) continue;
+            QVector<qint32> &owner = mini ? m_miniOwner : m_owner;
+            const QVector<quint32> &table = mini ? m_miniFat : m_fat;
+            const qint64 limit = mini ? minis : m_sectors;
+            quint32 cur = e.start;
+            for (qint64 steps = 0; steps <= limit && qint64(cur) < limit && owner[qsizetype(cur)] == -1; ++steps) {
+                owner[qsizetype(cur)] = e.id;
+                cur = cur < quint32(table.size()) ? table[qsizetype(cur)] : kFree;
+            }
+        }
     }
 
     const QByteArray &m_file;
@@ -258,7 +367,12 @@ private:
     qsizetype m_ss = 512, m_mss = 64;
     quint32 m_cutoff = 4096;
     qint64 m_sectors = 0;
-    QVector<quint32> m_fat, m_miniFat;
+    QVector<quint32> m_fat, m_miniFat, m_structural;
+    QVector<char> m_fatKnown, m_miniKnown;
+    QVector<qint32> m_owner, m_miniOwner;
+    QVector<bool> m_miniFatRead;
+    bool m_miniGuessed = false;
+    int m_guesses = 0;
     DirEntry m_root;
     QByteArray m_mini;
     bool m_haveMini = false;
@@ -291,46 +405,96 @@ bool salvageCompoundFile(const QByteArray &file, const QVector<CfbWish> &wishes,
     QMap<QString, qint64> scanStart;
     qint64 total = 0;
     QStringList missing;
-    // what the caller's checks may look at in all: a few times the file, so no number of candidates makes the work more
-    qint64 work = 8 * qint64(file.size()) + (1 << 20);
+    // what the caller's checks may look at in all, and what the readings may make: a few times the file, so no number of candidates makes the work more
+    const qint64 budget = 8 * qint64(file.size()) + (1 << 20), builtBudget = 16 * qint64(file.size()) + (1 << 20);
+    qint64 work = budget, built = builtBudget;
+    bool anyCut = false, anyGuessed = false, anyUnverified = false, anyFree = false;
     for (const CfbWish &w : wishes) {
         QByteArray found;
+        QVector<qint64> joins;
         bool fromDirectory = false;
-        bool lengthened = false;   // the tables gave the stream more than the directory's size, or the sectors after a break were taken
-        const DirEntry *producer = nullptr;   // the directory entry the reading came from: the other readings of the stream are of this one alone
         auto accept = [&](const QByteArray &data) {
             if (data.isEmpty() || data.size() > limits.maxStreamBytes || data.size() > work) return false;
             work -= data.size();
             return !w.validBytes || w.validBytes(QByteArrayView(data), out->streams) > 0;
         };
-        // (the entries named for this stream, the one named exactly first, at most maxEntryTries of them, each tried through the tables and then as one run of sectors)
+        // The entries of the directory named for this stream, the one named exactly first, at most maxEntryTries of them. The stream is read from ONE of them (the first that gives a
+        // reading that ends well, else the first that gives any the caller accepts), never from several put together: see the order of readings in REPAIR.md and the header.
         auto fromTolerant = [&] {
             if (!opened) return;
             QVector<const DirEntry *> named;
             for (int exact = 1; exact >= 0; --exact)
                 for (const DirEntry &e : std::as_const(tolerant.entries))
                     if (e.type == 2 && (e.name.compare(w.name, Qt::CaseInsensitive) == 0) == bool(exact) && nameIs(w, e.name)) named << &e;
-            for (int i = 0; i < named.size() && i < limits.maxEntryTries && found.isEmpty(); ++i)
-                for (Tolerant::Mode mode : {Tolerant::Mode::Tables, Tolerant::Mode::Contiguous}) {
-                    const QByteArray data = tolerant.stream(*named[i], mode);
-                    if (!accept(data)) continue;
-                    found = data;
-                    fromDirectory = true;
-                    producer = named[i];
-                    break;
-                }
-        };
-        // A stream that came out shorter than the directory says, or that the tables say is longer than the directory does, is read the other ways too, and the longest is kept: a chain
-        // that ends in the middle of a stream (a damaged table) reads as a short stream in a sound container, and the sectors are all there.
-        auto longest = [&] {
-            if (!opened || found.isEmpty()) return;
-            if (!producer || !(quint64(found.size()) < producer->size || tolerant.runsPastItsSize(*producer))) return;
-            for (Tolerant::Mode mode : {Tolerant::Mode::Tables, Tolerant::Mode::Contiguous, Tolerant::Mode::ToEnd}) {
-                const QByteArray data = tolerant.stream(*producer, mode);
-                if (data.size() <= found.size() || !accept(data)) continue;
-                found = data;
+            if (named.size() > limits.maxEntryTries) named.resize(limits.maxEntryTries);
+            auto choose = [&](const Tolerant::Reading &r, Tolerant::Mode mode, qint64 keep, bool verified) {
+                found = r.bytes.left(qsizetype(keep));
+                joins.clear();
+                for (qint64 j : r.joins)
+                    if (j < keep) joins << j;
                 fromDirectory = true;
-                lengthened = true;
+                anyCut |= r.cutShort;
+                anyGuessed |= !joins.isEmpty() || (r.guessed && r.joins.isEmpty());
+                anyFree |= r.usedFree;
+                anyUnverified |= !verified && !r.cutShort;
+                if (!(mode == Tolerant::Mode::Tables && r.clean())) out->repaired = true;
+                else fromDirectory = false;
+            };
+            struct Fallback {
+                Tolerant::Reading reading;
+                Tolerant::Mode mode = Tolerant::Mode::Tables;
+                qint64 prefix = 0;
+                bool set = false;
+            } fallback;
+            for (int tier = 0; tier < 2 && found.isEmpty() && !fallback.set; ++tier) {
+                if (tier == 1 && !w.endsWell) break;
+                const QVector<Tolerant::Mode> modes = tier == 0 ? QVector<Tolerant::Mode>{Tolerant::Mode::Tables, Tolerant::Mode::PastSize, Tolerant::Mode::Guess, Tolerant::Mode::Contiguous}
+                                                                : QVector<Tolerant::Mode>{Tolerant::Mode::LastResort};
+                for (int i = 0; i < named.size() && found.isEmpty(); ++i) {
+                    Fallback mine;
+                    QVector<QByteArray> tried;
+                    for (Tolerant::Mode mode : modes) {
+                        if (built <= 0) break;
+                        Tolerant::Reading r = tolerant.read(*named[i], mode);
+                        if (r.bytes.isEmpty()) continue;
+                        built -= r.bytes.size();
+                        if (tried.contains(r.bytes)) continue;
+                        tried << r.bytes;
+                        if (!accept(r.bytes)) continue;
+                        if (!w.endsWell) {
+                            // (nothing to check it by: the tables and the directory as far as they agree)
+                            if (mode == Tolerant::Mode::Tables) choose(r, mode, r.bytes.size(), true);
+                            if (!found.isEmpty()) break;
+                            continue;
+                        }
+                        if (mode == Tolerant::Mode::Tables && r.clean()) {
+                            choose(r, mode, r.bytes.size(), true);
+                            break;
+                        }
+                        const CfbWish::End end = w.endsWell(QByteArrayView(r.bytes), out->streams);
+                        if (end.whole >= 0) {
+                            choose(r, mode, std::min<qint64>(end.whole, r.bytes.size()), true);
+                            break;
+                        }
+                        const qint64 prefix = std::clamp<qint64>(end.prefix, 0, r.bytes.size());
+                        if (prefix > mine.prefix) {
+                            mine.reading = r;
+                            mine.mode = mode;
+                            mine.prefix = prefix;
+                            mine.set = true;
+                        }
+                    }
+                    if (found.isEmpty() && mine.set && !fallback.set) fallback = mine;
+                }
+            }
+            // no reading ends well: what can be checked of the first entry's best (and no more)
+            if (found.isEmpty() && fallback.set) {
+                const QByteArray head = fallback.reading.bytes.left(qsizetype(fallback.prefix));
+                if (head.size() < fallback.reading.bytes.size() && !accept(head)) {
+                    choose(fallback.reading, fallback.mode, fallback.reading.bytes.size(), false);
+                    return;
+                }
+                choose(fallback.reading, fallback.mode, fallback.prefix, false);
             }
         };
         auto fromSound = [&] {
@@ -347,27 +511,13 @@ bool salvageCompoundFile(const QByteArray &file, const QVector<CfbWish> &wishes,
                 const QByteArray data = sound.stream(named[i]);
                 if (!accept(data)) continue;
                 found = data;
-                // (the entry of the directory that is this stream: the first of its name)
-                if (opened)
-                    for (const DirEntry &e : std::as_const(tolerant.entries))
-                        if (e.type == 2 && e.name.compare(named[i], Qt::CaseInsensitive) == 0) {
-                            producer = &e;
-                            break;
-                        }
             }
         };
-        if (w.soundFirst) {
+        fromTolerant();
+        if (found.isEmpty()) {
             fromSound();
-            if (found.isEmpty()) fromTolerant();
-        } else {
-            fromTolerant();
-            if (found.isEmpty()) {
-                fromSound();
-                fromDirectory = false;
-            }
+            fromDirectory = false;
         }
-        longest();
-        if (lengthened) out->repaired = true;
         CfbSalvage::How how = fromDirectory ? CfbSalvage::How::Directory : CfbSalvage::How::Whole;
         if (found.isEmpty() && w.validBytes && w.looksLike) {
             // 3. a scan: every place the stream could start, as far as the caller's own check says it is
@@ -399,6 +549,7 @@ bool salvageCompoundFile(const QByteArray &file, const QVector<CfbWish> &wishes,
         }
         out->streams.insert(w.name, found);
         out->how.insert(w.name, how);
+        if (!joins.isEmpty()) out->joins.insert(w.name, joins);
     }
     // a stream found by a scan runs to where the next stream found that way starts
     if (scanStart.size() > 1)
@@ -410,17 +561,13 @@ bool salvageCompoundFile(const QByteArray &file, const QVector<CfbWish> &wishes,
             if (s.size() > next - it.value()) s.truncate(qsizetype(next - it.value()));
         }
     if (opened) {
-        out->cutShort = tolerant.cutShort;
-        out->tablesGuessed = tolerant.guessed;
+        out->cutShort = tolerant.cutShort || anyCut;
+        out->tablesGuessed = tolerant.guessed || anyGuessed;
         out->directoryRead = tolerant.directoryRead;
         out->miniUnread = tolerant.miniUnread;
         for (const DirEntry &e : std::as_const(tolerant.entries))
             if (e.type == 2) out->directoryNames << e.name;
     }
-    // (a stream read through a container that needed no guessing is as it was written)
-    if (opened && !tolerant.guessed && !tolerant.cutShort)
-        for (auto it = out->how.begin(); it != out->how.end(); ++it)
-            if (it.value() == CfbSalvage::How::Directory) it.value() = CfbSalvage::How::Whole;
     if (out->directoryNames.isEmpty() && soundRead) out->directoryNames = sound.streamPaths();
     bool byDirectory = false, byScan = false;
     for (auto it = out->how.cbegin(); it != out->how.cend(); ++it) {
@@ -431,6 +578,12 @@ bool salvageCompoundFile(const QByteArray &file, const QVector<CfbWish> &wishes,
     if (byScan) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "The directory of the file was damaged or gone, so its parts were found by their own records.");
     if (out->tablesGuessed && (byDirectory || byScan)) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "Where the tables of sectors were damaged, each sector was taken to follow the one before it in the file, so a value where two sectors meet may be wrong.");
     if (out->repaired) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "The size the file gives for a part and the lists of where its pieces are stored did not agree, so the part was read as far as its pieces go.");
+    out->unverified = anyUnverified;
+    out->usedFree = anyFree;
+    out->bytesBuilt = builtBudget - built;
+    out->bytesChecked = budget - work;
+    if (anyUnverified) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "The end of a part of the file could not be confirmed, so only what could be checked was kept.");
+    if (anyFree) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "Pieces of the file that its lists mark as unused were read, because nothing else could be found; they may hold old data.");
     if (out->miniUnread) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "The small parts kept in the mini stream of the file could not be read.");
     if (out->cutShort && (byDirectory || byScan)) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "The file was cut short; what came after the cut is lost.");
     if (!missing.isEmpty()) {

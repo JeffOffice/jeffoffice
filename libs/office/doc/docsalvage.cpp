@@ -181,12 +181,38 @@ QByteArray salvageDoc(const QByteArray &file, QStringList *notes, QString *error
             Fib fib;
             return fibOf(found, &fib) && fib.whichTable1 == second ? clxValid(bytes, fib, found.value(QStringLiteral("WordDocument")).size()) : 0;
         };
+        // a table stream ends well when every range the header names in it lies inside it
+        w.endsWell = [=](QByteArrayView bytes, const QMap<QString, QByteArray> &found) {
+            CfbWish::End end;
+            Fib fib;
+            if (!fibOf(found, &fib) || fib.whichTable1 != second) return end;
+            end.prefix = bytes.size();
+            qint64 reach = 0;
+            for (const Fib::Fc &c : std::as_const(fib.fcs))
+                if (c.lcb > 0) reach = std::max<qint64>(reach, qint64(c.fc) + c.lcb);
+            if (reach <= bytes.size()) end.whole = bytes.size();
+            return end;
+        };
         return w;
     };
     CfbWish word;
     word.name = QStringLiteral("WordDocument");
     word.looksLike = wordLooks;
     word.validBytes = wordValid;
+    // The document stream ends well when its header is one and the stream holds every byte the header says was written (the format says the bytes from there on mean nothing). A header
+    // that says nothing leaves the end unconfirmed; the stream is then whole as far as it goes.
+    word.endsWell = [](QByteArrayView bytes, const QMap<QString, QByteArray> &) {
+        CfbWish::End end;
+        const Span wd(reinterpret_cast<const uchar *>(bytes.constData()), bytes.size());
+        Fib fib;
+        QString why;
+        if (!readFib(wd, &fib, &why)) return end;
+        end.prefix = bytes.size();
+        const FibPlaces at = fibPlaces(wd);
+        const qint64 written = at.ccp ? qint64(wd.u32(at.ccp)) : 0;
+        if (written > 0 && written <= bytes.size()) end.whole = bytes.size();
+        return end;
+    };
     CfbWish data;
     data.name = QStringLiteral("Data");
     data.required = false;

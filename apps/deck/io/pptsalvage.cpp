@@ -120,6 +120,17 @@ QByteArray salvagePresentation(const QByteArray &file, QStringList *notes, QStri
             if (t.type == kDocument) return end;
         return 0;
     };
+    // it ends well when its records are whole to the end (zeros after them are the padding of a sector) and the last is an edit record, as every save ends it
+    stream.endsWell = [](QByteArrayView bytes, const QMap<QString, QByteArray> &) {
+        CfbWish::End end;
+        qint64 at = 0;
+        const QVector<Top> tops = topRecords(bytes, &at);
+        end.prefix = at;
+        bool zeros = true;
+        for (qint64 i = at; i < bytes.size() && zeros; ++i) zeros = bytes[qsizetype(i)] == 0;
+        if (!tops.isEmpty() && tops.last().type == kUserEdit && zeros) end.whole = at;
+        return end;
+    };
     CfbWish user;
     user.name = QStringLiteral("Current User");
     user.required = false;

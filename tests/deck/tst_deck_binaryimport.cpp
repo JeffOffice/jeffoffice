@@ -1682,6 +1682,25 @@ private Q_SLOTS:
         }
     }
 
+    // A directory that gives the presentation stream three times its size: what follows its chain (another stream, or what is free) does not become part of the presentation.
+    void aSizeTooLargeDoesNotTakeTheBytesAfterTheChain()
+    {
+        const QByteArray big = bigDeck();
+        jp::cfb::File was;
+        QVERIFY(jp::cfb::read(big, &was));
+        const QByteArray original = was.stream(pptDocumentStream());
+        QByteArray bad = big;
+        cfbdamage::set32(bad, cfbdamage::entryOf(bad, pptDocumentStream()) + 120, quint32(original.size()) * 3);
+        QStringList notes;
+        const QByteArray fixed = deck::salvagePresentation(bad, &notes, nullptr);
+        QVERIFY(!fixed.isEmpty());
+        jp::cfb::File now;
+        QVERIFY(jp::cfb::read(fixed, &now));
+        const QByteArray got = now.stream(pptDocumentStream());
+        QVERIFY2(got.size() <= original.size() + 511 && got.left(original.size()) == original, qPrintable(QString::number(got.size()) + QLatin1Char(' ') + QString::number(original.size())));
+        QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("did not agree")), qPrintable(notes.join(QLatin1Char('|'))));
+    }
+
     // A developer's hook, not a test: JO_REPAIR_TABLE names a file the outcome of each kind of damage is appended to.
     void repairTable()
     {

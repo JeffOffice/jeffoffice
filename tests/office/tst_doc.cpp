@@ -3192,6 +3192,13 @@ private Q_SLOTS:
         const int start = int(le32At(whole, entry + 116));
         jp::office::CfbWish w;
         w.name = QStringLiteral("S");
+        // (a stream of 10000 letters s ends well when all of them are there)
+        w.endsWell = [](QByteArrayView bytes, const QMap<QString, QByteArray> &) {
+            jp::office::CfbWish::End end;
+            while (end.prefix < bytes.size() && bytes[qsizetype(end.prefix)] == 's') ++end.prefix;
+            if (end.prefix == 10000 && bytes.size() == 10000) end.whole = 10000;
+            return end;
+        };
         jp::office::CfbSalvage out;
         QString why;
         // (the file ends 100 bytes into the stream's last sector, which is the 20th)
@@ -3359,7 +3366,16 @@ private Q_SLOTS:
         QCOMPARE(c.size(), 20);
         jp::office::CfbWish w;
         w.name = QStringLiteral("S");
-        w.soundFirst = true;
+        // (the stream's own structure, as a reader of it knows it: 10000 bytes of this pattern end well, and the bytes that match from the start are what can be checked)
+        const QByteArray pattern = e.data;
+        w.endsWell = [pattern](QByteArrayView bytes, const QMap<QString, QByteArray> &) {
+            jp::office::CfbWish::End end;
+            while (end.prefix < bytes.size() && end.prefix < pattern.size() && bytes[qsizetype(end.prefix)] == pattern[qsizetype(end.prefix)]) ++end.prefix;
+            bool zeros = true;   // (the padding of the last sector)
+            for (qsizetype i = pattern.size(); i < bytes.size() && zeros; ++i) zeros = bytes[i] == 0;
+            if (end.prefix == pattern.size() && zeros) end.whole = pattern.size();
+            return end;
+        };
         for (int kind = 0; kind < 4; ++kind) {
             QByteArray bad = good;
             if (kind == 0) cfbdamage::fatSet(bad, c[7], cfbdamage::kEnd);
@@ -3370,9 +3386,41 @@ private Q_SLOTS:
             QString why;
             QVERIFY2(jp::office::salvageCompoundFile(bad, {w}, &out, &why), qPrintable(why));
             const QByteArray got = out.streams.value(QStringLiteral("S"));
-            QVERIFY2(got.size() >= 10000 && got.left(10000) == e.data, qPrintable(QString::number(kind) + QLatin1Char(' ') + QString::number(got.size())));
-            QVERIFY(kind == 3 || got.size() == 10000);
+            QVERIFY2(got == e.data, qPrintable(QString::number(kind) + QLatin1Char(' ') + QString::number(got.size())));
+            QVERIFY2(out.repaired || out.tablesGuessed, qPrintable(QString::number(kind)));
+            // (a link that could not be read is a join by guess, and the stream says where; a size that disagrees with the tables is not)
+            QCOMPARE(out.joins.contains(QStringLiteral("S")), kind < 3);
         }
+        // a stream with nothing to check it by is read as far as its tables and its size agree, and not past a link that can't be read
+        {
+            QByteArray bad = good;
+            cfbdamage::fatSet(bad, c[7], cfbdamage::kEnd);
+            jp::office::CfbWish plain;
+            plain.name = QStringLiteral("S");
+            jp::office::CfbSalvage out;
+            QString why;
+            QVERIFY2(jp::office::salvageCompoundFile(bad, {plain}, &out, &why), qPrintable(why));
+            QCOMPARE(out.streams.value(QStringLiteral("S")), e.data.left(8 * 512));
+        }
+    }
+
+    // A directory that gives the document stream three times its size: the sectors after its chain are another stream's or free, and none of their bytes become the document's.
+    void aSizeTooLargeDoesNotTakeTheBytesAfterTheChain()
+    {
+        QStringList paras, notes;
+        const QByteArray good = repairableDoc(&paras);
+        jp::cfb::File was;
+        QVERIFY(jp::cfb::read(good, &was));
+        const QByteArray original = was.stream(QStringLiteral("WordDocument"));
+        QByteArray bad = good;
+        cfbdamage::set32(bad, cfbdamage::entryOf(bad, QStringLiteral("WordDocument")) + 120, quint32(original.size()) * 3);
+        const QByteArray fixed = doc::salvageDoc(bad, &notes, nullptr);
+        QVERIFY(!fixed.isEmpty());
+        jp::cfb::File now;
+        QVERIFY(jp::cfb::read(fixed, &now));
+        const QByteArray got = now.stream(QStringLiteral("WordDocument"));
+        QVERIFY2(got.size() <= original.size() + 511 && got.left(original.size()) == original, qPrintable(QString::number(got.size()) + QLatin1Char(' ') + QString::number(original.size())));
+        QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("did not agree")), qPrintable(notes.join(QLatin1Char('|'))));
     }
 
     // The mere fact that the tables were guessed is said, and a sound container says nothing.
