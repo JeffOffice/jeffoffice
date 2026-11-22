@@ -654,6 +654,36 @@ private Q_SLOTS:
         QCOMPARE(b.at("F4"), QStringLiteral("n:4"));   // (its members are the cells they were)
     }
 
+    // A spill's block let go of tells the window that its cells but the formula's own are empty, once each; a stored one over the size a spill can have (it has no block, and the cells it covers are the
+    // file's) is not walked over: the work is the cells of the block the table held, never the area of a range.
+    void aBlockLetGoOfTellsItsCellsAndARangeWithNoBlockTellsNone()
+    {
+        SpillIndexSwitch on(true);
+        qint64 b0walked = 0;
+        {
+            Book b;
+            QVERIFY(b.open(blank()));
+            QVERIFY(b.type(QStringLiteral("A1"), QStringLiteral("_xlfn.SEQUENCE(5)")));
+            qint64 gone = 0;
+            b.calc->setResultSink([&](int, quint32, quint32, const Value &v) { if (v.isEmpty()) ++gone; });
+            QVERIFY(b.put(QStringLiteral("A1"), Value::number(1)));
+            QCOMPARE(gone, qint64(4));
+            b0walked = b.calc->goneCellsWalked();
+        }
+        QCOMPARE(b0walked, qint64(5));   // (the cells of the block, the first of them skipped)
+        const qint64 over = kMaxSpillCells + 1;
+        const QString rows = rowXml(1, QStringLiteral("<c r=\"A1\" cm=\"1\"><f t=\"array\" ref=\"A1:A%1\">_xlfn.SEQUENCE(3)</f><v>1</v></c>").arg(over)) + rowXml(2, constant("A2", "2")) + rowXml(3, constant("A3", "3"));
+        Book b;
+        QString why;
+        QVERIFY(b.package.readLazy(withMetadata(blank(rows)), &why) && b.book.open(b.package, &why));
+        b.calc.reset(new Calculation(b.book));
+        b.calc->setResultSink([](int, quint32, quint32, const Value &) {});   // (the window is told, if there is one)
+        QVERIFY(b.calc->load());
+        QVERIFY(b.settle());   // (the stored range shrinks to the three cells the formula gives)
+        QVERIFY(b.put(QStringLiteral("A1"), Value::number(1)));   // (and the formula is let go of)
+        QVERIFY2(b.calc->goneCellsWalked() <= 10, qPrintable(QString::number(b.calc->goneCellsWalked())));   // (the range of 200,001 cells is not walked: it had no block)
+    }
+
     // A file's dynamic array: the anchor's array formula with the cell metadata that marks it, and the cached values of the cells it filled, read as saved.
     void aDynamicArrayOfAFileIsASpillShownAsSaved()
     {

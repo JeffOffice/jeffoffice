@@ -161,6 +161,8 @@ public:
     qint64 stampCount() const { return qint64(m_stampCount.load(std::memory_order_relaxed)); }
     // How many values have been told (by the worker) and how many the window has taken (it says so with `valuesTaken`, for every item of a batch, those it lets go of too).
     void valuesTaken(qint64 n) const { m_valuesTaken.fetch_add(n, std::memory_order_relaxed); }
+    // For tests: the cells the window was looked at to be told of when blocks were let go of (what a test counts to see that the work is the block's, whatever the stored ranges are).
+    qint64 goneCellsWalked() const { return m_goneWalked.load(std::memory_order_relaxed); }
     bool resultsInFlight() const { return m_valuesTold.load(std::memory_order_relaxed) != m_valuesTaken.load(std::memory_order_relaxed); }
     // Counted, for tests: the formulas worked out, and the places of cells looked up for a formula or a value told (a scalar told by a node needs none: it names its cell by ids).
     qint64 evaluations() const { return m_evaluations.load(std::memory_order_relaxed); }
@@ -964,7 +966,7 @@ private:
     bool spillRegisterable(int sheet, qint32 formula, const CellRange &range) const;
     void putSpillBlock(int sheet, const SpillRect &r);
     void dropSpillBlock(int sheet, qint32 formula);
-    void tellGoneBlock(int sheet, const CellRange &was, const CellRange &keep, quint32 row0, quint32 col0) const;
+    void tellGoneBlock(int sheet, qint32 formula, const CellRange &was, const CellRange &keep, quint32 row0, quint32 col0) const;
     void tellGone(int sheet, quint32 rowId, quint32 colId) const;
     void nameTextsChanged();
     void adjustValidations(const StructEdit &edit, const QStringList &sheetNames, EditRecord *record);
@@ -1088,6 +1090,7 @@ private:
     mutable std::mutex m_stampLock;                // (the window reads the stamps as it takes results, and the worker makes them as it answers questions)
     mutable std::atomic<size_t> m_stampCount{0};
     mutable std::atomic<qint64> m_valuesTold{0};
+    mutable std::atomic<qint64> m_goneWalked{0};
     mutable std::atomic<qint64> m_valuesTaken{0};
     std::atomic<qint64> m_evaluations{0};
     mutable std::atomic<qint64> m_placeLookups{0};

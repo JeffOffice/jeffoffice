@@ -378,18 +378,26 @@ void Calculation::rebuildSpillTable(int sheet)
     if (!m_guard.isWorkerOrNone()) pub->publish();
 }
 
-// The window is told that the cells of the block `was` that the block `keep` (if valid) does not hold, but for the formula's own cell, have no value now.
-void Calculation::tellGoneBlock(int sheet, const CellRange &was, const CellRange &keep, quint32 row0, quint32 col0) const
+// The window is told that the cells of the block `was` that the block `keep` (if valid) does not hold, but for the formula's own cell, have no value now. Only the cells of the block the table holds for the
+// formula are looked at (at most what a spill can have), whatever the range says: a formula that holds no block (a stored range over the size a spill can have, or one of a legacy array) has told nothing.
+void Calculation::tellGoneBlock(int sheet, qint32 formula, const CellRange &was, const CellRange &keep, quint32 row0, quint32 col0) const
 {
     if (!m_sink || !was.valid || was.cellCount() <= 1) return;
-    const CellStore &cells = m_sheets[size_t(sheet)].cells;
+    const Sheet &s = m_sheets[size_t(sheet)];
+    const SpillPublisher *pub = s.cells.spills();
+    const SpillRect *held = pub ? pub->mine().ofFormula(formula) : nullptr;
+    if (!held) return;
+    const quint32 row1 = std::max(was.row1, held->row1), row2 = std::min(was.row2, held->row2), col1 = std::max(was.col1, held->col1), col2 = std::min(was.col2, held->col2);
+    if (row1 > row2 || col1 > col2) return;
+    const CellStore &cells = s.cells;
     std::vector<quint32> colIds;
-    for (quint32 col = was.col1; col <= was.col2; ++col) colIds.push_back(cells.colIdAt(col));
-    for (quint32 row = was.row1; row <= was.row2; ++row) {
+    for (quint32 col = col1; col <= col2; ++col) colIds.push_back(cells.colIdAt(col));
+    for (quint32 row = row1; row <= row2; ++row) {
         const quint32 rowId = cells.rowIdAt(row);
-        for (quint32 col = was.col1; col <= was.col2; ++col) {
+        for (quint32 col = col1; col <= col2; ++col) {
+            m_goneWalked.fetch_add(1, std::memory_order_relaxed);
             if ((row == row0 && col == col0) || keep.contains(row, col)) continue;
-            tellGone(sheet, rowId, colIds[col - was.col1]);
+            tellGone(sheet, rowId, colIds[col - col1]);
         }
     }
 }
@@ -414,7 +422,7 @@ void Calculation::letGoOfSpill(int sheet, qint32 formula)
     if (slot < 0 || slot >= s.ranges.size()) return;
     const CellRange range = s.ranges[slot];
     if (s.cells.spills()) {
-        tellGoneBlock(sheet, range, CellRange(), range.row1, range.col1);   // (the cells the table gave are gone: the window is told, as it is of those a spill took cells of)
+        tellGoneBlock(sheet, formula, range, CellRange(), range.row1, range.col1);   // (the cells the table gave are gone: the window is told, as it is of those a spill took cells of)
         dropSpillBlock(sheet, formula);
     }
     const auto gone = membersOutside(s.cells, range, CellRange(), formula);
@@ -520,13 +528,13 @@ Value Calculation::applySpill(Node &n, quint32 id, const Value &v)
         }
         if (now.cellCount() > 1 && s.cells.spills()) {
             // (no cell is made: the block is a rectangle of the sheet's table)
-            tellGoneBlock(sheet, was, now, row0, col0);
+            tellGoneBlock(sheet, formula, was, now, row0, col0);
             putSpillBlock(sheet, SpillRect{now.row1, now.col1, now.row2, now.col2, formula});
             useExtent(sheet, now.row2, now.col2);
             s.extentRows = std::max(s.extentRows, now.row2 + 1);
             s.extentCols = std::max<quint32>(s.extentCols, now.col2 + 1);
         } else if (s.cells.spills()) {
-            tellGoneBlock(sheet, was, now, row0, col0);
+            tellGoneBlock(sheet, formula, was, now, row0, col0);
             dropSpillBlock(sheet, formula);
         } else if (now.cellCount() > 1) {
             for (quint32 row = now.row1; row <= now.row2; ++row)
