@@ -192,6 +192,14 @@ Outcome evOutcome(const QString &formula, const Grid &grid, const Settings &sett
     return out;
 }
 
+QString evWith(jp::calc::Evaluator &evaluator, const QString &formula, const Grid &grid, const Settings &settings)
+{
+    quint32 row = 0, col = 0;
+    const jp::calc::ParseResult parsed = parseAt(formula, settings, &row, &col);
+    if (!parsed.ok()) return QStringLiteral("!parse: ") + parsed.error;
+    return evaluator.evaluate(*parsed.program, contextAt(grid, settings, row, col)).debug();
+}
+
 QString said(const Outcome &o, qint64 growthMegabytes)
 {
     static const char *const statuses[] = {"Ok", "TooMuchWork", "TooLarge", "TooDeep"};

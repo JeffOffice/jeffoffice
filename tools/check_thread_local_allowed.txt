@@ -24,9 +24,7 @@ apps/write/core/reviewops.cpp | 1 | trivially destructible (integer counters, fl
 apps/write/core/writedoc_story.cpp | 1 | needs a decision: a QHash of QRegularExpression
 libs/base/calc/budget.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
 libs/base/calc/dates.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
-libs/base/calc/ets.cpp | 1 | needs a decision: a std::vector cache of forecast entries
-libs/base/calc/fn_ets.cpp | 1 | needs a decision: a std::vector cache of forecast entries
-libs/base/core/color.cpp | 2 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
+libs/base/core/color.cpp | 2 | needs a decision: a std::function (the very case libs/base/core/workthread.h tells of); the other use is a counter
 libs/base/io/cfb.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
 libs/base/render/metafile.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
 libs/draw/core/svg.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit

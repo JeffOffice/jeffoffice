@@ -1,5 +1,7 @@
 #include "calc/ets.h"
 
+#include <mutex>
+
 #include "calc/special.h"
 
 #include <QDate>
@@ -467,11 +469,17 @@ std::shared_ptr<const Model> fitCached(const std::vector<double> &y, int season)
         int season;
         std::shared_ptr<const Model> model;
     };
-    thread_local std::vector<Entry> cache;
-    for (const Entry &e : cache)
-        if (e.season == season && e.y == y) return e.model;
+    // (shared by the threads that ask, as a model is never changed: a few entries, found and added under the lock; the fit is made outside it)
+    static std::mutex lock;
+    static std::vector<Entry> cache;
+    {
+        const std::lock_guard<std::mutex> guard(lock);
+        for (const Entry &e : cache)
+            if (e.season == season && e.y == y) return e.model;
+    }
     std::shared_ptr<const Model> m = fit(y, season);
     if (m) {
+        const std::lock_guard<std::mutex> guard(lock);
         if (cache.size() >= 4) cache.erase(cache.begin());
         cache.push_back({y, season, m});
     }

@@ -69,7 +69,7 @@ struct Counts {
 };
 Counts counts();
 
-// The same series and season, fitted again, is not worked again: the last few fits are kept (this thread's).
+// The same series and season, fitted again, is not worked again: the last few fits are kept (for all threads, under a lock).
 std::shared_ptr<const Model> fitCached(const std::vector<double> &y, int season);
 
 } // namespace jp::calc::ets

@@ -81,15 +81,16 @@ struct Entry {
 constexpr size_t kMaxEntries = 4;
 constexpr long long kMaxEntryPoints = 2000000;   // the points the entries hold together (a series of a million is a fit and a copy of it)
 
-std::vector<Entry> &entries()
+// (The entries are the evaluator's own, kept for as long as it lives: it belongs to one thread at a time, so nothing is shared.)
+std::vector<Entry> &entries(Machine &m)
 {
-    thread_local std::vector<Entry> list;
-    return list;
+    if (!m.etsEntries) m.etsEntries = std::make_shared<std::vector<Entry>>();
+    return *static_cast<std::vector<Entry> *>(m.etsEntries.get());
 }
 
-void remember(Entry &&e)
+void remember(Machine &m, Entry &&e)
 {
-    std::vector<Entry> &list = entries();
+    std::vector<Entry> &list = entries(m);
     list.insert(list.begin(), std::move(e));
     long long total = 0;
     size_t keep = 0;
@@ -215,7 +216,7 @@ bool series(Call &c, int values, int timeline, const Options &o, BuiltPtr *out, 
         ta = c.item(timeline).area;
         tokens = source.constantsToken(va.sheet1, &vt) && source.constantsToken(ta.sheet1, &tt);
         if (tokens) {
-            std::vector<Entry> &list = entries();
+            std::vector<Entry> &list = entries(m);
             for (size_t i = 0; i < list.size(); ++i) {
                 Entry &e = list[i];
                 if (!e.byReference || !matches(e) || !(e.values == va) || !(e.times == ta)) continue;
@@ -245,7 +246,7 @@ bool series(Call &c, int values, int timeline, const Options &o, BuiltPtr *out, 
     hashPairs(pairs, &e.hash1, &e.hash2);
     BuiltPtr built;
     {
-        std::vector<Entry> &list = entries();
+        std::vector<Entry> &list = entries(m);
         for (size_t i = 0; i < list.size() && !built; ++i)
             if (!list[i].byReference && matches(list[i]) && list[i].count == e.count && list[i].hash1 == e.hash1 && list[i].hash2 == e.hash2) built = list[i].built;
     }
@@ -258,7 +259,7 @@ bool series(Call &c, int values, int timeline, const Options &o, BuiltPtr *out, 
         if (ets::prepare(std::move(pairs), o.aggregation, o.interpolate, system, &built->prepared) != ets::Problem::None) built->error = Value::error(ErrorKind::Num);
         Entry byContent = e;
         byContent.built = built;
-        remember(std::move(byContent));
+        remember(m, std::move(byContent));
     }
     if (tokens && onlyConstants(source, va) && onlyConstants(source, ta)) {
         e.byReference = true;
@@ -267,7 +268,7 @@ bool series(Call &c, int values, int timeline, const Options &o, BuiltPtr *out, 
         e.valuesToken = vt;
         e.timesToken = tt;
         e.built = built;
-        remember(std::move(e));
+        remember(m, std::move(e));
     }
     *out = built;
     *error = built->error;

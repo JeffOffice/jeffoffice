@@ -196,6 +196,8 @@ private:
 class Machine {
 public:
     Machine();
+    // What FORECAST.ETS and its companions keep from one call to the next (calc/fn_ets.cpp owns the type); the machine's own, so a thread that evaluates has nothing shared.
+    std::shared_ptr<void> etsEntries;
     Value run(const Program &program, const EvalContext &context);
 
     // ---- what functions and operators use

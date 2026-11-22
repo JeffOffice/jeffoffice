@@ -75,6 +75,8 @@ struct Settings {
 // The value of a formula, as Value::debug() says it; "!parse: ..." for text that is no formula, "!unsupported: NAME" for a function the registry lacks.
 QString ev(const QString &formula, const Grid &grid, const Settings &settings = Settings());
 QString ev(const QString &formula);
+// The same, worked out by the evaluator given: what an evaluator keeps from one formula to the next (a series of a forecast) shows.
+QString evWith(jp::calc::Evaluator &evaluator, const QString &formula, const Grid &grid, const Settings &settings = Settings());
 // The same, and how the evaluation ended; `limit` is the most steps it may take (0: the engine's own).
 QString evStatus(const QString &formula, const Grid &grid, const Settings &settings, jp::calc::EvalStatus *status, qint64 limit = 0);
 // The same, with what the evaluation took: the steps (the work), and the most cells of arrays it held at once.

@@ -4,6 +4,7 @@
 
 #include "calc/ets.h"
 #include "calc/machine.h"
+#include "core/workthread.h"
 
 #include <QElapsedTimer>
 #include <QRegularExpression>
@@ -433,10 +434,11 @@ private Q_SLOTS:
         }
         g.column("A1", t).column("B1", y);
         namespace ets = jp::calc::ets;
+        jp::calc::Evaluator evaluator;   // (what a series costs is kept by the evaluator, as a recalculation holds one)
         auto works = [&](const QStringList &formulas) {
             const ets::Counts before = ets::counts();
             for (const QString &f : formulas) {
-                const QString got = ev(withPrefixes(f), g, Settings());
+                const QString got = evWith(evaluator, withPrefixes(f), g, Settings());
                 if (!got.startsWith(QLatin1String("n:"))) QTest::qFail(qPrintable(f + QStringLiteral(" gave ") + got), __FILE__, __LINE__);
             }
             const ets::Counts after = ets::counts();
@@ -456,10 +458,21 @@ private Q_SLOTS:
         // another way of making the grid is another series
         QCOMPARE((works({QStringLiteral("FORECAST.ETS(40,B1:B24,A1:A24,1,1,7)")})), (std::array<long long, 3>{1, 1, 1}));
         // a value changed is another series, and its forecast follows
-        const QString before = ev(withPrefixes(QStringLiteral("FORECAST.ETS(40,B1:B24,A1:A24)")), g, Settings());
+        const QString before = evWith(evaluator, withPrefixes(QStringLiteral("FORECAST.ETS(40,B1:B24,A1:A24)")), g, Settings());
         g.n("B24", 900);
         QCOMPARE((works({QStringLiteral("FORECAST.ETS(40,B1:B24,A1:A24)"), QStringLiteral("FORECAST.ETS(41,B1:B24,A1:A24)")})), (std::array<long long, 3>{1, 1, 1}));
-        QVERIFY(ev(withPrefixes(QStringLiteral("FORECAST.ETS(40,B1:B24,A1:A24)")), g, Settings()) != before);
+        QVERIFY(evWith(evaluator, withPrefixes(QStringLiteral("FORECAST.ETS(40,B1:B24,A1:A24)")), g, Settings()) != before);
+        // another evaluator, on another thread, keeps its own series and works its own (nothing is shared between threads)
+        const ets::Counts apart = ets::counts();
+        jp::WorkThread other([&] {
+            jp::calc::Evaluator mine;
+            for (int k = 0; k < 3; ++k) evWith(mine, withPrefixes(QStringLiteral("FORECAST.ETS(4%1,B1:B24,A1:A24)").arg(k)), g, Settings());
+        });
+        other.join();
+        const ets::Counts done = ets::counts();
+        QCOMPARE(done.prepares - apart.prepares, 1LL);
+        QCOMPARE(done.detects - apart.detects, 1LL);
+        QCOMPARE(done.fits - apart.fits, 1LL);
     }
 
     // The work of a series is charged to the evaluation: a limit of steps that the fit passes stops it, and a series that is read from the cells costs steps for the grid and the fit as well.
