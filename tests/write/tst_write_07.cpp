@@ -1,4 +1,5 @@
 #include "tst_write.h"
+#include "core/blipeffects.h"
 
 
 // A rule drawn as a rectangle that is anchored in a paragraph of its own (or at the end of one) is drawn where the paragraph is; a shape that says it has no fill or no
@@ -125,6 +126,76 @@ void WriteTests::letteringOnAPathIsTextArtInTheShapesColors()
     auto set = std::dynamic_pointer_cast<TextArtItem>(inlineObjectOf(*inlineDoc));
     QVERIFY(set);
     QVERIFY(std::abs(set->rect.width() - 121.4) < 0.01);
+}
+
+
+// A fill with an opacity (VML's v:fill opacity, in the three forms it is written in) shows that share of its color: a watermark's lettering and a box are drawn see-through, and a
+// fill that says nothing, or all, is solid. The file's own text is kept as it was written by the program's save.
+void WriteTests::aSeeThroughFillIsDrawnSeeThrough()
+{
+    auto lettering = [&](const QByteArray &fill) {
+        return "<w:p><w:r><w:t>Text</w:t></w:r><w:r><w:pict " + QByteArray(kVml) + "><v:shape id=\"w\" type=\"#_x0000_t136\" style=\"position:absolute;margin-left:0;margin-top:0;width:200pt;height:80pt;rotation:315;z-index:-5\" "
+               "fillcolor=\"silver\" stroked=\"f\">" + fill + "<v:textpath style=\"font-family:Arial\" string=\"DRAFT\"/></v:shape></w:pict></w:r></w:p>";
+    };
+    auto artOf = [&](const QByteArray &fill) {
+        auto doc = open(makeDocx(lettering(fill), kStyles));
+        std::shared_ptr<TextArtItem> art;
+        if (!doc) return art;
+        const auto page = doc->pager().materialize(0);
+        for (const auto &item : page->doc->pages[0]->items)
+            if (auto a = std::dynamic_pointer_cast<TextArtItem>(item)) art = a;
+        return art;
+    };
+    for (const char *opacity : {".5", "50%", "32768f"}) {
+        const auto art = artOf(QByteArray("<v:fill opacity=\"") + opacity + "\"/>");
+        QVERIFY2(art, opacity);
+        QVERIFY2(art->fill.type == Fill::Solid && std::abs(art->fill.transparency - 0.5) < 1e-6, opacity);
+        QVERIFY2(std::abs(art->rotation - 315) < 1e-6, opacity);
+    }
+    for (const char *solid : {"", "<v:fill opacity=\"1\"/>", "<v:fill color2=\"red\"/>"}) {
+        const auto art = artOf(solid);
+        QVERIFY2(art, solid);
+        QVERIFY2(art->fill.type == Fill::Solid && art->fill.transparency == 0, solid);
+    }
+    // A box too.
+    auto box = open(makeDocx("<w:p><w:r><w:t>Text</w:t></w:r><w:r><w:pict " + QByteArray(kVml) + "><v:rect id=\"b\" style=\"position:absolute;margin-left:0;margin-top:0;width:100pt;height:50pt;z-index:3\" fillcolor=\"red\" stroked=\"f\">"
+                             "<v:fill opacity=\"16384f\"/></v:rect></w:pict></w:r></w:p>", kStyles));
+    QVERIFY(box);
+    std::shared_ptr<ShapeItem> rect;
+    const auto page = box->pager().materialize(0);
+    for (const auto &item : page->doc->pages[0]->items)
+        if (auto s = std::dynamic_pointer_cast<ShapeItem>(item)) rect = s;
+    QVERIFY(rect);
+    QVERIFY(rect->fill.type == Fill::Solid && std::abs(rect->fill.transparency - 0.75) < 1e-6);
+    // (The program's own save writes the object as it was read.)
+    QVERIFY(documentXml(box->toDocx()).contains("<v:fill opacity=\"16384f\"/>"));
+}
+
+
+// A picture's gain and black level (VML's imagedata, the washout of a picture behind text or on a cover) are its contrast and brightness: a gain of three tenths and a black
+// level of a third and a bit lighten every color toward the same pale one. The program's save keeps the settings as they were.
+void WriteTests::aPicturesGainAndBlackLevelDrawItWashedOut()
+{
+    auto body = [&](const QByteArray &settings) {
+        return "<w:p><w:r><w:t xml:space=\"preserve\">Before </w:t></w:r><w:r><w:pict " + QByteArray(kVml) + "><v:shape id=\"p\" type=\"#_x0000_t75\" style=\"width:100pt;height:50pt\"><v:imagedata r:id=\"rIdPic\" " + settings + "/></v:shape></w:pict></w:r></w:p>";
+    };
+    auto washed = open(makeDocxWithPicture(body("gain=\"19661f\" blacklevel=\"22938f\"")));
+    QVERIFY(washed);
+    auto pic = std::dynamic_pointer_cast<PictureItem>(inlineObjectOf(*washed));
+    QVERIFY(pic);
+    QCOMPARE(int(pic->colorEffects().size()), 1);
+    QCOMPARE(pic->colorEffects()[0].kind, BlipEffect::Luminance);
+    QVERIFY2(std::abs(pic->colorEffects()[0].brightness - 0.7) < 1e-3 && std::abs(pic->colorEffects()[0].contrast + 0.7) < 1e-3,
+             qPrintable(QStringLiteral("%1 %2").arg(pic->colorEffects()[0].brightness).arg(pic->colorEffects()[0].contrast)));
+    // The colors: black becomes a pale tone and white stays white.
+    const QVector<uchar> table = luminanceTable(pic->colorEffects()[0].brightness, contrastFactor(pic->colorEffects()[0].contrast));
+    QVERIFY2(table[0] > 195 && table[0] < 215 && table[255] == 255, qPrintable(QString::number(table[0])));
+    QVERIFY(documentXml(washed->toDocx()).contains("gain=\"19661f\" blacklevel=\"22938f\""));
+    // A picture that says neither is as it is.
+    auto plain = open(makeDocxWithPicture(body("")));
+    QVERIFY(plain);
+    auto plainPic = std::dynamic_pointer_cast<PictureItem>(inlineObjectOf(*plain));
+    QVERIFY(plainPic && plainPic->colorEffects().isEmpty());
 }
 
 

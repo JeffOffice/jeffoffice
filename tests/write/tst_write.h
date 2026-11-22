@@ -1304,6 +1304,8 @@ private Q_SLOTS:
     void aPictureIsCutKeyedAndBordered();
     void aRaisedOrLoweredPictureInTheLineMovesTheLineByTheRun();
     void letteringOnAPathIsTextArtInTheShapesColors();
+    void aSeeThroughFillIsDrawnSeeThrough();
+    void aPicturesGainAndBlackLevelDrawItWashedOut();
     void aHorizontalRuleIsAsWideAsItsShareOfTheText();
     void aShapeOfAKindIsThatShape();
     void aPictureWithACompressedFormIsShownAsMissing();

@@ -618,6 +618,7 @@ struct Shape {
     QPolygonF wrapOutline;                // a tight or through wrap's outline, as shares of the frame (core/wrapoutline.h); empty for the frame itself
     bool filled = false, stroked = false;
     QString fillColor, strokeColor;       // "RRGGBB", or empty
+    double fillOpacity = 1;               // how much of the fill shows (VML's v:fill opacity, from 0 to 1): a see-through fill is not drawn solid
     double strokeWeight = 0.75;
     double rotation = 0;
     bool flipH = false, flipV = false;

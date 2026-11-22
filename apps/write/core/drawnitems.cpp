@@ -166,7 +166,7 @@ ItemPtr letteringItem(const Shape &s)
     art->font = s.pathFont.isEmpty() ? QStringLiteral("Arial") : s.pathFont;
     art->bold = s.pathBold;
     art->italic = s.pathItalic;
-    art->fill = s.filled && !s.fillColor.isEmpty() ? Fill::solid(colorOf(s.fillColor)) : Fill::none();
+    art->fill = s.filled && !s.fillColor.isEmpty() ? Fill::solid(colorOf(s.fillColor), 1 - s.fillOpacity) : Fill::none();
     art->stroke = s.stroked && s.strokeWeight > 0 ? Stroke::line(colorOf(s.strokeColor), s.strokeWeight) : Stroke::none();
     if (s.shadow) {
         ShadowFx &shadow = art->fx.shadow;

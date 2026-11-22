@@ -6,6 +6,7 @@
 #include "wml/wmlwrap.h"
 #include "core/wrapoutline.h"
 #include "office/barcodemarker.h"
+#include "core/blipeffects.h"
 
 #include <QCache>
 #include <QHash>
@@ -134,6 +135,17 @@ double cropOf(const QString &v)
     bool ok = false;
     const double n = text.toDouble(&ok) * scale;
     return ok && std::isfinite(n) ? std::clamp(n, -1.0, 1.0) : 0.0;
+}
+
+// A number of VML's fill and picture settings (an opacity, a gain, a black level): "0.5", "50%", and "32768f" (sixty-five-thousandths) are one half. `given` is false for what is not a number.
+double numberOf(const QString &text, bool *given)
+{
+    bool ok = false;
+    const QString v = text.trimmed();
+    double value = v.endsWith(QLatin1Char('%')) ? v.chopped(1).toDouble(&ok) / 100 : v.endsWith(QLatin1Char('f'), Qt::CaseInsensitive) ? v.chopped(1).toDouble(&ok) / 65536 : v.toDouble(&ok);
+    if (!std::isfinite(value)) ok = false, value = 0;
+    *given = ok;
+    return value;
 }
 
 // The prefixes an element kept as written may use, declared (the tree of a part declares them on its root, and a slice of it is not given those).
@@ -332,6 +344,11 @@ public:
                 // (A cut that leaves nothing of the picture is none: it would draw nothing, and the frame is what the file means to show.)
                 if (s.cropL + s.cropR >= 0.98 || s.cropT + s.cropB >= 0.98) s.cropL = s.cropT = s.cropR = s.cropB = 0;
                 s.clearColor = colorOf(t.attr(c, "chromakey"));
+                // The picture's contrast (gain, a factor: 1 is as it is) and brightness (blacklevel, the offset of the middle, which is half of the brightness's share).
+                bool gainGiven = false, levelGiven = false;
+                const double gain = numberOf(t.attr(c, "gain"), &gainGiven), level = numberOf(t.attr(c, "blacklevel"), &levelGiven);
+                if (gainGiven && gain >= 0) s.contrast = contrastOfFactor(gain);
+                if (levelGiven) s.bright = std::clamp(level * 2, -1.0, 1.0);
             } else if (name == "bordertop" || name == "borderleft" || name == "borderbottom" || name == "borderright") {
                 // (Eighths of a point, as a paragraph border's size is: no more than a hundred points, and a number that is not one is none.)
                 const QString type = t.attr(c, "type");
@@ -372,19 +389,14 @@ public:
                 if (offOf(t.attr(c, "on"))) s.filled = false;
                 // (A fill that is clear, an opacity of nothing however it is written (a number, a percent, or a fixed-point number with an f: 65536 is all), is none, a picture's too; one that
                 // is nothing at its start and something at its end (the second opacity), as a gradient fading in is, is not clear.)
-                auto opacityOf = [](const QString &text, bool *given) {
-                    bool ok = false;
-                    const QString v = text.trimmed();
-                    const double value = v.endsWith(QLatin1Char('%')) ? v.chopped(1).toDouble(&ok) / 100 : v.endsWith(QLatin1Char('f'), Qt::CaseInsensitive) ? v.chopped(1).toDouble(&ok) / 65536 : v.toDouble(&ok);
-                    *given = ok;
-                    return value;
-                };
+                auto opacityOf = numberOf;
                 bool from = false, to = false;
                 const double start = opacityOf(t.attr(c, "opacity"), &from), end = opacityOf(t.attrAny(c, "opacity2"), &to);
                 if (from && start <= 0 && (!to || end <= 0)) {
                     s.filled = false;
                     s.fillEmbed.clear();
                 }
+                if (from && start > 0 && start < 1) s.fillOpacity = start;
                 if (const QString color = colorOf(t.attr(c, "color")); !color.isEmpty() && t.attr(n, "fillcolor").isEmpty()) s.fillColor = color;
             } else if (name == "stroke") {
                 if (offOf(t.attr(c, "on"))) s.stroked = false;

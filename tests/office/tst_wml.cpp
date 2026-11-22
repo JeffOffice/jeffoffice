@@ -1026,6 +1026,34 @@ private Q_SLOTS:
         QVERIFY(!shapes[0].rule && shapes[1].rule);
     }
 
+    // A fill's opacity (a number, a percent, or sixty-five-thousandths) is how much of the fill shows; a picture's gain is its contrast and its black level, doubled, its brightness.
+    void readsAFillsOpacityAndAPicturesGainAndBlackLevel()
+    {
+        const QByteArray ns = "xmlns:w=\"http://schemas.openxmlformats.org/wordprocessingml/2006/main\" xmlns:v=\"urn:schemas-microsoft-com:vml\" xmlns:o=\"urn:schemas-microsoft-com:office:office\" "
+                              "xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"";
+        auto fillOf = [&](const char *opacity) {
+            const QVector<Shape> shapes = readShapes("<w:pict " + ns + "><v:rect id='f' style='width:10pt;height:10pt' fillcolor='red'><v:fill opacity='" + QByteArray(opacity) + "'/></v:rect></w:pict>");
+            return shapes.size() == 1 && shapes[0].filled ? shapes[0].fillOpacity : -1.0;
+        };
+        QVERIFY(std::abs(fillOf(".5") - 0.5) < 1e-9);
+        QVERIFY(std::abs(fillOf("25%") - 0.25) < 1e-9);
+        QVERIFY(std::abs(fillOf("16384f") - 0.25) < 1e-9);
+        QCOMPARE(fillOf("1"), 1.0);
+        QCOMPARE(fillOf("word"), 1.0);
+        QCOMPARE(fillOf("1e999"), 1.0);
+        // (No opacity at all, and a fill that is clear, are as they were.)
+        QCOMPARE(readShapes("<w:pict " + ns + "><v:rect id='g' style='width:10pt;height:10pt' fillcolor='red'/></w:pict>")[0].fillOpacity, 1.0);
+        QVERIFY(!readShapes("<w:pict " + ns + "><v:rect id='h' style='width:10pt;height:10pt' fillcolor='red'><v:fill opacity='0'/></v:rect></w:pict>")[0].filled);
+        QVector<Shape> shapes = readShapes("<w:pict " + ns + "><v:shape id='p' type='#_x0000_t75' style='width:54pt;height:36pt'><v:imagedata r:id='rId4' gain='19661f' blacklevel='22938f'/></v:shape></w:pict>");
+        QCOMPARE(int(shapes.size()), 1);
+        QVERIFY(std::abs(shapes[0].contrast + 0.7) < 1e-3 && std::abs(shapes[0].bright - 0.7) < 1e-3);
+        // A gain above one is more contrast (2 is half way to the most); a black level below zero is darker; neither said is none; a word is none.
+        shapes = readShapes("<w:pict " + ns + "><v:shape id='q' type='#_x0000_t75' style='width:54pt;height:36pt'><v:imagedata r:id='rId4' gain='2' blacklevel='-0.1'/></v:shape></w:pict>");
+        QVERIFY(std::abs(shapes[0].contrast - 0.5) < 1e-9 && std::abs(shapes[0].bright + 0.2) < 1e-9);
+        shapes = readShapes("<w:pict " + ns + "><v:shape id='r' type='#_x0000_t75' style='width:54pt;height:36pt'><v:imagedata r:id='rId4' gain='lots' blacklevel='1e999'/></v:shape></w:pict>");
+        QVERIFY(shapes[0].contrast == 0 && shapes[0].bright == 0);
+    }
+
     // The sides a picture's border is set on (each with its weight; the others have none), the color it is drawn in ("this" is the picture's own line color), and a shape's own
     // numbers (a list in which an empty place or a word is not a number).
     void readsAPicturesBorderSidesAndColorAndAShapesNumbers()
