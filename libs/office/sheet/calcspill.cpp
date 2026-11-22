@@ -361,7 +361,8 @@ bool Calculation::registerSpill(int sheet, qint32 formula, const CellRange &rang
     return true;
 }
 
-// The table made again from the sheet's ranges (after an edit of rows or columns moved the places of the blocks, or took back ranges), by the same rule as a load: one block for each range of a spill.
+// The table made again from the sheet's formulas, by the same rule and in the same order as a load: one block for the range each formula names (not each range of the sheet's list, which may hold one no formula names,
+// or the same twice), the formulas in the order of their first cells.
 void Calculation::rebuildSpillTable(int sheet)
 {
     Sheet &s = m_sheets[size_t(sheet)];
@@ -370,12 +371,20 @@ void Calculation::rebuildSpillTable(int sheet)
     pub->mine().clear();
     pub->noteChanged();
     s.cells.noteSpillChange();
-    for (const CellRange &r : std::as_const(s.ranges)) {
+    struct Anchor {
+        quint32 row, col;
+        qint32 formula;
+    };
+    std::vector<Anchor> anchors;
+    for (qint32 f = 0; f < s.formulas.size(); ++f) {
+        const qint32 slot = s.formulas[f].range;
+        if (slot < 0 || slot >= s.ranges.size()) continue;
+        const CellRange &r = s.ranges[slot];
         if (!r.valid || r.cellCount() <= 1) continue;
-        const std::optional<Cell> found = s.cells.find(r.row1, r.col1);
-        if (!found || !(found->flags & SpillFormula)) continue;
-        registerSpill(sheet, found->formula, r);
+        anchors.push_back({r.row1, r.col1, f});
     }
+    std::sort(anchors.begin(), anchors.end(), [](const Anchor &a, const Anchor &b) { return a.row != b.row ? a.row < b.row : a.col != b.col ? a.col < b.col : a.formula < b.formula; });
+    for (const Anchor &a : anchors) registerSpill(sheet, a.formula, s.ranges[s.formulas[a.formula].range]);
     if (!m_guard.isWorkerOrNone()) pub->publish();
 }
 

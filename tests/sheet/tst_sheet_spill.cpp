@@ -752,6 +752,23 @@ private Q_SLOTS:
         }
     }
 
+    // The table made again after an edit and the table a load makes are made of the same ranges: the one each formula's cell names. A range that is in the sheet's list and that no formula names (one that was
+    // not let go of, or is there twice) is no block.
+    void theTableMadeAgainAgreesWithALoadOnAStaleRange()
+    {
+        SpillIndexSwitch on(true);
+        Book b;
+        QVERIFY(b.open(blank()));
+        QVERIFY(b.type(QStringLiteral("A1"), QStringLiteral("_xlfn.SEQUENCE(3)")));
+        QCOMPARE(blocksOf(*b.calc, 0), std::vector<QString>{QStringLiteral("0:0:2:0")});
+        Sheet &s = const_cast<Sheet &>(b.calc->sheet(0));   // (a range of the list that no formula names: the same anchor, larger)
+        s.ranges.append(CellRange{0, 0, 4, 0, true});
+        Calculation::EditRecord rec;
+        QVERIFY(b.calc->applyEdit(StructEdit::insertRows(0, 0, 1), &rec));
+        QVERIFY(b.settle());
+        QCOMPARE(blocksOf(*b.calc, 0), std::vector<QString>{QStringLiteral("1:0:3:0")});
+    }
+
     // A file's dynamic array: the anchor's array formula with the cell metadata that marks it, and the cached values of the cells it filled, read as saved.
     void aDynamicArrayOfAFileIsASpillShownAsSaved()
     {
