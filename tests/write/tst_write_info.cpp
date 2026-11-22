@@ -1536,6 +1536,139 @@ private Q_SLOTS:
         }
     }
 
+    // The links of the places the text keeps its own Ids for are found where they are: the first-page, even-page, and a later section's header; a field whose instruction is split over runs; and
+    // an endnote's linked picture, whose Id is the same as a web link of the body (the endnotes' part names its own).
+    void inspectFindsLinksInEveryHeaderAndInEndnotes()
+    {
+        const QByteArray ns = kNs;
+        auto field = [](const char *file) { return QByteArray("<w:p><w:fldSimple w:instr=\" INCLUDETEXT &quot;") + file + "&quot; \"><w:r><w:t>result</w:t></w:r></w:fldSimple></w:p>"; };
+        auto header = [&](const QByteArray &inner) { return QByteArray("<w:hdr ") + ns + ">" + inner + "</w:hdr>"; };
+        const QByteArray split = "<w:p><w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> INCLU</w:instrText></w:r><w:r><w:instrText xml:space=\"preserve\">DETEXT \"splitfile.docx\" </w:instrText></w:r>"
+                                 "<w:r><w:fldChar w:fldCharType=\"separate\"/></w:r><w:r><w:t>split result</w:t></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r></w:p>";
+        const QByteArray picture = "<w:r><w:drawing><wp:inline xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\"><wp:extent cx=\"914400\" cy=\"914400\"/><wp:docPr id=\"1\" name=\"Linked\"/>"
+                                   "<a:graphic xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\">"
+                                   "<pic:pic xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"><pic:nvPicPr><pic:cNvPr id=\"0\" name=\"p.png\"/><pic:cNvPicPr/></pic:nvPicPr>"
+                                   "<pic:blipFill><a:blip r:link=\"rId9\"/></pic:blipFill><pic:spPr/></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>";
+        const QByteArray body = "<w:p><w:r><w:t>One</w:t></w:r><w:hyperlink r:id=\"rId9\"><w:r><w:t>web</w:t></w:r></w:hyperlink><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p>"
+                                "<w:p><w:pPr><w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdH1\"/><w:headerReference w:type=\"first\" r:id=\"rIdH2\"/><w:headerReference w:type=\"even\" r:id=\"rIdH3\"/><w:titlePg/></w:sectPr></w:pPr></w:p>"
+                                "<w:p><w:r><w:t>Two</w:t></w:r></w:p><w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdH4\"/></w:sectPr>";
+        const QByteArray notes = QByteArray("<w:endnotes ") + ns + "><w:endnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:endnote>"
+                                 "<w:endnote w:id=\"2\"><w:p><w:r><w:endnoteRef/></w:r>" + picture + "</w:p></w:endnote></w:endnotes>";
+        const QVector<Extra> extra = {{QStringLiteral("https://example.com/"), QString(), QByteArray(), kRel + QStringLiteral("hyperlink"), QString(), QStringLiteral("rId9"), true},
+                                      {QStringLiteral("/word/header1.xml"), kWord + QStringLiteral("header+xml"), header(field("firstfile.docx")), kRel + QStringLiteral("header"), QString(), QStringLiteral("rIdH1")},
+                                      {QStringLiteral("/word/header2.xml"), kWord + QStringLiteral("header+xml"), header(field("secondfile.docx")), kRel + QStringLiteral("header"), QString(), QStringLiteral("rIdH2")},
+                                      {QStringLiteral("/word/header3.xml"), kWord + QStringLiteral("header+xml"), header(field("thirdfile.docx")), kRel + QStringLiteral("header"), QString(), QStringLiteral("rIdH3")},
+                                      {QStringLiteral("/word/header4.xml"), kWord + QStringLiteral("header+xml"), header(split), kRel + QStringLiteral("header"), QString(), QStringLiteral("rIdH4")},
+                                      {QStringLiteral("/word/endnotes.xml"), kWord + QStringLiteral("endnotes+xml"), notes, kRel + QStringLiteral("endnotes"), QString(), QStringLiteral("rIdN")},
+                                      {QStringLiteral("file:///C:/endpictures/e.png"), QString(), QByteArray(), kRel + QStringLiteral("image"), QStringLiteral("/word/endnotes.xml"), QStringLiteral("rId9"), true}};
+        WriteWindow w;
+        QString err;
+        w.setDocument(WriteDoc::fromDocx(makeDocx(body, extra), &err, nullptr), QString());
+        const auto itemOf = [&]() -> InspectItem {
+            for (const InspectItem &i : w.inspectItems())
+                if (i.title == QLatin1String("External links")) return i;
+            return InspectItem();
+        };
+        // four headers (one a split field), and the endnote's picture
+        QCOMPARE(itemOf().count(), 5);
+        QCOMPARE(itemOf().remove(), 5);
+        QCOMPARE(itemOf().count(), 0);
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QVERIFY(saveInto(w, dir, QStringLiteral("out.docx")));
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(fileBytes(dir.filePath(QStringLiteral("out.docx"))), parts));
+        for (auto it = parts.cbegin(); it != parts.cend(); ++it)
+            for (const char *gone : {"firstfile", "secondfile", "thirdfile", "splitfile", "endpictures"}) QVERIFY2(!it.value().contains(gone), qPrintable(it.key() + QLatin1Char(' ') + QString::fromLatin1(gone)));
+        QVERIFY(parts.value(QStringLiteral("word/_rels/document.xml.rels")).contains("https://example.com/"));
+    }
+
+    // What the check can't look at or take out is said, never "None found": a field inside another field, in a comment, or in a text box (the program keeps those whole), and a linked picture
+    // whose Id the header has no relationship for.
+    void inspectSaysWhatItCouldNotCheckForLinks()
+    {
+        const QByteArray ns = kNs;
+        const QByteArray nested = QByteArray("<w:hdr ") + ns + "><w:p><w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> IF 1=1 \"</w:instrText></w:r>"
+                                  "<w:r><w:fldChar w:fldCharType=\"begin\"/></w:r><w:r><w:instrText xml:space=\"preserve\"> INCLUDETEXT \"nestedfile.docx\" </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r>"
+                                  "<w:r><w:instrText xml:space=\"preserve\">\" \"\" </w:instrText></w:r><w:r><w:fldChar w:fldCharType=\"end\"/></w:r></w:p></w:hdr>";
+        const QByteArray comments = QByteArray("<w:comments ") + ns + "><w:comment w:id=\"0\" w:author=\"A\"><w:p><w:fldSimple w:instr=\" INCLUDETEXT &quot;commentfile.docx&quot; \"><w:r><w:t>x</w:t></w:r></w:fldSimple></w:p></w:comment></w:comments>";
+        const QByteArray box = "<w:p><w:r><w:pict><v:shape xmlns:v=\"urn:schemas-microsoft-com:vml\"><v:textbox><w:txbxContent><w:p><w:fldSimple w:instr=\" INCLUDETEXT &quot;boxfile.docx&quot; \"><w:r><w:t>y</w:t></w:r></w:fldSimple></w:p></w:txbxContent></v:textbox></v:shape></w:pict></w:r></w:p>";
+        const QByteArray lost = QByteArray("<w:hdr ") + ns + "><w:p><w:r><w:drawing><wp:inline xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\"><wp:extent cx=\"9\" cy=\"9\"/><wp:docPr id=\"1\" name=\"L\"/>"
+                                "<a:graphic xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\">"
+                                "<pic:pic xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"><pic:nvPicPr><pic:cNvPr id=\"0\" name=\"p.png\"/><pic:cNvPicPr/></pic:nvPicPr>"
+                                "<pic:blipFill><a:blip r:link=\"rId77\"/></pic:blipFill><pic:spPr/></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r></w:p></w:hdr>";
+        struct Case {
+            const char *what;
+            QByteArray body;
+            QVector<Extra> extra;
+            const char *said;
+        };
+        const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdH\"/></w:sectPr>";
+        const QVector<Case> cases = {
+            {"nested", "<w:p><w:r><w:t>B</w:t></w:r></w:p>" + sect, {{QStringLiteral("/word/header1.xml"), kWord + QStringLiteral("header+xml"), nested, kRel + QStringLiteral("header"), QString(), QStringLiteral("rIdH")}},
+             "1 link"},
+            {"comment and box", "<w:p><w:r><w:t>B</w:t></w:r></w:p>" + box, {{QStringLiteral("/word/comments.xml"), kWord + QStringLiteral("comments+xml"), comments, kRel + QStringLiteral("comments"), QString(), QStringLiteral("rIdC")}},
+             "2 link"},
+            {"no relationship", "<w:p><w:r><w:t>B</w:t></w:r></w:p>" + sect, {{QStringLiteral("/word/header1.xml"), kWord + QStringLiteral("header+xml"), lost, kRel + QStringLiteral("header"), QString(), QStringLiteral("rIdH")}},
+             "1 linked picture"},
+        };
+        for (const Case &c : cases) {
+            WriteWindow w;
+            QString err;
+            w.setDocument(WriteDoc::fromDocx(makeDocx(c.body, c.extra), &err, nullptr), QString());
+            InspectItem item;
+            for (const InspectItem &i : w.inspectItems())
+                if (i.title == QLatin1String("External links")) item = i;
+            QCOMPARE(item.count(), 0);
+            QVERIFY2(item.unread().startsWith(QLatin1String(c.said)), c.what);
+            InspectDialog box(QStringLiteral("Inspect"), {item}, nullptr);
+            QVERIFY2(box.summaries().first().contains(QLatin1String("Not fully checked")) && !box.summaries().first().contains(QLatin1String("None found")), c.what);
+        }
+    }
+
+    // A footnote and an endnote that name their linked pictures by the same Id keep to their own part: the two parts are told apart, each address goes, and the web link of the body (the same Id
+    // again) stays; and a header whose relationships are kept under a name in other letters than the part's still has its link found.
+    void inspectKeepsFootnoteEndnoteAndHeaderLinksApart()
+    {
+        auto picture = [](const char *id) {
+            return QByteArray("<w:r><w:drawing><wp:inline xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\"><wp:extent cx=\"9\" cy=\"9\"/><wp:docPr id=\"1\" name=\"L\"/>"
+                              "<a:graphic xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\">"
+                              "<pic:pic xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"><pic:nvPicPr><pic:cNvPr id=\"0\" name=\"p.png\"/><pic:cNvPicPr/></pic:nvPicPr>"
+                              "<pic:blipFill><a:blip r:link=\"") + id + "\"/></pic:blipFill><pic:spPr/></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>";
+        };
+        const QByteArray body = "<w:p><w:r><w:t>One</w:t></w:r><w:hyperlink r:id=\"rId9\"><w:r><w:t>web</w:t></w:r></w:hyperlink><w:r><w:footnoteReference w:id=\"2\"/></w:r><w:r><w:endnoteReference w:id=\"2\"/></w:r></w:p>"
+                                "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdH\"/></w:sectPr>";
+        const QByteArray notes = QByteArray("<w:footnotes ") + kNs + "><w:footnote w:id=\"2\"><w:p><w:r><w:footnoteRef/></w:r>" + picture("rId9") + "</w:p></w:footnote></w:footnotes>";
+        const QByteArray ends = QByteArray("<w:endnotes ") + kNs + "><w:endnote w:id=\"2\"><w:p><w:r><w:endnoteRef/></w:r>" + picture("rId9") + "</w:p></w:endnote></w:endnotes>";
+        const QByteArray header = QByteArray("<w:hdr ") + kNs + "><w:p>" + picture("rId9") + "</w:p></w:hdr>";
+        const QVector<Extra> extra = {{QStringLiteral("https://example.com/"), QString(), QByteArray(), kRel + QStringLiteral("hyperlink"), QString(), QStringLiteral("rId9"), true},
+                                      {QStringLiteral("/word/header1.xml"), kWord + QStringLiteral("header+xml"), header, kRel + QStringLiteral("header"), QString(), QStringLiteral("rIdH")},
+                                      {QStringLiteral("file:///C:/headpictures/h.png"), QString(), QByteArray(), kRel + QStringLiteral("image"), QStringLiteral("/word/HEADER1.xml"), QStringLiteral("rId9"), true},
+                                      {QStringLiteral("/word/footnotes.xml"), kWord + QStringLiteral("footnotes+xml"), notes, kRel + QStringLiteral("footnotes"), QString(), QStringLiteral("rIdN")},
+                                      {QStringLiteral("file:///C:/footpictures/f.png"), QString(), QByteArray(), kRel + QStringLiteral("image"), QStringLiteral("/word/footnotes.xml"), QStringLiteral("rId9"), true},
+                                      {QStringLiteral("/word/endnotes.xml"), kWord + QStringLiteral("endnotes+xml"), ends, kRel + QStringLiteral("endnotes"), QString(), QStringLiteral("rIdE")},
+                                      {QStringLiteral("file:///C:/endpictures/e.png"), QString(), QByteArray(), kRel + QStringLiteral("image"), QStringLiteral("/word/endnotes.xml"), QStringLiteral("rId9"), true}};
+        WriteWindow w;
+        QString err;
+        w.setDocument(WriteDoc::fromDocx(makeDocx(body, extra), &err, nullptr), QString());
+        WriteDoc &doc = *w.document();
+        QVERIFY(doc.storyPartName(doc.editableFootnote(2)) != doc.storyPartName(doc.story(), true));
+        QCOMPARE(doc.storyPartName(doc.story(), true), QStringLiteral("/word/endnotes.xml"));
+        InspectItem links;
+        for (const InspectItem &i : w.inspectItems())
+            if (i.title == QLatin1String("External links")) links = i;
+        QCOMPARE(links.count(), 3);
+        QCOMPARE(links.remove(), 3);
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QVERIFY(saveInto(w, dir, QStringLiteral("out.docx")));
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(fileBytes(dir.filePath(QStringLiteral("out.docx"))), parts));
+        for (auto it = parts.cbegin(); it != parts.cend(); ++it)
+            for (const char *gone : {"headpictures", "footpictures", "endpictures"}) QVERIFY2(!it.value().contains(gone), qPrintable(it.key() + QLatin1Char(' ') + QString::fromLatin1(gone)));
+        QVERIFY(parts.value(QStringLiteral("word/_rels/document.xml.rels")).contains("https://example.com/"));
+    }
+
     void inspectRemovesHeadersAndFooters()
     {
         WriteWindow w;

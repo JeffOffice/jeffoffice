@@ -64,31 +64,41 @@ QString WriteDoc::newPartName(bool footer) const
     }
 }
 
+namespace {
+
+// The relationships a part has, looked up by its name in either case of letters (the file's names and the program's may differ in case).
+QVector<Relationship> relsKeyedByPart(const QMap<QString, QVector<Relationship>> &all, const QString &part)
+{
+    if (all.contains(part)) return all.value(part);
+    for (auto it = all.cbegin(); it != all.cend(); ++it)
+        if (it.key().compare(part, Qt::CaseInsensitive) == 0) return it.value();
+    return {};
+}
+
+} // namespace
+
 QString WriteDoc::linkAddress(const QTextDocument *story, const QString &id, bool endnote) const
 {
-    QString part;
-    if (endnote) part = QStringLiteral("/word/endnotes.xml");
-    for (const HeaderPart &h : m_headerParts)
-        if (h.story.get() == story) part = h.name;
-    if (part.isEmpty() && story && footnoteIdOf(story)) part = QStringLiteral("/word/footnotes.xml");
+    const QString part = storyPartName(story, endnote);
     if (!part.isEmpty())
-        for (const Relationship &r : m_wml.partRelationships.value(part))
+        for (const Relationship &r : relsKeyedByPart(m_wml.partRelationships, part))
             if (r.id == id) return r.target;
     return mainRelationship(id).target;
 }
 
-QString WriteDoc::storyPartName(const QTextDocument *story) const
+QString WriteDoc::storyPartName(const QTextDocument *story, bool endnote) const
 {
     for (const HeaderPart &h : m_headerParts)
         if (h.story.get() == story) return h.name;
     if (story && story != this->story() && footnoteIdOf(story)) return QStringLiteral("/word/footnotes.xml");
+    if (endnote) return QStringLiteral("/word/endnotes.xml");
     return QString();
 }
 
-QVector<Relationship> WriteDoc::storyRelationships(const QTextDocument *story) const
+QVector<Relationship> WriteDoc::storyRelationships(const QTextDocument *story, bool endnote) const
 {
-    const QString part = storyPartName(story);
-    return part.isEmpty() ? m_wml.mainRelationships : m_wml.partRelationships.value(part);
+    const QString part = storyPartName(story, endnote);
+    return part.isEmpty() ? m_wml.mainRelationships : relsKeyedByPart(m_wml.partRelationships, part);
 }
 
 WriteDoc::HeaderPart *WriteDoc::addHeaderPart(bool footer, std::shared_ptr<QTextDocument> story, const QString &copyRelationshipsOf, bool withRelationship)

@@ -672,14 +672,15 @@ public:
     office::Relationship mainRelationship(const QString &id) const;
     // The address of a link in a story: the relationship `id` of the part the story is of (a header's or a footer's, the footnotes'; with `endnote`, the endnotes'), else of the main part.
     QString linkAddress(const QTextDocument *story, const QString &id, bool endnote = false) const;
-    // The relationships of the part a story is of (a header's or a footer's, the footnotes'), or the main part's for the body: the Ids a link in that story names are these.
-    QVector<office::Relationship> storyRelationships(const QTextDocument *story) const;
-    // The name of the part a story other than the body is of (empty for the body).
-    QString storyPartName(const QTextDocument *story) const;
+    // The relationships of the part a story is of (a header's or a footer's, the footnotes'; with `endnote`, the endnotes', whose paragraphs are in the body's story), or the main part's for the
+    // body: the Ids a link in that story names are these. The part is looked up by its name in either case of letters.
+    QVector<office::Relationship> storyRelationships(const QTextDocument *story, bool endnote = false) const;
+    // The name of the part a story other than the body is of (empty for the body); with `endnote`, the endnotes' part, for a paragraph of a note in the body's story.
+    QString storyPartName(const QTextDocument *story, bool endnote = false) const;
     // Like forgetExternalLink, for a link of the part a story is of: the Id is that part's own.
-    void forgetStoryLink(const QTextDocument *story, const QString &id)
+    void forgetStoryLink(const QTextDocument *story, const QString &id, bool endnote = false)
     {
-        const QString part = storyPartName(story);
+        const QString part = storyPartName(story, endnote);
         if (part.isEmpty()) m_madeLinks.insert(id);
         else m_madePartLinks.insert({part, id});
     }

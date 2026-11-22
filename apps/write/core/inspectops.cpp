@@ -29,11 +29,12 @@ QVector<QPair<int, int>> hiddenRuns(const QTextDocument *story)
     return runs;
 }
 
-// The Ids of the body's links to addresses outside the file that are not web addresses (a hyperlink is one; a linked picture or object is not).
-QSet<QString> fileLinkIds(const WriteDoc &doc, const QTextDocument *story)
+// The Ids of the links of the part a story is of to addresses outside the file that are not web addresses (a hyperlink is one; a linked picture or object is not); with `endnote`, those of the
+// endnotes' part, whose paragraphs are in the body's story.
+QSet<QString> fileLinkIds(const WriteDoc &doc, const QTextDocument *story, bool endnote = false)
 {
     QSet<QString> ids;
-    for (const office::Relationship &r : doc.storyRelationships(story))
+    for (const office::Relationship &r : doc.storyRelationships(story, endnote))
         if (r.external && !r.type.endsWith(QLatin1String("/hyperlink"))) ids.insert(r.id);
     return ids;
 }
@@ -52,31 +53,86 @@ bool namesAnId(const QByteArray &bytes, const QSet<QString> &ids)
     return false;
 }
 
-// The pictures and objects of the body that name a link to a file, as (position, length) runs, with the Ids they name.
-QVector<QPair<int, int>> linkedAtoms(const QTextDocument *story, const QSet<QString> &ids, QSet<QString> *named = nullptr)
+// The values of the attributes of a picture or object that name a linked file (r:link).
+QStringList linkAttributes(const QByteArray &bytes)
+{
+    static const QRegularExpression link(QStringLiteral(":link\\s*=\\s*(?:\"([^\"]{0,64})\"|'([^']{0,64})')"));
+    QStringList out;
+    QRegularExpressionMatchIterator it = link.globalMatch(QString::fromLatin1(bytes));
+    while (it.hasNext()) {
+        const QRegularExpressionMatch m = it.next();
+        out << (m.capturedStart(1) >= 0 ? m.captured(1) : m.captured(2));
+    }
+    return out;
+}
+
+// The pictures and objects of the story that name a link to a file, as (position, length) runs, with the Ids they name (those of the part each is in: an endnote's are the endnotes' own). An
+// atom that names a link by an Id its part has no relationship for (the part, or its list of relationships, is missing, or has no such Id) is counted in `unresolved`: where it goes can't be told.
+QVector<QPair<int, int>> linkedAtoms(const WriteDoc &doc, const QTextDocument *story, QSet<QPair<bool, QString>> *named = nullptr, int *unresolved = nullptr)
 {
     QVector<QPair<int, int>> runs;
-    if (ids.isEmpty()) return runs;
-    for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
+    const QSet<QString> body = fileLinkIds(doc, story), notes = story == doc.story() ? fileLinkIds(doc, story, true) : QSet<QString>();
+    QSet<QString> everyBody, everyNote;
+    if (unresolved) {
+        for (const office::Relationship &r : doc.storyRelationships(story)) everyBody.insert(r.id);
+        if (story == doc.story())
+            for (const office::Relationship &r : doc.storyRelationships(story, true)) everyNote.insert(r.id);
+    }
+    for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
+        const bool endnote = story == doc.story() && doc.endnoteIdOf(b);
+        const QSet<QString> &ids = endnote ? notes : body;
         for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
             const QTextFragment fr = it.fragment();
             const QTextCharFormat cf = fr.charFormat();
             if (!cf.hasProperty(prop::Atom)) continue;
             const QByteArray bytes = storedBytes(cf, prop::Atom);
-            if (!namesAnId(bytes, ids)) continue;
+            if (unresolved)
+                for (const QString &id : linkAttributes(bytes))
+                    if (!(endnote ? everyNote : everyBody).contains(id)) {
+                        ++*unresolved;
+                        break;
+                    }
+            if (ids.isEmpty() || !namesAnId(bytes, ids)) continue;
             if (named)
                 for (const QString &id : ids)
-                    if (bytes.contains(id.toLatin1())) named->insert(id);
+                    if (bytes.contains(id.toLatin1())) named->insert({endnote, id});
             runs.push_back({fr.position(), fr.length()});
         }
+    }
     return runs;
 }
 
 // The first word of a field the text holds as a group (a field in a header, a footer, or the footnotes keeps its runs whole, so it has no name of its own): the word of its instruction.
 QString groupFieldWord(const QByteArray &raw)
 {
-    static const QRegularExpression instruction(QStringLiteral("(?:w:instr=\"|<w:instrText[^>]*>)\\s*(?:&quot;)?\\s*([A-Za-z]+)"));
-    const QRegularExpressionMatch m = instruction.match(QString::fromUtf8(raw.left(4096)));
+    // (the instruction may be split over runs: the pieces of the first field's instruction are joined before its first word is read)
+    static const QRegularExpression attribute(QStringLiteral("w:instr=\"([^\"]*)\""));
+    static const QRegularExpression piece(QStringLiteral("<w:instrText[^>]*>([^<]*)</w:instrText>"));
+    static const QRegularExpression word(QStringLiteral("^\\s*(?:&quot;)?\\s*([A-Za-z]+)"));
+    const QString text = QString::fromUtf8(raw.left(1 << 16));
+    QString instruction;
+    const QRegularExpressionMatch a = attribute.match(text), p = piece.match(text);
+    if (a.hasMatch() && (!p.hasMatch() || a.capturedStart() < p.capturedStart())) {
+        instruction = a.captured(1);
+    } else {
+        QRegularExpressionMatchIterator it = piece.globalMatch(text);
+        int depth = 0;
+        static const QRegularExpression fldChar(QStringLiteral("<w:fldChar[^>]*w:fldCharType=\"(begin|end)\""));
+        // (only the pieces before a second field begins or the first one ends)
+        QRegularExpressionMatchIterator marks = fldChar.globalMatch(text);
+        qsizetype stop = text.size();
+        while (marks.hasNext()) {
+            const QRegularExpressionMatch m = marks.next();
+            if (m.captured(1) == QLatin1String("begin") && ++depth == 2) { stop = m.capturedStart(); break; }
+            if (m.captured(1) == QLatin1String("end")) { stop = m.capturedStart(); break; }
+        }
+        while (it.hasNext()) {
+            const QRegularExpressionMatch m = it.next();
+            if (m.capturedStart() >= stop) break;
+            instruction += m.captured(1);
+        }
+    }
+    const QRegularExpressionMatch m = word.match(instruction);
     return m.hasMatch() ? m.captured(1).toUpper() : QString();
 }
 
@@ -204,11 +260,44 @@ int externalLinkCount(WriteDoc &doc)
 {
     int n = 0;
     for (QTextDocument *story : allStories(doc)) {
-        for (const auto &run : linkedAtoms(story, fileLinkIds(doc, story))) n += run.second;
+        for (const auto &run : linkedAtoms(doc, story)) n += run.second;
         const StoryScan scan = scanStory(story, false);
         for (const FieldPlace &f : scan.fields) n += isFileLinkField(f);
     }
     return n;
+}
+
+ExternalLinkUnread externalLinkUnread(WriteDoc &doc)
+{
+    ExternalLinkUnread out;
+    static const QRegularExpression field(QStringLiteral("(?:w:instr=\"|<w:instrText[^>]*>)\\s*(?:&quot;)?\\s*(?:INCLUDEPICTURE|INCLUDETEXT|LINK|DDEAUTO|DDE)\\b"), QRegularExpression::CaseInsensitiveOption);
+    for (QTextDocument *story : allStories(doc)) {
+        linkedAtoms(doc, story, nullptr, &out.unresolved);
+        for (const FieldPlace &f : scanStory(story, false).fields)
+            if (f.name.isEmpty() && f.form == FieldPlace::Group && !isFileLinkField(f) && field.match(QString::fromUtf8(f.groupRaw.left(1 << 16))).hasMatch()) ++out.unreachable;   // (a link kept inside another field)
+        const QSet<QString> ids = fileLinkIds(doc, story);
+        const QSet<QString> noteIds = story == doc.story() ? fileLinkIds(doc, story, true) : QSet<QString>();
+        for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
+            for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+                const QTextCharFormat cf = it.fragment().charFormat();
+                if (!cf.hasProperty(prop::Atom)) continue;
+                const QByteArray bytes = storedBytes(cf, prop::Atom);
+                // (a picture or object that is a link is counted and taken out; a field in a text box, kept whole, is neither)
+                const bool endnote = story == doc.story() && doc.endnoteIdOf(b);
+                if (!namesAnId(bytes, endnote ? noteIds : ids) && field.match(QString::fromLatin1(bytes.left(1 << 20))).hasMatch()) ++out.unreachable;
+            }
+    }
+    // (the comments: kept as they are in their part)
+    const QString comments = doc.mainRelatedPart(QStringLiteral("comments"));
+    if (!comments.isEmpty()) {
+        const QString text = QString::fromUtf8(doc.partData(comments).left(1 << 22));
+        QRegularExpressionMatchIterator it = field.globalMatch(text);
+        while (it.hasNext()) {
+            it.next();
+            ++out.unreachable;
+        }
+    }
+    return out;
 }
 
 int removeExternalLinks(WriteDoc &doc)
@@ -230,9 +319,8 @@ int removeExternalLinks(WriteDoc &doc)
             if (unlinkFieldsIn(doc, story, c) == 0) break;
             ++n;
         }
-        const QSet<QString> ids = fileLinkIds(doc, story);
-        QSet<QString> named;
-        const QVector<QPair<int, int>> runs = linkedAtoms(story, ids, &named);
+        QSet<QPair<bool, QString>> named;
+        const QVector<QPair<int, int>> runs = linkedAtoms(doc, story, &named);
         QTextCursor c(story);
         c.beginEditBlock();
         for (qsizetype i = runs.size() - 1; i >= 0; --i) {
@@ -243,7 +331,7 @@ int removeExternalLinks(WriteDoc &doc)
         }
         c.endEditBlock();
         // (the file's own link to the address goes when nothing names it: see WriteDoc::forgetExternalLink)
-        for (const QString &id : std::as_const(named)) doc.forgetStoryLink(story, id);
+        for (const auto &[endnote, id] : std::as_const(named)) doc.forgetStoryLink(story, id, endnote);
     }
     if (n > 0) doc.setModified(true);
     return n;

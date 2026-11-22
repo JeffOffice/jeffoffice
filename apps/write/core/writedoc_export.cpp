@@ -297,14 +297,18 @@ void WriteDoc::pruneUnusedMedia(office::wml::Document *out) const
     // (the same for the links of a header, a footer, or the footnotes: their Ids are their own, so each is looked for in its own story)
     for (const auto &[part, id] : std::as_const(m_madePartLinks)) {
         bool stillNamed = false;
-        for (const QTextDocument *side : sideStories()) {
-            if (storyPartName(side) != part) continue;
-            for (QTextBlock b = side->begin(); b.isValid() && !stillNamed; b = b.next())
+        auto namesIt = [&](const QTextDocument *story, bool onlyEndnotes) {
+            for (QTextBlock b = story->begin(); b.isValid() && !stillNamed; b = b.next()) {
+                if (onlyEndnotes && !endnoteIdOf(b)) continue;
                 for (QTextBlock::iterator it = b.begin(); !it.atEnd() && !stillNamed; ++it) {
                     const QTextCharFormat cf = it.fragment().charFormat();
                     if (cf.hasProperty(prop::Atom) && storedBytes(cf, prop::Atom).contains(id.toLatin1())) stillNamed = true;
                 }
-        }
+            }
+        };
+        for (const QTextDocument *side : sideStories())
+            if (storyPartName(side).compare(part, Qt::CaseInsensitive) == 0) namesIt(side, false);
+        if (part.compare(QStringLiteral("/word/endnotes.xml"), Qt::CaseInsensitive) == 0) namesIt(this->story(), true);
         if (stillNamed) continue;
         for (auto rel = out->partRelationships.begin(); rel != out->partRelationships.end(); ++rel) {
             if (rel.key().compare(part, Qt::CaseInsensitive) != 0) continue;

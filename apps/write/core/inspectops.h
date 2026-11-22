@@ -27,6 +27,14 @@ int removeCustomXml(WriteDoc &doc);
 // another file (INCLUDEPICTURE, INCLUDETEXT, LINK, DDE, and DDEAUTO). The count is of those in the body, the headers and footers, and the footnotes. Removing turns each such field into its
 // result as plain text, takes out each linked picture or object (the file it showed is not touched), and lets the file's link to that address go when the document is saved.
 int externalLinkCount(WriteDoc &doc);
+// What the count could not look at, or could not take out: `unresolved` pictures and objects that name a link by an Id their part has no relationship for (the part, or its list of
+// relationships, is missing, or has no such Id), so where they go can't be told; `unreachable` fields that take from another file in the comments and in text boxes, which the program keeps as
+// they are and does not take apart.
+struct ExternalLinkUnread {
+    int unresolved = 0;
+    int unreachable = 0;
+};
+ExternalLinkUnread externalLinkUnread(WriteDoc &doc);
 int removeExternalLinks(WriteDoc &doc);
 
 } // namespace jp::write

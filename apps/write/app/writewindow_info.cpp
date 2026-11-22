@@ -219,7 +219,14 @@ QVector<InspectItem> WriteWindow::inspectItems()
     items.push_back({tr("Custom XML data"), tr("Data that other programs added to the file, which you can't see on a page."), [doc] { return write::customXmlCount(*doc); },
                      [doc] { return write::removeCustomXml(*doc); }, true, QString()});
     items.push_back({tr("External links"), tr("Linked pictures and objects, and fields that read another file. Removing turns fields into text and takes out the linked ones. Web links stay."),
-                     [doc] { return write::externalLinkCount(*doc); }, [doc] { return write::removeExternalLinks(*doc); }, true, QString()});
+                     [doc] { return write::externalLinkCount(*doc); }, [doc] { return write::removeExternalLinks(*doc); }, true, QString(),
+                     [this, doc] {
+                         const write::ExternalLinkUnread u = write::externalLinkUnread(*doc);
+                         QStringList said;
+                         if (u.unresolved > 0) said << tr("%n linked picture(s) or object(s) can't be checked, because the file does not say where each one goes.", nullptr, u.unresolved);
+                         if (u.unreachable > 0) said << tr("%n link(s) to another file are kept inside other fields, comments, or text boxes, where Remove All can't take them out.", nullptr, u.unreachable);
+                         return said.join(QLatin1Char(' '));
+                     }});
     return items;
 }
 
