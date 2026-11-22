@@ -1029,6 +1029,31 @@ private Q_SLOTS:
         QCOMPARE(f.run().pages.size(), size_t(6));
     }
 
+    // A fill given to a whole row is ignored by the trim (the pages at the end stay off), while an explicit print area on the same sheet still prints its empty pages. Fails when off: yes, if the row
+    // fill is counted the first count is 6, and if the print area is trimmed the second is 4.
+    void aWholeRowFillIsIgnoredByTheTrimButAPrintAreaStillPrintsItsEmptyPages()
+    {
+        Fixture f(99, 2);
+        f.sheet.cells.add(numberAt(0, 0));
+        f.sheet.cells.add(numberAt(0, 12));
+        f.sheet.cells.finish();
+        withFormats(&f);
+        jp::office::sheet::RowSpec rs;
+        rs.row = 95;
+        rs.customFormat = true;
+        rs.style = 2;   // (the fill that shows)
+        f.sheet.rowSpecs.append(rs);
+        QCOMPARE(f.run().pages.size(), size_t(4));
+        CellRange a;
+        a.valid = true;
+        a.row1 = 0;
+        a.row2 = 99;
+        a.col1 = 0;
+        a.col2 = 12;
+        f.request.setup.printArea = {a};
+        QCOMPARE(f.run().pages.size(), size_t(6));
+    }
+
     // A sheet whose used range is only a merge of empty cells, or only an object, still has its page: trimming never leaves none.
     void trimmingNeverLeavesASheetWithoutPages()
     {
