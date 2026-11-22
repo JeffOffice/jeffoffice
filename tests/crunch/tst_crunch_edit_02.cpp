@@ -571,6 +571,56 @@ void CrunchEditTests::aSpillRangeOfAnotherSheetFollowsTheBlock()
     QCOMPARE(s->valueAt(1, 0, 0).number(), 60.0);
 }
 
+// Copying a sheet whose formula spills gives the copy the block (its cells are not in the store: the copy's table holds the rectangle), and moving the sheet leaves it where it was.
+void CrunchEditTests::aSpillBlockSurvivesACopyAndAMoveOfItsSheet()
+{
+    SpillIndexSwitch on(true);
+    EditWindow e;
+    QVERIFY(e.openBlank());
+    EditSession *s = e.win.w.session();
+    e.select(QStringLiteral("B2"));
+    e.enter(QStringLiteral("=SEQUENCE(3)"));
+    QVERIFY(e.settle());
+    int made = -1;
+    const EditSession::Outcome copied = s->copySheet(0, -1, QStringLiteral("Copy"), &made);
+    QVERIFY2(copied.ok, qPrintable(copied.problem));
+    QVERIFY(made > 0);
+    QVERIFY(e.settle());
+    const Calculation *calc = s->calculation();
+    QVERIFY(calc->isSpillMember(made, 3, 1));
+    QCOMPARE(calc->spillBlock(made, 1, 1).row2, quint32(3));
+    QCOMPARE(calc->shown(made, 3, 1).debug(), QStringLiteral("n:3"));
+    QVERIFY(s->moveSheet(0, -1).ok);
+    QVERIFY(e.settle());
+    QVERIFY(calc->isSpillMember(0, 3, 1) && calc->isSpillMember(made, 3, 1));
+    QCOMPARE(calc->shown(0, 3, 1).debug(), QStringLiteral("n:3"));
+    QCOMPARE(calc->sheet(made).cells.cellCount(), qint64(1));   // (the copy made no cell for the block either)
+}
+
+// A formula that is taken out of the sheet (its row deleted) fills no block: the table has none of it, and what was in its place reads empty.
+void CrunchEditTests::aSpillFormulaTakenOutOfASheetLeavesNoBlock()
+{
+    SpillIndexSwitch on(true);
+    EditWindow e;
+    QVERIFY(e.openBlank());
+    EditSession *s = e.win.w.session();
+    e.select(QStringLiteral("B2"));
+    e.enter(QStringLiteral("=SEQUENCE(3)"));
+    QVERIFY(e.settle());
+    QVERIFY(s->calculation()->isSpillMember(0, 2, 1));
+    QVERIFY(s->deleteRows(0, 1, 1).ok);   // (the formula's row)
+    QVERIFY(e.settle());
+    const SpillPublisher *pub = s->calculation()->sheet(0).cells.spills();
+    QVERIFY(pub);
+    QVERIFY(pub->mine().empty());
+    for (quint32 row = 0; row < 5; ++row) QVERIFY(!s->calculation()->isSpillMember(0, row, 1));
+    QCOMPARE(e.valueAt(QStringLiteral("B3")), QStringLiteral("-"));
+    e.win.w.undoStack()->undo();   // (Undo makes the formula again: the block is back)
+    QVERIFY(e.settle());
+    QCOMPARE(blockOf(e, QStringLiteral("B2")), QStringLiteral("B2:B4"));
+    QVERIFY(s->calculation()->isSpillMember(0, 3, 1));
+}
+
 // A formula typed with the mark @ is saved as the call a file has for it (_xlfn.SINGLE) and read back with the mark, still one value of the block; the same formula typed again without the mark is the new kind
 // and fills its block; a copy as .ods has the formula by the old rule, with no call.
 void CrunchEditTests::aFormulaWithTheMarkIsSavedAsSingleAndReadBack()

@@ -156,6 +156,8 @@ private Q_SLOTS:
     void aSpillBlockIsClearedWhenTheCellOfItsFormulaIsDeleted();
     void aSortOfPartOfASpillBlockIsRefused();
     void aSpillRangeOfAnotherSheetFollowsTheBlock();
+    void aSpillBlockSurvivesACopyAndAMoveOfItsSheet();
+    void aSpillFormulaTakenOutOfASheetLeavesNoBlock();
     void aFormulaWithTheMarkIsSavedAsSingleAndReadBack();
     void aBigSpillBlockMovesQuickly();
     void aSaveThatFailsLeavesTheOldFile();

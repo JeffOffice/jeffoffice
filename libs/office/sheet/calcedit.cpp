@@ -1264,6 +1264,7 @@ bool Calculation::applyEditImpl(const StructEdit &edit, EditRecord *rec, const E
                 const quint32 now = addNode(e.sheet, row, col, *head, head->formula);
                 queueDependents(areaOf(m_nodes[now]));
             }
+            rebuildSpillTable(e.sheet);   // (the blocks are by place, and the edit moved the places)
         }
     }
     {
@@ -1667,6 +1668,7 @@ bool Calculation::undoEdit(const EditRecord &rec, EditRecord *done)
     // (a list the edit did not change is as it was; if the edit that undoes it changed one, that one is put back as it was before that: what the edit left)
     if (rec.rangesSaved) S.ranges = rec.ranges;
     else if (throwaway.rangesSaved) S.ranges = throwaway.ranges;
+    if (rec.rangesSaved || throwaway.rangesSaved) rebuildSpillTable(rec.sheet);
     putBackKinds(rec);
     if (rec.mergesSaved) {
         S.merges = rec.merges;

@@ -9,6 +9,9 @@
 
 namespace {
 
+// Whether the tests of the index below run with it on (they are written to fail with it off: the cells the store holds are not the blocks').
+constexpr bool kIndexOn = true;
+
 QString constant(const QString &ref, const QString &value) { return QStringLiteral("<c r=\"%1\"><v>%2</v></c>").arg(ref, value); }
 QString rowXml(int n, const QString &cells) { return QStringLiteral("<row r=\"%1\">%2</row>").arg(n).arg(cells); }
 
@@ -231,6 +234,53 @@ private Q_SLOTS:
         QVERIFY(b.type(QStringLiteral("A1"), QStringLiteral("_xlfn.SEQUENCE(3)")));
         QVERIFY(!b.calc->sheet(0).cells.spills());
         QCOMPARE(b.calc->sheet(0).cells.cellCount(), qint64(3));
+    }
+
+    // A lookup that was cached over cells that a spill grows into reads them as they are now (the spill epoch: a change of the blocks moves the count of writes of the store).
+    void aCachedLookupSeesCellsASpillGrowsInto()
+    {
+        SpillIndexSwitch on(kIndexOn);
+        QString rows;
+        for (int n = 11; n <= 500; ++n) rows += rowXml(n, constant(QStringLiteral("B%1").arg(n), QString::number(n)));
+        Book b;
+        QVERIFY(b.open(blank(rows)));
+        QVERIFY(b.type(QStringLiteral("D1"), QStringLiteral("MATCH(10,B1:B500,0)")));
+        QCOMPARE(b.at("D1"), QStringLiteral("e:#N/A"));   // (B1:B10 are empty: the lookup read the 490 numbers and cached them)
+        QVERIFY(b.type(QStringLiteral("A1"), QStringLiteral("_xlfn.SEQUENCE(10,2)")));   // A1:B10: B5 is 10
+        QCOMPARE(b.at("B5"), QStringLiteral("n:10"));
+        QCOMPARE(b.at("D1"), QStringLiteral("n:5"));
+        QVERIFY(b.type(QStringLiteral("A1"), QStringLiteral("_xlfn.SEQUENCE(4,2)")));   // it shrinks: B5 is empty again
+        QCOMPARE(b.at("D1"), QStringLiteral("e:#N/A"));
+    }
+
+    // A loaded spill, and the blocks table made again from the ranges, agree: the same blocks for a spill that is worked out, and none for one that is kept apart (its cells are the file's).
+    void aLoadedSpillAndTheRebuiltTableAgreeOnKeptFormulas()
+    {
+        SpillIndexSwitch on(kIndexOn);
+        const QString rows = rowXml(1, QStringLiteral("<c r=\"A1\" cm=\"1\"><f t=\"array\" ref=\"A1:A3\">_xlfn.SEQUENCE(3)</f><v>1</v></c><c r=\"C1\" cm=\"1\"><f t=\"array\" ref=\"C1:C3\">_xlfn.NOSUCHFUNCTIONX(3)</f><v>1</v></c>"))
+            + rowXml(2, constant("A2", "2") + constant("C2", "2")) + rowXml(3, constant("A3", "3") + constant("C3", "3"));
+        const QByteArray file = withMetadata(blank(rows));
+        Book b;
+        QString why;
+        QVERIFY(b.package.readLazy(file, &why) && b.book.open(b.package, &why));
+        CalcOptions options;
+        options.keepApart = true;
+        b.calc.reset(new Calculation(b.book, options));
+        QVERIFY(b.calc->load());
+        const SpillPublisher *pub = b.calc->sheet(0).cells.spills();
+        QVERIFY(pub);
+        auto blocks = [&] {
+            std::vector<QString> out;
+            pub->mine().forEach([&](const SpillRect &r) { out.push_back(QStringLiteral("%1:%2:%3:%4").arg(r.row1).arg(r.col1).arg(r.row2).arg(r.col2)); });
+            std::sort(out.begin(), out.end());
+            return out;
+        };
+        const std::vector<QString> loaded = blocks();
+        QCOMPARE(loaded, std::vector<QString>{QStringLiteral("0:0:2:0")});   // (A1:A3 only: C1:C3 is kept apart)
+        b.calc->rebuildSpillTableForTest(0);
+        QCOMPARE(blocks(), loaded);
+        QVERIFY(b.settle());
+        QCOMPARE(blocks(), loaded);
     }
 
     // The block grows and shrinks as the result does, and what reads the cells follows it.

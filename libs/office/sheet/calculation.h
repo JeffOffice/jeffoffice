@@ -120,6 +120,15 @@ public:
     void setCancel(const std::atomic<bool> *cancel) { m_cancel = cancel; }
     // The rule of the worker (see MutationGuard in sheet/sheetmodel.h): while a worker serves (its thread is given here; 0 when none does), the cells and the shape of the sheets are changed only by
     // that thread, or by one that has the worker held back (the worker's Hold notes itself with the guard). Strict mode (MutationGuard::setStrict) ends the program when another thread does.
+    // Makes the blocks that the formulas spill into, as the worker has them, the ones the other threads read (see sheet/spillindex.h). Called by the thread that recalculates at the end of each slice.
+    void publishSpills()
+    {
+        for (Sheet &s : m_sheets)
+            if (SpillPublisher *p = s.cells.spills()) p->publish();
+    }
+    // Whether this calculation keeps the cells a formula spills into as blocks of an index (set from spillIndexDefault() when the workbook is loaded) and not as cells of the store.
+    bool spillIndexOn() const { return m_spillIndex; }
+    void rebuildSpillTableForTest(int sheet) { rebuildSpillTable(sheet); }   // (the table made again from the ranges, as an edit of rows or columns does)
     void setWorkerThread(quintptr thread)
     {
         for (Sheet &s : m_sheets) s.cells.guardWith(&m_guard);
@@ -950,6 +959,13 @@ private:
     // filled by a spill.
     jp::calc::Value applySpill(Node &n, quint32 id, const jp::calc::Value &v);
     void letGoOfSpill(int sheet, qint32 formula);
+    // The blocks table of a sheet (the spill index, when it is on): made again from the sheet's ranges, one block for each that is a spill's; a block put; the window told its cells are gone.
+    void rebuildSpillTable(int sheet);
+    bool registerSpill(int sheet, qint32 formula, const CellRange &range);
+    bool spillRegisterable(int sheet, qint32 formula, const CellRange &range) const;
+    void putSpillBlock(int sheet, const SpillRect &r);
+    void dropSpillBlock(int sheet, qint32 formula);
+    void tellGoneBlock(int sheet, const CellRange &was, const CellRange &keep, quint32 row0, quint32 col0) const;
     void tellGone(int sheet, quint32 rowId, quint32 colId) const;
     void nameTextsChanged();
     void adjustValidations(const StructEdit &edit, const QStringList &sheetNames, EditRecord *record);
@@ -1050,6 +1066,7 @@ private:
     bool m_lookupIndexes = true;
     const std::atomic<bool> *m_cancel = nullptr;
     MutationGuard m_guard;
+    bool m_spillIndex = false;   // (see spillIndexOn)
     ResultSink m_sink;
     struct RuleIndex;
     mutable std::vector<std::shared_ptr<RuleIndex>> m_ruleIndex;   // by sheet: where the rules of validation are (made when first asked, and again after the rules change); the window's thread only

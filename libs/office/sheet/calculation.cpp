@@ -502,6 +502,11 @@ void Calculation::releaseFormula(int sheet, qint32 formula)
     if (formula < 0 || formula >= s.formulas.size()) return;
     Formula &f = s.formulas[formula];
     if (f.text == kFreeFormula) return;   // (it is free already)
+    if (s.cells.spills()) {
+        // (a formula that is let go of fills no block: the window is told its cells are empty, and the table has no block of it)
+        if (f.range >= 0 && f.range < s.ranges.size()) tellGoneBlock(sheet, s.ranges[f.range], CellRange(), s.ranges[f.range].row1, s.ranges[f.range].col1);
+        dropSpillBlock(sheet, formula);
+    }
     if (f.text >= 0) releaseText(sheet, f.text);
     f = Formula();
     f.text = kFreeFormula;
@@ -1273,6 +1278,9 @@ bool Calculation::load()
 {
     static_assert(sizeof(Node) == 32, "a formula's node is 32 bytes");
     const bool whole = loadAll();
+    m_spillIndex = spillIndexDefault();
+    if (m_spillIndex)
+        for (Sheet &s : m_sheets) s.cells.enableSpills(&m_guard);   // (each sheet's store has its blocks table from here on)
     struct DeferGraph {
         Calculation &c;
         explicit DeferGraph(Calculation &calc) : c(calc)
@@ -1342,6 +1350,26 @@ bool Calculation::load()
         if (range < 0 || range >= s.ranges.size() || !s.ranges[range].valid) continue;
         const CellRange r = s.ranges[range];
         if (r.cellCount() <= 1 || r.cellCount() > kMaxArrayCellsMarked) continue;
+        if (s.cells.spills()) {
+            const std::optional<Cell> head = cellOf(n);
+            if (head && (head->flags & SpillFormula) && !(n.flags & Kept)) {
+                // (a spill's block is a rectangle in the sheet's table and makes no cell. One a spill cannot have, or that meets another that stands, has none: it is worked out and blocked or
+                // shrunk. A cell the file stored in it, with the value it had, is a member as before.)
+                if (!registerSpill(n.sheet, n.formula, r)) continue;
+                std::vector<std::pair<quint32, quint32>> stored;
+                s.cells.forEachInRangeReal(r.row1, r.col1, r.row2, r.col2, [&](quint32 row, quint32 col, const Cell &c) {
+                    if (!(row == rowOf(n) && col == colOf(n)) && !c.hasFormula()) stored.emplace_back(row, col);
+                    return true;
+                });
+                for (const auto &[row, col] : stored) {
+                    Cell member = *s.cells.find(row, col);
+                    member.flags |= ArrayMember | SpillMember;
+                    member.formula = n.formula;
+                    s.cells.set(row, col, member);
+                }
+                continue;
+            }
+        }
         for (quint32 row = r.row1; row <= r.row2; ++row)
             for (quint32 col = r.col1; col <= r.col2; ++col) {
                 if (row == rowOf(n) && col == colOf(n)) continue;
@@ -1372,6 +1400,7 @@ bool Calculation::load()
             markTableMembers(st.nodeOf[fi]);
         }
     }
+    publishSpills();
     return whole;
 }
 
@@ -1412,6 +1441,7 @@ void Calculation::registerSheet(int si)
     });
     m_rows[size_t(si)] = rows;
     m_cols[size_t(si)] = cols;
+    if (s.cells.spills()) rebuildSpillTable(si);   // (a sheet copied, or added back, has the blocks its formulas fill)
     for (size_t fi = 0; fi < st.nodeOf.size(); ++fi) {
         if (st.nodeOf[fi] == kNone || m_nodes[st.nodeOf[fi]].kept != 'D') continue;
         markTableMembers(st.nodeOf[fi]);
@@ -1441,6 +1471,7 @@ int Calculation::addSheet(const QString &name, int copyOf)
     content.frameIndex = index;
     m_sheets.push_back(std::move(content));
     m_sheets.back().cells.guardWith(&m_guard);
+    if (m_spillIndex) m_sheets.back().cells.enableSpills(&m_guard);   // (a copy's table starts empty: registerSheet puts its blocks in)
     m_rows.push_back(0);
     m_cols.push_back(0);
     m_subtotalTexts.emplace_back();
@@ -2985,6 +3016,7 @@ Calculation::Progress Calculation::recalculate(qint64 budget, const std::atomic<
     const qint64 before = m_items;
     m_onlyFresh = false;
     Progress pr = recalculateSlice(budget, cancel, timeBudgetMicros);
+    publishSpills();
     pr.jobItems = m_items - before;
     return pr;
 }
@@ -2999,6 +3031,7 @@ Calculation::Progress Calculation::recalculateFresh(qint64 budget, const std::at
     const qint64 before = m_items;
     m_onlyFresh = true;
     Progress pr = recalculateSlice(budget, cancel, timeBudgetMicros);
+    publishSpills();
     pr.jobItems = m_items - before;
     return pr;
 }
