@@ -3780,6 +3780,55 @@ private Q_SLOTS:
         QVERIFY2(std::abs(tabs[0].position - 72) < 0.1, qPrintable(QString::number(tabs[0].position)));
     }
 
+    // A file's extreme indents (a left indent near the largest the format holds, a right one far negative) leave every line a quarter of the frame at least:
+    // the story is not laid out a letter to a line. Counted: the lines laid out are a small fraction of the letters.
+    void extremeParagraphIndentsLeaveRoomOnEveryLine()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        jp::MainWindow w;
+        w.resize(1200, 900);
+        w.show();
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        auto box = std::make_shared<jp::TextItem>();
+        box->rect = QRectF(72, 72, 300, 600);
+        box->storyId = doc->createStory();
+        QTextCursor c(doc->storyDoc(box->storyId));
+        c.select(QTextCursor::Document);
+        c.removeSelectedText();
+        QTextBlockFormat bf;
+        bf.setLeftMargin(169000);
+        bf.setRightMargin(-169000);
+        bf.setTextIndent(-169000);
+        c.setBlockFormat(bf);
+        QString text;
+        for (int i = 0; i < 6000; ++i) text += QStringLiteral("word%1 ").arg(i % 97);
+        c.insertText(text);
+        doc->pages[0]->items.push_back(box);
+        w.editor()->setDocument(std::move(doc));
+        const QString path = dir.filePath(QStringLiteral("extreme.pub"));
+        QVERIFY(w.saveTo(path));
+        jp::MainWindow again;
+        QVERIFY(again.openFile(path));
+        QTextDocument *bd = nullptr;
+        jp::walkItems(again.editor()->doc()->pages[0]->items, [&](const jp::ItemPtr &it) {
+            if (it->type() == jp::ItemType::Text) bd = again.editor()->doc()->storyDoc(static_cast<jp::TextItem *>(it.get())->storyId);
+        });
+        QVERIFY(bd);
+        const QTextBlockFormat got = bd->begin().blockFormat();
+        QVERIFY2(got.leftMargin() <= 300 - 75 && got.leftMargin() >= -300, qPrintable(QString::number(got.leftMargin())));
+        jp::FrameSpec fs;
+        fs.size = QSizeF(300, 200000);
+        fs.insets = QMarginsF(0, 0, 0, 0);
+        jp::StoryLayout lay;
+        lay.build(bd, {fs}, jp::LayoutEnv());
+        const auto lines = lay.lineInfo(0);
+        const int letters = bd->characterCount();
+        QVERIFY(letters > 40000);
+        QVERIFY2(lines.size() * 3 < letters, qPrintable(QString("%1 lines for %2 letters").arg(lines.size()).arg(letters)));
+        for (const auto &li : lines) QVERIFY(li.rect.width() >= 70);
+    }
+
     // A text box's hyphenation zone is kept in a .pub file with its story's
     // hyphenation setting, in every box of a linked chain.
     void pubTextBoxHyphenationZoneKept()

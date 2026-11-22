@@ -69,6 +69,18 @@ bool decodeWithQt(const char *encoding, const unsigned char *data, std::size_t l
     return true;
 }
 
+// A paragraph's indents kept inside a text area `width` points wide (0 when not known: 2000): every line keeps
+// a quarter of the width at least, whatever the file says (an indent of a billion points left one letter on each line).
+void clampIndents(double width, double *left, double *first, double *right)
+{
+    const double w = width > 0 ? width : 2000, room = std::min(w / 2, std::max(6.0, w / 4));
+    *left = std::clamp(*left, -w, w - room);
+    *right = std::clamp(*right, -w, w - room);
+    if (*left + *right > w - room) *right = w - room - *left;
+    const double start = std::clamp(*left + *first, -w, w - room - *right);
+    *first = start - *left;
+}
+
 double toPt(const RVNGProperty *p, double def = 0)
 {
     if (!p) return def;
@@ -485,6 +497,7 @@ public:
             }
         }
         m_text = t;
+        m_indentW = t->rect.width() - t->insets.left() - t->insets.right();
         useStory(m_doc.storyDoc(t->storyId));
         m_firstPara = !m_skipText;
         m_list = nullptr;
@@ -518,9 +531,14 @@ public:
         else if (al == "justify") bf.setAlignment(Qt::AlignJustify);
         else bf.setAlignment(Qt::AlignLeft);
         if (p["jp:right-to-left"] && p["jp:right-to-left"]->getInt()) bf.setLayoutDirection(Qt::RightToLeft);
-        if (p["fo:margin-left"]) bf.setLeftMargin(toPt(p["fo:margin-left"]));
-        if (p["fo:margin-right"]) bf.setRightMargin(toPt(p["fo:margin-right"]));
-        if (p["fo:text-indent"]) bf.setTextIndent(toPt(p["fo:text-indent"]));
+        {
+            // Indents are kept within the frame the text starts in, so a file's extreme ones cannot leave a line no room.
+            double left = toPt(p["fo:margin-left"]), right = toPt(p["fo:margin-right"]), first = toPt(p["fo:text-indent"]);
+            clampIndents(m_indentW, &left, &first, &right);
+            if (p["fo:margin-left"]) bf.setLeftMargin(left);
+            if (p["fo:margin-right"]) bf.setRightMargin(right);
+            if (p["fo:text-indent"]) bf.setTextIndent(first);
+        }
         if (p["fo:margin-top"]) bf.setTopMargin(toPt(p["fo:margin-top"]));
         if (p["fo:margin-bottom"]) bf.setBottomMargin(toPt(p["fo:margin-bottom"]));
         // Spacing in sp is always recorded (an explicit 1 sp differs from the
@@ -845,6 +863,10 @@ public:
         if (p["jp:text-direction"] && p["jp:text-direction"]->getInt() == 2) c.vertical = true;
         m_cells.back().push_back(c);
         m_halfStory = c.storyId2;
+        {
+            const size_t col = m_cells.back().size() - 1;
+            m_indentW = (col < size_t(m_table->colW.size()) ? m_table->colW[int(col)] : m_table->rect.width()) - c.margins.left() - c.margins.right();
+        }
         useStory(m_doc.storyDoc(c.storyId));
         m_firstPara = true;
         m_list = nullptr;
@@ -1558,6 +1580,7 @@ private:
     std::vector<std::shared_ptr<GroupItem>> m_stack;
     std::shared_ptr<TextItem> m_text;
     QTextCursor m_cursor;
+    double m_indentW = 0;   // the open text box's or cell's text width, 0 when not known
     // Text goes into a story inside one edit block: otherwise Qt finishes
     // each insertion on its own, at a cost that grows with the paragraph
     // (a story of 8,000 runs took seconds to open; with the block, 10 ms).
