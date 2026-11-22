@@ -75,6 +75,8 @@ private:
     QLabel *m_report = nullptr;
     int m_generation = 0;
     bool m_working = false;
+    QVector<CompatAnswer> m_answers;   // by kind: what was worked out while the box is open (the document can't change under it), so that going back to a kind is not worked out again
+    QVector<bool> m_have;
 };
 
 // Runs the box. Where `notifier` is given (a test, or a window that says things in its status line) the first kind's report is handed to it instead, once it is worked out.

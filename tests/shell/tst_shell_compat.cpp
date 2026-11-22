@@ -150,6 +150,27 @@ private Q_SLOTS:
         QVERIFY(!compatReport(host.formats[0], host, CompatAnswer::failed(QStringLiteral("x"))).contains(QLatin1String("can't hold")));
     }
 
+    // Going back to a kind is not worked out again while the box is open (the document can't change under it); a check that could not be made is asked for again.
+    void aKindIsWorkedOutOnceForEachOpenOfTheBox()
+    {
+        int calls = 0, failures = 0;
+        CompatHost host;
+        host.formats << CompatFormat{QStringLiteral("A"), QStringLiteral(".a"), QStringLiteral(".own"), QStringLiteral("thing"), [&calls](const CompatDone &done) { ++calls; done(CompatAnswer(QStringList{QStringLiteral("Glows")})); }};
+        host.formats << CompatFormat{QStringLiteral("B"), QStringLiteral(".b"), QStringLiteral(".own"), QStringLiteral("thing"), [&failures](const CompatDone &done) { ++failures; done(CompatAnswer::failed(QStringLiteral("Not now."))); }};
+        {
+            CompatibilityDialog box(host, 0, nullptr);
+            for (int i = 0; i < 4; ++i) {
+                box.choose(1);
+                box.choose(0);
+            }
+            QCOMPARE(calls, 1);
+            QVERIFY(box.reportText().contains(QLatin1String("Glows")));
+            QCOMPARE(failures, 4);
+        }
+        CompatibilityDialog again(host, 0, nullptr);   // (a new open asks again)
+        QCOMPARE(calls, 2);
+    }
+
     // A kind that can't be saved at all just now is said as that, never as a loss; a list may follow.
     void aKindThatCannotBeSavedIsSaidAsThatAndNotAsALoss()
     {

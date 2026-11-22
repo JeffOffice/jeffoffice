@@ -94,14 +94,27 @@ void CompatibilityDialog::work()
     const int index = m_picker->currentIndex();
     if (index < 0 || index >= m_host.formats.size()) return;
     const int generation = ++m_generation;
+    if (m_have.size() != m_host.formats.size()) {
+        m_have = QVector<bool>(m_host.formats.size(), false);
+        m_answers = QVector<CompatAnswer>(m_host.formats.size());
+    }
+    if (m_have[index]) {
+        m_working = false;
+        m_report->setText(compatReport(m_host.formats[index], m_host, m_answers[index]));
+        return;
+    }
     m_working = true;
     m_report->setText(QCoreApplication::translate("jp::CompatibilityDialog", "Checking…"));
     const CompatFormat format = m_host.formats[index];
     const QPointer<CompatibilityDialog> self(this);
-    format.lost([self, generation, format](const CompatAnswer &answer) {
+    format.lost([self, generation, format, index](const CompatAnswer &answer) {
         // (an answer for a kind that is no longer picked, or to a box that is gone, is dropped)
         if (!self || self->m_generation != generation) return;
         self->m_working = false;
+        if (answer.couldNot.isEmpty() && index < self->m_have.size()) {   // (an answer that could not be had is asked for again next time)
+            self->m_have[index] = true;
+            self->m_answers[index] = answer;
+        }
         self->m_report->setText(compatReport(format, self->m_host, answer));
     });
 }
