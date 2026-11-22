@@ -408,6 +408,16 @@ QString element(const Section &s, const QString &name, bool main, const QString 
     return x;
 }
 
+// A value of an attribute: a parser turns a newline or a tab in one into a space, so they are written as character references.
+QString escAttribute(const QString &s)
+{
+    QString out = esc(s);
+    out.replace(QLatin1Char('\n'), QLatin1String("&#10;"));
+    out.replace(QLatin1Char('\r'), QLatin1String("&#13;"));
+    out.replace(QLatin1Char('\t'), QLatin1String("&#9;"));
+    return out;
+}
+
 } // namespace
 
 static bool dataStylesOf(const QString &code, const QString &baseName, OdfDataStyles *out)
@@ -503,7 +513,7 @@ bool odfDataStyles(const QString &code, const QString &baseName, OdfDataStyles *
     // the code as it was written (a style cannot say "YYYY" or "#0" apart from "yyyy" or "0"): the reader keeps it when the style still shows the same
     const QString marker = QStringLiteral(" style:name=\"%1\"").arg(out->mainName);
     const qsizetype at = out->mainName.isEmpty() ? -1 : out->xml.indexOf(marker);
-    if (at >= 0) out->xml.insert(at + marker.size(), QStringLiteral(" jo:code=\"%1\"").arg(esc(code)));
+    if (at >= 0) out->xml.insert(at + marker.size(), QStringLiteral(" jo:code=\"%1\"").arg(escAttribute(code)));
     return true;
 }
 

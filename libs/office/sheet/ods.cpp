@@ -35,6 +35,7 @@ namespace jp::office::sheet {
 namespace {
 
 constexpr QLatin1String NS_JO("urn:jeffoffice:odf-extension");
+constexpr QLatin1String NS_JO_OLD("urn:jeffoffice:names:extension:1.0");   // (the URI the charts of earlier files declared for the same prefix)
 constexpr QLatin1String NS_TABLE("urn:oasis:names:tc:opendocument:xmlns:table:1.0");
 constexpr QLatin1String NS_OFFICE("urn:oasis:names:tc:opendocument:xmlns:office:1.0");
 constexpr QLatin1String NS_TEXT("urn:oasis:names:tc:opendocument:xmlns:text:1.0");
@@ -69,6 +70,12 @@ QString odsDateText(const QString &text)
 const char kMimeSpreadsheet[] = "application/vnd.oasis.opendocument.spreadsheet";
 
 QString attr(const QXmlStreamAttributes &a, QLatin1String ns, QLatin1String name) { return a.value(ns, name).toString(); }
+// An attribute of our own extension, under either URI a file may declare for it.
+QString attrJo(const QXmlStreamAttributes &a, QLatin1String name)
+{
+    QString v = a.value(NS_JO, name).toString();
+    return v.isEmpty() ? a.value(NS_JO_OLD, name).toString() : v;
+}
 bool hasAttr(const QXmlStreamAttributes &a, QLatin1String ns, QLatin1String name) { return a.hasAttribute(ns, name); }
 
 QString guardMessage(const jp::office::XmlGuardDevice &guard)
@@ -332,7 +339,7 @@ private:
             m_data.name = attr(a, NS_STYLE, QLatin1String("name"));
             m_data.kind = name.left(name.size() - 6).toString();
             m_data.truncateOnOverflow = attr(a, NS_NUMBER, QLatin1String("truncate-on-overflow")) != QLatin1String("false");
-            m_data.writtenCode = attr(a, QLatin1String("urn:jeffoffice:odf-extension"), QLatin1String("code")).left(1000);
+            m_data.writtenCode = attrJo(a, QLatin1String("code")).left(1000);
             m_inData = true;
             if (++m_dataStyles > m_limits.odsStyles) m_overStyles = true;
             return;
@@ -1417,7 +1424,7 @@ private:
         run.style = attr(a, NS_TABLE, QLatin1String("style-name"));
         const QString vis = attr(a, NS_TABLE, QLatin1String("visibility"));
         run.hidden = vis == QLatin1String("collapse") || vis == QLatin1String("filter");
-        run.zeroWidth = attr(a, NS_JO, QLatin1String("zero-width")) == QLatin1String("true");
+        run.zeroWidth = attrJo(a, QLatin1String("zero-width")) == QLatin1String("true");
         const QString cell = attr(a, NS_TABLE, QLatin1String("default-cell-style-name"));
         run.xf = cell.isEmpty() ? m_m.xfOf.value(QString()) : m_m.xfOf.value(cell, m_m.xfOf.value(QString()));
         m_nextCol += run.count;

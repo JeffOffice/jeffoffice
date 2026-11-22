@@ -171,6 +171,22 @@ class SheetOdsChartTests : public QObject {
 
 private Q_SLOTS:
     void aColumnChartSurvivesSaveAsOds() { roundTrip(QStringLiteral("barChart"), QStringLiteral("Sales by quarter")); }
+    // Our extension attributes have one namespace: the chart part declares the prefix with the same URI as the content part does.
+    void theChartPartAndTheContentPartDeclareOneExtensionNamespace()
+    {
+        const QString anchors = twoCell(1, 5, 6, 20, chartFrame(2, QStringLiteral("rId1"), QStringLiteral("Sales")), QString(), 1000, 2000, 3000, 4000);
+        Saved s;
+        QString why;
+        QVERIFY2(saveAsOds(sheetWithChart(anchors, chartPart(QStringLiteral("barChart"), twoSeries(), QStringLiteral("T"))), &s, &why), qPrintable(why));
+        const auto declared = [](const QByteArray &xml) {
+            const qsizetype at = xml.indexOf("xmlns:jo=\"");
+            return at < 0 ? QByteArray() : xml.mid(at + 10, xml.indexOf('"', at + 10) - at - 10);
+        };
+        const QByteArray content = declared(s.parts.value(QStringLiteral("content.xml")));
+        const QByteArray chart = declared(s.parts.value(QStringLiteral("Object 1/content.xml")));
+        QCOMPARE(content, QByteArray("urn:jeffoffice:odf-extension"));
+        QCOMPARE(chart, content);
+    }
     void aLineChartSurvivesSaveAsOds() { roundTrip(QStringLiteral("lineChart"), QStringLiteral("Trend")); }
     void anAreaChartSurvivesSaveAsOds() { roundTrip(QStringLiteral("areaChart"), QStringLiteral("Totals")); }
     void aPieChartSurvivesSaveAsOds()

@@ -8,6 +8,7 @@
 #include "sheet/ods.h"
 #include "sheet/externalbooks.h"
 #include "sheet/foreignbook.h"
+#include "sheet/odsformat.h"
 #include "sheet/odsformula.h"
 #include "sheet/oldsave.h"
 #include "sheet/xlsxbase.h"
@@ -293,6 +294,29 @@ private Q_SLOTS:
             QVERIFY2(c, qPrintable(QString::number(i) + QLatin1Char(' ') + s.error));
             QCOMPARE(wb.styles().formatCode(c->style), expected[i]);
         }
+    }
+
+    // The same attribute is read under the URI that the charts of earlier files declared for the prefix, and a code with a newline or a tab comes back as it was
+    // written (a parser reads a raw newline or tab in an attribute as a space).
+    void theCodeOfADataStyleIsReadUnderBothUrisAndKeepsNewlinesAndTabs()
+    {
+        const QString whole = QStringLiteral("<number:number number:decimal-places=\"0\" number:min-integer-digits=\"1\"/>");
+        const QString old = QStringLiteral(" xmlns:jo=\"urn:jeffoffice:names:extension:1.0\"");
+        Workbook wb = open(simple(table(QStringLiteral("S"), columns(1) + row(floatCell(5, QStringLiteral("table:style-name=\"ce0\"")))),
+                                  QStringLiteral("<number:number-style style:name=\"N1\"%1 jo:code=\"#0\">%2</number:number-style>").arg(old, whole)
+                                  + QStringLiteral("<style:style style:name=\"ce0\" style:family=\"table-cell\" style:data-style-name=\"N1\"/>")));
+        QCOMPARE(wb.styles().formatCode(at(readSheet(wb), QStringLiteral("A1"))->style), QStringLiteral("#0"));
+
+        const QString code = QStringLiteral("0\" a\nb\tc\"");
+        OdfDataStyles made;
+        QVERIFY(odfDataStyles(code, QStringLiteral("N"), &made));
+        QVERIFY2(made.xml.contains(QLatin1String("&#10;")) && made.xml.contains(QLatin1String("&#9;")), qPrintable(made.xml));
+        const QString ns = QStringLiteral(" xmlns:jo=\"urn:jeffoffice:odf-extension\"");
+        QString styles = made.xml;
+        styles.replace(QLatin1String(" style:name=\"") + made.mainName + QLatin1Char('"'), QLatin1String(" style:name=\"") + made.mainName + QLatin1Char('"') + ns);
+        styles += QStringLiteral("<style:style style:name=\"ce0\" style:family=\"table-cell\" style:data-style-name=\"%1\"/>").arg(made.mainName);
+        Workbook back = open(simple(table(QStringLiteral("S"), columns(1) + row(floatCell(5, QStringLiteral("table:style-name=\"ce0\"")))), styles));
+        QCOMPARE(back.styles().formatCode(at(readSheet(back), QStringLiteral("A1"))->style), code);
     }
 
     // A cell style's font, fill, border, alignment, and protection, with a style that follows another one, and the default style under them all.
