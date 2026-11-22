@@ -125,7 +125,7 @@
         },
         {
          "status": "partly",
-         "text": "45f2315a4e3cb480b1e1a6d616debdd2cd8a86b4d5fe4f69bab1f06a54358eb0"
+         "text": "311e09973364c57ede1dc005fd2e119ca62c501e298923c1e663c11cc23ed7c3"
         },
         {
          "hide_soon": true,
@@ -2458,8 +2458,9 @@
          "text": "aa5320d71351453141433579aef3a218ac83dcb132fa38ce05a3654fc5eda08f"
         },
         {
-         "status": "partly",
-         "text": "4e88b5ed49ccf12f71b1d32f739fb42b1f861dbf2a2b1fc2dacd19b8b43a1578"
+         "hide_soon": true,
+         "status": "done",
+         "text": "197874ebd9cb1373c72401e66235506ef7ed5fc485a10c81d56a2552499fbb76"
         },
         {
          "status": "partly",
@@ -5921,8 +5922,9 @@
          "text": "0120d4eb5ae0f32617e0ac9e5195ec7473a2030d706ce0a29b74a758b67f04c1"
         },
         {
-         "status": "partly",
-         "text": "29f980f4d1b7ce0eee0d54e07e54a832877a47fcf65a265792dfb5cb66dc2f6b"
+         "hide_soon": true,
+         "status": "done",
+         "text": "ca97341d40b679810902a313aec995c33489621025232fca5dcf79abc1f7d0d0"
         },
         {
          "hide_soon": true,
@@ -9638,6 +9640,18 @@
     "fr": ""
    }
   },
+  "197874ebd9cb1373c72401e66235506ef7ed5fc485a10c81d56a2552499fbb76": {
+   "drop": false,
+   "en": "Check Compatibility lists what an `.odp` or `.otp` file cannot hold, before you save, and a message after saving an `.odp` lists what was left out.",
+   "es": "Compruebe la compatibilidad: se muestra qué no puede contener un archivo `.odp` u `.otp` antes de guardar, y tras guardar un `.odp` un mensaje indica qué se omitió.",
+   "fr": "La vérification de compatibilité indique ce qu’un fichier `.odp` ou `.otp` ne peut pas contenir avant l’enregistrement, et après l’enregistrement d’un `.odp`, un message liste ce qui a été omis.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "19a54351aac8e72da3af3437b54ec0bf87127b07712bd91fb227c00e23b03ed3": {
    "drop": false,
    "en": "Set margins (Normal, Wide, Narrow, and custom, with header and footer margins), orientation, and paper size from a list of common sizes, and center the sheet horizontally and vertically on the page.",
@@ -11114,18 +11128,6 @@
     "fr": ""
    }
   },
-  "29f980f4d1b7ce0eee0d54e07e54a832877a47fcf65a265792dfb5cb66dc2f6b": {
-   "drop": false,
-   "en": "Check Compatibility lists what a `.odt` file can't hold of the document before saving to it.",
-   "es": "Compruebe la compatibilidad: muestra qué cosas de un documento no puede contener un archivo `.odt` antes de guardarlo en ese formato.",
-   "fr": "Vérifiez la compatibilité : la liste de ce qu’un fichier `.odt` ne peut pas contenir du document s’affiche avant l’enregistrement.",
-   "soon": {
-    "drop": false,
-    "en": "Check Compatibility for `.doc` and `.rtf`",
-    "es": "Comprobación de compatibilidad para `.doc` y `.rtf`",
-    "fr": "Vérification de compatibilité pour `.doc` et `.rtf`"
-   }
-  },
   "2a05ed38e2e5898d0e5942933a8a7e08c0ebfd34225585538776d3347ed41b0f": {
    "drop": false,
    "en": "Remove personal information from a file each time it is saved: the author, who saved last, the company, and the manager are taken out of the file properties, the names and initials out of the comments, and the names and times out of the tracked changes. The same option is in `Options` > `Save` and on `Info`.",
@@ -11604,6 +11606,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "311e09973364c57ede1dc005fd2e119ca62c501e298923c1e663c11cc23ed7c3": {
+   "drop": false,
+   "en": "Check Compatibility lists what an `.xls`, `.ods`, or `.csv` file cannot hold before you save to it, such as rows and columns past the limits, charts, pictures, notes, pivot tables, tables, conditional formats, validation, filters, and macros.",
+   "es": "Compruebe la compatibilidad: se muestra qué no puede contener un archivo `.xls`, `.ods` o `.csv` antes de guardar, como filas y columnas más allá de los límites, gráficos, imágenes, notas, tablas dinámicas, tablas, formatos condicionales, validación, filtros y macros.",
+   "fr": "La vérification de compatibilité liste ce qu’un fichier `.xls`, `.ods` ou `.csv` ne peut pas contenir avant l’enregistrement, comme les lignes et colonnes au-delà des limites, les graphiques, images, notes, tableaux croisés dynamiques, tableaux, mises en forme conditionnelles, validations, filtres et macros.",
+   "soon": {
+    "drop": false,
+    "en": "Newer functions and slicers named for `.ods`",
+    "es": "Funciones más recientes y segmentaciones indicadas para `.ods`",
+    "fr": "Fonctions récentes et segments nommés pour `.ods`"
    }
   },
   "314585938d0a0aced492e4c4466eda30267aa30a1f5e5585ef1727d51836a8d2": {
@@ -13214,18 +13228,6 @@
     "fr": "Variantes > Effets : styles d’effets du thème"
    }
   },
-  "45f2315a4e3cb480b1e1a6d616debdd2cd8a86b4d5fe4f69bab1f06a54358eb0": {
-   "drop": false,
-   "en": "Check Compatibility lists what an `.xls` file or a `.csv` file cannot hold before saving, such as charts, pictures, notes, pivot tables, tables, conditional formats, and limits on rows and columns.",
-   "es": "Comprobar compatibilidad enumera lo que un archivo `.xls` o `.csv` no puede contener antes de guardar, como gráficos, imágenes, notas, tablas dinámicas, tablas, formatos condicionales y límites de filas y columnas.",
-   "fr": "Vérifier la compatibilité indique avant l’enregistrement ce qu’un fichier `.xls` ou `.csv` ne peut pas contenir, comme les graphiques, les images, les notes, les tableaux croisés dynamiques, les tableaux, les mises en forme conditionnelles et les limites de lignes et de colonnes.",
-   "soon": {
-    "drop": false,
-    "en": "Compatibility check for `.ods` files, newer functions, and slicers",
-    "es": "Comprobación de compatibilidad para archivos `.ods`, funciones más recientes y segmentaciones",
-    "fr": "Vérification de compatibilité pour les fichiers `.ods`, les fonctions récentes et les segments"
-   }
-  },
   "4627c99ec9cc49efaf636dd1a8f3e5bf13e59a0a27cce9ac0f7a4596b0625bd0": {
    "drop": false,
    "en": "Save pages as SVG drawings (Save as Picture), with letters as outlines. SVG pictures print and export to PDF as sharp vectors, and Convert to Shapes turns an SVG picture into editable shapes.",
@@ -13824,18 +13826,6 @@
     "en": "Find Next and Replace stopping at a match in a text box",
     "es": "Buscar siguiente y Reemplazar con parada en una coincidencia dentro de un cuadro de texto",
     "fr": "Arrêt de Suivant et Remplacer sur une occurrence dans une zone de texte"
-   }
-  },
-  "4e88b5ed49ccf12f71b1d32f739fb42b1f861dbf2a2b1fc2dacd19b8b43a1578": {
-   "drop": false,
-   "en": "Check Compatibility lists what an `.odp` file would leave out, without saving, and a warning comes before the save. After saving an `.odp`, a message lists what was left out.",
-   "es": "Comprobar compatibilidad enumera lo que un archivo `.odp` omitiría, sin guardar, y se muestra una advertencia antes de guardar. Después de guardar un `.odp`, un mensaje enumera lo que se omitió.",
-   "fr": "La vérification de compatibilité indique ce qu’un fichier `.odp` omettrait, sans enregistrer, et un avertissement précède l’enregistrement. Après l’enregistrement d’un `.odp`, un message indique ce qui a été omis.",
-   "soon": {
-    "drop": false,
-    "en": "Check Compatibility for `.ppt` files",
-    "es": "Comprobar compatibilidad para archivos `.ppt`",
-    "fr": "Vérification de compatibilité pour les fichiers `.ppt`"
    }
   },
   "4eb96e4971089c81c91cfbe218121363e76134bcba89210451f8b1ad5452eb59": {
@@ -22572,6 +22562,18 @@
     "en": "Text styles: gradient letters, effects, and warp adjust handles",
     "es": "Estilos de texto: letras con degradado, efectos y controles de ajuste de la deformación",
     "fr": "Styles de texte : lettres en dégradé, effets et poignées de réglage de la déformation"
+   }
+  },
+  "ca97341d40b679810902a313aec995c33489621025232fca5dcf79abc1f7d0d0": {
+   "drop": false,
+   "en": "Check Compatibility lists what an `.odt`, `.rtf`, or `.txt` file cannot hold of the document before you save to it, including a password where the format cannot keep one.",
+   "es": "Compruebe la compatibilidad: se muestra qué parte del documento no puede contener un archivo `.odt`, `.rtf` o `.txt` antes de guardar, incluida la contraseña cuando el formato no puede conservarla.",
+   "fr": "La vérification de compatibilité liste ce qu’un fichier `.odt`, `.rtf` ou `.txt` ne peut pas contenir du document avant l’enregistrement, y compris le mot de passe lorsque le format ne peut pas le conserver.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "cab609f46d1c839c8594ef8c475069d1ab35cd626862bc9c9108bd4055c079c5": {
