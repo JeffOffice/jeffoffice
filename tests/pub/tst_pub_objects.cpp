@@ -1,5 +1,6 @@
 // JeffPub's tests of objects on the page: wrapping, inline objects, shapes, connectors, footnotes, and editing text.
 #include "pubhelpers.h"
+#include "core/wrapoutline.h"
 #include "office/connectionsites.h"
 #include <QAbstractItemModel>
 #include <QAbstractButton>
@@ -2235,6 +2236,94 @@ private Q_SLOTS:
         frame->rect = QRectF(72, 72, 180, 190);
         QCOMPARE(jp::Renderer::frameSpec(*doc, *t, 1, opt).valign, VAlign::Middle);
     }
+
+    // Pictures with a traced outline of thousands of elements and wrap Through (no stored polygon) cost the page counted work, not the outline's size: the room round each is made
+    // from at most kMostWrapPathElements elements, once for all the boxes in a pass, only for a box it can reach, and no more than kMostWrapClipperElementsPerPage elements of them
+    // in a pass (the objects after that are rectangles). Take any of the four away and the count rises (the cache: 1 room becomes 10; the bound: 5000 elements a room; the budget:
+    // 640 rooms, not 156; the reach: every box makes every room).
+    static std::shared_ptr<ShapeItem> tracedPicture(const QString &id, const QRectF &rect, int elements)
+    {
+        auto pic = std::make_shared<ShapeItem>();
+        pic->id = id;
+        pic->shape = QStringLiteral("rect");
+        pic->rect = rect;
+        pic->wrap.mode = Wrap::Through;
+        pic->wrap.left = pic->wrap.right = pic->wrap.top = pic->wrap.bottom = 3;
+        QPainterPath zig;
+        zig.moveTo(0, 0);
+        for (int i = 1; i < elements; ++i) zig.lineTo(rect.width() * ((i * 7) % 11) / 10.0, rect.height() * ((i * 5) % 13) / 12.0);
+        zig.closeSubpath();
+        pic->customPath = zig;
+        return pic;
+    }
+    static std::shared_ptr<TextItem> textBoxAt(Document &doc, const QString &id, const QRectF &rect)
+    {
+        auto t = std::make_shared<TextItem>();
+        t->id = id;
+        t->rect = rect;
+        t->storyId = doc.createStory(QStringLiteral("The quick brown fox jumps over the lazy dog again and again."));
+        doc.pages[0]->items.push_back(t);
+        return t;
+    }
+    void aTracedOutlineOfThousandsOfElementsCostsBoundedWork()
+    {
+        RenderOptions opt;
+        // One picture, ten boxes, one pass: one room is made, from at most the most elements, and the text still goes round the picture's bounds.
+        {
+            auto doc = Document::blank(QSizeF(612, 792));
+            QVector<std::shared_ptr<TextItem>> boxes;
+            for (int i = 0; i < 10; ++i) boxes << textBoxAt(*doc, QStringLiteral("b%1").arg(i), QRectF(92, 92, 140, 150));
+            auto pic = tracedPicture(QStringLiteral("pic"), QRectF(120, 120, 26, 8), 5000);
+            doc->pages[0]->items.push_back(pic);
+            LayoutCache cache;
+            const qint64 made0 = Renderer::wrapRoomsMadeForTest(), elements0 = jp::wrapClipperElementsForTest();
+            {
+                LayoutCache::Pass pass(&cache);
+                for (const auto &b : boxes) {
+                    const auto spec = Renderer::frameSpec(*doc, *b, 1, opt, &cache);
+                    QCOMPARE(spec.obstacles.size(), 1);
+                    QVERIFY(spec.obstacles.first().boundingRect().translated(b->rect.topLeft()).contains(pic->rect.adjusted(-2, -2, 2, 2)));
+                }
+            }
+            QCOMPARE(Renderer::wrapRoomsMadeForTest() - made0, qint64(1));
+            QVERIFY2(jp::wrapClipperElementsForTest() - elements0 <= jp::kMostWrapPathElements, qPrintable(QString::number(jp::wrapClipperElementsForTest() - elements0)));
+        }
+        // A picture away from the box is no work at all.
+        {
+            auto doc = Document::blank(QSizeF(612, 792));
+            auto b = textBoxAt(*doc, QStringLiteral("b"), QRectF(92, 92, 140, 150));
+            doc->pages[0]->items.push_back(tracedPicture(QStringLiteral("far"), QRectF(400, 600, 26, 8), 5000));
+            const qint64 made0 = Renderer::wrapRoomsMadeForTest(), calls0 = jp::wrapClipperCallsForTest();
+            QVERIFY(Renderer::frameSpec(*doc, *b, 1, opt).obstacles.isEmpty());
+            QCOMPARE(Renderer::wrapRoomsMadeForTest() - made0, qint64(0));
+            QCOMPARE(jp::wrapClipperCallsForTest() - calls0, qint64(0));
+        }
+        // Many pictures, many boxes, one pass: the clipper's work stays within the budget of a page.
+        {
+            auto doc = Document::blank(QSizeF(612, 792));
+            QVector<std::shared_ptr<TextItem>> boxes;
+            // (Each box has its own 32 pictures, after it in the list.)
+            for (int i = 0; i < 20; ++i) {
+                boxes << textBoxAt(*doc, QStringLiteral("b%1").arg(i), QRectF(10, 10 + i * 38, 580, 36));
+                for (int j = 0; j < 32; ++j)
+                    doc->pages[0]->items.push_back(tracedPicture(QStringLiteral("p%1_%2").arg(i).arg(j), QRectF(20 + j * 17, 24 + i * 38, 12, 8), 5000));
+            }
+            LayoutCache cache;
+            const qint64 made0 = Renderer::wrapRoomsMadeForTest(), calls0 = jp::wrapClipperCallsForTest(), elements0 = jp::wrapClipperElementsForTest();
+            int obstacles = 0;
+            {
+                LayoutCache::Pass pass(&cache);
+                for (const auto &b : boxes) obstacles += Renderer::frameSpec(*doc, *b, 1, opt, &cache).obstacles.size();
+            }
+            // (Every box is still set round 32 of them: the rest of the budget's objects are rectangles.)
+            QCOMPARE(obstacles, 20 * jp::kMaxWrapObstacles);
+            const qint64 made = Renderer::wrapRoomsMadeForTest() - made0;
+            QVERIFY2(made > 0 && made <= jp::kMostWrapClipperElementsPerPage / jp::kMostWrapPathElements, qPrintable(QString::number(made)));
+            QCOMPARE(jp::wrapClipperCallsForTest() - calls0, made);
+            QVERIFY2(jp::wrapClipperElementsForTest() - elements0 <= jp::kMostWrapClipperElementsPerPage, qPrintable(QString::number(jp::wrapClipperElementsForTest() - elements0)));
+        }
+    }
+
 
     // A wrap that keeps the text to one side of a rectangle is one rectangle to that side's edge (the text box's frame is 400 wide here, the object reaches past its left
     // edge): never the sliver that joining the room with a second rectangle gave for some places. Left, right, and largest.

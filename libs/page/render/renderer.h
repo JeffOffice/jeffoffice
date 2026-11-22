@@ -79,11 +79,14 @@ public:
     // Likewise for a slide's shape whose text shrinks on overflow and isn't kept as a file had it: the first of the program's steps that fits,
     // returned in `fitScale` and `fitCut`.
     const StoryLayout *storyBoxFit(const Document &doc, const QString &storyId, const FrameSpec &spec, const QString &key, double *fitScale, double *fitCut);
-    void clear() { m_entries.clear(); m_fields.clear(); m_passFrames.clear(); m_flatPatches.clear(); }
+    void clear() { m_entries.clear(); m_fields.clear(); m_passFrames.clear(); m_passWrapRooms.clear(); m_flatPatches.clear(); }
     // A flattened page's picture, or the one the same as it that an earlier page had (so that a see-through master's is made one picture for all the pages).
     QImage sharedPatch(const QImage &patch);
     // While a Pass is alive the publication is not changed (a page being painted), so the layout of each text box is worked out once: a chain of
     // boxes is set up whole for each of its boxes otherwise, the square of the chain's length.
+    bool inPass() const { return m_pass > 0; }
+    // The room round an object that text goes round, for the pass (see Renderer::wrapObstacles).
+    QHash<QString, QPainterPath> &passWrapRooms() { return m_passWrapRooms; }
     class Pass {
     public:
         explicit Pass(LayoutCache *c);
@@ -113,6 +116,7 @@ private:
     QHash<QString, Entry> m_entries;
     int m_pass = 0;
     QHash<QString, FrameLayout> m_passFrames;   // by box and page, while a Pass is alive
+    QHash<QString, QPainterPath> m_passWrapRooms;   // the room round an object that text goes round, by object, place, and distance: made once for all the boxes
     QList<QImage> m_flatPatches;                // the last few flattened pictures
 };
 
@@ -188,9 +192,10 @@ public:
 
     // The objects looked at, and the wrap shapes made, for text boxes since the program began on this thread: a count for tests of cost.
     static qint64 wrapWorkForTest();
+    static qint64 wrapRoomsMadeForTest();
     // Wrap obstacles (frame-local polygons) for a text box on a page.
-    static QVector<QPolygonF> wrapObstacles(const Document &doc, const TextItem &frame, bool *covered = nullptr);   // covered: an object in front wraps around the whole box
-    static FrameSpec frameSpec(const Document &doc, const TextItem &t, int pageNumber, const RenderOptions &opt);
+    static QVector<QPolygonF> wrapObstacles(const Document &doc, const TextItem &frame, bool *covered = nullptr, LayoutCache *cache = nullptr);   // covered: an object in front wraps around the whole box
+    static FrameSpec frameSpec(const Document &doc, const TextItem &t, int pageNumber, const RenderOptions &opt, LayoutCache *cache = nullptr);
     // Layout of the text inside a shape or a table cell, with its frame-local origin.
     static const StoryLayout *shapeTextLayout(const PaintContext &ctx, const ShapeItem &s, QPointF *origin, double *fitScale = nullptr, double *fitCut = nullptr);
     // half: 0, or 1 for the second half of a cell divided by a diagonal.

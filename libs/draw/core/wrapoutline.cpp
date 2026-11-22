@@ -4,6 +4,7 @@
 #include <QPainterPathStroker>
 
 #include <algorithm>
+#include <atomic>
 #include <cmath>
 
 namespace jp {
@@ -175,17 +176,125 @@ QRectF wrapSideWall(const QRectF &room, const QRectF &frame, bool textLeft, bool
     return wall;
 }
 
+namespace {
+
+std::atomic<qint64> g_clipperCalls{0}, g_clipperElements{0};
+
+// Douglas-Peucker on an open run, without recursion (a zig-zag would make the depth as long as the run): the indexes kept in `keep`.
+void simplifyRunFlat(const QPolygonF &in, double tol, QVector<bool> &keep)
+{
+    QVector<QPair<int, int>> todo;
+    todo << qMakePair(0, int(in.size()) - 1);
+    while (!todo.isEmpty()) {
+        const auto [a, b] = todo.takeLast();
+        if (b <= a + 1) continue;
+        const QPointF p = in[a], q = in[b];
+        double best = -1;
+        int at = -1;
+        for (int i = a + 1; i < b; ++i) {
+            const double d = distanceToChord(in[i], p, q);
+            if (d > best) { best = d; at = i; }
+        }
+        if (best > tol) {
+            keep[at] = true;
+            todo << qMakePair(a, at) << qMakePair(at, b);
+        }
+    }
+}
+
+QPolygonF hullOf(QPolygonF pts)
+{
+    std::sort(pts.begin(), pts.end(), [](const QPointF &a, const QPointF &b) { return a.x() < b.x() || (a.x() == b.x() && a.y() < b.y()); });
+    if (pts.size() < 3) return pts;
+    auto cross = [](const QPointF &o, const QPointF &a, const QPointF &b) { return (a.x() - o.x()) * (b.y() - o.y()) - (a.y() - o.y()) * (b.x() - o.x()); };
+    QPolygonF h(2 * pts.size());
+    int k = 0;
+    for (int i = 0; i < pts.size(); ++i) {
+        while (k >= 2 && cross(h[k - 2], h[k - 1], pts[i]) <= 0) --k;
+        h[k++] = pts[i];
+    }
+    for (int i = int(pts.size()) - 2, t = k + 1; i >= 0; --i) {
+        while (k >= t && cross(h[k - 2], h[k - 1], pts[i]) <= 0) --k;
+        h[k++] = pts[i];
+    }
+    h.resize(k - 1);
+    return h;
+}
+
+} // namespace
+
+QPainterPath wrapPathBounded(const QPainterPath &path)
+{
+    if (path.elementCount() <= kMostWrapPathElements) return path;
+    const QRectF box = path.controlPointRect();
+    if (!(box.width() >= 0) || !(box.height() >= 0) || !std::isfinite(box.width()) || !std::isfinite(box.height())) return QPainterPath();
+    const double diag = std::hypot(box.width(), box.height());
+    QList<QPolygonF> rings = path.toFillPolygons();
+    qint64 total = 0;
+    for (const QPolygonF &r : rings) total += r.size();
+    auto fromRings = [&](const QList<QPolygonF> &rs) {
+        QPainterPath out;
+        out.setFillRule(Qt::WindingFill);
+        for (const QPolygonF &r : rs) out.addPolygon(r), out.closeSubpath();
+        return out;
+    };
+    // (The longest run the simplifier is given is bounded first: a point close to the one kept before it is dropped, which costs one step each.)
+    const double tol0 = std::max(diag * kWrapSimplifyShare, 0.02);
+    QList<QPolygonF> thin;
+    qint64 thinTotal = 0;
+    for (const QPolygonF &r : rings) {
+        QPolygonF t;
+        for (const QPointF &p : r) {
+            if (!std::isfinite(p.x()) || !std::isfinite(p.y())) continue;
+            if (t.isEmpty() || std::hypot(p.x() - t.last().x(), p.y() - t.last().y()) >= tol0 * 0.5) t << p;
+        }
+        if (t.size() >= 3) { thin << t; thinTotal += t.size(); }
+    }
+    if (thin.isEmpty()) return QPainterPath();
+    if (thinTotal <= kMostWrapSimplifyInput) {
+        for (double tol = tol0; tol <= diag; tol *= 1.6) {
+            QList<QPolygonF> out;
+            qint64 n = 0;
+            for (const QPolygonF &r : thin) {
+                QPolygonF closed = r;
+                closed << r.first();
+                QVector<bool> keep(closed.size(), false);
+                keep.first() = keep.last() = true;
+                simplifyRunFlat(closed, tol, keep);
+                QPolygonF o;
+                for (int i = 0; i + 1 < closed.size(); ++i)
+                    if (keep[i]) o << closed[i];
+                if (o.size() >= 3) { out << o; n += o.size(); }
+            }
+            if (n <= kMostWrapPathElements) return out.isEmpty() ? QPainterPath() : fromRings(out);
+        }
+    }
+    // (Too many points to keep the shape in the budget: the convex hull, and a rectangle when that has too many.)
+    QPolygonF all;
+    for (const QPolygonF &r : thin) all += r;
+    QPolygonF hull = hullOf(all);
+    if (hull.size() >= 3 && hull.size() <= kMostWrapPathElements) return fromRings({hull});
+    QPainterPath rect;
+    rect.addRect(box);
+    return rect;
+}
+
 QPainterPath wrapRoomAround(const QPainterPath &outline, double distance)
 {
     // (Filled by winding, so that the middle of a star is inside it as the stroke's band is: odd-even leaves it a hole.)
-    QPainterPath solid = outline;
+    QPainterPath solid = wrapPathBounded(outline);
     solid.setFillRule(Qt::WindingFill);
     distance = boundedWrapDistance(distance);
+    ++g_clipperCalls;
+    g_clipperElements += solid.elementCount();
     if (!(distance > 0)) return solid.simplified();
     QPainterPathStroker st;
     st.setWidth(distance * 2);
     return solid.united(st.createStroke(solid));
 }
+
+qint64 wrapClipperCallsForTest() { return g_clipperCalls.load(); }
+qint64 wrapClipperElementsForTest() { return g_clipperElements.load(); }
 
 QPolygonF wrapOutlineMoved(const QPolygonF &outline, int index, const QPointF &to)
 {

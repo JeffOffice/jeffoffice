@@ -193,22 +193,27 @@ void Renderer::strokePath(QPainter *p, const QPainterPath &path, const Stroke &s
 namespace {
 thread_local qint64 g_wrapWork = 0;
 thread_local int g_wrapShapesLeft = std::numeric_limits<int>::max();
+thread_local qint64 g_wrapClipperLeft = std::numeric_limits<qint64>::max();
+thread_local qint64 g_wrapRoomsMade = 0;
 }
+qint64 Renderer::wrapRoomsMadeForTest() { return g_wrapRoomsMade; }
 qint64 Renderer::wrapWorkForTest() { return g_wrapWork; }
 
 LayoutCache::Pass::Pass(LayoutCache *c) : m_c(c)
 {
-    if (m_c && m_c->m_pass++ == 0) g_wrapShapesLeft = kMaxWrapShapesPerPage;
+    if (m_c && m_c->m_pass++ == 0) { g_wrapShapesLeft = kMaxWrapShapesPerPage; g_wrapClipperLeft = kMostWrapClipperElementsPerPage; }
 }
 LayoutCache::Pass::~Pass()
 {
     if (m_c && --m_c->m_pass == 0) {
         m_c->m_passFrames.clear();
+        m_c->m_passWrapRooms.clear();
         g_wrapShapesLeft = std::numeric_limits<int>::max();
+        g_wrapClipperLeft = std::numeric_limits<qint64>::max();
     }
 }
 
-QVector<QPolygonF> Renderer::wrapObstacles(const Document &doc, const TextItem &frame, bool *covered)
+QVector<QPolygonF> Renderer::wrapObstacles(const Document &doc, const TextItem &frame, bool *covered, LayoutCache *cache)
 {
     QVector<QPolygonF> out;
     const auto loc = doc.find(frame.id);
@@ -259,21 +264,38 @@ QVector<QPolygonF> Renderer::wrapObstacles(const Document &doc, const TextItem &
             if (w.mode == Wrap::TopBottom) { b.setLeft(-1e5); b.setRight(1e5); }
             pagePath.addRect(b);
         } else {
-            if (g_wrapShapesLeft <= 0) {
-                // (a rectangle around the object stands in for its outline)
-                QRectF b = o->bounds().adjusted(-w.left, -w.top, w.right, w.bottom);
-                covers = b.contains(fb);
-                pagePath.addRect(b);
-                rectPath = true;
-            } else {
-            --g_wrapShapesLeft;
-            QPainterPath local;
-            if (!w.points.isEmpty()) local.addPolygon(w.points);
-            else local = silhouette(doc, *o);
-            pagePath = o->transform().map(local);
+            // (The room round an object is made once in a pass, for all the boxes that the object is in front of.)
             const double d = std::max({w.left, w.right, w.top, w.bottom});
-            pagePath = wrapRoomAround(pagePath, d);
-            covers = pagePath.contains(fb);
+            const QTransform tr = o->transform();
+            QString roomKey;
+            if (cache && cache->inPass())
+                roomKey = QStringLiteral("%1|%2,%3,%4,%5,%6,%7|%8").arg(o->id).arg(tr.m11()).arg(tr.m12()).arg(tr.m21()).arg(tr.m22()).arg(tr.dx()).arg(tr.dy()).arg(d);
+            const auto kept = roomKey.isEmpty() ? cache->passWrapRooms().constEnd() : cache->passWrapRooms().constFind(roomKey);
+            if (!roomKey.isEmpty() && kept != cache->passWrapRooms().constEnd()) {
+                pagePath = *kept;
+                covers = pagePath.contains(fb);
+            } else {
+                QPainterPath local;
+                if (!w.points.isEmpty()) local.addPolygon(w.points);
+                else local = silhouette(doc, *o);
+                const QPainterPath placed = tr.map(local);
+                // An object that cannot reach this box, with the band round it, is no obstacle to it: nothing is made of its outline.
+                if (!placed.controlPointRect().adjusted(-(2.5 * d + 1), -(2.5 * d + 1), 2.5 * d + 1, 2.5 * d + 1).intersects(fb)) return;
+                const qint64 cost = placed.elementCount();
+                if (g_wrapShapesLeft <= 0 || g_wrapClipperLeft < std::min<qint64>(cost, kMostWrapPathElements)) {
+                    // (a rectangle around the object stands in for its outline)
+                    QRectF b = o->bounds().adjusted(-w.left, -w.top, w.right, w.bottom);
+                    covers = b.contains(fb);
+                    pagePath.addRect(b);
+                    rectPath = true;
+                } else {
+                    --g_wrapShapesLeft;
+                    g_wrapClipperLeft -= std::min<qint64>(cost, kMostWrapPathElements);
+                    ++g_wrapRoomsMade;
+                    pagePath = wrapRoomAround(placed, d);
+                    covers = pagePath.contains(fb);
+                    if (!roomKey.isEmpty()) cache->passWrapRooms().insert(roomKey, pagePath);
+                }
             }
         }
         const QRectF pb = pagePath.boundingRect();
@@ -365,7 +387,7 @@ static QMarginsF boxTextArea(const TextItem &t)
     return t.turnedBack ? QMarginsF(b, l, top, r) : QMarginsF(top, r, b, l);
 }
 
-FrameSpec Renderer::frameSpec(const Document &doc, const TextItem &t, int pageNumber, const RenderOptions &opt)
+FrameSpec Renderer::frameSpec(const Document &doc, const TextItem &t, int pageNumber, const RenderOptions &opt, LayoutCache *cache)
 {
     FrameSpec s;
     s.size = t.vertical ? QSizeF(t.rect.height(), t.rect.width()) : t.rect.size();
@@ -393,7 +415,7 @@ FrameSpec Renderer::frameSpec(const Document &doc, const TextItem &t, int pageNu
     // A slide's text doesn't wrap around objects: the presentation program lets them overlap.
     if (!t.vertical && !doc.slideText) {
         bool covered = false;
-        s.obstacles = wrapObstacles(doc, t, &covered);
+        s.obstacles = wrapObstacles(doc, t, &covered, cache);
         if (covered) s.valign = VAlign::Top;
     }
     const auto loc = doc.find(t.id);
@@ -522,7 +544,7 @@ LayoutCache::FrameLayout LayoutCache::textFrame(const Document &doc, const TextI
     QString sig = QStringLiteral("%1/%2/").arg(story->serial).arg(story->doc->revision());
     for (int i = 0; i < chain.size(); ++i) {
         if (chain[i]->id == frame.id) out.frame = i;
-        specs << Renderer::frameSpec(doc, *chain[i], pageNumber, opt);
+        specs << Renderer::frameSpec(doc, *chain[i], pageNumber, opt, this);
         sig += specSig(specs.last(), false);
     }
     sig += fieldsKey(doc, *story, specs.first().ctx);
@@ -1057,7 +1079,7 @@ static void paintText(QPainter *p, const PaintContext &ctx, const TextItem &t)
         paintInlineObjects(p, ctx, *fl.layout, fl.frame);
         p->restore();
         // Continued notices.
-        const FrameSpec spec = Renderer::frameSpec(*ctx.doc, t, ctx.pageNumber, ctx.opt);
+        const FrameSpec spec = Renderer::frameSpec(*ctx.doc, t, ctx.pageNumber, ctx.opt, ctx.cache);
         QFont nf(ctx.doc->fonts.body);
         nf.setPointSizeF(8 * fontPointFactor());
         nf.setItalic(true);

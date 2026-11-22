@@ -36,6 +36,18 @@ QPolygonF wrapOutlineOfPath(const QPainterPath &path, const QSizeF &frame);
 // no alpha at all.
 constexpr qint64 kMostAlphaScanPixels = 16000000;
 QPolygonF wrapOutlineOfAlpha(const QImage &image, int *scanned = nullptr);
+// What one outline made into room costs at most, in path elements, and the share of its diagonal that a simplified outline may stray (a picture's outline of thousands of elements on a
+// small frame needs tens). A path with more has its points thinned to that tolerance (grown until it fits), then its convex hull, then its bounding rectangle; the input of the simplifier is
+// itself bounded by kMostWrapSimplifyInput points.
+constexpr int kMostWrapPathElements = 256, kMostWrapSimplifyInput = 4096;
+constexpr double kWrapSimplifyShare = 0.004;
+// The most path elements the page layer sends to the clipper for one pass over a page, all its text boxes together; the objects after that are set round as rectangles.
+constexpr qint64 kMostWrapClipperElementsPerPage = 40000;
+// The path as an outline of at most kMostWrapPathElements elements (unchanged when it has no more); the shape kept to the tolerance above, else its hull, else its bounds.
+QPainterPath wrapPathBounded(const QPainterPath &path);
+// How many rooms were made, and from how many elements in all (counted, for tests).
+qint64 wrapClipperCallsForTest();
+qint64 wrapClipperElementsForTest();
 // The room the text leaves round an outline already placed on the page: the outline and a band of `distance` round it (a distance of 0 or less is the outline alone, its inside solid: an outline that crosses itself has no holes). The page layer
 // and the paginator both take this, so that a line meets the same edge in both.
 QPainterPath wrapRoomAround(const QPainterPath &outline, double distance);

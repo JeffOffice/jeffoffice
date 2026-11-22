@@ -3187,6 +3187,53 @@ private Q_SLOTS:
         QCOMPARE(jp::wrapRoomAround(star, std::nan("")).boundingRect().size().toSize(), star.boundingRect().size().toSize());
     }
 
+    // A traced outline of thousands of elements on a small picture is made into room from at most kMostWrapPathElements of them, whatever its length or shape (a zig-zag
+    // included), and the room still holds the object's bounds. The work is counted (the clipper's input), not timed: take the bound away and the count is the whole outline.
+    void anOutlineOfThousandsOfElementsIsBoundedBeforeTheClipper_data()
+    {
+        QTest::addColumn<int>("elements");
+        QTest::addColumn<double>("width");
+        QTest::addColumn<double>("height");
+        QTest::newRow("5000 on a 26 x 8 picture") << 5000 << 26.0 << 8.0;
+        QTest::newRow("50000 on a 26 x 8 picture") << 50000 << 26.0 << 8.0;
+        QTest::newRow("adversarial zig-zag, 50000 on a 300 x 300 picture") << 50000 << 300.0 << 300.0;
+        QTest::newRow("adversarial zig-zag, 5000 on a 300 x 300 picture") << 5000 << 300.0 << 300.0;
+    }
+    void anOutlineOfThousandsOfElementsIsBoundedBeforeTheClipper()
+    {
+        QFETCH(int, elements);
+        QFETCH(double, width);
+        QFETCH(double, height);
+        QPainterPath zig;
+        zig.moveTo(0, 0);
+        for (int i = 1; i < elements; ++i)
+            zig.lineTo(width * (i % 2 ? 1.0 : 0.0) * (0.5 + 0.5 * (i % 7) / 6.0) + (i % 2 ? 0 : 0), height * double(i) / elements * ((i / 2) % 2 ? 1.0 : 0.3) + (i % 3) * 0.1);
+        zig.closeSubpath();
+        QVERIFY(zig.elementCount() >= elements);
+        const QRectF bounds = zig.boundingRect();
+        const QPainterPath bounded = jp::wrapPathBounded(zig);
+        QVERIFY2(bounded.elementCount() <= jp::kMostWrapPathElements, qPrintable(QString::number(bounded.elementCount())));
+        QVERIFY(bounded.elementCount() >= 4);
+        // (What is kept reaches the object's sides within what was thinned away, or is the hull or the bounds: the text keeps off the object.)
+        const double slack = std::hypot(bounds.width(), bounds.height()) * jp::kWrapSimplifyShare * 4 + 0.5;
+        QVERIFY(bounded.boundingRect().adjusted(-slack, -slack, slack, slack).contains(bounds));
+        const qint64 calls0 = jp::wrapClipperCallsForTest(), elements0 = jp::wrapClipperElementsForTest();
+        const QPainterPath room = jp::wrapRoomAround(zig, 3);
+        QCOMPARE(jp::wrapClipperCallsForTest() - calls0, qint64(1));
+        QVERIFY2(jp::wrapClipperElementsForTest() - elements0 <= jp::kMostWrapPathElements, qPrintable(QString::number(jp::wrapClipperElementsForTest() - elements0)));
+        QVERIFY(room.boundingRect().adjusted(-slack, -slack, slack, slack).contains(bounds.adjusted(-3, -3, 3, 3)));
+        QVERIFY(room.elementCount() <= 16 * jp::kMostWrapPathElements);
+    }
+
+    // An outline within the bound, a shape's own for one, is made into room as it is: nothing for ordinary files moves.
+    void anOutlineWithinTheBoundIsLeftAsItIs()
+    {
+        QPainterPath ellipse;
+        ellipse.addEllipse(QRectF(0, 0, 200, 100));
+        QVERIFY(ellipse.elementCount() <= jp::kMostWrapPathElements);
+        QCOMPARE(jp::wrapPathBounded(ellipse), ellipse);
+    }
+
     // Moving, adding, and taking away a point of an outline: a point is added only on an edge, never past the most, and an outline keeps three.
     void aWrapOutlineIsEditedAPointAtATime()
     {
