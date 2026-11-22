@@ -131,6 +131,8 @@ class SpillPublisher {
 public:
     explicit SpillPublisher(const MutationGuard *guard) : m_guard(guard) {}
     SpillTable &mine() { return m_mine; }
+    // Makes the worker's own table what `table` holds (none: empty), for a store that is assigned another.
+    void follow(const SpillTable *table);
     const SpillTable &mine() const { return m_mine; }
     // Makes what `mine` holds the copy the others read, if it changed since.
     void publish();

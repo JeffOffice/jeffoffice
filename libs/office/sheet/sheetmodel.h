@@ -202,7 +202,10 @@ public:
         m_writeStamp = 0;
         m_last = nullptr;
         m_colCellsValid = false;
-        if (!m_spill) m_frozen = o.frozenSpills();
+        // (the blocks follow the cells: the table the target has, if it has one of its own, is made what the source's is)
+        const std::shared_ptr<const SpillTable> blocks = o.frozenSpills();
+        if (m_spill) m_spill->follow(blocks.get());
+        else m_frozen = blocks;
         return *this;
     }
     // A move takes the blocks and leaves the store it was taken from empty, with no memory of where it last added a cell (that place is a block it no longer has).

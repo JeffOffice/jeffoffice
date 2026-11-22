@@ -684,6 +684,36 @@ private Q_SLOTS:
         QVERIFY2(b.calc->goneCellsWalked() <= 10, qPrintable(QString::number(b.calc->goneCellsWalked())));   // (the range of 200,001 cells is not walked: it had no block)
     }
 
+    // A store that is given another takes its blocks with the cells: the table of the one assigned follows the table of the one it is made from (none, if it has none).
+    void aStoreAssignedFromAnotherTakesItsBlocks()
+    {
+        MutationGuard guard;
+        CellStore from;
+        from.enableSpills(&guard);
+        from.spills()->mine().set(SpillRect{0, 0, 2, 0, 1});
+        from.spills()->noteChanged();
+        CellStore into;
+        into.enableSpills(&guard);
+        into.spills()->mine().set(SpillRect{10, 5, 12, 5, 2});
+        into.spills()->noteChanged();
+        QVERIFY(into.find(11, 5));
+        into = from;
+        QVERIFY(into.find(2, 0) && (into.find(2, 0)->flags & SpillMember));
+        QVERIFY(!into.find(11, 5));
+        CellStore frozen = from;   // (a copy has the blocks as they were, held apart)
+        CellStore other;
+        other.enableSpills(&guard);
+        other.spills()->mine().set(SpillRect{20, 1, 22, 1, 3});
+        other.spills()->noteChanged();
+        frozen = other;
+        QVERIFY(frozen.find(21, 1) && !frozen.find(2, 0));
+        const CellStore none;
+        into = none;   // (a store with no blocks: the one assigned has none)
+        QVERIFY(!into.find(2, 0));
+        frozen = none;
+        QVERIFY(!frozen.find(21, 1));
+    }
+
     // A file's dynamic array: the anchor's array formula with the cell metadata that marks it, and the cached values of the cells it filled, read as saved.
     void aDynamicArrayOfAFileIsASpillShownAsSaved()
     {

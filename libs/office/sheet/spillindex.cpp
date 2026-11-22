@@ -96,6 +96,13 @@ std::shared_ptr<const SpillTable> SpillView::frozen() const
     return std::make_shared<const SpillTable>(*table);
 }
 
+void SpillPublisher::follow(const SpillTable *table)
+{
+    m_mine = table ? *table : SpillTable();
+    noteChanged();
+    if (m_guard && !m_guard->isWorkerOrNone()) publish();
+}
+
 void SpillPublisher::publish()
 {
     if (!m_changed) return;
