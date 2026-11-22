@@ -366,7 +366,13 @@ QVector<WrapObstacle> Renderer::wrapObstacles(const Document &doc, const TextIte
             const double leftSpace = pb.left() - fb.left(), rightSpace = fb.right() - pb.right();
             wall = leftSpace >= rightSpace ? QRectF(pb.left(), pb.top(), 1e5, pb.height()) : QRectF(-1e5, pb.top(), pb.right() + 1e5, pb.height());
         }
-        if (room) out << WrapObstacle(room->mapped(inv), wall.isValid() ? inv.map(QPolygonF(wall)) : QPolygonF());
+        if (room) {
+            // (A frame that is not turned has the room moved, not copied: the rooms of a pass are shared by all its boxes.)
+            const bool moved = inv.type() <= QTransform::TxTranslate;
+            WrapObstacle ob(moved ? room : room->mapped(inv), wall.isValid() ? inv.map(QPolygonF(wall)) : QPolygonF());
+            if (moved) ob.shift = QPointF(inv.dx(), inv.dy());
+            out << ob;
+        }
         else out << inv.map(pagePath.toFillPolygon());
     };
     for (int i = idx + 1; i < int(list->size()) && out.size() < kMaxWrapObstacles && candidates < kMaxWrapCandidates; ++i) consider((*list)[i]);

@@ -11,6 +11,7 @@
 #include <QVector>
 #include <atomic>
 #include <memory>
+#include <mutex>
 
 namespace jp {
 
@@ -43,10 +44,11 @@ QPolygonF wrapOutlineOfAlpha(const QImage &image, int *scanned = nullptr);
 // What the room round an outline costs, in counted work (points flattened plus segments built; nothing is timed). The room is never made by the path clipper or the stroker: it is a
 // list of short segments, and the text engine asks it one thing, which horizontal span of a line's band is blocked, from those segments alone (a band costs one pass over them).
 // An outline of more than kMostWrapOutlineSegments points is read into at most kWrapProfileBands bands (the extent of each, a rectangle); a path of more than kMostWrapPathElements
-// elements is its bounding rectangle; a room that is asked for more than kMostWrapRoomQueryWork segment tests answers with its bounds. A page's budget (one pass, or one column of the
+// elements is its bounding rectangle; a room that is asked for more than kWrapRoomExactWork segment tests (a page of text asks a few hundred times) is read once into kWrapRoomRows rows, and answers from them (a row's span: never less than the exact one, at most a row's height more). A page's budget (one pass, or one column of the
 // paginator) and a call's budget (outside a pass) are WrapBudget; past it, an object is its rectangle.
 constexpr int kMostWrapOutlineSegments = 512, kWrapProfileBands = 128, kMostWrapPathElements = 20000;
-constexpr qint64 kMostWrapWorkPerPage = 400000, kMostWrapWorkPerCall = 60000, kMostWrapRoomQueryWork = 4000000;
+constexpr qint64 kMostWrapWorkPerPage = 400000, kMostWrapWorkPerCall = 60000, kWrapRoomExactWork = 250000;
+constexpr int kWrapRoomRows = 256;
 constexpr int kMostWrapShapesPerCall = 64;
 struct WrapBudget {
     qint64 work = 0;
@@ -88,6 +90,8 @@ private:
     struct Piece { int first, count; double top, bottom; };
     WrapRoom() = default;
     void finish();
+    void buildRows() const;
+    bool rowSpans(double y0, double y1, double *left, double *right) const;
     QVector<QPointF> m_points;   // the pieces' corners, one piece after the other (a piece of two points is one segment, of three or four a convex shape)
     QVector<Piece> m_pieces;
     QVector<QPointF> m_ring;     // the filled rings' points, one after the other
@@ -95,6 +99,9 @@ private:
     QRectF m_bounds;
     double m_signature = 0;
     mutable std::atomic<qint64> m_queryWork{0};
+    mutable std::once_flag m_rowsOnce;
+    mutable QVector<double> m_rowLeft, m_rowRight;   // by row, from the bounds' top down (left > right: nothing in the row)
+    mutable double m_rowStep = 0;
 };
 
 // One thing a text frame's lines keep out of: a polygon (a rectangle for a box, a wall) or a room, the room's span within a line's band being asked of it. Frame-local.

@@ -342,7 +342,9 @@ private:
     // The columns of a laid-out page in page coordinates (`body`: the text area's rectangle). The columns of a section that another begins below on the page end where that one begins:
     // a wall across the columns it is in does not reach the ones below. One list for the wall (roomOf) of the lines, the objects' places, and the anchors' accounts.
     static QVector<QRectF> pageColumnsOf(const Run &run, const QRectF &body);
-    static std::shared_ptr<const jp::WrapRoom> wrapOutlineRoom(const FloatingObject &o, const Wrapped &w, jp::WrapBudget &budget);
+    std::shared_ptr<const jp::WrapRoom> wrapOutlineRoom(const FloatingObject &o, const Wrapped &w, jp::WrapBudget &budget) const;
+    struct WrapRoomMade { std::shared_ptr<const jp::WrapRoom> room; qint64 work = 0; };
+    mutable std::map<std::tuple<double, double, double, double, double, double, int>, WrapRoomMade> m_wrapRooms;   // the rooms made, by where the object is and its outline
     bool breakContinuesAt(const StoryLayout::LineBrief &last, PageStart *next) const;
     int numberOf(int index) const;
     bool beginsPageOf(int section, const PageStart &page) const;   // the page is the first of the section (not the page after one that a continuous section began in the middle of)

@@ -3336,23 +3336,30 @@ private Q_SLOTS:
         QVERIFY2(room->queryWork() - before <= room->segments(), qPrintable(QString::number(room->queryWork() - before)));
     }
 
-    // A room's answers are bounded too: past kMostWrapRoomQueryWork segment tests it answers with its bounds (the text asked for more bands than any page has).
-    void aRoomAskedForTooManyBandsAnswersWithItsBounds()
+    // A room's answers are bounded too: past kWrapRoomExactWork segment tests (the text asked for more bands than a page has) it answers from rows it is read into once, an answer that
+    // holds the exact one and is no wider than the room; the count of work does not grow by the pieces any more.
+    void aRoomAskedForTooManyBandsAnswersFromRows()
     {
         const QPolygonF zig = randomZigZag(255, 300, 300, 1).toFillPolygon();
         jp::WrapBudget budget = jp::WrapBudget::forCall();
         const auto room = jp::WrapRoom::around(QList<QPolygonF>{zig}, 3, budget);
-        double l = 0, r = 0;
+        const auto fresh = jp::WrapRoom::around(QList<QPolygonF>{zig}, 3, budget);   // (asked nothing: its answers are exact)
+        QVERIFY(room->segments() > 64);
+        double l = 0, r = 0, el = 0, er = 0;
         qint64 asked = 0;
-        while (room->queryWork() <= jp::kMostWrapRoomQueryWork) {
+        while (room->queryWork() <= jp::kWrapRoomExactWork) {
             QVERIFY(room->spans(150, 151, &l, &r));
             ++asked;
-            QVERIFY(asked < 100000);
+            QVERIFY(asked < 1000000);
         }
-        QVERIFY(room->spans(150, 151, &l, &r));
-        QCOMPARE(l, room->bounds().left());
-        QCOMPARE(r, room->bounds().right());
-        QVERIFY2(asked >= jp::kMostWrapRoomQueryWork / room->segments() / 2, qPrintable(QString::number(asked)));   // (not at the first question)
+        QVERIFY2(asked >= jp::kWrapRoomExactWork / room->segments(), qPrintable(QString::number(asked)));   // (not at the first question)
+        for (const double y : {20.0, 100.0, 150.0, 280.0}) {
+            QVERIFY(room->spans(y, y + 2, &l, &r));
+            QVERIFY(fresh->spans(y, y + 2, &el, &er));
+            QVERIFY2(l <= el + 1e-9 && r >= er - 1e-9, qPrintable(QString("%1: %2..%3 holds %4..%5").arg(y).arg(l).arg(r).arg(el).arg(er)));
+            QVERIFY(l >= room->bounds().left() - 1e-9 && r <= room->bounds().right() + 1e-9);
+        }
+        QVERIFY(fresh->queryWork() <= 4 * fresh->segments());
     }
 
     // The work of a page is counted: a budget with less left than an outline needs gives no room (the caller sets the object round its rectangle), and charges nothing for it.
