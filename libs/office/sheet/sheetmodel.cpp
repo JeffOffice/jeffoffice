@@ -43,6 +43,12 @@ void MutationGuard::check(const char *what) const
     if (g_strict.load(std::memory_order_relaxed)) checkNow(what);
 }
 
+bool MutationGuard::isWorkerOrNone() const
+{
+    const quintptr worker = m_worker.load(std::memory_order_acquire);
+    return worker == 0 || worker == quintptr(QThread::currentThreadId());
+}
+
 void MutationGuard::enter() { t_held.push_back(this); }
 
 void MutationGuard::leave()
@@ -123,15 +129,40 @@ void CellStore::finish()
     m_last = nullptr;
 }
 
+// The cell at the place as a store with blocks answers: a place in a block that has no cell of its own is a member of the block's formula; one with a cell that holds nothing is that cell as a member; one that
+// holds something is that cell.
+std::optional<Cell> CellStore::memberAt(const SpillView &v, quint32 row, quint32 col, const Cell *real) const
+{
+    const SpillRect *r = v.table->at(row, col);
+    if (!r || (real && (real->type != CellType::Empty || (real->flags & (HasFormula | ArrayFormula | DataTable | SpillFormula | ArrayMember))))) return real ? std::optional<Cell>(*real) : std::nullopt;
+    Cell m;
+    if (real) {
+        m = *real;
+    } else {
+        const quint32 rowId = rowIdOf(row), colId = colIdOf(col);
+        if (rowId == kNoLine || colId == kNoLine) return std::nullopt;
+        m.rowId = rowId;
+        m.colId = quint16(colId);
+    }
+    m.flags |= ArrayMember | SpillMember;
+    m.formula = r->formula;
+    return m;
+}
+
 std::optional<Cell> CellStore::find(quint32 row, quint32 col) const
 {
     const Cell *c = findReal(row, col);
+    if (const SpillView v = spillView()) return memberAt(v, row, col, c);
     return c ? std::optional<Cell>(*c) : std::nullopt;
 }
 
 std::optional<Cell> CellStore::findById(quint32 rowId, quint32 colId) const
 {
     const Cell *c = findRealById(rowId, colId);
+    if (const SpillView v = spillView()) {
+        const quint32 row = rowPosOf(rowId), col = colPosOf(colId);
+        if (row != kNoLine && col != kNoLine) return memberAt(v, row, col, c);
+    }
     return c ? std::optional<Cell>(*c) : std::nullopt;
 }
 

@@ -98,6 +98,141 @@ private Q_SLOTS:
         QCOMPARE(b.block("C1"), QStringLiteral("C1:E2"));
     }
 
+    // The index of the blocks (sheet/spillindex.h) finds the block that holds a place, the blocks that meet a rectangle, and lets go of a block.
+    void theSpillTableFindsMeetsAndLetsGo()
+    {
+        SpillTable t;
+        QVERIFY(t.empty());
+        QVERIFY(t.set(SpillRect{0, 0, 2, 0, 1}));
+        QVERIFY(t.set(SpillRect{10, 2, 20000, 2, 2}));   // (a tall one, one column wide)
+        QVERIFY(t.set(SpillRect{100, 5, 163, 9, 3}));
+        QCOMPARE(t.size(), size_t(3));
+        QVERIFY(t.at(2, 0) && t.at(2, 0)->formula == 1 && !t.at(3, 0) && !t.at(2, 1));
+        QVERIFY(t.at(19000, 2) && t.at(19000, 2)->formula == 2);
+        QVERIFY(t.at(163, 9) && t.at(163, 9)->formula == 3 && !t.at(164, 9));
+        QVERIFY(t.meetsOther(1, 0, 40, 3, 1));   // (the tall one is in it)
+        QVERIFY(!t.meetsOther(1, 0, 4, 1, 1));
+        QVERIFY(t.meetsOther(1, 0, 4, 1, 99));
+        int count = 0;
+        t.forEachMeeting(0, 0, 200, 20, [&](const SpillRect &) { ++count; });
+        QCOMPARE(count, 3);   // (a block that is in several buckets is met once)
+        count = 0;
+        t.forEachMeeting(0, 0, 200000, 1000000, [&](const SpillRect &) { ++count; return count < 2; });
+        QCOMPARE(count, 2);   // (a walk that gives false stops)
+        QVERIFY(t.set(SpillRect{100, 5, 100, 5, 3}));   // (the block of a formula is replaced)
+        QVERIFY(!t.at(163, 9) && t.at(100, 5));
+        t.erase(2);
+        QVERIFY(!t.at(19000, 2) && t.size() == 2);
+    }
+
+    // `at` and `meetsOther` look at a few blocks however many there are (a bucket holds at most 256 disjoint ones, and these hold 8): 500 one-column blocks side by side in a header row, and 200
+    // columns of 5,000 rows. A scan of the blocks of the rows (the first form) looks at 500 and at 200.
+    void theSpillTableLooksAtFewBlocksWhenThereAreManyInARowOrAColumn()
+    {
+        SpillTable header;
+        for (qint32 c = 0; c < 500; ++c) QVERIFY(header.set(SpillRect{1, quint32(c), 20, quint32(c), c}));   // (A2:A21, B2:B21, ...)
+        SpillTable wide;
+        for (qint32 c = 0; c < 200; ++c) QVERIFY(wide.set(SpillRect{1, quint32(c), 5000, quint32(c), c}));
+        qint64 probes = 0, mostForOne = 0;
+        for (const SpillTable *t : {&header, &wide}) {
+            const quint32 cols = t == &header ? 500 : 200, last = t == &header ? 20 : 5000;
+            for (quint32 c = 0; c < cols; ++c)
+                for (const quint32 r : {quint32(1), quint32(last / 2), last}) {
+                    qint64 one = 0;
+                    const SpillRect *found = t->at(r, c, &one);
+                    QVERIFY(found && found->formula == qint32(c));
+                    probes += one;
+                    mostForOne = std::max(mostForOne, one);
+                }
+        }
+        QVERIFY2(mostForOne <= 8, qPrintable(QString::number(mostForOne)));   // (8 columns a bucket)
+        QCOMPARE(header.at(0, 3), static_cast<const SpillRect *>(nullptr));
+        // a block's own place is met by a walk over a rectangle on it, and one beside it is not; each counts what it looked at
+        qint64 meet = 0;
+        QVERIFY(header.meetsOther(10, 250, 10, 250, -1, &meet));
+        QVERIFY(meet <= 8);
+        meet = 0;
+        QVERIFY(!header.meetsOther(22, 0, 30, 499, -1, &meet));
+        QVERIFY(meet <= 500);   // (the one bucket row of rows 22 to 30 holds all 500 blocks: they are looked at once each, not once each for every place)
+        meet = 0;
+        QVERIFY(!wide.meetsOther(1, 200, 5000, 260, -1, &meet));
+        QCOMPARE(meet, qint64(0));
+        QVERIFY(probes > 0);
+    }
+
+    // A block of more than kMaxBuckets buckets is refused (the largest a spill can be, 200,000 cells in a column, is under it).
+    void theSpillTableRefusesABlockOfTooManyBuckets()
+    {
+        SpillTable t;
+        QVERIFY(t.set(SpillRect{0, 0, quint32(kMaxSpillCells) - 1, 0, 1}));
+        QVERIFY(!t.set(SpillRect{0, 5, 1000000, 40, 2}));   // (about 15,600 by 5 buckets)
+        QVERIFY(!t.ofFormula(2));
+        QVERIFY(!t.set(SpillRect{4, 0, 3, 0, 3}));
+        QCOMPARE(t.size(), size_t(1));
+        // (a formula whose new block is refused has no block: the old one was let go of)
+        QVERIFY(t.set(SpillRect{0, 1, 5, 1, 2}));
+        QVERIFY(!t.set(SpillRect{0, 5, 1000000, 40, 2}));
+        QVERIFY(!t.ofFormula(2) && t.size() == 1);
+    }
+
+    // A store with a table of blocks answers for the places of the blocks: find, findById, forEachInRange, and forEach give them in order, as members of the formula; a walk that gives false stops; a copy
+    // of the store keeps the blocks it was made with. A store with no table (every store, unless the index is on) answers for the cells it holds.
+    void aStoreWithBlocksAnswersForTheirPlacesInOrder()
+    {
+        MutationGuard guard;
+        CellStore plain;
+        Cell a;
+        a.type = CellType::Number;
+        a.number = 5;
+        plain.set(0, 0, a);
+        plain.set(0, 3, a);
+        QVERIFY(!plain.spills());
+        CellStore cells = plain;
+        cells.enableSpills(&guard);
+        QVERIFY(cells.spills());
+        QVERIFY(!cells.find(1, 0));   // (nothing in the table yet)
+        cells.spills()->mine().set(SpillRect{0, 0, 2, 0, 7});   // A1:A3: its first cell is a real one
+        cells.spills()->mine().set(SpillRect{0, 2, 1, 3, 8});   // C1:D2: D1 holds a number of its own
+        cells.spills()->noteChanged();
+        const std::optional<Cell> member = cells.find(2, 0);
+        QVERIFY(member && (member->flags & SpillMember) && (member->flags & ArrayMember) && member->formula == 7 && member->type == CellType::Empty);
+        QVERIFY(cells.findById(member->rowId, member->colId) && cells.findById(member->rowId, member->colId)->formula == 7);
+        QVERIFY(!cells.find(3, 0) && !cells.find(2, 1));
+        QVERIFY(cells.find(0, 3) && cells.find(0, 3)->type == CellType::Number && !(cells.find(0, 3)->flags & SpillMember));   // (a cell that holds something is itself)
+        std::vector<QString> seen;
+        cells.forEachInRange(0, 0, 5, 5, [&](quint32 row, quint32 col, const Cell &c) {
+            seen.push_back(QStringLiteral("%1:%2:%3").arg(row).arg(col).arg((c.flags & SpillMember) ? c.formula : -1));
+            return true;
+        });
+        const std::vector<QString> want = {QStringLiteral("0:0:-1"), QStringLiteral("0:2:8"), QStringLiteral("0:3:-1"), QStringLiteral("1:0:7"), QStringLiteral("1:2:8"), QStringLiteral("1:3:8"), QStringLiteral("2:0:7")};
+        // (A1 holds a number of its own here, D1 too; the others are the blocks')
+        QCOMPARE(seen, want);
+        std::vector<QString> all;
+        cells.forEach([&](quint32 row, quint32 col, const Cell &) { all.push_back(QStringLiteral("%1:%2").arg(row).arg(col)); });
+        QCOMPARE(all.size(), want.size());
+        int calls = 0;
+        cells.forEachInRange(0, 0, 5, 5, [&](quint32, quint32, const Cell &) { return ++calls < 3; });
+        QCOMPARE(calls, 3);
+        const CellStore copy = cells;
+        cells.spills()->mine().erase(7);
+        cells.spills()->noteChanged();
+        QVERIFY(!cells.find(2, 0));
+        QVERIFY(copy.find(2, 0) && (copy.find(2, 0)->flags & SpillMember));   // (the copy has the block the store had)
+        QCOMPARE(plain.cellCount(), qint64(2));
+    }
+
+    // With the index off, which is how it is unless it is switched on, a spill makes the cells of its block in the store, as it always did.
+    void theIndexIsOffByDefaultAndASpillMakesCells()
+    {
+        if (qEnvironmentVariableIntValue("JO_SPILL_INDEX") != 0) QSKIP("the process runs with the index on");
+        QVERIFY(!spillIndexDefault());
+        Book b;
+        QVERIFY(b.open(blank()));
+        QVERIFY(b.type(QStringLiteral("A1"), QStringLiteral("_xlfn.SEQUENCE(3)")));
+        QVERIFY(!b.calc->sheet(0).cells.spills());
+        QCOMPARE(b.calc->sheet(0).cells.cellCount(), qint64(3));
+    }
+
     // The block grows and shrinks as the result does, and what reads the cells follows it.
     void theBlockGrowsAndShrinksWithTheResult()
     {

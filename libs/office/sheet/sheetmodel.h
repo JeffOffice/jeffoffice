@@ -10,6 +10,7 @@
 #include "sheet/notebox.h"
 #include "sheet/pagesetup.h"
 #include "sheet/protection.h"
+#include "sheet/spillindex.h"
 #include "sheet/sparkline.h"
 #include "sheet/styles.h"
 
@@ -25,6 +26,7 @@
 #include <functional>
 #include <limits>
 #include <map>
+#include <type_traits>
 #include <vector>
 
 namespace jp::office::sheet {
@@ -150,6 +152,7 @@ public:
     void setWorker(quintptr thread) { m_worker.store(thread, std::memory_order_release); }
     void enter();   // the calling thread has the worker held
     void leave();   // (another thread may let a hold go than took it: then nothing is noted of it)
+    bool isWorkerOrNone() const;   // whether the calling thread is the worker, or no worker serves
     bool heldHere() const;   // whether the calling thread has the worker held (a second hold on one thread would wait for the first for ever)
     void check(const char *what) const;   // one flag test when strict mode is off
 
@@ -186,7 +189,7 @@ public:
     };
 
     CellStore() : m_serial(nextSerial()), m_stamp(nextStamp()) {}
-    CellStore(const CellStore &o) : m_blocks(o.m_blocks), m_count(o.m_count), m_dead(o.m_dead), m_rows(o.m_rows), m_cols(o.m_cols), m_serial(nextSerial()), m_stamp(nextStamp()) {}
+    CellStore(const CellStore &o) : m_blocks(o.m_blocks), m_count(o.m_count), m_dead(o.m_dead), m_rows(o.m_rows), m_cols(o.m_cols), m_serial(nextSerial()), m_stamp(nextStamp()), m_frozen(o.frozenSpills()) {}
     CellStore &operator=(const CellStore &o)
     {
         m_blocks = o.m_blocks;
@@ -199,10 +202,11 @@ public:
         m_writeStamp = 0;
         m_last = nullptr;
         m_colCellsValid = false;
+        if (!m_spill) m_frozen = o.frozenSpills();
         return *this;
     }
     // A move takes the blocks and leaves the store it was taken from empty, with no memory of where it last added a cell (that place is a block it no longer has).
-    CellStore(CellStore &&o) noexcept : m_blocks(std::move(o.m_blocks)), m_count(o.m_count), m_dead(o.m_dead), m_rows(std::move(o.m_rows)), m_cols(std::move(o.m_cols)), m_serial(o.m_serial), m_stamp(o.m_stamp)
+    CellStore(CellStore &&o) noexcept : m_blocks(std::move(o.m_blocks)), m_count(o.m_count), m_dead(o.m_dead), m_rows(std::move(o.m_rows)), m_cols(std::move(o.m_cols)), m_serial(o.m_serial), m_stamp(o.m_stamp), m_spill(std::move(o.m_spill)), m_frozen(std::move(o.m_frozen))
     {
         takeLog(o);
         o.reset();
@@ -217,6 +221,8 @@ public:
             m_cols = std::move(o.m_cols);
             m_serial = o.m_serial;
             m_stamp = o.m_stamp;
+            m_spill = std::move(o.m_spill);
+            m_frozen = std::move(o.m_frozen);
             takeLog(o);
             m_last = nullptr;
             m_colCellsValid = false;
@@ -227,6 +233,33 @@ public:
 
     // The guard of the rule of the worker for this store (null: none; Calculation gives its own to the stores it holds).
     void guardWith(const MutationGuard *guard) { m_guard = guard; }
+    // Gives the store a table of blocks that formulas spill into (the spill index: sheet/spillindex.h), guarded by the same guard; nothing is in it until a calculation puts blocks in it. A store with none (the
+    // default) answers for the cells it holds only. `spills` is the table's publisher (null for none), `spillView` what the calling thread reads, `frozenSpills` a copy no thread changes.
+    void enableSpills(const MutationGuard *guard)
+    {
+        m_guard = guard;
+        if (!m_spill) m_spill = std::make_shared<SpillPublisher>(guard);
+        m_frozen.reset();
+    }
+    SpillPublisher *spills() const { return m_spill.get(); }
+    // Notes that the blocks changed: what holds the store's cells as they were (a lookup cache, by the write count) is out of date, for any cells.
+    void noteSpillChange()
+    {
+        guardCheck("CellStore::noteSpillChange");
+        noteWrite(kNoLine, kNoLine);
+    }
+    SpillView spillView() const
+    {
+        if (m_spill) return m_spill->view();
+        if (m_frozen && !m_frozen->empty()) {
+            SpillView v;
+            v.keep = m_frozen;
+            v.table = m_frozen.get();
+            return v;
+        }
+        return SpillView();
+    }
+    std::shared_ptr<const SpillTable> frozenSpills() const { return spillView().frozen(); }
     // The order of the sheet's rows and of its columns, as ids (see calc/linemap.h).
     const jp::calc::RowMap &rows() const { return m_rows; }
     const jp::calc::ColMap &cols() const { return m_cols; }
@@ -297,6 +330,16 @@ public:
     // Calls f(row, col, cell) for each cell in order of row, then column.
     template <class F>
     void forEach(F f) const
+    {
+        if (const SpillView v = spillView()) {
+            forEachMerged(v, 0, 0, quint32(-1), quint32(0xFFFF), f);
+            return;
+        }
+        forEachReal(f);
+    }
+    // The cells the store holds, in order (none made from a block).
+    template <class F>
+    void forEachReal(F f) const
     {
         if (plain()) {
             for (const auto &block : m_blocks)
@@ -461,6 +504,16 @@ public:
     template <class F>
     void forEachInRange(quint32 row1, quint32 col1, quint32 row2, quint32 col2, F f, RangeWalk *walk = nullptr) const
     {
+        if (const SpillView v = spillView()) {
+            forEachMerged(v, row1, col1, row2, col2, f, walk);
+            return;
+        }
+        forEachInRangeReal(row1, col1, row2, col2, f, walk);
+    }
+    // The same over the cells the store holds only (none made from a block).
+    template <class F>
+    void forEachInRangeReal(quint32 row1, quint32 col1, quint32 row2, quint32 col2, F f, RangeWalk *walk = nullptr) const
+    {
         if (!plain()) {
             inRangeByPlace(row1, col1, row2, col2, f, walk);
             return;
@@ -511,6 +564,123 @@ public:
                 // the rest of this row's cells are right of the range: the search for the next row's first cell passes them
                 ++r;
             }
+        }
+    }
+    // The cells of the range in order, with the places of the blocks in it that have no cell given as members (the walk of the store and the walk of the blocks go side by side, in order of row, then column).
+    // A cell the store holds at a place of a block is given as it is when it holds something (a value, a formula); one that is empty, a cell of a format only, is given as a member with its format.
+    template <class F>
+    void forEachMerged(const SpillView &view, quint32 row1, quint32 col1, quint32 row2, quint32 col2, F f, RangeWalk *walk = nullptr) const
+    {
+        // (a walk that gives nothing back goes on to the end)
+        auto call = [&](quint32 r, quint32 c, const Cell &x) -> bool {
+            if constexpr (std::is_void_v<decltype(f(r, c, x))>) {
+                f(r, c, x);
+                return true;
+            } else {
+                return f(r, c, x);
+            }
+        };
+        std::vector<SpillRect> hits;
+        view.table->forEachMeeting(row1, col1, row2, col2, [&](const SpillRect &r) { hits.push_back(r); });
+        if (hits.empty()) {
+            forEachInRangeReal(row1, col1, row2, col2, call, walk);
+            return;
+        }
+        std::sort(hits.begin(), hits.end(), [](const SpillRect &a, const SpillRect &b) { return a.row1 != b.row1 ? a.row1 < b.row1 : a.col1 < b.col1; });
+        // the places of the blocks, in order: a row at a time, the runs of the blocks that cover it in order of column
+        struct Run {
+            quint32 col1, col2;
+            qint32 formula;
+        };
+        struct Gen {
+            const std::vector<SpillRect> &hits;
+            quint32 col1, col2;
+            size_t nextHit = 0;
+            std::vector<SpillRect> active;
+            std::vector<Run> runs;
+            size_t run = 0;
+            quint32 row = 0, col = 0;
+            qint32 formula = -1;
+            bool has = false;
+            Gen(const std::vector<SpillRect> &h, quint32 c1, quint32 c2, quint32 r1) : hits(h), col1(c1), col2(c2) { row = r1; startRow(); }
+            void startRow()
+            {
+                for (;;) {
+                    while (nextHit < hits.size() && hits[nextHit].row1 <= row) active.push_back(hits[nextHit++]);
+                    active.erase(std::remove_if(active.begin(), active.end(), [&](const SpillRect &r) { return r.row2 < row; }), active.end());
+                    if (!active.empty()) break;
+                    if (nextHit >= hits.size()) {
+                        has = false;
+                        return;
+                    }
+                    row = hits[nextHit].row1;
+                }
+                runs.clear();
+                for (const SpillRect &r : active) runs.push_back({std::max(r.col1, col1), std::min(r.col2, col2), r.formula});
+                std::sort(runs.begin(), runs.end(), [](const Run &a, const Run &b) { return a.col1 < b.col1; });
+                run = 0;
+                col = runs[0].col1;
+                formula = runs[0].formula;
+                has = true;
+            }
+            void advance()
+            {
+                if (col < runs[run].col2) {
+                    ++col;
+                    return;
+                }
+                if (++run < runs.size()) {
+                    col = runs[run].col1;
+                    formula = runs[run].formula;
+                    return;
+                }
+                ++row;
+                startRow();
+            }
+        };
+        Gen gen(hits, col1, col2, std::max(row1, hits.front().row1));
+        bool stopped = false;
+        auto member = [&](quint32 r, quint32 c, qint32 formula, const Cell *real) {
+            Cell m;
+            if (real) {
+                if (real->type != CellType::Empty || (real->flags & (HasFormula | ArrayFormula | DataTable | SpillFormula | ArrayMember))) return call(r, c, *real);
+                m = *real;
+            } else {
+                const quint32 rowId = rowIdOf(r), colId = colIdOf(c);
+                if (rowId == kNoLine || colId == kNoLine) return true;
+                m.rowId = rowId;
+                m.colId = quint16(colId);
+            }
+            m.flags |= ArrayMember | SpillMember;
+            m.formula = formula;
+            return call(r, c, m);
+        };
+        forEachInRangeReal(row1, col1, row2, col2, [&](quint32 row, quint32 col, const Cell &cell) {
+            while (gen.has && (gen.row < row || (gen.row == row && gen.col < col))) {
+                if (!member(gen.row, gen.col, gen.formula, nullptr)) {
+                    stopped = true;
+                    return false;
+                }
+                gen.advance();
+            }
+            if (gen.has && gen.row == row && gen.col == col) {
+                const qint32 formula = gen.formula;
+                gen.advance();
+                if (!member(row, col, formula, &cell)) {
+                    stopped = true;
+                    return false;
+                }
+                return true;
+            }
+            if (!call(row, col, cell)) {
+                stopped = true;
+                return false;
+            }
+            return true;
+        }, walk);
+        while (!stopped && gen.has && gen.row <= row2) {
+            if (!member(gen.row, gen.col, gen.formula, nullptr)) return;
+            gen.advance();
         }
     }
     // Moves cells about, for cells shifted (inserted and deleted among the cells of some columns or rows; whole rows and columns are insertLines and deleteLines, which move nothing): every cell
@@ -1171,6 +1341,9 @@ private:
     qint64 m_purged = 0;
     Block *m_last = nullptr;
     const MutationGuard *m_guard = nullptr;
+    std::shared_ptr<SpillPublisher> m_spill;           // (null: this store has no blocks table)
+    std::shared_ptr<const SpillTable> m_frozen;        // (the blocks a copy of a store was made with)
+    std::optional<Cell> memberAt(const SpillView &v, quint32 row, quint32 col, const Cell *real) const;
     void guardCheck(const char *what) const
     {
         if (m_guard) m_guard->check(what);
