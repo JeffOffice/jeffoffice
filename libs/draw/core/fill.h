@@ -56,10 +56,17 @@ struct Fill {
 
     QBrush brush(const QRectF &r, const ColorScheme &s, const ImageLookup &img = {}) const;
     QBrush rectangularBrush(const QGradientStops &stops, const QRectF &r) const;
+    static QImage rectangularImage(const QGradientStops &stops, double fx, double fy);
     QImage patternTile(const ColorScheme &s) const;   // 8 x 8, the background clear when it has none
     QJsonObject toJson() const;
     static Fill fromJson(const QJsonObject &o);
     bool operator==(const Fill &o) const { return toJson() == o.toJson(); }
 };
+
+// The pictures rectangular gradients have been made into, counted for tests of cost: made since the program began, and held now.
+struct RectangularImageWork {
+    qint64 made = 0, held = 0;
+};
+RectangularImageWork rectangularImageWorkForTest();
 
 } // namespace jp

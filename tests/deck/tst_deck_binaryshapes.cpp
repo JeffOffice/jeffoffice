@@ -2568,6 +2568,39 @@ private Q_SLOTS:
         for (int i = 1; i <= 4; ++i) QVERIFY(m.captured(i).toInt() >= 0 && m.captured(i).toInt() <= 100000);
     }
 
+    // The picture a rectangular gradient with its focus away from the middle is drawn from is made once for a fill, whatever the shapes' sizes and
+    // however often a brush is asked for; the pictures kept are few, and a fill that was dropped is made again.
+    void rectangularShadeIsMadeOncePerFill()
+    {
+        Fill fill = Fill::gradient(ColorRef::rgb(QColor(255, 0, 0)), ColorRef::rgb(QColor(0, 0, 255)));
+        fill.gradType = Fill::Rectangular;
+        fill.focusX = 0.31;
+        fill.focusY = 0.07;
+        const qint64 before = rectangularImageWorkForTest().made;
+        QBrush first;
+        for (int i = 0; i < 40; ++i) {
+            const QBrush b = fill.brush(QRectF(0, 0, 100 + i * 50, 80 + i * 30), ColorScheme());
+            if (i == 0) first = b;
+            QCOMPARE(b.textureImage().size(), first.textureImage().size());
+            QVERIFY(b.textureImage() == first.textureImage());
+        }
+        QCOMPARE(rectangularImageWorkForTest().made - before, qint64(1));
+        // Another focus is another picture.
+        fill.focusX = 0.6;
+        fill.brush(QRectF(0, 0, 100, 100), ColorScheme());
+        QCOMPARE(rectangularImageWorkForTest().made - before, qint64(2));
+        // Many fills: the pictures held stay few, and the first, long dropped, is made again.
+        for (int i = 0; i < 30; ++i) {
+            fill.focusX = 0.05 + i * 0.02;
+            fill.brush(QRectF(0, 0, 100, 100), ColorScheme());
+        }
+        QVERIFY(rectangularImageWorkForTest().held <= 8);
+        const qint64 mid = rectangularImageWorkForTest().made;
+        fill.focusX = 0.31;
+        fill.brush(QRectF(0, 0, 100, 100), ColorScheme());
+        QCOMPARE(rectangularImageWorkForTest().made - mid, qint64(1));
+    }
+
     // A date typed in the master's date place (a whole line, not the program's date field) is what each slide shows that the record says shows a
     // date without saying which: not today's, and none of its own text. A record that names the text, or says it is today's, wins over it; a
     // slide whose own record hides the date has none, and a document with no record shows none.

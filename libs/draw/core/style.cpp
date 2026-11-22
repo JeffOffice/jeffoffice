@@ -2,9 +2,13 @@
 #include "core/blipeffects.h"
 
 #include <QCoreApplication>
+#include <QDataStream>
 #include <QImage>
 #include <QJsonArray>
 #include <QLinearGradient>
+#include <QList>
+#include <QMutex>
+#include <QMutexLocker>
 #include <QPainter>
 #include <QRadialGradient>
 #include <QRegularExpression>
@@ -42,13 +46,63 @@ QImage Fill::patternTile(const ColorScheme &s) const
     return tile;
 }
 
+namespace {
+// The pictures of rectangular gradients, by the focus and the stops they were made for (the picture does not depend on the shape, whose size is
+// the brush's transform): the last few, as a brush is asked for at every draw and each picture is 256 KB.
+constexpr int kRectangularImagesHeld = 8;
+QMutex g_rectangularMutex;
+QList<QPair<QByteArray, QImage>> g_rectangularImages;
+qint64 g_rectangularMade = 0;
+} // namespace
+
+RectangularImageWork rectangularImageWorkForTest()
+{
+    const QMutexLocker lock(&g_rectangularMutex);
+    return {g_rectangularMade, qint64(g_rectangularImages.size())};
+}
+
 // The brush of a rectangular gradient whose first color is at a point other than the middle: the color at a point is the stops' at the
 // largest of its distances along each axis from the focus, each as a fraction of the way to the shape's edge on its side (a picture of
-// the shape's proportions made small, stretched by the brush's transform).
+// the shape's proportions made small, stretched by the brush's transform). The picture is 256 steps each way, so a shape drawn very large (a
+// slide printed or saved as a PDF) shows its steps as bands about as wide as the shape is over 256.
 QBrush Fill::rectangularBrush(const QGradientStops &gs, const QRectF &r) const
 {
     constexpr int kSide = 256;
     const double fx = std::clamp(focusX, 0.0, 1.0), fy = std::clamp(focusY, 0.0, 1.0);
+    QByteArray key;
+    {
+        QDataStream out(&key, QIODevice::WriteOnly);
+        out << fx << fy;
+        for (const auto &st : gs) out << st.first << st.second.rgba64().red() << st.second.rgba64().green() << st.second.rgba64().blue() << st.second.rgba64().alpha();
+    }
+    QImage im;
+    {
+        const QMutexLocker lock(&g_rectangularMutex);
+        for (int i = 0; i < g_rectangularImages.size(); ++i)
+            if (g_rectangularImages[i].first == key) {
+                im = g_rectangularImages[i].second;
+                g_rectangularImages.move(i, 0);
+                break;
+            }
+    }
+    if (im.isNull()) {
+        im = rectangularImage(gs, fx, fy);
+        const QMutexLocker lock(&g_rectangularMutex);
+        ++g_rectangularMade;
+        g_rectangularImages.prepend({key, im});
+        while (g_rectangularImages.size() > kRectangularImagesHeld) g_rectangularImages.removeLast();
+    }
+    QBrush b(im);
+    QTransform t;
+    t.translate(r.left(), r.top());
+    t.scale(std::max(r.width(), 1e-3) / kSide, std::max(r.height(), 1e-3) / kSide);
+    b.setTransform(t);
+    return b;
+}
+
+QImage Fill::rectangularImage(const QGradientStops &gs, double fx, double fy)
+{
+    constexpr int kSide = 256;
     QImage im(kSide, kSide, QImage::Format_ARGB32_Premultiplied);
     auto at = [&](double t) {
         if (gs.isEmpty()) return QColor(Qt::transparent);
@@ -72,12 +126,7 @@ QBrush Fill::rectangularBrush(const QGradientStops &gs, const QRectF &r) const
             line[x] = ramp[int(std::clamp(std::max(tx, ty), 0.0, 1.0) * kSide + 0.5)];
         }
     }
-    QBrush b(im);
-    QTransform t;
-    t.translate(r.left(), r.top());
-    t.scale(std::max(r.width(), 1e-3) / kSide, std::max(r.height(), 1e-3) / kSide);
-    b.setTransform(t);
-    return b;
+    return im;
 }
 
 QBrush Fill::brush(const QRectF &r, const ColorScheme &s, const ImageLookup &img) const
