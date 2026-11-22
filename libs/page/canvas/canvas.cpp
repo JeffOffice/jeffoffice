@@ -3470,8 +3470,8 @@ void Ruler::mouseMoveEvent(QMouseEvent *e)
         const double pagex = m_c->toPage(viewAt(e)).x();
         QTextBlockFormat bf = ed->cursor().blockFormat();
         if (m_dragMarker == 0) bf.setTextIndent(pagex - tr.left - bf.leftMargin());
-        else if (m_dragMarker == 1) { const double first = bf.leftMargin() + bf.textIndent(); bf.setLeftMargin(std::max(0.0, pagex - tr.left)); bf.setTextIndent(first - bf.leftMargin()); }
-        else if (m_dragMarker == 2) bf.setRightMargin(std::max(0.0, tr.right - pagex));
+        else if (m_dragMarker == 1) { const double first = bf.leftMargin() + bf.textIndent(); bf.setLeftMargin(std::max(-2000.0, pagex - tr.left)); bf.setTextIndent(first - bf.leftMargin()); }
+        else if (m_dragMarker == 2) bf.setRightMargin(std::max(-2000.0, tr.right - pagex));
         else {
             QList<QTextOption::Tab> tabs = bf.tabPositions();
             const int i = m_dragMarker - 10;

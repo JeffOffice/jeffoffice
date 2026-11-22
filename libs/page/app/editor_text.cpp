@@ -588,6 +588,14 @@ void Editor::setMultilevelList(const QVector<QTextListFormat> &levels, double in
     Q_EMIT textCursorChanged();
 }
 
+// An indent moved by a step: a larger one grows by it; a smaller one shrinks toward 0 and stops there,
+// so a negative (hanging) indent is not thrown to 0 and its hang lost by a step that should only reduce it.
+static double steppedIndent(double indent, double step)
+{
+    if (step >= 0) return indent + step;
+    return indent > 0 ? std::max(0.0, indent + step) : std::min(0.0, indent - step);
+}
+
 void Editor::setListLevel(int level)
 {
     auto targets = formatTargets();
@@ -601,7 +609,7 @@ void Editor::setListLevel(int level)
                 const int was = l->format().intProperty(tp::ListLevel), to = std::clamp(level, 0, 8);
                 if (was != to) {
                     QTextBlockFormat bf = b.blockFormat();
-                    bf.setLeftMargin(std::max(0.0, bf.leftMargin() + (to - was) * 18.0));
+                    bf.setLeftMargin(steppedIndent(bf.leftMargin(), (to - was) * 18.0));
                     QTextListFormat lf = l->format();
                     lf.setProperty(tp::ListLevel, to);
                     lf.setStart(1);
@@ -625,7 +633,7 @@ void Editor::changeIndent(int dir)
         QTextDocument *d = c.document();
         for (QTextBlock b = d->findBlock(c.selectionStart()); b.isValid() && b.position() <= c.selectionEnd(); b = b.next()) {
             QTextBlockFormat bf = b.blockFormat();
-            bf.setLeftMargin(std::max(0.0, bf.leftMargin() + dir * 18.0));
+            bf.setLeftMargin(steppedIndent(bf.leftMargin(), dir * 18.0));
             setBlockDirect(b, bf);
             // A list item moves a level in or out: into the list of that level
             // just above it (so its numbers go on), or a new one, numbered
@@ -685,7 +693,7 @@ void Editor::setList(int kind, int format, const QString &bullet, int start, dou
                 QTextBlockFormat bf = b.blockFormat();
                 bf.setIndent(0);
                 bf.setTextIndent(0);
-                bf.setLeftMargin(std::max(0.0, bf.leftMargin() - 18));
+                bf.setLeftMargin(steppedIndent(bf.leftMargin(), -18));
                 setBlockDirect(b, bf);
                 if (b == last) break;
             }

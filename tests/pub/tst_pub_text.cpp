@@ -3664,6 +3664,87 @@ private Q_SLOTS:
         ed->endTextEdit();
     }
 
+    // Decrease Indent on a hanging paragraph (a negative left indent) steps toward 0 and stops there, it does not throw the indent to 0; Increase goes on from it.
+    void theIndentButtonsStepToZeroFromANegativeIndent()
+    {
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        auto box = std::static_pointer_cast<jp::TextItem>(ed->newTextBox(QRectF(72, 72, 300, 200), QStringLiteral("hang")));
+        ed->addItem(box);
+        ed->beginTextEdit(box->id, 0);
+        QTextBlockFormat bf;
+        bf.setLeftMargin(-40);
+        QTextCursor c(ed->editDoc()->firstBlock());
+        c.setBlockFormat(bf);
+        ed->setCursor(c);
+        auto left = [&] { return ed->editDoc()->firstBlock().blockFormat().leftMargin(); };
+        ed->changeIndent(-1);
+        QCOMPARE(left(), -22.0);
+        ed->changeIndent(-1);
+        QCOMPARE(left(), -4.0);
+        ed->changeIndent(-1);
+        QCOMPARE(left(), 0.0);
+        ed->changeIndent(-1);
+        QCOMPARE(left(), 0.0);
+        ed->changeIndent(1);
+        QCOMPARE(left(), 18.0);
+        ed->changeIndent(-1);
+        ed->changeIndent(-1);
+        QCOMPARE(left(), 0.0);
+        c = QTextCursor(ed->editDoc()->firstBlock());
+        bf.setLeftMargin(-40);
+        c.setBlockFormat(bf);
+        ed->setCursor(c);
+        ed->changeIndent(1);
+        QCOMPARE(left(), -22.0);
+        ed->endTextEdit();
+    }
+
+    // The ruler's indent markers go left of the frame's edge (a negative indent) and back, and the right one past the right edge.
+    void theRulerDragsIndentsPastTheFrameEdge()
+    {
+        jp::MainWindow w;
+        w.resize(1200, 900);
+        jp::Editor *ed = w.editor();
+        ed->setDocument(jp::Document::blank(QSizeF(612, 792)));
+        auto box = std::static_pointer_cast<jp::TextItem>(ed->newTextBox(QRectF(144, 100, 300, 200), QStringLiteral("a hanging paragraph")));
+        ed->addItem(box);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        jp::Canvas *cv = w.canvas();
+        cv->setRulersVisible(true);
+        ed->beginTextEdit(box->id, 0);
+        jp::Ruler *h = cv->hRuler();
+        const double edge = box->rect.left() + box->insets.left(), edgeR = box->rect.right() - box->insets.right();
+        auto onH = [&](double page, int y) {
+            const QPoint v = cv->viewport()->mapToGlobal(cv->pageToView(QPointF(page, 0)).toPoint());
+            return QPoint(h->mapFromGlobal(v).x(), y);
+        };
+        auto send = [&](QEvent::Type type, Qt::MouseButton button, Qt::MouseButtons held, QPoint pos) {
+            QMouseEvent e(type, QPointF(pos), QPointF(h->mapToGlobal(pos)), button, held, Qt::NoModifier);
+            QApplication::sendEvent(h, &e);
+        };
+        auto drag = [&](QPoint from, QPoint to) {
+            send(QEvent::MouseButtonPress, Qt::LeftButton, Qt::LeftButton, from);
+            send(QEvent::MouseMove, Qt::NoButton, Qt::LeftButton, to);
+            send(QEvent::MouseButtonRelease, Qt::LeftButton, Qt::NoButton, to);
+        };
+        const double pixel = 2 / cv->ppp();
+        const int low = h->height() - 8;   // the left indent marker is the lower one
+        auto fmt = [&] { return ed->cursor().blockFormat(); };
+        // The left indent marker to 36 points left of the frame's edge.
+        drag(onH(edge, low), onH(edge - 36, low));
+        QVERIFY2(std::abs(fmt().leftMargin() + 36) <= pixel, qPrintable(QString::number(fmt().leftMargin())));
+        // And back inside, the marker taken from where it is now.
+        drag(onH(edge - 36, low), onH(edge + 20, low));
+        QVERIFY2(std::abs(fmt().leftMargin() - 20) <= pixel, qPrintable(QString::number(fmt().leftMargin())));
+        drag(onH(edge + 20, low), onH(edge, low));
+        // The right indent marker past the frame's right edge.
+        drag(onH(edgeR, low), onH(edgeR + 30, low));
+        QVERIFY2(std::abs(fmt().rightMargin() + 30) <= pixel, qPrintable(QString::number(fmt().rightMargin())));
+        ed->endTextEdit();
+    }
+
     // A text box's hyphenation zone is kept in a .pub file with its story's
     // hyphenation setting, in every box of a linked chain.
     void pubTextBoxHyphenationZoneKept()
