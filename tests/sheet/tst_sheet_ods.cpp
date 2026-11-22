@@ -267,6 +267,34 @@ private Q_SLOTS:
         QCOMPARE(negative.format(-5, DateSystem::Date1900, 0).text, QStringLiteral("-5.00"));
     }
 
+    // A data style that carries the code it was written from (jo:code) is read as that code when the code shows the same as the style does ("DD/MM/YYYY" for a style of
+    // dd/mm/yyyy, "#0" for one of "0"), and as the style says when it does not (the style was changed after the code was written).
+    void aDataStyleKeepsTheCodeItWasWrittenFrom()
+    {
+        const QString ns = QStringLiteral(" xmlns:jo=\"urn:jeffoffice:odf-extension\"");
+        const QString date = QStringLiteral("<number:day number:style=\"long\"/><number:text>/</number:text><number:month number:style=\"long\"/><number:text>/</number:text><number:year number:style=\"long\"/>");
+        const QString whole = QStringLiteral("<number:number number:decimal-places=\"0\" number:min-integer-digits=\"1\"/>");
+        const QString data = QStringLiteral("<number:date-style style:name=\"D1\"%1 jo:code=\"DD/MM/YYYY\">%2</number:date-style>").arg(ns, date)
+                             + QStringLiteral("<number:date-style style:name=\"D2\"%1 jo:code=\"DD/MM/YY\">%2</number:date-style>").arg(ns, date)
+                             + QStringLiteral("<number:number-style style:name=\"N1\"%1 jo:code=\"#0\">%2</number:number-style>").arg(ns, whole)
+                             + QStringLiteral("<number:number-style style:name=\"N2\"%1 jo:code=\"not a format [\">%2</number:number-style>").arg(ns, whole);
+        QString styles = data;
+        const QStringList names = {QStringLiteral("D1"), QStringLiteral("D2"), QStringLiteral("N1"), QStringLiteral("N2")};
+        QString cells;
+        for (int i = 0; i < names.size(); ++i) {
+            styles += QStringLiteral("<style:style style:name=\"ce%1\" style:family=\"table-cell\" style:data-style-name=\"%2\"/>").arg(i).arg(names[i]);
+            cells += floatCell(44000.5, QStringLiteral("table:style-name=\"ce%1\"").arg(i));
+        }
+        Workbook wb = open(simple(table(QStringLiteral("S"), columns(int(names.size())) + row(cells)), styles));
+        const Sheet s = readSheet(wb);
+        const QStringList expected = {QStringLiteral("DD/MM/YYYY"), QStringLiteral("dd/mm/yyyy"), QStringLiteral("#0"), QStringLiteral("0")};
+        for (int i = 0; i < expected.size(); ++i) {
+            const std::optional<Cell> c = at(s, cellName(0, quint32(i)));
+            QVERIFY2(c, qPrintable(QString::number(i) + QLatin1Char(' ') + s.error));
+            QCOMPARE(wb.styles().formatCode(c->style), expected[i]);
+        }
+    }
+
     // A cell style's font, fill, border, alignment, and protection, with a style that follows another one, and the default style under them all.
     void cellStylesAreFormats()
     {

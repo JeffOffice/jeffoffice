@@ -410,7 +410,7 @@ QString element(const Section &s, const QString &name, bool main, const QString 
 
 } // namespace
 
-bool odfDataStyles(const QString &code, const QString &baseName, OdfDataStyles *out)
+static bool dataStylesOf(const QString &code, const QString &baseName, OdfDataStyles *out)
 {
     if (code.isEmpty() || code.compare(QLatin1String("General"), Qt::CaseInsensitive) == 0) {
         out->xml.clear();
@@ -494,6 +494,16 @@ bool odfDataStyles(const QString &code, const QString &baseName, OdfDataStyles *
     xml += element(sections[main], baseName, true, maps, textLast);
     out->xml = xml;
     out->mainName = baseName;
+    return true;
+}
+
+bool odfDataStyles(const QString &code, const QString &baseName, OdfDataStyles *out)
+{
+    if (!dataStylesOf(code, baseName, out)) return false;
+    // the code as it was written (a style cannot say "YYYY" or "#0" apart from "yyyy" or "0"): the reader keeps it when the style still shows the same
+    const QString marker = QStringLiteral(" style:name=\"%1\"").arg(out->mainName);
+    const qsizetype at = out->mainName.isEmpty() ? -1 : out->xml.indexOf(marker);
+    if (at >= 0) out->xml.insert(at + marker.size(), QStringLiteral(" jo:code=\"%1\"").arg(esc(code)));
     return true;
 }
 

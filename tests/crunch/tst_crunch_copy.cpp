@@ -371,6 +371,33 @@ private Q_SLOTS:
         }
     }
 
+    // A copy saved as an .ods through the window reads back with each number format spelled as the workbook had it ("YYYY-MM-DD", "#0", "#0.0#"), not in the spelling
+    // the data style says it in ("yyyy-mm-dd", "0", "0.0#").
+    void aCopyAsOdsKeepsTheSpellingOfNumberFormats()
+    {
+        const QByteArray styles = stylesXml(QStringLiteral("<numFmt numFmtId=\"164\" formatCode=\"YYYY-MM-DD\"/><numFmt numFmtId=\"165\" formatCode=\"#0\"/><numFmt numFmtId=\"166\" formatCode=\"#0.0#\"/>"),
+                                            QStringLiteral("<xf numFmtId=\"0\"/><xf numFmtId=\"164\" applyNumberFormat=\"1\"/><xf numFmtId=\"165\" applyNumberFormat=\"1\"/><xf numFmtId=\"166\" applyNumberFormat=\"1\"/>"));
+        const QByteArray book = buildXlsx({worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\" s=\"1\"><v>44000</v></c><c r=\"B1\" s=\"2\"><v>5</v></c><c r=\"C1\" s=\"3\"><v>7</v></c></row>"))},
+                                          QByteArray(), QString(), QString(), styles);
+        Win o;
+        QVERIFY(o.open(book, QStringLiteral("spelling.xlsx")));
+        const QString target = o.dir.filePath(QStringLiteral("copy.ods"));
+        QSignalSpy copied(&o.w, &CrunchWindow::copyExported);
+        QVERIFY(o.w.saveAs(target, true));
+        QVERIFY(copied.count() > 0 || copied.wait(20000));
+        QVERIFY(copied.first().at(1).toBool());
+        Workbook wb;
+        Sheet s;
+        QVERIFY(read(target, &wb, &s));
+        const QStringList want{QStringLiteral("YYYY-MM-DD"), QStringLiteral("#0"), QStringLiteral("#0.0#")};
+        for (int i = 0; i < 3; ++i) {
+            const std::optional<Cell> c = at(s, QString(QLatin1Char(char('A' + i))) + QLatin1Char('1'));
+            QVERIFY(c.has_value());
+            QCOMPARE(wb.styles().formatCode(c->style, QLocale::c()), want[i]);
+        }
+        QVERIFY(o.originalIsUntouched());
+    }
+
     // The named views of the workbook are said to be left out of a copy in an older kind of file.
     void customViewsAreSaidToBeLeftOutOfACopy()
     {

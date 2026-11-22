@@ -180,11 +180,31 @@ QString sectionCondition(QString condition)
 
 } // namespace
 
+namespace {
+
+// Whether two codes show the same text for numbers of every kind (and for a date, a fraction, and a number of 15 digits): a code that a style was written from is the one to
+// keep when the style says no more than it does.
+bool showsTheSame(const QString &a, const QString &b)
+{
+    const jp::calc::NumberFormat fa(a), fb(b);
+    if (!fa.isValid() || !fb.isValid()) return false;
+    static const double probes[] = {0, 1, -1, 0.5, -0.5, 7, 12, 123, 1234.5678, -98765.4321, 0.004, -0.004, 45000.25, 36526.75, 1e10, 1.5e-7, 123456789012345.0, 0.3333333333, 59, 61.5};
+    for (const double v : probes) {
+        const jp::calc::Formatted x = fa.format(v), y = fb.format(v);
+        if (x.failed != y.failed || x.text != y.text || x.color != y.color) return false;
+    }
+    return fa.formatText(QStringLiteral("Ab")).text == fb.formatText(QStringLiteral("Ab")).text;
+}
+
+} // namespace
+
 QString StyleStore::dataStyleCode(const QString &name) const
 {
     const auto cached = m_codes.constFind(name);
     if (cached != m_codes.constEnd()) return cached.value();
-    const QString code = dataStyleCodeDepth(name, 0);
+    QString code = dataStyleCodeDepth(name, 0);
+    const auto style = m_data.constFind(name);
+    if (style != m_data.constEnd() && !style->writtenCode.isEmpty() && style->writtenCode != code && showsTheSame(style->writtenCode, code)) code = style->writtenCode;
     m_codes.insert(name, code);
     return code;
 }

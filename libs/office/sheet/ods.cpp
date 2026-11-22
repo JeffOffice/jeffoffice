@@ -332,6 +332,7 @@ private:
             m_data.name = attr(a, NS_STYLE, QLatin1String("name"));
             m_data.kind = name.left(name.size() - 6).toString();
             m_data.truncateOnOverflow = attr(a, NS_NUMBER, QLatin1String("truncate-on-overflow")) != QLatin1String("false");
+            m_data.writtenCode = attr(a, QLatin1String("urn:jeffoffice:odf-extension"), QLatin1String("code")).left(1000);
             m_inData = true;
             if (++m_dataStyles > m_limits.odsStyles) m_overStyles = true;
             return;

@@ -67,6 +67,7 @@ struct DataStyle {
         QString applyStyle;
     };
     QVector<Map> maps;
+    QString writtenCode;          // jo:code, the code a JeffOffice writer had (kept when it reads the same as the style does)
 };
 
 class StyleStore {
