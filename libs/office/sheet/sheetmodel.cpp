@@ -149,20 +149,35 @@ std::optional<Cell> CellStore::memberAt(const SpillView &v, quint32 row, quint32
     return m;
 }
 
+// (what the two finds do when the store has a table: apart, so that the plain path is no more than it was)
+Q_NEVER_INLINE std::optional<Cell> CellStore::findWithSpills(quint32 row, quint32 col, const Cell *c) const
+{
+    if (const SpillView v = spillView()) return memberAt(v, row, col, c);
+    return c ? std::optional<Cell>(*c) : std::nullopt;
+}
+
+Q_NEVER_INLINE std::optional<Cell> CellStore::findByIdWithSpills(quint32 rowId, quint32 colId, const Cell *c) const
+{
+    if (const SpillView v = spillView()) {
+        const quint32 row = rowPosOf(rowId), col = colPosOf(colId);
+        if (row != kNoLine && col != kNoLine) return memberAt(v, row, col, c);
+    }
+    return c ? std::optional<Cell>(*c) : std::nullopt;
+}
+
 std::optional<Cell> CellStore::find(quint32 row, quint32 col) const
 {
-    const Cell *c = findReal(row, col);
-    if (const SpillView v = spillView()) return memberAt(v, row, col, c);
+    // (findReal's lookup, written out: as a call of its own it costs a tenth more than a find did)
+    const quint32 rowId = rowIdOf(row), colId = colIdOf(col);
+    const Cell *c = rowId == kNoLine || colId == kNoLine ? nullptr : findRealById(rowId, colId);
+    if (hasSpills()) return findWithSpills(row, col, c);
     return c ? std::optional<Cell>(*c) : std::nullopt;
 }
 
 std::optional<Cell> CellStore::findById(quint32 rowId, quint32 colId) const
 {
     const Cell *c = findRealById(rowId, colId);
-    if (const SpillView v = spillView()) {
-        const quint32 row = rowPosOf(rowId), col = colPosOf(colId);
-        if (row != kNoLine && col != kNoLine) return memberAt(v, row, col, c);
-    }
+    if (hasSpills()) return findByIdWithSpills(rowId, colId, c);
     return c ? std::optional<Cell>(*c) : std::nullopt;
 }
 

@@ -248,6 +248,8 @@ public:
         guardCheck("CellStore::noteSpillChange");
         noteWrite(kNoLine, kNoLine);
     }
+    // (a plain test of two pointers: a store with no table, which is every store with the index off, builds no view)
+    bool hasSpills() const { return m_spill || m_frozen; }
     SpillView spillView() const
     {
         if (m_spill) return m_spill->view();
@@ -331,9 +333,11 @@ public:
     template <class F>
     void forEach(F f) const
     {
-        if (const SpillView v = spillView()) {
-            forEachMerged(v, 0, 0, quint32(-1), quint32(0xFFFF), f);
-            return;
+        if (hasSpills()) {
+            if (const SpillView v = spillView()) {
+                forEachMerged(v, 0, 0, quint32(-1), quint32(0xFFFF), f);
+                return;
+            }
         }
         forEachReal(f);
     }
@@ -504,9 +508,11 @@ public:
     template <class F>
     void forEachInRange(quint32 row1, quint32 col1, quint32 row2, quint32 col2, F f, RangeWalk *walk = nullptr) const
     {
-        if (const SpillView v = spillView()) {
-            forEachMerged(v, row1, col1, row2, col2, f, walk);
-            return;
+        if (hasSpills()) {
+            if (const SpillView v = spillView()) {
+                forEachMerged(v, row1, col1, row2, col2, f, walk);
+                return;
+            }
         }
         forEachInRangeReal(row1, col1, row2, col2, f, walk);
     }
@@ -1344,6 +1350,8 @@ private:
     std::shared_ptr<SpillPublisher> m_spill;           // (null: this store has no blocks table)
     std::shared_ptr<const SpillTable> m_frozen;        // (the blocks a copy of a store was made with)
     std::optional<Cell> memberAt(const SpillView &v, quint32 row, quint32 col, const Cell *real) const;
+    std::optional<Cell> findWithSpills(quint32 row, quint32 col, const Cell *real) const;
+    std::optional<Cell> findByIdWithSpills(quint32 rowId, quint32 colId, const Cell *real) const;
     void guardCheck(const char *what) const
     {
         if (m_guard) m_guard->check(what);
