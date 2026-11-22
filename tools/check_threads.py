@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
-"""Checks that libs/ and apps/ start no thread through the C++ library, and ask the system for no locale outside jp::systemLocale.
+"""Checks that libs/ and apps/ start no thread through the C++ library, use no thread_local that is not listed, and ask the system for no locale outside jp::systemLocale.
 
 std::thread, std::jthread, and std::async start a thread that, on Windows (MinGW), frees the
 storage of its thread_local objects before their destructors run: a worker that had used one
 crashed as it ended (libs/base/core/workthread.h has the story). Our threads are QThreads:
 jp::WorkThread and jp::runDetached of that header, QThreadPool, or QtConcurrent. The number of
 processors is QThread::idealThreadCount(). The test programs follow the same rule (tests/).
+
+thread_local is reported wherever it is written in our own code (comments and strings aside), unless tools/check_thread_local_allowed.txt lists the file with the exact number of uses
+("path | count | reason"): an object with a destructor (a cache, a std::function, a QString) is what crashed at a worker's end on Windows, so new code passes a value down or keeps the
+object in the caller. A file whose count changes, up or down, is reported until its line is corrected.
 
 The system's locale (QLocale::system(), a default-constructed QLocale() while the default is the system's, QDate::toString(Qt::TextDate), a date pattern given to
 QDate/QTime/QDateTime::toString, localeAwareCompare, a default QCollator, %L in a string, QLocale::uiLanguages) is asked of the operating system at each use, and that is not safe on a worker
@@ -23,6 +27,7 @@ import sys
 
 ROOT = pathlib.Path(__file__).resolve().parent.parent
 USE = re.compile(r"\bstd::(thread|jthread|async)\b")
+TLS = re.compile(r"\bthread_local\b")
 
 # The system's locale, by any route.
 LOCALE = re.compile(
@@ -55,6 +60,72 @@ def code_of(line: str) -> str:
     return line.split("//", 1)[0]
 
 
+def load_thread_local_allowed() -> dict:
+    """path -> (count, reason) from tools/check_thread_local_allowed.txt."""
+    out = {}
+    for line in (ROOT / "tools" / "check_thread_local_allowed.txt").read_text(encoding="utf-8").splitlines():
+        if line.strip() and not line.startswith("#"):
+            path, count, reason = (part.strip() for part in line.split(" | ", 2))
+            out[path] = (int(count), reason)
+    return out
+
+
+RAW = re.compile(r'R"([^()\\ ]{0,16})\(')
+
+
+def blanked(text: str) -> str:
+    """The text with comments and the insides of string and character literals replaced by spaces (new lines kept), so that a word in them is not code."""
+    out, i, n = [], 0, len(text)
+    keep_lines = lambda part: "".join("\n" if ch == "\n" else " " for ch in part)
+    while i < n:
+        c = text[i]
+        two = text[i:i + 2]
+        raw = RAW.match(text, i) if c == "R" and (i == 0 or not (text[i - 1].isalnum() or text[i - 1] == "_")) else None
+        if two == "//":
+            j = text.find("\n", i)
+            j = n if j < 0 else j
+            out.append(" " * (j - i))
+            i = j
+        elif two == "/*":
+            j = text.find("*/", i + 2)
+            j = n if j < 0 else j + 2
+            out.append(keep_lines(text[i:j]))
+            i = j
+        elif raw:
+            j = text.find(")" + raw.group(1) + '"', i)
+            j = n if j < 0 else j + len(raw.group(1)) + 2
+            out.append(keep_lines(text[i:j]))
+            i = j
+        elif c in "\"'" and not (c == "'" and i > 0 and text[i - 1].isalnum()):   # (a digit separator, 1'000, is no literal)
+            j = i + 1
+            while j < n and text[j] != c and text[j] != "\n":
+                j += 2 if text[j] == "\\" else 1
+            j = min(j + 1, n)
+            out.append(keep_lines(text[i:j]))
+            i = j
+        else:
+            out.append(c)
+            i += 1
+    return "".join(out)
+
+
+def thread_locals(texts: dict) -> list:
+    """Messages for each thread_local in our own code that tools/check_thread_local_allowed.txt does not account for."""
+    table, found, msgs = load_thread_local_allowed(), {}, []
+    for rel, text in texts.items():
+        lines = text.splitlines()
+        for number, line in enumerate(blanked(text).splitlines(), 1):
+            if TLS.search(line):
+                found.setdefault(rel, []).append(f"{rel}:{number}: {lines[number - 1].strip()[:120]}")
+    for rel, uses in found.items():
+        if rel not in table:
+            msgs += uses
+        elif table[rel][0] != len(uses):
+            msgs += [f"{rel}: {len(uses)} thread_local, tools/check_thread_local_allowed.txt says {table[rel][0]}: correct the line (a new use must go, not be listed)"] + uses
+    msgs += [f"{rel}: listed in tools/check_thread_local_allowed.txt but has no thread_local: take the line out" for rel in sorted(set(table) - set(found))]
+    return msgs
+
+
 def main() -> int:
     bad, locale_bad, held = [], [], 0
     table = load_allowed()
@@ -64,6 +135,7 @@ def main() -> int:
         for path in sorted((ROOT / top).rglob("*")):
             if path.suffix in (".cpp", ".h", ".mm", ".inc") and "third_party" not in path.parts:
                 texts[str(path.relative_to(ROOT))] = path.read_text(encoding="utf-8", errors="replace")
+    tl_texts = {}
     reached = set()   # stems of files that a thread-starting file is, or includes
     for rel, text in texts.items():
         if STARTS.search(text) and not rel.endswith(("syslocale.cpp", "syslocale.h")):
@@ -75,6 +147,7 @@ def main() -> int:
                 continue
             text = path.read_text(encoding="utf-8", errors="replace")
             rel = str(path.relative_to(ROOT))
+            tl_texts[rel] = text
             starts = bool(STARTS.search(text)) and not rel.endswith(("syslocale.cpp", "syslocale.h"))
             if rel.endswith(("syslocale.cpp", "syslocale.h")):
                 ok_locale = True
@@ -99,6 +172,11 @@ def main() -> int:
                     else:
                         locale_bad.append(f"{rel}:{number}: {line.strip()[:120]}")
     locale_bad += [f"{rel}: listed in tools/check_threads_allowed.txt but uses the system's locale nowhere: take the line out" for rel in sorted(set(table) - used)]
+    tl_bad = thread_locals(tl_texts)
+    if tl_bad:
+        print("\n".join(tl_bad))
+        print(f"{len(tl_bad)} problem(s): thread_local (an object with a destructor crashes at a worker's end on Windows, libs/base/core/workthread.h): pass the value down, or keep it in the caller")
+        return 1
     if bad:
         print("\n".join(bad))
         print(f"{len(bad)} problem(s): the C++ library's threads: use jp::WorkThread or jp::runDetached (libs/base/core/workthread.h)")

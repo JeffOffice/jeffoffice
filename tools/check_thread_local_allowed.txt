@@ -1,0 +1,56 @@
+# One line for each file that has thread_local: path | number of uses | reason. tools/check_threads.py reads it; the number must match exactly, so a new use in a listed file is reported too.
+# These are the uses main had on Nov 22, 2026 when the rule was added; none was rewritten. "trivially destructible" means integers, flags, enums, pointers, or a plain struct of them: nothing runs at a thread's end.
+# "needs a decision" means an object with a destructor (it runs at the end of a worker thread; the threads are QThreads, which free their storage after the destructors, so it is believed safe, but the BRIEF forbids it): remove or accept each one.
+apps/crunch/core/formatcodes.cpp | 3 | needs a decision: a QString of the last format code
+apps/deck/app/morph.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
+apps/deck/app/slideshow.cpp | 2 | needs a decision: a QImage scratch; the other use is a counter
+apps/deck/core/animation_edit.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
+apps/deck/core/ink.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
+apps/deck/core/linkareas.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
+apps/deck/core/themeapply.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
+apps/deck/io/deckoutput.cpp | 2 | needs a decision: a kept comments plan (QVector and QHash)
+apps/deck/io/odpimport_shape.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
+apps/deck/io/odpimport_text.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
+apps/deck/io/pptimport.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
+apps/deck/io/pptsalvage.cpp | 2 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
+apps/deck/io/pptximport.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
+apps/deck/io/pptxreview.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
+apps/deck/io/pptxshow.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
+apps/write/core/citeops.cpp | 1 | needs a decision: a cache holding QVector, QHash, and QString
+apps/write/core/drawnitems.cpp | 3 | needs a decision: a QByteArray and QDom objects kept between calls
+apps/write/core/editops.cpp | 8 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
+apps/write/core/pictureops.cpp | 1 | needs a decision: a QCache of picture answers
+apps/write/core/reviewops.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
+apps/write/core/writedoc_story.cpp | 1 | needs a decision: a QHash of QRegularExpression
+libs/base/calc/budget.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
+libs/base/calc/dates.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
+libs/base/calc/ets.cpp | 1 | needs a decision: a std::vector cache of forecast entries
+libs/base/calc/fn_ets.cpp | 1 | needs a decision: a std::vector cache of forecast entries
+libs/base/core/color.cpp | 2 | needs a decision: a std::function (the very case libs/base/core/workthread.h tells of); the other use is a counter
+libs/base/io/cfb.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
+libs/base/render/metafile.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
+libs/draw/core/svg.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
+libs/draw/core/texteffects.cpp | 1 | needs a decision: a QCache of text effects
+libs/draw/render/shapes.cpp | 3 | needs a decision: a QHash cache of evaluated shapes
+libs/flow/flow/pageobjects.cpp | 1 | needs a decision: a QVector scratch list
+libs/office/doc/doc.h | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
+libs/office/doc/docfile.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
+libs/office/doc/docsalvage.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
+libs/office/office/chart.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
+libs/office/office/chart_svg.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
+libs/office/office/chart_trend.cpp | 1 | needs a decision: a std::deque cache of trend fits
+libs/office/office/drawingml_text.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
+libs/office/office/mtx.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
+libs/office/rtf/rtfparse.cpp | 2 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
+libs/office/sheet/chartembed.cpp | 3 | needs a decision: QVector caches of chart data and digests; the other use is a counter
+libs/office/sheet/odsformula.cpp | 2 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
+libs/office/sheet/sheetmodel.cpp | 1 | needs a decision: a std::vector of held guards
+libs/office/sheet/sheetmodel.h | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
+libs/office/wml/wmldrawing.cpp | 2 | needs a decision: a QCache of parsed shapes; the other use is an integer counter
+libs/office/wml/xmltree.h | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
+libs/page/app/tableedit.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
+libs/page/canvas/canvasaccessible.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
+libs/page/core/chartobject.cpp | 3 | needs a decision: QVector and QHash caches of decoded and described charts
+libs/page/core/document.cpp | 2 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
+libs/page/render/renderer.cpp | 6 | needs a decision: the SVG cache (a std::list of kept pictures); the other uses are integer counters
+libs/text/text/textengine.cpp | 16 | needs a decision: QHash stroke caches and QPointer-holding "kept" records; the other uses are integers and pointers
