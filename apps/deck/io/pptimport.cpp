@@ -976,6 +976,7 @@ private:
     void readMasters();
     void buildMaster(MasterInfo &m);
     const Fill &backgroundOf(const MasterInfo &m) const;
+    Fill backgroundUnder(const MasterInfo &m, const QColor *scheme);
     Fill backgroundAt(const Fill &background, const QRectF &shape);
     void makeMasterPage(MasterInfo &m, int number);
     const Item *masterPlaceholder(const MasterInfo &m, const QString &type) const;
@@ -1955,6 +1956,22 @@ const Fill &Importer::backgroundOf(const MasterInfo &m) const
     return m.title && (m.flags & 4) && m.main ? m.main->background : m.background;
 }
 
+// The master's background read again with another scheme's colors: a slide that follows its master's background but has its own
+// scheme takes the colors of a scheme-indexed fill from its own scheme (section 2.5.10, slideFlags; measured: 10 of 10 slides in
+// 2 files whose master fill is scheme-indexed, and 2 slides whose master has a plain color keep it).
+Fill Importer::backgroundUnder(const MasterInfo &m, const QColor *scheme)
+{
+    const MasterInfo &owner = m.title && (m.flags & 4) && m.main ? *m.main : m;
+    PageState st;
+    st.scheme = scheme;
+    m_state = &st;
+    Fill bg = office::odrawBackground(owner.drawing, drawingContext());
+    m_state = nullptr;
+    noteShapeLimit();
+    if (bg.isNone()) bg = Fill::solid(ColorRef::rgb(scheme[0]));
+    return bg;
+}
+
 void Importer::makeMasterPage(MasterInfo &m, int number)
 {
     auto page = std::make_shared<MasterPage>();
@@ -2328,6 +2345,13 @@ void Importer::readSlide(int number, const SlideEntry &e)
         noteShapeLimit();
         if (bg.isNone() && ownColors) bg = Fill::solid(ColorRef::rgb(own[0]));
         page->background = bg;
+    }
+    if ((flags & 4) && ownColors && !std::equal(own, own + 8, (source->title && (source->flags & 4) && source->main ? source->main : source)->scheme)) {
+        const Fill under = backgroundUnder(*source, own);
+        if (!(under == backgroundOf(*source))) {
+            bg = under;
+            page->background = bg;
+        }
     }
     st.background = bg.isNone() ? backgroundOf(*source) : bg;
     ItemList items = readShapes(drawing, st);

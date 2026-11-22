@@ -351,6 +351,63 @@ private Q_SLOTS:
         Settings::get().removeRecentFile(newPath);
     }
 
+    // A slide that follows its master's background but has a color scheme of its own: the master's fill is the scheme's background
+    // color, and the slide stands on its own scheme's (the master's own page keeps the master scheme's).
+    static QByteArray slideWithOwnSchemeOnMasterBackground(bool followScheme)
+    {
+        const QByteArray props = le(0x0181, 2) + le(0x08000000, 4) + le(0x01BF, 2) + le(0x00120012, 4) + le(0x01FF, 2) + le(0x00080000, 4);
+        const QByteArray background = pptBox(0xF004, pptRec(0xF00A, le(0x500, 4) + le(0xC00, 4), 0, 2) + pptRec(0xF00B, props, 3, 3));
+        const QByteArray own = pptRec(2032, pptColor(0x10, 0x40, 0x90, 0) + pptColor(0x11, 0x22, 0x33, 0) + pptColor(0xDD, 0xDD, 0xCC, 0) + pptColor(0x44, 0x55, 0x66, 0)
+                                          + pptColor(0x77, 0x88, 0x99, 0) + pptColor(0xAA, 0xBB, 0xCC, 0) + pptColor(1, 2, 3, 0) + pptColor(4, 5, 6, 0), 1);
+        QByteArray file = buildPpt(false, false, false, false, QByteArray(), QByteArray(), QByteArray(), QByteArray(), background, QByteArray(), 1006, QByteArray(), own);
+        QByteArray from = le(1, 4) + QByteArray("\x0D\x0E\0\0\0\0\0\0", 8) + le(0x80000001, 4) + le(0x200, 4) + le(7, 2);
+        QByteArray stream;
+        cfb::File f;
+        cfb::read(file, &f);
+        stream = f.stream(QStringLiteral("PowerPoint Document"));
+        const qsizetype at = stream.indexOf(from);
+        if (at < 0) return QByteArray();
+        stream.replace(at + from.size() - 2, 2, le(followScheme ? 7 : 5, 2));
+        f.setStream(QStringLiteral("PowerPoint Document"), stream);
+        return cfb::write(f);
+    }
+
+    void aSlideOnItsMastersBackgroundTakesItsOwnSchemesColor()
+    {
+        QString err;
+        auto d = deck::importBinaryPresentation(slideWithOwnSchemeOnMasterBackground(false), &err);
+        QVERIFY2(d, qPrintable(err));
+        QCOMPARE(d->pages[0]->background, Fill::solid(ColorRef::rgb(QColor(0x10, 0x40, 0x90))));
+        // The slide that follows the master's scheme too, and the one that has no scheme of its own, keep the master's colors.
+        QVERIFY(d->pages[1]->background.isNone());
+        auto same = deck::importBinaryPresentation(slideWithOwnSchemeOnMasterBackground(true), &err);
+        QVERIFY2(same, qPrintable(err));
+        QVERIFY(same->pages[0]->background.isNone());
+        QCOMPARE(d->master(d->master(d->pages[1]->masterId)->baseId)->background, Fill::solid(ColorRef::rgb(QColor(0xFA, 0xFA, 0xFA))));
+        // Saved through the window and opened again, the page still stands on its own scheme's color.
+        QTemporaryDir dir;
+        const QString oldPath = dir.filePath(QStringLiteral("old.ppt")), newPath = dir.filePath(QStringLiteral("new.pptx"));
+        QFile out(oldPath);
+        QVERIFY(out.open(QIODevice::WriteOnly));
+        out.write(slideWithOwnSchemeOnMasterBackground(false));
+        out.close();
+        {
+            DeckWindow w;
+            QVERIFY(w.openFile(oldPath));
+            w.setSavePathChooser([&](const QString &, const QString &) { return newPath; });
+            QVERIFY(w.save());
+            w.editor()->markSaved();
+        }
+        DeckWindow again;
+        QVERIFY(again.openFile(newPath));
+        const Document &back = *again.editor()->doc();
+        QCOMPARE(back.pages[0]->background.type, Fill::Solid);
+        QCOMPARE(back.pages[0]->background.color.rgbValue(), QColor(0x10, 0x40, 0x90));
+        QVERIFY(back.pages[1]->background.isNone() || back.pages[1]->background.color.rgbValue() != QColor(0x10, 0x40, 0x90));
+        Settings::get().removeRecentFile(oldPath);
+        Settings::get().removeRecentFile(newPath);
+    }
+
     // A presentation protected with a password: each persist object is enciphered on its own with the key of its persist id, the pictures field by field. The right password gives the
     // slides and the picture as they were; the file without it says it is protected; a wrong password is refused, and nothing is read.
     void protectedBinaryPresentationOpensWithItsPassword()
