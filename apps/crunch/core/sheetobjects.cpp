@@ -23,6 +23,8 @@
 #include <QPainter>
 #include <QPointer>
 #include <QSvgRenderer>
+#include <QTextBlock>
+#include <QTextDocument>
 #include "core/barcodeitem.h"
 #include "core/syslocale.h"
 #include <QThreadPool>

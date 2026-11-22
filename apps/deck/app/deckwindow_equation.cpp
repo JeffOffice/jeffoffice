@@ -21,6 +21,7 @@
 
 #include <QAction>
 #include <QColor>
+#include <QCoreApplication>
 #include <QDomDocument>
 #include <QJsonArray>
 #include <QJsonObject>

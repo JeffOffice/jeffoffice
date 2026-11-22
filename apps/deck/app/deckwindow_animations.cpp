@@ -21,6 +21,7 @@
 #include <QAction>
 #include <QActionGroup>
 #include <QComboBox>
+#include <QCoreApplication>
 #include <QDockWidget>
 #include <QDoubleSpinBox>
 #include <QMenu>
