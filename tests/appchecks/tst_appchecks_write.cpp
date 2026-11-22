@@ -695,10 +695,12 @@ private Q_SLOTS:
             {QStringLiteral("arrange.alignToPage"), QStringLiteral("it is the setting the next Align command reads, and changes nothing by itself; alignToPageDecidesWhatTheAlignCommandsLineUpWith runs both ways with a shape selected")},
             {QStringLiteral("table.draw"), QStringLiteral("it picks up the pen: the pointer and the mark change, and the drawing is made by a mouse drag; drawTableAndEraserCommandsPickUpTheToolsThatDrawAndJoin drags it in a window")},
             {QStringLiteral("table.eraser"), QStringLiteral("it picks up the eraser: the pointer and the mark change, and the join is made by a mouse drag; drawTableAndEraserCommandsPickUpTheToolsThatDrawAndJoin drags it in a window")},
+            {QStringLiteral("table.paintBorder"), QStringLiteral("it picks up the border painter: the pointer and the mark change, and the borders are made by a mouse drag; draggingTheBorderPainterAlongALinePutsTheBorderOnBothSides drags along a line and checks the cells' borders")},
             {QStringLiteral("table.gridlines"), QStringLiteral("it draws the edges of the cells that have no line, and the tables the checks make have lines; the window's tests check the drawing")},
             {QStringLiteral("review.show.formatting"), QStringLiteral("it chooses whether the bars for changes of formatting are painted in the pages' margin, which no control shows; the window's tests check the painting")},
         };
         m_app.neverRun = {
+            {QStringLiteral("table.moveDown"), QStringLiteral("it is on only with a paragraph after the table that is not in a table, which no place here has; moveTableUpAndDownGoPastOneParagraphEach runs it on a table with paragraphs after it")},
             {QStringLiteral("fmt.stopHighlighting"), QStringLiteral("it is on only while the pointer is highlighting, which no place here is; pointerHighlightingStaysOnUntilStopHighlightingOrEscapeAndEachSelectionIsOneStep runs it there")},
             {QStringLiteral("insert.control.properties"), QStringLiteral("it is on only with the caret in a content control, which no place here has; thePropertiesBoxEditsTheControlInOneStep runs it on one")},
             {QStringLiteral("design.themes.reset"), QStringLiteral("it is on only once the theme differs from the one the document was opened with, which no place here changes; theDesignTabListsThemesColorsAndFontsAndTheyApplyInOneStep runs it after a change")},
