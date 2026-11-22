@@ -16,6 +16,10 @@
 #include "app/pageview.h"
 #include "app/pageoutput.h"
 #include "render/pdfpage.h"
+#include "render/renderer.h"
+#include "flow/paginator.h"
+#include "text/textengine.h"
+#include "../pdfmarkcheck.h"
 #include <QBuffer>
 #include <atomic>
 #include <QScopeGuard>
@@ -1251,6 +1255,105 @@ private Q_SLOTS:
         int bar = 0;
         pdfInk("<w:p><w:pPr><w:tabs><w:tab w:val=\"bar\" w:pos=\"1440\"/></w:tabs></w:pPr><w:r><w:t>ab</w:t></w:r></w:p>", &bar);
         QVERIFY2(bar >= 8, qPrintable(QString::number(bar)));
+    }
+
+    // A line of text stands on the baseline the layout gives it in the PDF and in the page picture alike: for each face and size, within 0.05 pt (the picture is drawn at 20 pixels to the point,
+    // so that its own pixel grid is not what is measured; a viewer or a rasterizer that draws a PDF's letters on whole pixels is not ours to fix).
+    void aLinesBaselineIsTheLayoutsInThePdfAndInThePagePicture()
+    {
+        const QStringList faces = {QStringLiteral("Times New Roman"), QStringLiteral("Arial")};
+        const QList<int> sizes = {8, 11, 16, 24};
+        QByteArray body;
+        for (const QString &face : faces)
+            for (int size : sizes)
+                body += "<w:p><w:r><w:rPr><w:rFonts w:ascii=\"" + face.toUtf8() + "\" w:hAnsi=\"" + face.toUtf8() + "\"/><w:sz w:val=\"" + QByteArray::number(size * 2) + "\"/></w:rPr><w:t>HHHH</w:t></w:r></w:p>";
+        auto doc = open(makeDocx(onePage(body)));
+        // The layout's baselines, on the page (the text frame is at the margins).
+        LayoutEnv env;
+        env.wordLines = true;
+        FrameSpec frame;
+        frame.size = QSizeF(468, 648);
+        frame.insets = QMarginsF(0, 0, 0, 0);
+        StoryLayout layout;
+        layout.build(doc->story(), {frame}, env);
+        QVector<double> want;
+        for (const auto &l : layout.lineInfo(0)) want << 72 + l.baseline;
+        QCOMPARE(want.size(), faces.size() * sizes.size());
+        // The PDF, as the program saves it: where each line's first letter stands.
+        QBuffer buffer;
+        buffer.open(QIODevice::WriteOnly);
+        {
+            QPdfWriter pdf(&buffer);
+            pdf.setResolution(1200);
+            pdf.setPageMargins(QMarginsF(0, 0, 0, 0));
+            QVERIFY(paintSheets(*doc, &pdf, {0}, 1));
+        }
+        const QVector<QByteArray> contents = pdfcheck::pageContents(buffer.data());
+        QCOMPARE(contents.size(), 1);
+        const QString content = QString::fromLatin1(contents[0]);
+        QVERIFY2(!content.contains(QLatin1String(" Do\n")) && !content.contains(QLatin1String("\nBI")), "text is drawn as letters, not as pictures");
+        QVERIFY(buffer.data().count("/Type0") >= 2);
+        static const QRegularExpression cm(QStringLiteral("([-\\d.]+) 0 0 ([-\\d.]+) ([-\\d.]+) ([-\\d.]+) cm"));
+        static const QRegularExpression td(QStringLiteral("^([-\\d.]+) ([-\\d.]+) Td <"), QRegularExpression::MultilineOption);
+        const auto page = cm.match(content);
+        QVERIFY(page.hasMatch());
+        const double toPoints = std::abs(page.captured(1).toDouble());
+        QVector<double> inPdf;
+        qsizetype at = 0;
+        while (true) {
+            const qsizetype bt = content.indexOf(QLatin1String("\nBT\n"), at);
+            if (bt < 0) break;
+            const qsizetype et = content.indexOf(QLatin1String("\nET"), bt);
+            double scale = 1, top = 0;
+            for (auto it = cm.globalMatch(content.left(bt)); it.hasNext();) {   // (the last transform before the text: its scale and its top)
+                const auto m = it.next();
+                if (m.capturedStart() > page.capturedStart()) {
+                    scale = m.captured(1).toDouble();
+                    top = m.captured(4).toDouble();
+                }
+            }
+            const auto first = td.match(content.mid(bt, et - bt));
+            QVERIFY(first.hasMatch());
+            inPdf << (top - scale * first.captured(2).toDouble()) * toPoints;
+            at = et;
+        }
+        QCOMPARE(inPdf.size(), want.size());
+        for (int i = 0; i < want.size(); ++i) QVERIFY2(std::abs(inPdf[i] - want[i]) < 0.05, qPrintable(QStringLiteral("PDF line %1: %2, layout %3").arg(i).arg(inPdf[i]).arg(want[i])));
+        // The page picture, as the scorer's tool draws it, 20 pixels to the point over the first 160 points: the bottom edge of each line of flat-footed letters.
+        const int scale = 20, top = 72, rows = 160;
+        const auto made = doc->pager().materialize(0);
+        QVERIFY(made);
+        QImage img(120 * scale, rows * scale, QImage::Format_Grayscale8);
+        img.fill(255);
+        {
+            LayoutCache cache;
+            PaintContext ctx;
+            ctx.doc = made->doc.get();
+            ctx.cache = &cache;
+            ctx.pageNumber = made->number;
+            ctx.pageCount = 1;
+            QPainter p(&img);
+            p.setRenderHint(QPainter::Antialiasing);
+            p.setRenderHint(QPainter::TextAntialiasing);
+            p.scale(scale, scale);
+            p.translate(-60, -top + 0.0);
+            Renderer::paintPage(&p, ctx, 0);
+        }
+        QVector<double> inPicture;
+        int y = 0;
+        while (y < img.height()) {
+            auto inked = [&](int row) {
+                const uchar *line = img.constScanLine(row);
+                int dark = 0;
+                for (int x = 0; x < img.width(); ++x) dark += line[x] < 128;
+                return dark > 3;
+            };
+            if (!inked(y)) { ++y; continue; }
+            while (y < img.height() && inked(y)) ++y;
+            inPicture << top + y / double(scale);
+        }
+        QCOMPARE(inPicture.size(), want.size());
+        for (int i = 0; i < want.size(); ++i) QVERIFY2(std::abs(inPicture[i] - want[i]) < 0.05, qPrintable(QStringLiteral("picture line %1: %2, layout %3").arg(i).arg(inPicture[i]).arg(want[i])));
     }
 
     // The list of stops is in the unit of the position field (the person's measurement unit), not always points.
