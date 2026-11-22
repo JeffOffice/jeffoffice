@@ -909,6 +909,67 @@ void WriteTests::thePaginatorAndThePageLayerLeaveTheSameRoomRoundATightOutline()
 }
 
 
+// Text goes round a floating picture by its lines' single height, all of it, whatever the spacing (the extra room of a wider spacing is under the text, outside what
+// the picture is checked against, and the line gap is inside it): a picture whose top is a hair above the bottom of the second line's single height narrows that line,
+// 1.5 spaced as well as single (a line's height here is its own, so no number depends on the fonts of the machine).
+void WriteTests::aLineIsBesideAnObjectThatReachesIntoItsSingleHeightUnderWiderSpacing()
+{
+    QByteArray words;
+    for (int i = 0; i < 400; ++i) words += "word" + QByteArray::number(i % 10) + " ";
+    auto bodyWith = [&](const char *wrap, double topPoints) {
+        const QByteArray ns = "xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" "
+                              "xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"";
+        const QByteArray graphic = "<a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"><pic:pic><pic:nvPicPr><pic:cNvPr id=\"0\" name=\"x\"/><pic:cNvPicPr/></pic:nvPicPr>"
+                                   "<pic:blipFill><a:blip r:embed=\"rIdPic\"/><a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"1270000\" cy=\"1270000\"/></a:xfrm>"
+                                   "<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic>";
+        const QByteArray drawing = "<w:r><w:drawing " + ns + "><wp:anchor distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\" simplePos=\"0\" relativeHeight=\"5\" behindDoc=\"0\" locked=\"0\" layoutInCell=\"1\" allowOverlap=\"1\">"
+                                   "<wp:simplePos x=\"0\" y=\"0\"/><wp:positionH relativeFrom=\"column\"><wp:posOffset>2540000</wp:posOffset></wp:positionH><wp:positionV relativeFrom=\"paragraph\"><wp:posOffset>" +
+                                   QByteArray::number(qint64(topPoints * 12700)) + "</wp:posOffset></wp:positionV><wp:extent cx=\"1270000\" cy=\"1270000\"/><wp:effectExtent l=\"0\" t=\"0\" r=\"0\" b=\"0\"/><" + wrap +
+                                   "/><wp:docPr id=\"1\" name=\"Picture 1\"/><wp:cNvGraphicFramePr/>" + graphic + "</wp:anchor></w:drawing></w:r>";
+        return "<w:p><w:pPr><w:spacing w:line=\"360\" w:lineRule=\"auto\"/></w:pPr>" + drawing + "<w:r><w:rPr><w:rFonts w:ascii=\"Arial Narrow\" w:hAnsi=\"Arial Narrow\"/><w:sz w:val=\"22\"/></w:rPr><w:t xml:space=\"preserve\">" + words + "</w:t></w:r></w:p>";
+    };
+    // (The paragraph's own font is the style's, a face the word processor's tables hold a line height for; the text on the line is in another, so the line the picture is
+    // checked against is the text's, and not the paragraph font's.)
+    auto package = [&](const QByteArray &body) {
+        QImage image(20, 10, QImage::Format_RGB32);
+        image.fill(Qt::black);
+        QByteArray png;
+        QBuffer buffer(&png);
+        buffer.open(QIODevice::WriteOnly);
+        image.save(&buffer, "PNG");
+        office::PackageWriter w;
+        const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+        w.addPart(QStringLiteral("/word/document.xml"), xml(QByteArray("<w:document ") + kNs + "><w:body>" + body + "</w:body></w:document>"),
+                  QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+        w.addPart(QStringLiteral("/word/styles.xml"),
+                  xml(QByteArray("<w:styles ") + kNs + "><w:docDefaults><w:rPrDefault><w:rPr><w:rFonts w:ascii=\"Palatino Linotype\" w:hAnsi=\"Palatino Linotype\"/><w:sz w:val=\"22\"/></w:rPr></w:rPrDefault></w:docDefaults>"
+                      "<w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style></w:styles>"),
+                  QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.styles+xml"));
+        w.addPart(QStringLiteral("/word/media/image1.png"), png, QStringLiteral("image/png"));
+        w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+        w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("styles"), QStringLiteral("/word/styles.xml"));
+        w.addRelationshipWithId(QStringLiteral("/word/document.xml"), QStringLiteral("rIdPic"), rel + QStringLiteral("image"), QStringLiteral("/word/media/image1.png"));
+        return w.finish();
+    };
+    auto bare = open(package(bodyWith("wp:wrapNone", 0)));
+    QVERIFY(bare);
+    const auto free = bare->pager().lines(0);
+    QVERIFY(free.size() >= 4);
+    const double single = free[0].rect.height() / 1.5;   // (1.5 times the single line: the room under the text is a third of the line)
+    QVERIFY(single > 5);
+    const double secondTop = free[1].rect.top();
+    double right = 0;
+    for (const auto &l : free) right = std::max(right, l.rect.right());
+    // The picture's top is just above the bottom of the second line's single height, and it is 100 points wide in the middle of the column.
+    auto wrapped = open(package(bodyWith("wp:wrapSquare wrapText=\"bothSides\"", secondTop - free[0].rect.top() + single * 0.92)));
+    QVERIFY(wrapped);
+    const auto beside = wrapped->pager().lines(0);
+    QVERIFY(beside.size() >= 4);
+    QVERIFY2(beside[0].rect.right() > right - 20, "the first line is above the picture");
+    QVERIFY2(beside[1].rect.right() < right - 100, qPrintable(QStringLiteral("second line ends at %1, the column at %2").arg(beside[1].rect.right()).arg(right)));
+}
+
+
 // A file's wrap outline is bounded where it is read, and so is what is set: at most jp::kMostWrapPoints, each held to the reach (the limit is the count: remove it and 500 points are kept).
 void WriteTests::aLongWrapOutlineIsHeldToTheMostPointsWhenSetAndWhenRead()
 {

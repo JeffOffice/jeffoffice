@@ -1680,6 +1680,7 @@ private Q_SLOTS:
     void theOutlineOfATightWrapIsEditedSavedAndFollowedByTheText();
     void aShapeAndATextBoxHaveAnOutlineTheTextFollowsSavedAndUndone();
     void thePaginatorAndThePageLayerLeaveTheSameRoomRoundATightOutline();
+    void aLineIsBesideAnObjectThatReachesIntoItsSingleHeightUnderWiderSpacing();
     void aLongWrapOutlineIsHeldToTheMostPointsWhenSetAndWhenRead();
     void aPictureIsCutToAnAspectRatioFilledAndFittedInOneStepEach();
     void aPictureMarkedAsDecorativeHasNoDescriptionAndKeepsTheMarkWhenSaved();

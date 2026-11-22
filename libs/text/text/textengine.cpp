@@ -4733,13 +4733,14 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         // the page that is drawn lays the text out again with the object's place made from another transform.)
                         const double touch = env.wordLines ? 0.001 : 0.0;
                         // (A word processor's line that the objects are checked against is as tall as the text on it makes it, not as its paragraph's first run does: the
-                        // line a paragraph goes on with, in smaller type, is no taller than that.)
+                        // line a paragraph goes on with, in smaller type, is no taller than that. Its single line, all of it: the room under the text that a wider spacing adds is
+                        // not in it, and neither is the text's height without the line gap, which a page layout program counts.)
                         double wrapH = estText;
                         if (env.wordLines && !frames[f].obstacles.isEmpty()) {
                             if (lineHeightAtWalls < 0 || measuredFrame != f || measuredColumn != c) {
                                 ++g_lineHeightsMeasured;
                                 line.setLineWidth(std::max(1.0, x1 - x0));
-                                lineHeightAtWalls = std::min(estText, wordLineOf(ranges, line.textStart(), std::max(1, line.textLength()), base, env, &B->disp, &markFont, markSize).total());
+                                lineHeightAtWalls = std::min(std::min(estH, estSingle), wordLineOf(ranges, line.textStart(), std::max(1, line.textLength()), base, env, &B->disp, &markFont, markSize).total());
                                 measuredFrame = f;
                                 measuredColumn = c;
                             }
