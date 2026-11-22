@@ -1354,6 +1354,7 @@ private Q_SLOTS:
     void theCheckBoxOfAnOutlinedBulletIsHollow();
     void theNotesOfAPageAreLaidOutTheSameWithATableInTheDocument();
     void aCustomMarkTakesNoNumberAmongTheNotesOfATablesPage();
+    void aCustomMarkNoteInATableCellIsDrawnAndKept();
     void clearingTheFormattingKeepsACustomNoteMark();
     void aLevelsOutlineEffectIsLookedForOncePerLevel();
     void theNoteSeparatorIsCutPerSection();

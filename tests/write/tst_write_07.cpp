@@ -1611,6 +1611,50 @@ void WriteTests::aCustomMarkTakesNoNumberAmongTheNotesOfATablesPage()
 }
 
 
+// A note whose reference says its mark follows it is drawn when the reference is in a table cell: the note has its own mark as its first text, and it is kept on save.
+void WriteTests::aCustomMarkNoteInATableCellIsDrawnAndKept()
+{
+    auto text = [](const char *t) { return QByteArray("<w:r><w:t xml:space=\"preserve\">") + t + "</w:t></w:r>"; };
+    auto custom = [](int id, const char *mark) { return "<w:r><w:footnoteReference w:customMarkFollows=\"1\" w:id=\"" + QByteArray::number(id) + "\"/><w:t>" + mark + "</w:t></w:r>"; };
+    const QByteArray cell = "<w:p>" + text("Cell one") + custom(2, "13") + "</w:p>";
+    const QByteArray cell2 = "<w:p>" + text("Cell two") + custom(3, "14") + "</w:p>";
+    const QByteArray body = "<w:p>" + text("Before") + "</w:p><w:tbl><w:tblPr><w:tblW w:w=\"6000\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"3000\"/><w:gridCol w:w=\"3000\"/></w:tblGrid>"
+                            "<w:tr><w:tc><w:tcPr><w:tcW w:w=\"3000\" w:type=\"dxa\"/></w:tcPr>" + cell + "</w:tc><w:tc><w:tcPr><w:tcW w:w=\"3000\" w:type=\"dxa\"/></w:tcPr>" + cell2 + "</w:tc></w:tr></w:tbl><w:p>" + text("After") + "</w:p>";
+    auto note = [&](int id, const char *mark, const char *t) { return "<w:footnote w:id=\"" + QByteArray::number(id) + "\"><w:p>" + text(mark) + text(t) + "</w:p></w:footnote>"; };
+    const QByteArray notes = "<w:footnotes " + QByteArray(kNs) + "><w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:footnote>" + note(2, "13 ", "CELLNOTEA words") + note(3, "14 ", "CELLNOTEB words") + "</w:footnotes>";
+    const QByteArray sect = "<w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+    auto doc = open(makeDocxWithParts(body, sect, {{QStringLiteral("/word/footnotes.xml"), notes}}));
+    QVERIFY(doc);
+    const auto page = doc->pager().materialize(0);
+    QVERIFY(boxWithText(*page, QStringLiteral("CELLNOTEA words")));
+    QVERIFY(boxWithText(*page, QStringLiteral("CELLNOTEB words")));
+    // (Kept through the program's own open and save: the file, opened in a window and saved to another, and that one opened again.)
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    const QString first = dir.filePath(QStringLiteral("first.docx")), second = dir.filePath(QStringLiteral("second.docx"));
+    {
+        QFile f(first);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(makeDocxWithParts(body, sect, {{QStringLiteral("/word/footnotes.xml"), notes}}));
+    }
+    WriteWindow win;
+    QVERIFY(win.openFile(first));
+    QVERIFY(win.saveTo(second));
+    QFile saved(second);
+    QVERIFY(saved.open(QIODevice::ReadOnly));
+    const QByteArray savedBytes = saved.readAll();
+    saved.close();
+    const QString xml = documentXml(savedBytes);
+    QVERIFY(xml.contains(QRegularExpression(QStringLiteral("customMarkFollows=\"1\"[^>]*/><w:t[^>]*>13</w:t>"))));
+    QVERIFY(xml.contains(QRegularExpression(QStringLiteral("customMarkFollows=\"1\"[^>]*/><w:t[^>]*>14</w:t>"))));
+    WriteWindow again;
+    QVERIFY(again.openFile(second));
+    const auto page2 = again.document()->pager().materialize(0);
+    QVERIFY(boxWithText(*page2, QStringLiteral("CELLNOTEA words")));
+    QVERIFY(boxWithText(*page2, QStringLiteral("CELLNOTEB words")));
+}
+
+
 // Clearing the formatting leaves a note reference's custom mark as it was: the next automatic note is still the first, and the file still says the mark follows.
 void WriteTests::clearingTheFormattingKeepsACustomNoteMark()
 {

@@ -55,12 +55,16 @@ void TableIndex::rebuild(const QTextDocument *story, const TableStore &store, co
             if (before.isValid() && before.blockFormat().boolProperty(fp::SectionBreakAfter)) footnotes = endnotes = 0;
         }
         const int foot = footnotes, endn = endnotes;
+        int cited = 0;   // (the references the paragraph holds, a custom mark's too: its note is set, it only takes no number)
         if (notes)
             for (auto it = b.begin(); !it.atEnd(); ++it) {
                 const QTextCharFormat cf = it.fragment().charFormat();
                 if (!cf.hasProperty(tp::Field)) continue;
                 const QString code = cf.stringProperty(tp::Field);
-                if (code.startsWith(QLatin1String("footnote:"))) footnotes += cf.boolProperty(tp::NoteMarkCustom) ? 0 : it.fragment().length();   // (a custom mark takes no number)
+                if (code.startsWith(QLatin1String("footnote:"))) {
+                    footnotes += cf.boolProperty(tp::NoteMarkCustom) ? 0 : it.fragment().length();   // (a custom mark takes no number)
+                    cited += it.fragment().length();
+                }
                 else if (code.startsWith(QLatin1String("endnote:"))) endnotes += it.fragment().length();
             }
         const int key = b.blockFormat().intProperty(fp::Cell);
@@ -78,7 +82,7 @@ void TableIndex::rebuild(const QTextDocument *story, const TableStore &store, co
             s.table = up.first()->table;
             m_spans.push_back(s);
         }
-        m_refs.push_back({b.position(), b.position() + b.length(), key, foot, endn, footnotes - foot});
+        m_refs.push_back({b.position(), b.position() + b.length(), key, foot, endn, cited});
         m_spans.back().to = b.position() + b.length();
         m_spans.back().last = int(m_refs.size());
     }
