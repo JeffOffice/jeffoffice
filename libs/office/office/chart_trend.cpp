@@ -242,8 +242,8 @@ TrendFit fitTrend(const ChartTrendline &t, const QVector<double> &x, const QVect
         TrendFit fit;
     };
     // (Kept for all threads, under a lock that is held for the look and for the add, never while a fit is made.)
-    static std::mutex lock;
-    static std::deque<Entry> cache;
+    static std::mutex &lock = *new std::mutex;   // (these two are never destroyed: a worker may still be running when the program ends)
+    static std::deque<Entry> &cache = *new std::deque<Entry>;
     {
         const std::lock_guard<std::mutex> guard(lock);
         for (const Entry &e : cache)

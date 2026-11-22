@@ -243,8 +243,8 @@ int categoriesWorked() { return s_categoriesWorked.load(); }
 NumberCategory categoryOf(const QString &code)
 {
     // (the buttons of formatting ask this each time the cursor goes to a cell of another format, so the patterns are made once, and the last answer is kept)
-    static QMutex mutex;
-    static QString lastCode;
+    static QMutex &mutex = *new QMutex;   // (these two are never destroyed: a worker may still be running when the program ends)
+    static QString &lastCode = *new QString;
     static NumberCategory lastCategory = NumberCategory::General;
     static bool haveLast = false;
     {

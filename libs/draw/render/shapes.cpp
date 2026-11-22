@@ -135,8 +135,8 @@ Evaluated evaluatePreset(const ShapeDef &d, const QSizeF &size, const QVector<do
         quint64 used = 0;
     };
     // (Shared by the threads that draw, under a lock that is held for a lookup or an insert, never while a shape is worked out.)
-    static std::mutex lock;
-    static QHash<QByteArray, Kept> cache;
+    static std::mutex &lock = *new std::mutex;   // (these two are never destroyed: a worker may still be running when the program ends)
+    static QHash<QByteArray, Kept> &cache = *new QHash<QByteArray, Kept>;
     static quint64 clock = 0;
     QByteArray key = d.id.toLatin1();
     key.append(reinterpret_cast<const char *>(&size), sizeof(QSizeF));

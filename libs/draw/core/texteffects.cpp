@@ -106,8 +106,8 @@ int TextEffects::parsedCount() { return s_parsed.load(); }
 std::shared_ptr<const TextEffects> TextEffects::cached(const QString &json)
 {
     // A run's effects are looked at on every paint; the same few strings come back.
-    static std::mutex lock;
-    static QCache<QString, std::shared_ptr<const TextEffects>> known(256);
+    static std::mutex &lock = *new std::mutex;   // (these two are never destroyed: a worker may still be running when the program ends)
+    static QCache<QString, std::shared_ptr<const TextEffects>> &known = *new QCache<QString, std::shared_ptr<const TextEffects>>(256);
     {
         const std::lock_guard<std::mutex> guard(lock);
         if (const auto *e = known.object(json)) return *e;

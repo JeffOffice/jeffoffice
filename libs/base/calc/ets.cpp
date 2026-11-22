@@ -470,8 +470,8 @@ std::shared_ptr<const Model> fitCached(const std::vector<double> &y, int season)
         std::shared_ptr<const Model> model;
     };
     // (shared by the threads that ask, as a model is never changed: a few entries, found and added under the lock; the fit is made outside it)
-    static std::mutex lock;
-    static std::vector<Entry> cache;
+    static std::mutex &lock = *new std::mutex;   // (these two are never destroyed: a worker may still be running when the program ends)
+    static std::vector<Entry> &cache = *new std::vector<Entry>;
     {
         const std::lock_guard<std::mutex> guard(lock);
         for (const Entry &e : cache)

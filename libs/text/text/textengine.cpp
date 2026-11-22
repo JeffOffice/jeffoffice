@@ -1020,7 +1020,7 @@ double handBoldWidth(int kind, double em, TextOutput out, double pxPerPt)
 // to read or to write one (never while an answer is worked out, and never while another is being kept).
 static std::mutex &memoLock()
 {
-    static std::mutex lock;
+    static std::mutex &lock = *new std::mutex;   // (never destroyed: a worker may still be running when the program ends, as with the answers kept below)
     return lock;
 }
 void drawHandBold(QPainter *p, const QTextLine &line, int s, int e, const QTextCharFormat &cf, TextOutput out)
@@ -1056,7 +1056,7 @@ void drawHandBold(QPainter *p, const QTextLine &line, int s, int e, const QTextC
         QHash<QString, quint32> faces;
         QHash<QPair<quint64, quint32>, QPainterPath> outlines;
     };
-    static Strokes kept;   // (for all threads; memoLock is held for a find or an add)
+    static Strokes &kept = *new Strokes;   // (never destroyed, for all threads; memoLock is held for a find or an add)
     static quint32 nextFace = 0;   // (a face's number is never given again, after the kept ones are cleared too: a letter a thread keeps later for a face it numbered before the clear is still that face's)
     {
         const std::lock_guard<std::mutex> guard(memoLock());
@@ -1784,7 +1784,7 @@ static bool hasTrueSmallCaps(const QTextBlock &b)
         int revision = -1, position = -1, length = -1;
         bool small = false;
     };
-    static Kept kept;
+    static Kept &kept = *new Kept;   // (never destroyed)
     {
         const std::lock_guard<std::mutex> guard(memoLock());
         if (kept.doc && kept.doc == b.document() && kept.revision == b.document()->revision() && kept.position == b.position() && kept.length == b.length()) return kept.small;
@@ -1872,7 +1872,7 @@ static bool paragraphHasComplexScript(const QTextBlock &b)
         int revision = -1, position = -1, length = -1;
         bool complex = false;
     };
-    static Kept kept[4];
+    static Kept (&kept)[4] = *new Kept[1][4];   // (never destroyed)
     static int next = 0;
     {
         const std::lock_guard<std::mutex> guard(memoLock());
@@ -1895,7 +1895,7 @@ static bool documentHasNoComplexScript(const QTextDocument *doc)
         int revision = -1, characters = -1;
         bool none = false;
     };
-    static Kept kept[4];
+    static Kept (&kept)[4] = *new Kept[1][4];   // (never destroyed)
     static int next = 0;
     {
         const std::lock_guard<std::mutex> guard(memoLock());
@@ -2031,7 +2031,7 @@ QStringList alignTabSpecsOf(const QTextBlock &b, int headPosition, int stop)
         QString spec;
         QStringList specs;
     };
-    static Kept kept[4];
+    static Kept (&kept)[4] = *new Kept[1][4];   // (never destroyed)
     static unsigned next = 0;
     const QTextDocument *doc = b.document();
     const int revision = doc ? doc->revision() : -1;
@@ -2082,7 +2082,7 @@ RunSeek findRun(const QTextBlock &block, int position)
         int revision = -1, blockPosition = -1, begin = 0;
         QTextBlock::iterator it;
     };
-    static Kept kept[4];
+    static Kept (&kept)[4] = *new Kept[1][4];   // (never destroyed)
     static unsigned next = 0;
     const QTextDocument *doc = block.document();
     const int revision = doc ? doc->revision() : -1;
@@ -2559,7 +2559,7 @@ struct RangeSpan {
 // The ranges that can reach the text from `from` for `len` characters: the whole list unless it is the indexed one.
 static RangeSpan rangesNear(const QVector<QTextLayout::FormatRange> &ranges, int from, int len)
 {
-    static const RangeIndex none;
+    static const RangeIndex &none = *new RangeIndex;
     const RangeIndex &ix = t_rangeIndex ? *t_rangeIndex : none;
     if (!ix.sorted || ix.data != ranges.constData() || ix.n != ranges.size()) {
         g_rangesScanned += ranges.size();
