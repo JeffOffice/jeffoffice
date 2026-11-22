@@ -1855,6 +1855,40 @@ private Q_SLOTS:
         QCOMPARE(checked, 4);
     }
 
+    // Two directory entries of one name: the reading that is whole comes from one entry, and the sectors of the other are never joined to it.
+    void twoEntriesOfOneNameAreNeverMixed()
+    {
+        Book a, b;
+        QByteArray cellsA, cellsB;
+        for (int r = 0; r < 3; ++r) cellsA += number(r, 0, r + 1);
+        for (int r = 0; r < 400; ++r) cellsB += number(r, 0, 5000 + r);
+        a.sheet(QStringLiteral("A"), cellsA);
+        b.sheet(QStringLiteral("A"), cellsB);
+        jp::cfb::File f;
+        jp::cfb::Entry root;
+        root.type = jp::cfb::Entry::Root;
+        root.name = QStringLiteral("Root Entry");
+        f.entries.push_back(root);
+        for (const QByteArray &data : {a.stream(), b.stream()}) {
+            jp::cfb::Entry e;
+            e.type = jp::cfb::Entry::Stream;
+            e.name = QStringLiteral("Workbook");
+            e.data = data;
+            f.entries[0].children << int(f.entries.size());
+            f.entries << e;
+        }
+        const QByteArray file = jp::cfb::write(f);
+        QStringList notes;
+        QString why;
+        QCOMPARE(salvageXlsStream(file, Limits(), &notes, &why), a.stream());
+        // (the same when the container is damaged elsewhere, so that it is read by its directory)
+        QByteArray bad = file;
+        cfbdamage::set32(bad, 44, 0);
+        QStringList notes2;
+        const QByteArray got = salvageXlsStream(bad, Limits(), &notes2, &why);
+        QVERIFY2(got == a.stream(), qPrintable(why));
+    }
+
     // The sectors are out of order and the tables say nothing (zeroed): the cells before the first sector out of place are kept, no cell after it is made up, and the notes say how far the rows go.
     void sectorsOutOfOrderWithNoTablesKeepOnlyWhatIsBeforeThem()
     {

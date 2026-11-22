@@ -296,6 +296,7 @@ bool salvageCompoundFile(const QByteArray &file, const QVector<CfbWish> &wishes,
     for (const CfbWish &w : wishes) {
         QByteArray found;
         bool fromDirectory = false;
+        const DirEntry *producer = nullptr;   // the directory entry the reading came from: the other readings of the stream are of this one alone
         auto accept = [&](const QByteArray &data) {
             if (data.isEmpty() || data.size() > limits.maxStreamBytes || data.size() > work) return false;
             work -= data.size();
@@ -314,6 +315,7 @@ bool salvageCompoundFile(const QByteArray &file, const QVector<CfbWish> &wishes,
                     if (!accept(data)) continue;
                     found = data;
                     fromDirectory = true;
+                    producer = named[i];
                     break;
                 }
         };
@@ -321,19 +323,13 @@ bool salvageCompoundFile(const QByteArray &file, const QVector<CfbWish> &wishes,
         // that ends in the middle of a stream (a damaged table) reads as a short stream in a sound container, and the sectors are all there.
         auto longest = [&] {
             if (!opened || found.isEmpty()) return;
-            QVector<const DirEntry *> named;
-            for (const DirEntry &e : std::as_const(tolerant.entries))
-                if (e.type == 2 && nameIs(w, e.name)) named << &e;
-            bool suspect = false;
-            for (int i = 0; i < named.size() && i < limits.maxEntryTries; ++i) suspect |= quint64(found.size()) < named[i]->size || tolerant.runsPastItsSize(*named[i]);
-            if (!suspect) return;
-            for (int i = 0; i < named.size() && i < limits.maxEntryTries; ++i)
-                for (Tolerant::Mode mode : {Tolerant::Mode::Tables, Tolerant::Mode::Contiguous, Tolerant::Mode::ToEnd}) {
-                    const QByteArray data = tolerant.stream(*named[i], mode);
-                    if (data.size() <= found.size() || !accept(data)) continue;
-                    found = data;
-                    fromDirectory = true;
-                }
+            if (!producer || !(quint64(found.size()) < producer->size || tolerant.runsPastItsSize(*producer))) return;
+            for (Tolerant::Mode mode : {Tolerant::Mode::Tables, Tolerant::Mode::Contiguous, Tolerant::Mode::ToEnd}) {
+                const QByteArray data = tolerant.stream(*producer, mode);
+                if (data.size() <= found.size() || !accept(data)) continue;
+                found = data;
+                fromDirectory = true;
+            }
         };
         auto fromSound = [&] {
             if (!soundTried) {
@@ -347,7 +343,15 @@ bool salvageCompoundFile(const QByteArray &file, const QVector<CfbWish> &wishes,
                     if (!path.contains(QLatin1Char('/')) && (path.compare(w.name, Qt::CaseInsensitive) == 0) == bool(exact) && nameIs(w, path)) named << path;
             for (int i = 0; i < named.size() && i < limits.maxEntryTries && found.isEmpty(); ++i) {
                 const QByteArray data = sound.stream(named[i]);
-                if (accept(data)) found = data;
+                if (!accept(data)) continue;
+                found = data;
+                // (the entry of the directory that is this stream: the first of its name)
+                if (opened)
+                    for (const DirEntry &e : std::as_const(tolerant.entries))
+                        if (e.type == 2 && e.name.compare(named[i], Qt::CaseInsensitive) == 0) {
+                            producer = &e;
+                            break;
+                        }
             }
         };
         if (w.soundFirst) {
