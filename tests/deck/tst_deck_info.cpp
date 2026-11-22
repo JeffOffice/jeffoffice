@@ -1078,6 +1078,50 @@ private Q_SLOTS:
         QVERIFY2(over.isEmpty(), qPrintable(QStringLiteral("listed but kept: ") + over.join(QStringLiteral("; "))));
     }
 
+    // A presentation with a password saved as a template (.otp) or an .odp keeps it: the file asks for it when it is opened again, so neither Check Compatibility nor the question before the save lists it
+    // as lost. One without a password is not asked for one.
+    void aPasswordIsKeptInAnOtpAndAnOdpAndIsNotListedAsLost()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow a;
+        Quiet quiet(a);
+        a.editor()->setDocument(sample());
+        setLossyStandIn([](const LossyAsk &, bool *) { return LossyChoice::SaveAnyway; });
+        auto reset = qScopeGuard([] { setLossyStandIn(nullptr); });
+        auto askedOnReopening = [&](const QString &path, bool *protectedNow) {
+            int asked = 0;
+            setOpenPasswordStandIn([&asked](const QString &, bool, QString *given) {
+                ++asked;
+                *given = QStringLiteral("one");
+                return true;
+            });
+            DeckWindow b;
+            Quiet quietB(b);
+            const bool opened = b.openFile(path);
+            *protectedNow = opened && b.isPasswordProtected();
+            b.editor()->markSaved();
+            return opened ? asked : -1;
+        };
+        bool locked = false;
+        const QString plain = dir.filePath(QStringLiteral("plain.otp"));
+        QVERIFY(a.saveTo(plain, true));
+        QCOMPARE(askedOnReopening(plain, &locked), 0);
+        QVERIFY(!locked);
+        protect(a, QStringLiteral("one"));
+        for (int kind = 0; kind < 2; ++kind) {
+            const QString ending = kind == 0 ? QStringLiteral(".odp") : QStringLiteral(".otp");
+            const QString path = dir.filePath(QStringLiteral("locked") + ending);
+            const jp::CompatHost host = a.compatHost();
+            jp::CompatibilityDialog box(host, kind, nullptr);
+            QVERIFY2(!box.reportText().contains(QLatin1String("password"), Qt::CaseInsensitive), qPrintable(box.reportText()));
+            QVERIFY2(!a.odpLosses(path).join(QLatin1Char('|')).contains(QLatin1String("password"), Qt::CaseInsensitive), qPrintable(ending));
+            QVERIFY(a.saveTo(path, true));
+            QCOMPARE(askedOnReopening(path, &locked), 1);
+            QVERIFY2(locked, qPrintable(ending));
+        }
+    }
+
     void inspectFindsNotesCommentsHiddenSlidesAndWhatIsOffTheSlide()
     {
         DeckWindow w;
