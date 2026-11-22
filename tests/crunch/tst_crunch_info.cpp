@@ -460,6 +460,33 @@ private Q_SLOTS:
         QCOMPARE(box.reportText().count(QLatin1String("Cut or changed to fit")), jp::kMaxLossNotes);
     }
 
+    // The .ods list is bounded where the writer builds it too: a hundred and fifty sheets, each with a merged block too large to write, are one line a sheet up to the bound, then "And 50 more."
+    void theOdsListIsBoundedWhereItIsBuiltAndTheBoxSaysHowManyMore()
+    {
+        QVector<QByteArray> sheetParts;
+        for (int i = 0; i < 150; ++i)
+            sheetParts.push_back(worksheet(QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row>"), QStringLiteral("<mergeCells count=\"1\"><mergeCell ref=\"A1:Z50000\"/></mergeCells>")));
+        const QByteArray bytes = buildXlsx(sheetParts);
+        {
+            office::Package package;
+            office::sheet::Workbook book;
+            QString why;
+            QVERIFY2(package.readLazy(bytes, &why) && book.open(package, &why), qPrintable(why));
+            QByteArray ods;
+            office::sheet::CopyReport report;
+            QVERIFY2(office::sheet::saveOds(book, &ods, &report, &why), qPrintable(why));
+            QCOMPARE(report.trimmed.size(), jp::kMaxLossNotes);
+            QCOMPARE(report.trimmedMore, qint64(50));
+            for (const QString &line : std::as_const(report.trimmed)) QVERIFY2(line.contains(QLatin1String("merged ranges too large")), qPrintable(line));
+        }
+        EditWindow e;
+        QVERIFY(e.open(bytes));
+        jp::CompatibilityDialog box(e.win.w.compatHost(), 1, nullptr);
+        QTRY_VERIFY_WITH_TIMEOUT(!box.working(), 120000);
+        QVERIFY2(box.reportText().contains(QLatin1String("And 50 more.")), qPrintable(box.reportText().right(120)));
+        QCOMPARE(box.reportText().count(QLatin1String("merged ranges too large")), jp::kMaxLossNotes);
+    }
+
     // Only one check runs at a time: a new pick stops the one running and waits for it, and the window's end does the same (counted, not timed: each held check leaves only when it is stopped).
     void oneCheckRunsAtATimeAndTheWindowsEndStopsIt()
     {
