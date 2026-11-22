@@ -2601,6 +2601,47 @@ private Q_SLOTS:
         QCOMPARE(rectangularImageWorkForTest().made - mid, qint64(1));
     }
 
+    // A shade from a rectangle keeps its focus through the window's open and save, twice. Saved as an open-document file the shape stays a rectangular
+    // shade but its first color is in the middle again (that format has no place for the focus): that is what the export loses.
+    void shadeFocusSurvivesTheWindowsSaveAndOpenTwice()
+    {
+        QTemporaryDir dir;
+        const QString path = shadedFile(dir, QStringLiteral("l=\"25000\" t=\"10000\" r=\"75000\" b=\"90000\""));
+        QVERIFY(!path.isEmpty());
+        QString current = path;
+        for (int round = 0; round < 2; ++round) {
+            DeckWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            QVERIFY(w.openFile(current));
+            const Item *item = shadedItem(w);
+            QVERIFY(item);
+            QCOMPARE(item->fill.gradType, Fill::Rectangular);
+            QVERIFY2(qAbs(item->fill.focusX - 0.25) < 0.001 && qAbs(item->fill.focusY - 0.1) < 0.001, qPrintable(QString::number(round)));
+            current = dir.filePath(QStringLiteral("round%1.pptx").arg(round));
+            w.setSavePathChooser([&](const QString &, const QString &) { return current; });
+            QVERIFY(w.saveAs());
+            w.editor()->markSaved();
+        }
+        const QString odp = dir.filePath(QStringLiteral("kept.odp"));
+        {
+            DeckWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            QVERIFY(w.openFile(current));
+            w.setSavePathChooser([&](const QString &, const QString &) { return odp; });
+            QVERIFY(w.saveAs());
+            w.editor()->markSaved();
+        }
+        DeckWindow back;
+        back.setNotifier([](const QString &, const QString &) {});
+        QVERIFY(back.openFile(odp));
+        const Item *item = shadedItem(back);
+        QVERIFY(item);
+        QCOMPARE(item->fill.type, Fill::Gradient);
+        QCOMPARE(item->fill.gradType, Fill::Rectangular);
+        QCOMPARE(item->fill.focusX, 0.5);
+        QCOMPARE(item->fill.focusY, 0.5);
+    }
+
     // A date typed in the master's date place (a whole line, not the program's date field) is what each slide shows that the record says shows a
     // date without saying which: not today's, and none of its own text. A record that names the text, or says it is today's, wins over it; a
     // slide whose own record hides the date has none, and a document with no record shows none.
