@@ -20,9 +20,6 @@ bool before(const Cell &a, const Cell &b) { return a.rowId != b.rowId ? a.rowId 
 
 namespace {
 
-// The guards whose worker this thread has held back.
-thread_local std::vector<const MutationGuard *> t_held;
-
 #ifdef NDEBUG
 std::atomic<bool> g_strict{false};
 #else
@@ -49,14 +46,24 @@ bool MutationGuard::isWorkerOrNone() const
     return worker == 0 || worker == quintptr(QThread::currentThreadId());
 }
 
-void MutationGuard::enter() { t_held.push_back(this); }
+// (The threads that hold the worker back are noted in the guard itself, by thread, not in storage of each thread.)
+void MutationGuard::enter()
+{
+    const std::lock_guard<std::mutex> guard(m_holdLock);
+    m_holders.push_back(quintptr(QThread::currentThreadId()));
+}
 
 void MutationGuard::leave()
 {
-    if (const auto at = std::find(t_held.rbegin(), t_held.rend(), this); at != t_held.rend()) t_held.erase(at.base() - 1);
+    const std::lock_guard<std::mutex> guard(m_holdLock);
+    if (const auto at = std::find(m_holders.rbegin(), m_holders.rend(), quintptr(QThread::currentThreadId())); at != m_holders.rend()) m_holders.erase(at.base() - 1);
 }
 
-bool MutationGuard::heldHere() const { return std::find(t_held.begin(), t_held.end(), this) != t_held.end(); }
+bool MutationGuard::heldHere() const
+{
+    const std::lock_guard<std::mutex> guard(m_holdLock);
+    return std::find(m_holders.begin(), m_holders.end(), quintptr(QThread::currentThreadId())) != m_holders.end();
+}
 
 void MutationGuard::checkNow(const char *what) const
 {

@@ -26,6 +26,7 @@
 #include <functional>
 #include <limits>
 #include <map>
+#include <mutex>
 #include <type_traits>
 #include <vector>
 
@@ -159,6 +160,8 @@ public:
 private:
     void checkNow(const char *what) const;
     std::atomic<quintptr> m_worker{0};
+    mutable std::mutex m_holdLock;
+    std::vector<quintptr> m_holders;   // the threads that have the worker held, one entry for each hold
 };
 
 // The cells of one sheet, kept in blocks of rows: a block holds the cells of

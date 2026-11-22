@@ -30,20 +30,19 @@ libs/base/core/color.cpp | 2 | needs a decision: a std::function (the very case 
 libs/base/io/cfb.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
 libs/base/render/metafile.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
 libs/draw/core/svg.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
-libs/draw/render/shapes.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
+libs/draw/core/texteffects.cpp | 1 | needs a decision: a QCache of text effects
+libs/draw/render/shapes.cpp | 3 | needs a decision: a QHash cache of evaluated shapes
 libs/flow/flow/pageobjects.cpp | 1 | needs a decision: a QVector scratch list
 libs/office/doc/doc.h | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
 libs/office/doc/docfile.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
 libs/office/doc/docsalvage.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
 libs/office/office/chart.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
 libs/office/office/chart_svg.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
-libs/office/office/chart_trend.cpp | 1 | needs a decision: a std::deque cache of trend fits
 libs/office/office/drawingml_text.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
 libs/office/office/mtx.cpp | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
 libs/office/rtf/rtfparse.cpp | 2 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
 libs/office/sheet/chartembed.cpp | 3 | needs a decision: QVector caches of chart data and digests; the other use is a counter
 libs/office/sheet/odsformula.cpp | 2 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
-libs/office/sheet/sheetmodel.cpp | 1 | needs a decision: a std::vector of held guards
 libs/office/sheet/sheetmodel.h | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit
 libs/office/wml/wmldrawing.cpp | 2 | needs a decision: a QCache of parsed shapes; the other use is an integer counter
 libs/office/wml/xmltree.h | 1 | trivially destructible (integer counters, flags, pointers, or a plain struct of them): nothing runs at thread exit

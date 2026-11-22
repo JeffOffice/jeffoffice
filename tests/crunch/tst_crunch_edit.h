@@ -151,6 +151,7 @@ private Q_SLOTS:
     void aSpillRangeWorksInFunctionsNamesValidationsAndFormats();
     void aFormulaOfAnOlderFileShowsItsImplicitIntersection();
     void everyChangeToTheCellsChecksThatTheWorkerIsHeld();
+    void aHoldBelongsToTheThreadThatTookIt();
     void aSnapshotHoldsTheWorkerForItsWholeRead();
     void aHoldThatChangedNothingDoesNotWakeTheWorker();
     void aSpillBlockIsClearedWhenTheCellOfItsFormulaIsDeleted();

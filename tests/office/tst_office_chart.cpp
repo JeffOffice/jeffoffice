@@ -3,6 +3,7 @@
 
 #include "core/fonts.h"
 #include "office/chart_trend.h"
+#include "core/workthread.h"
 #include <algorithm>
 #include <cmath>
 
@@ -16,6 +17,24 @@ private Q_SLOTS:
     void initTestCase() { jp::initCore(); }
 
     // ---- trendlines
+
+    // A fit is made once for its data, whichever thread draws the chart (the count of fits made, not the time).
+    void aTrendlineIsFitOnceForAllThreads()
+    {
+        using jp::office::fitTrend;
+        const QVector<double> x = {1, 2, 3, 4, 5, 6};
+        const QVector<double> y = {2.5, 4.1, 6.7, 8.2, 9.9, 13.4};
+        jp::office::ChartTrendline t;
+        const qint64 before = jp::office::trendFitsMadeForTest();
+        const jp::office::TrendFit first = fitTrend(t, x, y, 61);
+        QCOMPARE(jp::office::trendFitsMadeForTest() - before, qint64(1));
+        QString onWorker;
+        jp::WorkThread other([&] { onWorker = fitTrend(t, x, y, 61).equation; });
+        other.join();
+        QCOMPARE(onWorker, first.equation);
+        QCOMPARE(fitTrend(t, x, y, 61).equation, first.equation);
+        QCOMPARE(jp::office::trendFitsMadeForTest() - before, qint64(1));
+    }
 
     void trendlinesFitTheirKinds()
     {

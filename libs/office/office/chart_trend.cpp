@@ -4,7 +4,9 @@
 
 #include <algorithm>
 #include <cmath>
+#include <atomic>
 #include <deque>
+#include <mutex>
 
 namespace jp::office {
 
@@ -227,6 +229,9 @@ static TrendFit fitTrendUncached(const ChartTrendline &t, const QVector<double> 
     return fit;
 }
 
+static std::atomic<qint64> s_fitsMade{0};
+qint64 trendFitsMadeForTest() { return s_fitsMade.load(); }
+
 // A chart is drawn again and again (each frame of a deck, each time a picture is made): the fits of the last few lines are kept, by what they were made from.
 TrendFit fitTrend(const ChartTrendline &t, const QVector<double> &x, const QVector<double> &y, int samples)
 {
@@ -236,13 +241,20 @@ TrendFit fitTrend(const ChartTrendline &t, const QVector<double> &x, const QVect
         int samples;
         TrendFit fit;
     };
-    thread_local std::deque<Entry> cache;
-    for (const Entry &e : cache)
+    // (Kept for all threads, under a lock that is held for the look and for the add, never while a fit is made.)
+    static std::mutex lock;
+    static std::deque<Entry> cache;
+    {
+        const std::lock_guard<std::mutex> guard(lock);
+        for (const Entry &e : cache)
         if (e.samples == samples && e.t.type == t.type && e.t.order == t.order && e.t.period == t.period && e.t.forward == t.forward && e.t.backward == t.backward && e.t.hasIntercept == t.hasIntercept &&
             e.t.intercept == t.intercept && e.x == x && e.y == y)
             return e.fit;
+    }
+    ++s_fitsMade;
     TrendFit fit = fitTrendUncached(t, x, y, samples);
     if (x.size() <= 20000) {
+        const std::lock_guard<std::mutex> guard(lock);
         cache.push_back({t, x, y, samples, fit});
         if (cache.size() > 16) cache.pop_front();
     }

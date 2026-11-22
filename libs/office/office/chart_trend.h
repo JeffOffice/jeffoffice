@@ -21,6 +21,8 @@ struct TrendFit {
 
 // The line for `trend` through the points (x[i], y[i]); a point with a value that is not a number is left out. `samples` is how many points a curved line is drawn with.
 TrendFit fitTrend(const ChartTrendline &trend, const QVector<double> &x, const QVector<double> &y, int samples = 64);
+// How many fits fitTrend has made itself (not found kept, for any thread) since the program began: a count for tests of cost.
+qint64 trendFitsMadeForTest();
 // The name the legend gives the line: its own, else "Linear (Series1)", "Exponential (...)", "Logarithmic (...)", "Poly. (...)", "Power (...)", "2 per. Mov. Avg. (...)".
 QString trendlineName(const ChartTrendline &trend, const QString &seriesName);
 

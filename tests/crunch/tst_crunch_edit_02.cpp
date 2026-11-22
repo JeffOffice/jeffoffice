@@ -1,6 +1,7 @@
 #include "tst_crunch_edit.h"
 #include "../cardchecks.h"
 #include "core/sortspec.h"
+#include "core/workthread.h"
 #include <algorithm>
 #include <mutex>
 #include <string>
@@ -434,6 +435,32 @@ void CrunchEditTests::everyChangeToTheCellsChecksThatTheWorkerIsHeld()
     MutationGuard::setViolationHandler(nullptr);
     for (const std::string &name : expected) QVERIFY2(std::find(unheld.begin(), unheld.end(), name) != unheld.end(), name.c_str());
     QVERIFY(held.empty());
+}
+
+// A hold is noted for the thread that took it, as many times as it was taken, and no other thread has it.
+void CrunchEditTests::aHoldBelongsToTheThreadThatTookIt()
+{
+    jp::office::sheet::MutationGuard guard;
+    QVERIFY(!guard.heldHere());
+    guard.enter();
+    guard.enter();
+    QVERIFY(guard.heldHere());
+    bool elsewhere = true, leftNothing = false;
+    jp::WorkThread other([&] {
+        elsewhere = guard.heldHere();
+        guard.leave();   // (a thread lets go of a hold it did not take: nothing is noted of it)
+        guard.enter();
+        guard.leave();
+        leftNothing = !guard.heldHere();
+    });
+    other.join();
+    QVERIFY(!elsewhere);
+    QVERIFY(leftNothing);
+    QVERIFY(guard.heldHere());
+    guard.leave();
+    QVERIFY(guard.heldHere());   // (the second hold)
+    guard.leave();
+    QVERIFY(!guard.heldHere());
 }
 
 // A save, a copy, and a recovery copy write what takeSnapshot reads, which is one moment of the workbook only if the worker is held back for the whole read; a thread that has the worker held
