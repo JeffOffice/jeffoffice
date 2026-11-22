@@ -1064,6 +1064,16 @@ void FlowTests::paginatorKeepsLongChainsWithTheNext()
         for (int k = 1; k + 1 < pages; ++k) QVERIFY2(pg.lines(k).size() >= 20, qPrintable(QStringLiteral("page %1 has %2 lines").arg(k).arg(pg.lines(k).size())));
         QVERIFY(coverageProblem(pg, fd).isEmpty());
     }
+    {
+        // A chain that reaches back to the page's top is more than a page holds: no paragraph of it moves for the one after it, and each page holds what it can.
+        FlowDocument kept, plain;
+        story(kept, 0, 150);
+        story(plain, 150, 0);
+        Paginator withKeeping(&kept), without(&plain);
+        QVERIFY(withKeeping.pageCount() >= 3);
+        QVERIFY(without.pageCount() >= 3);
+        for (int k = 0; k < 2; ++k) QCOMPARE(withKeeping.lines(k).size(), without.lines(k).size());
+    }
 }
 
 

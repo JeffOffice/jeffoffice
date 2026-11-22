@@ -3369,6 +3369,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     double rowPushed = 0;      // how far down the row was moved by the objects the text goes round (of the line it begins, and every piece of it)
 
     bool columnEmpty = true;   // no line placed yet in the current column
+    bool chainFromTop = true;   // every paragraph placed so far in the current column is kept with the next
     bool columnBreakNext = false;   // the line placed last ended with a word processor's column break: the next goes on in the next column
     // A column break goes on in the next column where there is one: in the next column of the frame, in a frame after it, or (where the laying out is of a page's text, which
     // goes on in the next page) past the last frame. Where the text is in one frame with one column (a table's cell, a text box) it is a line break and no more: no text is lost.
@@ -3675,6 +3676,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         rowActive = false;
         rowPushed = 0;
         columnEmpty = true;
+        chainFromTop = true;
         y = 0;
         if (f < nF && ++c >= std::max(1, frames[f].columns)) { c = 0; ++f; }
         if (!seeded.isEmpty()) {
@@ -5634,7 +5636,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
         }
         // Keep with next: when the next paragraph's first line won't fit
         // after this one, this one moves on with it.
-        if (roomAhead && m_span.keepRules && bf.boolProperty(tp::KeepWithNext) && !startSpot.columnEmpty && b.next().isValid() && f < nF && !B->lines.isEmpty() && B->lines.first().frame >= 0) {
+        // (Where the paragraphs kept with the next reach back to the column's top, the chain is more than a column can hold: nothing moves, and the column ends where the text runs out.)
+        if (roomAhead && m_span.keepRules && bf.boolProperty(tp::KeepWithNext) && !startSpot.columnEmpty && !chainFromTop && b.next().isValid() && f < nF && !B->lines.isEmpty() && B->lines.first().frame >= 0) {
             const QTextBlock nb = b.next();
             const QTextBlockFormat nbf = nb.blockFormat();
             const double nextH = (nbf.topMargin() * scale) + std::max(1.0, lineHeightFor(nbf, scale, singleOf({}, 0, 0, baseFontFor(nb, env))));
@@ -5651,6 +5654,10 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             rowIdx = startSpot.rowIdx;
             rowH = startSpot.rowH;
             columnBreakNext = breakPending;
+        }
+        if (!B->lines.isEmpty()) {
+            const bool startedHere = B->lines.first().frame == startSpot.f && B->lines.first().column == startSpot.c, endsHere = B->lines.last().frame == B->lines.first().frame && B->lines.last().column == B->lines.first().column;
+            chainFromTop = (startedHere && endsHere ? chainFromTop : true) && bf.boolProperty(tp::KeepWithNext);
         }
         const bool cutBlock = B->cut;
         m_blocks.push_back(std::move(B));
