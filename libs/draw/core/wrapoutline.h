@@ -51,6 +51,9 @@ constexpr qint64 kMostWrapWorkPerPage = 400000, kMostWrapWorkPerCall = 200000;
 constexpr int kWrapRoomRows = 256, kWrapRoomRowPieces = 64;
 constexpr qint64 kWrapRoomRowWork = 60000;
 constexpr int kMostWrapShapesPerCall = 64;
+// What flattening a path costs, in counted work: each element, and a curve (which flattens into as many segments as its size asks) kCurveFlattenWork more. Charged before it is flattened.
+constexpr qint64 kCurveFlattenWork = 49;
+qint64 wrapFlattenWork(const QPainterPath &path);
 struct WrapBudget {
     qint64 work = 0;
     int shapes = 0;

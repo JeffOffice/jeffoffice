@@ -246,8 +246,8 @@ static std::shared_ptr<const WrapRoom> wrapRoomOf(const Document &doc, const Ite
         const QPainterPath lp = l.path().translated(-l.rect.topLeft());
         const double half = std::max(2.0, l.stroke.width) / 2;
         if (lp.elementCount() > kMostWrapPathElements) return rectOf(lp, half);
-        if (budget.work < lp.elementCount()) return nullptr;
-        budget.work -= lp.elementCount();
+        if (budget.work < wrapFlattenWork(lp)) return nullptr;
+        budget.work -= wrapFlattenWork(lp);
         return WrapRoom::around(tr.map(lp).toSubpathPolygons(), d, budget, true, half);
     }
     const QPainterPath local = Renderer::silhouette(doc, o);

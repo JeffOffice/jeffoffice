@@ -244,6 +244,13 @@ void WrapRoom::finish()
     m_signature = sum + m_points.size();
 }
 
+qint64 wrapFlattenWork(const QPainterPath &path)
+{
+    qint64 curves = 0;
+    for (int i = 0, n = path.elementCount(); i < n; ++i) curves += path.elementAt(i).type == QPainterPath::CurveToElement;
+    return path.elementCount() + curves * kCurveFlattenWork;
+}
+
 std::shared_ptr<const WrapRoom> WrapRoom::around(const QPainterPath &outline, double distance, WrapBudget &budget)
 {
     if (outline.elementCount() > kMostWrapPathElements) {
@@ -254,9 +261,10 @@ std::shared_ptr<const WrapRoom> WrapRoom::around(const QPainterPath &outline, do
         return ofRect(box.adjusted(-d, -d, d, d));
     }
     // (Charged what flattening costs, before it is done.)
-    if (budget.work < outline.elementCount()) return nullptr;
+    const qint64 flatten = wrapFlattenWork(outline);
+    if (budget.work < flatten) return nullptr;
     const QList<QPolygonF> rings = outline.toSubpathPolygons(QTransform());
-    budget.work -= outline.elementCount();
+    budget.work -= flatten;
     return around(rings, distance, budget);
 }
 

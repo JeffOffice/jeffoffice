@@ -3389,6 +3389,30 @@ private Q_SLOTS:
         QCOMPARE(made, 3);
     }
 
+    // A path of curves is charged what flattening its curves costs (a curve is many segments, more the larger it is), before it is flattened: a page's budget holds one such path, not
+    // the twenty that its element count alone would let in. Fails when the charge is only the elements: yes (twenty paths were flattened for a page, 1.5 s a pass for 600 pictures).
+    void aPathOfCurvesIsChargedForItsCurves()
+    {
+        QPainterPath curves;
+        curves.moveTo(0, 0);
+        unsigned seed = 7;
+        auto next = [&] { seed = seed * 1103515245u + 12345u; return double((seed >> 8) % 100000); };
+        for (int i = 0; i < 6666; ++i) curves.cubicTo(next(), next(), next(), next(), next(), next());
+        QCOMPARE(curves.elementCount(), 19999);
+        jp::WrapBudget budget = jp::WrapBudget::forPage();
+        int flattened = 0;
+        qint64 first = 0;
+        for (int i = 0; i < 100; ++i) {
+            const qint64 before = budget.work;
+            jp::WrapRoom::around(curves, 3, budget);
+            if (budget.work == before) break;
+            if (!flattened) first = before - budget.work;
+            ++flattened;
+        }
+        QVERIFY2(first >= 50 * 6666, qPrintable(QString::number(first)));
+        QVERIFY2(flattened >= 1 && flattened <= 2, qPrintable(QString::number(flattened)));
+    }
+
     // Moving, adding, and taking away a point of an outline: a point is added only on an edge, never past the most, and an outline keeps three.
     void aWrapOutlineIsEditedAPointAtATime()
     {
