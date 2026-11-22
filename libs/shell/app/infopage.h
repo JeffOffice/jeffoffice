@@ -102,6 +102,7 @@ struct InspectItem {
     std::function<int()> remove;   // takes them all out; how many were
     bool removable = true;
     QString action;                // the button's words, "Remove All" when empty
+    std::function<QString()> unread;   // what the check could not look at, in a sentence ("3 drawings of a kind this check can't read."), "" when it looked at everything: the box says so, and never "None found"
 };
 
 // The Inspect box: each kind with how many were found and a button that removes them all. It looks again after each removal.
@@ -121,6 +122,7 @@ private:
     void refresh();
     QVector<InspectItem> m_items;
     QVector<QLabel *> m_counts;
+    QVector<QLabel *> m_unread;
     QVector<QPushButton *> m_buttons;
 };
 

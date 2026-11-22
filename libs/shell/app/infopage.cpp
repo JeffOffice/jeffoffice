@@ -330,6 +330,11 @@ InspectDialog::InspectDialog(const QString &heading, const QVector<InspectItem> 
         text->setSpacing(1);
         text->addWidget(title);
         text->addWidget(detail);
+        auto *unread = mutedLabel(QString(), this);
+        unread->setWordWrap(true);
+        unread->setObjectName(QStringLiteral("inspectUnread%1").arg(i));
+        m_unread.push_back(unread);
+        text->addWidget(unread);
         grid->addLayout(text, i, 0);
         auto *count = plainLabel(new QLabel(this));
         count->setObjectName(QStringLiteral("inspectCount%1").arg(i));
@@ -363,7 +368,11 @@ void InspectDialog::refresh()
 {
     for (int i = 0; i < m_items.size(); ++i) {
         const int n = m_items[i].count ? m_items[i].count() : 0;
-        m_counts[i]->setText(n > 0 ? QCoreApplication::translate("jp::InfoPage", "%1 found").arg(n) : QCoreApplication::translate("jp::InfoPage", "None found"));
+        const QString unread = m_items[i].unread ? m_items[i].unread() : QString();
+        m_unread[i]->setText(unread);
+        m_unread[i]->setVisible(!unread.isEmpty());
+        m_counts[i]->setText(n > 0 ? QCoreApplication::translate("jp::InfoPage", "%1 found").arg(n)
+                                   : unread.isEmpty() ? QCoreApplication::translate("jp::InfoPage", "None found") : QCoreApplication::translate("jp::InfoPage", "Not fully checked"));
         m_buttons[i]->setEnabled(n > 0 && m_items[i].removable);
         m_buttons[i]->setVisible(m_items[i].removable);
     }
@@ -372,7 +381,7 @@ void InspectDialog::refresh()
 QStringList InspectDialog::summaries() const
 {
     QStringList out;
-    for (int i = 0; i < m_items.size(); ++i) out << m_items[i].title + QStringLiteral(": ") + m_counts[i]->text();
+    for (int i = 0; i < m_items.size(); ++i) out << m_items[i].title + QStringLiteral(": ") + m_counts[i]->text() + (m_unread[i]->text().isEmpty() ? QString() : QStringLiteral(" (") + m_unread[i]->text() + QLatin1Char(')'));
     return out;
 }
 

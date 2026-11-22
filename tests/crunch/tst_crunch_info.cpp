@@ -981,6 +981,32 @@ private Q_SLOTS:
         QCOMPARE(item->count(), 0);
     }
 
+    // The Inspect box never says "None found" for a kind it could not fully look at: the row says so, in words, and a count of nothing is "Not fully checked", not "None found".
+    void inspectBoxSaysWhenARowCouldNotCheck()
+    {
+        int unread = 4;
+        InspectItem a;
+        a.title = QStringLiteral("Looked");
+        a.count = [] { return 0; };
+        InspectItem b;
+        b.title = QStringLiteral("Partly");
+        b.count = [] { return 0; };
+        b.remove = [] { return 0; };
+        b.unread = [&unread] { return unread > 0 ? QStringLiteral("%1 could not be looked at.").arg(unread) : QString(); };
+        InspectItem c;
+        c.title = QStringLiteral("Some found");
+        c.count = [] { return 2; };
+        c.unread = [] { return QStringLiteral("One more could not be looked at."); };
+        InspectDialog box(QStringLiteral("Inspect"), {a, b, c}, nullptr);
+        const QStringList rows = box.summaries();
+        QCOMPARE(rows.value(0), QStringLiteral("Looked: None found"));
+        QVERIFY2(rows.value(1).contains(QLatin1String("Not fully checked")) && !rows.value(1).contains(QLatin1String("None found")) && rows.value(1).contains(QLatin1String("4 could not be looked at.")), qPrintable(rows.value(1)));
+        QVERIFY2(rows.value(2).contains(QLatin1String("2 found")) && rows.value(2).contains(QLatin1String("One more")), qPrintable(rows.value(2)));
+        unread = 0;
+        box.removeRow(1);
+        QCOMPARE(box.summaries().value(1), QStringLiteral("Partly: None found"));
+    }
+
     // Every built-in template opens, works its formulas out with no error, and says what it should.
     void everyBuiltInTemplateOpensAndWorksItsFormulasOut()
     {
