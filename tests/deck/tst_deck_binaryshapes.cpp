@@ -1590,6 +1590,134 @@ private Q_SLOTS:
         Settings::get().removeRecentFile(thirdPath);
     }
 
+    // The picture bullets of an old presentation are pictures from the file, held to what a bullet can use: a picture whose header declares more
+    // than jp::kMostBulletPicturePixels is no bullet (the character is), whatever its size in bytes. Here a 3000 x 3000 one-bit PNG (a few KB
+    // that would be 36 MB as pixels) is named by the first run and a small one by the second.
+    void importBinaryPictureBulletsOverThePixelLimitAreNotKept()
+    {
+        auto png = [&](int w, int h, QImage::Format format) {
+            QImage image(w, h, format);
+            image.fill(1);
+            QByteArray bytes;
+            QBuffer buffer(&bytes);
+            buffer.open(QIODevice::WriteOnly);
+            image.save(&buffer, "PNG");
+            return bytes;
+        };
+        const QByteArray bomb = png(3000, 3000, QImage::Format_Mono), small = png(7, 5, QImage::Format_ARGB32);
+        QVERIFY(bomb.size() < 100000);
+        auto entry = [&](quint16 index, const QByteArray &pngBytes) { return pptRec(0x07F9, raw({6, 6}) + pptRec(0xF01E, QByteArray(16, 'u') + raw({0xFF}) + pngBytes, 0x6E0), index); };
+        const QByteArray collection = pptBox(0x07F8, entry(0, bomb) + entry(1, small));
+        auto run = [&](quint32 masks, const QByteArray &fields) { return le(masks, 4) + fields + le(0, 4) + le(0, 4); };
+        const QByteArray outline = pptBox(4014, pptRec(4015, le(0x100, 4) + le(1, 4), 1) + pptRec(4012, run(0x00800000, le(0, 2)) + run(0x00800000, le(1, 2))));
+        const QByteArray tags = pptBox(5000, pptBox(5002, pptRec(4026, utf16(QStringLiteral("___PPT9"))) + pptRec(5003, collection + outline)));
+        const QByteArray body = pptText(1, QStringLiteral("One\rTwo"), pfRun(4, 0, 0) + pfRun(4, 0, 0) + cfRun(7, 0));
+        QString err;
+        const qint64 before = jp::bulletPicturePixelsDecoded();
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, body, QByteArray(), QByteArray(), QByteArray(), QByteArray(), QByteArray(), 1016, tags), &err);
+        QVERIFY2(d, qPrintable(err));
+        auto pictureOf = [&](int block) {
+            const QTextDocument *story = placeholderStory(*d, *d->pages[0], QStringLiteral("ph:body:1"));
+            QTextBlock b = story ? story->firstBlock() : QTextBlock();
+            for (int i = 0; i < block && b.isValid(); ++i) b = b.next();
+            return b.isValid() && b.textList() ? b.textList()->format().property(jp::tp::BulletPicture).toByteArray() : QByteArray("(none)");
+        };
+        QVERIFY(pictureOf(0).isEmpty());
+        QCOMPARE(pictureOf(1), small);
+        QCOMPARE(jp::bulletPicturePixelsDecoded() - before, qint64(0));   // (the import reads headers only)
+    }
+
+    // The layout draws a bullet's picture from a decoded copy that is kept: a picture over the limit is never decoded (counted: no pixel is), a
+    // good one is decoded once however often it is drawn, and what is kept stays within its total whatever pictures come.
+    void aPictureBulletIsDecodedOnceAndNeverOverTheLimit()
+    {
+        auto png = [&](int w, int h, QImage::Format format, uint fill) {
+            QImage image(w, h, format);
+            image.fill(fill);
+            QByteArray bytes;
+            QBuffer buffer(&bytes);
+            buffer.open(QIODevice::WriteOnly);
+            image.save(&buffer, "PNG");
+            return bytes;
+        };
+        const QByteArray bomb = png(3000, 3000, QImage::Format_Mono, 1);
+        QVERIFY(!jp::bulletPictureFits(bomb));
+        const qint64 before = jp::bulletPicturePixelsDecoded();
+        QVERIFY(jp::bulletPictureImage(bomb).isNull());
+        QCOMPARE(jp::bulletPicturePixelsDecoded() - before, qint64(0));
+        // One of the sample file's bullets with the bomb for its picture: the slide is drawn, and nothing is decoded.
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, pptText(1, QStringLiteral("One\rTwo"), pfRun(4, 0, 0) + pfRun(4, 0, 0) + cfRun(7, 0))), &err);
+        QVERIFY2(d, qPrintable(err));
+        auto setPicture = [&](const QByteArray &bytes) {
+            const QTextDocument *story = placeholderStory(*d, *d->pages[0], QStringLiteral("ph:body:1"));
+            QVERIFY(story && story->firstBlock().textList());
+            QTextList *list = story->firstBlock().textList();
+            QTextListFormat f = list->format();
+            f.setProperty(jp::tp::BulletPicture, bytes);
+            list->setFormat(f);
+        };
+        setPicture(bomb);
+        slideImage(*d);
+        QCOMPARE(jp::bulletPicturePixelsDecoded() - before, qint64(0));
+        const QByteArray good = png(7, 5, QImage::Format_ARGB32, 0xFF336699);
+        QVERIFY(jp::bulletPictureFits(good));
+        setPicture(good);
+        slideImage(*d);
+        slideImage(*d);
+        QCOMPARE(jp::bulletPicturePixelsDecoded() - before, qint64(35));
+        // Many distinct pictures, each within the limit and large: nothing kept is over the total, and a big one is kept at most 256 pixels a side.
+        const QImage big = jp::bulletPictureImage(png(1900, 1000, QImage::Format_ARGB32, 0xFF102030));
+        QVERIFY(!big.isNull());
+        QVERIFY(big.width() <= jp::kBulletPictureSide && big.height() <= jp::kBulletPictureSide);
+        for (int i = 0; i < 100; ++i) {
+            QVERIFY(!jp::bulletPictureImage(png(256, 256, QImage::Format_ARGB32, 0xFF000000u + i)).isNull());
+            QVERIFY(jp::bulletPictureCachedPixels() <= jp::kMostBulletPictureCachePixels);
+        }
+    }
+
+    // The newer file's picture bullets are held to the same limit: a paragraph's picture over jp::kMostBulletPicturePixels is no bullet, a small one is.
+    void importPptxPictureBulletsOverThePixelLimitAreNotKept()
+    {
+        auto png = [&](int w, int h, QImage::Format format) {
+            QImage image(w, h, format);
+            image.fill(1);
+            QByteArray bytes;
+            QBuffer buffer(&bytes);
+            buffer.open(QIODevice::WriteOnly);
+            image.save(&buffer, "PNG");
+            return bytes;
+        };
+        const QByteArray bomb = png(3000, 3000, QImage::Format_Mono), small = png(7, 5, QImage::Format_ARGB32);
+        Parts parts = samplePptx();
+        auto paragraph = [&](const QString &rId, const QString &text) {
+            return QStringLiteral("<a:p><a:pPr marL=\"342900\" indent=\"-342900\"><a:buBlip><a:blip r:embed=\"%1\"/></a:buBlip></a:pPr><a:r><a:rPr lang=\"en-US\"/><a:t>%2</a:t></a:r></a:p>").arg(rId, text);
+        };
+        const QString box = QStringLiteral("<p:sp><p:nvSpPr><p:cNvPr id=\"20\" name=\"Bullets\"/><p:cNvSpPr txBox=\"1\"/><p:nvPr/></p:nvSpPr><p:spPr>") + xfrm(914400, 914400, 3048000, 914400)
+                            + QStringLiteral("</p:spPr><p:txBody><a:bodyPr wrap=\"square\"/><a:lstStyle/>") + paragraph(QStringLiteral("rId2"), QStringLiteral("Bomb")) + paragraph(QStringLiteral("rId4"), QStringLiteral("Small"))
+                            + QStringLiteral("</p:txBody></p:sp>");
+        QByteArray &xml = parts.data["/ppt/slides/slide1.xml"].xml;
+        xml.replace("</p:spTree>", (box + QStringLiteral("</p:spTree>")).toUtf8());
+        parts.data["/ppt/media/image1.png"].xml = bomb;
+        parts.data["/ppt/media/image2.png"] = {QStringLiteral("image/png"), small};
+        parts.rels << Rel{"/ppt/slides/slide1.xml", "image", "/ppt/media/image2.png"};
+        const qint64 before = jp::bulletPicturePixelsDecoded();
+        QString err;
+        auto d = deck::importPresentation(pack(parts), &err);
+        QVERIFY2(d, qPrintable(err));
+        QVector<QByteArray> found;
+        for (const auto &it : d->pages[0]->items) {
+            if (it->type() != ItemType::Text) continue;
+            const QTextDocument *story = d->storyDoc(static_cast<const TextItem *>(it.get())->storyId);
+            for (QTextBlock b = story ? story->firstBlock() : QTextBlock(); b.isValid(); b = b.next())
+                if (b.text() == QLatin1String("Bomb") || b.text() == QLatin1String("Small")) found << (b.textList() ? b.textList()->format().property(jp::tp::BulletPicture).toByteArray() : QByteArray("(none)")) << b.text().toUtf8();
+        }
+        QCOMPARE(int(found.size()), 4);
+        QVERIFY(found[0].isEmpty());
+        QCOMPARE(found[2], small);
+        QCOMPARE(jp::bulletPicturePixelsDecoded() - before, qint64(0));
+    }
+
     // The extension that comes with the outline's text (a slide's text, by its slide and its kind) can number the paragraphs of a run of the
     // text: the first run here is numbered the usual way ("1."), the second counts from 5 with a parenthesis ("5)", "6)"), the third has no
     // numbering and keeps the master's bullet. The entries go with the runs of paragraphs in order.

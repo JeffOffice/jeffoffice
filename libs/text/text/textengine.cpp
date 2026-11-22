@@ -12,7 +12,10 @@
 #include "text/textprops.h"
 #include "core/syslocale.h"
 
+#include <QBuffer>
 #include <QCache>
+#include <QImage>
+#include <QImageReader>
 #include <QScopeGuard>
 #include <QCoreApplication>
 #include <QLocale>
@@ -68,6 +71,76 @@ bool hasFamilyCached(const QString &family)
 } // namespace
 
 namespace jp {
+
+// The pictures bullets are drawn from. A picture is kept under the address and size of its bytes, which the entry holds on to so that the address
+// is not given to other bytes while it is kept.
+namespace {
+struct BulletPicture {
+    QByteArray bytes;
+    QImage image;
+};
+QMutex bulletPictureMutex;
+QHash<QPair<const char *, qsizetype>, BulletPicture> bulletPictures;
+qint64 bulletPicturesCached = 0, bulletPixelsDecoded = 0;
+
+QSize bulletPictureSize(const QByteArray &bytes, QImageReader *reader, QBuffer *buffer)
+{
+    buffer->setData(bytes);
+    if (!buffer->open(QIODevice::ReadOnly)) return QSize();
+    reader->setDevice(buffer);
+    reader->setAllocationLimit(64);
+    const QByteArray format = reader->format();
+    if (format != "png" && format != "jpeg" && format != "gif" && format != "bmp") return QSize();
+    const QSize size = reader->size();
+    if (size.width() <= 0 || size.height() <= 0) return QSize();
+    if (qint64(size.width()) * size.height() > kMostBulletPicturePixels) return QSize();
+    return size;
+}
+} // namespace
+
+bool bulletPictureFits(const QByteArray &bytes)
+{
+    QBuffer buffer;
+    QImageReader reader;
+    return bulletPictureSize(bytes, &reader, &buffer).isValid();
+}
+
+QImage bulletPictureImage(const QByteArray &bytes)
+{
+    if (bytes.isEmpty()) return QImage();
+    QMutexLocker lock(&bulletPictureMutex);
+    const QPair<const char *, qsizetype> key(bytes.constData(), bytes.size());
+    if (const auto it = bulletPictures.constFind(key); it != bulletPictures.constEnd()) return it->image;
+    QImage image;
+    QBuffer buffer;
+    QImageReader reader;
+    if (const QSize size = bulletPictureSize(bytes, &reader, &buffer); size.isValid()) {
+        bulletPixelsDecoded += qint64(size.width()) * size.height();
+        image = reader.read();
+        if ((image.width() > kBulletPictureSide || image.height() > kBulletPictureSide))
+            image = image.scaled(kBulletPictureSide, kBulletPictureSide, Qt::KeepAspectRatio, Qt::SmoothTransformation);
+    }
+    const qint64 pixels = qint64(image.width()) * image.height();
+    if (bulletPictures.size() >= 64 || bulletPicturesCached + pixels > kMostBulletPictureCachePixels) {
+        bulletPictures.clear();
+        bulletPicturesCached = 0;
+    }
+    bulletPictures.insert(key, BulletPicture{bytes, image});
+    bulletPicturesCached += pixels;
+    return image;
+}
+
+qint64 bulletPicturePixelsDecoded()
+{
+    QMutexLocker lock(&bulletPictureMutex);
+    return bulletPixelsDecoded;
+}
+
+qint64 bulletPictureCachedPixels()
+{
+    QMutexLocker lock(&bulletPictureMutex);
+    return bulletPicturesCached;
+}
 
 // ---------- fields ----------
 static QString toRoman(int n)
@@ -4280,13 +4353,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
             if (!bc.isEmpty() && !autoColor) B->markerColor = ColorRef::fromString(bc).resolve(env.colors);
             if (lf.hasProperty(tp::BulletPicture)) {
                 // A picture bullet: a space as wide as the text is high holds its place, and the picture is drawn there.
-                static QHash<QByteArray, QImage> pictures;
-                const QByteArray bytes = lf.property(tp::BulletPicture).toByteArray();
-                if (!pictures.contains(bytes)) {
-                    if (pictures.size() > 64) pictures.clear();
-                    pictures.insert(bytes, QImage::fromData(bytes));
-                }
-                B->markerImage = pictures.value(bytes);
+                B->markerImage = bulletPictureImage(lf.property(tp::BulletPicture).toByteArray());
                 if (!B->markerImage.isNull()) {
                     B->marker = QStringLiteral("\u2003");
                     B->markerImageSide = env.slideLines ? 0.675 : 0.9;   // (a slide's: three quarters of that, as the reference drawings of picture bullets have it)

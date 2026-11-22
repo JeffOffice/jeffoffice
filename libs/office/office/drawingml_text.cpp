@@ -168,14 +168,14 @@ QString pictureOf(const QDomElement &buBlip, const DrawingContext &ctx)
     return blip.isNull() ? QString() : loadImagePart(attrNs(blip, ns::R, QStringLiteral("embed")), sc, blip);
 }
 
-// The picture file of that part, when it is of a kind a bullet is drawn from (a raster one) and no larger than a bullet can use.
+// The picture file of that part, when it is of a kind a bullet is drawn from (a raster one), no larger in bytes than a bullet can use, and declaring no more pixels than jp::kMostBulletPicturePixels.
 QByteArray pictureBytes(const QString &part, const DrawingContext &ctx)
 {
     constexpr qint64 kMostBulletPictureBytes = 4 << 20;
     if (part.isEmpty() || !ctx.package || ctx.package->partSize(part) > kMostBulletPictureBytes) return QByteArray();
     const QByteArray bytes = ctx.package->part(part);
     const QString format = imageFormat(bytes);
-    return format == QLatin1String("png") || format == QLatin1String("jpeg") || format == QLatin1String("gif") || format == QLatin1String("bmp") ? bytes : QByteArray();
+    return (format == QLatin1String("png") || format == QLatin1String("jpeg") || format == QLatin1String("gif") || format == QLatin1String("bmp")) && bulletPictureFits(bytes) ? bytes : QByteArray();
 }
 
 void mergeParagraph(ParaProps &p, const QDomElement &pPr, const DrawingContext &ctx)

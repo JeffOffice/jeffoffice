@@ -18,6 +18,7 @@
 #include "office/package.h"
 #include "office/theme.h"
 #include "office/xml.h"
+#include "text/textengine.h"
 #include "text/textprops.h"
 
 #include <QBuffer>
@@ -31,6 +32,7 @@
 #include <QPainter>
 #include <QRegularExpression>
 #include <QSet>
+#include <QtEndian>
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QTextDocument>
@@ -1365,10 +1367,14 @@ void Importer::readBulletPictures(const QByteArray &d, const Rec &collection)
 {
     for (const Rec &e : m_ppt.in(collection)) {
         if (e.type != RT_BlipEntity9Atom || e.inst >= kMaxBulletPictures || e.len < 10) continue;
+        // (the picture record's kind is read first: only a PNG, a JPEG, or a bitmap is a bullet, and the others are not unpacked)
+        const quint16 kind = qFromLittleEndian<quint16>(reinterpret_cast<const uchar *>(d.constData()) + e.off + 4);
+        if (kind != 0xF01D && kind != 0xF02A && kind != 0xF01E && kind != 0xF01F) continue;
         QString format;
         const QByteArray bytes = office::odrawBlip(d.mid(e.off + 2, e.len - 2), &format);
         if (m_bulletPictures.size() <= e.inst) m_bulletPictures.resize(e.inst + 1);
-        if (bytes.isEmpty() || (format != QLatin1String("png") && format != QLatin1String("jpeg") && format != QLatin1String("bmp")) || m_bulletPictureBytes + bytes.size() > kMaxBulletPictureBytes) continue;
+        // (the pixels the picture declares are limited too: a few bytes can say gigabytes)
+        if (bytes.isEmpty() || (format != QLatin1String("png") && format != QLatin1String("jpeg") && format != QLatin1String("bmp")) || !jp::bulletPictureFits(bytes) || m_bulletPictureBytes + bytes.size() > kMaxBulletPictureBytes) continue;
         m_bulletPictureBytes += bytes.size();
         m_bulletPictures[e.inst] = bytes;
     }

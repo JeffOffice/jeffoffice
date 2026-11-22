@@ -751,4 +751,16 @@ struct HandBoldWork {
 };
 HandBoldWork &handBoldWork();
 
+// A picture bullet's picture is read from a file, so it is held to what a bullet can use: no more than kMostBulletPicturePixels as the file declares
+// (width times height), decoded once and kept at most kBulletPictureSide pixels a side, and the kept ones together at most kMostBulletPictureCachePixels.
+constexpr qint64 kMostBulletPicturePixels = 4'000'000, kMostBulletPictureCachePixels = 2'000'000;
+constexpr int kBulletPictureSide = 256;
+// Whether the bytes are a picture of a kind a bullet is drawn from (PNG, JPEG, GIF, or BMP) whose header declares a size within the limit; only the header is read.
+bool bulletPictureFits(const QByteArray &bytes);
+// The bullet's picture as it is drawn (null for a picture that does not fit), kept between calls.
+QImage bulletPictureImage(const QByteArray &bytes);
+// The pixels decoded so far, and those the kept pictures hold now, for tests.
+qint64 bulletPicturePixelsDecoded();
+qint64 bulletPictureCachedPixels();
+
 } // namespace jp
