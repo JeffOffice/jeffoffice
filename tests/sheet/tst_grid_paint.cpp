@@ -825,6 +825,26 @@ private Q_SLOTS:
     }
 
     // A text with nothing in it (a cell that holds the empty string), a font the machine does not have, and letters of other scripts than Latin are drawn, and never fail.
+    // A font that is not installed is drawn in the family the measure uses, so what was measured to fit is what is drawn: text in an absent family looks as it does in Arimo.
+    void aFontThatIsNotInstalledIsDrawnInTheFamilyItIsMeasuredIn()
+    {
+        auto drawn = [](const QString &family) {
+            Fixture f;
+            FontSpec spec;
+            spec.name = family;
+            spec.size = 14;
+            f.styles.fonts.append(spec);
+            CellFormat fmt;
+            fmt.font = 1;
+            const quint32 style = f.format(fmt);
+            f.text(0, 0, QStringLiteral("Wmwlil 0123456789 sample"), style);
+            f.options.gridlines = false;
+            f.build();
+            return f.render(QRect(0, 0, 300, 40));
+        };
+        QCOMPARE(drawn(QStringLiteral("No Such Family 7")), drawn(QStringLiteral("Arimo")));
+    }
+
     void emptyTextsMissingFontsAndOtherScriptsAreDrawn()
     {
         Fixture f;

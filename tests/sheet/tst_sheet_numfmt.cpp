@@ -524,6 +524,20 @@ private Q_SLOTS:
         QCOMPARE(shown(0, 0), QStringLiteral("#"));
     }
 
+    // The measure sees the text that will be shown, with the person's decimal mark, not the plain text the mark is put into afterward.
+    void generalFitIsTestedOnTheTextWithTheDecimalMark()
+    {
+        const jp::calc::NumberFormat general(QStringLiteral("General"));
+        const jp::calc::NumberSymbols commas = jp::calc::NumberSymbols::of(QStringLiteral(","), QStringLiteral("."));
+        QStringList seen;
+        const jp::calc::GeneralFits fits = [&seen](const QString &t) { seen << t; return t.size() <= 4; };
+        const jp::calc::Formatted f = general.format(3.14159265358979, DateSystem::Date1900, 0, &commas, &fits);
+        QVERIFY(!f.failed);
+        QCOMPARE(f.text, QStringLiteral("3,14"));
+        QVERIFY(!seen.isEmpty());
+        for (const QString &t : seen) QVERIFY2(!t.contains(QLatin1Char('.')) && t.contains(QLatin1Char(',')), qPrintable(t));
+    }
+
     // "%" multiplies by 100 each time; E+ E- E show a value in scientific notation, with the exponent a multiple of the integer places.
     void percentAndScientific()
     {

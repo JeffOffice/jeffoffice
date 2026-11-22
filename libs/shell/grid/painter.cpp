@@ -202,7 +202,7 @@ private:
         if (id >= m_faces.size()) m_faces.resize(id + 1);
         std::unique_ptr<GridPainter::GlyphFace> &e = m_faces[id];
         if (!e) {
-            QFont f(look.family.isEmpty() ? QFont().family() : look.family);
+            QFont f(drawFamily(look.family));
             f.setPixelSize(std::max(1, int(std::lround(look.pointSize * 96.0 / 72.0 * (look.vertAlign ? 0.65 : 1.0)))));
             f.setBold(look.bold);
             f.setItalic(look.italic);
@@ -243,7 +243,7 @@ const QFont &GridPainter::fontFor(const CellLook &look)
         m_fontMade.resize(id + 1, false);
     }
     if (!m_fontMade[id]) {
-        QFont f(look.family.isEmpty() ? QFont().family() : look.family);
+        QFont f(drawFamily(look.family));
         f.setPixelSize(std::max(1, int(std::lround(look.pointSize * 96.0 / 72.0 * m_sheet->layout().zoom() * (look.vertAlign ? 0.65 : 1.0)))));
         f.setBold(look.bold);
         f.setItalic(look.italic);
@@ -734,7 +734,7 @@ void GridPainter::drawText(QPainter *p, const QRect &cell, const QRect &box, con
             Underline underline = look.underline;
             bool strike = look.strike;
             if (run.own) {
-                rf = QFont(run.family.isEmpty() ? QFont().family() : run.family);
+                rf = QFont(drawFamily(run.family));
                 rf.setPixelSize(std::max(1, int(std::lround(run.pointSize * 96.0 / 72.0 * z * (run.vertAlign ? 0.65 : 1.0)))));
                 rf.setBold(run.bold);
                 rf.setItalic(run.italic);

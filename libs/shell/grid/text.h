@@ -55,6 +55,10 @@ struct Shown {
 // The room text has in a cell of this width (the grid's units at 100%): the width less what is left at each side, and the indent.
 constexpr double kCellPadding = 3;
 double textRoom(double cellWidth, const CellLook &look);
+// The width a cell's indent takes (the same where the column is fitted and where the text is placed).
+double indentPixels(const CellLook &look);
+// The family a cell's text is drawn in: the one the measure uses (jp::measuringFamily) for a family that is not installed or bundled, never the machine's pick; the family itself otherwise. (The saved file and the font box keep the original name.)
+QString drawFamily(const QString &family);
 // What a column keeps free of a General number's text, in pixels: 4 for a number in fixed notation, the 5 of padding the specification gives a column's width (ECMA-376 18.3.1.13) less its
 // gridline's pixel (2 on each side); 6 for one in scientific notation, the room a cell's text has (kCellPadding on each side). Measured on the practice workbooks (the reference pages of
 // tools/crunch_print_score.py; the numbers of 108 workbooks, in the exact widths of the cell's font): every text of fixed notation the reference shows leaves at least 4.03 of the column

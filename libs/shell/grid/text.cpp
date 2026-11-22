@@ -1,6 +1,9 @@
 #include "grid/text.h"
 
 #include "sheet/entry.h"
+#include "core/fonts.h"
+
+#include <QFont>
 
 #include <algorithm>
 #include <cmath>
@@ -12,9 +15,11 @@ namespace {
 
 constexpr double kIndentWidth = 9;
 
-double indentPixels(const CellLook &look) { return look.indent * kIndentWidth; }
-
 } // namespace
+
+double indentPixels(const CellLook &look) { return look.indent > 0 ? look.indent * kIndentWidth : 0.0; }
+
+QString drawFamily(const QString &family) { return jp::measuringFamily(family); }
 
 TextMeter::~TextMeter() = default;
 

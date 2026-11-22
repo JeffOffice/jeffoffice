@@ -200,9 +200,13 @@ QString generalOf(const Dec &d, int sig)
 // decimal mark and leading zeros. (A whole number, scientific notation, and the text a number is turned into, which has no width, are not held to it.)
 constexpr int kGeneralFractionChars = 11;
 
-bool generalText(const Dec &d0, bool negative, int maxChars, const GeneralFits *fits, QString *out)
+void localizeGeneral(QString *t, const NumberSymbols *symbols);
+
+bool generalText(const Dec &d0, bool negative, int maxChars, const GeneralFits *fits, QString *out, const NumberSymbols *symbols = nullptr)
 {
     const bool measured = fits && *fits;
+    // (the fit is tested on the text that will be shown: with the person's decimal mark)
+    auto localized = [&](QString t) { localizeGeneral(&t, symbols); return t; };
     if (d0.zero()) {
         *out = QStringLiteral("0");
         return (maxChars <= 0 || maxChars >= 1) && (!measured || (*fits)(*out));
@@ -218,7 +222,7 @@ bool generalText(const Dec &d0, bool negative, int maxChars, const GeneralFits *
         QString t = generalOf(d, shownSig);
         const bool tooLong = (maxChars > 0 || measured) && t.contains(QLatin1Char('.')) && !t.contains(QLatin1Char('E')) && t.size() > kGeneralFractionChars;
         if (negative) t.prepend(QLatin1Char('-'));
-        if (!tooLong && (maxChars <= 0 || t.size() <= maxChars) && (!measured || (*fits)(t))) {
+        if (!tooLong && (maxChars <= 0 || t.size() <= maxChars) && (!measured || (*fits)(localized(t)))) {
             *out = t;
             return true;
         }
@@ -1495,7 +1499,7 @@ Formatted generalFormatted(double v, int maxChars, const GeneralFits *fits, bool
     Dec d;
     toDec(v, &d);
     QString t;
-    if (!generalText(d, negativeShown, maxChars, fits, &t)) return failedResult();
+    if (!generalText(d, negativeShown, maxChars, fits, &t, symbols)) return failedResult();
     localizeGeneral(&t, symbols);
     Formatted f;
     f.text = t;
@@ -1523,7 +1527,7 @@ Formatted formatValue(const Parsed &p, double v, DateSystem system, int generalC
         Dec d;
         toDec(v, &d);
         QString num;
-        if (!generalText(d, false, generalChars, fits, &num)) return failedResult();
+        if (!generalText(d, false, generalChars, fits, &num, symbols)) return failedResult();
         localizeGeneral(&num, symbols);
         if (negativeShown) o.add(QLatin1Char('-'));
         for (const Tok &k : s.toks) {

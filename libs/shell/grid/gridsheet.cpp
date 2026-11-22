@@ -95,9 +95,9 @@ namespace {
 // column, so the number shows whole in the width that is made, and the width is the same on every machine. Another format's number is counted in the digits of the cell's font.)
 double neededPixels(const Shown &s, const CellLook &look, int maxDigitWidth, const TextMeter &meter)
 {
-    double need = s.width + 2 * kCellPadding + (look.indent > 0 ? look.indent * 9.0 : 0.0);
+    double need = s.width + 2 * kCellPadding + indentPixels(look);
     if (s.kind != Kind::Number) return need;
-    if (!look.hasFormat) return meter.fitWidth(s.text, look) + generalFitPadding(s.text) + (look.indent > 0 ? look.indent * 9.0 : 0.0);
+    if (!look.hasFormat) return meter.fitWidth(s.text, look) + generalFitPadding(s.text) + indentPixels(look);
     int digit = int(std::lround(meter.width(QStringLiteral("0"), look)));
     if (digit <= 0) digit = maxDigitWidth;
     if (digit > 0) need = std::max(need, 5.0 + double(s.text.size()) * digit);
@@ -781,7 +781,7 @@ Shown GridSheet::shown(quint32 row, quint32 col, const Cell &cell) const
                     run.underline = f.underline;
                     run.vertAlign = f.vertAlign;
                     run.color = f.color.isSet() ? (0xFF000000u | m_data.styles->resolve(f.color, 0x000000)) : 0;
-                    QFont qf(f.name.isEmpty() ? QFont().family() : f.name);
+                    QFont qf(drawFamily(f.name));
                     qf.setPixelSize(std::max(1, int(std::lround(f.size * 96.0 / 72.0 * (f.vertAlign ? 0.65 : 1.0)))));
                     qf.setBold(f.bold);
                     qf.setItalic(f.italic);
