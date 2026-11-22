@@ -274,6 +274,63 @@ void FlowTests::aSpacedTablePaintsTheLineOfEveryCellsFoot()
 }
 
 
+// In a picture of a page a table's rule is whole pixels, as the page's own renderers draw it: black through its width (never smeared in grays over the two pixels
+// it straddles), and one run of pixels for each rule, at a page scale where a point is not a whole number of pixels.
+void FlowTests::aTableRuleInAPictureIsWholePixels()
+{
+    FlowDocument fd;
+    fillStory(fd.story(), 2, 3, {}, 4, 6);
+    TestTable spec;
+    spec.rows = 3;
+    spec.cols = 3;
+    spec.columnWidth = 100;
+    spec.margins = QMarginsF(6, 6, 6, 6);
+    spec.setTable = [](TableData &t) {
+        TableLine line;
+        line.style = TableLine::Style::Single;
+        line.width = 1;
+        t.top = t.left = t.bottom = t.right = t.insideH = t.insideV = line;
+    };
+    addTable(fd, spec);
+    Paginator pg(&fd);
+    const auto page = pg.materialize(0);
+    QVERIFY(page && page->tables.size() == 1);
+    const TableFragment &f = *page->tables[0];
+    const double scale = 4.0 / 3;   // (a page at 96 dots to the inch)
+    QImage image(int(fd.section(0).pageSize().width() * scale) + 2, int(fd.section(0).pageSize().height() * scale) + 2, QImage::Format_ARGB32_Premultiplied);
+    image.fill(Qt::white);
+    {
+        QPainter painter(&image);
+        painter.setRenderHint(QPainter::Antialiasing);   // (as the page's pictures are drawn)
+        painter.scale(scale, scale);
+        f.paint(&painter, TablePaint());
+    }
+    // (A strip across the table inside the cells' space: past the text, so only the rules are on it. Down the first column's margin for the rules across; along the first row's
+    // top margin for the rules down.)
+    auto runs = [&](bool down) {
+        QVector<int> lengths;
+        int gray = 0, run = 0;
+        const int from = int(down ? f.origin.y() * scale : f.origin.x() * scale) - 2, to = int(down ? (f.origin.y() + f.height) * scale : (f.origin.x() + 300) * scale) + 2;
+        for (int i = from; i <= to; ++i) {
+            const QColor c = down ? image.pixelColor(int((f.origin.x() + 3) * scale), i) : image.pixelColor(i, int((f.origin.y() + 3) * scale));
+            if (c.red() > 10 && c.red() < 245) ++gray;
+            if (c.red() <= 10) ++run;
+            else if (run > 0) {
+                lengths << run;
+                run = 0;
+            }
+        }
+        return QPair<QVector<int>, int>(lengths, gray);
+    };
+    for (bool down : {true, false}) {
+        const auto r = runs(down);
+        QVERIFY2(r.second == 0, qPrintable(QStringLiteral("%1 pixels of gray on the strip %2").arg(r.second).arg(down ? "down" : "across")));
+        QCOMPARE(r.first.size(), down ? 4 : 4);
+        for (int length : r.first) QVERIFY2(length == 1 || length == 2, qPrintable(QString::number(length)));
+    }
+}
+
+
 // A cell across columns has the line between it and each cell above it: the heaviest of them is the room it takes, and each part of the cell has its own.
 void FlowTests::aCellAcrossColumnsHasTheLineOfEveryCellAboveIt()
 {

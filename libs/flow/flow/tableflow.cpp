@@ -1308,9 +1308,38 @@ std::vector<EdgePart> edgeParts(TableLayout &t, int index, bool top)
     return out;
 }
 
+// A solid rule that runs along an axis, in a picture of a page: a rule is whole pixels, as the page's own renderers draw them (each edge of the rule's rectangle goes to the
+// nearest pixel line, and a rule is never under a pixel wide), not a smear over the two pixels it straddles. False where the picture is turned or slanted.
+bool strokeWholePixels(QPainter *p, const TableLine &line, QPointF a, QPointF b)
+{
+    const QTransform t = p->transform();
+    if (t != p->deviceTransform() || std::abs(t.m12()) > 1e-9 || std::abs(t.m21()) > 1e-9 || t.m11() <= 0 || t.m22() <= 0) return false;
+    if (line.style != TableLine::Style::Single) return false;
+    const bool horizontal = std::abs(a.y() - b.y()) < 1e-9, vertical = std::abs(a.x() - b.x()) < 1e-9;
+    if (horizontal == vertical) return false;
+    const QPointF da = t.map(a), db = t.map(b);
+    auto snap = [](double lo, double hi) {
+        const int from = int(std::floor(lo + 0.5));
+        int to = int(std::floor(hi + 0.5));
+        if (to <= from) to = from + 1;
+        return std::pair<int, int>(from, to);
+    };
+    const double half = line.width * (horizontal ? t.m22() : t.m11()) / 2;
+    const auto across = horizontal ? snap(da.y() - half, da.y() + half) : snap(da.x() - half, da.x() + half);
+    const auto along = horizontal ? snap(std::min(da.x(), db.x()), std::max(da.x(), db.x())) : snap(std::min(da.y(), db.y()), std::max(da.y(), db.y()));
+    const QRect box = horizontal ? QRect(QPoint(along.first, across.first), QPoint(along.second - 1, across.second - 1)) : QRect(QPoint(across.first, along.first), QPoint(across.second - 1, along.second - 1));
+    p->save();
+    p->resetTransform();
+    p->setRenderHint(QPainter::Antialiasing, false);
+    p->fillRect(box, line.color.isValid() ? line.color : QColor(Qt::black));
+    p->restore();
+    return true;
+}
+
 void strokeLine(QPainter *p, const TableLine &line, QPointF a, QPointF b, bool picture)
 {
     if (!line.visible()) return;
+    if (picture && strokeWholePixels(p, line, a, b)) return;
     double w = line.width;
     // On the screen a line is at least a pixel wide, as a thin line in a picture of a page is.
     if (picture) {
