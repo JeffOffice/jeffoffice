@@ -10351,7 +10351,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Het diaformaat in het bestand is onbruikbaar; de dia&apos;s zijn daarom 13,333 bij 7,5 inch.</translation>
     </message>
     <message>
-        <location line="+544"/>
+        <location line="+553"/>
         <source>Only the first %1 slide masters are read.</source>
         <translation type="unfinished">Alleen de eerste %1 diamodellen worden gelezen.</translation>
     </message>
@@ -10408,7 +10408,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Een tekst bevat meer alinea&apos;s dan kunnen worden gelezen; de rest is weggelaten.</translation>
     </message>
     <message>
-        <location line="+401"/>
+        <location line="+412"/>
         <source>The presentation is cut short or damaged: its document can&apos;t be found.</source>
         <translation type="unfinished">De presentatie is afgebroken of beschadigd: het document is niet gevonden.</translation>
     </message>
@@ -19065,7 +19065,7 @@ Desktop publishing</translation>
         <translation type="unfinished">(Vervolg van pagina %1)</translation>
     </message>
     <message>
-        <location line="+6771"/>
+        <location line="+6779"/>
         <source>Notes</source>
         <translation>Notities</translation>
     </message>

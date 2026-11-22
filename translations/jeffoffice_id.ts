@@ -10344,7 +10344,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Ukuran slaid dalam berkas tidak dapat digunakan, sehingga slaid berukuran 13,333 x 7,5 inci.</translation>
     </message>
     <message>
-        <location line="+544"/>
+        <location line="+553"/>
         <source>Only the first %1 slide masters are read.</source>
         <translation type="unfinished">Hanya %1 master slaid pertama yang dibaca.</translation>
     </message>
@@ -10401,7 +10401,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Sebuah teks memiliki lebih banyak paragraf daripada yang dapat dibaca; sisanya dilewati.</translation>
     </message>
     <message>
-        <location line="+401"/>
+        <location line="+412"/>
         <source>The presentation is cut short or damaged: its document can&apos;t be found.</source>
         <translation type="unfinished">Presentasi terpotong atau rusak: dokumennya tidak dapat ditemukan.</translation>
     </message>
@@ -19048,7 +19048,7 @@ Penerbitan desktop</translation>
         <translation type="unfinished">(Lanjutan dari halaman %1)</translation>
     </message>
     <message>
-        <location line="+6771"/>
+        <location line="+6779"/>
         <source>Notes</source>
         <translation>Catatan</translation>
     </message>

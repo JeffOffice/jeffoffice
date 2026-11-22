@@ -10351,7 +10351,7 @@ Baixá-lo de %2 agora? (%3, uma única vez.)</translation>
         <translation type="unfinished">Não é possível usar o tamanho do slide do arquivo, por isso os slides têm 13,333 por 7,5 polegadas.</translation>
     </message>
     <message>
-        <location line="+544"/>
+        <location line="+553"/>
         <source>Only the first %1 slide masters are read.</source>
         <translation type="unfinished">Somente os primeiros %1 slides mestres são lidos.</translation>
     </message>
@@ -10408,7 +10408,7 @@ Baixá-lo de %2 agora? (%3, uma única vez.)</translation>
         <translation type="unfinished">Um texto tem mais parágrafos do que é possível ler; o restante foi omitido.</translation>
     </message>
     <message>
-        <location line="+401"/>
+        <location line="+412"/>
         <source>The presentation is cut short or damaged: its document can&apos;t be found.</source>
         <translation type="unfinished">A apresentação está incompleta ou danificada: não foi possível encontrar o documento.</translation>
     </message>
@@ -19065,7 +19065,7 @@ Editoração eletrônica</translation>
         <translation type="unfinished">(Continuação da página %1)</translation>
     </message>
     <message>
-        <location line="+6771"/>
+        <location line="+6779"/>
         <source>Notes</source>
         <translation>Anotações</translation>
     </message>

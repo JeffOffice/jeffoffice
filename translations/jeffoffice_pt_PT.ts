@@ -10351,7 +10351,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
         <translation type="unfinished">Não é possível utilizar o tamanho do diapositivo indicado no ficheiro, pelo que os diapositivos têm 13,333 por 7,5 polegadas.</translation>
     </message>
     <message>
-        <location line="+544"/>
+        <location line="+553"/>
         <source>Only the first %1 slide masters are read.</source>
         <translation type="unfinished">Só são lidos os primeiros %1 modelos globais de diapositivos.</translation>
     </message>
@@ -10408,7 +10408,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
         <translation type="unfinished">Um texto tem mais parágrafos do que é possível ler; o restante foi omitido.</translation>
     </message>
     <message>
-        <location line="+401"/>
+        <location line="+412"/>
         <source>The presentation is cut short or damaged: its document can&apos;t be found.</source>
         <translation type="unfinished">A apresentação está truncada ou danificada: não é possível encontrar o respetivo documento.</translation>
     </message>
@@ -19065,7 +19065,7 @@ Paginação eletrónica</translation>
         <translation type="unfinished">(Continuação da página %1)</translation>
     </message>
     <message>
-        <location line="+6771"/>
+        <location line="+6779"/>
         <source>Notes</source>
         <translation>Notas</translation>
     </message>

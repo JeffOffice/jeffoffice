@@ -10351,7 +10351,7 @@ Jetzt von %2 herunterladen? (%3, einmalig.)</translation>
         <translation type="unfinished">Die Foliengröße in der Datei kann nicht verwendet werden, daher sind die Folien 13,333 × 7,5 Zoll groß.</translation>
     </message>
     <message>
-        <location line="+544"/>
+        <location line="+553"/>
         <source>Only the first %1 slide masters are read.</source>
         <translation type="unfinished">Nur die ersten %1 Folienmaster werden gelesen.</translation>
     </message>
@@ -10408,7 +10408,7 @@ Jetzt von %2 herunterladen? (%3, einmalig.)</translation>
         <translation type="unfinished">Ein Text hat mehr Absätze, als gelesen werden können; der Rest wird ausgelassen.</translation>
     </message>
     <message>
-        <location line="+401"/>
+        <location line="+412"/>
         <source>The presentation is cut short or damaged: its document can&apos;t be found.</source>
         <translation type="unfinished">Die Präsentation ist unvollständig oder beschädigt: Ihr Dokument wurde nicht gefunden.</translation>
     </message>
@@ -19065,7 +19065,7 @@ Desktop-Publishing</translation>
         <translation type="unfinished">(Fortsetzung von Seite %1)</translation>
     </message>
     <message>
-        <location line="+6771"/>
+        <location line="+6779"/>
         <source>Notes</source>
         <translation>Notizen</translation>
     </message>

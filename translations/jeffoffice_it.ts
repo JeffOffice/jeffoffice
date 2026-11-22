@@ -10351,7 +10351,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <translation type="unfinished">Le dimensioni diapositiva indicate nel file non sono utilizzabili, quindi le diapositive misurano 13,333 x 7,5 pollici.</translation>
     </message>
     <message>
-        <location line="+544"/>
+        <location line="+553"/>
         <source>Only the first %1 slide masters are read.</source>
         <translation type="unfinished">Vengono letti solo i primi %1 schemi diapositiva.</translation>
     </message>
@@ -10408,7 +10408,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <translation type="unfinished">Un testo contiene più paragrafi di quanti se ne possano leggere; il resto è stato omesso.</translation>
     </message>
     <message>
-        <location line="+401"/>
+        <location line="+412"/>
         <source>The presentation is cut short or damaged: its document can&apos;t be found.</source>
         <translation type="unfinished">La presentazione è troncata o danneggiata: impossibile trovarne il documento.</translation>
     </message>
@@ -19065,7 +19065,7 @@ Desktop publishing</translation>
         <translation type="unfinished">(Continua da pagina %1)</translation>
     </message>
     <message>
-        <location line="+6771"/>
+        <location line="+6779"/>
         <source>Notes</source>
         <translation>Note</translation>
     </message>

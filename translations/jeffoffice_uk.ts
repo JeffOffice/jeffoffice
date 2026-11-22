@@ -10358,7 +10358,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Розмір слайдів у файлі не можна використати, тому слайди мають розмір 13,333 × 7,5 дюйма.</translation>
     </message>
     <message>
-        <location line="+544"/>
+        <location line="+553"/>
         <source>Only the first %1 slide masters are read.</source>
         <translation type="unfinished">Прочитано лише перші %1 зразків слайдів.</translation>
     </message>
@@ -10415,7 +10415,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Текст містить більше абзаців, ніж можна прочитати; решту пропущено.</translation>
     </message>
     <message>
-        <location line="+401"/>
+        <location line="+412"/>
         <source>The presentation is cut short or damaged: its document can&apos;t be found.</source>
         <translation type="unfinished">Презентацію обрізано або пошкоджено: її документ не знайдено.</translation>
     </message>
@@ -19082,7 +19082,7 @@ Desktop publishing</source>
         <translation type="unfinished">(Продовження з сторінки %1)</translation>
     </message>
     <message>
-        <location line="+6771"/>
+        <location line="+6779"/>
         <source>Notes</source>
         <translation>Примітки</translation>
     </message>
