@@ -23262,7 +23262,7 @@ Sumber: %3</translation>
     <name>jp::CrunchWindow</name>
     <message>
         <location filename="../apps/crunch/app/crunchwindow.cpp" line="+193"/>
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+197"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+198"/>
         <source>The new workbook is getting ready. It can be changed in a moment.</source>
         <translation type="unfinished">Buku kerja baru sedang disiapkan. Dapat diubah sebentar lagi.</translation>
     </message>

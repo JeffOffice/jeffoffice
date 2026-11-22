@@ -335,7 +335,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+718"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+719"/>
         <source>Redid %1 of %n action(s)</source>
         <translation>
             <numerusform>Redid %1 of %n action</numerusform>

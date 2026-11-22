@@ -23290,7 +23290,7 @@ Quelle: %3</translation>
     </message>
     <message>
         <location line="-135"/>
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+197"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+198"/>
         <source>The new workbook is getting ready. It can be changed in a moment.</source>
         <translation type="unfinished">Die neue Arbeitsmappe wird vorbereitet. Sie kann in Kürze bearbeitet werden.</translation>
     </message>
