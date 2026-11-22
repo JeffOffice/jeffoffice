@@ -1504,8 +1504,8 @@ private Q_SLOTS:
 
     // A picture bullet of an old presentation: the document's extension keeps the pictures ([MS-PPT] 2.9.72 and 2.9.73: a collection of entries by
     // index, each a picture record), and says for each level of a kind of text which one its paragraphs use (2.9.37 and 2.9.38, a picture
-    // reference in the paragraph format, 2.9.14's bulletBlipRef). Here the body's first level uses the first picture; the second level has a
-    // bullet character of its own and none; a run of a slide's own extension (2.9.14 again) can name the second picture for its paragraphs.
+    // reference in the paragraph format, 2.9.26's bulletBlipRef). Here the body's first level uses the first picture; the second level has a
+    // bullet character of its own and none; a run of a slide's own extension (2.9.67, with the same 2.9.26 fields) can name the second picture for its paragraphs.
     // It is kept as the bullet when saved as a .pptx and opened, and again in the file saved from that.
     void importBinaryPictureBulletsAreTheBulletsPictures()
     {
@@ -1716,6 +1716,33 @@ private Q_SLOTS:
         QVERIFY(found[0].isEmpty());
         QCOMPARE(found[2], small);
         QCOMPARE(jp::bulletPicturePixelsDecoded() - before, qint64(0));
+    }
+
+    // A level's picture bullet and a bullet character are two ways to set the same thing, and the more specific layer wins whichever it sets: a
+    // presentation-wide picture for the body's first level, under a master that gives the level a bullet character, shows the character.
+    void importBinaryAMastersBulletCharacterBeatsTheDocumentsPicture()
+    {
+        QImage image(6, 6, QImage::Format_ARGB32);
+        image.fill(qRgb(200, 0, 0));
+        QByteArray red;
+        QBuffer buffer(&red);
+        buffer.open(QIODevice::WriteOnly);
+        image.save(&buffer, "PNG");
+        const QByteArray collection = pptBox(0x07F8, pptRec(0x07F9, raw({6, 6}) + pptRec(0xF01E, QByteArray(16, 'u') + raw({0xFF}) + red, 0x6E0), 0));
+        // The document's style for the body: its first level names the picture.
+        const QByteArray style9 = pptRec(0x0FAD, le(1, 2) + le(0x00800000, 4) + le(0, 2) + le(0, 4), 1);
+        const QByteArray tags = pptBox(5000, pptBox(5002, pptRec(4026, utf16(QStringLiteral("___PPT9"))) + pptRec(5003, collection + style9)));
+        // The master's style for the body: its first level has a bullet (flags 1) and the character U+25A0.
+        const QByteArray masterBody = pptRec(4003, le(1, 2) + le(0x81, 4) + le(1, 2) + le(0x25A0, 2) + le(0, 4), 1);
+        const QByteArray body = pptText(1, QStringLiteral("One"), pfRun(4, 0, 0) + cfRun(3, 0));
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, body, QByteArray(), QByteArray(), QByteArray(), QByteArray(), masterBody, 1016, tags), &err);
+        QVERIFY2(d, qPrintable(err));
+        const QTextDocument *story = placeholderStory(*d, *d->pages[0], QStringLiteral("ph:body:1"));
+        QVERIFY(story && story->firstBlock().textList());
+        const QTextListFormat f = story->firstBlock().textList()->format();
+        QCOMPARE(f.stringProperty(jp::tp::BulletChar), QString(QChar(0x25A0)));
+        QVERIFY(f.property(jp::tp::BulletPicture).toByteArray().isEmpty());
     }
 
     // The extension that comes with the outline's text (a slide's text, by its slide and its kind) can number the paragraphs of a run of the

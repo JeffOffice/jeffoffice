@@ -1339,8 +1339,8 @@ void Importer::readHyperlinks(const Rec &list)
     }
 }
 
-// A TextMasterStyle9Atom (2.9.37): for each of its levels (at most five), the paragraph format's picture bullet (2.9.38 TextPFException9, and 2.9.14
-// for its fields: the numbering is read past) and the character format (2.9.17: an identifier only).
+// A TextMasterStyle9Atom (2.9.37): for each of its levels (at most five; 2.9.38), the paragraph format's picture bullet (a TextPFException9, 2.9.26: the
+// mask bit 0x00800000 of its PFMasks, 2.9.21, says the BlipRef is there; the numbering is read past) and the character format (a TextCFException9, 2.9.17).
 static void readMasterStyle9(const QByteArray &d, const Rec &atom, Blips9 *out)
 {
     Cursor c(d, atom.off, atom.end());
@@ -1380,7 +1380,7 @@ void Importer::readBulletPictures(const QByteArray &d, const Rec &collection)
     }
 }
 
-// The entries of a StyleTextProp9Atom: for each run of paragraphs, its paragraph format (a bullet picture, numbering), character format, and special
+// The entries of a StyleTextProp9Atom (2.9.67): for each run of paragraphs, its paragraph format (a bullet picture, numbering), character format, and special
 // info, each with the fields its mask names; only the numbering is kept. A text keeps at most kMaxPp9Entries of them.
 static QVector<Pp9> pp9Entries(const QByteArray &d, const Rec &atom)
 {
@@ -2583,21 +2583,20 @@ StyleLevel Importer::resolve(int type, int level, const TextCtx &ctx) const
             }
         }
     }
-    // The picture bullet: what a level says of it (the same layers, each over the one before), else the level before's, unless the level names a
-    // bullet character of its own, which is then its bullet.
+    // The picture bullet: what a level says of it, a picture (or none) or a bullet character of its own, the more specific layer winning whichever it
+    // says (the presentation's, then the main master's, then a title master's, each from the style the kind builds on up to its own); within one
+    // layer a picture wins over the character that stands in for it. A level that says neither has the level before's.
     for (int k = 0; k <= level && k < 5; ++k) {
         int said = kNoBlipSaid;
-        bool character = false;
         for (int w = 0; w < 3; ++w) {
             if (!sets[w]) continue;
             for (int i = n - 1; i >= 0; --i) {
                 const TypeStyle &ts = (*sets[w])[chain[i]];
-                if (k < ts.levels && (ts.level[k].pf.has & PfBulletChar)) character = true;
+                if (k < ts.levels && (ts.level[k].pf.has & PfBulletChar)) said = kNoBlip;
                 if (const int blip = (*blips[w])[chain[i]].level[k]; blip != kNoBlipSaid) said = blip;
             }
         }
         if (said != kNoBlipSaid) out.blip = said;
-        else if (character) out.blip = kNoBlip;
     }
     return out;
 }
