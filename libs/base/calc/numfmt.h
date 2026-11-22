@@ -37,6 +37,7 @@
 #include <QString>
 #include <QVector>
 
+#include <functional>
 #include <memory>
 
 namespace jp::calc {
@@ -90,6 +91,9 @@ struct NumberSymbols {
 };
 
 // What the first section that takes a number makes of it; for the grid (a number or a date aligns right, a text left).
+// Whether a General number's text fits where it is shown (the grid measures it in the cell's font).
+using GeneralFits = std::function<bool(const QString &)>;
+
 enum class FormatKind : quint8 { General, Number, Date, Text };
 
 // A parsed code. Cheap to copy. A code that is not valid (too long, too many sections, a quote never closed) shows as General.
@@ -109,7 +113,8 @@ public:
     // cell's column holds): the most digits of 15 that fit are shown, and scientific notation when none do; 0 for no limit, which is the 15 digits that
     // TEXT() and the joining of text give.
     // With `symbols`, the decimal mark and the grouping of digits are the person's (a "General" number and a number in a code; not the "." of a time's seconds or what is in quotes).
-    Formatted format(double value, DateSystem system = DateSystem::Date1900, int generalChars = 0, const NumberSymbols *symbols = nullptr) const;
+    // With `fits`, a General number is the one with the most digits whose text it says fits (the width of the text as drawn, not a count of characters).
+    Formatted format(double value, DateSystem system = DateSystem::Date1900, int generalChars = 0, const NumberSymbols *symbols = nullptr, const GeneralFits *fits = nullptr) const;
     // A text as the text section shows it (or as it is when the code has none).
     Formatted formatText(const QString &text) const;
     // The number that is what the code shows of the value: rounded to the decimals, the percent, the thousands, the digits of a scientific number, the fraction, or the least unit of a

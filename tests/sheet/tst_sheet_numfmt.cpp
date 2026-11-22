@@ -506,6 +506,24 @@ private Q_SLOTS:
         QCOMPARE(fmt(QStringLiteral("General"), 99999.9, DateSystem::Date1900, 5), QStringLiteral("1E+05"));
     }
 
+    // A General number can be fitted by a measure of the text instead of a count of characters: the digits it has are the most whose text the predicate accepts, and none that does is a failure.
+    void generalFitsByWhatThePredicateAccepts()
+    {
+        const jp::calc::NumberFormat general(QStringLiteral("General"));
+        auto shown = [&](double v, int most) {
+            const jp::calc::GeneralFits fits = [most](const QString &t) { return t.size() <= most; };
+            const jp::calc::Formatted f = general.format(v, DateSystem::Date1900, 0, nullptr, &fits);
+            return f.failed ? QStringLiteral("#") : f.text;
+        };
+        QCOMPARE(shown(-110720, 7), QStringLiteral("-110720"));
+        QCOMPARE(shown(-110720, 6), QStringLiteral("-1E+05"));
+        QCOMPARE(shown(-110720, 5), QStringLiteral("#"));
+        QCOMPARE(shown(3.14159265358979, 40), QStringLiteral("3.141592654"));   // (the 11 characters of the standard still apply)
+        QCOMPARE(shown(3.14159265358979, 6), QStringLiteral("3.1416"));
+        QCOMPARE(shown(0, 1), QStringLiteral("0"));
+        QCOMPARE(shown(0, 0), QStringLiteral("#"));
+    }
+
     // "%" multiplies by 100 each time; E+ E- E show a value in scientific notation, with the exponent a multiple of the integer places.
     void percentAndScientific()
     {

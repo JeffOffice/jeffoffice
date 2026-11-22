@@ -200,11 +200,12 @@ QString generalOf(const Dec &d, int sig)
 // decimal mark and leading zeros. (A whole number, scientific notation, and the text a number is turned into, which has no width, are not held to it.)
 constexpr int kGeneralFractionChars = 11;
 
-bool generalText(const Dec &d0, bool negative, int maxChars, QString *out)
+bool generalText(const Dec &d0, bool negative, int maxChars, const GeneralFits *fits, QString *out)
 {
+    const bool measured = fits && *fits;
     if (d0.zero()) {
         *out = QStringLiteral("0");
-        return maxChars <= 0 || maxChars >= 1;
+        return (maxChars <= 0 || maxChars >= 1) && (!measured || (*fits)(*out));
     }
     for (int sig = 15; sig >= 1; --sig) {
         Dec d = d0;
@@ -215,13 +216,13 @@ bool generalText(const Dec &d0, bool negative, int maxChars, QString *out)
             if (d.point == d0.point + 1 && d0.point <= sig && d.point <= 15) shownSig = d.point;
         }
         QString t = generalOf(d, shownSig);
-        const bool tooLong = maxChars > 0 && t.contains(QLatin1Char('.')) && !t.contains(QLatin1Char('E')) && t.size() > kGeneralFractionChars;
+        const bool tooLong = (maxChars > 0 || measured) && t.contains(QLatin1Char('.')) && !t.contains(QLatin1Char('E')) && t.size() > kGeneralFractionChars;
         if (negative) t.prepend(QLatin1Char('-'));
-        if (!tooLong && (maxChars <= 0 || t.size() <= maxChars)) {
+        if (!tooLong && (maxChars <= 0 || t.size() <= maxChars) && (!measured || (*fits)(t))) {
             *out = t;
             return true;
         }
-        if (maxChars <= 0) break;
+        if (maxChars <= 0 && !measured) break;
     }
     return false;
 }
@@ -1489,23 +1490,23 @@ void localizeGeneral(QString *t, const NumberSymbols *symbols)
     if (symbols && symbols->decimal != QLatin1String(".")) t->replace(QLatin1Char('.'), symbols->decimal);
 }
 
-Formatted generalFormatted(double v, int maxChars, bool negativeShown, const NumberSymbols *symbols)
+Formatted generalFormatted(double v, int maxChars, const GeneralFits *fits, bool negativeShown, const NumberSymbols *symbols)
 {
     Dec d;
     toDec(v, &d);
     QString t;
-    if (!generalText(d, negativeShown, maxChars, &t)) return failedResult();
+    if (!generalText(d, negativeShown, maxChars, fits, &t)) return failedResult();
     localizeGeneral(&t, symbols);
     Formatted f;
     f.text = t;
     return f;
 }
 
-Formatted formatValue(const Parsed &p, double v, DateSystem system, int generalChars, const NumberSymbols *symbols)
+Formatted formatValue(const Parsed &p, double v, DateSystem system, int generalChars, const GeneralFits *fits, const NumberSymbols *symbols)
 {
     if (!std::isfinite(v)) return failedResult();
     if (symbols && symbols->isPlain()) symbols = nullptr;
-    if (p.general || p.secs.isEmpty()) return generalFormatted(v, generalChars, v < 0, symbols);
+    if (p.general || p.secs.isEmpty()) return generalFormatted(v, generalChars, fits, v < 0, symbols);
     Pick pk;
     if (!pick(p, v, &pk)) return failedResult();
     const Section &s = p.secs[pk.index];
@@ -1514,7 +1515,7 @@ Formatted formatValue(const Parsed &p, double v, DateSystem system, int generalC
     o.symbols = symbols;
     switch (s.kind) {
     case Kind::Text: {
-        Formatted g = generalFormatted(v, generalChars, v < 0 && !pk.dropSign, symbols);
+        Formatted g = generalFormatted(v, generalChars, fits, v < 0 && !pk.dropSign, symbols);
         g.color = s.color;
         return g;
     }
@@ -1522,7 +1523,7 @@ Formatted formatValue(const Parsed &p, double v, DateSystem system, int generalC
         Dec d;
         toDec(v, &d);
         QString num;
-        if (!generalText(d, false, generalChars, &num)) return failedResult();
+        if (!generalText(d, false, generalChars, fits, &num)) return failedResult();
         localizeGeneral(&num, symbols);
         if (negativeShown) o.add(QLatin1Char('-'));
         for (const Tok &k : s.toks) {
@@ -1772,7 +1773,7 @@ bool NumberFormat::shownValue(double value, DateSystem, double *out) const
     return true;
 }
 
-Formatted NumberFormat::format(double value, DateSystem system, int generalChars, const NumberSymbols *symbols) const { return formatValue(d->parsed, value, system, generalChars, symbols); }
+Formatted NumberFormat::format(double value, DateSystem system, int generalChars, const NumberSymbols *symbols, const GeneralFits *fits) const { return formatValue(d->parsed, value, system, generalChars, fits, symbols); }
 
 NumberSymbols NumberSymbols::of(const QLocale &locale)
 {
