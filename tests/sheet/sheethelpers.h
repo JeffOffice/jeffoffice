@@ -22,6 +22,13 @@ using namespace jp::office;
 using namespace jp::office::sheet;
 using namespace jp::calc;
 
+namespace jp::office::sheet {
+// The tests of the store's own pointers (friend of CellStore): a pointer into the store, good until the next change of it.
+struct CellStoreAccess {
+    static const Cell *findReal(const CellStore &store, quint32 row, quint32 col) { return store.findReal(row, col); }
+};
+}
+
 namespace sheettest {
 
 extern const QString kMainNs;

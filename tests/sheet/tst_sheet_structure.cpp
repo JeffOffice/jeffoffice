@@ -326,9 +326,9 @@ private Q_SLOTS:
         const Sheet &s = b.calc->sheet(0);
         const qint64 cells = s.cells.cellCount();
         QCOMPARE(cells, qint64(9));
-        const Cell *a3 = s.cells.findReal(2, 0);
-        const Cell *b3 = s.cells.findReal(2, 1);
-        const Cell *d3 = s.cells.findReal(2, 3);
+        const Cell *a3 = CellStoreAccess::findReal(s.cells, 2, 0);
+        const Cell *b3 = CellStoreAccess::findReal(s.cells, 2, 1);
+        const Cell *d3 = CellStoreAccess::findReal(s.cells, 2, 3);
         QVERIFY(a3 && b3 && d3);
         const qint64 movedBefore = b.calc->editStats().cellsMoved;
         // a row above and a column before: every cell is where it was held, with a new place
@@ -338,7 +338,7 @@ private Q_SLOTS:
         QCOMPARE(rows.cellsMoved, qint64(0));
         QCOMPARE(cols.cellsMoved, qint64(0));
         QCOMPARE(b.calc->editStats().cellsMoved, movedBefore);
-        QVERIFY(s.cells.findReal(4, 1) == a3 && s.cells.findReal(4, 2) == b3 && s.cells.findReal(4, 4) == d3);
+        QVERIFY(CellStoreAccess::findReal(s.cells, 4, 1) == a3 && CellStoreAccess::findReal(s.cells, 4, 2) == b3 && CellStoreAccess::findReal(s.cells, 4, 4) == d3);
         QCOMPARE(b.formula("C5", 0), QStringLiteral("B5*2"));                      // (the formula's node was told where it is)
         QCOMPARE(b.at("C5"), QStringLiteral("n:6"));
         QCOMPARE(b.at("E5"), QStringLiteral("n:7"));
@@ -362,7 +362,7 @@ private Q_SLOTS:
         b.finish();
         QCOMPARE(s.cells.cellCount(), cells);
         QCOMPARE(s.cells.deadCount(), qint64(0));
-        QVERIFY(s.cells.findReal(4, 1) == a3 && s.cells.findReal(4, 2) == b3 && s.cells.findReal(4, 4) == d3);
+        QVERIFY(CellStoreAccess::findReal(s.cells, 4, 1) == a3 && CellStoreAccess::findReal(s.cells, 4, 2) == b3 && CellStoreAccess::findReal(s.cells, 4, 4) == d3);
         QCOMPARE(b.at("C5"), QStringLiteral("n:6"));
         QCOMPARE(b.formula("E5"), QStringLiteral("C5+1"));
         for (int i = 0; i < 5; ++i) {
@@ -373,7 +373,7 @@ private Q_SLOTS:
             QCOMPARE(s.cells.cellCount(), cells);
         }
         QCOMPARE(s.rows().nextId().value(), nextRowId);
-        QVERIFY(s.cells.findReal(4, 1) == a3);
+        QVERIFY(CellStoreAccess::findReal(s.cells, 4, 1) == a3);
         // a column deleted, and an insert undone and done again
         Calculation::EditRecord col;
         QVERIFY(b.apply(StructEdit::deleteColumns(0, 1, 1), &col));
@@ -381,7 +381,7 @@ private Q_SLOTS:
         QVERIFY(b.calc->undoEdit(col));
         b.finish();
         QCOMPARE(s.cells.cellCount(), cells);
-        QVERIFY(s.cells.findReal(4, 1) == a3 && s.cells.findReal(4, 4) == d3);
+        QVERIFY(CellStoreAccess::findReal(s.cells, 4, 1) == a3 && CellStoreAccess::findReal(s.cells, 4, 4) == d3);
         const quint32 nextColId = s.cols().nextId().value();
         for (int i = 0; i < 4; ++i) {
             QVERIFY(b.calc->undoEdit(cols));
@@ -389,7 +389,7 @@ private Q_SLOTS:
         }
         b.finish();
         QCOMPARE(s.cols().nextId().value(), nextColId);
-        QVERIFY(s.cells.findReal(4, 1) == a3 && s.cells.findReal(4, 4) == d3);
+        QVERIFY(CellStoreAccess::findReal(s.cells, 4, 1) == a3 && CellStoreAccess::findReal(s.cells, 4, 4) == d3);
         QCOMPARE(b.at("E5"), QStringLiteral("n:7"));
     }
 
@@ -620,7 +620,7 @@ private Q_SLOTS:
         QCOMPARE(b.at("A4"), QStringLiteral("n:2"));
         QCOMPARE(copy.cells.find(3, 0)->number, 77.0);
         QVERIFY(!copy.cells.find(2, 0) && !b.calc->sheet(0).cells.find(2, 0));
-        QVERIFY(copy.cells.findReal(5, 0) != b.calc->sheet(0).cells.findReal(5, 0));
+        QVERIFY(CellStoreAccess::findReal(copy.cells, 5, 0) != CellStoreAccess::findReal(b.calc->sheet(0).cells, 5, 0));
         // a block cut and pasted: A5:A6 (4 and 5) to E2, formulas that read the block follow it
         Calculation::EditRecord cut;
         CellRange block;

@@ -172,7 +172,10 @@ private:
 // could bring them back is let go of (forgetLines); walks never reach them, and cellCount() does not
 // count them. A sheet whose order has grown too many runs or used too many ids is put back to one run
 // (rebaseLines), which renumbers the cells and lets go of the dead ones.
+struct CellStoreAccess;
+
 class CellStore {
+    friend struct CellStoreAccess;   // (the tests of the store's own pointers)
 public:
     static constexpr quint32 kBlockRows = 64;
     static constexpr quint32 kNoLine = jp::calc::LineMapCore::kNone;
@@ -250,10 +253,6 @@ public:
     // The same by the ids of the cell's row and column (what a formula's node and the window's marks hold): no turning of places into ids, so the cell is found wherever its row and column
     // are now (a deleted one is still found: it is held, dead).
     std::optional<Cell> findById(quint32 rowId, quint32 colId) const;
-    // A pointer INTO the store, for the store's own code and for a caller that changes the cell under the proper hold, and for no other. It is good only until the next call that adds, puts, or takes away a
-    // cell or edits the lines (the blocks move), and wrong on the window's thread beside the worker; never keep it across such a call, and never use it where find() would do.
-    const Cell *findReal(quint32 row, quint32 col) const;
-    const Cell *findRealById(quint32 rowId, quint32 colId) const;
     Cell *findMutableById(quint32 rowId, quint32 colId)
     {
         guardCheck("CellStore::findMutableById");
@@ -798,6 +797,10 @@ public:
     qint64 memoryBytes() const;
 
 private:
+    // A pointer INTO the store, for the store's own code (find and findMutable are made of it) and for the tests of it (CellStoreAccess), and for no other. It is good only until the next call that adds, puts, or takes away a
+    // cell or edits the lines (the blocks move), and wrong on the window's thread beside the worker; never keep it across such a call, and never use it where find() would do.
+    const Cell *findReal(quint32 row, quint32 col) const;
+    const Cell *findRealById(quint32 rowId, quint32 colId) const;
     struct Block {
         std::vector<Cell> cells;
         bool ordered = true;

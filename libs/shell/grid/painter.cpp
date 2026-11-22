@@ -897,12 +897,14 @@ void GridPainter::drawText(QPainter *p, const QRect &cell, const QRect &box, con
 
 struct GridPainter::PaneWork {
     std::vector<Span> rows, cols;
-    std::vector<const Cell *> cells;           // rows by columns, those beside the ones drawn included
+    std::vector<Cell> held;                    // the cells found, by value (a pointer given to a walk's callback is good only inside it)
+    std::vector<const Cell *> cells;           // rows by columns, those beside the ones drawn included: null or a place in `held`
     std::vector<const CellLook *> looks;       // the same, null for the plain look
     std::vector<qint32> cond;                  // the same, what the rules of conditional formatting do to the cell: a place in `condCells` + 1 (0 for nothing; empty when the sheet has no rules)
     std::vector<CondCell> condCells;           // what the rules did, held here by value (what the rules keep may be let go of while the paint goes on)
     std::vector<char> covered;                 // under a merged range
-    std::vector<const Cell *> leftCandidate, rightCandidate;   // by row: the nearest cell with something in it outside the columns drawn, on each side
+    std::vector<Cell> leftHeld, rightHeld;     // by value, the same as `held`
+    std::vector<const Cell *> leftCandidate, rightCandidate;   // by row: the nearest cell with something in it outside the columns drawn, on each side (null or a place in leftHeld, rightHeld)
     std::vector<qint64> leftCandidateCol, rightCandidateCol;   // (and the column each is in)
     size_t C = 0;
 };
@@ -989,6 +991,9 @@ void GridPainter::paintPane(QPainter *p, Pane which, const QRect &clip, const Pa
     }
     // ---- the cells: found a row at a time, with those on either side that text may spill from
     const bool scrollingCols = !frozenCols;
+    w.held.assign(R * C, Cell());
+    w.leftHeld.assign(R, Cell());
+    w.rightHeld.assign(R, Cell());
     w.cells.assign(R * C, nullptr);
     w.leftCandidate.assign(R, nullptr);
     w.rightCandidate.assign(R, nullptr);
@@ -1006,14 +1011,20 @@ void GridPainter::paintPane(QPainter *p, Pane which, const QRect &clip, const Pa
             ++m_stats.cellsLooked;
             const qint64 col = cellCol;
             const auto it = std::lower_bound(w.cols.begin(), w.cols.end(), col, [](const Span &s, qint64 v) { return s.index < v; });
-            if (it != w.cols.end() && it->index == col) w.cells[i * C + size_t(it - w.cols.begin())] = &cell;
+            if (it != w.cols.end() && it->index == col) {
+                const size_t at = i * C + size_t(it - w.cols.begin());
+                w.held[at] = cell;
+                w.cells[at] = &w.held[at];
+            }
             const bool holds = cell.type != CellType::Empty || cell.hasFormula();
             if (holds && scrollingCols) {
                 if (col < leftEdge && !colsAxis.isHidden(col)) {                                                  // (the last one met is the nearest)
-                    w.leftCandidate[i] = &cell;
+                    w.leftHeld[i] = cell;
+                    w.leftCandidate[i] = &w.leftHeld[i];
                     w.leftCandidateCol[i] = col;
                 } else if (col > rightEdge && !w.rightCandidate[i] && !colsAxis.isHidden(col)) {
-                    w.rightCandidate[i] = &cell;
+                    w.rightHeld[i] = cell;
+                    w.rightCandidate[i] = &w.rightHeld[i];
                     w.rightCandidateCol[i] = col;
                 }
             }
