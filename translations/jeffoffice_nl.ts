@@ -2686,7 +2686,7 @@ Artikel achterpagina	4</translation>
         <translation>Labels</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="+401"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="+408"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="+3"/>
         <source>Custom</source>
         <translation type="unfinished">Aangepast</translation>
@@ -2866,7 +2866,7 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">Gemeten vanaf de linkerkant van de pagina</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="-227"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="-234"/>
         <location line="+50"/>
         <location line="+15"/>
         <location line="+53"/>
@@ -2874,33 +2874,33 @@ Artikel achterpagina	4</translation>
         <location line="+1"/>
         <location line="+1"/>
         <location line="+1"/>
-        <location line="+442"/>
+        <location line="+449"/>
         <location line="+599"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="+29"/>
         <source>Font</source>
         <translation>Lettertype</translation>
     </message>
     <message>
-        <location line="-1172"/>
+        <location line="-1179"/>
         <source>Regular</source>
         <translation type="unfinished">Standaard</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+1170"/>
+        <location line="+1177"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="+739"/>
         <source>Italic</source>
         <translation type="unfinished">Cursief</translation>
     </message>
     <message>
-        <location line="-1170"/>
-        <location line="+1168"/>
+        <location line="-1177"/>
+        <location line="+1175"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="+0"/>
         <source>Bold</source>
         <translation type="unfinished">Vet</translation>
     </message>
     <message>
-        <location line="-1168"/>
+        <location line="-1175"/>
         <source>Bold Italic</source>
         <translation type="unfinished">Vet cursief</translation>
     </message>
@@ -2913,13 +2913,13 @@ Artikel achterpagina	4</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+139"/>
+        <location line="+146"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="-646"/>
         <source>Single</source>
         <translation type="unfinished">Enkel</translation>
     </message>
     <message>
-        <location line="-138"/>
+        <location line="-145"/>
         <source>Words only</source>
         <translation type="unfinished">Alleen woorden</translation>
     </message>
@@ -3019,7 +3019,7 @@ Artikel achterpagina	4</translation>
     </message>
     <message>
         <location line="+55"/>
-        <location line="+145"/>
+        <location line="+152"/>
         <location line="+5"/>
         <source>Paragraph</source>
         <translation type="unfinished">Alinea</translation>
@@ -3027,16 +3027,16 @@ Artikel achterpagina	4</translation>
     <message>
         <location filename="../libs/page/app/guidesdialog.cpp" line="+7"/>
         <location line="+4"/>
-        <location filename="../libs/page/app/textdialogs.cpp" line="-145"/>
-        <location line="+63"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="-151"/>
+        <location line="+69"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="-934"/>
         <location line="+1019"/>
         <source>Left</source>
         <translation>Links</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="-63"/>
-        <location line="+63"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="-69"/>
+        <location line="+69"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="-620"/>
         <location line="+620"/>
         <source>Center</source>
@@ -3045,15 +3045,15 @@ Artikel achterpagina	4</translation>
     <message>
         <location filename="../libs/page/app/guidesdialog.cpp" line="-3"/>
         <location line="+4"/>
-        <location filename="../libs/page/app/textdialogs.cpp" line="-63"/>
-        <location line="+63"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="-69"/>
+        <location line="+69"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="-1018"/>
         <location line="+1018"/>
         <source>Right</source>
         <translation>Rechts</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="-63"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="-69"/>
         <source>Justified</source>
         <translation type="unfinished">Uitgevuld</translation>
     </message>
@@ -3063,7 +3063,7 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">Verdeeld</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+13"/>
         <source>Multiple (sp)</source>
         <translation type="unfinished">Meerdere (rg)</translation>
     </message>
@@ -3157,7 +3157,7 @@ Artikel achterpagina	4</translation>
         <translation>Uitlijning</translation>
     </message>
     <message>
-        <location line="-180"/>
+        <location line="-187"/>
         <source>Long dash</source>
         <translation type="unfinished">Lange streep</translation>
     </message>
@@ -3181,7 +3181,7 @@ Artikel achterpagina	4</translation>
         <translation>Kleur</translation>
     </message>
     <message>
-        <location line="+118"/>
+        <location line="+125"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="-1147"/>
         <source>Direction</source>
         <translation>Richting</translation>
@@ -3292,7 +3292,7 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">Opsommingstekens</translation>
     </message>
     <message>
-        <location line="-319"/>
+        <location line="-326"/>
         <source>Thick</source>
         <translation type="unfinished">Dik</translation>
     </message>
@@ -3312,7 +3312,7 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">Dubbele golf</translation>
     </message>
     <message>
-        <location line="+212"/>
+        <location line="+219"/>
         <location line="+2"/>
         <source>Default tab stops</source>
         <translation>Standaardtabstops</translation>
@@ -3488,8 +3488,8 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">Hoogte-breedteverhouding vergrendelen</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="-382"/>
-        <location line="+1130"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="-389"/>
+        <location line="+1137"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="+27"/>
         <source>Size</source>
         <translation>Grootte</translation>
@@ -5422,7 +5422,7 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">Automatische woordafbreking in nieuwe tekstvakken</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="-1064"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="-1071"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="-14"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+0"/>
         <location filename="../apps/write/app/writewindow.cpp" line="+0"/>
@@ -5615,7 +5615,7 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">Tekstschaal</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="+1073"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="+1080"/>
         <source>Tints</source>
         <translation type="unfinished">Tinten</translation>
     </message>
@@ -6100,7 +6100,7 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">Vergelijking bewerken</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/editor_text.cpp" line="+1011"/>
+        <location filename="../libs/page/app/editor_text.cpp" line="+1019"/>
         <source>Typing mode</source>
         <translation type="unfinished">Invoermodus</translation>
     </message>
@@ -8182,12 +8182,12 @@ Open deze bestanden in uw e-mailprogramma om ze te verzenden.</translation>
         <translation type="unfinished">De publicatie-inhoud is beschadigd: %1</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubimport.cpp" line="+1266"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+1288"/>
         <source>A %1 picture could not be displayed.</source>
         <translation type="unfinished">Een %1-afbeelding kan niet worden weergegeven.</translation>
     </message>
     <message>
-        <location line="+353"/>
+        <location line="+354"/>
         <source>This is not a .pub publication file.</source>
         <translation type="unfinished">Dit is geen .pub-publicatiebestand.</translation>
     </message>
@@ -39520,7 +39520,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Basispagina verwijderen</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/editor_text.cpp" line="-711"/>
+        <location filename="../libs/page/app/editor_text.cpp" line="-719"/>
         <source>Bold</source>
         <translation type="unfinished">Vet</translation>
     </message>
@@ -39614,7 +39614,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Lijst met meerdere niveaus</translation>
     </message>
     <message>
-        <location line="+26"/>
+        <location line="+34"/>
         <source>Change List Level</source>
         <translation type="unfinished">Lijstniveau wijzigen</translation>
     </message>
@@ -39634,14 +39634,14 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Lijst verwijderen</translation>
     </message>
     <message>
-        <location line="-109"/>
-        <location line="+109"/>
+        <location line="-117"/>
+        <location line="+117"/>
         <source>Bullets</source>
         <translation type="unfinished">Opsommingstekens</translation>
     </message>
     <message>
-        <location line="-109"/>
-        <location line="+109"/>
+        <location line="-117"/>
+        <location line="+117"/>
         <source>Numbering</source>
         <translation>Nummering</translation>
     </message>

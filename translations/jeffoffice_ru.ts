@@ -2687,7 +2687,7 @@ Back page story	4</source>
         <translation>Подписи</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="+401"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="+408"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="+3"/>
         <source>Custom</source>
         <translation type="unfinished">Пользовательский</translation>
@@ -2867,7 +2867,7 @@ Back page story	4</source>
         <translation type="unfinished">Отсчёт от левого края страницы</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="-227"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="-234"/>
         <location line="+50"/>
         <location line="+15"/>
         <location line="+53"/>
@@ -2875,33 +2875,33 @@ Back page story	4</source>
         <location line="+1"/>
         <location line="+1"/>
         <location line="+1"/>
-        <location line="+442"/>
+        <location line="+449"/>
         <location line="+599"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="+29"/>
         <source>Font</source>
         <translation>Шрифт</translation>
     </message>
     <message>
-        <location line="-1172"/>
+        <location line="-1179"/>
         <source>Regular</source>
         <translation type="unfinished">Обычный</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+1170"/>
+        <location line="+1177"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="+739"/>
         <source>Italic</source>
         <translation type="unfinished">Курсив</translation>
     </message>
     <message>
-        <location line="-1170"/>
-        <location line="+1168"/>
+        <location line="-1177"/>
+        <location line="+1175"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="+0"/>
         <source>Bold</source>
         <translation type="unfinished">Полужирный</translation>
     </message>
     <message>
-        <location line="-1168"/>
+        <location line="-1175"/>
         <source>Bold Italic</source>
         <translation type="unfinished">Полужирный курсив</translation>
     </message>
@@ -2914,13 +2914,13 @@ Back page story	4</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+139"/>
+        <location line="+146"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="-646"/>
         <source>Single</source>
         <translation type="unfinished">Одинарное</translation>
     </message>
     <message>
-        <location line="-138"/>
+        <location line="-145"/>
         <source>Words only</source>
         <translation type="unfinished">Только слова</translation>
     </message>
@@ -3020,7 +3020,7 @@ Back page story	4</source>
     </message>
     <message>
         <location line="+55"/>
-        <location line="+145"/>
+        <location line="+152"/>
         <location line="+5"/>
         <source>Paragraph</source>
         <translation type="unfinished">Абзац</translation>
@@ -3028,16 +3028,16 @@ Back page story	4</source>
     <message>
         <location filename="../libs/page/app/guidesdialog.cpp" line="+7"/>
         <location line="+4"/>
-        <location filename="../libs/page/app/textdialogs.cpp" line="-145"/>
-        <location line="+63"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="-151"/>
+        <location line="+69"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="-934"/>
         <location line="+1019"/>
         <source>Left</source>
         <translation>Левое</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="-63"/>
-        <location line="+63"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="-69"/>
+        <location line="+69"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="-620"/>
         <location line="+620"/>
         <source>Center</source>
@@ -3046,15 +3046,15 @@ Back page story	4</source>
     <message>
         <location filename="../libs/page/app/guidesdialog.cpp" line="-3"/>
         <location line="+4"/>
-        <location filename="../libs/page/app/textdialogs.cpp" line="-63"/>
-        <location line="+63"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="-69"/>
+        <location line="+69"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="-1018"/>
         <location line="+1018"/>
         <source>Right</source>
         <translation>Правое</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="-63"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="-69"/>
         <source>Justified</source>
         <translation type="unfinished">По ширине</translation>
     </message>
@@ -3064,7 +3064,7 @@ Back page story	4</source>
         <translation type="unfinished">По распределению</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+13"/>
         <source>Multiple (sp)</source>
         <translation type="unfinished">Множитель (ст.)</translation>
     </message>
@@ -3158,7 +3158,7 @@ Back page story	4</source>
         <translation>Выравнивание</translation>
     </message>
     <message>
-        <location line="-180"/>
+        <location line="-187"/>
         <source>Long dash</source>
         <translation type="unfinished">Длинное тире</translation>
     </message>
@@ -3182,7 +3182,7 @@ Back page story	4</source>
         <translation>Цвет</translation>
     </message>
     <message>
-        <location line="+118"/>
+        <location line="+125"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="-1147"/>
         <source>Direction</source>
         <translation>Направление</translation>
@@ -3293,7 +3293,7 @@ Back page story	4</source>
         <translation type="unfinished">Маркеры</translation>
     </message>
     <message>
-        <location line="-319"/>
+        <location line="-326"/>
         <source>Thick</source>
         <translation type="unfinished">Толстая</translation>
     </message>
@@ -3313,7 +3313,7 @@ Back page story	4</source>
         <translation type="unfinished">Двойная волнистая</translation>
     </message>
     <message>
-        <location line="+212"/>
+        <location line="+219"/>
         <location line="+2"/>
         <source>Default tab stops</source>
         <translation>Стандартные позиции табуляции</translation>
@@ -3489,8 +3489,8 @@ Back page story	4</source>
         <translation type="unfinished">Сохранять пропорции</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="-382"/>
-        <location line="+1130"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="-389"/>
+        <location line="+1137"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="+27"/>
         <source>Size</source>
         <translation>Размер</translation>
@@ -5423,7 +5423,7 @@ Back page story	4</source>
         <translation type="unfinished">Автоматически расставлять переносы в новых текстовых полях</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="-1064"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="-1071"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="-14"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+0"/>
         <location filename="../apps/write/app/writewindow.cpp" line="+0"/>
@@ -5616,7 +5616,7 @@ Back page story	4</source>
         <translation type="unfinished">Масштаб текста</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="+1073"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="+1080"/>
         <source>Tints</source>
         <translation type="unfinished">Оттенки</translation>
     </message>
@@ -6102,7 +6102,7 @@ Back page story	4</source>
         <translation type="unfinished">Изменить формулу</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/editor_text.cpp" line="+1011"/>
+        <location filename="../libs/page/app/editor_text.cpp" line="+1019"/>
         <source>Typing mode</source>
         <translation type="unfinished">Режим ввода</translation>
     </message>
@@ -8189,12 +8189,12 @@ Open them with your email program to send.</source>
         <translation type="unfinished">Содержимое публикации повреждено: %1</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubimport.cpp" line="+1266"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+1288"/>
         <source>A %1 picture could not be displayed.</source>
         <translation type="unfinished">Не удалось отобразить рисунок %1.</translation>
     </message>
     <message>
-        <location line="+353"/>
+        <location line="+354"/>
         <source>This is not a .pub publication file.</source>
         <translation type="unfinished">Это не файл публикации .pub.</translation>
     </message>
@@ -39563,7 +39563,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Удалить главную страницу</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/editor_text.cpp" line="-711"/>
+        <location filename="../libs/page/app/editor_text.cpp" line="-719"/>
         <source>Bold</source>
         <translation type="unfinished">Полужирный</translation>
     </message>
@@ -39657,7 +39657,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Многоуровневый список</translation>
     </message>
     <message>
-        <location line="+26"/>
+        <location line="+34"/>
         <source>Change List Level</source>
         <translation type="unfinished">Изменить уровень списка</translation>
     </message>
@@ -39677,14 +39677,14 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Удалить список</translation>
     </message>
     <message>
-        <location line="-109"/>
-        <location line="+109"/>
+        <location line="-117"/>
+        <location line="+117"/>
         <source>Bullets</source>
         <translation type="unfinished">Маркеры</translation>
     </message>
     <message>
-        <location line="-109"/>
-        <location line="+109"/>
+        <location line="-117"/>
+        <location line="+117"/>
         <source>Numbering</source>
         <translation>Нумерация</translation>
     </message>

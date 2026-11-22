@@ -2685,7 +2685,7 @@ Berita halaman belakang	4</translation>
         <translation>Label</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="+401"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="+408"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="+3"/>
         <source>Custom</source>
         <translation type="unfinished">Kustom</translation>
@@ -2865,7 +2865,7 @@ Berita halaman belakang	4</translation>
         <translation type="unfinished">Diukur dari bagian kiri halaman</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="-227"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="-234"/>
         <location line="+50"/>
         <location line="+15"/>
         <location line="+53"/>
@@ -2873,33 +2873,33 @@ Berita halaman belakang	4</translation>
         <location line="+1"/>
         <location line="+1"/>
         <location line="+1"/>
-        <location line="+442"/>
+        <location line="+449"/>
         <location line="+599"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="+29"/>
         <source>Font</source>
         <translation>Font</translation>
     </message>
     <message>
-        <location line="-1172"/>
+        <location line="-1179"/>
         <source>Regular</source>
         <translation type="unfinished">Reguler</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+1170"/>
+        <location line="+1177"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="+739"/>
         <source>Italic</source>
         <translation type="unfinished">Miring</translation>
     </message>
     <message>
-        <location line="-1170"/>
-        <location line="+1168"/>
+        <location line="-1177"/>
+        <location line="+1175"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="+0"/>
         <source>Bold</source>
         <translation type="unfinished">Tebal</translation>
     </message>
     <message>
-        <location line="-1168"/>
+        <location line="-1175"/>
         <source>Bold Italic</source>
         <translation type="unfinished">Tebal Miring</translation>
     </message>
@@ -2912,13 +2912,13 @@ Berita halaman belakang	4</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+139"/>
+        <location line="+146"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="-646"/>
         <source>Single</source>
         <translation type="unfinished">Tunggal</translation>
     </message>
     <message>
-        <location line="-138"/>
+        <location line="-145"/>
         <source>Words only</source>
         <translation type="unfinished">Hanya kata</translation>
     </message>
@@ -3018,7 +3018,7 @@ Berita halaman belakang	4</translation>
     </message>
     <message>
         <location line="+55"/>
-        <location line="+145"/>
+        <location line="+152"/>
         <location line="+5"/>
         <source>Paragraph</source>
         <translation type="unfinished">Paragraf</translation>
@@ -3026,16 +3026,16 @@ Berita halaman belakang	4</translation>
     <message>
         <location filename="../libs/page/app/guidesdialog.cpp" line="+7"/>
         <location line="+4"/>
-        <location filename="../libs/page/app/textdialogs.cpp" line="-145"/>
-        <location line="+63"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="-151"/>
+        <location line="+69"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="-934"/>
         <location line="+1019"/>
         <source>Left</source>
         <translation>Kiri</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="-63"/>
-        <location line="+63"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="-69"/>
+        <location line="+69"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="-620"/>
         <location line="+620"/>
         <source>Center</source>
@@ -3044,15 +3044,15 @@ Berita halaman belakang	4</translation>
     <message>
         <location filename="../libs/page/app/guidesdialog.cpp" line="-3"/>
         <location line="+4"/>
-        <location filename="../libs/page/app/textdialogs.cpp" line="-63"/>
-        <location line="+63"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="-69"/>
+        <location line="+69"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="-1018"/>
         <location line="+1018"/>
         <source>Right</source>
         <translation>Kanan</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="-63"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="-69"/>
         <source>Justified</source>
         <translation type="unfinished">Rata</translation>
     </message>
@@ -3062,7 +3062,7 @@ Berita halaman belakang	4</translation>
         <translation type="unfinished">Didistribusikan</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+13"/>
         <source>Multiple (sp)</source>
         <translation type="unfinished">Kelipatan (spasi)</translation>
     </message>
@@ -3156,7 +3156,7 @@ Berita halaman belakang	4</translation>
         <translation>Perataan</translation>
     </message>
     <message>
-        <location line="-180"/>
+        <location line="-187"/>
         <source>Long dash</source>
         <translation type="unfinished">Tanda Pisah Panjang</translation>
     </message>
@@ -3180,7 +3180,7 @@ Berita halaman belakang	4</translation>
         <translation>Warna</translation>
     </message>
     <message>
-        <location line="+118"/>
+        <location line="+125"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="-1147"/>
         <source>Direction</source>
         <translation>Arah</translation>
@@ -3291,7 +3291,7 @@ Berita halaman belakang	4</translation>
         <translation type="unfinished">Poin</translation>
     </message>
     <message>
-        <location line="-319"/>
+        <location line="-326"/>
         <source>Thick</source>
         <translation type="unfinished">Tebal</translation>
     </message>
@@ -3311,7 +3311,7 @@ Berita halaman belakang	4</translation>
         <translation type="unfinished">Gelombang ganda</translation>
     </message>
     <message>
-        <location line="+212"/>
+        <location line="+219"/>
         <location line="+2"/>
         <source>Default tab stops</source>
         <translation>Tab berhenti default</translation>
@@ -3487,8 +3487,8 @@ Berita halaman belakang	4</translation>
         <translation type="unfinished">Kunci rasio aspek</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="-382"/>
-        <location line="+1130"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="-389"/>
+        <location line="+1137"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="+27"/>
         <source>Size</source>
         <translation>Ukuran</translation>
@@ -5421,7 +5421,7 @@ Berita halaman belakang	4</translation>
         <translation type="unfinished">Otomatis sambung kata di kotak teks baru</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="-1064"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="-1071"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="-14"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+0"/>
         <location filename="../apps/write/app/writewindow.cpp" line="+0"/>
@@ -5614,7 +5614,7 @@ Berita halaman belakang	4</translation>
         <translation type="unfinished">Skala Teks</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/textdialogs.cpp" line="+1073"/>
+        <location filename="../libs/page/app/textdialogs.cpp" line="+1080"/>
         <source>Tints</source>
         <translation type="unfinished">Tint</translation>
     </message>
@@ -6098,7 +6098,7 @@ Berita halaman belakang	4</translation>
         <translation type="unfinished">Edit Persamaan</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/editor_text.cpp" line="+1011"/>
+        <location filename="../libs/page/app/editor_text.cpp" line="+1019"/>
         <source>Typing mode</source>
         <translation type="unfinished">Mode Pengetikan</translation>
     </message>
@@ -8175,12 +8175,12 @@ Buka dengan program email Anda untuk mengirimnya.</translation>
         <translation type="unfinished">Konten publikasi rusak: %1</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubimport.cpp" line="+1266"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+1288"/>
         <source>A %1 picture could not be displayed.</source>
         <translation type="unfinished">Gambar %1 tidak dapat ditampilkan.</translation>
     </message>
     <message>
-        <location line="+353"/>
+        <location line="+354"/>
         <source>This is not a .pub publication file.</source>
         <translation type="unfinished">Ini bukan file publikasi .pub.</translation>
     </message>
@@ -39477,7 +39477,7 @@ Berkas tidak dapat dibaca.</translation>
         <translation type="unfinished">Hapus Halaman Master</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/editor_text.cpp" line="-711"/>
+        <location filename="../libs/page/app/editor_text.cpp" line="-719"/>
         <source>Bold</source>
         <translation type="unfinished">Tebal</translation>
     </message>
@@ -39571,7 +39571,7 @@ Berkas tidak dapat dibaca.</translation>
         <translation type="unfinished">Daftar Multilevel</translation>
     </message>
     <message>
-        <location line="+26"/>
+        <location line="+34"/>
         <source>Change List Level</source>
         <translation type="unfinished">Ubah Level Daftar</translation>
     </message>
@@ -39591,14 +39591,14 @@ Berkas tidak dapat dibaca.</translation>
         <translation type="unfinished">Hapus Daftar</translation>
     </message>
     <message>
-        <location line="-109"/>
-        <location line="+109"/>
+        <location line="-117"/>
+        <location line="+117"/>
         <source>Bullets</source>
         <translation type="unfinished">Poin</translation>
     </message>
     <message>
-        <location line="-109"/>
-        <location line="+109"/>
+        <location line="-117"/>
+        <location line="+117"/>
         <source>Numbering</source>
         <translation>Penomoran</translation>
     </message>
