@@ -4356,7 +4356,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 B->markerImage = bulletPictureImage(lf.property(tp::BulletPicture).toByteArray());
                 if (!B->markerImage.isNull()) {
                     B->marker = QStringLiteral("\u2003");
-                    B->markerImageSide = env.slideLines ? 0.675 : 0.9;   // (a slide's: three quarters of that, as the reference drawings of picture bullets have it)
+                    B->markerImageSide = env.slideLines ? 0.675 : 0.9;   // (a slide's: three quarters of that, measured on development files, not from the specification; a bullet size the file states multiplies it)
                     B->markerFit = false;
                     B->markerOutline = false;
                     B->markerAdv = 0;
