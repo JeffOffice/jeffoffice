@@ -2,6 +2,7 @@
 // Custom QTextFormat properties JeffPub stores alongside Qt's own.
 
 #include "core/export.h"
+#include "text/textspecial.h"
 
 #include <QColor>
 #include <QString>
@@ -214,11 +215,6 @@ constexpr int KeptClick = QTextFormat::UserProperty + 330;
 
 // A paragraph's borders and shading as a word processor draws them (LayoutEnv::wordLines): each side's line style, width in eighths of a point, and its
 // distance from the text in points, and the color the paragraph is filled with. Kept in a block's tp::Borders as text, ParaBox::spec.
-// The formatting marks a page can show (Show/Hide, and Options > Display for each kind), as bits.
-namespace special {
-enum { Space = 1, Tab = 2, Paragraph = 4, Hidden = 8, OptionalHyphen = 16, Anchor = 32, All = Space | Tab | Paragraph | Hidden | OptionalHyphen | Anchor };
-}
-
 struct BoxSide {
     QString style;                 // "single", "double", "dotted", "dashed", "thick"; empty for none
     int eighths = 0;

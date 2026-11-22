@@ -26,6 +26,7 @@
 #include "office/officecrypt.h"
 #include "office/privacy.h"
 #include "office/package.h"
+#include "text/textprops.h"
 
 #include <QApplication>
 #include <QDateTime>
