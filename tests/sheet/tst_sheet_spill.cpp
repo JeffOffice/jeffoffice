@@ -9,9 +9,6 @@
 
 namespace {
 
-// Whether the tests of the index below run with it on (they are written to fail with it off: the cells the store holds are not the blocks').
-constexpr bool kIndexOn = true;
-
 QString constant(const QString &ref, const QString &value) { return QStringLiteral("<c r=\"%1\"><v>%2</v></c>").arg(ref, value); }
 QString rowXml(int n, const QString &cells) { return QStringLiteral("<row r=\"%1\">%2</row>").arg(n).arg(cells); }
 
@@ -56,6 +53,16 @@ struct Book {
         return r.valid ? rangeName(r) : QString();
     }
 };
+
+// The blocks of a sheet's table, as "row1:col1:row2:col2" in order (places counted from 0).
+std::vector<QString> blocksOf(const Calculation &calc, int sheet)
+{
+    std::vector<QString> out;
+    if (const SpillPublisher *pub = calc.sheet(sheet).cells.spills())
+        pub->mine().forEach([&](const SpillRect &r) { out.push_back(QStringLiteral("%1:%2:%3:%4").arg(r.row1).arg(r.col1).arg(r.row2).arg(r.col2)); });
+    std::sort(out.begin(), out.end());
+    return out;
+}
 
 QByteArray blank(const QString &rows = QString()) { return buildXlsx({worksheet(rows)}); }
 
@@ -236,29 +243,94 @@ private Q_SLOTS:
         QCOMPARE(b.calc->sheet(0).cells.cellCount(), qint64(3));
     }
 
-    // A lookup that was cached over cells that a spill grows into reads them as they are now (the spill epoch: a change of the blocks moves the count of writes of the store).
+    // A lookup whose cells were read into an index (the lookup cache), and a spill that then grows into those cells: the lookup reads the cells as they are now. The spill changes no cell of the store
+    // (its block is a rectangle of the table), so only the count of the store's writes, moved by a change of the blocks, tells the cache its index is stale.
     void aCachedLookupSeesCellsASpillGrowsInto()
     {
-        SpillIndexSwitch on(kIndexOn);
+        SpillIndexSwitch on(true);
         QString rows;
         for (int n = 11; n <= 500; ++n) rows += rowXml(n, constant(QStringLiteral("B%1").arg(n), QString::number(n)));
         Book b;
         QVERIFY(b.open(blank(rows)));
-        QVERIFY(b.type(QStringLiteral("D1"), QStringLiteral("MATCH(10,B1:B500,0)")));
-        QCOMPARE(b.at("D1"), QStringLiteral("e:#N/A"));   // (B1:B10 are empty: the lookup read the 490 numbers and cached them)
+        for (int k = 0; k < 6; ++k) QVERIFY(b.type(QStringLiteral("D%1").arg(k + 1), QStringLiteral("MATCH(%1,B1:B500,0)").arg(480 + k)));
+        QVERIFY(b.type(QStringLiteral("D7"), QStringLiteral("MATCH(10,B1:B500,0)")));
+        QCOMPARE(b.at("D7"), QStringLiteral("e:#N/A"));   // (B1:B10 are empty)
+        // the searches have cost what an index costs: B1:B500 is held as an index now, and answers
+        QVERIFY2(b.calc->lookupStats().builds >= 1, qPrintable(QString::number(b.calc->lookupStats().builds)));
+        QVERIFY(b.type(QStringLiteral("D8"), QStringLiteral("MATCH(11,B1:B500,0)")));
+        QVERIFY2(b.calc->lookupStats().hits >= 1, qPrintable(QString::number(b.calc->lookupStats().hits)));
+        QCOMPARE(b.at("D8"), QStringLiteral("n:11"));
         QVERIFY(b.type(QStringLiteral("A1"), QStringLiteral("_xlfn.SEQUENCE(10,2)")));   // A1:B10: B5 is 10
         QCOMPARE(b.at("B5"), QStringLiteral("n:10"));
-        QCOMPARE(b.at("D1"), QStringLiteral("n:5"));
+        QCOMPARE(b.at("D7"), QStringLiteral("n:5"));
+        QCOMPARE(b.at("D8"), QStringLiteral("n:11"));
+        QVERIFY2(b.calc->lookupStats().dropped >= 1, qPrintable(QString::number(b.calc->lookupStats().dropped)));
         QVERIFY(b.type(QStringLiteral("A1"), QStringLiteral("_xlfn.SEQUENCE(4,2)")));   // it shrinks: B5 is empty again
-        QCOMPARE(b.at("D1"), QStringLiteral("e:#N/A"));
+        QCOMPARE(b.at("D7"), QStringLiteral("e:#N/A"));
     }
 
-    // A loaded spill, and the blocks table made again from the ranges, agree: the same blocks for a spill that is worked out, and none for one that is kept apart (its cells are the file's).
-    void aLoadedSpillAndTheRebuiltTableAgreeOnKeptFormulas()
+    // A spill that a copied formula is put over (a paste or a fill onto its first cell) fills no block: the formula is let go of, and so is its block (put does not clear the cell first).
+    void aFormulaCopiedOverASpillLeavesNoBlock()
     {
-        SpillIndexSwitch on(kIndexOn);
-        const QString rows = rowXml(1, QStringLiteral("<c r=\"A1\" cm=\"1\"><f t=\"array\" ref=\"A1:A3\">_xlfn.SEQUENCE(3)</f><v>1</v></c><c r=\"C1\" cm=\"1\"><f t=\"array\" ref=\"C1:C3\">_xlfn.NOSUCHFUNCTIONX(3)</f><v>1</v></c>"))
-            + rowXml(2, constant("A2", "2") + constant("C2", "2")) + rowXml(3, constant("A3", "3") + constant("C3", "3"));
+        SpillIndexSwitch on(true);
+        Book b;
+        QVERIFY(b.open(blank()));
+        QVERIFY(b.type(QStringLiteral("A1"), QStringLiteral("_xlfn.SEQUENCE(3)")));
+        QVERIFY(b.type(QStringLiteral("E5"), QStringLiteral("1+2")));
+        QCOMPARE(blocksOf(*b.calc, 0), std::vector<QString>{QStringLiteral("0:0:2:0")});
+        Calculation::CellContent c = b.calc->content(0, b.row("E5"), b.col("E5"));
+        QVERIFY(c.hasHeld);
+        c.copied = true;
+        QVERIFY(b.calc->put(0, b.row("A1"), b.col("A1"), c, Calculation::Marking::Now));
+        QVERIFY(b.settle());
+        QCOMPARE(b.at("A1"), QStringLiteral("n:3"));
+        QVERIFY(blocksOf(*b.calc, 0).empty());
+        QVERIFY(!b.member("A2") && !b.member("A3"));
+        QCOMPARE(b.at("A2"), QStringLiteral("-"));
+    }
+
+    // A sheet copied with a formula that spills has its block as soon as it is made (its table starts empty, and the formulas of the copy are not worked out before the table is read).
+    void aCopyOfASheetHasTheBlocksOfItsSpills()
+    {
+        SpillIndexSwitch on(true);
+        Book b;
+        QVERIFY(b.open(blank()));
+        QVERIFY(b.type(QStringLiteral("B2"), QStringLiteral("_xlfn.SEQUENCE(3)")));
+        const int made = b.calc->addSheet(QStringLiteral("Copy"), 0);
+        QVERIFY(made > 0);
+        QCOMPARE(blocksOf(*b.calc, made), std::vector<QString>{QStringLiteral("1:1:3:1")});
+        QVERIFY(b.member("B4", made));
+        QCOMPARE(b.calc->sheet(made).cells.cellCount(), qint64(1));   // (the head only: no cell is made for the block)
+        QCOMPARE(blocksOf(*b.calc, 0), std::vector<QString>{QStringLiteral("1:1:3:1")});
+    }
+
+    // A formula that spills, in a cell an edit takes away (a shift of cells over it, or whole rows or columns), leaves no block, whatever is worked out after.
+    void aSpillInACellThatAnEditTakesAwayLeavesNoBlock()
+    {
+        SpillIndexSwitch on(true);
+        const StructEdit edits[] = {StructEdit::deleteCellsUp(0, CellRange{0, 0, 0, 0, true}), StructEdit::deleteCellsLeft(0, CellRange{0, 0, 0, 0, true}), StructEdit::deleteRows(0, 0, 1),
+                                    StructEdit::deleteColumns(0, 0, 1)};
+        for (const StructEdit &edit : edits) {
+            Book b;
+            QVERIFY(b.open(blank()));
+            QVERIFY(b.type(QStringLiteral("A1"), QStringLiteral("_xlfn.SEQUENCE(2,2)")));
+            QCOMPARE(blocksOf(*b.calc, 0), std::vector<QString>{QStringLiteral("0:0:1:1")});
+            Calculation::EditRecord rec;
+            QVERIFY(b.calc->applyEdit(edit, &rec));
+            QVERIFY(b.settle());
+            for (const QString &blk : blocksOf(*b.calc, 0)) QVERIFY2(false, qPrintable(blk));
+            QVERIFY(!b.calc->isSpillAnchor(0, 0, 0));
+        }
+    }
+
+    // A loaded spill and the table made again by an edit of rows agree on kept formulas: a spill that is worked out has its block, one that is kept apart (its cells are the file's) has none, before the
+    // edit and after it.
+    void aLoadedSpillAndTheTableAfterAnEditAgreeOnKeptFormulas()
+    {
+        SpillIndexSwitch on(true);
+        // A1:A3 is worked out; A5:A7 is a spill that changes by itself (RAND), which a calculation that keeps such formulas apart leaves with the cells the file stored
+        const QString rows = rowXml(1, QStringLiteral("<c r=\"A1\" cm=\"1\"><f t=\"array\" ref=\"A1:A3\">_xlfn.SEQUENCE(3)</f><v>1</v></c>")) + rowXml(2, constant("A2", "2")) + rowXml(3, constant("A3", "3"))
+            + rowXml(5, QStringLiteral("<c r=\"A5\" cm=\"1\"><f t=\"array\" ref=\"A5:A7\">_xlfn.SEQUENCE(3)+0*RAND()</f><v>1</v></c>")) + rowXml(6, constant("A6", "2")) + rowXml(7, constant("A7", "3"));
         const QByteArray file = withMetadata(blank(rows));
         Book b;
         QString why;
@@ -267,20 +339,116 @@ private Q_SLOTS:
         options.keepApart = true;
         b.calc.reset(new Calculation(b.book, options));
         QVERIFY(b.calc->load());
-        const SpillPublisher *pub = b.calc->sheet(0).cells.spills();
-        QVERIFY(pub);
-        auto blocks = [&] {
-            std::vector<QString> out;
-            pub->mine().forEach([&](const SpillRect &r) { out.push_back(QStringLiteral("%1:%2:%3:%4").arg(r.row1).arg(r.col1).arg(r.row2).arg(r.col2)); });
-            std::sort(out.begin(), out.end());
-            return out;
-        };
-        const std::vector<QString> loaded = blocks();
-        QCOMPARE(loaded, std::vector<QString>{QStringLiteral("0:0:2:0")});   // (A1:A3 only: C1:C3 is kept apart)
-        b.calc->rebuildSpillTableForTest(0);
-        QCOMPARE(blocks(), loaded);
         QVERIFY(b.settle());
-        QCOMPARE(blocks(), loaded);
+        QVERIFY(b.calc->isSpillAnchor(0, 4, 0));   // (a spill that is kept apart is one still)
+        QCOMPARE(blocksOf(*b.calc, 0), std::vector<QString>{QStringLiteral("0:0:2:0")});   // (A1:A3 only: A5:A7 is kept apart)
+        Calculation::EditRecord rec;
+        QVERIFY(b.calc->applyEdit(StructEdit::insertRows(0, 0, 1), &rec));   // (a row above: the table is made again from the ranges)
+        QVERIFY(b.settle());
+        QCOMPARE(blocksOf(*b.calc, 0), std::vector<QString>{QStringLiteral("1:0:3:0")});
+        QCOMPARE(b.at("A7"), QStringLiteral("n:2"));   // (the file's cells, as they were)
+        QCOMPARE(b.calc->sheet(0).cells.cellCount(), qint64(1 + 3 + 0 + 2) );
+    }
+
+    // A stored workbook with a spill whose stored range is over the size a spill can have: no block is made for the range, no cell is made for the thousands of places in it (the cells of the store are
+    // the ones the file stored), the formula is worked out for what it gives, and the values the file stored in the range are the cells' own or the block's, none lost.
+    void aStoredSpillOverTheSizeCapMakesNoBlockAndLosesNoValue()
+    {
+        const qint64 over = kMaxSpillCells + 1;
+        const QString rows = rowXml(1, QStringLiteral("<c r=\"A1\" cm=\"1\"><f t=\"array\" ref=\"A1:A%1\">_xlfn.SEQUENCE(3)</f><v>1</v></c>").arg(over)) + rowXml(2, constant("A2", "2")) + rowXml(3, constant("A3", "3"))
+            + rowXml(4, constant("A4", "44")) + rowXml(9, constant("B9", "99"));
+        QStringList seen[2];   // (what each cell reads as, with the index off and then on: the same)
+        for (int idx = 0; idx < 2; ++idx) {
+            SpillIndexSwitch sw(idx != 0);
+            Book b;
+            QString why;
+            QVERIFY(b.package.readLazy(withMetadata(blank(rows)), &why) && b.book.open(b.package, &why));
+            b.calc.reset(new Calculation(b.book));
+            QVERIFY(b.calc->load());
+            if (idx) QVERIFY(blocksOf(*b.calc, 0).empty());   // (not a block: over the cap)
+            for (const char *ref : {"A1", "A2", "A3", "A4", "B9"}) seen[idx] << b.at(ref);
+            QVERIFY(b.settle());
+            for (const char *ref : {"A1", "A2", "A3", "A4", "B9"}) seen[idx] << b.at(ref);
+            QCOMPARE(b.at("A1"), QStringLiteral("n:1"));
+            QCOMPARE(b.at("A3"), QStringLiteral("n:3"));
+            QCOMPARE(b.at("B9"), QStringLiteral("n:99"));   // (the file's own cell, outside the range)
+            // a formula that gives more than a spill can have is blocked, as ever, and no block or cell is made for it
+            const qint64 cellsBefore = b.calc->sheet(0).cells.cellCount();
+            QVERIFY(b.type(QStringLiteral("C1"), QStringLiteral("_xlfn.SEQUENCE(%1)").arg(over)));
+            QCOMPARE(b.at("C1"), QStringLiteral("e:#SPILL!"));
+            QVERIFY2(b.calc->sheet(0).cells.cellCount() <= cellsBefore + 1, qPrintable(QString::number(b.calc->sheet(0).cells.cellCount())));
+            if (idx) QCOMPARE(blocksOf(*b.calc, 0).size(), size_t(1));
+        }
+        QCOMPARE(seen[1], seen[0]);
+    }
+
+    // Stored ranges that overlap: the first of two that meet is the block, the other has none, and every value the file stored in either is read afterwards, as a cell's own or as a block's.
+    void storedSpillRangesThatOverlapMakeBlocksThatDoNotAndLoseNoValue()
+    {
+        const QString rows = rowXml(1, QStringLiteral("<c r=\"A1\" cm=\"1\"><f t=\"array\" ref=\"A1:A5\">_xlfn.SEQUENCE(5)</f><v>1</v></c><c r=\"C1\" cm=\"1\"><f t=\"array\" ref=\"C1:C4\">_xlfn.SEQUENCE(4)</f><v>1</v></c>"))
+            + rowXml(3, constant("A3", "3")) + rowXml(4, constant("A4", "4")) + rowXml(5, constant("A5", "5"))
+            + rowXml(7, constant("A7", "77")) + rowXml(8, QStringLiteral("<c r=\"A8\" cm=\"1\"><f t=\"array\" ref=\"A4:A8\">_xlfn.SEQUENCE(5,1,10)</f><v>10</v></c>"));
+        QStringList seen[2];   // (what each cell reads as, with the index off and then on: the same)
+        for (int idx = 0; idx < 2; ++idx) {
+            SpillIndexSwitch sw(idx != 0);
+            Book b;
+            QString why;
+            QVERIFY(b.package.readLazy(withMetadata(blank(rows)), &why) && b.book.open(b.package, &why));
+            b.calc.reset(new Calculation(b.book));
+            QVERIFY(b.calc->load());
+            auto disjoint = [&] {
+                std::vector<SpillRect> all;
+                if (const SpillPublisher *pub = b.calc->sheet(0).cells.spills()) pub->mine().forEach([&](const SpillRect &r) { all.push_back(r); });
+                for (size_t i = 0; i < all.size(); ++i)
+                    for (size_t j = i + 1; j < all.size(); ++j)
+                        if (all[i].meets(all[j].row1, all[j].col1, all[j].row2, all[j].col2)) return false;
+                return true;
+            };
+            QVERIFY(disjoint());
+            if (idx) QVERIFY(!blocksOf(*b.calc, 0).empty());
+            for (int row = 1; row <= 8; ++row) seen[idx] << b.at(QStringLiteral("A%1").arg(row).toUtf8().constData()) << b.at(QStringLiteral("C%1").arg(row).toUtf8().constData());
+            QVERIFY(b.settle());
+            QVERIFY(disjoint());
+            for (int row = 1; row <= 8; ++row) seen[idx] << b.at(QStringLiteral("A%1").arg(row).toUtf8().constData()) << b.at(QStringLiteral("C%1").arg(row).toUtf8().constData());
+        }
+        QCOMPARE(seen[1], seen[0]);
+    }
+
+    // Thousands of small spills, as a file has them: every one has its block (a 1 by 2 block in each row), a place is found by looking at a few blocks however many there are (counted, not timed),
+    // and the values a file stored in the blocks are read as they were.
+    void thousandsOfStoredSmallSpillsAreFoundByAFewLooks()
+    {
+        SpillIndexSwitch on(true);
+        const int count = 3000;
+        QString rows;
+        for (int n = 1; n <= count; ++n)
+            rows += rowXml(n, QStringLiteral("<c r=\"A%1\" cm=\"1\"><f t=\"array\" ref=\"A%1:B%1\">_xlfn.SEQUENCE(1,2,%1)</f><v>%1</v></c>").arg(n) + constant(QStringLiteral("B%1").arg(n), QString::number(n + 1)));
+        Book b;
+        QString why;
+        QVERIFY(b.package.readLazy(withMetadata(blank(rows)), &why) && b.book.open(b.package, &why));
+        b.calc.reset(new Calculation(b.book));
+        QVERIFY(b.calc->load());
+        QCOMPARE(blocksOf(*b.calc, 0).size(), size_t(count));
+        QVERIFY(b.settle());
+        const SpillTable &t = b.calc->sheet(0).cells.spills()->mine();
+        QCOMPARE(t.size(), size_t(count));
+        qint64 mostForOne = 0, total = 0;
+        for (quint32 r = 0; r < quint32(count); ++r)
+            for (quint32 c = 0; c < 2; ++c) {
+                qint64 probes = 0;
+                const SpillRect *found = t.at(r, c, &probes);
+                QVERIFY(found && found->row1 == r && found->col2 == 1);
+                mostForOne = std::max(mostForOne, probes);
+                total += probes;
+            }
+        QVERIFY2(mostForOne <= SpillTable::kBlockRows, qPrintable(QString::number(mostForOne)));   // (a bucket holds the blocks of its 64 rows: a scan of the table would look at 3,000)
+        QVERIFY2(total <= qint64(SpillTable::kBlockRows) * 2 * count, qPrintable(QString::number(total)));
+        QCOMPARE(b.at("B1"), QStringLiteral("n:2"));
+        QCOMPARE(b.at(QStringLiteral("B%1").arg(count).toUtf8().constData()), QStringLiteral("n:%1").arg(count + 1));
+        QCOMPARE(b.at(QStringLiteral("A%1").arg(count).toUtf8().constData()), QStringLiteral("n:%1").arg(count));
+        qint64 seen = 0;
+        b.calc->sheet(0).cells.forEach([&](quint32, quint32, const Cell &) { ++seen; });
+        QCOMPARE(seen, qint64(2 * count));   // (a walk of the sheet gives each place of a block once)
     }
 
     // The block grows and shrinks as the result does, and what reads the cells follows it.

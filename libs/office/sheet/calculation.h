@@ -128,7 +128,6 @@ public:
     }
     // Whether this calculation keeps the cells a formula spills into as blocks of an index (set from spillIndexDefault() when the workbook is loaded) and not as cells of the store.
     bool spillIndexOn() const { return m_spillIndex; }
-    void rebuildSpillTableForTest(int sheet) { rebuildSpillTable(sheet); }   // (the table made again from the ranges, as an edit of rows or columns does)
     void setWorkerThread(quintptr thread)
     {
         for (Sheet &s : m_sheets) s.cells.guardWith(&m_guard);

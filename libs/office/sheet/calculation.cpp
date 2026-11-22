@@ -1353,12 +1353,19 @@ bool Calculation::load()
         if (s.cells.spills()) {
             const std::optional<Cell> head = cellOf(n);
             if (head && (head->flags & SpillFormula) && !(n.flags & Kept)) {
-                // (a spill's block is a rectangle in the sheet's table and makes no cell. One a spill cannot have, or that meets another that stands, has none: it is worked out and blocked or
-                // shrunk. A cell the file stored in it, with the value it had, is a member as before.)
-                if (!registerSpill(n.sheet, n.formula, r)) continue;
+                // (a spill's block is a rectangle in the sheet's table and makes no cell. One a spill cannot have, or that meets another that stands, has no block: it is worked out and blocked or shrunk. In
+                // both cases a cell the file stored in the range, with the value it had, is a member of the formula as before (not content that blocks it), but for one in the block of another.)
+                const bool registered = registerSpill(n.sheet, n.formula, r);
+                const SpillPublisher *pub = s.cells.spills();
                 std::vector<std::pair<quint32, quint32>> stored;
                 s.cells.forEachInRangeReal(r.row1, r.col1, r.row2, r.col2, [&](quint32 row, quint32 col, const Cell &c) {
-                    if (!(row == rowOf(n) && col == colOf(n)) && !c.hasFormula()) stored.emplace_back(row, col);
+                    if (row == rowOf(n) && col == colOf(n)) return true;
+                    if (c.hasFormula() || (c.flags & (ArrayMember | SpillMember))) return true;
+                    if (!registered) {
+                        const SpillRect *other = pub->mine().at(row, col);
+                        if (other && other->formula != n.formula) return true;
+                    }
+                    stored.emplace_back(row, col);
                     return true;
                 });
                 for (const auto &[row, col] : stored) {
