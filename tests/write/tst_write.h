@@ -1252,6 +1252,8 @@ private Q_SLOTS:
     void aParagraphStyleIsSavedSaidWhenTheFileFlagsNoDefault();
     void anEmptyBreakParagraphBeforeAContinuousSectionTakesNoRoom();
     void anEmptyBreakParagraphThatBeginsTheDocumentKeepsItsLine();
+    void anEmptyBreakParagraphThatIsASectionAloneKeepsItsLine();
+    void anEmptyBreakParagraphUnderATableTakesNoRoom();
     void theColumnsAfterAnEmptyBreakParagraphBeginWhereTheTextAboveEnds();
     void anEmptyBreakParagraphAtTheFootOfAFullPageStaysThere();
     void aKeptParagraphThatBeginsWithAPageBreakStaysOnTheFullPage();

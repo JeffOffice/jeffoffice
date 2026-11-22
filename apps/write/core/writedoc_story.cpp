@@ -752,6 +752,12 @@ void WriteDoc::fillStory(QTextDocument *story, const QVector<Block> &bodyIn, boo
         for (int i = int(body.size()) - 1; i >= 0; --i)
             if (!body[i].isRaw && body[i].para.props.section) {
                 continuousAfter[i] = nextContinuous;
+                // (A section of this one paragraph that begins a page of its own keeps its line: it is the page's first, and the section after it goes on below it. A table between is text.)
+                if (continuousAfter[i] && body[i].para.props.section->type != QLatin1String("continuous")) {
+                    int before = i - 1;
+                    while (before >= 0 && body[before].isRaw && body[before].tag.isEmpty()) --before;
+                    if (before >= 0 && !body[before].isRaw && body[before].para.props.section) continuousAfter[i] = false;
+                }
                 nextContinuous = body[i].para.props.section->type == QLatin1String("continuous");
             }
     }

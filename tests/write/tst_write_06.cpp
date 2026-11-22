@@ -850,6 +850,44 @@ void WriteTests::anEmptyBreakParagraphThatBeginsTheDocumentKeepsItsLine()
 }
 
 
+// The empty paragraph that is a section of its own (it begins a page, and a continuous section follows it) keeps its line: the text after it is below it on that page.
+void WriteTests::anEmptyBreakParagraphThatIsASectionAloneKeepsItsLine()
+{
+    auto top = [&](const QByteArray &middle) {
+        const QByteArray first = "<w:p><w:pPr><w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr></w:pPr><w:r><w:t>First</w:t></w:r></w:p>";
+        const QByteArray second = "<w:p><w:r><w:t>Second</w:t></w:r></w:p>";
+        const QByteArray last = "<w:sectPr><w:type w:val=\"continuous\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr>";
+        auto doc = open(makeDocxWithParts(first + middle + second, last, {}));
+        const auto lines = doc && doc->pager().pageCount() > 1 ? doc->pager().lines(1) : QVector<StoryLayout::LineBrief>();
+        return lines.isEmpty() ? -1.0 : lines.last().rect.top();
+    };
+    const double alone = top("<w:p><w:pPr><w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr></w:pPr></w:p>");
+    QVERIFY(alone >= 0);
+    QVERIFY2(alone > 5, qPrintable(QStringLiteral("the text is at %1 on its page").arg(alone)));
+}
+
+
+// A table between the section that ends a page and the empty paragraph that is the next section does not make it a section of its own alone: the paragraph is where the text above it ends,
+// and takes no room, as it does under any other text.
+void WriteTests::anEmptyBreakParagraphUnderATableTakesNoRoom()
+{
+    auto gap = [&](const QByteArray &middle) {
+        const QByteArray first = "<w:p><w:pPr><w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr></w:pPr><w:r><w:t>First</w:t></w:r></w:p>";
+        const QByteArray empty = "<w:p><w:pPr><w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr></w:pPr></w:p>";
+        const QByteArray second = "<w:p><w:r><w:t>Second</w:t></w:r></w:p>";
+        const QByteArray last = "<w:sectPr><w:type w:val=\"continuous\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/></w:sectPr>";
+        auto doc = open(makeDocxWithParts(first + middle + empty + second, last, {}));
+        const auto lines = doc && doc->pager().pageCount() > 1 ? doc->pager().lines(1) : QVector<StoryLayout::LineBrief>();
+        return lines.size() < 2 ? -1000.0 : lines.last().rect.top() - lines[lines.size() - 2].rect.bottom();
+    };
+    const double underText = gap("<w:p><w:r><w:t>Middle</w:t></w:r></w:p>");
+    const double underTable = gap("<w:tbl><w:tblPr/><w:tblGrid><w:gridCol w:w=\"4000\"/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t>Cell</w:t></w:r></w:p></w:tc></w:tr></w:tbl>");
+    QVERIFY2(underText > -100 && underTable > -100, qPrintable(QStringLiteral("%1 %2").arg(underText).arg(underTable)));
+    QVERIFY2(underText < 5, qPrintable(QString::number(underText)));
+    QVERIFY2(underTable < 5, qPrintable(QString::number(underTable)));
+}
+
+
 // The columns of a continuous section that has more of them than the section before it begin where that section's text ends: the empty paragraph that ends the section before
 // takes no room there either (they begin as they do when the section's last paragraph has the break in it).
 void WriteTests::theColumnsAfterAnEmptyBreakParagraphBeginWhereTheTextAboveEnds()
