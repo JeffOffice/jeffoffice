@@ -189,7 +189,7 @@ public:
     };
 
     CellStore() : m_serial(nextSerial()), m_stamp(nextStamp()) {}
-    CellStore(const CellStore &o) : m_blocks(o.m_blocks), m_count(o.m_count), m_dead(o.m_dead), m_rows(o.m_rows), m_cols(o.m_cols), m_serial(nextSerial()), m_stamp(nextStamp()), m_frozen(o.frozenSpills()) {}
+    CellStore(const CellStore &o) : m_blocks(o.m_blocks), m_count(o.m_count), m_dead(o.m_dead), m_rows(o.m_rows), m_cols(o.m_cols), m_serial(nextSerial()), m_stamp(nextStamp()), m_frozen(o.frozenSpills()) { m_hasSpills = bool(m_frozen); }
     CellStore &operator=(const CellStore &o)
     {
         m_blocks = o.m_blocks;
@@ -206,11 +206,14 @@ public:
         const std::shared_ptr<const SpillTable> blocks = o.frozenSpills();
         if (m_spill) m_spill->follow(blocks.get());
         else m_frozen = blocks;
+        m_hasSpills = m_spill || m_frozen;
         return *this;
     }
     // A move takes the blocks and leaves the store it was taken from empty, with no memory of where it last added a cell (that place is a block it no longer has).
     CellStore(CellStore &&o) noexcept : m_blocks(std::move(o.m_blocks)), m_count(o.m_count), m_dead(o.m_dead), m_rows(std::move(o.m_rows)), m_cols(std::move(o.m_cols)), m_serial(o.m_serial), m_stamp(o.m_stamp), m_spill(std::move(o.m_spill)), m_frozen(std::move(o.m_frozen))
     {
+        m_hasSpills = m_spill || m_frozen;
+        o.m_hasSpills = false;
         takeLog(o);
         o.reset();
     }
@@ -226,6 +229,8 @@ public:
             m_stamp = o.m_stamp;
             m_spill = std::move(o.m_spill);
             m_frozen = std::move(o.m_frozen);
+            m_hasSpills = m_spill || m_frozen;
+            o.m_hasSpills = false;
             takeLog(o);
             m_last = nullptr;
             m_colCellsValid = false;
@@ -243,6 +248,7 @@ public:
         m_guard = guard;
         if (!m_spill) m_spill = std::make_shared<SpillPublisher>(guard);
         m_frozen.reset();
+        m_hasSpills = true;
     }
     SpillPublisher *spills() const { return m_spill.get(); }
     // Notes that the blocks changed: what holds the store's cells as they were (a lookup cache, by the write count) is out of date, for any cells.
@@ -251,8 +257,8 @@ public:
         guardCheck("CellStore::noteSpillChange");
         noteWrite(kNoLine, kNoLine);
     }
-    // (a plain test of two pointers: a store with no table, which is every store with the index off, builds no view)
-    bool hasSpills() const { return m_spill || m_frozen; }
+    // (one flag: a store with no table, which is every store with the index off, builds no view)
+    bool hasSpills() const { return m_hasSpills; }
     SpillView spillView() const
     {
         if (m_spill) return m_spill->view();
@@ -1352,9 +1358,10 @@ private:
     const MutationGuard *m_guard = nullptr;
     std::shared_ptr<SpillPublisher> m_spill;           // (null: this store has no blocks table)
     std::shared_ptr<const SpillTable> m_frozen;        // (the blocks a copy of a store was made with)
+    bool m_hasSpills = false;                          // (m_spill or m_frozen is set)
     std::optional<Cell> memberAt(const SpillView &v, quint32 row, quint32 col, const Cell *real) const;
-    std::optional<Cell> findWithSpills(quint32 row, quint32 col, const Cell *real) const;
-    std::optional<Cell> findByIdWithSpills(quint32 rowId, quint32 colId, const Cell *real) const;
+    std::optional<Cell> findWithSpills(quint32 row, quint32 col) const;
+    std::optional<Cell> findByIdWithSpills(quint32 rowId, quint32 colId) const;
     void guardCheck(const char *what) const
     {
         if (m_guard) m_guard->check(what);
