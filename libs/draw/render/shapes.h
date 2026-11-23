@@ -52,6 +52,8 @@ const QVector<ShapeDef> &shapeLibrary();
 const ShapeDef *shapeDef(const QString &id);
 // How many times a preset shape has been worked out from its definition, not found in the cache (for a test).
 qint64 presetEvaluationsForTest();
+// How many times adjDrag worked out where a handle stands, since the program began (for a test).
+qint64 handleEvaluationsForTest();
 
 // The shape's one outline: the union of its filled paths, or an open shape's outline paths. (shapeParts has every path, each with how it is drawn.)
 QPainterPath shapePath(const QString &id, const QSizeF &size, const QVector<double> &adj = {});

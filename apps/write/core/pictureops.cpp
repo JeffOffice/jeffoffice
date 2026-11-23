@@ -63,6 +63,15 @@
 
 namespace jp::write {
 
+namespace {
+// Work done on the drawings of the story, read by the tests (atomic, as the other counters of the document are).
+std::atomic<qint64> g_drawingScans{0}, g_drawingsParsed{0}, g_drawingsWritten{0};
+} // namespace
+
+qint64 drawingScansForTest() { return g_drawingScans.load(); }
+qint64 drawingsParsedForTest() { return g_drawingsParsed.load(); }
+qint64 drawingsWrittenForTest() { return g_drawingsWritten.load(); }
+
 using namespace office::wml;
 
 namespace {
@@ -752,6 +761,7 @@ bool changePicture(WriteDoc &doc, int position, const std::function<bool(Model &
     edit.setPosition(position + 1, QTextCursor::KeepAnchor);
     const QTextCharFormat was = formatAfter(story, position);
     edit.setCharFormat(cf);
+    ++g_drawingsWritten;
     doc.retireDrawnForm(was);
     doc.keepObjectsForTheHistory();
     return true;
@@ -1361,12 +1371,14 @@ bool isTrueFlag(const QByteArray &v) { return v == "1" || v == "true"; }
 QVector<Drawn> scanDrawings(WriteDoc &doc, bool floatingOnly, bool withNames)
 {
     QVector<Drawn> out;
+    ++g_drawingScans;
     QTextDocument *story = doc.story();
     const int end = story->characterCount() - 1;
     for (int p = 0; p < end; ++p) {
         if (story->characterAt(p) != QChar::ObjectReplacementCharacter) continue;
         Inline atom;
         Model m;
+        ++g_drawingsParsed;
         if (!drawingAtomOf(formatAfter(story, p), &atom) || !parseDrawing(atom.raw, &m) || (floatingOnly && !m.floating)) continue;
         Drawn d;
         d.position = p;

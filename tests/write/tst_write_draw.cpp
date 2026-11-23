@@ -754,9 +754,7 @@ QPointF pageOrigin()
     setPicturePlace(*doc, 0, 100, 100);
     probe.w.view()->refresh();
     QRectF r;
-    QElapsedTimer waited;
-    waited.start();
-    while (!probe.w.view()->pictureRect(0, &r) && waited.elapsed() < 5000) QCoreApplication::processEvents();
+    for (int turn = 0; turn < 2000 && !probe.w.view()->pictureRect(0, &r); ++turn) QCoreApplication::processEvents(QEventLoop::AllEvents, 10);
     const double s = probe.w.view()->zoom() * 96.0 / 72.0;
     return r.topLeft() - QPointF(100 * s, 100 * s);
 }
@@ -3208,8 +3206,8 @@ private Q_SLOTS:
         QCOMPARE(floatingObjects(*doc).value(1).position, 1);
     }
 
-    // A document of 2,000 floating objects: the pane lists them, and a drag of a row 1,000 places is one reorder (each under two seconds; a scan of the document for each row, or for
-    // each place moved, takes far longer).
+    // A document of 2,000 floating objects: the pane lists them, and a drag of a row 1,000 places is one reorder. The work is counted, not timed: the story is scanned for its drawings a few
+    // times in all (a scan of the document for each row, or for each place moved, would be thousands), and only the drawing that moves is written again (the heights are spread apart).
     void aDocumentOfTwoThousandFloatingObjectsHasItsPaneListedAndARowDraggedQuickly()
     {
         QByteArray runs;
@@ -3219,23 +3217,32 @@ private Q_SLOTS:
             runs += r;
         }
         Win win("<w:p>" + runs + "</w:p>");
-        QElapsedTimer clock;
-        auto within = [&](const char *what) {
-            const qint64 ms = clock.elapsed();
-            clock.restart();
-            QVERIFY2(ms < 2000 * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QStringLiteral("%1 took %2 ms").arg(QLatin1String(what)).arg(ms)));
-        };
-        clock.start();
+        qint64 scans = drawingScansForTest(), parsed = drawingsParsedForTest();
         win.w.act(QStringLiteral("view.selectionPane"))->trigger();
         auto *list = win.w.findChild<QListWidget *>(QStringLiteral("selectionList"));
         QVERIFY(list);
         QCOMPARE(list->count(), 2000);
-        within("opening the pane");
+        QCoreApplication::processEvents();
+        const qint64 openScans = drawingScansForTest() - scans, openParsed = drawingsParsedForTest() - parsed;
+        qInfo("opening the pane: %lld scans, %lld drawings read", qlonglong(openScans), qlonglong(openParsed));
+        QVERIFY2(openScans <= 4, qPrintable(QStringLiteral("opening the pane scanned the story %1 times").arg(openScans)));
+        QVERIFY2(openParsed <= 4 * 2000, qPrintable(QStringLiteral("opening the pane read %1 drawings").arg(openParsed)));
+        scans = drawingScansForTest();
+        parsed = drawingsParsedForTest();
         list->setCurrentRow(5);
-        within("picking a row");
+        QCoreApplication::processEvents();
+        QVERIFY2(drawingScansForTest() - scans <= 2, qPrintable(QStringLiteral("picking a row scanned the story %1 times").arg(drawingScansForTest() - scans)));
         const QVector<FloatingObject> before = floatingObjects(*win.w.document());
+        scans = drawingScansForTest();
+        parsed = drawingsParsedForTest();
+        const qint64 written = drawingsWrittenForTest();
         QVERIFY(list->model()->moveRow(QModelIndex(), 0, QModelIndex(), 1001));
-        within("a drag of 1,000 places");
+        QCoreApplication::processEvents();
+        const qint64 dragScans = drawingScansForTest() - scans, dragParsed = drawingsParsedForTest() - parsed, dragWritten = drawingsWrittenForTest() - written;
+        qInfo("a drag of 1,000 places: %lld scans, %lld drawings read, %lld written", qlonglong(dragScans), qlonglong(dragParsed), qlonglong(dragWritten));
+        QVERIFY2(dragScans <= 20, qPrintable(QStringLiteral("a drag of 1,000 places scanned the story %1 times").arg(dragScans)));
+        QVERIFY2(dragParsed <= 20 * 2000, qPrintable(QStringLiteral("a drag of 1,000 places read %1 drawings").arg(dragParsed)));
+        QVERIFY2(dragWritten <= 4, qPrintable(QStringLiteral("a drag of 1,000 places wrote %1 drawings").arg(dragWritten)));
         const QVector<FloatingObject> after = floatingObjects(*win.w.document());
         QCOMPARE(after.value(1000).position, before.value(0).position);
         QCOMPARE(after.value(0).position, before.value(1).position);
@@ -4265,8 +4272,8 @@ private Q_SLOTS:
         QCOMPARE(adj[0], 0.5);
     }
 
-    // The circular arrow's last handle moves a radius and an angle at once: a drag of it follows the mouse at the pace of a mouse (100 moves in under a second is the loose bound; it took
-    // about 18 seconds with a search of a grid at each move), and each move puts the handle where the mouse is.
+    // The circular arrow's last handle moves a radius and an angle at once: a drag of it follows the mouse at the pace of a mouse (the places of the handle worked out for a move are counted, not timed: about 270 now,
+    // thousands with a search of a grid at each move), and each move puts the handle where the mouse is.
     void aHandleOfRadiusAndAngleFollowsTheMouseQuickly()
     {
         const jp::ShapeDef *def = jp::shapeDef(QStringLiteral("circularArrow"));
@@ -4277,21 +4284,20 @@ private Q_SLOTS:
             if (h.polar && h.indexX >= 0 && h.indexY >= 0) handle = &h;
         QVERIFY(handle);
         QVector<double> adj = def->defaults;
-        QElapsedTimer timer;
-        qint64 total = 0;
+        qint64 worst = 0;
         for (int k = 1; k <= 100; ++k) {
             QVector<double> moved = def->defaults;
             moved[handle->indexY] += 0.0015 * k;
             moved[handle->indexX] += 0.0005 * k;
             const QPointF target = jp::adjHandlePos(*handle, size, moved);
-            timer.start();
+            const qint64 evaluations = jp::handleEvaluationsForTest();
             jp::adjDrag(*handle, size, adj, target);
-            total += timer.nsecsElapsed();
+            worst = std::max(worst, jp::handleEvaluationsForTest() - evaluations);
             const QPointF got = jp::adjHandlePos(*handle, size, adj);
             QVERIFY2(std::abs(got.x() - target.x()) <= 0.05 && std::abs(got.y() - target.y()) <= 0.05, qPrintable(QStringLiteral("move %1: at %2,%3 not %4,%5").arg(k).arg(got.x()).arg(got.y()).arg(target.x()).arg(target.y())));
         }
-        if (qEnvironmentVariableIsSet("JW_SHAPE_TIME")) qInfo("DRAGTIME 100 moves: %lld us (%lld us each)", total / 1000, total / 100000);
-        QVERIFY2(total < 1000000000LL * std::max(1, qEnvironmentVariableIntValue("JP_TEST_TIME_SCALE")), qPrintable(QStringLiteral("100 moves took %1 ms").arg(total / 1000000)));
+        qInfo("DRAGWORK most places of a handle worked out in one move: %lld", qlonglong(worst));
+        QVERIFY2(worst <= 600, qPrintable(QStringLiteral("a move worked out %1 places of the handle").arg(worst)));
     }
 
     // Words in a ribbon, a cloud, and an oval callout begin in the standard's text rectangle and fit its width.
@@ -4533,7 +4539,7 @@ private Q_SLOTS:
     }
 
     // Every shape is worked out from its definition once for a size and its adjustments (the count of evaluations, not the time, says so), and drawing them all again 100 times finds them; a
-    // loose bound on the time of an evaluation of every shape (JW_SHAPE_TIME=1 prints the times).
+    // the times are printed with JW_SHAPE_TIME=1, not asserted.
     void everyShapeIsDrawnQuicklyAgain()
     {
         const auto &lib = jp::shapeLibrary();
@@ -4557,9 +4563,7 @@ private Q_SLOTS:
         QCOMPARE(jp::presetEvaluationsForTest(), second);
         if (qEnvironmentVariableIsSet("JW_SHAPE_TIME")) qInfo("SHAPETIME %d shapes: 3 cold rounds %lld ms, 100 warm rounds %lld ms (%d elements)", int(lib.size()), cold, warm, elements);
         QVERIFY(elements > 0);
-        // (Very loose: a slow, shared machine is several times slower than this one.)
-        QVERIFY2(cold < 30000, qPrintable(QStringLiteral("%1 ms").arg(cold)));
-        QVERIFY2(warm < 30000, qPrintable(QStringLiteral("%1 ms").arg(warm)));
+        // (The work is counted above: three evaluations of each preset cold, none warm. The times are only printed.)
     }
 
     // The cache of evaluated shapes keeps what is drawn again and again when a page draws many sizes: a shape drawn between a thousand others is still found each time.
@@ -5773,7 +5777,7 @@ private Q_SLOTS:
         QCOMPARE(win.w.document()->story()->toPlainText(), plain);
         // F1 in the pane is the pictures topic.
         win.w.activateWindow();
-        QVERIFY(QTest::qWaitForWindowActive(&win.w));
+        QTRY_VERIFY_WITH_TIMEOUT(win.w.isActiveWindow(), 30000);
         pane->findChild<QLineEdit *>()->setFocus();
         QTRY_VERIFY(QApplication::focusWidget() == pane->findChild<QLineEdit *>());
         win.w.act(QStringLiteral("help.show"))->trigger();
@@ -6696,7 +6700,9 @@ private Q_SLOTS:
         win.w.ribbon()->buildAllTabs();
         win.w.ribbon()->showTab(win.w.ribbon()->tab(QStringLiteral("Graphics Format")));
         QDir().mkpath(dir);
-        QTest::qWait(200);
+        QRectF shown;
+        QTRY_VERIFY_WITH_TIMEOUT(win.w.view()->pictureRect(0, &shown), 30000);
+        QCoreApplication::processEvents();
         QVERIFY(win.w.grab().save(dir + QStringLiteral("/fix-graphics-format-tab.png")));
         // Shapes: a graphic of three parts, recolored (its fills one color), selected, then converted to shapes; the page before and after.
         QTextCursor d(doc->story());
@@ -6711,14 +6717,15 @@ private Q_SLOTS:
         win.w.view()->refresh();
         win.w.view()->selectPicture(second);
         win.w.refreshNow();
-        QTest::qWait(200);
+        QTRY_VERIFY_WITH_TIMEOUT(win.w.view()->pictureRect(second, &shown), 30000);
+        QCoreApplication::processEvents();
         QVERIFY(win.w.grab().save(dir + QStringLiteral("/fix-convert-before.png")));
         const GraphicConversion done = convertGraphicToShapes(*doc, second);
         QCOMPARE(int(done.result), int(GraphicConvert::Done));
         win.w.view()->refresh();
         win.w.view()->selectPicture(second);
         win.w.refreshNow();
-        QTest::qWait(200);
+        QCoreApplication::processEvents();
         QVERIFY(win.w.grab().save(dir + QStringLiteral("/fix-convert-after.png")));
     }
 

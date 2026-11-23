@@ -194,6 +194,10 @@ bool setObjectHidden(WriteDoc &doc, int position, bool hidden);
 bool setAllObjectsHidden(WriteDoc &doc, bool hidden);
 // Moves the floating object `by` places in the list floatingObjects gives (negative: toward the front), as one step however far it goes; a place past the front layer is behind the text. False for an object in line.
 bool moveFloatingObject(WriteDoc &doc, int position, int by);
+// For the tests: how many times the story was scanned for its drawings, how many drawings those scans read, and how many drawings were written again (all since the program began).
+qint64 drawingScansForTest();
+qint64 drawingsParsedForTest();
+qint64 drawingsWrittenForTest();
 // Mark as Decorative: the picture is marked as adding nothing to the page's meaning, and its description is taken off; off, the mark goes.
 bool setPictureDecorative(WriteDoc &doc, int position, bool decorative);
 // Sets a picture at a place on the page, measured from its top left corner (points): it becomes one that is set at a place (square, if it was in line).

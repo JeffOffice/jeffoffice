@@ -2,6 +2,7 @@
 
 #include "core/presetgeom.h"
 
+#include <atomic>
 #include <QByteArray>
 #include <QCoreApplication>
 #include <QHash>
@@ -124,6 +125,7 @@ struct Evaluated {
 };
 
 thread_local qint64 g_presetEvaluations = 0;
+std::atomic<qint64> g_handleEvaluations{0};
 
 constexpr int kMostCached = 512;
 
@@ -230,6 +232,11 @@ double turnDifference(double a, double b)
 qint64 presetEvaluationsForTest()
 {
     return g_presetEvaluations;
+}
+
+qint64 handleEvaluationsForTest()
+{
+    return g_handleEvaluations.load();
 }
 
 static QVector<ShapeDef> build()
@@ -657,10 +664,12 @@ void adjDrag(const AdjHandle &hd, const QSizeF &s, QVector<double> &adj, const Q
         QHash<QString, double> trial = now;
         trial.insert(refs[axis], v);
         HandleGeometry at;
+        ++g_handleEvaluations;
         return evaluateHandle(*spec, hd.standard, trial, frame, &at) ? at.at : QPointF();
     };
     const auto range = [&](int axis, double *lo, double *hi) {
         HandleGeometry at;
+        ++g_handleEvaluations;
         if (!evaluateHandle(*spec, hd.standard, now, frame, &at)) return false;
         *lo = at.min[axis];
         *hi = at.max[axis];
@@ -729,6 +738,7 @@ void adjDrag(const AdjHandle &hd, const QSizeF &s, QVector<double> &adj, const Q
             for (int i = 0; i < names.size(); ++i) trial.insert(names[i], values[i]);
         }
         HandleGeometry place;
+        ++g_handleEvaluations;
         return evaluateHandle(*spec, hd.standard, trial, frame, &place) ? place.at : QPointF();
     };
     const auto missAt = [&](const double *v, bool exact) {
