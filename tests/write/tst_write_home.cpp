@@ -1820,7 +1820,7 @@ private Q_SLOTS:
         const QString inGerman = jp::systemLocale().toString(QDate(2026, 11, 20), QLocale::LongFormat) + jp::systemLocale().toString(1234567);
         QVERIFY(inEnglish != inGerman);
         // A handshake, not luck: a round counts toward the 2,000 only when the other side's progress counter moved since this side's last round; the guard bounds iterations, not time.
-        std::atomic<int> workerProgress{0}, mainProgress{0}, workerQuota{0}, mainQuota{0}, odd{0}, ready{0};
+        std::atomic<int> workerProgress{0}, mainProgress{0}, workerQuota{0}, mainQuota{0}, odd{0}, ready{0}, locked{0};
         std::atomic<bool> guardHit{false};
         constexpr int kGuard = 20000000;
         {
@@ -1830,12 +1830,17 @@ private Q_SLOTS:
                 int seen = mainProgress.load();
                 for (int i = 0; workerQuota.load() < 2000 || mainQuota.load() < 2000; ++i) {
                     if (i >= kGuard) { guardHit = true; break; }
-                    QLockFile lock(normalTemplatePath() + QStringLiteral(".lock"));
-                    if (lock.tryLock(1000)) {
-                        QFile f(normalTemplatePath());
-                        if (f.open(QIODevice::WriteOnly)) f.write(bytes);
-                        f.close();
-                        lock.unlock();
+                    // (Qt's lock file syncs the disk at each lock, and a sync waits for the disk's journal, which the other programs on a busy machine fill: 2,000 of them took 5 minutes
+                    // on Nov 23, past the test program's own five. The file and the lock are used every 50th round, the locale every one.)
+                    if (i % 50 == 0) {
+                        QLockFile lock(normalTemplatePath() + QStringLiteral(".lock"));
+                        if (lock.tryLock(1000)) {
+                            QFile f(normalTemplatePath());
+                            if (f.open(QIODevice::WriteOnly)) f.write(bytes);
+                            f.close();
+                            lock.unlock();
+                            ++locked;
+                        }
                     }
                     const jp::SystemLocale person = jp::systemLocale();
                     const QString text = person.toString(QDate(2026, 11, 20), QLocale::LongFormat) + person.toString(1234567);
@@ -1866,6 +1871,7 @@ private Q_SLOTS:
         QCOMPARE(workerQuota.load(), 2000);
         QCOMPARE(mainQuota.load(), 2000);
         QCOMPARE(odd.load(), 0);
+        QVERIFY2(locked.load() >= 40, qPrintable(QString::number(locked.load())));
         QCOMPARE(normalTemplateState(), NormalTemplateState::Usable);
         QFile::remove(normalTemplatePath());
     }
