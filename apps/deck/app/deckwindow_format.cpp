@@ -14,6 +14,7 @@
 #include "app/ribbon.h"
 #include "app/ribbonbuilder.h"
 #include "app/settings.h"
+#include "app/shapetools.h"
 #include "app/textartgallery.h"
 #include "core/shapestyles.h"
 #include "core/themes.h"
@@ -30,6 +31,7 @@
 #include <QFileInfo>
 #include <QMenu>
 #include <QPainter>
+#include <QStatusBar>
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QTextDocument>
@@ -84,6 +86,10 @@ void DeckWindow::createShapeFormatActions()
     // Size and Position opens the Format pane at the size and position boxes; Save as Picture saves what is selected as a picture file.
     mk("shape.sizePos", tr("Size and Position…"), "move-diagonal", QKeySequence(), [this] { formatSelection(FormatPane::Tab::SizeProperties); });
     mk("shape.saveAsPicture", tr("Save as Picture…"), "image-down", QKeySequence(), [this] { saveSelectionAsPicture(); });
+
+    // Edit Points and Merge Shapes (libs/page/app/shapetools.cpp, JeffPub's commands): what they say goes on the status bar.
+    makeShapeCommands(this, m_ed, [this](const QString &id, const QString &text, const char *icon, const std::function<void()> &run) { return mk(id, text, QLatin1String(icon), QKeySequence(), run); });
+    connect(m_ed, &Editor::status, this, [this](const QString &m) { statusBar()->showMessage(m, 6000); });
 
     auto sync = [this] { refreshShapeFormat(); };
     connect(m_ed, &Editor::selectionChanged, this, sync);
@@ -374,6 +380,7 @@ void DeckWindow::refreshShapeFormat()
     act("shape.altText")->setEnabled(!items.isEmpty());
     act("shape.sizePos")->setEnabled(!items.isEmpty());
     act("shape.saveAsPicture")->setEnabled(!items.isEmpty());
+    enableShapeCommands(m_ed, [this](const QString &id) { return act(id); });
     bool geometry = false;
     for (const Item *it : m_formatPane->session()->leaves()) geometry = geometry || formatops::takesGeometry(*it);
     for (QWidget *w : m_changeShapeButtons) w->setEnabled(geometry);

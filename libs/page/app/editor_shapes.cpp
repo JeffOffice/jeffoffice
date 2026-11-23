@@ -169,6 +169,7 @@ bool Editor::mergeShapes(pathops::Op op, QString *why, int *made, int *textRemov
     QVector<std::shared_ptr<ShapeItem>> made2;
     for (const QPainterPath &p : result) {
         const auto s = shapeWith(first, p);
+        if (made2.isEmpty()) s->sourceId = first.sourceId;   // (the first piece is the shape selected first: what a file's animations aim at stays aimed at it)
         list->insert(list->begin() + at++, s);
         ids << s->id;
         made2 << s;

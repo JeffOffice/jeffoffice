@@ -1914,6 +1914,25 @@
             {
               "widget": "changeShape",
               "keytip": "CS"
+            },
+            {
+              "small": "shape.editPoints",
+              "keytip": "EP"
+            },
+            {
+              "small": {
+                "id": "ribbon.mergeShapes",
+                "text": "Merge Shapes",
+                "icon": "combine"
+              },
+              "keytip": "MS",
+              "menu": [
+                "shape.union",
+                "shape.combine",
+                "shape.subtract",
+                "shape.intersect",
+                "shape.fragment"
+              ]
             }
           ]
         },

@@ -91,6 +91,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Media Options"),
     QT_TRANSLATE_NOOP("Ribbon", "Media Tools"),
     QT_TRANSLATE_NOOP("Ribbon", "Merge"),
+    QT_TRANSLATE_NOOP("Ribbon", "Merge Shapes"),
     QT_TRANSLATE_NOOP("Ribbon", "Monitors"),
     QT_TRANSLATE_NOOP("Ribbon", "Multilevel List"),
     QT_TRANSLATE_NOOP("Ribbon", "Notes Master"),

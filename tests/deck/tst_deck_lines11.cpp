@@ -10,6 +10,12 @@
 #include "core/printheaderfooter.h"
 #include "app/deckdialogs.h"
 #include <QCheckBox>
+#include <QJsonDocument>
+#include "core/pathops.h"
+#include "app/lossywarning.h"
+#include <QScopeGuard>
+#include <QTimer>
+#include <QMessageBox>
 #include <QLineEdit>
 #include <QPushButton>
 #include <QTabWidget>
@@ -1045,6 +1051,166 @@ private Q_SLOTS:
         dialog.setModal(true);
         dialog.show();
         QTRY_VERIFY(!mover.active());
+    }
+
+    // Merge Shapes (libs/page/app/shapetools.cpp): two squares that overlap, every operation, through the window's own commands.
+    static ShapeItem *square(DeckWindow &w, const QString &name, double x, double y, const QColor &color, int number)
+    {
+        ShapeItem *s = addShape(w, name, QRectF(x, y, 200, 200));
+        s->shape = QStringLiteral("rect");
+        s->fill = Fill::solid(ColorRef::rgb(color));
+        s->stroke = Stroke::none();
+        s->sourceId = number;
+        return s;
+    }
+    static bool filledAt(DeckWindow &w, double x, double y)
+    {
+        const QImage img = slideImage(*w.editor()->doc());
+        const double k = img.width() / w.editor()->doc()->pageSize().width();
+        return img.pixelColor(int(x * k), int(y * k)).lightness() < 250;
+    }
+    static QStringList shapeJson(DeckWindow &w)
+    {
+        QStringList out;
+        for (const ItemPtr &it : w.editor()->doc()->pages[0]->items) out << QString::fromUtf8(QJsonDocument(it->toJson()).toJson(QJsonDocument::Compact));
+        return out;
+    }
+
+    void mergeShapesInTheDeckMakesOneShapeOrPiecesAndUndoesInOneStep()
+    {
+        struct Case { const char *id; int count; bool onlyA, overlap, onlyB; QString undo; } cases[] = {
+            {"shape.union", 1, true, true, true, "Union"}, {"shape.combine", 1, true, false, true, "Combine"},
+            {"shape.subtract", 1, true, false, false, "Subtract"}, {"shape.intersect", 1, false, true, false, "Intersect"},
+            {"shape.fragment", 3, true, true, true, "Fragment"}};
+        DeckWindow w;
+        w.resize(1200, 800);
+        w.show();
+        for (const Case &c : cases) {
+            w.editor()->setDocument(Document::blank(QSizeF(960, 540)));
+            QVERIFY(!w.act(QString::fromLatin1(c.id))->isEnabled());   // (nothing is selected)
+            ShapeItem *a = square(w, QStringLiteral("A"), 100, 100, Qt::black, 4);
+            square(w, QStringLiteral("B"), 200, 200, Qt::black, 5);
+            w.editor()->select(QStringList{a->id, w.editor()->doc()->pages[0]->items[1]->id});
+            QTRY_VERIFY(w.act(QString::fromLatin1(c.id))->isEnabled());
+            const QStringList before = shapeJson(w);
+            w.act(QString::fromLatin1(c.id))->trigger();
+            QCOMPARE(int(w.editor()->doc()->pages[0]->items.size()), c.count);
+            QCOMPARE(filledAt(w, 150, 150), c.onlyA);
+            QCOMPARE(filledAt(w, 250, 250), c.overlap);
+            QCOMPARE(filledAt(w, 350, 350), c.onlyB);
+            QVERIFY(!filledAt(w, 150, 350));   // (a corner neither covers)
+            QCOMPARE(w.editor()->undoStack()->undoText(), c.undo);
+            QVERIFY(!static_cast<ShapeItem *>(w.editor()->doc()->pages[0]->items[0].get())->customPath.isEmpty());   // (an ordinary freeform shape)
+            w.editor()->undo();
+            QCOMPARE(shapeJson(w), before);   // one step puts both shapes back as they were
+            w.editor()->redo();
+            QCOMPARE(int(w.editor()->doc()->pages[0]->items.size()), c.count);
+        }
+    }
+
+    void aMergedShapeKeepsTheFirstOnesLookLinkAndEffectsAndSavesInEveryFormat()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        w.resize(1200, 800);
+        w.show();
+        w.editor()->setDocument(Document::blank(QSizeF(960, 540)));
+        ShapeItem *a = square(w, QStringLiteral("A"), 100, 100, Qt::red, 4);
+        a->hyperlink = QStringLiteral("https://example.com/first");
+        ShapeItem *b = square(w, QStringLiteral("B"), 200, 200, Qt::blue, 5);
+        const QStringList ids{a->id, b->id};
+        w.editor()->doc()->pages[0]->props[QStringLiteral("timingXml")] = animTiming(animSteps({animAppear(4), animAppear(5)}));
+        QCOMPARE(int(deck::readAnimations(*w.editor()->doc()->pages[0], w.editor()->doc()).effects.size()), 2);
+        w.editor()->select(ids);
+        QTRY_VERIFY(w.act(QStringLiteral("shape.union"))->isEnabled());
+        w.act(QStringLiteral("shape.union"))->trigger();
+        QCOMPARE(int(w.editor()->doc()->pages[0]->items.size()), 1);
+        const auto *merged = static_cast<ShapeItem *>(w.editor()->doc()->pages[0]->items[0].get());
+        QCOMPARE(merged->hyperlink, QStringLiteral("https://example.com/first"));
+        {
+            const QImage img = slideImage(*w.editor()->doc());
+            const double k = img.width() / w.editor()->doc()->pageSize().width();
+            const QColor c = img.pixelColor(int(350 * k), int(350 * k));   // (where only the second shape was)
+            QVERIFY(c.red() > 200 && c.blue() < 80);   // the first shape's red, not the second's blue
+        }
+        // The effect on the shape merged away goes with it; the one on the first stays on the result.
+        const deck::AnimSequence seq = deck::readAnimations(*w.editor()->doc()->pages[0], w.editor()->doc());
+        QCOMPARE(int(seq.effects.size()), 1);
+        QCOMPARE(seq.effects[0].shape, 4);
+        // (An .odp file is saved with the box that says what it can't hold answered by the test: the list must not name the merged shape's outline, which the file holds.)
+        QStringList lostInOdp;
+        setLossyStandIn([&](const LossyAsk &ask, bool *) { lostInOdp = ask.lost; return LossyChoice::SaveAnyway; });
+        auto reset = qScopeGuard([] { setLossyStandIn(nullptr); });
+        for (const char *name : {"merged.pptx", "merged.odp"}) {
+            const QString file = dir.filePath(QString::fromLatin1(name));
+            QVERIFY2(w.saveTo(file), name);
+            DeckWindow again;
+            QStringList said;   // (anything the open says is a loss: no box may come up; the timer looks every 20 ms and closes what it finds, so that a failure does not hang)
+            QTimer looker;
+            looker.setInterval(20);
+            connect(&looker, &QTimer::timeout, &looker, [&] {
+                for (QWidget *top : QApplication::topLevelWidgets())
+                    if (auto *box = qobject_cast<QMessageBox *>(top); box && box->isVisible()) {
+                        said << box->text();
+                        box->accept();
+                    }
+            });
+            looker.start();
+            const bool opened = again.openFile(file);
+            looker.stop();
+            QVERIFY2(opened, name);
+            // (an .odp file does not keep animations, and the box says so, as it does for any file; nothing about the shape's outline may be lost)
+            QVERIFY2(said.isEmpty() || (QLatin1String(name).endsWith(QLatin1String("odp")) && said.join(QLatin1Char(' ')).contains(QLatin1String("animations")) && !said.join(QLatin1Char(' ')).contains(QLatin1String("shape"), Qt::CaseInsensitive)), qPrintable(said.join(QLatin1Char('|'))));
+            again.editor()->setCurrentPage(0);
+            QCOMPARE(int(again.editor()->doc()->pages[0]->items.size()), 1);
+            const auto *back = static_cast<ShapeItem *>(again.editor()->doc()->pages[0]->items[0].get());
+            QVERIFY2(!back->customPath.isEmpty(), name);
+            QCOMPARE(back->hyperlink, QStringLiteral("https://example.com/first"));
+            QVERIFY2(filledAt(again, 150, 150) && filledAt(again, 250, 250) && filledAt(again, 350, 350) && !filledAt(again, 150, 350), name);
+            if (QLatin1String(name).endsWith(QLatin1String("odp"))) QVERIFY2(!lostInOdp.join(QLatin1Char(' ')).contains(QLatin1String("shape"), Qt::CaseInsensitive), qPrintable(lostInOdp.join(QLatin1Char('|'))));
+            if (QLatin1String(name).endsWith(QLatin1String("pptx")))
+                QCOMPARE(int(deck::readAnimations(*again.editor()->doc()->pages[0], again.editor()->doc()).effects.size()), 1);
+        }
+    }
+
+    void aRingMadeBySubtractStaysAHoleAndEditPointsReshapesWithRealMouseEvents()
+    {
+        DeckWindow w;
+        w.resize(1200, 800);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        w.editor()->setDocument(Document::blank(QSizeF(960, 540)));
+        ShapeItem *outer = square(w, QStringLiteral("Outer"), 100, 100, Qt::red, 4);
+        ShapeItem *inner = addShape(w, QStringLiteral("Inner"), QRectF(150, 150, 100, 100));
+        inner->shape = QStringLiteral("rect");
+        w.editor()->select(QStringList{outer->id, inner->id});
+        w.act(QStringLiteral("shape.subtract"))->trigger();
+        QCOMPARE(int(w.editor()->doc()->pages[0]->items.size()), 1);
+        QVERIFY(filledAt(w, 120, 120));
+        QVERIFY(!filledAt(w, 200, 200));   // the hole stays a hole
+        auto *s = static_cast<ShapeItem *>(w.editor()->doc()->pages[0]->items[0].get());
+        QCOMPARE(w.editor()->selectedItems().size(), 1);
+        // Edit Points: the command turns it on for the one shape, the corner is dragged, Esc ends it.
+        QTRY_VERIFY(w.act(QStringLiteral("shape.editPoints"))->isEnabled());
+        w.act(QStringLiteral("shape.editPoints"))->trigger();
+        QCOMPARE(w.editor()->pointsItem, s->id);
+        Canvas *c = w.canvas();
+        QWidget *vp = c->viewport();
+        auto view = [&](QPointF page) { return c->pageToView(page).toPoint(); };
+        const QRectF before = s->transform().map(s->customPath).boundingRect();
+        QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, view(before.bottomRight()));
+        QTest::mouseMove(vp, view(before.bottomRight() + QPointF(20, 15)));
+        QTest::mouseMove(vp, view(before.bottomRight() + QPointF(40, 30)));
+        QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, view(before.bottomRight() + QPointF(40, 30)));
+        const QRectF after = s->transform().map(s->customPath).boundingRect();
+        QVERIFY2(std::abs(after.right() - before.right() - 40) < 2 && std::abs(after.bottom() - before.bottom() - 30) < 2, "the corner did not follow the mouse");
+        QVERIFY(!filledAt(w, 200, 200));   // the hole survives the drag
+        QTest::keyClick(vp, Qt::Key_Escape);
+        QVERIFY(w.editor()->pointsItem.isEmpty());
+        w.editor()->undo();
+        s = static_cast<ShapeItem *>(w.editor()->doc()->pages[0]->items[0].get());   // (an undo may put back another object)
+        QCOMPARE(s->transform().map(s->customPath).boundingRect(), before);
     }
 };
 
