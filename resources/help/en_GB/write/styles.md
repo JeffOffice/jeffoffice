@@ -41,6 +41,8 @@ Click the small arrow at the corner of the **Styles** group, or press **Ctrl+Alt
 
 The **Style type** can be **Paragraph**, **Character**, or **Linked**. A linked style is a paragraph style with a character style of the same look beside it (named like the paragraph style, with "Char" added), so the look can be given to a whole paragraph or only to some words. When you change the paragraph style later, its character style takes the new look too.
 
+A **Table** style looks after the lines, the header row, and the banded rows of a table, and a **List** style looks after the numbers or bullets of a list. For these two, type the **Name** and click **OK**, and the box for that kind opens with the name already in it. A list made this way is always saved as a list style. A table style or list style is not kept when you save the document as an .odt file (table styles) or an .rtf file (both); Check Compatibility (File > Info) tells you.
+
 **Available in** chooses **Only in this document** or **New documents based on this template**. With the second choice the style is also saved in the template that new documents start from.
 
 The new style is saved with your document, and your paragraph takes it. One **Undo** (Ctrl+Z) takes the style back.
@@ -64,6 +66,18 @@ The dialog has these choices:
 When you change a style, the paragraphs that have it change. If you gave a paragraph a look of its own, such as one red word, it keeps that look.
 
 If you click **OK** without changing anything, the document is not changed.
+
+## See where the look of your text comes from
+
+Click **Style Inspector** at the bottom of the Styles pane. The pane follows your cursor, in the text, a header, a footer, or a note, and shows three things:
+
+- The **Paragraph style** of the paragraph. If the paragraph is in a table, the table's style is named under it. Under the name, "Plus" lists what the paragraph says by itself on top of its style, such as its alignment, indents, spacing, lines, tab stops, borders, shading, page break before, outline level, numbering or bullets, and text direction. **Clear Paragraph Formatting** takes those off, so the paragraph looks as its style says. What a table's style gives its paragraphs is not listed, because it is not the paragraph's own.
+- The **Character style** of the text, if it has one. **Clear Character Style** takes it off.
+- The **Text formatting** the letters have by themselves, such as a font, a size, bold, a colour, hidden text, or a border. **Clear Character Formatting** takes it off, so the letters look as their styles say. The language of the text and its character style stay.
+
+Select text first to clear only that text. With no text selected, the pane describes the letter before the cursor, and **Clear Character Style** and **Clear Character Formatting** act on the whole stretch of letters around the cursor that look the same as that letter. If you select several paragraphs or letters that differ, the pane says "Several styles in the selection" or "Several looks in the selection", lists what the selection has, and the buttons act on all of it.
+
+Each button is one step, so **Undo** (Ctrl+Z) brings the look back, and the cursor stays where it was. Changing a style never makes its paragraphs say the look themselves, so a paragraph that follows its style shows nothing under "Plus". Shift+F1 still opens Reveal Formatting, which shows the look itself.
 
 ## Update a style to match your text
 
