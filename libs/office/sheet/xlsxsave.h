@@ -91,6 +91,20 @@ struct CondRaw {
     QByteArray x14Open, x14Rule, x14Sqref;
 };
 
+// One rule of the sheet as the person has the list: a rule of the file (by its priority in the file), one made here (its place in `condNew`), or one brought back from bytes kept of it (its place in
+// `condRestore`). `replaces` is the file priority of the rule that an edit took the place of (0 for none).
+struct CondSlot {
+    enum class Kind : quint8 { File, Made, Restored } kind = Kind::File;
+    int key = 0;
+    int replaces = 0;
+};
+
+// The priorities a save gave the rules (the patch numbers every rule of the sheet, those the list does not hold too, so only it knows them).
+struct CondFinal {
+    std::map<int, int> file;           // by priority in the file before: the priority it has now
+    std::vector<int> made, restored;   // the priorities of `condNew` and of `condRestore`
+};
+
 struct SheetChanges {
     std::vector<SavedCell> cells;       // sorted by row, then column
     std::vector<SavedResult> results;   // sorted the same way
@@ -145,14 +159,16 @@ struct SheetChanges {
     bool bgSet = false;
     QString bgRel;
     // The sparklines the sheet has now, when a person changed them: the extension that holds them is made from these in place of the file's (none left: it is taken out).
-    // Rules of conditional formatting a person made or cleared. The file's own elements stay as they are, byte for byte, but for their priorities (each is the one the file gave it, which names the
-    // rule, plus `condShift`), the cells of a rule that was trimmed, and the rules taken away (`condRemoved`, by priority in the file, with the 2010 entries that go with them); the rules made here
-    // (`condNew`) are written from the model, first. The 2010 block of the sheet's extension list is kept the same way.
+    // Rules of conditional formatting a person made or cleared. The file's own elements stay as they are, byte for byte, but for their priorities, the cells of a rule that was trimmed, and the rules
+    // taken away (`condRemoved`, by priority in the file, with the 2010 entries that go with them); the rules made here (`condNew`) are written from the model. The 2010 block of the sheet's
+    // extension list is kept the same way. `condOrder` is the list as the person has it: the rules of the file are numbered in that order, a rule that is not in the list (a 2010 rule that has no rule of the
+    // main list) stays where it was among the rules that did not move, and what is made or brought back goes after the rule before it in the list (first when none is).
     bool condEdit = false;
+    std::vector<CondSlot> condOrder;
+    std::shared_ptr<CondFinal> condFinalOut;
     // What a rule taken away was in the file (see CondRaw), filled in by the patch for every rule it takes away (by priority in the file), and the rules brought back with it (their cells now).
     std::shared_ptr<std::map<int, CondRaw>> condRawOut;
     std::vector<std::pair<QVector<CellRange>, CondRaw>> condRestore;
-    int condShift = 0;
     QVector<CondRule> condNew;
     std::set<int> condRemoved;
     std::map<int, QVector<CellRange>> condRanges;   // by priority in the file: the cells of each rule of the file that is still there

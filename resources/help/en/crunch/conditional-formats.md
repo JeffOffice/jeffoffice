@@ -49,7 +49,7 @@ Click **Home > Conditional Formatting**, then **Data Bars**, **Color Scales**, o
 - for an **icon set**: the icon style, the value each icon starts at, **Reverse icon order**, and **Show icon only**;
 - for the other rules: the value, text, dates, or formula, and the look.
 
-Pressing **OK** applies all of your changes as one step you can undo. A rule that comes from a file is written again when you change it or move it, so that the saved file has the order you see.
+Pressing **OK** applies all of your changes as one step you can undo. A rule you did not change keeps exactly what the file had, whatever its place in the list; a rule you change is written again. A rule's formula is read from the top-left cell of its range, and a formula you type for a new rule is read as if it were written in the cell with the cursor. A protected sheet that does not let cells be formatted does not take rules.
 
 ## What other file kinds keep
 

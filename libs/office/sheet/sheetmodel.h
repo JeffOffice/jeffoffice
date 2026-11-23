@@ -1585,6 +1585,7 @@ struct CondRule {
     int priority = 0;
     quint32 uid = 0;                 // names the rule for the session's steps of Undo (never saved; 0 until a person changes the sheet's rules)
     int origPriority = 0;            // the priority the file gave it (0 for a rule made here): what ties it to its element in the file when the rules are saved
+    int replaces = 0;                // the file priority of the rule an edit made this one in place of, until the next save (never saved)
     qint32 dxf = -1;                 // the differential format (Styles::dxfs) the rule applies; -1 for none
     bool stopIfTrue = false;
     QString formula1, formula2;      // as the file writes them, for the first cell of the first range (the file's `formula` elements)

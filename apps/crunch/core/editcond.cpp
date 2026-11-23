@@ -4,7 +4,6 @@
 
 #include <QUndoCommand>
 
-#include <climits>
 #include <functional>
 #include <memory>
 #include <set>
@@ -57,6 +56,7 @@ public:
         for (QVector<CondRule> *list : {&m_before, &m_after})
             for (CondRule &r : *list) {
                 const auto in = fileOf.find(r.uid);
+                r.replaces = 0;   // (the rule it took the place of is not in the file any more)
                 if (in != fileOf.end()) r.origPriority = r.priority = in->second;
                 else r.origPriority = 0;   // (not in the file: brought back as the bytes kept of it, or made again)
             }
@@ -148,9 +148,9 @@ namespace {
 qint64 rawBytes(const jp::office::sheet::CondRaw &r) { return qint64(r.open.size() + r.rule.size() + r.x14Open.size() + r.x14Rule.size() + r.x14Sqref.size()); }
 } // namespace
 
-// What a save puts in the file for a sheet's rules, worked out from the rules as they are: the rules made here are numbered from 1 in the order they have, those the file has keep their priority plus
-// that many, the file's rules that are not there any more are taken away (their bytes are kept, for Undo), and the rules brought back from those bytes go in with the priority they had. The rules as the
-// save will have them are kept (`m_condSnap`) for when it is done.
+// What a save puts in the file for a sheet's rules, worked out from the rules as they are: the list as it is (`condOrder`: a rule of the file by its priority there, one made here, one brought back
+// from the bytes kept of it), the cells of the file's rules that are still there, and the file's rules that are not there any more (taken away, their bytes kept for Undo). The patch numbers the rules
+// and says what each came to (`condFinalOut`); the rules as the save will have them are kept (`m_condSnap`) for when it is done.
 void EditSession::condForSave(int sheet, jp::office::sheet::SheetChanges *sc, bool writtenWhole)
 {
     CondSnap snap;
@@ -163,30 +163,32 @@ void EditSession::condForSave(int sheet, jp::office::sheet::SheetChanges *sc, bo
         return;
     }
     condFixStale(sheet);
-    QVector<CondRule> rules = condRules(sheet);
+    const QVector<CondRule> rules = condRules(sheet);
     auto &stored = m_condRaw[sheet];
     QVector<CondRule> made;
     std::set<int> present;
+    size_t restored = 0;
     for (const CondRule &r : rules) {
+        using Kind = jp::office::sheet::CondSlot::Kind;
+        jp::office::sheet::CondSlot slot;
         if (r.origPriority > 0) {
             present.insert(r.origPriority);
             if (sc) sc->condRanges[r.origPriority] = r.ranges;
+            slot.kind = Kind::File;
+            slot.key = r.origPriority;
         } else if (stored.count(r.uid)) {
             snap.restored.insert(r.uid);
             if (sc) sc->condRestore.push_back({r.ranges, stored.at(r.uid)});
+            slot.kind = Kind::Restored;
+            slot.key = int(restored++);
         } else {
+            slot.kind = Kind::Made;
+            slot.key = int(made.size());
+            slot.replaces = r.replaces;
             made.append(r);
         }
-    }
-    std::stable_sort(made.begin(), made.end(), [](const CondRule &a, const CondRule &b) { return a.priority < b.priority; });
-    for (int i = 0; i < made.size(); ++i) made[i].priority = i + 1;
-    snap.shift = int(made.size());
-    std::map<quint32, int> rank;
-    for (const CondRule &m : made) rank[m.uid] = m.priority;
-    for (CondRule &r : rules) {
-        const int p = r.origPriority > 0 ? r.origPriority + snap.shift : snap.restored.count(r.uid) ? stored.at(r.uid).priority + snap.shift : rank[r.uid];
-        snap.fileOf[r.uid] = p;
-        r.origPriority = r.priority = p;
+        snap.slots.push_back({r.uid, slot});
+        if (sc) sc->condOrder.push_back(slot);
     }
     snap.after = rules;
     const auto base = m_condBase.find(sheet);
@@ -195,11 +197,12 @@ void EditSession::condForSave(int sheet, jp::office::sheet::SheetChanges *sc, bo
             if (!present.count(p)) snap.removed.insert(p);
     if (sc) {
         sc->condEdit = true;
-        sc->condShift = snap.shift;
         sc->condNew = made;
         sc->condRemoved = snap.removed;
         snap.raw = std::make_shared<std::map<int, jp::office::sheet::CondRaw>>();
         sc->condRawOut = snap.raw;
+        snap.numbered = std::make_shared<jp::office::sheet::CondFinal>();
+        sc->condFinalOut = snap.numbered;
     }
     m_condSnap[sheet] = snap;
     m_condChangedDuringSave.erase(sheet);
@@ -213,8 +216,27 @@ void EditSession::condSaved()
     for (auto &entry : m_condSnap) {
         const int sheet = entry.first;
         CondSnap &snap = entry.second;
+        // (what the patch numbered: the priority each rule of the list has in the file now)
+        if (snap.numbered)
+            for (const auto &slot : snap.slots) {
+                using Kind = jp::office::sheet::CondSlot::Kind;
+                int p = 0;
+                if (slot.second.kind == Kind::File) {
+                    const auto in = snap.numbered->file.find(slot.second.key);
+                    p = in == snap.numbered->file.end() ? 0 : in->second;
+                } else {
+                    const std::vector<int> &from = slot.second.kind == Kind::Made ? snap.numbered->made : snap.numbered->restored;
+                    p = size_t(slot.second.key) < from.size() ? from[size_t(slot.second.key)] : 0;
+                }
+                if (p > 0) snap.fileOf[slot.first] = p;
+            }
+        for (CondRule &r : snap.after) {
+            const auto in = snap.fileOf.find(r.uid);
+            if (in != snap.fileOf.end()) r.origPriority = r.priority = in->second;
+        }
         QVector<CondRule> rules = condRules(sheet);
         for (CondRule &r : rules) {
+            r.replaces = 0;
             const auto in = snap.fileOf.find(r.uid);
             if (in != snap.fileOf.end()) r.origPriority = r.priority = in->second;
         }
@@ -226,7 +248,6 @@ void EditSession::condSaved()
                 *m_undoBytes -= rawBytes(it->second);
                 it = stored.erase(it);
             } else {
-                it->second.priority += snap.shift;
                 ++it;
             }
         }
@@ -237,7 +258,7 @@ void EditSession::condSaved()
                 const auto who = uids->second.find(p);
                 if (raw == snap.raw->end() || who == uids->second.end()) continue;
                 jp::office::sheet::CondRaw kept = raw->second;
-                kept.priority = p + snap.shift;
+                kept.priority = p;
                 *m_undoBytes += rawBytes(kept);
                 stored[who->second] = kept;
             }
@@ -282,6 +303,7 @@ void EditSession::forgetDxf(qint32 place)
 // does not hold whole (kinds it does not know, extension lists, a table's mark, the 2010 block, more than it reads), and not when the sheet has more rules than a step of Undo should hold.
 QString EditSession::condRulesRefusal(int sheet)
 {
+    if (QString why; !allows(sheet, Allow::FormatCells, &why)) return why;   // (a rule is a format: a protected sheet that does not let cells be formatted does not take one)
     if (m_book->book->isConverted()) return tr("Conditional formatting of a workbook opened from this kind of file is kept when it is saved as an .xlsx workbook. Save it as one, and then change rules.");
     auto found = m_condWhole.find(sheet);
     if (found == m_condWhole.end()) found = m_condWhole.emplace(sheet, m_book->book->conditionalFormatsAreWhole(sheet)).first;
@@ -349,27 +371,19 @@ EditSession::Outcome EditSession::setManagedCondRules(int sheet, const QVector<C
     const QVector<CondRule> now = condRules(sheet);
     std::map<quint32, CondRule> own;
     for (const CondRule &r : now) own[r.uid] = r;
-    // (which of the rules stay the file's own: the ones at the end that are in the file, in the file's order)
-    QVector<bool> fresh(list.size());
-    for (int i = 0; i < list.size(); ++i) fresh[i] = list[i].changed || list[i].rule.uid == 0 || !own.count(list[i].rule.uid);
-    int boundary = int(list.size());
-    int lastFile = INT_MAX;
-    while (boundary > 0) {
-        const int i = boundary - 1;
-        if (fresh[i]) break;
-        const int file = own.at(list[i].rule.uid).origPriority;
-        if (file <= 0 || file >= lastFile) break;
-        lastFile = file;
-        --boundary;
-    }
+    // (a rule the person did not change is the sheet's own, as the file has it: it is not made again, wherever it is in the list; one that was changed, or is new, is made from what the list says)
     QVector<CondRule> after;
+    bool same = list.size() == now.size();
     {
         std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
         if (!hold) return refuse(tr("The workbook is busy. Try again in a moment."));
         for (int i = 0; i < list.size(); ++i) {
-            CondRule r = fresh[i] ? list[i].rule : own.at(list[i].rule.uid);
-            if (i < boundary) {
-                // (written again, as a rule of its own: the file's copy of it is taken away)
+            const auto known = own.find(list[i].rule.uid);
+            const bool isOwn = list[i].rule.uid != 0 && known != own.end();
+            const bool fresh = list[i].changed || !isOwn;
+            CondRule r = fresh ? list[i].rule : known->second;
+            if (fresh) {
+                r.replaces = isOwn ? known->second.origPriority : 0;
                 r.uid = ++m_condUid;
                 r.origPriority = 0;
                 r.extId.clear();
@@ -380,11 +394,10 @@ EditSession::Outcome EditSession::setManagedCondRules(int sheet, const QVector<C
             }
             if (r.ranges.isEmpty()) return refuse(tr("Select the cells the rule is for."));
             r.priority = i + 1;
+            same = same && !fresh && size_t(i) < size_t(now.size()) && r.uid == now[i].uid;
             after.append(r);
         }
     }
-    bool same = after.size() == now.size();
-    for (int i = 0; same && i < after.size(); ++i) same = after[i].uid == now[i].uid && after[i].priority == now[i].priority;
     if (same) return out;
     m_undo.push(new CondChange(this, sheet, now, after, tr("Conditional Formatting"), m_undoBytes));
     return out;

@@ -12,6 +12,7 @@
 
 class QCheckBox;
 class QComboBox;
+class QFormLayout;
 class QLineEdit;
 class QSpinBox;
 class QStackedWidget;
@@ -72,6 +73,7 @@ private:
 
     CondSpec m_start;
     QComboBox *m_kind = nullptr, *m_look = nullptr;
+    QFormLayout *m_looksForm = nullptr;
     QStackedWidget *m_pages = nullptr;
     QComboBox *m_op = nullptr, *m_period = nullptr;
     QLineEdit *m_v1 = nullptr, *m_v2 = nullptr, *m_text = nullptr, *m_formula = nullptr;

@@ -17,8 +17,12 @@
 #include <QAction>
 #include <QCheckBox>
 #include <QComboBox>
+#include <QFile>
 #include <QLineEdit>
 #include <QMenu>
+#include <QPushButton>
+#include <QRegularExpression>
+#include <QStackedWidget>
 #include <QSignalSpy>
 #include <QUndoStack>
 
@@ -36,7 +40,7 @@ namespace {
 //   3    3      cherry   45000
 //   4    4      apple    (empty)
 //   5    5      (empty)  2
-QByteArray condBook()
+QByteArray condBook(const QString &after = QString())
 {
     const QString lists = QStringLiteral("<fonts count=\"1\"><font><sz val=\"11\"/><name val=\"Calibri\"/><family val=\"2\"/><scheme val=\"minor\"/></font></fonts>"
                                          "<fills count=\"2\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill></fills>"
@@ -53,7 +57,7 @@ QByteArray condBook()
         if (r == 5) rows += QStringLiteral("<c r=\"C5\"><v>2</v></c>");
         rows += QStringLiteral("</row>");
     }
-    return buildXlsx({worksheet(rows)}, QByteArray(), QString(), QString(), styles);
+    return buildXlsx({worksheet(rows, after)}, QByteArray(), QString(), QString(), styles);
 }
 
 CondRule rule(CondRule::Type type, const char *range = "A1:C5")
@@ -150,6 +154,136 @@ void run(EditWindow &e, const char *action)
     QVERIFY2(a, action);
     QVERIFY2(a->isEnabled(), action);
     a->trigger();
+}
+
+// ---- a file with nine rules, for the tests of Manage Rules: seven are in the main list (one has pivot="1", the data bar has a 2010 entry that says its negative border is not the positive one's), and
+// two live only in the 2010 block (a custom icon set each, at priorities 1 and 6, which Manage Rules does not list).
+const char *kGt = "<cfRule type=\"cellIs\" priority=\"2\" operator=\"greaterThan\"><formula>3</formula></cfRule>";
+const char *kEven = "<cfRule type=\"expression\" priority=\"3\"><formula>MOD(A1,2)=0</formula></cfRule>";
+const char *kTop = "<cfRule type=\"top10\" priority=\"4\" pivot=\"1\" rank=\"2\"/>";
+const char *kBar = "<cfRule type=\"dataBar\" priority=\"5\"><dataBar><cfvo type=\"min\"/><cfvo type=\"max\"/><color rgb=\"FF638EC6\"/></dataBar><extLst><ext xmlns:x14=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/main\" "
+                   "uri=\"{B025F937-C7B1-47D3-B67F-A62EFF666E3E}\"><x14:id>{11111111-1111-4111-8111-111111111111}</x14:id></ext></extLst></cfRule>";
+const char *kScale = "<cfRule type=\"colorScale\" priority=\"7\"><colorScale><cfvo type=\"min\"/><cfvo type=\"max\"/><color rgb=\"FFF8696B\"/><color rgb=\"FF63BE7B\"/></colorScale></cfRule>";
+const char *kIcons = "<cfRule type=\"iconSet\" priority=\"8\"><iconSet iconSet=\"3Arrows\"><cfvo type=\"percent\" val=\"0\"/><cfvo type=\"percent\" val=\"33\"/><cfvo type=\"percent\" val=\"67\"/></iconSet></cfRule>";
+const char *kBlank = "<cfRule type=\"containsBlanks\" priority=\"9\"><formula>LEN(TRIM(B1))=0</formula></cfRule>";
+const char *kBarX14 = "<x14:cfRule type=\"dataBar\" id=\"{11111111-1111-4111-8111-111111111111}\"><x14:dataBar minLength=\"0\" maxLength=\"100\" gradient=\"0\" border=\"1\" negativeBarBorderColorSameAsPositive=\"0\">"
+                      "<x14:cfvo type=\"autoMin\"/><x14:cfvo type=\"autoMax\"/><x14:borderColor rgb=\"FF638EC6\"/><x14:negativeFillColor rgb=\"FFFF0000\"/><x14:negativeBorderColor rgb=\"FF00FF00\"/>"
+                      "<x14:axisColor rgb=\"FF000000\"/></x14:dataBar></x14:cfRule>";
+const char *kCustom1 = "<x14:cfRule type=\"iconSet\" priority=\"1\" id=\"{22222222-2222-4222-8222-222222222222}\"><x14:iconSet iconSet=\"3Triangles\" custom=\"1\"><x14:cfvo type=\"percent\"><xm:f>0</xm:f></x14:cfvo>"
+                       "<x14:cfvo type=\"percent\"><xm:f>33</xm:f></x14:cfvo><x14:cfvo type=\"percent\"><xm:f>67</xm:f></x14:cfvo><x14:cfIcon iconSet=\"3Triangles\" iconId=\"0\"/><x14:cfIcon iconSet=\"3Triangles\" iconId=\"1\"/>"
+                       "<x14:cfIcon iconSet=\"3Triangles\" iconId=\"2\"/></x14:iconSet></x14:cfRule>";
+const char *kCustom6 = "<x14:cfRule type=\"iconSet\" priority=\"6\" id=\"{33333333-3333-4333-8333-333333333333}\"><x14:iconSet iconSet=\"3Arrows\" custom=\"1\"><x14:cfvo type=\"percent\"><xm:f>0</xm:f></x14:cfvo>"
+                       "<x14:cfvo type=\"percent\"><xm:f>33</xm:f></x14:cfvo><x14:cfvo type=\"percent\"><xm:f>67</xm:f></x14:cfvo><x14:cfIcon iconSet=\"3Arrows\" iconId=\"2\"/><x14:cfIcon iconSet=\"3Arrows\" iconId=\"1\"/>"
+                       "<x14:cfIcon iconSet=\"3Arrows\" iconId=\"0\"/></x14:iconSet></x14:cfRule>";
+
+QString nineRulesTail()
+{
+    const QString x14Ns = QStringLiteral("xmlns:xm=\"http://schemas.microsoft.com/office/excel/2006/main\"");
+    auto x14 = [&](const char *rule, const char *cells) { return QStringLiteral("<x14:conditionalFormatting %1>%2<xm:sqref>%3</xm:sqref></x14:conditionalFormatting>").arg(x14Ns, QString::fromLatin1(rule), QString::fromLatin1(cells)); };
+    QString main;
+    for (const char *rule : {kGt, kEven, kTop, kBar}) main += QStringLiteral("<conditionalFormatting sqref=\"A1:A5\">%1</conditionalFormatting>").arg(QString::fromLatin1(rule));
+    main += QStringLiteral("<conditionalFormatting sqref=\"A1:A5\">%1%2</conditionalFormatting>").arg(QString::fromLatin1(kScale), QString::fromLatin1(kIcons));
+    main += QStringLiteral("<conditionalFormatting sqref=\"B1:B5\">%1</conditionalFormatting>").arg(QString::fromLatin1(kBlank));
+    return main + QStringLiteral("<extLst><ext uri=\"{78C0D931-6437-407d-A8EE-F0AAD7539E65}\" xmlns:x14=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/main\"><x14:conditionalFormattings>")
+           + x14(kBarX14, "A1:A5") + x14(kCustom1, "B1:B5") + x14(kCustom6, "C1:C5") + QStringLiteral("</x14:conditionalFormattings></ext></extLst>");
+}
+
+QByteArray savedSheet(const QString &path)
+{
+    QFile f(path);
+    if (!f.open(QIODevice::ReadOnly)) return QByteArray();
+    QMap<QString, QByteArray> parts;
+    jp::readZip(f.readAll(), parts);
+    return parts.value(QStringLiteral("xl/worksheets/sheet1.xml"));
+}
+
+// The elements named `tag` (with its prefix: "cfRule", "x14:cfRule") in the part, whole.
+QList<QByteArray> elementsNamed(const QByteArray &xml, const QByteArray &tag)
+{
+    QList<QByteArray> out;
+    const QByteArray open = "<" + tag;
+    for (qsizetype at = xml.indexOf(open); at >= 0; at = xml.indexOf(open, at + 1)) {
+        const char next = at + open.size() < xml.size() ? xml[at + open.size()] : 0;
+        if (next != ' ' && next != '>' && next != '/') continue;
+        const qsizetype gt = xml.indexOf('>', at);
+        if (gt < 0) break;
+        const qsizetype end = xml[gt - 1] == '/' ? gt + 1 : xml.indexOf("</" + tag + ">", gt) + qsizetype(tag.size()) + 3;
+        out.append(xml.mid(at, end - at));
+    }
+    return out;
+}
+
+QByteArray withoutPriority(const QByteArray &element)
+{
+    QString text = QString::fromUtf8(element);
+    text.replace(QRegularExpression(QStringLiteral(" priority=\"\\d+\"")), QStringLiteral(" priority=\"#\""));
+    return text.toUtf8();
+}
+
+int priorityOfElement(const QByteArray &element)
+{
+    const QRegularExpressionMatch m = QRegularExpression(QStringLiteral(" priority=\"(\\d+)\"")).match(QString::fromUtf8(element.left(element.indexOf('>'))));
+    return m.hasMatch() ? m.captured(1).toInt() : 0;
+}
+
+// The rules of the saved sheet in the order of their priority, by the names the nine rules have above (one an edit made again has its name too); the priorities must all be different.
+QStringList savedOrder(const QByteArray &xml)
+{
+    const QMap<QString, QString> byType = {{"cellIs", "gt"}, {"expression", "even"}, {"top10", "top"}, {"dataBar", "bar"}, {"colorScale", "scale"}, {"iconSet", "icons"}, {"containsBlanks", "blank"}};
+    QMap<int, QString> order;
+    int count = 0;
+    for (const QByteArray &e : elementsNamed(xml, "cfRule")) {
+        const QRegularExpressionMatch m = QRegularExpression(QStringLiteral("type=\"(\\w+)\"")).match(QString::fromUtf8(e));
+        order.insert(priorityOfElement(e), byType.value(m.captured(1), QStringLiteral("?")));
+        ++count;
+    }
+    for (const QByteArray &e : elementsNamed(xml, "x14:cfRule")) {
+        const int p = priorityOfElement(e);
+        if (p <= 0) continue;
+        order.insert(p, e.contains("2222-2222") ? QStringLiteral("custom1") : e.contains("3333-3333") ? QStringLiteral("custom6") : QStringLiteral("?"));
+        ++count;
+    }
+    return order.size() == count ? QStringList(order.values()) : QStringList({QStringLiteral("two rules have one priority")});
+}
+
+// What is wrong, if anything, with the rules named: each must be in the saved sheet as the file had it, apart from its priority.
+QString notKeptAsTheyWere(const QByteArray &xml, const QStringList &names)
+{
+    const QMap<QString, const char *> was = {{"gt", kGt}, {"even", kEven}, {"top", kTop}, {"bar", kBar}, {"scale", kScale}, {"icons", kIcons}, {"blank", kBlank}, {"custom1", kCustom1}, {"custom6", kCustom6}};
+    QList<QByteArray> saved;
+    for (const QByteArray &e : elementsNamed(xml, "cfRule")) saved << withoutPriority(e);
+    for (const QByteArray &e : elementsNamed(xml, "x14:cfRule")) saved << withoutPriority(e);
+    for (const QString &name : names)
+        if (!saved.contains(withoutPriority(QByteArray(was.value(name))))) return name + QStringLiteral(" is not as the file had it");
+    if (names.contains(QStringLiteral("bar")) && !saved.contains(QByteArray(kBarX14))) return QStringLiteral("the data bar's 2010 entry is not as the file had it");
+    return QString();
+}
+
+// Manage Rules on the nine-rule file: `drive` does what the person does in the window, the file is saved through the window's own save, and the saved sheet part comes back (empty, with why).
+QByteArray manageAndSave(EditWindow &e, const std::function<void(CondManageDialog &)> &drive, QString *why)
+{
+    e.win.w.setCondManageAsker([&](const QVector<CondManageDialog::Item> &items, const CrunchWindow::CondEditor &editor, QVector<crunch::EditSession::CondManaged> *out) {
+        CondManageDialog d(items, editor);
+        drive(d);
+        *out = d.result();
+        return true;
+    });
+    QAction *manage = e.win.w.act(QStringLiteral("cond.manage"));
+    if (!manage || !manage->isEnabled()) {
+        *why = QStringLiteral("Manage Rules is not on");
+        return QByteArray();
+    }
+    manage->trigger();
+    if (!e.settle()) {
+        *why = QStringLiteral("the window did not settle");
+        return QByteArray();
+    }
+    QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+    if (!e.win.w.save() || !savedOk(saved, 20000)) {
+        *why = QStringLiteral("the save failed: ") + e.win.told.join('|');
+        return QByteArray();
+    }
+    return savedSheet(e.path);
 }
 
 QString shape(const grid::CondCell &c)
@@ -283,8 +417,8 @@ private Q_SLOTS:
         QVERIFY(cond.at(4, 0).hasBar);
         QVERIFY(!cond.at(900000, 0).any || cond.at(900000, 0).hasBar);
         // five cells hold values: the figures are passed over for them, not for a million rows
-        QVERIFY2(cond.figureCells() <= 20, qPrintable(QString::number(cond.figureCells())));
-        QVERIFY2(cond.statCells() <= 5, qPrintable(QString::number(cond.statCells())));
+        QCOMPARE(cond.figureCells(), qint64(5));
+        QCOMPARE(cond.statCells(), qint64(5));
         // a whole sheet is the same
         e.view()->selectRange(0, 0, 1048575, 16383);
         run(e, "cond.scale.0");
@@ -444,6 +578,393 @@ private Q_SLOTS:
             QVERIFY(back[i].type == now[i].type);
             QCOMPARE(int(back[i].colors.size()), int(now[i].colors.size()));
         }
+    }
+
+    // ---- Manage Rules on a file as it was opened (no rule has been touched in the window yet): what the person did not change is kept as the file had it, apart from its priority, and the order of
+    // every rule in the file, those Manage Rules does not list too, is what it was but for the move the person made.
+    void manageRulesOnAFreshFileOkWithNothingChangedKeepsEveryRule()
+    {
+        EditWindow e;
+        QVERIFY(e.open(condBook(nineRulesTail())));
+        const int steps = e.win.w.undoStack()->count();
+        e.win.w.setCondManageAsker([](const QVector<CondManageDialog::Item> &items, const CrunchWindow::CondEditor &editor, QVector<crunch::EditSession::CondManaged> *out) {
+            CondManageDialog d(items, editor);
+            *out = d.result();
+            return true;
+        });
+        run(e, "cond.manage");
+        QCOMPARE(e.win.w.undoStack()->count(), steps);          // (nothing was changed: nothing is made again)
+        QVERIFY(!e.win.w.isModified());
+    }
+
+    void manageRulesEditOneRuleKeepsTheOthersAsTheFileHadThem()
+    {
+        EditWindow e;
+        QVERIFY(e.open(condBook(nineRulesTail())));
+        e.win.w.setCondSpecAsker([](CondSpec *spec, bool editing) {
+            if (!editing || spec->kind != CondSpec::Kind::Formula) return false;
+            spec->v1 = QStringLiteral("=MOD(A1,3)=0");
+            return true;
+        });
+        QString why;
+        const QByteArray xml = manageAndSave(e, [](CondManageDialog &d) {
+            d.select(1);                                    // (the rule with the formula)
+            d.editSelected();
+        }, &why);
+        QVERIFY2(!xml.isEmpty(), qPrintable(why));
+        QVERIFY(xml.contains("MOD(A1,3)=0"));
+        QVERIFY(!xml.contains("MOD(A1,2)=0"));
+        QCOMPARE(savedOrder(xml), QStringList({"custom1", "gt", "even", "top", "bar", "custom6", "scale", "icons", "blank"}));
+        const QString bad = notKeptAsTheyWere(xml, {"gt", "top", "bar", "scale", "icons", "blank", "custom1", "custom6"});
+        QVERIFY2(bad.isEmpty(), qPrintable(bad));
+    }
+
+    void manageRulesMoveUpKeepsTheOthersAsTheFileHadThem()
+    {
+        EditWindow e;
+        QVERIFY(e.open(condBook(nineRulesTail())));
+        QString why;
+        const QByteArray xml = manageAndSave(e, [](CondManageDialog &d) {
+            d.select(4);                                    // (the color scale)
+            d.moveSelected(-1);
+        }, &why);
+        QVERIFY2(!xml.isEmpty(), qPrintable(why));
+        QCOMPARE(savedOrder(xml), QStringList({"custom1", "gt", "even", "top", "scale", "bar", "custom6", "icons", "blank"}));
+        const QString bad = notKeptAsTheyWere(xml, {"gt", "even", "top", "bar", "scale", "icons", "blank", "custom1", "custom6"});
+        QVERIFY2(bad.isEmpty(), qPrintable(bad));
+    }
+
+    void manageRulesMoveDownKeepsTheOthersAsTheFileHadThem()
+    {
+        EditWindow e;
+        QVERIFY(e.open(condBook(nineRulesTail())));
+        QString why;
+        const QByteArray xml = manageAndSave(e, [](CondManageDialog &d) {
+            d.select(0);                                    // (the first rule: the rule that lives only in the 2010 block stays above it)
+            d.moveSelected(1);
+        }, &why);
+        QVERIFY2(!xml.isEmpty(), qPrintable(why));
+        QCOMPARE(savedOrder(xml), QStringList({"custom1", "even", "gt", "top", "bar", "custom6", "scale", "icons", "blank"}));
+        const QString bad = notKeptAsTheyWere(xml, {"gt", "even", "top", "bar", "scale", "icons", "blank", "custom1", "custom6"});
+        QVERIFY2(bad.isEmpty(), qPrintable(bad));
+    }
+
+    void manageRulesDeleteOneRuleKeepsTheOthersAsTheFileHadThem()
+    {
+        EditWindow e;
+        QVERIFY(e.open(condBook(nineRulesTail())));
+        QString why;
+        const QByteArray xml = manageAndSave(e, [](CondManageDialog &d) {
+            d.select(2);                                    // (the rule of a pivot table's area)
+            d.deleteSelected();
+        }, &why);
+        QVERIFY2(!xml.isEmpty(), qPrintable(why));
+        QVERIFY(!xml.contains("pivot=\"1\""));
+        QCOMPARE(savedOrder(xml), QStringList({"custom1", "gt", "even", "bar", "custom6", "scale", "icons", "blank"}));
+        const QString bad = notKeptAsTheyWere(xml, {"gt", "even", "bar", "scale", "icons", "blank", "custom1", "custom6"});
+        QVERIFY2(bad.isEmpty(), qPrintable(bad));
+        // and the data bar, which has a 2010 entry: it goes with its entry, and the rule that lives only in the 2010 block stays where it was
+        EditWindow second;
+        QVERIFY(second.open(condBook(nineRulesTail())));
+        const QByteArray other = manageAndSave(second, [](CondManageDialog &d) {
+            d.select(3);
+            d.deleteSelected();
+        }, &why);
+        QVERIFY2(!other.isEmpty(), qPrintable(why));
+        QVERIFY(!other.contains("negativeBarBorderColorSameAsPositive"));
+        QCOMPARE(savedOrder(other), QStringList({"custom1", "gt", "even", "top", "custom6", "scale", "icons", "blank"}));
+        const QString lost = notKeptAsTheyWere(other, {"gt", "even", "top", "scale", "icons", "blank", "custom1", "custom6"});
+        QVERIFY2(lost.isEmpty(), qPrintable(lost));
+    }
+
+    // A new rule made in Manage Rules goes first, above the rule that lives only in the 2010 block too; what is saved opens again with the order it had.
+    void manageRulesNewRuleGoesFirstAndTheFileOpensAgainInTheSameOrder()
+    {
+        EditWindow e;
+        QVERIFY(e.open(condBook(nineRulesTail())));
+        e.win.w.setCondSpecAsker([](CondSpec *spec, bool editing) {
+            if (editing) return false;
+            spec->kind = CondSpec::Kind::Duplicate;
+            return true;
+        });
+        QString why;
+        const QByteArray xml = manageAndSave(e, [](CondManageDialog &d) { d.addRule(); }, &why);
+        QVERIFY2(!xml.isEmpty(), qPrintable(why));
+        QCOMPARE(savedOrder(xml), QStringList({"?", "custom1", "gt", "even", "top", "bar", "custom6", "scale", "icons", "blank"}));   // ("?": the new rule)
+        const QString bad = notKeptAsTheyWere(xml, {"gt", "even", "top", "bar", "scale", "icons", "blank", "custom1", "custom6"});
+        QVERIFY2(bad.isEmpty(), qPrintable(bad));
+        QFile f(e.path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray bytes = f.readAll();
+        f.close();
+        EditWindow again;
+        QVERIFY(again.open(bytes));
+        const QVector<CondRule> back = again.win.w.session()->condRules(0);
+        QCOMPARE(int(back.size()), 8);
+        QCOMPARE(int(back.first().type), int(CondRule::Type::DuplicateValues));
+    }
+
+    // Stop If True, set in Manage Rules: it is kept by the save, it is there when the file is opened again, and a rule below the one that stops is not applied to the cells it is true for.
+    void manageRulesStopIfTrueIsSavedAndStopsTheRulesBelow()
+    {
+        EditWindow e;
+        QVERIFY(e.open(condBook()));
+        DifferentialFormat italic, bold;
+        italic.italic = true;
+        bold.bold = true;
+        CondRule below = rule(CondRule::Type::CellIs, "A1:A5"), above = rule(CondRule::Type::CellIs, "A1:A5");
+        below.op = above.op = CondRule::Operator::GreaterThan;
+        below.formula1 = QStringLiteral("0");
+        above.formula1 = QStringLiteral("3");
+        QVERIFY(e.win.w.session()->addCondRule(0, below, italic).ok);
+        QVERIFY(e.win.w.session()->addCondRule(0, above, bold).ok);
+        QVERIFY(e.settle());
+        auto &cond = e.view()->sheet().conditional();
+        cond.settle();
+        const grid::CondCell both = cond.at(4, 0);                     // (5 is over 3, and over 0: both rules apply)
+        QVERIFY(both.format >= 0 && cond.format(both.format).bold.value_or(false) && cond.format(both.format).italic.value_or(false));
+        QString why;
+        const QByteArray xml = manageAndSave(e, [](CondManageDialog &d) {
+            d.select(0);                                    // (the rule that is over 3)
+            d.setStopIfTrue(0, true);
+        }, &why);
+        QVERIFY2(!xml.isEmpty(), qPrintable(why));
+        QVERIFY(xml.contains("stopIfTrue=\"1\""));
+        cond.settle();
+        const grid::CondCell stopped = cond.at(4, 0);
+        QVERIFY(stopped.format >= 0 && cond.format(stopped.format).bold.value_or(false));
+        QVERIFY(!cond.format(stopped.format).italic.value_or(false));
+        const grid::CondCell low = cond.at(2, 0);                      // (3 is not over 3: only the rule below applies)
+        QVERIFY(low.format >= 0 && cond.format(low.format).italic.value_or(false));
+        // opened again
+        QFile f(e.path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray bytes = f.readAll();
+        f.close();
+        EditWindow again;
+        QVERIFY(again.open(bytes));
+        const QVector<CondRule> back = again.win.w.session()->condRules(0);
+        QCOMPARE(int(back.size()), 2);
+        QVERIFY(back[0].stopIfTrue);
+        QVERIFY(!back[1].stopIfTrue);
+        auto &condAgain = again.view()->sheet().conditional();
+        condAgain.settle();
+        const grid::CondCell reopened = condAgain.at(4, 0);
+        QVERIFY(reopened.format >= 0 && condAgain.format(reopened.format).bold.value_or(false));
+        QVERIFY(!condAgain.format(reopened.format).italic.value_or(false));
+    }
+
+    // The cells of a rule changed in Manage Rules (Applies to): the saved file and the drawing follow.
+    void manageRulesChangingTheCellsIsSavedAndDrawn()
+    {
+        EditWindow e;
+        QVERIFY(e.open(condBook(nineRulesTail())));
+        QString why;
+        const QByteArray xml = manageAndSave(e, [](CondManageDialog &d) {
+            QVERIFY(d.setRangesOf(1, QStringLiteral("A1:A2 A4")));   // (the rule with the formula: even numbers)
+        }, &why);
+        QVERIFY2(!xml.isEmpty(), qPrintable(why));
+        QFile f(e.path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray bytes = f.readAll();
+        f.close();
+        EditWindow again;
+        QVERIFY(again.open(bytes));
+        const QVector<CondRule> back = again.win.w.session()->condRules(0);
+        QCOMPARE(int(back.size()), 7);
+        QCOMPARE(int(back[1].type), int(CondRule::Type::Expression));
+        QCOMPARE(int(back[1].ranges.size()), 2);
+        QCOMPARE(rangeName(back[1].ranges[0]), QStringLiteral("A1:A2"));
+        QCOMPARE(rangeName(back[1].ranges[1]), QStringLiteral("A4"));
+        QCOMPARE(savedOrder(xml), QStringList({"custom1", "gt", "even", "top", "bar", "custom6", "scale", "icons", "blank"}));
+        const QString bad = notKeptAsTheyWere(xml, {"gt", "top", "bar", "scale", "icons", "blank", "custom1", "custom6"});
+        QVERIFY2(bad.isEmpty(), qPrintable(bad));
+    }
+
+    // A sheet whose protection does not let cells be formatted gets no rule from the menus, the window of a new rule, or Manage Rules, and its Clear Rules choices are off; when the protection lets
+    // cells be formatted, the same changes are made.
+    void aProtectedSheetRefusesRulesThatTheProtectionDoesNotAllow()
+    {
+        EditWindow e;
+        QVERIFY(e.open(condBook(QStringLiteral("<sheetProtection sheet=\"1\"/>") + nineRulesTail())));
+        const int steps = e.win.w.undoStack()->count();
+        selectRange(e, QStringLiteral("B1:B5"));
+        run(e, "cond.bar.0.gradient");
+        QVERIFY2(e.win.told.join('|').contains(QLatin1String("protected")), qPrintable(e.win.told.join('|')));
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        CondRule made = rule(CondRule::Type::UniqueValues, "B1:B5");
+        const auto added = e.win.w.session()->addCondRule(0, made, DifferentialFormat());
+        QVERIFY(!added.ok);
+        QVERIFY2(added.problem.contains(QLatin1String("protected")), qPrintable(added.problem));
+        e.win.told.clear();
+        bool asked = false;
+        e.win.w.setCondManageAsker([&](const QVector<CondManageDialog::Item> &, const CrunchWindow::CondEditor &, QVector<crunch::EditSession::CondManaged> *) {
+            asked = true;
+            return false;
+        });
+        run(e, "cond.manage");
+        QVERIFY(!asked);
+        QVERIFY2(e.win.told.join('|').contains(QLatin1String("protected")), qPrintable(e.win.told.join('|')));
+        const auto managed = e.win.w.session()->setManagedCondRules(0, {});
+        QVERIFY(!managed.ok);
+        QVERIFY2(managed.problem.contains(QLatin1String("protected")), qPrintable(managed.problem));
+        QCOMPARE(int(e.win.w.session()->condRules(0).size()), 7);
+        QVERIFY(!e.win.w.act(QStringLiteral("cond.clearSheet"))->isEnabled());
+        QVERIFY(!e.win.w.session()->clearCondRules(0, CellRange()).ok);
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        // formatting allowed: the same sheet takes a rule
+        EditWindow open;
+        QVERIFY(open.open(condBook(QStringLiteral("<sheetProtection sheet=\"1\" formatCells=\"0\"/>") + nineRulesTail())));
+        selectRange(open, QStringLiteral("B1:B5"));
+        run(open, "cond.bar.0.gradient");
+        QCOMPARE(int(open.win.w.session()->condRules(0).size()), 8);
+        QVERIFY(open.win.w.act(QStringLiteral("cond.clearSheet"))->isEnabled());
+    }
+
+    // A New Rule made in Manage Rules reads a typed formula as seen from the cell with the cursor, as the New Rule of the menu does, whatever corner of the selection that is.
+    void aNewRuleInManageRulesReadsItsFormulaFromTheCellWithTheCursor()
+    {
+        EditWindow e;
+        QVERIFY(e.open(condBook()));
+        e.view()->selectRange(2, 2, 1, 1);                  // (B2:C3, the cursor in C3)
+        QCOMPARE(e.view()->selection().activeRow, qint64(2));
+        QVERIFY(e.view()->selection().range.row1 == 1);
+        e.win.w.setCondSpecAsker([](CondSpec *spec, bool editing) {
+            if (editing) return false;
+            spec->kind = CondSpec::Kind::Formula;
+            spec->v1 = QStringLiteral("=C3>1");             // (as seen from C3: "this cell is over 1")
+            return true;
+        });
+        run(e, "cond.new");
+        QCOMPARE(e.win.w.session()->condRules(0).first().formula1, QStringLiteral("B2>1"));
+        e.win.w.session()->clearCondRules(0, CellRange());
+        QString why;
+        e.win.w.setCondManageAsker([&](const QVector<CondManageDialog::Item> &items, const CrunchWindow::CondEditor &editor, QVector<crunch::EditSession::CondManaged> *out) {
+            CondManageDialog d(items, editor);
+            d.addRule();
+            *out = d.result();
+            return true;
+        });
+        run(e, "cond.manage");
+        const QVector<CondRule> now = e.win.w.session()->condRules(0);
+        QCOMPARE(int(now.size()), 1);
+        QCOMPARE(now.first().formula1, QStringLiteral("B2>1"));
+        // (an edited rule shows its formula as the top left cell reads it, and keeps it)
+        e.win.w.setCondManageAsker([&](const QVector<CondManageDialog::Item> &items, const CrunchWindow::CondEditor &editor, QVector<crunch::EditSession::CondManaged> *out) {
+            CondManageDialog d(items, editor);
+            d.select(0);
+            d.editSelected();
+            *out = d.result();
+            return true;
+        });
+        QString shown;
+        e.win.w.setCondSpecAsker([&shown](CondSpec *spec, bool editing) {
+            if (editing) shown = spec->v1;
+            return false;
+        });
+        run(e, "cond.manage");
+        QCOMPARE(shown, QStringLiteral("=B2>1"));
+        QCOMPARE(e.win.w.session()->condRules(0).first().formula1, QStringLiteral("B2>1"));
+    }
+
+    // A reference to a sheet the workbook does not have is refused as any other formula that cannot be read is, in a rule's formula and in a value a rule compares with.
+    void aRuleThatNamesASheetThatIsNotThereIsRefused()
+    {
+        EditWindow e;
+        QVERIFY(e.open(condBook()));
+        selectRange(e, QStringLiteral("A1:A5"));
+        const int steps = e.win.w.undoStack()->count();
+        for (const bool formula : {true, false}) {
+            e.win.told.clear();
+            e.win.w.setCondSpecAsker([formula](CondSpec *spec, bool editing) {
+                if (editing) return false;
+                if (formula) {
+                    spec->kind = CondSpec::Kind::Formula;
+                    spec->v1 = QStringLiteral("=Nowhere!A1>1");
+                } else {
+                    spec->kind = CondSpec::Kind::CellValue;
+                    spec->v1 = QStringLiteral("='Not Here'!B2");
+                }
+                return true;
+            });
+            run(e, "cond.new");
+            QVERIFY2(e.win.told.join('|').contains(QLatin1String("is not a formula JeffCrunch can read")), qPrintable(e.win.told.join('|')));
+            QCOMPARE(e.win.w.undoStack()->count(), steps);
+        }
+        // a sheet the workbook has is fine
+        e.win.told.clear();
+        e.win.w.setCondSpecAsker([](CondSpec *spec, bool editing) {
+            if (editing) return false;
+            spec->kind = CondSpec::Kind::Formula;
+            spec->v1 = QStringLiteral("=Sheet1!B1<>\"\"");
+            return true;
+        });
+        run(e, "cond.new");
+        QVERIFY2(e.win.told.isEmpty(), qPrintable(e.win.told.join('|')));
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);
+    }
+
+    // The gallery's solid bars have a border of their own for negative numbers: the file says so, as a newer file's bars with a negative border do.
+    void aSolidBarSaysItsNegativeBorderIsNotThePositiveOne()
+    {
+        EditWindow e;
+        QVERIFY(e.open(condBook()));
+        selectRange(e, QStringLiteral("A1:A5"));
+        run(e, "cond.bar.0.solid");
+        QVERIFY(e.settle());
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved, 20000), qPrintable(e.win.told.join('|')));
+        const QByteArray xml = savedSheet(e.path);
+        QVERIFY(xml.contains("<x14:negativeBorderColor"));
+        QVERIFY2(xml.contains("negativeBarBorderColorSameAsPositive=\"0\""), xml.constData());
+    }
+
+    // The description of a rule for the top items never says "1 items".
+    void theDescriptionOfATopRuleHasNoWrongPlural()
+    {
+        for (const bool bottom : {false, true})
+            for (const int n : {1, 2, 10}) {
+                CondRule r = rule(CondRule::Type::Top10);
+                r.rank = n;
+                r.bottom = bottom;
+                const QString text = condpresets::describe(r);
+                QVERIFY2(text.contains(QString::number(n)), qPrintable(text));
+                if (n == 1) QVERIFY2(!text.contains(QLatin1String("1 items")), qPrintable(text));
+            }
+    }
+
+    // The rule window: a color scale, data bar, or icon set has no look to choose, so the row is not there; the pages do not leave room for the tallest page under a short one; the border's
+    // color is in the column of the other colors, level with its check box; and the icon sets are named in words a person can follow.
+    void theRuleWindowShowsOnlyWhatTheKindNeedsAndAlignsTheBorderColor()
+    {
+        jp::applyUiTheme(1);
+        CondSpec start;
+        CondRuleDialog d(start, false);
+        d.show();
+        QTRY_VERIFY(d.isVisible());
+        auto *look = d.findChild<QComboBox *>(QStringLiteral("condPreset"));
+        auto *pages = d.findChild<QStackedWidget *>();
+        QVERIFY(look && pages);
+        QVERIFY(look->isVisibleTo(&d));
+        d.setKind(CondSpec::Kind::Duplicate);
+        QVERIFY(look->isVisibleTo(&d));
+        QVERIFY2(pages->sizeHint().height() <= pages->currentWidget()->sizeHint().height() + 2, "the pages keep the room of the tallest");
+        for (const auto kind : {CondSpec::Kind::ColorScale, CondSpec::Kind::DataBar, CondSpec::Kind::IconSet}) {
+            d.setKind(kind);
+            QVERIFY(!look->isVisibleTo(&d));
+        }
+        d.setKind(CondSpec::Kind::DataBar);
+        auto *color = d.findChild<QPushButton *>(QStringLiteral("barColor"));
+        auto *border = d.findChild<QPushButton *>(QStringLiteral("barBorder"));
+        auto *on = d.findChild<QCheckBox *>(QStringLiteral("barBorderOn"));
+        QVERIFY(color && border && on);
+        QTRY_COMPARE(border->mapTo(&d, QPoint(0, 0)).x(), color->mapTo(&d, QPoint(0, 0)).x());
+        QTRY_VERIFY(std::abs(border->mapTo(&d, border->rect().center()).y() - on->mapTo(&d, on->rect().center()).y()) <= 2);
+        QCOMPARE(condpresets::iconSetLabel(QStringLiteral("3TrafficLights1")), QStringLiteral("3 Traffic Lights (No Border)"));
+        QCOMPARE(condpresets::iconSetLabel(QStringLiteral("3TrafficLights2")), QStringLiteral("3 Traffic Lights (with Border)"));
+        QCOMPARE(condpresets::iconSetLabel(QStringLiteral("3Symbols")), QStringLiteral("3 Symbols (in Circles)"));
+        QCOMPARE(condpresets::iconSetLabel(QStringLiteral("3Symbols2")), QStringLiteral("3 Symbols (Plain)"));
     }
 
     // Check Compatibility names what an older file cannot hold of conditional formatting.

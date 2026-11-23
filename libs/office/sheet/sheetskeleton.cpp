@@ -236,6 +236,7 @@ QByteArray conditionalFormatsXml(const QVector<CondRule> &rules, QByteArray *ext
                 bar += attr("gradient", r.gradient ? "1" : "0");
                 if (r.border) bar += attr("border", "1");
                 if (r.negativeSameColor) bar += attr("negativeBarColorSameAsPositive", "1");
+                if (r.negativeBorderColor.isSet()) bar += attr("negativeBarBorderColorSameAsPositive", "0");   // (the file's default is the positive border's color: this one has its own)
                 if (r.axis == CondRule::Axis::Middle) bar += attr("axisPosition", "middle");
                 else if (r.axis == CondRule::Axis::None) bar += attr("axisPosition", "none");
                 if (r.rightToLeft) bar += attr("direction", "rightToLeft");

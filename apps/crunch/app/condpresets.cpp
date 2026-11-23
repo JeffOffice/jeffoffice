@@ -75,13 +75,13 @@ QString iconSetLabel(const QString &set)
                                    {"4ArrowsGray", QT_TRANSLATE_NOOP("jp::CrunchWindow", "4 Arrows (Gray)")},
                                    {"5Arrows", QT_TRANSLATE_NOOP("jp::CrunchWindow", "5 Arrows (Colored)")},
                                    {"5ArrowsGray", QT_TRANSLATE_NOOP("jp::CrunchWindow", "5 Arrows (Gray)")},
-                                   {"3TrafficLights1", QT_TRANSLATE_NOOP("jp::CrunchWindow", "3 Traffic Lights (Unrimmed)")},
-                                   {"3TrafficLights2", QT_TRANSLATE_NOOP("jp::CrunchWindow", "3 Traffic Lights (Rimmed)")},
+                                   {"3TrafficLights1", QT_TRANSLATE_NOOP("jp::CrunchWindow", "3 Traffic Lights (No Border)")},
+                                   {"3TrafficLights2", QT_TRANSLATE_NOOP("jp::CrunchWindow", "3 Traffic Lights (with Border)")},
                                    {"3Signs", QT_TRANSLATE_NOOP("jp::CrunchWindow", "3 Signs")},
                                    {"4TrafficLights", QT_TRANSLATE_NOOP("jp::CrunchWindow", "4 Traffic Lights")},
                                    {"4RedToBlack", QT_TRANSLATE_NOOP("jp::CrunchWindow", "Red to Black")},
-                                   {"3Symbols", QT_TRANSLATE_NOOP("jp::CrunchWindow", "3 Symbols (Circled)")},
-                                   {"3Symbols2", QT_TRANSLATE_NOOP("jp::CrunchWindow", "3 Symbols (Uncircled)")},
+                                   {"3Symbols", QT_TRANSLATE_NOOP("jp::CrunchWindow", "3 Symbols (in Circles)")},
+                                   {"3Symbols2", QT_TRANSLATE_NOOP("jp::CrunchWindow", "3 Symbols (Plain)")},
                                    {"3Flags", QT_TRANSLATE_NOOP("jp::CrunchWindow", "3 Flags")},
                                    {"3Stars", QT_TRANSLATE_NOOP("jp::CrunchWindow", "3 Stars")},
                                    {"4Rating", QT_TRANSLATE_NOOP("jp::CrunchWindow", "4 Ratings")},
@@ -171,7 +171,7 @@ QString describe(const CondRule &r)
     case T::IconSet: return QCoreApplication::translate("jp::CrunchWindow", "Icon set: %1").arg(iconSetLabel(jp::grid::iconSetOrDefault(r.iconSet)));
     case T::Top10:
         return r.percent ? (r.bottom ? QCoreApplication::translate("jp::CrunchWindow", "Bottom %1 percent").arg(r.rank) : QCoreApplication::translate("jp::CrunchWindow", "Top %1 percent").arg(r.rank))
-                         : (r.bottom ? QCoreApplication::translate("jp::CrunchWindow", "Bottom %1 items").arg(r.rank) : QCoreApplication::translate("jp::CrunchWindow", "Top %1 items").arg(r.rank));
+                         : (r.bottom ? QCoreApplication::translate("jp::CrunchWindow", "Bottom items: %1").arg(r.rank) : QCoreApplication::translate("jp::CrunchWindow", "Top items: %1").arg(r.rank));
     case T::UniqueValues: return QCoreApplication::translate("jp::CrunchWindow", "Unique values");
     case T::DuplicateValues: return QCoreApplication::translate("jp::CrunchWindow", "Duplicate values");
     case T::ContainsText: return QCoreApplication::translate("jp::CrunchWindow", "Text contains \"%1\"").arg(r.text);

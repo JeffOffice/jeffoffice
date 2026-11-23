@@ -240,6 +240,7 @@ void CondRuleDialog::build(const CondSpec &start, bool editing)
     m_pages->addWidget(iconPage(start.visual));    // 8
 
     auto *looks = new QFormLayout;
+    m_looksForm = looks;
     m_look = new QComboBox(this);
     m_look->setObjectName(QStringLiteral("condPreset"));
     if (editing) m_look->addItem(tr("Keep the current look"), -1);
@@ -275,9 +276,16 @@ void CondRuleDialog::showPage()
 {
     const Kind k = Kind(m_kind->currentData().toInt());
     m_pages->setCurrentIndex(pageOf(k));
+    // (the pages take the room of the page that is shown, not of the tallest)
+    for (int i = 0; i < m_pages->count(); ++i)
+        m_pages->widget(i)->setSizePolicy(QSizePolicy::Preferred, i == m_pages->currentIndex() ? QSizePolicy::Preferred : QSizePolicy::Ignored);
     CondSpec probe;
     probe.kind = k;
-    m_look->setEnabled(probe.hasLook());
+    m_looksForm->setRowVisible(m_look, probe.hasLook());   // (a color scale, data bar, or icon set has no look of font and fill)
+    if (isVisible()) {
+        layout()->activate();
+        adjustSize();
+    }
 }
 
 void CondRuleDialog::setKind(Kind kind)
@@ -373,8 +381,9 @@ QWidget *CondRuleDialog::barPage(const CondRule &rule)
     m_barBorder = new CondColorButton(bar && rule.borderColor.isSet() ? rule.borderColor : m_barColor->color(), w);
     m_barBorder->setObjectName(QStringLiteral("barBorder"));
     auto *r3 = new QHBoxLayout;
-    r3->addWidget(m_barBorderOn);
-    r3->addWidget(m_barBorder);
+    r3->addWidget(m_barBorder, 0, Qt::AlignVCenter);
+    r3->addWidget(m_barBorderOn, 0, Qt::AlignVCenter);
+    r3->addStretch();
     f->addRow(QString(), r3);
     m_barNegative = new CondColorButton(bar && rule.negativeColor.isSet() ? rule.negativeColor : ColorSpec::fromRgb(0xFF0000), w);
     m_barNegative->setObjectName(QStringLiteral("barNegative"));

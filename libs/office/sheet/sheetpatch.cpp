@@ -15,6 +15,8 @@
 #include <algorithm>
 #include <cmath>
 #include <cstring>
+#include <list>
+#include <set>
 #include <unordered_map>
 
 namespace jp::office::sheet {
@@ -1518,9 +1520,207 @@ QByteArray withText(const QByteArray &element, const QString &text)
 
 const char *kX14Uri = "78C0D931";
 
+// What the numbering of a sheet's rules came to (see numberCondRules): the priority each rule has now.
+struct CondNumbers {
+    std::map<int, int> file;      // a rule of the main list that is kept: its priority in the file, to its priority now
+    std::map<int, int> x14Only;   // a 2010 rule that has no rule of the main list: the same
+    std::vector<int> made, restored;
+};
+
+// The elements of the tail named `local` that are children of the worksheet, each as its first and last byte.
+std::vector<std::pair<qsizetype, qsizetype>> topLevelElements(const QByteArray &after, const char *local)
+{
+    std::vector<std::pair<qsizetype, qsizetype>> out;
+    Tag t;
+    qsizetype pos = 0;
+    int depth = 0;
+    while (xmlscan::nextTag(after, pos, &t)) {
+        pos = t.end;
+        if (t.closing) {
+            if (--depth < 0) break;
+            continue;
+        }
+        if (depth == 0 && t.local == local) {
+            qsizetype end = t.end;
+            if (!t.selfClosing) {
+                qsizetype p = t.end;
+                int d = 1;
+                Tag c;
+                while (d > 0 && xmlscan::nextTag(after, p, &c)) {
+                    p = c.end;
+                    if (c.closing) --d;
+                    else if (!c.selfClosing) ++d;
+                    end = c.end;
+                }
+                pos = end;
+            }
+            out.push_back({t.start, end});
+            continue;
+        }
+        if (!t.selfClosing) ++depth;
+    }
+    return out;
+}
+
+// The rules of the main list the tail has: each one's priority and the id that ties it to its 2010 entry (empty for none).
+std::vector<std::pair<int, QString>> mainRulesOf(const QByteArray &after)
+{
+    std::vector<std::pair<int, QString>> out;
+    for (const auto &extent : topLevelElements(after, "conditionalFormatting")) {
+        const QByteArray element = after.mid(extent.first, extent.second - extent.first);
+        qsizetype openEnd = 0, closeStart = 0;
+        for (const Child &k : childrenOf(element, &openEnd, &closeStart)) {
+            if (k.local != "cfRule" || k.end < 0) continue;
+            const QByteArray rule = element.mid(k.start, k.end - k.start);
+            out.push_back({attrOf(rule, "priority").toInt(), extensionIdOf(rule)});
+        }
+    }
+    return out;
+}
+
+// The priorities of the 2010 rules that have a priority and no rule of the main list (`ids` are the ids of those that have one).
+std::vector<int> x14OnlyPriorities(const QByteArray &after, const std::set<QString> &ids)
+{
+    std::vector<int> out;
+    for (const auto &extent : topLevelElements(after, "extLst")) {
+        const QByteArray list = after.mid(extent.first, extent.second - extent.first);
+        rebuilt(list, [&](const Child &k, const QByteArray &part) -> QByteArray {
+            if (k.local != "ext" || !attrOf(part, "uri").contains(QLatin1String(kX14Uri))) return part;
+            return rebuilt(part, [&](const Child &c, const QByteArray &container) -> QByteArray {
+                if (c.local != "conditionalFormattings") return container;
+                return rebuilt(container, [&](const Child &, const QByteArray &element) -> QByteArray {
+                    return rebuilt(element, [&](const Child &r, const QByteArray &rule) -> QByteArray {
+                        bool has = false;
+                        const int p = attrOf(rule, "priority", &has).toInt();
+                        if (r.local == "cfRule" && has && p > 0 && !ids.count(attrOf(rule, "id"))) out.push_back(p);
+                        return rule;
+                    });
+                });
+            });
+        });
+    }
+    return out;
+}
+
+// Gives every rule of the sheet its priority, one to each: the file's rules in the order they had, but for the ones the person moved (see SheetChanges::condOrder). The rules of the list that did not move
+// (the longest run that keeps the file's order) stay where they are among all the file's rules, those the list does not hold too; a rule that moved goes right after the rule before it in the list (before
+// the next one that did not move, when it is the first), and a rule made or brought back goes after the rule before it, or first.
+CondNumbers numberCondRules(const SheetChanges &edit, const std::vector<std::pair<int, QString>> &mainRules, const std::vector<int> &x14Only)
+{
+    enum Kind : quint64 { FileKind, X14Kind, MadeKind, RestoredKind };
+    auto key = [](Kind kind, int n) { return (quint64(kind) << 32) | quint32(n); };
+    std::vector<std::pair<std::pair<int, int>, quint64>> file;   // ((priority, main list first), the rule)
+    std::set<int> inMain;
+    for (const auto &r : mainRules)
+        if (r.first > 0 && inMain.insert(r.first).second) file.push_back({{r.first, 0}, key(FileKind, r.first)});
+    for (const int p : std::set<int>(x14Only.begin(), x14Only.end())) file.push_back({{p, 1}, key(X14Kind, p)});
+    std::sort(file.begin(), file.end());
+    std::map<int, int> madeFor;   // the rule of the file an edit took the place of: the rule made in its place
+    for (const CondSlot &s : edit.condOrder)
+        if (s.kind == CondSlot::Kind::Made && s.replaces > 0 && inMain.count(s.replaces) && edit.condRemoved.count(s.replaces)) madeFor.emplace(s.replaces, s.key);
+    std::list<quint64> seq;
+    std::unordered_map<quint64, std::list<quint64>::iterator> where;
+    auto put = [&](std::list<quint64>::iterator at, quint64 k) { where[k] = seq.insert(at, k); };
+    for (const auto &f : file) {
+        const int p = f.first.first;
+        if (f.first.second == 0 && edit.condRemoved.count(p)) {
+            const auto in = madeFor.find(p);
+            if (in != madeFor.end()) put(seq.end(), key(MadeKind, in->second));
+        } else {
+            put(seq.end(), f.second);
+        }
+    }
+    // the list as the person has it, and which of its rules are in the file's sequence
+    std::vector<quint64> list;
+    for (const CondSlot &s : edit.condOrder)
+        list.push_back(key(s.kind == CondSlot::Kind::File ? FileKind : s.kind == CondSlot::Kind::Made ? MadeKind : RestoredKind, s.key));
+    std::unordered_map<quint64, qsizetype> placeInFile;
+    {
+        qsizetype n = 0;
+        for (const quint64 k : seq) placeInFile[k] = n++;
+    }
+    // the rules of the list that did not move: the longest run of them that is in the file's order
+    std::vector<qsizetype> inList;   // the places in the list of the rules that are in the sequence
+    std::vector<qsizetype> filePlaces;
+    for (qsizetype i = 0; i < qsizetype(list.size()); ++i) {
+        const auto in = placeInFile.find(list[size_t(i)]);
+        if (in == placeInFile.end()) continue;
+        inList.push_back(i);
+        filePlaces.push_back(in->second);
+    }
+    std::vector<qsizetype> tails, before(filePlaces.size(), -1);
+    for (qsizetype i = 0; i < qsizetype(filePlaces.size()); ++i) {
+        const auto at = std::lower_bound(tails.begin(), tails.end(), filePlaces[size_t(i)], [&](qsizetype t, qsizetype v) { return filePlaces[size_t(t)] < v; });
+        before[size_t(i)] = at == tails.begin() ? -1 : *(at - 1);
+        if (at == tails.end()) tails.push_back(i);
+        else *at = i;
+    }
+    std::vector<bool> stays(list.size(), false);
+    for (qsizetype i = tails.empty() ? -1 : tails.back(); i >= 0; i = before[size_t(i)]) stays[size_t(inList[size_t(i)])] = true;
+    std::vector<bool> wasInFile(list.size(), false);
+    for (const qsizetype i : inList) {
+        wasInFile[size_t(i)] = true;
+        if (!stays[size_t(i)]) {
+            seq.erase(where[list[size_t(i)]]);
+            where.erase(list[size_t(i)]);
+        }
+    }
+    // the rules that moved, and those made or brought back, go in after the rule before them in the list
+    bool havePrev = false;
+    quint64 prev = 0;
+    for (qsizetype i = 0; i < qsizetype(list.size()); ++i) {
+        const quint64 k = list[size_t(i)];
+        if (stays[size_t(i)]) {
+            prev = k;
+            havePrev = true;
+            continue;
+        }
+        if (where.count(k)) continue;   // (a rule the list names twice: the first place it has)
+        std::list<quint64>::iterator at = seq.begin();
+        if (havePrev) {
+            at = where.at(prev);
+            ++at;
+        } else if (wasInFile[size_t(i)]) {
+            at = seq.end();
+            for (qsizetype j = i + 1; j < qsizetype(list.size()); ++j)
+                if (stays[size_t(j)]) {
+                    at = where.at(list[size_t(j)]);
+                    break;
+                }
+        }
+        put(at, k);
+        prev = k;
+        havePrev = true;
+    }
+    // (made or brought back and not in the list: last)
+    for (qsizetype i = 0; i < edit.condNew.size(); ++i)
+        if (!where.count(key(MadeKind, int(i)))) put(seq.end(), key(MadeKind, int(i)));
+    for (size_t i = 0; i < edit.condRestore.size(); ++i)
+        if (!where.count(key(RestoredKind, int(i)))) put(seq.end(), key(RestoredKind, int(i)));
+    CondNumbers out;
+    out.made.assign(size_t(edit.condNew.size()), 0);
+    out.restored.assign(edit.condRestore.size(), 0);
+    int number = 0;
+    for (const quint64 k : seq) {
+        ++number;
+        const int n = int(k & 0xFFFFFFFF);
+        switch (Kind(k >> 32)) {
+        case FileKind: out.file[n] = number; break;
+        case X14Kind: out.x14Only[n] = number; break;
+        case MadeKind:
+            if (size_t(n) < out.made.size()) out.made[size_t(n)] = number;
+            break;
+        case RestoredKind:
+            if (size_t(n) < out.restored.size()) out.restored[size_t(n)] = number;
+            break;
+        }
+    }
+    return out;
+}
+
 // One 2010 element (`x14:conditionalFormatting`) edited: its rules whose ids are in `gone` are taken out (and kept in `raw`), a rule's own priority (if it has one) goes up by the shift, and
 // the cells follow the rule of the main list the id ties it to when that rule was trimmed. Empty when no rule is left.
-QByteArray extensionElementEdited(const QByteArray &element, const SheetChanges &edit, const std::map<QString, int> &idToFilePriority, const std::set<QString> &gone, std::map<int, CondRaw> *raw)
+QByteArray extensionElementEdited(const QByteArray &element, const SheetChanges &edit, const CondNumbers &numbers, const std::map<QString, int> &idToFilePriority, const std::set<QString> &gone, std::map<int, CondRaw> *raw)
 {
     int rules = 0, left = 0;
     QVector<CellRange> ranges;
@@ -1557,7 +1757,11 @@ QByteArray extensionElementEdited(const QByteArray &element, const SheetChanges 
         }
         bool has = false;
         const int own = attrOf(part, "priority", &has).toInt();
-        return has ? withAttr(part, "priority", QByteArray::number(own + edit.condShift)) : part;
+        if (!has) return part;
+        // (a rule tied to one of the main list has that rule's priority; the others are numbered with the rest)
+        const auto tied = owner == idToFilePriority.end() ? numbers.file.end() : numbers.file.find(owner->second);
+        const auto alone = numbers.x14Only.find(own);
+        return withAttr(part, "priority", QByteArray::number(tied != numbers.file.end() ? tied->second : alone != numbers.x14Only.end() ? alone->second : own));
     });
     if (raw)
         for (const int p : goneHere) (*raw)[p].x14Sqref = sqrefElement;
@@ -1575,15 +1779,16 @@ QByteArray extensionElementEdited(const QByteArray &element, const SheetChanges 
 }
 
 // The sheet's extension list edited: the 2010 rules as above, the ones brought back put in, and what is left empty taken out. Empty when the list goes.
-QByteArray extensionListEdited(const QByteArray &extLst, const SheetChanges &edit, const std::map<QString, int> &idToFilePriority, const std::set<QString> &gone, std::map<int, CondRaw> *raw, const QByteArray &newX14 = QByteArray())
+QByteArray extensionListEdited(const QByteArray &extLst, const SheetChanges &edit, const CondNumbers &numbers, const std::map<QString, int> &idToFilePriority, const std::set<QString> &gone, std::map<int, CondRaw> *raw, const QByteArray &newX14 = QByteArray())
 {
     // the entries brought back, as elements
     QByteArray back;
-    for (const auto &r : edit.condRestore) {
+    for (size_t at = 0; at < edit.condRestore.size(); ++at) {
+        const auto &r = edit.condRestore[at];
         if (r.second.x14Rule.isEmpty() || r.second.x14Open.isEmpty()) continue;
         bool has = false;
-        const int own = attrOf(r.second.x14Rule, "priority", &has).toInt();
-        QByteArray rule = has ? withAttr(r.second.x14Rule, "priority", QByteArray::number(own + edit.condShift)) : r.second.x14Rule;
+        attrOf(r.second.x14Rule, "priority", &has);
+        QByteArray rule = has ? withAttr(r.second.x14Rule, "priority", QByteArray::number(numbers.restored[at])) : r.second.x14Rule;
         back += r.second.x14Open + rule + withText(r.second.x14Sqref, rangeText(r.first)) + closeTagFor(r.second.x14Open);
     }
     // (the 2010 entries of the rules made here: each carries its own declaration of the prefix, so that it reads in a container that has another)
@@ -1600,7 +1805,7 @@ QByteArray extensionListEdited(const QByteArray &extLst, const SheetChanges &edi
         QByteArray ext = rebuilt(part, [&](const Child &c, const QByteArray &container) -> QByteArray {
             if (c.local != "conditionalFormattings") return container;
             QByteArray made = rebuilt(container, [&](const Child &, const QByteArray &element) -> QByteArray {
-                const QByteArray now = extensionElementEdited(element, edit, idToFilePriority, gone, raw);
+                const QByteArray now = extensionElementEdited(element, edit, numbers, idToFilePriority, gone, raw);
                 if (!now.isEmpty()) ++alive;
                 return now;
             });
@@ -1675,6 +1880,17 @@ QByteArray tailWithCondEdit(const QByteArray &after, const SheetChanges &edit, c
 {
     static const QList<QByteArray> later = {"dataValidations", "hyperlinks", "printOptions", "pageMargins", "pageSetup", "headerFooter", "rowBreaks", "colBreaks", "customProperties", "cellWatches",
                                             "ignoredErrors", "smartTags", "drawing", "legacyDrawing", "legacyDrawingHF", "drawingHF", "picture", "oleObjects", "controls", "webPublishItems", "tableParts", "extLst"};
+    // (every rule of the sheet gets its priority from one numbering: what the extension list and the main list say of each other must agree)
+    std::vector<std::pair<int, QString>> mainRules = mainRulesOf(after);
+    std::set<QString> mainIds;
+    for (const auto &r : mainRules)
+        if (!r.second.isEmpty()) mainIds.insert(r.second);
+    const CondNumbers numbers = numberCondRules(edit, mainRules, x14OnlyPriorities(after, mainIds));
+    if (edit.condFinalOut) {
+        edit.condFinalOut->file = numbers.file;
+        edit.condFinalOut->made = numbers.made;
+        edit.condFinalOut->restored = numbers.restored;
+    }
     QByteArray generated, newX14;
     if (!edit.condNew.isEmpty()) {
         // (the ids that tie a data bar to its 2010 entry go on from the highest one of ours the file has)
@@ -1682,7 +1898,9 @@ QByteArray tailWithCondEdit(const QByteArray &after, const SheetChanges &edit, c
         for (qsizetype at = after.indexOf("{00000000-0000-4000-8000-"); at >= 0; at = after.indexOf("{00000000-0000-4000-8000-", at + 1))
             idBase = std::max(idBase, after.mid(at + 25, 12).toInt(nullptr, 16));
         QByteArray extensions;
-        generated = withPrefix(conditionalFormatsXml(edit.condNew, &extensions, idBase), prefix);
+        QVector<CondRule> made = edit.condNew;
+        for (qsizetype i = 0; i < made.size(); ++i) made[i].priority = numbers.made[size_t(i)];
+        generated = withPrefix(conditionalFormatsXml(made, &extensions, idBase), prefix);
         const QByteArray open = "<x14:conditionalFormattings>", close = "</x14:conditionalFormattings>";
         const qsizetype from = extensions.indexOf(open), to = extensions.lastIndexOf(close);
         if (from >= 0 && to > from) {
@@ -1690,10 +1908,11 @@ QByteArray tailWithCondEdit(const QByteArray &after, const SheetChanges &edit, c
             newX14.replace("<x14:conditionalFormatting ", "<x14:conditionalFormatting xmlns:x14=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/main\" ");
         }
     }
-    for (const auto &r : edit.condRestore) {
+    for (size_t at = 0; at < edit.condRestore.size(); ++at) {
+        const auto &r = edit.condRestore[at];
         QByteArray o = r.second.open;
         setAttr(&o, "sqref", xmlscan::escapeAttribute(rangeText(r.first)));
-        generated += o + withAttr(r.second.rule, "priority", QByteArray::number(r.second.priority + edit.condShift)) + closeTagFor(r.second.open);
+        generated += o + withAttr(r.second.rule, "priority", QByteArray::number(numbers.restored[at])) + closeTagFor(r.second.open);
     }
     std::map<int, CondRaw> rawLocal;
     std::map<QString, int> idToFilePriority;   // the id of the 2010 entry of a rule of the main list, to the rule's priority in the file
@@ -1759,7 +1978,8 @@ QByteArray tailWithCondEdit(const QByteArray &after, const SheetChanges &edit, c
                 }
                 const auto now = edit.condRanges.find(filePriority);
                 const QStringList mine = now == edit.condRanges.end() ? here : sortedRanges(now->second);
-                kept.push_back({withAttr(rule, "priority", QByteArray::number(filePriority + edit.condShift)), filePriority, mine, now == edit.condRanges.end() ? QVector<CellRange>() : now->second, mine != here});
+                const auto numbered = numbers.file.find(filePriority);
+                kept.push_back({withAttr(rule, "priority", QByteArray::number(numbered != numbers.file.end() ? numbered->second : filePriority)), filePriority, mine, now == edit.condRanges.end() ? QVector<CellRange>() : now->second, mine != here});
             }
             QByteArray made;
             bool allSame = true;
@@ -1807,7 +2027,7 @@ QByteArray tailWithCondEdit(const QByteArray &after, const SheetChanges &edit, c
                 if (--dd < 0) {
                     if ((restoreX14 || !newX14.isEmpty()) && !haveExt) {
                         // (no extension list in the file: one is made at the end, for the 2010 entries brought back or made here)
-                        const QByteArray list = extensionListEdited("<extLst></extLst>", edit, idToFilePriority, goneIds, &rawX14, newX14);
+                        const QByteArray list = extensionListEdited("<extLst></extLst>", edit, numbers, idToFilePriority, goneIds, &rawX14, newX14);
                         result = result.left(e.start) + list + result.mid(e.start);
                     }
                     break;
@@ -1825,7 +2045,7 @@ QByteArray tailWithCondEdit(const QByteArray &after, const SheetChanges &edit, c
                     end = c.end;
                 }
                 const QByteArray list = result.mid(e.start, end - e.start);
-                result = result.left(e.start) + extensionListEdited(list, edit, idToFilePriority, goneIds, &rawX14, newX14) + result.mid(end);
+                result = result.left(e.start) + extensionListEdited(list, edit, numbers, idToFilePriority, goneIds, &rawX14, newX14) + result.mid(end);
                 done = true;
                 continue;
             }

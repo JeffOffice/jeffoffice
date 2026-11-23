@@ -10,6 +10,7 @@
 #include "grid/gridview.h"
 #include "calc/dates.h"
 #include "calc/formula.h"
+#include "sheet/calculation.h"
 #include "sheet/cellref.h"
 
 #include <QAction>
@@ -33,14 +34,26 @@ using jp::office::sheet::DifferentialFormat;
 
 namespace {
 
+// Whether every sheet a parsed formula names is in the workbook (a name the formula gives to a sheet that is not there would be an error in every cell of the rule).
+bool sheetsAreThere(const jp::calc::ParseResult &parsed, const jp::office::sheet::Calculation *calc)
+{
+    if (!calc || !parsed.ok() || parsed.program->external) return true;
+    for (const QString &name : parsed.program->sheetNames)
+        if (calc->sheetIndex(name) < 0) return false;
+    return true;
+}
+
+// Whether the text is a formula the engine reads, with the sheets it names in the workbook.
+bool readableFormula(const QString &body, const jp::office::sheet::Calculation *calc) { return !body.isEmpty() && sheetsAreThere(jp::calc::parseFormula(body), calc); }
+
 // A value as a rule's formula, or empty with the reason in `why`: a number as it is (not infinity or "not a number"), a date as its day number, TRUE and FALSE as they are, "=..." as a formula that
 // must be one (its cells are the ones typed for the cell with the cursor: `dRow` and `dCol` move them to the first cell of the rule's cells), anything else as a text in quotes.
-QString valueFormula(const QString &typed, int dRow, int dCol, QString *why)
+QString valueFormula(const QString &typed, int dRow, int dCol, const jp::office::sheet::Calculation *calc, QString *why)
 {
     const QString t = typed.trimmed();
     if (t.startsWith(QLatin1Char('='))) {
         const QString body = t.mid(1).trimmed();
-        if (body.isEmpty() || !jp::calc::parseFormula(body).ok()) {
+        if (!readableFormula(body, calc)) {
             *why = CrunchWindow::tr("\"%1\" is not a formula JeffCrunch can read.").arg(t);
             return QString();
         }
@@ -211,13 +224,13 @@ namespace {
 
 // The rule the answers make for `range` (cells a typed formula names are as seen from the cell with the cursor; a rule holds them as seen from the first of its cells: `dRow` and `dCol`
 // move them). False, with the reason, when an answer is not usable.
-bool buildCondRule(const CondSpec &spec, const jp::office::sheet::CellRange &range, int dRow, int dCol, CondRule *out, QString *why)
+bool buildCondRule(const CondSpec &spec, const jp::office::sheet::CellRange &range, int dRow, int dCol, const jp::office::sheet::Calculation *calc, CondRule *out, QString *why)
 {
     using Kind = CondSpec::Kind;
     CondRule rule;
     rule.ranges.append(range);
     rule.stopIfTrue = spec.stopIfTrue;
-    auto formula = [&](const QString &typed) { return valueFormula(typed, dRow, dCol, why); };
+    auto formula = [&](const QString &typed) { return valueFormula(typed, dRow, dCol, calc, why); };
     auto quoted = [](QString t) {
         t.replace(QLatin1Char('"'), QStringLiteral("\"\""));
         return t;
@@ -293,7 +306,7 @@ bool buildCondRule(const CondSpec &spec, const jp::office::sheet::CellRange &ran
     case Kind::Formula: {
         QString body = spec.v1.trimmed();
         if (body.startsWith(QLatin1Char('='))) body = body.mid(1).trimmed();
-        if (body.isEmpty() || !jp::calc::parseFormula(body).ok()) {
+        if (!readableFormula(body, calc)) {
             *why = CrunchWindow::tr("\"%1\" is not a formula JeffCrunch can read.").arg(spec.v1.trimmed());
             return false;
         }
@@ -316,7 +329,7 @@ bool buildCondRule(const CondSpec &spec, const jp::office::sheet::CellRange &ran
             if (v.type == CondValue::Type::Formula) {
                 QString body = v.value;
                 if (body.startsWith(QLatin1Char('='))) body = body.mid(1).trimmed();
-                if (body.isEmpty() || !jp::calc::parseFormula(body).ok()) {
+                if (!readableFormula(body, calc)) {
                     *why = CrunchWindow::tr("\"%1\" is not a formula JeffCrunch can read.").arg(v.value);
                     return false;
                 }
@@ -390,7 +403,7 @@ void CrunchWindow::addCondRuleFromSpec(const CondSpec &spec)
     const int dRow = int(range.row1) - int(std::max<qint64>(0, sel.activeRow)), dCol = int(range.col1) - int(std::max<qint64>(0, sel.activeCol));
     CondRule rule;
     QString why;
-    if (!buildCondRule(spec, range, dRow, dCol, &rule, &why)) {
+    if (!buildCondRule(spec, range, dRow, dCol, m_session->calculation(), &rule, &why)) {
         notice(tr("Conditional Formatting"), why);
         return;
     }
@@ -424,6 +437,7 @@ void CrunchWindow::manageCondRules()
         notice(tr("Conditional Formatting"), no);
         return;
     }
+    m_session->ensureCondUids(m_sheet);   // (the rules of a file just opened have no names yet: the list says which are the sheet's own by them)
     QVector<CondManageDialog::Item> items;
     for (const CondRule &r : m_session->condRules(m_sheet)) {
         CondManageDialog::Item it;
@@ -432,13 +446,16 @@ void CrunchWindow::manageCondRules()
         items.append(it);
     }
     const jp::office::sheet::CellRange selected = selectedRange();
-    auto editor = [this, selected](const CondRule *old, const DifferentialFormat &oldLook, CondManageDialog::Item *out) {
+    const grid::Selection &sel = m_view->selection();
+    // (a formula typed for a new rule is as seen from the cell with the cursor, as in the New Rule of the menu; the formula of a rule that exists is shown as its first cell reads it)
+    const int newRow = int(selected.row1) - int(std::max<qint64>(0, sel.activeRow)), newCol = int(selected.col1) - int(std::max<qint64>(0, sel.activeCol));
+    auto editor = [this, selected, newRow, newCol](const CondRule *old, const DifferentialFormat &oldLook, CondManageDialog::Item *out) {
         CondSpec spec = old ? specOfRule(*old) : CondSpec();
         if (!askCondSpec(&spec, old != nullptr)) return false;
         const jp::office::sheet::CellRange range = old && !old->ranges.isEmpty() ? old->ranges.first() : selected;
         CondRule rule;
         QString why;
-        if (!buildCondRule(spec, range, 0, 0, &rule, &why)) {
+        if (!buildCondRule(spec, range, old ? 0 : newRow, old ? 0 : newCol, m_session->calculation(), &rule, &why)) {
             notice(tr("Conditional Formatting"), why);
             return false;
         }
@@ -479,10 +496,11 @@ void CrunchWindow::updateCondActions()
     if (m_session && m_sheet >= 0 && !isReadOnly()) {
         const jp::office::sheet::CellRange selected = selectedRange();
         const QVector<CondRule> rules = m_session->condRules(m_sheet);
-        any = !rules.isEmpty();
+        const bool allowed = m_session->allows(m_sheet, crunch::EditSession::Allow::FormatCells);   // (a rule is a format: see condRulesRefusal)
+        any = allowed && !rules.isEmpty();
         constexpr int kLook = 2000;   // (a sheet with more rules than that: the choice is on, and Clear looks for itself)
-        if (rules.size() > kLook) onSelection = true;
-        for (qsizetype at = 0; at < std::min<qsizetype>(rules.size(), kLook) && !onSelection; ++at) {
+        if (allowed && rules.size() > kLook) onSelection = true;
+        for (qsizetype at = 0; allowed && at < std::min<qsizetype>(rules.size(), kLook) && !onSelection; ++at) {
             const CondRule &r = rules[at];
             ++m_condScanned;
             for (const jp::office::sheet::CellRange &c : r.ranges)

@@ -1057,8 +1057,8 @@ public:
     // Takes away the rules that are on any of the cells of `range` (all the sheet's when it is not valid): one step.
     Outcome clearCondRules(int sheet, const jp::office::sheet::CellRange &range);
     // Manage Rules: the sheet's rules as the manager left them, in priority order, as one step of Undo. A rule that is `changed` (or has no `uid`) is a new one made from `rule` (and `look`, when
-    // `newLook`); the others are the sheet's own, by `rule.uid`. A rule of the file that is not where it was (the rules below it are not in the file's order) is written again, so that the file
-    // has the order shown. Not ok, with the reason, as addCondRule's.
+    // `newLook`); the others are the sheet's own, by `rule.uid`, and are kept as they are (the file's own element of a rule is not written again, only its priority changes). The order shown is the
+    // order the file has after the save. Not ok, with the reason, as addCondRule's.
     struct CondManaged {
         jp::office::sheet::CondRule rule;
         bool changed = false, newLook = false;
@@ -1516,12 +1516,13 @@ private:
     QList<QStringList> m_customLists;
     quint32 m_condUid = 0, m_condUidMark = 0;   // (the uid the last rule made had, and the one it had when the file was last saved)
     struct CondSnap {
-        std::map<quint32, int> fileOf;   // the priority each rule has in the file the save writes
+        std::map<quint32, int> fileOf;   // the priority each rule has in the file the save writes (known when the save is done: the patch numbers them)
         QVector<jp::office::sheet::CondRule> after;
-        int shift = 0;
+        std::vector<std::pair<quint32, jp::office::sheet::CondSlot>> slots;   // each rule of the list (by uid) as the patch is told of it
         std::set<int> removed;
         std::set<quint32> restored;
         std::shared_ptr<std::map<int, jp::office::sheet::CondRaw>> raw;
+        std::shared_ptr<jp::office::sheet::CondFinal> numbered;
     };
     std::map<int, CondSnap> m_condSnap;        // by sheet: the rules the save in hand writes
     std::set<int> m_condChangedDuringSave;     // the sheets whose rules were changed after that

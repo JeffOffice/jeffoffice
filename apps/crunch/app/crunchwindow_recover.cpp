@@ -74,8 +74,10 @@ void CrunchWindow::autoRecover()
         snapshot->changes.properties = *m_editedProps;
     }
     // (the rules the patch of a sheet takes away are written to a map the window's save reads: this copy has a map of its own, which nothing reads)
-    for (auto &entry : snapshot->changes.sheets)
+    for (auto &entry : snapshot->changes.sheets) {
         if (entry.second.condRawOut) entry.second.condRawOut = std::make_shared<decltype(entry.second.condRawOut)::element_type>();
+        if (entry.second.condFinalOut) entry.second.condFinalOut = std::make_shared<decltype(entry.second.condFinalOut)::element_type>();
+    }
     // Named for the workbook as it is now (Save As moves it).
     const QString copy = recovery::copyPath(m_path, displayName(), m_serial);
     const QString source = m_path.isEmpty() ? m_recoveredFrom : m_path;
