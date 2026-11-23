@@ -2445,7 +2445,8 @@ void Canvas::mouseReleaseEvent(QMouseEvent *e)
         break;
     }
     case Drag::TextSelect:
-        if (m_ed->tool() == Tool::FormatPainter && m_ed->painterHasText && m_ed->cursor().hasSelection()) {
+        if (m_ed->highlighterArmed()) m_ed->highlightSelectedText();
+        else if (m_ed->tool() == Tool::FormatPainter && m_ed->painterHasText && m_ed->cursor().hasSelection()) {
             m_ed->mergeCharFormat(m_ed->painterText, QCoreApplication::translate("Canvas", "Copy Formatting"));
             if (!m_ed->painterLocked) m_ed->setTool(Tool::Select);
         }
@@ -2798,7 +2799,10 @@ void Canvas::handleTextKey(QKeyEvent *e)
     case Qt::Key_End: if (ctrl) moveCaret(QTextCursor::End, shift); else lineOp(true); return;
     case Qt::Key_PageUp: for (int i = 0; i < 10; ++i) verticalCaret(-1, shift); return;
     case Qt::Key_PageDown: for (int i = 0; i < 10; ++i) verticalCaret(1, shift); return;
-    case Qt::Key_Escape: m_ed->endTextEdit(); return;
+    case Qt::Key_Escape:
+        if (m_ed->highlighterArmed()) { m_ed->stopHighlighter(); return; }
+        m_ed->endTextEdit();
+        return;
     case Qt::Key_Backspace:
         m_ed->editText([&](QTextCursor &c) {
             if (c.hasSelection()) c.removeSelectedText();
@@ -2980,6 +2984,7 @@ void Canvas::keyPressEvent(QKeyEvent *e)
     }
     switch (e->key()) {
     case Qt::Key_Escape:
+        if (m_ed->highlighterArmed()) { m_ed->stopHighlighter(); return; }
         if (m_ed->tool() != Tool::Select) { m_ed->setTool(Tool::Select); return; }
         if (!m_ed->cropItem.isEmpty()) {
             if (m_ed->cropSessions) m_ed->endCrop(false);   // Esc takes the crop back

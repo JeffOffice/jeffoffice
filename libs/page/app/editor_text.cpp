@@ -465,6 +465,71 @@ void Editor::setTextColor(const ColorRef &c)
     mergeCharFormat(f, tr("Font Color"));
 }
 
+void Editor::setTextHighlight(const ColorRef &c)
+{
+    QTextCharFormat f;
+    if (!c.isNone()) f.setProperty(tp::HighlightRefP, c.toString());
+    auto targets = formatTargets();
+    if (targets.isEmpty()) return;
+    // The words only: a paragraph's own character format (the mark at its end) is not given the color, or a file that keeps it by paragraph would show it on every word.
+    beginChange(tr("Text Highlight Color"));
+    for (QTextCursor &t : targets) {
+        if (!t.hasSelection()) continue;
+        if (!c.isNone()) {
+            t.mergeCharFormat(f);
+            markDirectChars(t, f);
+            continue;
+        }
+        // Off: the runs are listed first, then changed (changing one while walking the list would move it).
+        QVector<QPair<int, int>> runs;
+        for (QTextBlock b = t.document()->findBlock(t.selectionStart()); b.isValid() && b.position() < t.selectionEnd(); b = b.next())
+            for (auto it = b.begin(); !it.atEnd(); ++it) {
+                const QTextFragment fr = it.fragment();
+                const int from = std::max(t.selectionStart(), fr.position()), to = std::min(t.selectionEnd(), fr.position() + fr.length());
+                if (from < to && fr.charFormat().hasProperty(tp::HighlightRefP)) runs << qMakePair(from, to);
+            }
+        for (const auto &r : std::as_const(runs)) {
+            QTextCursor fc(t.document());
+            fc.setPosition(r.first);
+            fc.setPosition(r.second, QTextCursor::KeepAnchor);
+            QTextCharFormat cf = fc.charFormat();
+            cf.clearProperty(tp::HighlightRefP);
+            tp::removeDirect(cf, {tp::HighlightRefP});
+            fc.setCharFormat(cf);
+        }
+    }
+    endChange();
+    textCursorChanged();
+}
+
+void Editor::chooseHighlight(const ColorRef &c)
+{
+    if (!c.isNone()) m_lastHighlight = c;
+    const bool selected = isEditingText() ? m_cursor.hasSelection() : !selectedItems().isEmpty();
+    if (selected || c.isNone()) setTextHighlight(c);
+    else armHighlighter(c);
+}
+
+void Editor::armHighlighter(const ColorRef &c)
+{
+    if (c.isNone()) return;
+    m_lastHighlight = c;
+    m_highlighterOn = true;
+    Q_EMIT highlighterChanged();
+}
+
+void Editor::stopHighlighter()
+{
+    if (!m_highlighterOn) return;
+    m_highlighterOn = false;
+    Q_EMIT highlighterChanged();
+}
+
+void Editor::highlightSelectedText()
+{
+    if (m_highlighterOn && isEditingText() && m_cursor.hasSelection()) setTextHighlight(m_lastHighlight);
+}
+
 void Editor::changeCase(int mode)
 {
     auto targets = formatTargets();

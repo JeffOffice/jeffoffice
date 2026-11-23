@@ -239,6 +239,12 @@
                   ]
                 },
                 {
+                  "icon": "fmt.highlight",
+                  "keytip": "HL",
+                  "split": true,
+                  "menu": "@highlightColors"
+                },
+                {
                   "widget": "textColor",
                   "keytip": "FC"
                 }

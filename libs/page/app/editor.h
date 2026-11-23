@@ -241,6 +241,8 @@ public:
     QTextCharFormat painterText;       // Copy Formatting: copied text formatting
     bool painterHasText = false;
     bool painterLocked = false;
+    bool m_highlighterOn = false;
+    ColorRef m_lastHighlight = ColorRef::rgb(QColor(Qt::yellow));
     // Copy Formatting (Ctrl+Shift+C): the selected object's fill, outline and
     // effects, and the formatting of the text at the cursor or in the object.
     // Paste Formatting (Ctrl+Shift+V) gives them to the selected text, or to
@@ -435,6 +437,15 @@ public:
     void growFont(int dir);
     void clearFormatting();
     void setTextColor(const ColorRef &c);
+    // Text Highlight Color: the color goes on the selected text (or all the text of the selected objects), none takes it off. With no text selected, the highlighter
+    // is armed instead: text selected with the pointer is marked until Esc (stopHighlighter()).
+    void setTextHighlight(const ColorRef &c);
+    void chooseHighlight(const ColorRef &c);
+    void armHighlighter(const ColorRef &c);
+    void stopHighlighter();
+    bool highlighterArmed() const { return m_highlighterOn; }
+    ColorRef lastHighlight() const { return m_lastHighlight; }
+    void highlightSelectedText();   // the armed highlighter has text selected: mark it
     void changeCase(int mode);       // 0 sentence, 1 lower, 2 upper, 3 capitalize, 4 toggle
     void setAlignment(Qt::Alignment a);
     // Reading direction; a paragraph aligned to its start moves to the new start.
@@ -490,6 +501,7 @@ Q_SIGNALS:
     void textCursorChanged();
     void overtypeChanged();
     void toolChanged();
+    void highlighterChanged();
     void status(const QString &message);
     void modifiedChanged(bool);
 

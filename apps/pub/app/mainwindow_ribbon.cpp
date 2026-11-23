@@ -22,6 +22,7 @@
 #include "app/ribbon.h"
 #include "app/tableedit.h"
 #include "app/ribbonbuilder.h"
+#include "app/highlightmenu.h"
 #include "app/listmenus.h"
 #include "app/settings.h"
 #include "app/equationdialog.h"
@@ -821,6 +822,7 @@ void MainWindow::ribbonMenuParts(RibbonParts &parts)
 {
     // (Its own .jpub file keeps all of a list: the boxes are the full ones unless the publication is a .pub file, which keeps less, and a save to it says what it loses.)
     const ListBoxesChoice boxes = [this] { return m_ed->filePath().endsWith(QLatin1String(".pub"), Qt::CaseInsensitive) ? ListBoxes::Plain : ListBoxes::Jpub; };
+    parts.menus[QStringLiteral("highlightColors")] = [this](QWidget *owner) { return highlightMenu(owner, m_ed, act("fmt.stopHighlighting")); };
     parts.menus[QStringLiteral("bulletsMenu")] = [this, boxes](QWidget *owner) { return bulletsMenu(owner, m_ed, act("para.bulletsDialog"), boxes); };
     parts.menus[QStringLiteral("numberingMenu")] = [this, boxes](QWidget *owner) { return numberingMenu(owner, m_ed, act("para.bulletsDialog"), boxes); };
     parts.menus[QStringLiteral("multilevelMenu")] = [this, boxes](QWidget *owner) { return multilevelMenu(owner, m_ed, boxes); };

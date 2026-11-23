@@ -51,6 +51,7 @@
             "spacing.Very Tight", "spacing.Tight", "spacing.Normal", "spacing.Loose", "spacing.Very Loose", "-",
             "fmt.spacingDialog"]},
           {"icon": "fmt.clear", "keytip": "E"},
+          {"icon": "fmt.highlight", "keytip": "HL", "split": true, "menu": "@highlightColors"},
           {"widget": "textColor", "keytip": "FC"}]}
       ]},
       {"name": "Paragraph", "keytip": "ZP", "launcher": "paragraph", "launcherTip": "Paragraph", "launcherKeytip": "PG", "items": [
@@ -339,6 +340,7 @@
           {"icon": "fmt.strike", "keytip": "4"},
           {"icon": "fmt.sub", "keytip": "5"},
           {"icon": "fmt.sup", "keytip": "6"},
+          {"icon": "fmt.highlight", "keytip": "HL", "split": true, "menu": "@highlightColors"},
           {"widget": "textColor", "keytip": "FC"}]}
       ]},
       {"name": "Effects", "keytip": "ZE", "items": [

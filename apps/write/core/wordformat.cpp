@@ -4,6 +4,7 @@
 #include "fields/fieldcode.h"
 #include "core/themeops.h"
 #include "core/writeprops.h"
+#include "text/highlightcolors.h"
 #include "text/numbersystems.h"
 #include "text/opentype.h"
 #include "text/textprops.h"
@@ -21,15 +22,6 @@ using namespace jp::office::wml;
 namespace jp::write {
 
 namespace {
-
-struct Highlight {
-    const char *name;
-    unsigned rgb;
-};
-const Highlight kHighlights[] = {{"yellow", 0xFFFF00},     {"green", 0x00FF00},    {"cyan", 0x00FFFF},       {"magenta", 0xFF00FF},   {"blue", 0x0000FF},
-                                 {"red", 0xFF0000},        {"darkBlue", 0x000080}, {"darkCyan", 0x008080},   {"darkGreen", 0x008000}, {"darkMagenta", 0x800080},
-                                 {"darkRed", 0x800000},    {"darkYellow", 0x808000}, {"darkGray", 0x808080}, {"lightGray", 0xC0C0C0}, {"black", 0x000000},
-                                 {"white", 0xFFFFFF}};
 
 QString hex(const QColor &c) { return c.name(QColor::HexRgb).mid(1).toUpper(); }
 
@@ -250,30 +242,35 @@ QVector<RawChild> unpackRaw(const QByteArray &packed)
 
 QColor highlightColor(const QString &name)
 {
-    for (const Highlight &h : kHighlights)
-        if (name == QLatin1String(h.name)) return QColor::fromRgb(h.rgb);
+    int n = 0;
+    const tp::HighlightColor *all = tp::highlightColors(&n);
+    for (int i = 0; i < n; ++i)
+        if (name == QLatin1String(all[i].name)) return QColor::fromRgb(all[i].rgb);
     return QColor();
 }
 
 QString highlightName(const QColor &c)
 {
     // The nearest of the fifteen.
-    int best = 0, bestDistance = 1 << 30;
-    for (int i = 0; i < int(sizeof kHighlights / sizeof *kHighlights); ++i) {
-        const QColor k = QColor::fromRgb(kHighlights[i].rgb);
+    int best = 0, bestDistance = 1 << 30, n = 0;
+    const tp::HighlightColor *all = tp::highlightColors(&n);
+    for (int i = 0; i < n; ++i) {
+        const QColor k = QColor::fromRgb(all[i].rgb);
         const int d = (k.red() - c.red()) * (k.red() - c.red()) + (k.green() - c.green()) * (k.green() - c.green()) + (k.blue() - c.blue()) * (k.blue() - c.blue());
         if (d < bestDistance) {
             bestDistance = d;
             best = i;
         }
     }
-    return QString::fromLatin1(kHighlights[best].name);
+    return QString::fromLatin1(all[best].name);
 }
 
 QStringList highlightNames()
 {
     QStringList out;
-    for (const Highlight &h : kHighlights) out << QString::fromLatin1(h.name);
+    int n = 0;
+    const tp::HighlightColor *all = tp::highlightColors(&n);
+    for (int i = 0; i < n; ++i) out << QString::fromLatin1(all[i].name);
     return out;
 }
 

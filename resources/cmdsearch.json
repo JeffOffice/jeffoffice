@@ -138,6 +138,10 @@
   "ribbon.businessInfo": [
    "company details",
    "logo"
+  ],
+  "fmt.highlight": [
+   "marker",
+   "yellow"
   ]
  },
  "file": {

@@ -150,6 +150,10 @@
   "para.numbers": [
    "numbered list",
    "ordered"
+  ],
+  "fmt.highlight": [
+   "marker",
+   "yellow"
   ]
  },
  "file": {
