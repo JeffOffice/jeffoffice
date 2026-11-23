@@ -5378,7 +5378,7 @@ Berita halaman belakang	4</translation>
     </message>
     <message>
         <location filename="../apps/pub/app/dialogs.cpp" line="+66"/>
-        <location filename="../apps/write/app/writewindow_options.cpp" line="+138"/>
+        <location filename="../apps/write/app/writewindow_options.cpp" line="+169"/>
         <source>Inches</source>
         <translation type="unfinished">Inci</translation>
     </message>
@@ -5845,7 +5845,7 @@ Berita halaman belakang	4</translation>
         <translation type="unfinished">Pilih daftar penerima terlebih dahulu.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_options.cpp" line="-53"/>
+        <location filename="../apps/write/app/writewindow_options.cpp" line="-75"/>
         <source>Document (*.docx)</source>
         <translation type="unfinished">Dokumen (*.docx)</translation>
     </message>
@@ -5886,7 +5886,7 @@ Berita halaman belakang	4</translation>
         <translation type="unfinished">Tampilan</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_options.cpp" line="-59"/>
+        <location filename="../apps/write/app/writewindow_options.cpp" line="-63"/>
         <source>Tab characters</source>
         <translation type="unfinished">Karakter tab</translation>
     </message>
@@ -5916,7 +5916,7 @@ Berita halaman belakang	4</translation>
         <translation type="unfinished">Jangkar objek</translation>
     </message>
     <message>
-        <location line="+38"/>
+        <location line="+42"/>
         <source>Save fonts in the file</source>
         <translation type="unfinished">Simpan font dalam berkas</translation>
     </message>
@@ -5941,7 +5941,18 @@ Berita halaman belakang	4</translation>
         <translation type="unfinished">Tampilkan garis kisi tabel saat jendela dibuka</translation>
     </message>
     <message>
-        <location line="+26"/>
+        <location line="+9"/>
+        <source>Hidden</source>
+        <translation type="unfinished">Tersembunyi</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <location line="+1"/>
+        <source>Style area width in Draft and Outline views</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+25"/>
         <source>Show measurements in</source>
         <translation>Tampilkan satuan ukuran dalam</translation>
     </message>
@@ -59726,7 +59737,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
 <context>
     <name>jp::WriteOutlineView</name>
     <message>
-        <location filename="../apps/write/app/writeoutlineview.cpp" line="+21"/>
+        <location filename="../apps/write/app/writeoutlineview.cpp" line="+25"/>
         <source>Outline</source>
         <translation type="unfinished">Garis Besar</translation>
     </message>
@@ -63208,7 +63219,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location filename="../apps/write/app/writewindow_keys.cpp" line="+92"/>
         <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+19"/>
-        <location filename="../apps/write/app/writewindow_styles.cpp" line="+87"/>
+        <location filename="../apps/write/app/writewindow_styles.cpp" line="+88"/>
         <source>Styles</source>
         <translation type="unfinished">Gaya</translation>
     </message>
@@ -64970,12 +64981,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Navigasi</translation>
     </message>
     <message>
-        <location line="+156"/>
+        <location line="+158"/>
         <source>Open a second window to view two documents side by side.</source>
         <translation type="unfinished">Buka jendela kedua untuk melihat dua dokumen secara berdampingan.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_outline.cpp" line="+23"/>
+        <location filename="../apps/write/app/writewindow_outline.cpp" line="+24"/>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="-1023"/>
         <source>Outline</source>
         <translation type="unfinished">Garis Besar</translation>
@@ -76551,7 +76562,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
 <context>
     <name>jp::write::BlockMove</name>
     <message>
-        <location filename="../apps/write/app/writewindow_view.cpp" line="-213"/>
+        <location filename="../apps/write/app/writewindow_view.cpp" line="-215"/>
         <location filename="../apps/write/core/blockmove.cpp" line="+174"/>
         <source>This document is protected, so a section can&apos;t be moved.</source>
         <translation type="unfinished">Dokumen ini dilindungi, sehingga bagian tidak dapat dipindahkan.</translation>
@@ -80779,7 +80790,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation>Header</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview.cpp" line="+262"/>
+        <location filename="../apps/write/app/pageview.cpp" line="+264"/>
         <source>Place in this document: %1</source>
         <translation type="unfinished">Tempatkan di dokumen ini: %1</translation>
     </message>
@@ -80789,7 +80800,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Ctrl+klik untuk mengikuti tautan</translation>
     </message>
     <message>
-        <location line="+528"/>
+        <location line="+530"/>
         <source>Section Break</source>
         <translation type="unfinished">Pemisah Bagian</translation>
     </message>
@@ -81692,6 +81703,19 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">
             <numerusform>Ditemukan di %n tempat.</numerusform>
         </translation>
+    </message>
+</context>
+<context>
+    <name>jp::write::StyleArea</name>
+    <message>
+        <location filename="../apps/write/app/stylearea.cpp" line="+59"/>
+        <source>Style area</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The style of each paragraph, beside its first line.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>

@@ -5537,7 +5537,7 @@ Back page story	4</source>
         <location filename="../apps/pub/app/dialogs.cpp" line="+6"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+0"/>
         <location filename="../apps/write/app/writewindow.cpp" line="+0"/>
-        <location filename="../apps/write/app/writewindow_options.cpp" line="+133"/>
+        <location filename="../apps/write/app/writewindow_options.cpp" line="+164"/>
         <source>Advanced</source>
         <translation type="unfinished">Додатково</translation>
     </message>
@@ -5864,7 +5864,7 @@ Back page story	4</source>
         <translation type="unfinished">Спочатку виберіть список отримувачів.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_options.cpp" line="-69"/>
+        <location filename="../apps/write/app/writewindow_options.cpp" line="-91"/>
         <source>Document (*.docx)</source>
         <translation type="unfinished">Документ (*.docx)</translation>
     </message>
@@ -5890,7 +5890,7 @@ Back page story	4</source>
         <translation type="unfinished">Відображення</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_options.cpp" line="-59"/>
+        <location filename="../apps/write/app/writewindow_options.cpp" line="-63"/>
         <source>Tab characters</source>
         <translation type="unfinished">Символи табуляції</translation>
     </message>
@@ -5920,7 +5920,7 @@ Back page story	4</source>
         <translation type="unfinished">Прив&apos;язки об&apos;єктів</translation>
     </message>
     <message>
-        <location line="+38"/>
+        <location line="+42"/>
         <source>Save fonts in the file</source>
         <translation type="unfinished">Зберігати шрифти у файлі</translation>
     </message>
@@ -5945,7 +5945,18 @@ Back page story	4</source>
         <translation type="unfinished">Показувати лінії сітки таблиць під час відкриття вікна</translation>
     </message>
     <message>
-        <location line="+26"/>
+        <location line="+9"/>
+        <source>Hidden</source>
+        <translation>Прихований</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <location line="+1"/>
+        <source>Style area width in Draft and Outline views</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+25"/>
         <source>Show measurements in</source>
         <translation>Показувати розміри в</translation>
     </message>
@@ -59844,7 +59855,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::WriteOutlineView</name>
     <message>
-        <location filename="../apps/write/app/writeoutlineview.cpp" line="+21"/>
+        <location filename="../apps/write/app/writeoutlineview.cpp" line="+25"/>
         <source>Outline</source>
         <translation type="unfinished">Структура</translation>
     </message>
@@ -61828,7 +61839,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../apps/write/app/writewindow_keys.cpp" line="+92"/>
         <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+79"/>
-        <location filename="../apps/write/app/writewindow_styles.cpp" line="+87"/>
+        <location filename="../apps/write/app/writewindow_styles.cpp" line="+88"/>
         <source>Styles</source>
         <translation type="unfinished">Стилі</translation>
     </message>
@@ -62188,7 +62199,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Вставити кінцеву виноску</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_outline.cpp" line="+23"/>
+        <location filename="../apps/write/app/writewindow_outline.cpp" line="+24"/>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="-204"/>
         <source>Outline</source>
         <translation type="unfinished">Структура</translation>
@@ -65252,7 +65263,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Навігація</translation>
     </message>
     <message>
-        <location line="+156"/>
+        <location line="+158"/>
         <source>Open a second window to view two documents side by side.</source>
         <translation type="unfinished">Відкрийте друге вікно, щоб переглядати два документи поруч.</translation>
     </message>
@@ -76739,7 +76750,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::write::BlockMove</name>
     <message>
-        <location filename="../apps/write/app/writewindow_view.cpp" line="-213"/>
+        <location filename="../apps/write/app/writewindow_view.cpp" line="-215"/>
         <location filename="../apps/write/core/blockmove.cpp" line="+174"/>
         <source>This document is protected, so a section can&apos;t be moved.</source>
         <translation type="unfinished">Цей документ захищено, тому розділ не можна перемістити.</translation>
@@ -80969,7 +80980,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation>Верхній колонтитул</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview.cpp" line="+262"/>
+        <location filename="../apps/write/app/pageview.cpp" line="+264"/>
         <source>Place in this document: %1</source>
         <translation type="unfinished">Місце в цьому документі: %1</translation>
     </message>
@@ -80979,7 +80990,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Ctrl+клацання, щоб перейти за посиланням</translation>
     </message>
     <message>
-        <location line="+528"/>
+        <location line="+530"/>
         <source>Section Break</source>
         <translation type="unfinished">Розрив розділу</translation>
     </message>
@@ -81886,6 +81897,19 @@ The password couldn&apos;t be put on the file.</source>
             <numerusform>Знайдено в %n місцях.</numerusform>
             <numerusform>Знайдено в %n місцях.</numerusform>
         </translation>
+    </message>
+</context>
+<context>
+    <name>jp::write::StyleArea</name>
+    <message>
+        <location filename="../apps/write/app/stylearea.cpp" line="+59"/>
+        <source>Style area</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The style of each paragraph, beside its first line.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>

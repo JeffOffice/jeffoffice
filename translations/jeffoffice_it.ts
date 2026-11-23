@@ -5379,7 +5379,7 @@ Articolo dell&apos;ultima pagina	4</translation>
     </message>
     <message>
         <location filename="../apps/pub/app/dialogs.cpp" line="+66"/>
-        <location filename="../apps/write/app/writewindow_options.cpp" line="+138"/>
+        <location filename="../apps/write/app/writewindow_options.cpp" line="+169"/>
         <source>Inches</source>
         <translation type="unfinished">Pollici</translation>
     </message>
@@ -5847,7 +5847,7 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">Selezionare prima un elenco destinatari.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_options.cpp" line="-53"/>
+        <location filename="../apps/write/app/writewindow_options.cpp" line="-75"/>
         <source>Document (*.docx)</source>
         <translation type="unfinished">Documento (*.docx)</translation>
     </message>
@@ -5888,7 +5888,7 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">Visualizzazione</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_options.cpp" line="-59"/>
+        <location filename="../apps/write/app/writewindow_options.cpp" line="-63"/>
         <source>Tab characters</source>
         <translation type="unfinished">Caratteri di tabulazione</translation>
     </message>
@@ -5918,7 +5918,7 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">Ancoraggi oggetto</translation>
     </message>
     <message>
-        <location line="+38"/>
+        <location line="+42"/>
         <source>Save fonts in the file</source>
         <translation type="unfinished">Salva i caratteri nel file</translation>
     </message>
@@ -5943,7 +5943,18 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">Mostra la griglia delle tabelle all&apos;apertura di una finestra</translation>
     </message>
     <message>
-        <location line="+26"/>
+        <location line="+9"/>
+        <source>Hidden</source>
+        <translation>Nascosto</translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <location line="+1"/>
+        <source>Style area width in Draft and Outline views</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+25"/>
         <source>Show measurements in</source>
         <translation>Mostra le misure in</translation>
     </message>
@@ -59785,7 +59796,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
 <context>
     <name>jp::WriteOutlineView</name>
     <message>
-        <location filename="../apps/write/app/writeoutlineview.cpp" line="+21"/>
+        <location filename="../apps/write/app/writeoutlineview.cpp" line="+25"/>
         <source>Outline</source>
         <translation type="unfinished">Struttura</translation>
     </message>
@@ -62615,7 +62626,7 @@ Impossibile applicare la password al file.</translation>
     <message>
         <location filename="../apps/write/app/writewindow_keys.cpp" line="+92"/>
         <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+19"/>
-        <location filename="../apps/write/app/writewindow_styles.cpp" line="+87"/>
+        <location filename="../apps/write/app/writewindow_styles.cpp" line="+88"/>
         <source>Styles</source>
         <translation type="unfinished">Stili</translation>
     </message>
@@ -65033,12 +65044,12 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Navigazione</translation>
     </message>
     <message>
-        <location line="+156"/>
+        <location line="+158"/>
         <source>Open a second window to view two documents side by side.</source>
         <translation type="unfinished">Apri una seconda finestra per visualizzare due documenti affiancati.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_outline.cpp" line="+23"/>
+        <location filename="../apps/write/app/writewindow_outline.cpp" line="+24"/>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="-204"/>
         <source>Outline</source>
         <translation type="unfinished">Struttura</translation>
@@ -76645,7 +76656,7 @@ Impossibile applicare la password al file.</translation>
 <context>
     <name>jp::write::BlockMove</name>
     <message>
-        <location filename="../apps/write/app/writewindow_view.cpp" line="-213"/>
+        <location filename="../apps/write/app/writewindow_view.cpp" line="-215"/>
         <location filename="../apps/write/core/blockmove.cpp" line="+174"/>
         <source>This document is protected, so a section can&apos;t be moved.</source>
         <translation type="unfinished">Questo documento è protetto, quindi una sezione non può essere spostata.</translation>
@@ -80874,7 +80885,7 @@ Impossibile applicare la password al file.</translation>
         <translation>Intestazione</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview.cpp" line="+262"/>
+        <location filename="../apps/write/app/pageview.cpp" line="+264"/>
         <source>Place in this document: %1</source>
         <translation type="unfinished">Posizione in questo documento: %1</translation>
     </message>
@@ -80884,7 +80895,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Ctrl+clic per seguire il collegamento</translation>
     </message>
     <message>
-        <location line="+528"/>
+        <location line="+530"/>
         <source>Section Break</source>
         <translation type="unfinished">Interruzione di sezione</translation>
     </message>
@@ -81789,6 +81800,19 @@ Impossibile applicare la password al file.</translation>
             <numerusform>Trovata in %n punto.</numerusform>
             <numerusform>Trovata in %n punti.</numerusform>
         </translation>
+    </message>
+</context>
+<context>
+    <name>jp::write::StyleArea</name>
+    <message>
+        <location filename="../apps/write/app/stylearea.cpp" line="+59"/>
+        <source>Style area</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The style of each paragraph, beside its first line.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
