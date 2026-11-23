@@ -1471,6 +1471,14 @@ No se puede leer el fichero.</translation>
         <translation type="unfinished">Filas y columnas configuradas como ocultas: no se muestran en la hoja, pero están en el fichero. Muéstrelas para ver su contenido.</translation>
     </message>
     <message>
+        <source>Names that are set to be hidden: they are not offered in lists of names, but they are in the file. Show them to see what they stand for.</source>
+        <translation type="unfinished">Nombres configurados como ocultos: no se ofrecen en las listas de nombres, pero sí están en el fichero. Muéstrelos para ver a qué se refieren.</translation>
+    </message>
+    <message>
+        <source>Charts, pictures, shapes, and text boxes that are set to be hidden: they do not show or print, but they are in the file. Removing them can't be undone.</source>
+        <translation type="unfinished">Gráficos, imágenes, formas y cuadros de texto configurados como ocultos: no se muestran ni se imprimen, pero están en el fichero. Eliminarlos no se puede deshacer.</translation>
+    </message>
+    <message>
         <source>Text printed at the top and the bottom of every page, which can hold names and file paths.</source>
         <translation type="unfinished">Texto que se imprime en la parte superior e inferior de cada página, y que puede contener nombres y rutas de fichero.</translation>
     </message>
@@ -2343,6 +2351,28 @@ No se pudo aplicar la contraseña al fichero.</translation>
         <translation type="unfinished">El fichero guardado no puede contener la marca, por lo que el documento no se ha marcado como final.</translation>
     </message>
     <message>
+        <source>Linked pictures and objects, the template the document is attached to, and fields that read another file. Removing turns fields into text, takes out linked pictures and objects, including those in comments and text boxes, and detaches the template. Links in comments and other kept parts can't be undone. Web links stay.</source>
+        <translation type="unfinished">Imágenes y objetos vinculados, la plantilla a la que está adjunto el documento, y campos que leen otro fichero. Quitar convierte los campos en texto, elimina las imágenes y objetos vinculados, incluidos los que están en comentarios y cuadros de texto, y desvincula la plantilla. Los vínculos en comentarios y otras partes conservadas no se pueden deshacer. Los vínculos web se conservan.</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n linked picture(s) or object(s) can't be checked, because the file does not say where each one goes.</source>
+        <translation type="unfinished">
+            <numerusform>%n imagen o objeto vinculado no se puede revisar, porque el fichero no indica dónde va cada uno.</numerusform>
+            <numerusform>%n imágenes u objetos vinculados no se pueden revisar, porque el fichero no indica dónde va cada uno.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n link(s) to another file are kept where Remove All can't take them out: inside other fields, comments, text boxes, and other parts of the file.</source>
+        <translation type="unfinished">
+            <numerusform>%n vínculo a otro fichero se conserva donde Quitar todo no puede eliminarlo: dentro de otros campos, comentarios, cuadros de texto y otras partes del fichero.</numerusform>
+            <numerusform>%n vínculos a otro fichero se conservan donde Quitar todo no puede eliminarlos: dentro de otros campos, comentarios, cuadros de texto y otras partes del fichero.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>The file keeps these, and Remove All can't take them out: %1.</source>
+        <translation type="unfinished">El fichero conserva estos, y Quitar todo no puede eliminarlos: %1.</translation>
+    </message>
+    <message>
         <source>Text that is set to be hidden: it does not show or print, but it is in the file.</source>
         <translation type="unfinished">Texto configurado como oculto: no se muestra ni se imprime, pero está en el fichero.</translation>
     </message>
@@ -2601,6 +2631,18 @@ No se pudo aplicar la contraseña al fichero.</translation>
         <source>No presentation could be found in the file: its first records are damaged or gone.</source>
         <translation type="unfinished">No se encontró ninguna presentación en el fichero: sus primeros registros están dañados o perdidos.</translation>
     </message>
+    <message>
+        <source>What comes after the last slide of this presentation was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
+        <translation type="unfinished">Lo que sigue a la última diapositiva de esta presentación se reconstruyó a partir de un fichero dañado. Puede ser una versión anterior o proceder de otra parte del fichero. Compárelo con una copia de seguridad si tiene una.</translation>
+    </message>
+    <message>
+        <source>From slide %1 on, this presentation was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
+        <translation type="unfinished">A partir de la diapositiva %1, esta presentación se reconstruyó a partir de un fichero dañado. Puede ser una versión anterior o proceder de otra parte del fichero. Compárela con una copia de seguridad si tiene una.</translation>
+    </message>
+    <message>
+        <source>This whole presentation was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
+        <translation type="unfinished">Esta presentación completa se reconstruyó a partir de un fichero dañado. Puede ser una versión anterior o proceder de otra parte del fichero. Compárela con una copia de seguridad si tiene una.</translation>
+    </message>
 </context>
 <context>
     <name>jp::office::CfbSalvage</name>
@@ -2615,6 +2657,38 @@ No se pudo aplicar la contraseña al fichero.</translation>
     <message>
         <source>The file holds more than can be repaired.</source>
         <translation type="unfinished">El fichero contiene más de lo que se puede reparar.</translation>
+    </message>
+    <message>
+        <source>The file was damaged, so its parts were found by following the lists inside it, as far as they could be read.</source>
+        <translation type="unfinished">El fichero estaba dañado, así que sus partes se localizaron siguiendo las listas que contiene, en la medida en que pudieron leerse.</translation>
+    </message>
+    <message>
+        <source>The list of the parts of the file was damaged or gone, so each part was found by searching the file for it.</source>
+        <translation type="unfinished">La lista de las partes del fichero estaba dañada o no existía, así que cada parte se localizó buscándola dentro del fichero.</translation>
+    </message>
+    <message>
+        <source>Where the lists that say how the pieces of the file fit together were damaged, each piece was taken to follow the one before it in the file.</source>
+        <translation type="unfinished">Donde las listas que indican cómo encajan entre sí las piezas del fichero estaban dañadas, se supuso que cada pieza seguía a la anterior en el fichero.</translation>
+    </message>
+    <message>
+        <source>Two parts of the file had the same name. The first could not be used, so a later one was used in its place.</source>
+        <translation type="unfinished">Dos partes del fichero tenían el mismo nombre. No se pudo usar la primera, así que se usó una posterior en su lugar.</translation>
+    </message>
+    <message>
+        <source>Part of the file was stored in an unusual order, so it was read from the file's own lists of where its pieces are.</source>
+        <translation type="unfinished">Una parte del fichero estaba almacenada en un orden inusual, así que se leyó a partir de las listas propias del fichero sobre la ubicación de sus piezas.</translation>
+    </message>
+    <message>
+        <source>Part of the file could not be checked to see that it is complete, so it may be cut short or hold pieces that belong somewhere else.</source>
+        <translation type="unfinished">No se pudo comprobar que una parte del fichero esté completa, así que puede estar cortada o contener piezas que pertenecen a otro lugar.</translation>
+    </message>
+    <message>
+        <source>Pieces of the file that its lists mark as unused were read, because nothing else could be found; they may hold old data.</source>
+        <translation type="unfinished">Se leyeron las partes del fichero que sus listas marcan como no utilizadas, porque no se encontró nada más; pueden contener datos antiguos.</translation>
+    </message>
+    <message>
+        <source>The small parts of the file, which are kept together in one place, could not be read.</source>
+        <translation type="unfinished">No se pudieron leer las partes pequeñas del fichero, que se guardan juntas en un mismo lugar.</translation>
     </message>
     <message>
         <source>The file was cut short; what came after the cut is lost.</source>
@@ -2656,6 +2730,22 @@ No se pudo aplicar la contraseña al fichero.</translation>
     <message>
         <source>No document could be found in the file.</source>
         <translation type="unfinished">No se encontró ningún documento en el fichero.</translation>
+    </message>
+    <message>
+        <source>From paragraph %1 on, this text was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
+        <translation type="unfinished">A partir del párrafo %1, este texto se reconstruyó a partir de un fichero dañado. Puede ser una versión anterior o proceder de otra parte del fichero. Compárelo con una copia de seguridad si tiene una.</translation>
+    </message>
+    <message>
+        <source>This whole document was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
+        <translation type="unfinished">Este documento completo se reconstruyó a partir de un fichero dañado. Puede ser una versión anterior o proceder de otra parte del fichero. Compárelo con una copia de seguridad si tiene una.</translation>
+    </message>
+    <message>
+        <source>The formatting of this document was pieced together from a damaged file, so some of it may be wrong. Compare the document with a backup if you have one.</source>
+        <translation type="unfinished">El formato de este documento se reconstruyó a partir de un fichero dañado, así que parte de él puede ser incorrecta. Compare el documento con una copia de seguridad si tiene una.</translation>
+    </message>
+    <message>
+        <source>Part of what says how the text is formatted was pieced together from a damaged file, so some of the formatting may be wrong.</source>
+        <translation type="unfinished">Parte de la información que define el formato del texto se reconstruyó a partir de un fichero dañado, así que parte del formato puede ser incorrecta.</translation>
     </message>
 </context>
 <context>
@@ -2995,6 +3085,34 @@ No se pudo aplicar la contraseña al fichero.</translation>
     <message>
         <source>The file is too large to repair.</source>
         <translation type="unfinished">El fichero es demasiado grande para repararlo.</translation>
+    </message>
+    <message>
+        <source>This whole workbook was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
+        <translation type="unfinished">Este libro completo se reconstruyó a partir de un fichero dañado. Puede ser una versión anterior o proceder de otra parte del fichero. Compárelo con una copia de seguridad si tiene una.</translation>
+    </message>
+    <message>
+        <source>In sheet "%1", from row %2 on, and in any sheet that comes after it, this data was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
+        <translation type="unfinished">En la hoja "%1", a partir de la fila %2, y en cualquier hoja posterior a ella, estos datos se reconstruyeron a partir de un fichero dañado. Puede ser una versión anterior o proceder de otra parte del fichero. Compárelos con una copia de seguridad si tiene una.</translation>
+    </message>
+    <message>
+        <source>In sheet "%1", what comes after its last cell, and any sheet that comes after it, was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
+        <translation type="unfinished">En la hoja "%1", lo que sigue a su última celda, y cualquier hoja posterior a ella, se reconstruyó a partir de un fichero dañado. Puede ser una versión anterior o proceder de otra parte del fichero. Compárelo con una copia de seguridad si tiene una.</translation>
+    </message>
+    <message>
+        <source>Sheet "%1" is empty, because its data could not be found in the file.</source>
+        <translation type="unfinished">La hoja "%1" está vacía, porque no se encontraron sus datos en el fichero.</translation>
+    </message>
+    <message>
+        <source>The sheets of this file were too many to check one by one, so some may be cut short.</source>
+        <translation type="unfinished">Las hojas de este fichero eran demasiadas para comprobarlas una por una, así que algunas pueden estar cortadas.</translation>
+    </message>
+    <message>
+        <source>The front of the file, which holds the cell formats and fonts, was cut short, so some formatting may be missing.</source>
+        <translation type="unfinished">El inicio del fichero, que contiene los formatos de celda y las fuentes, está cortado, así que puede faltar parte del formato.</translation>
+    </message>
+    <message>
+        <source>The file was sound. A sheet that is damaged keeps the cells before the damage.</source>
+        <translation type="unfinished">El fichero estaba en buen estado. Una hoja dañada conserva las celdas anteriores al daño.</translation>
     </message>
     <message>
         <source>No workbook could be found in the file.</source>

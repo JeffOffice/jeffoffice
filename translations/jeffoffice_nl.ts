@@ -10016,98 +10016,98 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location filename="../libs/shell/app/papertray.cpp" line="+32"/>
         <source>Upper tray</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bovenste lade</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Lower tray</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Onderste lade</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Middle tray</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Middelste lade</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Manual feed</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Handmatige invoer</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Envelope feeder</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Enveloppeninvoer</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Envelope, manual feed</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Envelop, handmatige invoer</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Automatic selection</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Automatische selectie</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Tractor feed</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Trekkerinvoer</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Small-format tray</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lade voor klein formaat</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Large-format tray</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lade voor groot formaat</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Large-capacity tray</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lade met grote capaciteit</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Cassette</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cassette</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Tray chosen by the paper size</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lade gekozen op basis van het papierformaat</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>Tray %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lade %1</translation>
     </message>
     <message>
         <location line="+45"/>
         <source>The trays are saved in the document, but this system can&apos;t send them to the printer. Choose the tray in the printer&apos;s own settings when you print.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De laden worden in het document opgeslagen, maar dit systeem kan ze niet naar de printer sturen. Kies de lade in de eigen instellingen van de printer wanneer u afdrukt.</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Default tray</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Standaardlade</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The printer picks the tray.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De printer kiest de lade.</translation>
     </message>
     <message>
         <location line="+6"/>
         <location line="+7"/>
         <source>%1 (not on this printer)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 (niet beschikbaar op deze printer)</translation>
     </message>
     <message>
         <location line="-4"/>
         <source>This printer doesn&apos;t have this tray.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze printer heeft deze lade niet.</translation>
     </message>
 </context>
 <context>
@@ -30496,44 +30496,44 @@ Het bestand kan niet worden gelezen.</translation>
         <location line="+14"/>
         <source>%n row(s) hidden by a filter are not included here. Clear the filter to show them.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n rij die door een filter is verborgen, wordt hier niet meegeteld. Wis het filter om deze weer te geven.</numerusform>
+            <numerusform>%n rijen die door een filter zijn verborgen, worden hier niet meegeteld. Wis het filter om deze weer te geven.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Hidden names</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Verborgen namen</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Names that are set to be hidden: they are not offered in lists of names, but they are in the file. Show them to see what they stand for.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Namen die als verborgen zijn ingesteld: ze worden niet aangeboden in lijsten met namen, maar ze staan wel in het bestand. Toon ze om te zien waarvoor ze staan.</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Hidden objects</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Verborgen objecten</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Charts, pictures, shapes, and text boxes that are set to be hidden: they do not show or print, but they are in the file. Removing them can&apos;t be undone.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Grafieken, afbeeldingen, vormen en tekstvakken die als verborgen zijn ingesteld: ze worden niet weergegeven of afgedrukt, maar ze staan wel in het bestand. Verwijderen kan niet ongedaan worden gemaakt.</translation>
     </message>
     <message numerus="yes">
         <location line="+15"/>
         <source>%n drawing(s) are too big to check all the way through, so hidden objects past the part checked are not counted.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n tekening is te groot om helemaal te controleren, dus verborgen objecten voorbij het gecontroleerde deel worden niet geteld.</numerusform>
+            <numerusform>%n tekeningen zijn te groot om helemaal te controleren, dus verborgen objecten voorbij het gecontroleerde deel worden niet geteld.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n shape(s) of an older kind can&apos;t be read by this check, so it can&apos;t say whether any are hidden.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n vorm van een oudere soort kan door deze controle niet worden gelezen, dus er kan niet worden vastgesteld of er verborgen vormen zijn.</numerusform>
+            <numerusform>%n vormen van een oudere soort kunnen door deze controle niet worden gelezen, dus er kan niet worden vastgesteld of er verborgen vormen zijn.</numerusform>
         </translation>
     </message>
     <message>
@@ -44100,7 +44100,7 @@ Er is geen helponderwerp met de naam &quot;%1&quot;.</translation>
     <message>
         <location line="+0"/>
         <source>Not fully checked</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Niet volledig gecontroleerd</translation>
     </message>
     <message>
         <location line="+30"/>
@@ -50319,7 +50319,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+166"/>
         <source>The headings changed, so the list was updated. Choose the heading again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De koppen zijn gewijzigd, dus de lijst is bijgewerkt. Kies de kop opnieuw.</translation>
     </message>
     <message>
         <location line="+268"/>
@@ -59243,12 +59243,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+1"/>
         <source>Move Table Up</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tabel omhoog verplaatsen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Move Table Down</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tabel omlaag verplaatsen</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -59339,7 +59339,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+1"/>
         <source>Pen Weight: how thick the lines are that the Border Painter draws.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pendikte: hoe dik de lijnen zijn die de Randenkwast tekent.</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -59349,7 +59349,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+1"/>
         <source>Triple</source>
-        <translation type="unfinished">Driedubbel</translation>
+        <translation type="unfinished">Drievoudig</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -59364,17 +59364,17 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+11"/>
         <source>Pen Style</source>
-        <translation type="unfinished">Penstijl</translation>
+        <translation type="unfinished">Pentype</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Pen Style: the kind of line the Border Painter draws. No Border makes it erase borders.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pentype: de soort lijn die de Randenkwast tekent. Geen rand zorgt ervoor dat randen worden gewist.</translation>
     </message>
     <message>
         <location line="+136"/>
         <source>Move Table</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tabel verplaatsen</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="-1"/>
@@ -59415,7 +59415,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+9"/>
         <source>Border Painter</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Randenkwast</translation>
     </message>
     <message>
         <location line="+15"/>
@@ -61701,7 +61701,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+45"/>
         <source>The caret&apos;s line on the page and its place in the line</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De regel van de invoegpositie op de pagina en de plaats ervan in de regel</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -61711,12 +61711,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+13"/>
         <source>Spelling and grammar errors. Click to go to the next one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Spelling- en grammaticafouten. Klik om naar de volgende te gaan.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Spelling and grammar errors</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Spelling- en grammaticafouten</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -61999,80 +61999,80 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+26"/>
         <source>Linked pictures and objects, the template the document is attached to, and fields that read another file. Removing turns fields into text, takes out linked pictures and objects, including those in comments and text boxes, and detaches the template. Links in comments and other kept parts can&apos;t be undone. Web links stay.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gekoppelde afbeeldingen en objecten, de sjabloon waaraan het document is gekoppeld, en velden die een ander bestand lezen. Verwijderen zet velden om in tekst, haalt gekoppelde afbeeldingen en objecten weg, inclusief die in opmerkingen en tekstvakken, en koppelt de sjabloon los. Koppelingen in opmerkingen en andere behouden onderdelen kunnen niet ongedaan worden gemaakt. Webkoppelingen blijven behouden.</translation>
     </message>
     <message numerus="yes">
         <location line="+6"/>
         <source>%n linked picture(s) or object(s) can&apos;t be checked, because the file does not say where each one goes.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n gekoppelde afbeelding of object kan niet worden gecontroleerd, omdat het bestand niet aangeeft waar het hoort.</numerusform>
+            <numerusform>%n gekoppelde afbeeldingen of objecten kunnen niet worden gecontroleerd, omdat het bestand niet aangeeft waar ze horen.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n link(s) to another file are kept where Remove All can&apos;t take them out: inside other fields, comments, text boxes, and other parts of the file.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n koppeling naar een ander bestand blijft behouden op plaatsen waar Alles verwijderen deze niet kan wegnemen: in andere velden, opmerkingen, tekstvakken en andere delen van het bestand.</numerusform>
+            <numerusform>%n koppelingen naar een ander bestand blijven behouden op plaatsen waar Alles verwijderen deze niet kan wegnemen: in andere velden, opmerkingen, tekstvakken en andere delen van het bestand.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+2"/>
         <source>the attached template</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">de gekoppelde sjabloon</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>the mail merge data source</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">de gegevensbron voor afdruk samenvoegen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>frames</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">frames</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>subdocuments</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">subdocumenten</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>a chart&apos;s outside data</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">de externe gegevens van een grafiek</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>linked movies or sounds</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">gekoppelde films of geluiden</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>linked style sheets</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">gekoppelde stijlbladen</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>%1 and %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 en %2</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>, and %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">, en %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The file keeps these, and Remove All can&apos;t take them out: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het bestand bewaart deze, en Alles verwijderen kan ze niet wegnemen: %1.</translation>
     </message>
     <message numerus="yes">
         <location line="+2"/>
         <source>%n more link(s) are past the most that one Remove All takes out. Run Remove All again to take them out.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n extra koppeling gaat verder dan het maximum dat één keer Alles verwijderen wegneemt. Voer Alles verwijderen opnieuw uit om ze te verwijderen.</numerusform>
+            <numerusform>%n extra koppelingen gaan verder dan het maximum dat één keer Alles verwijderen wegneemt. Voer Alles verwijderen opnieuw uit om ze te verwijderen.</numerusform>
         </translation>
     </message>
     <message>
@@ -62134,7 +62134,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+4"/>
         <source>Printer trays for the first page and the other pages.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Printerladen voor de eerste pagina en de overige pagina&apos;s.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_file.cpp" line="+46"/>
@@ -62997,17 +62997,17 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+2"/>
         <source>Show Notes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Notities weergeven</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>This document has no footnotes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dit document heeft geen voetnoten.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Notes can be shown in Print Layout view.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Notities kunnen worden weergegeven in de weergave Afdrukindeling.</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -63952,12 +63952,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+15"/>
         <source>Sections can be moved only from the main text of the document, not from a header, footer, note, text box, or comment.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Secties kunnen alleen worden verplaatst vanuit de hoofdtekst van het document, niet vanuit een koptekst, voettekst, voetnoot, tekstvak of opmerking.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Put the caret in a heading, or under one, to move its section.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Plaats de invoegpositie in een kop of eronder om de sectie te verplaatsen.</translation>
     </message>
     <message>
         <location line="+49"/>
@@ -64387,28 +64387,28 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location filename="../apps/write/app/writewindow_proofstatus.cpp" line="+28"/>
         <source>Line %1, Column %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Regel %1, kolom %2</translation>
     </message>
     <message numerus="yes">
         <location line="+18"/>
         <source>%n+ proofing error(s)</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n+ spelfout of grammaticafout</numerusform>
+            <numerusform>%n+ spelfouten of grammaticafouten</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+0"/>
         <source>%n proofing error(s)</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n spelfout of grammaticafout</numerusform>
+            <numerusform>%n spelfouten of grammaticafouten</numerusform>
         </translation>
     </message>
     <message>
         <location line="+26"/>
         <source>There are no spelling or grammar errors in this document.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Er zijn geen spelling- of grammaticafouten in dit document.</translation>
     </message>
 </context>
 <context>
@@ -66400,7 +66400,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+30"/>
         <source>Show Names</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Namen weergeven</translation>
     </message>
     <message>
         <location line="+29"/>
@@ -73256,7 +73256,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+4"/>
         <source>Some pictures could not be fully recovered.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sommige afbeeldingen konden niet volledig worden hersteld.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -73266,17 +73266,17 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+2"/>
         <source>What comes after the last slide of this presentation was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Wat na de laatste dia van deze presentatie staat, is samengesteld uit een beschadigd bestand. Het kan een oudere versie zijn of uit een ander deel van het bestand komen. Vergelijk het met een back-up als u die hebt.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>From slide %1 on, this presentation was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Vanaf dia %1 is deze presentatie samengesteld uit een beschadigd bestand. Het kan een oudere versie zijn of uit een ander deel van het bestand komen. Vergelijk het met een back-up als u die hebt.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This whole presentation was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze hele presentatie is samengesteld uit een beschadigd bestand. Het kan een oudere versie zijn of uit een ander deel van het bestand komen. Vergelijk het met een back-up als u die hebt.</translation>
     </message>
 </context>
 <context>
@@ -73395,42 +73395,42 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+30"/>
         <source>The file was damaged, so its parts were found by following the lists inside it, as far as they could be read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het bestand was beschadigd, dus de onderdelen zijn gevonden door de lijsten erin te volgen, voor zover die konden worden gelezen.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The list of the parts of the file was damaged or gone, so each part was found by searching the file for it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De lijst met de onderdelen van het bestand was beschadigd of ontbrak, dus elk onderdeel is gevonden door het bestand ernaar te doorzoeken.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Where the lists that say how the pieces of the file fit together were damaged, each piece was taken to follow the one before it in the file.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Waar de lijsten die aangeven hoe de delen van het bestand op elkaar aansluiten beschadigd waren, is aangenomen dat elk deel volgt op het deel ervoor in het bestand.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Two parts of the file had the same name. The first could not be used, so a later one was used in its place.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Twee onderdelen van het bestand hadden dezelfde naam. Het eerste kon niet worden gebruikt, dus is een later onderdeel in de plaats gebruikt.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Part of the file was stored in an unusual order, so it was read from the file&apos;s own lists of where its pieces are.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een deel van het bestand was in een ongebruikelijke volgorde opgeslagen, dus het is gelezen aan de hand van de eigen lijsten van het bestand met de locaties van de delen.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Part of the file could not be checked to see that it is complete, so it may be cut short or hold pieces that belong somewhere else.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een deel van het bestand kon niet worden gecontroleerd op volledigheid, dus het kan afgekapt zijn of gegevens bevatten die ergens anders horen.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Pieces of the file that its lists mark as unused were read, because nothing else could be found; they may hold old data.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Delen van het bestand die in de lijsten als ongebruikt zijn aangemerkt, zijn gelezen omdat er niets anders gevonden kon worden; ze kunnen oude gegevens bevatten.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The small parts of the file, which are kept together in one place, could not be read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De kleine onderdelen van het bestand, die samen op één plek zijn opgeslagen, konden niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -73688,7 +73688,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+2"/>
         <source>Some pictures could not be fully recovered.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sommige afbeeldingen konden niet volledig worden hersteld.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -73698,22 +73698,22 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+5"/>
         <source>From paragraph %1 on, this text was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Vanaf alinea %1 is deze tekst samengesteld uit een beschadigd bestand. Het kan een oudere versie zijn of uit een ander deel van het bestand komen. Vergelijk het met een back-up als u die hebt.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>This whole document was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dit hele document is samengesteld uit een beschadigd bestand. Het kan een oudere versie zijn of uit een ander deel van het bestand komen. Vergelijk het met een back-up als u die hebt.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The formatting of this document was pieced together from a damaged file, so some of it may be wrong. Compare the document with a backup if you have one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De opmaak van dit document is samengesteld uit een beschadigd bestand, dus een deel van de opmaak is mogelijk onjuist. Vergelijk het document met een back-up als u die hebt.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Part of what says how the text is formatted was pieced together from a damaged file, so some of the formatting may be wrong.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een deel van de gegevens over de tekstopmaak is samengesteld uit een beschadigd bestand, dus een deel van de opmaak is mogelijk onjuist.</translation>
     </message>
 </context>
 <context>
@@ -75050,67 +75050,67 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="-53"/>
         <source>This whole workbook was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze hele werkmap is samengesteld uit een beschadigd bestand. Het kan een oudere versie zijn of uit een ander deel van het bestand komen. Vergelijk het met een back-up als u die hebt.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>In sheet &quot;%1&quot;, from row %2 on, and in any sheet that comes after it, this data was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">In werkblad &quot;%1&quot; zijn vanaf rij %2 en in alle werkbladen daarna deze gegevens samengesteld uit een beschadigd bestand. Het kan een oudere versie zijn of uit een ander deel van het bestand komen. Vergelijk het met een back-up als u die hebt.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>In sheet &quot;%1&quot;, what comes after its last cell, and any sheet that comes after it, was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">In werkblad &quot;%1&quot; is alles na de laatste cel, en alle werkbladen daarna, samengesteld uit een beschadigd bestand. Het kan een oudere versie zijn of uit een ander deel van het bestand komen. Vergelijk het met een back-up als u die hebt.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>Sheet &quot;%1&quot; is empty, because its data could not be found in the file.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Werkblad &quot;%1&quot; is leeg, omdat de gegevens ervan niet in het bestand konden worden gevonden.</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>Sheet &quot;%1&quot; was cut short: its rows down to row %2 were recovered, and what came after them is lost.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Werkblad &quot;%1&quot; is afgekapt: de rijen tot en met rij %2 zijn hersteld, en wat daarna kwam, is verloren gegaan.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Sheet &quot;%1&quot; was cut short before any cell could be read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Werkblad &quot;%1&quot; is afgekapt voordat een cel kon worden gelezen.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>More sheets were damaged or lost than are listed here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Er zijn meer werkbladen beschadigd of verloren gegaan dan hier worden vermeld.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The sheets of this file were too many to check one by one, so some may be cut short.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De werkbladen in dit bestand waren te veel om er een voor een op te controleren, dus sommige zijn mogelijk afgekapt.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The other sheets were read whole.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De overige werkbladen zijn volledig gelezen.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Every sheet was read whole.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Alle werkbladen zijn volledig gelezen.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The front of the file, which holds the cell formats and fonts, was cut short, so some formatting may be missing.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het begin van het bestand, met de celopmaak en lettertypen, is afgekapt, dus een deel van de opmaak ontbreekt mogelijk.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The cell formats, fonts, and sheet names were recovered.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De celopmaak, lettertypen en werkbladnamen zijn hersteld.</translation>
     </message>
     <message>
         <location line="+68"/>
         <source>The file was sound. A sheet that is damaged keeps the cells before the damage.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het bestand was intact. Een beschadigd werkblad behoudt de cellen vóór de beschadiging.</translation>
     </message>
     <message>
         <location line="+12"/>
@@ -75575,48 +75575,48 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location filename="../apps/write/app/writewindow_view.cpp" line="-213"/>
         <location filename="../apps/write/core/blockmove.cpp" line="+174"/>
         <source>This document is protected, so a section can&apos;t be moved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dit document is beveiligd, dus een sectie kan niet worden verplaatst.</translation>
     </message>
     <message>
         <location line="+6"/>
         <location filename="../apps/write/core/blockmove.cpp" line="-1"/>
         <source>Turn off Track Changes to move a section.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Schakel Wijzigingen bijhouden uit om een sectie te verplaatsen.</translation>
     </message>
     <message>
         <location filename="../apps/write/core/blockmove.cpp" line="+2"/>
         <source>Sections can&apos;t be moved while endnotes are collected at the end of each section. Put the endnotes at the end of the document first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Secties kunnen niet worden verplaatst zolang eindnoten aan het einde van elke sectie worden verzameld. Zet de eindnoten eerst aan het einde van het document.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>A section that holds endnotes or a text frame can&apos;t be moved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een sectie met eindnoten of een tekstkader kan niet worden verplaatst.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>A section can&apos;t be moved from or to the middle of a table.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een sectie kan niet vanuit of naar het midden van een tabel worden verplaatst.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A table can&apos;t be put right against another table. Keep a paragraph between them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een tabel kan niet direct tegen een andere tabel worden geplaatst. Houd er een alinea tussen.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A table can&apos;t be moved below the last paragraph of the document.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een tabel kan niet onder de laatste alinea van het document worden verplaatst.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>This section includes a section break, and moving it would change the page layout of other text, so it can&apos;t be moved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze sectie bevat een sectie-einde, en verplaatsen zou de paginaindeling van andere tekst wijzigen, dus hij kan niet worden verplaatst.</translation>
     </message>
     <message>
         <location line="+18"/>
         <source>This section holds one end of a bookmark, comment, field, or content control whose other end is outside it, so it can&apos;t be moved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze sectie bevat één uiteinde van een bladwijzer, opmerking, veld of inhoudsbeheerselement waarvan het andere uiteinde buiten de sectie valt, dus hij kan niet worden verplaatst.</translation>
     </message>
 </context>
 <context>
@@ -76650,17 +76650,17 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+2"/>
         <source>Paper source</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Papierbron</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Tray for the first page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lade voor de eerste pagina</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Tray for the other pages</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lade voor de overige pagina&apos;s</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -76670,7 +76670,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+1"/>
         <source>Other pages</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Overige pagina&apos;s</translation>
     </message>
     <message>
         <location line="+72"/>
@@ -79679,7 +79679,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+489"/>
         <source>Drag along the lines of a table to draw or erase its borders.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sleep langs de lijnen van een tabel om de randen ervan te tekenen of te wissen.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/pageoutput.cpp" line="+220"/>
@@ -79813,7 +79813,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+373"/>
         <source>Drop the table between paragraphs, not inside a table.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Zet de tabel neer tussen alinea&apos;s, niet in een tabel.</translation>
     </message>
     <message>
         <location line="+262"/>
@@ -80408,17 +80408,17 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location filename="../apps/write/core/sectionmove.cpp" line="+65"/>
         <location line="+11"/>
         <source>Only a heading, with what is under it, can be moved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Alleen een kop, met wat eronder staat, kan worden verplaatst.</translation>
     </message>
     <message>
         <location line="+18"/>
         <source>This section can&apos;t move up: there is no section of the same level above it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze sectie kan niet omhoog worden verplaatst: er is boven hem geen sectie van hetzelfde niveau.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>This section can&apos;t move down: there is no section of the same level below it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze sectie kan niet omlaag worden verplaatst: er is onder hem geen sectie van hetzelfde niveau.</translation>
     </message>
 </context>
 <context>
@@ -80925,44 +80925,44 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location filename="../apps/write/core/tableops.cpp" line="+1431"/>
         <location line="+68"/>
         <source>A table can only be moved in the main text.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een tabel kan alleen in de hoofdtekst worden verplaatst.</translation>
     </message>
     <message>
         <location line="-67"/>
         <source>Drop the table between paragraphs, not inside a table.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Zet de tabel neer tussen alinea&apos;s, niet in een tabel.</translation>
     </message>
     <message>
         <location line="+9"/>
         <location line="+77"/>
         <source>A table can only be moved where a paragraph follows it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een tabel kan alleen worden verplaatst waar een alinea op volgt.</translation>
     </message>
     <message>
         <location line="-74"/>
         <location line="+70"/>
         <source>A table can&apos;t be put right against another table. Keep a paragraph between them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een tabel kan niet direct tegen een andere tabel worden geplaatst. Houd er een alinea tussen.</translation>
     </message>
     <message>
         <location line="-7"/>
         <source>A table inside a table can&apos;t be moved this way.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een tabel binnen een tabel kan op deze manier niet worden verplaatst.</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>There is no paragraph above the table to move it past.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Er is geen alinea boven de tabel waarlangs hij verplaatst kan worden.</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>There is no paragraph below the table to move it past.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Er is geen alinea onder de tabel waarlangs hij verplaatst kan worden.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>A table can&apos;t be moved below the last paragraph of the document.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een tabel kan niet onder de laatste alinea van het document worden verplaatst.</translation>
     </message>
     <message>
         <location line="+513"/>

@@ -10016,98 +10016,98 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location filename="../libs/shell/app/papertray.cpp" line="+32"/>
         <source>Upper tray</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bandeja superior</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Lower tray</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bandeja inferior</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Middle tray</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bandeja intermedia</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Manual feed</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Alimentación manual</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Envelope feeder</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Alimentador de sobres</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Envelope, manual feed</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sobre, alimentación manual</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Automatic selection</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Selección automática</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Tractor feed</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Alimentación por tractor</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Small-format tray</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bandeja de formato pequeño</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Large-format tray</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bandeja de formato grande</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Large-capacity tray</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bandeja de gran capacidad</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Cassette</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Casete</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Tray chosen by the paper size</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bandeja según el tamaño del papel</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>Tray %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bandeja %1</translation>
     </message>
     <message>
         <location line="+45"/>
         <source>The trays are saved in the document, but this system can&apos;t send them to the printer. Choose the tray in the printer&apos;s own settings when you print.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Las bandejas se guardan en el documento, pero este sistema no puede enviarlas a la impresora. Elija la bandeja en la configuración propia de la impresora al imprimir.</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Default tray</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bandeja predeterminada</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The printer picks the tray.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La impresora elige la bandeja.</translation>
     </message>
     <message>
         <location line="+6"/>
         <location line="+7"/>
         <source>%1 (not on this printer)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 (no disponible en esta impresora)</translation>
     </message>
     <message>
         <location line="-4"/>
         <source>This printer doesn&apos;t have this tray.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Esta impresora no tiene esta bandeja.</translation>
     </message>
 </context>
 <context>
@@ -30496,44 +30496,44 @@ No se puede leer el archivo.</translation>
         <location line="+14"/>
         <source>%n row(s) hidden by a filter are not included here. Clear the filter to show them.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n fila oculta por un filtro no se incluye aquí. Quite el filtro para mostrarla.</numerusform>
+            <numerusform>%n filas ocultas por un filtro no se incluyen aquí. Quite el filtro para mostrarlas.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Hidden names</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nombres ocultos</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Names that are set to be hidden: they are not offered in lists of names, but they are in the file. Show them to see what they stand for.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nombres configurados como ocultos: no se ofrecen en las listas de nombres, pero sí están en el archivo. Muéstrelos para ver a qué se refieren.</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Hidden objects</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objetos ocultos</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Charts, pictures, shapes, and text boxes that are set to be hidden: they do not show or print, but they are in the file. Removing them can&apos;t be undone.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gráficos, imágenes, formas y cuadros de texto configurados como ocultos: no se muestran ni se imprimen, pero están en el archivo. Eliminarlos no se puede deshacer.</translation>
     </message>
     <message numerus="yes">
         <location line="+15"/>
         <source>%n drawing(s) are too big to check all the way through, so hidden objects past the part checked are not counted.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n dibujo es demasiado grande para revisarlo por completo, así que los objetos ocultos más allá de la parte revisada no se cuentan.</numerusform>
+            <numerusform>%n dibujos son demasiado grandes para revisarlos por completo, así que los objetos ocultos más allá de la parte revisada no se cuentan.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n shape(s) of an older kind can&apos;t be read by this check, so it can&apos;t say whether any are hidden.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n forma de un tipo antiguo no puede leerla esta comprobación, así que no puede indicar si hay alguna oculta.</numerusform>
+            <numerusform>%n formas de un tipo antiguo no pueden leerse con esta comprobación, así que no puede indicar si hay alguna oculta.</numerusform>
         </translation>
     </message>
     <message>
@@ -44100,7 +44100,7 @@ No hay ningún tema de Ayuda llamado &quot;%1&quot;.</translation>
     <message>
         <location line="+0"/>
         <source>Not fully checked</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">No revisado por completo</translation>
     </message>
     <message>
         <location line="+30"/>
@@ -50262,12 +50262,12 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
     <message>
         <location line="+2"/>
         <source>Move Section Up</source>
-        <translation type="unfinished">Subir sección</translation>
+        <translation type="unfinished">Mover sección arriba</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Move Section Down</source>
-        <translation type="unfinished">Bajar sección</translation>
+        <translation type="unfinished">Mover sección abajo</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -50319,7 +50319,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
     <message>
         <location line="+166"/>
         <source>The headings changed, so the list was updated. Choose the heading again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Los encabezados cambiaron, así que la lista se actualizó. Vuelva a elegir el encabezado.</translation>
     </message>
     <message>
         <location line="+268"/>
@@ -59243,12 +59243,12 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
     <message>
         <location line="+1"/>
         <source>Move Table Up</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mover tabla arriba</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Move Table Down</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mover tabla abajo</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -59334,12 +59334,12 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
     <message>
         <location line="+21"/>
         <source>Pen Weight</source>
-        <translation type="unfinished">Grosor de la pluma</translation>
+        <translation type="unfinished">Grosor de línea</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Pen Weight: how thick the lines are that the Border Painter draws.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Grosor de línea: el grosor de las líneas que dibuja el Pintor de bordes.</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -59364,17 +59364,17 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
     <message>
         <location line="+11"/>
         <source>Pen Style</source>
-        <translation type="unfinished">Estilo de la pluma</translation>
+        <translation type="unfinished">Estilo de línea</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Pen Style: the kind of line the Border Painter draws. No Border makes it erase borders.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Estilo de línea: el tipo de línea que dibuja el Pintor de bordes. Sin bordes hace que borre los bordes.</translation>
     </message>
     <message>
         <location line="+136"/>
         <source>Move Table</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mover tabla</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="-1"/>
@@ -59415,7 +59415,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
     <message>
         <location line="+9"/>
         <source>Border Painter</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pintor de bordes</translation>
     </message>
     <message>
         <location line="+15"/>
@@ -61701,7 +61701,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+45"/>
         <source>The caret&apos;s line on the page and its place in the line</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La línea del cursor en la página y su posición dentro de la línea</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -61711,12 +61711,12 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+13"/>
         <source>Spelling and grammar errors. Click to go to the next one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Errores ortográficos y gramaticales. Haga clic para ir al siguiente.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Spelling and grammar errors</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Errores ortográficos y gramaticales</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -61999,80 +61999,80 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+26"/>
         <source>Linked pictures and objects, the template the document is attached to, and fields that read another file. Removing turns fields into text, takes out linked pictures and objects, including those in comments and text boxes, and detaches the template. Links in comments and other kept parts can&apos;t be undone. Web links stay.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Imágenes y objetos vinculados, la plantilla a la que está adjunto el documento, y campos que leen otro archivo. Quitar convierte los campos en texto, elimina las imágenes y objetos vinculados, incluidos los que están en comentarios y cuadros de texto, y desvincula la plantilla. Los vínculos en comentarios y otras partes conservadas no se pueden deshacer. Los vínculos web se conservan.</translation>
     </message>
     <message numerus="yes">
         <location line="+6"/>
         <source>%n linked picture(s) or object(s) can&apos;t be checked, because the file does not say where each one goes.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n imagen o objeto vinculado no se puede revisar, porque el archivo no indica dónde va cada uno.</numerusform>
+            <numerusform>%n imágenes u objetos vinculados no se pueden revisar, porque el archivo no indica dónde va cada uno.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n link(s) to another file are kept where Remove All can&apos;t take them out: inside other fields, comments, text boxes, and other parts of the file.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n vínculo a otro archivo se conserva donde Quitar todo no puede eliminarlo: dentro de otros campos, comentarios, cuadros de texto y otras partes del archivo.</numerusform>
+            <numerusform>%n vínculos a otro archivo se conservan donde Quitar todo no puede eliminarlos: dentro de otros campos, comentarios, cuadros de texto y otras partes del archivo.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+2"/>
         <source>the attached template</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">la plantilla adjunta</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>the mail merge data source</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">el origen de datos de la combinación de correspondencia</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>frames</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">marcos</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>subdocuments</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">subdocumentos</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>a chart&apos;s outside data</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">los datos externos de un gráfico</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>linked movies or sounds</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">películas o sonidos vinculados</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>linked style sheets</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">hojas de estilo vinculadas</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>%1 and %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 y %2</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>, and %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">, y %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The file keeps these, and Remove All can&apos;t take them out: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">El archivo conserva estos, y Quitar todo no puede eliminarlos: %1.</translation>
     </message>
     <message numerus="yes">
         <location line="+2"/>
         <source>%n more link(s) are past the most that one Remove All takes out. Run Remove All again to take them out.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n vínculo más supera el máximo que quita una vez Quitar todo. Ejecute Quitar todo de nuevo para eliminarlo.</numerusform>
+            <numerusform>%n vínculos más superan el máximo que quita una vez Quitar todo. Ejecute Quitar todo de nuevo para eliminarlos.</numerusform>
         </translation>
     </message>
     <message>
@@ -62134,7 +62134,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+4"/>
         <source>Printer trays for the first page and the other pages.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bandejas de impresora para la primera página y las demás páginas.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_file.cpp" line="+46"/>
@@ -62997,17 +62997,17 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+2"/>
         <source>Show Notes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mostrar notas</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>This document has no footnotes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Este documento no tiene notas al pie.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Notes can be shown in Print Layout view.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Las notas se pueden mostrar en la vista Diseño de impresión.</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -63937,12 +63937,12 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+7"/>
         <source>Move Section Up</source>
-        <translation type="unfinished">Subir sección</translation>
+        <translation type="unfinished">Mover sección arriba</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Move Section Down</source>
-        <translation type="unfinished">Bajar sección</translation>
+        <translation type="unfinished">Mover sección abajo</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -63952,12 +63952,12 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+15"/>
         <source>Sections can be moved only from the main text of the document, not from a header, footer, note, text box, or comment.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Las secciones solo se pueden mover desde el texto principal del documento, no desde un encabezado, pie de página, nota, cuadro de texto o comentario.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Put the caret in a heading, or under one, to move its section.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Coloque el cursor en un encabezado, o debajo de uno, para mover su sección.</translation>
     </message>
     <message>
         <location line="+49"/>
@@ -64387,28 +64387,28 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location filename="../apps/write/app/writewindow_proofstatus.cpp" line="+28"/>
         <source>Line %1, Column %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Línea %1, Columna %2</translation>
     </message>
     <message numerus="yes">
         <location line="+18"/>
         <source>%n+ proofing error(s)</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n+ error de revisión</numerusform>
+            <numerusform>%n+ errores de revisión</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+0"/>
         <source>%n proofing error(s)</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n error de revisión</numerusform>
+            <numerusform>%n errores de revisión</numerusform>
         </translation>
     </message>
     <message>
         <location line="+26"/>
         <source>There are no spelling or grammar errors in this document.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">No hay errores ortográficos ni gramaticales en este documento.</translation>
     </message>
 </context>
 <context>
@@ -66400,7 +66400,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+30"/>
         <source>Show Names</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mostrar nombres</translation>
     </message>
     <message>
         <location line="+29"/>
@@ -73256,7 +73256,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+4"/>
         <source>Some pictures could not be fully recovered.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Algunas imágenes no se pudieron recuperar por completo.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -73266,17 +73266,17 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+2"/>
         <source>What comes after the last slide of this presentation was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lo que sigue a la última diapositiva de esta presentación se reconstruyó a partir de un archivo dañado. Puede ser una versión anterior o proceder de otra parte del archivo. Compárelo con una copia de seguridad si tiene una.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>From slide %1 on, this presentation was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">A partir de la diapositiva %1, esta presentación se reconstruyó a partir de un archivo dañado. Puede ser una versión anterior o proceder de otra parte del archivo. Compárela con una copia de seguridad si tiene una.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This whole presentation was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Esta presentación completa se reconstruyó a partir de un archivo dañado. Puede ser una versión anterior o proceder de otra parte del archivo. Compárela con una copia de seguridad si tiene una.</translation>
     </message>
 </context>
 <context>
@@ -73395,42 +73395,42 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+30"/>
         <source>The file was damaged, so its parts were found by following the lists inside it, as far as they could be read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">El archivo estaba dañado, así que sus partes se localizaron siguiendo las listas que contiene, en la medida en que pudieron leerse.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The list of the parts of the file was damaged or gone, so each part was found by searching the file for it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La lista de las partes del archivo estaba dañada o no existía, así que cada parte se localizó buscándola dentro del archivo.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Where the lists that say how the pieces of the file fit together were damaged, each piece was taken to follow the one before it in the file.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Donde las listas que indican cómo encajan entre sí las piezas del archivo estaban dañadas, se supuso que cada pieza seguía a la anterior en el archivo.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Two parts of the file had the same name. The first could not be used, so a later one was used in its place.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dos partes del archivo tenían el mismo nombre. No se pudo usar la primera, así que se usó una posterior en su lugar.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Part of the file was stored in an unusual order, so it was read from the file&apos;s own lists of where its pieces are.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Una parte del archivo estaba almacenada en un orden inusual, así que se leyó a partir de las listas propias del archivo sobre la ubicación de sus piezas.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Part of the file could not be checked to see that it is complete, so it may be cut short or hold pieces that belong somewhere else.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">No se pudo comprobar que una parte del archivo esté completa, así que puede estar cortada o contener piezas que pertenecen a otro lugar.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Pieces of the file that its lists mark as unused were read, because nothing else could be found; they may hold old data.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Se leyeron las partes del archivo que sus listas marcan como no utilizadas, porque no se encontró nada más; pueden contener datos antiguos.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The small parts of the file, which are kept together in one place, could not be read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">No se pudieron leer las partes pequeñas del archivo, que se guardan juntas en un mismo lugar.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -73688,7 +73688,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+2"/>
         <source>Some pictures could not be fully recovered.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Algunas imágenes no pudieron recuperarse por completo.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -73698,22 +73698,22 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+5"/>
         <source>From paragraph %1 on, this text was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">A partir del párrafo %1, este texto se reconstruyó a partir de un archivo dañado. Puede ser una versión anterior o proceder de otra parte del archivo. Compárelo con una copia de seguridad si tiene una.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>This whole document was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Este documento completo se reconstruyó a partir de un archivo dañado. Puede ser una versión anterior o proceder de otra parte del archivo. Compárelo con una copia de seguridad si tiene una.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The formatting of this document was pieced together from a damaged file, so some of it may be wrong. Compare the document with a backup if you have one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">El formato de este documento se reconstruyó a partir de un archivo dañado, así que parte de él puede ser incorrecta. Compare el documento con una copia de seguridad si tiene una.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Part of what says how the text is formatted was pieced together from a damaged file, so some of the formatting may be wrong.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Parte de la información que define el formato del texto se reconstruyó a partir de un archivo dañado, así que parte del formato puede ser incorrecta.</translation>
     </message>
 </context>
 <context>
@@ -75050,67 +75050,67 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="-53"/>
         <source>This whole workbook was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Este libro completo se reconstruyó a partir de un archivo dañado. Puede ser una versión anterior o proceder de otra parte del archivo. Compárelo con una copia de seguridad si tiene una.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>In sheet &quot;%1&quot;, from row %2 on, and in any sheet that comes after it, this data was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">En la hoja &quot;%1&quot;, a partir de la fila %2, y en cualquier hoja posterior a ella, estos datos se reconstruyeron a partir de un archivo dañado. Puede ser una versión anterior o proceder de otra parte del archivo. Compárelos con una copia de seguridad si tiene una.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>In sheet &quot;%1&quot;, what comes after its last cell, and any sheet that comes after it, was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">En la hoja &quot;%1&quot;, lo que sigue a su última celda, y cualquier hoja posterior a ella, se reconstruyó a partir de un archivo dañado. Puede ser una versión anterior o proceder de otra parte del archivo. Compárelo con una copia de seguridad si tiene una.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>Sheet &quot;%1&quot; is empty, because its data could not be found in the file.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La hoja &quot;%1&quot; está vacía, porque no se encontraron sus datos en el archivo.</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>Sheet &quot;%1&quot; was cut short: its rows down to row %2 were recovered, and what came after them is lost.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La hoja &quot;%1&quot; está cortada: se recuperaron sus filas hasta la fila %2, y lo que venía después se ha perdido.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Sheet &quot;%1&quot; was cut short before any cell could be read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La hoja &quot;%1&quot; está cortada y no se pudo leer ninguna celda.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>More sheets were damaged or lost than are listed here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Se dañaron o perdieron más hojas de las que aparecen aquí.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The sheets of this file were too many to check one by one, so some may be cut short.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Las hojas de este archivo eran demasiadas para comprobarlas una por una, así que algunas pueden estar cortadas.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The other sheets were read whole.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">El resto de las hojas se leyeron completas.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Every sheet was read whole.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Todas las hojas se leyeron completas.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The front of the file, which holds the cell formats and fonts, was cut short, so some formatting may be missing.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">El inicio del archivo, que contiene los formatos de celda y las fuentes, está cortado, así que puede faltar parte del formato.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The cell formats, fonts, and sheet names were recovered.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Se recuperaron los formatos de celda, las fuentes y los nombres de hoja.</translation>
     </message>
     <message>
         <location line="+68"/>
         <source>The file was sound. A sheet that is damaged keeps the cells before the damage.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">El archivo estaba en buen estado. Una hoja dañada conserva las celdas anteriores al daño.</translation>
     </message>
     <message>
         <location line="+12"/>
@@ -75575,48 +75575,48 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <location filename="../apps/write/app/writewindow_view.cpp" line="-213"/>
         <location filename="../apps/write/core/blockmove.cpp" line="+174"/>
         <source>This document is protected, so a section can&apos;t be moved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Este documento está protegido, así que no se puede mover una sección.</translation>
     </message>
     <message>
         <location line="+6"/>
         <location filename="../apps/write/core/blockmove.cpp" line="-1"/>
         <source>Turn off Track Changes to move a section.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Desactive Control de cambios para mover una sección.</translation>
     </message>
     <message>
         <location filename="../apps/write/core/blockmove.cpp" line="+2"/>
         <source>Sections can&apos;t be moved while endnotes are collected at the end of each section. Put the endnotes at the end of the document first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">No se pueden mover secciones mientras las notas al final se agrupan al final de cada sección. Primero coloque las notas al final del documento.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>A section that holds endnotes or a text frame can&apos;t be moved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">No se puede mover una sección que contenga notas al final o un marco de texto.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>A section can&apos;t be moved from or to the middle of a table.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">No se puede mover una sección desde o hasta el centro de una tabla.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A table can&apos;t be put right against another table. Keep a paragraph between them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">No se puede colocar una tabla justo al lado de otra tabla. Deje un párrafo entre ellas.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A table can&apos;t be moved below the last paragraph of the document.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">No se puede mover una tabla debajo del último párrafo del documento.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>This section includes a section break, and moving it would change the page layout of other text, so it can&apos;t be moved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Esta sección incluye un salto de sección, y moverla cambiaría el diseño de página de otro texto, así que no se puede mover.</translation>
     </message>
     <message>
         <location line="+18"/>
         <source>This section holds one end of a bookmark, comment, field, or content control whose other end is outside it, so it can&apos;t be moved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Esta sección contiene un extremo de un marcador, comentario, campo o control de contenido cuyo otro extremo está fuera de ella, así que no se puede mover.</translation>
     </message>
 </context>
 <context>
@@ -76650,17 +76650,17 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+2"/>
         <source>Paper source</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Origen del papel</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Tray for the first page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bandeja para la primera página</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Tray for the other pages</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bandeja para las demás páginas</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -76670,7 +76670,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+1"/>
         <source>Other pages</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Demás páginas</translation>
     </message>
     <message>
         <location line="+72"/>
@@ -79679,7 +79679,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+489"/>
         <source>Drag along the lines of a table to draw or erase its borders.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Arrastre a lo largo de las líneas de una tabla para dibujar o borrar sus bordes.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/pageoutput.cpp" line="+220"/>
@@ -79813,7 +79813,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+373"/>
         <source>Drop the table between paragraphs, not inside a table.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Suelte la tabla entre párrafos, no dentro de una tabla.</translation>
     </message>
     <message>
         <location line="+262"/>
@@ -80408,17 +80408,17 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <location filename="../apps/write/core/sectionmove.cpp" line="+65"/>
         <location line="+11"/>
         <source>Only a heading, with what is under it, can be moved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Solo se puede mover un encabezado, junto con el contenido que tiene debajo.</translation>
     </message>
     <message>
         <location line="+18"/>
         <source>This section can&apos;t move up: there is no section of the same level above it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Esta sección no puede subir: no hay ninguna sección del mismo nivel por encima de ella.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>This section can&apos;t move down: there is no section of the same level below it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Esta sección no puede bajar: no hay ninguna sección del mismo nivel por debajo de ella.</translation>
     </message>
 </context>
 <context>
@@ -80925,44 +80925,44 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <location filename="../apps/write/core/tableops.cpp" line="+1431"/>
         <location line="+68"/>
         <source>A table can only be moved in the main text.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Una tabla solo se puede mover en el texto principal.</translation>
     </message>
     <message>
         <location line="-67"/>
         <source>Drop the table between paragraphs, not inside a table.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Suelte la tabla entre párrafos, no dentro de una tabla.</translation>
     </message>
     <message>
         <location line="+9"/>
         <location line="+77"/>
         <source>A table can only be moved where a paragraph follows it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Una tabla solo se puede mover donde le sigue un párrafo.</translation>
     </message>
     <message>
         <location line="-74"/>
         <location line="+70"/>
         <source>A table can&apos;t be put right against another table. Keep a paragraph between them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">No se puede colocar una tabla justo al lado de otra tabla. Deje un párrafo entre ellas.</translation>
     </message>
     <message>
         <location line="-7"/>
         <source>A table inside a table can&apos;t be moved this way.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">No se puede mover de esta forma una tabla que está dentro de otra tabla.</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>There is no paragraph above the table to move it past.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">No hay ningún párrafo encima de la tabla para moverla por encima.</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>There is no paragraph below the table to move it past.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">No hay ningún párrafo debajo de la tabla para moverla por debajo.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>A table can&apos;t be moved below the last paragraph of the document.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">No se puede mover una tabla debajo del último párrafo del documento.</translation>
     </message>
     <message>
         <location line="+513"/>

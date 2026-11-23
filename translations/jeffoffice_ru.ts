@@ -10023,98 +10023,98 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location filename="../libs/shell/app/papertray.cpp" line="+32"/>
         <source>Upper tray</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Верхний лоток</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Lower tray</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Нижний лоток</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Middle tray</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Средний лоток</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Manual feed</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ручная подача</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Envelope feeder</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Податчик конвертов</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Envelope, manual feed</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Конверт, ручная подача</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Automatic selection</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Автоматический выбор</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Tractor feed</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Подача с трактором</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Small-format tray</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Лоток для малого формата</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Large-format tray</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Лоток для большого формата</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Large-capacity tray</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Лоток большой ёмкости</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Cassette</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Кассета</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Tray chosen by the paper size</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Лоток по размеру бумаги</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>Tray %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Лоток %1</translation>
     </message>
     <message>
         <location line="+45"/>
         <source>The trays are saved in the document, but this system can&apos;t send them to the printer. Choose the tray in the printer&apos;s own settings when you print.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Лотки сохраняются в документе, но эта система не может передать их на принтер. Выберите лоток в собственных настройках принтера при печати.</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Default tray</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Лоток по умолчанию</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The printer picks the tray.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Лоток выбирает принтер.</translation>
     </message>
     <message>
         <location line="+6"/>
         <location line="+7"/>
         <source>%1 (not on this printer)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 (нет на этом принтере)</translation>
     </message>
     <message>
         <location line="-4"/>
         <source>This printer doesn&apos;t have this tray.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">На этом принтере нет такого лотка.</translation>
     </message>
 </context>
 <context>
@@ -28126,47 +28126,47 @@ This file is protected with a password. Password:</source>
         <location line="+14"/>
         <source>%n row(s) hidden by a filter are not included here. Clear the filter to show them.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n строка, скрытая фильтром, не учитывается здесь. Очистите фильтр, чтобы показать её.</numerusform>
+            <numerusform>%n строки, скрытые фильтром, не учитываются здесь. Очистите фильтр, чтобы показать их.</numerusform>
+            <numerusform>%n строк, скрытых фильтром, не учитываются здесь. Очистите фильтр, чтобы показать их.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Hidden names</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Скрытые имена</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Names that are set to be hidden: they are not offered in lists of names, but they are in the file. Show them to see what they stand for.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Имена, для которых задано скрытие: они не предлагаются в списках имён, но сохраняются в файле. Покажите их, чтобы увидеть, что они обозначают.</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Hidden objects</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Скрытые объекты</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Charts, pictures, shapes, and text boxes that are set to be hidden: they do not show or print, but they are in the file. Removing them can&apos;t be undone.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Диаграммы, рисунки, фигуры и текстовые поля, для которых задано скрытие: они не отображаются и не печатаются, но сохраняются в файле. Удаление необратимо.</translation>
     </message>
     <message numerus="yes">
         <location line="+15"/>
         <source>%n drawing(s) are too big to check all the way through, so hidden objects past the part checked are not counted.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n рисунок слишком велик для полной проверки, поэтому скрытые объекты за пределами проверенной части не учитываются.</numerusform>
+            <numerusform>%n рисунка слишком велики для полной проверки, поэтому скрытые объекты за пределами проверенной части не учитываются.</numerusform>
+            <numerusform>%n рисунков слишком велики для полной проверки, поэтому скрытые объекты за пределами проверенной части не учитываются.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n shape(s) of an older kind can&apos;t be read by this check, so it can&apos;t say whether any are hidden.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n фигура более старого типа не может быть прочитана этой проверкой, поэтому нельзя сказать, скрыты ли какие-либо из них.</numerusform>
+            <numerusform>%n фигуры более старого типа не могут быть прочитаны этой проверкой, поэтому нельзя сказать, скрыты ли какие-либо из них.</numerusform>
+            <numerusform>%n фигур более старого типа не могут быть прочитаны этой проверкой, поэтому нельзя сказать, скрыты ли какие-либо из них.</numerusform>
         </translation>
     </message>
     <message>
@@ -44150,7 +44150,7 @@ There is no help topic called &quot;%1&quot;.</source>
     <message>
         <location line="+0"/>
         <source>Not fully checked</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Проверено не полностью</translation>
     </message>
     <message>
         <location line="+30"/>
@@ -50374,7 +50374,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+166"/>
         <source>The headings changed, so the list was updated. Choose the heading again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Заголовки изменились, поэтому список обновлён. Выберите заголовок снова.</translation>
     </message>
     <message>
         <location line="+268"/>
@@ -59370,17 +59370,17 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+2"/>
         <source>Show Notes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Показать заметки</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>This document has no footnotes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">В этом документе нет сносок.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Notes can be shown in Print Layout view.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Заметки можно показать в режиме разметки страницы.</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -60393,83 +60393,83 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+26"/>
         <source>Linked pictures and objects, the template the document is attached to, and fields that read another file. Removing turns fields into text, takes out linked pictures and objects, including those in comments and text boxes, and detaches the template. Links in comments and other kept parts can&apos;t be undone. Web links stay.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Связанные рисунки и объекты, шаблон, к которому прикреплён документ, и поля, которые читают другой файл. Удаление превращает поля в текст, убирает связанные рисунки и объекты, в том числе в примечаниях и текстовых полях, и отсоединяет шаблон. Связи в примечаниях и других сохраняемых частях нельзя удалить этой командой. Веб-ссылки сохраняются.</translation>
     </message>
     <message numerus="yes">
         <location line="+6"/>
         <source>%n linked picture(s) or object(s) can&apos;t be checked, because the file does not say where each one goes.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n связанный рисунок или объект нельзя проверить, так как в файле не указано, где находится каждый из них.</numerusform>
+            <numerusform>%n связанных рисунка или объекта нельзя проверить, так как в файле не указано, где находится каждый из них.</numerusform>
+            <numerusform>%n связанных рисунков или объектов нельзя проверить, так как в файле не указано, где находится каждый из них.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n link(s) to another file are kept where Remove All can&apos;t take them out: inside other fields, comments, text boxes, and other parts of the file.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n связь с другим файлом сохраняется там, где «Удалить все» не может её убрать: внутри других полей, примечаний, текстовых полей и других частей файла.</numerusform>
+            <numerusform>%n связи с другими файлами сохраняются там, где «Удалить все» не может их убрать: внутри других полей, примечаний, текстовых полей и других частей файла.</numerusform>
+            <numerusform>%n связей с другими файлами сохраняются там, где «Удалить все» не может их убрать: внутри других полей, примечаний, текстовых полей и других частей файла.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+2"/>
         <source>the attached template</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">прикреплённый шаблон</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>the mail merge data source</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">источник данных для слияния почты</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>frames</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">фреймы</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>subdocuments</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">вложенные документы</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>a chart&apos;s outside data</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">внешние данные диаграммы</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>linked movies or sounds</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">связанные фильмы или звуки</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>linked style sheets</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">связанные таблицы стилей</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>%1 and %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 и %2</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>, and %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">, и %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The file keeps these, and Remove All can&apos;t take them out: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл сохраняет следующее, и «Удалить все» не может это убрать: %1.</translation>
     </message>
     <message numerus="yes">
         <location line="+2"/>
         <source>%n more link(s) are past the most that one Remove All takes out. Run Remove All again to take them out.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n ещё одна связь превышает максимум, который удаляет одна операция «Удалить все». Запустите «Удалить все» снова, чтобы убрать её.</numerusform>
+            <numerusform>%n ещё две связи превышают максимум, который удаляет одна операция «Удалить все». Запустите «Удалить все» снова, чтобы убрать их.</numerusform>
+            <numerusform>%n ещё связей превышают максимум, который удаляет одна операция «Удалить все». Запустите «Удалить все» снова, чтобы убрать их.</numerusform>
         </translation>
     </message>
     <message>
@@ -60531,7 +60531,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+4"/>
         <source>Printer trays for the first page and the other pages.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Лотки принтера для первой страницы и остальных страниц.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_file.cpp" line="-194"/>
@@ -62445,7 +62445,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+45"/>
         <source>The caret&apos;s line on the page and its place in the line</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Строка курсора на странице и его положение в строке</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -62455,12 +62455,12 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+13"/>
         <source>Spelling and grammar errors. Click to go to the next one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ошибки правописания и грамматики. Щёлкните, чтобы перейти к следующей.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Spelling and grammar errors</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ошибки правописания и грамматики</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -62632,12 +62632,12 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+1"/>
         <source>Move Table Up</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Переместить таблицу вверх</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Move Table Down</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Переместить таблицу вниз</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -62728,7 +62728,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+1"/>
         <source>Pen Weight: how thick the lines are that the Border Painter draws.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Толщина пера: толщина линий, которые рисует Кисть границ.</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -62758,12 +62758,12 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+1"/>
         <source>Pen Style: the kind of line the Border Painter draws. No Border makes it erase borders.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Стиль пера: тип линии, которую рисует Кисть границ. «Без границы» стирает границы.</translation>
     </message>
     <message>
         <location line="+136"/>
         <source>Move Table</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Переместить таблицу</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="-835"/>
@@ -63740,7 +63740,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+9"/>
         <source>Border Painter</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Кисть границ</translation>
     </message>
     <message>
         <location line="+15"/>
@@ -64025,12 +64025,12 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+15"/>
         <source>Sections can be moved only from the main text of the document, not from a header, footer, note, text box, or comment.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Разделы можно перемещать только из основного текста документа, но не из колонтитула, сноски, текстового поля или примечания.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Put the caret in a heading, or under one, to move its section.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Поместите курсор в заголовок или под него, чтобы переместить его раздел.</translation>
     </message>
     <message>
         <location line="+49"/>
@@ -64456,30 +64456,30 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../apps/write/app/writewindow_proofstatus.cpp" line="+28"/>
         <source>Line %1, Column %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Строка %1, столбец %2</translation>
     </message>
     <message numerus="yes">
         <location line="+18"/>
         <source>%n+ proofing error(s)</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n+ ошибка правописания</numerusform>
+            <numerusform>%n+ ошибки правописания</numerusform>
+            <numerusform>%n+ ошибок правописания</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+0"/>
         <source>%n proofing error(s)</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n ошибка правописания</numerusform>
+            <numerusform>%n ошибки правописания</numerusform>
+            <numerusform>%n ошибок правописания</numerusform>
         </translation>
     </message>
     <message>
         <location line="+26"/>
         <source>There are no spelling or grammar errors in this document.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">В этом документе нет ошибок правописания и грамматики.</translation>
     </message>
 </context>
 <context>
@@ -64990,7 +64990,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+30"/>
         <source>Show Names</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Показать имена</translation>
     </message>
     <message>
         <location line="+29"/>
@@ -73333,7 +73333,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+4"/>
         <source>Some pictures could not be fully recovered.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Некоторые рисунки не удалось полностью восстановить.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -73343,17 +73343,17 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+2"/>
         <source>What comes after the last slide of this presentation was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Содержимое после последнего слайда этой презентации собрано из повреждённого файла. Оно может быть более старой версией или взято из другой части файла. Если у вас есть резервная копия, сравните с ней.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>From slide %1 on, this presentation was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Начиная со слайда %1, эта презентация собрана из повреждённого файла. Она может быть более старой версией или взята из другой части файла. Если у вас есть резервная копия, сравните с ней.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This whole presentation was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Вся эта презентация собрана из повреждённого файла. Она может быть более старой версией или взята из другой части файла. Если у вас есть резервная копия, сравните с ней.</translation>
     </message>
 </context>
 <context>
@@ -73473,42 +73473,42 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+30"/>
         <source>The file was damaged, so its parts were found by following the lists inside it, as far as they could be read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл был повреждён, поэтому его части были найдены по спискам, содержащимся внутри файла, насколько эти списки удалось прочитать.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The list of the parts of the file was damaged or gone, so each part was found by searching the file for it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Список частей файла был повреждён или утрачен, поэтому каждая часть была найдена поиском по файлу.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Where the lists that say how the pieces of the file fit together were damaged, each piece was taken to follow the one before it in the file.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Там, где списки, определяющие порядок фрагментов файла, были повреждены, каждый фрагмент считался следующим за предыдущим в файле.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Two parts of the file had the same name. The first could not be used, so a later one was used in its place.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Две части файла имели одно и то же имя. Первая не могла быть использована, поэтому вместо неё была использована более поздняя.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Part of the file was stored in an unusual order, so it was read from the file&apos;s own lists of where its pieces are.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Часть файла была записана в необычном порядке, поэтому она была прочитана по собственным спискам файла с указанием расположения его фрагментов.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Part of the file could not be checked to see that it is complete, so it may be cut short or hold pieces that belong somewhere else.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Не удалось проверить, что часть файла полная, поэтому она может быть обрезана или содержать фрагменты, относящиеся к другим местам.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Pieces of the file that its lists mark as unused were read, because nothing else could be found; they may hold old data.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Фрагменты файла, которые его списки отмечают как неиспользуемые, были прочитаны, так как ничего другого найти не удалось; они могут содержать старые данные.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The small parts of the file, which are kept together in one place, could not be read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Мелкие части файла, которые хранятся вместе в одном месте, не удалось прочитать.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -73768,7 +73768,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+2"/>
         <source>Some pictures could not be fully recovered.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Некоторые рисунки не удалось полностью восстановить.</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -73778,22 +73778,22 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+5"/>
         <source>From paragraph %1 on, this text was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Начиная с абзаца %1, этот текст собран из повреждённого файла. Он может быть более старой версией или взят из другой части файла. Если у вас есть резервная копия, сравните с ней.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>This whole document was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Весь этот документ собран из повреждённого файла. Он может быть более старой версией или взят из другой части файла. Если у вас есть резервная копия, сравните с ней.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The formatting of this document was pieced together from a damaged file, so some of it may be wrong. Compare the document with a backup if you have one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Оформление этого документа собрано из повреждённого файла, поэтому часть его может быть неверной. Если у вас есть резервная копия, сравните документ с ней.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Part of what says how the text is formatted was pieced together from a damaged file, so some of the formatting may be wrong.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Часть сведений о форматировании текста собрана из повреждённого файла, поэтому часть форматирования может быть неверной.</translation>
     </message>
 </context>
 <context>
@@ -75139,67 +75139,67 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="-53"/>
         <source>This whole workbook was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Вся эта книга собрана из повреждённого файла. Она может быть более старой версией или взята из другой части файла. Если у вас есть резервная копия, сравните с ней.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>In sheet &quot;%1&quot;, from row %2 on, and in any sheet that comes after it, this data was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">На листе &quot;%1&quot;, начиная со строки %2, а также на всех последующих листах эти данные собраны из повреждённого файла. Они могут быть более старыми версиями или взяты из другой части файла. Если у вас есть резервная копия, сравните с ней.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>In sheet &quot;%1&quot;, what comes after its last cell, and any sheet that comes after it, was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">На листе &quot;%1&quot; содержимое после его последней ячейки, а также на всех последующих листах, собрано из повреждённого файла. Оно может быть более старой версией или взято из другой части файла. Если у вас есть резервная копия, сравните с ней.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>Sheet &quot;%1&quot; is empty, because its data could not be found in the file.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Лист &quot;%1&quot; пуст, так как его данные не удалось найти в файле.</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>Sheet &quot;%1&quot; was cut short: its rows down to row %2 were recovered, and what came after them is lost.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Лист &quot;%1&quot; обрезан: его строки до строки %2 восстановлены, а всё, что шло после них, утрачено.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Sheet &quot;%1&quot; was cut short before any cell could be read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Лист &quot;%1&quot; обрезан до того, как удалось прочитать хоть одну ячейку.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>More sheets were damaged or lost than are listed here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Повреждено или утрачено больше листов, чем перечислено здесь.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The sheets of this file were too many to check one by one, so some may be cut short.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Листов в этом файле слишком много, чтобы проверить каждый по отдельности, поэтому некоторые могут быть обрезаны.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The other sheets were read whole.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Остальные листы прочитаны полностью.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Every sheet was read whole.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Все листы прочитаны полностью.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The front of the file, which holds the cell formats and fonts, was cut short, so some formatting may be missing.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Начало файла, где хранятся форматы ячеек и шрифты, обрезано, поэтому часть форматирования может отсутствовать.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The cell formats, fonts, and sheet names were recovered.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Форматы ячеек, шрифты и имена листов восстановлены.</translation>
     </message>
     <message>
         <location line="+68"/>
         <source>The file was sound. A sheet that is damaged keeps the cells before the damage.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл был исправен. Повреждённый лист сохраняет ячейки, которые находятся до места повреждения.</translation>
     </message>
     <message>
         <location line="+12"/>
@@ -75669,48 +75669,48 @@ The password couldn&apos;t be put on the file.</source>
         <location filename="../apps/write/app/writewindow_view.cpp" line="-213"/>
         <location filename="../apps/write/core/blockmove.cpp" line="+174"/>
         <source>This document is protected, so a section can&apos;t be moved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Этот документ защищён, поэтому раздел нельзя переместить.</translation>
     </message>
     <message>
         <location line="+6"/>
         <location filename="../apps/write/core/blockmove.cpp" line="-1"/>
         <source>Turn off Track Changes to move a section.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Чтобы переместить раздел, отключите режим исправлений.</translation>
     </message>
     <message>
         <location filename="../apps/write/core/blockmove.cpp" line="+2"/>
         <source>Sections can&apos;t be moved while endnotes are collected at the end of each section. Put the endnotes at the end of the document first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Разделы нельзя переместить, пока концевые сноски собраны в конце каждого раздела. Сначала поместите концевые сноски в конец документа.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>A section that holds endnotes or a text frame can&apos;t be moved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Раздел, содержащий концевые сноски или текстовую рамку, нельзя переместить.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>A section can&apos;t be moved from or to the middle of a table.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Раздел нельзя переместить из середины таблицы или в её середину.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A table can&apos;t be put right against another table. Keep a paragraph between them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Таблицу нельзя вставить непосредственно рядом с другой таблицей. Оставьте между ними абзац.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A table can&apos;t be moved below the last paragraph of the document.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Таблицу нельзя переместить ниже последнего абзаца документа.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>This section includes a section break, and moving it would change the page layout of other text, so it can&apos;t be moved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Этот раздел содержит разрыв раздела, и его перемещение изменит разметку страниц другого текста, поэтому он не может быть перемещён.</translation>
     </message>
     <message>
         <location line="+18"/>
         <source>This section holds one end of a bookmark, comment, field, or content control whose other end is outside it, so it can&apos;t be moved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Этот раздел содержит один конец закладки, примечания, поля или элемента управления содержимым, второй конец которого находится за его пределами, поэтому он не может быть перемещён.</translation>
     </message>
 </context>
 <context>
@@ -76071,17 +76071,17 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+2"/>
         <source>Paper source</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Источник бумаги</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Tray for the first page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Лоток для первой страницы</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Tray for the other pages</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Лоток для остальных страниц</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -76091,7 +76091,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+1"/>
         <source>Other pages</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Остальные страницы</translation>
     </message>
     <message>
         <location line="+72"/>
@@ -79774,7 +79774,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+489"/>
         <source>Drag along the lines of a table to draw or erase its borders.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Перетаскивайте по линиям таблицы, чтобы нарисовать или стереть её границы.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/pageoutput.cpp" line="+220"/>
@@ -79908,7 +79908,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+373"/>
         <source>Drop the table between paragraphs, not inside a table.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Поместите таблицу между абзацами, а не внутри таблицы.</translation>
     </message>
     <message>
         <location line="+262"/>
@@ -80503,17 +80503,17 @@ The password couldn&apos;t be put on the file.</source>
         <location filename="../apps/write/core/sectionmove.cpp" line="+65"/>
         <location line="+11"/>
         <source>Only a heading, with what is under it, can be moved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Перемещать можно только заголовок вместе с находящимся под ним содержимым.</translation>
     </message>
     <message>
         <location line="+18"/>
         <source>This section can&apos;t move up: there is no section of the same level above it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Этот раздел нельзя поднять: над ним нет раздела того же уровня.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>This section can&apos;t move down: there is no section of the same level below it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Этот раздел нельзя опустить: под ним нет раздела того же уровня.</translation>
     </message>
 </context>
 <context>
@@ -81022,44 +81022,44 @@ The password couldn&apos;t be put on the file.</source>
         <location filename="../apps/write/core/tableops.cpp" line="+1431"/>
         <location line="+68"/>
         <source>A table can only be moved in the main text.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Таблицу можно переместить только в основном тексте.</translation>
     </message>
     <message>
         <location line="-67"/>
         <source>Drop the table between paragraphs, not inside a table.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Поместите таблицу между абзацами, а не внутри таблицы.</translation>
     </message>
     <message>
         <location line="+9"/>
         <location line="+77"/>
         <source>A table can only be moved where a paragraph follows it.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Таблицу можно переместить только туда, где за ней следует абзац.</translation>
     </message>
     <message>
         <location line="-74"/>
         <location line="+70"/>
         <source>A table can&apos;t be put right against another table. Keep a paragraph between them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Таблицу нельзя вставить непосредственно рядом с другой таблицей. Оставьте между ними абзац.</translation>
     </message>
     <message>
         <location line="-7"/>
         <source>A table inside a table can&apos;t be moved this way.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Таблицу, вложенную в другую таблицу, таким способом переместить нельзя.</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>There is no paragraph above the table to move it past.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Над таблицей нет абзаца, за который её можно было бы переместить.</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>There is no paragraph below the table to move it past.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Под таблицей нет абзаца, за который её можно было бы переместить.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>A table can&apos;t be moved below the last paragraph of the document.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Таблицу нельзя переместить ниже последнего абзаца документа.</translation>
     </message>
     <message>
         <location line="+513"/>
