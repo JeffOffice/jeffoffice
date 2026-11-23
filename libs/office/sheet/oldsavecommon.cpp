@@ -135,6 +135,11 @@ void Features::note(const Sheet &sheet)
     if (!sheet.validations.isEmpty()) add(QT_TRANSLATE_NOOP("Sheet", "data validation"));
     if (!sheet.scenarios.isEmpty()) add(QT_TRANSLATE_NOOP("Sheet", "scenarios"));
     if (!sheet.conditionalFormats.isEmpty()) add(QT_TRANSLATE_NOOP("Sheet", "conditional formatting"));
+    for (const CondRule &rule : sheet.conditionalFormats)
+        if (rule.type == CondRule::Type::DataBar || rule.type == CondRule::Type::ColorScale || rule.type == CondRule::Type::IconSet) {
+            add(QT_TRANSLATE_NOOP("Sheet", "data bars, color scales, and icon sets"));
+            break;
+        }
     if (sheet.autoFilter.valid()) add(QT_TRANSLATE_NOOP("Sheet", "filters"));
     if (sheet.isProtected) add(QT_TRANSLATE_NOOP("Sheet", "sheet protection"));
     if (sheet.tabColor.isSet() && m_kind == CopyKind::Xls) add(QT_TRANSLATE_NOOP("Sheet", "tab colors"));

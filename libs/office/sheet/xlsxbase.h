@@ -50,7 +50,8 @@ QByteArray colorXml(const char *name, const ColorSpec &color);
 QByteArray newSheetSkeleton(const Sheet &sheet);
 // The conditionalFormatting and dataValidations elements of the rules, as the file writes them. With `extensions`, the data bars that look other than the plain one are written with their
 // extension too: the list of extensions (which ends the sheet) is put there, empty if there is none.
-QByteArray conditionalFormatsXml(const QVector<CondRule> &rules, QByteArray *extensions = nullptr);
+// With `extensions`, the 2010 entries the data bars need go there (an extension list); their ids are numbered from `idBase` + 1.
+QByteArray conditionalFormatsXml(const QVector<CondRule> &rules, QByteArray *extensions = nullptr, int idBase = 0);
 QByteArray validationsXml(const QVector<Validation> &rules);
 
 } // namespace jp::office::sheet

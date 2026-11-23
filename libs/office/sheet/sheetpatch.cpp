@@ -1575,7 +1575,7 @@ QByteArray extensionElementEdited(const QByteArray &element, const SheetChanges 
 }
 
 // The sheet's extension list edited: the 2010 rules as above, the ones brought back put in, and what is left empty taken out. Empty when the list goes.
-QByteArray extensionListEdited(const QByteArray &extLst, const SheetChanges &edit, const std::map<QString, int> &idToFilePriority, const std::set<QString> &gone, std::map<int, CondRaw> *raw)
+QByteArray extensionListEdited(const QByteArray &extLst, const SheetChanges &edit, const std::map<QString, int> &idToFilePriority, const std::set<QString> &gone, std::map<int, CondRaw> *raw, const QByteArray &newX14 = QByteArray())
 {
     // the entries brought back, as elements
     QByteArray back;
@@ -1586,6 +1586,8 @@ QByteArray extensionListEdited(const QByteArray &extLst, const SheetChanges &edi
         QByteArray rule = has ? withAttr(r.second.x14Rule, "priority", QByteArray::number(own + edit.condShift)) : r.second.x14Rule;
         back += r.second.x14Open + rule + withText(r.second.x14Sqref, rangeText(r.first)) + closeTagFor(r.second.x14Open);
     }
+    // (the 2010 entries of the rules made here: each carries its own declaration of the prefix, so that it reads in a container that has another)
+    back += newX14;
     bool sawX14 = false;
     int exts = 0;
     QByteArray out = rebuilt(extLst, [&](const Child &k, const QByteArray &part) -> QByteArray {
@@ -1617,7 +1619,7 @@ QByteArray extensionListEdited(const QByteArray &extLst, const SheetChanges &edi
     });
     if (!sawX14 && !back.isEmpty()) {
         // (the file had none: the extension is made, with the prefix of the entries brought back)
-        const QByteArray prefix = openTagOf(edit.condRestore.front().second.x14Open).mid(1, openTagOf(edit.condRestore.front().second.x14Open).indexOf(':'));
+        const QByteArray prefix = edit.condRestore.empty() ? QByteArray("x14:") : openTagOf(edit.condRestore.front().second.x14Open).mid(1, openTagOf(edit.condRestore.front().second.x14Open).indexOf(':'));
         const QByteArray ext = "<ext uri=\"{78C0D931-6437-407d-A8EE-F0AAD7539E65}\" xmlns:" + prefix.left(prefix.size() - 1) + "=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/main\"><" + prefix + "conditionalFormattings>"
                                + back + "</" + prefix + "conditionalFormattings></ext>";
         const qsizetype close = out.lastIndexOf("</");
@@ -1673,8 +1675,21 @@ QByteArray tailWithCondEdit(const QByteArray &after, const SheetChanges &edit, c
 {
     static const QList<QByteArray> later = {"dataValidations", "hyperlinks", "printOptions", "pageMargins", "pageSetup", "headerFooter", "rowBreaks", "colBreaks", "customProperties", "cellWatches",
                                             "ignoredErrors", "smartTags", "drawing", "legacyDrawing", "legacyDrawingHF", "drawingHF", "picture", "oleObjects", "controls", "webPublishItems", "tableParts", "extLst"};
-    QByteArray generated;
-    if (!edit.condNew.isEmpty()) generated = withPrefix(conditionalFormatsXml(edit.condNew, nullptr), prefix);
+    QByteArray generated, newX14;
+    if (!edit.condNew.isEmpty()) {
+        // (the ids that tie a data bar to its 2010 entry go on from the highest one of ours the file has)
+        int idBase = 0;
+        for (qsizetype at = after.indexOf("{00000000-0000-4000-8000-"); at >= 0; at = after.indexOf("{00000000-0000-4000-8000-", at + 1))
+            idBase = std::max(idBase, after.mid(at + 25, 12).toInt(nullptr, 16));
+        QByteArray extensions;
+        generated = withPrefix(conditionalFormatsXml(edit.condNew, &extensions, idBase), prefix);
+        const QByteArray open = "<x14:conditionalFormattings>", close = "</x14:conditionalFormattings>";
+        const qsizetype from = extensions.indexOf(open), to = extensions.lastIndexOf(close);
+        if (from >= 0 && to > from) {
+            newX14 = extensions.mid(from + open.size(), to - from - open.size());
+            newX14.replace("<x14:conditionalFormatting ", "<x14:conditionalFormatting xmlns:x14=\"http://schemas.microsoft.com/office/spreadsheetml/2009/9/main\" ");
+        }
+    }
     for (const auto &r : edit.condRestore) {
         QByteArray o = r.second.open;
         setAttr(&o, "sqref", xmlscan::escapeAttribute(rangeText(r.first)));
@@ -1790,9 +1805,9 @@ QByteArray tailWithCondEdit(const QByteArray &after, const SheetChanges &edit, c
             q = e.end;
             if (e.closing) {
                 if (--dd < 0) {
-                    if (restoreX14 && !haveExt) {
-                        // (no extension list in the file: one is made at the end, for the 2010 entries brought back)
-                        const QByteArray list = extensionListEdited("<extLst></extLst>", edit, idToFilePriority, goneIds, &rawX14);
+                    if ((restoreX14 || !newX14.isEmpty()) && !haveExt) {
+                        // (no extension list in the file: one is made at the end, for the 2010 entries brought back or made here)
+                        const QByteArray list = extensionListEdited("<extLst></extLst>", edit, idToFilePriority, goneIds, &rawX14, newX14);
                         result = result.left(e.start) + list + result.mid(e.start);
                     }
                     break;
@@ -1810,7 +1825,7 @@ QByteArray tailWithCondEdit(const QByteArray &after, const SheetChanges &edit, c
                     end = c.end;
                 }
                 const QByteArray list = result.mid(e.start, end - e.start);
-                result = result.left(e.start) + extensionListEdited(list, edit, idToFilePriority, goneIds, &rawX14) + result.mid(end);
+                result = result.left(e.start) + extensionListEdited(list, edit, idToFilePriority, goneIds, &rawX14, newX14) + result.mid(end);
                 done = true;
                 continue;
             }

@@ -22,6 +22,7 @@
 
 #include <tuple>
 #include "app/anchordialogs.h"
+#include "app/condrulesdialog.h"
 #include "app/threadspane.h"
 #include "app/celleditor.h"
 #include "app/filterpopup.h"
@@ -265,13 +266,18 @@ public:
     void setGoToAsker(const std::function<bool(QString *)> &asker) { m_goToAsker = asker; }
     // What a conditional formatting rule is asked for (a test answers in place of the window): the kind of rule, the one or two values, and how the cells look (a place in the ready-made looks).
     struct CondAnswer {
-        enum class Kind { Greater, Less, Between, Equal, Contains, Duplicate, Top, Bottom, TopPercent, BottomPercent, Above, Below } kind = Kind::Greater;
+        enum class Kind { Greater, Less, Between, Equal, Contains, Duplicate, Top, Bottom, TopPercent, BottomPercent, Above, Below, DateOccurring } kind = Kind::Greater;
         QString value1, value2;
         int preset = 0;
     };
     // How many rules the last change of the selection looked at for the choices of Clear Rules.
     qint64 condRulesScanned() const { return m_condScanned; }
     void setCondAsker(const std::function<bool(CondAnswer *)> &asker) { m_condAsker = asker; }
+    // New Rule and Edit Rule ask for the whole rule (a test answers in place of the window); `editing` is true for a rule that exists.
+    void setCondSpecAsker(const std::function<bool(CondSpec *, bool editing)> &asker) { m_condSpecAsker = asker; }
+    // Manage Rules asks for the list as it is to be (a test answers in place of the window): the rules as they are, and the editor that New Rule and Edit Rule use.
+    using CondEditor = CondManageDialog::Editor;
+    void setCondManageAsker(const std::function<bool(const QVector<CondManageDialog::Item> &, const CondEditor &, QVector<crunch::EditSession::CondManaged> *)> &asker) { m_manageAsker = asker; }
     // Asks for the name of a new cell style (a test answers in place of the window); false when it is given up.
     void setStyleNameAsker(const std::function<bool(QString *)> &asker) { m_styleNameAsker = asker; }
     void setSpecialAsker(const std::function<bool(jp::crunch::SpecialOptions *)> &asker) { m_specialAsker = asker; }
@@ -1331,6 +1337,13 @@ private:
     std::function<bool(jp::crunch::SpecialOptions *)> m_specialAsker;
     std::function<bool(QString *)> m_styleNameAsker;
     std::function<bool(CondAnswer *)> m_condAsker;
+    std::function<bool(CondSpec *, bool)> m_condSpecAsker;
+    std::function<bool(const QVector<CondManageDialog::Item> &, const CondEditor &, QVector<crunch::EditSession::CondManaged> *)> m_manageAsker;
+    void addCondRuleFromSpec(const CondSpec &spec);
+    void newCondRule();
+    bool askCondSpec(CondSpec *spec, bool editing);
+    void manageCondRules();
+    QMenu *buildCondGalleryMenu(int which, QWidget *owner);
     void createCondActions();
     bool askCondRule(CondAnswer *answer);
     void makeCondRule(CondAnswer::Kind kind);

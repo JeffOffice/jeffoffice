@@ -1189,6 +1189,9 @@ void CrunchWindow::formatRibbonParts(RibbonParts &parts)
         return box;
     };
     parts.menus[QStringLiteral("tabColors")] = [this](QWidget *owner) { return buildTabColorMenu(owner); };
+    parts.menus[QStringLiteral("condDataBars")] = [this](QWidget *owner) { return buildCondGalleryMenu(0, owner); };
+    parts.menus[QStringLiteral("condColorScales")] = [this](QWidget *owner) { return buildCondGalleryMenu(1, owner); };
+    parts.menus[QStringLiteral("condIconSets")] = [this](QWidget *owner) { return buildCondGalleryMenu(2, owner); };
     parts.menus[QStringLiteral("unhideSheets")] = [this](QWidget *owner) { return buildUnhideMenu(owner); };
     parts.menus[QStringLiteral("equationGallery")] = [this](QWidget *owner) {
         auto *m = new QMenu(owner);

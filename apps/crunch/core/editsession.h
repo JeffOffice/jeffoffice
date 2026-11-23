@@ -1056,6 +1056,17 @@ public:
     Outcome addCondRule(int sheet, jp::office::sheet::CondRule rule, const jp::office::sheet::DifferentialFormat &format);
     // Takes away the rules that are on any of the cells of `range` (all the sheet's when it is not valid): one step.
     Outcome clearCondRules(int sheet, const jp::office::sheet::CellRange &range);
+    // Manage Rules: the sheet's rules as the manager left them, in priority order, as one step of Undo. A rule that is `changed` (or has no `uid`) is a new one made from `rule` (and `look`, when
+    // `newLook`); the others are the sheet's own, by `rule.uid`. A rule of the file that is not where it was (the rules below it are not in the file's order) is written again, so that the file
+    // has the order shown. Not ok, with the reason, as addCondRule's.
+    struct CondManaged {
+        jp::office::sheet::CondRule rule;
+        bool changed = false, newLook = false;
+        jp::office::sheet::DifferentialFormat look;
+    };
+    Outcome setManagedCondRules(int sheet, const QVector<CondManaged> &list);
+    // The look (differential format) a rule has, or an empty one.
+    jp::office::sheet::DifferentialFormat condLookOf(const jp::office::sheet::CondRule &rule) const;
     // (what a step of the rules does, and what the save puts in the file)
     void setCondRules(int sheet, const QVector<jp::office::sheet::CondRule> &rules);
     void ensureCondUids(int sheet);

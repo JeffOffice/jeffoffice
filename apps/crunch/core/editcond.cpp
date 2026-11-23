@@ -4,6 +4,7 @@
 
 #include <QUndoCommand>
 
+#include <climits>
 #include <functional>
 #include <memory>
 #include <set>
@@ -322,6 +323,70 @@ EditSession::Outcome EditSession::addCondRule(int sheet, CondRule rule, const Di
     rule.priority = 1;
     after.prepend(rule);
     m_undo.push(new CondChange(this, sheet, now, after, tr("Conditional Formatting"), m_undoBytes, format, dxf, added));
+    return out;
+}
+
+DifferentialFormat EditSession::condLookOf(const CondRule &rule) const
+{
+    if (rule.dxf < 0 || !m_book) return DifferentialFormat();
+    const auto &list = m_book->book->styles().dxfs;
+    return rule.dxf < list.size() ? list[rule.dxf] : DifferentialFormat();
+}
+
+EditSession::Outcome EditSession::setManagedCondRules(int sheet, const QVector<CondManaged> &list)
+{
+    Outcome out;
+    QString why;
+    auto refuse = [&](const QString &text) {
+        out.ok = false;
+        out.problem = text;
+        return out;
+    };
+    if (!canEdit(&why) || !canEditSheet(sheet, &why)) return refuse(why);
+    if (const QString no = condRulesRefusal(sheet); !no.isEmpty()) return refuse(no);
+    if (list.size() > kMaxRulesOnASheet) return refuse(tr("This sheet has more rules than JeffCrunch changes (%1).").arg(kMaxRulesOnASheet));
+    ensureCondUids(sheet);
+    const QVector<CondRule> now = condRules(sheet);
+    std::map<quint32, CondRule> own;
+    for (const CondRule &r : now) own[r.uid] = r;
+    // (which of the rules stay the file's own: the ones at the end that are in the file, in the file's order)
+    QVector<bool> fresh(list.size());
+    for (int i = 0; i < list.size(); ++i) fresh[i] = list[i].changed || list[i].rule.uid == 0 || !own.count(list[i].rule.uid);
+    int boundary = int(list.size());
+    int lastFile = INT_MAX;
+    while (boundary > 0) {
+        const int i = boundary - 1;
+        if (fresh[i]) break;
+        const int file = own.at(list[i].rule.uid).origPriority;
+        if (file <= 0 || file >= lastFile) break;
+        lastFile = file;
+        --boundary;
+    }
+    QVector<CondRule> after;
+    {
+        std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+        if (!hold) return refuse(tr("The workbook is busy. Try again in a moment."));
+        for (int i = 0; i < list.size(); ++i) {
+            CondRule r = fresh[i] ? list[i].rule : own.at(list[i].rule.uid);
+            if (i < boundary) {
+                // (written again, as a rule of its own: the file's copy of it is taken away)
+                r.uid = ++m_condUid;
+                r.origPriority = 0;
+                r.extId.clear();
+                if (list[i].newLook) {
+                    r.dxf = list[i].look.isEmpty() ? -1 : m_book->book->dxfFor(list[i].look);
+                    if (r.dxf < 0 && !list[i].look.isEmpty()) return refuse(tr("This workbook has no place to keep the look of a rule."));
+                }
+            }
+            if (r.ranges.isEmpty()) return refuse(tr("Select the cells the rule is for."));
+            r.priority = i + 1;
+            after.append(r);
+        }
+    }
+    bool same = after.size() == now.size();
+    for (int i = 0; same && i < after.size(); ++i) same = after[i].uid == now[i].uid && after[i].priority == now[i].priority;
+    if (same) return out;
+    m_undo.push(new CondChange(this, sheet, now, after, tr("Conditional Formatting"), m_undoBytes));
     return out;
 }
 

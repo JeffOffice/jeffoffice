@@ -137,7 +137,7 @@ QByteArray x14Value(const CondValue &v)
 
 } // namespace
 
-QByteArray conditionalFormatsXml(const QVector<CondRule> &rules, QByteArray *extensions)
+QByteArray conditionalFormatsXml(const QVector<CondRule> &rules, QByteArray *extensions, int idBase)
 {
     using T = CondRule::Type;
     QByteArray out;
@@ -230,7 +230,7 @@ QByteArray conditionalFormatsXml(const QVector<CondRule> &rules, QByteArray *ext
             children += colorsXml(r.colors.isEmpty() ? QVector<ColorSpec>{ColorSpec::fromRgb(0x638EC6)} : QVector<ColorSpec>{r.colors.first()}) + "</dataBar>";
             if (extensions && needsExtension(r)) {
                 // (the look a data bar has besides its color: the extension that ties to the rule by an id says how it is filled, bordered, and where its axis is)
-                const QByteArray id = extensionId(++extensionCount);
+                const QByteArray id = extensionId(++extensionCount + idBase);
                 children += QByteArray("<extLst><ext xmlns:x14=\"") + kX14 + "\" uri=\"{B025F937-C7B1-47D3-B67F-A62EFF666E3E}\"><x14:id>" + id + "</x14:id></ext></extLst>";
                 QByteArray bar = QByteArray("<x14:cfRule type=\"dataBar\" id=\"") + id + "\"><x14:dataBar" + attr("minLength", num(r.minLength)) + attr("maxLength", num(r.maxLength));
                 bar += attr("gradient", r.gradient ? "1" : "0");
