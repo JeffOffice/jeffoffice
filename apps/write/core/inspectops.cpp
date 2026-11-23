@@ -7,6 +7,7 @@
 #include "text/textprops.h"
 
 #include <QRegularExpression>
+#include <QStringConverter>
 #include <QXmlStreamReader>
 #include <atomic>
 #include <functional>
@@ -227,13 +228,15 @@ QByteArray withoutLinks(const QByteArray &x, const QVector<Ref> &refs, int limit
 }
 
 // Whether kept XML (or, as a `fragment`, one element or more, with no root of their own) is well formed.
-bool wellFormed(const QByteArray &x, bool fragment)
+bool wellFormed(const QByteArray &x, bool fragment, bool utf8Text = false)
 {
     s_linkBytes += x.size();
     QXmlStreamReader r;
     r.setNamespaceProcessing(false);
     if (fragment) r.addData("<x>");
-    r.addData(x);
+    // (text that was read out of another encoding is given as text, so a declaration of that encoding is not held against its bytes)
+    if (utf8Text) r.addData(QString::fromUtf8(x));
+    else r.addData(x);
     if (fragment) r.addData("</x>");
     while (!r.atEnd()) r.readNext();
     return !r.hasError();
@@ -249,7 +252,7 @@ struct Judged {
     QSet<QString> named, every;
 };
 
-Judged judgeXml(const QByteArray &xml, const LinkIds &ids, bool fragment, bool allNested, int limit)
+Judged judgeXml(const QByteArray &xml, const LinkIds &ids, bool fragment, bool allNested, int limit, bool utf8Text = false)
 {
     Judged j;
     const Scan s = scanRefs(xml, ids);
@@ -272,7 +275,7 @@ Judged judgeXml(const QByteArray &xml, const LinkIds &ids, bool fragment, bool a
     int done = 0;
     QSet<QString> named;
     const QByteArray edited = withoutLinks(xml, s.refs, take, &done, &named);
-    if (!wellFormed(edited, fragment)) return j;
+    if (!wellFormed(edited, fragment, utf8Text)) return j;
     j.editable = removable;
     j.kept -= removable;
     j.applied = done;
@@ -386,9 +389,56 @@ struct PartPlan {
     QString name, contentType;
     QVector<office::Relationship> rels;
     Judged judged;
-    int fields = 0;
+    int fields = 0, leftOut = 0;   // (links in the part's relationships that no attribute of it was found to name)
     bool tooLarge = false;
+    QByteArray encodedBack;   // the bytes to put in the file, in the encoding the part came in (when it was read out of another)
+    bool reencode = false;
 };
+
+// A kept part's text as UTF-8 for the look through it: the part's own bytes when they are one byte to a letter, the text of a part in UTF-16 (a byte-order mark, or the bytes of "<?" with a
+// zero beside each), and nothing for another encoding that has zeros in its first bytes (UTF-32), which is said to be not looked through. `back` puts the edited text into the first encoding again.
+struct KeptText {
+    QByteArray utf8;
+    bool readable = true, converted = false, mark = false;   // (a byte-order mark is not part of the text: it is put back first)
+    QStringConverter::Encoding encoding = QStringConverter::Utf8;
+    QByteArray back(const QByteArray &edited) const
+    {
+        QStringEncoder enc(encoding, QStringConverter::Flag::Stateless);
+        return QByteArray(enc(QString(mark ? QString(QChar(0xFEFF)) : QString()) + QString::fromUtf8(edited)));
+    }
+};
+
+KeptText keptText(const QByteArray &data)
+{
+    KeptText t;
+    const auto b = [&](int i) { return i < data.size() ? uchar(data[i]) : uchar(0xFF); };
+    if (data.size() >= 4 && ((b(0) == 0xFF && b(1) == 0xFE && b(2) == 0 && b(3) == 0) || (b(0) == 0 && b(1) == 0 && b(2) == 0xFE && b(3) == 0xFF))) {
+        t.readable = false;
+        return t;
+    }
+    if (data.size() >= 2 && b(0) == 0xFF && b(1) == 0xFE) t.encoding = QStringConverter::Utf16LE, t.converted = true;
+    else if (data.size() >= 2 && b(0) == 0xFE && b(1) == 0xFF) t.encoding = QStringConverter::Utf16BE, t.converted = true;
+    else if (data.size() >= 4 && b(0) == '<' && b(1) == 0 && b(2) != 0 && b(3) == 0) t.encoding = QStringConverter::Utf16LE, t.converted = true;
+    else if (data.size() >= 4 && b(0) == 0 && b(1) == '<' && b(2) == 0 && b(3) != 0) t.encoding = QStringConverter::Utf16BE, t.converted = true;
+    else if (data.left(4).contains('\0')) {
+        t.readable = false;
+        return t;
+    }
+    if (!t.converted) {
+        t.utf8 = data;
+        return t;
+    }
+    QStringDecoder dec(t.encoding, QStringConverter::Flag::Stateless);
+    QString text = dec(data);
+    t.mark = (b(0) == 0xFF && b(1) == 0xFE) || (b(0) == 0xFE && b(1) == 0xFF);
+    if (text.startsWith(QChar(0xFEFF))) text.remove(0, 1);
+    if (dec.hasError()) {
+        t.readable = false;
+        return t;
+    }
+    t.utf8 = text.toUtf8();
+    return t;
+}
 
 QVector<PartPlan> planParts(const WriteDoc &doc, int *limit)
 {
@@ -404,19 +454,32 @@ QVector<PartPlan> planParts(const WriteDoc &doc, int *limit)
             out.push_back(plan);
             continue;
         }
-        const LinkIds ids = linkIdsOf(part.relationships, true);
-        if (mightLink(part.data, ids)) {
-            plan.judged = judgeXml(part.data, ids, false, true, *limit);
-            *limit -= plan.judged.applied;
+        const KeptText text = keptText(part.data);
+        if (!text.readable) {
+            plan.judged.unresolved = 1;
+            out.push_back(plan);
+            continue;
         }
-        if (part.data.contains("instr")) {
-            QRegularExpressionMatchIterator it = fileFieldPattern().globalMatch(QString::fromLatin1(part.data));
+        const LinkIds ids = linkIdsOf(part.relationships, true);
+        if (mightLink(text.utf8, ids)) {
+            plan.judged = judgeXml(text.utf8, ids, false, true, *limit, text.converted);
+            *limit -= plan.judged.applied;
+            if (plan.judged.applied > 0 && text.converted) {
+                plan.reencode = true;
+                plan.encodedBack = text.back(plan.judged.edited);
+            }
+        }
+        // (the part's own list of relationships is the ground truth for whether it points outside the file: an address that no attribute found was seen to name is said, not passed)
+        for (const office::Relationship &r : part.relationships)
+            if (r.external && !r.type.endsWith(QLatin1String("/hyperlink")) && !plan.judged.every.contains(r.id)) ++plan.leftOut;
+        if (text.utf8.contains("instr")) {
+            QRegularExpressionMatchIterator it = fileFieldPattern().globalMatch(QString::fromUtf8(text.utf8));
             while (it.hasNext()) {
                 it.next();
                 ++plan.fields;
             }
         }
-        if (plan.judged.editable || plan.judged.kept || plan.judged.unresolved || plan.fields) out.push_back(plan);
+        if (plan.judged.editable || plan.judged.kept || plan.judged.unresolved || plan.fields || plan.leftOut) out.push_back(plan);
     }
     return out;
 }
@@ -604,7 +667,7 @@ ExternalLinkScan scanExternalLinks(WriteDoc &doc)
     for (const PartPlan &p : planParts(doc, &limit)) {
         out.count += p.judged.editable;
         out.unread.unresolved += p.judged.unresolved;
-        out.unread.unreachable += p.judged.kept + p.fields;
+        out.unread.unreachable += p.judged.kept + p.fields + p.leftOut;
     }
     return out;
 }
@@ -680,7 +743,7 @@ int removeExternalLinks(WriteDoc &doc)
                 return withoutLinks(xml, scanRefs(xml, ids).refs, INT_MAX, &done, nullptr);
             });
         }
-        doc.putPackagePart(p.name, p.contentType, p.judged.edited);
+        doc.putPackagePart(p.name, p.contentType, p.reencode ? p.encodedBack : p.judged.edited);
         // (an address goes from the relationships when no attribute of the part names it any more)
         const Scan left = scanRefs(p.judged.edited, linkIdsOf(p.rels, true));
         QSet<QString> gone = p.judged.named;

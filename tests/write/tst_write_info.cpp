@@ -1880,13 +1880,13 @@ private Q_SLOTS:
         setMostExternalLinkEditsForTest(100);
         QCOMPARE(removeExternalLinks(doc), 100);
         QCOMPARE(externalLinkCount(doc), comments + boxes - 100);
-        QVERIFY2(externalLinkUnread(doc).unreachable == 0, "what is only past the limit is still to be taken out, not kept");
+        QVERIFY2(externalLinkUnread(doc).unreachable == padding, "what is only past the limit is still to be taken out, not kept (what is said is the padding: relationships nothing names)");
         setMostExternalLinkEditsForTest(0);
         resetExternalLinkBytesScannedForTest();
         QCOMPARE(removeExternalLinks(doc), comments + boxes - 100);
         QVERIFY2(externalLinkBytesScannedForTest() <= 12 * (part.size() + body.size()), qPrintable(QString::number(externalLinkBytesScannedForTest())));
         QCOMPARE(externalLinkCount(doc), 0);
-        QCOMPARE(externalLinkUnread(doc).unreachable, 0);
+        QCOMPARE(externalLinkUnread(doc).unreachable, padding);   // (the relationships nothing names stay in the file, and are said)
         QVERIFY(parsesAsXml(doc.partData(QStringLiteral("/word/comments.xml"))));
         QVERIFY(!doc.partData(QStringLiteral("/word/comments.xml")).contains("r:link"));
         QString saveErr;
@@ -1935,6 +1935,78 @@ private Q_SLOTS:
         QVERIFY2(externalLinkAttributeStepsForTest() <= 12 * (plain + links + 1), qPrintable(QString::number(externalLinkAttributeStepsForTest())));
         QVERIFY(parsesAsXml(doc.partData(QStringLiteral("/word/stuff1.xml"))));
         QVERIFY(!doc.partData(QStringLiteral("/word/stuff1.xml")).contains(":link="));
+    }
+
+    // A kept part stored in UTF-16 (with a byte-order mark, or with none) is looked through as text and edited as text, and comes back in the encoding it came in; a part in UTF-32 is
+    // said to be unchecked, never "None found". A relationship to an outside file that no attribute of its part names is said too (the part's relationships are what tell where it points).
+    void inspectReadsKeptPartsInOtherEncodingsAndSaysWhatItCanNot()
+    {
+        const QByteArray xml = "<?xml version=\"1.0\" encoding=\"UTF-16\"?><d:drawing xmlns:d=\"urn:t\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\">"
+                               "<d:pic r:embed=\"rIdCI\" r:link=\"rIdK1\"/><d:note>caf\xC3\xA9 \xE2\x82\xAC</d:note></d:drawing>";
+        const auto utf16 = [&](QStringConverter::Encoding enc, bool mark) {
+            QByteArray out;
+            if (mark) out = enc == QStringConverter::Utf16LE ? QByteArray("\xFF\xFE", 2) : QByteArray("\xFE\xFF", 2);
+            QStringEncoder e(enc, QStringConverter::Flag::Stateless);
+            return out + QByteArray(e(QString::fromUtf8(xml)));
+        };
+        struct Case {
+            const char *what;
+            QByteArray part;
+            bool readable;
+        };
+        QByteArray utf32("\xFF\xFE\0\0", 4);
+        for (const QChar c : QString::fromUtf8(xml)) utf32 += QByteArray(reinterpret_cast<const char *>(&c), 2) + QByteArray("\0\0", 2);
+        const QVector<Case> cases = {{"UTF-16 little endian with a mark", utf16(QStringConverter::Utf16LE, true), true},
+                                     {"UTF-16 big endian with a mark", utf16(QStringConverter::Utf16BE, true), true},
+                                     {"UTF-16 little endian with none", utf16(QStringConverter::Utf16LE, false), true},
+                                     {"UTF-16 big endian with none", utf16(QStringConverter::Utf16BE, false), true},
+                                     {"UTF-32", utf32, false}};
+        for (const Case &c : cases) {
+            const QVector<Extra> extra = {{QStringLiteral("/word/media/image1.png"), QStringLiteral("image/png"), noisePng(4), kRel + QStringLiteral("image"), QString(), QStringLiteral("rIdI")},
+                                          {QStringLiteral("/word/stuff1.xml"), QStringLiteral("application/vnd.test+xml"), c.part, kRel + QStringLiteral("drawing"), QString(), QStringLiteral("rIdS")},
+                                          {QStringLiteral("/word/media/image1.png"), QString(), QByteArray(), kRel + QStringLiteral("image"), QStringLiteral("/word/stuff1.xml"), QStringLiteral("rIdCI"), false, true},
+                                          outside("file:///C:/people/secret.png", "/word/stuff1.xml", "rIdK1")};
+            WriteWindow w;
+            QString err;
+            w.setDocument(WriteDoc::fromDocx(makeDocx("<w:p><w:r><w:t>B</w:t></w:r></w:p>", extra), &err, nullptr), QString());
+            WriteDoc &doc = *w.document();
+            InspectItem item = linksItem(w);
+            if (!c.readable) {
+                QCOMPARE(item.count(), 0);
+                QVERIFY2(!item.unread().isEmpty(), c.what);
+                InspectDialog box(QStringLiteral("Inspect"), {item}, nullptr);
+                QVERIFY2(box.summaries().first().contains(QLatin1String("Not fully checked")), c.what);
+                QCOMPARE(item.remove(), 0);
+                QCOMPARE(doc.partData(QStringLiteral("/word/stuff1.xml")), c.part);
+                continue;
+            }
+            QVERIFY2(item.count() == 1, c.what);
+            QCOMPARE(item.remove(), 1);
+            const QByteArray kept = doc.partData(QStringLiteral("/word/stuff1.xml"));
+            QVERIFY2(kept.size() == c.part.size() - 2 * (QByteArray(" r:link=\"rIdK1\"").size()), qPrintable(QString::fromLatin1(c.what) + QStringLiteral(" %1 %2").arg(kept.size()).arg(c.part.size())));
+            QCOMPARE(kept.left(2), c.part.left(2));   // (the mark, or the first letter, in the encoding it was)
+            QStringDecoder dec(c.part.startsWith("\xFE\xFF") || c.part.startsWith(QByteArray("\0<", 2)) ? QStringConverter::Utf16BE : QStringConverter::Utf16LE, QStringConverter::Flag::Stateless);
+            const QString text = dec(kept);
+            QVERIFY2(!dec.hasError() && text.contains(QStringLiteral("caf\u00E9 \u20AC")) && !text.contains(QLatin1String("rIdK1")) && text.contains(QLatin1String("rIdCI")), c.what);
+            QCOMPARE(linksItem(w).count(), 0);
+            QVERIFY2(linksItem(w).unread().isEmpty(), c.what);
+            QString saveErr;
+            const QByteArray saved = doc.toDocx(&saveErr);
+            QMap<QString, QByteArray> parts;
+            QVERIFY(jp::readZip(saved, parts));
+            for (auto it = parts.cbegin(); it != parts.cend(); ++it) QVERIFY2(!it.value().contains("secret.png"), qPrintable(QString::fromLatin1(c.what) + QLatin1Char(' ') + it.key()));
+        }
+        // the net: a relationship to an outside file that no attribute names
+        const QVector<Extra> extra = {{QStringLiteral("/word/stuff1.xml"), QStringLiteral("application/vnd.test+xml"), "<d:drawing xmlns:d=\"urn:t\"><d:note>nothing here</d:note></d:drawing>", kRel + QStringLiteral("drawing"), QString(), QStringLiteral("rIdS")},
+                                      outside("file:///C:/people/orphan.png", "/word/stuff1.xml", "rIdK1")};
+        WriteWindow w;
+        QString err;
+        w.setDocument(WriteDoc::fromDocx(makeDocx("<w:p><w:r><w:t>B</w:t></w:r></w:p>", extra), &err, nullptr), QString());
+        const InspectItem item = linksItem(w);
+        QCOMPARE(item.count(), 0);
+        QVERIFY2(!item.unread().isEmpty(), "the part's relationships name a file outside, and nothing in the part uses it");
+        InspectDialog box(QStringLiteral("Inspect"), {item}, nullptr);
+        QVERIFY(!box.summaries().first().contains(QLatin1String("None found")));
     }
 
     void inspectRemovesHeadersAndFooters()
