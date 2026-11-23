@@ -1189,6 +1189,38 @@ void CrunchEditTests::theSavesOfTenBooksWithSpillsAreTheSameWithTheIndexOnAndOff
     }
 }
 
+// A file's spill of 200 cells in a column turns to an error (its input is made a text) by the worker, which lets go of the cells it filled while the window's thread reads them: the worker may not take them
+// from the store itself (strays wait for a hold), and the window reads every one of them throughout. Counted, not timed: the reads go on while the worker's strays wait, to a bound. Fails when the worker takes
+// the cells itself (none is counted as taken under a hold), and under the thread checker when it does (a race between the worker's erase and these reads).
+void CrunchEditTests::aLoadedSpillThatTurnsToAnErrorIsLetGoOfWhileTheWindowReadsItsCells()
+{
+    SpillIndexSwitch on(true);
+    const QByteArray bytes = spillingBook(200);
+    QVERIFY(!bytes.isEmpty());
+    EditWindow e;
+    QVERIFY(e.open(bytes, QStringLiteral("spilling.xlsx")));
+    QVERIFY(e.settle());
+    const Calculation *calc = e.win.w.session()->calculation();
+    const CellStore &cells = calc->sheet(0).cells;
+    e.select(QStringLiteral("A1"));
+    e.enter(QStringLiteral("x"));   // (SEQUENCE("x") is an error: the formula's block is let go of by the worker)
+    qint64 reads = 0;
+    int passes = 0;
+    while (passes < 50 || (!calc->hasStrays() && calc->straysReleased() == 0 && passes < 200000)) {
+        for (quint32 row = 1; row < 200; ++row) {
+            const std::optional<Cell> c = cells.find(row, 1);
+            reads += c ? 1 : 0;
+        }
+        ++passes;
+    }
+    QVERIFY(reads > 0);
+    QVERIFY(e.settle());
+    QCOMPARE(e.valueAt(QStringLiteral("B1")), QStringLiteral("e:#VALUE!"));
+    QVERIFY(!calc->hasStrays());
+    QCOMPARE(calc->straysReleased(), qint64(199));
+    for (quint32 row = 1; row < 200; ++row) QVERIFY(!realAt(cells, row, 1));
+}
+
 // The window reads the blocks that were published before the values it has: a block the worker grows is the block the window reads once the batch that has the values of the slice is taken (not before,
 // and not never). Fails when the batch does not adopt the blocks (the window goes on reading the first), or when the copy of a slice is the one read at once.
 void CrunchEditTests::theWindowReadsTheBlocksOfTheBatchItTook()

@@ -174,6 +174,7 @@ private Q_SLOTS:
     void aSpillAnchoredAwayFromColumnBIsOpenedAtItsOwnCell();
     void aFormulaReadingACellAShrunkLoadedSpillNoLongerFillsGetsNoError();
     void theSavesOfTenBooksWithSpillsAreTheSameWithTheIndexOnAndOff();
+    void aLoadedSpillThatTurnsToAnErrorIsLetGoOfWhileTheWindowReadsItsCells();
     void theWindowReadsTheBlocksOfTheBatchItTook();
     void theFormulaBarReadsNoNodeOfTheWorker();
     void aBlockOfASliceIsNotReadUntilItsBatchIsTaken();

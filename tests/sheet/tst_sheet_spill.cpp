@@ -9,6 +9,8 @@
 
 #include <QThread>
 
+#include <atomic>
+
 #include <memory>
 
 namespace {
@@ -1067,6 +1069,49 @@ private Q_SLOTS:
         QVERIFY(!b.calc->hasStrays());
         QCOMPARE(b.calc->straysReleased(), qint64(3));
         for (quint32 col = 1; col <= 3; ++col) QVERIFY(!realAt(cells, 0, col));
+        guard.setWorker(0);
+    }
+
+    // The same, with another thread reading the cells the block filled throughout (counted passes, to a bound, until the worker is done): the cells stay in the store for it, none is taken from under it. Fails when
+    // letGoOfSpill takes them itself (none waits as a stray), and the thread checker reports a race between the worker's erase and these reads then.
+    void aLoadedSpillWhoseFormulaGoesByTheWorkerIsLetGoOfWhileAnotherThreadReadsTheCells()
+    {
+        SpillIndexSwitch on(true);
+        QString cellsXml = QStringLiteral("<c r=\"A1\" cm=\"1\"><f t=\"array\" ref=\"A1:A40\">_xlfn.SEQUENCE(40)</f><v>1</v></c>");
+        QString rows = rowXml(1, cellsXml);
+        for (int r = 2; r <= 40; ++r) rows += rowXml(r, constant(QStringLiteral("A%1").arg(r), QString::number(r)));
+        Book b;
+        QString why;
+        QVERIFY(b.package.readLazy(withMetadata(blank(rows)), &why) && b.book.open(b.package, &why));
+        b.calc.reset(new Calculation(b.book));
+        QVERIFY(b.calc->load());
+        QVERIFY(b.settle());
+        const CellStore &cells = b.calc->sheet(0).cells;
+        MutationGuard &guard = b.calc->mutationGuard();
+        const quintptr me = quintptr(QThread::currentThreadId());
+        guard.setWorker(me + 1);   // (a worker that is another thread: this one is the window's)
+        std::atomic<bool> done{false};
+        bool ok = false;
+        jp::WorkThread worker([&] {
+            guard.setWorker(quintptr(QThread::currentThreadId()));
+            ok = b.calc->setValue(0, 0, 0, Value::number(7));
+            done.store(true, std::memory_order_release);
+        });
+        qint64 reads = 0;
+        for (int pass = 0; pass < 2000000 && !done.load(std::memory_order_acquire); ++pass)
+            for (quint32 row = 1; row < 40; ++row)
+                if (cells.find(row, 0)) ++reads;
+        worker.join();
+        QVERIFY(ok);
+        QVERIFY(reads > 0);
+        QVERIFY(b.calc->hasStrays());
+        QCOMPARE(b.calc->straysReleased(), qint64(0));
+        for (quint32 row = 1; row < 40; ++row) QVERIFY(realAt(cells, row, 0));
+        guard.enter();
+        b.calc->releaseStrays();
+        guard.leave();
+        QCOMPARE(b.calc->straysReleased(), qint64(39));
+        for (quint32 row = 1; row < 40; ++row) QVERIFY(!realAt(cells, row, 0));
         guard.setWorker(0);
     }
 
