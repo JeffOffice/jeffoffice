@@ -1,5 +1,6 @@
 #include "app/navpane.h"
 
+#include "app/icons.h"
 #include "app/pageview.h"
 #include "app/writewindow.h"
 #include "core/editops.h"
@@ -59,8 +60,7 @@ NavigationPane::NavigationPane(WriteWindow *win, QWidget *parent) : QWidget(pare
     m_line = new QFrame(m_headings->viewport());
     m_line->setObjectName(QStringLiteral("navigationDropLine"));
     m_line->setAttribute(Qt::WA_TransparentForMouseEvents);
-    m_line->setStyleSheet(QStringLiteral("QFrame#navigationDropLine { background-color: palette(highlight); border: none; }"));
-    m_line->setFixedHeight(3);
+    m_line->setFixedHeight(2);   // (the accent color, two pixels: the line of a table that is moved)
     m_line->hide();
     m_headings->viewport()->installEventFilter(this);
     m_headings->installEventFilter(this);
@@ -268,28 +268,47 @@ bool NavigationPane::moveHeadingLevel(QTreeWidgetItem *item, int by)
     return true;
 }
 
+// Whether the rows are those of the text now: an edit the pane has not looked at yet (it waits for a pause) means a row's number may name another heading, so nothing is moved by one. The
+// headings are looked at again, and the person is told.
+bool NavigationPane::rowsAreStale()
+{
+    if (m_revision == m_win->document()->story()->revision()) return false;
+    scanHeadings();
+    markCaretHeading();
+    m_win->statusBar()->showMessage(tr("The headings changed, so the list was updated. Choose the heading again."), 6000);
+    return true;
+}
+
+// After a move: the caret and the selection are where they were in the text, which has moved under them.
+void NavigationPane::keepCaret(const QPair<int, int> &was, const write::SectionRange &range, int movedTo)
+{
+    write::WriteDoc *doc = m_win->document();
+    m_win->view()->showCursor(write::cursorAfterMove(doc->story(), was.first, was.second, range.first, range.end - range.first, movedTo));
+}
+
 bool NavigationPane::moveSectionTo(QTreeWidgetItem *item, int before)
 {
     write::WriteDoc *doc = m_win->document();
-    const int number = numberOf(item);
-    if (number < 0 || !doc) return false;
+    if (!item || !doc) return false;
     if (m_win->refuseIfReadOnly()) return false;
+    if (rowsAreStale()) return false;
+    const int number = numberOf(item);
+    if (number < 0) return false;
     const int position = m_positions[number];
     const int target = before >= 0 && before < m_positions.size() ? m_positions[before] : -1;
+    const QPair<int, int> was(m_win->view()->cursor().anchor(), m_win->view()->cursor().position());   // (numbers: a cursor follows the edit, and the move collapses it)
+    write::SectionRange range;
+    if (!write::sectionAt(*doc, position, &range)) range = write::SectionRange();
     QString why;
     int movedTo = -1;
-    const qint64 steps = doc->story()->revision();
     const bool moved = write::moveSection(*doc, position, target, &why, &movedTo);
     m_dropWork = write::moveBlocksWorkForTest();
     if (!moved) {
         if (!why.isEmpty()) m_win->statusBar()->showMessage(why, 6000);
         return false;
     }
-    Q_UNUSED(steps);
     scanHeadings();
-    QTextCursor c(doc->story());
-    c.setPosition(std::clamp(movedTo, 0, write::editableEnd(doc->story())));
-    m_win->view()->showCursor(c);
+    keepCaret(was, range, movedTo);
     markCaretHeading();
     return true;
 }
@@ -297,9 +316,14 @@ bool NavigationPane::moveSectionTo(QTreeWidgetItem *item, int before)
 bool NavigationPane::moveSectionBy(QTreeWidgetItem *item, bool up)
 {
     write::WriteDoc *doc = m_win->document();
-    const int number = numberOf(item);
-    if (number < 0 || !doc) return false;
+    if (!item || !doc) return false;
     if (m_win->refuseIfReadOnly()) return false;
+    if (rowsAreStale()) return false;
+    const int number = numberOf(item);
+    if (number < 0) return false;
+    const QPair<int, int> was(m_win->view()->cursor().anchor(), m_win->view()->cursor().position());   // (numbers: a cursor follows the edit, and the move collapses it)
+    write::SectionRange range;
+    if (!write::sectionAt(*doc, m_positions[number], &range)) range = write::SectionRange();
     QString why;
     int movedTo = -1;
     if (!write::moveSectionBy(*doc, m_positions[number], up, &why, &movedTo)) {
@@ -309,11 +333,16 @@ bool NavigationPane::moveSectionBy(QTreeWidgetItem *item, bool up)
     }
     m_dropWork = write::moveBlocksWorkForTest();
     scanHeadings();
-    QTextCursor c(doc->story());
-    c.setPosition(std::clamp(movedTo, 0, write::editableEnd(doc->story())));
-    m_win->view()->showCursor(c);
+    keepCaret(was, range, movedTo);
     markCaretHeading();
     return true;
+}
+
+void NavigationPane::rescan()
+{
+    if (m_dying || !m_win->document()) return;
+    scanHeadings();
+    markCaretHeading();
 }
 
 // Dragging a heading: the press, the moves, and the release of the pointer on the tree are watched here (not Qt's own drag, which holds the program in a loop of its own). A move looks only at the
@@ -421,7 +450,11 @@ void NavigationPane::dragMoved(const QPoint &at)
         return;
     }
     view->setCursor(Qt::ArrowCursor);
-    m_line->setGeometry(0, lineY - 1, view->width(), 3);
+    if (uiAccent() != m_lineColor) {
+        m_lineColor = uiAccent();
+        m_line->setStyleSheet(QStringLiteral("QFrame#navigationDropLine { background-color: %1; border: none; }").arg(m_lineColor.name()));
+    }
+    m_line->setGeometry(0, lineY - 1, view->width(), 2);
     m_line->show();
     m_line->raise();
 }

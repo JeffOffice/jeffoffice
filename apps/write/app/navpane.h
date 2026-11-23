@@ -2,6 +2,7 @@
 // The Navigation pane, on the left of the window (View > Navigation Pane): Headings (the document's outline, to click, collapse, promote, and demote), Pages (small pictures
 // of the pages), and Results (the places a word is found).
 
+#include <QColor>
 #include <QPair>
 #include <QTimer>
 #include <QVector>
@@ -14,10 +15,12 @@ class QTabWidget;
 class QTreeWidget;
 class QTreeWidgetItem;
 class QFrame;
+class QTextCursor;
 
 namespace jp {
 
 class WriteWindow;
+namespace write { struct SectionRange; }
 
 class NavigationPane : public QWidget {
     Q_OBJECT
@@ -46,6 +49,8 @@ public:
     int draggedHeading() const { return m_dragFrom; }
     int dropBefore() const { return m_dropBefore; }
     QFrame *dropLine() const { return m_line; }
+    // Looks at the headings of the text at once (a command that moved a section calls it, so the rows are those of the text).
+    void rescan();
     // Finds the text in the box (at most kMostResults places), listing each with the words round it.
     void search();
     static constexpr int kMostResults = 500;
@@ -63,6 +68,8 @@ protected:
     bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
+    bool rowsAreStale();
+    void keepCaret(const QPair<int, int> &was, const write::SectionRange &range, int movedTo);
     void dragMoved(const QPoint &at);
     void endDrag(const QPoint &at, bool drop);
     void scanHeadings();
@@ -84,6 +91,7 @@ private:
     QVector<int> m_positions;                        // where each heading is now, in order
     QVector<std::pair<QString, int>> m_shown;        // the words and level of each heading the tree shows
     int m_rebuildCount = 0, m_scanCount = 0, m_thumbnailsMade = 0;
+    QColor m_lineColor;
     QFrame *m_line = nullptr;                        // (the line that shows where a dragged heading will land)
     QPoint m_pressAt;
     int m_pressed = -1, m_dragFrom = -1, m_dragEnd = 0, m_dropBefore = -1;   // (the row pressed, the row dragged, the number after its section's last heading, the place the line shows)

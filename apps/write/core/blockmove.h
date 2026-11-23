@@ -6,6 +6,7 @@
 #include "core/writedoc.h"
 
 #include <QString>
+#include <QTextCursor>
 
 namespace jp::write {
 
@@ -14,6 +15,11 @@ namespace jp::write {
 // Refused: Track Changes on, a protected document, endnotes set at the ends of sections, a run or a place that cuts a table, a table put against another, a run that holds one end of a
 // bookmark, comment, field, or content control whose other end is outside it, and a run that holds a section break unless it is whole sections that go between sections.
 bool moveBlocks(WriteDoc &doc, int first, int last, int before, QString *why = nullptr, int *movedTo = nullptr);
+
+// Where a position of the text is after the `length` characters from `from` (whole paragraphs) were moved to `movedTo` as moveBlocks does: the same place in the same text. A cursor is moved by
+// moving its two ends.
+int positionAfterMove(int position, int from, int length, int movedTo);
+QTextCursor cursorAfterMove(QTextDocument *story, int anchor, int position, int from, int length, int movedTo);
 
 // For tests: how many paragraphs the last call looked at or changed.
 qint64 moveBlocksWorkForTest();

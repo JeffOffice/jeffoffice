@@ -12,8 +12,11 @@ namespace jp::write {
 struct SectionRange {
     int first = 0, last = 0;   // a position in the first paragraph and in the last
     int level = 0;
+    int end = 0;               // the position after the last paragraph, with its break
 };
 bool sectionAt(WriteDoc &doc, int position, SectionRange *out);
+// The position of the heading (a paragraph sectionAt takes) at `position` or the nearest above it, -1 where there is none or `position` is not in the text of the document (the notes at its end are not).
+int headingAtOrAbove(WriteDoc &doc, int position);
 
 // Moves the section of the heading at `position` to before the paragraph at `before` (the end of the text when negative), keeping its level. See moveBlocks for what is refused; a
 // destination in the section itself does nothing and says nothing. Where the heading is afterward goes in `movedTo`.

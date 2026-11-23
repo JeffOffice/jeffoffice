@@ -20,7 +20,23 @@ int levelOf(const QTextBlock &b)
     return f.hasProperty(prop::Outline) ? qBound(0, f.intProperty(prop::Outline), 9) : 9;
 }
 
+// Whether the paragraph can be the heading of a section.
+bool isHeading(const QTextBlock &b)
+{
+    const QTextBlockFormat f = b.blockFormat();
+    return levelOf(b) < 9 && !inTable(b) && !f.hasProperty(prop::EndnoteBlock) && !f.hasProperty(flow::fp::Frame);
+}
+
 } // namespace
+
+int headingAtOrAbove(WriteDoc &doc, int position)
+{
+    QTextDocument *s = doc.story();
+    if (position < 0 || position > editableEnd(s)) return -1;
+    for (QTextBlock b = s->findBlock(position); b.isValid(); b = b.previous())
+        if (isHeading(b)) return b.position();
+    return -1;
+}
 
 bool sectionAt(WriteDoc &doc, int position, SectionRange *out)
 {
@@ -29,14 +45,14 @@ bool sectionAt(WriteDoc &doc, int position, SectionRange *out)
     if (position < 0 || position > end) return false;
     const QTextBlock head = s->findBlock(position);
     const int level = levelOf(head);
-    const QTextBlockFormat hf = head.blockFormat();
-    if (level >= 9 || inTable(head) || hf.hasProperty(prop::EndnoteBlock) || hf.hasProperty(flow::fp::Frame)) return false;
+    if (!isHeading(head)) return false;
     QTextBlock last = head;
     for (QTextBlock b = head.next(); b.isValid() && b.position() <= end && levelOf(b) > level; b = b.next()) last = b;
     if (out) {
         out->first = head.position();
         out->last = last.position();
         out->level = level;
+        out->end = last.position() + last.length();
     }
     return true;
 }

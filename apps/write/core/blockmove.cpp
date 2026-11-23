@@ -130,6 +130,22 @@ struct Look {
 
 } // namespace
 
+int positionAfterMove(int position, int from, int length, int movedTo)
+{
+    if (position >= from && position < from + length) return position - from + movedTo;
+    if (movedTo < from && position >= movedTo && position < from) return position + length;   // (the text it jumped over, above it)
+    if (movedTo > from && position >= from + length && position < movedTo + length) return position - length;   // (and below it)
+    return position;
+}
+
+QTextCursor cursorAfterMove(QTextDocument *story, int anchor, int position, int from, int length, int movedTo)
+{
+    QTextCursor c(story);
+    c.setPosition(positionAfterMove(anchor, from, length, movedTo));
+    c.setPosition(positionAfterMove(position, from, length, movedTo), QTextCursor::KeepAnchor);
+    return c;
+}
+
 qint64 moveBlocksWorkForTest() { return g_work; }
 qint64 moveBlocksWrapperScanForTest() { return g_scan; }
 
