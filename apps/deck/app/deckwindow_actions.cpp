@@ -116,11 +116,15 @@ void DeckWindow::createFormatActions()
         // Each run gets or loses the shadow by itself, in its own effect list, so that it is saved and the run's other effects stay.
         ed->setTextShadow(!Editor::hasTextShadow(ed->currentCharFormat()), tr("Text Shadow"));
     }, true);
-    mk("fmt.highlight", tr("Text Highlight Color"), "highlighter", QKeySequence(), [ed] { ed->chooseHighlight(ed->lastHighlight()); });
+    mk("fmt.highlight", tr("Text Highlight Color"), "highlighter", QKeySequence(), [this, ed] {
+        ed->chooseHighlight(ed->lastHighlight());
+        act("fmt.highlight")->setChecked(ed->highlighterArmed());   // (shown pressed while the highlighter is armed)
+    }, true);
     mk("fmt.stopHighlighting", tr("Stop Highlighting"), "", QKeySequence(), [ed] { ed->stopHighlighter(); });
     act("fmt.stopHighlighting")->setEnabled(false);
     connect(ed, &Editor::highlighterChanged, this, [this, ed] {
         act("fmt.stopHighlighting")->setEnabled(ed->highlighterArmed());
+        act("fmt.highlight")->setChecked(ed->highlighterArmed());
         if (ed->highlighterArmed()) statusBar()->showMessage(tr("Highlighting: select the text to highlight. Choose Stop Highlighting or press Esc to stop."));
         else statusBar()->clearMessage();
     });

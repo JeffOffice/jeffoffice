@@ -214,11 +214,15 @@ void MainWindow::createActions()
     mk("fmt.strike", tr("Strikethrough"), "strikethrough", QKeySequence(), [ed] { ed->toggleStrike(); }, true);
     mk("fmt.sub", tr("Subscript"), "subscript", QKeySequence(Qt::CTRL | Qt::Key_Equal), [ed] { ed->toggleScript(false); }, true);
     mk("fmt.sup", tr("Superscript"), "superscript", QKeySequence(Qt::CTRL | Qt::SHIFT | Qt::Key_Plus), [ed] { ed->toggleScript(true); }, true);
-    mk("fmt.highlight", tr("Text Highlight Color"), "highlighter", QKeySequence(), [ed] { ed->chooseHighlight(ed->lastHighlight()); });
+    mk("fmt.highlight", tr("Text Highlight Color"), "highlighter", QKeySequence(), [this, ed] {
+        ed->chooseHighlight(ed->lastHighlight());
+        act("fmt.highlight")->setChecked(ed->highlighterArmed());   // (shown pressed while the highlighter is armed)
+    }, true);
     mk("fmt.stopHighlighting", tr("Stop Highlighting"), "", QKeySequence(), [ed] { ed->stopHighlighter(); });
     act("fmt.stopHighlighting")->setEnabled(false);
     connect(ed, &Editor::highlighterChanged, this, [this, ed] {
         act("fmt.stopHighlighting")->setEnabled(ed->highlighterArmed());
+        act("fmt.highlight")->setChecked(ed->highlighterArmed());
         if (ed->highlighterArmed()) statusBar()->showMessage(tr("Highlighting: select the text to highlight. Choose Stop Highlighting or press Esc to stop."));
         else statusBar()->clearMessage();
     });
