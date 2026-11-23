@@ -2,7 +2,7 @@
 
 JeffPub is the desktop publishing app of JeffOffice. JeffOffice is an independent project: JeffPub aims to work with Publisher files and the people who use them (compatibility and interoperability), and then to do more, and do it better. It opens and saves Publisher's `.pub` files, and it has its own open format, `.jpub`. It is in beta (version 0.8.0). Unlike the lists for the apps not built yet, this one describes a program that exists, so a box is checked only when the feature works in JeffPub, and every status was checked on October 16, 2026 against the code, the tests, the ribbon file (`resources/ribbon.json`), and the built-in Help. It is a checklist of features: everything people rely on so their publications open, look right, and keep working, and then more, grouped the way the app's ribbon is (File, then each ribbon tab, the tabs that appear only while something is selected, then what sits under the ribbon), so that the work can be planned and tracked and so that it can settle one question: when does JeffPub stop being a beta?
 
-Last reviewed November 20, 2026.
+Last reviewed November 23, 2026.
 
 Legend: `[x]` done · `[~]` partly there (the note says what's missing, or which shared JeffOffice part it builds on) · `[ ]` not yet · **(alt)** the usual way depends on a proprietary online service, so the app offers an open replacement.
 
@@ -178,7 +178,7 @@ Features JeffPub has that Publisher never did, then the ones planned before Jeff
 - [x] **later** Format a merge field's date, time, number, or currency (1234.5 shown as $1,234.50) *(done November 20, 2026: Mailings > Write & Insert Fields > Format Merge Field… sets, for the field at the caret or the fields selected, how its value shows: as the list holds it, a number or a percent with 0 to 4 decimal places, a currency amount, a date (short, long, year-month-day, month and day, month and year), or a time (short, 12-hour, 24-hour), in the person's language and region; a value that can't be read shows as it is; the field's code is `merge:Name|format`, kept in a saved file, and the one place the value is put is libs/text/text/textengine.cpp, through the shared libs/text/text/mergeformat; one step of Undo; tests in `tests/pub/tst_pub_lines11.cpp`: mergeFormatsShowNumbersCurrencyDatesAndTimes, formatMergeFieldChangesWhatTheMergedPageShows)*
 - [ ] **later** Merge to an existing publication: add the merged pages to a publication you pick
 - [ ] **later** Personalized hyperlink: a link whose address includes a field from the list
-- [ ] **later** Catalog merge: choose across or down for the order items fill the cells, pick a catalog page layout, and use a Catalog Merge tab of its own *(a pane does it today: Rows and Columns, product fields, picture fields, and preview)*
+- [~] **later** Catalog merge: choose across or down for the order items fill the cells, pick a catalog page layout, and use a Catalog Merge tab of its own *(done: a catalog area on the page and a pane with Rows and Columns, product fields, picture fields, and preview; not done: across or down, a catalog page layout, and a tab of its own)*
 
 ## Review tab
 - [x] **1.0** Spelling (check as you type, dialog with suggestions, ignore, add to dictionary; check as you type is switched on and off from the ribbon, and is one choice for every app and window)
@@ -251,7 +251,7 @@ The tabs that appear only while something is selected or being edited: master pa
 - [x] **1.0** Alignment: nine-way alignment, Columns (count and spacing), Margins (presets and custom)
 - [x] **1.0** Linking: Create Link (pitcher cursor), Break, Previous, Next, overflow indicator, autoflow
 - [x] **1.0** Font group mirrored from Home
-- [~] **1.0** Effects: Shadow, Outline, Emboss, Engrave, Text Fill (solid and gradient), Text Outline, and Text Glow in a color you pick *(done November 20, 2026: Home > Effects has Reflection (Tight, Half, Full, or none) for letters, and Help lists it; bevel on letters is not on the ribbon, since the text engine does not draw one)*
+- [x] **1.0** Effects: Shadow, Outline, Emboss, Engrave, Text Fill (solid and gradient), Text Outline, Text Glow in a color you pick, and Reflection *(done November 20, 2026: Home > Effects has Reflection (Tight, Half, Full, or none) for letters, and Help lists it; Bevel for letters is its own item below)*
 - [x] **1.0** Typography: Drop Cap (gallery and custom: lines, size, font, color), Number Style (lining, old-style, proportional, tabular), Ligatures, Stylistic Sets, Stylistic Alternates, Swash, Small Caps, True Small Caps *(True Small Caps uses the font's own small capitals when every letter of a paragraph asks for them; where only some runs do, those runs get small capitals made of capitals, because Qt takes a font feature for a whole paragraph)*
 - [x] **1.0** Arrange and Size
 - [~] **later** Reflection and Bevel for letters (the Text Effects menu), as shapes already have *(done November 20, 2026: Reflection, on the Home tab's Effects group, from the shared presets in libs/page/app/formatpresets that JeffDeck's Text Effects menu uses, written as the letters' effect list (`TextEffects`) and drawn by the text engine; Undo, Redo, a saved `.jpub` that the app opens again; test in `tests/pub/tst_pub_lines11.cpp`: reflectionOnLettersIsOnTheRibbonAndDrawn; not done: Bevel for letters, because `TextEffects` has no bevel and the text engine draws none)*
@@ -397,11 +397,11 @@ A web site of several linked pages is not offered; see the Web tab section.
 
 ### Pictures in
 - [x] **1.0** Pictures in publications: PNG, JPEG, GIF, BMP, TIFF, WebP, SVG, WMF, EMF, ICO, and PDF, up to 256 MB a file, embedded or linked
-- [ ] **later** Modern photo formats (HEIC and AVIF) *(not in the picture filter; whether Qt's image plugins in the packages would read them could not be confirmed)*
+- [ ] **later** Modern photo formats (HEIC and AVIF) *(no code in the program reads them and no decoder is among the libraries it ships, so they are not in the picture filter; a decoder would be a new dependency)*
 
 ### Text, lists, and contacts
 - [x] **1.0** Insert File: `.txt`, `.rtf`, `.html`, `.htm`, `.docx`, and `.md` into a text box *(done November 20, 2026: a file over 64 MB, one that can't be opened, and a `.docx` or `.rtf` that isn't one are refused with a message that names the file, and nothing changes: no empty text box, no step to undo; a dropped file is told about the same way and the others dropped with it still come in)*
-- [ ] **later** Insert File from `.doc` and `.odt` *(needs the readers JeffWrite will build)*
+- [ ] **later** Insert File from `.doc` and `.odt` *(the readers exist in libs/office; Insert File reads `.txt`, `.rtf`, `.html`, `.md`, and `.docx` today and does not use them yet)*
 - [x] **1.0** Recipient lists for a mail merge: CSV, tab-delimited, `.xlsx` and `.ods` (numbers as the cells show them), and vCard `.vcf`; out: a recipient list as CSV, one `.eml` per recipient, and one PDF
 - [~] **later** Lists in `.xls` and `.ods`, and contacts written back as vCard *(done November 3, 2026: the recipient picker reads `.ods` and `.fods` lists with numbers as the cells show them, and `.xls` through the same reader; not done: contacts written back as vCard)*
 
@@ -466,4 +466,4 @@ Not planned, because they only work with an online service or a product JeffOffi
 6. Does a macro project in an opened `.pub` file have to survive a save, untouched and never run, or may it be dropped with a message?
 7. Web pages: build Publisher's Web tab (hotspots, navigation bars, form controls, HTML fragments), or leave web design out and keep the single-file web page?
 8. East Asian layout (phonetic guides, enclosed characters, horizontal text in vertical lines, and conversion between Chinese forms): 1.0 for the people who need it, or later?
-9. Letters get Reflection, Bevel, and a Text Styles gallery from the shared effects menus the JeffDeck list plans, or does JeffPub add them to its own ribbon first?
+9. Letters have Reflection and a Text Styles gallery; Bevel needs a bevel in the text engine first: does JeffPub wait for the shared effects code that JeffDeck's list plans, or add one to its own text engine?
