@@ -30,6 +30,7 @@
 #include <QPainterPath>
 #include <QPointF>
 #include <QRectF>
+#include <QSet>
 #include <QSizeF>
 #include <QString>
 #include <QStringList>
@@ -131,19 +132,28 @@ struct Step {
 // An interactive sequence: effects that play when a shape is clicked.
 struct Trigger {
     int shape = 0;
-    QVector<Effect> effects;
+    QVector<Effect> effects;   // every interactive sequence the file gives the shape, in file order: one click starts them together
+    // Whether what only this click brings in starts hidden. The show sets it (armTriggers) when the shape can be clicked; elsewhere nothing starts hidden for a click that is not there.
+    bool hides = false;
     // The effects as one step that plays at the click on the shape.
     Step step() const;
 };
 // How many interactive sequences a timeline keeps, and how many effects each (what a file has beyond is left out).
 constexpr int kMaxTriggers = 64;
 constexpr int kMaxTriggerEffects = 200;
+// ... and how many effects all of a slide's triggers keep together, and how deep the timing's nodes are read.
+constexpr int kMaxSlideTriggerEffects = 1000;
+constexpr int kMaxTimingDepth = 64;
 
 struct Timeline {
     QVector<Step> steps;             // the main sequence
     QVector<Trigger> triggers;
     bool isEmpty() const { return steps.isEmpty() && triggers.isEmpty(); }
 };
+
+// Sets which of the timeline's triggers start what they bring in hidden: the ones whose shape is in `clickable` (the shapes that have an area to click) and that can be reached,
+// a shape that only another click brings in being reached once that one is. Triggers that cannot be clicked leave what they bring in in its finished state, shown.
+void armTriggers(Timeline &tl, const QSet<int> &clickable);
 
 // Reads a p:timing element (with xmlns:p declared). Nothing wrong with it
 // stops it: what can't be read is left out. The steps keep the file's order.

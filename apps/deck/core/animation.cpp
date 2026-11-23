@@ -399,9 +399,12 @@ void completeVisibility(Effect &e)
     e.behaviors.push_back(b);
 }
 
-void collectEffects(const QDomElement &childTnLst, double base, QVector<Effect> &out)
+// Stops at `limit` effects in `out`, and `depth` levels down (a file can nest its nodes without end).
+void collectEffects(const QDomElement &childTnLst, double base, QVector<Effect> &out, int limit = std::numeric_limits<int>::max(), int depth = 0)
 {
+    if (depth > kMaxTimingDepth) return;
     for (const QDomElement &par : office::children(childTnLst)) {
+        if (out.size() >= limit) return;
         if (!pIs(par, "par") && !pIs(par, "seq")) continue;
         const QDomElement cTn = pChild(par, "cTn");
         const double begin = base + delayOf(cTn);
@@ -453,12 +456,12 @@ void collectEffects(const QDomElement &childTnLst, double base, QVector<Effect> 
             }
             out.push_back(e);
         } else {
-            collectEffects(pChild(cTn, "childTnLst"), begin, out);
+            collectEffects(pChild(cTn, "childTnLst"), begin, out, limit, depth + 1);
         }
     }
 }
 
-void readSequence(const QDomElement &seq, Timeline &tl)
+void readSequence(const QDomElement &seq, Timeline &tl, int depth)
 {
     const QDomElement cTn = pChild(seq, "cTn");
     const QString nodeType = attr(cTn, QStringLiteral("nodeType"));
@@ -471,7 +474,7 @@ void readSequence(const QDomElement &seq, Timeline &tl)
             Step step;
             for (const QDomElement &cond : pChildren(pChild(stepNode, "stCondLst"), "cond"))
                 if (attr(cond, QStringLiteral("evt")) == QLatin1String("onBegin")) step.automatic = true;
-            collectEffects(pChild(stepNode, "childTnLst"), 0, step.effects);
+            collectEffects(pChild(stepNode, "childTnLst"), 0, step.effects, std::numeric_limits<int>::max(), depth + 1);
             if (step.effects.isEmpty()) continue;
             // Shapes the step before said to hide at this click go with it, the moment it starts.
             for (const Target &t : std::as_const(hideNext)) {
@@ -506,21 +509,32 @@ void readSequence(const QDomElement &seq, Timeline &tl)
         for (const QDomElement &cond : pChildren(pChild(cTn, "stCondLst"), "cond"))
             if (const QDomElement sp = pChild(pChild(cond, "tgtEl"), "spTgt"); !sp.isNull())
                 trigger.shape = int(office::parseInt(attr(sp, QStringLiteral("spid")), 0));
-        if (tl.triggers.size() >= kMaxTriggers) return;
+        if (trigger.shape <= 0) return;
+        // A shape's sequences all start at its click: they are one trigger, their effects in the file's order.
+        const auto same = std::find_if(tl.triggers.begin(), tl.triggers.end(), [&](const Trigger &t) { return t.shape == trigger.shape; });
+        if (same == tl.triggers.end() && tl.triggers.size() >= kMaxTriggers) return;
+        int kept = 0;
+        for (const Trigger &t : std::as_const(tl.triggers)) kept += int(t.effects.size());
+        const int have = same == tl.triggers.end() ? 0 : int(same->effects.size());
+        const int room = std::min(kMaxTriggerEffects - have, kMaxSlideTriggerEffects - kept);
+        if (room <= 0) return;
         for (const QDomElement &par : pChildren(list, "par")) {
-            collectEffects(pChild(pChild(par, "cTn"), "childTnLst"), 0, trigger.effects);
-            if (trigger.effects.size() >= kMaxTriggerEffects) break;
+            if (trigger.effects.size() >= room) break;
+            collectEffects(pChild(pChild(par, "cTn"), "childTnLst"), 0, trigger.effects, room, depth + 1);
         }
-        if (trigger.effects.size() > kMaxTriggerEffects) trigger.effects.resize(kMaxTriggerEffects);
-        if (trigger.shape > 0 && !trigger.effects.isEmpty()) tl.triggers.push_back(trigger);
+        if (trigger.effects.size() > room) trigger.effects.resize(room);
+        if (trigger.effects.isEmpty()) return;
+        if (same == tl.triggers.end()) tl.triggers.push_back(trigger);
+        else same->effects += trigger.effects;
     }
 }
 
-void findSequences(const QDomElement &e, Timeline &tl)
+void findSequences(const QDomElement &e, Timeline &tl, int depth = 0)
 {
+    if (depth > kMaxTimingDepth) return;
     for (const QDomElement &c : office::children(e)) {
-        if (pIs(c, "seq")) readSequence(c, tl);
-        else findSequences(c, tl);
+        if (pIs(c, "seq")) readSequence(c, tl, depth);
+        else findSequences(c, tl, depth + 1);
     }
 }
 
@@ -925,15 +939,16 @@ States initialStates(const Timeline &tl)
                 s.visible = e.cls != EffectClass::Entrance;
                 states.insert(b.target, s);
             }
-    // What only a click on a shape brings in starts hidden too.
+    // What only a click on a shape brings in starts hidden too (where the shape can be clicked).
     for (const Trigger &trigger : tl.triggers)
-        for (const Effect &e : trigger.effects)
-            for (const Behavior &b : e.behaviors) {
-                if (b.target.shape <= 0 || !playsBehavior(b) || states.contains(b.target)) continue;
-                TargetState s;
-                s.visible = e.cls != EffectClass::Entrance;
-                states.insert(b.target, s);
-            }
+        if (trigger.hides)
+            for (const Effect &e : trigger.effects)
+                for (const Behavior &b : e.behaviors) {
+                    if (b.target.shape <= 0 || !playsBehavior(b) || states.contains(b.target)) continue;
+                    TargetState s;
+                    s.visible = e.cls != EffectClass::Entrance;
+                    states.insert(b.target, s);
+                }
     return states;
 }
 
@@ -946,6 +961,43 @@ States statesAt(const Timeline &timeline, const Geometry &geometry, int done, do
     for (int k = 0; k < std::min(done, n); ++k) applyStep(states, timeline.steps[k], geometry, std::numeric_limits<double>::infinity());
     if (ms >= 0 && done >= 0 && done < n) applyStep(states, timeline.steps[done], geometry, ms);
     return states;
+}
+
+void armTriggers(Timeline &tl, const QSet<int> &clickable)
+{
+    const int n = int(tl.triggers.size());
+    auto hiddenShapes = [&] {
+        QSet<int> out;
+        const States states = initialStates(tl);
+        for (auto it = states.cbegin(); it != states.cend(); ++it)
+            if (!it->visible && !it.key().paragraphs()) out.insert(it.key().shape);
+        return out;
+    };
+    for (Trigger &t : tl.triggers) t.hides = false;
+    const QSet<int> startsHidden = hiddenShapes();   // (by the main sequence)
+    for (Trigger &t : tl.triggers) t.hides = clickable.contains(t.shape);
+    QSet<int> onlyForClicks = hiddenShapes();
+    onlyForClicks.subtract(startsHidden);
+    // A click on a shape that a click is needed to bring in can only come once that one has: the ones nothing can bring in are not there to click.
+    QVector<bool> reached(n, false);
+    for (int round = 0; round <= n; ++round) {
+        bool more = false;
+        for (int i = 0; i < n; ++i) {
+            if (reached[i] || !tl.triggers[i].hides) continue;
+            bool now = !onlyForClicks.contains(tl.triggers[i].shape);
+            for (int j = 0; j < n && !now; ++j)
+                if (reached[j])
+                    for (const Effect &e : tl.triggers[j].effects)
+                        for (const Behavior &b : e.behaviors)
+                            if (e.cls == EffectClass::Entrance && b.target.shape == tl.triggers[i].shape && playsBehavior(b)) now = true;
+            if (now) {
+                reached[i] = true;
+                more = true;
+            }
+        }
+        if (!more) break;
+    }
+    for (int i = 0; i < n; ++i) tl.triggers[i].hides = reached[i];
 }
 
 // ---- painting a page with the states ----

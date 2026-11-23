@@ -1047,16 +1047,73 @@ private Q_SLOTS:
         QCOMPARE(int(tl.triggers.size()), 1);
         QCOMPARE(tl.triggers[0].shape, 6);
         QCOMPARE(int(tl.triggers[0].effects.size()), 1);
-        // What the interactive sequence brings in starts hidden; the shape it waits for is not in the states.
-        const deck::States before = deck::statesAt(tl, animGeometry(), 0);
+        // Read alone nothing starts hidden for a click (the animation pane draws it so); with the show's say-so what the interactive sequence brings in does, and the shape it waits for is not in the states.
+        QVERIFY(deck::statesAt(tl, animGeometry(), 0).isEmpty());
+        deck::Timeline armed = tl;
+        deck::armTriggers(armed, {6});
+        const deck::States before = deck::statesAt(armed, animGeometry(), 0);
         QCOMPARE(int(before.size()), 1);
         QVERIFY(!before.value(deck::Target{5, -1, -1}).visible);
+        deck::armTriggers(armed, {});
+        QVERIFY(deck::statesAt(armed, animGeometry(), 0).isEmpty());
         Page slide;
         slide.props[QStringLiteral("timingXml")] = xml;
         QVERIFY(deck::playableTimeline(slide).steps.isEmpty());
         slide.props[QStringLiteral("timingXml")] = animTiming(animSteps({animMediaCall(4), animAppear(5)}));
         QCOMPARE(int(deck::playableTimeline(slide).steps.size()), 1);
         QCOMPARE(int(deck::timelineOf(slide).steps.size()), 2);
+    }
+
+    // A container with hundreds of effects, and trigger after trigger, are cut where the limits say: the effects kept are counted (a trigger's 200, a slide's 1000 in all), not only
+    // what is played.
+    void hostileTimingKeepsToTheTriggerLimits()
+    {
+        QStringList many;
+        for (int i = 0; i < 300; ++i) many << animAppear(5);
+        const QString one = animGroup(0, many);
+        QString after;
+        for (int shape = 20; shape < 28; ++shape)
+            after += animXml("<p:seq concurrent='1' nextAc='seek'><p:cTn id='%1' restart='whenNotActive' fill='hold' evtFilter='cancelBubble' nodeType='interactiveSeq'><p:stCondLst><p:cond evt='onClick' delay='0'><p:tgtEl><p:spTgt spid='%2'/></p:tgtEl></p:cond></p:stCondLst><p:endSync evt='end' delay='0'><p:rtn val='all'/></p:endSync><p:childTnLst>").arg(500 + shape).arg(shape)
+                     + one + animXml("</p:childTnLst></p:cTn></p:seq>");
+        const deck::Timeline tl = deck::readTimeline(animTiming(animSteps({}), after));
+        int total = 0;
+        for (const deck::Trigger &t : tl.triggers) {
+            QVERIFY(t.effects.size() <= deck::kMaxTriggerEffects);
+            total += int(t.effects.size());
+        }
+        QCOMPARE(total, deck::kMaxSlideTriggerEffects);
+        QCOMPARE(int(tl.triggers.size()), deck::kMaxSlideTriggerEffects / deck::kMaxTriggerEffects);
+        // A shape's sequences are one trigger, in the file's order, to the same limits.
+        QString same;
+        for (int i = 0; i < 300; ++i)
+            same += animXml("<p:seq concurrent='1' nextAc='seek'><p:cTn id='%1' restart='whenNotActive' fill='hold' evtFilter='cancelBubble' nodeType='interactiveSeq'><p:stCondLst><p:cond evt='onClick' delay='0'><p:tgtEl><p:spTgt spid='7'/></p:tgtEl></p:cond></p:stCondLst><p:endSync evt='end' delay='0'><p:rtn val='all'/></p:endSync><p:childTnLst>").arg(700 + i)
+                    + animGroup(0, {animAppear(1 + i)}) + animXml("</p:childTnLst></p:cTn></p:seq>");
+        const deck::Timeline merged = deck::readTimeline(animTiming(animSteps({}), same));
+        QCOMPARE(int(merged.triggers.size()), 1);
+        QCOMPARE(int(merged.triggers[0].effects.size()), deck::kMaxTriggerEffects);
+        QCOMPARE(merged.triggers[0].effects[0].behaviors[0].target.shape, 1);
+        QCOMPARE(merged.triggers[0].effects[199].behaviors[0].target.shape, 200);
+    }
+
+    // Nodes nested deeper than the limit hold no effects: a file that nests them 10,000 deep is refused by the reader, and one that nests them past the limit but within the reader's own is read to the limit only.
+    void hostileTimingNestingIsBounded()
+    {
+        auto nested = [&](int depth, bool trigger) {
+            QString inner = animAppear(9);
+            for (int i = 0; i < depth; ++i) inner = animXml("<p:par><p:cTn id='5' fill='hold'><p:childTnLst>") + inner + animXml("</p:childTnLst></p:cTn></p:par>");
+            if (!trigger) return animTiming(animXml("<p:par><p:cTn id='3' fill='hold'><p:stCondLst><p:cond delay='indefinite'/></p:stCondLst><p:childTnLst>") + inner + animXml("</p:childTnLst></p:cTn></p:par>"));
+            return animTriggerTiming(animSteps({}), {{4, inner}});
+        };
+        // (animTriggerTiming wraps the effect in one group; the nesting adds to it)
+        for (const bool trigger : {false, true}) {
+            const auto effects = [&](int depth) {
+                const deck::Timeline tl = deck::readTimeline(nested(depth, trigger));
+                return trigger ? (tl.triggers.isEmpty() ? 0 : int(tl.triggers[0].effects.size())) : (tl.steps.isEmpty() ? 0 : int(tl.steps[0].effects.size()));
+            };
+            QCOMPARE(effects(10), 1);
+            QCOMPARE(effects(deck::kMaxTimingDepth + 4), 0);
+            QCOMPARE(effects(10000), 0);
+        }
     }
 
     // The effects of a timing as its tree lays them out: "<click> <part's delay> <how it starts> <shape> <preset>/<subtype>" each.
@@ -2654,6 +2711,26 @@ private Q_SLOTS:
             return preview.grab().toImage();
         };
         QCOMPARE(grabOf(true), grabOf(false));
+    }
+
+    // The ribbon's preview leaves the slide before as it is without a trigger (the same pictures as a slide with no animation): nothing a click would bring in is left out of it.
+    void transitionPreviewLeavesTriggerTargetsAsTheyAre()
+    {
+        for (const char *type : {"fade", "morph"}) {
+            auto grabOf = [&](bool trigger) {
+                auto d = showDeck(2);
+                numberShowShapes(*d->pages[0]);
+                if (trigger) d->pages[0]->props[QStringLiteral("timingXml")] = animTriggerTiming(animSteps({}), {{3, animFadeIn(2, 200)}});
+                deck::setTransition(*d->pages[1], showTransition(type, 600));
+                QWidget parent;
+                parent.resize(480, 300);
+                LayoutCache cache;
+                TransitionPreview preview(d.get(), &cache, &parent);
+                preview.play(1);
+                return preview.grab().toImage();
+            };
+            QVERIFY(grabOf(true) == grabOf(false));
+        }
     }
 
     // A step's frames are drawn from what lies beneath and above the shapes it
