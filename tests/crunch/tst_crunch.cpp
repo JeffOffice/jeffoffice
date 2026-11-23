@@ -942,7 +942,7 @@ private Q_SLOTS:
         QCOMPARE(win.w.formulaBar()->text(), QStringLiteral("1"));
     }
 
-    // The Help says nothing that this build cannot do (it cannot yet sort or filter, print, or insert a chart), and it says that the rules of conditional formats can be seen but not yet made.
+    // The Help says nothing that this build cannot do (it cannot yet sort or filter, print, or insert a chart), and it says what is left of conditional formats.
     void theHelpPromisesNothingTheBuildCannotDo()
     {
         QDirIterator it(QStringLiteral(JC_SOURCE_DIR "/resources/help/en/crunch"), QStringList{QStringLiteral("*.md")}, QDir::Files);
@@ -957,7 +957,7 @@ private Q_SLOTS:
             if (f.fileName().endsWith(QLatin1String("conditional-formats.md"))) {
                 // (rules are made from the menu now; what is left is said)
                 QVERIFY(text.contains(QStringLiteral("Home > Conditional Formatting")));
-                QVERIFY(text.contains(QStringLiteral("can be shown but not made yet")));
+                QVERIFY(text.contains(QStringLiteral("What is not done yet")) && text.contains(QStringLiteral("Manage Rules")));
             }
         }
         QVERIFY(files >= 12);

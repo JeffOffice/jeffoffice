@@ -6,6 +6,7 @@
 #include "sheet/cellref.h"
 
 #include <QCheckBox>
+#include <QCoreApplication>
 #include <QColorDialog>
 #include <QComboBox>
 #include <QFormLayout>
