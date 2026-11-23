@@ -1901,6 +1901,42 @@ private Q_SLOTS:
         QVERIFY(parts.value(QStringLiteral("word/_rels/comments.xml.rels")).contains("padding/"));   // (what no picture names is not a link of the text: left as it was)
     }
 
+    // One element with thousands of plain attributes and thousands of links (a part of hundreds of kilobytes): the attributes looked at are counted, and are no more than a few times the number
+    // there are (the first look went through every attribute again for each link). The box's count and sentence come from one look, and a removal ends in a correct file.
+    void inspectLinkWorkOnOneCrowdedElementIsLinear()
+    {
+        const int plain = 30000, links = 30000;
+        QByteArray part = QByteArray("<d:drawing xmlns:d=\"urn:t\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><d:blip");
+        QVector<Extra> extra = {{QStringLiteral("/word/media/image1.png"), QStringLiteral("image/png"), noisePng(4), kRel + QStringLiteral("image"), QString(), QStringLiteral("rIdI")}};
+        for (int i = 0; i < plain; ++i) part += " p" + QByteArray::number(i) + "=\"x\"";
+        for (int i = 0; i < links; ++i) {
+            part += " k" + QByteArray::number(i) + ":link=\"rIdK" + QByteArray::number(i) + "\"";
+            extra << outside(("file:///C:/crowd/c" + QByteArray::number(i) + ".png").constData(), "/word/stuff1.xml", ("rIdK" + QByteArray::number(i)).constData());
+        }
+        part += " r:embed=\"rIdCI\"/></d:drawing>";   // (the picture's own data comes last: each link has to look through all that went before)
+        extra << Extra{QStringLiteral("/word/stuff1.xml"), QStringLiteral("application/vnd.test+xml"), part, kRel + QStringLiteral("drawing"), QString(), QStringLiteral("rIdS")};
+        extra << Extra{QStringLiteral("/word/media/image1.png"), QString(), QByteArray(), kRel + QStringLiteral("image"), QStringLiteral("/word/stuff1.xml"), QStringLiteral("rIdCI"), false, true};
+        WriteWindow w;
+        QString err;
+        w.setDocument(WriteDoc::fromDocx(makeDocx("<w:p><w:r><w:t>B</w:t></w:r></w:p>", extra), &err, nullptr), QString());
+        WriteDoc &doc = *w.document();
+        resetExternalLinkBytesScannedForTest();
+        QCOMPARE(externalLinkCount(doc), links);
+        const qint64 one = externalLinkBytesScannedForTest();
+        QVERIFY2(externalLinkAttributeStepsForTest() <= 4 * (plain + links + 1), qPrintable(QString::number(externalLinkAttributeStepsForTest())));
+        // the box's count and sentence together look through the document once
+        InspectItem item = linksItem(w);
+        resetExternalLinkBytesScannedForTest();
+        QCOMPARE(item.count(), links);
+        QVERIFY(item.unread().isEmpty());
+        QCOMPARE(externalLinkBytesScannedForTest(), one);
+        resetExternalLinkBytesScannedForTest();
+        QCOMPARE(item.remove(), links);
+        QVERIFY2(externalLinkAttributeStepsForTest() <= 12 * (plain + links + 1), qPrintable(QString::number(externalLinkAttributeStepsForTest())));
+        QVERIFY(parsesAsXml(doc.partData(QStringLiteral("/word/stuff1.xml"))));
+        QVERIFY(!doc.partData(QStringLiteral("/word/stuff1.xml")).contains(":link="));
+    }
+
     void inspectRemovesHeadersAndFooters()
     {
         WriteWindow w;

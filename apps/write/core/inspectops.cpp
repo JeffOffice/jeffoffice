@@ -41,6 +41,7 @@ constexpr qint64 kMostLinkBytes = qint64(1) << 26;   // a part larger than this 
 constexpr int kMostLinkEdits = 100000;               // the most links one Remove All takes out of kept XML; the rest wait for the next
 std::atomic<qint64> s_linkBytes{0};
 std::atomic<int> s_mostLinkEdits{0};
+std::atomic<qint64> s_linkSteps{0};
 
 struct LinkIds {
     QSet<QString> files;    // to addresses outside the file that are not web addresses
@@ -94,6 +95,7 @@ struct Scan {
     QVector<Ref> refs;
     int unresolved = 0;   // links by an Id the part has no relationship for
     bool broken = false;  // the bytes stop making sense as markup: what follows was not looked at
+    qint64 steps = 0;     // the attributes looked at
 };
 
 Scan scanRefs(const QByteArray &x, const LinkIds &ids)
@@ -117,6 +119,7 @@ Scan scanRefs(const QByteArray &x, const LinkIds &ids)
         QByteArrayView name, local, value;
     };
     QVector<Attr> attrs;
+    qint64 steps = 0;
     int box = 0;
     qsizetype i = 0;
     while (i < n) {
@@ -175,6 +178,13 @@ Scan scanRefs(const QByteArray &x, const LinkIds &ids)
         if (!ended) { out.broken = true; break; }
         i = p;
         if (tag == QByteArrayView("txbxContent") && !self) ++box;
+        // (one pass over the element's attributes: whether a part of the file is named beside a link)
+        bool beside = false;
+        for (const Attr &a : std::as_const(attrs)) {
+            ++steps;
+            if (!beside && (a.local == QByteArrayView("embed") || a.local == QByteArrayView("id") || a.local == QByteArrayView("pict")) && a.value.size() <= 64)
+                beside = ids.inside.contains(QString::fromLatin1(a.value));
+        }
         for (const Attr &a : std::as_const(attrs)) {
             if (a.value.isEmpty() || a.value.size() > 64) continue;
             const QString id = QString::fromLatin1(a.value);
@@ -185,18 +195,15 @@ Scan scanRefs(const QByteArray &x, const LinkIds &ids)
                 r.to = a.end;
                 r.id = id;
                 r.inBox = box > 0;
-                if (linkish)
-                    for (const Attr &o : std::as_const(attrs))
-                        if ((o.local == QByteArrayView("embed") || o.local == QByteArrayView("id") || o.local == QByteArrayView("pict")) && o.value.size() <= 64 && ids.inside.contains(QString::fromLatin1(o.value))) {
-                            r.removable = true;
-                            break;
-                        }
+                r.removable = linkish && beside;
                 out.refs.push_back(r);
             } else if (linkish && !ids.every.contains(id)) {
                 ++out.unresolved;
             }
         }
     }
+    out.steps = steps;
+    s_linkSteps += steps;
     return out;
 }
 
@@ -569,48 +576,42 @@ int removeCustomXml(WriteDoc &doc)
 }
 
 qint64 externalLinkBytesScannedForTest() { return s_linkBytes; }
-void resetExternalLinkBytesScannedForTest() { s_linkBytes = 0; }
+qint64 externalLinkAttributeStepsForTest() { return s_linkSteps; }
+void resetExternalLinkBytesScannedForTest() { s_linkBytes = 0; s_linkSteps = 0; }
 void setMostExternalLinkEditsForTest(int most) { s_mostLinkEdits = most; }
 
 namespace {
 int editLimit() { return s_mostLinkEdits > 0 ? int(s_mostLinkEdits) : kMostLinkEdits; }
 }
 
-int externalLinkCount(WriteDoc &doc)
+ExternalLinkScan scanExternalLinks(WriteDoc &doc)
 {
-    int n = 0;
+    ExternalLinkScan out;
     for (QTextDocument *story : allStories(doc)) {
         int limit = INT_MAX;
         const StoryPlan plan = planStory(doc, story, &limit);
-        for (const auto &run : plan.whole) n += run.second;
-        n += plan.editable;
-        const StoryScan scan = scanStory(story, false);
-        for (const FieldPlace &f : scan.fields) n += isFileLinkField(f);
-    }
-    int limit = INT_MAX;
-    for (const PartPlan &p : planParts(doc, &limit)) n += p.judged.editable;
-    return n;
-}
-
-ExternalLinkUnread externalLinkUnread(WriteDoc &doc)
-{
-    ExternalLinkUnread out;
-    for (QTextDocument *story : allStories(doc)) {
-        int limit = INT_MAX;
-        const StoryPlan plan = planStory(doc, story, &limit);
-        out.unresolved += plan.unresolved;
-        out.unreachable += plan.kept + plan.fields;   // (a link or a field kept inside a text box)
-        for (const FieldPlace &f : scanStory(story, false).fields)
-            if (f.name.isEmpty() && f.form == FieldPlace::Group && !isFileLinkField(f) && fileFieldPattern().match(QString::fromUtf8(f.groupRaw.left(1 << 16))).hasMatch()) ++out.unreachable;   // (a link kept inside another field)
+        for (const auto &run : plan.whole) out.count += run.second;
+        out.count += plan.editable;
+        out.unread.unresolved += plan.unresolved;
+        out.unread.unreachable += plan.kept + plan.fields;   // (a link or a field kept inside a text box)
+        for (const FieldPlace &f : scanStory(story, false).fields) {
+            if (isFileLinkField(f)) ++out.count;
+            else if (f.name.isEmpty() && f.form == FieldPlace::Group && fileFieldPattern().match(QString::fromUtf8(f.groupRaw.left(1 << 16))).hasMatch()) ++out.unread.unreachable;   // (a link kept inside another field)
+        }
     }
     // (the parts the program keeps whole: the comments, the drawings, and so on)
     int limit = INT_MAX;
     for (const PartPlan &p : planParts(doc, &limit)) {
-        out.unresolved += p.judged.unresolved;
-        out.unreachable += p.judged.kept + p.fields;
+        out.count += p.judged.editable;
+        out.unread.unresolved += p.judged.unresolved;
+        out.unread.unreachable += p.judged.kept + p.fields;
     }
     return out;
 }
+
+int externalLinkCount(WriteDoc &doc) { return scanExternalLinks(doc).count; }
+
+ExternalLinkUnread externalLinkUnread(WriteDoc &doc) { return scanExternalLinks(doc).unread; }
 
 int removeExternalLinks(WriteDoc &doc)
 {

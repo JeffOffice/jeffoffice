@@ -35,9 +35,16 @@ struct ExternalLinkUnread {
     int unreachable = 0;
 };
 ExternalLinkUnread externalLinkUnread(WriteDoc &doc);
+// Both of them from one look through the document (the box asks for the count and the sentence together).
+struct ExternalLinkScan {
+    int count = 0;
+    ExternalLinkUnread unread;
+};
+ExternalLinkScan scanExternalLinks(WriteDoc &doc);
 int removeExternalLinks(WriteDoc &doc);
 // For tests: the bytes of kept XML the link check has looked through since the last reset, and a smaller most-edits limit for Remove All (0 puts the usual one back).
 qint64 externalLinkBytesScannedForTest();
+qint64 externalLinkAttributeStepsForTest();   // (the attributes of kept XML the check has looked at: bounded by the bytes, not by the squares of an element's attributes)
 void resetExternalLinkBytesScannedForTest();
 void setMostExternalLinkEditsForTest(int most);
 
