@@ -869,7 +869,8 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         const qint64 looks = controls->looks() - start;
         QVERIFY2(looks >= 1 && looks <= 2, qPrintable(QString::number(looks)));
-        QCOMPARE(controls->controlOf(0, idOf(e, QStringLiteral("Check Box 1"))).checked, 1);
+        const int checked = controls->controlOf(0, idOf(e, QStringLiteral("Check Box 1"))).checked;
+        QVERIFY2(checked == 1, qPrintable(QStringLiteral("checked %1, looks since start %2, E1 is %3, the session reads %4").arg(checked).arg(looks).arg(e.valueAt(QStringLiteral("E1")), e.win.w.session()->valueAt(0, 0, 4).debug())));
         // a cell of the range a list shows draws the list again
         e.select(QStringLiteral("A2"));
         e.enter(QStringLiteral("7"));

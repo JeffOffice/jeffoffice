@@ -705,7 +705,7 @@ private Q_SLOTS:
         QVERIFY2(first.contains(QStringLiteral("vertical-align:top;")), qPrintable(first));
         QVERIFY2(first.contains(QStringLiteral("border-left:1px solid #000000;")) && first.contains(QStringLiteral("border-bottom:1px solid #000000;")), qPrintable(first));
         // a cell with none of that is as it was
-        QVERIFY(html.contains(QStringLiteral("<td>plain</td>")));
+        QVERIFY2(html.contains(QStringLiteral("<td>plain</td>")), qPrintable(html));
     }
 
     // Copy as Printed Picture draws the cells as the paper would have them: the sheet's print setup decides the gridlines (none by default), not the window's.
