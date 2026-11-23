@@ -1812,6 +1812,18 @@ private Q_SLOTS:
         QVERIFY2(sawStale, "the stale title was never shown");
     }
 
+    // A presentation stream found by a scan although the directory was read (its entry was rejected: its first piece is damaged) may belong to another stream, so the notes say that part of the file could not be checked.
+    void aStreamFoundByAScanAfterAReadDirectoryIsSaidToBeUncheckedInAPresentation()
+    {
+        QByteArray bad = bigDeck();
+        cfbdamage::set32(bad, cfbdamage::entryOf(bad, pptDocumentStream()) + 116, 0x00FFFFF0);
+        QStringList notes;
+        QString why;
+        QVERIFY2(!deck::salvagePresentation(bad, &notes, &why).isEmpty(), qPrintable(why));
+        QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("searching the file")), qPrintable(notes.join(QLatin1Char('|'))));   // (it was a scan)
+        QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("could not be checked")), qPrintable(notes.join(QLatin1Char('|'))));
+    }
+
     // A sound presentation of any size, from our own writer (the small one lives in the container's mini stream): Open and Repair says nothing was wrong and gives back the very streams it holds.
     void aSoundPresentationOfAnySizeIsRepairedToItself()
     {

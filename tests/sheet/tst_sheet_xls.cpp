@@ -2168,6 +2168,46 @@ private Q_SLOTS:
         QVERIFY(right > 100);
     }
 
+    // The reviewer's trigger for a false reassurance: the workbook's chain ends with an end marker after its FIRST piece, the directory still gives the whole size, and a neighbor that is a whole
+    // workbook of its own, whose start is damaged, follows. The directory was read but its entry was rejected, so the scan finds the neighbor's workbook: it is shown (as before the rework), no sheet is
+    // said to be whole and no cell format is said to be recovered, and the notes say that part of the file could not be checked.
+    void aWorkbookFoundByAScanAfterARejectedEntryIsNeverReassuredOf()
+    {
+        auto workbook = [](int rows, double add) {
+            QByteArray cells;
+            for (int r = 0; r < rows; ++r) cells += number(r, 0, r * 10 + add);
+            Book b;
+            b.sheet(QStringLiteral("A"), dimensions(rows, 1) + cells);
+            return b.stream();
+        };
+        jp::cfb::File f;
+        jp::cfb::Entry root;
+        root.type = jp::cfb::Entry::Root;
+        root.name = QStringLiteral("Root Entry");
+        f.entries.push_back(root);
+        const QList<QPair<QString, QByteArray>> streams{{QStringLiteral("Workbook"), workbook(3000, 0)}, {QStringLiteral("Other"), workbook(400, 9000)}};
+        for (const auto &one : streams) {
+            jp::cfb::Entry e;
+            e.type = jp::cfb::Entry::Stream;
+            e.name = one.first;
+            e.data = one.second;
+            f.entries[0].children << int(f.entries.size());
+            f.entries << e;
+        }
+        const QByteArray good = jp::cfb::write(f);
+        const QByteArray placed = cfbdamage::placeAfter(good, QStringLiteral("Workbook"), QStringLiteral("Other"), 0);
+        QByteArray file = placed;   // (the chain ends with its end marker after its first piece; the neighbor's start is damaged)
+        cfbdamage::fatSet(file, cfbdamage::sectorsOf(placed, QStringLiteral("Workbook"))[0], cfbdamage::kEnd);
+        cfbdamage::set32(file, cfbdamage::entryOf(placed, QStringLiteral("Other")) + 116, 0x00FFFFF0);
+        QStringList notes;
+        QString why;
+        const QByteArray stream = salvageXlsStream(file, Limits(), &notes, &why);
+        QVERIFY2(!stream.isEmpty(), qPrintable(why));
+        const QString said = notes.join(QLatin1Char('\n'));
+        QVERIFY2(!said.contains(QLatin1String("read whole")) && !said.contains(QLatin1String("were recovered")) && !said.contains(QLatin1String("was sound")), qPrintable(said));
+        QVERIFY2(said.contains(QLatin1String("could not be checked")), qPrintable(said));
+    }
+
     // The same, with the link after the neighbor's place broken instead of ended: the next piece in the file is the neighbor's, and it is read as it was before the rework, shown, with the notes naming
     // the sheet and the row where what was not checked begins (the row of the first cell record at the join).
     void whatFollowsAGuessedJoinIsShownAndSaid()

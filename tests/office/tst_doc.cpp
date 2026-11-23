@@ -3032,6 +3032,19 @@ private Q_SLOTS:
         QCOMPARE(calls, 0);
     }
 
+    // A stream found by a scan although the directory was read (its entry was rejected: its first piece is damaged) may belong to another stream, so the notes say that part of the file could not be checked.
+    void aStreamFoundByAScanAfterAReadDirectoryIsSaidToBeUnchecked()
+    {
+        QStringList paras;
+        QByteArray bad = repairableDoc(&paras);
+        cfbdamage::set32(bad, cfbdamage::entryOf(bad, QStringLiteral("WordDocument")) + 116, 0x00FFFFF0);
+        QStringList notes;
+        QString why;
+        QVERIFY2(!doc::salvageDoc(bad, &notes, &why).isEmpty(), qPrintable(why));
+        QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("searching the file")), qPrintable(notes.join(QLatin1Char('|'))));   // (it was a scan)
+        QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("could not be checked")), qPrintable(notes.join(QLatin1Char('|'))));
+    }
+
     void aStreamOverTheLimitIsNotHeld()
     {
         QStringList paras;

@@ -594,6 +594,8 @@ bool salvageCompoundFile(const QByteArray &file, const QVector<CfbWish> &wishes,
                 if (ok <= 0) continue;
                 found = view.left(qsizetype(std::min<qint64>(ok, view.size()))).toByteArray();
                 how = CfbSalvage::How::Scan;
+                // (the directory was read and gave no reading the caller accepts for this stream: what a scan finds may belong to another stream, and nothing but its first records says otherwise)
+                if (opened && tolerant.directoryRead) anyUnverified = true;
                 scanStart.insert(w.name, at);
                 break;
             }
