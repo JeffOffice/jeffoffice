@@ -26,7 +26,7 @@ Hidden slides are skipped. After the last slide, a black screen says "End of sli
 
 If a slide has animations, each click or key plays the next step before the show moves on. See [Animations](animations). If a slide has **On Mouse Click** turned off in its transition settings, a click does not move on, but the keys do. See [Transitions between slides](transitions).
 
-A click on a link opens it when it is a web page or an email address. Other links do nothing in the show yet. A click on a shape that has effects waiting for it plays them (see [Animations](animations)).
+A click on a link opens it when it is a web page or an email address. Other links do nothing in the show yet. A click on a shape that has effects waiting for it plays them.
 
 ## Draw on the slides
 
