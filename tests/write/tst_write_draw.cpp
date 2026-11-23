@@ -315,6 +315,51 @@ QByteArray pngOf(int w, int h, QColor color = QColor(200, 30, 30))
     return bytes;
 }
 
+// A picture file whose four quarters are four colors (red and green above, blue and yellow below), so that a mirror shows.
+QByteArray quadPng(int w, int h)
+{
+    QImage image(w, h, QImage::Format_RGB32);
+    for (int y = 0; y < h; ++y)
+        for (int x = 0; x < w; ++x) image.setPixel(x, y, y < h / 2 ? (x < w / 2 ? qRgb(230, 30, 30) : qRgb(30, 200, 30)) : (x < w / 2 ? qRgb(30, 30, 230) : qRgb(240, 230, 30)));
+    QByteArray bytes;
+    QBuffer buffer(&bytes);
+    buffer.open(QIODevice::WriteOnly);
+    image.save(&buffer, "PNG");
+    return bytes;
+}
+
+// The first page of a document as a picture of 816 pixels across, and how many pixels a point is.
+QImage renderFirstPage(write::WriteDoc &doc, double *scale)
+{
+    PageView view;
+    view.resize(1000, 700);
+    view.setDocument(&doc);
+    view.show();
+    const QImage page = view.pageImage(0, 816);
+    *scale = page.width() / doc.pager().materialize(0)->doc->setup.size.width();
+    return page;
+}
+
+// Whether the page has this color (within a little) at this place, in points.
+bool hasColorAt(const QImage &page, double scale, double x, double y, QColor want)
+{
+    const QColor c = page.pixelColor(QPoint(int(x * scale), int(y * scale)));
+    return std::abs(c.red() - want.red()) < 40 && std::abs(c.green() - want.green()) < 40 && std::abs(c.blue() - want.blue()) < 40;
+}
+
+// What is the color of the words (pure red) on a page, as a mask of the same size.
+QImage redInkOf(const QImage &page)
+{
+    QImage mask(page.size(), QImage::Format_Grayscale8);
+    mask.fill(0);
+    for (int y = 0; y < page.height(); ++y)
+        for (int x = 0; x < page.width(); ++x) {
+            const QColor c = page.pixelColor(x, y);
+            if (c.red() > 200 && c.green() < 60 && c.blue() < 60) mask.setPixel(x, y, 255);
+        }
+    return mask;
+}
+
 // An SVG of three parts (a red square, a green circle, and a blue triangle with a black outline) 48 units across, and the parts of one package a graphic's pictures are.
 QByteArray graphicSvg(const QByteArray &inner = QByteArray())
 {
@@ -5017,17 +5062,40 @@ private Q_SLOTS:
         QVERIFY(!flipObject(*doc, 0, true));   // (no object there)
     }
 
-    // The same steps from the window, saved through its own save in each format and opened again: a flip is kept where the format can hold it.
+    // The same steps from the window, saved through its own save in each format JeffWrite saves and opened again: a flip is kept where the format can hold it, and where it
+    // cannot the person is told. (Each box the save could show is answered by a helper that counts its calls.)
     void flipFromTheWindowIsKeptThroughSaveAndOpen()
     {
         QTemporaryDir dir;
         QVERIFY(dir.isValid());
         Win win;
+        QStringList said, told;
+        int askedFormat = 0, askedText = 0;
+        win.w.setNotifier([&](const QString &, const QString &text) { said << text; });
+        win.w.setFormatAsker([&](const QStringList &lost) {
+            ++askedFormat;
+            told << lost;
+            return WriteWindow::FormatChoice::Keep;
+        });
+        win.w.setTextFormChooser([&](write::TextForm *, const QByteArray *) {
+            ++askedText;
+            return true;
+        });
         write::WriteDoc *doc = win.w.document();
         QTextCursor c(doc->story());
         c.setPosition(0);
         QCOMPARE(insertShape(*doc, c, QStringLiteral("rightArrow")), PictureResult::Ok);
+        c.setPosition(1);
+        QCOMPARE(insertPicture(*doc, c, quadPng(80, 60), QStringLiteral("q"), PictureWrap::InFrontOfText), PictureResult::Ok);
+        c.setPosition(2);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("rect")), PictureResult::Ok);
+        c.setPosition(3);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("ellipse")), PictureResult::Ok);
         QVERIFY(setPicturePlace(*doc, 0, 100, 150));
+        QVERIFY(setPicturePlace(*doc, 1, 300, 150));
+        QVERIFY(setPictureSize(*doc, 1, 80, 60));
+        QVERIFY(setPicturePlace(*doc, 2, 100, 400));
+        QVERIFY(setPicturePlace(*doc, 3, 300, 400));
         win.w.view()->refresh();
         win.w.view()->selectPicture(0);
         win.w.refreshNow();
@@ -5039,14 +5107,53 @@ private Q_SLOTS:
         QVERIFY(doc->undo());
         QVERIFY(pictureAt(*doc, doc->story(), 0).flipH && !pictureAt(*doc, doc->story(), 0).flipV);
         QVERIFY(doc->redo());
-        for (const char *ending : {"docx", "odt"}) {
-            const QString path = dir.filePath(QStringLiteral("flip.") + QLatin1String(ending));
-            QVERIFY(win.w.saveTo(path));
-            WriteWindow again;
-            QVERIFY(again.openFile(path));
-            const PictureInfo back = pictureAt(*again.document(), again.document()->story(), 0);
-            QVERIFY2(back.valid && back.flipH && back.flipV, ending);
+        win.w.view()->selectPicture(1);
+        win.w.refreshNow();
+        win.w.act("arrange.flip.v")->trigger();
+        QVERIFY(pictureAt(*doc, doc->story(), 1).flipV);
+        win.w.view()->selectObjects({2, 3});
+        win.w.refreshNow();
+        win.w.act("arrange.group")->trigger();
+        QVERIFY(isGroupAt(*doc, 2));
+        win.w.view()->selectPicture(2);
+        win.w.refreshNow();
+        QVERIFY(win.w.act("arrange.flip.h")->isEnabled());
+        win.w.act("arrange.flip.h")->trigger();
+        // (The group's parts are the ones flipped: Ungroup on a copy shows both parts flipped.)
+        {
+            auto copy = open(doc->toDocx());
+            QVERIFY(copy);
+            QVERIFY(ungroupObject(*copy, 2, QPointF(0, 0)));
+            QVERIFY(pictureAt(*copy, copy->story(), 2).flipH && pictureAt(*copy, copy->story(), 3).flipH);
         }
+        double scale = 1;
+        const QImage original = renderFirstPage(*doc, &scale);
+        // The quarters of the picture (300..380 across, 150..210 down) as the page has them, turned over top to bottom: blue and yellow above, red and green below.
+        QVERIFY(hasColorAt(original, scale, 320, 165, QColor(30, 30, 230)) && hasColorAt(original, scale, 360, 195, QColor(30, 200, 30)));
+        const QStringList endings = {QStringLiteral("docx"), QStringLiteral("docm"), QStringLiteral("dotx"), QStringLiteral("dotm"), QStringLiteral("odt"), QStringLiteral("ott"), QStringLiteral("rtf"), QStringLiteral("txt")};
+        for (const QString &ending : endings) {
+            const QString path = dir.filePath(QStringLiteral("flip.") + ending);
+            QVERIFY2(win.w.saveTo(path, true), qPrintable(ending));
+            QVERIFY2(QFileInfo(path).size() > 0, qPrintable(ending));
+            WriteWindow again;
+            again.setNotifier([](const QString &, const QString &) {});
+            QVERIFY2(again.openFile(path), qPrintable(ending));
+            if (ending == QLatin1String("rtf") || ending == QLatin1String("txt")) continue;
+            write::WriteDoc *back = again.document();
+            const PictureInfo arrow = pictureAt(*back, back->story(), 0), photo = pictureAt(*back, back->story(), 1);
+            QVERIFY2(arrow.valid && arrow.flipH && arrow.flipV, qPrintable(ending));
+            QVERIFY2(photo.valid && photo.flipV && !photo.flipH, qPrintable(QStringLiteral("%1: picture valid %2, across %3, down %4").arg(ending).arg(photo.valid).arg(photo.flipH).arg(photo.flipV)));
+            // The group is still a group of two flipped parts, or two flipped objects (a file that cannot hold a group), and the page is drawn the same.
+            double backScale = 1;
+            const QImage page = renderFirstPage(*back, &backScale);
+            QVERIFY2(hasColorAt(page, backScale, 320, 165, QColor(30, 30, 230)) && hasColorAt(page, backScale, 360, 195, QColor(30, 200, 30)), qPrintable(ending));
+            QVERIFY2(!page.isNull() && page.size() == original.size(), qPrintable(ending));
+        }
+        // (A format that cannot hold a drawing says so: the .rtf box named the shapes and text boxes, and the flipped picture it saved unflipped; a plain text file was asked once how it is written.)
+        QVERIFY2(told.contains(QStringLiteral("drawings, shapes, and text boxes")), qPrintable(told.join('|')));
+        QVERIFY2(told.contains(QStringLiteral("pictures that are flipped (saved as they were before the flip)")), qPrintable(told.join('|')));
+        QCOMPARE(askedText, 1);
+        QVERIFY2(askedFormat >= 1 && askedFormat <= 4, qPrintable(QString::number(askedFormat)));
     }
 
     // Regroup puts back the parts the last Ungroup took apart, while they are all still there; nothing else is regrouped.
@@ -5096,6 +5203,293 @@ private Q_SLOTS:
         win.w.refreshNow();
         QVERIFY(!win.w.act("arrange.regroup")->isEnabled());
         QVERIFY(!win.w.view()->regroupObjects());
+    }
+
+    // A flipped group is drawn mirrored: each part is where the mirror puts it inside the group's frame and is mirrored itself, on the page and after save and open, and the group
+    // carries no mark of its own (it is flipped by its parts), so it can still be taken apart.
+    void aFlippedGroupIsDrawnMirroredWithItsPartsMirroredToo()
+    {
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        c.setPosition(7);
+        QCOMPARE(insertPicture(*doc, c, quadPng(60, 40), QStringLiteral("p"), PictureWrap::InFrontOfText), PictureResult::Ok);
+        c.setPosition(8);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("rect"), QSizeF(60, 40)), PictureResult::Ok);
+        QVERIFY(setPicturePlace(*doc, 7, 100, 100));
+        QVERIFY(setPictureSize(*doc, 7, 120, 80));
+        QVERIFY(setPicturePlace(*doc, 8, 300, 140));
+        QVERIFY(setShapeFill(*doc, 8, QStringLiteral("FF00FF")));
+        QVERIFY(setShapeLine(*doc, 8, QStringLiteral("FF00FF"), 1, QStringLiteral("solid")));
+        QVERIFY(groupObjects(*doc, {7, 8}, {QRectF(100, 100, 120, 80), QRectF(300, 140, 60, 40)}));
+        const QColor red(230, 30, 30), green(30, 200, 30), blue(30, 30, 230), yellow(240, 230, 30), pink(255, 0, 255);
+        auto checkPage = [&](write::WriteDoc &d, const QColor &tl, const QColor &tr, const QColor &bl, const QColor &br, double picLeft, double picTop, double shapeX, double shapeY, const char *what) {
+            double scale = 1;
+            const QImage page = renderFirstPage(d, &scale);
+            QVERIFY2(hasColorAt(page, scale, picLeft + 30, picTop + 20, tl) && hasColorAt(page, scale, picLeft + 90, picTop + 20, tr), what);
+            QVERIFY2(hasColorAt(page, scale, picLeft + 30, picTop + 60, bl) && hasColorAt(page, scale, picLeft + 90, picTop + 60, br), what);
+            QVERIFY2(hasColorAt(page, scale, shapeX, shapeY, pink), what);
+        };
+        checkPage(*doc, red, green, blue, yellow, 100, 100, 330, 160, "before");
+        // Left to right: the shape goes to the left end, the picture to the right end, and the picture's own colors are turned about.
+        QVERIFY(flipObject(*doc, 7, true));
+        QVERIFY(isGroupAt(*doc, 7));
+        checkPage(*doc, green, red, yellow, blue, 240, 100, 130, 160, "flipped across");
+        auto reopened = open(doc->toDocx());
+        QVERIFY(reopened);
+        checkPage(*reopened, green, red, yellow, blue, 240, 100, 130, 160, "flipped across, saved and opened");
+        // Top to bottom as well: the shape goes to the top, the picture's colors are turned over.
+        QVERIFY(flipObject(*doc, 7, false));
+        checkPage(*doc, yellow, blue, green, red, 240, 100, 130, 120, "flipped both ways");
+        // The same again puts it all back.
+        QVERIFY(flipObject(*doc, 7, true));
+        QVERIFY(flipObject(*doc, 7, false));
+        checkPage(*doc, red, green, blue, yellow, 100, 100, 330, 160, "flipped back");
+        // Flipped, it is still taken apart into its two parts, each flipped by its own mark.
+        QVERIFY(flipObject(*doc, 7, true));
+        QVERIFY(ungroupObject(*doc, 7, QPointF(100, 100)));
+        QVERIFY(!isGroupAt(*doc, 7) && pictureAt(*doc, doc->story(), 7).flipH && pictureAt(*doc, doc->story(), 8).flipH);
+        // A group that is turned is not flipped (its parts are not found): nothing changes.
+        QByteArray inner = "<wpg:wgp><wpg:cNvGrpSpPr/><wpg:grpSpPr><a:xfrm rot=\"1800000\"><a:off x=\"0\" y=\"0\"/><a:ext cx=\"1270000\" cy=\"1270000\"/><a:chOff x=\"0\" y=\"0\"/><a:chExt cx=\"1270000\" cy=\"1270000\"/></a:xfrm></wpg:grpSpPr>"
+                           "<wps:wsp><wps:cNvPr id=\"5\" name=\"m\"/><wps:cNvSpPr/><wps:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"12700\" cy=\"12700\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></wps:spPr><wps:bodyPr/></wps:wsp></wpg:wgp>";
+        auto turned = open(makeDocx("<w:p>" + anchoredGraphic(9, kGroupUri, inner, 100, 100, 100, 100) + "</w:p>"));
+        QVERIFY(turned);
+        const QByteArray was = documentXml(turned->toDocx());
+        QVERIFY(!flipObject(*turned, 0, true));
+        QCOMPARE(documentXml(turned->toDocx()), was);
+    }
+
+    // Flip mirrors the outline, the fill, and the place of a shape or text box, never its words: they stay readable, left to right and upright.
+    void flipNeverMirrorsTheWordsOfAShapeOrTextBox()
+    {
+        for (const char *preset : {"ellipse", "wedgeEllipseCallout", "rect"}) {
+            const QByteArray body = "<w:p><w:r><w:t>Before</w:t></w:r>" + wordShape(5, preset, "Hi", "", 100, 100, 200, 150) + "</w:p>";
+            auto doc = open(makeDocx(body));
+            QVERIFY(doc);
+            QVERIFY(pictureAt(*doc, doc->story(), 6).valid);
+            double scale = 1;
+            const QImage before = renderFirstPage(*doc, &scale);
+            const QImage inkBefore = redInkOf(before);
+            const QRect boundsBefore = colorBoundsOf(before, QColor(255, 0, 0));
+            QVERIFY2(boundsBefore.width() > 8, preset);
+            int inkPixels = 0;
+            for (int y = 0; y < inkBefore.height(); ++y)
+                for (int x = 0; x < inkBefore.width(); ++x) inkPixels += inkBefore.pixel(x, y) & 0xFF ? 1 : 0;
+            QVERIFY2(inkPixels > 50, preset);
+            for (const bool horizontal : {true, false}) {
+                QVERIFY(flipObject(*doc, 6, horizontal));
+                QVERIFY(horizontal ? pictureAt(*doc, doc->story(), 6).flipH : pictureAt(*doc, doc->story(), 6).flipV);
+                const QImage after = renderFirstPage(*doc, &scale);
+                const QString what = QStringLiteral("%1 %2").arg(QLatin1String(preset)).arg(horizontal);
+                // The same letters in the same boxes, in the same order: the picture of them is the same (but for the edge pixels of a letter drawn again, a tenth of it at most; the
+                // letters turned about would be most of it).
+                const QRect boundsAfter = colorBoundsOf(after, QColor(255, 0, 0));
+                QVERIFY2(std::abs(boundsAfter.left() - boundsBefore.left()) <= 1 && std::abs(boundsAfter.top() - boundsBefore.top()) <= 1 && std::abs(boundsAfter.right() - boundsBefore.right()) <= 1 &&
+                             std::abs(boundsAfter.bottom() - boundsBefore.bottom()) <= 1, qPrintable(what));
+                const QImage inkAfter = redInkOf(after);
+                // (How the ink is spread over the columns and over the rows: letters turned about put it in the opposite order, and the same letters drawn again only move an edge pixel.)
+                auto spread = [&](const QImage &mask, bool columns) {
+                    QVector<int> count(columns ? boundsBefore.width() + 6 : boundsBefore.height() + 6, 0);
+                    for (int y = boundsBefore.top() - 3; y <= boundsBefore.bottom() + 3; ++y)
+                        for (int x = boundsBefore.left() - 3; x <= boundsBefore.right() + 3; ++x)
+                            if (mask.pixel(x, y) & 0xFF) ++count[columns ? x - boundsBefore.left() + 3 : y - boundsBefore.top() + 3];
+                    return count;
+                };
+                for (const bool columns : {true, false}) {
+                    const QVector<int> was = spread(inkBefore, columns), now = spread(inkAfter, columns);
+                    int apart = 0;
+                    for (int i = 0; i < was.size(); ++i) apart += std::abs(was[i] - now[i]);
+                    QVERIFY2(apart * 2 <= inkPixels, qPrintable(QStringLiteral("%1: the ink is spread differently over the %2 (%3 of %4)").arg(what, columns ? QStringLiteral("columns") : QStringLiteral("rows")).arg(apart).arg(inkPixels)));
+                }
+                // (The callout's tail goes to the other side: the picture as a whole is not the same.)
+                if (preset == QLatin1String("wedgeEllipseCallout")) QVERIFY2(after != before, preset);
+                QVERIFY(flipObject(*doc, 6, horizontal));
+            }
+        }
+    }
+
+    // A picture read from a file with a flip is drawn mirrored (in line, set at a place, cut, and turned), by where its four colored quarters are.
+    void aFlippedPictureReadFromAFileIsDrawnMirrored()
+    {
+        struct Variant {
+            const char *name;
+            bool floating, flipH, flipV;
+            double turn, cut;
+        };
+        const Variant variants[] = {{"control", true, false, false, 30, 0.1}, {"floating across", true, true, false, 0, 0}, {"floating down", true, false, true, 0, 0}, {"in line across", false, true, false, 0, 0},
+                                    {"in line down", false, false, true, 0, 0}, {"cut and turned across", true, true, false, 30, 0.1}, {"cut and turned down", true, false, true, 30, 0.1},
+                                    {"cut and turned both", true, true, true, 30, 0.1}};
+        const QColor colors[4] = {QColor(230, 30, 30), QColor(30, 200, 30), QColor(30, 30, 230), QColor(240, 230, 30)};
+        for (const Variant &v : variants) {
+            auto doc = textDoc({"Before after"});
+            QTextCursor c(doc->story());
+            c.setPosition(7);
+            QCOMPARE(insertPicture(*doc, c, quadPng(80, 60), QStringLiteral("q"), v.floating ? PictureWrap::InFrontOfText : PictureWrap::Inline), PictureResult::Ok);
+            QVERIFY(setPictureSize(*doc, 7, 160, 120));
+            if (v.floating) QVERIFY(setPicturePlace(*doc, 7, 220, 300));
+            if (v.cut > 0) QVERIFY(setPictureCrop(*doc, 7, 0, v.cut, 0, v.cut));
+            if (v.turn != 0) QVERIFY(setShapeRotation(*doc, 7, v.turn));
+            if (v.flipH) QVERIFY(flipObject(*doc, 7, true));
+            if (v.flipV) QVERIFY(flipObject(*doc, 7, false));
+            // (Read from the file the flip was saved in.)
+            auto file = open(doc->toDocx());
+            QVERIFY2(file, v.name);
+            const PictureInfo info = pictureAt(*file, file->story(), 7);
+            QVERIFY2(info.valid && info.flipH == v.flipH && info.flipV == v.flipV, v.name);
+            double scale = 1;
+            const QImage page = renderFirstPage(*file, &scale);
+            QPointF at[4];
+            for (int k = 0; k < 4; ++k) {
+                const QRect bounds = colorBoundsOf(page, colors[k]);
+                QVERIFY2(!bounds.isNull(), v.name);
+                at[k] = QPointF(bounds.center());
+            }
+            // Where the quarters are, relative to the red one: the quarter's place in the frame, mirrored as the flips say, then turned.
+            // (A mirror turns the other way about, so a turn of 30 degrees with one flip is 330: the file says it.)
+            const double turn = v.turn * (v.flipH ? -1 : 1) * (v.flipV ? -1 : 1) * 3.14159265358979323846 / 180, cs = std::cos(turn), sn = std::sin(turn);
+            auto place = [&](int k) {
+                // (A cut shrinks the frame, so its size is the file's.)
+                const double lx = (k % 2 ? 1 : -1) * info.width / 4 * (v.flipH ? -1 : 1), ly = (k / 2 ? 1 : -1) * info.height / 4 * (v.flipV ? -1 : 1);
+                return QPointF(lx * cs - ly * sn, lx * sn + ly * cs);
+            };
+            for (int k = 1; k < 4; ++k) {
+                const QPointF want = (place(k) - place(0)) * scale, got = at[k] - at[0];
+                QVERIFY2(std::abs(want.x() - got.x()) < 4 && std::abs(want.y() - got.y()) < 4, qPrintable(QStringLiteral("%1: quarter %2 is at %3,%4, not %5,%6").arg(QLatin1String(v.name)).arg(k).arg(got.x()).arg(got.y()).arg(want.x()).arg(want.y())));
+            }
+        }
+    }
+
+    // Regroup gives the group back what it had besides its parts: its wrap and distances, its name, and its alt text; not a fresh "Group N" set in front of the text.
+    void regroupGivesTheGroupBackItsOwnWrapNameAndAltText()
+    {
+        Win win;
+        write::WriteDoc *doc = win.w.document();
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("rect")), PictureResult::Ok);
+        c.setPosition(1);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("ellipse")), PictureResult::Ok);
+        QVERIFY(setPicturePlace(*doc, 0, 100, 150));
+        QVERIFY(setPicturePlace(*doc, 1, 300, 150));
+        win.w.view()->refresh();
+        win.w.view()->selectObjects({0, 1});
+        win.w.refreshNow();
+        win.w.act("arrange.group")->trigger();
+        QVERIFY(isGroupAt(*doc, 0));
+        QVERIFY(setPictureWrap(*doc, 0, PictureWrap::Tight));
+        QVERIFY(setPictureWrapDistances(*doc, 0, 3, 4, 5, 6));
+        QVERIFY(setPictureAltText(*doc, 0, QStringLiteral("Two boxes side by side")));
+        static const QRegularExpression named(QStringLiteral("<wp:docPr id=\"(\\d+)\" name=\"([^\"]*)\""));
+        const QRegularExpressionMatch groupName = named.match(QString::fromUtf8(documentXml(doc->toDocx())));
+        QVERIFY(groupName.hasMatch());
+        win.w.view()->selectPicture(0);
+        win.w.refreshNow();
+        win.w.act("arrange.ungroup")->trigger();
+        QVERIFY(!isGroupAt(*doc, 0));
+        win.w.refreshNow();
+        win.w.act("arrange.regroup")->trigger();
+        QVERIFY(isGroupAt(*doc, 0));
+        const PictureInfo back = pictureAt(*doc, doc->story(), 0);
+        QCOMPARE(back.wrap, PictureWrap::Tight);
+        QCOMPARE(back.distTop, 3.0);
+        QCOMPARE(back.distBottom, 4.0);
+        QCOMPARE(back.distLeft, 5.0);
+        QCOMPARE(back.distRight, 6.0);
+        QCOMPARE(back.alt, QStringLiteral("Two boxes side by side"));
+        const QRegularExpressionMatch nameNow = named.match(QString::fromUtf8(documentXml(doc->toDocx())));
+        QVERIFY(nameNow.hasMatch());
+        QCOMPARE(nameNow.captured(2), groupName.captured(2));
+        // One step of Undo takes the group back apart, and the group's own look comes with the next Regroup again.
+        QVERIFY(doc->undo());
+        QVERIFY(!isGroupAt(*doc, 0));
+    }
+
+    // What Ungroup left for Regroup is of that document only: a document set in the view later does not inherit it, and numbers that two objects share name no group.
+    void regroupMemoryIsClearedForANewDocumentAndRefusesNumbersTwoObjectsShare()
+    {
+        auto doc = textDoc({"Before after"});
+        PageView view;
+        view.resize(1000, 700);
+        view.setDocument(doc.get());
+        view.show();
+        QTextCursor c(doc->story());
+        c.setPosition(7);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("rect")), PictureResult::Ok);
+        c.setPosition(8);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("ellipse")), PictureResult::Ok);
+        QVERIFY(setPicturePlace(*doc, 7, 100, 150));
+        QVERIFY(setPicturePlace(*doc, 8, 300, 150));
+        view.refresh();
+        view.selectObjects({7, 8});
+        QVERIFY(view.groupSelectedObjects());
+        view.selectPicture(7);
+        QVERIFY(view.ungroupSelectedObject());
+        QVERIFY(view.canRegroup());
+        // (A document at the same address as the one before, as a new one can be: nothing is remembered of the old one.)
+        view.setDocument(nullptr);
+        view.setDocument(doc.get());
+        view.refresh();
+        QVERIFY(!view.canRegroup());
+        QVERIFY(!view.regroupObjects());
+        // Numbers: each is found at its own place, and a number two objects have is found at neither.
+        const int first = objectIdAt(*doc, 7), second = objectIdAt(*doc, 8);
+        QVERIFY(first > 0 && second > 0 && first != second);
+        QCOMPARE(objectPositionsOfIds(*doc, {first, second}), (QVector<int>{7, 8}));
+        QCOMPARE(objectPositionsOfIds(*doc, {second, first}), (QVector<int>{8, 7}));
+        auto twins = open(makeDocx("<w:p>" + anchoredGraphic(5, kShapeUri, plainShape(40, 40, "rect"), 100, 100, 40, 40) + anchoredGraphic(5, kShapeUri, plainShape(40, 40, "rect"), 200, 100, 40, 40) +
+                                   anchoredGraphic(6, kShapeUri, plainShape(40, 40, "rect"), 300, 100, 40, 40) + "</w:p>"));
+        QVERIFY(twins);
+        QCOMPARE(objectPositionsOfIds(*twins, {5, 6}), (QVector<int>{-1, -1}));
+        QCOMPARE(objectPositionsOfIds(*twins, {6}), (QVector<int>{2}));
+        QCOMPARE(objectPositionsOfIds(*twins, {6, 6}), (QVector<int>{-1, -1}));
+    }
+
+    // A group's own turn or flip, written as "true" as well as "1", keeps it from being taken apart or joined into another group.
+    void aGroupWithAFlipWrittenTrueIsNotTakenApartEitherWay()
+    {
+        for (const char *flag : {"flipH=\"1\"", "flipH=\"true\"", "flipV=\"true\""}) {
+            const QByteArray inner = QByteArray("<wpg:wgp><wpg:cNvGrpSpPr/><wpg:grpSpPr><a:xfrm ") + flag + "><a:off x=\"0\" y=\"0\"/><a:ext cx=\"1270000\" cy=\"1270000\"/><a:chOff x=\"0\" y=\"0\"/><a:chExt cx=\"1270000\" cy=\"1270000\"/></a:xfrm></wpg:grpSpPr>"
+                                     "<wps:wsp><wps:cNvPr id=\"5\" name=\"m\"/><wps:cNvSpPr/><wps:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"12700\" cy=\"12700\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></wps:spPr><wps:bodyPr/></wps:wsp></wpg:wgp>";
+            auto doc = open(makeDocx("<w:p>" + anchoredGraphic(9, kGroupUri, inner, 100, 100, 100, 100) + "</w:p>"));
+            QVERIFY(doc);
+            QVERIFY2(isGroupAt(*doc, 0) && !canGroupObject(*doc, 0), flag);
+            QVERIFY2(!ungroupObject(*doc, 0, QPointF(0, 0)), flag);
+        }
+        const QByteArray plain = "<wpg:wgp><wpg:cNvGrpSpPr/><wpg:grpSpPr><a:xfrm flipH=\"0\"><a:off x=\"0\" y=\"0\"/><a:ext cx=\"1270000\" cy=\"1270000\"/><a:chOff x=\"0\" y=\"0\"/><a:chExt cx=\"1270000\" cy=\"1270000\"/></a:xfrm></wpg:grpSpPr>"
+                                 "<wps:wsp><wps:cNvPr id=\"5\" name=\"m\"/><wps:cNvSpPr/><wps:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"12700\" cy=\"12700\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></wps:spPr><wps:bodyPr/></wps:wsp></wpg:wgp>";
+        auto doc = open(makeDocx("<w:p>" + anchoredGraphic(9, kGroupUri, plain, 100, 100, 100, 100) + "</w:p>"));
+        QVERIFY(doc);
+        QVERIFY(canGroupObject(*doc, 0) && ungroupObject(*doc, 0, QPointF(0, 0)));
+    }
+
+    // While a document is held read only (a protected one), Flip, Regroup, and Rotate are not offered: they are off, not on and silent.
+    void flipRegroupAndRotateAreOffInADocumentHeldReadOnly()
+    {
+        Win win;
+        write::WriteDoc *doc = win.w.document();
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("rect")), PictureResult::Ok);
+        c.setPosition(1);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("ellipse")), PictureResult::Ok);
+        QVERIFY(setPicturePlace(*doc, 0, 100, 150));
+        QVERIFY(setPicturePlace(*doc, 1, 300, 150));
+        win.w.view()->refresh();
+        win.w.view()->selectObjects({0, 1});
+        win.w.refreshNow();
+        win.w.act("arrange.group")->trigger();
+        win.w.view()->selectPicture(0);
+        win.w.refreshNow();
+        win.w.act("arrange.ungroup")->trigger();
+        win.w.view()->selectPicture(1);
+        win.w.refreshNow();
+        const QStringList ids = {QStringLiteral("arrange.flip.h"), QStringLiteral("arrange.flip.v"), QStringLiteral("arrange.regroup"), QStringLiteral("shape.rotate.right"), QStringLiteral("shape.rotate.left")};
+        for (const QString &id : ids) QVERIFY2(win.w.act(id)->isEnabled(), qPrintable(id));
+        win.w.setReadOnly(true);
+        win.w.refreshNow();
+        for (const QString &id : ids) QVERIFY2(!win.w.act(id)->isEnabled(), qPrintable(id));
+        win.w.setReadOnly(false);
+        win.w.refreshNow();
+        for (const QString &id : ids) QVERIFY2(win.w.act(id)->isEnabled(), qPrintable(id));
     }
 
     void aGroupInTheLineIsSetWhereItSitsInTheLineAndTheLineMakesRoomForIt()
