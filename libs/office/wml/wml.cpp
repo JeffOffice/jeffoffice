@@ -7,6 +7,7 @@
 #include <QRegularExpression>
 #include <QXmlStreamReader>
 #include <algorithm>
+#include <limits>
 #include <tuple>
 
 namespace jp::office::wml {
@@ -80,6 +81,78 @@ int sectionChildRank(const QByteArray &name)
                                         "sectPrChange"};
     if (name == "footerReference") return 0;
     return rankIn(name, names, int(sizeof names / sizeof *names), 100);
+}
+
+// ---- a section's paper source
+
+namespace {
+// The first w:paperSrc among a section's properties: where it is, the prefix it is written with, and its attributes as written (name, then the value with its quotes).
+struct PaperSrc {
+    int at = -1;
+    QString prefix;
+    QVector<QPair<QString, QString>> attrs;
+};
+
+PaperSrc paperSrcOf(const SectionProps &p)
+{
+    static const QRegularExpression isSrc(QStringLiteral("^<((?:[\\w.-]+:)?)paperSrc\\b([^>]*?)/?>")), attr(QStringLiteral("([\\w.:-]+)\\s*=\\s*(\"[^\"]*\"|'[^']*')"));
+    PaperSrc out;
+    for (int i = 0; i < p.extra.size() && out.at < 0; ++i) {
+        const QRegularExpressionMatch head = isSrc.match(QString::fromUtf8(p.extra[i].xml.left(600)));
+        if (!head.hasMatch()) continue;
+        out.at = i;
+        out.prefix = head.captured(1);
+        for (QRegularExpressionMatchIterator it = attr.globalMatch(head.captured(2)); it.hasNext();) {
+            const QRegularExpressionMatch m = it.next();
+            out.attrs.push_back({m.captured(1), m.captured(2)});
+        }
+    }
+    return out;
+}
+
+bool isAttrNamed(const QString &qualified, const QString &local)
+{
+    return qualified == local || qualified.endsWith(QLatin1Char(':') + local);
+}
+}
+
+std::optional<int> paperSourceOf(const SectionProps &p, bool firstPage)
+{
+    const PaperSrc src = paperSrcOf(p);
+    for (const auto &a : src.attrs)
+        if (isAttrNamed(a.first, firstPage ? QStringLiteral("first") : QStringLiteral("other"))) {
+            bool ok = false;
+            const qint64 v = a.second.mid(1, a.second.size() - 2).trimmed().toLongLong(&ok);
+            if (ok && v >= std::numeric_limits<int>::min() && v <= std::numeric_limits<int>::max()) return int(v);
+            return std::nullopt;
+        }
+    return std::nullopt;
+}
+
+void setPaperSource(SectionProps *p, bool firstPage, std::optional<int> tray)
+{
+    PaperSrc src = paperSrcOf(*p);
+    const QString local = firstPage ? QStringLiteral("first") : QStringLiteral("other");
+    for (int i = int(src.attrs.size()) - 1; i >= 0; --i)
+        if (isAttrNamed(src.attrs[i].first, local)) src.attrs.removeAt(i);
+    if (tray) src.attrs.push_back({(src.at >= 0 ? src.prefix : QStringLiteral("w:")) + local, QLatin1Char('"') + QString::number(*tray) + QLatin1Char('"')});
+    // (first, then other, as the standard writes them; attributes that are not known follow)
+    std::stable_sort(src.attrs.begin(), src.attrs.end(), [](const auto &a, const auto &b) {
+        auto rank = [](const QString &n) { return isAttrNamed(n, QStringLiteral("first")) ? 0 : isAttrNamed(n, QStringLiteral("other")) ? 1 : 2; };
+        return rank(a.first) < rank(b.first);
+    });
+    QByteArray xml;
+    if (!src.attrs.isEmpty()) {
+        xml = "<" + (src.at >= 0 ? src.prefix : QStringLiteral("w:")).toUtf8() + "paperSrc";
+        for (const auto &a : std::as_const(src.attrs)) xml += " " + a.first.toUtf8() + "=" + a.second.toUtf8();
+        xml += "/>";
+    }
+    if (src.at >= 0) {
+        if (xml.isEmpty()) p->extra.removeAt(src.at);
+        else p->extra[src.at].xml = xml;
+    } else if (!xml.isEmpty()) {
+        p->extra.push_back({sectionChildRank("paperSrc"), xml});
+    }
 }
 
 // ---- headers and footers

@@ -260,6 +260,8 @@ flow::Section flowSectionOf(const SectionProps &p, bool evenAndOdd)
     s.pageBorders = pageBordersOf(p.extra);
     s.lineNumbers = lineNumbersOf(p.extra);
     s.pageAlign = pageAlignOf(p);
+    s.firstPageTray = paperSourceOf(p, true);
+    s.otherPageTray = paperSourceOf(p, false);
     s.firstPageNumber = p.pageStart;
     // (Page numbers that carry a chapter's number: the heading level of the style (w:chapStyle) and the separator (w:chapSep: a hyphen when it says none).)
     {
@@ -313,6 +315,8 @@ void updateSectionProps(SectionProps *p, const flow::Section &s)
     if (s.headerDistance != was.headerDistance) p->header = int(std::lround(s.headerDistance * 20));
     if (s.footerDistance != was.footerDistance) p->footer = int(std::lround(s.footerDistance * 20));
     if (s.pageAlign != was.pageAlign) setPageAlign(p, s.pageAlign);
+    if (s.firstPageTray != was.firstPageTray) setPaperSource(p, true, s.firstPageTray);
+    if (s.otherPageTray != was.otherPageTray) setPaperSource(p, false, s.otherPageTray);
     if (s.differentFirstPage != was.differentFirstPage) p->titlePg = s.differentFirstPage;
     if (s.firstPageNumber != was.firstPageNumber) p->pageStart = s.firstPageNumber;
     if (s.pageNumberFormat != was.pageNumberFormat)

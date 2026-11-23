@@ -434,6 +434,8 @@ void Sep::apply(const Span &g)
         switch (s.op) {
         case 0x3009: type = a.u8(0); break;
         case 0x300A: titlePage = a.u8(0) & 1; break;
+        case 0x5007: binFirst = a.u16(0); break;
+        case 0x5008: binOther = a.u16(0); break;
         case 0x500B: columns = std::clamp(int(a.u16(0)) + 1, 1, 45); break;
         case 0x900C: colSpace = a.i16(0); break;
         case 0x3005: evenlySpaced = a.u8(0) & 1; break;

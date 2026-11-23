@@ -6,6 +6,8 @@
 "b",
 "background",
 "bin",
+"binfsxn",
+"binsxn",
 "bkmkend",
 "bkmkstart",
 "blue",

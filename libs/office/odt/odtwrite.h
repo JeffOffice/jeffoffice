@@ -14,6 +14,7 @@
 #include <QStringList>
 #include <QVector>
 #include <memory>
+#include <optional>
 
 namespace jp::office::odt {
 
@@ -40,6 +41,7 @@ struct SectionInfo {
     QString headerRef[3], footerRef[3];   // default, even, first: relationship Ids (empty: none)
     int pageStart = 0;
     QString pageFormat;   // pgNumType fmt (empty: decimal)
+    std::optional<int> trayFirst, trayOther;   // paperSrc: the printer trays of the first page and of the others (a value that is not a whole number is left out)
     QString master;
 };
 

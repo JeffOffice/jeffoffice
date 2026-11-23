@@ -909,6 +909,11 @@ bool readRecordedSectionProps(const QByteArray &record, SectionProps *out);
 int paraChildRank(const QByteArray &name);
 int runChildRank(const QByteArray &name);
 int sectionChildRank(const QByteArray &name);
+// A section's printer trays (w:paperSrc, kept among the section's properties as written): the first page's and the other pages'. A value that is not a whole number that fits an
+// int reads as none, and is kept as it is until a tray is set for that page. Setting puts the value in place and leaves the other attribute, and any attribute that is not known, as
+// written (none takes the value out, and the element with it when nothing is left).
+std::optional<int> paperSourceOf(const SectionProps &props, bool firstPage);
+void setPaperSource(SectionProps *props, bool firstPage, std::optional<int> tray);
 
 // Property elements for writing.
 QByteArray runPropsXml(const RunProps &p, bool inParagraphMark = false);

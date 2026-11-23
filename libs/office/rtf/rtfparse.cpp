@@ -1975,6 +1975,8 @@ void Reader::sectionWord(State &g, uint32_t h, bool has, int param, bool *handle
     case H("sbkeven"): m_sec.type = 3; break;
     case H("sbkodd"): m_sec.type = 4; break;
     case H("titlepg"): m_sec.titlePage = true; break;
+    case H("binfsxn"): if (has) m_sec.binFirst = param; break;
+    case H("binsxn"): if (has) m_sec.binOther = param; break;
     case H("pgnstart"): if (has) m_sec.pageStart = param; break;
     case H("pgnrestart"): if (m_sec.pageStart == kUnset) m_sec.pageStart = 1; break;
     case H("pgndec"): m_sec.pageFormat = 0; break;

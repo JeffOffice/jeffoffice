@@ -14,6 +14,7 @@
 #include <QRegularExpression>
 #include <QSet>
 #include <algorithm>
+#include <limits>
 #include <cmath>
 
 namespace jp::office::odt {
@@ -874,6 +875,12 @@ SectionInfo Writer::sectionOf(const T &t, int sectPr)
             s.separator = t.attr(c, "sep") == QLatin1String("1") || t.attr(c, "sep") == QLatin1String("true");
             if (t.attr(c, "equalWidth") == QLatin1String("0") || t.attr(c, "equalWidth") == QLatin1String("false"))
                 left(QCoreApplication::translate("odt", "columns of different widths (saved as equal ones)"));
+        } else if (name == "paperSrc") {
+            for (const char *which : {"first", "other"}) {
+                bool ok = false;
+                const qint64 v = t.attr(c, which).trimmed().toLongLong(&ok);
+                if (ok && v >= std::numeric_limits<int>::min() && v <= std::numeric_limits<int>::max()) (which[0] == 'f' ? s.trayFirst : s.trayOther) = int(v);
+            }
         } else if (name == "pgBorders") {
             left(QCoreApplication::translate("odt", "page borders"));
         } else if (name == "lnNumType") {
@@ -907,6 +914,7 @@ QString Writer::masterFor(const SectionInfo &s)
     key += QStringLiteral("g%1,%2,%3|").arg(s.gutter).arg(s.gutterSide).arg(s.mirrored);
     for (int i = 0; i < 3; ++i) key += s.headerRef[i] + QLatin1Char('/') + s.footerRef[i] + QLatin1Char(';');
     key += s.titlePg ? QLatin1Char('T') : QLatin1Char('-');
+    key += QStringLiteral("t%1,%2|").arg(s.trayFirst ? QString::number(*s.trayFirst) : QString(), s.trayOther ? QString::number(*s.trayOther) : QString());
     key += QString::number(s.pageStart) + s.pageFormat;
     const auto it = m_masterByKey.constFind(key);
     if (it != m_masterByKey.constEnd()) return it.value();
@@ -943,6 +951,9 @@ QByteArray Writer::masterPages()
                    inchesFromTwips(double(top)).toUtf8() + "\" fo:margin-bottom=\"" + inchesFromTwips(double(bottom)).toUtf8() + "\" fo:margin-left=\"" + inchesFromTwips(double(s.left)).toUtf8() +
                    "\" fo:margin-right=\"" + inchesFromTwips(double(s.right)).toUtf8() + "\"" +
                    (s.gutter > 0 ? " jo:gutter=\"" + inchesFromTwips(double(s.gutter)).toUtf8() + "\" jo:gutter-side=\"" + (s.gutterSide == 2 ? "top" : s.gutterSide == 1 ? "right" : "left") + "\"" : "") + (s.pageStart > 0 ? " style:first-page-number=\"" + num(s.pageStart) + "\"" : QByteArray()) +
+                   // (the standard's one tray name is the other pages' tray; the two numbers are ours, so that both come back)
+                   (s.trayOther ? " style:paper-tray-name=\"" + num(*s.trayOther) + "\"" : QByteArray()) + (s.trayFirst ? " jo:paper-first=\"" + num(*s.trayFirst) + "\"" : QByteArray()) +
+                   (s.trayOther ? " jo:paper-other=\"" + num(*s.trayOther) + "\"" : QByteArray()) +
                    " style:writing-mode=\"lr-tb\" style:footnote-max-height=\"0in\">";
         if (s.columns > 1) layouts += "<style:columns fo:column-count=\"" + num(s.columns) + "\" fo:column-gap=\"" + inchesFromTwips(double(s.columnGap)).toUtf8() + "\">" + (s.separator ? "<style:column-sep style:width=\"0.0069in\" style:color=\"#000000\" style:height=\"100%\" style:style=\"solid\"/>" : "") + "</style:columns>";
         layouts += "</style:page-layout-properties>";

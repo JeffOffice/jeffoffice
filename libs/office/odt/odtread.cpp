@@ -14,6 +14,7 @@
 #include <QRegularExpression>
 #include <QSet>
 #include <algorithm>
+#include <limits>
 #include <cmath>
 
 namespace jp::office::odt {
@@ -178,7 +179,7 @@ void Reader::collectProps(const Odf &o, int node, const QString &kind, Props *in
     const int jo = t.namespaceId("urn:jeffoffice:odf-extension");
     for (const auto &a : t.attributes(node)) {
         // (the page breaks that are ours are kept apart by their namespace: an attribute of another namespace with the same name is not one)
-        if (jo >= 0 && a.ns == jo && (a.local.startsWith("break-") || a.local.startsWith("gutter"))) into->insert(kind + QStringLiteral("jo:") + QString::fromLatin1(a.local), a.value);
+        if (jo >= 0 && a.ns == jo && (a.local.startsWith("break-") || a.local.startsWith("gutter") || a.local.startsWith("paper-"))) into->insert(kind + QStringLiteral("jo:") + QString::fromLatin1(a.local), a.value);
         else into->insert(kind + o.canonical(a.ns, a.local), a.value);
     }
 }
@@ -706,6 +707,19 @@ QByteArray Reader::sectPrXml(const SectionState &s)
     x += "<w:pgSz w:w=\"" + num(w) + "\" w:h=\"" + num(h) + "\"" + (lp("style:print-orientation") == QLatin1String("landscape") ? " w:orient=\"landscape\"" : "") + "/>";
     x += "<w:pgMar w:top=\"" + num(top) + "\" w:right=\"" + num(right) + "\" w:bottom=\"" + num(bottom) + "\" w:left=\"" + num(left) + "\" w:header=\"" + num(headerDistance) + "\" w:footer=\"" +
          num(footerDistance) + "\" w:gutter=\"" + num(gutter) + "\"/>";
+    {
+        // The printer trays: the two numbers of ours, else the standard's tray name when it is a number (it is the other pages' tray; a name that is not a number is left out).
+        auto tray = [&](const char *own, const char *standard) -> std::optional<qint64> {
+            for (const QString &text : {lp(own), lp(standard)}) {
+                bool ok = false;
+                const qint64 v = text.trimmed().toLongLong(&ok);
+                if (ok && v >= std::numeric_limits<int>::min() && v <= std::numeric_limits<int>::max()) return v;
+            }
+            return std::nullopt;
+        };
+        const std::optional<qint64> trayFirst = tray("jo:paper-first", "jo:paper-first"), trayOther = tray("jo:paper-other", "style:paper-tray-name");
+        if (trayFirst || trayOther) x += "<w:paperSrc" + (trayFirst ? " w:first=\"" + num(*trayFirst) + "\"" : QByteArray()) + (trayOther ? " w:other=\"" + num(*trayOther) + "\"" : QByteArray()) + "/>";
+    }
     {
         const QString first = lp("style:first-page-number");
         const bool hasStart = !first.isEmpty() && first != QLatin1String("continue") && first.toInt() > 0 && !s.continuous;

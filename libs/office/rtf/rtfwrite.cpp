@@ -597,6 +597,9 @@ struct Writer {
              QByteArray::number(s.right) + "\\margtsxn" + QByteArray::number(s.top) + "\\margbsxn" + QByteArray::number(s.bottom) + "\\guttersxn" + QByteArray::number(s.gutter) + "\\headery" +
              QByteArray::number(s.header) + "\\footery" + QByteArray::number(s.footer);
         if (s.titlePg) o += "\\titlepg";
+        // (the printer's paper source: a tray that is not a whole number is not written)
+        if (const std::optional<int> tray = paperSourceOf(s, true)) o += "\\binfsxn" + QByteArray::number(*tray);
+        if (const std::optional<int> tray = paperSourceOf(s, false)) o += "\\binsxn" + QByteArray::number(*tray);
         if (s.cols > 1) o += "\\cols" + QByteArray::number(s.cols) + "\\colsx" + QByteArray::number(s.colSpace);
         if (s.pageStart) o += "\\pgnstarts" + QByteArray::number(*s.pageStart) + "\\pgnrestart";
         if (s.pageFormat == QLatin1String("lowerRoman")) o += "\\pgnlcrm";

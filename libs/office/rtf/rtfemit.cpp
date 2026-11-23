@@ -211,6 +211,8 @@ QByteArray sectionPropertiesXml(const Section &s, const QByteArray &refs)
     auto m = [](int v) { return num(std::clamp(v, 0, 31680)); };
     x += "<w:pgMar w:top=\"" + num(std::clamp(s.top, -31680, 31680)) + "\" w:right=\"" + m(s.right) + "\" w:bottom=\"" + num(std::clamp(s.bottom, -31680, 31680)) + "\" w:left=\"" + m(s.left) +
          "\" w:header=\"" + m(s.header) + "\" w:footer=\"" + m(s.footer) + "\" w:gutter=\"" + m(s.gutter) + "\"/>";
+    if (s.binFirst != kUnset || s.binOther != kUnset)
+        x += "<w:paperSrc" + (s.binFirst != kUnset ? " w:first=\"" + num(s.binFirst) + "\"" : QByteArray()) + (s.binOther != kUnset ? " w:other=\"" + num(s.binOther) + "\"" : QByteArray()) + "/>";
     if (s.pageStart != kUnset || s.pageFormat != kUnset) {
         static const char *const fmts[] = {"decimal", "upperRoman", "lowerRoman", "upperLetter", "lowerLetter"};
         x += "<w:pgNumType";

@@ -78,6 +78,7 @@ struct Section {
     bool titlePage = false;
     int pageStart = kUnset, pageFormat = kUnset;
     int vAlign = 0;
+    int binFirst = kUnset, binOther = kUnset;   // \binfsxn and \binsxn: the printer's paper source for the first page and for the others
     QVector<int> colWidth, colGap;
 };
 

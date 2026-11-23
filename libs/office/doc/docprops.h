@@ -140,6 +140,7 @@ struct Sep {
     bool evenlySpaced = true, lineBetween = false;
     QVector<int> colWidth, colGap;
     bool titlePage = false;
+    std::optional<int> binFirst, binOther;        // sprmSDmBinFirst and sprmSDmBinOther: the printer's paper source for the first page and for the others (as the printer numbers them)
     int numberFormat = 0;
     std::optional<int> pageStart;
     bool restart = false;

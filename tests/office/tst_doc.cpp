@@ -1047,6 +1047,22 @@ private Q_SLOTS:
         QCOMPARE(text(refs.header[1]), QStringLiteral("First page"));
     }
 
+    // The printer's paper source of a section (sprmSDmBinFirst 0x5007 and sprmSDmBinOther 0x5008, a 16-bit number each) is read, as the first page's and the other pages' trays.
+    void aSectionsPaperSourcesAreRead()
+    {
+        DocWriter w = simple(QStringLiteral("body\r"));
+        w.sections = {{5, sprm2(0x5007, 2) + sprm2(0x5008, 65535)}};
+        Document d;
+        QVERIFY(read(w.build(), &d));
+        QCOMPARE(wml::paperSourceOf(d.lastSection, true), std::optional<int>(2));
+        QCOMPARE(wml::paperSourceOf(d.lastSection, false), std::optional<int>(65535));
+        DocWriter none = simple(QStringLiteral("body\r"));
+        none.sections = {{5, sprm1(sprm::titlePage, 1)}};
+        Document e;
+        QVERIFY(read(none.build(), &e));
+        QVERIFY(!wml::paperSourceOf(e.lastSection, true) && !wml::paperSourceOf(e.lastSection, false));
+    }
+
     void evenAndOddHeadersAreSaid()
     {
         DocWriter w = simple(QStringLiteral("x\r"));

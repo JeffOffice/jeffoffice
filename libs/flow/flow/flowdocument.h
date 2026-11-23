@@ -165,6 +165,9 @@ struct Section {
     // that a break ends before it is full (not the section's last) stays at the top.
     enum class PageAlign { Top, Center, Justified, Bottom };
     PageAlign pageAlign = PageAlign::Top;
+    // The printer tray each page of the section is printed from (w:paperSrc): the first page's and the other pages'. A printer-specific number whose standard meanings are in
+    // libs/shell/app/papertray.h; none: not stated, and the printer picks.
+    std::optional<int> firstPageTray, otherPageTray;
     bool sameSheetAs(const Section &o) const { return paper == o.paper && orientation == o.orientation; }
     bool sameColumnsAs(const Section &o) const { return columns == o.columns && columnGap == o.columnGap; }
     bool sameSidesAs(const Section &o) const { return margins.left() == o.margins.left() && margins.right() == o.margins.right(); }

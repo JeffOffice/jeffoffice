@@ -498,6 +498,12 @@ QByteArray sectionPropertiesXml(const Sep &s, const QByteArray &refs)
     attr(x, "w:footer", std::clamp(s.footer, 0, 63360));
     attr(x, "w:gutter", std::clamp(s.gutter, 0, 63360));
     x += "/>";
+    if (s.binFirst || s.binOther) {
+        x += "<w:paperSrc";
+        if (s.binFirst) attr(x, "w:first", *s.binFirst);
+        if (s.binOther) attr(x, "w:other", *s.binOther);
+        x += "/>";
+    }
     if (s.pageBorderProps || s.pageBorder[0].stated || s.pageBorder[1].stated || s.pageBorder[2].stated || s.pageBorder[3].stated) {
         const QByteArray b = borderXml("top", s.pageBorder[0]) + borderXml("left", s.pageBorder[1]) + borderXml("bottom", s.pageBorder[2]) + borderXml("right", s.pageBorder[3]);
         if (!b.isEmpty()) {
