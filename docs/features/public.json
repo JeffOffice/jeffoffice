@@ -265,7 +265,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "7eabb049a70ab299df1afe20f7a5502ac8ed4ab1a3d28d0f1c307be01db1c800"
+         "text": "02bd99064fd4ecb75486643a22fde7cd9435d85933610d41cd89b6f0d9973abe"
         },
         {
          "status": "partly",
@@ -540,7 +540,7 @@
         },
         {
          "status": "partly",
-         "text": "5c973f25b870dca7251d5d21ea6f035104c4e258c7e77268a056ad4d8f076485"
+         "text": "b9e158e64433da9e1b961fd5382a1047a4864f1adf651a90b73f0bf24608dcc9"
         },
         {
          "status": "partly",
@@ -6458,7 +6458,7 @@
         },
         {
          "status": "partly",
-         "text": "c0ce9629dc835ff8e9e19366a88915ce2b310e4a0cab13e655e709c37eee0157"
+         "text": "8795cdd033fd762eacbf24ab1162fe34540ec4e17796ed94b72a003f521c7349"
         },
         {
          "hide_soon": true,
@@ -6669,7 +6669,7 @@
         },
         {
          "status": "partly",
-         "text": "41d88ef7db7f1aed5c9271cdce6fa6d5fff3bdb70777d0fbb7155d8bedadc718"
+         "text": "d25b6a2fad2a09de56d6151e3344397e69341278be4b12a074c407585f067cb2"
         },
         {
          "status": "todo",
@@ -7160,7 +7160,7 @@
         },
         {
          "status": "partly",
-         "text": "1895931d921e0806d6958de93b460bd95f043dc602bc21ad434c5d544c4e19da"
+         "text": "e19475f94ba6e4a0e610018e42f5564d7ab8e952b6cb4a40b747de42b925c063"
         },
         {
          "status": "partly",
@@ -7907,6 +7907,18 @@
    "en": "Clipboard",
    "es": "Portapapeles",
    "fr": "Presse-papiers",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "02bd99064fd4ecb75486643a22fde7cd9435d85933610d41cd89b6f0d9973abe": {
+   "drop": false,
+   "en": "Print using the page setup: the print area, titles repeated on every page, page breaks, scaling to a number of pages wide and tall, headers and footers, gridlines, and headings. Conditional formats print as they look on screen.",
+   "es": "Imprima según la configuración de página: el área de impresión, los títulos repetidos en cada página, los saltos de página, el ajuste a un número de páginas de ancho y alto, los encabezados y pies de página, las líneas de cuadrícula y los encabezados. Los formatos condicionales se imprimen tal como se ven en pantalla.",
+   "fr": "Imprimez selon la mise en page : la zone d’impression, les titres répétés sur chaque page, les sauts de page, la mise à l’échelle en nombre de pages en largeur et en hauteur, les en-têtes et pieds de page, le quadrillage et les titres de lignes et de colonnes. Les mises en forme conditionnelles s’impriment telles qu’elles apparaissent à l’écran.",
    "soon": {
     "drop": true,
     "en": "",
@@ -9544,18 +9556,6 @@
     "en": "Chart template folder listed in the Chart Kind box",
     "es": "Carpeta de plantillas de gráficos en la lista del cuadro Chart Kind",
     "fr": "Dossier de modèles de graphique dans la liste de la zone Chart Kind"
-   }
-  },
-  "1895931d921e0806d6958de93b460bd95f043dc602bc21ad434c5d544c4e19da": {
-   "drop": false,
-   "en": "Insert shapes and change a shape while keeping its size and look. Align floating objects to the margins or page, rotate them, and join two shapes with a straight, elbow, or curved connector. Select several objects to move them together, and group or ungroup them.",
-   "es": "Inserte formas y cambie una forma conservando su tamaño y aspecto. Alinee objetos flotantes con los márgenes o la página, gírelos y una dos formas con un conector recto, en ángulo o curvo. Seleccione varios objetos para moverlos juntos, y agrúpelos o desagrúpelos.",
-   "fr": "Insérez des formes et changez une forme en gardant sa taille et son aspect. Alignez des objets flottants sur les marges ou la page, faites-les pivoter et reliez deux formes par un connecteur droit, en coude ou courbe. Sélectionnez plusieurs objets pour les déplacer ensemble, puis groupez-les ou dissociez-les.",
-   "soon": {
-    "drop": false,
-    "en": "Edit Points and rerouting connectors",
-    "es": "Edición de puntos y redirección de conectores",
-    "fr": "Modification des points et reroutage des connecteurs"
    }
   },
   "18a96c596051a5405ad29ad95aaab65008b470f237717805123083f4c55765cd": {
@@ -12918,18 +12918,6 @@
     "fr": ""
    }
   },
-  "41d88ef7db7f1aed5c9271cdce6fa6d5fff3bdb70777d0fbb7155d8bedadc718": {
-   "drop": false,
-   "en": "Move floating pictures forward or backward, to the front or back, and in front of or behind text. Align and distribute, group and ungroup (`Ctrl+Alt+G`), and rotate 90 degrees right or left, on pictures, shapes, and text boxes.",
-   "es": "Mueva las imágenes flotantes hacia delante o hacia atrás, al frente o al fondo, y delante o detrás del texto. Alinee y distribuya, agrupe y desagrupe (`Ctrl+Alt+G`) y gire 90 grados a la derecha o a la izquierda imágenes, formas y cuadros de texto.",
-   "fr": "Déplacez les images flottantes vers l’avant ou l’arrière, au premier plan ou à l’arrière-plan, et devant ou derrière le texte. Alignez et répartissez, groupez et dissociez (`Ctrl+Alt+G`), et pivotez de 90 degrés vers la droite ou la gauche les images, formes et zones de texte.",
-   "soon": {
-    "drop": false,
-    "en": "Regroup and Flip",
-    "es": "Reagrupar y Voltear",
-    "fr": "Regrouper et Retourner"
-   }
-  },
   "41f1adeb641eee0f913f6c8d822f2304729e280d7780da49dc25cbce24d057a0": {
    "drop": true,
    "en": "",
@@ -14980,18 +14968,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "5c973f25b870dca7251d5d21ea6f035104c4e258c7e77268a056ad4d8f076485": {
-   "drop": false,
-   "en": "In Conditional Formatting, use Greater Than, Less Than, Between, Equal To, Text That Contains, and Duplicate Values, each with a ready-made look, as one step of Undo. Clear Rules from the selected cells or from the sheet.",
-   "es": "En Formato condicional, use Mayor que, Menor que, Entre, Igual a, Texto que contiene y Valores duplicados, cada uno con un aspecto predefinido, como un solo paso de deshacer. Borre reglas de las celdas seleccionadas o de toda la hoja.",
-   "fr": "Dans Mise en forme conditionnelle, utilisez Supérieur à, Inférieur à, Entre, Égal à, Texte contenant et Valeurs en double, chacun avec un aspect prédéfini, en une seule étape d’annulation. Effacez les règles des cellules sélectionnées ou de la feuille.",
-   "soon": {
-    "drop": false,
-    "en": "New Rule with a formula and your own format, Manage Rules, Stop If True, the rule’s range, and Clear Rules from a table or pivot table",
-    "es": "Nueva regla con fórmula y formato propio, Administrar reglas, Detener si es verdadero, rango de la regla y Borrar reglas de una tabla o tabla dinámica",
-    "fr": "Nouvelle règle avec formule et format personnalisé, Gérer les règles, Arrêter si vrai, plage de la règle et Effacer les règles d’un tableau ou d’un tableau croisé dynamique"
    }
   },
   "5cb55dad6778ac938ecb374e4cde941dd35842b67f8acc56f9a9bf20dda3ad72": {
@@ -17622,18 +17598,6 @@
     "fr": ""
    }
   },
-  "7eabb049a70ab299df1afe20f7a5502ac8ed4ab1a3d28d0f1c307be01db1c800": {
-   "drop": false,
-   "en": "Print what the page setup says: the print area, titles repeated on every page, page breaks, scaling to a number of pages wide and tall, headers and footers, gridlines, and headings.",
-   "es": "Imprima lo que indica la configuración de página: el área de impresión, títulos repetidos en cada página, saltos de página, escala a un número de páginas de ancho y alto, encabezados y pies de página, líneas de cuadrícula y encabezados.",
-   "fr": "Imprimez ce que indique la mise en page : la zone d’impression, les titres répétés sur chaque page, les sauts de page, la mise à l’échelle en nombre de pages en largeur et en hauteur, les en-têtes et pieds de page, le quadrillage et les en-têtes de ligne et de colonne.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "7ec19ece0dffafaeadbcfd1132151b990d851a38bc6574e7e83cd40df82bfec7": {
    "drop": false,
    "en": "Cut, copy, and paste whole slides in the slides pane and the Slide Sorter with `Ctrl+X`, `Ctrl+C`, and `Ctrl+V` or the right-click menu. Keep the source formatting or use the destination theme, and paste into another window with pictures, movies, and sounds.",
@@ -18107,6 +18071,18 @@
    "en": "Find, sort, filter, and recalculation stop at `Esc` or at an edit. A function that fails inside a formula gives an error value, not a crash.",
    "es": "La búsqueda, la ordenación, el filtro y el recálculo se detienen con `Esc` o al editar. Una función que falla dentro de una fórmula da un valor de error, no un cierre inesperado.",
    "fr": "La recherche, le tri, le filtre et le recalcul s’arrêtent avec `Échap` ou lors d’une modification. Une fonction qui échoue dans une formule donne une valeur d’erreur, pas un plantage.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "8795cdd033fd762eacbf24ab1162fe34540ec4e17796ed94b72a003f521c7349": {
+   "drop": false,
+   "en": "Insert lines, rectangles, basic shapes, block arrows, equation shapes, flowchart shapes, stars and banners, and callouts by clicking or dragging on the page. Type text inside a shape, connect shapes with connectors that stay joined, and reshape outlines with edit points.",
+   "es": "Inserte líneas, rectángulos, formas básicas, flechas de bloque, formas de ecuación, formas de diagrama de flujo, estrellas y cintas, y llamadas haciendo clic o arrastrando en la página. Escriba texto dentro de una forma, una las formas con conectores que permanecen unidos y modifique los contornos con puntos de edición.",
+   "fr": "Insérez des lignes, des rectangles, des formes de base, des flèches pleines, des formes d’équation, des formes d’organigramme, des étoiles et bannières, et des bulles en cliquant ou en faisant glisser sur la page. Saisissez du texte dans une forme, reliez les formes avec des connecteurs qui restent attachés et modifiez les contours avec des points de modification.",
    "soon": {
     "drop": true,
     "en": "",
@@ -21414,6 +21390,18 @@
     "fr": "Deuxième vue qui affiche les modifications de la première au fur et à mesure"
    }
   },
+  "b9e158e64433da9e1b961fd5382a1047a4864f1adf651a90b73f0bf24608dcc9": {
+   "drop": false,
+   "en": "Apply conditional formatting from the Conditional Formatting menu: Greater Than, Less Than, Between, Equal To, Text That Contains, A Date Occurring, and Duplicate Values, plus data bars, color scales, and icon sets. New Rule makes any kind of rule, including one with a formula. Manage Rules lists, edits, reorders, and deletes rules, changes the cells they apply to, and sets Stop If True. Clear Rules works on the selected cells or the sheet.",
+   "es": "Aplique formato condicional desde el menú Formato condicional: Mayor que, Menor que, Entre, Igual a, Texto que contiene, Una fecha que ocurre y Valores duplicados, además de barras de datos, escalas de color y conjuntos de iconos. Nueva regla crea cualquier tipo de regla, incluida una con fórmula. Administrar reglas enumera, edita, reordena y elimina reglas, cambia las celdas a las que se aplican y establece Detener si es verdadero. Borrar reglas funciona en las celdas seleccionadas o en la hoja.",
+   "fr": "Appliquez une mise en forme conditionnelle depuis le menu Mise en forme conditionnelle : Supérieur à, Inférieur à, Entre, Égal à, Texte contenant, Une date se produisant et Valeurs en double, ainsi que des barres de données, des nuances de couleurs et des jeux d’icônes. Nouvelle règle crée tout type de règle, y compris avec une formule. Gérer les règles liste, modifie, réordonne et supprime les règles, change les cellules concernées et définit Arrêter si vrai. Effacer les règles agit sur les cellules sélectionnées ou sur la feuille.",
+   "soon": {
+    "drop": false,
+    "en": "Clear Rules from a table or pivot table",
+    "es": "Borrar reglas de una tabla o de una tabla dinámica",
+    "fr": "Effacer les règles d’un tableau ou d’un tableau croisé dynamique"
+   }
+  },
   "ba1383384150b67b4377b0fe91a1cf0ecbf5c93ada5c2bd2354d5f6205d46880": {
    "drop": false,
    "en": "`.docx` and `.dotx` (Open XML)",
@@ -21803,18 +21791,6 @@
    "en": "Edit headers and footers, show or hide them, and insert the page number, date, and time with `Alt+Shift+P`, `Alt+Shift+D`, and `Alt+Shift+T`. The Mailings tab is hidden while a master page is open.",
    "es": "Edite encabezados y pies de página, muéstrelos u ocúltelos, e inserte el número de página, la fecha y la hora con `Alt+Shift+P`, `Alt+Shift+D` y `Alt+Shift+T`. La pestaña Correspondencia se oculta mientras hay una página maestra abierta.",
    "fr": "Modifiez les en-têtes et pieds de page, affichez-les ou masquez-les, et insérez le numéro de page, la date et l’heure avec `Alt+Maj+P`, `Alt+Maj+D` et `Alt+Maj+T`. L’onglet Publipostage est masqué pendant qu’une page de référence est ouverte.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "c0ce9629dc835ff8e9e19366a88915ce2b310e4a0cab13e655e709c37eee0157": {
-   "drop": false,
-   "en": "Insert shapes from eight groups (lines, rectangles, basic shapes, block arrows, equation shapes, flowchart, stars and banners, and callouts) by dragging on the page. Set fill, outline, effects, style, turn, wrap, and size, and type text inside a shape. Edit a shape’s points, and connect shapes with connectors that glue to connection points.",
-   "es": "Inserte formas de ocho grupos (líneas, rectángulos, formas básicas, flechas de bloque, formas de ecuación, diagrama de flujo, estrellas y cintas, y llamadas) arrastrando en la página. Defina relleno, contorno, efectos, estilo, giro, ajuste del texto y tamaño, y escriba texto dentro de una forma. Edite los puntos de una forma y una formas con conectores que se pegan a los puntos de conexión.",
-   "fr": "Insérez des formes de huit groupes (lignes, rectangles, formes de base, flèches pleines, formes d’équation, organigramme, étoiles et bannières, et bulles) en faisant glisser sur la page. Réglez le remplissage, le contour, les effets, le style, la rotation, l’habillage et la taille, et saisissez du texte dans une forme. Modifiez les points d’une forme et reliez les formes avec des connecteurs qui s’attachent aux points de connexion.",
    "soon": {
     "drop": true,
     "en": "",
@@ -23262,6 +23238,18 @@
     "fr": ""
    }
   },
+  "d25b6a2fad2a09de56d6151e3344397e69341278be4b12a074c407585f067cb2": {
+   "drop": false,
+   "en": "Bring objects forward or send them backward, including in front of or behind text. Align and distribute objects, group, ungroup, and regroup them, and rotate or flip pictures, shapes, text boxes, and groups.",
+   "es": "Traiga objetos hacia adelante o envíelos hacia atrás, incluso delante o detrás del texto. Alinee y distribuya objetos, agrúpelos, desagrúpelos y vuelva a agruparlos, y gire o voltee imágenes, formas, cuadros de texto y grupos.",
+   "fr": "Avancez ou reculez des objets, y compris devant ou derrière le texte. Alignez et répartissez des objets, groupez, dissociez et regroupez-les, et faites pivoter ou retournez des images, des formes, des zones de texte et des groupes.",
+   "soon": {
+    "drop": false,
+    "en": "Shapes in headers and footers: select and arrange",
+    "es": "Formas en encabezados y pies de página: seleccionar y organizar",
+    "fr": "Formes dans les en-têtes et pieds de page : sélectionner et organiser"
+   }
+  },
   "d2c308adaf9454cb5982bb1a5cd2dcf610c91b8bf6d654fdada54d4c1ea5e922": {
    "drop": false,
    "en": "Start a numbered list from the Home tab. Lists in files keep their number formats.",
@@ -24364,6 +24352,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "e19475f94ba6e4a0e610018e42f5564d7ab8e952b6cb4a40b747de42b925c063": {
+   "drop": false,
+   "en": "Insert shapes and change a shape while keeping its size and look. Edit points, align objects to the margins or page, rotate, join shapes with glued connectors, and group or ungroup objects.",
+   "es": "Inserte formas y cambie una forma conservando su tamaño y aspecto. Edite puntos, alinee objetos con los márgenes o la página, gírelos, una formas con conectores unidos y agrupe o desagrupe objetos.",
+   "fr": "Insérez des formes et changez une forme en conservant sa taille et son aspect. Modifiez les points, alignez les objets sur les marges ou la page, faites-les pivoter, reliez des formes avec des connecteurs attachés, et groupez ou dissociez des objets.",
+   "soon": {
+    "drop": false,
+    "en": "Reroute Connectors: reroute by hand",
+    "es": "Redirigir conectores: redirigir manualmente",
+    "fr": "Réacheminer les connecteurs : réacheminer manuellement"
    }
   },
   "e1c571928aeaa36f78783d7b7e6538879e64c192426b9cf57f89d6cb08764e90": {
