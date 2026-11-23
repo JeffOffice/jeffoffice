@@ -944,8 +944,11 @@ AnimSequence readAnimations(const Page &slide, const Document *doc)
                         same->event = event;
                         if (!splitTrigger(s, &same->head, &same->tail, &same->wrapperIds)) wrapperBad.insert(shape);
                     } else {
-                        // A second sequence for the object has a wrapper of its own that one group could not keep.
-                        wrapperBad.insert(shape);
+                        // A second sequence for the object joins the group when it says the same around its effects (the ids aside); else one group could not keep both.
+                        static const QRegularExpression idAttr(QStringLiteral("\\bid=\"\\d+\""));
+                        QString head, tail;
+                        QVector<int> ids;
+                        if (!splitTrigger(s, &head, &tail, &ids) || head.replace(idAttr, QString()) != QString(same->head).replace(idAttr, QString()) || tail.replace(idAttr, QString()) != QString(same->tail).replace(idAttr, QString())) wrapperBad.insert(shape);
                         if (same->event != event) same->event = QStringLiteral("mixed");
                     }
                     same->kept << keptAt;

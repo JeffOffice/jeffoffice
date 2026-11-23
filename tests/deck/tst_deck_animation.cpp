@@ -2518,6 +2518,27 @@ private Q_SLOTS:
         }
     }
 
+    // Two sequences of one object that say different things around their effects can't be one group: listed, locked, and kept as written.
+    // Fails when off: yes (they were written as one, with the first one's wrapper).
+    void animationTriggerSequencesThatDifferStayLocked()
+    {
+        auto d = editDeck(3);
+        Page &slide = *d->pages[0];
+        QString xml = animTriggerTiming(animSteps({animFadeIn(10, 500)}), {{12, animFadeIn(11, 300)}, {12, animFadeIn(10, 300)}});
+        const qsizetype second = xml.lastIndexOf(dq(QStringLiteral("<p:endSync evt='end' delay='0'>")));
+        QVERIFY(second > 0);
+        xml.replace(second, 31, dq(QStringLiteral("<p:endSync evt='end' delay='500'>")));
+        slide.props[QStringLiteral("timingXml")] = xml;
+        deck::AnimSequence seq = deck::readAnimations(slide, d.get());
+        QCOMPARE(seq.triggers.size(), 1);
+        QCOMPARE(seq.triggers[0].effects.size(), 2);
+        QVERIFY(seq.triggers[0].locked);
+        const QString kept = seq.kept.join(QString());
+        seq.triggers[0].effects[0].duration = 1500;
+        deck::setAnimations(*d, slide, seq);
+        QCOMPARE(deck::readAnimations(slide, d.get()).kept.join(QString()), kept);
+    }
+
     // Moving effects between the main sequence and triggers, between triggers, inside one, and out; a trigger left with nothing goes. Written and read back.
     // Fails when off: yes (the model has no groups to move between).
     void animationMovesEffectsBetweenSequences()
