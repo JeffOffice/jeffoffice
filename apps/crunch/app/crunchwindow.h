@@ -269,11 +269,15 @@ public:
         enum class Kind { Greater, Less, Between, Equal, Contains, Duplicate, Top, Bottom, TopPercent, BottomPercent, Above, Below, DateOccurring } kind = Kind::Greater;
         QString value1, value2;
         int preset = 0;
+        bool custom = false;   // the person's own look (Custom Format): `customLook`
+        jp::office::sheet::DifferentialFormat customLook;
     };
     // How many rules the last change of the selection looked at for the choices of Clear Rules.
     qint64 condRulesScanned() const { return m_condScanned; }
     void setCondAsker(const std::function<bool(CondAnswer *)> &asker) { m_condAsker = asker; }
     // New Rule and Edit Rule ask for the whole rule (a test answers in place of the window); `editing` is true for a rule that exists.
+    // The look of a rule is asked for in the Format Cells box limited to what a rule carries (a test answers in place of it): the look it starts from, and the look made.
+    void setCondLookAsker(const std::function<bool(const jp::office::sheet::DifferentialFormat &, jp::office::sheet::DifferentialFormat *)> &asker) { m_condLookAsker = asker; }
     void setCondSpecAsker(const std::function<bool(CondSpec *, bool editing)> &asker) { m_condSpecAsker = asker; }
     // Manage Rules asks for the list as it is to be (a test answers in place of the window): the rules as they are, and the editor that New Rule and Edit Rule use.
     using CondEditor = CondManageDialog::Editor;
@@ -1338,6 +1342,8 @@ private:
     std::function<bool(QString *)> m_styleNameAsker;
     std::function<bool(CondAnswer *)> m_condAsker;
     std::function<bool(CondSpec *, bool)> m_condSpecAsker;
+    std::function<bool(const jp::office::sheet::DifferentialFormat &, jp::office::sheet::DifferentialFormat *)> m_condLookAsker;
+    CondLookContext condLookContext() const;
     std::function<bool(const QVector<CondManageDialog::Item> &, const CondEditor &, QVector<crunch::EditSession::CondManaged> *)> m_manageAsker;
     void addCondRuleFromSpec(const CondSpec &spec);
     void newCondRule();

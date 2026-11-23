@@ -241,11 +241,8 @@ void CondRuleDialog::build(const CondSpec &start, bool editing)
 
     auto *looks = new QFormLayout;
     m_looksForm = looks;
-    m_look = new QComboBox(this);
-    m_look->setObjectName(QStringLiteral("condPreset"));
-    if (editing) m_look->addItem(tr("Keep the current look"), -1);
-    for (int i = 0; i < condpresets::lookCount(); ++i) m_look->addItem(condpresets::lookName(i), i);
-    looks->addRow(tr("Cells look like this"), m_look);
+    m_lookBox = new CondLookBox(editing, start.currentLook, this);
+    looks->addRow(tr("Cells look like this"), m_lookBox);
     m_stop = new QCheckBox(tr("Stop if true"), this);
     m_stop->setObjectName(QStringLiteral("condStop"));
     looks->addRow(QString(), m_stop);
@@ -265,12 +262,18 @@ void CondRuleDialog::build(const CondSpec &start, bool editing)
     m_count->setValue(start.count);
     m_formula->setText(start.v1);
     m_stop->setChecked(start.stopIfTrue);
-    if (editing && start.keepLook) m_look->setCurrentIndex(0);
-    else m_look->setCurrentIndex(std::max(0, m_look->findData(start.look)));
+    CondLookBox::Choice startLook;
+    startLook.keep = editing && start.keepLook;
+    startLook.preset = start.look;
+    startLook.custom = start.useCustom;
+    startLook.look = start.custom;
+    m_lookBox->setChoice(startLook);
     Q_EMIT m_op->currentIndexChanged(m_op->currentIndex());
     connect(m_kind, &QComboBox::currentIndexChanged, this, [this] { showPage(); });
     showPage();
 }
+
+void CondRuleDialog::setLookContext(const CondLookContext &context) { m_lookBox->setContext(context); }
 
 void CondRuleDialog::showPage()
 {
@@ -281,7 +284,7 @@ void CondRuleDialog::showPage()
         m_pages->widget(i)->setSizePolicy(QSizePolicy::Preferred, i == m_pages->currentIndex() ? QSizePolicy::Preferred : QSizePolicy::Ignored);
     CondSpec probe;
     probe.kind = k;
-    m_looksForm->setRowVisible(m_look, probe.hasLook());   // (a color scale, data bar, or icon set has no look of font and fill)
+    m_looksForm->setRowVisible(m_lookBox, probe.hasLook());   // (a color scale, data bar, or icon set has no look of font and fill)
     if (isVisible()) {
         layout()->activate();
         adjustSize();
@@ -496,9 +499,12 @@ CondSpec CondRuleDialog::spec() const
     s.period = m_period->currentData().toString();
     s.count = m_count->value();
     s.stopIfTrue = m_stop->isChecked();
-    const int look = m_look->currentData().toInt();
-    s.keepLook = look < 0;
-    s.look = std::max(0, look);
+    const CondLookBox::Choice look = m_lookBox->choice();
+    s.keepLook = look.keep;
+    s.look = look.preset;
+    s.useCustom = look.custom;
+    s.custom = look.look;
+    s.currentLook = m_start.currentLook;
     CondRule r;
     r.type = CondRule::Type::ColorScale;
     if (s.kind == Kind::ColorScale) {
@@ -630,9 +636,12 @@ void CondManageDialog::refill()
         auto *look = new QTableWidgetItem(it.look.isEmpty() ? QString() : tr("AaBbCcYyZz"));
         look->setFlags(Qt::ItemIsEnabled | Qt::ItemIsSelectable);
         if (it.look.fontColor.isSet()) look->setForeground(QColor::fromRgb(it.look.fontColor.rgb));
-        if (it.look.hasFill && it.look.fill.bg.isSet()) look->setBackground(QColor::fromRgb(it.look.fill.bg.rgb));
+        if (it.look.hasFill && (it.look.fill.bg.isSet() || it.look.fill.fg.isSet())) look->setBackground(QColor::fromRgb((it.look.fill.bg.isSet() ? it.look.fill.bg : it.look.fill.fg).rgb));
         QFont f = look->font();
         if (it.look.bold.value_or(false)) f.setBold(true);
+        if (it.look.italic.value_or(false)) f.setItalic(true);
+        if (it.look.strike.value_or(false)) f.setStrikeOut(true);
+        if (it.look.underline.value_or(jp::office::sheet::Underline::None) != jp::office::sheet::Underline::None) f.setUnderline(true);
         look->setFont(f);
         m_table->setItem(i, 1, look);
         auto *where = new QTableWidgetItem(rangesText(it.rule.ranges));

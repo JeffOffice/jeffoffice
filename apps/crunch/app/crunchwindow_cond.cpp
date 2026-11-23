@@ -205,9 +205,8 @@ bool CrunchWindow::askCondRule(CondAnswer *answer)
         period->setCurrentIndex(period->findData(QStringLiteral("today")));
         form->addRow(tr("Dates"), period);
     }
-    auto *look = new QComboBox(&dialog);
-    look->setObjectName(QStringLiteral("condPreset"));
-    for (int i = 0; i < condpresets::lookCount(); ++i) look->addItem(condpresets::lookName(i));
+    auto *look = new CondLookBox(false, DifferentialFormat(), &dialog);
+    look->setContext(condLookContext());
     form->addRow(tr("Cells look like this"), look);
     auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, &dialog);
     layout->addWidget(buttons);
@@ -217,7 +216,10 @@ bool CrunchWindow::askCondRule(CondAnswer *answer)
     if (first) answer->value1 = first->text();
     if (second) answer->value2 = second->text();
     if (period) answer->value1 = period->currentData().toString();
-    answer->preset = look->currentIndex();
+    const CondLookBox::Choice chosen = look->choice();
+    answer->preset = chosen.preset;
+    answer->custom = chosen.custom;
+    answer->customLook = chosen.look;
     return true;
 }
 
@@ -360,6 +362,8 @@ CondSpec specOfAnswer(const CrunchWindow::CondAnswer &a)
     s.v1 = a.value1;
     s.v2 = a.value2;
     s.look = a.preset;
+    s.useCustom = a.custom;
+    s.custom = a.customLook;
     switch (a.kind) {
     case Kind::Greater: s.kind = K::CellValue; s.op = CondRule::Operator::GreaterThan; break;
     case Kind::Less: s.kind = K::CellValue; s.op = CondRule::Operator::LessThan; break;
@@ -408,7 +412,7 @@ void CrunchWindow::addCondRuleFromSpec(const CondSpec &spec)
         notice(tr("Conditional Formatting"), why);
         return;
     }
-    const crunch::EditSession::Outcome o = m_session->addCondRule(m_sheet, rule, spec.hasLook() ? condpresets::lookOf(spec.look) : DifferentialFormat());
+    const crunch::EditSession::Outcome o = m_session->addCondRule(m_sheet, rule, spec.hasLook() ? (spec.useCustom ? spec.custom : condpresets::lookOf(spec.look)) : DifferentialFormat());
     if (!o.ok) notice(tr("Conditional Formatting"), o.problem);
 }
 
@@ -421,10 +425,21 @@ void CrunchWindow::newCondRule()
     addCondRuleFromSpec(spec);
 }
 
+// What the look of a rule is asked with: the workbook's colors and formats for the Format Cells box, or a test's answer in its place.
+CondLookContext CrunchWindow::condLookContext() const
+{
+    CondLookContext context;
+    if (m_loaded && m_loaded->book) context.styles = &m_loaded->book->styles();
+    context.base = formatInput();
+    context.asker = m_condLookAsker;
+    return context;
+}
+
 bool CrunchWindow::askCondSpec(CondSpec *spec, bool editing)
 {
     if (m_condSpecAsker) return m_condSpecAsker(spec, editing);
     CondRuleDialog dialog(*spec, editing, this);
+    dialog.setLookContext(condLookContext());
     if (dialog.exec() != QDialog::Accepted) return false;
     *spec = dialog.spec();
     return true;
@@ -452,6 +467,7 @@ void CrunchWindow::manageCondRules()
     const int newRow = int(selected.row1) - int(std::max<qint64>(0, sel.activeRow)), newCol = int(selected.col1) - int(std::max<qint64>(0, sel.activeCol));
     auto editor = [this, selected, newRow, newCol](const CondRule *old, const DifferentialFormat &oldLook, CondManageDialog::Item *out) {
         CondSpec spec = old ? specOfRule(*old) : CondSpec();
+        spec.currentLook = oldLook;
         if (!askCondSpec(&spec, old != nullptr)) return false;
         const jp::office::sheet::CellRange range = old && !old->ranges.isEmpty() ? old->ranges.first() : selected;
         CondRule rule;
@@ -465,9 +481,12 @@ void CrunchWindow::manageCondRules()
         out->look = DifferentialFormat();
         out->newLook = false;
         if (spec.hasLook()) {
-            if (old && spec.keepLook) {
+            if (old && (spec.keepLook || (spec.useCustom && sameCondLook(spec.custom, oldLook)))) {   // (the look is as the rule has it: the file's own bytes stay)
                 out->look = oldLook;
                 out->rule.dxf = old->dxf;
+            } else if (spec.useCustom) {
+                out->look = spec.custom;
+                out->newLook = true;
             } else {
                 out->look = condpresets::lookOf(spec.look);
                 out->newLook = true;

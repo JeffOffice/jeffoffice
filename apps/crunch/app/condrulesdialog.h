@@ -1,6 +1,7 @@
 #pragma once
 // The windows of conditional formatting: one rule (New Rule, and Edit Rule in Manage Rules) and the list of a sheet's rules (Manage Rules).
 
+#include "app/condlook.h"
 #include "core/editsession.h"
 #include "sheet/sheetmodel.h"
 
@@ -34,6 +35,9 @@ struct CondSpec {
     jp::office::sheet::CondRule visual;   // the settings of a color scale, data bar, or icon set
     int look = 0;            // a ready-made look (a place in condpresets)
     bool keepLook = false;   // the rule's own look stays as it is
+    bool useCustom = false;  // the person's own look (Custom Format): `custom`
+    jp::office::sheet::DifferentialFormat custom;
+    jp::office::sheet::DifferentialFormat currentLook;   // the look of the rule that is being edited (what the list shows for "keep", and where a custom look starts)
     bool stopIfTrue = false;
     // Whether the kind has a look of font and fill (a color scale, data bar, or icon set has none).
     bool hasLook() const { return kind != Kind::ColorScale && kind != Kind::DataBar && kind != Kind::IconSet; }
@@ -60,6 +64,9 @@ public:
     // `editing`: the rule is one that exists (its look may stay as it is).
     CondRuleDialog(const CondSpec &start, bool editing, QWidget *parent = nullptr);
     CondSpec spec() const;
+    // What Custom Format needs to open its box (the workbook's styles and colors); a test sets a stand-in for the box here.
+    void setLookContext(const CondLookContext &context);
+    CondLookBox *lookBox() const { return m_lookBox; }
     // The kind the person is making (for a test, and for the pages).
     void setKind(CondSpec::Kind kind);
 
@@ -72,7 +79,8 @@ private:
     void fillIconRows();
 
     CondSpec m_start;
-    QComboBox *m_kind = nullptr, *m_look = nullptr;
+    QComboBox *m_kind = nullptr;
+    CondLookBox *m_lookBox = nullptr;
     QFormLayout *m_looksForm = nullptr;
     QStackedWidget *m_pages = nullptr;
     QComboBox *m_op = nullptr, *m_period = nullptr;

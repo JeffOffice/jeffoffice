@@ -3314,12 +3314,12 @@ std::map<quint32, QString> Workbook::renamedFonts() const
 
 qint32 Workbook::dxfFor(const DifferentialFormat &f)
 {
-    if (m_stylesPart.isEmpty() || f.isEmpty() || f.hasBorder || f.numberFormat) return -1;
+    if (m_stylesPart.isEmpty() || f.isEmpty()) return -1;
     // (only a format added here is matched: one the file has may hold more than the model keeps of it)
     for (qsizetype i = m_dxfsInFile; i < m_styles.dxfs.size(); ++i) {
         const DifferentialFormat &d = m_styles.dxfs[i];
-        if (d.hasBorder || d.numberFormat) continue;
-        if (d.bold == f.bold && d.italic == f.italic && d.strike == f.strike && d.underline == f.underline && d.fontColor == f.fontColor && d.hasFill == f.hasFill && (!f.hasFill || (d.fill.pattern == f.fill.pattern && d.fill.bg == f.fill.bg && d.fill.fg == f.fill.fg)))
+        if (d.bold == f.bold && d.italic == f.italic && d.strike == f.strike && d.underline == f.underline && d.fontColor == f.fontColor && d.hasFill == f.hasFill && (!f.hasFill || d.fill == f.fill)
+            && d.hasBorder == f.hasBorder && (!f.hasBorder || d.border == f.border) && d.numberFormat == f.numberFormat)
             return qint32(i);
     }
     if (m_styles.dxfs.size() >= 100000) return -1;

@@ -40,6 +40,9 @@ namespace jp::office::sheet {
 
 namespace {
 
+// The first number a differential format's own number format is given (the code is written with it, and is what is read).
+constexpr int kDxfNumFmtId = 300;
+
 // The cells of the other workbook a link part keeps (its sheetDataSet), with these put in: a cell that is there gets the new value, one that is not is added in its place. False when the part is
 // not one this can change (another kind of link, or too big).
 bool patchExternalLinkValues(const QByteArray &xml, const std::vector<SaveChanges::ExternalCachedCell> &cells, QByteArray *out)
@@ -647,6 +650,7 @@ bool patchStyles(const QByteArray &xml, const SaveChanges &changes, QByteArray *
     }
     if (!changes.newDxfs.isEmpty()) {
         QByteArray items;
+        int dxfNumber = 0;   // (a number format of a differential format names its own code; the number only has to be one the file's own formats do not use)
         for (const DifferentialFormat &d : changes.newDxfs) {
             QByteArray one = "<dxf>";
             if (d.fontColor.isSet() || d.bold || d.italic || d.strike || d.underline) {
@@ -663,7 +667,10 @@ bool patchStyles(const QByteArray &xml, const SaveChanges &changes, QByteArray *
                 one += "<font>" + QByteArray(d.bold ? (*d.bold ? "<b/>" : "<b val=\"0\"/>") : "") + QByteArray(d.italic ? (*d.italic ? "<i/>" : "<i val=\"0\"/>") : "")
                        + QByteArray(d.strike ? (*d.strike ? "<strike/>" : "<strike val=\"0\"/>") : "") + underline + (d.fontColor.isSet() ? colorXml("color", d.fontColor) : QByteArray()) + "</font>";
             }
-            if (d.hasFill) one += "<fill><patternFill patternType=\"solid\">" + colorXml("fgColor", d.fill.bg.isSet() ? d.fill.bg : d.fill.fg) + colorXml("bgColor", d.fill.bg.isSet() ? d.fill.bg : d.fill.fg) + "</patternFill></fill>";
+            if (d.numberFormat) one += "<numFmt numFmtId=\"" + QByteArray::number(kDxfNumFmtId + dxfNumber++) + "\" formatCode=\"" + xmlscan::escapeAttribute(*d.numberFormat) + "\"/>";
+            if (d.hasFill && d.fill.pattern != PatternKind::None && d.fill.pattern != PatternKind::Solid && !d.fill.gradient) one += fillXml(d.fill);
+            else if (d.hasFill) one += "<fill><patternFill patternType=\"solid\">" + colorXml("fgColor", d.fill.bg.isSet() ? d.fill.bg : d.fill.fg) + colorXml("bgColor", d.fill.bg.isSet() ? d.fill.bg : d.fill.fg) + "</patternFill></fill>";
+            if (d.hasBorder) one += borderXml(d.border);
             one += "</dxf>";
             items += prefixed(one, p);
         }

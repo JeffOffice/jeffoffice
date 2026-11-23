@@ -69,6 +69,7 @@ public:
         QString sampleText = QStringLiteral("Text");
         QStringList customCodes;      // the codes the workbook defines, offered under Custom
         bool oneCell = true;          // the selection is one cell (the lines between cells are not offered)
+        bool ruleLook = false;        // the box is for the look of a rule: only what a rule can carry (the number format, the font style and color, the thin kinds of border, and the fill)
         QVector<QColor> palette;      // the workbook's theme colors for the color buttons (the first is the text color, then six accents); empty for the usual ones
     };
 

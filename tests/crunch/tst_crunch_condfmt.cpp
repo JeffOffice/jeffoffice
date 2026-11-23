@@ -7,7 +7,9 @@
 #include "editwindow.h"
 #include "app/condpresets.h"
 #include "app/theme.h"
+#include "app/condlook.h"
 #include "app/condrulesdialog.h"
+#include "app/formatdialog.h"
 #include "grid/condformat.h"
 #include "grid/gridview.h"
 #include "core/printjob.h"
@@ -19,6 +21,8 @@
 #include <QComboBox>
 #include <QFile>
 #include <QLineEdit>
+#include <QListWidget>
+#include <QTabWidget>
 #include <QMenu>
 #include <QPushButton>
 #include <QRegularExpression>
@@ -40,12 +44,12 @@ namespace {
 //   3    3      cherry   45000
 //   4    4      apple    (empty)
 //   5    5      (empty)  2
-QByteArray condBook(const QString &after = QString())
+QByteArray condBook(const QString &after = QString(), const QString &dxfs = QString())
 {
     const QString lists = QStringLiteral("<fonts count=\"1\"><font><sz val=\"11\"/><name val=\"Calibri\"/><family val=\"2\"/><scheme val=\"minor\"/></font></fonts>"
                                          "<fills count=\"2\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill></fills>"
                                          "<borders count=\"1\"><border><left/><right/><top/><bottom/><diagonal/></border></borders>"
-                                         "<cellStyles count=\"1\"><cellStyle name=\"Normal\" xfId=\"0\" builtinId=\"0\"/></cellStyles>");
+                                         "<cellStyles count=\"1\"><cellStyle name=\"Normal\" xfId=\"0\" builtinId=\"0\"/></cellStyles>") + dxfs;
     const QByteArray styles = stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\"/>"), lists);
     const char *fruit[] = {"apple", "banana", "cherry", "apple", nullptr};
     QString rows;
@@ -289,6 +293,86 @@ QByteArray manageAndSave(EditWindow &e, const std::function<void(CondManageDialo
 QString shape(const grid::CondCell &c)
 {
     return QStringLiteral("%1%2%3%4").arg(c.any ? "any" : "-").arg(c.format >= 0 ? " fmt" : "").arg(c.hasScale ? " scale" : "").arg(c.hasBar ? " bar" : "") + (c.icon >= 0 ? QStringLiteral(" icon") : QString());
+}
+
+// A look of every part a rule can carry: bold, italic, double underline, strikethrough, a font color, a pattern fill, a dotted line under and a thin line at the left, and a number format.
+DifferentialFormat everyPartLook()
+{
+    DifferentialFormat d;
+    d.bold = true;
+    d.italic = true;
+    d.strike = true;
+    d.underline = Underline::Double;
+    d.fontColor = ColorSpec::fromRgb(0x336699);
+    d.hasFill = true;
+    d.fill.pattern = PatternKind::LightGrid;
+    d.fill.fg = ColorSpec::fromRgb(0x112233);
+    d.fill.bg = ColorSpec::fromRgb(0xFFEEDD);
+    d.hasBorder = true;
+    d.border.bottom.style = BorderStyle::Dotted;
+    d.border.bottom.color = ColorSpec::fromRgb(0xFF0000);
+    d.border.left.style = BorderStyle::Thin;
+    d.border.left.color = ColorSpec::fromRgb(0x00AA00);
+    d.numberFormat = QStringLiteral("0.00");
+    return d;
+}
+
+QByteArray fileBytes(const QString &path)
+{
+    QFile f(path);
+    return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
+}
+
+// The part of the saved package: "xl/styles.xml" and the like.
+QByteArray savedPart(const QString &path, const QString &name)
+{
+    QMap<QString, QByteArray> parts;
+    jp::readZip(fileBytes(path), parts);
+    return parts.value(name);
+}
+
+bool saveThrough(EditWindow &e)
+{
+    QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+    return e.win.w.save() && savedOk(saved, 20000);
+}
+
+// New Rule on `range` with the person's own look: the window's answer is the whole rule.
+bool newRuleWithLook(EditWindow &e, const QString &range, const QString &value, const DifferentialFormat &look)
+{
+    selectRange(e, range);
+    e.win.w.setCondSpecAsker([=](CondSpec *spec, bool) {
+        spec->kind = CondSpec::Kind::CellValue;
+        spec->op = CondRule::Operator::GreaterThan;
+        spec->v1 = value;
+        spec->useCustom = true;
+        spec->custom = look;
+        return true;
+    });
+    QAction *a = e.win.w.act(QStringLiteral("cond.new"));
+    if (!a || !a->isEnabled()) return false;
+    a->trigger();
+    return true;
+}
+
+// The look of the first rule of the sheet, as the workbook holds it.
+DifferentialFormat firstRuleLook(EditWindow &e)
+{
+    const QVector<CondRule> rules = e.win.w.session()->condRules(0);
+    return rules.isEmpty() ? DifferentialFormat() : e.win.w.session()->condLookOf(rules.first());
+}
+
+// Manage Rules, with the first rule edited through the window's answer.
+void editFirstRule(EditWindow &e)
+{
+    e.win.w.setCondManageAsker([](const QVector<CondManageDialog::Item> &items, const CrunchWindow::CondEditor &editor, QVector<crunch::EditSession::CondManaged> *out) {
+        CondManageDialog d(items, editor);
+        d.select(0);
+        d.editSelected();
+        *out = d.result();
+        return true;
+    });
+    run(e, "cond.manage");
 }
 
 } // namespace
@@ -985,6 +1069,283 @@ private Q_SLOTS:
         QVERIFY2(second.told.last().contains(QLatin1String("data bars, color scales, and icon sets")), qPrintable(second.told.last()));
     }
 
+    // New Rule with Custom Format: every part of the look (font style and color, pattern fill, lines, number format) is held, is one step of Undo, is saved through the window's own save with its
+    // parts in the styles part, and reads back the same.
+    void aCustomLookIsMadeSavedAndReadBackWithEveryPart()
+    {
+        EditWindow e;
+        QVERIFY(e.open(condBook()));
+        const int steps = e.win.w.undoStack()->count();
+        QVERIFY(newRuleWithLook(e, QStringLiteral("A1:A5"), QStringLiteral("2"), everyPartLook()));
+        QVERIFY2(e.win.told.isEmpty(), qPrintable(e.win.told.join('|')));
+        QCOMPARE(e.win.w.undoStack()->count(), steps + 1);      // (one step)
+        QVERIFY(sameCondLook(firstRuleLook(e), everyPartLook()));
+        QVERIFY(saveThrough(e));
+        const QByteArray styles = savedPart(e.path, QStringLiteral("xl/styles.xml"));
+        QVERIFY(styles.contains("patternType=\"lightGrid\""));
+        QVERIFY(styles.contains("formatCode=\"0.00\""));
+        QVERIFY(styles.contains("style=\"dotted\""));
+        QVERIFY(styles.contains("<u val=\"double\"/>"));
+        EditWindow again;
+        QVERIFY(again.open(fileBytes(e.path)));
+        QVERIFY2(sameCondLook(firstRuleLook(again), everyPartLook()), "the look read back is not the look made");
+        // undo takes the rule away, and redo gives it back with its look
+        e.win.w.undoStack()->undo();
+        QCOMPARE(int(e.win.w.session()->condRules(0).size()), 0);
+        e.win.w.undoStack()->redo();
+        QVERIFY(sameCondLook(firstRuleLook(e), everyPartLook()));
+    }
+
+    // 50 edits that give a rule the same look add one differential format to the styles part, not 50.
+    void fiftyEditsWithOneCustomLookShareOneDifferentialFormat()
+    {
+        EditWindow e;
+        QVERIFY(e.open(condBook()));
+        QVERIFY(newRuleWithLook(e, QStringLiteral("A1:A5"), QStringLiteral("2"), everyPartLook()));
+        for (int i = 0; i < 50; ++i) {
+            e.win.w.setCondSpecAsker([i](CondSpec *spec, bool editing) {
+                if (!editing) return false;
+                spec->v1 = QString::number(10 + i);
+                spec->keepLook = false;
+                spec->useCustom = true;
+                spec->custom = everyPartLook();
+                return true;
+            });
+            editFirstRule(e);
+            QVERIFY2(e.win.told.isEmpty(), qPrintable(e.win.told.join('|')));
+        }
+        QVERIFY(saveThrough(e));
+        const QByteArray styles = savedPart(e.path, QStringLiteral("xl/styles.xml"));
+        QCOMPARE(styles.count("<dxf>"), 1);
+        QVERIFY(sameCondLook(firstRuleLook(e), everyPartLook()));
+    }
+
+    // A rule read from a file with a look of its own shows as Custom Format with its true sample, and an edit of something else leaves the look as the file has it: the same differential format,
+    // the same bytes.
+    void aFilesOwnCustomLookShowsAsCustomFormatAndKeepsItsBytes()
+    {
+        const QString dxf = QStringLiteral("<dxfs count=\"1\"><dxf><font><b/><color rgb=\"FF336699\"/></font><numFmt numFmtId=\"2\" formatCode=\"0.00\"/>"
+                                           "<border><left style=\"thin\"><color rgb=\"FF00AA00\"/></left><right/><top/><bottom/></border></dxf></dxfs>");
+        const QString tail = QStringLiteral("<conditionalFormatting sqref=\"A1:A5\"><cfRule type=\"cellIs\" dxfId=\"0\" priority=\"1\" operator=\"greaterThan\"><formula>3</formula></cfRule></conditionalFormatting>");
+        EditWindow e;
+        QVERIFY(e.open(condBook(tail, dxf)));
+        const QVector<CondRule> rules = e.win.w.session()->condRules(0);
+        QCOMPARE(int(rules.size()), 1);
+        const DifferentialFormat theirs = e.win.w.session()->condLookOf(rules.first());
+        QVERIFY(theirs.bold.value_or(false) && theirs.hasBorder && theirs.numberFormat == QStringLiteral("0.00"));
+        // the rule window
+        CondSpec spec = specOfRule(rules.first());
+        spec.currentLook = theirs;
+        CondRuleDialog dialog(spec, true);
+        QCOMPARE(dialog.lookBox()->list()->itemText(0), QStringLiteral("Custom Format"));
+        QVERIFY(sameCondLook(dialog.lookBox()->sample()->look(), theirs));
+        QVERIFY(dialog.spec().keepLook);
+        // an edit of the value alone
+        e.win.w.setCondSpecAsker([](CondSpec *s, bool) {
+            s->v1 = QStringLiteral("4");
+            return true;
+        });
+        editFirstRule(e);
+        QVERIFY(saveThrough(e));
+        const QByteArray sheet = savedSheet(e.path);
+        QVERIFY(sheet.contains("<formula>4</formula>"));
+        QVERIFY(sheet.contains("dxfId=\"0\""));
+        const QByteArray styles = savedPart(e.path, QStringLiteral("xl/styles.xml"));
+        QCOMPARE(styles.count("<dxf>"), 1);
+        QVERIFY(styles.contains(QByteArray("<dxf><font><b/><color rgb=\"FF336699\"/></font><numFmt numFmtId=\"2\" formatCode=\"0.00\"/>")));
+        // choosing Custom Format... and leaving the look as it is changes nothing either
+        EditWindow same;
+        QVERIFY(same.open(condBook(tail, dxf)));
+        same.win.w.setCondSpecAsker([](CondSpec *s, bool) {
+            s->v1 = QStringLiteral("5");
+            s->keepLook = false;
+            s->useCustom = true;
+            s->custom = s->currentLook;
+            return true;
+        });
+        editFirstRule(same);
+        QVERIFY(saveThrough(same));
+        QCOMPARE(savedPart(same.path, QStringLiteral("xl/styles.xml")).count("<dxf>"), 1);
+        QVERIFY(savedSheet(same.path).contains("<formula>5</formula>"));
+        QVERIFY(savedSheet(same.path).contains("dxfId=\"0\""));
+    }
+
+    // The list "Cells look like this" has Custom Format...; choosing it opens the box with the look that was shown, a cancelled box leaves the list where it was, and an answer is the look of the rule
+    // and of the sample. A quick rule (Greater Than and the others) takes the look the same way.
+    void theLookListOffersCustomFormatAndAsksForTheLook()
+    {
+        CondRuleDialog dialog(CondSpec(), false);
+        CondLookContext context;
+        int asked = 0;
+        DifferentialFormat got;
+        bool answer = false;
+        const DifferentialFormat made = everyPartLook();
+        context.asker = [&](const DifferentialFormat &start, DifferentialFormat *out) {
+            ++asked;
+            got = start;
+            if (!answer) return false;
+            *out = made;
+            return true;
+        };
+        dialog.setLookContext(context);
+        QComboBox *list = dialog.lookBox()->list();
+        const int custom = list->findData(-2);
+        QVERIFY(custom >= 0);
+        QCOMPARE(list->itemText(custom), QStringLiteral("Custom Format..."));
+        const int before = list->currentIndex();
+        list->setCurrentIndex(custom);                 // (cancelled)
+        QCOMPARE(asked, 1);
+        QVERIFY(sameCondLook(got, condpresets::lookOf(0)));   // (it starts from the look that was shown)
+        QCOMPARE(list->currentIndex(), before);
+        QVERIFY(!dialog.spec().useCustom);
+        answer = true;
+        list->setCurrentIndex(custom);
+        QCOMPARE(asked, 2);
+        QVERIFY(dialog.spec().useCustom);
+        QVERIFY(sameCondLook(dialog.spec().custom, made));
+        QVERIFY(sameCondLook(dialog.lookBox()->sample()->look(), made));
+        QCOMPARE(dialog.lookBox()->sample()->text(), QStringLiteral("1234.50"));   // (the sample shows the number format)
+        // picked again, it starts from the person's look
+        Q_EMIT list->activated(custom);
+        QCOMPARE(asked, 3);
+        QVERIFY(sameCondLook(got, made));
+        // a quick rule
+        EditWindow e;
+        QVERIFY(e.open(condBook()));
+        selectRange(e, QStringLiteral("A1:A5"));
+        e.win.w.setCondAsker([&](CrunchWindow::CondAnswer *a) {
+            a->value1 = QStringLiteral("2");
+            a->custom = true;
+            a->customLook = made;
+            return true;
+        });
+        run(e, "cond.greater");
+        QVERIFY(sameCondLook(firstRuleLook(e), made));
+    }
+
+    // The Format Cells box for a rule has the Number, Font, Border, and Fill tabs, only the thin kinds of line, and what it answers is merged into the look; a part it leaves alone stays.
+    void theFormatBoxForARuleOffersOnlyWhatARuleCarries()
+    {
+        FormatCellsDialog::Input in;
+        in.view = viewOfCondLook(DifferentialFormat(), nullptr);
+        in.ruleLook = true;
+        in.oneCell = true;
+        FormatCellsDialog box(in);
+        QTabWidget *tabs = box.findChild<QTabWidget *>(QStringLiteral("formatTabs"));
+        QVERIFY(tabs);
+        QStringList names;
+        for (int i = 0; i < tabs->count(); ++i) names << tabs->tabText(i);
+        QCOMPARE(names, QStringList({"Number", "Font", "Border", "Fill"}));
+        QListWidget *lines = box.findChild<QListWidget *>(QStringLiteral("lineStyle"));
+        QVERIFY(lines);
+        int shown = 0;
+        for (int i = 0; i < lines->count(); ++i) shown += !lines->item(i)->isHidden();
+        QCOMPARE(shown, 7);   // none, hair, dotted, dash-dot-dot, dash-dot, dashed, thin
+        // what the box is told to do ends in the look
+        box.findChild<QComboBox *>(QStringLiteral("fontStyle"))->setCurrentIndex(3);   // bold italic
+        box.findChild<QComboBox *>(QStringLiteral("underline"))->setCurrentIndex(2);   // double
+        box.findChild<QCheckBox *>(QStringLiteral("strike"))->setChecked(true);
+        const DifferentialFormat made = condLookAfter(DifferentialFormat(), box.result());
+        QCOMPARE(made.bold, std::optional<bool>(true));
+        QCOMPARE(made.italic, std::optional<bool>(true));
+        QCOMPARE(made.strike, std::optional<bool>(true));
+        QVERIFY(made.underline == Underline::Double);
+        QVERIFY(!made.hasFill && !made.hasBorder && !made.numberFormat);
+        // a look started from keeps what the box did not touch
+        FormatCellsDialog::Input again = in;
+        again.view = viewOfCondLook(everyPartLook(), nullptr);
+        FormatCellsDialog second(again);
+        second.findChild<QCheckBox *>(QStringLiteral("strike"))->setChecked(false);
+        DifferentialFormat after = condLookAfter(everyPartLook(), second.result());
+        QVERIFY(!after.strike);
+        after.strike = true;
+        QVERIFY(sameCondLook(after, everyPartLook()));
+    }
+
+    // A rule's look is drawn from every part of it, in priority order, and a rule with Stop If True hides the ones below: measured on the cell's look (what the screen and the print draw from), on
+    // the window, and on a PDF of the sheet.
+    void everyPartOfARulesLookIsDrawnOnScreenAndInThePdfInPriorityOrder()
+    {
+        const QString dxfs = QStringLiteral("<dxfs count=\"2\"><dxf><font><b/><i/><u val=\"double\"/><color rgb=\"FF0000FF\"/></font><numFmt numFmtId=\"164\" formatCode=\"0.00\"/>"
+                                            "<fill><patternFill patternType=\"solid\"><fgColor rgb=\"FF00FF00\"/><bgColor rgb=\"FF00FF00\"/></patternFill></fill>"
+                                            "<border><left style=\"thin\"><color rgb=\"FFFF0000\"/></left><right style=\"dotted\"><color rgb=\"FFFF0000\"/></right><top style=\"thin\"><color rgb=\"FFFF0000\"/></top>"
+                                            "<bottom style=\"dashed\"><color rgb=\"FFFF0000\"/></bottom></border></dxf>"
+                                            "<dxf><font><strike/><color rgb=\"FFFF00FF\"/></font><fill><patternFill patternType=\"solid\"><fgColor rgb=\"FFFFFF00\"/><bgColor rgb=\"FFFFFF00\"/></patternFill></fill></dxf></dxfs>");
+        // A1:A3 have the first rule (every part) and the second under it (magenta text, yellow fill): the first rule's color and fill win. A4:A5 have the second alone.
+        // C5 has a first rule with Stop If True and a second below it: only the first is drawn.
+        const QString tail = QStringLiteral("<conditionalFormatting sqref=\"A1:A3\"><cfRule type=\"cellIs\" dxfId=\"0\" priority=\"1\" operator=\"greaterThan\"><formula>0</formula></cfRule></conditionalFormatting>"
+                                            "<conditionalFormatting sqref=\"A1:A5\"><cfRule type=\"cellIs\" dxfId=\"1\" priority=\"2\" operator=\"greaterThan\"><formula>0</formula></cfRule></conditionalFormatting>"
+                                            "<conditionalFormatting sqref=\"C5\"><cfRule type=\"cellIs\" dxfId=\"0\" priority=\"3\" stopIfTrue=\"1\" operator=\"greaterThan\"><formula>0</formula></cfRule>"
+                                            "<cfRule type=\"cellIs\" dxfId=\"1\" priority=\"4\" operator=\"greaterThan\"><formula>0</formula></cfRule></conditionalFormatting>");
+        EditWindow e;
+        QVERIFY(e.open(condBook(tail, dxfs)));
+        e.win.w.resize(900, 500);
+        e.win.w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&e.win.w));
+        QVERIFY(e.settle());
+        grid::GridSheet &gs = e.view()->sheet();
+        gs.conditional().settle();
+        auto lookAt = [&](quint32 row, quint32 col) -> const grid::CellLook & {
+            const std::optional<grid::Cell> cell = gs.cellAt(row, col);
+            return gs.lookOf(row, col, cell ? cell->style : 0);
+        };
+        const grid::CellLook &a1 = lookAt(0, 0);
+        QVERIFY(a1.bold && a1.italic);
+        QVERIFY(a1.strike);                                                 // (the second rule adds what the first does not say)
+        QVERIFY(a1.underline == Underline::Double);
+        QCOMPARE(a1.textColor & 0xFFFFFF, 0x0000FFu);                       // (the first rule's color, not the second's)
+        QCOMPARE(a1.fg & 0xFFFFFF, 0x00FF00u);                              // (the first rule's fill)
+        QVERIFY(a1.left.style != BorderStyle::None && a1.right.style != BorderStyle::None && a1.top.style != BorderStyle::None && a1.bottom.style != BorderStyle::None);
+        QVERIFY(a1.hasFormat);
+        const grid::CellLook &a4 = lookAt(3, 0);
+        QCOMPARE(a4.textColor & 0xFFFFFF, 0xFF00FFu);                       // (the second rule alone)
+        QCOMPARE(a4.fg & 0xFFFFFF, 0xFFFF00u);
+        QVERIFY(!a4.bold && !a4.hasFormat && a4.strike);
+        const grid::CellLook &c5 = lookAt(4, 2);
+        QCOMPARE(c5.textColor & 0xFFFFFF, 0x0000FFu);                       // (Stop If True: the rule below is not added)
+        QCOMPARE(c5.fg & 0xFFFFFF, 0x00FF00u);
+        QVERIFY(!c5.strike);
+        auto count = [](const QImage &img, quint32 rgb) {
+            int n = 0;
+            for (int y = 0; y < img.height(); ++y)
+                for (int x = 0; x < img.width(); ++x) {
+                    const QRgb p = img.pixel(x, y);
+                    n += qAbs(qRed(p) - int((rgb >> 16) & 255)) < 12 && qAbs(qGreen(p) - int((rgb >> 8) & 255)) < 12 && qAbs(qBlue(p) - int(rgb & 255)) < 12;
+                }
+            return n;
+        };
+        // the window, grabbed
+        const QImage shot = e.win.w.grab().toImage().convertToFormat(QImage::Format_RGB32);
+        QVERIFY2(count(shot, 0x00FF00) > 40, "the first rule's fill is not on the screen");
+        QVERIFY2(count(shot, 0xFFFF00) > 20, "the second rule's fill is not on the screen");
+        // the PDF
+        const QString path = e.folder.dir.filePath(QStringLiteral("looks.pdf"));
+        crunch::PrintJobOptions options;
+        QString why;
+        QVERIFY2(e.win.w.exportPdfTo(path, options, QString(), &why), qPrintable(why));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const jp::PdfDocument pdf(f.readAll());
+        QVERIFY(pdf.isValid());
+        const QImage page = pdf.render(0, QSize(612, 792)).convertToFormat(QImage::Format_RGB32);
+        QVERIFY2(count(page, 0x00FF00) > 20, "the first rule's fill is not on the printed page");
+        QVERIFY2(count(page, 0xFFFF00) > 10, "the second rule's fill is not on the printed page");
+        QVERIFY2(count(page, 0xFF0000) > 10, "the rule's lines are not on the printed page");
+        QVERIFY2(count(page, 0x0000FF) > 5, "the rule's font color is not on the printed page");
+    }
+
+    // A protected sheet that does not allow formatting refuses a rule with a look of its own, as it refuses every other rule change, and the refusal leaves nothing to undo.
+    void aProtectedSheetRefusesACustomLook()
+    {
+        EditWindow e;
+        QVERIFY(e.open(condBook(QStringLiteral("<sheetProtection sheet=\"1\"/>"))));
+        const int steps = e.win.w.undoStack()->count();
+        QVERIFY(newRuleWithLook(e, QStringLiteral("A1:A5"), QStringLiteral("2"), everyPartLook()));
+        QVERIFY2(e.win.told.join('|').contains(QLatin1String("protected")), qPrintable(e.win.told.join('|')));
+        QCOMPARE(e.win.w.undoStack()->count(), steps);
+        QCOMPARE(int(e.win.w.session()->condRules(0).size()), 0);
+    }
+
     // Pictures for the docs, when JC_SHOT_DIR names a folder: the menu and its galleries, a sheet with bars, scales, and icons, and Manage Rules with the window of each kind of rule.
     void picturesOfTheMenuAndTheRules()
     {
@@ -1054,6 +1415,43 @@ private Q_SLOTS:
         CondRuleDialog fresh(CondSpec(), false);
         fresh.show();
         fresh.grab().save(dir + QStringLiteral("/new-rule.png"));
+    }
+
+    // Pictures for the docs, when JC_SHOT_DIR names a folder: the rule window with Custom Format chosen, the box for a rule on each tab, and Manage Rules with a rule that has a look of its own.
+    void picturesOfTheCustomLook()
+    {
+        const QString dir = QString::fromLocal8Bit(qgetenv("JC_SHOT_DIR"));
+        if (dir.isEmpty()) QSKIP("JC_SHOT_DIR names the folder for the pictures");
+        jp::applyUiTheme(1);
+        CondSpec spec;
+        spec.v1 = QStringLiteral("100");
+        spec.useCustom = true;
+        spec.custom = everyPartLook();
+        CondRuleDialog window(spec, false);
+        window.show();
+        window.grab().save(dir + QStringLiteral("/rule-custom-format.png"));
+        FormatCellsDialog::Input in;
+        in.view = viewOfCondLook(everyPartLook(), nullptr);
+        in.ruleLook = true;
+        in.oneCell = true;
+        FormatCellsDialog box(in);
+        box.show();
+        const char *tabs[] = {"box-number.png", "box-font.png", "box-border.png", "box-fill.png"};
+        QTabWidget *t = box.findChild<QTabWidget *>(QStringLiteral("formatTabs"));
+        for (int i = 0; i < 4; ++i) {
+            t->setCurrentIndex(i);
+            box.grab().save(dir + QLatin1Char('/') + QLatin1String(tabs[i]));
+        }
+        QVector<CondManageDialog::Item> items;
+        CondManageDialog::Item item;
+        item.rule = rule(CondRule::Type::CellIs, "A1:A5");
+        item.rule.op = CondRule::Operator::GreaterThan;
+        item.rule.formula1 = QStringLiteral("100");
+        item.look = everyPartLook();
+        items.append(item);
+        CondManageDialog manage(items, nullptr);
+        manage.show();
+        manage.grab().save(dir + QStringLiteral("/manage-custom-look.png"));
     }
 
     // What the menu makes is printed: a PDF of the sheet has the bar's color and the scale's colors.

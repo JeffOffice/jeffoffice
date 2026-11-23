@@ -190,7 +190,7 @@ bool FormatCellsDialog::Result::isEmpty() const
 FormatCellsDialog::FormatCellsDialog(const Input &input, QWidget *parent) : QDialog(parent), m_in(input)
 {
     setObjectName(QStringLiteral("formatCellsDialog"));
-    setWindowTitle(tr("Format Cells"));
+    setWindowTitle(m_in.ruleLook ? tr("Custom Format") : tr("Format Cells"));
     auto *layout = new QVBoxLayout(this);
     m_tabs = new QTabWidget(this);
     m_tabs->setObjectName(QStringLiteral("formatTabs"));
@@ -204,6 +204,10 @@ FormatCellsDialog::FormatCellsDialog(const Input &input, QWidget *parent) : QDia
     for (const auto &p : pages) {
         auto *page = new QWidget(m_tabs);
         (this->*p.build)(page);
+        if (m_in.ruleLook && (p.build == &FormatCellsDialog::buildAlignment || p.build == &FormatCellsDialog::buildProtection)) {
+            page->hide();   // (built, so that the result reads the same controls, but not shown: a rule carries neither)
+            continue;
+        }
         m_tabs->addTab(page, tr(p.name));
     }
     m_building = false;
@@ -654,6 +658,10 @@ void FormatCellsDialog::buildFont(QWidget *page)
     m_fontColor->setCurrent(v.fontColor.isValid() ? ColorRef::rgb(v.fontColor) : ColorRef::none());
     form->addRow(tr("&Color"), m_fontColor);
     layout->addLayout(form);
+    if (m_in.ruleLook) {
+        form->setRowVisible(m_fontName, false);   // (a rule changes the style and color of the font, not the face or the size)
+        form->setRowVisible(m_fontSize, false);
+    }
     auto *effects = new jp::Section(tr("Effects"), page);
     auto *el = new QVBoxLayout(effects);
     m_strike = new QCheckBox(tr("Stri&kethrough"), effects);
@@ -668,6 +676,8 @@ void FormatCellsDialog::buildFont(QWidget *page)
     el->addWidget(m_strike);
     el->addWidget(m_superscript);
     el->addWidget(m_subscript);
+    m_superscript->setVisible(!m_in.ruleLook);
+    m_subscript->setVisible(!m_in.ruleLook);
     layout->addWidget(effects);
     auto *preview = new jp::Section(tr("Preview"), page);
     auto *pl = new QVBoxLayout(preview);
@@ -744,6 +754,10 @@ void FormatCellsDialog::buildBorder(QWidget *page)
     for (const BorderStyle s : kLineStyles) {
         auto *item = new QListWidgetItem(lineSwatch(s, Qt::black), lineStyleName(s), m_lineStyles);
         item->setToolTip(jp::plainToolTip(lineStyleName(s)));
+        // (a rule's border is of the thin kinds: the file format has no medium, thick, double, or slanted line for it)
+        if (m_in.ruleLook && (s == BorderStyle::Medium || s == BorderStyle::Thick || s == BorderStyle::Double || s == BorderStyle::MediumDashed || s == BorderStyle::MediumDashDot ||
+                              s == BorderStyle::MediumDashDotDot || s == BorderStyle::SlantDashDot))
+            item->setHidden(true);
     }
     m_lineStyles->setCurrentRow(6);   // thin
     m_lineStyles->setMinimumHeight(190);
@@ -769,7 +783,10 @@ void FormatCellsDialog::buildBorder(QWidget *page)
     for (int i = 0; i < 3; ++i) {
         auto *b = new QPushButton(icon(QString::fromLatin1(presetList[i].icon)), tr(presetList[i].name), presets);
         b->setObjectName(QString::fromLatin1(presetList[i].id));
-        if (i == 2) b->setEnabled(!m_in.oneCell);
+        if (i == 2) {
+            b->setEnabled(!m_in.oneCell);
+            b->setVisible(!m_in.ruleLook);
+        }
         pl->addWidget(b);
         connect(b, &QPushButton::clicked, this, [this, i] {
             if (i == 0) {
@@ -818,7 +835,10 @@ void FormatCellsDialog::buildBorder(QWidget *page)
     grid->addWidget(m_edgeButtons[Right], 1, 2, Qt::AlignVCenter);
     grid->addWidget(m_edgeButtons[Bottom], 2, 1, Qt::AlignHCenter);
     auto *under = new QHBoxLayout();
-    for (const int e : {int(InsideH), int(InsideV), int(DiagUp), int(DiagDown)}) under->addWidget(m_edgeButtons[e]);
+    for (const int e : {int(InsideH), int(InsideV), int(DiagUp), int(DiagDown)}) {
+        under->addWidget(m_edgeButtons[e]);
+        m_edgeButtons[e]->setVisible(!m_in.ruleLook);   // (a rule has no lines between cells and no diagonals)
+    }
     grid->addLayout(under, 3, 0, 1, 3);
     grid->setColumnStretch(1, 1);
     right->addWidget(border, 1);
@@ -926,6 +946,7 @@ void FormatCellsDialog::buildFill(QWidget *page)
     m_gradientStyle->setCurrentIndex(std::max(0, std::min(4, v.gradientStyle)));
     effectsForm->addRow(tr("&Direction"), m_gradientStyle);
     layout->addWidget(effects);
+    effects->setVisible(!m_in.ruleLook);   // (a rule's fill is of one color or a pattern)
     const bool wasOn = v.gradient;
     m_gradientColor->setEnabled(wasOn);
     m_gradientStyle->setEnabled(wasOn);
