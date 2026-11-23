@@ -143,6 +143,8 @@ public:
     int step() const { return m_done; }
     // An effect of the slide on the screen is playing.
     bool isPlayingStep() const { return m_playing >= 0; }
+    // The clock that draws the frames is running.
+    bool frameClockRunning() const { return m_frame.isActive(); }
     // A slide and how many of its steps have played.
     struct View {
         int slide = -1;   // -1: the end of the show
@@ -397,6 +399,7 @@ private:
     void openPresentation(const QString &address);
     // A short word on the screen (or to the notice hook) for a link that can't be followed.
     void say(const QString &text);
+    void tellBox(const QString &title, const QString &text, bool warning);
     void followHover(const QString &link);
     struct Return {
         QList<int> order;

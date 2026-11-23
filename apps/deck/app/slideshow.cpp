@@ -1558,8 +1558,14 @@ bool SlideShow::focusNextPrevChild(bool next)
 {
     if (isKiosk() || m_recording) return true;
     const QVector<const deck::LinkArea *> areas = tabAreas();
-    if (areas.isEmpty()) return true;
+    if (areas.isEmpty() && !m_embedded) return true;
     const int now = m_focusSlide == m_slide ? m_focusIndex : -1, n = int(areas.size());
+    // Played in the document's window, the key goes on past the links to the window's own controls (the status bar's buttons); a slide with no link hands it on at once.
+    if (m_embedded && (areas.isEmpty() || (next ? now == n - 1 : now <= 0))) {
+        m_focusIndex = -1;
+        update();
+        return QWidget::focusNextPrevChild(next);
+    }
     m_focusSlide = m_slide;
     m_focusIndex = next ? (now + 1) % n : now <= 0 ? n - 1 : now - 1;
     update();
@@ -1620,7 +1626,7 @@ void SlideShow::followLink(const QString &link)
         if (!office::isOpenableFileLink(target, &local, t.kind == office::LinkKind::Deck ? &presentationEndings : nullptr)) {
             const QString text = office::isProgramName(target) ? tr("This link opens a program, so it was not opened.") : tr("This link goes to a file that is not opened from a link, so it was not opened.");
             if (m_linkNotice) m_linkNotice(text);
-            else jp::plainWarning(this, tr("Open Link"), text);
+            else tellBox(tr("Open Link"), text, true);
             return;
         }
     }
@@ -1632,23 +1638,37 @@ void SlideShow::followLink(const QString &link)
         if (!url.isValid()) return;
     }
     const QString shown = target;
-    bool yes = false;
-    if (m_linkPrompt) yes = m_linkPrompt(shown, remote);
-    else {
-        jp::MessageBox box(QMessageBox::Question, tr("Open Link"), remote ? tr("This link goes to a file on another computer. Open it?") : tr("Open this link?"), QMessageBox::NoButton, this);
-        box.setTextFormat(Qt::PlainText);
-        box.setInformativeText(shown);
-        box.addButton(tr("Open"), QMessageBox::AcceptRole);
-        QPushButton *no = box.addButton(QMessageBox::Cancel);
-        box.setDefaultButton(no);
-        box.exec();
-        yes = box.clickedButton() != no && box.result() != QMessageBox::Cancel;
-    }
-    if (yes) {
-        if (t.kind == office::LinkKind::Deck) openPresentation(target);
+    // What is done when the person says yes.
+    const office::LinkKind kind = t.kind;
+    auto open = [this, kind, target, url](bool yes) {
+        if (!yes) return;
+        if (kind == office::LinkKind::Deck) openPresentation(target);
         else if (m_linkOpener) m_linkOpener(url);
         else QDesktopServices::openUrl(url);
+    };
+    if (m_linkPrompt) {
+        open(m_linkPrompt(shown, remote));
+        return;
     }
+    // The question does not wait in a loop of its own: a show that ends meanwhile is deleted with the box, which is its child.
+    auto *box = new jp::MessageBox(QMessageBox::Question, tr("Open Link"), remote ? tr("This link goes to a file on another computer. Open it?") : tr("Open this link?"), QMessageBox::NoButton, this);
+    box->setTextFormat(Qt::PlainText);
+    box->setInformativeText(shown);
+    box->addButton(tr("Open"), QMessageBox::AcceptRole);
+    QPushButton *no = box->addButton(QMessageBox::Cancel);
+    box->setDefaultButton(no);
+    box->setAttribute(Qt::WA_DeleteOnClose);
+    connect(box, &QDialog::finished, this, [box, no, open] { open(box->clickedButton() != no && box->result() != QMessageBox::Cancel); });
+    box->open();
+}
+
+// A message the show puts up. It does not wait for an answer: the box is the show's child and goes with it, so a show that ends while it is up is not deleted inside the box's own loop.
+void SlideShow::tellBox(const QString &title, const QString &text, bool warning)
+{
+    auto *box = new jp::MessageBox(warning ? QMessageBox::Warning : QMessageBox::Information, title, text, QMessageBox::Ok, this);
+    box->setTextFormat(Qt::PlainText);
+    box->setAttribute(Qt::WA_DeleteOnClose);
+    box->open();
 }
 
 // A custom show played from a link: its slides replace the show's, and with `back` the show comes back to the slide it was on when they are played.
@@ -1757,7 +1777,7 @@ void SlideShow::openPresentation(const QString &address)
     if (!doc || doc->pages.isEmpty()) {
         const QString text = tr("The presentation %1 can't be opened.").arg(QFileInfo(path).fileName());
         if (m_linkNotice) m_linkNotice(text);
-        else jp::plainWarning(this, tr("Open Link"), text);
+        else tellBox(tr("Open Link"), text, true);
         return;
     }
     auto *holder = new NestedHolder;
@@ -2355,10 +2375,11 @@ QString SlideShow::helpText()
     lines << tr("First or last slide: Home or End.");
     lines << tr("A slide by number: type the number, then press Enter.");
     lines << tr("Black or white screen: B or W (or the period and comma keys).");
-    lines << tr("Pen, highlighter, laser pointer, eraser, or arrow: %1, %2, %3, %4, or %5.").arg(key(Qt::Key_P, ctrl), key(Qt::Key_I, ctrl), key(Qt::Key_L, ctrl), key(Qt::Key_E, ctrl), key(Qt::Key_A, ctrl));
-    lines << tr("Erase all ink on the slide: E.");
+    lines << tr("Pen, highlighter, laser pointer, or arrow: %1, %2, %3, or %4.").arg(key(Qt::Key_P, ctrl), key(Qt::Key_I, ctrl), key(Qt::Key_L, ctrl), key(Qt::Key_A, ctrl));
+    lines << tr("Eraser, to rub out ink as you drag: %1.").arg(key(Qt::Key_E, ctrl));
+    lines << tr("Erase all ink on the slide at once: E, without Ctrl.");
     lines << tr("The menu: a right click, the Menu key, or Shift+F10.");
-    lines << tr("Back to the arrow, then end the show: Esc.");
+    lines << tr("Esc: put the pointer back to an arrow; press again to end the show.");
     return lines.join(QLatin1Char('\n'));
 }
 
@@ -2414,7 +2435,7 @@ QMenu *SlideShow::buildMenu(QWidget *parent)
     menu->addSeparator();
     QAction *help = menu->addAction(tr("Help"));
     help->setObjectName(QStringLiteral("menuHelp"));
-    connect(help, &QAction::triggered, this, [this] { jp::plainInformation(this, tr("Slide Show Help"), helpText()); });
+    connect(help, &QAction::triggered, this, [this] { tellBox(tr("Slide Show Help"), helpText(), false); });
     QAction *end = menu->addAction(tr("End Show"));
     end->setObjectName(QStringLiteral("menuEnd"));
     connect(end, &QAction::triggered, this, [this] { close(); });
