@@ -162,7 +162,7 @@ const std::vector<Prop> &characterProps()
         {QT_TRANSLATE_NOOP("jp::write::Inspector", "Character spacing"), {{QTextFormat::FontLetterSpacing, 'd'}, {QTextFormat::FontLetterSpacingType, 'i'}}},
         {QT_TRANSLATE_NOOP("jp::write::Inspector", "Character width"), {{QTextFormat::FontStretch, 'i'}}, {}, sameScale},
         {QT_TRANSLATE_NOOP("jp::write::Inspector", "Hidden text"), {{tp::HiddenText, 'b'}}, {}, nullptr, ownHiding},
-        {QT_TRANSLATE_NOOP("jp::write::Inspector", "Border round the text"), {{tp::RunBorder, 's'}, {prop::CharBorder, 's'}}, {"bdr"}},
+        {QT_TRANSLATE_NOOP("jp::write::Inspector", "Border around the text"), {{tp::RunBorder, 's'}, {prop::CharBorder, 's'}}, {"bdr"}},
         {QT_TRANSLATE_NOOP("jp::write::Inspector", "Shadow or outline"), {{tp::Shadow, 'b'}, {tp::OutlineRef, 's'}, {tp::OutlineWidth, 'd'}}, {"shadow", "outline"}},
         {QT_TRANSLATE_NOOP("jp::write::Inspector", "Emboss or engrave"), {{tp::Emboss, 'b'}, {tp::Engrave, 'b'}}, {"emboss", "imprint"}},
         {QT_TRANSLATE_NOOP("jp::write::Inspector", "Do not check spelling"), {{tp::NoProof, 'b'}}},

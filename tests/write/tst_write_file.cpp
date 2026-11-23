@@ -1558,7 +1558,7 @@ private Q_SLOTS:
             {"Character spacing", "<w:spacing w:val=\"40\"/>", "w:val=\"40\"", false},
             {"Character width", "<w:w w:val=\"150\"/>", "<w:w ", false},
             {"Hidden text", "<w:vanish/>", "<w:vanish", false},
-            {"Border round the text", "<w:bdr w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"auto\"/>", "<w:bdr ", false},
+            {"Border around the text", "<w:bdr w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"auto\"/>", "<w:bdr ", false},
             {"Shadow or outline", "<w:shadow/>", "<w:shadow", false},
             {"Shadow or outline", "<w:outline/>", "<w:outline/>", false},
             {"Emboss or engrave", "<w:emboss/>", "<w:emboss", false},
