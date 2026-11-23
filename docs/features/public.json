@@ -6952,7 +6952,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "293e6a80184987a937d71571024648b64e743bd1817db27c5e5ac19eab4e5a39"
+         "text": "2f07715f213d0289e0c616b63a584fd74c34729154c3b2861632c8c2a5ddc573"
         },
         {
          "status": "partly",
@@ -11065,18 +11065,6 @@
     "fr": ""
    }
   },
-  "293e6a80184987a937d71571024648b64e743bd1817db27c5e5ac19eab4e5a39": {
-   "drop": false,
-   "en": "Print Layout shows pages as they print. Draft runs the pages on without edges, shadows, headers, or footers, with a dotted line naming each page or section break. Outline is a view of its own, with the Outlining tab.",
-   "es": "La vista Diseño de impresión muestra las páginas tal como se imprimen. Borrador une las páginas sin bordes, sombras, encabezados ni pies de página, con una línea punteada que nombra cada salto de página o de sección. Esquema es una vista propia, con la pestaña Esquema.",
-   "fr": "La vue Mode Page affiche les pages telles qu’elles s’impriment. Brouillon enchaîne les pages sans bords, ombres, en-têtes ni pieds de page, avec une ligne pointillée nommant chaque saut de page ou de section. Plan est une vue à part, avec l’onglet Plan.",
-   "soon": {
-    "drop": false,
-    "en": "Draft view: style area",
-    "es": "Vista Borrador: área de estilos",
-    "fr": "Vue Brouillon : zone des styles"
-   }
-  },
   "29484d236f66a10a66c57203781d56b7ec5dbfa244876a3e26ec35856eb3acb1": {
    "drop": false,
    "en": "Insert a table of contents from the gallery (Contents, Contents with Full Title, and Contents to Fill In) or the custom dialog. Build it from heading styles, outline levels, or table entry fields, with levels 1 to 9, page numbers, right-aligned tab leaders, and links.",
@@ -11526,6 +11514,18 @@
    "en": "",
    "es": "",
    "fr": "",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "2f07715f213d0289e0c616b63a584fd74c34729154c3b2861632c8c2a5ddc573": {
+   "drop": false,
+   "en": "Switch between Print Layout (pages as they print), Draft (one continuous column with a style area), and Outline, which has its own Outlining tab.",
+   "es": "Cambie entre Diseño de impresión (páginas tal como se imprimen), Borrador (una columna continua con un área de estilos) y Esquema, que tiene su propia pestaña Esquema.",
+   "fr": "Passez entre Mise en page (pages telles qu’elles s’impriment), Brouillon (une colonne continue avec une zone de styles) et Plan, qui a son propre onglet Plan.",
    "soon": {
     "drop": true,
     "en": "",
