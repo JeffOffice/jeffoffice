@@ -22,6 +22,10 @@
 #           1/2: crunchtests:1/2 785, writetests 576, jdtests 450, officetests 72, wmltests, odttests, writeodttests 15: 1898
 #           2/2: crunchtests:2/2 547, jptests 629 (moved here from 1/2 on Nov 17), flowtests 344 (moved here Nov 17; 204-687), sheettests 256,
 #                the small write tests 100: 1876 (before the move 1/2 summed ~3200 and its Test step took 16 min, 2/2 ~950 and 9 min)
+#           Nov 23: writetabs2tests, writedrawtests, writefiletests (and writeobjecttests, see below) ran in the gate and in no list here. No Windows
+#           times exist yet; assumed three times the gate's local seconds (tabs2 4 s, draw 43, file 28): tabs2 12, draw 130, file 85. draw
+#           goes to 1/2 (1898 + 130 = 2028), tabs2 and file to 2/2 (1876 + 97 = 1973). tools/check_suite_lists.py fails when a program of
+#           CMakeLists.txt is in the gate or in a system's list and not in the others.
 #           Nov 17 run 44116676147 (first with that split): 1/2 Test 7 min, 2/2 21 min. Four heavy programs at once on 4 processors slowed each
 #           other (sheettests 256 -> 867 s, CrunchHostileTests 194 -> 838 s; both unchanged at 6 s locally), so flowtests went back to 1/2:
 #           three heavy programs a job (1/2: crunch part 1, flowtests, writetests, jdtests; 2/2: crunch part 2, jptests, sheettests).
@@ -49,15 +53,15 @@ mode=${4:-targets}
 
 case "$part/$shard" in
 tests/)
-    runs="flowtests crunchtests jdtests writetests writereviewtests writeinfotests writehometests writeinserttests sheettests jptests officetests wmltests odttests writeodttests writerefstests writemailtests writefieldtests" ;;
+    runs="flowtests crunchtests jdtests writetests writereviewtests writeinfotests writehometests writeinserttests sheettests jptests officetests wmltests odttests writeodttests writerefstests writemailtests writefieldtests writetabs2tests writedrawtests writefiletests" ;;
 # (our own Windows machine: the whole part in one job, and JeffDeck's checks with it, which GitHub's job that packages and signs the installer ran until
 # Nov 19 2026: 5 of that job's 14 minutes, the longest of a run)
 tests/ours)
-    runs="flowtests crunchtests jdtests writetests writereviewtests writeinfotests writehometests writeinserttests sheettests jptests officetests wmltests odttests writeodttests writerefstests writemailtests writefieldtests deckchecks" ;;
+    runs="flowtests crunchtests jdtests writetests writereviewtests writeinfotests writehometests writeinserttests sheettests jptests officetests wmltests odttests writeodttests writerefstests writemailtests writefieldtests writetabs2tests writedrawtests writefiletests deckchecks" ;;
 tests/1/2)
-    runs="crunchtests:1/2 flowtests writetests jdtests officetests wmltests odttests writeodttests" ;;
+    runs="crunchtests:1/2 flowtests writetests jdtests officetests wmltests odttests writeodttests writedrawtests" ;;
 tests/2/2)
-    runs="crunchtests:2/2 jptests sheettests writereviewtests writeinfotests writehometests writeinserttests writerefstests writemailtests writefieldtests" ;;
+    runs="crunchtests:2/2 jptests sheettests writereviewtests writeinfotests writehometests writeinserttests writerefstests writemailtests writefieldtests writetabs2tests writefiletests" ;;
 checks/)
     runs="crunchchecks writechecks pubchecks deckchecks"
     extra="jeffpub jeffdeck jeffwrite jeffcrunch jpubtool jdecktool" ;;
