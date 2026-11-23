@@ -2068,6 +2068,47 @@ private Q_SLOTS:
         QVERIFY(!stream.contains(number(5, 0, 9005)));
     }
 
+    // The work of leaving out what lies across guessed joins is one pass over the records and the joins: counted at 1, 2, and 4 MB it grows with the size and no faster. The sheet holds
+    // one entry continued by a run of tiny records, the shape that made a walk of the run for every join quadratic, and every other link of the chain is broken, so a join falls in every other sector.
+    void theWorkAcrossJoinsGrowsInStepWithTheFile()
+    {
+        QVector<qint64> steps, bytes;
+        for (int mb : {1, 2, 4}) {
+            QByteArray cells;
+            cells += number(0, 0, 1);
+            for (int k = 0; k < mb * 1024 * 1024 / 8; ++k) cells += rec(0x003C, QByteArray(4, 'c'));   // (one entry of a million continuation records)
+            Book b;
+            b.sheet(QStringLiteral("A"), dimensions(60000, 200) + cells);
+            jp::cfb::File f;
+            jp::cfb::Entry root;
+            root.type = jp::cfb::Entry::Root;
+            root.name = QStringLiteral("Root Entry");
+            f.entries.push_back(root);
+            jp::cfb::Entry e;
+            e.type = jp::cfb::Entry::Stream;
+            e.name = QStringLiteral("Workbook");
+            e.data = b.stream();
+            f.entries[0].children << 1;
+            f.entries << e;
+            QByteArray file = jp::cfb::write(f);
+            const QList<quint32> c = cfbdamage::sectorsOf(file, QStringLiteral("Workbook"));
+            for (int i = 1; i < c.size(); i += 2) cfbdamage::fatSet(file, c[i], 0x00FFFFF0);
+            XlsSalvageWork w;
+            QStringList notes;
+            QString why;
+            const QByteArray out = salvageXlsStream(file, Limits(), &notes, &why, &w);
+            QVERIFY2(!out.isEmpty(), qPrintable(why));
+            QVERIFY(w.joinSteps > c.size() / 4);   // (the joins were met)
+            QVERIFY2(w.joinSteps <= w.streamBytes / 4 + c.size() * 2, qPrintable(QStringLiteral("%1 MB: %2 steps for %3 bytes").arg(mb).arg(w.joinSteps).arg(w.streamBytes)));
+            steps << w.joinSteps;
+            bytes << w.streamBytes;
+        }
+        for (int i = 1; i < 3; ++i) {
+            const double growth = double(steps[i]) / double(steps[i - 1]), size = double(bytes[i]) / double(bytes[i - 1]);
+            QVERIFY2(growth < size * 1.15, qPrintable(QStringLiteral("steps grew %1 times for %2 times the bytes").arg(growth).arg(size)));
+        }
+    }
+
     // A link of the tables that can't be read is guessed, and the cell that lies across the join is left out, not shown: the bytes there may be another sector's. The notes count it.
     void aCellAcrossAGuessedJoinIsLeftOut()
     {

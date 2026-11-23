@@ -20,6 +20,7 @@ struct SalvageWork {
 };
 SalvageWork salvageWorkForTest();
 
-QByteArray salvageDoc(const QByteArray &file, QStringList *notes, QString *error);
+// `joinSteps`, if given, is set to the work done to leave blank what lies across guessed joins (a test of its bound reads it; nothing is shared between calls).
+QByteArray salvageDoc(const QByteArray &file, QStringList *notes, QString *error, qint64 *joinSteps = nullptr);
 
 } // namespace jp::office::doc

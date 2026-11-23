@@ -1572,43 +1572,52 @@ JoinCheck checkAfterJoin(const QByteArray &d, qint64 firstJoin)
 }
 
 // Leaves out every entry of the workbook that lies across a place where pieces of the file were joined by guess (a cell, or whatever record it is, with the records that continue it): the
-// record is given an id that no reader acts on. A begin or end record that lies across one can't be left out, so the stream stops before it. Returns how many entries were left out.
-int dropAcrossJoins(QByteArray *d, const QVector<qint64> &joins)
+// record is given an id that no reader acts on and its bytes are cleared. A begin or end record that lies across one can't be left out, so the stream stops before it. Returns how many
+// entries were left out. One pass over the records, with the joins in order: the work is the records and the joins, once each (`*steps` counts them).
+int dropAcrossJoins(QByteArray *d, QVector<qint64> joins, qint64 *steps)
 {
+    std::sort(joins.begin(), joins.end());
     struct Rec {
         qsizetype at, end;
-        int id;
     };
-    QVector<Rec> recs;
+    QVector<Rec> group;   // the records of the entry being read: its first record and those that continue it
+    bool structure = false, dropping = false;
+    int dropped = 0;
+    int ji = 0;
     qsizetype at = 0;
-    while (at + 4 <= d->size()) {
+    auto leaveOut = [&](const Rec &r) {
+        (*d)[r.at] = char(0xFF);
+        (*d)[r.at + 1] = char(0x1F);
+        std::fill(d->begin() + r.at + 4, d->begin() + r.end, '\0');   // (what was in it may be another stream's: it is not kept)
+    };
+    while (ji < joins.size() && at + 4 <= d->size()) {
         const int id = quint8((*d)[at]) | quint8((*d)[at + 1]) << 8, len = quint8((*d)[at + 2]) | quint8((*d)[at + 3]) << 8;
         if (id == 0 || id >= 0x2000 || at + 4 + len > d->size()) break;
-        recs.push_back({at, at + 4 + len, id});
-        at += 4 + len;
-    }
-    QSet<int> done;
-    int dropped = 0;
-    for (qint64 j : joins) {
-        const auto it = std::upper_bound(recs.cbegin(), recs.cend(), j, [](qint64 v, const Rec &r) { return v < r.end; });   // (the first record that ends after j)
-        if (it == recs.cend() || it->at >= j) continue;
-        int first = int(it - recs.cbegin()), last = first;
-        while (first > 0 && recs[first].id == 0x003C) --first;   // (a continued record is dropped whole)
-        while (last + 1 < recs.size() && recs[last + 1].id == 0x003C) ++last;
-        if (done.contains(first)) continue;
-        done.insert(first);
-        ++dropped;
-        bool structure = false;
-        for (int i = first; i <= last; ++i) structure |= isBof(quint16(recs[i].id)) || recs[i].id == kEof;
-        if (structure) {
-            d->truncate(recs[first].at);
-            return dropped;
+        const qsizetype end = at + 4 + len;
+        ++*steps;
+        if (id != 0x003C) {   // (a continued record is dropped whole: with it begins a new entry)
+            group.clear();
+            structure = isBof(quint16(id)) || id == kEof;
+            dropping = false;
         }
-        for (int i = first; i <= last; ++i) {
-            (*d)[recs[i].at] = char(0xFF);
-            (*d)[recs[i].at + 1] = char(0x1F);
-            std::fill(d->begin() + recs[i].at + 4, d->begin() + recs[i].end, '\0');   // (what was in it may be another stream's: it is not kept)
+        group.push_back({at, end});
+        while (ji < joins.size() && joins[ji] <= at) ++ji;
+        if (dropping) {
+            leaveOut(group.last());
+        } else if (ji < joins.size() && joins[ji] < end) {
+            dropping = true;
+            ++dropped;
+            if (structure) {
+                d->truncate(group.first().at);
+                return dropped;
+            }
+            for (const Rec &r : std::as_const(group)) leaveOut(r);
         }
+        while (ji < joins.size() && joins[ji] < end) {
+            ++ji;
+            ++*steps;
+        }
+        at = end;
     }
     return dropped;
 }
@@ -1703,7 +1712,9 @@ QByteArray salvageXlsStream(const QByteArray &file, const Limits &limits, QStrin
     if (jp::office::salvageCompoundFile(file, {wish}, &found, &why)) {
         QByteArray stream = found.streams.value(QStringLiteral("Workbook"));
         const QVector<qint64> joins = found.joins.value(QStringLiteral("Workbook"));
-        const int dropped = dropAcrossJoins(&stream, joins);
+        qint64 joinSteps = 0;
+        const int dropped = dropAcrossJoins(&stream, joins, &joinSteps);
+        if (counted) counted->joinSteps += joinSteps + joins.size();
         // (what follows the first guessed join is kept only while it fits the workbook's own structure)
         qint64 firstJoin = -1;
         for (qint64 j : joins)

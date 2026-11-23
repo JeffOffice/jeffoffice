@@ -49,33 +49,46 @@ QVector<Top> topRecords(QByteArrayView d, qint64 *end)
     return out;
 }
 
-// Leaves out the part of the presentation that lies across `join`, a place where pieces of the file were joined by guess: the innermost record whose bytes run across it is given a type
-// no reader acts on (a container holding it keeps its other records). 1 if one was left out, 0 if the join falls between records.
-int dropAcrossJoin(QByteArray &d, qint64 join)
+// Leaves out the part of the presentation that lies across each of `joins`, places where pieces of the file were joined by guess: the innermost record whose bytes run across a join is given a
+// type no reader acts on (a container holding it keeps its other records). One pass down the records with the joins in order: each record and each join is looked at once (`*steps` counts
+// them). Returns how many records were left out.
+int dropAcrossJoins(QByteArray &d, QVector<qint64> joins, qint64 *steps)
 {
-    qint64 from = 0, to = d.size();
-    for (int depth = 0; depth < 64; ++depth) {
-        bool inside = false;
-        for (qint64 pos = from; pos + 8 <= to;) {
-            const qint64 len = u32(d, pos + 4), end = pos + 8 + len;
-            if (len > to - pos - 8) return 0;
-            if (end <= join) {
-                pos = end;
-                continue;
-            }
-            if (pos >= join) return 0;
-            if ((u16(d, pos) & 0xF) == 0xF && join >= pos + 8) {
-                from = pos + 8;
-                to = end;
-                inside = true;
-                break;
-            }
-            qToLittleEndian(quint16(9999), d.data() + pos + 2);
-            return 1;
+    std::sort(joins.begin(), joins.end());
+    struct Frame {
+        qint64 pos, to;
+    };
+    QVector<Frame> stack;
+    stack.push_back({0, d.size()});
+    int dropped = 0, ji = 0;
+    while (!stack.isEmpty() && ji < joins.size()) {
+        Frame &f = stack.last();
+        if (f.pos + 8 > f.to) {
+            stack.pop_back();
+            continue;
         }
-        if (!inside) return 0;
+        const qint64 pos = f.pos, len = u32(d, pos + 4), end = pos + 8 + len;
+        ++*steps;
+        if (len > f.to - pos - 8) {   // (a record that does not fit: nothing more is read in this one)
+            while (ji < joins.size() && joins[ji] < f.to) ++ji;
+            stack.pop_back();
+            continue;
+        }
+        while (ji < joins.size() && joins[ji] <= pos) ++ji;
+        f.pos = end;
+        if (ji >= joins.size() || joins[ji] >= end) continue;
+        if ((u16(d, pos) & 0xF) == 0xF && joins[ji] >= pos + 8 && stack.size() < 64) {
+            stack.push_back({pos + 8, end});
+            continue;
+        }
+        qToLittleEndian(quint16(9999), d.data() + pos + 2);
+        ++dropped;
+        while (ji < joins.size() && joins[ji] < end) {
+            ++ji;
+            ++*steps;
+        }
     }
-    return 0;
+    return dropped;
 }
 
 // Where the presentation stops fitting its own structure after the first place where pieces were joined by guess. The presentation's lists of where its parts are kept (the persist
@@ -175,7 +188,7 @@ void listedIds(QByteArrayView d, const Top &doc, QVector<quint32> ids[3])
 qint64 salvageRecordsWalkedForTest() { return g_walked; }
 int salvageOpensForTest() { return g_opens; }
 
-QByteArray salvagePresentation(const QByteArray &file, QStringList *notes, QString *error)
+QByteArray salvagePresentation(const QByteArray &file, QStringList *notes, QString *error, qint64 *joinSteps)
 {
     using jp::office::CfbSalvage;
     using jp::office::CfbWish;
@@ -240,7 +253,9 @@ QByteArray salvagePresentation(const QByteArray &file, QStringList *notes, QStri
     {
         QByteArray d = found.streams.value(QStringLiteral("PowerPoint Document"));
         const QVector<qint64> joins = found.joins.value(QStringLiteral("PowerPoint Document"));
-        for (qint64 j : joins) dropped += dropAcrossJoin(d, j);
+        qint64 steps = 0;
+        dropped = dropAcrossJoins(d, joins, &steps);
+        if (joinSteps) *joinSteps = steps + joins.size();
         // (what follows the first join is kept only while it fits the presentation's own lists of where its parts are)
         if (!joins.isEmpty() && joins.first() < d.size()) {
             const qint64 stop = stopAfterJoin(d, joins.first(), &joinSlide);

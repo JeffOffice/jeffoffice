@@ -23,6 +23,7 @@ int salvageOpensForTest();
 qint64 salvageRecordsWalkedForTest();
 
 // The repaired file (a compound file the reader opens), empty with `error` if nothing can be read. `notes` says in words what was done.
-QByteArray salvagePresentation(const QByteArray &file, QStringList *notes, QString *error);
+// `joinSteps`, if given, is set to the work done to leave out what lies across guessed joins (a test of its bound reads it; nothing is shared between calls).
+QByteArray salvagePresentation(const QByteArray &file, QStringList *notes, QString *error, qint64 *joinSteps = nullptr);
 
 } // namespace jp::deck

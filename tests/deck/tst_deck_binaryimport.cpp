@@ -1752,6 +1752,30 @@ private Q_SLOTS:
         QVERIFY2(notes2.join(QLatin1Char(' ')).contains(QLatin1String("checked only to see that it is in the right form")), qPrintable(notes2.join(QLatin1Char('|'))));
     }
 
+    // Leaving out what lies across guessed joins is one pass over the records and the joins: counted at 1, 2, and 4 MB of tiny records in one slide (a rescan of the siblings for every join made
+    // it quadratic), with every other link of the chain broken, the work grows with the size and no faster.
+    void theWorkAcrossJoinsGrowsInStepWithTheFileInAPresentation()
+    {
+        qint64 last = 0;
+        for (int mb : {1, 2, 4}) {
+            QByteArray many;
+            for (int i = 0; i < mb * 1024 * 1024 / 16; ++i) many += pptRec(2999, QByteArray(8, 'y'));
+            const QByteArray none;
+            const QByteArray good = buildPpt(false, false, false, false, none, none, none, none, none, none, 1016, none, many);
+            QByteArray file = good;
+            const QList<quint32> c = cfbdamage::sectorsOf(good, pptDocumentStream());
+            for (int i = 3; i < c.size(); i += 2) cfbdamage::fatSet(file, c[i], 0x00FFFFF0);
+            qint64 work = -1;
+            QStringList notes;
+            QString why;
+            deck::salvagePresentation(file, &notes, &why, &work);
+            QVERIFY2(work > 0, qPrintable(why));
+            QVERIFY2(work <= qint64(good.size()) / 16 + c.size() * 4, qPrintable(QStringLiteral("%1 MB: %2 steps for %3 bytes").arg(mb).arg(work).arg(good.size())));
+            if (last) QVERIFY2(double(work) / double(last) < 2.0 * 1.15, qPrintable(QStringLiteral("steps grew %1 times for twice the bytes").arg(double(work) / double(last))));
+            last = work;
+        }
+    }
+
     // A link of the tables that can't be read is guessed, and the part of the presentation that lies across the join is left out (its type is made one that nothing acts on), not shown.
     void aPartAcrossAGuessedJoinIsLeftOut()
     {
