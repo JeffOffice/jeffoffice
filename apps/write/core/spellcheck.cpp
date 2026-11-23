@@ -7,6 +7,7 @@
 #include "text/textprops.h"
 
 #include <QRegularExpression>
+#include <QSet>
 #include <QTextBlock>
 #include <QTextBlockUserData>
 #include <QTextCharFormat>
@@ -21,6 +22,8 @@ namespace jp::write {
 namespace {
 constexpr int kIdleBudgetMs = 10;   // the time an idle step takes at most
 constexpr int kPieceWords = 400;    // the most words of a paragraph that are looked at before the time is asked after
+constexpr int kWalkParagraphs = 256;   // the most paragraphs the counting pass goes by (checked or not) in one slice
+constexpr int kMaxWanted = 32;      // the most ranges that wait for idle time; past it they are one
 }
 
 namespace {
@@ -35,6 +38,19 @@ struct Stamp {
 
 } // namespace
 
+// What is kept for a story, however many checks look at it: the misspelled words in all the answers, and the answers of the paragraphs an edit changed that are not yet checked again.
+// (It is a child of the story, so it is as long-lived.)
+struct SpellCheck::Tally : QObject {
+    explicit Tally(QTextDocument *story);
+    static Tally *of(QTextDocument *story);
+    bool active() const;
+    void changed();
+    void mark(int position, int added);
+    int total = 0;
+    QSet<Answer *> marked;
+    QList<SpellCheck *> checks;
+};
+
 // What was found in a paragraph, kept with it (the document drops it with the paragraph).
 struct SpellCheck::Answer : QTextBlockUserData {
     Stamp stamp;
@@ -42,11 +58,15 @@ struct SpellCheck::Answer : QTextBlockUserData {
     int checkedTo = 0;                 // how far in the paragraph (an offset) the words have been looked at
     bool done = false;                 // the whole paragraph has
     QVector<QPair<int, int>> words;    // the misspelled ones so far, as [start, end) in the paragraph
-    int counted = 0;                   // how many of them the check's total holds
-    QPointer<SpellCheck> owner;
+    int counted = 0;                   // how many of them the story's total holds
+    QPointer<Tally> tally;
+    QTextBlock block;                  // its paragraph (the answer goes with the paragraph, so it is valid as long as the answer is)
     ~Answer() override
     {
-        if (owner) owner->m_total -= counted;
+        if (tally) {
+            tally->total -= counted;
+            tally->marked.remove(this);
+        }
     }
 };
 
@@ -77,6 +97,55 @@ Stamp stampOf(const QTextBlock &block, const QString &fallback)
 
 } // namespace
 
+SpellCheck::Tally::Tally(QTextDocument *story) : QObject(story)
+{
+    // (An edit: the paragraphs it changed are marked, when the count is being kept, so the total is not left as it was.)
+    connect(story, &QTextDocument::contentsChange, this, [this](int position, int, int added) { mark(position, added); });
+}
+
+SpellCheck::Tally *SpellCheck::Tally::of(QTextDocument *story)
+{
+    for (QObject *child : story->children())
+        if (auto *t = dynamic_cast<Tally *>(child)) return t;
+    return new Tally(story);
+}
+
+bool SpellCheck::Tally::active() const
+{
+    for (const SpellCheck *c : checks)
+        if (c->m_counting && c->m_enabled) return true;
+    return false;
+}
+
+void SpellCheck::Tally::changed()
+{
+    for (SpellCheck *c : checks)
+        if (c->m_counting) Q_EMIT c->countChanged();
+}
+
+// The paragraphs from the one at `position` to the one at the end of what was put in (the paragraph that starts right at the end of it too: a paragraph split, or one pasted
+// that ends with a break, has its second part there) are marked: each has an answer that says it is not checked, until it is.
+void SpellCheck::Tally::mark(int position, int added)
+{
+    auto *story = qobject_cast<QTextDocument *>(parent());
+    if (!story || !active()) return;
+    const int end = position + std::max(added, 1);
+    for (QTextBlock b = story->findBlock(std::max(0, position)); b.isValid() && b.position() <= end; b = b.next()) {
+        auto *a = dynamic_cast<Answer *>(b.userData());
+        if (!a) {
+            a = new Answer;
+            a->tally = this;
+            QTextBlock hold = b;
+            hold.setUserData(a);
+        }
+        a->block = b;
+        marked.insert(a);
+    }
+    for (SpellCheck *c : checks)
+        if (c->m_counting && c->m_enabled) c->m_idle.start();
+    changed();
+}
+
 SpellCheck::SpellCheck(QTextDocument *story, QObject *parent) : QObject(parent), m_story(story)
 {
     m_idle.setSingleShot(true);
@@ -84,11 +153,43 @@ SpellCheck::SpellCheck(QTextDocument *story, QObject *parent) : QObject(parent),
     connect(&m_idle, &QTimer::timeout, this, &SpellCheck::idle);
     // (Words another app added or excluded: the pages are drawn again, and the paragraphs are checked as the words now stand.)
     connect(Speller::get().watch(), &SpellingWatch::changed, this, &SpellCheck::refresh);
-    // (An edit: the paragraphs it touched are checked again in idle time when the count is being kept, so the total is not left as it was.)
-    if (story)
-        connect(story, &QTextDocument::contentsChange, this, [this](int position, int, int added) {
-            if (m_counting && m_enabled) want(position, position + std::max(added, 1));
-        });
+    if (story) {
+        m_tally = Tally::of(story);
+        m_tally->checks << this;
+    }
+}
+
+SpellCheck::~SpellCheck()
+{
+    if (m_tally) m_tally->checks.removeAll(this);
+}
+
+int SpellCheck::knownMisspellings() const { return m_tally ? m_tally->total : 0; }
+
+bool SpellCheck::pending() const { return !m_wanted.isEmpty() || (m_counting && m_enabled && !m_paused && m_tally && !m_tally->marked.isEmpty()); }
+
+// The counting pass begins again, from the top of the story.
+void SpellCheck::restartSweep()
+{
+    m_swept = false;
+    if (!m_sweepCursor.isNull()) m_sweepCursor.setPosition(0);
+    if (m_counting && m_enabled) {
+        m_idle.start();
+        Q_EMIT countChanged();
+    }
+}
+
+void SpellCheck::refresh()
+{
+    restartSweep();
+    Q_EMIT changed();
+}
+
+void SpellCheck::setPaused(bool on)
+{
+    if (on == m_paused) return;
+    m_paused = on;
+    if (!on && m_counting) m_idle.start();
 }
 
 void SpellCheck::setCounting(bool on)
@@ -96,7 +197,7 @@ void SpellCheck::setCounting(bool on)
     if (on == m_counting) return;
     m_counting = on;
     m_swept = false;
-    m_sweepPos = 0;
+    if (!m_sweepCursor.isNull()) m_sweepCursor.setPosition(0);
     if (on) m_idle.start();
 }
 
@@ -108,9 +209,7 @@ void SpellCheck::setEnabled(bool on)
         m_wanted.clear();
         m_idle.stop();
     } else if (m_counting) {
-        m_swept = false;
-        m_sweepPos = 0;
-        m_idle.start();
+        restartSweep();
     }
     Q_EMIT changed();
     Q_EMIT countChanged();
@@ -120,11 +219,7 @@ void SpellCheck::setDefaultLanguage(const QString &tag)
 {
     if (tag == m_language) return;
     m_language = tag;
-    if (m_counting) {
-        m_swept = false;
-        m_sweepPos = 0;
-        m_idle.start();
-    }
+    if (m_counting) restartSweep();
     Q_EMIT changed();
 }
 
@@ -162,9 +257,10 @@ SpellCheck::Answer *SpellCheck::check(const QTextBlock &block, int revision, int
     auto *a = dynamic_cast<Answer *>(b.userData());
     if (!a) {
         a = new Answer;
-        a->owner = this;
+        a->tally = m_tally;
         b.setUserData(a);
     }
+    a->block = block;
     const Stamp stamp = stampOf(block, m_language);
     if (a->stamp != stamp || a->revision != revision) {
         // Not what was checked (or never): from the start.
@@ -202,11 +298,12 @@ SpellCheck::Answer *SpellCheck::check(const QTextBlock &block, int revision, int
             if (!misspellingsIn(whole.begin(), m_language).isEmpty()) a->words.prepend(qMakePair(0, int(lead.capturedLength())));
         }
     }
-    if (a->counted != int(a->words.size())) {
-        m_total += int(a->words.size()) - a->counted;
+    if (a->tally && a->counted != int(a->words.size())) {
+        a->tally->total += int(a->words.size()) - a->counted;
         a->counted = int(a->words.size());
-        if (m_counting) Q_EMIT countChanged();
+        a->tally->changed();
     }
+    if (a->done && a->tally) a->tally->marked.remove(a);
     return a;
 }
 
@@ -218,6 +315,13 @@ void SpellCheck::want(int from, int to)
             w.second = std::max(w.second, to);
             return;
         }
+    if (m_wanted.size() >= kMaxWanted) {   // (so many apart: they are one range, which holds them all)
+        for (const auto &w : m_wanted) {
+            from = std::min(from, w.first);
+            to = std::max(to, w.second);
+        }
+        m_wanted.clear();
+    }
     m_wanted << qMakePair(from, to);
     m_idle.start();
 }
@@ -252,29 +356,61 @@ QVector<QPair<int, int>> SpellCheck::misspelledIn(int from, int to)
 
 void SpellCheck::idle()
 {
-    const bool sweeping = m_counting && m_enabled && m_story && !m_swept;
-    if (m_wanted.isEmpty() && !sweeping) return;
+    const bool counting = m_counting && m_enabled && m_story && !m_paused;
+    const bool sweeping = counting && !m_swept;
+    const bool marked = counting && m_tally && !m_tally->marked.isEmpty();
+    if (m_wanted.isEmpty() && !sweeping && !marked) return;
     const QVector<QPair<int, int>> wanted = std::exchange(m_wanted, {});
     const qint64 before = m_checked, wordsBefore = m_words;
     {
         Pass pass(*this, kIdleBudgetMs);
         for (const auto &w : wanted) misspelledIn(w.first, w.second);   // (what it can't do in time is wanted again)
-        if (sweeping) sweepStep();
+        if (counting) {
+            checkMarked(currentRevision());
+            if (sweeping) sweepStep();
+        }
     }
-    if (m_counting && m_enabled && !m_swept) m_idle.start();
+    if (counting && (!m_swept || (m_tally && !m_tally->marked.isEmpty()))) m_idle.start();
     if (m_checked != before || m_words != wordsBefore) Q_EMIT changed();
 }
 
-// The counting pass: the paragraphs from where it left off that are not checked, for as long as the pass has time. (A change of the words accepted begins it again.)
+// The paragraphs an edit changed, checked again for as long as the pass has time.
+void SpellCheck::checkMarked(int revision)
+{
+    if (!m_tally) return;
+    while (!m_tally->marked.isEmpty()) {
+        if (outOfTime()) return;
+        Answer *a = *m_tally->marked.constBegin();
+        const QTextBlock b = a->block;
+        if (!b.isValid() || b.userData() != a) {   // (not its paragraph's: the counting pass looks at them all again)
+            m_tally->marked.remove(a);
+            m_swept = false;
+            continue;
+        }
+        check(b, revision);
+        if (!a->done) return;
+    }
+}
+
+// The counting pass: the paragraphs from where it left off that are not checked, for as long as the pass has time, and not going by more than a number of paragraphs (the ones that
+// are checked already take no time, but a long document of them is not gone through in one slice). A change of the words accepted begins it again, and where it left off moves
+// with the edits.
 void SpellCheck::sweepStep()
 {
     const int revision = currentRevision();
+    if (m_sweepCursor.isNull()) {
+        m_sweepCursor = QTextCursor(m_story);
+        m_sweepCursor.setKeepPositionOnInsert(true);
+    }
     if (revision != m_sweepRevision) {
         m_sweepRevision = revision;
-        m_sweepPos = 0;
+        m_sweepCursor.setPosition(0);
     }
-    QTextBlock b = m_story->findBlock(std::max(0, m_sweepPos));
-    for (; b.isValid(); b = b.next()) {
+    QTextBlock b = m_story->findBlock(m_sweepCursor.position());
+    int walked = 0;
+    for (; b.isValid() && walked < kWalkParagraphs; b = b.next()) {
+        ++walked;
+        ++m_walked;
         Answer *a = answerFor(b, revision);
         if (!a || !a->done) {
             if (outOfTime()) break;
@@ -283,11 +419,11 @@ void SpellCheck::sweepStep()
         }
     }
     if (b.isValid()) {
-        m_sweepPos = b.position();
+        m_sweepCursor.setPosition(b.position());
         return;
     }
     m_swept = true;
-    m_sweepPos = 0;
+    m_sweepCursor.setPosition(0);
     Q_EMIT countChanged();
 }
 

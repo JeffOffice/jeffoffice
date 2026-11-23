@@ -32,7 +32,7 @@ The pane begins where the caret is: in the text, or in the text box, footnote, h
 
 The status bar shows how many spelling and grammar errors the document has, such as **3 proofing errors**. Click it to select the next error after the caret. When you reach the last one, a click goes back to the first.
 
-JeffWrite counts while you work, a little at a time, and checks again only the paragraphs you change. In a long document the count shows a plus, such as **120+ proofing errors**, until every paragraph has been checked. Grammar errors are counted for the paragraphs the grammar check has already looked at, so that number can grow as you scroll. The count is hidden when spelling and grammar checking are both off.
+JeffWrite counts while you work, a little at a time, and checks again only the paragraphs you change. In a long document the count shows a plus, such as **120+ proofing errors**, until every paragraph has been checked. A word that both the spelling check and the grammar check mark is counted twice. Grammar errors are counted for the paragraphs the grammar check has already looked at, so that number can grow as you scroll. The count is hidden when spelling and grammar checking are both off.
 
 ## Your own words
 

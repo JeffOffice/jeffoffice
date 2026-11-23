@@ -7,7 +7,10 @@
 #include "core/spellcheck.h"
 #include "core/writedoc.h"
 
+#include <QEvent>
+#include <QHideEvent>
 #include <QLabel>
+#include <QShowEvent>
 #include <QTextCursor>
 #include <QToolButton>
 
@@ -40,7 +43,7 @@ void WriteWindow::updateProofing()
         return;
     }
     const int n = (spellingOn ? spelling->knownMisspellings() : 0) + (grammarOn ? grammar->knownIssues() : 0);
-    m_proofLabel->setText(spellingOn && !spelling->counted() ? tr("%1+ proofing errors").arg(n) : tr("%n proofing error(s)", nullptr, n));
+    m_proofLabel->setText(spellingOn && !spelling->counted() ? tr("%n+ proofing error(s)", nullptr, n) : tr("%n proofing error(s)", nullptr, n));
     m_proofLabel->show();
 }
 
@@ -76,7 +79,14 @@ void WriteWindow::goToNextProofingError()
     m_view->setFocus(Qt::OtherFocusReason);
 }
 
-// The checks of a document just set: the spelling check counts as it goes, and what it, the grammar check, and the spelling being on or off say is shown after a pause.
+// The spelling check counts only while the window is shown and not minimized; it goes on from where it was when the window is shown again.
+void WriteWindow::updateProofingPause()
+{
+    if (write::SpellCheck *spelling = m_doc ? m_view->spelling() : nullptr) spelling->setPaused(!isVisible() || isMinimized());
+}
+
+// The checks of a document just set: the spelling check counts as it goes, and what it, the grammar check, and the spelling being on or off say is shown at a steady pace, not after
+// a pause that the next change would start over (the count then would not show until the checking was over).
 void WriteWindow::watchProofing()
 {
     if (!m_doc) {
@@ -85,10 +95,34 @@ void WriteWindow::watchProofing()
     }
     if (write::SpellCheck *spelling = m_view->spelling()) {
         spelling->setCounting(true);
-        connect(spelling, &write::SpellCheck::countChanged, &m_proofTimer, qOverload<>(&QTimer::start));
+        connect(spelling, &write::SpellCheck::countChanged, this, [this] { startProofTimer(); });
     }
-    if (GrammarCheck *grammar = m_view->grammar()) connect(grammar, &GrammarCheck::changed, &m_proofTimer, qOverload<>(&QTimer::start));
+    updateProofingPause();
+    if (GrammarCheck *grammar = m_view->grammar()) connect(grammar, &GrammarCheck::changed, this, [this] { startProofTimer(); });
     m_proofTimer.start();
+}
+
+void WriteWindow::startProofTimer()
+{
+    if (!m_proofTimer.isActive()) m_proofTimer.start();
+}
+
+void WriteWindow::showEvent(QShowEvent *e)
+{
+    QMainWindow::showEvent(e);
+    updateProofingPause();
+}
+
+void WriteWindow::hideEvent(QHideEvent *e)
+{
+    QMainWindow::hideEvent(e);
+    updateProofingPause();
+}
+
+void WriteWindow::changeEvent(QEvent *e)
+{
+    QMainWindow::changeEvent(e);
+    if (e->type() == QEvent::WindowStateChange) updateProofingPause();
 }
 
 } // namespace jp

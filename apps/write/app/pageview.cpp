@@ -2356,7 +2356,13 @@ bool PageView::caretLineColumn(int *line, int *column)
             const int a = l.docPos + r->page->storyFrom;
             if (middle >= top + l.rect.top() && middle <= top + l.rect.bottom() && position >= a && position <= std::max(l.docEnd, l.docPos) + r->page->storyFrom) {
                 *line = number;
-                *column = position - a + 1;
+                // (A column is one character you can see: a letter outside the basic plane takes two places in the text, and is one here.)
+                const QTextBlock block = m_doc->story()->findBlock(a);
+                const QString lead = block.text().mid(std::max(0, a - block.position()), std::max(0, position - a));
+                int characters = 0;
+                for (const QChar ch : lead)
+                    if (!ch.isLowSurrogate()) ++characters;
+                *column = characters + 1;
                 return true;
             }
         }

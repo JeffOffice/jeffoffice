@@ -16,6 +16,7 @@
 #include "app/telemetry.h"
 #include "app/writefilescreen.h"
 #include "core/appinfo.h"
+#include "core/spellcheck.h"
 #include "core/templates.h"
 #include "app/passworddialogs.h"
 #include "io/crypto.h"
@@ -110,6 +111,8 @@ void WriteWindow::createFileActions()
         Editor stand;
         refreshKeyCommands();
         optionsDialog(this, &stand, optionsPages(), true);   // (its "check spelling as you type" is the suite's one choice, which every window follows)
+        // (The rules Options has for words in capitals and with digits may be new: what is kept of the checking, and the count, are as they were.)
+        if (m_doc && m_view->spelling()) m_view->spelling()->refresh();
         // (The name and initials Options has may be new: they are who makes changes and comments from here on.)
         if (m_doc) m_doc->setReviewer(Settings::get().userName(), Settings::get().value(QStringLiteral("user/initials")).toString());
     });

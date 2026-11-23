@@ -9,6 +9,7 @@
 #include <QObject>
 #include <QPair>
 #include <QPointer>
+#include <QTextCursor>
 #include <QTimer>
 #include <QVector>
 
@@ -21,6 +22,7 @@ class SpellCheck : public QObject {
     Q_OBJECT
 public:
     explicit SpellCheck(QTextDocument *story, QObject *parent = nullptr);
+    ~SpellCheck() override;
 
     bool enabled() const { return m_enabled; }
     void setEnabled(bool on);
@@ -43,8 +45,8 @@ public:
     // those that are not yet are checked now while the pass has time.
     QVector<QPair<int, int>> misspelledIn(int from, int to);
     QTextDocument *story() const { return m_story; }
-    // Whether paragraphs asked for wait for idle time.
-    bool pending() const { return !m_wanted.isEmpty(); }
+    // Whether paragraphs asked for wait for idle time (with counting on, the paragraphs an edit changed are among them).
+    bool pending() const;
 
     // The misspelled word that a position is in or at the end of, or (-1, -1). Checks the paragraph as far as the position if need be. (Like the search, it goes by the
     // words whether or not they are marked as you type; what offers it to the person asks `enabled()` itself.)
@@ -58,20 +60,23 @@ public:
     QPair<int, int> nextMisspelling(int from);
 
     // Tells the pages to be drawn again (the words accepted have changed: the answers kept are stale).
-    void refresh()
-    {
-        m_swept = false;
-        m_sweepPos = 0;
-        Q_EMIT changed();
-    }
+    // With counting on, every paragraph is then checked again to see that the count is right.
+    void refresh();
 
-    // The count for the status bar. With counting on, the paragraphs not yet checked are checked in idle time, a slice at a time, and a paragraph that is edited is checked again
-    // in idle time; the total is kept as paragraphs are checked, so asking for it looks at no text. `knownMisspellings` is how many misspelled words the answers kept hold,
-    // and `counted` says whether every paragraph has been checked (the number is a lower bound until then).
+    // The count for the status bar. With counting on, the paragraphs not yet checked are checked in idle time, a slice at a time, and the paragraphs an edit changed are checked
+    // again in idle time, each marked as it is changed (the marks go with the paragraphs, so a second edit before idle time moves nothing). The total is kept for the story, as
+    // paragraphs are checked, however many checks look at it (the page view and a split view of it), so asking for it looks at no text. `knownMisspellings` is how many
+    // misspelled words the answers kept hold, and `counted` says whether every paragraph has been checked (the number is a lower bound until then).
     void setCounting(bool on);
     bool counting() const { return m_counting; }
-    int knownMisspellings() const { return m_total; }
+    int knownMisspellings() const;
     bool counted() const { return m_swept; }
+    // While the window is hidden or minimized nothing is counted (what is changed is still marked); counting goes on when it is shown.
+    void setPaused(bool on);
+    bool paused() const { return m_paused; }
+    // For the tests: the paragraphs the counting pass has looked at (checked or found checked) in all, and the ranges waiting for idle time.
+    qint64 paragraphsWalked() const { return m_walked; }
+    int wantedRanges() const { return int(m_wanted.size()); }
 
     // How many paragraphs have been checked (a paragraph checked again counts again), and how many words were looked at in all, and the bytes that what is
     // kept takes (not counting the document's own): for the tests.
@@ -87,6 +92,7 @@ Q_SIGNALS:
 
 private:
     struct Answer;
+    struct Tally;
     Answer *answerFor(const QTextBlock &block, int revision) const;
     // Checks a paragraph, on from where an earlier pass left off: until it is done, or the pass is out of time, or (`upTo`, an offset in it) it has been checked past
     // that place. `ignoreTime` goes on whatever the pass says.
@@ -96,6 +102,8 @@ private:
     void want(int from, int to);
     void idle();
     void sweepStep();
+    void checkMarked(int revision);
+    void restartSweep();
 
     QPointer<QTextDocument> m_story;
     QString m_language;
@@ -107,10 +115,11 @@ private:
     int m_doneInPass = 0;
     QVector<QPair<int, int>> m_wanted;   // the ranges that paragraphs were left unchecked in
     QTimer m_idle;
-    bool m_counting = false, m_swept = false;
-    int m_total = 0;           // the misspelled words in the answers kept, over the whole story
-    int m_sweepPos = 0;        // where the counting pass goes on from, a position in the story
+    bool m_counting = false, m_swept = false, m_paused = false;
+    QPointer<Tally> m_tally;   // the story's: the total and the paragraphs marked as changed, shared by every check of the story
+    QTextCursor m_sweepCursor; // where the counting pass goes on from (it moves with the edits)
     int m_sweepRevision = -1;  // the words accepted and the options the pass began with
+    qint64 m_walked = 0;
 };
 
 // Puts `text` in place of the words [from, to) of the story, in the look of their first letter, as one step that undoes.

@@ -89,6 +89,7 @@ void Speller::ignore(const QString &w)
 {
     m_ignore.insert(wordKey(w));
     ++m_revision;
+    if (m_watch) Q_EMIT m_watch->changed();   // (every check of the words, in every window, is told: what it kept is stale)
 }
 
 namespace {

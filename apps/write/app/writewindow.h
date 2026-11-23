@@ -455,6 +455,9 @@ public:
 
 protected:
     void closeEvent(QCloseEvent *e) override;
+    void showEvent(QShowEvent *e) override;
+    void hideEvent(QHideEvent *e) override;
+    void changeEvent(QEvent *e) override;
     void dragEnterEvent(QDragEnterEvent *e) override;
     void dropEvent(QDropEvent *e) override;
     void openDropped(const QStringList &paths);
@@ -634,6 +637,8 @@ private:
     void updateCaretPlace();
     void updateProofing();
     void watchProofing();
+    void startProofTimer();
+    void updateProofingPause();
     void goToNextProofingError();
 
     ReviewPane *m_review = nullptr;
