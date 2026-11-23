@@ -49,17 +49,34 @@ QVector<Top> topRecords(QByteArrayView d, qint64 *end)
     return out;
 }
 
-// The number of the slide the byte at `join` is in (the slide records that begin at or before it, counted in the order of the stream), 0 before the first slide. One pass down the records, once
-// each (`*steps` counts them).
-int slideAt(QByteArrayView d, qint64 join, qint64 *steps)
+// The number of the slide the byte at `join` is in (the slide records that begin at or before it, counted in the order of the stream), 0 before the first slide, and whether the join falls after
+// the last slide: past the end of the last slide record, or in a slide record that is more than the document's own list of slides names (an older copy). One pass down the records, once each
+// (`*steps` counts them); the list is read from the last document record.
+struct SlidePlace {
+    int slide = 0;
+    bool afterLast = false;
+};
+void listedIds(QByteArrayView d, const Top &doc, QVector<quint32> ids[3]);
+SlidePlace slideAt(QByteArrayView d, qint64 join, qint64 *steps)
 {
     qint64 end = 0;
     const QVector<Top> tops = topRecords(d, &end);
     *steps += tops.size();
-    int slide = 0;
-    for (const Top &t : tops)
-        if (t.type == kSlide && t.off <= join) ++slide;
-    return slide;
+    SlidePlace out;
+    qint64 lastEnd = 0;
+    const Top *doc = nullptr;
+    for (const Top &t : tops) {
+        if (t.type == kSlide) {
+            if (t.off <= join) ++out.slide;
+            lastEnd = t.end();
+        } else if (t.type == kDocument) {
+            doc = &t;
+        }
+    }
+    QVector<quint32> ids[3];
+    if (doc) listedIds(d, *doc, ids);
+    out.afterLast = out.slide > 0 && (join >= lastEnd || (doc && out.slide > ids[0].size()));
+    return out;
 }
 
 QByteArray record(quint16 type, const QByteArray &data)
@@ -178,6 +195,7 @@ QByteArray salvagePresentation(const QByteArray &file, QStringList *notes, QStri
     if (u32(oldUser, 12) == kTokenEncrypted) return protectedFile();
     QStringList said = found.notes;
     int joinSlide = 0;
+    bool joinAfterLast = false;
     bool joined = false;
     {
         // (what lies across or after a guessed join is shown as it is read, and the notes say the slide where the part that was not checked begins)
@@ -188,7 +206,9 @@ QByteArray salvagePresentation(const QByteArray &file, QStringList *notes, QStri
             const qint64 first = *std::min_element(joins.cbegin(), joins.cend());
             if (first < d.size()) {
                 joined = true;
-                joinSlide = slideAt(d, first, &steps);
+                const SlidePlace place = slideAt(d, first, &steps);
+                joinSlide = place.slide;
+                joinAfterLast = place.afterLast;
             }
         }
         if (joinSteps) *joinSteps = steps + joins.size();
@@ -282,7 +302,8 @@ QByteArray salvagePresentation(const QByteArray &file, QStringList *notes, QStri
     else if (!found.streams.contains(QStringLiteral("Pictures")) && (!found.directoryRead || ((found.cutShort || found.tablesGuessed) && found.directoryNames.contains(QStringLiteral("Pictures"), Qt::CaseInsensitive))))
         said << QCoreApplication::translate("jp::deck::PptSalvage", "The pictures of the presentation, if it had any, could not be found.");
     if (joined) {
-        if (joinSlide > 0) said << QCoreApplication::translate("jp::deck::PptSalvage", "From slide %1 on, this presentation was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.").arg(joinSlide);
+        if (joinAfterLast) said << QCoreApplication::translate("jp::deck::PptSalvage", "What comes after the last slide of this presentation was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.");
+        else if (joinSlide > 0) said << QCoreApplication::translate("jp::deck::PptSalvage", "From slide %1 on, this presentation was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.").arg(joinSlide);
         else said << QCoreApplication::translate("jp::deck::PptSalvage", "This whole presentation was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.");
     }
     if (notes) *notes = said;

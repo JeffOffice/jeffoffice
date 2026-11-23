@@ -1824,6 +1824,34 @@ private Q_SLOTS:
         QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("could not be checked")), qPrintable(notes.join(QLatin1Char('|'))));
     }
 
+    // The note never names a slide the presentation does not have: for a join after the last slide (the link broken after each piece in turn, a neighbor's pieces following by guess) it says that what comes
+    // after the last slide was pieced together; for every other join the slide named is one of the presentation's.
+    void theNoteNeverNamesASlideThatDoesNotExist()
+    {
+        const QByteArray big = bigDeck();
+        jp::cfb::File was;
+        QVERIFY(jp::cfb::read(big, &was));
+        const QByteArray good = cfbdamage::addStream(big, QStringLiteral("Other"), was.stream(pptDocumentStream()));
+        const int n = int(cfbdamage::sectorsOf(good, pptDocumentStream()).size());
+        int sawAfterLast = 0, named = 0;
+        for (int k = 0; k + 1 < n; ++k) {
+            QStringList notes;
+            QString why;
+            auto d = repaired(cfbdamage::staleAfterBrokenLink(good, pptDocumentStream(), QStringLiteral("Other"), k), &notes, &why);
+            if (!d) continue;
+            for (const QString &said : std::as_const(notes)) {
+                const QRegularExpressionMatch m = QRegularExpression(QStringLiteral("^From slide (\\d+) on")).match(said);
+                if (m.hasMatch()) {
+                    ++named;
+                    QVERIFY2(m.captured(1).toInt() >= 1 && m.captured(1).toInt() <= int(d->pages.size()), qPrintable(QStringLiteral("k=%1: ").arg(k) + said));
+                }
+                if (said.startsWith(QLatin1String("What comes after the last slide"))) ++sawAfterLast;
+            }
+        }
+        QVERIFY2(named > 0, "no join fell inside a slide");
+        QVERIFY2(sawAfterLast > 0, "no join fell after the last slide");
+    }
+
     // A sound presentation of any size, from our own writer (the small one lives in the container's mini stream): Open and Repair says nothing was wrong and gives back the very streams it holds.
     void aSoundPresentationOfAnySizeIsRepairedToItself()
     {
