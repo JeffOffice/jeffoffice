@@ -6966,7 +6966,7 @@
         },
         {
          "status": "partly",
-         "text": "119de554cb24fc5abace1dc8ad0f6b61dbfb616876b2375ec5c842205cd1d654"
+         "text": "6ed2a66ea9d67893c24253a9bde248ad628f20085a87487b71f6924a9ac65601"
         },
         {
          "hide_soon": true,
@@ -9063,18 +9063,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "119de554cb24fc5abace1dc8ad0f6b61dbfb616876b2375ec5c842205cd1d654": {
-   "drop": false,
-   "en": "The Navigation pane has Headings (click to go to a heading, collapse, promote, and demote, each as one step), Pages (small pictures of the first 60 pages), and Results (a word’s places with the words around them, listed as text, under each heading, or under each page).",
-   "es": "El panel de navegación tiene Encabezados (haga clic para ir a un encabezado, contraer, ascender y descender de nivel, cada uno en un solo paso), Páginas (imágenes pequeñas de las primeras 60 páginas) y Resultados (los lugares de una palabra con las palabras que la rodean, enumerados como texto, bajo cada encabezado o bajo cada página).",
-   "fr": "Le volet Navigation propose Titres (cliquez pour atteindre un titre, réduire, promouvoir et rétrograder, chacun en une seule étape), Pages (petites images des 60 premières pages) et Résultats (les occurrences d’un mot avec les mots qui l’entourent, listées sous forme de texte, sous chaque titre ou sous chaque page).",
-   "soon": {
-    "drop": false,
-    "en": "Headings: drag to reorder",
-    "es": "Encabezados: arrastre para reordenar",
-    "fr": "Titres : réorganisation par glisser-déposer"
    }
   },
   "11c37f0657022925677a61d7c156ebd98890dd8c678f666e4c796f7512961737": {
@@ -16570,6 +16558,18 @@
    "en": "Text effects (shadow, reflection, glow, and transform) are set from the Text Effects menu on the Shape Format tab, with text fill and outline in their own menus.",
    "es": "Los efectos de texto (sombra, reflejo, resplandor y transformación) se establecen desde el menú Efectos de texto de la pestaña Formato de forma, con el relleno y el contorno del texto en sus propios menús.",
    "fr": "Les effets de texte (ombre, reflet, lueur et transformation) se définissent depuis le menu Effets de texte de l’onglet Format de la forme, le remplissage et le contour du texte ayant leurs propres menus.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "6ed2a66ea9d67893c24253a9bde248ad628f20085a87487b71f6924a9ac65601": {
+   "drop": false,
+   "en": "Open the Navigation pane to see Headings, Pages, and Results. In Headings, click a heading to go to it, collapse sections, promote or demote headings, and drag a heading to move its section with a line showing where it lands. Pages shows thumbnails of the first 60 pages. Results lists where a word occurs with the words around it, as text, under each heading, or under each page.",
+   "es": "Abra el panel de navegación para ver Encabezados, Páginas y Resultados. En Encabezados, haga clic en un encabezado para ir a él, contraiga secciones, ascienda o descienda encabezados y arrastre un encabezado para mover su sección, con una línea que indica dónde quedará. Páginas muestra miniaturas de las primeras 60 páginas. Resultados enumera dónde aparece una palabra con las palabras que la rodean, como texto, bajo cada encabezado o bajo cada página.",
+   "fr": "Ouvrez le volet de navigation pour afficher Titres, Pages et Résultats. Dans Titres, cliquez sur un titre pour y accéder, réduisez des sections, promouvez ou rétrogradez des titres, et faites glisser un titre pour déplacer sa section, une ligne indiquant où elle sera placée. Pages affiche les miniatures des 60 premières pages. Résultats indique où un mot apparaît avec les mots qui l’entourent, sous forme de texte, sous chaque titre ou sous chaque page.",
    "soon": {
     "drop": true,
     "en": "",
