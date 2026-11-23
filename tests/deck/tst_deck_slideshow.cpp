@@ -628,6 +628,7 @@ private Q_SLOTS:
         QDesktopServices::setUrlHandler(QStringLiteral("https"), &catcher, "open");
         LayoutCache cache;
         QPointer<SlideShow> show = new SlideShow(d.get(), &cache, 0);
+        const auto closeShow = qScopeGuard([&] { delete show.data(); });   // (a failed check must not leave the show running past the deck it reads)
         deck::ShowSettings s;
         s.type = deck::ShowSettings::Type::Kiosk;
         show->setSettings(s);
@@ -765,6 +766,7 @@ private Q_SLOTS:
         auto d = showDeck(3);
         LayoutCache cache;
         QPointer<SlideShow> show = new SlideShow(d.get(), &cache, 1);
+        const auto closeShow = qScopeGuard([&] { delete show.data(); });   // (a failed check must not leave the show running past the deck it reads)
         QSignalSpy ended(show.data(), &SlideShow::ended);
         QSignalSpy changed(show.data(), &SlideShow::overlayChanged);
         QCOMPARE(int(show->pointer()), int(SlideShow::Pointer::Arrow));

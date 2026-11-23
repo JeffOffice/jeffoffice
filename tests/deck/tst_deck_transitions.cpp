@@ -716,6 +716,7 @@ private Q_SLOTS:
         deck::setTransition(*d->pages[1], showTransition("zoom", 30));
         LayoutCache cache;
         QPointer<SlideShow> show = new SlideShow(d.get(), &cache, 0);
+        const auto closeShow = qScopeGuard([&] { delete show.data(); });   // (a failed check must not leave the show running past the deck it reads)
         QSignalSpy ended(show.data(), &SlideShow::ended);
         show->show();
         show->next();

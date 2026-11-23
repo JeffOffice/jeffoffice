@@ -191,6 +191,8 @@ private Q_SLOTS:
         QVERIFY(shown);
         const QPoint at = w.canvas()->pageToView(shown->rect.center()).toPoint();
         QTest::mouseDClick(w.canvas()->viewport(), Qt::LeftButton, Qt::NoModifier, at);
+        if (QGuiApplication::mouseButtons() & Qt::LeftButton) QTest::mouseRelease(w.canvas()->viewport(), Qt::LeftButton, Qt::NoModifier, at);   // (the double click can leave the button down in the program's own record, and every later test would see a drag)
+        QCOMPARE(QGuiApplication::mouseButtons(), Qt::NoButton);
         QTRY_COMPARE(opened.size(), 1);
         QSignalSpy saves(ed, &EmbeddedEdit::objectSaved);
         const QByteArray changed = objects::rangePackage(gridOf({"Name", "Total", "North", "99", "West", "5"}, 2));

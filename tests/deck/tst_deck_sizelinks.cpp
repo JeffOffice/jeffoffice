@@ -464,6 +464,7 @@ private Q_SLOTS:
         for (int i = 0; i < links.size(); ++i) linkShape(slide, QRectF(10 + 110 * i, 400, 100, 100), links[i]);
         LayoutCache cache;
         QPointer<SlideShow> show = new SlideShow(d.get(), &cache, 0);
+        const auto closeShow = qScopeGuard([&] { delete show.data(); });   // (a failed check must not leave the show running past the deck it reads)
         show->resize(960, 540);
         show->show();
         QSignalSpy ended(show.data(), &SlideShow::ended);
@@ -482,6 +483,22 @@ private Q_SLOTS:
         QTest::mouseClick(show.data(), Qt::LeftButton, Qt::NoModifier, QPoint(10 + 110 * 5 + 50, 450));
         QCOMPARE(ended.count(), 1);
         delete show.data();
+    }
+
+    // A show that is closed has hidden itself, and the look-ahead that was queued for its slide, run after the deck is gone, reads nothing of it.
+    void aClosedShowDoesNotReadItsDeckWhenItsQueuedLookAheadRuns()
+    {
+        auto d = showDeck(3);
+        LayoutCache cache;
+        QPointer<SlideShow> show = new SlideShow(d.get(), &cache, 0);
+        const auto closeShow = qScopeGuard([&] { delete show.data(); });
+        show->resize(960, 540);
+        show->show();
+        show->goTo(1);   // queues the look-ahead for the slide it settles on
+        show->close();
+        d.reset();
+        QCoreApplication::sendPostedEvents(show.data(), QEvent::MetaCall);   // (the queued call runs; closing deletes the show only later)
+        QTRY_VERIFY(!show);
     }
 
     // Words with a link are links in the show too.
@@ -1161,6 +1178,7 @@ private Q_SLOTS:
         linkShape(*d->pages[0], QRectF(10, 400, 100, 100), office::presentationLink(other));
         LayoutCache cache;
         QPointer<SlideShow> show = new SlideShow(d.get(), &cache, 0);
+        const auto closeShow = qScopeGuard([&] { delete show.data(); });   // (a failed check must not leave the show running past the deck it reads)
         show->resize(960, 540);
         show->show();
         show->setLinkPrompt([](const QString &, bool) { return true; });
