@@ -6712,7 +6712,7 @@
         },
         {
          "status": "partly",
-         "text": "d0512199306e1d3adc025a40794fd58dedd5704a67b0883e8b80aba224d84a62"
+         "text": "aceb9c4ebae21a4259ab6f5d7c7c49296da47a04db701286e305ef5bf376d6aa"
         },
         {
          "hide_soon": true,
@@ -7072,7 +7072,7 @@
         },
         {
          "status": "partly",
-         "text": "6c1e5abaf54d39e45c7e662ade4ee939302580790563f1d32a745065dd301f28"
+         "text": "6789f3c842142e5a0bea23270cde7a4b919588e188e0b22715249aef79647387"
         },
         {
          "status": "partly",
@@ -7112,7 +7112,7 @@
         },
         {
          "status": "partly",
-         "text": "83ed59b294cc9ccd184bc855ff3ea58b1f64190ead3a1a4e4787b56bebc6ae41"
+         "text": "4a0968ed688377a247e57331100af99bf20b57629557bf64367c0eb1131932e5"
         },
         {
          "status": "partly",
@@ -13588,6 +13588,18 @@
     "fr": ""
    }
   },
+  "4a0968ed688377a247e57331100af99bf20b57629557bf64367c0eb1131932e5": {
+   "drop": false,
+   "en": "Drag the lines between columns and rows to resize them, and use the resize handle at the lower right corner to set the table width. A move handle at the upper left corner selects the table on a click and moves it to before the paragraph where it is released, with a line showing where. Move Table Up and Move Table Down on the Table Layout tab do the same from the keyboard.",
+   "es": "Arrastre las líneas entre columnas y filas para cambiar su tamaño, y use el controlador de tamaño de la esquina inferior derecha para fijar el ancho de la tabla. Un controlador de movimiento en la esquina superior izquierda selecciona la tabla con un clic y la mueve antes del párrafo donde se suelta, con una línea que indica dónde. Move Table Up y Move Table Down, en la pestaña Diseño de tabla, hacen lo mismo con el teclado.",
+   "fr": "Faites glisser les lignes entre les colonnes et les lignes pour les redimensionner, et utilisez la poignée de redimensionnement du coin inférieur droit pour définir la largeur du tableau. Une poignée de déplacement dans le coin supérieur gauche sélectionne le tableau d’un clic et le déplace avant le paragraphe où vous la relâchez, avec une ligne indiquant l’endroit. Move Table Up et Move Table Down, dans l’onglet Disposition du tableau, font de même au clavier.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "4a76cbcea507352f896e12176e261430419fa31eaf6f5ce255e1b7534e4351d8": {
    "drop": false,
    "en": "Clipboard: Paste with source formatting, Keep Text Only, Paste Special, Cut, Copy, and Copy Formatting (single use or locked).",
@@ -15832,6 +15844,18 @@
     "fr": ""
    }
   },
+  "6789f3c842142e5a0bea23270cde7a4b919588e188e0b22715249aef79647387": {
+   "drop": false,
+   "en": "Apply shading and borders to table cells or the whole table from the Table Design tab, with the Borders and Shading dialog offering style, width, color, sides, and fill. View Gridlines shows the cell edges on screen. Draw Borders offers Pen Style, Pen Weight, Pen Color, and a border painter: drag along table lines to set borders, and the No Border pen style erases them. Borders are kept in `.docx`, `.odt`, and `.rtf` files.",
+   "es": "Aplique sombreado y bordes a las celdas o a toda la tabla desde la pestaña Diseño de tabla; el cuadro de diálogo Bordes y sombreado ofrece estilo, grosor, color, lados y relleno. View Gridlines muestra los bordes de las celdas en pantalla. Draw Borders ofrece Pen Style, Pen Weight, Pen Color y un pincel de bordes: arrastre a lo largo de las líneas de la tabla para aplicar bordes, y el estilo de lápiz No Border los borra. Los bordes se conservan en archivos `.docx`, `.odt` y `.rtf`.",
+   "fr": "Appliquez des trames et des bordures aux cellules ou à tout le tableau depuis l’onglet Création de tableau ; la boîte de dialogue Bordures et trame propose le style, l’épaisseur, la couleur, les côtés et le remplissage. View Gridlines affiche les bords des cellules à l’écran. Draw Borders propose Pen Style, Pen Weight, Pen Color et un pinceau de bordures : faites glisser le long des lignes du tableau pour définir les bordures, et le style de stylo No Border les efface. Les bordures sont conservées dans les fichiers `.docx`, `.odt` et `.rtf`.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "67b39fc6d76ae5b17c55c9c95d3dbdd954d8f84bb2bde5f04bc77d005916b246": {
    "drop": false,
    "en": "Safety and limits",
@@ -16322,18 +16346,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "6c1e5abaf54d39e45c7e662ade4ee939302580790563f1d32a745065dd301f28": {
-   "drop": false,
-   "en": "Apply shading and borders to cells or a table with the borders menu and the Borders and Shading dialog (style, width, color, sides, and fill), and show gridlines on the screen.",
-   "es": "Aplique sombreado y bordes a celdas o a una tabla con el menú de bordes y el cuadro de diálogo Bordes y sombreado (estilo, ancho, color, lados y relleno), y muestre las líneas de cuadrícula en pantalla.",
-   "fr": "Appliquez une trame et des bordures à des cellules ou à un tableau avec le menu des bordures et la boîte de dialogue Bordures et trame (style, largeur, couleur, côtés et remplissage), et affichez le quadrillage à l’écran.",
-   "soon": {
-    "drop": false,
-    "en": "Border painter",
-    "es": "Pincel de bordes",
-    "fr": "Pinceau de bordures"
    }
   },
   "6c396467c6e9686979b350febb76656dfa6a812ac724206c436e373d9e53de6e": {
@@ -17942,18 +17954,6 @@
     "en": "Picture bullets",
     "es": "Viñetas de imagen",
     "fr": "Puces image"
-   }
-  },
-  "83ed59b294cc9ccd184bc855ff3ea58b1f64190ead3a1a4e4787b56bebc6ae41": {
-   "drop": false,
-   "en": "Drag the lines between columns and rows, and use a resize handle at the lower right corner to set the table’s width.",
-   "es": "Arrastre las líneas entre columnas y filas, y use un controlador de tamaño en la esquina inferior derecha para definir el ancho de la tabla.",
-   "fr": "Faites glisser les lignes entre les colonnes et les lignes, et utilisez une poignée de redimensionnement dans le coin inférieur droit pour définir la largeur du tableau.",
-   "soon": {
-    "drop": false,
-    "en": "Table move handle at the corner",
-    "es": "Controlador para mover la tabla en la esquina",
-    "fr": "Poignée de déplacement du tableau dans le coin"
    }
   },
   "844070ff3f18a60b9e50e79b9036f4bd880ecd6a2e8a15ea7d76c3bd92902b2e": {
@@ -20560,6 +20560,18 @@
     "fr": "Importation de texte : ouverture dans la feuille actuelle"
    }
   },
+  "aceb9c4ebae21a4259ab6f5d7c7c49296da47a04db701286e305ef5bf376d6aa": {
+   "drop": false,
+   "en": "Go to the next or previous footnote or endnote from the References tab. Double-click a footnote mark, or use Go to Footnote on its right-click menu, to edit the note where it stands. Show Notes moves from a footnote mark to its note and back, and from the text to the note of the nearest mark.",
+   "es": "Vaya a la nota al pie o la nota final siguiente o anterior desde la pestaña Referencias. Haga doble clic en la marca de una nota al pie, o use Go to Footnote en su menú contextual, para editar la nota donde está. Show Notes pasa de la marca de una nota al pie a su nota y de vuelta, y del texto a la nota de la marca más cercana.",
+   "fr": "Passez à la note de bas de page ou à la note de fin suivante ou précédente depuis l’onglet Références. Double-cliquez sur le repère d’une note de bas de page, ou utilisez Go to Footnote dans son menu contextuel, pour modifier la note sur place. Show Notes passe du repère d’une note de bas de page à sa note et inversement, et du texte à la note du repère le plus proche.",
+   "soon": {
+    "drop": false,
+    "en": "Notes pane in Draft view",
+    "es": "Panel de notas en la vista Borrador",
+    "fr": "Volet des notes en mode Brouillon"
+   }
+  },
   "ad1cc906d980c0d316d4f49ba5ed44fbbbc17dd9211cc0e1c443927b9533a917": {
    "drop": false,
    "en": "Read Aloud speaks the body text from the cursor or selection, then the footnotes, with the system’s voices. The current word is highlighted. A bar offers play, pause, stop, paragraph skipping, a speed from 0.5x to 3x, and a voice choice.",
@@ -23054,18 +23066,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "d0512199306e1d3adc025a40794fd58dedd5704a67b0883e8b80aba224d84a62": {
-   "drop": false,
-   "en": "Next and Previous Footnote and Endnote on the References tab move between notes. Double-clicking a footnote mark, or choosing Go to Footnote from the right-click menu, edits the note where it stands.",
-   "es": "Nota al pie y nota al final siguiente y anterior, en la pestaña Referencias, permiten pasar de una nota a otra. Al hacer doble clic en la marca de una nota al pie, o elegir Ir a la nota al pie en el menú contextual, se edita la nota donde está.",
-   "fr": "Note de bas de page et note de fin suivante et précédente, dans l’onglet Références, permettent de passer d’une note à l’autre. Un double-clic sur la marque d’une note de bas de page, ou Atteindre la note de bas de page dans le menu contextuel, modifie la note à sa place.",
-   "soon": {
-    "drop": false,
-    "en": "Show Notes and the notes pane",
-    "es": "Mostrar notas y panel de notas",
-    "fr": "Afficher les notes et volet des notes"
    }
   },
   "d056e7ed6194bcba3ce02d16ffd7ad2bcd10938298e53276bdd967e3b82b8f86": {
