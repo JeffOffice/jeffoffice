@@ -139,7 +139,7 @@ void paintAnchorMarks(QPainter *p, flow::MaterializedPage &page, LayoutCache *la
             int frame = 0;
             QRectF inText;
             if (!fl.layout->caretRect(at, &frame, &inText) || frame != fl.frame) continue;
-            const QRectF line = box->transform().mapRect(inText);
+            const QRectF line = box->textTransform().mapRect(inText);
             const double x = std::max(1.0, page.bodyArea.left() - 11.0), y = line.top() + 1;
             p->save();
             p->setRenderHint(QPainter::Antialiasing);
@@ -186,7 +186,7 @@ void paintControlMarks(QPainter *p, flow::MaterializedPage &page, LayoutCache *l
             const QVector<QRectF> rects = fl.layout->rangeRects(fl.frame, from, to);
             QRectF first;
             for (const QRectF &r : rects) {
-                const QRectF at = box->transform().mapRect(r).adjusted(-1, 0, 1, 0);
+                const QRectF at = box->textTransform().mapRect(r).adjusted(-1, 0, 1, 0);
                 if (at.width() < 1.5) continue;
                 if (first.isNull()) first = at;
                 p->fillRect(at, QColor(0, 0, 0, mark.focus ? 10 : 22));

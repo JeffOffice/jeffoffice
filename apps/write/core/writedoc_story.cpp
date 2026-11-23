@@ -2077,6 +2077,7 @@ bool WriteDoc::drawnObjects(const Inline &atom, const QString &part, QTextCharFo
                     o.story = story;
                 }
                 auto box = std::make_shared<TextItem>();
+                box->upright = true;
                 box->rect = QRectF(0, 0, s.width, s.height);
                 box->vertical = s.textFlow != 0;
                 box->turnedBack = s.textFlow == 2;

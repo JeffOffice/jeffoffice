@@ -297,7 +297,7 @@ QVector<PdfLink> sheetLinks(WriteDoc &doc, const QVector<int> &sheets, const She
             int frame = -1;
             QRectF caret;
             if (!fl.layout || fl.frame < 0 || !fl.layout->caretRect(position - page->storyFrom, &frame, &caret) || frame != fl.frame) continue;
-            const QRectF m = box->transform().mapRect(caret);
+            const QRectF m = box->textTransform().mapRect(caret);
             *spot = QPointF(m.left(), height - m.top());
             return true;
         }
@@ -349,7 +349,7 @@ QVector<PdfLink> sheetLinks(WriteDoc &doc, const QVector<int> &sheets, const She
                 const LayoutCache::FrameLayout fl = cache.textFrame(*page->doc, *box, page->number, ctx.opt);
                 if (!fl.layout || fl.frame < 0) continue;
                 for (const QRectF &r : fl.layout->rangeRects(fl.frame, from, to)) {
-                    link(sheet, *page, s, box->transform().mapRect(r));
+                    link(sheet, *page, s, box->textTransform().mapRect(r));
                     if (out.size() >= kMostPdfLinks) return out;
                 }
             }
@@ -380,7 +380,7 @@ QVector<PdfLink> sheetLinks(WriteDoc &doc, const QVector<int> &sheets, const She
             if (!fl.layout || fl.frame < 0) continue;
             for (const LinkSpan &s : linkSpansIn(doc, own->doc.get(), sourceOf.value(box->id), scan))
                 for (const QRectF &r : fl.layout->rangeRects(fl.frame, s.from, s.to)) {
-                    link(sheet, *page, s, box->transform().mapRect(r));
+                    link(sheet, *page, s, box->textTransform().mapRect(r));
                     if (out.size() >= kMostPdfLinks) return out;
                 }
         }

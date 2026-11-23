@@ -286,6 +286,7 @@ void applyDrawnLook(TextItem &box, const Item &ref, const Shape &s)
     box.rotation = ref.rotation;
     box.flipH = ref.flipH;
     box.flipV = ref.flipV;
+    box.upright = true;
     if (ref.type() == ItemType::Shape) {
         const auto &from = static_cast<const ShapeItem &>(ref);
         // (A plain rectangle stays the plain box.)

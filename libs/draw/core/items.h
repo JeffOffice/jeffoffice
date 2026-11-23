@@ -109,6 +109,7 @@ public:
     VAlign valign = VAlign::Top;
     Autofit autofit = NoAutofit;
     bool vertical = false;       // text direction rotated 90°
+    bool upright = false;        // a flip mirrors the box (its outline, fill, and place) but not its words: they stay readable (see textTransform)
     bool turnedBack = false;     // with `vertical`: rotated 270° (it reads upward) instead
     QString keptVert;            // the file's body value for the direction when it is not one this program writes (kept, and written back, until the direction changes)
     // Picking a direction: the words run that way, and a value the file had that this program does not know is let go.
@@ -117,6 +118,16 @@ public:
         vertical = direction != TextDirection::Horizontal;
         turnedBack = direction == TextDirection::Rotate270;
         keptVert.clear();
+    }
+    // Where the box's text is on the page: the box's own turn and place, and its flip only when the words are mirrored with it.
+    QTransform textTransform() const
+    {
+        if (!upright || (!flipH && !flipV)) return transform();
+        QTransform t;
+        t.translate(rect.center().x(), rect.center().y());
+        t.rotate(rotation);
+        t.translate(-rect.width() / 2, -rect.height() / 2);
+        return t;
     }
     // A point of the box (its own coordinates) in the coordinates the text is laid out in (turned text is laid out on its side).
     QPointF layoutPoint(QPointF local) const

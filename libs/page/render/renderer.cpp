@@ -276,7 +276,7 @@ QVector<WrapObstacle> Renderer::wrapObstacles(const Document &doc, const TextIte
         if (hit) { idx = i; break; }
     }
     if (idx < 0) return out;
-    const QTransform inv = frame.transform().inverted();
+    const QTransform inv = frame.textTransform().inverted();
     const QRectF fb = frame.bounds();
     // A box's text is set around at most kMaxWrapObstacles objects in front of it, found among the next kMaxWrapCandidates: more would be a
     // page where every box wraps around every other, which costs the square of the page's objects for each box.
@@ -1120,6 +1120,12 @@ static void paintText(QPainter *p, const PaintContext &ctx, const TextItem &t)
         if (ctx.opt.grammar.contains(sid)) po.grammar = ctx.opt.grammar.value(sid);
         if (ctx.opt.found.contains(sid)) po.found = ctx.opt.found.value(sid);
         p->save();
+        if (t.upright && (t.flipH || t.flipV)) {
+            // (The box is mirrored but its words are not: they are set back the way round about the middle of the frame.)
+            p->translate(r.center());
+            p->scale(t.flipH ? -1 : 1, t.flipV ? -1 : 1);
+            p->translate(-r.center());
+        }
         if (t.vertical) {
             if (t.turnedBack) {
                 p->translate(0, r.height());
