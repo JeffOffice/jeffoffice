@@ -10012,6 +10012,105 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
     </message>
 </context>
 <context>
+    <name>PaperTray</name>
+    <message>
+        <location filename="../libs/shell/app/papertray.cpp" line="+32"/>
+        <source>Upper tray</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lower tray</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Middle tray</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Manual feed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Envelope feeder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Envelope, manual feed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Automatic selection</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Tractor feed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Small-format tray</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Large-format tray</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Large-capacity tray</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cassette</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Tray chosen by the paper size</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Tray %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+45"/>
+        <source>The trays are saved in the document, but this system can&apos;t send them to the printer. Choose the tray in the printer&apos;s own settings when you print.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Default tray</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The printer picks the tray.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <location line="+7"/>
+        <source>%1 (not on this printer)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-4"/>
+        <source>This printer doesn&apos;t have this tray.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>PdfCrypt</name>
     <message>
         <location filename="../libs/base/io/pdfcrypt.cpp" line="+85"/>
@@ -60584,7 +60683,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/writewindow_output.cpp" line="+864"/>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="+865"/>
         <source>Shrink by One Page</source>
         <translation type="unfinished">Reduzir em Uma Página</translation>
     </message>
@@ -60762,7 +60861,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <location line="-197"/>
         <location line="+122"/>
         <location filename="../apps/write/app/writewindow_output.cpp" line="-300"/>
-        <location line="+501"/>
+        <location line="+508"/>
         <source>%1 couldn&apos;t save &quot;%2&quot;.
 %3%4</source>
         <translation type="unfinished">O %1 não conseguiu guardar &quot;%2&quot;.
@@ -60809,7 +60908,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     </message>
     <message>
         <location line="+4"/>
-        <location filename="../apps/write/app/writewindow_info.cpp" line="+16"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="+22"/>
         <source>This document is protected with a password, and a plain text file can&apos;t hold one. Save it as a .docx file, or remove the password first (File &gt; Info).</source>
         <translation type="unfinished">Este documento está protegido com palavra-passe, e um ficheiro de texto simples não a pode conter. Guarde-o como ficheiro .docx ou remova primeiro a palavra-passe (Ficheiro &gt; Informações).</translation>
     </message>
@@ -60937,7 +61036,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">Feedback</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_output.cpp" line="-798"/>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="-805"/>
         <source>PDF (*.pdf)</source>
         <translation type="unfinished">PDF (*.pdf)</translation>
     </message>
@@ -61067,12 +61166,12 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     <message>
         <location line="+14"/>
         <location line="+4"/>
-        <location line="+76"/>
+        <location line="+83"/>
         <source>Save as PDF</source>
         <translation type="unfinished">Guardar como PDF</translation>
     </message>
     <message>
-        <location line="-76"/>
+        <location line="-83"/>
         <source>%1 couldn&apos;t make &quot;%2&quot;.
 %3</source>
         <translation type="unfinished">O %1 não conseguiu criar &quot;%2&quot;.
@@ -61081,12 +61180,12 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     <message>
         <location line="-18"/>
         <location line="+47"/>
-        <location line="+48"/>
+        <location line="+55"/>
         <source>Print</source>
         <translation>Imprimir</translation>
     </message>
     <message>
-        <location line="-662"/>
+        <location line="-669"/>
         <source>Pages to include</source>
         <translation>Páginas a incluir</translation>
     </message>
@@ -61381,7 +61480,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">Há mais páginas do que um trabalho pode enviar. Imprima menos páginas ou menos cópias.</translation>
     </message>
     <message>
-        <location line="+48"/>
+        <location line="+55"/>
         <source>Couldn&apos;t print &quot;%1&quot; to %2.</source>
         <translation type="unfinished">Não foi possível imprimir &quot;%1&quot; em %2.</translation>
     </message>
@@ -61798,7 +61897,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation>Formatação</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_info.cpp" line="-266"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="-272"/>
         <source>Pages</source>
         <translation>Páginas</translation>
     </message>
@@ -62033,12 +62132,17 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">Alterações controladas e controlos de conteúdo (as palavras mantêm-se).</translation>
     </message>
     <message>
+        <location line="+4"/>
+        <source>Printer trays for the first page and the other pages.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../apps/write/app/writewindow_file.cpp" line="+46"/>
         <source>Some versions kept before couldn&apos;t be given the new password, and stay as they were.</source>
         <translation type="unfinished">Algumas versões guardadas anteriormente não puderam receber a nova palavra-passe e mantêm-se como estavam.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_info.cpp" line="-91"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="-95"/>
         <location filename="../apps/write/app/writewindow_review.cpp" line="+1"/>
         <source>Comments</source>
         <translation>Comentários</translation>
@@ -62386,7 +62490,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     </message>
     <message>
         <location line="+30"/>
-        <location filename="../apps/write/app/writewindow_output.cpp" line="-389"/>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="-396"/>
         <source>Author</source>
         <translation>Autor</translation>
     </message>
@@ -73605,7 +73709,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">Algumas notas foram omitidas.</translation>
     </message>
     <message>
-        <location line="+689"/>
+        <location line="+691"/>
         <location line="+48"/>
         <source>The file is not a Rich Text Format document.</source>
         <translation type="unfinished">O ficheiro não é um documento Rich Text Format.</translation>
@@ -75631,7 +75735,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">Parágrafo</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pagesetupdialog.cpp" line="+84"/>
+        <location filename="../apps/write/app/pagesetupdialog.cpp" line="+85"/>
         <location line="+31"/>
         <location filename="../apps/write/app/writedialogs.cpp" line="-238"/>
         <location line="+130"/>
@@ -75654,7 +75758,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation>Direita</translation>
     </message>
     <message>
-        <location line="+93"/>
+        <location line="+113"/>
         <location filename="../apps/write/app/writedialogs.cpp" line="+1"/>
         <source>Justified</source>
         <translation type="unfinished">Justificado</translation>
@@ -76035,7 +76139,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation>Páginas na horizontal</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pagesetupdialog.cpp" line="-110"/>
+        <location filename="../apps/write/app/pagesetupdialog.cpp" line="-130"/>
         <location filename="../apps/write/app/writedialogs.cpp" line="-732"/>
         <source>Normal</source>
         <translation type="unfinished">Normal</translation>
@@ -76085,7 +76189,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation>Pré-visualizar</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pagesetupdialog.cpp" line="+130"/>
+        <location filename="../apps/write/app/pagesetupdialog.cpp" line="+150"/>
         <location filename="../apps/write/app/writedialogs.cpp" line="+39"/>
         <location line="+510"/>
         <source>Set as Default…</source>
@@ -76299,7 +76403,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">Percentagem:</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pagesetupdialog.cpp" line="-166"/>
+        <location filename="../apps/write/app/pagesetupdialog.cpp" line="-186"/>
         <source>Letter</source>
         <translation type="unfinished">Carta</translation>
     </message>
@@ -76360,20 +76464,20 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     </message>
     <message>
         <location line="+18"/>
-        <location line="+125"/>
+        <location line="+145"/>
         <location filename="../apps/write/app/writedialogs.cpp" line="-320"/>
         <source>Top</source>
         <translation>Superior</translation>
     </message>
     <message>
-        <location line="-124"/>
-        <location line="+127"/>
+        <location line="-144"/>
+        <location line="+147"/>
         <location filename="../apps/write/app/writedialogs.cpp" line="+1"/>
         <source>Bottom</source>
         <translation>Inferior</translation>
     </message>
     <message>
-        <location line="-124"/>
+        <location line="-144"/>
         <source>Gutter</source>
         <translation>Medianiz</translation>
     </message>
@@ -76414,7 +76518,32 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation>Altura</translation>
     </message>
     <message>
-        <location line="+64"/>
+        <location line="+2"/>
+        <source>Paper source</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Tray for the first page</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Tray for the other pages</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>First page</source>
+        <translation type="unfinished">Primeira página</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Other pages</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+72"/>
         <source>Section start</source>
         <translation>Início da secção</translation>
     </message>
@@ -76439,7 +76568,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation>Aplicar a</translation>
     </message>
     <message>
-        <location line="-139"/>
+        <location line="-159"/>
         <source>Portrait</source>
         <translation type="unfinished">Vertical</translation>
     </message>
@@ -76474,7 +76603,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">Tamanho personalizado</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+26"/>
         <source>Paper</source>
         <translation>Papel</translation>
     </message>
@@ -76534,7 +76663,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">as margens e o tamanho do papel escolhidos aqui</translation>
     </message>
     <message>
-        <location line="+51"/>
+        <location line="+53"/>
         <source>Alt Text</source>
         <translation type="unfinished">Texto Alternativo</translation>
     </message>
@@ -79423,7 +79552,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageoutput.cpp" line="+219"/>
+        <location filename="../apps/write/app/pageoutput.cpp" line="+220"/>
         <location filename="../apps/write/app/pageview.cpp" line="-167"/>
         <source>Deleted: %1</source>
         <translation type="unfinished">Eliminado: %1</translation>
@@ -80942,7 +81071,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">uma tabela com mais linhas repetidas do que as mantidas</translation>
     </message>
     <message>
-        <location filename="../libs/office/odt/odtread.cpp" line="+90"/>
+        <location filename="../libs/office/odt/odtread.cpp" line="+91"/>
         <source>This is not an OpenDocument file.</source>
         <translation type="unfinished">Este não é um ficheiro OpenDocument.</translation>
     </message>
@@ -80988,7 +81117,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">Não é possível ler styles.xml: %1</translation>
     </message>
     <message>
-        <location line="+672"/>
+        <location line="+685"/>
         <source>The file has no text in it.</source>
         <translation type="unfinished">O ficheiro não contém texto.</translation>
     </message>
@@ -80998,7 +81127,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">objetos incorporados criados noutro tipo de ficheiro (mantidos como imagens)</translation>
     </message>
     <message>
-        <location filename="../libs/office/odt/odtwrite.cpp" line="+85"/>
+        <location filename="../libs/office/odt/odtwrite.cpp" line="+86"/>
         <source>The document has no main part.</source>
         <translation type="unfinished">O documento não tem parte principal.</translation>
     </message>
@@ -81039,7 +81168,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">colunas de larguras diferentes (guardadas como iguais)</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+8"/>
         <source>page borders</source>
         <translation type="unfinished">limites de página</translation>
     </message>
@@ -81049,7 +81178,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">números de linha</translation>
     </message>
     <message>
-        <location line="+322"/>
+        <location line="+326"/>
         <source>tracked changes to tables, columns, and page setup (saved as they stand now)</source>
         <translation type="unfinished">alterações registadas em tabelas, colunas e configuração de página (guardadas no estado atual)</translation>
     </message>

@@ -1,5 +1,5 @@
 # Set up the page
-<!-- keywords: page setup, margins, margin, orientation, portrait, landscape, paper size, paper, envelope size, envelope, letter, a4, legal, gutter, layout, section start, new page, continuous, odd page, even page, different first page, different odd and even pages, vertical alignment, header distance, footer distance, whole document, this section, this point forward, from this point on, custom margins -->
+<!-- keywords: page setup, margins, margin, orientation, portrait, landscape, paper size, paper, envelope size, envelope, letter, a4, legal, gutter, layout, section start, new page, continuous, odd page, even page, different first page, different odd and even pages, paper source, tray, printer tray, first page tray, letterhead, manual feed, vertical alignment, header distance, footer distance, whole document, this section, this point forward, from this point on, custom margins -->
 
 **Page Setup** sets the paper, the margins, and how the pages of a **section** begin. A document has one section until you add a section break (**Layout > Breaks**); each section can have its own paper, margins, and layout.
 
@@ -12,6 +12,8 @@ Type the space between the paper's edge and the text for the **Top**, **Bottom**
 ## Paper
 
 Pick a **paper size** (Letter, Legal, Executive, A3, A4, A5, B5, or an envelope: Envelope #10, Monarch, DL, or C5), or type a **width** and **height** of your own. Paper can be from 0.5 inch to 22 inches on a side (36 to 1,584 points). If you type a width that is more than the height, the page is landscape.
+
+**Paper source** says which printer tray each kind of page of the section prints from. Choose a tray for the **First page** and one for the **Other pages**; a common use is letterhead in one tray and plain paper in another. **Default tray** lets the printer pick. The list shows the standard trays, and, on systems that can list a printer's trays, turns off the ones the printer doesn't have. A tray the document asks for that this printer doesn't have stays in the list, named as "not on this printer", so choosing a different printer never changes what the document asks for. Both choices are saved with the document, and they print on systems where a program can pick the tray for each page; where it can't, the window says so, and you choose the tray in the printer's own settings. A .docx and an .rtf file keep both trays, and an .odt file keeps them when it is opened again here; a plain text file keeps neither.
 
 ## Layout
 

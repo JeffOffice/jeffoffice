@@ -10012,6 +10012,105 @@ Jetzt von %2 herunterladen? (%3, einmalig.)</translation>
     </message>
 </context>
 <context>
+    <name>PaperTray</name>
+    <message>
+        <location filename="../libs/shell/app/papertray.cpp" line="+32"/>
+        <source>Upper tray</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lower tray</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Middle tray</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Manual feed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Envelope feeder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Envelope, manual feed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Automatic selection</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Tractor feed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Small-format tray</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Large-format tray</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Large-capacity tray</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cassette</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Tray chosen by the paper size</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Tray %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+45"/>
+        <source>The trays are saved in the document, but this system can&apos;t send them to the printer. Choose the tray in the printer&apos;s own settings when you print.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Default tray</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The printer picks the tray.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <location line="+7"/>
+        <source>%1 (not on this printer)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-4"/>
+        <source>This printer doesn&apos;t have this tray.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>PdfCrypt</name>
     <message>
         <location filename="../libs/base/io/pdfcrypt.cpp" line="+85"/>
@@ -60584,7 +60683,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/writewindow_output.cpp" line="+864"/>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="+865"/>
         <source>Shrink by One Page</source>
         <translation type="unfinished">Um eine Seite verkürzen</translation>
     </message>
@@ -60762,7 +60861,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <location line="-197"/>
         <location line="+122"/>
         <location filename="../apps/write/app/writewindow_output.cpp" line="-300"/>
-        <location line="+501"/>
+        <location line="+508"/>
         <source>%1 couldn&apos;t save &quot;%2&quot;.
 %3%4</source>
         <translation type="unfinished">%1 konnte &quot;%2&quot; nicht speichern.
@@ -60809,7 +60908,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     </message>
     <message>
         <location line="+4"/>
-        <location filename="../apps/write/app/writewindow_info.cpp" line="+16"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="+22"/>
         <source>This document is protected with a password, and a plain text file can&apos;t hold one. Save it as a .docx file, or remove the password first (File &gt; Info).</source>
         <translation type="unfinished">Dieses Dokument ist mit einem Kennwort geschützt, und eine Nur-Text-Datei kann keines speichern. Speichern Sie es als .docx-Datei oder entfernen Sie zuerst das Kennwort (Datei &gt; Info).</translation>
     </message>
@@ -60937,7 +61036,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Feedback</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_output.cpp" line="-798"/>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="-805"/>
         <source>PDF (*.pdf)</source>
         <translation type="unfinished">PDF (*.pdf)</translation>
     </message>
@@ -61067,12 +61166,12 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     <message>
         <location line="+14"/>
         <location line="+4"/>
-        <location line="+76"/>
+        <location line="+83"/>
         <source>Save as PDF</source>
         <translation type="unfinished">Als PDF speichern</translation>
     </message>
     <message>
-        <location line="-76"/>
+        <location line="-83"/>
         <source>%1 couldn&apos;t make &quot;%2&quot;.
 %3</source>
         <translation type="unfinished">%1 konnte &quot;%2&quot; nicht erstellen.
@@ -61081,12 +61180,12 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     <message>
         <location line="-18"/>
         <location line="+47"/>
-        <location line="+48"/>
+        <location line="+55"/>
         <source>Print</source>
         <translation>Drucken</translation>
     </message>
     <message>
-        <location line="-662"/>
+        <location line="-669"/>
         <source>Pages to include</source>
         <translation>Einzuschließende Seiten</translation>
     </message>
@@ -61381,7 +61480,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Das sind mehr Seiten, als ein Auftrag senden kann. Drucken Sie weniger Seiten oder weniger Exemplare.</translation>
     </message>
     <message>
-        <location line="+48"/>
+        <location line="+55"/>
         <source>Couldn&apos;t print &quot;%1&quot; to %2.</source>
         <translation type="unfinished">&quot;%1&quot; konnte nicht auf %2 gedruckt werden.</translation>
     </message>
@@ -61798,7 +61897,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation>Formatierung</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_info.cpp" line="-266"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="-272"/>
         <source>Pages</source>
         <translation>Seiten</translation>
     </message>
@@ -62033,12 +62132,17 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Nachverfolgte Änderungen und Inhaltssteuerelemente (die Wörter bleiben erhalten).</translation>
     </message>
     <message>
+        <location line="+4"/>
+        <source>Printer trays for the first page and the other pages.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../apps/write/app/writewindow_file.cpp" line="+46"/>
         <source>Some versions kept before couldn&apos;t be given the new password, and stay as they were.</source>
         <translation type="unfinished">Einige zuvor gespeicherte Versionen konnten nicht mit dem neuen Kennwort versehen werden und bleiben unverändert.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_info.cpp" line="-91"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="-95"/>
         <location filename="../apps/write/app/writewindow_review.cpp" line="+1"/>
         <source>Comments</source>
         <translation>Kommentare</translation>
@@ -62386,7 +62490,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     </message>
     <message>
         <location line="+30"/>
-        <location filename="../apps/write/app/writewindow_output.cpp" line="-389"/>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="-396"/>
         <source>Author</source>
         <translation>Autor</translation>
     </message>
@@ -73605,7 +73709,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Einige Notizen wurden ausgelassen.</translation>
     </message>
     <message>
-        <location line="+689"/>
+        <location line="+691"/>
         <location line="+48"/>
         <source>The file is not a Rich Text Format document.</source>
         <translation type="unfinished">Die Datei ist kein Rich Text Format-Dokument.</translation>
@@ -75631,7 +75735,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Absatz</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pagesetupdialog.cpp" line="+84"/>
+        <location filename="../apps/write/app/pagesetupdialog.cpp" line="+85"/>
         <location line="+31"/>
         <location filename="../apps/write/app/writedialogs.cpp" line="-238"/>
         <location line="+130"/>
@@ -75654,7 +75758,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation>Rechts</translation>
     </message>
     <message>
-        <location line="+93"/>
+        <location line="+113"/>
         <location filename="../apps/write/app/writedialogs.cpp" line="+1"/>
         <source>Justified</source>
         <translation type="unfinished">Blocksatz</translation>
@@ -76035,7 +76139,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation>Seiten nebeneinander</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pagesetupdialog.cpp" line="-110"/>
+        <location filename="../apps/write/app/pagesetupdialog.cpp" line="-130"/>
         <location filename="../apps/write/app/writedialogs.cpp" line="-732"/>
         <source>Normal</source>
         <translation type="unfinished">Normal</translation>
@@ -76085,7 +76189,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation>Vorschau</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pagesetupdialog.cpp" line="+130"/>
+        <location filename="../apps/write/app/pagesetupdialog.cpp" line="+150"/>
         <location filename="../apps/write/app/writedialogs.cpp" line="+39"/>
         <location line="+510"/>
         <source>Set as Default…</source>
@@ -76299,7 +76403,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Prozent:</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pagesetupdialog.cpp" line="-166"/>
+        <location filename="../apps/write/app/pagesetupdialog.cpp" line="-186"/>
         <source>Letter</source>
         <translation type="unfinished">Letter</translation>
     </message>
@@ -76360,20 +76464,20 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     </message>
     <message>
         <location line="+18"/>
-        <location line="+125"/>
+        <location line="+145"/>
         <location filename="../apps/write/app/writedialogs.cpp" line="-320"/>
         <source>Top</source>
         <translation>Oben</translation>
     </message>
     <message>
-        <location line="-124"/>
-        <location line="+127"/>
+        <location line="-144"/>
+        <location line="+147"/>
         <location filename="../apps/write/app/writedialogs.cpp" line="+1"/>
         <source>Bottom</source>
         <translation>Unten</translation>
     </message>
     <message>
-        <location line="-124"/>
+        <location line="-144"/>
         <source>Gutter</source>
         <translation>Bundsteg</translation>
     </message>
@@ -76414,7 +76518,32 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation>Höhe</translation>
     </message>
     <message>
-        <location line="+64"/>
+        <location line="+2"/>
+        <source>Paper source</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Tray for the first page</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Tray for the other pages</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>First page</source>
+        <translation type="unfinished">Erste Seite</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Other pages</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+72"/>
         <source>Section start</source>
         <translation>Abschnittsbeginn</translation>
     </message>
@@ -76439,7 +76568,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation>Anwenden auf</translation>
     </message>
     <message>
-        <location line="-139"/>
+        <location line="-159"/>
         <source>Portrait</source>
         <translation type="unfinished">Hochformat</translation>
     </message>
@@ -76474,7 +76603,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Benutzerdefinierte Größe</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+26"/>
         <source>Paper</source>
         <translation>Papier</translation>
     </message>
@@ -76534,7 +76663,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">die hier gewählten Seitenränder und das Papierformat</translation>
     </message>
     <message>
-        <location line="+51"/>
+        <location line="+53"/>
         <source>Alt Text</source>
         <translation type="unfinished">Alternativtext</translation>
     </message>
@@ -79423,7 +79552,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageoutput.cpp" line="+219"/>
+        <location filename="../apps/write/app/pageoutput.cpp" line="+220"/>
         <location filename="../apps/write/app/pageview.cpp" line="-167"/>
         <source>Deleted: %1</source>
         <translation type="unfinished">Gelöscht: %1</translation>
@@ -80942,7 +81071,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">eine Tabelle mit mehr wiederholten Zeilen als beibehalten werden</translation>
     </message>
     <message>
-        <location filename="../libs/office/odt/odtread.cpp" line="+90"/>
+        <location filename="../libs/office/odt/odtread.cpp" line="+91"/>
         <source>This is not an OpenDocument file.</source>
         <translation type="unfinished">Dies ist keine OpenDocument-Datei.</translation>
     </message>
@@ -80988,7 +81117,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">styles.xml kann nicht gelesen werden: %1</translation>
     </message>
     <message>
-        <location line="+672"/>
+        <location line="+685"/>
         <source>The file has no text in it.</source>
         <translation type="unfinished">Die Datei enthält keinen Text.</translation>
     </message>
@@ -80998,7 +81127,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">eingebettete Objekte aus einer anderen Dateiart (als Bilder beibehalten)</translation>
     </message>
     <message>
-        <location filename="../libs/office/odt/odtwrite.cpp" line="+85"/>
+        <location filename="../libs/office/odt/odtwrite.cpp" line="+86"/>
         <source>The document has no main part.</source>
         <translation type="unfinished">Das Dokument hat keinen Hauptteil.</translation>
     </message>
@@ -81039,7 +81168,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Spalten unterschiedlicher Breite (werden als gleich breite gespeichert)</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+8"/>
         <source>page borders</source>
         <translation type="unfinished">Seitenrahmen</translation>
     </message>
@@ -81049,7 +81178,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Zeilennummern</translation>
     </message>
     <message>
-        <location line="+322"/>
+        <location line="+326"/>
         <source>tracked changes to tables, columns, and page setup (saved as they stand now)</source>
         <translation type="unfinished">nachverfolgte Änderungen an Tabellen, Spalten und Seiteneinrichtung (im aktuellen Zustand gespeichert)</translation>
     </message>

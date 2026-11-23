@@ -10005,6 +10005,105 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     </message>
 </context>
 <context>
+    <name>PaperTray</name>
+    <message>
+        <location filename="../libs/shell/app/papertray.cpp" line="+32"/>
+        <source>Upper tray</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lower tray</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Middle tray</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Manual feed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Envelope feeder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Envelope, manual feed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Automatic selection</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Tractor feed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Small-format tray</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Large-format tray</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Large-capacity tray</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cassette</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Tray chosen by the paper size</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Tray %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+45"/>
+        <source>The trays are saved in the document, but this system can&apos;t send them to the printer. Choose the tray in the printer&apos;s own settings when you print.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Default tray</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The printer picks the tray.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <location line="+7"/>
+        <source>%1 (not on this printer)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-4"/>
+        <source>This printer doesn&apos;t have this tray.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>PdfCrypt</name>
     <message>
         <location filename="../libs/base/io/pdfcrypt.cpp" line="+85"/>
@@ -59257,7 +59356,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/writewindow_output.cpp" line="+864"/>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="+865"/>
         <source>Shrink by One Page</source>
         <translation type="unfinished">Perkecil Satu Halaman</translation>
     </message>
@@ -59453,7 +59552,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <location line="-3"/>
         <location line="+122"/>
         <location filename="../apps/write/app/writewindow_output.cpp" line="-300"/>
-        <location line="+501"/>
+        <location line="+508"/>
         <source>%1 couldn&apos;t save &quot;%2&quot;.
 %3%4</source>
         <translation type="unfinished">%1 tidak dapat menyimpan &quot;%2&quot;.
@@ -59492,7 +59591,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     </message>
     <message>
         <location line="+4"/>
-        <location filename="../apps/write/app/writewindow_info.cpp" line="+16"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="+22"/>
         <source>This document is protected with a password, and a plain text file can&apos;t hold one. Save it as a .docx file, or remove the password first (File &gt; Info).</source>
         <translation type="unfinished">Dokumen ini dilindungi kata sandi, dan berkas teks biasa tidak dapat menyimpannya. Simpan sebagai berkas .docx, atau hapus dulu kata sandinya (Berkas &gt; Info).</translation>
     </message>
@@ -59544,7 +59643,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+8"/>
-        <location filename="../apps/write/app/writewindow_info.cpp" line="-24"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="-30"/>
         <source>document</source>
         <translation type="unfinished">dokumen</translation>
     </message>
@@ -59772,7 +59871,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+30"/>
-        <location filename="../apps/write/app/writewindow_output.cpp" line="-389"/>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="-396"/>
         <source>Author</source>
         <translation>Pengarang</translation>
     </message>
@@ -60296,12 +60395,17 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Perubahan yang dilacak dan kontrol konten (kata-katanya tetap).</translation>
     </message>
     <message>
+        <location line="+4"/>
+        <source>Printer trays for the first page and the other pages.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../apps/write/app/writewindow_file.cpp" line="-194"/>
         <source>Some versions kept before couldn&apos;t be given the new password, and stay as they were.</source>
         <translation type="unfinished">Beberapa versi yang disimpan sebelumnya tidak dapat diberi kata sandi baru, dan tetap seperti semula.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_info.cpp" line="-91"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="-95"/>
         <location filename="../apps/write/app/writewindow_review.cpp" line="+144"/>
         <source>Comments</source>
         <translation>Komentar</translation>
@@ -60990,12 +61094,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+14"/>
         <location line="+4"/>
-        <location line="+76"/>
+        <location line="+83"/>
         <source>Save as PDF</source>
         <translation type="unfinished">Simpan sebagai PDF</translation>
     </message>
     <message>
-        <location line="-76"/>
+        <location line="-83"/>
         <source>%1 couldn&apos;t make &quot;%2&quot;.
 %3</source>
         <translation type="unfinished">%1 tidak dapat membuat &quot;%2&quot;.
@@ -61004,12 +61108,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="-18"/>
         <location line="+47"/>
-        <location line="+48"/>
+        <location line="+55"/>
         <source>Print</source>
         <translation>Cetak</translation>
     </message>
     <message>
-        <location line="-662"/>
+        <location line="-669"/>
         <source>Pages to include</source>
         <translation>Halaman yang disertakan</translation>
     </message>
@@ -61304,7 +61408,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Jumlah halaman melebihi batas satu tugas cetak. Cetak lebih sedikit halaman atau salinan.</translation>
     </message>
     <message>
-        <location line="+48"/>
+        <location line="+55"/>
         <source>Couldn&apos;t print &quot;%1&quot; to %2.</source>
         <translation type="unfinished">Tidak dapat mencetak &quot;%1&quot; ke %2.</translation>
     </message>
@@ -61607,7 +61711,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished"> pt</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_output.cpp" line="-437"/>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="-444"/>
         <location filename="../apps/write/app/writewindow_protect.cpp" line="+0"/>
         <location line="+56"/>
         <source>Cancel</source>
@@ -73525,7 +73629,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Beberapa catatan telah dihilangkan.</translation>
     </message>
     <message>
-        <location line="+689"/>
+        <location line="+691"/>
         <location line="+48"/>
         <source>The file is not a Rich Text Format document.</source>
         <translation type="unfinished">Berkas ini bukan dokumen Rich Text Format.</translation>
@@ -75532,7 +75636,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
 <context>
     <name>jp::write::Dialogs</name>
     <message>
-        <location filename="../apps/write/app/pagesetupdialog.cpp" line="+42"/>
+        <location filename="../apps/write/app/pagesetupdialog.cpp" line="+43"/>
         <source>Letter</source>
         <translation type="unfinished">Letter</translation>
     </message>
@@ -75593,20 +75697,20 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+18"/>
-        <location line="+125"/>
+        <location line="+145"/>
         <location filename="../apps/write/app/writedialogs.cpp" line="+792"/>
         <source>Top</source>
         <translation>Atas</translation>
     </message>
     <message>
-        <location line="-124"/>
-        <location line="+127"/>
+        <location line="-144"/>
+        <location line="+147"/>
         <location filename="../apps/write/app/writedialogs.cpp" line="+1"/>
         <source>Bottom</source>
         <translation>Bawah</translation>
     </message>
     <message>
-        <location line="-124"/>
+        <location line="-144"/>
         <source>Gutter</source>
         <translation>Tepi Jilid</translation>
     </message>
@@ -75647,7 +75751,32 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation>Tinggi</translation>
     </message>
     <message>
-        <location line="+64"/>
+        <location line="+2"/>
+        <source>Paper source</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Tray for the first page</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Tray for the other pages</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>First page</source>
+        <translation type="unfinished">Halaman pertama</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Other pages</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+72"/>
         <source>Section start</source>
         <translation>Mulai bagian</translation>
     </message>
@@ -75672,7 +75801,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation>Terapkan ke</translation>
     </message>
     <message>
-        <location line="-139"/>
+        <location line="-159"/>
         <source>Portrait</source>
         <translation type="unfinished">Potret</translation>
     </message>
@@ -75707,7 +75836,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Ukuran kustom</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+26"/>
         <source>Paper</source>
         <translation>Kertas</translation>
     </message>
@@ -75767,7 +75896,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">margin dan ukuran kertas yang dipilih di sini</translation>
     </message>
     <message>
-        <location line="+51"/>
+        <location line="+53"/>
         <source>Alt Text</source>
         <translation type="unfinished">Teks Alternatif</translation>
     </message>
@@ -76162,7 +76291,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation>Halaman ke samping</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pagesetupdialog.cpp" line="-192"/>
+        <location filename="../apps/write/app/pagesetupdialog.cpp" line="-214"/>
         <location filename="../apps/write/app/writedialogs.cpp" line="-732"/>
         <source>Normal</source>
         <translation type="unfinished">Normal</translation>
@@ -76212,7 +76341,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation>Pratinjau</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pagesetupdialog.cpp" line="+130"/>
+        <location filename="../apps/write/app/pagesetupdialog.cpp" line="+150"/>
         <location filename="../apps/write/app/writedialogs.cpp" line="+39"/>
         <location line="+510"/>
         <source>Set as Default…</source>
@@ -76229,7 +76358,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Tab</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pagesetupdialog.cpp" line="-145"/>
+        <location filename="../apps/write/app/pagesetupdialog.cpp" line="-165"/>
         <location line="+31"/>
         <location filename="../apps/write/app/writedialogs.cpp" line="+9"/>
         <location line="+130"/>
@@ -76238,13 +76367,13 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation>Kiri</translation>
     </message>
     <message>
-        <location line="+93"/>
+        <location line="+113"/>
         <location filename="../apps/write/app/writedialogs.cpp" line="-244"/>
         <source>Center</source>
         <translation type="unfinished">Tengah</translation>
     </message>
     <message>
-        <location line="-123"/>
+        <location line="-143"/>
         <location line="+31"/>
         <location filename="../apps/write/app/writedialogs.cpp" line="+1"/>
         <location line="+129"/>
@@ -76329,7 +76458,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Rata Tengah</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pagesetupdialog.cpp" line="+93"/>
+        <location filename="../apps/write/app/pagesetupdialog.cpp" line="+113"/>
         <location filename="../apps/write/app/writedialogs.cpp" line="+2"/>
         <source>Justified</source>
         <translation type="unfinished">Rata Kiri-Kanan</translation>
@@ -79328,7 +79457,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageoutput.cpp" line="+219"/>
+        <location filename="../apps/write/app/pageoutput.cpp" line="+220"/>
         <location filename="../apps/write/app/pageview.cpp" line="-167"/>
         <source>Deleted: %1</source>
         <translation type="unfinished">Dihapus: %1</translation>
@@ -80845,7 +80974,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">tabel dengan lebih banyak baris berulang daripada yang dapat dipertahankan</translation>
     </message>
     <message>
-        <location filename="../libs/office/odt/odtread.cpp" line="+90"/>
+        <location filename="../libs/office/odt/odtread.cpp" line="+91"/>
         <source>This is not an OpenDocument file.</source>
         <translation type="unfinished">Ini bukan berkas OpenDocument.</translation>
     </message>
@@ -80891,7 +81020,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">styles.xml tidak dapat dibaca: %1</translation>
     </message>
     <message>
-        <location line="+672"/>
+        <location line="+685"/>
         <source>The file has no text in it.</source>
         <translation type="unfinished">Berkas ini tidak memiliki teks.</translation>
     </message>
@@ -80901,7 +81030,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">objek tersemat yang dibuat dalam jenis berkas lain (disimpan sebagai gambar)</translation>
     </message>
     <message>
-        <location filename="../libs/office/odt/odtwrite.cpp" line="+85"/>
+        <location filename="../libs/office/odt/odtwrite.cpp" line="+86"/>
         <source>The document has no main part.</source>
         <translation type="unfinished">Dokumen tidak memiliki bagian utama.</translation>
     </message>
@@ -80942,7 +81071,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">kolom dengan lebar berbeda (disimpan sebagai kolom sama lebar)</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+8"/>
         <source>page borders</source>
         <translation type="unfinished">bingkai halaman</translation>
     </message>
@@ -80952,7 +81081,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">nomor baris</translation>
     </message>
     <message>
-        <location line="+322"/>
+        <location line="+326"/>
         <source>tracked changes to tables, columns, and page setup (saved as they stand now)</source>
         <translation type="unfinished">perubahan terlacak pada tabel, kolom, dan pengaturan halaman (disimpan sebagaimana adanya saat ini)</translation>
     </message>

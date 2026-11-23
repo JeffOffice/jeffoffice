@@ -9985,6 +9985,105 @@ Download it from %2 now? (%3, once.)</source>
     </message>
 </context>
 <context>
+    <name>PaperTray</name>
+    <message>
+        <location filename="../libs/shell/app/papertray.cpp" line="+32"/>
+        <source>Upper tray</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Lower tray</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Middle tray</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Manual feed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Envelope feeder</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Envelope, manual feed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Automatic selection</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Tractor feed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Small-format tray</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Large-format tray</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Large-capacity tray</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cassette</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Tray chosen by the paper size</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Tray %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+45"/>
+        <source>The trays are saved in the document, but this system can&apos;t send them to the printer. Choose the tray in the printer&apos;s own settings when you print.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Default tray</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The printer picks the tray.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <location line="+7"/>
+        <source>%1 (not on this printer)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-4"/>
+        <source>This printer doesn&apos;t have this tray.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>PdfCrypt</name>
     <message>
         <location filename="../libs/base/io/pdfcrypt.cpp" line="+85"/>
@@ -59131,7 +59230,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/writewindow_output.cpp" line="+864"/>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="+865"/>
         <source>Shrink by One Page</source>
         <translation type="unfinished"></translation>
     </message>
@@ -59322,7 +59421,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="-3"/>
         <location line="+122"/>
         <location filename="../apps/write/app/writewindow_output.cpp" line="-300"/>
-        <location line="+501"/>
+        <location line="+508"/>
         <source>%1 couldn&apos;t save &quot;%2&quot;.
 %3%4</source>
         <translation type="unfinished"></translation>
@@ -59360,7 +59459,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+4"/>
-        <location filename="../apps/write/app/writewindow_info.cpp" line="+16"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="+22"/>
         <source>This document is protected with a password, and a plain text file can&apos;t hold one. Save it as a .docx file, or remove the password first (File &gt; Info).</source>
         <translation type="unfinished"></translation>
     </message>
@@ -59407,7 +59506,7 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+8"/>
-        <location filename="../apps/write/app/writewindow_info.cpp" line="-24"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="-30"/>
         <source>document</source>
         <translation type="unfinished"></translation>
     </message>
@@ -59633,7 +59732,7 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+30"/>
-        <location filename="../apps/write/app/writewindow_output.cpp" line="-389"/>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="-396"/>
         <source>Author</source>
         <translation type="unfinished"></translation>
     </message>
@@ -60157,12 +60256,17 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <location line="+4"/>
+        <source>Printer trays for the first page and the other pages.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../apps/write/app/writewindow_file.cpp" line="-194"/>
         <source>Some versions kept before couldn&apos;t be given the new password, and stay as they were.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_info.cpp" line="-91"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="-95"/>
         <location filename="../apps/write/app/writewindow_review.cpp" line="+144"/>
         <source>Comments</source>
         <translation type="unfinished"></translation>
@@ -60850,12 +60954,12 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+14"/>
         <location line="+4"/>
-        <location line="+76"/>
+        <location line="+83"/>
         <source>Save as PDF</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-76"/>
+        <location line="-83"/>
         <source>%1 couldn&apos;t make &quot;%2&quot;.
 %3</source>
         <translation type="unfinished"></translation>
@@ -60863,12 +60967,12 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="-18"/>
         <location line="+47"/>
-        <location line="+48"/>
+        <location line="+55"/>
         <source>Print</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-637"/>
+        <location line="-644"/>
         <source>PDF/A, for keeping for a long time</source>
         <translation type="unfinished"></translation>
     </message>
@@ -61162,7 +61266,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+48"/>
+        <location line="+55"/>
         <source>Couldn&apos;t print &quot;%1&quot; to %2.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -61465,7 +61569,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_output.cpp" line="-437"/>
+        <location filename="../apps/write/app/writewindow_output.cpp" line="-444"/>
         <location filename="../apps/write/app/writewindow_protect.cpp" line="+0"/>
         <location line="+56"/>
         <source>Cancel</source>
@@ -73379,7 +73483,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+689"/>
+        <location line="+691"/>
         <location line="+48"/>
         <source>The file is not a Rich Text Format document.</source>
         <translation type="unfinished"></translation>
@@ -75386,7 +75490,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::write::Dialogs</name>
     <message>
-        <location filename="../apps/write/app/pagesetupdialog.cpp" line="+42"/>
+        <location filename="../apps/write/app/pagesetupdialog.cpp" line="+43"/>
         <source>Letter</source>
         <translation type="unfinished"></translation>
     </message>
@@ -75447,20 +75551,20 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+18"/>
-        <location line="+125"/>
+        <location line="+145"/>
         <location filename="../apps/write/app/writedialogs.cpp" line="+792"/>
         <source>Top</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-124"/>
-        <location line="+127"/>
+        <location line="-144"/>
+        <location line="+147"/>
         <location filename="../apps/write/app/writedialogs.cpp" line="+1"/>
         <source>Bottom</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-124"/>
+        <location line="-144"/>
         <source>Gutter</source>
         <translation type="unfinished"></translation>
     </message>
@@ -75481,7 +75585,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+64"/>
+        <location line="+84"/>
         <source>Section start</source>
         <translation type="unfinished"></translation>
     </message>
@@ -75506,7 +75610,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-146"/>
+        <location line="-166"/>
         <source>Portrait</source>
         <translation type="unfinished"></translation>
     </message>
@@ -75561,7 +75665,32 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+7"/>
+        <source>Paper source</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Tray for the first page</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Tray for the other pages</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>First page</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Other pages</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
         <source>Paper</source>
         <translation type="unfinished"></translation>
     </message>
@@ -75621,7 +75750,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+61"/>
+        <location line="+63"/>
         <source>Alt Text</source>
         <translation type="unfinished"></translation>
     </message>
@@ -76021,7 +76150,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pagesetupdialog.cpp" line="-192"/>
+        <location filename="../apps/write/app/pagesetupdialog.cpp" line="-214"/>
         <location filename="../apps/write/app/writedialogs.cpp" line="-732"/>
         <source>Normal</source>
         <translation type="unfinished"></translation>
@@ -76071,7 +76200,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pagesetupdialog.cpp" line="+130"/>
+        <location filename="../apps/write/app/pagesetupdialog.cpp" line="+150"/>
         <location filename="../apps/write/app/writedialogs.cpp" line="+39"/>
         <location line="+510"/>
         <source>Set as Default…</source>
@@ -76083,7 +76212,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pagesetupdialog.cpp" line="-145"/>
+        <location filename="../apps/write/app/pagesetupdialog.cpp" line="-165"/>
         <location line="+31"/>
         <location filename="../apps/write/app/writedialogs.cpp" line="+9"/>
         <location line="+130"/>
@@ -76092,13 +76221,13 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+93"/>
+        <location line="+113"/>
         <location filename="../apps/write/app/writedialogs.cpp" line="-244"/>
         <source>Center</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-123"/>
+        <location line="-143"/>
         <location line="+31"/>
         <location filename="../apps/write/app/writedialogs.cpp" line="+1"/>
         <location line="+129"/>
@@ -76183,7 +76312,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pagesetupdialog.cpp" line="+93"/>
+        <location filename="../apps/write/app/pagesetupdialog.cpp" line="+113"/>
         <location filename="../apps/write/app/writedialogs.cpp" line="+2"/>
         <source>Justified</source>
         <translation type="unfinished"></translation>
@@ -79182,7 +79311,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageoutput.cpp" line="+219"/>
+        <location filename="../apps/write/app/pageoutput.cpp" line="+220"/>
         <location filename="../apps/write/app/pageview.cpp" line="-167"/>
         <source>Deleted: %1</source>
         <translation type="unfinished"></translation>
@@ -80699,7 +80828,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../libs/office/odt/odtread.cpp" line="+90"/>
+        <location filename="../libs/office/odt/odtread.cpp" line="+91"/>
         <source>This is not an OpenDocument file.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -80745,7 +80874,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+672"/>
+        <location line="+685"/>
         <source>The file has no text in it.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -80755,7 +80884,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../libs/office/odt/odtwrite.cpp" line="+85"/>
+        <location filename="../libs/office/odt/odtwrite.cpp" line="+86"/>
         <source>The document has no main part.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -80796,7 +80925,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+8"/>
         <source>page borders</source>
         <translation type="unfinished"></translation>
     </message>
@@ -80806,7 +80935,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+322"/>
+        <location line="+326"/>
         <source>tracked changes to tables, columns, and page setup (saved as they stand now)</source>
         <translation type="unfinished"></translation>
     </message>
