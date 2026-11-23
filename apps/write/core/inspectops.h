@@ -36,5 +36,9 @@ struct ExternalLinkUnread {
 };
 ExternalLinkUnread externalLinkUnread(WriteDoc &doc);
 int removeExternalLinks(WriteDoc &doc);
+// For tests: the bytes of kept XML the link check has looked through since the last reset, and a smaller most-edits limit for Remove All (0 puts the usual one back).
+qint64 externalLinkBytesScannedForTest();
+void resetExternalLinkBytesScannedForTest();
+void setMostExternalLinkEditsForTest(int most);
 
 } // namespace jp::write

@@ -391,6 +391,12 @@ QSet<int> allCommentIds(WriteDoc &doc)
     return out;
 }
 
+void editKeptCommentXml(WriteDoc &doc, const std::function<QByteArray(const QByteArray &)> &edit)
+{
+    CommentSource &src = sourceOf(doc);
+    for (auto it = src.byId.begin(); it != src.byId.end(); ++it) it->xml = edit(it->xml);
+}
+
 qint64 commentBlocksScannedForTest() { return s_blocksScanned.load(); }
 qint64 commentReplyStepsForTest() { return s_replySteps.load(); }
 

@@ -1,11 +1,17 @@
 #include "office/packageprops.h"
 #include "core/inspectops.h"
 
+#include "core/commentops.h"
 #include "core/fieldops.h"
 #include "core/writeprops.h"
 #include "text/textprops.h"
 
 #include <QRegularExpression>
+#include <QXmlStreamReader>
+#include <atomic>
+#include <functional>
+#include <climits>
+#include <cstring>
 #include <QTextBlock>
 #include <QTextCursor>
 
@@ -29,13 +35,35 @@ QVector<QPair<int, int>> hiddenRuns(const QTextDocument *story)
     return runs;
 }
 
-// The Ids of the links of the part a story is of to addresses outside the file that are not web addresses (a hyperlink is one; a linked picture or object is not); with `endnote`, those of the
-// endnotes' part, whose paragraphs are in the body's story.
-QSet<QString> fileLinkIds(const WriteDoc &doc, const QTextDocument *story, bool endnote = false)
+// Links to other files in kept XML (the pictures and objects of the text, kept as the XML they came in, and the parts the program keeps whole: the comments, and so on). Each part names its links by
+// Ids of its own relationships. Every pass looks through the bytes once, and what is looked through is counted (externalLinkBytesScannedForTest).
+constexpr qint64 kMostLinkBytes = qint64(1) << 26;   // a part larger than this is not looked through: it is said to be unchecked
+constexpr int kMostLinkEdits = 100000;               // the most links one Remove All takes out of kept XML; the rest wait for the next
+std::atomic<qint64> s_linkBytes{0};
+std::atomic<int> s_mostLinkEdits{0};
+
+struct LinkIds {
+    QSet<QString> files;    // to addresses outside the file that are not web addresses
+    QSet<QString> inside;   // to parts of the file
+    QSet<QString> every;
+};
+
+bool pictureOrObjectKind(const QString &type)
 {
-    QSet<QString> ids;
-    for (const office::Relationship &r : doc.storyRelationships(story, endnote))
-        if (r.external && !r.type.endsWith(QLatin1String("/hyperlink"))) ids.insert(r.id);
+    for (const char *end : {"/image", "/oleObject", "/package", "/video", "/audio", "/media"})
+        if (type.endsWith(QLatin1String(end))) return true;
+    return false;
+}
+
+// The Ids of a part's relationships; a hyperlink is not a link to a file, and in a part kept whole only a picture's or an object's kind is (the attached template and the like are another matter).
+LinkIds linkIdsOf(const QVector<office::Relationship> &rels, bool kindsOnly)
+{
+    LinkIds ids;
+    for (const office::Relationship &r : rels) {
+        ids.every.insert(r.id);
+        if (!r.external) ids.inside.insert(r.id);
+        else if (!r.type.endsWith(QLatin1String("/hyperlink")) && (!kindsOnly || pictureOrObjectKind(r.type))) ids.files.insert(r.id);
+    }
     return ids;
 }
 
@@ -53,53 +81,337 @@ bool namesAnId(const QByteArray &bytes, const QSet<QString> &ids)
     return false;
 }
 
-// The values of the attributes of a picture or object that name a linked file (r:link).
-QStringList linkAttributes(const QByteArray &bytes)
+bool mightLink(const QByteArray &bytes, const LinkIds &ids) { return bytes.contains(":link") || bytes.contains(":href") || (!ids.files.isEmpty() && namesAnId(bytes, ids.files)); }
+
+// One attribute that names a link to a file: where it is (with the blank before it), the Id, whether it is inside the content of a text box, and whether it can be left out alone (it is a link beside
+// the picture's own data: another attribute of the same element names a part of the file).
+struct Ref {
+    qsizetype from = 0, to = 0;
+    QString id;
+    bool inBox = false, removable = false;
+};
+struct Scan {
+    QVector<Ref> refs;
+    int unresolved = 0;   // links by an Id the part has no relationship for
+    bool broken = false;  // the bytes stop making sense as markup: what follows was not looked at
+};
+
+Scan scanRefs(const QByteArray &x, const LinkIds &ids)
 {
-    static const QRegularExpression link(QStringLiteral(":link\\s*=\\s*(?:\"([^\"]{0,64})\"|'([^']{0,64})')"));
-    QStringList out;
-    QRegularExpressionMatchIterator it = link.globalMatch(QString::fromLatin1(bytes));
-    while (it.hasNext()) {
-        const QRegularExpressionMatch m = it.next();
-        out << (m.capturedStart(1) >= 0 ? m.captured(1) : m.captured(2));
+    Scan out;
+    s_linkBytes += x.size();
+    const qsizetype n = x.size();
+    const char *d = x.constData();
+    auto has = [&](qsizetype p, const char *s) {
+        const qsizetype l = qsizetype(strlen(s));
+        return p + l <= n && memcmp(d + p, s, size_t(l)) == 0;
+    };
+    auto space = [](char c) { return c == ' ' || c == '\t' || c == '\n' || c == '\r'; };
+    auto localOf = [&](qsizetype from, qsizetype to) {
+        qsizetype c = to;
+        while (c > from && d[c - 1] != ':') --c;
+        return QByteArrayView(d + c, to - c);
+    };
+    struct Attr {
+        qsizetype with, end;
+        QByteArrayView name, local, value;
+    };
+    QVector<Attr> attrs;
+    int box = 0;
+    qsizetype i = 0;
+    while (i < n) {
+        const qsizetype lt = x.indexOf('<', i);
+        if (lt < 0) break;
+        auto skipTo = [&](const char *close, qsizetype from) {
+            const qsizetype e = x.indexOf(close, from);
+            if (e < 0) out.broken = true;
+            else i = e + qsizetype(strlen(close));
+            return e >= 0;
+        };
+        if (has(lt, "<!--")) { if (!skipTo("-->", lt + 4)) break; continue; }
+        if (has(lt, "<![CDATA[")) { if (!skipTo("]]>", lt + 9)) break; continue; }
+        if (has(lt, "<?")) { if (!skipTo("?>", lt + 2)) break; continue; }
+        if (has(lt, "<!")) { if (!skipTo(">", lt + 2)) break; continue; }
+        if (lt + 1 >= n) { out.broken = true; break; }
+        if (d[lt + 1] == '/') {
+            const qsizetype e = x.indexOf('>', lt);
+            if (e < 0) { out.broken = true; break; }
+            qsizetype ne = lt + 2;
+            while (ne < e && !space(d[ne])) ++ne;
+            if (localOf(lt + 2, ne) == QByteArrayView("txbxContent") && box > 0) --box;
+            i = e + 1;
+            continue;
+        }
+        qsizetype p = lt + 1;
+        while (p < n && !space(d[p]) && d[p] != '/' && d[p] != '>') ++p;
+        const QByteArrayView tag = localOf(lt + 1, p);
+        attrs.clear();
+        bool self = false, ended = false;
+        while (p < n) {
+            const qsizetype with = p;
+            while (p < n && space(d[p])) ++p;
+            if (p >= n) break;
+            if (d[p] == '>') { ++p; ended = true; break; }
+            if (d[p] == '/') {
+                if (p + 1 < n && d[p + 1] == '>') { self = true; p += 2; ended = true; break; }
+                ++p;
+                continue;
+            }
+            const qsizetype an = p;
+            while (p < n && !space(d[p]) && d[p] != '=' && d[p] != '>' && d[p] != '/') ++p;
+            if (p == an) { ++p; continue; }
+            const qsizetype ae = p;
+            while (p < n && space(d[p])) ++p;
+            if (p < n && d[p] == '=') {
+                ++p;
+                while (p < n && space(d[p])) ++p;
+                if (p >= n || (d[p] != '"' && d[p] != '\'')) break;
+                const qsizetype vf = p + 1, close = x.indexOf(d[p], vf);
+                if (close < 0) break;
+                attrs.push_back({with, close + 1, QByteArrayView(d + an, ae - an), localOf(an, ae), QByteArrayView(d + vf, close - vf)});
+                p = close + 1;
+            }
+        }
+        if (!ended) { out.broken = true; break; }
+        i = p;
+        if (tag == QByteArrayView("txbxContent") && !self) ++box;
+        for (const Attr &a : std::as_const(attrs)) {
+            if (a.value.isEmpty() || a.value.size() > 64) continue;
+            const QString id = QString::fromLatin1(a.value);
+            const bool linkish = a.name.contains(':') && (a.local == QByteArrayView("link") || a.local == QByteArrayView("href"));
+            if (ids.files.contains(id)) {
+                Ref r;
+                r.from = a.with;
+                r.to = a.end;
+                r.id = id;
+                r.inBox = box > 0;
+                if (linkish)
+                    for (const Attr &o : std::as_const(attrs))
+                        if ((o.local == QByteArrayView("embed") || o.local == QByteArrayView("id") || o.local == QByteArrayView("pict")) && o.value.size() <= 64 && ids.inside.contains(QString::fromLatin1(o.value))) {
+                            r.removable = true;
+                            break;
+                        }
+                out.refs.push_back(r);
+            } else if (linkish && !ids.every.contains(id)) {
+                ++out.unresolved;
+            }
+        }
     }
     return out;
 }
 
-// The pictures and objects of the story that name a link to a file, as (position, length) runs, with the Ids they name (those of the part each is in: an endnote's are the endnotes' own). An
-// atom that names a link by an Id its part has no relationship for (the part, or its list of relationships, is missing, or has no such Id) is counted in `unresolved`: where it goes can't be told.
-QVector<QPair<int, int>> linkedAtoms(const WriteDoc &doc, const QTextDocument *story, QSet<QPair<bool, QString>> *named = nullptr, int *unresolved = nullptr)
+// The bytes without the first `limit` of the links that can be left out alone (those that `pick` takes), and how many went and which Ids.
+QByteArray withoutLinks(const QByteArray &x, const QVector<Ref> &refs, int limit, int *done, QSet<QString> *named)
 {
-    QVector<QPair<int, int>> runs;
-    const QSet<QString> body = fileLinkIds(doc, story), notes = story == doc.story() ? fileLinkIds(doc, story, true) : QSet<QString>();
-    QSet<QString> everyBody, everyNote;
-    if (unresolved) {
-        for (const office::Relationship &r : doc.storyRelationships(story)) everyBody.insert(r.id);
-        if (story == doc.story())
-            for (const office::Relationship &r : doc.storyRelationships(story, true)) everyNote.insert(r.id);
+    QByteArray out;
+    out.reserve(x.size());
+    qsizetype at = 0;
+    int n = 0;
+    for (const Ref &r : refs) {
+        if (!r.removable || n >= limit) continue;
+        out.append(x.constData() + at, r.from - at);
+        at = r.to;
+        ++n;
+        if (named) named->insert(r.id);
     }
+    out.append(x.constData() + at, x.size() - at);
+    *done = n;
+    return out;
+}
+
+// Whether kept XML (or, as a `fragment`, one element or more, with no root of their own) is well formed.
+bool wellFormed(const QByteArray &x, bool fragment)
+{
+    s_linkBytes += x.size();
+    QXmlStreamReader r;
+    r.setNamespaceProcessing(false);
+    if (fragment) r.addData("<x>");
+    r.addData(x);
+    if (fragment) r.addData("</x>");
+    while (!r.atEnd()) r.readNext();
+    return !r.hasError();
+}
+
+// What a piece of kept XML holds of links to files. `whole`: a link at its own level (not inside a text box's content), so what holds it is taken out whole. Else: `editable` links inside it
+// that go by leaving one attribute out, `applied` of them with the limit given, `kept` links that stay (they have no data of the picture's own beside them, or the edited bytes would not be well
+// formed, or they were not well formed to begin with), and `unresolved` links by an Id the part has no relationship for. `edited` is the bytes with the first `applied` links out, `named` their Ids.
+struct Judged {
+    bool whole = false;
+    int editable = 0, applied = 0, kept = 0, unresolved = 0;
+    QByteArray edited;
+    QSet<QString> named, every;
+};
+
+Judged judgeXml(const QByteArray &xml, const LinkIds &ids, bool fragment, bool allNested, int limit)
+{
+    Judged j;
+    const Scan s = scanRefs(xml, ids);
+    j.unresolved = s.unresolved + (s.broken ? 1 : 0);
+    int removable = 0;
+    for (const Ref &r : s.refs) {
+        if (!allNested && !r.inBox) j.whole = true;
+        j.every.insert(r.id);
+        removable += r.removable;
+    }
+    if (j.whole) return j;
+    j.kept = int(s.refs.size());
+    if (removable == 0 || s.broken) return j;
+    const int take = std::min(removable, std::max(limit, 0));
+    if (take == 0) {
+        j.editable = removable;
+        j.kept -= removable;
+        return j;
+    }
+    int done = 0;
+    QSet<QString> named;
+    const QByteArray edited = withoutLinks(xml, s.refs, take, &done, &named);
+    if (!wellFormed(edited, fragment)) return j;
+    j.editable = removable;
+    j.kept -= removable;
+    j.applied = done;
+    j.edited = edited;
+    j.named = named;
+    return j;
+}
+
+// What one story holds: the atoms (pictures, objects, text boxes) and the kept blocks, with the edits that take a link out of them.
+struct StoryPlan {
+    QVector<QPair<int, int>> whole;   // (position, length) of the atoms that are taken out whole
+    struct AtomEdit {
+        int position, length;
+        QTextCharFormat before;
+        office::wml::Inline made;
+        int links;   // how many links it takes out
+    };
+    QVector<AtomEdit> atoms;
+    struct BlockEdit {
+        int position, key;
+        QByteArray packed;
+        int links;
+    };
+    QVector<BlockEdit> blocks;
+    QSet<QPair<bool, QString>> named;    // the Ids (with whether they are the endnotes') the atoms taken out whole name, and those the edits left out
+    int editable = 0, applied = 0, kept = 0, unresolved = 0, fields = 0;
+};
+
+const QRegularExpression &fileFieldPattern()
+{
+    static const QRegularExpression field(QStringLiteral("(?:w:instr=\"|<w:instrText[^>]*>)\\s*(?:&quot;)?\\s*(?:INCLUDEPICTURE|INCLUDETEXT|LINK|DDEAUTO|DDE)\\b"), QRegularExpression::CaseInsensitiveOption);
+    return field;
+}
+
+// `limit`: how many more links may be edited out of kept XML; the count of those edited now is taken off it.
+StoryPlan planStory(const WriteDoc &doc, QTextDocument *story, int *limit)
+{
+    using namespace office::wml;
+    StoryPlan plan;
+    const bool ofBody = story == doc.story();
+    const LinkIds body = linkIdsOf(doc.storyRelationships(story), false);
+    const LinkIds notes = ofBody ? linkIdsOf(doc.storyRelationships(story, true), false) : LinkIds();
     for (QTextBlock b = story->begin(); b.isValid(); b = b.next()) {
-        const bool endnote = story == doc.story() && doc.endnoteIdOf(b);
-        const QSet<QString> &ids = endnote ? notes : body;
+        const bool endnote = ofBody && doc.endnoteIdOf(b);
+        const LinkIds &ids = endnote ? notes : body;
+        auto add = [&](const Judged &j) {
+            plan.kept += j.kept;
+            plan.editable += j.editable;
+            plan.applied += j.applied;
+            plan.unresolved += j.unresolved;
+            *limit -= j.applied;
+            for (const QString &id : j.named) plan.named.insert({endnote, id});
+        };
+        // (the elements kept between paragraphs: all of what they hold is inside, so a link in one goes only by an attribute)
+        const QTextBlockFormat bf = b.blockFormat();
+        for (const int key : {int(prop::RawBefore), int(prop::RawBlock), int(prop::RawAfter)}) {
+            if (!bf.hasProperty(key)) continue;
+            const QByteArray packed = storedBytes(bf, key);
+            if (!mightLink(packed, ids)) continue;
+            QVector<Block> blocks = unpackBlocks(packed);
+            bool changed = false;
+            int links = 0;
+            auto one = [&](QByteArray *raw) {
+                if (raw->isEmpty() || !mightLink(*raw, ids)) return;
+                const Judged j = judgeXml(*raw, ids, true, true, *limit);
+                add(j);
+                if (j.applied > 0) {
+                    *raw = j.edited;
+                    changed = true;
+                    links += j.applied;
+                }
+            };
+            for (Block &blk : blocks) {
+                if (blk.isRaw) one(&blk.raw);
+                for (Inline &a : blk.para.content)
+                    if (a.kind != Inline::Text) one(&a.raw);
+            }
+            if (changed) plan.blocks.push_back({b.position(), key, packBlocks(blocks), links});
+        }
         for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
             const QTextFragment fr = it.fragment();
             const QTextCharFormat cf = fr.charFormat();
             if (!cf.hasProperty(prop::Atom)) continue;
-            const QByteArray bytes = storedBytes(cf, prop::Atom);
-            if (unresolved)
-                for (const QString &id : linkAttributes(bytes))
-                    if (!(endnote ? everyNote : everyBody).contains(id)) {
-                        ++*unresolved;
-                        break;
+            const QByteArray packed = storedBytes(cf, prop::Atom);
+            bool whole = false;
+            if (mightLink(packed, ids)) {
+                Inline a = unpackAtom(packed);
+                const Judged j = judgeXml(a.raw, ids, true, false, *limit);
+                if (j.whole) {
+                    whole = true;
+                    plan.unresolved += j.unresolved;
+                    plan.whole.push_back({fr.position(), fr.length()});
+                    for (const QString &id : j.every) plan.named.insert({endnote, id});
+                } else {
+                    add(j);
+                    if (j.applied > 0) {
+                        a.raw = j.edited;
+                        plan.atoms.push_back({fr.position(), fr.length(), cf, a, j.applied});
                     }
-            if (ids.isEmpty() || !namesAnId(bytes, ids)) continue;
-            if (named)
-                for (const QString &id : ids)
-                    if (bytes.contains(id.toLatin1())) named->insert({endnote, id});
-            runs.push_back({fr.position(), fr.length()});
+                }
+            }
+            // (a field in a text box, kept whole, is neither counted nor taken out: the row says so)
+            if (!whole && packed.contains("instr") && fileFieldPattern().match(QString::fromLatin1(packed.left(1 << 20))).hasMatch()) ++plan.fields;
         }
     }
-    return runs;
+    return plan;
+}
+
+// What a part kept whole holds.
+struct PartPlan {
+    QString name, contentType;
+    QVector<office::Relationship> rels;
+    Judged judged;
+    int fields = 0;
+    bool tooLarge = false;
+};
+
+QVector<PartPlan> planParts(const WriteDoc &doc, int *limit)
+{
+    QVector<PartPlan> out;
+    for (const WriteDoc::KeptXmlPart &part : doc.keptXmlParts()) {
+        PartPlan plan;
+        plan.name = part.name;
+        plan.contentType = part.contentType;
+        plan.rels = part.relationships;
+        if (part.data.size() > kMostLinkBytes) {
+            plan.tooLarge = true;
+            plan.judged.unresolved = 1;
+            out.push_back(plan);
+            continue;
+        }
+        const LinkIds ids = linkIdsOf(part.relationships, true);
+        if (mightLink(part.data, ids)) {
+            plan.judged = judgeXml(part.data, ids, false, true, *limit);
+            *limit -= plan.judged.applied;
+        }
+        if (part.data.contains("instr")) {
+            QRegularExpressionMatchIterator it = fileFieldPattern().globalMatch(QString::fromLatin1(part.data));
+            while (it.hasNext()) {
+                it.next();
+                ++plan.fields;
+            }
+        }
+        if (plan.judged.editable || plan.judged.kept || plan.judged.unresolved || plan.fields) out.push_back(plan);
+    }
+    return out;
 }
 
 // The first word of a field the text holds as a group (a field in a header, a footer, or the footnotes keeps its runs whole, so it has no name of its own): the word of its instruction.
@@ -256,53 +568,53 @@ int removeCustomXml(WriteDoc &doc)
     return n;
 }
 
+qint64 externalLinkBytesScannedForTest() { return s_linkBytes; }
+void resetExternalLinkBytesScannedForTest() { s_linkBytes = 0; }
+void setMostExternalLinkEditsForTest(int most) { s_mostLinkEdits = most; }
+
+namespace {
+int editLimit() { return s_mostLinkEdits > 0 ? int(s_mostLinkEdits) : kMostLinkEdits; }
+}
+
 int externalLinkCount(WriteDoc &doc)
 {
     int n = 0;
     for (QTextDocument *story : allStories(doc)) {
-        for (const auto &run : linkedAtoms(doc, story)) n += run.second;
+        int limit = INT_MAX;
+        const StoryPlan plan = planStory(doc, story, &limit);
+        for (const auto &run : plan.whole) n += run.second;
+        n += plan.editable;
         const StoryScan scan = scanStory(story, false);
         for (const FieldPlace &f : scan.fields) n += isFileLinkField(f);
     }
+    int limit = INT_MAX;
+    for (const PartPlan &p : planParts(doc, &limit)) n += p.judged.editable;
     return n;
 }
 
 ExternalLinkUnread externalLinkUnread(WriteDoc &doc)
 {
     ExternalLinkUnread out;
-    static const QRegularExpression field(QStringLiteral("(?:w:instr=\"|<w:instrText[^>]*>)\\s*(?:&quot;)?\\s*(?:INCLUDEPICTURE|INCLUDETEXT|LINK|DDEAUTO|DDE)\\b"), QRegularExpression::CaseInsensitiveOption);
     for (QTextDocument *story : allStories(doc)) {
-        linkedAtoms(doc, story, nullptr, &out.unresolved);
+        int limit = INT_MAX;
+        const StoryPlan plan = planStory(doc, story, &limit);
+        out.unresolved += plan.unresolved;
+        out.unreachable += plan.kept + plan.fields;   // (a link or a field kept inside a text box)
         for (const FieldPlace &f : scanStory(story, false).fields)
-            if (f.name.isEmpty() && f.form == FieldPlace::Group && !isFileLinkField(f) && field.match(QString::fromUtf8(f.groupRaw.left(1 << 16))).hasMatch()) ++out.unreachable;   // (a link kept inside another field)
-        const QSet<QString> ids = fileLinkIds(doc, story);
-        const QSet<QString> noteIds = story == doc.story() ? fileLinkIds(doc, story, true) : QSet<QString>();
-        for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
-            for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
-                const QTextCharFormat cf = it.fragment().charFormat();
-                if (!cf.hasProperty(prop::Atom)) continue;
-                const QByteArray bytes = storedBytes(cf, prop::Atom);
-                // (a picture or object that is a link is counted and taken out; a field in a text box, kept whole, is neither)
-                const bool endnote = story == doc.story() && doc.endnoteIdOf(b);
-                if (!namesAnId(bytes, endnote ? noteIds : ids) && field.match(QString::fromLatin1(bytes.left(1 << 20))).hasMatch()) ++out.unreachable;
-            }
+            if (f.name.isEmpty() && f.form == FieldPlace::Group && !isFileLinkField(f) && fileFieldPattern().match(QString::fromUtf8(f.groupRaw.left(1 << 16))).hasMatch()) ++out.unreachable;   // (a link kept inside another field)
     }
-    // (the comments: kept as they are in their part)
-    const QString comments = doc.mainRelatedPart(QStringLiteral("comments"));
-    if (!comments.isEmpty()) {
-        const QString text = QString::fromUtf8(doc.partData(comments).left(1 << 22));
-        QRegularExpressionMatchIterator it = field.globalMatch(text);
-        while (it.hasNext()) {
-            it.next();
-            ++out.unreachable;
-        }
+    // (the parts the program keeps whole: the comments, the drawings, and so on)
+    int limit = INT_MAX;
+    for (const PartPlan &p : planParts(doc, &limit)) {
+        out.unresolved += p.judged.unresolved;
+        out.unreachable += p.judged.kept + p.fields;
     }
     return out;
 }
 
 int removeExternalLinks(WriteDoc &doc)
 {
-    int n = 0;
+    int n = 0, limit = editLimit();
     const WriteDoc::StepGroup group(doc);
     for (QTextDocument *story : allStories(doc)) {
         // (the fields first: each becomes its result; the last in the story goes first, so the places of the rest do not move; the count of fields found is the most turns)
@@ -319,19 +631,61 @@ int removeExternalLinks(WriteDoc &doc)
             if (unlinkFieldsIn(doc, story, c) == 0) break;
             ++n;
         }
-        QSet<QPair<bool, QString>> named;
-        const QVector<QPair<int, int>> runs = linkedAtoms(doc, story, &named);
+        const StoryPlan plan = planStory(doc, story, &limit);
         QTextCursor c(story);
         c.beginEditBlock();
-        for (qsizetype i = runs.size() - 1; i >= 0; --i) {
-            c.setPosition(runs[i].first);
-            c.setPosition(runs[i].first + runs[i].second, QTextCursor::KeepAnchor);
+        // (a link inside a text box goes by the attribute that names it: the edits keep the length of the text, so they go before the atoms taken out whole)
+        QSet<QPair<bool, QString>> edited;
+        bool drawnChanged = false;
+        for (const StoryPlan::AtomEdit &e : plan.atoms) {
+            QTextCharFormat f = e.before;
+            const bool drawn = f.intProperty(flow::fp::AnchorId) > 0;
+            f.clearProperty(flow::fp::AnchorId);
+            f.clearProperty(tp::InlineObject);
+            setStored(f, prop::Atom, packAtom(e.made));
+            if (drawn && !doc.makeDrawnFormat(e.made, &f)) continue;
+            c.setPosition(e.position);
+            c.setPosition(e.position + e.length, QTextCursor::KeepAnchor);
+            c.setCharFormat(f);
+            drawnChanged = true;
+            n += e.links;
+        }
+        for (const StoryPlan::BlockEdit &e : plan.blocks) {
+            c.setPosition(e.position);
+            QTextBlockFormat f = c.blockFormat();
+            setStored(f, e.key, e.packed);
+            c.setBlockFormat(f);
+            n += e.links;
+        }
+        for (qsizetype i = plan.whole.size() - 1; i >= 0; --i) {
+            c.setPosition(plan.whole[i].first);
+            c.setPosition(plan.whole[i].first + plan.whole[i].second, QTextCursor::KeepAnchor);
             c.removeSelectedText();
-            n += runs[i].second;
+            n += plan.whole[i].second;
         }
         c.endEditBlock();
+        if (drawnChanged) doc.keepObjectsForTheHistory();
         // (the file's own link to the address goes when nothing names it: see WriteDoc::forgetExternalLink)
-        for (const auto &[endnote, id] : std::as_const(named)) doc.forgetStoryLink(story, id, endnote);
+        for (const auto &[endnote, id] : std::as_const(plan.named)) doc.forgetStoryLink(story, id, endnote);
+    }
+    // (the parts the program keeps whole are edited in their bytes; that is no step of the history, as taking out the custom XML is none)
+    const QString comments = doc.mainRelatedPart(QStringLiteral("comments"));
+    for (const PartPlan &p : planParts(doc, &limit)) {
+        if (p.judged.applied == 0) continue;
+        if (!comments.isEmpty() && p.name.compare(comments, Qt::CaseInsensitive) == 0) {
+            const LinkIds ids = linkIdsOf(p.rels, true);
+            editKeptCommentXml(doc, [&](const QByteArray &xml) {
+                int done = 0;
+                return withoutLinks(xml, scanRefs(xml, ids).refs, INT_MAX, &done, nullptr);
+            });
+        }
+        doc.putPackagePart(p.name, p.contentType, p.judged.edited);
+        // (an address goes from the relationships when no attribute of the part names it any more)
+        const Scan left = scanRefs(p.judged.edited, linkIdsOf(p.rels, true));
+        QSet<QString> gone = p.judged.named;
+        for (const Ref &r : left.refs) gone.remove(r.id);
+        doc.dropPartLinks(p.name, gone);
+        n += p.judged.applied;
     }
     if (n > 0) doc.setModified(true);
     return n;

@@ -68,6 +68,8 @@ int deleteComment(WriteDoc &doc, int id);
 // The comments that are shown (in the list, as the reviewer filter leaves them) go, each with its whole thread: a reply that is shown takes its thread with it. One step. Returns how many went.
 int deleteComments(WriteDoc &doc, const QSet<int> &shown);
 int deleteAllComments(WriteDoc &doc);
+// Runs `edit` over the kept XML of each comment (the part's own bytes are the caller's): what Inspect Document changes inside the comments' part is changed in the copies the program writes them back from too.
+void editKeptCommentXml(WriteDoc &doc, const std::function<QByteArray(const QByteArray &)> &edit);
 // The comments of the thread `id` is in, the first one and then the replies, each once however the parents are set (a loop of parents ends); empty when `id` is none of `all`.
 QVector<Comment> threadOf(const QVector<Comment> &all, int id);
 // The first comment of the thread `id` is in: `id` itself when it has no parent, or one that is not in `all`.

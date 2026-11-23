@@ -101,6 +101,42 @@ QVector<Relationship> WriteDoc::storyRelationships(const QTextDocument *story, b
     return part.isEmpty() ? m_wml.mainRelationships : relsKeyedByPart(m_wml.partRelationships, part);
 }
 
+QVector<WriteDoc::KeptXmlPart> WriteDoc::keptXmlParts() const
+{
+    const QString notes = mainRelatedPart(QStringLiteral("footnotes")), ends = mainRelatedPart(QStringLiteral("endnotes"));
+    QHash<QString, const QVector<Relationship> *> rels;
+    for (auto it = m_wml.partRelationships.cbegin(); it != m_wml.partRelationships.cend(); ++it) rels.insert(it.key().toLower(), &it.value());
+    QSet<QString> asStories;
+    for (const HeaderPart &h : m_headerParts)
+        if (!h.unreadable && !h.missing) asStories.insert(h.name.toLower());
+    if (m_footnotesPart == NotesPart::Readable && !notes.isEmpty()) asStories.insert(notes.toLower());
+    if (m_endnotesPart == NotesPart::Readable && !ends.isEmpty()) asStories.insert(ends.toLower());
+    QVector<KeptXmlPart> out;
+    for (const KeptPart &p : m_wml.parts) {
+        if (!p.contentType.contains(QLatin1String("xml"), Qt::CaseInsensitive) || asStories.contains(p.name.toLower())) continue;
+        KeptXmlPart k;
+        k.name = p.name;
+        k.contentType = p.contentType;
+        k.data = p.data;
+        if (const auto found = rels.constFind(p.name.toLower()); found != rels.cend()) k.relationships = **found;
+        out.push_back(std::move(k));
+    }
+    return out;
+}
+
+int WriteDoc::dropPartLinks(const QString &part, const QSet<QString> &ids)
+{
+    int n = 0;
+    for (auto it = m_wml.partRelationships.begin(); it != m_wml.partRelationships.end(); ++it) {
+        if (it.key().compare(part, Qt::CaseInsensitive) != 0) continue;
+        const qsizetype before = it.value().size();
+        it.value().erase(std::remove_if(it.value().begin(), it.value().end(), [&](const Relationship &r) { return r.external && ids.contains(r.id); }), it.value().end());
+        n += int(before - it.value().size());
+    }
+    if (n > 0) setModified(true);
+    return n;
+}
+
 WriteDoc::HeaderPart *WriteDoc::addHeaderPart(bool footer, std::shared_ptr<QTextDocument> story, const QString &copyRelationshipsOf, bool withRelationship)
 {
     HeaderPart part;

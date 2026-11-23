@@ -684,6 +684,16 @@ public:
         if (part.isEmpty()) m_madeLinks.insert(id);
         else m_madePartLinks.insert({part, id});
     }
+    // The parts the program keeps as XML bytes and does not read into a story (comments, drawings' and charts' parts, a glossary, the settings, and a header, footer, or note part it could not
+    // read), each with the relationships it has of its own: what Inspect Document looks through for links to other files.
+    struct KeptXmlPart {
+        QString name, contentType;
+        QByteArray data;
+        QVector<office::Relationship> relationships;
+    };
+    QVector<KeptXmlPart> keptXmlParts() const;
+    // Takes the relationships of a kept part that are to addresses outside the file, with these Ids, out of its list (nothing else names them any more); how many went. Not a step of the history.
+    int dropPartLinks(const QString &part, const QSet<QString> &ids);
     // A kept part's bytes (and its content type); empty if the document has no such part.
     QByteArray partData(const QString &absoluteName, QString *contentType = nullptr) const;
     // A diagram of the text drawn from the drawing its data part names (`dataId`, a link of `links`, those of `part`), shown at `width` by `height` points: the picture as SVG, the drawing at its own

@@ -88,6 +88,7 @@ struct Extra {
     QByteArray bytes;
     QString relType, from, id;
     bool external = false;   // a link to an address outside the file (the name is the address; no part is made)
+    bool reuse = false;      // a relationship to a part the package already has (the name is that part; none is added)
 };
 
 QByteArray makeDocx(const QByteArray &body, const QVector<Extra> &extra = {}, const QVector<Extra> &packageLevel = {})
@@ -102,6 +103,10 @@ QByteArray makeDocx(const QByteArray &body, const QVector<Extra> &extra = {}, co
     for (const Extra &e : extra) {
         if (e.external) {
             w.addRelationshipWithId(e.from.isEmpty() ? QStringLiteral("/word/document.xml") : e.from, e.id, e.relType, e.name, true);
+            continue;
+        }
+        if (e.reuse) {
+            w.addRelationshipWithId(e.from.isEmpty() ? QStringLiteral("/word/document.xml") : e.from, e.id, e.relType, e.name, false);
             continue;
         }
         w.addPart(e.name, e.bytes, e.contentType);
@@ -1667,6 +1672,233 @@ private Q_SLOTS:
         for (auto it = parts.cbegin(); it != parts.cend(); ++it)
             for (const char *gone : {"headpictures", "footpictures", "endpictures"}) QVERIFY2(!it.value().contains(gone), qPrintable(it.key() + QLatin1Char(' ') + QString::fromLatin1(gone)));
         QVERIFY(parts.value(QStringLiteral("word/_rels/document.xml.rels")).contains("https://example.com/"));
+    }
+
+    // ---- links to other files inside the parts the program keeps as raw bytes (comments, text boxes)
+    static QByteArray pictureXml(const QByteArray &blipAttributes)
+    {
+        return "<w:r><w:drawing><wp:inline xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\"><wp:extent cx=\"9\" cy=\"9\"/><wp:docPr id=\"1\" name=\"L\"/>"
+               "<a:graphic xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\">"
+               "<pic:pic xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"><pic:nvPicPr><pic:cNvPr id=\"0\" name=\"p.png\"/><pic:cNvPicPr/></pic:nvPicPr>"
+               "<pic:blipFill><a:blip " + blipAttributes + "/></pic:blipFill><pic:spPr/></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>";
+    }
+    static QByteArray textBoxXml(const QByteArray &inner, int id)
+    {
+        return "<w:r><w:drawing><wp:inline xmlns:wp=\"http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing\" xmlns:wps=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\">"
+               "<wp:extent cx=\"900000\" cy=\"900000\"/><wp:docPr id=\"" + QByteArray::number(id) + "\" name=\"Box\"/>"
+               "<a:graphic xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\"><a:graphicData uri=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\">"
+               "<wps:wsp><wps:bodyPr/><wps:txbx><w:txbxContent><w:p><w:r><w:t>boxtext</w:t></w:r>" + inner + "</w:p></w:txbxContent></wps:txbx></wps:wsp></a:graphicData></a:graphic></wp:inline></w:drawing></w:r>";
+    }
+    static QByteArray linkedObjectXml(const char *id)
+    {
+        return QByteArray("<w:r><w:object><o:OLEObject xmlns:o=\"urn:schemas-microsoft-com:office:office\" Type=\"Link\" ProgID=\"Sheet.12\" r:id=\"") + id + "\" UpdateMode=\"Always\"/></w:object></w:r>";
+    }
+    static InspectItem linksItem(WriteWindow &w)
+    {
+        for (const InspectItem &i : w.inspectItems())
+            if (i.title == QLatin1String("External links")) return i;
+        return InspectItem();
+    }
+    static Extra outside(const char *address, const char *from, const char *id, const char *type = "image")
+    {
+        return {QString::fromLatin1(address), QString(), QByteArray(), kRel + QString::fromLatin1(type), QString::fromLatin1(from), QString::fromLatin1(id), true};
+    }
+    static bool parsesAsXml(const QByteArray &xml)
+    {
+        QXmlStreamReader r(xml);
+        while (!r.atEnd()) r.readNext();
+        return !r.hasError();
+    }
+
+    // A linked picture or object inside a comment or a text box is found where its part names it (the Ids are each part's own: the same Id is a web link in the body), and never left as
+    // "None found". Where the picture also holds its own data the link is taken out of the kept bytes (one undo step for the text boxes); the others are kept and said. After the save in
+    // every form no part names the addresses that went, the kept bytes still parse, and a reopened file says exactly what was kept.
+    void inspectFindsAndRemovesLinksInCommentsAndTextBoxes()
+    {
+        const QByteArray png = noisePng(4);
+        const QByteArray body = "<w:p><w:r><w:t>One</w:t></w:r><w:hyperlink r:id=\"rIdC1\"><w:r><w:t>web</w:t></w:r></w:hyperlink>"
+                                "<w:commentRangeStart w:id=\"0\"/><w:r><w:t>note</w:t></w:r><w:commentRangeEnd w:id=\"0\"/><w:r><w:commentReference w:id=\"0\"/></w:r></w:p>"
+                                "<w:p>" + textBoxXml(pictureXml("r:embed=\"rIdI\" r:link=\"rIdL1\""), 11) + "</w:p><w:p>" + textBoxXml(pictureXml("r:link=\"rIdL2\""), 12) + "</w:p>";
+        const QByteArray comments = QByteArray("<w:comments ") + kNs + ">"
+                                    "<w:comment w:id=\"0\" w:author=\"A\"><w:p><w:r><w:t>first</w:t></w:r>" + pictureXml("r:embed=\"rIdCI\" r:link=\"rIdC1\"") + "</w:p></w:comment>"
+                                    "<w:comment w:id=\"1\" w:author=\"A\"><w:p>" + pictureXml("r:link=\"rIdC2\"") + "</w:p></w:comment>"
+                                    "<w:comment w:id=\"2\" w:author=\"A\"><w:p>" + linkedObjectXml("rIdC3") + "</w:p></w:comment></w:comments>";
+        const QVector<Extra> extra = {{QStringLiteral("/word/media/image1.png"), QStringLiteral("image/png"), png, kRel + QStringLiteral("image"), QString(), QStringLiteral("rIdI")},
+                                      outside("file:///C:/boxlink/b1.png", "", "rIdL1"),
+                                      outside("file:///C:/boxlink/b2.png", "", "rIdL2"),
+                                      outside("https://example.com/", "", "rIdC1", "hyperlink"),
+                                      {QStringLiteral("/word/comments.xml"), kWord + QStringLiteral("comments+xml"), comments, kRel + QStringLiteral("comments"), QString(), QStringLiteral("rIdCm")},
+                                      {QStringLiteral("/word/media/image1.png"), QString(), QByteArray(), kRel + QStringLiteral("image"), QStringLiteral("/word/comments.xml"), QStringLiteral("rIdCI"), false, true},
+                                      outside("file:///C:/commentlink/c1.png", "/word/comments.xml", "rIdC1"),
+                                      outside("file:///C:/commentlink/c2.png", "/word/comments.xml", "rIdC2"),
+                                      outside("file:///C:/commentlink/c3.xlsx", "/word/comments.xml", "rIdC3", "oleObject")};
+        WriteWindow w;
+        QString err;
+        w.setDocument(WriteDoc::fromDocx(makeDocx(body, extra), &err, nullptr), QString());
+        WriteDoc &doc = *w.document();
+        InspectItem links = linksItem(w);
+        QVERIFY(!links.title.isEmpty());
+        // two can be taken out (the text box's and the comment's, each with its own picture), three are kept and said
+        QCOMPARE(links.count(), 2);
+        QVERIFY2(links.unread().startsWith(QLatin1String("3 link")), qPrintable(links.unread()));
+        {
+            InspectDialog box(QStringLiteral("Inspect"), {links}, nullptr);
+            QVERIFY(!box.summaries().first().contains(QLatin1String("None found")));
+        }
+        QCOMPARE(links.remove(), 2);
+        links = linksItem(w);
+        QCOMPARE(links.count(), 0);
+        QVERIFY2(links.unread().startsWith(QLatin1String("3 link")), qPrintable(links.unread()));
+        // the comments' part still parses, and has the picture's own data
+        const QByteArray keptComments = doc.partData(QStringLiteral("/word/comments.xml"));
+        QVERIFY(parsesAsXml(keptComments));
+        QVERIFY(keptComments.contains("r:embed=\"rIdCI\""));
+        QVERIFY(!keptComments.contains("r:link=\"rIdC1\""));
+        QVERIFY(keptComments.contains("r:link=\"rIdC2\""));
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        setLossyStandIn([](const LossyAsk &, bool *) { return LossyChoice::SaveAnyway; });
+        const auto standDown = qScopeGuard([] { setLossyStandIn({}); });
+        for (const char *name : {"out.docx", "out.docm", "out.dotx", "out.dotm", "out.odt", "out.ott", "out.rtf", "out.txt"}) {
+            if (QLatin1String(name) == QLatin1String("out.txt")) QVERIFY(w.exportText(dir.filePath(QStringLiteral("out.txt")), TextEncoding::Utf8, LineEnds::Unix));   // (the form it asks for is given)
+            else QVERIFY2(saveInto(w, dir, QString::fromLatin1(name)), name);
+            const QByteArray bytes = fileBytes(dir.filePath(QString::fromLatin1(name)));
+            QVERIFY2(!bytes.isEmpty(), name);
+            QMap<QString, QByteArray> parts;
+            if (!jp::readZip(bytes, parts)) parts.insert(QStringLiteral("whole"), bytes);
+            for (auto it = parts.cbegin(); it != parts.cend(); ++it)
+                for (const char *gone : {"boxlink/b1.png", "commentlink/c1.png"})
+                    QVERIFY2(!it.value().contains(gone), qPrintable(QString::fromLatin1(name) + QLatin1Char(' ') + it.key() + QLatin1Char(' ') + QString::fromLatin1(gone)));
+        }
+        // the file that was saved last as a document keeps what could not be taken out, says so when it is opened again, and its parts parse
+        QVERIFY(saveInto(w, dir, QStringLiteral("again.docx")));
+        const QByteArray saved = fileBytes(dir.filePath(QStringLiteral("again.docx")));
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(saved, parts));
+        QVERIFY(parsesAsXml(parts.value(QStringLiteral("word/comments.xml"))));
+        QVERIFY(parsesAsXml(parts.value(QStringLiteral("word/document.xml"))));
+        QCOMPARE(parts.value(QStringLiteral("word/document.xml")).count("boxtext"), 2);   // (the text boxes stay, with their words)
+        QVERIFY(parts.value(QStringLiteral("word/document.xml")).contains("r:embed=\"rIdI\""));   // (and the first one's picture, with its own data)
+        QVERIFY(parts.value(QStringLiteral("word/_rels/comments.xml.rels")).contains("commentlink/c2.png"));
+        QVERIFY(!parts.value(QStringLiteral("word/_rels/comments.xml.rels")).contains("commentlink/c1.png"));
+        QVERIFY(parts.value(QStringLiteral("word/_rels/document.xml.rels")).contains("boxlink/b2.png"));
+        QVERIFY(parts.value(QStringLiteral("word/_rels/document.xml.rels")).contains("https://example.com/"));
+        QString reErr;
+        WriteWindow w2;
+        w2.setDocument(WriteDoc::fromDocx(saved, &reErr, nullptr), QString());
+        const InspectItem again = linksItem(w2);
+        QCOMPARE(again.count(), 0);
+        QVERIFY2(again.unread().startsWith(QLatin1String("3 link")), qPrintable(again.unread()));
+    }
+
+    // The text boxes' part of Remove All is one undo step with the rest; the kept parts (the comments) are not undone, as the removal of custom XML is not.
+    void inspectLinkRemovalInTextBoxesUndoesAsOneStep()
+    {
+        const QByteArray body = "<w:p>" + textBoxXml(pictureXml("r:embed=\"rIdI\" r:link=\"rIdL1\""), 11) + "<w:r><w:t> and </w:t></w:r></w:p>";
+        const QVector<Extra> extra = {{QStringLiteral("/word/media/image1.png"), QStringLiteral("image/png"), noisePng(4), kRel + QStringLiteral("image"), QString(), QStringLiteral("rIdI")}, outside("file:///C:/boxlink/b1.png", "", "rIdL1")};
+        WriteWindow w;
+        QString err;
+        w.setDocument(WriteDoc::fromDocx(makeDocx(body, extra), &err, nullptr), QString());
+        WriteDoc &doc = *w.document();
+        QCOMPARE(linksItem(w).count(), 1);
+        QCOMPARE(linksItem(w).remove(), 1);
+        QCOMPARE(linksItem(w).count(), 0);
+        QVERIFY(doc.canUndo());
+        doc.undo();
+        QCOMPARE(linksItem(w).count(), 1);
+    }
+
+    // A comment part with no relationships, one that is not well formed, and a link whose Id no relationship has are said, never "None found", and the bytes that could not be checked are left as they were.
+    void inspectSaysWhenKeptBytesCanNotBeCheckedForLinks()
+    {
+        struct Case {
+            const char *what;
+            QByteArray comments;
+            QVector<Extra> rels;
+            const char *said;
+        };
+        const QByteArray open = QByteArray("<w:comments ") + kNs + ">";
+        const QByteArray bad = open + "<w:comment w:id=\"0\" w:author=\"A\"><w:p>" + pictureXml("r:embed=\"rIdCI\" r:link=\"rIdC1\"") + "</w:p>";   // (never closed)
+        const QByteArray good = open + "<w:comment w:id=\"0\" w:author=\"A\"><w:p>" + pictureXml("r:embed=\"rIdCI\" r:link=\"rIdC1\"") + "</w:p></w:comment></w:comments>";
+        const QVector<Case> cases = {
+            {"not well formed", bad, {outside("file:///C:/c1.png", "/word/comments.xml", "rIdC1")}, "1 link"},
+            {"not well formed, with data", bad, {outside("file:///C:/c1.png", "/word/comments.xml", "rIdC1"), {QStringLiteral("/word/media/image1.png"), QString(), QByteArray(), kRel + QStringLiteral("image"), QStringLiteral("/word/comments.xml"), QStringLiteral("rIdCI"), false, true}}, "1 link"},
+            {"no relationships", good, {}, "1 linked picture"},
+            {"no such Id", good, {outside("file:///C:/other.png", "/word/comments.xml", "rIdZ")}, "1 linked picture"},
+        };
+        for (const Case &c : cases) {
+            QVector<Extra> extra = {{QStringLiteral("/word/comments.xml"), kWord + QStringLiteral("comments+xml"), c.comments, kRel + QStringLiteral("comments"), QString(), QStringLiteral("rIdCm")},
+                                    {QStringLiteral("/word/media/image1.png"), QStringLiteral("image/png"), noisePng(4), kRel + QStringLiteral("image"), QString(), QStringLiteral("rIdI")}};
+            extra += c.rels;
+            WriteWindow w;
+            QString err;
+            w.setDocument(WriteDoc::fromDocx(makeDocx("<w:p><w:r><w:t>B</w:t></w:r></w:p>", extra), &err, nullptr), QString());
+            WriteDoc &doc = *w.document();
+            InspectItem item = linksItem(w);
+            QCOMPARE(item.count(), 0);
+            QVERIFY2(item.unread().startsWith(QLatin1String(c.said)), c.what);
+            InspectDialog box(QStringLiteral("Inspect"), {item}, nullptr);
+            QVERIFY2(box.summaries().first().contains(QLatin1String("Not fully checked")) && !box.summaries().first().contains(QLatin1String("None found")), c.what);
+            QCOMPARE(item.remove(), 0);
+            QCOMPARE(doc.partData(QStringLiteral("/word/comments.xml")), c.comments);
+        }
+    }
+
+    // Thousands of comments and text boxes, each with a link, and a relationships part of several megabytes: each part is looked through once (counted in bytes, not time), and Remove All
+    // makes no more than the most edits (a limit that is lifted takes the rest).
+    void inspectLinkWorkIsCountedAndBounded()
+    {
+        const int comments = 3000, boxes = 1500, padding = 40000;
+        QByteArray part = QByteArray("<w:comments ") + kNs + ">";
+        QByteArray body;
+        QVector<Extra> extra = {{QStringLiteral("/word/media/image1.png"), QStringLiteral("image/png"), noisePng(4), kRel + QStringLiteral("image"), QString(), QStringLiteral("rIdI")}};
+        for (int i = 0; i < comments; ++i) {
+            const QByteArray id = "rIdK" + QByteArray::number(i);
+            part += "<w:comment w:id=\"" + QByteArray::number(i) + "\" w:author=\"A\"><w:p>" + pictureXml("r:embed=\"rIdCI\" r:link=\"" + id + "\"") + "</w:p></w:comment>";
+            extra << outside(("file:///C:/commentlinks/c" + QByteArray::number(i) + ".png").constData(), "/word/comments.xml", id.constData());
+        }
+        part += "</w:comments>";
+        for (int i = 0; i < padding; ++i)
+            extra << outside(("file:///C:/padding/" + QByteArray(80, 'p') + QByteArray::number(i) + ".png").constData(), "/word/comments.xml", ("rIdP" + QByteArray::number(i)).constData());
+        for (int i = 0; i < boxes; ++i) {
+            const QByteArray id = "rIdB" + QByteArray::number(i);
+            body += "<w:p>" + textBoxXml(pictureXml("r:embed=\"rIdI\" r:link=\"" + id + "\""), 100 + i) + "</w:p>";
+            extra << outside(("file:///C:/boxlinks/b" + QByteArray::number(i) + ".png").constData(), "", id.constData());
+        }
+        extra << Extra{QStringLiteral("/word/comments.xml"), kWord + QStringLiteral("comments+xml"), part, kRel + QStringLiteral("comments"), QString(), QStringLiteral("rIdCm")};
+        extra << Extra{QStringLiteral("/word/media/image1.png"), QString(), QByteArray(), kRel + QStringLiteral("image"), QStringLiteral("/word/comments.xml"), QStringLiteral("rIdCI"), false, true};
+        const QByteArray file = makeDocx(body, extra);
+        WriteWindow w;
+        QString err;
+        w.setDocument(WriteDoc::fromDocx(file, &err, nullptr), QString());
+        WriteDoc &doc = *w.document();
+        const auto restore = qScopeGuard([] { setMostExternalLinkEditsForTest(0); });
+        resetExternalLinkBytesScannedForTest();
+        QCOMPARE(externalLinkCount(doc), comments + boxes);
+        const qint64 scanned = externalLinkBytesScannedForTest();
+        QVERIFY2(scanned >= part.size() && scanned <= 3 * (part.size() + body.size()), qPrintable(QString::number(scanned)));
+        setMostExternalLinkEditsForTest(100);
+        QCOMPARE(removeExternalLinks(doc), 100);
+        QCOMPARE(externalLinkCount(doc), comments + boxes - 100);
+        QVERIFY2(externalLinkUnread(doc).unreachable == 0, "what is only past the limit is still to be taken out, not kept");
+        setMostExternalLinkEditsForTest(0);
+        resetExternalLinkBytesScannedForTest();
+        QCOMPARE(removeExternalLinks(doc), comments + boxes - 100);
+        QVERIFY2(externalLinkBytesScannedForTest() <= 12 * (part.size() + body.size()), qPrintable(QString::number(externalLinkBytesScannedForTest())));
+        QCOMPARE(externalLinkCount(doc), 0);
+        QCOMPARE(externalLinkUnread(doc).unreachable, 0);
+        QVERIFY(parsesAsXml(doc.partData(QStringLiteral("/word/comments.xml"))));
+        QVERIFY(!doc.partData(QStringLiteral("/word/comments.xml")).contains("r:link"));
+        QString saveErr;
+        const QByteArray saved = doc.toDocx(&saveErr);
+        QVERIFY2(!saved.isEmpty(), qPrintable(saveErr));
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(saved, parts));
+        for (auto it = parts.cbegin(); it != parts.cend(); ++it) {
+            QVERIFY2(!it.value().contains("commentlinks/"), qPrintable(it.key()));
+            QVERIFY2(!it.value().contains("boxlinks/"), qPrintable(it.key()));
+        }
+        QVERIFY(parts.value(QStringLiteral("word/_rels/comments.xml.rels")).contains("padding/"));   // (what no picture names is not a link of the text: left as it was)
     }
 
     void inspectRemovesHeadersAndFooters()
