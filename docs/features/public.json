@@ -3,7 +3,7 @@
   "jeffcrunch": {
    "name": "JeffCrunch",
    "reviewed": {
-    "day": "20",
+    "day": "23",
     "month": "November",
     "year": "2026"
    },
@@ -365,8 +365,8 @@
          "text": "728d3ea13cdd0b29b32729e1c15b1c1292556d534640f97ff16b8f6ea7509002"
         },
         {
-         "status": "todo",
-         "text": "af32f09f238909307599da1fd224d3237eac620ab9f37fb954e2218b60590cca"
+         "status": "partly",
+         "text": "b52d9c7a52a5fdc4adb9487b5847147200ac99e292506cd8d651b00bc5c1f6b0"
         },
         {
          "hide_soon": true,
@@ -543,8 +543,9 @@
          "text": "b9e158e64433da9e1b961fd5382a1047a4864f1adf651a90b73f0bf24608dcc9"
         },
         {
-         "status": "partly",
-         "text": "cc555fcb7df67fcf51c42300ff331281c2c156da1ace8fd56f7a8cb3536b97b3"
+         "hide_soon": true,
+         "status": "done",
+         "text": "38f3c65f1b0630ede6fd4efd19a74658046df93ec4e769fe653aa8df36fce797"
         },
         {
          "status": "partly",
@@ -990,7 +991,7 @@
         },
         {
          "status": "partly",
-         "text": "cffbe2c953799d0cd964c1d1272253c3033f6d14934150421268c0643932453a"
+         "text": "f5c8f4ff34e9aeacee714f8977768203c9c69f89021948719784d3194a7757b5"
         },
         {
          "status": "partly",
@@ -1110,7 +1111,7 @@
         },
         {
          "status": "partly",
-         "text": "88497ad57777ab5aa17eb5dd1af54ed61897f21e1959d896cd642a9022604c55"
+         "text": "321c781b329512dfd7aae1b28da219687f6933ad2ccf60b69d5d0a2384ae1695"
         },
         {
          "hide_soon": true,
@@ -2323,7 +2324,7 @@
         },
         {
          "status": "partly",
-         "text": "a6280611f5d7a22f98f731989ce3e34b91b92c21820b06f4805f89c88bbaa656"
+         "text": "7d2f0aea4d9c0656c8ad2c26f7cb1132878f5b32dd7c251f22cc4238f6f1d423"
         },
         {
          "status": "partly",
@@ -2341,7 +2342,7 @@
   "jeffdeck": {
    "name": "JeffDeck",
    "reviewed": {
-    "day": "20",
+    "day": "23",
     "month": "November",
     "year": "2026"
    },
@@ -4328,7 +4329,7 @@
   "jeffpub": {
    "name": "JeffPub",
    "reviewed": {
-    "day": "20",
+    "day": "23",
     "month": "November",
     "year": "2026"
    },
@@ -4956,6 +4957,10 @@
        "hide_soon": true,
        "status": "done",
        "text": "92a1aca1c352304b7222eb1221028530137ddc3366dc136fbfc4367dd26eb840"
+      },
+      {
+       "status": "partly",
+       "text": "3600a8ecabf177ed2bd267f4b101c4ec3d740930388b01781a6d5a17fd4fda46"
       }
      ]
     },
@@ -5222,8 +5227,9 @@
          "text": "0a4901ac80d5c7db1acaf091367320c462cf176222f194bc328d5bc76eccdfb5"
         },
         {
-         "status": "partly",
-         "text": "c0398fb4fec51c2e32f5610fd6a509a6ae0e7f6ff5d352e5ecabdacaaf3bc2d1"
+         "hide_soon": true,
+         "status": "done",
+         "text": "a9d835f99ba0badd0b4c314ad4e28a16c233effe97e79aa45dc9d5cd8b8454f2"
         },
         {
          "hide_soon": true,
@@ -5793,7 +5799,7 @@
   "jeffwrite": {
    "name": "JeffWrite",
    "reviewed": {
-    "day": "20",
+    "day": "23",
     "month": "November",
     "year": "2026"
    },
@@ -5972,8 +5978,8 @@
          "text": "d440c5e6800761e47faefdac5765fa23d4633b2c6af4248a2f985f7e66ddcb46"
         },
         {
-         "status": "todo",
-         "text": "92151668334491dd910190eb245a3b1a1539e3c704f1ec340e2a1ef18df8f0a9"
+         "status": "partly",
+         "text": "d3a3ab7c136898c54fdb1fa1719c91943cc9fa814c2fb53e5e3effda54a11ed0"
         }
        ]
       },
@@ -6133,8 +6139,8 @@
          "text": "495dde7403f6fc8771306a3b5c32965217e843f931d050250709fcd832e4205e"
         },
         {
-         "status": "todo",
-         "text": "819b7a42f84d10870048a82a7c06c2118ce84f9641bc90b7af451b61b36d9356"
+         "status": "partly",
+         "text": "d2fd6b58a0ddcde9f030e516c4101ebc635a1d02c9af46c1f9804cb499247b9b"
         },
         {
          "status": "partly",
@@ -6364,7 +6370,8 @@
          "text": "e510ae864f4bc62d9f23e0f7f1c3a561ff75b4e38948ba8c898164bdce5c0c94"
         },
         {
-         "status": "partly",
+         "hide_soon": true,
+         "status": "done",
          "text": "68014af5b75ec65207e26b60d6a18cd8c52895efc72718f04a4cd78af8ad4b40"
         }
        ]
@@ -6450,7 +6457,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "1fff3fb27385bf9a7e4925c9861c07c75dabe90bad078468d9b32014d6cad816"
+         "text": "e8302db5668e9d1d471e32a9e8cf9517ce2803713d30e68e59fa96fbc3f84338"
         },
         {
          "status": "partly",
@@ -7173,7 +7180,7 @@
        "items": [
         {
          "status": "partly",
-         "text": "a30d636826ae517f66bbbe3948833ab2be91e5d0d727662d2c91e58d536e7b86"
+         "text": "bf90f428fd8cdb7597a1d4c9e03b6f811fbdd9bd9d42c96f656ce99b7aae6b80"
         },
         {
          "hide_soon": true,
@@ -7562,7 +7569,7 @@
       },
       {
        "status": "partly",
-       "text": "723932ee69e08a8e0dc4831eec55cd07caca99eed12fa5b406252c62079da2c6"
+       "text": "1770a875f05c3139a328a5e2f9a7e98d0052f44fef431b6e9968cbd6c9587989"
       },
       {
        "status": "partly",
@@ -9486,6 +9493,18 @@
     "fr": ""
    }
   },
+  "1770a875f05c3139a328a5e2f9a7e98d0052f44fef431b6e9968cbd6c9587989": {
+   "drop": false,
+   "en": "Macros are kept and never run. A picture linked by web address is not fetched, and a picture whose copy is stored in the file is drawn.",
+   "es": "Las macros se conservan y nunca se ejecutan. Una imagen vinculada por dirección web no se descarga, y una imagen cuya copia está guardada en el documento se dibuja.",
+   "fr": "Les macros sont conservées et jamais exécutées. Une image liée par adresse web n’est pas récupérée, et une image dont la copie est stockée dans le fichier est affichée.",
+   "soon": {
+    "drop": false,
+    "en": "Linked pictures from files on this computer: read and draw",
+    "es": "Imágenes vinculadas a ficheros de este equipo: lectura y dibujo",
+    "fr": "Images liées à des fichiers de cet ordinateur : lecture et affichage"
+   }
+  },
   "17a53275e33109c410ee5b7acb6dddecff310380637803ec47669163e24314bd": {
    "drop": false,
    "en": "Keep a backup copy on every save.",
@@ -10192,18 +10211,6 @@
     "en": "Series lines, and controls for trendline forecast, intercept, polynomial order, and moving average period",
     "es": "Líneas de series, y controles para la previsión, la intersección, el orden polinómico y el período del promedio móvil de las líneas de tendencia",
     "fr": "Lignes de série, et commandes de prévision, d’ordonnée à l’origine, d’ordre polynomial et de période de moyenne mobile des courbes de tendance"
-   }
-  },
-  "1fff3fb27385bf9a7e4925c9861c07c75dabe90bad078468d9b32014d6cad816": {
-   "drop": false,
-   "en": "Read and draw pictures in PNG, JPEG, GIF, BMP, TIFF, WebP, SVG, EMF, and WMF formats. Vector pictures stay vector in print and PDF.",
-   "es": "Lea y dibuje imágenes en los formatos PNG, JPEG, GIF, BMP, TIFF, WebP, SVG, EMF y WMF. Las imágenes vectoriales siguen siendo vectoriales al imprimir y en PDF.",
-   "fr": "Lisez et affichez des images aux formats PNG, JPEG, GIF, BMP, TIFF, WebP, SVG, EMF et WMF. Les images vectorielles restent vectorielles à l’impression et en PDF.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
    }
   },
   "20154b7374c4157048e8d2db1eb3586572cf615bfef27ee85ff3814a49acebdb": {
@@ -11730,6 +11737,18 @@
     "fr": ""
    }
   },
+  "321c781b329512dfd7aae1b28da219687f6933ad2ccf60b69d5d0a2384ae1695": {
+   "drop": false,
+   "en": "Set data validation for the selected cells: Any value, Whole number, Decimal, List (typed or from a range), Date, Time, Text length, and Custom, with comparisons, Ignore blank, in-cell drop-down, an input message, and an error alert of Stop, Warning, or Information. Circle Invalid Data and Clear Validation Circles mark and unmark cells with disallowed data.",
+   "es": "Establezca la validación de datos de las celdas seleccionadas: cualquier valor, número entero, decimal, lista (escrita o de un rango), fecha, hora, longitud del texto y personalizada, con comparaciones, omitir blancos, lista desplegable en la celda, mensaje de entrada y alerta de error de detener, advertencia o información. Rodear con un círculo datos no válidos y Borrar círculos de validación marcan y desmarcan las celdas con datos no permitidos.",
+   "fr": "Définissez la validation des données pour les cellules sélectionnées : toute valeur, nombre entier, décimal, liste (saisie ou issue d’une plage), date, heure, longueur du texte et personnalisée, avec comparaisons, ignorer les cellules vides, liste déroulante dans la cellule, message de saisie et alerte d’erreur d’arrêt, d’avertissement ou d’information. Entourer les données non valides et Effacer les cercles de validation marquent et démarquent les cellules aux données non autorisées.",
+   "soon": {
+    "drop": false,
+    "en": "Data validation lists that read other sheets, stored in the file’s extension form",
+    "es": "Listas de validación de datos que leen otras hojas, guardadas en la forma de extensión del documento",
+    "fr": "Listes de validation des données qui lisent d’autres feuilles, stockées dans la forme d’extension du fichier"
+   }
+  },
   "322eea60ab8798ac4bbbb663b7c6a5d3d7e3929f293e4305052f86a7629b7a16": {
    "drop": false,
    "en": "`GETPIVOTDATA` reads a number out of a pivot table by field names. Clicking a pivot table cell while typing a formula writes it for you, and an option on the Pivot Table tab turns that off.",
@@ -12018,6 +12037,18 @@
     "fr": ""
    }
   },
+  "3600a8ecabf177ed2bd267f4b101c4ec3d740930388b01781a6d5a17fd4fda46": {
+   "drop": false,
+   "en": "Catalog merge: place a catalog area on the page and use a pane with Rows and Columns, product fields, picture fields, and a preview.",
+   "es": "Combinar catálogo: coloque un área de catálogo en la página y use un panel con filas y columnas, campos de producto, campos de imagen y una vista previa.",
+   "fr": "Fusion de catalogue : placez une zone de catalogue sur la page et utilisez un volet avec lignes et colonnes, champs de produit, champs d’image et aperçu.",
+   "soon": {
+    "drop": false,
+    "en": "Catalog merge: fill order across or down, catalog page layouts, and a tab of its own",
+    "es": "Combinar catálogo: orden de relleno horizontal o vertical, diseños de página de catálogo y una pestaña propia",
+    "fr": "Fusion de catalogue : ordre de remplissage horizontal ou vertical, mises en page de catalogue et onglet dédié"
+   }
+  },
   "3612f8dd1763802c1ea24772ef2e6ef94c69452c2930a919fc84a790a86e2575": {
    "drop": false,
    "en": "References tab",
@@ -12203,6 +12234,18 @@
    "en": "Edit the wrap points of a picture by dragging a corner of the dashed outline, set the distance from text, and choose whether text wraps on both sides, the left only, the right only, or the larger side. Set a picture's wrap, side, and spacing as the default for pictures added afterward; these options also work for shapes and text boxes.",
    "es": "Edite los puntos de ajuste de una imagen arrastrando una esquina del contorno discontinuo, defina la distancia al texto y elija si el texto se ajusta a ambos lados, solo a la izquierda, solo a la derecha o al lado más amplio. Defina el ajuste, el lado y el espaciado de una imagen como valores predeterminados para las imágenes que agregue después; estas opciones también funcionan con formas y cuadros de texto.",
    "fr": "Modifiez les points d’habillage d’une image en faisant glisser un coin du contour en pointillés, réglez la distance par rapport au texte et choisissez si le texte épouse les deux côtés, uniquement la gauche, uniquement la droite ou le côté le plus large. Définissez l’habillage, le côté et l’espacement d’une image comme valeurs par défaut pour les images ajoutées ensuite ; ces options fonctionnent aussi avec les formes et les zones de texte.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "38f3c65f1b0630ede6fd4efd19a74658046df93ec4e769fe653aa8df36fce797": {
+   "drop": false,
+   "en": "Apply conditional formats from Home > Conditional Formatting: Top and Bottom rules (top or bottom 10 items or percent, above or below average), Data Bars, Color Scales, and Icon Sets. Manage Rules edits bar ends, fill, border, negative color, axis, and direction, scale colors, and icon set style, thresholds, and reverse order.",
+   "es": "Aplique formatos condicionales desde Inicio > Formato condicional: reglas de valores superiores e inferiores (10 elementos o porcentaje, por encima o por debajo del promedio), barras de datos, escalas de color y conjuntos de iconos. Administrar reglas permite editar los extremos, el relleno, el borde, el color negativo, el eje y la dirección de las barras, los colores de las escalas, y el estilo, los umbrales y el orden inverso de los conjuntos de iconos.",
+   "fr": "Appliquez des mises en forme conditionnelles depuis Accueil > Mise en forme conditionnelle : règles des valeurs hautes et basses (10 éléments ou pourcentage, au-dessus ou en dessous de la moyenne), barres de données, nuances de couleurs et jeux d’icônes. Gérer les règles permet de modifier les extrémités, le remplissage, la bordure, la couleur négative, l’axe et la direction des barres, les couleurs des nuances, ainsi que le style, les seuils et l’ordre inverse des jeux d’icônes.",
    "soon": {
     "drop": true,
     "en": "",
@@ -16770,18 +16813,6 @@
     "fr": ""
    }
   },
-  "723932ee69e08a8e0dc4831eec55cd07caca99eed12fa5b406252c62079da2c6": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "7260a2dd7bd8aefc51e658a1c0ab4be78c2300aaf8d7139e3855c8677130e575": {
    "drop": false,
    "en": "Animations tab",
@@ -17502,6 +17533,18 @@
     "fr": ""
    }
   },
+  "7d2f0aea4d9c0656c8ad2c26f7cb1132878f5b32dd7c251f22cc4238f6f1d423": {
+   "drop": false,
+   "en": "Pictures in `.xlsx` workbooks (PNG, JPEG, GIF, BMP, TIFF, EMF, WMF, and SVG with its PNG stand-in) and the picture records of `.xls` files are read and written. Insert > Picture keeps an old vector picture as a PNG of the drawing.",
+   "es": "Se leen y escriben las imágenes de los libros `.xlsx` (PNG, JPEG, GIF, BMP, TIFF, EMF, WMF y SVG con su imagen PNG de respaldo) y los registros de imagen de los ficheros `.xls`. Insertar > Imagen conserva una imagen vectorial antigua como PNG del dibujo.",
+   "fr": "Les images des classeurs `.xlsx` (PNG, JPEG, GIF, BMP, TIFF, EMF, WMF et SVG avec son image PNG de remplacement) et les enregistrements d’images des fichiers `.xls` sont lus et écrits. Insertion > Image conserve une ancienne image vectorielle sous forme de PNG du dessin.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "7d30c448ce95a4ea4e72893697624315966e334f917fe631c3b165c4591b7efc": {
    "drop": true,
    "en": "",
@@ -17728,18 +17771,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "819b7a42f84d10870048a82a7c06c2118ce84f9641bc90b7af451b61b36d9356": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Language options: editing languages, display language, and default language for new text",
-    "es": "Opciones de idioma: idiomas de edición, idioma de la interfaz e idioma predeterminado para texto nuevo",
-    "fr": "Options de langue : langues d’édition, langue d’affichage et langue par défaut du nouveau texte"
    }
   },
   "81a4d0877d78680d5c96e0e1aa04fc44d14bd9627c829868f8cb5eca73c62d30": {
@@ -18124,18 +18155,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "88497ad57777ab5aa17eb5dd1af54ed61897f21e1959d896cd642a9022604c55": {
-   "drop": false,
-   "en": "Data > Data Validation sets rules for the selected cells: Any value, Whole number, Decimal, List (typed or from a range), Date, Time, Text length, and Custom, with comparisons, Ignore blank, an in-cell drop-down, an input message, and an error alert of Stop, Warning, or Information. It is one step of Undo. Circle Invalid Data and Clear Validation Circles draw and remove a red oval around each cell with data its rule does not allow.",
-   "es": "Datos > Validación de datos define reglas para las celdas seleccionadas: Cualquier valor, Número entero, Decimal, Lista (escrita o desde un rango), Fecha, Hora, Longitud del texto y Personalizada, con comparaciones, Omitir blancos, lista desplegable en la celda, mensaje de entrada y alerta de error de Detener, Advertencia o Información. Es un solo paso de Deshacer. Rodear con un círculo datos no válidos y Borrar círculos de validación dibujan y quitan un óvalo rojo alrededor de cada celda con datos que su regla no permite.",
-   "fr": "Données > Validation des données définit des règles pour les cellules sélectionnées : Toute valeur, Nombre entier, Décimal, Liste (saisie ou depuis une plage), Date, Heure, Longueur du texte et Personnalisé, avec comparaisons, Ignorer si vide, liste déroulante dans la cellule, message de saisie et alerte d’erreur Arrêt, Avertissement ou Information. C’est une seule étape d’annulation. Entourer les données non valides et Effacer les cercles de validation dessinent et retirent un ovale rouge autour de chaque cellule dont les données ne respectent pas la règle.",
-   "soon": {
-    "drop": false,
-    "en": "Validation rules kept in the file’s extension form, including lists that read other sheets: edit",
-    "es": "Reglas de validación guardadas en la forma de extensión del archivo, incluidas las listas que leen otras hojas: edición",
-    "fr": "Règles de validation conservées dans la forme d’extension du fichier, y compris les listes lisant d’autres feuilles : modification"
    }
   },
   "884ac6e52c1f333417182d9e7d2e66c865fcb07700e82c235b885be7ae837e07": {
@@ -18748,18 +18767,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "92151668334491dd910190eb245a3b1a1539e3c704f1ec340e2a1ef18df8f0a9": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Attach a different template to a document and copy styles and building blocks between a document and its template with the Organizer",
-    "es": "Adjuntar otra plantilla a un documento y copiar estilos y bloques de creación entre un documento y su plantilla con el Organizador",
-    "fr": "Attacher un autre modèle à un document et copier styles et blocs de construction entre un document et son modèle avec l’Organisateur"
    }
   },
   "9224d47ae272373381adb22505bfa08924ca3c68251329d965f7e61840cb6b6f": {
@@ -19926,18 +19933,6 @@
     "fr": "Comparaison : tableaux, en-têtes et pieds de page, notes, zones de texte et champs ; combinaison des révisions de plusieurs auteurs ; affichage des documents sources"
    }
   },
-  "a30d636826ae517f66bbbe3948833ab2be91e5d0d727662d2c91e58d536e7b86": {
-   "drop": false,
-   "en": "Edit, add, and remove headers and footers, choose from a gallery of designs, and insert page numbers at the top, bottom, in the margins, or at the cursor. Page number designs are saved in `.docx` and `.odt` files.",
-   "es": "Edite, agregue y elimine encabezados y pies de página, elija entre una galería de diseños e inserte números de página en la parte superior, inferior, en los márgenes o en el cursor. Los diseños de número de página se guardan en archivos `.docx` y `.odt`.",
-   "fr": "Modifiez, ajoutez et supprimez des en-têtes et pieds de page, choisissez parmi une galerie de modèles et insérez des numéros de page en haut, en bas, dans les marges ou au curseur. Les modèles de numéros de page sont enregistrés dans les fichiers `.docx` et `.odt`.",
-   "soon": {
-    "drop": false,
-    "en": "Larger gallery of built-in header and footer designs",
-    "es": "Galería más amplia de diseños integrados de encabezado y pie de página",
-    "fr": "Galerie plus large de modèles d’en-tête et de pied de page intégrés"
-   }
-  },
   "a35277c3c54655d73a4d376e0324bb748ee090c6a7548059a6b288f6e2a806c6": {
    "drop": false,
    "en": "Text on a picture, in a table cell, or in a shape with its own color does not turn light or dark with the slide’s background. A color that would read below 4.5 to 1 contrast moves toward light or dark just far enough.",
@@ -20104,18 +20099,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "a6280611f5d7a22f98f731989ce3e34b91b92c21820b06f4805f89c88bbaa656": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Pictures in workbooks: PNG, JPEG, GIF, BMP, TIFF, EMF, WMF, and SVG in `.xlsx` and `.xls`",
-    "es": "Imágenes en libros: PNG, JPEG, GIF, BMP, TIFF, EMF, WMF y SVG en `.xlsx` y `.xls`",
-    "fr": "Images dans les classeurs : PNG, JPEG, GIF, BMP, TIFF, EMF, WMF et SVG dans `.xlsx` et `.xls`"
    }
   },
   "a6634423860d80f0d18028f3c29528b3e2b2b437624e11642feee33749acdf00": {
@@ -20380,6 +20363,18 @@
     "en": "Going from a note back to its mark, and editing a field with other fields in its code",
     "es": "Volver de una nota a su marca, y edición de un campo que tiene otros campos en su código",
     "fr": "Retour d’une note à sa marque, et modification d’un champ contenant d’autres champs dans son code"
+   }
+  },
+  "a9d835f99ba0badd0b4c314ad4e28a16c233effe97e79aa45dc9d5cd8b8454f2": {
+   "drop": false,
+   "en": "Apply Reflection to letters (Tight, Half, Full, or none) from the Effects menu on the Home tab. Shadow, Outline, Emboss, Engrave, Text Fill (solid and gradient), Text Outline, and Text Glow in a color you pick are also available.",
+   "es": "Aplique reflejo a las letras (ajustado, medio, completo o ninguno) desde el menú Efectos de la pestaña Inicio. También hay sombra, contorno, relieve, grabado, relleno de texto (sólido y degradado), contorno de texto y brillo de texto en el color que elija.",
+   "fr": "Appliquez un reflet aux lettres (serré, moyen, complet ou aucun) depuis le menu Effets de l’onglet Accueil. Ombre, contour, relief, gravure, remplissage du texte (uni et dégradé), contour du texte et lueur du texte dans la couleur de votre choix sont aussi disponibles.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "aa031782dd741b7be8b245e8c77b10e36e8e70882beba2b975bf8b4e8fd6e118": {
@@ -20764,18 +20759,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "af32f09f238909307599da1fd224d3237eac620ab9f37fb954e2218b60590cca": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Language options: editing languages, display language, list separator, and decimal mark",
-    "es": "Opciones de idioma: idiomas de edición, idioma de la interfaz, separador de listas y marca decimal",
-    "fr": "Options de langue : langues de modification, langue d’affichage, séparateur de liste et séparateur décimal"
    }
   },
   "afa0fbd25b5848cc2bcd8f77ed7da8f8c841bf1415eb2fd4e326f7f542615a7b": {
@@ -21172,6 +21155,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "b52d9c7a52a5fdc4adb9487b5847147200ac99e292506cd8d651b00bc5c1f6b0": {
+   "drop": false,
+   "en": "Choose the display language in File > Options. The spelling language of a cell’s text is kept and used.",
+   "es": "Elija el idioma de la interfaz en Archivo > Opciones. El idioma de ortografía del texto de una celda se conserva y se usa.",
+   "fr": "Choisissez la langue d’affichage dans Fichier > Options. La langue de correction orthographique du texte d’une cellule est conservée et utilisée.",
+   "soon": {
+    "drop": false,
+    "en": "List of editing languages and a choice of list separator and decimal mark",
+    "es": "Lista de idiomas de edición y elección del separador de listas y del separador decimal",
+    "fr": "Liste des langues d’édition et choix du séparateur de liste et du séparateur décimal"
    }
   },
   "b544a4463e4e8f105ed347318ac458b199a4ec5a8bdd60c35ea303185ab0dfbd": {
@@ -21738,6 +21733,18 @@
     "fr": ""
    }
   },
+  "bf90f428fd8cdb7597a1d4c9e03b6f811fbdd9bd9d42c96f656ce99b7aae6b80": {
+   "drop": false,
+   "en": "Edit a header or footer by double-clicking the top or bottom margin, or with Insert > Header and Footer. Add, edit, and remove headers and footers, choose from a gallery of designs, and insert page numbers at the top, bottom, in the margins, or at the cursor.",
+   "es": "Edite un encabezado o pie de página haciendo doble clic en el margen superior o inferior, o con Insertar > Encabezado y pie de página. Agregue, edite y quite encabezados y pies de página, elija entre una galería de diseños e inserte números de página arriba, abajo, en los márgenes o en el cursor.",
+   "fr": "Modifiez un en-tête ou un pied de page en double-cliquant sur la marge du haut ou du bas, ou avec Insertion > En-tête et pied de page. Ajoutez, modifiez et supprimez des en-têtes et pieds de page, choisissez parmi une galerie de modèles et insérez des numéros de page en haut, en bas, dans les marges ou au curseur.",
+   "soon": {
+    "drop": false,
+    "en": "Larger gallery of built-in header and footer designs",
+    "es": "Galería más amplia de diseños de encabezado y pie de página",
+    "fr": "Galerie plus large de modèles d’en-tête et de pied de page"
+   }
+  },
   "bfcb190aa034111c244a97b55c02f703497f9c3ff6a8a79fd3cdf169766a58a7": {
    "drop": false,
    "en": "Choose whether a chart, picture, or shape moves and sizes with its cells, moves but doesn’t size, or does neither, and whether it prints. The choices are saved in the file.",
@@ -21779,18 +21786,6 @@
    "en": "Beyond the usual presentation program",
    "es": "Más allá del programa de presentaciones habitual",
    "fr": "Au-delà du programme de présentation habituel",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "c0398fb4fec51c2e32f5610fd6a509a6ae0e7f6ff5d352e5ecabdacaaf3bc2d1": {
-   "drop": false,
-   "en": "Add a reflection (Tight, Half, Full, or none) to letters.",
-   "es": "Agregue un reflejo (Ajustado, Medio, Completo o ninguno) a las letras.",
-   "fr": "Ajoutez un reflet (Serré, Moitié, Complet ou aucun) aux lettres.",
    "soon": {
     "drop": true,
     "en": "",
@@ -22794,18 +22789,6 @@
     "fr": ""
    }
   },
-  "cc555fcb7df67fcf51c42300ff331281c2c156da1ace8fd56f7a8cb3536b97b3": {
-   "drop": false,
-   "en": "Make Top 10 Items, Bottom 10 Items, Top 10 %, Bottom 10 %, Above Average, and Below Average rules from the menu, and save them. Data bars, color scales, and icon sets in a workbook are drawn.",
-   "es": "Cree reglas de los 10 mejores, los 10 peores, el 10 % superior, el 10 % inferior, por encima del promedio y por debajo del promedio desde el menú, y guárdelas. Las barras de datos, escalas de color y conjuntos de iconos de un libro se dibujan.",
-   "fr": "Créez depuis le menu des règles pour les 10 premiers, les 10 derniers, les 10 % premiers, les 10 % derniers, au-dessus de la moyenne et en dessous de la moyenne, et enregistrez-les. Les barres de données, nuances de couleurs et jeux d’icônes d’un classeur sont dessinés.",
-   "soon": {
-    "drop": false,
-    "en": "Data bars, color scales, and icon sets: create",
-    "es": "Barras de datos, escalas de color y conjuntos de iconos: crear",
-    "fr": "Barres de données, nuances de couleurs et jeux d’icônes : création"
-   }
-  },
   "ccdc41b7762ddef6e745fe08828da15bb6b6e96a0df3f6f5436becf1673b7ad4": {
    "drop": false,
    "en": "Change theme colors and fonts from the Colors and Fonts galleries, or create new sets. Text, styles, and drawings that use a theme color or font are restyled, colors set by hand stay, and the new theme is kept when saving a `.docx` file.",
@@ -23046,18 +23029,6 @@
     "fr": "Direction du texte des axes et volets de format pour un point"
    }
   },
-  "cffbe2c953799d0cd964c1d1272253c3033f6d14934150421268c0643932453a": {
-   "drop": false,
-   "en": "Error Checking steps through formulas that give an error, numbers stored as text, formulas unlike the formulas on both sides, dates stored as text with a two-digit year, and formulas in unlocked cells. It goes to each cell, says what is wrong, and marks it with a green triangle. Ignore Error is saved in the file and is one step of Undo.",
-   "es": "La comprobación de errores recorre las fórmulas que dan un error, los números almacenados como texto, las fórmulas distintas de las de ambos lados, las fechas almacenadas como texto con año de dos dígitos y las fórmulas en celdas desbloqueadas. Va a cada celda, indica qué ocurre y la marca con un triángulo verde. Omitir error se guarda en el archivo y es un paso de Deshacer.",
-   "fr": "La vérification des erreurs parcourt les formules qui donnent une erreur, les nombres stockés sous forme de texte, les formules différentes de celles des deux côtés, les dates stockées sous forme de texte avec une année à deux chiffres et les formules dans des cellules non verrouillées. Elle va à chaque cellule, indique le problème et la marque d’un triangle vert. Ignorer l’erreur est enregistré dans le fichier et constitue une étape d’annulation.",
-   "soon": {
-    "drop": false,
-    "en": "Error rules: a formula that leaves out neighboring cells, and a formula that reads empty cells",
-    "es": "Reglas de error: una fórmula que omite celdas vecinas y una fórmula que lee celdas vacías",
-    "fr": "Règles d’erreur : une formule qui omet des cellules voisines et une formule qui lit des cellules vides"
-   }
-  },
   "d015e4578f67e933042808b9df1537f1aa15a5080ded1104051adfdabc4ac77b": {
    "drop": false,
    "en": "Draw the rows and columns of a table with a pen.",
@@ -23274,6 +23245,18 @@
     "fr": ""
    }
   },
+  "d2fd6b58a0ddcde9f030e516c4101ebc635a1d02c9af46c1f9804cb499247b9b": {
+   "drop": false,
+   "en": "Choose the display language in File > Options. Set the language of the selected text with Review > Set Proofing Language.",
+   "es": "Elija el idioma de la interfaz en Archivo > Opciones. Establezca el idioma del texto seleccionado con Revisar > Establecer idioma de revisión.",
+   "fr": "Choisissez la langue d’affichage dans Fichier > Options. Définissez la langue du texte sélectionné avec Révision > Définir la langue de vérification.",
+   "soon": {
+    "drop": false,
+    "en": "Default language for new text and a list of editing languages",
+    "es": "Idioma predeterminado para el texto nuevo y lista de idiomas de edición",
+    "fr": "Langue par défaut du nouveau texte et liste des langues d’édition"
+   }
+  },
   "d308e235596fdf2b84368825bfdd6e04f2773431b7cb3a375d729c6c4488cdef": {
    "drop": false,
    "en": "Show Report Filter Pages on the Pivot Table tab creates a sheet for each filter item. Each sheet holds a copy of the table with its filter set to that item, and hidden items stay hidden. It can be undone in one step.",
@@ -23332,6 +23315,18 @@
     "en": "Touch and pen input, and high-DPI scaling on every system",
     "es": "Entrada táctil y con lápiz, y escalado de alta resolución en todos los sistemas",
     "fr": "Saisie tactile et au stylet, et mise à l’échelle haute résolution sur tous les systèmes"
+   }
+  },
+  "d3a3ab7c136898c54fdb1fa1719c91943cc9fa814c2fb53e5e3effda54a11ed0": {
+   "drop": false,
+   "en": "Copy styles between documents and files in Manage Styles, by import and export. Inspect Document can detach the attached template.",
+   "es": "Copie estilos entre documentos y otros ficheros en Administrar estilos, mediante importación y exportación. Inspeccionar documento puede desvincular la plantilla adjunta.",
+   "fr": "Copiez des styles entre documents et fichiers dans Gérer les styles, par importation et exportation. Inspecter le document peut détacher le modèle associé.",
+   "soon": {
+    "drop": false,
+    "en": "Attach a different template and copy building blocks",
+    "es": "Adjuntar otra plantilla y copiar bloques de creación",
+    "fr": "Associer un autre modèle et copier des blocs de construction"
    }
   },
   "d3dad535f086d11de90ebc213eb818f9e8a270329fb411ebd8781696b43a3437": {
@@ -24942,6 +24937,18 @@
     "fr": "Fonctions récemment utilisées et galerie de fonctions pour chaque catégorie"
    }
   },
+  "e8302db5668e9d1d471e32a9e8cf9517ce2803713d30e68e59fa96fbc3f84338": {
+   "drop": false,
+   "en": "Insert pictures in PNG, JPEG, GIF, BMP, TIFF, WebP, SVG, EMF, and WMF formats, in the body and in headers and footers. Vector pictures stay vector in print and PDF.",
+   "es": "Inserte imágenes en formatos PNG, JPEG, GIF, BMP, TIFF, WebP, SVG, EMF y WMF, en el cuerpo y en encabezados y pies de página. Las imágenes vectoriales siguen siendo vectoriales al imprimir y en PDF.",
+   "fr": "Insérez des images aux formats PNG, JPEG, GIF, BMP, TIFF, WebP, SVG, EMF et WMF, dans le corps et dans les en-têtes et pieds de page. Les images vectorielles restent vectorielles à l’impression et en PDF.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "e867532181a30f52f4ee844d4ae076f75b770c076f44fe3c3e8347bf035d2baa": {
    "drop": false,
    "en": "Set line spacing (1, 1.15, 1.5, 2, 2.5, and 3) and use the Paragraph window for indents, spacing before and after, and tab stops.",
@@ -25984,6 +25991,18 @@
     "en": "Version comparison",
     "es": "Comparación de versiones",
     "fr": "Comparaison de versions"
+   }
+  },
+  "f5c8f4ff34e9aeacee714f8977768203c9c69f89021948719784d3194a7757b5": {
+   "drop": false,
+   "en": "Error Checking steps through formulas that give an error, numbers stored as text, inconsistent formulas, two-digit-year dates stored as text, and formulas in unlocked cells. A green triangle marks each cell, and Ignore Error is saved in the file and is one step of Undo.",
+   "es": "Comprobación de errores recorre las fórmulas que dan error, los números almacenados como texto, las fórmulas incoherentes, las fechas con año de dos dígitos almacenadas como texto y las fórmulas en celdas desbloqueadas. Un triángulo verde marca cada celda, e Ignorar error se guarda en el documento y es un paso de Deshacer.",
+   "fr": "La vérification des erreurs parcourt les formules qui donnent une erreur, les nombres stockés sous forme de texte, les formules incohérentes, les dates à année sur deux chiffres stockées sous forme de texte et les formules dans des cellules déverrouillées. Un triangle vert marque chaque cellule, et Ignorer l’erreur est enregistré dans le fichier et annulable en une étape.",
+   "soon": {
+    "drop": false,
+    "en": "Error Checking rules: a formula that leaves out neighboring cells and a formula that reads empty cells; a menu on the green triangle",
+    "es": "Reglas de comprobación de errores: fórmula que omite celdas adyacentes y fórmula que lee celdas vacías; menú en el triángulo verde",
+    "fr": "Règles de vérification des erreurs : formule qui omet des cellules voisines et formule qui lit des cellules vides ; menu sur le triangle vert"
    }
   },
   "f5db565cb2f968cc7e82188b07dfb112e0c4de1dbf5b318f84613b111dbba9bd": {
