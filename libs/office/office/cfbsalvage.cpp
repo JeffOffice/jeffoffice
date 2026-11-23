@@ -175,6 +175,21 @@ public:
             return true;
         };
         QSet<quint32> seen;
+        // whether `need` pieces from `from` are one chain by the tables that ends with its end marker exactly there, and each is in the file, read by the tables, held by no entry, and not
+        // marked free: the work is the pieces looked at, and a run is looked at once (it ends the reading's search for more)
+        auto unclaimedRunFills = [&](quint32 from, qint64 need) {
+            QSet<quint32> run;
+            quint32 n = from;
+            for (qint64 i = 0; i < need; ++i) {
+                if (qint64(n) >= limit || seen.contains(n) || run.contains(n) || !usable(n)) return false;
+                if (n >= quint32(owner.size()) || owner[qsizetype(n)] != -1 || n >= quint32(known.size()) || !known[qsizetype(n)]) return false;
+                run.insert(n);
+                const quint32 nx = table[qsizetype(n)];
+                if (i + 1 == need) return nx == kEnd;
+                n = nx;
+            }
+            return false;
+        };
         quint32 cur = e.start;
         qint64 pieces = 0;
         const qint64 mostPieces = std::min<qint64>(count, limit + 1);
@@ -198,7 +213,15 @@ public:
             const bool tableOk = qint64(next) < limit && !seen.contains(next);
             const bool wholeTables = mode == Mode::Tables || mode == Mode::PastSize;
             // (a table that was read and says the chain ends here: the stream ends here, whatever size the directory gives)
+            // (the one way past it: the pieces right after it are a chain of their own that nobody claims, that the tables do not mark free, and that fills exactly the size the directory still
+            // needs; the stream is then read on, and the join is listed, so that a caller says where the part that was not checked begins)
             if (!wholeTables && next == kEnd && cur < quint32(known.size()) && known[qsizetype(cur)]) {
+                if (!seen.contains(cur + 1) && unclaimedRunFills(cur + 1, count - pieces)) {
+                    r.guessed = true;
+                    r.joins << qint64(pieces) * unit;
+                    cur = cur + 1;
+                    continue;
+                }
                 r.chainBroke = true;
                 break;
             }
@@ -468,12 +491,19 @@ bool salvageCompoundFile(const QByteArray &file, const QVector<CfbWish> &wishes,
                         tried << r.bytes;
                         if (!accept(r.bytes)) continue;
                         if (!w.endsWell) {
-                            // (nothing to check it by: the tables and the directory as far as they agree)
-                            if (mode == Tolerant::Mode::Tables) {
+                            // (nothing to check it by: the tables and the directory as far as they agree; if they do not, the reading that follows the tables and takes the next piece where a link is
+                            // broken, when it gives more, since what is there is shown and said)
+                            if (mode == Tolerant::Mode::Tables && r.clean()) {
                                 choose(r, mode, r.bytes.size(), true);
-                                if (!r.clean() || quint64(r.bytes.size()) < named[i]->size) out->partial << w.name;
+                                break;
                             }
-                            if (!found.isEmpty()) break;
+                            if ((mode == Tolerant::Mode::Tables || mode == Tolerant::Mode::Guess) && (!mine.set || r.bytes.size() > mine.reading.bytes.size())) {
+                                mine.reading = r;
+                                mine.mode = mode;
+                                mine.prefix = r.bytes.size();
+                                mine.set = true;
+                                mine.entry = i;
+                            }
                             continue;
                         }
                         if (mode == Tolerant::Mode::Tables && r.clean()) {
@@ -494,20 +524,18 @@ bool salvageCompoundFile(const QByteArray &file, const QVector<CfbWish> &wishes,
                             mine.entry = i;
                         }
                     }
+                    if (found.isEmpty() && !w.endsWell && mine.set) {
+                        choose(mine.reading, mine.mode, mine.reading.bytes.size(), true);
+                        if (!mine.reading.clean() || quint64(mine.reading.bytes.size()) < named[i]->size) out->partial << w.name;
+                    }
                     if (!found.isEmpty()) usedEntry = i;
                     if (found.isEmpty() && mine.set && !fallback.set) fallback = mine;
                 }
             }
-            // no reading ends well: what can be checked of the first entry's best (and no more)
+            // no reading ends well: the first entry's best is kept as it reads, and the notes say that its end could not be checked
             if (found.isEmpty() && fallback.set) {
-                const QByteArray head = fallback.reading.bytes.left(qsizetype(fallback.prefix));
                 usedEntry = fallback.entry;
-                if (head.size() < fallback.reading.bytes.size() && !accept(head)) {
-                    choose(fallback.reading, fallback.mode, fallback.reading.bytes.size(), false);
-                    anyLaterEntry |= usedEntry > 0;
-                    return;
-                }
-                choose(fallback.reading, fallback.mode, fallback.prefix, false);
+                choose(fallback.reading, fallback.mode, fallback.reading.bytes.size(), false);
             }
             anyLaterEntry |= usedEntry > 0;   // (a later entry of the same name was used in place of the first)
         };
@@ -604,7 +632,7 @@ bool salvageCompoundFile(const QByteArray &file, const QVector<CfbWish> &wishes,
     out->usedFree = anyFree;
     out->bytesBuilt = builtBudget - built;
     out->bytesChecked = budget - work;
-    if (anyUnverified) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "Some of the file could not be checked to see that it was complete, so only the part that could be checked was kept.");
+    if (anyUnverified) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "Part of the file could not be checked to see that it is complete, so it may be cut short or hold pieces that belong somewhere else.");
     if (anyFree) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "Pieces of the file that its lists mark as unused were read, because nothing else could be found; they may hold old data.");
     if (out->miniUnread) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "The small parts of the file, which are kept together in one place, could not be read.");
     if (out->cutShort && (byDirectory || byScan)) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "The file was cut short; what came after the cut is lost.");
