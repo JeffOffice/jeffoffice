@@ -1108,6 +1108,87 @@ void CrunchEditTests::aSpillAnchoredAwayFromColumnBIsOpenedAtItsOwnCell()
     }
 }
 
+// What a window writes of ten books with spills (a column, a block, sorted and filtered results, a spill range read by a sum, one a value blocks, two side by side, a text one, and two loaded from a file that
+// grew and that shrank): the same bytes with the index on and off, through every writer the window has: the save (.xlsx), and the copies in the old binary form (.xls) and OpenDocument (.ods).
+// (An equality of two runs: it cannot fail by one behavior being switched off, but by any difference between them.)
+void CrunchEditTests::theSavesOfTenBooksWithSpillsAreTheSameWithTheIndexOnAndOff()
+{
+    struct Step {
+        const char *ref;
+        const char *text;
+    };
+    const std::vector<std::vector<Step>> books = {
+        {{"A1", "=SEQUENCE(5)"}},
+        {{"A1", "=SEQUENCE(3,4)"}},
+        {{"A1", "5"}, {"A2", "3"}, {"A3", "9"}, {"A4", "1"}, {"A5", "7"}, {"A6", "3"}, {"C1", "=SORT(A1:A6)"}, {"E1", "=UNIQUE(A1:A6)"}},
+        {{"A1", "4"}, {"A2", "1"}, {"A3", "8"}, {"A4", "6"}, {"D1", "=FILTER(A1:A4,A1:A4>2)"}},
+        {{"A1", "3"}, {"B1", "=SEQUENCE(A1)"}, {"C1", "=SUM(B1#)"}},
+        {{"A1", "=SEQUENCE(4)"}, {"A3", "7"}},
+        {{"A1", "=SEQUENCE(2,2)"}, {"D1", "=TRANSPOSE(A1:B2)"}},
+        {{"A1", "red"}, {"A2", "green"}, {"A3", "blue"}, {"C1", "=UPPER(A1:A3)"}},
+        {{"A1", "5"}, {"B1", "=SEQUENCE(A1)"}},   // (saved, opened again, and A1 made 7)
+        {{"A1", "5"}, {"B1", "=SEQUENCE(A1)"}},   // (saved, opened again, and A1 made 2)
+    };
+    auto made = [&](size_t which) {
+        QByteArrayList out;
+        EditWindow e;
+        if (!e.openBlank()) return out;
+        for (const Step &st : books[which]) {
+            e.select(QString::fromLatin1(st.ref));
+            e.enter(QString::fromLatin1(st.text));
+        }
+        if (!e.settle()) return out;
+        QByteArray xlsx = savedBytes(e, QStringLiteral("book.xlsx"));
+        if (which >= 8) {
+            EditWindow f;
+            if (xlsx.isEmpty() || !f.open(xlsx, QStringLiteral("loaded.xlsx"))) return out;
+            f.select(QStringLiteral("A1"));
+            f.enter(which == 8 ? QStringLiteral("7") : QStringLiteral("2"));
+            if (!f.settle()) return out;
+            xlsx = savedBytes(f, QStringLiteral("again.xlsx"));
+            out << xlsx;
+            for (const QString &name : {QStringLiteral("copy.xls"), QStringLiteral("copy.ods")}) {
+                QSignalSpy copied(&f.win.w, &CrunchWindow::copyExported);
+                f.win.w.setNotifier([](const QString &, const QString &) {});
+                const QString target = f.folder.dir.filePath(name);
+                if (!f.win.w.exportCopy(target)) return QByteArrayList();
+                if (copied.count() < 1) copied.wait(20000);
+                QFile file(target);
+                out << (copied.count() == 1 && file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray());
+            }
+            return out;
+        }
+        out << xlsx;
+        for (const QString &name : {QStringLiteral("copy.xls"), QStringLiteral("copy.ods")}) {
+            QSignalSpy copied(&e.win.w, &CrunchWindow::copyExported);
+            e.win.w.setNotifier([](const QString &, const QString &) {});
+            const QString target = e.folder.dir.filePath(name);
+            if (!e.win.w.exportCopy(target)) return QByteArrayList();
+            if (copied.count() < 1) copied.wait(20000);
+            QFile file(target);
+            out << (copied.count() == 1 && file.open(QIODevice::ReadOnly) ? file.readAll() : QByteArray());
+        }
+        return out;
+    };
+    for (size_t which = 0; which < books.size(); ++which) {
+        QByteArrayList off, on;
+        {
+            SpillIndexSwitch sw(false);
+            off = made(which);
+        }
+        {
+            SpillIndexSwitch sw(true);
+            on = made(which);
+        }
+        QCOMPARE(off.size(), qsizetype(3));
+        QCOMPARE(on.size(), qsizetype(3));
+        for (int w = 0; w < 3; ++w) {
+            QVERIFY2(!off[w].isEmpty(), qPrintable(QStringLiteral("book %1 writer %2 wrote nothing").arg(which).arg(w)));
+            QVERIFY2(on[w] == off[w], qPrintable(QStringLiteral("book %1 writer %2 differs: %3 bytes off, %4 on").arg(which).arg(w).arg(off[w].size()).arg(on[w].size())));
+        }
+    }
+}
+
 // The window reads the blocks that were published before the values it has: a block the worker grows is the block the window reads once the batch that has the values of the slice is taken (not before,
 // and not never). Fails when the batch does not adopt the blocks (the window goes on reading the first), or when the copy of a slice is the one read at once.
 void CrunchEditTests::theWindowReadsTheBlocksOfTheBatchItTook()
