@@ -622,6 +622,10 @@ private Q_SLOTS:
         w.editor()->setDocument(jp::Document::blank(QSizeF(612, 792)));
         QCOMPARE(h->zero(), 0.0);
         QCOMPARE(v->zero(), 0.0);
+        // The guide drag above ends in the canvas, so the program still counts the left button as held; the next window's Alt tap would then read as part of a drag (Nov 23: key
+        // tips would not open for the tests after this one). A real release ends it.
+        QTest::mouseRelease(h, Qt::LeftButton);
+        QCOMPARE(QApplication::mouseButtons(), Qt::NoButton);
         st.setUnit(was);
     }
 
