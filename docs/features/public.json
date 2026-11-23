@@ -6984,8 +6984,9 @@
          "text": "d799b480a801a925214fb6b1c36987d9c10351c69be662e223c9acc11d24e863"
         },
         {
-         "status": "partly",
-         "text": "7d8f421b92faca72a2a2f7c9cde8db6a71519651e9f0667bea0837acda46ca75"
+         "hide_soon": true,
+         "status": "done",
+         "text": "34446c56900e98e3a8e5b74570e798c473f8d2c40f6769ae59c44683a0ed3345"
         }
        ]
       },
@@ -11894,6 +11895,18 @@
     "en": "Locale tags in a format, such as `[$-409]` and `[$-407]`",
     "es": "Etiquetas de configuración regional en un formato, como `[$-409]` y `[$-407]`",
     "fr": "Balises de langue dans un format, comme `[$-409]` et `[$-407]`"
+   }
+  },
+  "34446c56900e98e3a8e5b74570e798c473f8d2c40f6769ae59c44683a0ed3345": {
+   "drop": false,
+   "en": "The status bar shows the page number and page count, word count, section, line, column, and a count of spelling and grammar errors, with view buttons and a zoom slider. Click the error count to go to the next error.",
+   "es": "La barra de estado muestra el número de página y el total de páginas, el recuento de palabras, la sección, la línea, la columna y un recuento de errores ortográficos y gramaticales, con botones de vista y un control deslizante de zoom. Haga clic en el recuento de errores para ir al siguiente error.",
+   "fr": "La barre d’état affiche le numéro de page et le nombre de pages, le nombre de mots, la section, la ligne, la colonne et le nombre d’erreurs d’orthographe et de grammaire, avec des boutons d’affichage et un curseur de zoom. Cliquez sur le nombre d’erreurs pour passer à l’erreur suivante.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "34761b1e5caf2296423757a02f62387390e9c5fcce05ef894744ac827385efc6": {
@@ -17486,18 +17499,6 @@
     "en": "Mirror margins and a top gutter",
     "es": "Márgenes simétricos y medianil superior",
     "fr": "Marges en miroir et reliure en haut"
-   }
-  },
-  "7d8f421b92faca72a2a2f7c9cde8db6a71519651e9f0667bea0837acda46ca75": {
-   "drop": false,
-   "en": "The status bar shows the page, the word count, and the zoom slider, and the section the caret is in when the document has more than one.",
-   "es": "La barra de estado muestra la página, el recuento de palabras y el control deslizante de zoom, y la sección donde está el cursor cuando el documento tiene más de una.",
-   "fr": "La barre d’état affiche la page, le nombre de mots et le curseur de zoom, ainsi que la section où se trouve le curseur lorsque le document en compte plusieurs.",
-   "soon": {
-    "drop": false,
-    "en": "Status bar line, column, and proofing errors",
-    "es": "Línea, columna y errores de revisión en la barra de estado",
-    "fr": "Ligne, colonne et erreurs de vérification dans la barre d’état"
    }
   },
   "7da8428b6edc7339c6d8ef2e3e9af58a00486c63f2e97bd317cf9d167cb18c66": {
