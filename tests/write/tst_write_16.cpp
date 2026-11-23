@@ -794,6 +794,13 @@ void WriteTests::picturesOfTheBorderPainterTheMoveHandleAndShowNotes()
     jp::applyUiTheme(1);
     TailWin win;
     win.w.resize(1200, 820);
+    {
+        // (the table has visible borders, so that the painting and the move can be seen against them)
+        QTextCursor all = win.w.view()->cursor();
+        selectInTable(*win.w.document(), all, TableUnit::Table);
+        setBorders(*win.w.document(), all, BorderSide::All, flow::TableLine{flow::TableLine::Style::Single, 0.75, QColor(0x55, 0x55, 0x55)});
+        win.w.view()->refresh();
+    }
     win.w.view()->paginateAll();
     win.w.view()->setCaretWithoutFocus(true);
     win.w.ribbon()->showTab(win.w.ribbon()->tab(QStringLiteral("Table Design")));
