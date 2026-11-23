@@ -225,11 +225,55 @@ bool PageView::ungroupSelectedObject()
         Q_EMIT notice(tr("This group can't be taken apart: it is turned, or has another group in it."));
         return false;
     }
+    m_regroupIds.clear();
+    m_regroupDoc = m_doc;
+    for (const int part : parts) m_regroupIds.push_back(objectIdAt(*m_doc, part));
     selectObjects(parts);
     Q_EMIT contentChanged();
     viewport()->update();
     Q_EMIT caretChanged();
     return true;
+}
+
+bool PageView::canRegroup()
+{
+    if (!m_doc || m_readOnly || m_regroupDoc != m_doc || m_regroupIds.size() < 2) return false;
+    const QVector<int> where = objectPositionsOfIds(*m_doc, m_regroupIds);
+    for (const int p : where)
+        if (p < 0 || !canGroupObject(*m_doc, p)) return false;
+    return true;
+}
+
+bool PageView::regroupObjects()
+{
+    if (!m_doc || m_readOnly) return false;
+    if (!canRegroup()) {
+        Q_EMIT notice(tr("There is no group to put back. Regroup works after Ungroup, while its objects are still there."));
+        return false;
+    }
+    selectObjects(objectPositionsOfIds(*m_doc, m_regroupIds));
+    return groupSelectedObjects();
+}
+
+bool PageView::flipSelectedObjects(bool horizontal)
+{
+    if (!m_doc || m_readOnly) return false;
+    const QVector<int> positions = selectedObjects();
+    if (positions.isEmpty()) return false;
+    const bool changed = changeObjects([&](WriteDoc &d) {
+        QTextCursor block(d.story());
+        block.beginEditBlock();
+        bool any = false;
+        for (const int p : positions) any = flipObject(d, p, horizontal) || any;
+        block.endEditBlock();
+        return any;
+    });
+    if (changed) {
+        selectPicture(positions.first());
+        m_moreObjects = positions.mid(1);
+        m_moreObjectsRevision = m_doc->story()->revision();
+    }
+    return changed;
 }
 
 bool PageView::inlinePictureRect(int position, const PictureInfo &info, QRectF *rect)

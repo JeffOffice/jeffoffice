@@ -90,6 +90,7 @@ struct PictureInfo {
     QString preset;
     QString fillColor, lineColor, lineDash;
     double lineWeight = 0, rotation = 0;
+    bool flipH = false, flipV = false;   // mirrored across (left to right) or down (top to bottom)
     // A picture's cut edges as shares of the whole picture, its border, and its brightness and contrast (each from -1 to 1), and whether it is shown in gray.
     double cropLeft = 0, cropTop = 0, cropRight = 0, cropBottom = 0;
     bool grayscale = false, blackWhite = false;
@@ -402,6 +403,12 @@ bool setShapeLine(WriteDoc &doc, int position, const QString &rgb, double weight
 PictureResult setShapePictureFill(WriteDoc &doc, int position, const QByteArray &bytes);
 // Turns the object to this many degrees clockwise (any number: it is held to 0 up to 360).
 bool setShapeRotation(WriteDoc &doc, int position, double degrees);
+// Mirrors the object (a picture, shape, text box, or group) left to right, or top to bottom: one step; the same again puts it back. False for a chart or where the object has no frame to flip.
+bool flipObject(WriteDoc &doc, int position, bool horizontal);
+// The number the file gives the drawn object at `position` (it stays with the object through edits, and a part keeps it when its group is taken apart; 0 for none), and where the objects
+// with these numbers are now (-1 for one that is gone): Regroup puts back the parts of the group last taken apart.
+int objectIdAt(const WriteDoc &doc, int position);
+QVector<int> objectPositionsOfIds(WriteDoc &doc, const QVector<int> &ids);
 // Fills the shape with a gradient from one color to the other (RRGGBB), along an angle in degrees (0 across, from left to right, 90 down); one step.
 bool setShapeGradient(WriteDoc &doc, int position, const QString &from, const QString &to, double angle);
 // Cuts the picture to a shape of the gallery (its preset name; "rect" takes the cut off); the picture's frame and size stay. One step.

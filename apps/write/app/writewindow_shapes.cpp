@@ -223,6 +223,14 @@ void WriteWindow::createShapeActions()
     });
     mk("shape.rotate.right", tr("Rotate Right 90°"), "rotate-cw", QKeySequence(), [this] { turnSelectedShape(90, true); });
     mk("shape.rotate.left", tr("Rotate Left 90°"), "rotate-ccw", QKeySequence(), [this] { turnSelectedShape(-90, true); });
+    mk("arrange.flip.h", tr("Flip Horizontal"), "flip-horizontal-2", QKeySequence(), [this] {
+        m_view->flipSelectedObjects(true);
+        m_view->setFocus(Qt::OtherFocusReason);
+    });
+    mk("arrange.flip.v", tr("Flip Vertical"), "flip-vertical-2", QKeySequence(), [this] {
+        m_view->flipSelectedObjects(false);
+        m_view->setFocus(Qt::OtherFocusReason);
+    });
     mk("shape.rotate.none", tr("No Rotation"), "refresh-ccw", QKeySequence(), [this] { turnSelectedShape(0, false); });
     struct Align {
         const char *id, *text, *icon;
@@ -286,6 +294,10 @@ void WriteWindow::createShapeActions()
     }
     mk("arrange.ungroup", tr("Ungroup"), "ungroup", QKeySequence(QStringLiteral("Ctrl+Alt+Shift+G")), [this] {
         m_view->ungroupSelectedObject();
+        m_view->setFocus(Qt::OtherFocusReason);
+    });
+    mk("arrange.regroup", tr("Regroup"), "group", QKeySequence(), [this] {
+        m_view->regroupObjects();
         m_view->setFocus(Qt::OtherFocusReason);
     });
     struct Gradient {
@@ -1048,7 +1060,10 @@ void WriteWindow::shapeRibbonParts(RibbonParts &parts)
     };
     parts.menus[QStringLiteral("shapeRotate")] = [this](QWidget *owner) {
         auto *m = new QMenu(owner);
-        for (const char *id : {"right", "left", "none"}) m->addAction(act(QStringLiteral("shape.rotate.") + QLatin1String(id)));
+        for (const char *id : {"right", "left"}) m->addAction(act(QStringLiteral("shape.rotate.") + QLatin1String(id)));
+        m->addAction(act("arrange.flip.v"));
+        m->addAction(act("arrange.flip.h"));
+        m->addAction(act("shape.rotate.none"));
         return m;
     };
     parts.widgets[QStringLiteral("textArtButton")] = [this]() -> QWidget * {
@@ -1224,6 +1239,10 @@ void WriteWindow::refreshShapeUi()
         act("arrange.distribute.h")->setEnabled(together.size() >= 3);
         act("arrange.distribute.v")->setEnabled(together.size() >= 3);
         act("arrange.ungroup")->setEnabled(group && info.editable);
+        act("arrange.regroup")->setEnabled(m_view->canRegroup());
+        // Flip works on any drawn object but a chart, a group among them (it is mirrored as one).
+        act("arrange.flip.h")->setEnabled(info.valid && info.editable && info.kind != write::DrawnKind::Chart);
+        act("arrange.flip.v")->setEnabled(info.valid && info.editable && info.kind != write::DrawnKind::Chart);
         // Connect needs exactly two objects, each a shape, text box, or picture that floats.
         bool canConnect = together.size() == 2;
         for (const int p : together) {

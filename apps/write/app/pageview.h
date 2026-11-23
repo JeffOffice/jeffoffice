@@ -328,6 +328,11 @@ public:
     // Connect joins the two objects selected with a glued connector of this kind (see connectObjects); the connector is then selected.
     bool connectSelectedObjects(const QString &preset);
     bool ungroupSelectedObject();
+    // Regroup puts the parts of the group last taken apart back into one (each still there, set at a place, on one page); the parts are remembered as the file numbers them, for this document.
+    bool canRegroup();
+    bool regroupObjects();
+    // Flip mirrors each selected object left to right or top to bottom, all as one step.
+    bool flipSelectedObjects(bool horizontal);
     // The picture's rectangle in the window; false where it is not on a page that is drawn.
     bool pictureRect(int position, QRectF *rect);
     // A barcode field (a DISPLAYBARCODE field, which the page shows as its bars): its box in the window, by the position its field begins at (false where it is not on a page that is drawn), and the
@@ -722,6 +727,8 @@ private:
     int m_linkFrom = -1;          // the text box a Create Link waits for the next box of (its place in the text), or -1
     QVector<int> m_moreObjects;   // the objects added to the selection, and the revision of the text they were chosen in
     int m_moreObjectsRevision = -1;
+    const WriteDoc *m_regroupDoc = nullptr;   // the document those numbers are of
+    QVector<int> m_regroupIds;   // the numbers of the parts of the group Ungroup last took apart
 
     WriteDoc *m_doc = nullptr;
     QTextCursor m_cursor;

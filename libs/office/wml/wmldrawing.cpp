@@ -796,6 +796,8 @@ void readDrawing(const XmlTree &t, int drawing, QVector<Shape> *out)
                     if (t.localName(k) != "spPr") continue;
                     if (const QByteArray look = t.raw(k); look.size() <= 65536) s.picLook = keptUnderRoot(t, look);
                     for (int ln = t.firstChild(k); ln >= 0; ln = t.next(ln)) {
+                        if (t.localName(ln) == "xfrm" && (t.attr(ln, "flipH") == QLatin1String("1") || t.attr(ln, "flipH") == QLatin1String("true"))) s.flipH = true;
+                        if (t.localName(ln) == "xfrm" && (t.attr(ln, "flipV") == QLatin1String("1") || t.attr(ln, "flipV") == QLatin1String("true"))) s.flipV = true;
                         if (t.localName(ln) == "xfrm" && t.has(ln, "rot")) {
                             const double turn = std::fmod(t.attr(ln, "rot").toDouble() / 60000.0, 360.0);
                             s.rotation = std::isfinite(turn) ? (turn < 0 ? turn + 360 : turn) : 0;

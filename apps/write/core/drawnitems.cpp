@@ -62,6 +62,8 @@ void dressPicture(PictureItem &pic, const Shape &s, const office::Theme *theme)
     // (The shape is named as the drawing format names it; the picture's mask is by the shape library's name for it.)
     if (!s.cropShape.isEmpty()) pic.maskShape = office::shapeForPreset(s.cropShape).isEmpty() ? s.cropShape : office::shapeForPreset(s.cropShape);
     pic.rotation = s.rotation;
+    pic.flipH = s.flipH;
+    pic.flipV = s.flipV;
     if (!s.clearColor.isEmpty()) {
         pic.hasTransparentColor = true;
         pic.transparentColor = QColor(QLatin1Char('#') + s.clearColor);

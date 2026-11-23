@@ -4970,6 +4970,134 @@ private Q_SLOTS:
         QCOMPARE(documentXml(doc->toDocx()), grouped);
     }
 
+    // Flip mirrors a shape, a picture, and a group by the file's own flags; the same again puts it back exactly; a turn goes the other way about.
+    void flipMirrorsEachKindOfObjectAndTheSameAgainPutsItBack()
+    {
+        auto doc = textDoc({"Before after"});
+        QTextCursor c(doc->story());
+        c.setPosition(7);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("rect")), PictureResult::Ok);
+        c.setPosition(8);
+        QCOMPARE(insertPicture(*doc, c, pngOf(40, 20)), PictureResult::Ok);
+        c.setPosition(9);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("ellipse")), PictureResult::Ok);
+        QVERIFY(setPicturePlace(*doc, 7, 100, 100));
+        QVERIFY(setPicturePlace(*doc, 8, 200, 100));
+        QVERIFY(setPicturePlace(*doc, 9, 300, 100));
+        QVERIFY(setShapeRotation(*doc, 7, 30));
+        for (const int at : {7, 8}) {
+            const QByteArray plain = documentXml(doc->toDocx());
+            QVERIFY(!pictureAt(*doc, doc->story(), at).flipH && !pictureAt(*doc, doc->story(), at).flipV);
+            QVERIFY(flipObject(*doc, at, true));
+            QVERIFY(pictureAt(*doc, doc->story(), at).flipH && !pictureAt(*doc, doc->story(), at).flipV);
+            QVERIFY(flipObject(*doc, at, false));
+            QVERIFY(pictureAt(*doc, doc->story(), at).flipH && pictureAt(*doc, doc->story(), at).flipV);
+            QVERIFY(flipObject(*doc, at, true));
+            QVERIFY(flipObject(*doc, at, false));
+            // (The same markup, but for a namespace the flipped frame names again for itself.)
+            static const QRegularExpression names(QStringLiteral(" xmlns:[A-Za-z0-9]+=\"[^\"]*\""));
+            QString again = QString::fromUtf8(documentXml(doc->toDocx())), was = QString::fromUtf8(plain);
+            QCOMPARE(again.remove(names), was.remove(names));
+        }
+        QVERIFY(groupObjects(*doc, {8, 9}, {QRectF(200, 100, 40, 20), QRectF(300, 100, 86, 86)}));
+        // (A shape turned 30 degrees is turned 330 once mirrored, and 30 again after the second mirror.)
+        QVERIFY(flipObject(*doc, 7, true));
+        QVERIFY(std::abs(pictureAt(*doc, doc->story(), 7).rotation - 330) < 0.01);
+        QVERIFY(flipObject(*doc, 7, true));
+        QVERIFY(std::abs(pictureAt(*doc, doc->story(), 7).rotation - 30) < 0.01);
+        // A group is flipped by its own frame, and one step of Undo takes the flip back.
+        QVERIFY(isGroupAt(*doc, 8));
+        const QByteArray before = documentXml(doc->toDocx());
+        QVERIFY(flipObject(*doc, 8, true));
+        const QByteArray after = documentXml(doc->toDocx());
+        QVERIFY(after != before);
+        QVERIFY(after.contains("flipH=\"1\""));
+        QVERIFY(doc->undo());
+        QCOMPARE(documentXml(doc->toDocx()), before);
+        QVERIFY(!flipObject(*doc, 0, true));   // (no object there)
+    }
+
+    // The same steps from the window, saved through its own save in each format and opened again: a flip is kept where the format can hold it.
+    void flipFromTheWindowIsKeptThroughSaveAndOpen()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        Win win;
+        write::WriteDoc *doc = win.w.document();
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("rightArrow")), PictureResult::Ok);
+        QVERIFY(setPicturePlace(*doc, 0, 100, 150));
+        win.w.view()->refresh();
+        win.w.view()->selectPicture(0);
+        win.w.refreshNow();
+        QVERIFY(win.w.act("arrange.flip.h")->isEnabled() && win.w.act("arrange.flip.v")->isEnabled());
+        win.w.act("arrange.flip.h")->trigger();
+        QVERIFY(pictureAt(*doc, doc->story(), 0).flipH);
+        win.w.act("arrange.flip.v")->trigger();
+        QVERIFY(pictureAt(*doc, doc->story(), 0).flipV);
+        QVERIFY(doc->undo());
+        QVERIFY(pictureAt(*doc, doc->story(), 0).flipH && !pictureAt(*doc, doc->story(), 0).flipV);
+        QVERIFY(doc->redo());
+        for (const char *ending : {"docx", "odt"}) {
+            const QString path = dir.filePath(QStringLiteral("flip.") + QLatin1String(ending));
+            QVERIFY(win.w.saveTo(path));
+            WriteWindow again;
+            QVERIFY(again.openFile(path));
+            const PictureInfo back = pictureAt(*again.document(), again.document()->story(), 0);
+            QVERIFY2(back.valid && back.flipH && back.flipV, ending);
+        }
+    }
+
+    // Regroup puts back the parts the last Ungroup took apart, while they are all still there; nothing else is regrouped.
+    void regroupPutsBackTheLastGroupTakenApart()
+    {
+        Win win;
+        write::WriteDoc *doc = win.w.document();
+        QTextCursor c(doc->story());
+        c.setPosition(0);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("rect")), PictureResult::Ok);
+        c.setPosition(1);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("ellipse")), PictureResult::Ok);
+        c.setPosition(2);
+        QCOMPARE(insertShape(*doc, c, QStringLiteral("triangle")), PictureResult::Ok);
+        QVERIFY(setPicturePlace(*doc, 0, 100, 150));
+        QVERIFY(setPicturePlace(*doc, 1, 300, 150));
+        QVERIFY(setPicturePlace(*doc, 2, 100, 400));
+        win.w.view()->refresh();
+        win.w.view()->selectPicture(2);
+        win.w.refreshNow();
+        QVERIFY(!win.w.act("arrange.regroup")->isEnabled());
+        win.w.view()->selectObjects({0, 1});
+        win.w.refreshNow();
+        win.w.act("arrange.group")->trigger();
+        QVERIFY(isGroupAt(*doc, 0));
+        const QByteArray grouped = documentXml(doc->toDocx());
+        win.w.refreshNow();
+        QVERIFY(!win.w.act("arrange.regroup")->isEnabled());   // (nothing was taken apart yet)
+        win.w.act("arrange.ungroup")->trigger();
+        QVERIFY(!isGroupAt(*doc, 0));
+        win.w.view()->selectPicture(2);
+        win.w.refreshNow();
+        QVERIFY(win.w.act("arrange.regroup")->isEnabled());   // (whatever is selected)
+        // The ellipse is moved meanwhile: it is the same object, so it goes back into the group where it is now.
+        QVERIFY(setPicturePlace(*doc, 1, 320, 170));
+        win.w.act("arrange.regroup")->trigger();
+        QVERIFY(isGroupAt(*doc, 0));
+        QCOMPARE(win.w.view()->selectedObjects(), (QVector<int>{0}));
+        QVERIFY(documentXml(doc->toDocx()) != grouped);
+        win.w.refreshNow();
+        QVERIFY(!win.w.act("arrange.regroup")->isEnabled());   // (they are one group again)
+        QVERIFY(doc->undo());
+        QVERIFY(!isGroupAt(*doc, 0));
+        // One of the parts deleted: there is nothing to put back.
+        win.w.view()->selectPicture(1);
+        QTest::keyClick(win.w.view()->viewport(), Qt::Key_Delete);
+        win.w.refreshNow();
+        QVERIFY(!win.w.act("arrange.regroup")->isEnabled());
+        QVERIFY(!win.w.view()->regroupObjects());
+    }
+
     void aGroupInTheLineIsSetWhereItSitsInTheLineAndTheLineMakesRoomForIt()
     {
         auto part = [](int id, int x, const char *rgb) {

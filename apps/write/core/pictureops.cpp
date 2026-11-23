@@ -925,6 +925,8 @@ PictureInfo pictureAt(const WriteDoc &doc, const QTextDocument *story, int posit
         info.lineWeight = s.borderWeight;
         info.cropShape = s.cropShape.isEmpty() ? QStringLiteral("rect") : s.cropShape;
         info.rotation = s.rotation;
+        info.flipH = s.flipH;
+        info.flipV = s.flipV;
         info.grayscale = m.graphic.contains("<a:grayscl");
         info.blackWhite = m.graphic.contains("<a:biLevel");
         static const QRegularExpression lum(QStringLiteral("<a:lum\\b([^>]*)/?>"));
@@ -957,6 +959,8 @@ PictureInfo pictureAt(const WriteDoc &doc, const QTextDocument *story, int posit
             info.lineDash = QString::fromLatin1(names[std::clamp(int(look->stroke.dash), 0, 7)]);
         }
         info.rotation = look->rotation;
+        info.flipH = look->flipH;
+        info.flipV = look->flipV;
     }
     return info;
 }
@@ -3235,6 +3239,89 @@ bool setShapeRotation(WriteDoc &doc, int position, double degrees)
         }
         return false;
     });
+}
+
+namespace {
+// The start tag of the element `raw` begins with, again with the attributes `edit` changed (it says whether it changed any); the rest of `raw` stays as it was.
+bool retagFirst(QByteArray *raw, const std::function<bool(Attributes *)> &edit)
+{
+    const qsizetype gt = raw->indexOf('>');
+    if (gt < 1 || (*raw)[0] != '<') return false;
+    Attributes decls;
+    Attributes attrs = attributesOf(raw->left(gt + 1), &decls);
+    if (!edit(&attrs)) return false;
+    qsizetype nameEnd = 1;
+    while (nameEnd < raw->size() && (*raw)[nameEnd] != ' ' && (*raw)[nameEnd] != '>' && (*raw)[nameEnd] != '/') ++nameEnd;
+    QByteArray start = "<" + raw->mid(1, nameEnd - 1);
+    for (const auto &d : decls) start += " " + d.first + "=" + d.second;
+    start += written(attrs) + ((*raw)[gt - 1] == '/' ? "/>" : ">");
+    *raw = start + raw->mid(gt + 1);
+    return true;
+}
+} // namespace
+
+bool flipObject(WriteDoc &doc, int position, bool horizontal)
+{
+    // (Mirroring turns the other way about, as it does for the other programs' drawings: the flag is toggled and a turn of r degrees becomes 360 - r.)
+    const char *flag = horizontal ? "flipH" : "flipV";
+    auto toggle = [flag](Attributes *attrs) {
+        if (isTrueFlag(attributeValue(*attrs, flag))) removeAttribute(attrs, flag);
+        else setAttribute(attrs, flag, quote("1"));
+        const qint64 rot = attributeValue(*attrs, "rot").toLongLong() % 21600000;
+        if (rot != 0) setAttribute(attrs, "rot", quote(QByteArray::number(21600000 - (rot < 0 ? rot + 21600000 : rot))));
+        return true;
+    };
+    return changePicture(doc, position, [&](Model &m) {
+        if (m.graphic.contains("chart")) return false;
+        if (m.graphic.contains("<wpg:wgp")) {
+            // (A group is flipped by its own frame: the parts inside are drawn mirrored with it.)
+            const qsizetype grp = m.graphic.indexOf("<wpg:grpSpPr");
+            const qsizetype at = grp < 0 ? -1 : m.graphic.indexOf("<a:xfrm", grp);
+            if (at < 0) return false;
+            QByteArray tail = m.graphic.mid(at);
+            if (!retagFirst(&tail, toggle)) return false;
+            m.graphic = m.graphic.left(at) + tail;
+            return true;
+        }
+        SpPr sp;
+        if (!splitSpPr(m.graphic, &sp)) return false;
+        for (SpPr::Child &child : sp.children) {
+            if (child.slot != SlotXfrm) continue;
+            if (!retagFirst(&child.raw, toggle)) return false;
+            m.graphic = joinSpPr(m.graphic, sp);
+            return true;
+        }
+        return false;
+    }, true);
+}
+
+int objectIdAt(const WriteDoc &doc, int position)
+{
+    Inline atom;
+    Model m;
+    const QTextDocument *story = doc.story();
+    if (position < 0 || position + 1 > story->characterCount() - 1) return 0;
+    if (!drawingAtomOf(formatAfter(story, position), &atom) || !parseDrawing(atom.raw, &m)) return 0;
+    return attributeValue(m.docPr, "id").toInt();
+}
+
+QVector<int> objectPositionsOfIds(WriteDoc &doc, const QVector<int> &ids)
+{
+    QVector<int> out(ids.size(), -1);
+    if (ids.isEmpty()) return out;
+    QTextDocument *story = doc.story();
+    const int end = story->characterCount() - 1;
+    int found = 0;
+    for (int p = 0; p < end && found < ids.size(); ++p) {
+        if (story->characterAt(p) != QChar::ObjectReplacementCharacter) continue;
+        const int id = objectIdAt(doc, p);
+        const qsizetype k = id > 0 ? ids.indexOf(id) : -1;
+        if (k >= 0 && out[k] < 0) {
+            out[k] = p;
+            ++found;
+        }
+    }
+    return out;
 }
 
 bool setShapeGradient(WriteDoc &doc, int position, const QString &from, const QString &to, double angle)

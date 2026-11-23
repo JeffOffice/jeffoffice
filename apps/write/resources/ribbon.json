@@ -2307,6 +2307,10 @@
               "keytip": "UP"
             },
             {
+              "large": "arrange.regroup",
+              "keytip": "RG"
+            },
+            {
               "large": "view.selectionPane",
               "keytip": "SP"
             },
@@ -2496,6 +2500,10 @@
             {
               "large": "arrange.ungroup",
               "keytip": "UP"
+            },
+            {
+              "large": "arrange.regroup",
+              "keytip": "RG"
             },
             {
               "large": "view.selectionPane",
@@ -2720,6 +2728,10 @@
             {
               "large": "arrange.ungroup",
               "keytip": "UP"
+            },
+            {
+              "large": "arrange.regroup",
+              "keytip": "RG"
             },
             {
               "large": "view.selectionPane",
