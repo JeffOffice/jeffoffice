@@ -43,6 +43,7 @@ constexpr int kMostLinkEdits = 100000;               // the most links one Remov
 std::atomic<qint64> s_linkBytes{0};
 std::atomic<int> s_mostLinkEdits{0};
 std::atomic<qint64> s_linkSteps{0};
+std::atomic<qint64> s_linkTokens{0};
 
 struct LinkIds {
     QSet<QString> files;    // to addresses outside the file that are not web addresses
@@ -99,7 +100,7 @@ struct Scan {
     qint64 steps = 0;     // the attributes looked at
 };
 
-Scan scanRefs(const QByteArray &x, const LinkIds &ids)
+Scan scanRefs(const QByteArray &x, const LinkIds &ids, const QHash<QByteArray, QByteArray> *outer = nullptr)
 {
     Scan out;
     s_linkBytes += x.size();
@@ -118,8 +119,24 @@ Scan scanRefs(const QByteArray &x, const LinkIds &ids)
     struct Attr {
         qsizetype with, end;
         QByteArrayView name, local, value;
+        bool rel = true;   // (not a prefix this part binds to some other namespace than the relationships')
     };
     QVector<Attr> attrs;
+    // (the namespace prefixes in scope: what each is bound to, and what the declarations of an element put back when it ends)
+    struct Undo {
+        QByteArray prefix, old;
+        bool had;
+    };
+    QHash<QByteArray, QByteArray> bound = outer ? *outer : QHash<QByteArray, QByteArray>();
+    QVector<Undo> log;
+    QVector<qsizetype> frames;
+    auto rollBack = [&](qsizetype to) {
+        while (log.size() > to) {
+            const Undo u = log.takeLast();
+            if (u.had) bound.insert(u.prefix, u.old);
+            else bound.remove(u.prefix);
+        }
+    };
     qint64 steps = 0;
     int box = 0;
     qsizetype i = 0;
@@ -143,6 +160,7 @@ Scan scanRefs(const QByteArray &x, const LinkIds &ids)
             qsizetype ne = lt + 2;
             while (ne < e && !space(d[ne])) ++ne;
             if (localOf(lt + 2, ne) == QByteArrayView("txbxContent") && box > 0) --box;
+            if (!frames.isEmpty()) rollBack(frames.takeLast());
             i = e + 1;
             continue;
         }
@@ -179,15 +197,29 @@ Scan scanRefs(const QByteArray &x, const LinkIds &ids)
         if (!ended) { out.broken = true; break; }
         i = p;
         if (tag == QByteArrayView("txbxContent") && !self) ++box;
-        // (one pass over the element's attributes: whether a part of the file is named beside a link)
-        bool beside = false;
+        // (one pass over the element's attributes: the namespaces it declares, and whether a part of the file is named beside a link)
+        const qsizetype frame = log.size();
         for (const Attr &a : std::as_const(attrs)) {
             ++steps;
-            if (!beside && (a.local == QByteArrayView("embed") || a.local == QByteArrayView("id") || a.local == QByteArrayView("pict")) && a.value.size() <= 64)
+            if (a.name.startsWith("xmlns") && (a.name.size() == 5 || a.name[5] == ':')) {
+                const QByteArray prefix = a.name.size() == 5 ? QByteArray() : QByteArray(a.name.sliced(6));
+                const auto had = bound.constFind(prefix);
+                log.push_back({prefix, had == bound.cend() ? QByteArray() : *had, had != bound.cend()});
+                bound.insert(prefix, QByteArray(a.value));
+            }
+        }
+        bool beside = false;
+        for (Attr &a : attrs) {
+            // (a prefix that is bound to another namespace than the relationships' names no relationship)
+            if (const qsizetype colon = a.name.indexOf(':'); colon > 0) {
+                const auto to = bound.constFind(QByteArray(a.name.first(colon)));
+                a.rel = to == bound.cend() || to->endsWith("/officeDocument/2006/relationships") || to->endsWith("/ooxml/officeDocument/relationships");
+            }
+            if (a.rel && !beside && (a.local == QByteArrayView("embed") || a.local == QByteArrayView("id") || a.local == QByteArrayView("pict")) && a.value.size() <= 64)
                 beside = ids.inside.contains(QString::fromLatin1(a.value));
         }
         for (const Attr &a : std::as_const(attrs)) {
-            if (a.value.isEmpty() || a.value.size() > 64) continue;
+            if (!a.rel || a.value.isEmpty() || a.value.size() > 64) continue;
             const QString id = QString::fromLatin1(a.value);
             const bool linkish = a.name.contains(':') && (a.local == QByteArrayView("link") || a.local == QByteArrayView("href"));
             if (ids.files.contains(id)) {
@@ -202,9 +234,32 @@ Scan scanRefs(const QByteArray &x, const LinkIds &ids)
                 ++out.unresolved;
             }
         }
+        if (self) rollBack(frame);
+        else frames.push_back(frame);
     }
     out.steps = steps;
     s_linkSteps += steps;
+    return out;
+}
+
+// The namespace prefixes the first element of a part declares (what a piece of the part, looked through alone, takes its prefixes from).
+QHash<QByteArray, QByteArray> rootNamespaces(const QByteArray &part)
+{
+    QHash<QByteArray, QByteArray> out;
+    qsizetype at = 0;
+    for (;;) {
+        at = part.indexOf('<', at);
+        if (at < 0 || at + 1 >= part.size()) return out;
+        if (part[at + 1] != '?' && part[at + 1] != '!') break;
+        ++at;
+    }
+    const QByteArray tag = part.mid(at, std::min<qsizetype>(part.indexOf('>', at) - at, 1 << 16));
+    static const QRegularExpression declaration(QStringLiteral("\\sxmlns(?::([A-Za-z0-9_.-]+))?\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)')"));
+    QRegularExpressionMatchIterator it = declaration.globalMatch(QString::fromLatin1(tag));
+    while (it.hasNext()) {
+        const QRegularExpressionMatch m = it.next();
+        out.insert(m.captured(1).toLatin1(), (m.captured(2).isEmpty() ? m.captured(3) : m.captured(2)).toLatin1());
+    }
     return out;
 }
 
@@ -231,6 +286,8 @@ QByteArray withoutLinks(const QByteArray &x, const QVector<Ref> &refs, int limit
 bool wellFormed(const QByteArray &x, bool fragment, bool utf8Text = false)
 {
     s_linkBytes += x.size();
+    // (a document type with entities is how a few bytes become gigabytes of text: such a part is never edited, and its links are kept and said)
+    if (x.contains("<!ENTITY") || x.contains("<!DOCTYPE")) return false;
     QXmlStreamReader r;
     r.setNamespaceProcessing(false);
     if (fragment) r.addData("<x>");
@@ -238,7 +295,12 @@ bool wellFormed(const QByteArray &x, bool fragment, bool utf8Text = false)
     if (utf8Text) r.addData(QString::fromUtf8(x));
     else r.addData(x);
     if (fragment) r.addData("</x>");
-    while (!r.atEnd()) r.readNext();
+    qint64 tokens = 0;
+    while (!r.atEnd()) {
+        r.readNext();
+        ++tokens;
+    }
+    s_linkTokens += tokens;
     return !r.hasError();
 }
 
@@ -723,7 +785,8 @@ int removeCustomXml(WriteDoc &doc)
 
 qint64 externalLinkBytesScannedForTest() { return s_linkBytes; }
 qint64 externalLinkAttributeStepsForTest() { return s_linkSteps; }
-void resetExternalLinkBytesScannedForTest() { s_linkBytes = 0; s_linkSteps = 0; }
+qint64 externalLinkXmlTokensForTest() { return s_linkTokens; }
+void resetExternalLinkBytesScannedForTest() { s_linkBytes = 0; s_linkSteps = 0; s_linkTokens = 0; }
 void setMostExternalLinkEditsForTest(int most) { s_mostLinkEdits = most; }
 
 namespace {
@@ -837,10 +900,11 @@ int removeExternalLinks(WriteDoc &doc)
             const LinkIds ids = linkIdsOf(p.rels, true);
             // (the comments in the order of the part, each with what is left of the limit: the same links go from every copy of them)
             int left = p.judged.applied;
+            const QHash<QByteArray, QByteArray> root = rootNamespaces(doc.partData(p.name));
             editKeptCommentXml(doc, [&](const QByteArray &xml) {
                 if (left <= 0) return xml;
                 int done = 0;
-                const QByteArray edited = withoutLinks(xml, scanRefs(xml, ids).refs, left, &done, nullptr);
+                const QByteArray edited = withoutLinks(xml, scanRefs(xml, ids, &root).refs, left, &done, nullptr);
                 left -= done;
                 return edited;
             });

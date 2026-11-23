@@ -2145,6 +2145,103 @@ private Q_SLOTS:
         QCOMPARE(inRels, 0);
     }
 
+    // The prefix of a relationship attribute is the part's own: a part that binds "r" to some other namespace (for the whole part, or for one element) has no relationship in it, and its
+    // attributes are left as they are; the next element, outside that one, is as usual.
+    void inspectIgnoresAPrefixBoundToAnotherNamespace()
+    {
+        const QByteArray rels = "xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"";
+        struct Case {
+            const char *what;
+            QByteArray part;
+            int count;
+        };
+        const QVector<Case> cases = {
+            {"the relationships' namespace", "<d:g xmlns:d=\"urn:t\" " + rels + "><d:pic r:embed=\"rIdCI\" r:link=\"rIdK1\"/></d:g>", 1},
+            {"another namespace for the whole part", "<d:g xmlns:d=\"urn:t\" xmlns:r=\"urn:other\"><d:pic r:embed=\"rIdCI\" r:link=\"rIdK1\"/></d:g>", 0},
+            {"another namespace for one element", "<d:g xmlns:d=\"urn:t\" " + rels + "><d:pic xmlns:r=\"urn:other\" r:embed=\"rIdCI\" r:link=\"rIdK1\"/><d:pic r:embed=\"rIdCI\" r:link=\"rIdK2\"/></d:g>", 1},
+            {"another namespace around a nested element", "<d:g xmlns:d=\"urn:t\" " + rels + "><d:w xmlns:r=\"urn:other\"><d:pic r:embed=\"rIdCI\" r:link=\"rIdK1\"/></d:w><d:pic r:embed=\"rIdCI\" r:link=\"rIdK2\"/></d:g>", 1},
+        };
+        for (const Case &c : cases) {
+            const QVector<Extra> extra = {{QStringLiteral("/word/media/image1.png"), QStringLiteral("image/png"), noisePng(4), kRel + QStringLiteral("image"), QString(), QStringLiteral("rIdI")},
+                                          {QStringLiteral("/word/stuff1.xml"), QStringLiteral("application/vnd.test+xml"), c.part, kRel + QStringLiteral("drawing"), QString(), QStringLiteral("rIdS")},
+                                          {QStringLiteral("/word/media/image1.png"), QString(), QByteArray(), kRel + QStringLiteral("image"), QStringLiteral("/word/stuff1.xml"), QStringLiteral("rIdCI"), false, true},
+                                          outside("file:///C:/ns/one.png", "/word/stuff1.xml", "rIdK1"), outside("file:///C:/ns/two.png", "/word/stuff1.xml", "rIdK2")};
+            WriteWindow w;
+            QString err;
+            w.setDocument(WriteDoc::fromDocx(makeDocx("<w:p><w:r><w:t>B</w:t></w:r></w:p>", extra), &err, nullptr), QString());
+            WriteDoc &doc = *w.document();
+            InspectItem item = linksItem(w);
+            QVERIFY2(item.count() == c.count, c.what);
+            QVERIFY2(item.remove() == c.count, c.what);
+            const QByteArray kept = doc.partData(QStringLiteral("/word/stuff1.xml"));
+            QCOMPARE(kept.count("r:link="), kept.count("<d:pic") - c.count);
+            QVERIFY2(parsesAsXml(kept), c.what);
+            if (QLatin1String(c.what).contains(QLatin1String("one element"))) QVERIFY(kept.contains("r:link=\"rIdK1\"") && !kept.contains("r:link=\"rIdK2\""));
+            if (QLatin1String(c.what).contains(QLatin1String("nested"))) QVERIFY(kept.contains("r:link=\"rIdK1\"") && !kept.contains("r:link=\"rIdK2\""));
+        }
+    }
+
+    // A part with a document type and entities (a few bytes that expand to gigabytes) is never edited, and the check of its edits reads nothing; a part of 50 megabytes is looked through
+    // by a bounded number of bytes and tokens, and its links are found and taken out.
+    void inspectBoundsWhatAHostilePartCosts()
+    {
+        const QByteArray rels = "xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"";
+        QByteArray bomb = "<?xml version=\"1.0\"?><!DOCTYPE d:g [<!ENTITY e0 \"aaaaaaaaaa\">";
+        for (int i = 1; i < 12; ++i) {
+            QByteArray refs;
+            for (int k = 0; k < 10; ++k) refs += "&e" + QByteArray::number(i - 1) + ";";
+            bomb += "<!ENTITY e" + QByteArray::number(i) + " \"" + refs + "\">";
+        }
+        bomb += "]><d:g xmlns:d=\"urn:t\" " + rels + "><d:pic r:embed=\"rIdCI\" r:link=\"rIdK1\"/><d:t>&e11;</d:t></d:g>";
+        QByteArray big = "<d:g xmlns:d=\"urn:t\" " + rels + "><d:pic r:embed=\"rIdCI\" r:link=\"rIdK1\"/>";
+        const QByteArray filler = "<d:r a=\"1\"/>";
+        const int fillers = 50 * 1000 * 1000 / int(filler.size());
+        big.reserve(51 * 1000 * 1000);
+        for (int i = 0; i < fillers; ++i) {
+            big += filler;
+            if (i == fillers / 2) big += "<d:pic r:embed=\"rIdCI\" r:link=\"rIdK2\"/>";
+        }
+        big += "<d:pic r:embed=\"rIdCI\" r:link=\"rIdK3\"/></d:g>";
+        QVERIFY(big.size() >= 50 * 1000 * 1000);
+        struct Case {
+            const char *what;
+            QByteArray part;
+            int count;
+        };
+        const QVector<Case> cases = {{"entities", bomb, 0}, {"50 megabytes", big, 3}};
+        for (const Case &c : cases) {
+            const QVector<Extra> extra = {{QStringLiteral("/word/media/image1.png"), QStringLiteral("image/png"), noisePng(4), kRel + QStringLiteral("image"), QString(), QStringLiteral("rIdI")},
+                                          {QStringLiteral("/word/stuff1.xml"), QStringLiteral("application/vnd.test+xml"), c.part, kRel + QStringLiteral("drawing"), QString(), QStringLiteral("rIdS")},
+                                          {QStringLiteral("/word/media/image1.png"), QString(), QByteArray(), kRel + QStringLiteral("image"), QStringLiteral("/word/stuff1.xml"), QStringLiteral("rIdCI"), false, true},
+                                          outside("file:///C:/big/one.png", "/word/stuff1.xml", "rIdK1"), outside("file:///C:/big/two.png", "/word/stuff1.xml", "rIdK2"), outside("file:///C:/big/three.png", "/word/stuff1.xml", "rIdK3")};
+            WriteWindow w;
+            QString err;
+            w.setDocument(WriteDoc::fromDocx(makeDocx("<w:p><w:r><w:t>B</w:t></w:r></w:p>", extra), &err, nullptr), QString());
+            WriteDoc &doc = *w.document();
+            QVERIFY2(doc.partData(QStringLiteral("/word/stuff1.xml")).size() == c.part.size(), c.what);
+            InspectItem item = linksItem(w);
+            resetExternalLinkBytesScannedForTest();
+            QVERIFY2(item.count() == c.count, c.what);
+            const qint64 size = c.part.size();
+            QVERIFY2(externalLinkBytesScannedForTest() <= 3 * size, qPrintable(QString::number(externalLinkBytesScannedForTest())));
+            QVERIFY2(externalLinkAttributeStepsForTest() <= size / 4, qPrintable(QString::number(externalLinkAttributeStepsForTest())));
+            QVERIFY2(externalLinkXmlTokensForTest() <= size / 3, qPrintable(QString::number(externalLinkXmlTokensForTest())));
+            if (c.count == 0) {
+                QVERIFY2(!item.unread().isEmpty(), c.what);   // (kept and said)
+                QCOMPARE(item.remove(), 0);
+                QCOMPARE(doc.partData(QStringLiteral("/word/stuff1.xml")), c.part);
+                QCOMPARE(externalLinkXmlTokensForTest(), qint64(0));
+            } else {
+                resetExternalLinkBytesScannedForTest();
+                QCOMPARE(item.remove(), c.count);
+                QVERIFY2(externalLinkBytesScannedForTest() <= 8 * size, qPrintable(QString::number(externalLinkBytesScannedForTest())));
+                QVERIFY2(externalLinkXmlTokensForTest() <= size / 3, qPrintable(QString::number(externalLinkXmlTokensForTest())));
+                QVERIFY(!doc.partData(QStringLiteral("/word/stuff1.xml")).contains("r:link="));
+                QCOMPARE(linksItem(w).count(), 0);
+            }
+        }
+    }
+
     void inspectRemovesHeadersAndFooters()
     {
         WriteWindow w;

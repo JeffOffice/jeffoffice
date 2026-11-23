@@ -48,6 +48,7 @@ ExternalLinkScan scanExternalLinks(WriteDoc &doc);
 int removeExternalLinks(WriteDoc &doc);
 // For tests: the bytes of kept XML the link check has looked through since the last reset, and a smaller most-edits limit for Remove All (0 puts the usual one back).
 qint64 externalLinkBytesScannedForTest();
+qint64 externalLinkXmlTokensForTest();       // (the tokens the well-formedness check of edited bytes has read)
 qint64 externalLinkAttributeStepsForTest();   // (the attributes of kept XML the check has looked at: bounded by the bytes, not by the squares of an element's attributes)
 void resetExternalLinkBytesScannedForTest();
 void setMostExternalLinkEditsForTest(int most);
