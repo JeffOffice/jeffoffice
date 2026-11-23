@@ -40,9 +40,6 @@ namespace jp::office::sheet {
 
 namespace {
 
-// The first number a differential format's own number format is given (the code is written with it, and is what is read).
-constexpr int kDxfNumFmtId = 300;
-
 // The cells of the other workbook a link part keeps (its sheetDataSet), with these put in: a cell that is there gets the new value, one that is not is added in its place. False when the part is
 // not one this can change (another kind of link, or too big).
 bool patchExternalLinkValues(const QByteArray &xml, const std::vector<SaveChanges::ExternalCachedCell> &cells, QByteArray *out)
@@ -448,6 +445,250 @@ bool appendToList(QByteArray *xml, const char *container, const QByteArray &item
     return true;
 }
 
+
+// The elements that are directly inside an element: its local name and where it is in `xml` ([start, end)). `from` is just after the element's start tag.
+struct ChildAt {
+    QByteArray local;
+    qsizetype start = 0, end = 0;
+};
+
+std::vector<ChildAt> childrenAfter(const QByteArray &xml, qsizetype from)
+{
+    std::vector<ChildAt> out;
+    Tag t;
+    qsizetype pos = from, childStart = 0;
+    QByteArray childLocal;
+    int depth = 0;
+    while (xmlscan::nextTag(xml, pos, &t)) {
+        pos = t.end;
+        if (t.closing) {
+            if (depth == 0) break;
+            if (--depth == 0) out.push_back({childLocal, childStart, t.end});
+            continue;
+        }
+        if (depth == 0) {
+            childStart = t.start;
+            childLocal = QByteArray(t.local);
+            if (t.selfClosing) {
+                out.push_back({childLocal, childStart, t.end});
+                continue;
+            }
+        }
+        if (!t.selfClosing) ++depth;
+    }
+    return out;
+}
+
+// The number a number format of a differential format is given: the one the file already has the same code under, else one above every number the file uses (a differential format
+// writes its code with its number, and the number must not name another code).
+class DxfNumberFormats {
+public:
+    DxfNumberFormats(const QByteArray &styles, const SaveChanges &changes)
+    {
+        Tag t;
+        qsizetype pos = 0;
+        while (xmlscan::nextTag(styles, pos, &t)) {
+            pos = t.end;
+            if (t.closing) continue;
+            const QByteArrayView tag = QByteArrayView(styles).mid(t.start, t.end - t.start);
+            bool has = false;
+            const QByteArrayView id = xmlscan::attribute(tag, "numFmtId", &has);
+            if (!has) continue;
+            bool ok = false;
+            const int n = QByteArray(id).toInt(&ok);
+            if (!ok) continue;
+            m_next = std::max(m_next, n + 1);
+            bool coded = false;
+            const QByteArrayView code = xmlscan::attribute(tag, "formatCode", &coded);
+            if (t.local == "numFmt" && coded) m_byCode.emplace(QByteArray(code), n);
+        }
+        for (const auto &f : changes.newNumberFormats) {
+            m_next = std::max(m_next, int(f.id) + 1);
+            m_byCode.emplace(xmlscan::escapeAttribute(f.code), int(f.id));
+        }
+    }
+    int idFor(const QString &code)
+    {
+        const QByteArray written = xmlscan::escapeAttribute(code);
+        const auto known = m_byCode.find(written);
+        if (known != m_byCode.end()) return known->second;
+        m_byCode.emplace(written, m_next);
+        return m_next++;
+    }
+
+private:
+    int m_next = 164;
+    std::map<QByteArray, int> m_byCode;
+};
+
+QByteArray dxfFontPieces(const DifferentialFormat &d, bool color)
+{
+    QByteArray underline;
+    if (d.underline) {
+        switch (*d.underline) {
+        case Underline::None: underline = "<u val=\"none\"/>"; break;
+        case Underline::Single: underline = "<u/>"; break;
+        case Underline::Double: underline = "<u val=\"double\"/>"; break;
+        case Underline::SingleAccounting: underline = "<u val=\"singleAccounting\"/>"; break;
+        case Underline::DoubleAccounting: underline = "<u val=\"doubleAccounting\"/>"; break;
+        }
+    }
+    if (color) return d.fontColor.isSet() ? colorXml("color", d.fontColor) : QByteArray();
+    return QByteArray(d.bold ? (*d.bold ? "<b/>" : "<b val=\"0\"/>") : "") + QByteArray(d.italic ? (*d.italic ? "<i/>" : "<i val=\"0\"/>") : "")
+           + QByteArray(d.strike ? (*d.strike ? "<strike/>" : "<strike val=\"0\"/>") : "") + underline;
+}
+
+QByteArray dxfFillElement(const DifferentialFormat &d)
+{
+    if (!d.hasFill) return QByteArray();
+    if (d.fill.pattern != PatternKind::None && d.fill.pattern != PatternKind::Solid && !d.fill.gradient) return fillXml(d.fill);
+    const ColorSpec &c = d.fill.bg.isSet() ? d.fill.bg : d.fill.fg;
+    if (!c.isSet()) return QByteArray();   // (a solid fill with no color would be written as a fill of nothing)
+    return "<fill><patternFill patternType=\"solid\">" + colorXml("fgColor", c) + colorXml("bgColor", c) + "</patternFill></fill>";
+}
+
+DifferentialFormat onlyFont(const DifferentialFormat &d)
+{
+    DifferentialFormat o;
+    o.bold = d.bold;
+    o.italic = d.italic;
+    o.strike = d.strike;
+    o.underline = d.underline;
+    o.fontColor = d.fontColor;
+    return o;
+}
+DifferentialFormat onlyFill(const DifferentialFormat &d)
+{
+    DifferentialFormat o;
+    o.hasFill = d.hasFill;
+    o.fill = d.fill;
+    return o;
+}
+DifferentialFormat onlyBorder(const DifferentialFormat &d)
+{
+    DifferentialFormat o;
+    o.hasBorder = d.hasBorder;
+    o.border = d.border;
+    return o;
+}
+DifferentialFormat onlyNumber(const DifferentialFormat &d)
+{
+    DifferentialFormat o;
+    o.numberFormat = d.numberFormat;
+    return o;
+}
+
+// An element's start tag as an opening tag (a self-closing one is opened), and the elements inside it.
+bool openedElement(const QByteArray &raw, QByteArray *openTag, std::vector<ChildAt> *kids)
+{
+    Tag open;
+    if (!xmlscan::nextTag(raw, 0, &open) || open.closing) return false;
+    *openTag = raw.left(open.end);
+    kids->clear();
+    if (open.selfClosing) {
+        openTag->chop(2);
+        while (!openTag->isEmpty() && isSpace(openTag->back())) openTag->chop(1);
+        *openTag += ">";
+    } else {
+        *kids = childrenAfter(raw, open.end);
+    }
+    return true;
+}
+
+// The differential format `d` written as the file's own element `raw` made to be it: only the parts that differ from `base` (what the model held of the element) are changed; everything
+// else the element says (a gradient, a font's name and size, an alignment, a protection, an extension) stays as it was. False when the element cannot be read.
+bool carriedDxf(const QByteArray &raw, const DifferentialFormat &d, const DifferentialFormat &base, const QByteArray &p, DxfNumberFormats *numbers, QByteArray *out)
+{
+    QByteArray openTag;
+    std::vector<ChildAt> kids;
+    if (!openedElement(raw, &openTag, &kids)) return false;
+    QByteArray font, number, fill, alignment, border, protection, extension, others;
+    for (const ChildAt &k : kids) {
+        const QByteArray bytes = raw.mid(k.start, k.end - k.start);
+        QByteArray &slot = k.local == "font" ? font : k.local == "numFmt" ? number : k.local == "fill" ? fill : k.local == "alignment" ? alignment : k.local == "border" ? border
+                           : k.local == "protection" ? protection : k.local == "extLst" ? extension : others;
+        slot += bytes;
+    }
+    if (!sameDifferentialLook(onlyFont(d), onlyFont(base))) {
+        // (each of the box's font settings that the person changed is taken out and put in again as it is now, in the order the standard lists the font's settings; the others stay where they are)
+        QByteArray fontTag = "<" + p + "font>";
+        std::vector<ChildAt> inside;
+        if (!font.isEmpty()) openedElement(font, &fontTag, &inside);
+        const QByteArray order[] = {"b", "i", "strike", "condense", "extend", "outline", "shadow", "u", "vertAlign", "sz", "color", "name", "family", "charset", "scheme"};
+        auto rank = [&](const QByteArray &local) {
+            for (size_t i = 0; i < std::size(order); ++i)
+                if (order[i] == local) return int(i);
+            return 99;
+        };
+        const bool boldChanged = d.bold != base.bold, italicChanged = d.italic != base.italic, strikeChanged = d.strike != base.strike, underlineChanged = d.underline != base.underline;
+        const bool colorChanged = d.fontColor != base.fontColor;
+        auto changed = [&](const QByteArray &local) {
+            return (local == "b" && boldChanged) || (local == "i" && italicChanged) || (local == "strike" && strikeChanged) || (local == "u" && underlineChanged) || (local == "color" && colorChanged);
+        };
+        std::vector<std::pair<int, QByteArray>> parts;   // (the rank of each element, and its bytes)
+        for (const ChildAt &c : inside)
+            if (!changed(c.local)) parts.push_back({rank(c.local), font.mid(c.start, c.end - c.start)});
+        auto put = [&](const char *local, bool isChanged, const QByteArray &piece) {
+            if (!isChanged || piece.isEmpty()) return;
+            const int mine = rank(local);
+            size_t at = 0;
+            while (at < parts.size() && parts[at].first <= mine) ++at;
+            parts.insert(parts.begin() + at, {mine, prefixed(piece, p)});
+        };
+        auto style = [&](const char *local) {
+            const QByteArray all = dxfFontPieces(d, false);
+            QByteArray one;
+            Tag t;
+            qsizetype pos = 0;
+            while (xmlscan::nextTag(all, pos, &t)) {
+                pos = t.end;
+                if (t.local == local) one = all.mid(t.start, t.end - t.start);
+            }
+            return one;
+        };
+        put("b", boldChanged, style("b"));
+        put("i", italicChanged, style("i"));
+        put("strike", strikeChanged, style("strike"));
+        put("u", underlineChanged, style("u"));
+        put("color", colorChanged, dxfFontPieces(d, true));
+        QByteArray inner;
+        for (const auto &part : parts) inner += part.second;
+        font = inner.isEmpty() ? QByteArray() : fontTag + inner + "</" + p + "font>";
+    }
+    if (!sameDifferentialLook(onlyNumber(d), onlyNumber(base)))
+        number = d.numberFormat ? "<" + p + "numFmt numFmtId=\"" + QByteArray::number(numbers->idFor(*d.numberFormat)) + "\" formatCode=\"" + xmlscan::escapeAttribute(*d.numberFormat) + "\"/>" : QByteArray();
+    if (!sameDifferentialLook(onlyFill(d), onlyFill(base))) fill = prefixed(dxfFillElement(d), p);
+    if (!sameDifferentialLook(onlyBorder(d), onlyBorder(base))) {
+        // (the lines inside a range of cells are not the box's: they stay)
+        QByteArray inside;
+        std::vector<ChildAt> sides;
+        QByteArray borderTag;
+        if (!border.isEmpty() && openedElement(border, &borderTag, &sides))
+            for (const ChildAt &c : sides)
+                if (c.local == "vertical" || c.local == "horizontal") inside += border.mid(c.start, c.end - c.start);
+        border.clear();
+        if (d.hasBorder) {
+            QByteArray made = prefixed(borderXml(d.border), p);
+            const QByteArray close = "</" + p + "border>";
+            if (made.endsWith(close)) made.insert(made.size() - close.size(), inside);
+            border = made;
+        }
+    }
+    *out = openTag + font + number + fill + alignment + border + protection + extension + others + "</" + p + "dxf>";
+    return true;
+}
+
+// A differential format as the model holds it, written whole.
+QByteArray freshDxf(const DifferentialFormat &d, const QByteArray &p, DxfNumberFormats *numbers)
+{
+    QByteArray one = "<dxf>";
+    if (d.fontColor.isSet() || d.bold || d.italic || d.strike || d.underline) one += "<font>" + dxfFontPieces(d, false) + dxfFontPieces(d, true) + "</font>";
+    if (d.numberFormat) one += "<numFmt numFmtId=\"" + QByteArray::number(numbers->idFor(*d.numberFormat)) + "\" formatCode=\"" + xmlscan::escapeAttribute(*d.numberFormat) + "\"/>";
+    one += dxfFillElement(d);
+    if (d.hasBorder) one += borderXml(d.border);
+    one += "</dxf>";
+    return prefixed(one, p);
+}
 } // namespace
 
 bool patchStyles(const QByteArray &xml, const SaveChanges &changes, QByteArray *out, QString *error)
@@ -650,29 +891,25 @@ bool patchStyles(const QByteArray &xml, const SaveChanges &changes, QByteArray *
     }
     if (!changes.newDxfs.isEmpty()) {
         QByteArray items;
-        int dxfNumber = 0;   // (a number format of a differential format names its own code; the number only has to be one the file's own formats do not use)
+        DxfNumberFormats numbers(xml, changes);
+        std::vector<ChildAt> inFile;   // (the entries the file has, found when one is carried)
+        bool listed = false;
         for (const DifferentialFormat &d : changes.newDxfs) {
-            QByteArray one = "<dxf>";
-            if (d.fontColor.isSet() || d.bold || d.italic || d.strike || d.underline) {
-                QByteArray underline;
-                if (d.underline) {
-                    switch (*d.underline) {
-                    case Underline::None: underline = "<u val=\"none\"/>"; break;
-                    case Underline::Single: underline = "<u/>"; break;
-                    case Underline::Double: underline = "<u val=\"double\"/>"; break;
-                    case Underline::SingleAccounting: underline = "<u val=\"singleAccounting\"/>"; break;
-                    case Underline::DoubleAccounting: underline = "<u val=\"doubleAccounting\"/>"; break;
-                    }
+            QByteArray one;
+            const auto base = changes.dxfBases.find(d.baseEntry);
+            if (d.baseEntry >= 0 && base != changes.dxfBases.end()) {
+                if (!listed) {
+                    Tag list;
+                    if (findStart(xml, "dxfs", &list) && !list.selfClosing) inFile = childrenAfter(xml, list.end);
+                    listed = true;
                 }
-                one += "<font>" + QByteArray(d.bold ? (*d.bold ? "<b/>" : "<b val=\"0\"/>") : "") + QByteArray(d.italic ? (*d.italic ? "<i/>" : "<i val=\"0\"/>") : "")
-                       + QByteArray(d.strike ? (*d.strike ? "<strike/>" : "<strike val=\"0\"/>") : "") + underline + (d.fontColor.isSet() ? colorXml("color", d.fontColor) : QByteArray()) + "</font>";
+                if (size_t(d.baseEntry) < inFile.size() && inFile[size_t(d.baseEntry)].local == "dxf" &&
+                    carriedDxf(xml.mid(inFile[size_t(d.baseEntry)].start, inFile[size_t(d.baseEntry)].end - inFile[size_t(d.baseEntry)].start), d, base->second, p, &numbers, &one)) {
+                    items += one;
+                    continue;
+                }
             }
-            if (d.numberFormat) one += "<numFmt numFmtId=\"" + QByteArray::number(kDxfNumFmtId + dxfNumber++) + "\" formatCode=\"" + xmlscan::escapeAttribute(*d.numberFormat) + "\"/>";
-            if (d.hasFill && d.fill.pattern != PatternKind::None && d.fill.pattern != PatternKind::Solid && !d.fill.gradient) one += fillXml(d.fill);
-            else if (d.hasFill) one += "<fill><patternFill patternType=\"solid\">" + colorXml("fgColor", d.fill.bg.isSet() ? d.fill.bg : d.fill.fg) + colorXml("bgColor", d.fill.bg.isSet() ? d.fill.bg : d.fill.fg) + "</patternFill></fill>";
-            if (d.hasBorder) one += borderXml(d.border);
-            one += "</dxf>";
-            items += prefixed(one, p);
+            items += freshDxf(d, p, &numbers);
         }
         Tag dxfsTag;
         if (findStart(result, "dxfs", &dxfsTag, 0)) {

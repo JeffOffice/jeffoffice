@@ -115,8 +115,7 @@ bool askCondLook(QWidget *parent, const CondLookContext &context, const Differen
 
 bool sameCondLook(const DifferentialFormat &a, const DifferentialFormat &b)
 {
-    return a.bold == b.bold && a.italic == b.italic && a.strike == b.strike && a.underline == b.underline && a.fontColor == b.fontColor && a.hasFill == b.hasFill && (!a.hasFill || a.fill == b.fill) &&
-           a.hasBorder == b.hasBorder && (!a.hasBorder || a.border == b.border) && a.numberFormat == b.numberFormat;
+    return sameDifferentialLook(a, b);   // (as it is written: a solid fill keeps its color in one of the two places, and a file read back has it in both)
 }
 
 CondLookBox::CondLookBox(bool editing, const DifferentialFormat &current, QWidget *parent) : QWidget(parent), m_editing(editing), m_current(current)

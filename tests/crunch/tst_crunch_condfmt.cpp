@@ -44,13 +44,13 @@ namespace {
 //   3    3      cherry   45000
 //   4    4      apple    (empty)
 //   5    5      (empty)  2
-QByteArray condBook(const QString &after = QString(), const QString &dxfs = QString())
+QByteArray condBook(const QString &after = QString(), const QString &dxfs = QString(), const QString &numFmts = QString())
 {
     const QString lists = QStringLiteral("<fonts count=\"1\"><font><sz val=\"11\"/><name val=\"Calibri\"/><family val=\"2\"/><scheme val=\"minor\"/></font></fonts>"
                                          "<fills count=\"2\"><fill><patternFill patternType=\"none\"/></fill><fill><patternFill patternType=\"gray125\"/></fill></fills>"
                                          "<borders count=\"1\"><border><left/><right/><top/><bottom/><diagonal/></border></borders>"
                                          "<cellStyles count=\"1\"><cellStyle name=\"Normal\" xfId=\"0\" builtinId=\"0\"/></cellStyles>") + dxfs;
-    const QByteArray styles = stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\"/>"), lists);
+    const QByteArray styles = stylesXml(numFmts, QStringLiteral("<xf numFmtId=\"0\" fontId=\"0\" fillId=\"0\" borderId=\"0\" xfId=\"0\"/>"), lists);
     const char *fruit[] = {"apple", "banana", "cherry", "apple", nullptr};
     QString rows;
     for (int r = 1; r <= 5; ++r) {
@@ -375,6 +375,44 @@ void editFirstRule(EditWindow &e)
     run(e, "cond.manage");
 }
 
+
+// The differential formats of a styles part, each as written.
+QList<QByteArray> dxfEntries(const QByteArray &styles)
+{
+    QList<QByteArray> out;
+    const qsizetype from = styles.indexOf("<dxfs"), to = styles.indexOf("</dxfs>");
+    if (from < 0 || to < 0) return out;
+    const QByteArray list = styles.mid(from, to - from);
+    qsizetype at = list.indexOf("<dxf>");
+    while (at >= 0) {
+        const qsizetype end = list.indexOf("</dxf>", at);
+        if (end < 0) break;
+        out << list.mid(at, end + 6 - at);
+        at = list.indexOf("<dxf>", end);
+    }
+    return out;
+}
+
+// The first rule's look changed by `change`, as the Format Cells box would: the look the rule has, with only what the person changed put in.
+void changeFirstRuleLook(EditWindow &e, const std::function<void(DifferentialFormat *)> &change)
+{
+    e.win.w.setCondSpecAsker([change](CondSpec *s, bool) {
+        s->keepLook = false;
+        s->useCustom = true;
+        s->custom = s->currentLook;
+        change(&s->custom);
+        return true;
+    });
+    editFirstRule(e);
+}
+
+// A look that is only a font color, a different one for each number.
+DifferentialFormat numberedLook(int n)
+{
+    DifferentialFormat d;
+    d.fontColor = ColorSpec::fromRgb(0x100000 + quint32(n) * 7);
+    return d;
+}
 } // namespace
 
 class CrunchCondFormatTests : public QObject {
@@ -1170,6 +1208,227 @@ private Q_SLOTS:
         QVERIFY(savedSheet(same.path).contains("dxfId=\"0\""));
     }
 
+    // A rule from a file whose look has parts the box does not hold (a gradient fill, a font's name, size, and raised text, an alignment, a protection, a line across the corner): changing
+    // only the italic writes a new entry that is the file's own with the italic put in, every other byte as the file had it, and it never writes a solid fill with no color.
+    void aFilesLookKeepsEveryPartTheBoxDoesNotHold()
+    {
+        const QByteArray base = "<dxf><font><b/><sz val=\"14\"/><vertAlign val=\"superscript\"/><color rgb=\"FF336699\"/><name val=\"Cambria\"/></font><numFmt numFmtId=\"164\" formatCode=\"0.0\"/>"
+                                "<fill><gradientFill degree=\"90\"><stop position=\"0\"><color rgb=\"FFFF0000\"/></stop><stop position=\"1\"><color rgb=\"FF0000FF\"/></stop></gradientFill></fill>"
+                                "<alignment horizontal=\"center\" indent=\"1\"/>"
+                                "<border diagonalDown=\"1\"><left style=\"thin\"><color rgb=\"FF00AA00\"/></left><right/><top/><bottom/><diagonal style=\"thin\"><color rgb=\"FF112233\"/></diagonal></border>"
+                                "<protection locked=\"0\" hidden=\"1\"/></dxf>";
+        const QString dxf = QStringLiteral("<dxfs count=\"1\">") + QString::fromLatin1(base) + QStringLiteral("</dxfs>");
+        const QString tail = QStringLiteral("<conditionalFormatting sqref=\"A1:A5\"><cfRule type=\"cellIs\" dxfId=\"0\" priority=\"1\" operator=\"greaterThan\"><formula>3</formula></cfRule></conditionalFormatting>");
+        {
+            EditWindow e;
+            QVERIFY(e.open(condBook(tail, dxf)));
+            changeFirstRuleLook(e, [](DifferentialFormat *d) { d->italic = true; });
+            QVERIFY2(e.win.told.isEmpty(), qPrintable(e.win.told.join('|')));
+            QVERIFY(saveThrough(e));
+            const QByteArray styles = savedPart(e.path, QStringLiteral("xl/styles.xml"));
+            const QList<QByteArray> entries = dxfEntries(styles);
+            QCOMPARE(int(entries.size()), 2);
+            QCOMPARE(entries[0], base);
+            QByteArray want = base;
+            want.replace("<font><b/>", "<font><b/><i/>");
+            QCOMPARE(entries[1], want);
+            QVERIFY(!styles.contains("<patternFill patternType=\"solid\"></patternFill>"));
+            QVERIFY(savedSheet(e.path).contains("dxfId=\"1\""));
+            EditWindow again;
+            QVERIFY(again.open(fileBytes(e.path)));
+            QVERIFY(firstRuleLook(again).italic.value_or(false));
+        }
+        {
+            // a fill the person sets replaces the gradient (what they asked), and nothing else of the entry moves
+            EditWindow e;
+            QVERIFY(e.open(condBook(tail, dxf)));
+            changeFirstRuleLook(e, [](DifferentialFormat *d) {
+                d->hasFill = true;
+                d->fill = FillSpec();
+                d->fill.pattern = PatternKind::Solid;
+                d->fill.fg = d->fill.bg = ColorSpec::fromRgb(0xFF0000);
+            });
+            QVERIFY(saveThrough(e));
+            const QList<QByteArray> entries = dxfEntries(savedPart(e.path, QStringLiteral("xl/styles.xml")));
+            QCOMPARE(int(entries.size()), 2);
+            QByteArray want = base;
+            const qsizetype from = want.indexOf("<fill>"), to = want.indexOf("</fill>") + 7;
+            want.replace(from, to - from, "<fill><patternFill patternType=\"solid\"><fgColor rgb=\"FFFF0000\"/><bgColor rgb=\"FFFF0000\"/></patternFill></fill>");
+            QCOMPARE(entries[1], want);
+        }
+        {
+            // a look the person leaves as it is stays the file's entry (no new one)
+            EditWindow e;
+            QVERIFY(e.open(condBook(tail, dxf)));
+            changeFirstRuleLook(e, [](DifferentialFormat *) {});
+            QVERIFY(saveThrough(e));
+            QCOMPARE(int(dxfEntries(savedPart(e.path, QStringLiteral("xl/styles.xml"))).size()), 1);
+        }
+    }
+
+    // The number a differential format gives its number format is one above every number the file uses, is the file's own number when it has the code, and is kept by a later save that adds
+    // another code.
+    void differentialNumberFormatsAreNumberedAboveEveryNumberTheFileUses()
+    {
+        const QString numFmts = QStringLiteral("<numFmt numFmtId=\"300\" formatCode=\"0.0000\"/>");
+        EditWindow e;
+        QVERIFY(e.open(condBook(QString(), QString(), numFmts)));
+        auto look = [](const char *code) {
+            DifferentialFormat d;
+            d.numberFormat = QString::fromLatin1(code);
+            return d;
+        };
+        auto idsOf = [&]() {
+            QList<int> ids;
+            static const QRegularExpression pattern(QStringLiteral("numFmtId=\"(\\d+)\""));
+            for (const QByteArray &entry : dxfEntries(savedPart(e.path, QStringLiteral("xl/styles.xml")))) {
+                const QRegularExpressionMatch m = pattern.match(QString::fromLatin1(entry));
+                ids << (m.hasMatch() ? m.captured(1).toInt() : -1);
+            }
+            return ids;
+        };
+        QVERIFY(newRuleWithLook(e, QStringLiteral("A1:A5"), QStringLiteral("2"), look("0.00")));
+        QVERIFY(saveThrough(e));
+        QList<int> ids = idsOf();
+        QCOMPARE(int(ids.size()), 1);
+        QVERIFY2(ids[0] > 300, "the number is not above the file's own");
+        const int first = ids[0];
+        QVERIFY(newRuleWithLook(e, QStringLiteral("C1:C5"), QStringLiteral("2"), look("0.000")));
+        QVERIFY(saveThrough(e));
+        ids = idsOf();
+        QCOMPARE(int(ids.size()), 2);
+        QCOMPARE(ids[0], first);                  // (the first look keeps its number)
+        QVERIFY(ids[1] > first && ids[1] != 300);
+        QVERIFY(newRuleWithLook(e, QStringLiteral("B1:B5"), QStringLiteral("2"), look("0.0000")));
+        QVERIFY(saveThrough(e));
+        ids = idsOf();
+        QCOMPARE(int(ids.size()), 3);
+        QCOMPARE(ids[2], 300);                    // (the file has that code under 300)
+        EditWindow again;
+        QVERIFY(again.open(fileBytes(e.path)));
+        QCOMPARE(again.win.w.session()->condLookOf(again.win.w.session()->condRules(0).last()).numberFormat.value_or(QString()), QStringLiteral("0.00"));
+    }
+
+    // Looks that no rule, table style, or color filter uses any more are not written, wherever they are among the looks: 50 looks made, the rules deleted but the first and the last, and exactly the
+    // two looks they use are written; a second round on the saved file adds two more; a table style's look is written too; and the looks of rules an Undo brings back after a save are written by the
+    // next save.
+    void looksNothingUsesAreNotWritten()
+    {
+        auto round = [&](EditWindow &e, int base) {
+            QVERIFY(newRuleWithLook(e, QStringLiteral("E1:E5"), QStringLiteral("2"), numberedLook(base)));            // (kept: made first)
+            for (int i = 1; i < 49; ++i) QVERIFY(newRuleWithLook(e, QStringLiteral("A1:A5"), QStringLiteral("2"), numberedLook(base + i)));
+            QVERIFY(newRuleWithLook(e, QStringLiteral("F1:F5"), QStringLiteral("2"), numberedLook(base + 49)));       // (kept: made last)
+            QVERIFY(e.win.w.session()->clearCondRules(0, rangeOf(QStringLiteral("A1:C5"))).ok);
+            QCOMPARE(int(e.win.w.session()->condRules(0).size()), 2 + (base > 0 ? 2 : 0));
+        };
+        auto looksOf = [](EditWindow &e) {
+            QList<quint32> colors;
+            for (const CondRule &r : e.win.w.session()->condRules(0)) colors << quint32(e.win.w.session()->condLookOf(r).fontColor.rgb & 0xFFFFFF);
+            std::sort(colors.begin(), colors.end());
+            return colors;
+        };
+        auto colorOf = [](int n) { return quint32(numberedLook(n).fontColor.rgb & 0xFFFFFF); };
+        EditWindow e;
+        QVERIFY(e.open(condBook()));
+        round(e, 0);
+        crunch::EditSession *session = e.win.w.session();
+        // a table style with a look of its own
+        QVERIFY(session->makeTable(0, rangeOf(QStringLiteral("A1:C5")), true, QString()).ok);
+        QVector<jp::office::sheet::Workbook::TableStylePart> parts;
+        jp::office::sheet::Workbook::TableStylePart part;
+        part.part = TablePart::HeaderRow;
+        part.format = numberedLook(2000);
+        parts << part;
+        QVERIFY(session->defineTableStyle(QStringLiteral("Mine"), parts).ok);
+        QVERIFY(saveThrough(e));
+        QCOMPARE(int(dxfEntries(savedPart(e.path, QStringLiteral("xl/styles.xml"))).size()), 3);   // (two rules' looks and the table style's)
+        {
+            EditWindow again;
+            QVERIFY(again.open(fileBytes(e.path)));
+            QCOMPARE(looksOf(again), (QList<quint32>{colorOf(0), colorOf(49)}));
+            bool mine = false;
+            for (const jp::office::sheet::CustomTableStyle &c : again.win.w.session()->workbook()->styles().tableStyles) mine = mine || c.name == QStringLiteral("Mine");
+            QVERIFY(mine);
+            // the second round, on the saved file
+            round(again, 100);
+            QVERIFY(saveThrough(again));
+            QCOMPARE(int(dxfEntries(savedPart(again.path, QStringLiteral("xl/styles.xml"))).size()), 5);
+            EditWindow third;
+            QVERIFY(third.open(fileBytes(again.path)));
+            QCOMPARE(looksOf(third), (QList<quint32>{colorOf(0), colorOf(49), colorOf(100), colorOf(149)}));
+        }
+        // the first window goes on after its save: its rules keep their looks, the rules cleared come back by Undo, and the next save writes their looks
+        QCOMPARE(looksOf(e), (QList<quint32>{colorOf(0), colorOf(49)}));
+        for (int i = 0; i < 5 && session->condRules(0).size() != 50; ++i) e.win.w.undoStack()->undo();   // (the table style, the table, then the clearing)
+        QCOMPARE(int(session->condRules(0).size()), 50);
+        QVERIFY(saveThrough(e));
+        EditWindow undone;
+        QVERIFY(undone.open(fileBytes(e.path)));
+        QList<quint32> want;
+        for (int i = 0; i < 50; ++i) want << colorOf(i);
+        std::sort(want.begin(), want.end());
+        QCOMPARE(looksOf(undone), want);
+    }
+
+    // A color filter keeps the look it names through a save: its differential format is written once and the filter reads back with the same color.
+    void aColorFilterKeepsItsLookThroughASave()
+    {
+        EditWindow e;
+        QVERIFY(e.open(condBook()));
+        jp::office::sheet::AutoFilter f;
+        f.ref = rangeOf(QStringLiteral("A1:C5"));
+        jp::office::sheet::FilterColumn c;
+        c.kind = jp::office::sheet::FilterColumn::Kind::Color;
+        c.column = 0;
+        c.color = ColorSpec::fromRgb(0xFF0000);
+        f.columns.append(c);
+        const crunch::EditSession::Outcome o = e.win.w.session()->setFilter(0, f, QStringLiteral("Filtering"));
+        QVERIFY2(o.ok, qPrintable(o.problem));
+        QVERIFY(saveThrough(e));
+        QCOMPARE(int(dxfEntries(savedPart(e.path, QStringLiteral("xl/styles.xml"))).size()), 1);
+        EditWindow again;
+        QVERIFY(again.open(fileBytes(e.path)));
+        const jp::office::sheet::AutoFilter back = again.win.w.session()->calculation()->autoFilterOf(0);
+        QCOMPARE(int(back.columns.size()), 1);
+        QVERIFY(back.columns[0].dxf >= 0);
+        QVERIFY(again.win.w.session()->workbook()->styles().dxfs[back.columns[0].dxf].fill.bg == ColorSpec::fromRgb(0xFF0000));
+    }
+
+    // Two looks that are the same on the screen and in the written bytes are one entry: a solid fill whose color is kept as the foreground and one whose color is kept as the background.
+    void looksThatAreWrittenTheSameShareOneEntry()
+    {
+        EditWindow e;
+        QVERIFY(e.open(condBook()));
+        DifferentialFormat fg, bg;
+        fg.hasFill = bg.hasFill = true;
+        fg.fill.pattern = bg.fill.pattern = PatternKind::Solid;
+        fg.fill.fg = ColorSpec::fromRgb(0x00AA00);
+        bg.fill.bg = ColorSpec::fromRgb(0x00AA00);
+        QVERIFY(newRuleWithLook(e, QStringLiteral("A1:A5"), QStringLiteral("2"), fg));
+        QVERIFY(newRuleWithLook(e, QStringLiteral("C1:C5"), QStringLiteral("2"), bg));
+        QVERIFY(saveThrough(e));
+        QCOMPARE(int(dxfEntries(savedPart(e.path, QStringLiteral("xl/styles.xml"))).size()), 1);
+    }
+
+    // Every ready-made look is still the ready-made look after the workbook is saved and opened again: the rule's list says "Keep the current look", not "Custom Format".
+    void everyReadyMadeLookIsRecognizedAfterASaveAndReopen()
+    {
+        for (int i = 0; i < condpresets::lookCount(); ++i) {
+            EditWindow e;
+            QVERIFY(e.open(condBook()));
+            QVERIFY(newRuleWithLook(e, QStringLiteral("A1:A5"), QStringLiteral("2"), condpresets::lookOf(i)));
+            QVERIFY(saveThrough(e));
+            EditWindow again;
+            QVERIFY(again.open(fileBytes(e.path)));
+            const QVector<CondRule> rules = again.win.w.session()->condRules(0);
+            QCOMPARE(int(rules.size()), 1);
+            CondSpec spec = specOfRule(rules.first());
+            spec.currentLook = again.win.w.session()->condLookOf(rules.first());
+            CondRuleDialog dialog(spec, true);
+            QVERIFY2(dialog.lookBox()->list()->itemText(0) == QStringLiteral("Keep the current look"), qPrintable(QStringLiteral("look %1 reads back as %2").arg(i).arg(dialog.lookBox()->list()->itemText(0))));
+        }
+    }
+
     // The list "Cells look like this" has Custom Format...; choosing it opens the box with the look that was shown, a cancelled box leaves the list where it was, and an answer is the look of the rule
     // and of the sample. A quick rule (Greater Than and the others) takes the look the same way.
     void theLookListOffersCustomFormatAndAsksForTheLook()
@@ -1297,6 +1556,12 @@ private Q_SLOTS:
         QCOMPARE(a1.fg & 0xFFFFFF, 0x00FF00u);                              // (the first rule's fill)
         QVERIFY(a1.left.style != BorderStyle::None && a1.right.style != BorderStyle::None && a1.top.style != BorderStyle::None && a1.bottom.style != BorderStyle::None);
         QVERIFY(a1.hasFormat);
+        const std::optional<grid::Cell> a1Cell = gs.cellAt(0, 0);
+        QVERIFY(a1Cell);
+        QCOMPARE(gs.textOf(0, 0, *a1Cell), QStringLiteral("1.00"));         // (the rule's number format is what the cell shows)
+        const std::optional<grid::Cell> a4Cell = gs.cellAt(3, 0);
+        QVERIFY(a4Cell);
+        QVERIFY(gs.textOf(3, 0, *a4Cell) != QStringLiteral("4.00"));        // (and a cell the rule is not for shows its own)
         const grid::CellLook &a4 = lookAt(3, 0);
         QCOMPARE(a4.textColor & 0xFFFFFF, 0xFF00FFu);                       // (the second rule alone)
         QCOMPARE(a4.fg & 0xFFFFFF, 0xFFFF00u);
@@ -1332,6 +1597,8 @@ private Q_SLOTS:
         QVERIFY2(count(page, 0xFFFF00) > 10, "the second rule's fill is not on the printed page");
         QVERIFY2(count(page, 0xFF0000) > 10, "the rule's lines are not on the printed page");
         QVERIFY2(count(page, 0x0000FF) > 5, "the rule's font color is not on the printed page");
+        const QString words = pdf.text(0);
+        QVERIFY2(words.contains(QStringLiteral("1.00")) && words.contains(QStringLiteral("3.00")), qPrintable(words));   // (the rule's number format is what is printed)
     }
 
     // A protected sheet that does not allow formatting refuses a rule with a look of its own, as it refuses every other rule change, and the refusal leaves nothing to undo.

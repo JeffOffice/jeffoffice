@@ -352,7 +352,11 @@ DifferentialFormat EditSession::condLookOf(const CondRule &rule) const
 {
     if (rule.dxf < 0 || !m_book) return DifferentialFormat();
     const auto &list = m_book->book->styles().dxfs;
-    return rule.dxf < list.size() ? list[rule.dxf] : DifferentialFormat();
+    if (rule.dxf >= list.size()) return DifferentialFormat();
+    DifferentialFormat look = list[rule.dxf];
+    // (a look the person changes is written as the file's own entry it comes from, with only the changed parts put in)
+    if (m_book->book->dxfIsInFile(rule.dxf)) look.baseEntry = rule.dxf;
+    return look;
 }
 
 EditSession::Outcome EditSession::setManagedCondRules(int sheet, const QVector<CondManaged> &list)

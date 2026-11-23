@@ -219,8 +219,14 @@ struct DifferentialFormat {
     bool hasBorder = false;
     BorderSpec border;
     std::optional<QString> numberFormat;   // the code
+    // The entry of the file's own `dxfs` this look was made from by a person's change of it (-1: none). Saving writes that entry again with only the parts the person changed put in, so that
+    // what the model does not hold of it (a gradient, a font name or size, an alignment) stays as the file had it.
+    qint32 baseEntry = -1;
     bool isEmpty() const { return !bold && !italic && !strike && !underline && !fontColor.isSet() && !hasFill && !hasBorder && !numberFormat; }
 };
+
+// Whether two differential formats look the same and are written the same: a plain fill (no pattern, or solid) is its one color wherever the format keeps it (the foreground or the background).
+bool sameDifferentialLook(const DifferentialFormat &a, const DifferentialFormat &b);
 
 enum class TablePart : quint8 {
     WholeTable, HeaderRow, TotalRow, FirstColumn, LastColumn, FirstRowStripe, SecondRowStripe, FirstColumnStripe, SecondColumnStripe,

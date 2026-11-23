@@ -449,6 +449,17 @@ public:
     bool conditionalFormatsAreWhole(int sheet) const;
     QVector<DifferentialFormat> addedDxfs() const { return m_dxfsAdded; }
     qint64 dxfsInFile() const { return m_dxfsInFile; }
+    // The differential formats keep the places the model numbers them by (Undo holds those), and a save writes only those something uses, so a place in the file is not the model's. `fileDxf` is the
+    // place of a format in the file when it is written: the file's own where they were, one made here at the next place the first time it is asked for (-1 for a place the workbook does not have).
+    // `beginDxfSave` forgets the places given since the last save, `dxfsToWrite` are the formats given places since (in the order of the places), and a save makes them the file's.
+    qint32 fileDxf(qint32 place) const;
+    qint32 dxfForFile(qint32 place) const;   // (the place in the file, or the number as it was for one the workbook does not have)
+    bool dxfIsInFile(qint32 place) const;    // (the file has it: its own, or one a save wrote)
+    void beginDxfSave() const;
+    QVector<DifferentialFormat> dxfsToWrite() const;
+    // A sort state, a filter, and a table with the places of their differential formats as the file has them.
+    QString fileSortState(const QString &sortState) const;
+    AutoFilter fileFilter(const AutoFilter &filter) const;
     QVector<FillSpec> addedFills() const { return m_fillsAdded; }
     QVector<BorderSpec> addedBorders() const { return m_bordersAdded; }
     // The named styles added (built-in ones the file did not have): the style format of each, and the name.
@@ -570,7 +581,10 @@ private:
     QVector<ChangedStyle> m_stylesChanged;   // the styles of the file whose look was changed, by place (the latest look of each)
     QVector<QPair<QString, bool>> m_stylesVisibility;
     QVector<DifferentialFormat> m_dxfsAdded;
-    qint64 m_dxfsInFile = 0;
+    qint64 m_dxfsInFile = 0;   // (how many differential formats the file had when it was read: the model's places from here are those made here)
+    mutable QVector<qint32> m_dxfFileAt;    // for each made here: its place in the file, or -1
+    mutable QVector<qint32> m_dxfPending;   // the places of the model given places in the file by the save in hand, in the order of those
+    qint32 m_dxfFileCount = 0;              // how many differential formats the file has
     quint64 m_tableStyleStamp = 1;
     QVector<CustomTableStyle> m_tableStylesAdded;
     QVector<int> m_tableStyleDxfsBefore;   // for each style added, how many differential formats there were before it

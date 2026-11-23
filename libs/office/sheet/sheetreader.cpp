@@ -2558,6 +2558,7 @@ bool Workbook::open(const Package &package, QString *error, const Limits &limits
         m_bordersInFile = m_styles.borders.size();
         m_styleXfsInFile = m_styles.styleXfs.size();
         m_dxfsInFile = m_styles.dxfs.size();
+        m_dxfFileCount = qint32(m_dxfsInFile);
         break;
     }
     // The theme: the colors the styles name by place. A part that is missing or can't be read leaves the usual ones.
@@ -3315,17 +3316,83 @@ std::map<quint32, QString> Workbook::renamedFonts() const
 qint32 Workbook::dxfFor(const DifferentialFormat &f)
 {
     if (m_stylesPart.isEmpty() || f.isEmpty()) return -1;
-    // (only a format added here is matched: one the file has may hold more than the model keeps of it)
+    // (a look made from an entry of the file that the person left as it is, is that entry: its bytes stay as the file has them)
+    if (f.baseEntry >= 0 && dxfIsInFile(f.baseEntry) && sameDifferentialLook(m_styles.dxfs[f.baseEntry], f)) return f.baseEntry;
+    // (only a format added here is matched, and on how it is written: one the file has may hold more than the model keeps of it)
     for (qsizetype i = m_dxfsInFile; i < m_styles.dxfs.size(); ++i) {
         const DifferentialFormat &d = m_styles.dxfs[i];
-        if (d.bold == f.bold && d.italic == f.italic && d.strike == f.strike && d.underline == f.underline && d.fontColor == f.fontColor && d.hasFill == f.hasFill && (!f.hasFill || d.fill == f.fill)
-            && d.hasBorder == f.hasBorder && (!f.hasBorder || d.border == f.border) && d.numberFormat == f.numberFormat)
-            return qint32(i);
+        if (d.baseEntry == f.baseEntry && sameDifferentialLook(d, f)) return qint32(i);
     }
     if (m_styles.dxfs.size() >= 100000) return -1;
     m_styles.dxfs.append(f);
     m_dxfsAdded.append(f);
     return qint32(m_styles.dxfs.size() - 1);
+}
+
+qint32 Workbook::fileDxf(qint32 place) const
+{
+    if (place < 0 || place >= m_styles.dxfs.size()) return -1;
+    if (place < m_dxfsInFile) return place;
+    const qsizetype at = place - m_dxfsInFile;
+    if (m_dxfFileAt.size() <= at) m_dxfFileAt.resize(at + 1, -1);
+    if (m_dxfFileAt[at] < 0) {
+        m_dxfFileAt[at] = m_dxfFileCount + qint32(m_dxfPending.size());
+        m_dxfPending.append(place);
+    }
+    return m_dxfFileAt[at];
+}
+
+qint32 Workbook::dxfForFile(qint32 place) const
+{
+    const qint32 at = fileDxf(place);
+    return at >= 0 ? at : place;
+}
+
+bool Workbook::dxfIsInFile(qint32 place) const
+{
+    if (place < 0 || place >= m_styles.dxfs.size()) return false;
+    if (place < m_dxfsInFile) return true;
+    const qsizetype at = place - m_dxfsInFile;
+    return at < m_dxfFileAt.size() && m_dxfFileAt[at] >= 0 && m_dxfFileAt[at] < m_dxfFileCount;
+}
+
+void Workbook::beginDxfSave() const
+{
+    for (const qint32 place : std::as_const(m_dxfPending))
+        if (place - m_dxfsInFile < m_dxfFileAt.size()) m_dxfFileAt[place - m_dxfsInFile] = -1;
+    m_dxfPending.clear();
+}
+
+QVector<DifferentialFormat> Workbook::dxfsToWrite() const
+{
+    QVector<DifferentialFormat> out;
+    for (const qint32 place : std::as_const(m_dxfPending)) out.append(m_styles.dxfs[place]);
+    return out;
+}
+
+QString Workbook::fileSortState(const QString &sortState) const
+{
+    static const QString key = QStringLiteral("dxfId=\"");
+    if (!sortState.contains(key)) return sortState;
+    QString out;
+    qsizetype from = 0;
+    for (qsizetype at = sortState.indexOf(key); at >= 0; at = sortState.indexOf(key, from)) {
+        const qsizetype start = at + key.size(), end = sortState.indexOf(QLatin1Char('"'), start);
+        if (end < 0) break;
+        bool ok = false;
+        const int place = sortState.mid(start, end - start).toInt(&ok);
+        out += sortState.mid(from, start - from) + (ok ? QString::number(dxfForFile(place)) : sortState.mid(start, end - start));
+        from = end;
+    }
+    return out + sortState.mid(from);
+}
+
+AutoFilter Workbook::fileFilter(const AutoFilter &filter) const
+{
+    AutoFilter out = filter;
+    for (FilterColumn &c : out.columns) c.dxf = dxfForFile(c.dxf);
+    out.sortState = fileSortState(out.sortState);
+    return out;
 }
 
 bool Workbook::defineTableStyle(const QString &name, const QVector<TableStylePart> &parts, QString *why)
@@ -3384,6 +3451,7 @@ bool Workbook::removeAddedDxf(qint32 place)
     if (place < 0 || m_dxfsAdded.isEmpty() || place != qint32(m_styles.dxfs.size() - 1) || place < m_dxfsInFile) return false;
     m_styles.dxfs.removeLast();
     m_dxfsAdded.removeLast();
+    if (m_dxfFileAt.size() > place - m_dxfsInFile) m_dxfFileAt.resize(place - m_dxfsInFile);
     return true;
 }
 
@@ -3903,7 +3971,9 @@ std::map<QString, QByteArray> Workbook::changedTableParts() const
         if (t.fileSignature.isEmpty() || tableSignature(t) == t.fileSignature) continue;
         if (!m_tablePartSet.contains(t.part)) continue;   // (a table made here: addedTables)
         bool ok = false;
-        const QByteArray bytes = writeTablePart(t, m_package.part(t.part), &ok);
+        Table written = t;
+        written.filter = fileFilter(t.filter);   // (the places of its colors' formats as the file has them)
+        const QByteArray bytes = writeTablePart(written, m_package.part(t.part), &ok);
         if (ok) out[t.part] = bytes;
     }
     return out;
@@ -3957,7 +4027,9 @@ std::vector<Workbook::TableAdd> Workbook::addedTables() const
     for (const Table &t : m_tables) {
         if (m_tablePartSet.contains(t.part)) continue;
         bool ok = false;
-        const QByteArray bytes = writeTablePart(t, t.copyOfPart.isEmpty() ? QByteArray() : m_package.part(t.copyOfPart), &ok, !t.copyOfPart.isEmpty());
+        Table written = t;
+        written.filter = fileFilter(t.filter);
+        const QByteArray bytes = writeTablePart(written, t.copyOfPart.isEmpty() ? QByteArray() : m_package.part(t.copyOfPart), &ok, !t.copyOfPart.isEmpty());
         if (ok) out.push_back({t.sheet, t.part, bytes});
     }
     return out;
@@ -4017,8 +4089,8 @@ void Workbook::savedTo(const Package &package, const SavedCounts &counts)
     m_fillsInFile += counts.fills;
     m_bordersInFile += counts.borders;
     m_styleXfsInFile += counts.styles;
-    m_dxfsInFile += counts.dxfs;
-    m_dxfsAdded = m_dxfsAdded.mid(counts.dxfs);
+    m_dxfFileCount += qint32(m_dxfPending.size());   // (the formats the save wrote are the file's, at the places it gave them)
+    m_dxfPending.clear();
     m_tableStylesAdded = m_tableStylesAdded.mid(counts.tableStyles);
     m_tableStyleDxfsBefore = m_tableStyleDxfsBefore.mid(counts.tableStyles);
     m_sharedAdded = m_sharedAdded.mid(strings);

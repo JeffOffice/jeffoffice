@@ -320,6 +320,8 @@ struct SaveChanges {
     qint64 fontsBefore = 0, fillsBefore = 0, bordersBefore = 0;
     // And differential formats added (for the colors a filter asks for), at the end of the file's `dxfs`.
     QVector<DifferentialFormat> newDxfs;
+    // The file's own entries that some of `newDxfs` were made from (`baseEntry`), as the model holds them: a new entry is the file's element with only the parts that differ from these put in.
+    std::map<qint32, DifferentialFormat> dxfBases;
     // And the table styles the workbook defines (the file's `tableStyles`), each part naming a differential format by its place.
     QVector<CustomTableStyle> newTableStyles;
     struct StyleAdded {

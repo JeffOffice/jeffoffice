@@ -129,4 +129,15 @@ quint32 Styles::defaultIndexed(int index)
     return index < 8 ? basic[index] : jp::calc::formatColorRgb(index - 7);
 }
 
+bool sameDifferentialLook(const DifferentialFormat &a, const DifferentialFormat &b)
+{
+    if (a.bold != b.bold || a.italic != b.italic || a.strike != b.strike || a.underline != b.underline || a.fontColor != b.fontColor || a.numberFormat != b.numberFormat) return false;
+    if (a.hasFill != b.hasFill || a.hasBorder != b.hasBorder) return false;
+    if (a.hasBorder && a.border != b.border) return false;
+    if (!a.hasFill) return true;
+    auto plain = [](const FillSpec &f) { return !f.gradient && (f.pattern == PatternKind::None || f.pattern == PatternKind::Solid); };
+    if (plain(a.fill) && plain(b.fill)) return (a.fill.bg.isSet() ? a.fill.bg : a.fill.fg) == (b.fill.bg.isSet() ? b.fill.bg : b.fill.fg);
+    return a.fill == b.fill;
+}
+
 } // namespace jp::office::sheet

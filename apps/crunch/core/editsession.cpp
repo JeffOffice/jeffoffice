@@ -1758,6 +1758,7 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts, con
     const Calculation *calc = m_book->calc.get();
     Workbook &book = *m_book->book;
     *out = Snapshot();
+    book.beginDxfSave();   // (the places in the file that an earlier try gave are given again)
     SaveChanges &changes = out->changes;
     const bool hasShared = !book.sharedStringsPart().isEmpty();
     const bool hasStyles = !book.stylesPart().isEmpty();
@@ -2230,8 +2231,25 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts, con
         changes.styleXfsBefore = book.styleXfsInFile();
         changes.styleVisibility = book.styleVisibility();
         for (const Workbook::ChangedStyle &c : book.changedStyles()) changes.changedStyles.append({c.xfId, c.format});
-        changes.newDxfs = book.addedDxfs();
         changes.newTableStyles = book.addedTableStyles();
+        // The looks made here are written where something uses them, at the places the file gives them, and not otherwise: the model keeps its own numbers (Undo holds them), and everything
+        // that is written from the model is written with the file's places. What was written from the file's own bytes already has them.
+        for (auto &[sheet, sc] : changes.sheets) {
+            for (CondRule &r : sc.condNew) r.dxf = book.dxfForFile(r.dxf);
+            if (sc.replaceAutoFilter) sc.autoFilter = book.fileFilter(sc.autoFilter);
+        }
+        for (jp::office::sheet::CustomTableStyle &style : changes.newTableStyles)
+            for (jp::office::sheet::CustomTableStyle::Part &part : style.parts) part.dxf = book.dxfForFile(part.dxf);
+        changes.newDxfs = book.dxfsToWrite();
+        for (DifferentialFormat &d : changes.newDxfs) {
+            if (d.baseEntry >= 0 && book.dxfIsInFile(d.baseEntry)) {
+                const qint32 base = d.baseEntry;
+                d.baseEntry = book.fileDxf(base);
+                changes.dxfBases[d.baseEntry] = book.styles().dxfs[base];
+            } else {
+                d.baseEntry = -1;
+            }
+        }
     }
     out->numberFormats = int(changes.newNumberFormats.size());
     out->cellFormats = int(changes.newCellFormats.size());
