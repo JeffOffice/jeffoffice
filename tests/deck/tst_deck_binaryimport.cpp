@@ -1812,6 +1812,38 @@ private Q_SLOTS:
         QVERIFY2(sawStale, "the stale title was never shown");
     }
 
+    // A foreign neighbor after a chain's end marker: an older copy of the presentation (the same layout, a different title) lies in the file right after the k-th piece of the stream's chain, which ends there
+    // with its end marker, and the directory gives three times the size. The copy's pieces are not a run that fills what the directory still needs, so the stream is not read on into them: its title is never
+    // shown, for any k. (The test of whether the run fits is what keeps the copy out: with it off, the title is shown.)
+    void aNeighborThatDoesNotFitIsNeverReadOnIntoInAPresentation()
+    {
+        const QByteArray big = bigDeck();
+        jp::cfb::File was;
+        QVERIFY(jp::cfb::read(big, &was));
+        QByteArray old = was.stream(pptDocumentStream());
+        const QByteArray wide(reinterpret_cast<const char *>(u"Quarterly Results"), 34);
+        const bool isWide = old.contains(wide);
+        old.replace(isWide ? wide : QByteArray("Quarterly Results"), isWide ? QByteArray(reinterpret_cast<const char *>(u"Staleish Copy!!!!"), 34) : QByteArray("Staleish Copy!!!!"));
+        const QByteArray good = cfbdamage::addStream(big, QStringLiteral("Other"), old);
+        const int n = int(cfbdamage::sectorsOf(good, pptDocumentStream()).size());
+        int opened = 0;
+        for (int k = 0; k + 1 < n; ++k) {
+            QByteArray file = cfbdamage::staleAfterBrokenLink(good, pptDocumentStream(), QStringLiteral("Other"), k);
+            cfbdamage::fatSet(file, cfbdamage::sectorsOf(good, pptDocumentStream())[k], cfbdamage::kEnd);   // (the end marker in place of the broken link)
+            cfbdamage::set32(file, cfbdamage::entryOf(file, pptDocumentStream()) + 120, cfbdamage::sizeOf(good, pptDocumentStream()) * 3);
+            QStringList notes;
+            QString why;
+            const QByteArray fixed = deck::salvagePresentation(file, &notes, &why);
+            if (fixed.isEmpty()) continue;
+            // (where the stream was found by a scan the chain was not used at all: only the chain's own end marker is in question here)
+            if (notes.join(QLatin1Char(' ')).contains(QLatin1String("searching the file"))) continue;
+            ++opened;
+            auto d = deck::importBinaryPresentation(fixed, nullptr);
+            if (d) QVERIFY2(!titles(*d).contains(QLatin1String("Staleish Copy!!!!")), qPrintable(QStringLiteral("k=%1: ").arg(k) + titles(*d).join(QLatin1Char('|')) + QLatin1Char('#') + notes.join(QLatin1Char('|'))));
+        }
+        QVERIFY2(opened > 0, "no presentation opened");
+    }
+
     // A presentation stream found by a scan although the directory was read (its entry was rejected: its first piece is damaged) may belong to another stream, so the notes say that part of the file could not be checked.
     void aStreamFoundByAScanAfterAReadDirectoryIsSaidToBeUncheckedInAPresentation()
     {
