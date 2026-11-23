@@ -18,6 +18,7 @@
 #include <QApplication>
 #include <QBuffer>
 #include <QDir>
+#include <QFrame>
 #include <QMouseEvent>
 #include <QScrollBar>
 #include <QStatusBar>

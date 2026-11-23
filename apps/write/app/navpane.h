@@ -45,7 +45,7 @@ public:
     // While a heading is being dragged: the number of its row (-1 when none), the number of the heading the line shows it will go before (-1 where there is no place to drop it), and the line.
     int draggedHeading() const { return m_dragFrom; }
     int dropBefore() const { return m_dropBefore; }
-    QWidget *dropLine() const { return m_line; }
+    QFrame *dropLine() const { return m_line; }
     // Finds the text in the box (at most kMostResults places), listing each with the words round it.
     void search();
     static constexpr int kMostResults = 500;
