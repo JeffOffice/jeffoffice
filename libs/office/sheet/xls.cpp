@@ -1522,15 +1522,20 @@ JoinPlace wherePiecedFalls(const QByteArray &d, qint64 firstJoin, qint64 *steps)
     const qsizetype from = listed[out.sheet];
     at = from;
     depth = 0;
+    qint64 before = -1;
     while (at + 4 <= d.size() && at >= listEnd) {
         const int id = u16(at), len = u16(at + 2);
         if (id == 0 || id >= 0x2000 || at + 4 + len > d.size()) break;
         ++*steps;
         if (isBof(id)) ++depth;
         else if (id == kEof && --depth <= 0) break;
-        else if (depth == 1 && at + 4 + len > firstJoin && len >= 4 && (id == 0x0006 || id == 0x0201 || id == 0x0203 || id == 0x0204 || id == 0x0205 || id == 0x00FD || id == 0x027E || id == 0x00BD || id == 0x00BE)) {
-            out.row = u16(at + 4);
-            break;
+        else if (depth == 1 && len >= 4 && (id == 0x0006 || id == 0x0201 || id == 0x0203 || id == 0x0204 || id == 0x0205 || id == 0x00FD || id == 0x027E || id == 0x00BD || id == 0x00BE)) {
+            if (at + 4 + len > firstJoin) {
+                // (the row of a record whose row field lies wholly before the join; one the join cuts into holds the bytes that were joined on, so the row is the last whole one before it)
+                out.row = at + 6 <= firstJoin ? u16(at + 4) : before;
+                break;
+            }
+            before = u16(at + 4);
         }
         at += 4 + len;
     }

@@ -2208,6 +2208,54 @@ private Q_SLOTS:
         QVERIFY2(said.contains(QLatin1String("could not be checked")), qPrintable(said));
     }
 
+    // The row named for a join is the row at the join's byte position in the stream, whatever the neighbor's bytes that follow it hold: a neighbor that is not aligned to record boundaries (three stray
+    // bytes before its first record) leaves the records after the join out of step, and the walk of them must not decide the row.
+    void theRowNamedForAJoinIsTheRowAtItsPlaceInTheStream()
+    {
+        const int rows = 3000;
+        QByteArray cells;
+        for (int r = 0; r < rows; ++r) cells += number(r, 0, r);
+        Book b;
+        b.sheet(QStringLiteral("A"), dimensions(rows, 1) + cells);
+        const QByteArray workbook = b.stream();
+        QByteArray other = QByteArray::fromHex("0402") + QByteArray(3, '\x7f');   // (the start of a record of text, then stray bytes)
+        for (int r = 0; r < 400; ++r) other += number(5000 + r, 0, 9000 + r);
+        other += rec(0x000A);
+        jp::cfb::File f;
+        jp::cfb::Entry root;
+        root.type = jp::cfb::Entry::Root;
+        root.name = QStringLiteral("Root Entry");
+        f.entries.push_back(root);
+        const QList<QPair<QString, QByteArray>> streams{{QStringLiteral("Workbook"), workbook}, {QStringLiteral("Other"), other}};
+        for (const auto &one : streams) {
+            jp::cfb::Entry e;
+            e.type = jp::cfb::Entry::Stream;
+            e.name = one.first;
+            e.data = one.second;
+            f.entries[0].children << int(f.entries.size());
+            f.entries << e;
+        }
+        const QByteArray good = jp::cfb::write(f);
+        // (the join near row 1,503: the first cell record is at the byte where the first number record of the sheet is)
+        const qsizetype firstCell = workbook.indexOf(number(0, 0, 0));
+        QVERIFY(firstCell > 0);
+        // (a join that falls inside the first bytes of a record: the row it holds is the neighbor's bytes, 516 when they are the start of a record of text)
+        const int size = int(number(0, 0, 0).size());
+        int k = int((firstCell + 1503 * size) / 512) - 1;
+        while (((k + 1) * 512 - firstCell) % size < 2 || ((k + 1) * 512 - firstCell) % size > 5) ++k;
+        const QByteArray placed = cfbdamage::placeAfter(good, QStringLiteral("Workbook"), QStringLiteral("Other"), k);
+        const QByteArray file = cfbdamage::neighborAfterBrokenLink(placed, QStringLiteral("Workbook"), QStringLiteral("Other"), k);
+        QStringList notes;
+        QString why;
+        const QByteArray stream = salvageXlsStream(file, Limits(), &notes, &why);
+        QVERIFY2(!stream.isEmpty(), qPrintable(why));
+        const QString said = notes.join(QLatin1Char('\n'));
+        const QRegularExpressionMatch row = QRegularExpression(QStringLiteral("In sheet \"A\", from row (\\d+) on")).match(said);
+        QVERIFY2(row.hasMatch(), qPrintable(said));
+        const int expected = int(((k + 1) * 512 - firstCell) / size) + 1;   // (1-based, the record that holds the join's byte)
+        QVERIFY2(qAbs(row.captured(1).toInt() - expected) <= 1, qPrintable(QStringLiteral("named %1, the join is at row %2: ").arg(row.captured(1)).arg(expected) + said));
+    }
+
     // The same, with the link after the neighbor's place broken instead of ended: the next piece in the file is the neighbor's, and it is read as it was before the rework, shown, with the notes naming
     // the sheet and the row where what was not checked begins (the row of the first cell record at the join).
     void whatFollowsAGuessedJoinIsShownAndSaid()
