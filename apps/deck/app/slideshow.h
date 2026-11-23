@@ -196,6 +196,10 @@ public:
     QString tipAt(const QPointF &pos) const;
     // What a click on `link` does (see office/hyperlink.h).
     void followLink(const QString &link);
+    // A click (or Enter) on the object `shape`, which has effects that wait for it: they play now, after the steps played. Returns whether they did.
+    bool fireTrigger(int shape);
+    // How many times triggers started effects on the slide being shown, since it was shown.
+    int triggerRuns() const { return m_triggerRuns; }
     // Ends the transition that is playing, showing its slide.
     void finishTransition();
     // Black or white screen; the same color again brings the slide back.
@@ -367,6 +371,10 @@ private:
     bool arrowHidden() const { return m_arrowShown == ArrowShown::Hidden && !m_recording; }
     const Play &playOf(int slide) const;
     int stepsOf(int slide) const { return int(playOf(slide).timeline.steps.size()); }
+    // The step the main sequence calls `step` is, with the trigger's steps put among the steps left out.
+    int mainStep(int slide, int step) const;
+    // The trigger steps put among the slide's steps are taken out again (all of them, or the one at `at`).
+    void dropTriggerSteps(int slide, int at = -1);
     QImage imageOf(int slide);
     QImage nowImage();
     std::shared_ptr<StepFrames> framesOf(const View &view, const QSize &size, qreal dpr, const QColor &bars);
@@ -472,6 +480,7 @@ private:
     std::shared_ptr<MorphFrames> m_morph;   // a morph plays from the slides' objects (app/morph.h), not their images
     double m_painted = -1;     // the progress last asked to be painted; -1 before the first frame
     QTimer m_auto;
+    int m_triggerRuns = 0;
     mutable QHash<int, Play> m_plays;   // the slides' animations, read when first asked for
     int m_done = 0;             // steps of the slide on the screen that have played
     int m_playing = -1;         // the step that plays, -1 for none

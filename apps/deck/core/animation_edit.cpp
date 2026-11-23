@@ -1406,7 +1406,7 @@ quint64 animationSignature(const Document &doc, const Page &slide)
 Timeline playableTimeline(const Document &doc, const Page &slide)
 {
     Timeline tl = timelineOf(slide);
-    if (!tl.steps.isEmpty()) {
+    if (!tl.steps.isEmpty() || !tl.triggers.isEmpty()) {
         // What is on shapes (and paragraphs) the slide no longer has takes no part, and no click.
         const QHash<int, ShapeInfo> shapes = shapeInfos(slide, &doc);
         auto gone = [&](const Effect &e) {
@@ -1419,6 +1419,9 @@ Timeline playableTimeline(const Document &doc, const Page &slide)
             return false;
         };
         for (Step &step : tl.steps) step.effects.erase(std::remove_if(step.effects.begin(), step.effects.end(), gone), step.effects.end());
+        // A trigger on a shape the slide no longer has, or with nothing left to play, takes no click.
+        for (Trigger &trigger : tl.triggers) trigger.effects.erase(std::remove_if(trigger.effects.begin(), trigger.effects.end(), gone), trigger.effects.end());
+        tl.triggers.erase(std::remove_if(tl.triggers.begin(), tl.triggers.end(), [&](const Trigger &t) { return t.effects.isEmpty() || !shapes.value(t.shape).found || !t.step().visual(); }), tl.triggers.end());
     }
     tl.steps.erase(std::remove_if(tl.steps.begin(), tl.steps.end(), [](const Step &s) { return !s.visual(); }), tl.steps.end());
     return tl;

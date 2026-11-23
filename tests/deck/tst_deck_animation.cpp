@@ -1031,9 +1031,9 @@ private Q_SLOTS:
         QCOMPARE(read.activeDuration(), 4000.0);
     }
 
-    // Media calls and interactive sequences are read, not played: a step with
-    // only a media call shows nothing and takes no click.
-    void animationReadsMediaAndTriggersWithoutPlayingThem()
+    // Media calls are read, not played: a step with only a media call shows
+    // nothing and takes no click. Interactive sequences are read as triggers.
+    void animationReadsMediaAndTriggers()
     {
         const QString trigger = animXml("<p:seq concurrent='1' nextAc='seek'><p:cTn id='40' restart='whenNotActive' fill='hold' evtFilter='cancelBubble' nodeType='interactiveSeq'><p:stCondLst><p:cond evt='onClick' delay='0'><p:tgtEl><p:spTgt spid='6'/></p:tgtEl></p:cond></p:stCondLst><p:endSync evt='end' delay='0'><p:rtn val='all'/></p:endSync><p:childTnLst>")
             + animGroup(0, {animFadeIn(5, 500)}) + animXml("</p:childTnLst></p:cTn><p:nextCondLst><p:cond evt='onClick' delay='0'><p:tgtEl><p:spTgt spid='6'/></p:tgtEl></p:cond></p:nextCondLst></p:seq>");
@@ -1047,8 +1047,10 @@ private Q_SLOTS:
         QCOMPARE(int(tl.triggers.size()), 1);
         QCOMPARE(tl.triggers[0].shape, 6);
         QCOMPARE(int(tl.triggers[0].effects.size()), 1);
-        // The interactive sequence's shape is not in the states of the main sequence.
-        QVERIFY(deck::statesAt(tl, animGeometry(), 0).isEmpty());
+        // What the interactive sequence brings in starts hidden; the shape it waits for is not in the states.
+        const deck::States before = deck::statesAt(tl, animGeometry(), 0);
+        QCOMPARE(int(before.size()), 1);
+        QVERIFY(!before.value(deck::Target{5, -1, -1}).visible);
         Page slide;
         slide.props[QStringLiteral("timingXml")] = xml;
         QVERIFY(deck::playableTimeline(slide).steps.isEmpty());

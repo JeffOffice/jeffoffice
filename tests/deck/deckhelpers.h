@@ -345,6 +345,9 @@ QString animSteps(const QStringList &effects);
 
 QString animTiming(const QString &steps, const QString &after = QString());
 
+// A timing with a main sequence and, for each (shape number, effect) pair, an interactive sequence that plays the effect (an animGroup of it) when the shape is clicked.
+QString animTriggerTiming(const QString &main, const QVector<QPair<int, QString>> &waits);
+
 // Where the shapes the samples aim at are, on a 16:9 slide.
 deck::Geometry animGeometry();
 

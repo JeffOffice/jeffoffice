@@ -123,20 +123,26 @@ struct Effect {
 struct Step {
     QVector<Effect> effects;
     bool automatic = false;          // starts by itself when the slide is shown, not at a click
+    bool fromTrigger = false;        // a trigger's effects, put among the steps while the show plays (they take no click of the main sequence)
     double duration() const;         // ms from the start to the last effect's end
     bool visual() const;             // some effect shows something
 };
 
-// An interactive sequence: effects that play when a shape is clicked. Read, not played.
+// An interactive sequence: effects that play when a shape is clicked.
 struct Trigger {
     int shape = 0;
     QVector<Effect> effects;
+    // The effects as one step that plays at the click on the shape.
+    Step step() const;
 };
+// How many interactive sequences a timeline keeps, and how many effects each (what a file has beyond is left out).
+constexpr int kMaxTriggers = 64;
+constexpr int kMaxTriggerEffects = 200;
 
 struct Timeline {
     QVector<Step> steps;             // the main sequence
     QVector<Trigger> triggers;
-    bool isEmpty() const { return steps.isEmpty(); }
+    bool isEmpty() const { return steps.isEmpty() && triggers.isEmpty(); }
 };
 
 // Reads a p:timing element (with xmlns:p declared). Nothing wrong with it

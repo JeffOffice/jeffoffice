@@ -933,7 +933,7 @@ void SlideShow::next()
         return;
     }
     // A step of only a call to a movie or sound is a click of its own.
-    if (!m_atEnd && m_media->takeClick(m_slide, m_done)) {
+    if (!m_atEnd && m_media->takeClick(m_slide, mainStep(m_slide, m_done))) {
         m_auto.stop();
         m_blank = QColor();
         update();
@@ -992,9 +992,11 @@ void SlideShow::previous()
         m_frame.stop();
         m_done = m_playing;
         m_playing = -1;
+        dropTriggerSteps(m_slide, m_done);
         stepChanged();
     } else if (m_done > 0) {
         --m_done;
+        dropTriggerSteps(m_slide, m_done);
         stepChanged();
     } else if (const int p = nextShown(m_pos - 1, -1); p >= 0) {
         showSlide(p, stepsOf(slideAt(p)));
@@ -1033,6 +1035,9 @@ void SlideShow::showSlide(int pos, int steps)
     if (m_slide != slideAt(pos) && m_slide >= 0) m_lastViewed = m_slide;
     m_slide = m_target = slideAt(pos);
     m_areasSlide = -1;
+    // What a click on an object played the last time the slide was shown is not played again as a step.
+    dropTriggerSteps(m_slide);
+    m_triggerRuns = 0;
     m_done = std::min(steps, stepsOf(m_slide));
     m_playing = -1;
     m_nowValid = false;
@@ -1111,7 +1116,7 @@ void SlideShow::endTransition()
 // The slide is on the screen to stay, for now.
 void SlideShow::settle()
 {
-    m_media->arrive(m_slide, m_done, m_pos);
+    m_media->arrive(m_slide, mainStep(m_slide, m_done), m_pos);
     update();
     startAutomaticSteps();
     startAutoAdvance();
@@ -1143,6 +1148,55 @@ const SlideShow::Play &SlideShow::playOf(int slide) const
         it = m_plays.insert(slide, play);
     }
     return it.value();
+}
+
+int SlideShow::mainStep(int slide, int step) const
+{
+    const QVector<deck::Step> &steps = playOf(slide).timeline.steps;
+    int n = 0;
+    for (int i = 0; i < std::min(step, int(steps.size())); ++i)
+        if (!steps[i].fromTrigger) ++n;
+    return n;
+}
+
+void SlideShow::dropTriggerSteps(int slide, int at)
+{
+    if (slide < 0 || slide >= m_doc->pages.size()) return;
+    const auto it = m_plays.find(slide);
+    if (it == m_plays.end()) return;
+    QVector<deck::Step> &steps = it->timeline.steps;
+    const qsizetype before = steps.size();
+    if (at >= 0) {
+        if (at < steps.size() && steps[at].fromTrigger) steps.removeAt(at);
+    } else {
+        steps.erase(std::remove_if(steps.begin(), steps.end(), [](const deck::Step &s) { return s.fromTrigger; }), steps.end());
+    }
+    if (steps.size() != before) {
+        m_frames.clear();
+        m_nowValid = false;
+    }
+}
+
+bool SlideShow::fireTrigger(int shape)
+{
+    // Only so many times a slide's objects are clicked for effects: a show left to a script can't grow its steps without end.
+    constexpr int kMaxTriggerRuns = 500;
+    if (m_atEnd || m_animating || m_slide < 0 || m_slide >= m_doc->pages.size() || m_triggerRuns >= kMaxTriggerRuns) return false;
+    const deck::Timeline &known = playOf(m_slide).timeline;
+    const auto trigger = std::find_if(known.triggers.cbegin(), known.triggers.cend(), [shape](const deck::Trigger &t) { return t.shape == shape; });
+    if (trigger == known.triggers.cend()) return false;
+    const deck::Step step = trigger->step();
+    // A click on the object ends the effect that plays, as any click does.
+    for (int i = 0; i < 8 && m_playing >= 0; ++i) finishStep();
+    if (m_playing >= 0) return false;
+    QVector<deck::Step> &steps = m_plays[m_slide].timeline.steps;
+    steps.insert(std::min(m_done, int(steps.size())), step);
+    ++m_triggerRuns;
+    m_frames.clear();
+    m_auto.stop();
+    m_blank = QColor();
+    startStep(m_done);
+    return true;
 }
 
 int SlideShow::stepCount() const
@@ -1195,7 +1249,7 @@ std::shared_ptr<StepFrames> SlideShow::framesOf(const View &view, const QSize &s
 // The step plays from its click, one frame after another, and ends at its last effect's end.
 void SlideShow::startStep(int step)
 {
-    m_media->stepStarted(m_slide, step);
+    if (!playOf(m_slide).timeline.steps[step].fromTrigger) m_media->stepStarted(m_slide, mainStep(m_slide, step));
     m_focusIndex = -1;
     m_playing = step;
     m_stepLength = playOf(m_slide).timeline.steps[step].duration();
@@ -1484,7 +1538,9 @@ QPointF SlideShow::pageAt(const QPointF &pos) const
 const QVector<deck::LinkArea> &SlideShow::areasNow() const
 {
     if (m_areasSlide != m_slide) {
-        m_areas = deck::linkAreas(*m_doc, *m_cache, m_slide, RenderOptions(), true);
+        QSet<int> triggers;
+        for (const deck::Trigger &t : playOf(m_slide).timeline.triggers) triggers.insert(t.shape);
+        m_areas = deck::linkAreas(*m_doc, *m_cache, m_slide, RenderOptions(), true, triggers);
         m_areasSlide = m_slide;
     }
     return m_areas;
@@ -1600,6 +1656,10 @@ static QString resolvedPresentationPath(const QString &address, const QString &b
 
 void SlideShow::followLink(const QString &link)
 {
+    if (const int shape = deck::triggerOfLink(link)) {
+        if (!fireTrigger(shape)) next();
+        return;
+    }
     const office::LinkTarget t = office::parseLink(link);
     switch (t.kind) {
     case office::LinkKind::Next: next(); return;
@@ -2524,7 +2584,7 @@ void SlideShow::showEvent(QShowEvent *e)
     if (m_started) return;
     m_started = true;
     m_media->askAboutLinks(this);
-    m_media->arrive(m_slide, m_done, m_pos);
+    m_media->arrive(m_slide, mainStep(m_slide, m_done), m_pos);
     // The time on the first slide counts from when it is on the screen.
     if (m_recording && !m_recId.isEmpty()) {
         m_recBase = 0;

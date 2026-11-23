@@ -6,6 +6,7 @@
 #include "render/renderer.h"
 
 #include <QRectF>
+#include <QSet>
 #include <QString>
 #include <QVector>
 
@@ -21,7 +22,12 @@ struct LinkArea {
 // The areas of slide `slide`, the bottom ones first. Hidden objects have none. The text is laid out with `opt`, the options the slide is drawn with, so that the layout the
 // drawing made is the one used (none is made again).
 // With `withHover` the objects' mouse-over actions come too, marked, after the click areas of the object they are on.
-QVector<LinkArea> linkAreas(const Document &d, LayoutCache &cache, int slide, const RenderOptions &opt, bool withHover = false);
+// With `triggers`, the objects whose numbers (Item::sourceId) are in it have an area too, with the link triggerLink(number): a click on one starts the effects that wait for it.
+QVector<LinkArea> linkAreas(const Document &d, LayoutCache &cache, int slide, const RenderOptions &opt, bool withHover = false, const QSet<int> &triggers = QSet<int>());
+
+// The link an object's trigger area has, and the number in such a link (0 for any other link).
+QString triggerLink(int shape);
+int triggerOfLink(const QString &link);
 
 // How many times areas have been worked out on this thread since the program began (a count for tests of cost).
 qint64 linkAreaRunsForTest();

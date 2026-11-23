@@ -845,6 +845,16 @@ QString animTiming(const QString &steps, const QString &after)
         + after + QStringLiteral("</p:childTnLst></p:cTn></p:par></p:tnLst></p:timing>");
 }
 
+QString animTriggerTiming(const QString &main, const QVector<QPair<int, QString>> &waits)
+{
+    QString after;
+    int id = 100;
+    for (const auto &w : waits)
+        after += animXml(QStringLiteral("<p:seq concurrent='1' nextAc='seek'><p:cTn id='%1' restart='whenNotActive' fill='hold' evtFilter='cancelBubble' nodeType='interactiveSeq'><p:stCondLst><p:cond evt='onClick' delay='0'><p:tgtEl><p:spTgt spid='%2'/></p:tgtEl></p:cond></p:stCondLst><p:endSync evt='end' delay='0'><p:rtn val='all'/></p:endSync><p:childTnLst>").arg(++id).arg(w.first).toLatin1().constData())
+            + animGroup(0, {w.second}) + animXml("</p:childTnLst></p:cTn></p:seq>");
+    return animTiming(main, after);
+}
+
 deck::Geometry animGeometry()
 {
     deck::Geometry g;

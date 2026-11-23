@@ -506,8 +506,13 @@ void readSequence(const QDomElement &seq, Timeline &tl)
         for (const QDomElement &cond : pChildren(pChild(cTn, "stCondLst"), "cond"))
             if (const QDomElement sp = pChild(pChild(cond, "tgtEl"), "spTgt"); !sp.isNull())
                 trigger.shape = int(office::parseInt(attr(sp, QStringLiteral("spid")), 0));
-        for (const QDomElement &par : pChildren(list, "par")) collectEffects(pChild(pChild(par, "cTn"), "childTnLst"), 0, trigger.effects);
-        if (!trigger.effects.isEmpty()) tl.triggers.push_back(trigger);
+        if (tl.triggers.size() >= kMaxTriggers) return;
+        for (const QDomElement &par : pChildren(list, "par")) {
+            collectEffects(pChild(pChild(par, "cTn"), "childTnLst"), 0, trigger.effects);
+            if (trigger.effects.size() >= kMaxTriggerEffects) break;
+        }
+        if (trigger.effects.size() > kMaxTriggerEffects) trigger.effects.resize(kMaxTriggerEffects);
+        if (trigger.shape > 0 && !trigger.effects.isEmpty()) tl.triggers.push_back(trigger);
     }
 }
 
@@ -530,6 +535,14 @@ Timeline readTimeline(const QString &timingXml)
     if (!pIs(root, "timing")) return tl;
     findSequences(root, tl);
     return tl;
+}
+
+Step Trigger::step() const
+{
+    Step s;
+    s.effects = effects;
+    s.fromTrigger = true;
+    return s;
 }
 
 Timeline timelineOf(const Page &slide) { return readTimeline(slide.props.value(QStringLiteral("timingXml")).toString()); }
@@ -906,6 +919,15 @@ States initialStates(const Timeline &tl)
     States states;
     for (const Step &step : tl.steps)
         for (const Effect &e : step.effects)
+            for (const Behavior &b : e.behaviors) {
+                if (b.target.shape <= 0 || !playsBehavior(b) || states.contains(b.target)) continue;
+                TargetState s;
+                s.visible = e.cls != EffectClass::Entrance;
+                states.insert(b.target, s);
+            }
+    // What only a click on a shape brings in starts hidden too.
+    for (const Trigger &trigger : tl.triggers)
+        for (const Effect &e : trigger.effects)
             for (const Behavior &b : e.behaviors) {
                 if (b.target.shape <= 0 || !playsBehavior(b) || states.contains(b.target)) continue;
                 TargetState s;
