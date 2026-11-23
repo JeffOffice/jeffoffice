@@ -867,12 +867,16 @@ void Exporter::writeSlide(X &x, int index)
                 if (b.target.paragraphs())
                     for (int p = b.target.firstParagraph; p <= b.target.lastParagraph && p < b.target.firstParagraph + 1000; ++p) paragraphs.insert(qMakePair(b.target.shape, p));
             }
-    // (A click on a movie or sound is written, so the object it is on and the one it plays have ids too.)
+    // (A click on an object is written, so the object it is on and the ones its effects aim at have ids too.)
     for (const Trigger &trigger : timeline.triggers) {
         if (trigger.shape > 0) aimed.insert(trigger.shape);
         for (const Effect &e : trigger.effects)
-            for (const Behavior &b : e.behaviors)
-                if (b.kind == Behavior::Kind::Command && b.target.shape > 0) aimed.insert(b.target.shape);
+            for (const Behavior &b : e.behaviors) {
+                if (b.target.shape <= 0) continue;
+                aimed.insert(b.target.shape);
+                if (b.target.paragraphs())
+                    for (int p = b.target.firstParagraph; p <= b.target.lastParagraph && p < b.target.firstParagraph + 1000; ++p) paragraphs.insert(qMakePair(b.target.shape, p));
+            }
     }
     walkItems(page.items, [&](const ItemPtr &it) {
         if (m_needIds.contains(it->id) || (it->sourceId > 0 && aimed.contains(it->sourceId))) {

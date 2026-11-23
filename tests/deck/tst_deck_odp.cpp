@@ -1655,6 +1655,43 @@ private Q_SLOTS:
         QVERIFY(!zip.value(QStringLiteral("content.xml")).contains("anim:par"));
     }
 
+    // Effects that start when an object is clicked are written as the other suite writes them, a sequence of its own aimed at the object, with the same effects as the main sequence's.
+    void odpWritesEffectsThatWaitForAClickOnAnObject()
+    {
+        auto d = deck::newPresentation();
+        Page &slide = *d->pages[0];
+        auto shape = [&](double x) {
+            auto s = std::make_shared<ShapeItem>();
+            s->rect = QRectF(x, 400, 60, 40);
+            s->fill = Fill::solid(ColorRef::rgb(Qt::red));
+            slide.items.push_back(s);
+            return deck::shapeNumber(slide, s->id);
+        };
+        const int a = shape(20), b = shape(100);
+        slide.props[QStringLiteral("timingXml")] = animTriggerTiming(animSteps({}), {{a, animFadeIn(b, 500)}});
+        QCOMPARE(int(deck::timelineOf(slide).triggers.size()), 1);
+        QString err;
+        QStringList skipped;
+        const QByteArray bytes = deck::exportOdp(*d, false, &err, &skipped);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QVERIFY2(skipped.isEmpty(), qPrintable(skipped.join(QLatin1Char('\n'))));
+        QMap<QString, QByteArray> zip;
+        QVERIFY(readZip(bytes, zip, &err));
+        const QString content = QString::fromUtf8(zip.value(QStringLiteral("content.xml")));
+        const qsizetype at = content.indexOf(QStringLiteral("presentation:node-type=\"interactive-sequence\""));
+        QVERIFY(at >= 0);
+        QVERIFY(content.indexOf(QStringLiteral(".click+0s\""), at) > at);
+        QVERIFY(content.indexOf(QStringLiteral("presentation:preset-class=\"entrance\""), at) > at);
+        QCOMPARE(int(content.count(QStringLiteral("interactive-sequence"))), 1);
+        // One whose object is not on the slide is left out, and the person is told.
+        slide.props[QStringLiteral("timingXml")] = animTriggerTiming(animSteps({}), {{a, animFadeIn(b, 500)}, {77, animFadeIn(b, 500)}});
+        skipped.clear();
+        const QByteArray again = deck::exportOdp(*d, false, &err, &skipped);
+        QVERIFY(!again.isEmpty());
+        QCOMPARE(int(skipped.size()), 1);
+        QVERIFY2(skipped[0].contains(QStringLiteral("clicked")), qPrintable(skipped[0]));
+    }
+
     // Comments are written as the other suite writes them (a note of the page for each, with its author, initials, date, and text; a reply
     // another note), the date and footer of a slide as the page's settings and the declarations, and how the show plays with the custom shows.
     void odpWritesCommentsFootersAndTheShow()

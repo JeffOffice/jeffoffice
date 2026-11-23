@@ -949,6 +949,41 @@ private Q_SLOTS:
         QVERIFY(part(k, QStringLiteral("/ppt/slides/slide1.xml")).contains(QStringLiteral("<p:spTgt spid=\"8\"/>")));
     }
 
+    // A trigger (effects that wait for a click on an object) goes through a save and an open as it was: the same object, the same effect.
+    void exportKeepsTriggers()
+    {
+        auto d = deck::newPresentation();
+        Page &slide = *d->pages[0];
+        auto shape = [&](const char *name, double x) {
+            auto s = std::make_shared<ShapeItem>();
+            s->name = QString::fromLatin1(name);
+            s->rect = QRectF(x, 400, 60, 40);
+            s->fill = Fill::solid(ColorRef::rgb(Qt::red));
+            slide.items.push_back(s);
+            return deck::shapeNumber(slide, s->id);
+        };
+        const int a = shape("Clicked", 20), b = shape("Shown", 100);
+        slide.props[QStringLiteral("timingXml")] = animTriggerTiming(animSteps({}), {{a, animFadeIn(b, 500)}});
+        QString err;
+        QStringList skipped;
+        const QByteArray bytes = deck::exportPresentation(*d, &err, &skipped);
+        QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+        QVERIFY2(skipped.isEmpty(), qPrintable(skipped.join(QLatin1Char('\n'))));
+        auto back = deck::importPresentation(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        const deck::Timeline tl = deck::timelineOf(*back->pages[0]);
+        QCOMPARE(int(tl.triggers.size()), 1);
+        int clicked = 0, shown = 0;
+        for (const ItemPtr &it : back->pages[0]->items) {
+            if (it->name == QLatin1String("Clicked")) clicked = it->sourceId;
+            if (it->name == QLatin1String("Shown")) shown = it->sourceId;
+        }
+        QVERIFY(clicked > 0 && shown > 0);
+        QCOMPARE(tl.triggers[0].shape, clicked);
+        QCOMPARE(int(tl.triggers[0].effects.size()), 1);
+        QCOMPARE(tl.triggers[0].effects[0].behaviors[0].target.shape, shown);
+    }
+
     // A shape read from a file is written with the number it had, so an animation
     // that aims at it stays; one that is gone, and the new and copied ones, take
     // no number an animation could still aim at.

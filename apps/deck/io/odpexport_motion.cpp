@@ -378,7 +378,8 @@ void Exporter::writeAnimations(X &x, const Page &page)
         return ex.str();
     };
     X steps;
-    for (const Step &step : tl.steps) {
+    // A step of the main sequence, or (`bare`) the effects of a trigger, as the groups of one click.
+    auto writeStep = [&](X &steps, const Step &step, bool bare) {
         struct Out {
             double begin = 0, end = 0;
             EffectStart start = EffectStart::OnClick;
@@ -569,9 +570,9 @@ void Exporter::writeAnimations(X &x, const Page &page)
             o.xml = ex.str();
             effects << o;
         }
-        if (effects.isEmpty()) continue;
+        if (effects.isEmpty()) return;
         // The effects of a step go in groups: each effect that starts after the one before begins a group, which starts when those before it end.
-        steps.open("anim:par").attr("smil:begin", step.automatic ? "0s" : "next").attr("smil:fill", "hold");
+        if (!bare) steps.open("anim:par").attr("smil:begin", step.automatic ? "0s" : "next").attr("smil:fill", "hold");
         double groupBegin = 0, latest = 0;
         bool open = false;
         for (const Out &o : std::as_const(effects)) {
@@ -589,29 +590,23 @@ void Exporter::writeAnimations(X &x, const Page &page)
             latest = std::max(latest, o.end);
         }
         if (open) steps.close();
-        steps.close();
-    }
-    // What starts when an object is clicked: only a movie's or sound's calls have a form here, a sequence of their own.
+        if (!bare) steps.close();
+    };
+    for (const Step &step : tl.steps) writeStep(steps, step, false);
+    // What starts when an object is clicked: a sequence of its own for each object.
     X clicked;
     for (const Trigger &trigger : tl.triggers) {
         const auto shape = m_idOfShape.constFind(trigger.shape);
-        QString group;
-        bool usable = shape != m_idOfShape.cend() && !trigger.effects.isEmpty();
-        for (const Effect &e : trigger.effects) {
-            QString xml = e.cls == EffectClass::Media ? mediaEffect(e) : QString();
-            if (xml.isEmpty()) {
-                usable = false;
-                break;
-            }
-            group += xml.replace(QStringLiteral("@@begin@@"), seconds(e.begin));
-        }
-        if (!usable) {
-            sayOnce(QStringLiteral("triggers"), QCoreApplication::translate("OdpExport", "Effects that start when an object is clicked can't be saved in this kind of file, except those that play a movie or sound."));
+        if (shape == m_idOfShape.cend() || trigger.effects.isEmpty()) {
+            sayOnce(QStringLiteral("triggers"), QCoreApplication::translate("OdpExport", "Effects that start when an object is clicked were left out where the object is not on the slide."));
             continue;
         }
+        X body;
+        writeStep(body, trigger.step(), true);
+        if (body.str().isEmpty()) continue;
         clicked.open("anim:seq").attr("smil:fill", "hold").attr("smil:restart", "whenNotActive").attr("smil:endsync", "all").attr("presentation:node-type", "interactive-sequence");
         clicked.open("anim:par").attr("smil:begin", shape.value() + QStringLiteral(".click+0s")).attr("smil:fill", "hold");
-        clicked.open("anim:par").attr("smil:begin", "0s").attr("smil:fill", "hold").raw(group).close().close().close();
+        clicked.raw(body.str()).close().close();
     }
     if (lost > 0) say(QCoreApplication::translate("OdpExport", "%1: animation effects that have no match in this kind of file were left out.").arg(m_where));
     if (steps.str().isEmpty() && clicked.str().isEmpty()) return;
