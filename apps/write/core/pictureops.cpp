@@ -3241,60 +3241,6 @@ bool setShapeRotation(WriteDoc &doc, int position, double degrees)
     });
 }
 
-namespace {
-// The start tag of the element `raw` begins with, again with the attributes `edit` changed (it says whether it changed any); the rest of `raw` stays as it was.
-bool retagFirst(QByteArray *raw, const std::function<bool(Attributes *)> &edit)
-{
-    const qsizetype gt = raw->indexOf('>');
-    if (gt < 1 || (*raw)[0] != '<') return false;
-    Attributes decls;
-    Attributes attrs = attributesOf(raw->left(gt + 1), &decls);
-    if (!edit(&attrs)) return false;
-    qsizetype nameEnd = 1;
-    while (nameEnd < raw->size() && (*raw)[nameEnd] != ' ' && (*raw)[nameEnd] != '>' && (*raw)[nameEnd] != '/') ++nameEnd;
-    QByteArray start = "<" + raw->mid(1, nameEnd - 1);
-    for (const auto &d : decls) start += " " + d.first + "=" + d.second;
-    start += written(attrs) + ((*raw)[gt - 1] == '/' ? "/>" : ">");
-    *raw = start + raw->mid(gt + 1);
-    return true;
-}
-} // namespace
-
-bool flipObject(WriteDoc &doc, int position, bool horizontal)
-{
-    // (Mirroring turns the other way about, as it does for the other programs' drawings: the flag is toggled and a turn of r degrees becomes 360 - r.)
-    const char *flag = horizontal ? "flipH" : "flipV";
-    auto toggle = [flag](Attributes *attrs) {
-        if (isTrueFlag(attributeValue(*attrs, flag))) removeAttribute(attrs, flag);
-        else setAttribute(attrs, flag, quote("1"));
-        const qint64 rot = attributeValue(*attrs, "rot").toLongLong() % 21600000;
-        if (rot != 0) setAttribute(attrs, "rot", quote(QByteArray::number(21600000 - (rot < 0 ? rot + 21600000 : rot))));
-        return true;
-    };
-    return changePicture(doc, position, [&](Model &m) {
-        if (m.graphic.contains("chart")) return false;
-        if (m.graphic.contains("<wpg:wgp")) {
-            // (A group is flipped by its own frame: the parts inside are drawn mirrored with it.)
-            const qsizetype grp = m.graphic.indexOf("<wpg:grpSpPr");
-            const qsizetype at = grp < 0 ? -1 : m.graphic.indexOf("<a:xfrm", grp);
-            if (at < 0) return false;
-            QByteArray tail = m.graphic.mid(at);
-            if (!retagFirst(&tail, toggle)) return false;
-            m.graphic = m.graphic.left(at) + tail;
-            return true;
-        }
-        SpPr sp;
-        if (!splitSpPr(m.graphic, &sp)) return false;
-        for (SpPr::Child &child : sp.children) {
-            if (child.slot != SlotXfrm) continue;
-            if (!retagFirst(&child.raw, toggle)) return false;
-            m.graphic = joinSpPr(m.graphic, sp);
-            return true;
-        }
-        return false;
-    }, true);
-}
-
 int objectIdAt(const WriteDoc &doc, int position)
 {
     Inline atom;
@@ -3309,19 +3255,20 @@ QVector<int> objectPositionsOfIds(WriteDoc &doc, const QVector<int> &ids)
 {
     QVector<int> out(ids.size(), -1);
     if (ids.isEmpty()) return out;
+    for (int i = 0; i < ids.size(); ++i)
+        if (ids.indexOf(ids[i]) != i) return out;   // (two of them with one number: there is no telling which is which)
     QTextDocument *story = doc.story();
     const int end = story->characterCount() - 1;
-    int found = 0;
-    for (int p = 0; p < end && found < ids.size(); ++p) {
+    QVector<int> where(ids.size(), -1);
+    for (int p = 0; p < end; ++p) {
         if (story->characterAt(p) != QChar::ObjectReplacementCharacter) continue;
         const int id = objectIdAt(doc, p);
         const qsizetype k = id > 0 ? ids.indexOf(id) : -1;
-        if (k >= 0 && out[k] < 0) {
-            out[k] = p;
-            ++found;
-        }
+        if (k < 0) continue;
+        if (where[k] >= 0) return out;   // (two objects with this number: the numbers are no use)
+        where[k] = p;
     }
-    return out;
+    return where;
 }
 
 bool setShapeGradient(WriteDoc &doc, int position, const QString &from, const QString &to, double angle)
@@ -3635,7 +3582,7 @@ bool partsOfGroup(const Model &g, QVector<GroupPart> *out)
         for (int x = t.firstChild(k); x >= 0; x = t.next(x)) {
             if (t.localName(x) != "xfrm") continue;
             if (t.has(x, "rot") && t.attr(x, "rot").toDouble() != 0) return false;
-            if (t.attr(x, "flipH") == QLatin1String("1") || t.attr(x, "flipV") == QLatin1String("1")) return false;
+            if (isTrueFlag(t.attr(x, "flipH").toLatin1()) || isTrueFlag(t.attr(x, "flipV").toLatin1())) return false;
             double ex = 0, ey = 0, cx = 0, cy = 0;
             for (int o = t.firstChild(x); o >= 0; o = t.next(o)) {
                 const QByteArray local = t.localName(o);
@@ -4040,7 +3987,11 @@ bool canGroupObject(const WriteDoc &doc, int position)
     return plainMember(m) || partsOfGroup(m, &parts);
 }
 
-bool groupObjects(WriteDoc &doc, const QVector<int> &positionsIn, const QVector<QRectF> &pageRects, int *groupPosition)
+struct GroupLook {
+    Model model;   // the group as it was, but for its graphic
+};
+
+bool groupObjects(WriteDoc &doc, const QVector<int> &positionsIn, const QVector<QRectF> &pageRects, int *groupPosition, const std::shared_ptr<const GroupLook> &look)
 {
     QTextDocument *story = doc.story();
     if (positionsIn.size() < 2 || positionsIn.size() > kMostGroupMembers || positionsIn.size() != pageRects.size()) return false;
@@ -4163,6 +4114,22 @@ bool groupObjects(WriteDoc &doc, const QVector<int> &positionsIn, const QVector<
         g.relativeHeight = highest;
         g.docPr = {{"id", quote(n(id))}, {"name", quote("Group " + n(id))}};
         g.docPrInner.clear();
+        if (look) {
+            // (What the group taken apart had: its wrap, its names, and how it was anchored; its number and its place are the new ones.)
+            const Model &was = look->model;
+            g.wrap = was.wrap;
+            g.wrapRaw = was.wrapRaw;
+            g.wrapRawOf = was.wrapRawOf;
+            g.distL = was.distL;
+            g.distR = was.distR;
+            g.distT = was.distT;
+            g.distB = was.distB;
+            g.docPr = was.docPr;
+            setAttribute(&g.docPr, "id", quote(n(id)));
+            g.docPrInner = was.docPrInner;
+            g.anchorFlags = was.anchorFlags;
+            g.itemAttributes = was.itemAttributes;
+        }
         g.graphic = graphic;
         g.declarations = decls;
         for (const auto &required : {std::pair<QByteArray, QByteArray>{"xmlns:wpg", quote(kGroupUri)}, {"xmlns:wps", quote(kShapeUri)}}) {
@@ -4192,7 +4159,7 @@ bool groupObjects(WriteDoc &doc, const QVector<int> &positionsIn, const QVector<
     return true;
 }
 
-bool ungroupObject(WriteDoc &doc, int position, const QPointF &pageTopLeft, QVector<int> *positions)
+bool ungroupObject(WriteDoc &doc, int position, const QPointF &pageTopLeft, QVector<int> *positions, std::shared_ptr<const GroupLook> *look)
 {
     QTextDocument *story = doc.story();
     if (position < 0 || position + 1 > story->characterCount() - 1 || isLocked(story->findBlock(position))) return false;
@@ -4254,7 +4221,92 @@ bool ungroupObject(WriteDoc &doc, int position, const QPointF &pageTopLeft, QVec
     edit.endEditBlock();
     doc.keepObjectsForTheHistory();
     if (positions) *positions = where;
+    if (look) {
+        auto kept = std::make_shared<GroupLook>();
+        kept->model = g;
+        kept->model.graphic.clear();
+        *look = kept;
+    }
     return true;
+}
+
+namespace {
+// The start tag of the element `raw` begins with, again with the attributes `edit` changed (it says whether it changed any); the rest of `raw` stays as it was.
+bool retagFirst(QByteArray *raw, const std::function<bool(Attributes *)> &edit)
+{
+    const qsizetype gt = raw->indexOf('>');
+    if (gt < 1 || (*raw)[0] != '<') return false;
+    Attributes decls;
+    Attributes attrs = attributesOf(raw->left(gt + 1), &decls);
+    if (!edit(&attrs)) return false;
+    qsizetype nameEnd = 1;
+    while (nameEnd < raw->size() && (*raw)[nameEnd] != ' ' && (*raw)[nameEnd] != '>' && (*raw)[nameEnd] != '/') ++nameEnd;
+    QByteArray start = "<" + raw->mid(1, nameEnd - 1);
+    for (const auto &d : decls) start += " " + d.first + "=" + d.second;
+    start += written(attrs) + ((*raw)[gt - 1] == '/' ? "/>" : ">");
+    *raw = start + raw->mid(gt + 1);
+    return true;
+}
+} // namespace
+
+bool flipObject(WriteDoc &doc, int position, bool horizontal)
+{
+    // (Mirroring turns the other way about, as it does for the other programs' drawings: the flag is toggled and a turn of r degrees becomes 360 - r.)
+    const char *flag = horizontal ? "flipH" : "flipV";
+    auto toggle = [flag](Attributes *attrs) {
+        if (isTrueFlag(attributeValue(*attrs, flag))) removeAttribute(attrs, flag);
+        else setAttribute(attrs, flag, quote("1"));
+        const qint64 rot = attributeValue(*attrs, "rot").toLongLong() % 21600000;
+        if (rot != 0) setAttribute(attrs, "rot", quote(QByteArray::number(21600000 - (rot < 0 ? rot + 21600000 : rot))));
+        return true;
+    };
+    // The element with its own frame's flag toggled.
+    auto flipped = [&](QByteArray element, QByteArray *out) {
+        SpPr sp;
+        if (!splitSpPr(element, &sp)) return false;
+        for (SpPr::Child &child : sp.children) {
+            if (child.slot != SlotXfrm) continue;
+            if (!retagFirst(&child.raw, toggle)) return false;
+            *out = joinSpPr(element, sp);
+            return true;
+        }
+        return false;
+    };
+    return changePicture(doc, position, [&](Model &m) {
+        if (m.graphic.contains("chart")) return false;
+        if (m.graphic.contains("<wpg:wgp")) {
+            // (A group is flipped by its parts: each is set where the mirror puts it inside the group's frame and is flipped itself, so the group needs no mark of its own. A group that is
+            // turned, or has another group in it, is not flipped.)
+            QVector<GroupPart> parts;
+            if (!partsOfGroup(m, &parts)) return false;
+            const qsizetype grp = m.graphic.indexOf("<wpg:grpSpPr");
+            const qsizetype ext = grp < 0 ? -1 : m.graphic.indexOf("<a:ext ", grp);
+            if (ext < 0) return false;
+            const Attributes size = attributesOf(m.graphic.mid(ext, m.graphic.indexOf('>', ext) + 1 - ext));
+            const qint64 gw = attributeValue(size, "cx").toLongLong(), gh = attributeValue(size, "cy").toLongLong();
+            if (gw <= 0 || gh <= 0) return false;
+            QByteArray children;
+            for (const GroupPart &p : std::as_const(parts)) {
+                const qint64 x = horizontal ? gw - p.x - p.cx : p.x, y = horizontal ? p.y : gh - p.y - p.cy;
+                QByteArray element = withFrame(p.element, x, y, p.cx, p.cy), turned;
+                if (element.isEmpty() || !flipped(element, &turned)) return false;
+                children += turned;
+            }
+            auto n = [](qint64 v) { return QByteArray::number(v); };
+            m.graphic = "<a:graphic><a:graphicData uri=\"" + QByteArray(kGroupUri) + "\"><wpg:wgp><wpg:cNvGrpSpPr/><wpg:grpSpPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"" + n(gw) + "\" cy=\"" + n(gh) +
+                        "\"/><a:chOff x=\"0\" y=\"0\"/><a:chExt cx=\"" + n(gw) + "\" cy=\"" + n(gh) + "\"/></a:xfrm></wpg:grpSpPr>" + children + "</wpg:wgp></a:graphicData></a:graphic>";
+            return true;
+        }
+        SpPr sp;
+        if (!splitSpPr(m.graphic, &sp)) return false;
+        for (SpPr::Child &child : sp.children) {
+            if (child.slot != SlotXfrm) continue;
+            if (!retagFirst(&child.raw, toggle)) return false;
+            m.graphic = joinSpPr(m.graphic, sp);
+            return true;
+        }
+        return false;
+    }, true);
 }
 
 // ---- Picture adjustments

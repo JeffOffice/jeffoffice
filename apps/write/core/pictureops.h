@@ -24,6 +24,7 @@
 #include <QPolygonF>
 #include <QTextCursor>
 #include <functional>
+#include <memory>
 #include <optional>
 #include <utility>
 
@@ -406,7 +407,7 @@ bool setShapeRotation(WriteDoc &doc, int position, double degrees);
 // Mirrors the object (a picture, shape, text box, or group) left to right, or top to bottom: one step; the same again puts it back. False for a chart or where the object has no frame to flip.
 bool flipObject(WriteDoc &doc, int position, bool horizontal);
 // The number the file gives the drawn object at `position` (it stays with the object through edits, and a part keeps it when its group is taken apart; 0 for none), and where the objects
-// with these numbers are now (-1 for one that is gone): Regroup puts back the parts of the group last taken apart.
+// with these numbers are now (-1 for one that is gone, and for all of them where two objects have the same number): Regroup puts back the parts of the group last taken apart.
 int objectIdAt(const WriteDoc &doc, int position);
 QVector<int> objectPositionsOfIds(WriteDoc &doc, const QVector<int> &ids);
 // Fills the shape with a gradient from one color to the other (RRGGBB), along an angle in degrees (0 across, from left to right, 90 down); one step.
@@ -468,10 +469,13 @@ bool isGroupAt(const WriteDoc &doc, int position);
 bool canGroupObject(const WriteDoc &doc, int position);
 // Joins the objects at `positions` (two or more, each where `pageRects` says, in points on the page they are on: the view knows) into one group, set in front of the text at the
 // corner of their common rectangle, as one step. The group takes the first object's place in the text; the others are taken out. False (nothing done) where one cannot be a member.
-bool groupObjects(WriteDoc &doc, const QVector<int> &positions, const QVector<QRectF> &pageRects, int *groupPosition = nullptr);
+// `look` (from ungroupObject) gives the new group what the one taken apart had besides its parts: its wrap and distances, its name and alt text, and how it is anchored.
+struct GroupLook;
+bool groupObjects(WriteDoc &doc, const QVector<int> &positions, const QVector<QRectF> &pageRects, int *groupPosition = nullptr, const std::shared_ptr<const GroupLook> &look = nullptr);
 // Takes the group at `position` apart: each member is an object of its own at the place it had on the page (the group's top left corner is `pageTopLeft`), as one step. A turned or
 // flipped group, and one with a group inside it, is not taken apart. `positions` gets the members' places in the text.
-bool ungroupObject(WriteDoc &doc, int position, const QPointF &pageTopLeft, QVector<int> *positions = nullptr);
+// `look` gets what the group had besides its parts (see groupObjects).
+bool ungroupObject(WriteDoc &doc, int position, const QPointF &pageTopLeft, QVector<int> *positions = nullptr, std::shared_ptr<const GroupLook> *look = nullptr);
 
 // ---- Charts
 

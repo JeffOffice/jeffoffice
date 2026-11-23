@@ -669,6 +669,7 @@ public:
     bool moveHandleInView(QRect *box);
     bool cellBoxesInView(QVector<QPair<int, QRect>> *cells);
 private:
+    bool groupSelected(const std::shared_ptr<const GroupLook> &look);
     bool tableHandleAt(const QPoint &viewportPos, ColumnDrag *found);
     int m_hoverCursorShape = -1;
     // The small triangle by a heading (Collapse and expand): the heading the pointer is on (its paragraph's place, -1 for none), the triangle's box on the viewport for a heading, and the heading under a point.
@@ -729,6 +730,7 @@ private:
     int m_moreObjectsRevision = -1;
     const WriteDoc *m_regroupDoc = nullptr;   // the document those numbers are of
     QVector<int> m_regroupIds;   // the numbers of the parts of the group Ungroup last took apart
+    std::shared_ptr<const GroupLook> m_regroupLook;   // and what that group had besides its parts
 
     WriteDoc *m_doc = nullptr;
     QTextCursor m_cursor;

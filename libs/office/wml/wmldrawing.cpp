@@ -620,6 +620,8 @@ void readGroupMembers(const XmlTree &t, int group, const Shape &frame, const Gro
             }
             if (s.embed.isEmpty()) continue;
             if (t.has(xfrm, "rot")) s.rotation = fin(std::fmod(t.attr(xfrm, "rot").toDouble() / 60000.0, 360.0));
+            s.flipH = t.attr(xfrm, "flipH") == QLatin1String("1") || t.attr(xfrm, "flipH") == QLatin1String("true");
+            s.flipV = t.attr(xfrm, "flipV") == QLatin1String("1") || t.attr(xfrm, "flipV") == QLatin1String("true");
             const int blipFill = childNamed(t, c, "blipFill");
             const int src = blipFill >= 0 ? childNamed(t, blipFill, "srcRect") : -1;
             if (src >= 0) {

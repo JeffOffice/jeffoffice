@@ -136,6 +136,11 @@ bool PageView::distributeSelectedObjects(bool horizontal)
 
 bool PageView::groupSelectedObjects()
 {
+    return groupSelected(nullptr);
+}
+
+bool PageView::groupSelected(const std::shared_ptr<const GroupLook> &look)
+{
     if (!m_doc || m_readOnly) return false;
     const QVector<int> positions = selectedObjects();
     if (positions.size() < 2) {
@@ -160,7 +165,7 @@ bool PageView::groupSelectedObjects()
     }
     m_doc->pictureNotice.clear();
     int made = -1;
-    if (!groupObjects(*m_doc, positions, rects, &made)) {
+    if (!groupObjects(*m_doc, positions, rects, &made, look)) {
         Q_EMIT notice(m_doc->pictureNotice.isEmpty() ? tr("These objects can't be grouped. A chart, a group, and an object in line with the text can't join a group.") : m_doc->pictureNotice);
         return false;
     }
@@ -221,12 +226,14 @@ bool PageView::ungroupSelectedObject()
     if (!floatingPictureRect(position, &onPage, &page)) return false;
     QVector<int> parts;
     m_doc->pictureNotice.clear();
-    if (!ungroupObject(*m_doc, position, onPage.topLeft(), &parts)) {
+    std::shared_ptr<const GroupLook> look;
+    if (!ungroupObject(*m_doc, position, onPage.topLeft(), &parts, &look)) {
         Q_EMIT notice(tr("This group can't be taken apart: it is turned, or has another group in it."));
         return false;
     }
     m_regroupIds.clear();
     m_regroupDoc = m_doc;
+    m_regroupLook = look;
     for (const int part : parts) m_regroupIds.push_back(objectIdAt(*m_doc, part));
     selectObjects(parts);
     Q_EMIT contentChanged();
@@ -239,6 +246,7 @@ bool PageView::canRegroup()
 {
     if (!m_doc || m_readOnly || m_regroupDoc != m_doc || m_regroupIds.size() < 2) return false;
     const QVector<int> where = objectPositionsOfIds(*m_doc, m_regroupIds);
+    if (where.size() != m_regroupIds.size()) return false;
     for (const int p : where)
         if (p < 0 || !canGroupObject(*m_doc, p)) return false;
     return true;
@@ -252,7 +260,7 @@ bool PageView::regroupObjects()
         return false;
     }
     selectObjects(objectPositionsOfIds(*m_doc, m_regroupIds));
-    return groupSelectedObjects();
+    return groupSelected(m_regroupLook);
 }
 
 bool PageView::flipSelectedObjects(bool horizontal)

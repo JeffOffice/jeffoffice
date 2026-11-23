@@ -1377,6 +1377,15 @@ QByteArray Writer::drawingXml(const T &t, int drawing, ParaCtx *pc, int depth, b
             }
         }
         if (!look.isEmpty() && look.size() <= 32768) gp += " jo:picture-look=\"" + esc(look) + "\"";
+        // A picture is mirrored by the standard's own property (a shape's mirror is its transform's).
+        int xf = -1;
+        for (int k = sp >= 0 ? t.firstChild(sp) : -1; k >= 0 && xf < 0; k = t.next(k))
+            if (t.localName(k) == "xfrm") xf = k;
+        if (xf >= 0) {
+            auto on = [&](const char *flag) { return t.attr(xf, flag) == QLatin1String("1") || t.attr(xf, flag) == QLatin1String("true"); };
+            const bool across = on("flipH"), down = on("flipV");
+            if (across || down) gp += " style:mirror=\"" + QByteArray(across ? "horizontal" : "") + (across && down ? " " : "") + (down ? "vertical" : "") + "\"";
+        }
     }
     // A text box's padding, fill, and line, from its shape.
     QByteArray boxProps;

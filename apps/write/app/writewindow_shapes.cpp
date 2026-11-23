@@ -1211,7 +1211,8 @@ void WriteWindow::refreshShapeUi()
         const QString name = a->objectName();
         if (name.startsWith(QLatin1String("shape."))) a->setEnabled(editable);
         // (A picture takes a border: the line commands are for it too.)
-        if (name.startsWith(QLatin1String("shape.weight.")) || name.startsWith(QLatin1String("shape.dash.")) || name.startsWith(QLatin1String("shape.rotate."))) a->setEnabled(drawn && info.kind != write::DrawnKind::Chart);
+        if (name.startsWith(QLatin1String("shape.weight.")) || name.startsWith(QLatin1String("shape.dash."))) a->setEnabled(drawn && info.kind != write::DrawnKind::Chart);
+        if (name.startsWith(QLatin1String("shape.rotate."))) a->setEnabled(drawn && info.kind != write::DrawnKind::Chart && !isReadOnly());
         if (name.startsWith(QLatin1String("arrange."))) a->setEnabled(drawn);
         if (name == QLatin1String("picture.crop") || name == QLatin1String("picture.reset") || name == QLatin1String("picture.change") || name == QLatin1String("picture.compress") || name.startsWith(QLatin1String("picture.correct.")) ||
             name.startsWith(QLatin1String("picture.recolor.")) || name.startsWith(QLatin1String("picture.aspect.")) || name == QLatin1String("picture.fill") || name == QLatin1String("picture.fit"))
@@ -1239,10 +1240,11 @@ void WriteWindow::refreshShapeUi()
         act("arrange.distribute.h")->setEnabled(together.size() >= 3);
         act("arrange.distribute.v")->setEnabled(together.size() >= 3);
         act("arrange.ungroup")->setEnabled(group && info.editable);
-        act("arrange.regroup")->setEnabled(m_view->canRegroup());
-        // Flip works on any drawn object but a chart, a group among them (it is mirrored as one).
-        act("arrange.flip.h")->setEnabled(info.valid && info.editable && info.kind != write::DrawnKind::Chart);
-        act("arrange.flip.v")->setEnabled(info.valid && info.editable && info.kind != write::DrawnKind::Chart);
+        act("arrange.regroup")->setEnabled(m_view->canRegroup() && !isReadOnly());
+        // Flip works on any drawn object but a chart; a group is flipped by its parts, so a turned group, or one with a group inside it, is not. A document held read only is not changed.
+        const bool flips = info.valid && info.editable && info.kind != write::DrawnKind::Chart && (!group || write::canGroupObject(*m_doc, at)) && !isReadOnly();
+        act("arrange.flip.h")->setEnabled(flips);
+        act("arrange.flip.v")->setEnabled(flips);
         // Connect needs exactly two objects, each a shape, text box, or picture that floats.
         bool canConnect = together.size() == 2;
         for (const int p : together) {

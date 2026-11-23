@@ -161,6 +161,9 @@ void PageView::setDocument(WriteDoc *doc)
     m_rendered.clear();
     m_recent.clear();
     m_doc = doc;
+    m_regroupDoc = nullptr;   // (a document that comes at the address of an old one has no group taken apart)
+    m_regroupIds.clear();
+    m_regroupLook.reset();
     if (m_doc) m_doc->setShowHiddenText((shownMarks() & tp::special::Hidden) != 0);
     m_rects.clear();
     m_rowTops.clear();

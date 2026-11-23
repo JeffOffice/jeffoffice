@@ -154,6 +154,7 @@ void WriteWindow::setReadOnly(bool on)
     m_view->setReadOnly(on);
     m_ruler->setEnabled(!on);
     updateTitle();
+    if (m_ribbon && m_actions.contains(QStringLiteral("arrange.flip.h"))) refreshShapeUi();   // (Flip, Regroup, and Rotate are not offered while the document is held read only)
 }
 
 bool WriteWindow::openFile(const QString &path, OpenHow how)
