@@ -154,6 +154,8 @@ public:
     // Reading View: the show played inside this window, with its title bar and status bar, from the view the person came from (deckwindow_views.cpp). Esc, End Show, or
     // choosing another view returns to that view.
     void startReadingView();
+    // Ends Reading View as Esc does (the ink question comes next); a show or a view that starts goes through this first.
+    void endReadingView();
     bool inReadingView() const { return !m_reading.isNull(); }
     SlideShow *readingShow() const { return m_reading; }
     // Slide Master view (deckwindow_master.cpp). It opens on a slide master or layout (the layout of the slide being edited when none is
@@ -696,6 +698,7 @@ private:
     QPointer<SlideShow> m_show;
     QPointer<SlideShow> m_reading;        // the show Reading View plays
     QPointer<QWidget> m_readingBar;       // its controls in the status bar
+    QPointer<QWidget> m_readingFocus;     // what had the keyboard when it started
     QList<QPointer<QDockWidget>> m_readingDocks;   // the panes that were open when it started
     deck::GridView m_gridSeen;   // the presentation's grid settings as the view last took them (applyGridView)
     QHash<QString, QAction *> m_actions;

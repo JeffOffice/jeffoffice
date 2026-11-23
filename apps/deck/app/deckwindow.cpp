@@ -245,6 +245,10 @@ DeckWindow::~DeckWindow()
         m_show->disconnect(this);
         m_show->close();
     }
+    if (m_reading) {
+        m_reading->disconnect(this);
+        m_reading->close();
+    }
     for (QObject *child : findChildren<QObject *>()) {
         child->disconnect(this);
         child->blockSignals(true);   // (destroyed is still sent)
@@ -270,6 +274,11 @@ QAction *DeckWindow::mk(const QString &id, const QString &text, const QString &i
     connect(a, &QAction::triggered, this, [this, fn, id] {
         if (isReadOnly() && !commandAllowedReadOnly(id)) {
             refuseReadOnlyChange();
+            return;
+        }
+        // Reading View is for reading: what the read-only window lets through, and the changes of view, are all it lets through.
+        if (m_reading && !commandAllowedReadOnly(id) && !id.startsWith(QLatin1String("view."))) {
+            statusBar()->showMessage(tr("Reading View is for reading. Press Esc, or choose another view, to make changes."), 6000);
             return;
         }
         telemetry::count(id);
@@ -691,6 +700,7 @@ void DeckWindow::closeEvent(QCloseEvent *e)
         return;
     }
     if (m_show) m_show->close();
+    if (m_reading) m_reading->close();
     e->accept();
 }
 

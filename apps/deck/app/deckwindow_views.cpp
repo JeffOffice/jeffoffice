@@ -203,6 +203,8 @@ void DeckWindow::startReadingView()
     if (m_outline) m_outline->commit();
     if (m_notesPage) m_notesPage->commit();
     m_ed->endTextEdit();
+    m_readingFocus = focusWidget();
+    m_ed->setReadOnly(true);   // (a change from anywhere is taken back, as in a window open for reading only)
     deck::ShowSettings settings = deck::showSettingsOf(*m_ed->doc());
     settings.type = deck::ShowSettings::Type::Individual;
     settings.loop = false;
@@ -236,6 +238,7 @@ void DeckWindow::startReadingView()
         b->setObjectName(QString::fromLatin1(id));
         b->setText(text);
         b->setToolTip(jp::plainToolTip(tip));
+        b->setAccessibleName(text);
         b->setAutoRaise(true);
         row->addWidget(b);
         return b;
@@ -243,11 +246,11 @@ void DeckWindow::startReadingView()
     QToolButton *previous = button("readingPrevious", tr("Previous"), tr("Go back one step or slide"));
     row->addWidget(place);
     QToolButton *next = button("readingNext", tr("Next"), tr("Go forward one step or slide"));
-    QToolButton *menu = button("readingMenu", tr("Menu"), tr("Open the menu for going to a slide, the pointer, the screen, and ending the show"));
+    QToolButton *menu = button("readingMenu", tr("Show Menu"), tr("Open the menu for going to a slide, the pointer, the screen, and ending the show"));
     connect(previous, &QToolButton::clicked, show, [show] { show->previous(); });
     connect(next, &QToolButton::clicked, show, [show] { show->next(); });
     connect(menu, &QToolButton::clicked, show, [show, menu] {
-        QMenu *m = show->buildMenu(menu);
+        QMenu *m = show->buildMenu(show);   // (the show's own, so that it goes if the show ends while it is open)
         m->setAttribute(Qt::WA_DeleteOnClose);
         m->popup(menu->mapToGlobal(QPoint(0, 0)) - QPoint(0, m->sizeHint().height()));
     });
@@ -267,6 +270,14 @@ void DeckWindow::startReadingView()
     show->show();
     show->setFocus();
     refreshUi();
+}
+
+void DeckWindow::endReadingView()
+{
+    if (!m_reading) return;
+    m_reading->close();
+    // The question about the ink comes before whatever starts next.
+    QCoreApplication::sendPostedEvents(this, QEvent::MetaCall);
 }
 
 // Everything Reading View put away comes back, on the view it started from. The show is closed (and goes with its timers) when this is called from a view change.
@@ -291,6 +302,10 @@ void DeckWindow::leaveReadingView()
     m_slideLabel->show();
     for (QWidget *w : readingHiddenStatusWidgets()) w->show();
     act(viewAction(m_view))->setChecked(true);
+    m_ed->setReadOnly(isReadOnly());
+    // The keyboard goes back to what had it.
+    if (m_readingFocus && m_readingFocus->isVisible()) m_readingFocus->setFocus(Qt::OtherFocusReason);
+    m_readingFocus.clear();
     refreshUi();
 }
 

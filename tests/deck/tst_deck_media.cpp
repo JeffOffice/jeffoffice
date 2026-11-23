@@ -2430,7 +2430,9 @@ private Q_SLOTS:
         QTRY_VERIFY_WITH_TIMEOUT(playerSettled(*song, false), kHangGuardMs);
         QTest::keyClick(show, Qt::Key_Escape);
         QVERIFY(!w.inReadingView());
-        QTRY_VERIFY_WITH_TIMEOUT(song.isNull(), kHangGuardMs);
+        // The player is let go by the end itself, before the show is deleted (the show is deleted only when the event loop runs).
+        QVERIFY(song.isNull());
+        QVERIFY(!show.isNull());
         QTRY_VERIFY(show.isNull());
     }
 

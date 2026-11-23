@@ -3230,9 +3230,11 @@ private Q_SLOTS:
         show->next();
         QVERIFY(show->isPlayingStep());
         QTRY_VERIFY(frames > 0);
+        QVERIFY(show->frameClockRunning());
         QTest::keyClick(show, Qt::Key_Escape);   // mid-animation: the first Esc ends the view (the pointer is the arrow)
         QVERIFY(!w.inReadingView());
-        QVERIFY(!show->isPlayingStep() || show->isHidden());
+        QVERIFY(show->isHidden());
+        QVERIFY(!show->frameClockRunning());
         const int atEnd = frames;
         for (int i = 0; i < 30; ++i) QCoreApplication::processEvents();
         QCOMPARE(frames, atEnd);
@@ -3283,6 +3285,293 @@ private Q_SLOTS:
         for (const char *word : {"Page Down", "Home", "Enter", "Esc", "Shift+F10"}) QVERIFY2(help.contains(QLatin1String(word)), word);
     }
 
+    // Lets the event loop run a counted number of turns, with the deletions that are waiting.
+    static void settle(int turns = 50)
+    {
+        for (int i = 0; i < turns; ++i) {
+            QCoreApplication::processEvents();
+            QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+        }
+    }
+
+    static int liveShows()
+    {
+        int n = 0;
+        for (QWidget *w : QApplication::allWidgets())
+            if (qobject_cast<SlideShow *>(w)) ++n;
+        return n;
+    }
+
+    // The show ends while a box it put up is open (the Help box, here, in a show of its own and in Reading View): the box goes with the show and nothing is freed twice. The show is ended
+    // from a timer that runs while the box is up (inside the box's own loop, when it has one).
+    void endingTheShowWhileItsHelpBoxIsOpenIsSafe_data()
+    {
+        QTest::addColumn<bool>("embedded");
+        QTest::newRow("in a show of its own") << false;
+        QTest::newRow("in Reading View") << true;
+    }
+
+    void endingTheShowWhileItsHelpBoxIsOpenIsSafe()
+    {
+        QFETCH(bool, embedded);
+        DeckWindow w;
+        w.resize(1100, 700);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        w.newSlide();
+        if (embedded) w.act("view.reading")->trigger();
+        else w.startShow(0);
+        QPointer<SlideShow> show = embedded ? w.readingShow() : w.slideShow();
+        QVERIFY(show);
+        QMenu *menu = show->buildMenu(&w);
+        QAction *help = menu->findChild<QAction *>(QStringLiteral("menuHelp"));
+        QVERIFY(help);
+        bool boxWasUp = false;
+        QTimer::singleShot(0, show.data(), [&] {
+            boxWasUp = qobject_cast<QMessageBox *>(QApplication::activeModalWidget()) != nullptr;
+            show->close();
+            settle(20);
+        });
+        help->trigger();
+        for (int i = 0; i < 100 && (!boxWasUp || show); ++i) settle(1);
+        QVERIFY(boxWasUp);
+        QVERIFY(show.isNull());
+        settle();
+        QVERIFY(!QApplication::activeModalWidget());
+        QVERIFY(embedded ? !w.inReadingView() : !w.slideShow());
+        delete menu;
+    }
+
+    // Every way to start a show first ends Reading View (as Esc does, with its question about the ink), so that there are never two shows on one presentation.
+    void everyRouteToAShowEndsReadingViewFirst()
+    {
+        DeckWindow w;
+        w.resize(1100, 700);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        w.newSlide();
+        w.newSlide();
+        deck::CustomShow cs;
+        cs.id = 7;
+        cs.name = QStringLiteral("Two");
+        cs.slides = {w.editor()->doc()->pages[1]->id};
+        deck::setCustomShows(*w.editor()->doc(), {cs});
+        int asked = 0;
+        bool showUpWhenAsked = false;
+        w.setShowQuestion([&](const QString &) {
+            ++asked;
+            showUpWhenAsked = w.slideShow() != nullptr;
+            return false;
+        });
+        QToolButton *statusButton = nullptr;
+        for (QToolButton *b : w.statusBar()->findChildren<QToolButton *>())
+            if (b->defaultAction() == w.act("view.slideShow")) statusButton = b;
+        QVERIFY(statusButton);
+        struct Route {
+            const char *name;
+            std::function<void()> go;
+        };
+        const QVector<Route> routes{
+            {"status bar button", [&] { statusButton->click(); }},
+            {"From Beginning (F5)", [&] { w.act("show.fromStart")->trigger(); }},
+            {"From Current Slide (Shift+F5)", [&] { w.act("show.fromCurrent")->trigger(); }},
+            {"Presenter View", [&] { w.act("show.presenterView")->trigger(); }},
+            {"Rehearse Timings", [&] { w.rehearseTimings(); }},
+            {"a custom show", [&] { w.startCustomShow(7); }},
+        };
+        bool first = true;
+        for (const Route &route : routes) {
+            w.act("view.reading")->trigger();
+            QVERIFY2(w.inReadingView(), route.name);
+            if (first) {
+                SlideShow *reading = w.readingShow();
+                reading->setPointer(SlideShow::Pointer::Pen);
+                reading->pressAt(QPointF(100, 100));
+                reading->moveTo(QPointF(200, 120));
+                reading->releasePointer();
+            }
+            route.go();
+            QVERIFY2(!w.inReadingView(), route.name);
+            QVERIFY2(w.slideShow(), route.name);
+            settle();
+            QVERIFY2(liveShows() == 1, route.name);
+            if (first) {
+                QCOMPARE(asked, 1);
+                QVERIFY(!showUpWhenAsked);   // (the question comes before the new show starts)
+                first = false;
+            }
+            w.slideShow()->close();
+            settle();
+            QVERIFY2(liveShows() == 0, route.name);
+        }
+        w.setShowQuestion(nullptr);
+    }
+
+    // Closing the window with Reading View up ends it too, and leaves nothing behind.
+    void closingTheWindowInReadingViewLeavesNoShow()
+    {
+        QPointer<SlideShow> show;
+        {
+            auto *w = new DeckWindow;
+            w->setAttribute(Qt::WA_DeleteOnClose, false);
+            w->resize(1100, 700);
+            w->show();
+            QVERIFY(QTest::qWaitForWindowExposed(w));
+            w->act("view.reading")->trigger();
+            show = w->readingShow();
+            QVERIFY(show);
+            QVERIFY(w->close());
+            QVERIFY(!w->inReadingView());
+            delete w;
+        }
+        settle();
+        QVERIFY(show.isNull());
+        QCOMPARE(liveShows(), 0);
+    }
+
+    // Reading View is for reading: the commands that change the slides are refused while it is up (named here, and Undo and Redo among them), the editor takes back a change that gets past them,
+    // and a drag onto the page is not accepted. The views, Save, Print, Open, New, and Close stay.
+    void readingViewRefusesChangesToTheSlides()
+    {
+        DeckWindow w;
+        w.resize(1100, 700);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        w.newSlide();
+        w.newSlide();
+        w.editor()->setCurrentPage(0);
+        w.act("edit.selectAll")->trigger();
+        QApplication::clipboard()->setText(QStringLiteral("pasted"));
+        w.act("view.reading")->trigger();
+        QVERIFY(w.inReadingView());
+        const QJsonObject before = w.editor()->doc()->toJson();
+        int refused = 0;
+        for (const char *id : {"slide.new", "edit.paste", "edit.cut", "edit.delete", "edit.undo", "edit.redo", "edit.pasteText"}) {
+            QAction *a = w.act(QString::fromLatin1(id));
+            QVERIFY2(a, id);
+            w.statusBar()->clearMessage();
+            a->trigger();
+            QVERIFY2(w.inReadingView(), id);
+            QVERIFY2(w.editor()->doc()->toJson() == before, id);
+            QCOMPARE(int(w.editor()->doc()->pages.size()), 3);
+            if (!a->isEnabled()) continue;   // (a command that is off asks for nothing)
+            QVERIFY2(w.statusBar()->currentMessage().contains(QLatin1String("Reading View is for reading")), id);
+            ++refused;
+        }
+        QVERIFY(refused >= 4);
+        // A change that gets past the commands is taken back, and a drop is not accepted.
+        w.editor()->beginChange(QStringLiteral("Test"));
+        w.editor()->doc()->pages.erase(w.editor()->doc()->pages.begin() + 2);
+        w.editor()->endChange();
+        QCOMPARE(int(w.editor()->doc()->pages.size()), 3);
+        QMimeData mime;
+        mime.setText(QStringLiteral("dropped"));
+        QDragEnterEvent enter(QPoint(50, 50), Qt::CopyAction, &mime, Qt::LeftButton, Qt::NoModifier);
+        QCoreApplication::sendEvent(w.canvas(), &enter);
+        QVERIFY(!enter.isAccepted());
+        for (const char *id : {"file.save", "file.saveAs", "file.saveCopy", "file.print", "file.open", "file.new", "file.close", "help.show", "view.normal", "view.sorter"})
+            QVERIFY2(AppWindow::commandAllowedReadOnly(QString::fromLatin1(id)), id);
+        // Another view ends Reading View, and the slides can be changed again.
+        w.act("view.sorter")->trigger();
+        QVERIFY(!w.inReadingView());
+        QVERIFY(!w.editor()->readOnly());
+        w.act("slide.new")->trigger();
+        QCOMPARE(int(w.editor()->doc()->pages.size()), 4);
+    }
+
+    // Leaving Reading View gives the keyboard back to what had it when the view began (once the show is deleted).
+    void leavingReadingViewGivesTheKeyboardBack_data()
+    {
+        QTest::addColumn<QString>("view");
+        QTest::newRow("the slide") << QStringLiteral("view.normal");
+        QTest::newRow("the sorter") << QStringLiteral("view.sorter");
+        QTest::newRow("the outline") << QStringLiteral("view.outline");
+        QTest::newRow("the notes") << QStringLiteral("notes");
+    }
+
+    void leavingReadingViewGivesTheKeyboardBack()
+    {
+        QFETCH(QString, view);
+        DeckWindow w;
+        w.resize(1100, 700);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        w.activateWindow();
+        w.newSlide();
+        if (view == QLatin1String("notes")) {
+            w.act("view.notes")->setChecked(true);
+            QTRY_VERIFY(w.notesPane()->isVisible());
+            w.notesPane()->setFocus(Qt::OtherFocusReason);
+        } else {
+            w.act(view)->trigger();
+            if (view == QLatin1String("view.normal")) w.canvas()->setFocus(Qt::OtherFocusReason);
+        }
+        QWidget *had = w.focusWidget();
+        QVERIFY(had);
+        w.act("view.reading")->trigger();
+        QVERIFY(w.inReadingView());
+        QPointer<SlideShow> show = w.readingShow();
+        QVERIFY(w.focusWidget() != had);
+        QTest::keyClick(show, Qt::Key_Escape);
+        QVERIFY(!w.inReadingView());
+        settle();
+        QVERIFY(show.isNull());
+        QCOMPARE(w.focusWidget(), had);
+    }
+
+    // Tab reaches the status bar's controls from a slide with no link (and goes on round to the others), and the controls have names a screen reader can say.
+    void readingViewControlsAreReachableByTabAndNamed()
+    {
+        DeckWindow w;
+        w.resize(1100, 700);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        w.activateWindow();
+        w.newSlide();
+        w.act("view.reading")->trigger();
+        QVERIFY(w.inReadingView());
+        SlideShow *show = w.readingShow();
+        show->setFocus(Qt::OtherFocusReason);
+        QCOMPARE(w.focusWidget(), static_cast<QWidget *>(show));
+        QSet<QString> reached;
+        for (int i = 0; i < 12 && reached.size() < 3; ++i) {
+            QTest::keyClick(w.focusWidget(), Qt::Key_Tab);
+            if (auto *b = qobject_cast<QToolButton *>(w.focusWidget())) reached << b->objectName();
+        }
+        QVERIFY(reached.contains(QStringLiteral("readingPrevious")));
+        QVERIFY(reached.contains(QStringLiteral("readingNext")));
+        QVERIFY(reached.contains(QStringLiteral("readingMenu")));
+        QCOMPARE(w.findChild<QToolButton *>(QStringLiteral("readingMenu"))->text(), QStringLiteral("Show Menu"));
+        for (const char *name : {"readingPrevious", "readingNext", "readingMenu"}) {
+            auto *b = w.findChild<QToolButton *>(QString::fromLatin1(name));
+            QVERIFY2(!b->accessibleName().isEmpty(), name);
+            QCOMPARE(b->accessibleName(), b->text());
+        }
+    }
+
+    // The keys the help lists: Esc's two steps are told in one line, and the eraser (Ctrl and E) and erasing all the ink (E alone) are in lines of their own.
+    void showHelpKeepsTheEraserAndEraseAllApart()
+    {
+        const QStringList lines = SlideShow::helpText().split(QLatin1Char('\n'));
+        const QString ctrlE = QKeySequence(Qt::ControlModifier | Qt::Key_E).toString(QKeySequence::NativeText);
+        int eraser = 0, eraseAll = 0, esc = 0;
+        for (const QString &line : lines) {
+            if (line.contains(ctrlE)) {
+                ++eraser;
+                QVERIFY(!line.contains(QLatin1String("all ink")));
+            }
+            if (line.contains(QLatin1String("all ink"))) {
+                ++eraseAll;
+                QVERIFY(!line.contains(ctrlE));
+                QVERIFY(line.contains(QLatin1String("without Ctrl")));
+            }
+            if (line == QLatin1String("Esc: put the pointer back to an arrow; press again to end the show.")) ++esc;
+        }
+        QCOMPARE(eraser, 1);
+        QCOMPARE(eraseAll, 1);
+        QCOMPARE(esc, 1);
+    }
+
     // Pictures of Reading View and the show's menu, when JP_SHOT_DIR names a folder.
     void readingViewPictures()
     {
@@ -3294,6 +3583,12 @@ private Q_SLOTS:
         w.show();
         QVERIFY(QTest::qWaitForWindowExposed(&w));
         w.newSlide();
+        w.newSlide();
+        deck::CustomShow cs;
+        cs.id = 3;
+        cs.name = QStringLiteral("Short version");
+        cs.slides = {w.editor()->doc()->pages[1]->id};
+        deck::setCustomShows(*w.editor()->doc(), {cs});
         auto *title = static_cast<TextItem *>(w.editor()->doc()->pages[0]->items[0].get());
         w.editor()->doc()->storyDoc(title->storyId)->setPlainText(QStringLiteral("Quarterly review"));
         w.editor()->setCurrentPage(0);

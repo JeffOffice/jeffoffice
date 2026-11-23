@@ -571,6 +571,7 @@ void DeckWindow::playShow(int slide, const deck::ShowPlan &plan, bool recording,
     m_notes->commit();
     if (m_outline) m_outline->commit();
     m_ed->endTextEdit();
+    endReadingView();
     if (m_show) m_show->close();
     deck::ShowSettings settings = deck::showSettingsOf(*m_ed->doc());
     if (recording) {

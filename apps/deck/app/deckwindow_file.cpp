@@ -53,7 +53,7 @@ void DeckWindow::browseAndOpen(OpenHow how)
 void DeckWindow::setReadOnly(bool on)
 {
     AppWindow::setReadOnly(on);
-    m_ed->setReadOnly(on);
+    m_ed->setReadOnly(on || m_reading);   // (Reading View keeps the editor from changing the slides)
     if (m_notes) m_notes->setReadOnly(on);
     if (m_outline) m_outline->setReadOnly(on);
     if (m_formatPane) m_formatPane->setEnabled(!on);   // (its boxes change the slide: a presentation open for reading only is not changed by them)
