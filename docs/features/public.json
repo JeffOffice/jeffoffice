@@ -3471,8 +3471,9 @@
        "text": "534079f5b6f19e27b82cabf682f4906c0df88671ef69b77e687bc339e92123da"
       },
       {
-       "status": "todo",
-       "text": "d42d1b46597c6fbb081682cd34b74df5a837f32c783588a14e92f5f9ecbfb9c4"
+       "hide_soon": true,
+       "status": "done",
+       "text": "b4b1fc18a69b7304f1dbe479eb2976cee91c833b0adef158d83495e3c9a15bd6"
       },
       {
        "hide_soon": true,
@@ -3551,7 +3552,7 @@
       },
       {
        "status": "partly",
-       "text": "911b49b75592970f0196c0d1e5f6668b33c86fa21f891b641b9a52f1dd77005e"
+       "text": "68ba9432501d422ed034a0f830e09bbf497b46ba302a1a53b8f10c7367f9b31b"
       },
       {
        "hide_soon": true,
@@ -6352,7 +6353,7 @@
         },
         {
          "status": "partly",
-         "text": "9a8a36f14f274c9d315557689fcf082801d3d30733ec8c9ddac157e8e58ee7fc"
+         "text": "9fc3e91385d73642a6c31def8f920cdb3104ae4074cc659282070fec934c6f79"
         },
         {
          "status": "partly",
@@ -6364,7 +6365,7 @@
         },
         {
          "status": "partly",
-         "text": "a0d6db6f6aadd796487186e169a6e6d8dea5cf43f5b8da88c9628a9767691bcc"
+         "text": "68014af5b75ec65207e26b60d6a18cd8c52895efc72718f04a4cd78af8ad4b40"
         }
        ]
       },
@@ -15917,6 +15918,18 @@
     "fr": "Champs de formulaire : insertion et remplissage"
    }
   },
+  "68014af5b75ec65207e26b60d6a18cd8c52895efc72718f04a4cd78af8ad4b40": {
+   "drop": false,
+   "en": "Press `Shift+F1` to open Reveal Formatting, which shows the styles, font, size, color, alignment, indents, spacing, and language at the caret. The Style Inspector in the Styles pane shows the paragraph style, character style, and direct formatting, each with a button that removes it.",
+   "es": "Pulse `Shift+F1` para abrir Mostrar formato, que muestra los estilos, la fuente, el tamaño, el color, la alineación, las sangrías, el espaciado y el idioma en el punto de inserción. El Inspector de estilos del panel Estilos muestra el estilo de párrafo, el estilo de carácter y el formato directo, cada uno con un botón que lo quita.",
+   "fr": "Appuyez sur `Maj+F1` pour ouvrir Afficher la mise en forme, qui indique les styles, la police, la taille, la couleur, l’alignement, les retraits, l’espacement et la langue au niveau du curseur. L’inspecteur de styles du volet Styles indique le style de paragraphe, le style de caractère et la mise en forme directe, chacun avec un bouton pour l’supprimer.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "6801c4850e10b6a6231fb3adff0f155497f76c88f8d5c66f4b2505af0a60b3ca": {
    "drop": false,
    "en": "Set margins with a left gutter, orientation, and paper size in the Page Setup dialog. Choose the section start, different odd and even pages, a different first page, and header and footer distances from the edge, and set vertical page alignment (top, center, justified, or bottom). Choose a paper tray for the first page and for the other pages. Apply the settings to the section, the whole document, or from this point forward.",
@@ -15975,6 +15988,18 @@
     "en": "Text styles on ordinary text",
     "es": "Estilos de texto en texto normal",
     "fr": "Styles de texte sur du texte ordinaire"
+   }
+  },
+  "68ba9432501d422ed034a0f830e09bbf497b46ba302a1a53b8f10c7367f9b31b": {
+   "drop": false,
+   "en": "The show menu has See All Slides, Last Viewed, Custom Show, Help, and Arrow Options (Automatic, Visible, or Hidden). The `Menu` key and `Shift+F10` open the show menu without a mouse.",
+   "es": "El menú de la presentación incluye Ver todas las diapositivas, Última vista, Presentación personalizada, Ayuda y Opciones de flecha (Automática, Visible u Oculta). Las teclas `Menú` y `Shift+F10` abren el menú de la presentación sin usar el mouse.",
+   "fr": "Le menu du diaporama propose Afficher toutes les diapositives, Dernière vue, Diaporama personnalisé, Aide et Options de flèche (Automatique, Visible ou Masquée). Les touches `Menu` et `Maj+F10` ouvrent le menu du diaporama sans souris.",
+   "soon": {
+    "drop": false,
+    "en": "Show Presenter View, Zoom into the slide, Speaker Notes, and Subtitle Settings in the show menu",
+    "es": "Mostrar vista del presentador, Ampliar la diapositiva, Notas del orador y Configuración de subtítulos en el menú de la presentación",
+    "fr": "Afficher le mode présentateur, Zoom sur la diapositive, Notes du présentateur et Paramètres des sous-titres dans le menu du diaporama"
    }
   },
   "68bdf8edf8bcb0b4aafaad7e8d2741e2b041c46af9a356e06cd560b8ba1bf1cc": {
@@ -18677,18 +18702,6 @@
     "fr": ""
    }
   },
-  "911b49b75592970f0196c0d1e5f6668b33c86fa21f891b641b9a52f1dd77005e": {
-   "drop": false,
-   "en": "The show menu has See All Slides, Last Viewed, and Arrow Options (Automatic, Visible, or Hidden; `Ctrl+U` and `Ctrl+H`), and opens with the Menu key or `Shift+F10`.",
-   "es": "El menú de la presentación incluye Ver todas las diapositivas, Última vista y Opciones de flecha (Automática, Visible u Oculta; `Ctrl+U` y `Ctrl+H`), y se abre con la tecla Menú o `Shift+F10`.",
-   "fr": "Le menu du diaporama propose Voir toutes les diapositives, Dernière vue et Options de flèche (Automatique, Visible ou Masquée ; `Ctrl+U` et `Ctrl+H`), et s’ouvre avec la touche Menu ou `Shift+F10`.",
-   "soon": {
-    "drop": false,
-    "en": "Show Presenter View, zoom into the slide, speaker notes, and subtitle settings in the show menu",
-    "es": "Mostrar vista de moderador, zoom en la diapositiva, notas del orador y configuración de subtítulos en el menú de la presentación",
-    "fr": "Affichage du mode Présentateur, zoom sur la diapositive, notes du présentateur et paramètres de sous-titres dans le menu du diaporama"
-   }
-  },
   "911cfa245408b97bac94cb87e157891170b36f82fb2483ac7f6238b4e9c73390": {
    "drop": false,
    "en": "Bundled open fonts, with stand-ins that keep the letter widths of common fonts, so a document lays out the same on a computer without those fonts.",
@@ -19361,18 +19374,6 @@
     "fr": ""
    }
   },
-  "9a8a36f14f274c9d315557689fcf082801d3d30733ec8c9ddac157e8e58ee7fc": {
-   "drop": false,
-   "en": "Create paragraph, character, and linked styles and modify them: name, based on, next style, font, paragraph look, gallery, and update automatically. Paragraphs with the style follow it as one step, and a style can also be added to new documents.",
-   "es": "Cree estilos de párrafo, de carácter y vinculados y modifíquelos: nombre, basado en, estilo siguiente, fuente, aspecto del párrafo, galería y actualización automática. Los párrafos con el estilo lo siguen en un solo paso, y un estilo también puede agregarse a los documentos nuevos.",
-   "fr": "Créez des styles de paragraphe, de caractère et liés, et modifiez-les : nom, basé sur, style suivant, police, aspect du paragraphe, galerie et mise à jour automatique. Les paragraphes dotés du style le suivent en une seule étape, et un style peut aussi être ajouté aux nouveaux documents.",
-   "soon": {
-    "drop": false,
-    "en": "Table and list styles: create and modify",
-    "es": "Estilos de tabla y de lista: crear y modificar",
-    "fr": "Styles de tableau et de liste : création et modification"
-   }
-  },
   "9a92c15cb4ee6f033e0e43a5eba399c68b991d0ba0d281f490e05a306708da49": {
    "drop": false,
    "en": "Shadows are blurred the same way on screen, in the show, and in a PDF, where a blurred effect becomes a 300 dpi picture.",
@@ -19781,6 +19782,18 @@
     "fr": ""
    }
   },
+  "9fc3e91385d73642a6c31def8f920cdb3104ae4074cc659282070fec934c6f79": {
+   "drop": false,
+   "en": "Create a style from a selection and change it in one dialog: name, based on, next style, font, paragraph look, gallery, and automatic update. Paragraph, character, linked, table, and list style types are available, and available-in options include new documents.",
+   "es": "Cree un estilo a partir de una selección y modifíquelo en un solo cuadro de diálogo: nombre, basado en, estilo siguiente, fuente, aspecto del párrafo, galería y actualización automática. Están disponibles los tipos de estilo de párrafo, carácter, vinculado, tabla y lista, y las opciones de disponibilidad incluyen documentos nuevos.",
+   "fr": "Créez un style à partir d’une sélection et modifiez-le dans une seule boîte de dialogue : nom, basé sur, style suivant, police, aspect du paragraphe, galerie et mise à jour automatique. Les types de style paragraphe, caractère, lié, tableau et liste sont disponibles, et les options de disponibilité incluent les nouveaux documents.",
+   "soon": {
+    "drop": false,
+    "en": "Paragraphs in headers, footers, and notes: follow style changes immediately",
+    "es": "Párrafos de encabezados, pies de página y notas: seguir los cambios de estilo de inmediato",
+    "fr": "Paragraphes des en-têtes, pieds de page et notes : suivi immédiat des changements de style"
+   }
+  },
   "a01cee174c33518608ce6de980cfdc7faf82668718c3c4d9bf8034872de00f31": {
    "drop": true,
    "en": "",
@@ -19839,18 +19852,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "a0d6db6f6aadd796487186e169a6e6d8dea5cf43f5b8da88c9628a9767691bcc": {
-   "drop": false,
-   "en": "`Shift+F1` opens Reveal Formatting, which shows the styles, font, size, look, color, alignment, indents, spacing, and language at the caret.",
-   "es": "`Shift+F1` abre Mostrar formato, que muestra los estilos, la fuente, el tamaño, el aspecto, el color, la alineación, las sangrías, el espaciado y el idioma donde está el cursor.",
-   "fr": "`Shift+F1` ouvre Révéler la mise en forme, qui affiche les styles, la police, la taille, l’aspect, la couleur, l’alignement, les retraits, l’espacement et la langue au niveau du curseur.",
-   "soon": {
-    "drop": false,
-    "en": "Style Inspector pane: change formatting",
-    "es": "Panel Inspector de estilos: cambiar el formato",
-    "fr": "Volet Inspecteur de styles : modifier la mise en forme"
    }
   },
   "a0e2b34213cc428fbfa481a5347c4ec691d9e2452ee1e7e42c4cd29c3fe683ef": {
@@ -21106,6 +21107,18 @@
    "en": "Add drop caps from a gallery or customize lines, size, font, and color, and set number styles (lining, old-style, proportional, tabular), ligatures, stylistic sets, stylistic alternates, swash, small caps, and true small caps.",
    "es": "Agregue letras capitales desde una galería o personalice líneas, tamaño, fuente y color, y defina estilos de número (alineados, antiguos, proporcionales, tabulares), ligaduras, conjuntos estilísticos, alternativas estilísticas, florituras, versalitas y versalitas verdaderas.",
    "fr": "Ajoutez des lettrines depuis une galerie ou personnalisez les lignes, la taille, la police et la couleur, et réglez les styles de chiffres (alignés, elzéviriens, proportionnels, tabulaires), les ligatures, les jeux stylistiques, les variantes stylistiques, les fioritures, les petites capitales et les vraies petites capitales.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "b4b1fc18a69b7304f1dbe479eb2976cee91c833b0adef158d83495e3c9a15bd6": {
+   "drop": false,
+   "en": "Play a presentation inside the window in Reading View, with the title bar and status bar kept and the ribbon and panes put away. The status bar has Previous, Next, and a Show Menu button, and `Esc` returns to the previous view.",
+   "es": "Reproduzca una presentación dentro de la ventana en la vista de lectura, con la barra de título y la barra de estado visibles y la cinta de opciones y los paneles ocultos. La barra de estado tiene Anterior, Siguiente y un botón de menú de la presentación, y `Esc` vuelve a la vista anterior.",
+   "fr": "Lisez une présentation dans la fenêtre en mode lecture, avec la barre de titre et la barre d’état conservées et le ruban et les volets masqués. La barre d’état propose Précédent, Suivant et un bouton de menu du diaporama, et `Échap` ramène à la vue précédente.",
    "soon": {
     "drop": true,
     "en": "",
@@ -23367,18 +23380,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "d42d1b46597c6fbb081682cd34b74df5a837f32c783588a14e92f5f9ecbfb9c4": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Reading View: the show in a window with a bar, for reading a presentation",
-    "es": "Vista de lectura: la presentación en una ventana con una barra, para leer una presentación",
-    "fr": "Mode lecture : le diaporama dans une fenêtre avec une barre, pour lire une présentation"
    }
   },
   "d440c5e6800761e47faefdac5765fa23d4633b2c6af4248a2f985f7e66ddcb46": {
