@@ -21,10 +21,10 @@ static QVector<El> els(const QPainterPath &path)
     return v;
 }
 
-static QPainterPath build(const QVector<El> &v)
+static QPainterPath build(const QVector<El> &v, Qt::FillRule rule)
 {
     QPainterPath p;
-    p.setFillRule(Qt::WindingFill);
+    p.setFillRule(rule);   // (the rule of the path edited: a ring made by Merge Shapes keeps its hole)
     for (int i = 0; i < v.size(); ++i) {
         switch (v[i].t) {
         case QPainterPath::MoveToElement: p.moveTo(v[i].p); break;
@@ -88,7 +88,7 @@ QPainterPath moved(const QPainterPath &path, int i, const QPointF &delta)
         const int e = subpathEnd(v, i);
         if (e > i && QLineF(v[e].p - delta, v[i].p - delta).length() < 0.01) withHandles(e);
     }
-    return build(v);
+    return build(v, path.fillRule());
 }
 
 static int vertexCountInSubpath(const QVector<El> &v, int i)
@@ -120,7 +120,7 @@ QPainterPath removed(const QPainterPath &path, int i)
             v[e2].p = v[i].p;
         }
     }
-    return build(v);
+    return build(v, path.fillRule());
 }
 
 // Inserts a vertex on the edge nearest to local point q (within tol); returns
@@ -165,7 +165,7 @@ QPainterPath inserted(const QPainterPath &path, const QPointF &q, double tol, in
         v.insert(seg + 5, El{QPainterPath::CurveToDataElement, p3});
         if (at) *at = seg + 2;
     }
-    return build(v);
+    return build(v, path.fillRule());
 }
 
 QVector<QPointF> vertexPoints(const QPainterPath &path)
