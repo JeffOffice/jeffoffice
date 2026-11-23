@@ -951,6 +951,7 @@ private Q_SLOTS:
             pub.stage(2);
         });
         worker.join();
+        guard.setWorker(me + 1);   // (the worker's thread is gone: its number may be given to the next thread)
         QVERIFY(!pub.readBare(&t));   // (this thread has not adopted: it is not the window's)
         pub.adopt(1);
         QVERIFY(pub.readBare(&t) && t && t->at(1, 0) && !t->at(1, 5));
