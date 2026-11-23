@@ -3,6 +3,11 @@
 #include "app/theme.h"
 #include "core/effectmask.h"
 
+#include <QInputDialog>
+#include <QStatusBar>
+#include <QTimer>
+#include <QUndoStack>
+
 class DeckAnimationTests : public QObject {
     Q_OBJECT
 
@@ -2288,6 +2293,632 @@ private Q_SLOTS:
         QVERIFY2(after.effects[1].start == deck::EffectStart::WithPrevious, qPrintable(QStringLiteral("%1 %2 %3").arg(int(after.effects[0].start)).arg(int(after.effects[1].start)).arg(int(after.effects[2].start))));
         QCOMPARE(after.effects[2].shape, otherShape);
         QVERIFY(after.effects[2].start != deck::EffectStart::WithPrevious);
+    }
+
+    // ---- triggers in the Animation pane (Nov 23 2026) ----
+
+private:
+    // Three boxes, numbered 10, 11, and 12, on the window's first slide, with this timing.
+    static void triggerSlide(Editor *ed, const QString &timing, int boxes = 3)
+    {
+        Page &slide = *ed->doc()->pages[0];
+        for (int i = 0; i < boxes; ++i) {
+            auto box = std::make_shared<ShapeItem>();
+            box->rect = QRectF(40 + 120 * i, 360, 100, 60);
+            box->fill = Fill::solid(ColorRef::rgb(QColor(200, 60, 40)));
+            box->sourceId = 10 + i;
+            box->name = QStringLiteral("Box %1").arg(i + 1);
+            slide.items.push_back(box);
+        }
+        slide.props[QStringLiteral("timingXml")] = timing;
+    }
+
+    static QString keptText(const Page &page) { return deck::readAnimations(page).kept.join(QString()); }
+
+    // Answers the box that asks which object starts the effects: picks `name` (or refuses with Cancel when it is empty), and says what the box showed.
+    // Looks for the box every 20 ms, for at most 300 looks.
+    struct BoxSeen {
+        QString label;
+        QStringList items;
+        bool seen = false;
+    };
+    static void answerTriggerBox(const QString &name, BoxSeen *seen)
+    {
+        auto look = std::make_shared<std::function<void(int)>>();
+        *look = [name, seen, look](int left) {
+            for (QWidget *top : QApplication::topLevelWidgets()) {
+                auto *box = qobject_cast<QInputDialog *>(top);
+                if (!box || box->objectName() != QLatin1String("triggerObjectDialog") || !box->isVisible()) continue;
+                seen->seen = true;
+                seen->label = box->labelText();
+                seen->items = box->comboBoxItems();
+                if (name.isEmpty()) {
+                    box->reject();
+                } else {
+                    box->setTextValue(name);
+                    box->accept();
+                }
+                return;
+            }
+            if (left > 0) QTimer::singleShot(20, [look, left] { (*look)(left - 1); });
+        };
+        QTimer::singleShot(20, [look] { (*look)(300); });
+    }
+
+    // Start is changed in the ribbon's box, as a click would.
+    static void chooseStart(QComboBox *start, int data)
+    {
+        start->setCurrentIndex(start->findData(data));
+        Q_EMIT start->activated(start->currentIndex());
+    }
+
+    static QString timingForSaveText(const Page &page, int *dropped) { return deck::timingForSave(Document(), page, [](int) { return true; }, dropped); }
+
+private Q_SLOTS:
+    // The saved bytes of an interactive sequence stay as the file wrote them through every edit of the main sequence that the pane makes (Nov 23: shown, before
+    // the pane lists triggers, so that the data a trigger holds is known to be safe).
+    // Fails when off: no (a guard: it passed before the change, since a trigger was a kept node).
+    void animationTriggersSurviveEveryPaneEdit()
+    {
+        DeckWindow w;
+        w.show();
+        Editor *ed = w.editor();
+        triggerSlide(ed, animTriggerTiming(animSteps({animFadeIn(10, 500), animFadeIn(11, 400)}), {{12, animFadeIn(12, 300)}}), 4);   // (a fourth box, 13, for the effects added below)
+        Page &page = *ed->doc()->pages[0];
+        const QString before = keptText(page);
+        QVERIFY(before.contains(QStringLiteral("interactiveSeq")));
+        auto *pane = w.animationPane();
+        pane->reload();
+        QCOMPARE(pane->rowCount(), 3);
+        auto stays = [&](const char *what) { QVERIFY2(keptText(page) == before, qPrintable(QString::fromLatin1(what) + page.props.value(QStringLiteral("timingXml")).toString().right(1300))); };
+        pane->list()->setCurrentRow(0, QItemSelectionModel::ClearAndSelect);
+        w.act("anim.set.emph.spin")->trigger();
+        stays("kind");
+        w.act("anim.start.with")->trigger();
+        stays("start");
+        Q_EMIT pane->reorderRequested(1);
+        stays("reorder");
+        Q_EMIT pane->moveRequested(1, 0);
+        stays("move");
+        pane->list()->setCurrentRow(0, QItemSelectionModel::ClearAndSelect);
+        w.act("anim.remove")->trigger();
+        stays("remove");
+        QCOMPARE(deck::readAnimations(page).effects.size(), 1);
+        ed->select(page.items.back()->id);
+        w.act("anim.add.entr.fly")->trigger();
+        stays("add");
+        w.act("anim.none")->trigger();
+        stays("none");
+        // On save, too: the timing the file gets still holds the sequence.
+        int dropped = 0;
+        QVERIFY(timingForSaveText(page, &dropped).contains(QStringLiteral("interactiveSeq")));
+    }
+
+    // A trigger is a group in the sequence the pane lists: rows after the main sequence's, one group for each object, in file order.
+    // Fails when off: yes (the groups are not read without the change).
+    void animationReadsTriggersAsGroups()
+    {
+        auto d = editDeck(3);
+        Page &slide = *d->pages[0];
+        slide.props[QStringLiteral("timingXml")] = animTriggerTiming(animSteps({animFadeIn(10, 500)}), {{12, animFadeIn(10, 300)}, {11, animFlyIn(12, 400)}});
+        const deck::AnimSequence seq = deck::readAnimations(slide, d.get());
+        QVERIFY(seq.editable);
+        QCOMPARE(seq.effects.size(), 1);
+        QCOMPARE(seq.triggers.size(), 2);
+        QCOMPARE(seq.triggers[0].shape, 12);
+        QCOMPARE(seq.triggers[1].shape, 11);
+        QCOMPARE(seq.rowCount(), 3);
+        QCOMPARE(seq.place(1).trigger, 0);
+        QCOMPARE(seq.place(2).trigger, 1);
+        QCOMPARE(seq.rowOf(1, 0), 2);
+        QCOMPARE(seq.anim(2).kind, QStringLiteral("entr.fly"));
+        QCOMPARE(seq.anim(2).shape, 12);
+        QVERIFY(!seq.triggers[0].locked && !seq.triggers[0].edited());
+        const QStringList keys = deck::effectKeys(seq);
+        QCOMPARE(keys.size(), 3);
+        QCOMPARE(QSet<QString>(keys.cbegin(), keys.cend()).size(), 3);
+        // Two sequences of one object are one group, in file order.
+        slide.props[QStringLiteral("timingXml")] = animTriggerTiming(animSteps({}), {{12, animFadeIn(10, 300)}, {11, animFadeIn(11, 300)}, {12, animFlyIn(12, 400)}});
+        const deck::AnimSequence merged = deck::readAnimations(slide, d.get());
+        QCOMPARE(merged.triggers.size(), 2);
+        QCOMPARE(merged.triggers[0].effects.size(), 2);
+        QCOMPARE(merged.triggers[0].kept.size(), 2);
+        QCOMPARE(merged.anim(0).kind, QStringLiteral("entr.fade"));
+        QCOMPARE(merged.anim(1).kind, QStringLiteral("entr.fly"));
+    }
+
+    // What the model does not hold of a trigger's timing is kept when the trigger is untouched: an edit of a different effect leaves the trigger's saved text
+    // as it was (byte for byte), also when the file writes it in its own way; and a trigger that is changed is written afresh and read back the same.
+    // Fails when off: yes (with the group always rewritten, the odd text below is lost).
+    void animationEditKeepsTriggersNotTouched()
+    {
+        auto d = editDeck(3);
+        Page &slide = *d->pages[0];
+        // The second trigger has an attribute and an extension that the model has no field for.
+        QString odd = animTriggerTiming(animSteps({animFadeIn(10, 500), animFlyIn(11, 400)}), {{12, animFadeIn(10, 300)}, {11, animFadeIn(12, 400)}});
+        QVERIFY(odd.contains(QStringLiteral("evtFilter='cancelBubble'")) || odd.contains(QStringLiteral("evtFilter=\"cancelBubble\"")));
+        odd.replace(QStringLiteral("nodeType=\"interactiveSeq\""), QStringLiteral("nodeType=\"interactiveSeq\" bwMode=\"auto\""));
+        slide.props[QStringLiteral("timingXml")] = odd;
+        deck::AnimSequence seq = deck::readAnimations(slide, d.get());
+        const QString keptBefore = seq.kept.join(QString());
+        QVERIFY(keptBefore.contains(QStringLiteral("bwMode")));
+        // A different effect: the second of the main sequence.
+        seq.effects[1].duration = 900;
+        deck::setAnimations(*d, slide, seq);
+        const deck::AnimSequence after = deck::readAnimations(slide, d.get());
+        QCOMPARE(after.effects[1].duration, 900);
+        QCOMPARE(after.kept.join(QString()), keptBefore);
+        QVERIFY(slide.props.value(QStringLiteral("timingXml")).toString().contains(keptBefore.left(keptBefore.indexOf(QStringLiteral("</p:seq>")))));
+        // One of the group's own effects: that group is written afresh (the other stays as it was) and means the same.
+        deck::AnimSequence changed = after;
+        changed.triggers[1].effects[0].duration = 1500;
+        deck::setAnimations(*d, slide, changed);
+        const QString xml = slide.props.value(QStringLiteral("timingXml")).toString();
+        QVERIFY2(animIdProblem(xml).isEmpty(), qPrintable(animIdProblem(xml)));
+        const deck::AnimSequence again = deck::readAnimations(slide, d.get());
+        QCOMPARE(again.triggers.size(), 2);
+        QCOMPARE(again.triggers[0].shape, 12);
+        QCOMPARE(again.triggers[1].shape, 11);
+        QCOMPARE(again.triggers[1].effects[0].duration, 1500);
+        QCOMPARE(again.kept.size(), 2);
+        QCOMPARE(again.kept[0], after.kept[0]);   // the untouched trigger, byte for byte
+        const deck::Timeline tl = deck::readTimeline(xml);
+        QCOMPARE(tl.triggers.size(), 2);
+        QCOMPARE(tl.triggers[1].shape, 11);
+        QVERIFY(tl.triggers[1].effects[0].behaviors.size() > 0);
+    }
+
+    // Moving effects between the main sequence and triggers, between triggers, inside one, and out; a trigger left with nothing goes. Written and read back.
+    // Fails when off: yes (the model has no groups to move between).
+    void animationMovesEffectsBetweenSequences()
+    {
+        auto d = editDeck(4);
+        Page &slide = *d->pages[0];
+        deck::AnimSequence seq;
+        for (int s : {10, 11, 12}) seq.add(deck::makeAnim(QStringLiteral("entr.fade"), s));
+        deck::TriggerRefusal why = deck::TriggerRefusal::TooManyEffects;
+        // The first becomes one that waits for a click on box 4 (shape 13); a group is made.
+        int row = seq.moveToTrigger(0, 13, &why);
+        QCOMPARE(why, deck::TriggerRefusal::None);
+        QCOMPARE(seq.effects.size(), 2);
+        QCOMPARE(seq.triggers.size(), 1);
+        QCOMPARE(row, 2);
+        QCOMPARE(seq.anim(row).shape, 10);
+        // The second joins it, after the first; the last goes to a group of its own.
+        row = seq.moveToTrigger(0, 13);
+        QCOMPARE(row, 2);
+        QCOMPARE(seq.triggers[0].effects.size(), 2);
+        QCOMPARE(seq.triggers[0].effects[1].shape, 11);
+        QCOMPARE(seq.effects.size(), 1);
+        seq.moveToTrigger(0, 10);
+        QCOMPARE(seq.effects.size(), 0);
+        QCOMPARE(seq.triggers.size(), 2);
+        QCOMPARE(seq.rowCount(), 3);
+        // Reorder inside group 0 (rows 0 and 1), then between groups (row 2 takes the place of row 0).
+        QCOMPARE(seq.moveRow(1, 0), 0);
+        QCOMPARE(seq.anim(0).shape, 11);
+        QCOMPARE(seq.moveRow(2, 0), 0);
+        QCOMPARE(seq.triggers[0].effects.size(), 3);
+        QCOMPARE(seq.triggers[1].effects.size(), 0);
+        QCOMPARE(seq.anim(0).shape, 12);
+        // Back to the main sequence, at its start.
+        QCOMPARE(seq.moveRow(0, 0), 0);
+        row = seq.moveToMain(2, 0);
+        QCOMPARE(row, 0);
+        QCOMPARE(seq.effects.size(), 1);
+        QCOMPARE(seq.anim(0).shape, 10);
+        // Writes and reads back: the main sequence has one effect, box 4's trigger has two, in order.
+        deck::setAnimations(*d, slide, seq);
+        const deck::Timeline tl = deck::readTimeline(slide.props.value(QStringLiteral("timingXml")).toString());
+        QCOMPARE(tl.steps.size(), 1);
+        QCOMPARE(tl.triggers.size(), 1);
+        QCOMPARE(tl.triggers[0].shape, 13);
+        QCOMPARE(tl.triggers[0].effects.size(), 2);
+        // An effect taken out of its trigger leaves the group; the last one takes the group with it, and nothing of it is written.
+        seq = deck::readAnimations(slide, d.get());
+        seq.removeRow(1);
+        seq.removeRow(1);
+        QCOMPARE(seq.rowCount(), 1);
+        deck::setAnimations(*d, slide, seq);
+        QVERIFY(!slide.props.value(QStringLiteral("timingXml")).toString().contains(QStringLiteral("interactiveSeq")));
+        // A trigger given up releases its effects to the end of the main sequence, the first starting on a click.
+        seq = deck::AnimSequence();
+        seq.add(deck::makeAnim(QStringLiteral("entr.fade"), 10));
+        seq.moveToTrigger(0, 11);
+        seq.add(deck::makeAnim(QStringLiteral("entr.fade"), 12));
+        seq.triggers[0].effects[0].start = deck::EffectStart::AfterPrevious;
+        seq.releaseTrigger(0);
+        QCOMPARE(seq.effects.size(), 2);
+        QCOMPARE(seq.effects[1].shape, 10);
+        QCOMPARE(seq.effects[1].start, deck::EffectStart::OnClick);
+        QCOMPARE(seq.rowCount(), 2);
+    }
+
+    // The limits the show plays by hold when effects are put in triggers: 64 objects, 200 effects an object, 1,000 effects a slide. Each refusal changes nothing.
+    // Fails when off: yes (no limit, so the 65th object is made).
+    void animationTriggerLimitsRefuse()
+    {
+        deck::AnimSequence seq;
+        for (int i = 0; i < 70; ++i) seq.add(deck::makeAnim(QStringLiteral("entr.fade"), 100 + i));
+        deck::TriggerRefusal why = deck::TriggerRefusal::None;
+        int made = 0;
+        for (int i = 0; i < 70; ++i) {
+            seq.moveToTrigger(0, 1000 + i, &why);
+            if (why != deck::TriggerRefusal::None) break;
+            ++made;
+        }
+        QCOMPARE(made, deck::kMaxTriggers);
+        QCOMPARE(why, deck::TriggerRefusal::TooManyTriggers);
+        QCOMPARE(seq.triggers.size(), deck::kMaxTriggers);
+        QCOMPARE(seq.effects.size(), 70 - deck::kMaxTriggers);
+        // An object already waited for takes one more without a new trigger, to its 200.
+        deck::AnimSequence big;
+        for (int i = 0; i < deck::kMaxTriggerEffects + 3; ++i) big.add(deck::makeAnim(QStringLiteral("entr.fade"), 100 + i));
+        int put = 0;
+        for (int i = 0; i < deck::kMaxTriggerEffects + 3; ++i) {
+            big.moveToTrigger(0, 5, &why);
+            if (why != deck::TriggerRefusal::None) break;
+            ++put;
+        }
+        QCOMPARE(put, deck::kMaxTriggerEffects);
+        QCOMPARE(why, deck::TriggerRefusal::TooManyEffects);
+        QCOMPARE(big.triggers[0].effects.size(), deck::kMaxTriggerEffects);
+        QCOMPARE(big.effects.size(), 3);
+        // The slide's 1,000 in all: five full objects, and a sixth is refused for the slide.
+        deck::AnimSequence all;
+        for (int i = 0; i < deck::kMaxSlideTriggerEffects + 5; ++i) all.add(deck::makeAnim(QStringLiteral("entr.fade"), 100 + i));
+        int total = 0;
+        for (int i = 0; i < deck::kMaxSlideTriggerEffects + 5; ++i) {
+            all.moveToTrigger(0, 5000 + i / deck::kMaxTriggerEffects, &why);
+            if (why != deck::TriggerRefusal::None) break;
+            ++total;
+        }
+        QCOMPARE(total, deck::kMaxSlideTriggerEffects);
+        QCOMPARE(why, deck::TriggerRefusal::TooManyOnSlide);
+        QCOMPARE(all.triggerEffects(), deck::kMaxSlideTriggerEffects);
+        QCOMPARE(all.effects.size(), 5);
+        // A full object takes no effect from another, and the refusal changes nothing; inside its own group an effect moves freely.
+        const int rows = all.rowCount();
+        const deck::Anim first = all.anim(all.rowOf(0, 0));
+        QCOMPARE(all.moveRow(all.rowOf(1, 0), all.rowOf(0, 0), &why), all.rowOf(1, 0));
+        QCOMPARE(why, deck::TriggerRefusal::TooManyEffects);
+        QCOMPARE(all.rowCount(), rows);
+        QCOMPARE(all.anim(all.rowOf(0, 0)).shape, first.shape);
+        QCOMPARE(all.moveRow(all.rowOf(0, 0), all.rowOf(0, 5), &why), all.rowOf(0, 5));
+        QCOMPARE(why, deck::TriggerRefusal::None);
+    }
+
+    // A file's trigger that holds more than the model reads (hundreds of nodes, many objects) is read to a bound, counted, and is not edited.
+    // Fails when off: yes (unbounded, the reads count 4,000).
+    void animationHostileTriggersAreReadToABound()
+    {
+        auto d = editDeck(1);
+        Page &slide = *d->pages[0];
+        QVector<QPair<int, QString>> list;
+        QString many;
+        for (int i = 0; i < 1500; ++i) many += animFadeIn(10, 100);
+        for (int i = 0; i < 4; ++i) list.push_back({10 + i, many});
+        slide.props[QStringLiteral("timingXml")] = animTriggerTiming(animSteps({}), list);
+        const qint64 reads = deck::animationEffectsReadForTest();
+        const deck::AnimSequence seq = deck::readAnimations(slide, d.get());
+        QVERIFY(!seq.editable);
+        QVERIFY(deck::animationEffectsReadForTest() - reads <= 2000);
+        QVERIFY(deck::animationEffectsReadForTest() - reads >= 1500);
+        QVERIFY(seq.triggerEffects() <= 2000);
+    }
+
+    // The pane lists the main sequence, then a title for each trigger ("When Box 2 is clicked") over its effects, in file order; the rows picked are effects, never titles.
+    // Fails when off: yes (no titles, and no rows after the main sequence's).
+    void windowPaneListsTriggerGroups()
+    {
+        DeckWindow w;
+        w.resize(1200, 800);
+        w.show();
+        Editor *ed = w.editor();
+        triggerSlide(ed, animTriggerTiming(animSteps({animFadeIn(10, 500)}), {{12, animFadeIn(10, 300)}, {11, animFlyIn(12, 400)}}));
+        auto *pane = w.animationPane();
+        pane->reload();
+        QCOMPARE(pane->rowCount(), 3);
+        QListWidget *list = pane->list();
+        QCOMPARE(list->count(), 5);   // one main effect, two titles, two effects
+        QCOMPARE(list->item(0)->text().left(2), QStringLiteral("1."));
+        QCOMPARE(list->item(1)->text(), QStringLiteral("When Box 3 is clicked"));
+        QCOMPARE(list->item(3)->text(), QStringLiteral("When Box 2 is clicked"));
+        QVERIFY(!(list->item(1)->flags() & Qt::ItemIsSelectable));
+        QVERIFY(list->item(2)->text().contains(QStringLiteral("Box 1")));
+        list->setCurrentRow(4, QItemSelectionModel::ClearAndSelect);
+        QCOMPARE(pane->selectedRows(), QVector<int>({2}));
+        QCOMPARE(int(ed->selection().size()), 1);   // the effect's own shape (Box 3) is selected on the slide
+        QCOMPARE(pane->effect(2)->shape, 12);
+        // A click on a title picks nothing.
+        list->setCurrentRow(1, QItemSelectionModel::ClearAndSelect);
+        QVERIFY(pane->selectedRows().isEmpty());
+        // Preview is for the rows of the slide as it plays: Play All is of the main sequence.
+        QVERIFY(w.act("anim.preview")->isEnabled());
+    }
+
+    // The Start box: "When an Object Is Clicked" asks which object (all the objects of the slide by name, not the effect's own target when the effect makes it appear,
+    // and it says why in the box), makes the trigger as ONE undo step, and undo gives back the saved timing byte for byte.
+    // Fails when off: yes (no such choice).
+    void windowStartWhenAnObjectIsClicked()
+    {
+        DeckWindow w;
+        w.resize(1200, 800);
+        w.show();
+        Editor *ed = w.editor();
+        triggerSlide(ed, animTiming(animSteps({animFadeIn(10, 500), animFlyIn(11, 400)})));
+        auto pageRef = [ed]() -> Page & { return *ed->doc()->pages[0]; };  // (an undo gives the document new pages)
+        const QString saved = pageRef().props.value(QStringLiteral("timingXml")).toString();
+        auto *start = w.ribbon()->findChild<QComboBox *>(QStringLiteral("animStartBox"));
+        QVERIFY(start);
+        QVERIFY(start->findData(3) >= 0);
+        auto *pane = w.animationPane();
+        pane->reload();
+        pane->list()->setCurrentRow(0, QItemSelectionModel::ClearAndSelect);   // Box 1's entrance
+        const int undoDepth = ed->undoStack()->index();
+        BoxSeen seen;
+        answerTriggerBox(QStringLiteral("Box 3"), &seen);
+        chooseStart(start, 3);
+        QVERIFY(seen.seen);
+        // Box 1 is not listed: the effect brings it in, so it can't be clicked to start the effect.
+        QVERIFY(!seen.items.contains(QStringLiteral("Box 1")));
+        QVERIFY(seen.items.contains(QStringLiteral("Box 2")) && seen.items.contains(QStringLiteral("Box 3")));
+        QVERIFY2(seen.label.contains(QStringLiteral("can't be clicked before it appears")), qPrintable(seen.label));
+        deck::AnimSequence seq = deck::readAnimations(pageRef(), ed->doc());
+        QCOMPARE(seq.effects.size(), 1);
+        QCOMPARE(seq.triggers.size(), 1);
+        QCOMPARE(seq.triggers[0].shape, 12);
+        QCOMPARE(seq.triggers[0].effects[0].shape, 10);
+        QCOMPARE(ed->undoStack()->index(), undoDepth + 1);
+        QCOMPARE(pane->list()->item(1)->text(), QStringLiteral("When Box 3 is clicked"));
+        ed->undo();
+        QCOMPARE(pageRef().props.value(QStringLiteral("timingXml")).toString(), saved);
+        QCOMPARE(deck::readAnimations(pageRef(), ed->doc()).triggers.size(), 0);
+        ed->redo();
+        QCOMPARE(deck::readAnimations(pageRef(), ed->doc()).triggers.size(), 1);
+        // Cancel changes nothing, and the box goes back to what the effect has.
+        const QString now = pageRef().props.value(QStringLiteral("timingXml")).toString();
+        const int depth = ed->undoStack()->index();
+        pane->list()->clearSelection();
+        pane->list()->setCurrentRow(2, QItemSelectionModel::ClearAndSelect);   // the effect in the trigger (rows: main, title, effect)
+        QCOMPARE(pane->selectedRows(), QVector<int>({1}));
+        QCOMPARE(start->currentData().toInt(), 3);
+        BoxSeen cancelled;
+        answerTriggerBox(QString(), &cancelled);
+        chooseStart(start, 3);
+        QVERIFY(cancelled.seen);
+        QCOMPARE(pageRef().props.value(QStringLiteral("timingXml")).toString(), now);
+        QCOMPARE(ed->undoStack()->index(), depth);
+        QCOMPARE(start->currentData().toInt(), 3);
+        // A choice of the slide's own starts moves the effect back to the end of the main sequence: one step, and it undoes.
+        chooseStart(start, int(deck::EffectStart::AfterPrevious));
+        seq = deck::readAnimations(pageRef(), ed->doc());
+        QCOMPARE(seq.triggers.isEmpty() || seq.triggers[0].effects.isEmpty(), true);
+        QCOMPARE(seq.effects.size(), 2);
+        QCOMPARE(seq.effects[1].shape, 10);
+        QCOMPARE(seq.effects[1].start, deck::EffectStart::AfterPrevious);
+        QCOMPARE(ed->undoStack()->index(), depth + 1);
+        ed->undo();
+        QCOMPARE(pageRef().props.value(QStringLiteral("timingXml")).toString(), now);
+    }
+
+    // The pane edits the groups: a drag of a main effect onto a trigger's effect moves it there; the arrows reorder inside a group and stop at its ends; Delete removes
+    // an effect of a trigger (the last one takes the title with it); each is ONE step and undoes to the saved bytes.
+    // Fails when off: yes (rows of triggers can't be moved or removed).
+    void windowPaneMovesAndRemovesInGroups()
+    {
+        DeckWindow w;
+        w.resize(1200, 800);
+        w.show();
+        Editor *ed = w.editor();
+        QString two = animTriggerTiming(animSteps({animFadeIn(10, 500)}), {{12, animFadeIn(10, 300)}});
+        triggerSlide(ed, two);
+        auto pageRef = [ed]() -> Page & { return *ed->doc()->pages[0]; };  // (an undo gives the document new pages)
+        auto *pane = w.animationPane();
+        pane->reload();
+        QCOMPARE(pane->rowCount(), 2);
+        const QString saved = pageRef().props.value(QStringLiteral("timingXml")).toString();
+        int depth = ed->undoStack()->index();
+        // Drop the main effect on the trigger's effect: it joins the group, in its place.
+        Q_EMIT pane->moveRequested(0, 1);
+        deck::AnimSequence seq = deck::readAnimations(pageRef(), ed->doc());
+        QCOMPARE(seq.effects.size(), 0);
+        QCOMPARE(seq.triggers[0].effects.size(), 2);
+        QCOMPARE(seq.triggers[0].effects[0].duration, 500);
+        QCOMPARE(ed->undoStack()->index(), depth + 1);
+        QCOMPARE(pane->selectedRows(), QVector<int>({0}));
+        // Re-order: later, then it can go no further.
+        Q_EMIT pane->reorderRequested(1);
+        QCOMPARE(deck::readAnimations(pageRef(), ed->doc()).triggers[0].effects[1].duration, 500);
+        QCOMPARE(ed->undoStack()->index(), depth + 2);
+        Q_EMIT pane->reorderRequested(1);
+        QCOMPARE(deck::readAnimations(pageRef(), ed->doc()).triggers[0].effects[1].duration, 500);
+        // Delete the picked effect of the trigger.
+        Q_EMIT pane->removeRequested({1});
+        seq = deck::readAnimations(pageRef(), ed->doc());
+        QCOMPARE(seq.triggers[0].effects.size(), 1);
+        Q_EMIT pane->removeRequested({0});
+        seq = deck::readAnimations(pageRef(), ed->doc());
+        QCOMPARE(seq.rowCount(), 0);
+        QVERIFY(!pageRef().props.contains(QStringLiteral("timingXml")));
+        QCOMPARE(pane->list()->count(), 0);
+        while (ed->undoStack()->index() > depth) ed->undo();
+        QCOMPARE(pageRef().props.value(QStringLiteral("timingXml")).toString(), saved);
+    }
+
+    // Deleting or cutting the object that effects wait for: its effects go to the end of the main sequence (the first on a click), the status bar says so, it is the
+    // same undo step as the delete, and nothing is left waiting for nothing.
+    // Fails when off: yes (the effects stay in a trigger of a shape that is gone).
+    void windowDeletingTheTriggerObjectReleasesItsEffects()
+    {
+        for (const bool cut : {false, true}) {
+            DeckWindow w;
+            w.show();
+            Editor *ed = w.editor();
+            triggerSlide(ed, animTriggerTiming(animSteps({animFadeIn(10, 500)}), {{12, animFadeIn(11, 300)}, {12, animFlyIn(10, 200)}}));
+            auto pageRef = [ed]() -> Page & { return *ed->doc()->pages[0]; };  // (an undo gives the document new pages)
+            const QString saved = pageRef().props.value(QStringLiteral("timingXml")).toString();
+            const int items = int(pageRef().items.size());
+            const int depth = ed->undoStack()->index();
+            ed->select(pageRef().items.back()->id);   // Box 3 (12)
+            if (cut) ed->cut();
+            else ed->deleteSelection();
+            QCOMPARE(int(pageRef().items.size()), items - 1);
+            QCOMPARE(ed->undoStack()->index(), depth + 1);
+            const deck::AnimSequence seq = deck::readAnimations(pageRef(), ed->doc());
+            QCOMPARE(seq.triggers.size() ? seq.triggers[0].effects.size() : 0, 0);
+            QCOMPARE(seq.effects.size(), 3);
+            QCOMPARE(seq.effects[1].shape, 11);
+            QCOMPARE(seq.effects[1].start, deck::EffectStart::OnClick);
+            QCOMPARE(seq.effects[2].shape, 10);
+            QVERIFY(deck::readTimeline(pageRef().props.value(QStringLiteral("timingXml")).toString()).triggers.isEmpty());
+            QVERIFY2(w.statusBar()->currentMessage().contains(QStringLiteral("main sequence")), qPrintable(w.statusBar()->currentMessage()));
+            ed->undo();
+            QCOMPARE(int(pageRef().items.size()), items);
+            QCOMPARE(pageRef().props.value(QStringLiteral("timingXml")).toString(), saved);
+        }
+    }
+
+    // A slide's copy keeps its triggers on its own objects: the copy's trigger is the copy's object, and the original's is untouched.
+    // Fails when off: no (a guard: the slide copy keeps the objects' numbers, so the triggers follow).
+    void windowDuplicateSlideKeepsTriggersOnTheCopies()
+    {
+        DeckWindow w;
+        w.show();
+        Editor *ed = w.editor();
+        triggerSlide(ed, animTriggerTiming(animSteps({animFadeIn(10, 500)}), {{12, animFadeIn(11, 300)}}));
+        const QString original = ed->doc()->pages[0]->props.value(QStringLiteral("timingXml")).toString();
+        w.duplicateSlide();
+        QCOMPARE(int(ed->doc()->pages.size()), 2);
+        const Page &copy = *ed->doc()->pages[1];
+        const deck::AnimSequence seq = deck::readAnimations(copy, ed->doc());
+        QCOMPARE(seq.triggers.size(), 1);
+        int found = 0;
+        for (const ItemPtr &it : copy.items)
+            if (it->sourceId == seq.triggers[0].shape && it->name == QStringLiteral("Box 3")) ++found;
+        QCOMPARE(found, 1);
+        for (const ItemPtr &it : ed->doc()->pages[0]->items) QVERIFY(!copy.items.empty() && it->id != copy.items.back()->id);
+        QCOMPARE(ed->doc()->pages[0]->props.value(QStringLiteral("timingXml")).toString(), original);
+        // The copy plays its own trigger: its object is clickable there.
+        const deck::Timeline tl = deck::playableTimeline(*ed->doc(), copy);
+        QCOMPARE(tl.triggers.size(), 1);
+    }
+
+    // A trigger made in the pane is kept by the app's own save and open, in each format the app saves: in .pptx the object clicked is the same object after the file is
+    // opened (found by its name) and what it plays is what was made; .odp gets the sequence written, and its open says that animations are left out (as for all animations).
+    // Fails when off: yes (with no trigger made, none is found after the open).
+    void windowTriggerMadeInThePaneSurvivesSaveAndOpen()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        for (const char *ext : {"pptx", "odp"}) {
+            DeckWindow w;
+            w.resize(1200, 800);
+            w.show();
+            Editor *ed = w.editor();
+            triggerSlide(ed, animTiming(animSteps({animFadeIn(10, 500)})));
+            auto *pane = w.animationPane();
+            pane->reload();
+            pane->list()->setCurrentRow(0, QItemSelectionModel::ClearAndSelect);
+            auto *start = w.ribbon()->findChild<QComboBox *>(QStringLiteral("animStartBox"));
+            QVERIFY(start);
+            BoxSeen seen;
+            answerTriggerBox(QStringLiteral("Box 3"), &seen);
+            chooseStart(start, 3);
+            QVERIFY(seen.seen);
+            QCOMPARE(deck::readAnimations(*ed->doc()->pages[0], ed->doc()).triggers.size(), 1);
+            const QString path = dir.filePath(QStringLiteral("made.") + QLatin1String(ext));
+            QVERIFY2(w.saveTo(path), ext);
+            DeckWindow second;
+            QStringList told;
+            second.setNotifier([&told](const QString &title, const QString &text) { told << title + QStringLiteral(": ") + text; });
+            QVERIFY2(second.openFile(path), ext);
+            if (QLatin1String(ext) == QLatin1String("odp")) {
+                // The format holds the trigger (written, as a sequence of its own); opening it does not read animations yet, and says so, as it does for any animation.
+                QFile file(path);
+                QVERIFY(file.open(QIODevice::ReadOnly));
+                QMap<QString, QByteArray> zip;
+                QString err;
+                QVERIFY2(readZip(file.readAll(), zip, &err), qPrintable(err));
+                const QString content = QString::fromUtf8(zip.value(QStringLiteral("content.xml")));
+                QCOMPARE(int(content.count(QStringLiteral("presentation:node-type=\"interactive-sequence\""))), 1);
+                QVERIFY2(told.join(QString()).contains(QStringLiteral("animations of 1 slides were left out")), qPrintable(told.join(QLatin1Char('|'))));
+                continue;
+            }
+            QVERIFY2(told.isEmpty(), qPrintable(told.join(QLatin1Char('|'))));   // nothing was left out
+            const Page &page = *second.editor()->doc()->pages[0];
+            const deck::AnimSequence seq = deck::readAnimations(page, second.editor()->doc());
+            QVERIFY2(seq.triggers.size() == 1, ext);
+            QCOMPARE(seq.triggers[0].effects.size(), 1);
+            QString clicked, animated;
+            for (const ItemPtr &it : page.items) {
+                if (it->sourceId == seq.triggers[0].shape) clicked = it->name;
+                if (it->sourceId == seq.triggers[0].effects[0].shape) animated = it->name;
+            }
+            QCOMPARE(clicked, QStringLiteral("Box 3"));
+            QCOMPARE(animated, QStringLiteral("Box 1"));
+            QCOMPARE(seq.triggers[0].effects[0].kind, QStringLiteral("entr.fade"));
+        }
+    }
+
+    // Play From on an effect of a trigger plays that trigger's effects (one step of them), over the slide.
+    // Fails when off: yes (Play From plays the main sequence from a step it does not have).
+    void windowPreviewPlaysTheTriggerGroup()
+    {
+        DeckWindow w;
+        w.resize(1200, 800);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        Editor *ed = w.editor();
+        triggerSlide(ed, animTriggerTiming(animSteps({animFadeIn(10, 500), animFadeIn(11, 500)}), {{12, animFlyIn(10, 400)}}));
+        auto *pane = w.animationPane();
+        pane->reload();
+        QCOMPARE(pane->rowCount(), 3);
+        pane->list()->setCurrentRow(3, QItemSelectionModel::ClearAndSelect);   // main, main, title, the trigger's effect
+        QCOMPARE(pane->selectedRows(), QVector<int>({2}));
+        Q_EMIT pane->playRequested(2);
+        QPointer<AnimationPreview> preview;
+        QTRY_VERIFY(preview = w.findChild<AnimationPreview *>(QStringLiteral("animationPreview")));
+        QVERIFY(preview->isPlaying());
+        QCOMPARE(preview->step(), 0);
+        QVERIFY2(preview->length() > 300 && preview->length() < 450, qPrintable(QString::number(preview->length())));   // the trigger's 400 ms, not the main sequence's 1,000
+        preview->cancel();
+        // An object nothing waits for has nothing to play.
+        AnimationPreview other(ed->doc(), &ed->cache(), w.centralWidget());
+        QVERIFY(!other.playTrigger(0, QRect(0, 0, 100, 60), 11));
+    }
+
+    // The new pictures, when JD_TRIGGER_SHOTS names a folder.
+    void triggerPaneScreenshots()
+    {
+        const QString folder = qEnvironmentVariable("JD_TRIGGER_SHOTS");
+        if (folder.isEmpty()) QSKIP("JD_TRIGGER_SHOTS names the folder for the pictures");
+        jp::applyUiTheme(1);
+        DeckWindow w;
+        w.resize(1440, 900);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        Editor *ed = w.editor();
+        triggerSlide(ed, animTriggerTiming(animSteps({animFadeIn(10, 500)}), {{12, animFadeIn(11, 300)}, {11, animFlyIn(12, 400)}}));
+        w.ribbon()->showTab(w.ribbon()->tab(QStringLiteral("Animations")));
+        w.showAnimationPane(true);
+        w.animationPane()->reload();
+        w.animationPane()->list()->setCurrentRow(2, QItemSelectionModel::ClearAndSelect);
+        QTRY_VERIFY(w.animationPane()->isVisible());
+        QApplication::processEvents();
+        QVERIFY(w.grab().toImage().save(QDir(folder).filePath(QStringLiteral("trigger-pane.png"))));
+        BoxSeen seen;
+        auto *start = w.ribbon()->findChild<QComboBox *>(QStringLiteral("animStartBox"));
+        QVERIFY(start);
+        w.animationPane()->list()->setCurrentRow(0, QItemSelectionModel::ClearAndSelect);
+        QTimer::singleShot(400, [&w, folder] {
+            for (QWidget *top : QApplication::topLevelWidgets())
+                if (auto *box = qobject_cast<QInputDialog *>(top); box && box->objectName() == QLatin1String("triggerObjectDialog")) {
+                    box->grab().save(QDir(folder).filePath(QStringLiteral("trigger-box.png")));
+                    box->reject();
+                }
+        });
+        chooseStart(start, 3);
     }
 
     // A build of what a kept sequence aims at stays with it.
