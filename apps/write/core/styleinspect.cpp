@@ -13,8 +13,6 @@ namespace jp::write {
 
 namespace {
 
-QString say(const char *text) { return QCoreApplication::translate("jp::write::Inspector", text); }
-
 bool differs(const QTextFormat &a, const QTextFormat &b, int key) { return a.property(key) != b.property(key); }
 
 QString familyOf(const QTextCharFormat &f)
@@ -47,28 +45,28 @@ AppliedFormatting appliedFormattingAt(WriteDoc &doc, const QTextCursor &c)
     }
     // The paragraph: what its format says that its style's does not.
     const QTextBlockFormat sbf = doc.styleBlockFormat(out.paragraphStyle);
-    if (differs(bf, sbf, QTextFormat::BlockAlignment) && (bf.alignment() & Qt::AlignHorizontal_Mask) != (sbf.alignment() & Qt::AlignHorizontal_Mask)) out.paragraphDirect << say("Alignment");
+    if (differs(bf, sbf, QTextFormat::BlockAlignment) && (bf.alignment() & Qt::AlignHorizontal_Mask) != (sbf.alignment() & Qt::AlignHorizontal_Mask)) out.paragraphDirect << QCoreApplication::translate("jp::write::Inspector", "Alignment");
     if (!bf.hasProperty(prop::NumId)) {
-        if (!qFuzzyCompare(bf.leftMargin() + 1, sbf.leftMargin() + 1) || !qFuzzyCompare(bf.rightMargin() + 1, sbf.rightMargin() + 1) || !qFuzzyCompare(bf.textIndent() + 1, sbf.textIndent() + 1)) out.paragraphDirect << say("Indents");
+        if (!qFuzzyCompare(bf.leftMargin() + 1, sbf.leftMargin() + 1) || !qFuzzyCompare(bf.rightMargin() + 1, sbf.rightMargin() + 1) || !qFuzzyCompare(bf.textIndent() + 1, sbf.textIndent() + 1)) out.paragraphDirect << QCoreApplication::translate("jp::write::Inspector", "Indents");
     }
-    if (!qFuzzyCompare(bf.topMargin() + 1, sbf.topMargin() + 1) || !qFuzzyCompare(bf.bottomMargin() + 1, sbf.bottomMargin() + 1)) out.paragraphDirect << say("Spacing before or after");
-    if (bf.lineHeightType() != sbf.lineHeightType() || !qFuzzyCompare(bf.lineHeight() + 1, sbf.lineHeight() + 1)) out.paragraphDirect << say("Line spacing");
-    if (bf.tabPositions() != sbf.tabPositions()) out.paragraphDirect << say("Tab stops");
-    if (differs(bf, sbf, tp::Borders)) out.paragraphDirect << say("Borders and shading");
-    if (bf.boolProperty(tp::KeepWithNext) != sbf.boolProperty(tp::KeepWithNext) || bf.boolProperty(tp::KeepTogether) != sbf.boolProperty(tp::KeepTogether)) out.paragraphDirect << say("Keep lines together");
+    if (!qFuzzyCompare(bf.topMargin() + 1, sbf.topMargin() + 1) || !qFuzzyCompare(bf.bottomMargin() + 1, sbf.bottomMargin() + 1)) out.paragraphDirect << QCoreApplication::translate("jp::write::Inspector", "Spacing before or after");
+    if (bf.lineHeightType() != sbf.lineHeightType() || !qFuzzyCompare(bf.lineHeight() + 1, sbf.lineHeight() + 1)) out.paragraphDirect << QCoreApplication::translate("jp::write::Inspector", "Line spacing");
+    if (bf.tabPositions() != sbf.tabPositions()) out.paragraphDirect << QCoreApplication::translate("jp::write::Inspector", "Tab stops");
+    if (differs(bf, sbf, tp::Borders)) out.paragraphDirect << QCoreApplication::translate("jp::write::Inspector", "Borders and shading");
+    if (bf.boolProperty(tp::KeepWithNext) != sbf.boolProperty(tp::KeepWithNext) || bf.boolProperty(tp::KeepTogether) != sbf.boolProperty(tp::KeepTogether)) out.paragraphDirect << QCoreApplication::translate("jp::write::Inspector", "Keep lines together");
     // The letters: what the run says that the paragraph's style and its character style do not.
     const QTextCharFormat base = doc.styleCharFormat(out.paragraphStyle, out.characterStyle);
-    if (familyOf(cf) != familyOf(base)) out.characterDirect << say("Font");
-    if (cf.fontPointSize() > 0 && base.fontPointSize() > 0 && !qFuzzyCompare(cf.fontPointSize(), base.fontPointSize())) out.characterDirect << say("Size");
-    if ((cf.fontWeight() >= QFont::DemiBold) != (base.fontWeight() >= QFont::DemiBold)) out.characterDirect << say("Bold");
-    if (cf.fontItalic() != base.fontItalic()) out.characterDirect << say("Italic");
-    if ((cf.underlineStyle() != QTextCharFormat::NoUnderline) != (base.underlineStyle() != QTextCharFormat::NoUnderline)) out.characterDirect << say("Underline");
-    if (cf.fontStrikeOut() != base.fontStrikeOut()) out.characterDirect << say("Strikethrough");
-    if (colorOf(cf) != colorOf(base)) out.characterDirect << say("Color");
-    if (cf.stringProperty(tp::HighlightRefP) != base.stringProperty(tp::HighlightRefP)) out.characterDirect << say("Highlight");
-    if (cf.fontCapitalization() != base.fontCapitalization()) out.characterDirect << say("Capitals");
-    if (cf.verticalAlignment() != base.verticalAlignment()) out.characterDirect << say("Superscript or subscript");
-    if (!qFuzzyCompare(cf.fontLetterSpacing() + 1, base.fontLetterSpacing() + 1)) out.characterDirect << say("Character spacing");
+    if (familyOf(cf) != familyOf(base)) out.characterDirect << QCoreApplication::translate("jp::write::Inspector", "Font");
+    if (cf.fontPointSize() > 0 && base.fontPointSize() > 0 && !qFuzzyCompare(cf.fontPointSize(), base.fontPointSize())) out.characterDirect << QCoreApplication::translate("jp::write::Inspector", "Size");
+    if ((cf.fontWeight() >= QFont::DemiBold) != (base.fontWeight() >= QFont::DemiBold)) out.characterDirect << QCoreApplication::translate("jp::write::Inspector", "Bold");
+    if (cf.fontItalic() != base.fontItalic()) out.characterDirect << QCoreApplication::translate("jp::write::Inspector", "Italic");
+    if ((cf.underlineStyle() != QTextCharFormat::NoUnderline) != (base.underlineStyle() != QTextCharFormat::NoUnderline)) out.characterDirect << QCoreApplication::translate("jp::write::Inspector", "Underline");
+    if (cf.fontStrikeOut() != base.fontStrikeOut()) out.characterDirect << QCoreApplication::translate("jp::write::Inspector", "Strikethrough");
+    if (colorOf(cf) != colorOf(base)) out.characterDirect << QCoreApplication::translate("jp::write::Inspector", "Color");
+    if (cf.stringProperty(tp::HighlightRefP) != base.stringProperty(tp::HighlightRefP)) out.characterDirect << QCoreApplication::translate("jp::write::Inspector", "Highlight");
+    if (cf.fontCapitalization() != base.fontCapitalization()) out.characterDirect << QCoreApplication::translate("jp::write::Inspector", "Capitals");
+    if (cf.verticalAlignment() != base.verticalAlignment()) out.characterDirect << QCoreApplication::translate("jp::write::Inspector", "Superscript or subscript");
+    if (!qFuzzyCompare(cf.fontLetterSpacing() + 1, base.fontLetterSpacing() + 1)) out.characterDirect << QCoreApplication::translate("jp::write::Inspector", "Character spacing");
     return out;
 }
 

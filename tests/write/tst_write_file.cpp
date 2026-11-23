@@ -3,6 +3,7 @@
 #include "../isolatesettings.h"
 #include "../withdialog.h"
 #include "app/appliedformatpane.h"
+#include "app/theme.h"
 #include "core/commentops.h"
 #include "../cardchecks.h"
 #include "../packedpackagecheck.h"
@@ -1279,7 +1280,7 @@ private Q_SLOTS:
         QTemporaryDir dir;
         QVERIFY(dir.isValid());
         const QByteArray body = "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/><w:jc w:val=\"center\"/><w:spacing w:before=\"480\"/></w:pPr><w:r><w:rPr><w:b/><w:i/></w:rPr><w:t>Alpha beta</w:t></w:r></w:p>"
-                                "<w:p><w:r><w:t>Plain words</w:t></w:r></w:p>";
+                                "<w:p><w:r><w:t>Plain words</w:t></w:r></w:p><w:p><w:pPr><w:pStyle w:val=\"Heading1\"/></w:pPr><w:r><w:t>Third</w:t></w:r></w:p>";
         auto window = windowOn(dir, headingsDocx(body));
         QVERIFY(window);
         WriteWindow &w = *window;
@@ -1327,6 +1328,17 @@ private Q_SLOTS:
         look(w.document()->story()->findBlockByNumber(1).position() + 2);
         QVERIFY(!pane->buttonOf(0)->isEnabled() && !pane->buttonOf(2)->isEnabled());
         QCOMPARE(pane->nameOf(0), QStringLiteral("Normal"));
+        // A paragraph that follows its style has nothing of its own, also after the style was changed (a changed style does not make its paragraphs say it themselves).
+        look(w.document()->story()->findBlockByNumber(2).position() + 2);
+        QCOMPARE(pane->nameOf(0), QStringLiteral("Heading 1"));
+        QVERIFY(!pane->buttonOf(0)->isEnabled());
+        withDialog([&] { w.act(QStringLiteral("style.modify"))->trigger(); }, QStringLiteral("styleDialog"), [](QDialog *d) {
+            auto *align = d->findChild<QComboBox *>(QStringLiteral("styleAlign"));
+            align->setCurrentIndex(align->findData(QStringLiteral("right")));
+            d->findChild<QCheckBox *>(QStringLiteral("styleBold"))->setChecked(true);
+        });
+        look(w.document()->story()->findBlockByNumber(2).position() + 2);
+        QVERIFY2(!pane->buttonOf(0)->isEnabled() && !pane->buttonOf(2)->isEnabled(), qPrintable(pane->extrasOf(0) + pane->nameOf(2)));
     }
 
     void anUneditedDocumentIsSavedTheSameAfterTheInspectorAndTheStyleBoxesWereOpened()
@@ -1370,6 +1382,31 @@ private Q_SLOTS:
         QCOMPARE(used[1], plain[1]);
     }
 
+    // Pictures for the owner (only with JO_SHOT_DIR set): the Style Inspector beside a heading with its own look, and the Create Style box with Table chosen.
+    void theStyleInspectorAndTheCreateStyleBoxArePictured()
+    {
+        if (qEnvironmentVariable("JO_SHOT_DIR").isEmpty()) QSKIP("JO_SHOT_DIR is not set");
+        jp::applyUiTheme(1);
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        auto window = windowOn(dir, headingsDocx("<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/><w:jc w:val=\"center\"/></w:pPr><w:r><w:rPr><w:b/><w:i/></w:rPr><w:t>Alpha beta</w:t></w:r></w:p>"));
+        QVERIFY(window);
+        WriteWindow &w = *window;
+        Quiet quiet(w);
+        w.resize(1100, 700);
+        w.show();
+        w.view()->cursor().setPosition(3);
+        w.act(QStringLiteral("style.inspectorPane"))->trigger();
+        QTRY_VERIFY(w.styleInspector()->isVisible());
+        shotOf(w.styleInspector(), QStringLiteral("style-inspector"));
+        withDialog([&] { w.act(QStringLiteral("style.new"))->trigger(); }, QStringLiteral("styleDialog"), [](QDialog *d) {
+            d->findChild<QLineEdit *>(QStringLiteral("styleName"))->setText(QStringLiteral("Grid Look"));
+            auto *type = d->findChild<QComboBox *>(QStringLiteral("styleType"));
+            type->setCurrentIndex(type->findData(QStringLiteral("table")));
+            shotOf(d, QStringLiteral("create-style-table"));
+        }, false);
+    }
+
     // The Create Style box makes table and list styles too: it asks for the name, then opens the box for that kind with the name in it.
     void theCreateStyleBoxMakesTableAndListStyles()
     {
@@ -1402,7 +1439,8 @@ private Q_SLOTS:
             d->findChild<QLineEdit *>(QStringLiteral("styleName"))->setText(QStringLiteral("Grid Look"));
             auto *type = d->findChild<QComboBox *>(QStringLiteral("styleType"));
             type->setCurrentIndex(type->findData(QStringLiteral("table")));
-            QVERIFY(!d->findChild<QCheckBox *>(QStringLiteral("styleBold"))->isEnabled());
+            for (const char *control : {"styleBold", "styleFont", "styleAlign", "styleBefore", "styleBasedOn", "styleNext", "styleScope"}) QVERIFY2(!d->findChild<QWidget *>(QString::fromLatin1(control))->isEnabled(), control);
+            QVERIFY(d->findChild<QComboBox *>(QStringLiteral("styleType"))->isEnabled() && d->findChild<QLineEdit *>(QStringLiteral("styleName"))->isEnabled());
         });
         QCOMPARE(w.document()->nextStepSerial(), serial + 1);
         const office::wml::Style *table = w.document()->styleSheet().find(QStringLiteral("GridLook"));

@@ -41,6 +41,8 @@ Click the small arrow at the corner of the **Styles** group, or press **Ctrl+Alt
 
 The **Style type** can be **Paragraph**, **Character**, or **Linked**. A linked style is a paragraph style with a character style of the same look beside it (named like the paragraph style, with "Char" added), so the look can be given to a whole paragraph or only to some words. When you change the paragraph style later, its character style takes the new look too.
 
+A **Table** style looks after the lines, the header row, and the banded rows of a table, and a **List** style looks after the numbers or bullets of a list. For these two, type the **Name** and click **OK**, and the box for that kind opens with the name already in it.
+
 **Available in** chooses **Only in this document** or **New documents based on this template**. With the second choice the style is also saved in the template that new documents start from.
 
 The new style is saved with your document, and your paragraph takes it. One **Undo** (Ctrl+Z) takes the style back.
@@ -64,6 +66,16 @@ The dialog has these choices:
 When you change a style, the paragraphs that have it change. If you gave a paragraph a look of its own, such as one red word, it keeps that look.
 
 If you click **OK** without changing anything, the document is not changed.
+
+## See where the look of your text comes from
+
+Click **Style Inspector** at the bottom of the Styles pane. The pane follows your cursor and shows three things:
+
+- The **Paragraph style** of the paragraph. Under it, "Plus" lists what the paragraph says by itself on top of its style, such as its alignment, indents, spacing, or tab stops. **Clear Paragraph Formatting** takes those off, so the paragraph looks as its style says.
+- The **Character style** of the text, if it has one. **Clear Character Style** takes it off.
+- The **Text formatting** the letters have by themselves, such as a font, a size, bold, or a color. **Clear Character Formatting** takes it off, so the letters look as their styles say. Select text first to clear only that text.
+
+Each button is one step, so **Undo** (Ctrl+Z) brings the look back. Changing a style never makes its paragraphs say the look themselves, so a paragraph that follows its style shows nothing under "Plus". Shift+F1 still opens Reveal Formatting, which shows the look itself.
 
 ## Update a style to match your text
 
