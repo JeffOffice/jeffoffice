@@ -242,5 +242,12 @@ int main(int argc, char *argv[])
         for (const std::string &name : failed) std::fprintf(stderr, " %s", name.c_str());
         std::fprintf(stderr, "\n");
     }
-    return std::min(failures, 127);
+    // (tools/ci_tests.sh waits for this file, and for the program to end after it: a program stuck at exit is not waited for)
+    const int code = std::min(failures, 127);
+    const QByteArray doneFile = qgetenv("JP_DONE_FILE");
+    if (!doneFile.isEmpty()) {
+        QFile done{QString::fromLocal8Bit(doneFile)};
+        if (done.open(QIODevice::WriteOnly | QIODevice::Truncate)) done.write(QByteArray::number(code));
+    }
+    return code;
 }
