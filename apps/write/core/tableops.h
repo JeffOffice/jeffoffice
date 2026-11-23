@@ -127,6 +127,16 @@ bool moveTable(WriteDoc &doc, QTextCursor &c, int tablePosition, int to);
 // selected afterward. False (and `tableNotice` says why) when there is no paragraph outside a table in that direction.
 bool moveTableByParagraph(WriteDoc &doc, QTextCursor &c, bool up);
 bool canMoveTableByParagraph(WriteDoc &doc, const QTextCursor &c, bool up);
+// What moving the table the caret is in up or down past one paragraph would do, from one look at the paragraphs just before and after the table: the place before which it would go
+// (-1: it can't), why not (a notice that is true), and the place of the table's first paragraph. For a caret that is not in a table, both directions say nothing.
+struct TableMoveRoom {
+    int first = -1, upTarget = -1, downTarget = -1;
+    QString upWhy, downWhy;
+};
+TableMoveRoom tableMoveRoom(WriteDoc &doc, const QTextCursor &c);
+// For tests of cost: how many looks were taken, and how many paragraphs they looked at.
+qint64 tableMoveLooksForTest();
+qint64 tableMoveBlocksLookedAtForTest();
 
 // The cells the selection covers are made one (the text of each in turn; empty cells add no paragraph), or one cell is made columns by rows cells.
 bool canMergeCells(WriteDoc &doc, const QTextCursor &c);

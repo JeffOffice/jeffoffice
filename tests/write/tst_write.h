@@ -1880,8 +1880,16 @@ private Q_SLOTS:
     void theBorderPainterIsInTheTableDesignTabAndTheCellMenu();
     void aTableHandleAtTheCornerMovesTheTableWhenPulledAndSelectsItWhenClicked();
     void movingATableKeepsItsCellsAndBordersThroughEveryFormat();
-    void movingATableWithTrackChangesOnIsOneStepLikeMovingText();
     void moveTableUpAndDownGoPastOneParagraphEach();
+    void movingATableLeavesEveryOtherParagraphAsItWasSavedUpAndDown();
+    void aTableIsOfferedAMoveOnlyWhereTheMoveIsDoneAndAFailedMoveSaysWhy();
+    void aTableIsNotPutRightAgainstAnotherTable();
+    void aTablePulledAndLetGoInAnotherTableMovesNothingAndSaysSo();
+    void movingATableWithTrackChangesOnRecordsNothingAsDeleteTableDoesNot();
+    void aTableMoveIsOneLookAtItsNeighborsNotAWalkOfTheTable();
+    void lettingGoOfAPullOnLosingTheFocusDoesNotMoveTheTableOrPaintBorders();
+    void theMoveHandleIsNotShownWhereTheDocumentCannotBeChanged();
+    void aTableMovesInAColumnSectionAndNotInAHeaderWithNothingLost();
     void showNotesGoesFromAMarkToItsNoteAndBackAndFromTheTextToTheNearestMark();
     void picturesOfTheBorderPainterTheMoveHandleAndShowNotes();
 

@@ -119,6 +119,8 @@ Each pull is one step. Undo takes it back.
 
 A move is one step. The words, shading, and borders of the cells go with the table. A move is not marked as a tracked change.
 
+A table can't be put right against another table, so keep a paragraph between them. The move commands are gray where the table can't go: above the first paragraph, below the last one, or past a paragraph that would leave two tables together. A table inside another table's cell can't be moved this way. The handle is not shown in a document that is read-only or protected. Every paragraph around the table keeps its own formatting.
+
 ## Draw a table
 
 Click **Insert > Table > Draw Table**, or **Table Layout > Draw Table**. The pointer becomes a cross, and it stays one until you press **Esc** or click the button again.

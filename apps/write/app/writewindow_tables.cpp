@@ -506,8 +506,9 @@ void WriteWindow::refreshTableUi()
         // Merging needs cells in more than one place; the rest is worked out when it is run.
         const QTextCursor &c = m_view->cursor();
         const QTextDocument *d = c.document();
-        act("table.moveUp")->setEnabled(m_doc && write::canMoveTableByParagraph(*m_doc, c, true));
-        act("table.moveDown")->setEnabled(m_doc && write::canMoveTableByParagraph(*m_doc, c, false));
+        const write::TableMoveRoom room = m_doc ? write::tableMoveRoom(*m_doc, c) : write::TableMoveRoom();   // (one look serves both)
+        act("table.moveUp")->setEnabled(room.upTarget >= 0);
+        act("table.moveDown")->setEnabled(room.downTarget >= 0);
         act("table.merge")->setEnabled(c.hasSelection() && write::cellKeyOf(d->findBlock(c.selectionStart())) != write::cellKeyOf(d->findBlock(c.selectionEnd())));
     }
     const bool inBody = m_doc && !m_view->inHeaderFooter() && !m_view->inNote() && !write::inEndnoteWords(m_view->cursor());   // (a note's words hold no table)

@@ -1248,7 +1248,7 @@ bool PageView::tableHandle(QRectF *box, int *page, int *cellPosition, QRectF *ta
 void PageView::finishBorderPaint(const ToolDrag &drag)
 {
     const auto r = rendered(drag.page);
-    if (!m_doc || !r || !r->page || drag.path.empty()) return;
+    if (!m_doc || m_readOnly || !r || !r->page || drag.path.empty()) return;
     const double reach = 4.0 / std::max(0.1, scale());
     for (const auto &fragment : r->page->tables) {
         if (!fragment->rect().adjusted(-reach, -reach, reach, reach).contains(drag.path.front())) continue;
@@ -1272,7 +1272,7 @@ void PageView::finishBorderPaint(const ToolDrag &drag)
 bool PageView::moveHandle(QRectF *box, int *page, int *cellPosition, QRectF *table)
 {
     QRectF resize;
-    if (!tableHandle(&resize, page, cellPosition, table)) return false;
+    if (m_readOnly || !tableHandle(&resize, page, cellPosition, table)) return false;   // (a document held for reading, or protected, has none)
     const double side = 8.0 / std::max(0.1, scale());
     *box = QRectF(table->left() - side - 1.0 / std::max(0.1, scale()), table->top() - side - 1.0 / std::max(0.1, scale()), side, side);
     return true;
@@ -1606,6 +1606,8 @@ void PageView::focusOutEvent(QFocusEvent *e)
     QAbstractScrollArea::focusOutEvent(e);
     m_pasteOffer->cancelTap();
     m_columnDrag.active = m_columnDrag.pending = false;   // (a pull that was going on is let go)
+    m_tableMove = TableMove();
+    m_toolDrag = ToolDrag();
     m_blink.stop();
     viewport()->update();
 }
