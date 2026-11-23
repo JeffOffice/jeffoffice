@@ -15,10 +15,13 @@
 #include <QLabel>
 #include <QLineEdit>
 #include <QListWidget>
+#include <QProcess>
 #include <QPushButton>
 #include <QTemporaryDir>
 #include <QTimer>
 #include <QtTest>
+
+#include <cstdio>
 
 using namespace jp;
 
@@ -184,6 +187,38 @@ private Q_SLOTS:
         QVERIFY(told.count() >= 1);
         QVERIFY(a.change({{QStringLiteral("zzlater")}, {}, {}, {}}));
         QTRY_VERIFY(b.check(kEn, QStringLiteral("zzlater")));
+    }
+
+    // The speller's file watcher has a helper thread. A library's statics are destroyed at the end of ExitProcess on Windows, when every other thread has been ended, and Qt's destructor of the
+    // watcher then waited for a thread that held a lock for ever (Nov 23 2026: test programs, and so a person's app, stuck at exit). The program's speller is never destroyed: a child run of this
+    // test (the marker in the environment) asks to be told when the watcher is, and the parent looks for the mark after the child has ended.
+    void theProgramsSpellerIsNotDestroyedWhenTheProgramEnds()
+    {
+        const QByteArray marker = qgetenv("JP_SPELLER_EXIT_MARKER");
+        if (!marker.isEmpty()) {
+            static QByteArray file;   // (a plain copy that the destroyed watcher's connection needs while the statics are being destroyed)
+            file = marker;
+            QObject::connect(Speller::get().watch(), &QObject::destroyed, [] {
+                if (FILE *f = std::fopen(file.constData(), "wb")) {
+                    std::fputs("destroyed", f);
+                    std::fclose(f);
+                }
+            });
+            return;
+        }
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString mark = dir.filePath(QStringLiteral("destroyed"));
+        QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+        env.insert(QStringLiteral("JP_SPELLER_EXIT_MARKER"), mark);
+        QProcess child;
+        child.setProcessEnvironment(env);
+        child.start(QCoreApplication::applicationFilePath(), {QStringLiteral("--class"), QStringLiteral("ShellProofingTests"), QStringLiteral("theProgramsSpellerIsNotDestroyedWhenTheProgramEnds")});
+        QVERIFY(child.waitForStarted(30000));
+        QVERIFY(child.waitForFinished(120000));   // (a child that is not done in two minutes is stuck: the failure this test is for)
+        QCOMPARE(child.exitStatus(), QProcess::NormalExit);
+        QCOMPARE(child.exitCode(), 0);
+        QVERIFY(!QFileInfo::exists(mark));
     }
 
     void aChangeThatCantBeWrittenLeavesTheFilesAndTheListsAsTheyWere()

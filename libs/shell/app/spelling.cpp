@@ -26,8 +26,10 @@ namespace jp {
 
 Speller &Speller::get()
 {
-    static Speller s;
-    return s;
+    // (never destroyed: its file watcher has a helper thread, and a library's statics are destroyed at the end of ExitProcess, when every other thread has been ended and one that held
+    // a lock in the middle of its work never lets it go: Qt's destructor then waits for it for ever and the program is stuck at exit; Nov 23 2026)
+    static Speller *s = new Speller;
+    return *s;
 }
 
 Speller::Rules Speller::rules()
