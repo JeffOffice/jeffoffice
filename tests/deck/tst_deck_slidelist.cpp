@@ -1219,8 +1219,7 @@ private Q_SLOTS:
         fillSlides(w, {"Quarterly Review", "Plan", "Budget"}, {{"Subtitle text"}, {"Goals", "Risks"}, {"Spend"}});
         QVERIFY(w.outlineView()->isHidden());
         QVERIFY(w.act("view.outline")->isEnabled());
-        // (the views that are not made yet are not on the View tab)
-        QVERIFY(w.act("view.notesPage") && !w.act("view.reading"));
+        QVERIFY(w.act("view.notesPage") && w.act("view.reading"));
         w.act("view.outline")->trigger();
         OutlineView *o = w.outlineView();
         QCOMPARE(w.view(), DeckWindow::View::Outline);

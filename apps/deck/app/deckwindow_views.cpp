@@ -258,7 +258,7 @@ void DeckWindow::startReadingView()
     };
     connect(show, &SlideShow::changed, bar, update);
     update();
-    statusBar()->insertPermanentWidget(0, bar);
+    statusBar()->addPermanentWidget(bar);
     m_readingBar = bar;
     // What zooms the editor, and the notes pane's button, have nothing to do while reading.
     for (QWidget *w : readingHiddenStatusWidgets()) w->hide();
