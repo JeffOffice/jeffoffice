@@ -3608,7 +3608,7 @@ bool Calculation::setStyle(int sheet, quint32 row, quint32 col, quint32 style)
     return true;
 }
 
-Calculation::CellContent Calculation::content(int sheet, quint32 row, quint32 col) const
+Calculation::CellContent Calculation::content(int sheet, quint32 row, quint32 col, bool withNodes) const
 {
     CellContent out;
     if (sheet < 0 || sheet >= int(m_sheets.size()) || col >= kMaxColumns || row >= kGridRows) return out;
@@ -3634,6 +3634,8 @@ Calculation::CellContent Calculation::content(int sheet, quint32 row, quint32 co
         } else if (out.dynamic) {
             out.arrayRange = spillBlock(sheet, row, col);   // (the block it fills now: what a file says of a formula that spills)
         }
+        if (!withNodes) return out;
+        m_contentNodeReads.fetch_add(1, std::memory_order_relaxed);
         const quint32 id = nodeAt(sheet, row, col);
         if (id != kNone && (m_nodes[id].flags & Kept)) {
             out.hasStored = true;

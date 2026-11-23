@@ -1122,6 +1122,33 @@ void CrunchEditTests::theWindowReadsTheBlocksOfTheBatchItTook()
     QVERIFY(s->calculation()->isSpillMember(0, 4, 1));
 }
 
+// The formula bar is filled by the window's thread while the worker works: what it reads of a cell is the cell and its formula's text, and of a spilled cell the block the window was given; the nodes (their state
+// and the lazy graph) are the worker's and are looked at by no other thread. Fails when the bar asks for the whole content of a cell (the count of looks at a node moves), with the index on and off.
+void CrunchEditTests::theFormulaBarReadsNoNodeOfTheWorker()
+{
+    for (const bool index : {true, false}) {
+        SpillIndexSwitch sw(index);
+        EditWindow e;
+        QVERIFY(e.openBlank());
+        EditSession *s = e.win.w.session();
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("3"));
+        e.select(QStringLiteral("B1"));
+        e.enter(QStringLiteral("=SEQUENCE(A1)"));
+        e.select(QStringLiteral("C1"));
+        e.enter(QStringLiteral("=A1+1"));
+        QVERIFY(e.settle());
+        const Calculation *calc = s->calculation();
+        const qint64 before = calc->contentNodeReads();
+        QCOMPARE(s->barText(0, 0, 1, QStringLiteral("=SEQUENCE(A1)")), QStringLiteral("=SEQUENCE(A1)"));
+        QCOMPARE(s->barText(0, 2, 1, QStringLiteral("3")), QStringLiteral("=SEQUENCE(A1)"));   // (a cell the block fills shows the formula that fills it)
+        QCOMPARE(s->barText(0, 0, 2, QStringLiteral("=A1+1")), QStringLiteral("=A1+1"));
+        QCOMPARE(calc->contentNodeReads(), before);
+        QVERIFY(calc->content(0, 0, 2).isFormula);   // (the whole content looks at the node: the count moves)
+        QVERIFY(calc->contentNodeReads() > before);
+    }
+}
+
 // A slice's blocks are staged by the worker and read by the window only when the batch of values sent after them is taken: between the two the window reads the block it had, with the values it has. Nothing
 // here lets the window's event loop run until the checks are made (the batch waits in its queue). Fails when staging makes the copy the one the window reads at once (the window reads B1:B5 with the
 // values of B1:B3).

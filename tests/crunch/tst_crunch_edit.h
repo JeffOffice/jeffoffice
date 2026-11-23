@@ -173,6 +173,7 @@ private Q_SLOTS:
     void aResizedSpillIsRewrittenOnlyUntilASaveHasWrittenIt();
     void aSpillAnchoredAwayFromColumnBIsOpenedAtItsOwnCell();
     void theWindowReadsTheBlocksOfTheBatchItTook();
+    void theFormulaBarReadsNoNodeOfTheWorker();
     void aBlockOfASliceIsNotReadUntilItsBatchIsTaken();
     void aTableMadeAgainUnderAHoldIsPublishedOnce();
     void aBlockIsReadBesideTheWorkerThatChangesIt();

@@ -153,6 +153,7 @@ public:
     bool hasStrays() const { return m_strayCount.load(std::memory_order_acquire) > 0; }
     void releaseStrays();
     qint64 straysReleased() const { return m_straysReleased; }
+    qint64 strayChecks() const { return m_strayChecks; }   // (what a test counts: the work of telling a waiting cell from one that is in the way)
     // Whether this calculation keeps the cells a formula spills into as blocks of an index (set from spillIndexDefault() when the workbook is loaded) and not as cells of the store.
     bool spillIndexOn() const { return m_spillIndex; }
     void setWorkerThread(quintptr thread)
@@ -375,7 +376,10 @@ public:
             return exists == o.exists && isFormula == o.isFormula && formula == o.formula && value == o.value && sharedString == o.sharedString && style == o.style && dynamic == o.dynamic;
         }
     };
-    CellContent content(int sheet, quint32 row, quint32 col) const;
+    // `withNodes` false leaves out what is read of the formula's node (the result a kept formula stores, the formula held in ids): the window's thread asks it so for what it shows (the formula bar), since the nodes are the worker's
+    // while it works and are read by no other thread; `stored`, `hasStored`, `hasHeld`, and the fields of the held formula are not given then.
+    CellContent content(int sheet, quint32 row, quint32 col, bool withNodes = true) const;
+    qint64 contentNodeReads() const { return m_contentNodeReads.load(std::memory_order_relaxed); }   // (the times content looked at a node: what a test counts)
     // Changes whenever an edit could change what a text of a formula names (rows, columns, cells, sheets inserted, deleted, moved, renamed): what a copy made before is checked against.
     quint64 structStamp() const { return m_structStamp; }
     // For a save of a workbook whose formulas are held in ids, before the saver writes them from the order of the lines (round 7): which formulas have a text other than the file's. Whether a sheet's
@@ -1129,14 +1133,26 @@ private:
         qint32 formula;
         quint8 kind = 0;   // 0: a member its block let go of, 1: a plain cell the loaded spill takes as its own, 2: a plain cell of an old file that its blocked spill lets go of
         Cell was;          // (of the last two: the cell as it was found, which is let be if it is not that when the thread that takes it comes to it)
+        bool formulaGoing = false;   // (its formula is let go of: the number may be given to another, which does not hold the cell)
     };
+    struct StrayPlace {
+        int sheet;
+        quint32 rowId, colId;
+        bool operator==(const StrayPlace &o) const { return sheet == o.sheet && rowId == o.rowId && colId == o.colId; }
+    };
+    struct StrayPlaceHash {
+        size_t operator()(const StrayPlace &p) const { return std::hash<quint64>()((quint64(p.rowId) << 32) | p.colId) ^ (size_t(p.sheet) * 0x9e3779b97f4a7c15ull); }
+    };
+    std::unordered_set<StrayPlace, StrayPlaceHash> m_strayPlaces;   // (the places of m_strays, so that asking if a cell waits to be taken is one look)
     std::map<std::array<quint32, 3>, quint32> m_resizedSpills;   // (the worker adds, with the number of the time it did; read and let go of with the worker held)
     quint32 m_resizeSeq = 0;
     std::set<std::pair<int, qint32>> m_loadedSpills;   // (the spills a file stored with a range, until the first edit after the load or the first time one is worked out: plain constants that are exactly what it fills beyond that range are its own, the file's state and no later one)
     std::vector<Stray> m_strays;               // (the worker adds, a thread with the worker held back takes)
     std::atomic<qint64> m_strayCount{0};
     qint64 m_straysReleased = 0;
+    qint64 m_strayChecks = 0;                  // (the places of the list looked at to say if a cell of another's block waits to be taken: one for each such cell)
     mutable std::atomic<qint64> m_goneWalked{0};
+    mutable std::atomic<qint64> m_contentNodeReads{0};
     mutable std::atomic<qint64> m_valuesTaken{0};
     std::atomic<qint64> m_evaluations{0};
     mutable std::atomic<qint64> m_placeLookups{0};

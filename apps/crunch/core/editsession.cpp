@@ -624,7 +624,7 @@ QString spillingFormulaOf(const Calculation &calc, int sheet, quint32 row, quint
 {
     jp::office::sheet::CellRange anchor;
     if (!calc.isSpillMember(sheet, row, col, &anchor) || !anchor.valid) return {};
-    const Calculation::CellContent head = calc.content(sheet, anchor.row1, anchor.col1);
+    const Calculation::CellContent head = calc.content(sheet, anchor.row1, anchor.col1, false);
     if (anchorStyle) *anchorStyle = head.style;
     return head.isFormula ? head.formula : QString();
 }
@@ -689,16 +689,16 @@ QString EditSession::barText(int sheet, quint32 row, quint32 col, const QString 
         // (a cell a spill fills shows the formula that fills it; the bar greys it)
         quint32 anchorStyle = 0;
         const QString head = spillingFormulaOf(*m_book->calc, sheet, row, col, &anchorStyle);
-        if (!head.isEmpty() && (formulaHidden(sheet, anchorStyle) || formulaHidden(sheet, m_book->calc->content(sheet, row, col).style))) return QString();
+        if (!head.isEmpty() && (formulaHidden(sheet, anchorStyle) || formulaHidden(sheet, m_book->calc->content(sheet, row, col, false).style))) return QString();
         if (!head.isEmpty()) return QLatin1Char('=') + formulaToLocale(jp::grid::displayFormula(head), formulaLocale());
     }
     if (m_book && m_book->calc && m_book->calc->sheetCount() > sheet && sheet >= 0 && m_book->calc->sheet(sheet).isProtected) {
-        const Calculation::CellContent hidden = m_book->calc->content(sheet, row, col);
+        const Calculation::CellContent hidden = m_book->calc->content(sheet, row, col, false);
         if (hidden.isFormula && formulaHidden(sheet, hidden.style)) return QString();
     }
     // (a formula of an older file that would now give a block is shown with the mark @ of the old rule: it is kept as the file wrote it)
     if (m_book && m_book->calc && sheet >= 0 && sheet < m_book->calc->sheetCount() && gridText.startsWith(QLatin1Char('='))) {
-        const Calculation::CellContent plain = m_book->calc->content(sheet, row, col);
+        const Calculation::CellContent plain = m_book->calc->content(sheet, row, col, false);
         if (plain.isFormula) {
             const QString marked = shownFormula(plain);
             if (marked != plain.formula) return QLatin1Char('=') + formulaToLocale(jp::grid::displayFormula(marked), formulaLocale());
@@ -706,7 +706,7 @@ QString EditSession::barText(int sheet, quint32 row, quint32 col, const QString 
     }
     // (a locale that writes the decimal point as a point has nothing to change: what the grid gives is what is typed)
     if (!m_book || !m_book->calc || m_locale.decimalPoint() != QLatin1String(",")) return gridText;
-    const Calculation::CellContent c = m_book->calc->content(sheet, row, col);
+    const Calculation::CellContent c = m_book->calc->content(sheet, row, col, false);
     if (c.isFormula) {
         // "=formula" or "{=formula}" (an array's): the formula part in the locale's form
         const int at = gridText.indexOf(QLatin1Char('='));

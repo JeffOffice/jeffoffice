@@ -995,6 +995,77 @@ private Q_SLOTS:
         QCOMPARE(colsReached, quint32(4));
     }
 
+    // The formula of a loaded spill goes (its cell is given a value) by the worker's own thread: the window reads the store beside it, so the cells the block filled are told empty and left in the store; a thread
+    // that has the worker held back takes them. Fails when letGoOfSpill takes them from the store itself (they are gone before the hold, and none waits).
+    void aLoadedSpillWhoseFormulaGoesIsLetGoOfWithTheWorkerHeld()
+    {
+        SpillIndexSwitch on(true);
+        const QString rows = rowXml(1, QStringLiteral("<c r=\"A1\" cm=\"1\"><f t=\"array\" ref=\"A1:D1\">_xlfn.SEQUENCE(1,4)</f><v>1</v></c>") + constant("B1", "2") + constant("C1", "3") + constant("D1", "4"));
+        Book b;
+        QString why;
+        QVERIFY(b.package.readLazy(withMetadata(blank(rows)), &why) && b.book.open(b.package, &why));
+        b.calc.reset(new Calculation(b.book));
+        QVERIFY(b.calc->load());
+        QVERIFY(b.settle());
+        const CellStore &cells = b.calc->sheet(0).cells;
+        MutationGuard &guard = b.calc->mutationGuard();
+        const quintptr me = quintptr(QThread::currentThreadId());
+        guard.setWorker(me + 1);   // (a worker that is another thread: this one is the window's)
+        bool done = false;
+        jp::WorkThread worker([&] {
+            guard.setWorker(quintptr(QThread::currentThreadId()));
+            done = b.calc->setValue(0, 0, 0, Value::number(7));
+        });
+        worker.join();
+        QVERIFY(done);
+        QVERIFY(b.calc->hasStrays());
+        QCOMPARE(b.calc->straysReleased(), qint64(0));
+        for (quint32 col = 1; col <= 3; ++col) QVERIFY(realAt(cells, 0, col));   // (still in the store: the window may be reading it)
+        guard.enter();
+        b.calc->releaseStrays();
+        guard.leave();
+        QVERIFY(!b.calc->hasStrays());
+        QCOMPARE(b.calc->straysReleased(), qint64(3));
+        for (quint32 col = 1; col <= 3; ++col) QVERIFY(!realAt(cells, 0, col));
+        guard.setWorker(0);
+    }
+
+    // 99,999 cells of a loaded spill wait to be taken when another formula's block is asked for over them: each cell is told from one in the way by one look at the set of waiting places, whatever their number (the
+    // work counted is one for each such cell, not the cells times the waiting ones). Fails when the cells are looked for in the list (the count is then the sum of the list's places looked at, about 5 billion).
+    void manyWaitingCellsAreToldFromOnesInTheWayByOneLookEach()
+    {
+        SpillIndexSwitch on(true);
+        const int n = 100000;
+        QString rows = rowXml(1, QStringLiteral("<c r=\"B1\" cm=\"1\"><f t=\"array\" ref=\"B1:B%1\">_xlfn.SEQUENCE(%1)</f><v>1</v></c>").arg(n));
+        for (int i = 2; i <= n; ++i) rows += rowXml(i, constant(QStringLiteral("B%1").arg(i), QString::number(i)));
+        Book b;
+        QString why;
+        QVERIFY(b.package.readLazy(withMetadata(blank(rows)), &why) && b.book.open(b.package, &why));
+        b.calc.reset(new Calculation(b.book));
+        QVERIFY(b.calc->load());
+        // (not worked out yet: the cells the file stored are the cells of the store)
+        MutationGuard &guard = b.calc->mutationGuard();
+        const quintptr me = quintptr(QThread::currentThreadId());
+        guard.setWorker(me + 1);
+        bool done = false;
+        jp::WorkThread worker([&] {
+            guard.setWorker(quintptr(QThread::currentThreadId()));
+            // (B1 gives one cell: the 99,999 below wait to be taken; then A3 asks for A3:B100000, over them)
+            done = b.calc->setFormula(0, 0, 1, QStringLiteral("_xlfn.SEQUENCE(1)"), Calculation::Marking::Now, nullptr, true) && b.calc->recalculate().finished;
+            done = done && b.calc->setFormula(0, 2, 0, QStringLiteral("_xlfn.SEQUENCE(99998,2)"), Calculation::Marking::Now, nullptr, true) && b.calc->recalculate().finished;
+        });
+        worker.join();
+        QVERIFY(done);
+        QCOMPARE(b.calc->spillBlock(0, 2, 0).valid ? rangeName(b.calc->spillBlock(0, 2, 0)) : QString(), QStringLiteral("A3:B100000"));
+        QVERIFY(b.calc->hasStrays());
+        QVERIFY(b.calc->strayChecks() >= n - 3);
+        QVERIFY(b.calc->strayChecks() <= n + 3);
+        guard.enter();
+        b.calc->releaseStrays();
+        guard.leave();
+        guard.setWorker(0);
+    }
+
     // The table made again after an edit and the table a load makes are made of the same ranges: the one each formula's cell names. A range that is in the sheet's list and that no formula names (one that was
     // not let go of, or is there twice) is no block.
     void theTableMadeAgainAgreesWithALoadOnAStaleRange()

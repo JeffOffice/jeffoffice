@@ -276,12 +276,15 @@ bool Calculation::isSpillMember(int sheet, quint32 row, quint32 col, CellRange *
     if (!c || !(c->flags & SpillMember) || c->formula < 0) return false;
     if (anchor) {
         *anchor = CellRange();
-        const SheetState &st = m_state[size_t(sheet)];
-        const quint32 id = size_t(c->formula) < st.nodeOf.size() ? st.nodeOf[size_t(c->formula)] : kNone;
-        if (id != kNone) {
-            const quint32 r = rowOf(m_nodes[id]), cc = colOf(m_nodes[id]);
-            *anchor = spillBlock(sheet, r, cc);
+        if (s.cells.spills() && !m_guard.isWorkerOrNone() && !m_guard.heldHere()) {
+            // (a thread that is neither the worker nor has it held back reads the block it was given, not the node, which is the worker's)
+            if (const SpillView v = s.cells.spillView())
+                if (const SpillRect *r = v.table->at(row, col)) *anchor = spillBlock(sheet, r->row1, r->col1);
+            return true;
         }
+        // (the block's first cell is the formula's own: its range names it, so no node is looked at, which is the worker's)
+        const qint32 slot = size_t(c->formula) < size_t(s.formulas.size()) ? s.formulas[c->formula].range : -1;
+        if (slot >= 0 && slot < s.ranges.size() && s.ranges[slot].valid) *anchor = spillBlock(sheet, s.ranges[slot].row1, s.ranges[slot].col1);
     }
     return true;
 }
@@ -443,6 +446,7 @@ void Calculation::releaseStrays()
     if (m_strays.empty()) return;
     const std::vector<Stray> list = std::move(m_strays);
     m_strays.clear();
+    m_strayPlaces.clear();
     m_strayCount.store(0, std::memory_order_release);
     for (const Stray &st : list) {
         if (st.sheet < 0 || st.sheet >= int(m_sheets.size())) continue;
@@ -466,7 +470,7 @@ void Calculation::releaseStrays()
             continue;
         }
         const SpillPublisher *pub = s.cells.spills();
-        const SpillRect *held = pub ? pub->mine().ofFormula(st.formula) : nullptr;
+        const SpillRect *held = pub && !st.formulaGoing ? pub->mine().ofFormula(st.formula) : nullptr;
         if (held && held->contains(row, col)) continue;   // (the formula's block holds it again)
         Cell *c = s.cells.findMutable(row, col);
         if (!c || !(c->flags & SpillMember) || c->formula != st.formula) continue;
@@ -508,8 +512,17 @@ void Calculation::letGoOfSpill(int sheet, qint32 formula)
         dropSpillBlock(sheet, formula);
     }
     const auto gone = membersOutside(s.cells, range, CellRange(), formula);
+    // (with the index and a worker that serves, the window reads the store beside this thread: the cells are told empty and taken by a thread that has the worker held back, as applySpill's are)
+    const bool defer = !gone.empty() && s.cells.spills() && m_guard.workerServes() && !m_guard.heldHere();   // (a thread that has the worker held back takes them itself)
     for (const auto &[row, col] : gone) {
         const quint32 rowId = s.cells.rowIdAt(row), colId = s.cells.colIdAt(col);
+        if (defer) {
+            m_strays.push_back({sheet, rowId, colId, formula, true});
+            m_strayPlaces.insert(StrayPlace{sheet, rowId, colId});
+            m_strayCount.store(qint64(m_strays.size()), std::memory_order_release);
+            tellGone(sheet, rowId, colId);
+            continue;
+        }
         Cell *c = s.cells.findMutable(row, col);
         if (!c) continue;
         c->flags &= quint8(~(ArrayMember | SpillMember));
@@ -588,7 +601,8 @@ Value Calculation::applySpill(Node &n, quint32 id, const Value &v)
             if (m_strayCount.load(std::memory_order_relaxed) > 0) {
                 // (a cell of a loaded spill that its block let go of is no longer anyone's, though it waits to be taken from the store)
                 const quint32 rowId = s.cells.rowIdAt(row), colId = s.cells.colIdAt(col);
-                if (std::any_of(m_strays.begin(), m_strays.end(), [&](const Stray &st) { return st.sheet == sheet && st.rowId == rowId && st.colId == colId; })) return true;
+                ++m_strayChecks;
+                if (m_strayPlaces.count(StrayPlace{sheet, rowId, colId})) return true;
             }
             blocked = true;
             return loaded;   // (a loaded spill looks on through the block: the constants it finds are the old file's, whatever is in the way)
@@ -655,6 +669,7 @@ Value Calculation::applySpill(Node &n, quint32 id, const Value &v)
             const quint32 rowId = s.cells.rowIdAt(row), colId = s.cells.colIdAt(col);
             if (defer) {
                 m_strays.push_back({sheet, rowId, colId, formula});
+                m_strayPlaces.insert(StrayPlace{sheet, rowId, colId});
                 m_strayCount.store(qint64(m_strays.size()), std::memory_order_release);
                 tellGone(sheet, rowId, colId);
                 continue;
