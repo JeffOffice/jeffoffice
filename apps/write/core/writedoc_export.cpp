@@ -14,6 +14,7 @@
 #include "core/fonts.h"
 #include "core/reviewops.h"
 #include "core/tablemodel.h"
+#include "core/tableops.h"
 #include "core/wordformat.h"
 #include "core/writeprops.h"
 #include "text/textprops.h"
@@ -357,6 +358,22 @@ void WriteDoc::pruneUnusedMedia(office::wml::Document *out) const
     }
 }
 
+namespace {
+
+// Whether a table of the text has a style of its own (not the document's default table style): the formats that keep no table styles save such a table without it.
+bool aTableHasItsOwnStyle(WriteDoc &doc)
+{
+    const QString plain = doc.styleSheet().defaultId(QStringLiteral("table"));
+    for (QTextBlock b = doc.story()->begin(); b.isValid(); b = b.next()) {
+        if (!b.blockFormat().hasProperty(flow::fp::Cell)) continue;
+        const QString style = tablePropsAt(doc, QTextCursor(b)).style;
+        if (!style.isEmpty() && style != plain) return true;
+    }
+    return false;
+}
+
+} // namespace
+
 QByteArray WriteDoc::toOdt(QString *error, QStringList *notes)
 {
     m_dropCapsAsFrames = false;
@@ -371,6 +388,7 @@ QByteArray WriteDoc::toOdt(QString *error, QStringList *notes)
                 break;
             }
         if (noteSettings(false).columns > 1) *notes << QCoreApplication::translate("odt", "footnote columns (the footnotes are saved in one column)");
+        if (aTableHasItsOwnStyle(*this)) *notes << QCoreApplication::translate("odt", "table styles (the tables are saved without their style)");
     }
     return odt;
 }
@@ -525,7 +543,12 @@ QByteArray WriteDoc::toRtf(QString *error, QStringList *notes)
 {
     office::wml::Document out;
     if (!exportDocument(&out, false, false)) return QByteArray();
-    return office::rtf::writeRtf(out, notes, error);
+    const QByteArray rtf = office::rtf::writeRtf(out, notes, error);
+    if (notes && !rtf.isEmpty()) {
+        if (aTableHasItsOwnStyle(*this)) *notes << QCoreApplication::translate("rtf", "table styles (the tables are saved without their style)");
+        if (!listStyleEntries().isEmpty()) *notes << QCoreApplication::translate("rtf", "list styles (the lists are saved without their style)");
+    }
+    return rtf;
 }
 
 } // namespace jp::write

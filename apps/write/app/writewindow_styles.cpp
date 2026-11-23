@@ -109,14 +109,17 @@ void WriteWindow::showStyleInspector()
         m_inspectorDock->setWidget(m_inspector);
         addDockWidget(Qt::RightDockWidgetArea, m_inspectorDock);
         resizeDocks({m_inspectorDock}, {260}, Qt::Horizontal);
+        // (The buttons act on the text the pane describes, wherever the caret is: in the text, a header, a footer, a note, or a text box. At a caret that is the run of letters around it.)
         connect(m_inspector, &AppliedFormatPane::clearRequested, this, [this](int section) {
             if (!m_doc || refuseIfReadOnly()) return;
-            m_view->leaveHeaderFooter();
-            m_view->leaveNote();
             QTextCursor &c = m_view->cursor();
-            if (section == 0) write::clearDirectParagraphFormatting(*m_doc, c);
-            else if (section == 1) write::clearCharacterStyle(*m_doc, c, write::appliedFormattingAt(*m_doc, c).characterStyle);
-            else write::clearDirectCharacterFormatting(*m_doc, c);
+            if (section == 0) {
+                write::clearDirectParagraphFormatting(*m_doc, c);
+            } else {
+                QTextCursor range = write::inspectedRange(c);
+                if (section == 1) write::clearDirectCharacterStyles(*m_doc, range);
+                else write::clearDirectCharacterFormatting(*m_doc, range);
+            }
             m_view->setFocus(Qt::OtherFocusReason);
             refreshUi();
         });
@@ -134,9 +137,12 @@ void WriteWindow::refreshStyleInspector()
         return;
     }
     const write::AppliedFormatting a = write::appliedFormattingAt(*m_doc, m_view->cursor());
-    m_inspector->setSection(0, a.paragraphStyleName, a.paragraphDirect, !a.paragraphDirect.isEmpty());
-    m_inspector->setSection(1, a.characterStyleName, {}, !a.characterStyle.isEmpty(), tr("(none)"));
-    m_inspector->setSection(2, a.characterDirect.join(QStringLiteral(", ")), {}, !a.characterDirect.isEmpty(), tr("(nothing of its own)"));
+    const QString several = tr("Several styles in the selection");
+    QString paragraph = a.mixedParagraphStyle ? several : a.paragraphStyleName;
+    if (!a.tableStyleName.isEmpty()) paragraph += QLatin1Char('\n') + tr("Table style: %1").arg(a.tableStyleName);
+    m_inspector->setSection(0, paragraph, a.paragraphDirect, !a.paragraphDirect.isEmpty());
+    m_inspector->setSection(1, a.mixedCharacterStyle ? several : a.characterStyleName, {}, a.mixedCharacterStyle || !a.characterStyle.isEmpty(), tr("(none)"));
+    m_inspector->setSection(2, a.mixedLook ? tr("Several looks in the selection") + QStringLiteral(": ") + a.characterDirect.join(QStringLiteral(", ")) : a.characterDirect.join(QStringLiteral(", ")), {}, !a.characterDirect.isEmpty(), tr("(nothing of its own)"));
 }
 
 void WriteWindow::showStyleDialog(bool create)

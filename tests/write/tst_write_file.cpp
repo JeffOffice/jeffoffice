@@ -24,6 +24,7 @@
 #include "core/appinfo.h"
 #include "core/editops.h"
 #include "core/themeops.h"
+#include "core/styleinspect.h"
 #include "core/styleops.h"
 #include "core/textboxops.h"
 #include "app/normaltemplateui.h"
@@ -1382,6 +1383,304 @@ private Q_SLOTS:
         QCOMPARE(used[1], plain[1]);
     }
 
+    // The Clear buttons act on the paragraph and the letters the pane describes, wherever the caret is (a header, a footer, a footnote, an endnote), and leave the caret there; the text's own
+    // paragraphs are not touched.
+    void theInspectorsClearButtonsActWhereTheCaretIs()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        auto window = windowOn(dir, headingsDocx("<w:p><w:pPr><w:jc w:val=\"center\"/></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t>Body text</w:t></w:r></w:p><w:p><w:r><w:t>Second</w:t></w:r></w:p>"));
+        QVERIFY(window);
+        WriteWindow &w = *window;
+        Quiet quiet(w);
+        w.resize(900, 700);
+        w.show();
+        w.view()->paginateAll();
+        w.act(QStringLiteral("style.inspectorPane"))->trigger();
+        jp::AppliedFormatPane *pane = w.styleInspector();
+        QVERIFY(pane);
+        QTextDocument *body = w.document()->story();
+        const QTextBlock bodyBlock = body->findBlockByNumber(0);
+        const QTextBlockFormat bodyFormat = bodyBlock.blockFormat();
+        const QTextCharFormat bodyLetters = bodyBlock.begin().fragment().charFormat();
+        QVERIFY(bodyLetters.fontWeight() >= QFont::DemiBold);
+        // In the place the caret is: its words get a look of their own, the caret goes inside them, and each button takes that look off them and off nothing else.
+        auto check = [&](const char *place, QTextDocument *story) {
+            QTextCursor &c = w.view()->cursor();
+            QVERIFY2(c.document() == story, place);
+            w.view()->insertText(QStringLiteral("Words here"));
+            const QTextBlock block = c.block();
+            QTextCursor all(story);
+            all.setPosition(block.position());
+            all.setPosition(block.position() + block.length() - 1, QTextCursor::KeepAnchor);
+            write::setAlignment(*w.document(), all, Qt::AlignHCenter);
+            write::changeCharFormat(*w.document(), all, [](QTextCharFormat &f) { f.setFontWeight(QFont::Bold); });
+            c.setPosition(block.position() + block.length() - 3);   // (a caret, no selection: the buttons take the run around it)
+            const int caret = c.position();
+            w.act(QStringLiteral("style.inspectorPane"))->trigger();
+            QVERIFY2(pane->extrasOf(0).contains(QStringLiteral("Alignment")), place);
+            QVERIFY2(pane->nameOf(2).contains(QStringLiteral("Bold")), place);
+            pane->buttonOf(0)->click();
+            pane->buttonOf(2)->click();
+            QVERIFY2(c.document() == story && c.position() == caret && !c.hasSelection(), place);
+            QVERIFY2((c.block().blockFormat().alignment() & Qt::AlignHorizontal_Mask) == Qt::AlignLeft, place);
+            QVERIFY2(c.block().begin().fragment().charFormat().fontWeight() < QFont::DemiBold, place);
+            QVERIFY2(!pane->buttonOf(0)->isEnabled() && !pane->buttonOf(2)->isEnabled(), place);
+            QVERIFY2((body->findBlockByNumber(0).blockFormat().alignment() & Qt::AlignHorizontal_Mask) == (bodyFormat.alignment() & Qt::AlignHorizontal_Mask), place);
+            QVERIFY2(body->findBlockByNumber(0).begin().fragment().charFormat().fontWeight() == bodyLetters.fontWeight(), place);
+        };
+        QVERIFY(w.view()->enterHeaderFooter(0, false, true));
+        check("header", w.view()->cursor().document());
+        w.view()->leaveHeaderFooter();
+        QVERIFY(w.view()->enterHeaderFooter(0, true, true));
+        check("footer", w.view()->cursor().document());
+        w.view()->leaveHeaderFooter();
+        QTextCursor at(body);
+        at.setPosition(3);
+        QTextDocument *note = write::insertFootnote(*w.document(), at);
+        QVERIFY(note);
+        int id = 0;
+        QVERIFY(w.document()->footnoteIdOf(note, &id));
+        w.view()->paginateAll();
+        QVERIFY(w.view()->enterFootnote(id));
+        check("footnote", w.view()->cursor().document());
+        QVERIFY(w.view()->inNote());
+        w.view()->leaveNote();
+        QTextCursor end(body);
+        end.setPosition(3);
+        QVERIFY(write::insertEndnote(*w.document(), end));
+        w.view()->setCursor(end);
+        check("endnote", body);
+    }
+
+    // At a caret with no selection the buttons act on the run of letters around it (the letters the pane describes), as one step; the caret stays.
+    void theInspectorsClearButtonsActOnTheRunAtACaret()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        auto window = windowOn(dir, headingsDocx("<w:p><w:r><w:rPr><w:b/><w:i/></w:rPr><w:t>Alpha beta</w:t></w:r><w:r><w:rPr><w:i/></w:rPr><w:t> plain</w:t></w:r></w:p>"));
+        QVERIFY(window);
+        WriteWindow &w = *window;
+        Quiet quiet(w);
+        w.act(QStringLiteral("style.inspectorPane"))->trigger();
+        jp::AppliedFormatPane *pane = w.styleInspector();
+        QTextCursor &c = w.view()->cursor();
+        QTextCursor run(w.document()->story());
+        run.setPosition(0);
+        run.setPosition(10, QTextCursor::KeepAnchor);
+        write::applyCharacterStyle(*w.document(), run, QStringLiteral("Strong"));
+        c.setPosition(4);
+        w.act(QStringLiteral("style.inspectorPane"))->trigger();
+        QVERIFY(pane->buttonOf(1)->isEnabled() && pane->buttonOf(2)->isEnabled());
+        quint64 serial = w.document()->nextStepSerial();
+        pane->buttonOf(2)->click();
+        QCOMPARE(w.document()->nextStepSerial(), serial + 1);
+        QCOMPARE(c.position(), 4);
+        QVERIFY(!c.hasSelection());
+        for (int at : {2, 9}) {   // (the whole run, in two places: its italic is gone and its character style stays)
+            QTextCursor look(w.document()->story());
+            look.setPosition(at);
+            QVERIFY(!look.charFormat().fontItalic());
+            QCOMPARE(look.charFormat().stringProperty(tp::CharStyle), QStringLiteral("Strong"));
+        }
+        QTextCursor after(w.document()->story());
+        after.setPosition(14);
+        QVERIFY(after.charFormat().fontItalic());   // (the words after the run are not in it)
+        serial = w.document()->nextStepSerial();
+        pane->buttonOf(1)->click();
+        QCOMPARE(w.document()->nextStepSerial(), serial + 1);
+        QVERIFY(!pane->buttonOf(1)->isEnabled());
+        QCOMPARE(w.view()->cursor().charFormat().stringProperty(tp::CharStyle), QString());
+        QVERIFY(w.document()->undo());
+        w.act(QStringLiteral("style.inspectorPane"))->trigger();
+        QVERIFY(pane->buttonOf(1)->isEnabled());
+    }
+
+    // What a table's style gives is not the paragraph's own: it is named on its own line.
+    void theInspectorNamesATablesStyleAndListsNoneOfItsLookAsTheParagraphsOwn()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        auto window = windowOn(dir, headingsDocx("<w:p><w:r><w:t>Before</w:t></w:r></w:p>"));
+        QVERIFY(window);
+        WriteWindow &w = *window;
+        Quiet quiet(w);
+        w.act(QStringLiteral("style.inspectorPane"))->trigger();
+        w.view()->cursor().setPosition(2);
+        write::NewTable table;
+        table.style = QStringLiteral("GridTable4-Accent1");
+        QVERIFY(write::insertTable(*w.document(), w.view()->cursor(), table));
+        w.act(QStringLiteral("style.inspectorPane"))->trigger();
+        jp::AppliedFormatPane *pane = w.styleInspector();
+        QVERIFY2(pane->nameOf(0).contains(QStringLiteral("Table style")), qPrintable(pane->nameOf(0)));
+        QVERIFY2(pane->extrasOf(0).isEmpty() && !pane->buttonOf(0)->isEnabled() && !pane->buttonOf(2)->isEnabled(), qPrintable(pane->extrasOf(0) + pane->nameOf(2)));
+    }
+
+    // One table of properties is both what the pane lists and what Clear takes off: each property set directly (in a file) is listed, and gone from the saved file after Clear.
+    void everyPropertyTheInspectorListsIsTakenOffByClear()
+    {
+        struct Case {
+            const char *label;
+            QByteArray xml;       // the paragraph's pPr, or the run's rPr
+            const char *gone;     // what the saved file must no longer have
+            bool paragraph;
+        };
+        const QVector<Case> cases = {
+            {"Alignment", "<w:jc w:val=\"center\"/>", "<w:jc ", true},
+            {"Indents", "<w:ind w:left=\"720\"/>", "<w:ind ", true},
+            {"Spacing before or after", "<w:spacing w:before=\"240\"/>", "w:before=", true},
+            {"Line spacing", "<w:spacing w:line=\"360\" w:lineRule=\"auto\"/>", "w:line=", true},
+            {"Tab stops", "<w:tabs><w:tab w:val=\"left\" w:pos=\"1440\"/></w:tabs>", "<w:tabs>", true},
+            {"Borders and shading", "<w:pBdr><w:top w:val=\"single\" w:sz=\"4\" w:space=\"1\" w:color=\"auto\"/></w:pBdr>", "<w:pBdr>", true},
+            {"Borders and shading", "<w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"FFFF00\"/>", "w:fill=\"FFFF00\"", true},
+            {"Keep with next", "<w:keepNext/>", "<w:keepNext", true},
+            {"Keep lines together", "<w:keepLines/>", "<w:keepLines", true},
+            {"Page break before", "<w:pageBreakBefore/>", "<w:pageBreakBefore", true},
+            {"Outline level", "<w:outlineLvl w:val=\"2\"/>", "<w:outlineLvl", true},
+            {"Widow and orphan control", "<w:widowControl w:val=\"0\"/>", "<w:widowControl", true},
+            {"No space between paragraphs of the same style", "<w:contextualSpacing/>", "<w:contextualSpacing", true},
+            {"Right-to-left", "<w:bidi/>", "<w:bidi", true},
+            {"Font", "<w:rFonts w:ascii=\"Courier New\" w:hAnsi=\"Courier New\"/>", "Courier New", false},
+            {"Font", "<w:rFonts w:asciiTheme=\"majorHAnsi\"/>", "w:asciiTheme", false},
+            {"Size", "<w:sz w:val=\"44\"/>", "<w:sz ", false},
+            {"Bold", "<w:b/>", "<w:b/>", false},
+            {"Italic", "<w:i/>", "<w:i/>", false},
+            {"Underline", "<w:u w:val=\"single\"/>", "<w:u ", false},
+            {"Strikethrough", "<w:strike/>", "<w:strike", false},
+            {"Strikethrough", "<w:dstrike/>", "<w:dstrike", false},
+            {"Color", "<w:color w:val=\"FF0000\"/>", "<w:color ", false},
+            {"Highlight", "<w:highlight w:val=\"yellow\"/>", "<w:highlight", false},
+            {"Highlight", "<w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"00FF00\"/>", "w:fill=\"00FF00\"", false},
+            {"Capitals", "<w:caps/>", "<w:caps", false},
+            {"Capitals", "<w:smallCaps/>", "<w:smallCaps", false},
+            {"Superscript or subscript", "<w:vertAlign w:val=\"superscript\"/>", "<w:vertAlign", false},
+            {"Raised or lowered", "<w:position w:val=\"6\"/>", "<w:position", false},
+            {"Character spacing", "<w:spacing w:val=\"40\"/>", "w:val=\"40\"", false},
+            {"Character width", "<w:w w:val=\"150\"/>", "<w:w ", false},
+            {"Hidden text", "<w:vanish/>", "<w:vanish", false},
+            {"Border round the text", "<w:bdr w:val=\"single\" w:sz=\"4\" w:space=\"0\" w:color=\"auto\"/>", "<w:bdr ", false},
+            {"Shadow or outline", "<w:shadow/>", "<w:shadow", false},
+            {"Shadow or outline", "<w:outline/>", "<w:outline/>", false},
+            {"Emboss or engrave", "<w:emboss/>", "<w:emboss", false},
+            {"Emboss or engrave", "<w:imprint/>", "<w:imprint", false},
+            {"Do not check spelling", "<w:noProof/>", "<w:noProof", false},
+        };
+        QByteArray body;
+        for (const Case &k : cases)
+            body += k.paragraph ? "<w:p><w:pPr>" + k.xml + "</w:pPr><w:r><w:t>text</w:t></w:r></w:p>" : "<w:p><w:r><w:rPr>" + k.xml + "</w:rPr><w:t>text</w:t></w:r></w:p>";
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        auto window = windowOn(dir, headingsDocx(body));
+        QVERIFY(window);
+        WriteWindow &w = *window;
+        Quiet quiet(w);
+        w.act(QStringLiteral("style.inspectorPane"))->trigger();
+        jp::AppliedFormatPane *pane = w.styleInspector();
+        // Every property of the table has a case (the list is the one the commands use), and each case is listed where its paragraph is.
+        QSet<QString> covered;
+        for (const Case &k : cases) covered.insert(QString::fromLatin1(k.label));
+        for (bool paragraph : {true, false})
+            for (const QString &label : write::inspectedPropertyLabels(paragraph))
+                if (label != QStringLiteral("Numbering or bullets")) QVERIFY2(covered.contains(label), qPrintable(label));
+        for (int i = 0; i < cases.size(); ++i) {
+            w.view()->cursor().setPosition(w.document()->story()->findBlockByNumber(i).position() + 1);
+            w.act(QStringLiteral("style.inspectorPane"))->trigger();
+            const QString shown = cases[i].paragraph ? pane->extrasOf(0) : pane->nameOf(2);
+            QVERIFY2(shown.contains(QString::fromLatin1(cases[i].label)), qPrintable(QString::fromLatin1(cases[i].label) + QStringLiteral(" / ") + shown));
+        }
+        // All paragraphs selected: one step each, and the saved file has none of it.
+        w.view()->selectAll();
+        w.act(QStringLiteral("style.inspectorPane"))->trigger();
+        QVERIFY(pane->buttonOf(0)->isEnabled() && pane->buttonOf(2)->isEnabled());
+        quint64 serial = w.document()->nextStepSerial();
+        pane->buttonOf(0)->click();
+        QCOMPARE(w.document()->nextStepSerial(), serial + 1);
+        serial = w.document()->nextStepSerial();
+        pane->buttonOf(2)->click();
+        QCOMPARE(w.document()->nextStepSerial(), serial + 1);
+        QVERIFY2(pane->extrasOf(0).isEmpty() && !pane->buttonOf(0)->isEnabled() && !pane->buttonOf(2)->isEnabled(), qPrintable(pane->extrasOf(0) + pane->nameOf(2)));
+        QVERIFY(saveInto(w, dir, QStringLiteral("cleared.docx")));
+        office::Package p;
+        p.read(fileBytes(dir.filePath(QStringLiteral("cleared.docx"))));
+        const QByteArray xml = p.part(QStringLiteral("/word/document.xml"));
+        for (const Case &k : cases) QVERIFY2(!xml.contains(k.gone), k.gone);
+        QCOMPARE(int(xml.count("text")), int(cases.size()));   // (the words stay)
+    }
+
+    // A selection over paragraphs of different styles, or letters that differ, says so; the buttons act on all of it as one step.
+    void theInspectorSaysSeveralWhenTheSelectionIsMixedAndClearsAllOfIt()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        auto window = windowOn(dir, headingsDocx("<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/><w:jc w:val=\"center\"/></w:pPr><w:r><w:t>One</w:t></w:r></w:p>"
+                                                "<w:p><w:pPr><w:jc w:val=\"right\"/></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t>Two</w:t></w:r></w:p><w:p><w:r><w:rPr><w:i/></w:rPr><w:t>Three</w:t></w:r></w:p>"));
+        QVERIFY(window);
+        WriteWindow &w = *window;
+        Quiet quiet(w);
+        w.act(QStringLiteral("style.inspectorPane"))->trigger();
+        jp::AppliedFormatPane *pane = w.styleInspector();
+        QTextCursor &c = w.view()->cursor();
+        c.setPosition(2);
+        c.setPosition(w.document()->story()->findBlockByNumber(2).position() + 2, QTextCursor::KeepAnchor);
+        w.act(QStringLiteral("style.inspectorPane"))->trigger();
+        QCOMPARE(pane->nameOf(0), QStringLiteral("Several styles in the selection"));
+        QVERIFY2(pane->extrasOf(0).contains(QStringLiteral("Alignment")), qPrintable(pane->extrasOf(0)));
+        QVERIFY2(pane->nameOf(2).startsWith(QStringLiteral("Several looks")) && pane->nameOf(2).contains(QStringLiteral("Bold")) && pane->nameOf(2).contains(QStringLiteral("Italic")), qPrintable(pane->nameOf(2)));
+        quint64 serial = w.document()->nextStepSerial();
+        pane->buttonOf(0)->click();
+        QCOMPARE(w.document()->nextStepSerial(), serial + 1);
+        serial = w.document()->nextStepSerial();
+        pane->buttonOf(2)->click();
+        QCOMPARE(w.document()->nextStepSerial(), serial + 1);
+        for (int i = 0; i < 3; ++i) {
+            const QTextBlock b = w.document()->story()->findBlockByNumber(i);
+            QVERIFY((b.blockFormat().alignment() & Qt::AlignHorizontal_Mask) == Qt::AlignLeft);
+            QVERIFY(b.begin().fragment().charFormat().fontWeight() < QFont::DemiBold && !b.begin().fragment().charFormat().fontItalic());
+        }
+        QVERIFY(!pane->buttonOf(0)->isEnabled() && !pane->buttonOf(2)->isEnabled());
+    }
+
+    // A table style or a list style is lost when the document is saved as .odt (table styles) or .rtf (both): Check Compatibility says so, exactly for the styles that a save and reopen loses.
+    void checkCompatibilityNamesTheTableAndListStylesAFormatLoses()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        auto window = windowOn(dir, headingsDocx("<w:p><w:r><w:t>Alpha</w:t></w:r></w:p>"));
+        QVERIFY(window);
+        WriteWindow &w = *window;
+        Quiet quiet(w);
+        QString err;
+        QStringList odtBefore, rtfBefore;
+        w.document()->toOdt(&err, &odtBefore);
+        w.document()->toRtf(&err, &rtfBefore);
+        auto mentions = [](const QStringList &notes, const QString &what) {
+            for (const QString &n : notes)
+                if (n.startsWith(what)) return true;
+            return false;
+        };
+        QVERIFY(!mentions(odtBefore, QStringLiteral("table styles")) && !mentions(rtfBefore, QStringLiteral("table styles")) && !mentions(rtfBefore, QStringLiteral("list styles")));
+        w.view()->cursor().setPosition(2);
+        write::NewTable table;
+        table.style = QStringLiteral("GridTable4-Accent1");
+        QVERIFY(write::insertTable(*w.document(), w.view()->cursor(), table));
+        office::wml::AbstractNum def = write::listDefinitionAt(*w.document(), w.view()->cursor().block(), true);
+        QString why;
+        QTextCursor top(w.document()->story());
+        top.setPosition(0);
+        QVERIFY(!write::saveAndApplyListStyle(*w.document(), top, QStringLiteral("My List"), def, &why).isEmpty());
+        QStringList odtNotes, rtfNotes;
+        const auto fromOdt = write::WriteDoc::fromOdt(w.document()->toOdt(&err, &odtNotes));
+        const auto fromRtf = write::WriteDoc::fromRtf(w.document()->toRtf(&err, &rtfNotes));
+        QVERIFY(fromOdt && fromRtf);
+        // (Each line is there exactly when the style does not come back from the saved file.)
+        const QString tableId = QStringLiteral("GridTable4-Accent1");
+        QCOMPARE(mentions(odtNotes, QStringLiteral("table styles")), !fromOdt->styleSheet().find(tableId));
+        QCOMPARE(mentions(rtfNotes, QStringLiteral("table styles")), !fromRtf->styleSheet().find(tableId));
+        QCOMPARE(mentions(rtfNotes, QStringLiteral("list styles")), fromRtf->listStyleEntries().isEmpty());
+        QVERIFY(mentions(odtNotes, QStringLiteral("table styles")) && mentions(rtfNotes, QStringLiteral("table styles")) && mentions(rtfNotes, QStringLiteral("list styles")));
+        QVERIFY(!mentions(odtNotes, QStringLiteral("list styles")) && !fromOdt->listStyleEntries().isEmpty());
+    }
+
     // Pictures for the owner (only with JO_SHOT_DIR set): the Style Inspector beside a heading with its own look, and the Create Style box with Table chosen.
     void theStyleInspectorAndTheCreateStyleBoxArePictured()
     {
@@ -1416,16 +1715,21 @@ private Q_SLOTS:
         QVERIFY(window);
         WriteWindow &w = *window;
         Quiet quiet(w);
-        auto answerNext = [](const QString &objectName, const std::function<void(QDialog *)> &fill) {
+        // (Looks for the box every 20 ms, up to 1500 times; if it never comes, or another box is open instead, that box is closed and the test fails, rather than the program waiting on it.)
+        bool gaveUp = false;
+        auto answerNext = [&gaveUp](const QString &objectName, const std::function<void(QDialog *)> &fill) {
             auto *timer = new QTimer(qApp);
             auto *tries = new int(0);
-            QObject::connect(timer, &QTimer::timeout, qApp, [=] {
+            QObject::connect(timer, &QTimer::timeout, qApp, [=, &gaveUp] {
                 auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
                 if (dlg && dlg->objectName() == objectName) {
                     fill(dlg);
                     dlg->accept();
                 } else if (++*tries < 1500) {
                     return;
+                } else {
+                    gaveUp = true;
+                    if (dlg) dlg->reject();
                 }
                 timer->stop();
                 timer->deleteLater();
@@ -1442,6 +1746,7 @@ private Q_SLOTS:
             for (const char *control : {"styleBold", "styleFont", "styleAlign", "styleBefore", "styleBasedOn", "styleNext", "styleScope"}) QVERIFY2(!d->findChild<QWidget *>(QString::fromLatin1(control))->isEnabled(), control);
             QVERIFY(d->findChild<QComboBox *>(QStringLiteral("styleType"))->isEnabled() && d->findChild<QLineEdit *>(QStringLiteral("styleName"))->isEnabled());
         });
+        QVERIFY(!gaveUp);
         QCOMPARE(w.document()->nextStepSerial(), serial + 1);
         const office::wml::Style *table = w.document()->styleSheet().find(QStringLiteral("GridLook"));
         QVERIFY(table);
@@ -1449,7 +1754,11 @@ private Q_SLOTS:
         QCOMPARE(table->name, QStringLiteral("Grid Look"));
         // A list style: the multilevel box opens with the name, the style is kept and the paragraph has it.
         QVERIFY(w.document()->listStyleEntries().isEmpty());
-        answerNext(QStringLiteral("multilevelListDialog"), [](QDialog *d) { QCOMPARE(d->findChild<QLineEdit *>(QStringLiteral("listStyleName"))->text(), QStringLiteral("Outline List")); });
+        answerNext(QStringLiteral("multilevelListDialog"), [](QDialog *d) {
+            QCOMPARE(d->findChild<QLineEdit *>(QStringLiteral("listStyleName"))->text(), QStringLiteral("Outline List"));
+            auto *save = d->findChild<QCheckBox *>(QStringLiteral("saveAsListStyle"));   // (made from Create a Style, the list is a style: the tick can't be taken off)
+            QVERIFY(save->isChecked() && !save->isEnabled());
+        });
         w.view()->cursor().setPosition(2);
         withDialog([&] { w.act(QStringLiteral("style.new"))->trigger(); }, QStringLiteral("styleDialog"), [](QDialog *d) {
             d->findChild<QLineEdit *>(QStringLiteral("styleName"))->setText(QStringLiteral("Outline List"));
@@ -1459,6 +1768,21 @@ private Q_SLOTS:
         const auto lists = w.document()->listStyleEntries();
         QCOMPARE(lists.size(), 1);
         QCOMPARE(lists[0].name, QStringLiteral("Outline List"));
+        // Several paragraphs selected: still one step, and each of them has the list.
+        QTextCursor &c = w.view()->cursor();
+        c.movePosition(QTextCursor::End);
+        typeText(*w.document(), c, QStringLiteral("\nsecond\nthird"));
+        w.view()->selectAll();
+        const quint64 before = w.document()->nextStepSerial();
+        answerNext(QStringLiteral("multilevelListDialog"), [](QDialog *) {});
+        withDialog([&] { w.act(QStringLiteral("style.new"))->trigger(); }, QStringLiteral("styleDialog"), [](QDialog *d) {
+            d->findChild<QLineEdit *>(QStringLiteral("styleName"))->setText(QStringLiteral("Three List"));
+            auto *type = d->findChild<QComboBox *>(QStringLiteral("styleType"));
+            type->setCurrentIndex(type->findData(QStringLiteral("list")));
+        });
+        QCOMPARE(w.document()->nextStepSerial(), before + 1);
+        for (int i = 0; i < 3; ++i) QVERIFY(w.document()->story()->findBlockByNumber(i).blockFormat().hasProperty(prop::NumId));
+        QVERIFY(!gaveUp);
     }
 
     // Create Style for new documents makes what the style needs in the template (the style it is based on, and the character style of a linked pair), says so when the template could not take it

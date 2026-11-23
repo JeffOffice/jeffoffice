@@ -15,6 +15,7 @@ namespace jp::write {
 // kept), and there is nothing to choose. `check` tells why a name can't be used (empty when it can); the box stays open, and says so, until it can.
 struct ListStyleChoice {
     bool save = false, editing = false;
+    bool mustSave = false;   // the box was opened to make a list style (Create a Style): the tick stays on
     QString name;
     std::function<QString(const QString &)> check;
 };

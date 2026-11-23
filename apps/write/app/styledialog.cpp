@@ -344,6 +344,7 @@ bool styleDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor, const QStr
                 if (!e.character) styles.push_back({e.id, e.name});
             ListStyleChoice choice;
             choice.save = true;
+            choice.mustSave = true;
             choice.name = styleName;
             choice.check = [doc](const QString &n) { return styleNameProblem(*doc, n); };
             if (multilevelListDialog(parent, &def, styles, &choice)) {

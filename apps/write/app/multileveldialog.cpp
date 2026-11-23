@@ -276,6 +276,7 @@ bool multilevelListDialog(QWidget *parent, AbstractNum *definition, const QList<
             saveStyle->setObjectName(QStringLiteral("saveAsListStyle"));
             saveStyle->setChecked(listStyle->save);
             styleName->setEnabled(listStyle->save);
+            saveStyle->setEnabled(!listStyle->mustSave);
             QObject::connect(saveStyle, &QCheckBox::toggled, styleName, &QLineEdit::setEnabled);
             saveRow->addWidget(saveStyle);
             saveRow->addWidget(styleName, 1);
