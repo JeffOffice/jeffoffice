@@ -16,6 +16,7 @@
 #include "core/fonts.h"
 #include "core/editops.h"
 #include "core/items.h"
+#include "core/reviewops.h"
 #include "core/sectionmove.h"
 #include "core/tableops.h"
 #include "core/writedoc.h"
@@ -1257,6 +1258,27 @@ private Q_SLOTS:
         }
         QVERIFY2(differsIn(moved[0], moved[1]).isEmpty(), qPrintable(differsIn(moved[0], moved[1])));
         QVERIFY(differsIn(moved[0], w.document()->toDocx()).size() > 0);   // (and it did move)
+    }
+
+    // Outline view's own move records a tracked change while a section move from the pane or the commands is refused (Help says so).
+    void outlineViewRecordsItsMoveAsTrackedChangesWhereTheSectionMoveIsRefused()
+    {
+        WriteWindow w;
+        openPane(w, paneDocx());
+        w.document()->setTrackChanges(true);
+        w.act("view.outline")->trigger();
+        w.outlineView()->selectParagraphAt(positionOf(*w.document(), QStringLiteral("Beta")));
+        w.act("outline.moveUp")->trigger();
+        const QString xml = documentXml(w.document()->toDocx());
+        QVERIFY2(xml.contains(QLatin1String("<w:ins ")) || xml.contains(QLatin1String("<w:moveTo ")), qPrintable(xml.left(400)));
+        QVERIFY(!write::revisionsIn(w.document()->story()).isEmpty());
+        // (The commands, in the text, are refused, and say so.)
+        w.act("view.printLayout")->trigger();
+        caretIn(w, QStringLiteral("Alpha words"), 1);
+        const QByteArray tracked = w.document()->toDocx();
+        w.moveSectionAtCaret(true);
+        QVERIFY2(w.statusBar()->currentMessage().contains(QLatin1String("Track Changes")), qPrintable(w.statusBar()->currentMessage()));
+        QVERIFY2(differsIn(w.document()->toDocx(), tracked).isEmpty(), qPrintable(differsIn(w.document()->toDocx(), tracked)));
     }
 
     // View > Move Section Up and Move Section Down are on the ribbon, by the Navigation pane's button.
