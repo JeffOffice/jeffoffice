@@ -888,7 +888,7 @@ bool Reader::run(QString *error)
     for (const auto &pf : std::as_const(m_pendingFooters)) applyFooters(m_doc, pf.second, pf.first);
     if (m_footers) m_doc.appData[QStringLiteral("footers")] = true;
 
-    if (m_animations) note(QCoreApplication::translate("OdpImport", "The animations of %1 slides were left out.").arg(m_animations));
+    if (m_animations) note(QCoreApplication::translate("OdpImport", "The animations of %n slide(s) were left out.", nullptr, m_animations));
     if (m_transitionsLost) note(QCoreApplication::translate("OdpImport", "The transitions of %1 slides have no match in JeffDeck, and were left out.").arg(m_transitionsLost));
     return true;
 }

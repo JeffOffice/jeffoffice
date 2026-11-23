@@ -25,6 +25,7 @@
 #include <QDockWidget>
 #include <QDoubleSpinBox>
 #include <QInputDialog>
+#include <QListView>
 #include <QLabel>
 #include <QMenu>
 #include <QPainter>
@@ -167,8 +168,8 @@ struct Anims {
             if (changeable(r)) rows << r;
         if (!rows.isEmpty()) return rows;
         const QVector<int> shapes = selectedShapes(p, false);
-        // (the rows the pane shows picked when a shape is selected: its effects in the slide's own sequence and in triggers)
-        for (int i = 0; i < seq.rowCount(); ++i)
+        // (a trigger's effects change only when their rows are picked)
+        for (int i = 0; i < seq.effects.size(); ++i)
             if (changeable(i) && shapes.contains(seq.anim(i).shape)) rows << i;
         return rows;
     }
@@ -206,9 +207,16 @@ struct Anims {
         if (!kind) return;
         sequence();
         const QVector<int> rows = picked;
-        edit(QCoreApplication::translate("Animation", "Animation"), [&](deck::AnimSequence &seq, Page &p) {
+        deck::TriggerRefusal why = deck::TriggerRefusal::None;
+        const bool done = editOr(QCoreApplication::translate("Animation", "Animation"), [&](deck::AnimSequence &seq, Page &p) {
             const QVector<int> shapes = selectedShapes(p, true);
             QVector<int> change;
+            // (an effect of a group that can't be changed here is not changed, and no other is made in its place)
+            for (int r : rows)
+                if (const auto at = seq.place(r); at.valid() && at.trigger >= 0 && seq.triggers[at.trigger].locked) {
+                    why = deck::TriggerRefusal::Locked;
+                    return false;
+                }
             if (!rows.isEmpty()) {
                 for (int r : rows)
                     if (r < seq.rowCount()) change << r;
@@ -219,7 +227,7 @@ struct Anims {
                 }
             }
             for (int r : withBuilds(seq, change)) deck::changeKind(seq.anim(r), *kind);
-            if (!rows.isEmpty()) return;
+            if (!rows.isEmpty()) return true;
             // The first shape starts on a click, and the others with it.
             bool first = true;
             for (int s : shapes) {
@@ -229,7 +237,9 @@ struct Anims {
                 seq.add(a);
                 first = false;
             }
+            return true;
         }, !rows.isEmpty());
+        if (!done) say(refusalText(why));
     }
 
     // Another effect on each shape selected, at the end.
@@ -364,6 +374,7 @@ struct Anims {
         }
         QStringList names, ids;
         QHash<QString, int> seen;
+        QString currentName;
         bool left = false;
         walkItems(p->items, [&](const ItemPtr &it) {
             if (it->bounds().isEmpty() || it->type() == ItemType::Group) return;
@@ -373,6 +384,7 @@ struct Anims {
             }
             QString name = it->name.isEmpty() ? QCoreApplication::translate("Animation", "Shape %1").arg(it->sourceId > 0 ? it->sourceId : int(ids.size()) + 1) : it->name;
             if (const int n = ++seen[name]; n > 1) name += QStringLiteral(" (%1)").arg(n);
+            if (current > 0 && it->sourceId == current) currentName = name;
             names << name;
             ids << it->id;
         });
@@ -389,10 +401,10 @@ struct Anims {
         dialog.setLabelText(text);
         dialog.setComboBoxItems(names);
         dialog.setOption(QInputDialog::UseListViewForComboBoxItems, true);
-        for (int i = 0; i < ids.size() && current > 0; ++i)
-            walkItems(p->items, [&](const ItemPtr &it) {
-                if (it->id == ids[i] && it->sourceId == current) dialog.setTextValue(names[i]);
-            });
+        // (the list is made when the dialog is shown, so it is named through the dialog's own children)
+        for (QListView *list : dialog.findChildren<QListView *>())
+            list->setAccessibleName(QCoreApplication::translate("Animation", "Object"));
+        if (!currentName.isEmpty()) dialog.setTextValue(currentName);
         const bool accepted = dialog.exec() == QDialog::Accepted;
         const int at = names.indexOf(dialog.textValue());
         if (accepted && at >= 0) setTrigger(ids[at]);
@@ -757,10 +769,14 @@ void DeckWindow::createAnimationActions()
         if (!p || !m_ed->masterView().isEmpty()) return;
         deck::AnimSequence seq = deck::readAnimations(*p, m_ed->doc());
         if (!seq.editable || seq.triggers.isEmpty()) return;
-        QSet<int> going;
+        QSet<int> going, staying;
         walkItems(p->items, [&](const ItemPtr &it) {
-            if (it->sourceId > 0 && ids.contains(it->id)) going.insert(it->sourceId);
+            if (it->sourceId <= 0) return;
+            if (ids.contains(it->id)) going.insert(it->sourceId);
+            else staying.insert(it->sourceId);
         });
+        // (two objects can share a number, after a paste: the group is let go with the last of them)
+        going.subtract(staying);
         bool released = false;
         for (int g = 0; g < seq.triggers.size(); ++g) {
             deck::TriggerSeq &t = seq.triggers[g];

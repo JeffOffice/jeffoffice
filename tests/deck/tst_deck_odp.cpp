@@ -314,7 +314,7 @@ private Q_SLOTS:
         QVERIFY(!d->pages[3]->showMasterItems);
         QCOMPARE(d->pages[3]->background.color.rgbValue(), QColor(0x11, 0x22, 0x33));
         QVERIFY(!d->pages[1]->hidden && d->pages[1]->showMasterItems && d->pages[1]->background.isNone());
-        QRegularExpressionMatch lost = QRegularExpression(QStringLiteral("animations of (\\d+) slides")).match(skipped.join(QLatin1Char('\n')));
+        QRegularExpressionMatch lost = QRegularExpression(QStringLiteral("animations of (\\d+) slide")).match(skipped.join(QLatin1Char('\n')));
         QVERIFY2(lost.hasMatch() && lost.captured(1) == QStringLiteral("1"), qPrintable(skipped.join(QLatin1Char('\n'))));
     }
 

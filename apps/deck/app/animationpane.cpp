@@ -609,7 +609,7 @@ void AnimationPane::rebuild(const QStringList &pickedKeys)
         const deck::Anim &a = m_seq.anim(effectRow);
         Row r;
         const Item *it = shapes.value(a.shape, nullptr);
-        const QString name = it ? shapeName(*it) : tr("Shape %1").arg(a.shape);
+        const QString name = it ? shapeName(*it) : QCoreApplication::translate("Animation", "Shape %1").arg(a.shape);
         // A paragraph effect is named by its paragraph, as the shape's name and the effect are on the second line.
         const QString text = it && a.paragraphs() ? paragraphText(d, *it, a.firstParagraph) : QString();
         r.shape = text.isEmpty() ? name : text;
@@ -651,7 +651,10 @@ void AnimationPane::rebuild(const QStringList &pickedKeys)
         if (t.effects.isEmpty()) continue;
         Row title;
         const Item *it = shapes.value(t.shape, nullptr);
-        title.shape = tr("When %1 is clicked").arg(it ? shapeName(*it) : tr("Shape %1").arg(t.shape));
+        const QString object = it ? shapeName(*it) : QCoreApplication::translate("Animation", "Shape %1").arg(t.shape);
+        title.shape = t.event == QLatin1String("onClick") ? tr("When %1 is clicked").arg(object)
+                    : t.event == QLatin1String("onMouseOver") ? tr("When the pointer is over %1").arg(object)
+                                                              : tr("Effects that start from %1").arg(object);
         title.header = true;
         m_rows.push_back(title);
         auto *head = new QListWidgetItem(title.shape, m_list);

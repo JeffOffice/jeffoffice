@@ -283,6 +283,9 @@ struct TriggerSeq {
     QVector<int> kept;               // the nodes of AnimSequence::kept this group was read from; written as they were while the effects are as read
     QVector<Anim> original;          // the effects as they were read, to tell a group nobody changed
     bool locked = false;             // holds what the effects here do not show: listed, and kept as written
+    QString event = QStringLiteral("onClick");   // what starts the group, as the file names it ("mixed" when its sequences differ)
+    QString head, tail;              // the file's own sequence around the effects, written again when they are rewritten (empty: a group made here)
+    QVector<int> wrapperIds;         // the time node ids the head and tail hold
     bool edited() const { return effects != original; }
 };
 // Why an effect could not be put in a trigger.

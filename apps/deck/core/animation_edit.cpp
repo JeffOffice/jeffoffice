@@ -412,6 +412,30 @@ QSet<int> timeNodeIds(const QString &xml, const QString &declarations)
     return out;
 }
 
+// The text between the marks of a trigger's own sequence: what comes before the effects and what comes after, and the ids it holds.
+const QString kTriggerMark = QStringLiteral("@@TRIGGER-EFFECTS@@");
+bool splitTrigger(const QDomElement &s, QString *head, QString *tail, QVector<int> *ids)
+{
+    // The parts of the effects hang under ONE click part; any other shape of sequence is not rewritten.
+    const QVector<QDomElement> pars = office::children(pChild(pChild(s, "cTn"), "childTnLst"));
+    if (pars.size() != 1 || !pIs(pars[0], "par") || pChild(pChild(pars[0], "cTn"), "childTnLst").isNull()) return false;
+    const QDomElement copy = s.cloneNode(true).toElement();
+    QDomElement inner = pChild(pChild(pChild(pChild(pChild(copy, "cTn"), "childTnLst"), "par"), "cTn"), "childTnLst");
+    if (inner.isNull()) return false;
+    while (!inner.firstChild().isNull()) inner.removeChild(inner.firstChild());
+    inner.appendChild(copy.ownerDocument().createTextNode(kTriggerMark));
+    const QString text = standalone(copy);
+    const qsizetype at = text.indexOf(kTriggerMark);
+    if (at < 0 || text.indexOf(kTriggerMark, at + 1) >= 0) return false;
+    *head = text.left(at);
+    *tail = text.mid(at + kTriggerMark.size());
+    ids->clear();
+    forEachElement(copy, [&](const QDomElement &e) {
+        if (e.localName() == QLatin1String("cTn") && hasAttr(e, QStringLiteral("id"))) ids->push_back(int(attr(e, QStringLiteral("id")).toLongLong()));
+    });
+    return true;
+}
+
 // ---- the presets ----
 
 struct Located {
@@ -881,6 +905,7 @@ AnimSequence readAnimations(const Page &slide, const Document *doc)
     }
     const QDomElement root = dom.documentElement();
     bool haveMain = false, tooMany = false;
+    QSet<int> wrapperBad;
     // The sequences are the time nodes' children: the tmRoot's, in a p:tnLst.
     const QDomElement rootNode = pChild(pChild(pChild(pChild(root, "tnLst"), "par"), "cTn"), "childTnLst");
     const QVector<QDomElement> nodes = office::children(rootNode);
@@ -900,8 +925,12 @@ AnimSequence readAnimations(const Page &slide, const Document *doc)
             seq.kept << keptText(s, texts, i, declarations);
             if (!cTn.isNull() && attr(cTn, QStringLiteral("nodeType")) == QLatin1String("interactiveSeq")) {
                 int shape = 0;
+                QString event;
                 for (const QDomElement &cond : pChildren(pChild(cTn, "stCondLst"), "cond"))
-                    if (const QDomElement sp = pChild(pChild(cond, "tgtEl"), "spTgt"); !sp.isNull()) shape = int(std::clamp<qint64>(attr(sp, QStringLiteral("spid")).toLongLong(), 0, 2000000000));
+                    if (const QDomElement sp = pChild(pChild(cond, "tgtEl"), "spTgt"); !sp.isNull()) {
+                        shape = int(std::clamp<qint64>(attr(sp, QStringLiteral("spid")).toLongLong(), 0, 2000000000));
+                        event = attr(cond, QStringLiteral("evt"));
+                    }
                 int have = 0;
                 for (const TriggerSeq &t : std::as_const(seq.triggers)) have += int(t.effects.size());
                 if (shape > 0 && have < kMaxAnims) {
@@ -912,6 +941,12 @@ AnimSequence readAnimations(const Page &slide, const Document *doc)
                         seq.triggers.push_back(TriggerSeq());
                         same = seq.triggers.end() - 1;
                         same->shape = shape;
+                        same->event = event;
+                        if (!splitTrigger(s, &same->head, &same->tail, &same->wrapperIds)) wrapperBad.insert(shape);
+                    } else {
+                        // A second sequence for the object has a wrapper of its own that one group could not keep.
+                        wrapperBad.insert(shape);
+                        if (same->event != event) same->event = QStringLiteral("mixed");
                     }
                     same->kept << keptAt;
                     same->effects += found;
@@ -940,7 +975,7 @@ AnimSequence readAnimations(const Page &slide, const Document *doc)
         // A trigger whose effects were not all found here (or that the show cuts short) is listed, and kept as written.
         for (TriggerSeq &t : seq.triggers) {
             const auto played = std::find_if(timeline.triggers.cbegin(), timeline.triggers.cend(), [&t](const Trigger &x) { return x.shape == t.shape; });
-            t.locked = played == timeline.triggers.cend() || played->effects.size() != t.effects.size() || t.effects.size() > kMaxTriggerEffects || timeline.triggers.size() > kMaxTriggers;
+            t.locked = wrapperBad.contains(t.shape) || t.event != QLatin1String("onClick") || played == timeline.triggers.cend() || played->effects.size() != t.effects.size() || t.effects.size() > kMaxTriggerEffects || timeline.triggers.size() > kMaxTriggers;
         }
     }
     if (doc) dropGoneEffects(seq, shapeInfos(slide, doc));
@@ -1496,6 +1531,9 @@ QString animationsXml(const Document &doc, const Page &slide, const AnimSequence
         ids.reserved.unite(timeNodeIds(seq.kept[k], declared));
         aimedAt.unite(shapesOfKept(seq.kept[k]));
     }
+    // (a changed group keeps the sequence the file had around its effects, and the ids that holds)
+    for (int g = 0; g < live.triggers.size(); ++g)
+        if (rewritten(g)) ids.reserved.unite(QSet<int>(live.triggers[g].wrapperIds.cbegin(), live.triggers[g].wrapperIds.cend()));
     const int rootId = ids.take(), mainId = ids.take();
     const QVector<Placed> placed = layoutOf(effects);
     KeptEffects keptEffects;
@@ -1562,7 +1600,8 @@ QString animationsXml(const Document &doc, const Page &slide, const AnimSequence
         if (!rewritten(g) || t.effects.isEmpty()) continue;
         aimedAt.insert(t.shape);
         const QVector<Placed> there = layoutOf(t.effects);
-        const int seqId = ids.take(), clickPar = ids.take();
+        const bool own = !t.head.isEmpty();
+        const int seqId = own ? 0 : ids.take(), clickPar = own ? 0 : ids.take();
         QString tparts, tinside;
         int tpart = -1, tpartId = 0, tpartDelay = 0;
         auto closeTPart = [&] {
@@ -1581,6 +1620,10 @@ QString animationsXml(const Document &doc, const Page &slide, const AnimSequence
             emit(t.effects[i], triggerGrp[g][i], &tinside);
         }
         closeTPart();
+        if (own) {
+            triggerXml[g] = t.head + tparts + t.tail;
+            continue;
+        }
         const QString target = QStringLiteral("<p:tgtEl><p:spTgt spid=\"%1\"/></p:tgtEl>").arg(t.shape);
         triggerXml[g] = QStringLiteral("<p:seq concurrent=\"1\" nextAc=\"seek\"><p:cTn id=\"%1\" restart=\"whenNotActive\" fill=\"hold\" evtFilter=\"cancelBubble\" nodeType=\"interactiveSeq\"><p:stCondLst><p:cond evt=\"onClick\" delay=\"0\">%2</p:cond></p:stCondLst>"
                                        "<p:endSync evt=\"end\" delay=\"0\"><p:rtn val=\"all\"/></p:endSync><p:childTnLst><p:par><p:cTn id=\"%3\" fill=\"hold\"><p:stCondLst><p:cond delay=\"0\"/></p:stCondLst><p:childTnLst>")
