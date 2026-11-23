@@ -8965,7 +8965,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Dia %1</translation>
     </message>
     <message>
-        <location line="+67"/>
+        <location line="+71"/>
         <source>diagrams are saved as pictures: their parts can&apos;t be edited in this kind of file.</source>
         <translation type="unfinished">Diagrammen worden opgeslagen als afbeeldingen: hun onderdelen kunnen in dit bestandstype niet worden bewerkt.</translation>
     </message>
@@ -9016,12 +9016,12 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Objecten midden in tekst worden weggelaten.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/io/odpexport_motion.cpp" line="+609"/>
-        <source>Effects that start when an object is clicked can&apos;t be saved in this kind of file, except those that play a movie or sound.</source>
-        <translation type="unfinished">Effecten die starten wanneer op een object wordt geklikt, kunnen in dit type bestand niet worden opgeslagen, behalve effecten die een film of geluid afspelen.</translation>
+        <location filename="../apps/deck/io/odpexport_motion.cpp" line="+601"/>
+        <source>Effects that start when an object is clicked were left out where the object is not on the slide.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+10"/>
         <source>%1: animation effects that have no match in this kind of file were left out.</source>
         <translation type="unfinished">%1: animatie-effecten zonder equivalent in dit type bestand zijn weggelaten.</translation>
     </message>
@@ -16505,7 +16505,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <translation type="unfinished">Automatisch</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/slideshow.cpp" line="+2589"/>
+        <location filename="../apps/deck/app/slideshow.cpp" line="+2672"/>
         <source>Screen %1</source>
         <translation type="unfinished">Scherm %1</translation>
     </message>
@@ -55815,19 +55815,19 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::SlideShow</name>
     <message>
-        <location filename="../apps/deck/app/slideshow.cpp" line="-1925"/>
+        <location filename="../apps/deck/app/slideshow.cpp" line="-2005"/>
         <location line="+104"/>
         <location line="+150"/>
         <source>Slide Show</source>
         <translation type="unfinished">Diavoorstelling</translation>
     </message>
     <message>
-        <location line="+413"/>
+        <location line="+478"/>
         <source>End of slide show, click to exit.</source>
         <translation type="unfinished">Einde van de diavoorstelling. Klik om af te sluiten.</translation>
     </message>
     <message>
-        <location line="+505"/>
+        <location line="+512"/>
         <source>There is no earlier slide to go back to.</source>
         <translation type="unfinished">Er is geen eerdere dia om naar terug te gaan.</translation>
     </message>
@@ -55899,7 +55899,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">De presentatie %1 kan niet worden geopend.</translation>
     </message>
     <message>
-        <location line="+531"/>
+        <location line="+539"/>
         <source>Pointer Options</source>
         <translation type="unfinished">Opties voor aanwijzer</translation>
     </message>

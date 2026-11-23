@@ -323,10 +323,6 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">No se pudo poner la contraseña al fichero.</translation>
     </message>
     <message>
-        <source>Effects that start when an object is clicked can't be saved in this kind of file, except those that play a movie or sound.</source>
-        <translation type="unfinished">Los efectos que se inician al hacer clic en un objeto no se pueden guardar en este tipo de fichero, salvo los que reproducen un vídeo o un sonido.</translation>
-    </message>
-    <message>
         <source>%1: animation effects that have no match in this kind of file were left out.</source>
         <translation type="unfinished">%1: se omitieron efectos de animación sin equivalente en este tipo de fichero.</translation>
     </message>

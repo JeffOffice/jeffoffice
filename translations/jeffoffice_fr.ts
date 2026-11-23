@@ -8965,7 +8965,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <translation type="unfinished">Diapositive %1</translation>
     </message>
     <message>
-        <location line="+67"/>
+        <location line="+71"/>
         <source>diagrams are saved as pictures: their parts can&apos;t be edited in this kind of file.</source>
         <translation type="unfinished">les diagrammes sont enregistrés sous forme d&apos;images : leurs éléments ne peuvent pas être modifiés dans ce type de fichier.</translation>
     </message>
@@ -9016,12 +9016,12 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <translation type="unfinished">Les objets placés au milieu du texte sont omis.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/io/odpexport_motion.cpp" line="+609"/>
-        <source>Effects that start when an object is clicked can&apos;t be saved in this kind of file, except those that play a movie or sound.</source>
-        <translation type="unfinished">Les effets qui démarrent au clic sur un objet ne peuvent pas être enregistrés dans ce type de fichier, sauf ceux qui lisent une vidéo ou un son.</translation>
+        <location filename="../apps/deck/io/odpexport_motion.cpp" line="+601"/>
+        <source>Effects that start when an object is clicked were left out where the object is not on the slide.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+10"/>
         <source>%1: animation effects that have no match in this kind of file were left out.</source>
         <translation type="unfinished">%1 : les effets d&apos;animation sans équivalent dans ce type de fichier ont été omis.</translation>
     </message>
@@ -16505,7 +16505,7 @@ Ouvrez-le dans votre logiciel de messagerie, ajoutez les destinataires et envoye
         <translation type="unfinished">Automatique</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/slideshow.cpp" line="+2589"/>
+        <location filename="../apps/deck/app/slideshow.cpp" line="+2672"/>
         <source>Screen %1</source>
         <translation type="unfinished">Écran %1</translation>
     </message>
@@ -55815,19 +55815,19 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
 <context>
     <name>jp::SlideShow</name>
     <message>
-        <location filename="../apps/deck/app/slideshow.cpp" line="-1925"/>
+        <location filename="../apps/deck/app/slideshow.cpp" line="-2005"/>
         <location line="+104"/>
         <location line="+150"/>
         <source>Slide Show</source>
         <translation type="unfinished">Diaporama</translation>
     </message>
     <message>
-        <location line="+413"/>
+        <location line="+478"/>
         <source>End of slide show, click to exit.</source>
         <translation type="unfinished">Fin du diaporama, cliquez pour quitter.</translation>
     </message>
     <message>
-        <location line="+505"/>
+        <location line="+512"/>
         <source>There is no earlier slide to go back to.</source>
         <translation type="unfinished">Il n&apos;y a aucune diapositive précédente vers laquelle revenir.</translation>
     </message>
@@ -55899,7 +55899,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
         <translation type="unfinished">La présentation %1 ne peut pas être ouverte.</translation>
     </message>
     <message>
-        <location line="+531"/>
+        <location line="+539"/>
         <source>Pointer Options</source>
         <translation type="unfinished">Options du pointeur</translation>
     </message>

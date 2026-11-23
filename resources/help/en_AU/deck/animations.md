@@ -55,6 +55,12 @@ Click a row to pick its effect. The shape is picked on the slide too, and the ot
 
 While the **Animations** tab or the pane is showing, a small number sits at the top left of each animated shape on the slide. It is the click the effect plays at. The number of the effect you picked is filled in.
 
+## Effects that wait for a click on a shape
+
+A presentation made in another program can have effects that do not wait for the next click. They wait for a click on one shape instead. In a slide show or in Reading View, clicking that shape plays those effects at once. A click anywhere else still plays the next effect of the slide, as before. Click the shape again and its effects play again. The pointer turns into a hand over such a shape, and the Tab key reaches it in the same order as a link: press Tab until its ring shows, then press Enter. Going back one step takes back what the shape's click played. If a shape has several of these sets of effects, one click plays all of them. If the shape cannot be clicked in the show (it is hidden, off the slide, or has a link of its own), what waits for it is simply shown.
+
+JeffDeck keeps these effects when you save a .pptx or .odp file. The **Animation Pane** does not list them yet, and you cannot make them in JeffDeck yet.
+
 ## Copy an animation
 
 Click a shape that has an animation, click **Animation Painter**, and then click another shape. The second shape gets the same effects.

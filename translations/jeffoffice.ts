@@ -8939,7 +8939,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+67"/>
+        <location line="+71"/>
         <source>diagrams are saved as pictures: their parts can&apos;t be edited in this kind of file.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -8985,12 +8985,12 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/deck/io/odpexport_motion.cpp" line="+609"/>
-        <source>Effects that start when an object is clicked can&apos;t be saved in this kind of file, except those that play a movie or sound.</source>
+        <location filename="../apps/deck/io/odpexport_motion.cpp" line="+601"/>
+        <source>Effects that start when an object is clicked were left out where the object is not on the slide.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+10"/>
         <source>%1: animation effects that have no match in this kind of file were left out.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -16464,7 +16464,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/slideshow.cpp" line="+2589"/>
+        <location filename="../apps/deck/app/slideshow.cpp" line="+2672"/>
         <source>Screen %1</source>
         <translation type="unfinished"></translation>
     </message>
@@ -55637,19 +55637,19 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::SlideShow</name>
     <message>
-        <location filename="../apps/deck/app/slideshow.cpp" line="-1925"/>
+        <location filename="../apps/deck/app/slideshow.cpp" line="-2005"/>
         <location line="+104"/>
         <location line="+150"/>
         <source>Slide Show</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+413"/>
+        <location line="+478"/>
         <source>End of slide show, click to exit.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+505"/>
+        <location line="+512"/>
         <source>There is no earlier slide to go back to.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -55721,7 +55721,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+531"/>
+        <location line="+539"/>
         <source>Pointer Options</source>
         <translation type="unfinished"></translation>
     </message>
