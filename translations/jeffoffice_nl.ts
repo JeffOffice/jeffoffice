@@ -60667,7 +60667,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     </message>
     <message>
         <location line="+87"/>
-        <location filename="../apps/write/app/writewindow_info.cpp" line="+264"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="+282"/>
         <source>document</source>
         <translation type="unfinished">document</translation>
     </message>
@@ -61696,7 +61696,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation>Opmaak</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_info.cpp" line="-250"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="-266"/>
         <source>Pages</source>
         <translation>Pagina&apos;s</translation>
     </message>
@@ -61795,8 +61795,13 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <source>The document is protected with a password when you save.</source>
         <translation type="unfinished">Het document wordt met een wachtwoord beveiligd wanneer u opslaat.</translation>
     </message>
+    <message>
+        <location line="+26"/>
+        <source>Linked pictures and objects, the template the document is attached to, and fields that read another file. Removing turns fields into text, takes out linked pictures and objects, including those in comments and text boxes, and detaches the template. Links in comments and other kept parts can&apos;t be undone. Web links stay.</source>
+        <translation type="unfinished"></translation>
+    </message>
     <message numerus="yes">
-        <location line="+29"/>
+        <location line="+6"/>
         <source>%n linked picture(s) or object(s) can&apos;t be checked, because the file does not say where each one goes.</source>
         <translation type="unfinished">
             <numerusform></numerusform>
@@ -61805,7 +61810,65 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
-        <source>%n link(s) to another file are kept inside other fields, comments, or text boxes, where Remove All can&apos;t take them out.</source>
+        <source>%n link(s) to another file are kept where Remove All can&apos;t take them out: inside other fields, comments, text boxes, and other parts of the file.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>the attached template</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>the mail merge data source</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>frames</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>subdocuments</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>a chart&apos;s outside data</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>linked movies or sounds</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>linked style sheets</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>%1 and %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>, and %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The file keeps these, and Remove All can&apos;t take them out: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+2"/>
+        <source>%n more link(s) are past the most that one Remove All takes out. Run Remove All again to take them out.</source>
         <translation type="unfinished">
             <numerusform></numerusform>
             <numerusform></numerusform>
@@ -61873,7 +61936,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Sommige eerder bewaarde versies konden het nieuwe wachtwoord niet krijgen en blijven zoals ze waren.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_info.cpp" line="-75"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="-91"/>
         <location filename="../apps/write/app/writewindow_review.cpp" line="+1"/>
         <source>Comments</source>
         <translation>Opmerkingen</translation>
@@ -61939,17 +62002,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Gegevens die andere programma&apos;s aan het bestand hebben toegevoegd en die u niet op een pagina ziet.</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+4"/>
         <source>External links</source>
         <translation type="unfinished">Externe koppelingen</translation>
     </message>
     <message>
-        <location line="+0"/>
-        <source>Linked pictures and objects, and fields that read another file. Removing turns fields into text and takes out the linked ones. Web links stay.</source>
-        <translation type="unfinished">Gekoppelde afbeeldingen en objecten, en velden die een ander bestand lezen. Verwijderen zet velden om in tekst en haalt de gekoppelde weg. Webkoppelingen blijven.</translation>
-    </message>
-    <message>
-        <location line="+15"/>
+        <location line="+29"/>
         <source>Inspect Document</source>
         <translation type="unfinished">Document controleren</translation>
     </message>
@@ -79737,7 +79795,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
 <context>
     <name>jp::write::Review</name>
     <message>
-        <location filename="../apps/write/core/commentops.cpp" line="+1134"/>
+        <location filename="../apps/write/core/commentops.cpp" line="+1143"/>
         <source>Inserted row</source>
         <translation type="unfinished">Rij ingevoegd</translation>
     </message>

@@ -606,7 +606,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/write/app/writewindow_info.cpp" line="+226"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="+231"/>
         <source>%n linked picture(s) or object(s) can&apos;t be checked, because the file does not say where each one goes.</source>
         <translation>
             <numerusform>%n linked picture or object can&apos;t be checked, because the file does not say where it goes.</numerusform>
@@ -615,10 +615,18 @@
     </message>
     <message numerus="yes">
         <location line="+1"/>
-        <source>%n link(s) to another file are kept inside other fields, comments, or text boxes, where Remove All can&apos;t take them out.</source>
+        <source>%n link(s) to another file are kept where Remove All can&apos;t take them out: inside other fields, comments, text boxes, and other parts of the file.</source>
         <translation>
-            <numerusform>%n link to another file is kept inside another field, a comment, or a text box, where Remove All can&apos;t take it out.</numerusform>
-            <numerusform>%n links to another file are kept inside other fields, comments, or text boxes, where Remove All can&apos;t take them out.</numerusform>
+            <numerusform>%n link to another file is kept where Remove All can&apos;t take it out: inside another field, a comment, a text box, or another part of the file.</numerusform>
+            <numerusform>%n links to another file are kept where Remove All can&apos;t take them out: inside other fields, comments, text boxes, and other parts of the file.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+13"/>
+        <source>%n more link(s) are past the most that one Remove All takes out. Run Remove All again to take them out.</source>
+        <translation>
+            <numerusform>%n more link is past the most that one Remove All takes out. Run Remove All again to take it out.</numerusform>
+            <numerusform>%n more links are past the most that one Remove All takes out. Run Remove All again to take them out.</numerusform>
         </translation>
     </message>
 </context>

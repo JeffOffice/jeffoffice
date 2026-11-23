@@ -59599,7 +59599,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+19"/>
-        <location filename="../apps/write/app/writewindow_info.cpp" line="+272"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="+290"/>
         <source>This document is protected with a password, and a .rtf file can&apos;t hold one. Save it as a .docx file, or remove the password first (File &gt; Info).</source>
         <translation type="unfinished">Цей документ захищено паролем, а файл .rtf не може його зберігати. Збережіть його як файл .docx або спочатку видаліть пароль (Файл &gt; Відомості).</translation>
     </message>
@@ -60200,7 +60200,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Автоматично</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_info.cpp" line="-226"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="-242"/>
         <source>Pages</source>
         <translation>Сторінки</translation>
     </message>
@@ -60366,17 +60366,85 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Дані, які додали до файлу інші програми і які не видно на сторінці.</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+4"/>
         <source>External links</source>
         <translation type="unfinished">Зовнішні посилання</translation>
     </message>
     <message>
         <location line="+0"/>
-        <source>Linked pictures and objects, and fields that read another file. Removing turns fields into text and takes out the linked ones. Web links stay.</source>
-        <translation type="unfinished">Пов&apos;язані малюнки й об&apos;єкти, а також поля, які читають інший файл. Після видалення поля перетворяться на текст, а пов&apos;язані об&apos;єкти буде вилучено. Веб-посилання залишаться.</translation>
+        <source>Linked pictures and objects, the template the document is attached to, and fields that read another file. Removing turns fields into text, takes out linked pictures and objects, including those in comments and text boxes, and detaches the template. Links in comments and other kept parts can&apos;t be undone. Web links stay.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message numerus="yes">
-        <location line="+5"/>
+        <location line="+7"/>
+        <source>%n link(s) to another file are kept where Remove All can&apos;t take them out: inside other fields, comments, text boxes, and other parts of the file.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>the attached template</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>the mail merge data source</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>frames</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>subdocuments</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>a chart&apos;s outside data</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>linked movies or sounds</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>linked style sheets</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>%1 and %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>, and %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The file keeps these, and Remove All can&apos;t take them out: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+2"/>
+        <source>%n more link(s) are past the most that one Remove All takes out. Run Remove All again to take them out.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="-14"/>
         <source>%n linked picture(s) or object(s) can&apos;t be checked, because the file does not say where each one goes.</source>
         <translation type="unfinished">
             <numerusform></numerusform>
@@ -60384,17 +60452,8 @@ The password couldn&apos;t be put on the file.</source>
             <numerusform></numerusform>
         </translation>
     </message>
-    <message numerus="yes">
-        <location line="+1"/>
-        <source>%n link(s) to another file are kept inside other fields, comments, or text boxes, where Remove All can&apos;t take them out.</source>
-        <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-        </translation>
-    </message>
     <message>
-        <location line="+9"/>
+        <location line="+23"/>
         <source>Inspect Document</source>
         <translation type="unfinished">Перевірити документ</translation>
     </message>
@@ -79829,7 +79888,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::write::Review</name>
     <message>
-        <location filename="../apps/write/core/commentops.cpp" line="+1134"/>
+        <location filename="../apps/write/core/commentops.cpp" line="+1143"/>
         <source>Inserted row</source>
         <translation type="unfinished">Вставлено рядок</translation>
     </message>

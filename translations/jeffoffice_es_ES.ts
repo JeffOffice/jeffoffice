@@ -2351,10 +2351,6 @@ No se pudo aplicar la contraseña al fichero.</translation>
         <translation type="unfinished">Datos que otros programas añadieron al fichero, que no se ven en la página.</translation>
     </message>
     <message>
-        <source>Linked pictures and objects, and fields that read another file. Removing turns fields into text and takes out the linked ones. Web links stay.</source>
-        <translation type="unfinished">Imágenes y objetos vinculados, y campos que leen otro fichero. Al quitarlos, los campos se convierten en texto y se eliminan los vinculados. Los vínculos web se conservan.</translation>
-    </message>
-    <message>
         <source>File Name</source>
         <translation type="unfinished">Nombre de fichero</translation>
     </message>
