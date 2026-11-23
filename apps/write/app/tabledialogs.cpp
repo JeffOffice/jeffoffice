@@ -632,7 +632,7 @@ void setHex(ColorButton *b, const QString &hex)
 
 } // namespace
 
-bool tableStyleDialog(QWidget *parent, WriteDoc *doc, const QString &modifyId, QString *madeId)
+bool tableStyleDialog(QWidget *parent, WriteDoc *doc, const QString &modifyId, QString *madeId, const QString &startName)
 {
     if (!doc) return false;
     const bool modify = !modifyId.isEmpty();
@@ -642,7 +642,8 @@ bool tableStyleDialog(QWidget *parent, WriteDoc *doc, const QString &modifyId, Q
         else existing = office::wml::builtinStyle(modifyId);
         if (existing.id.isEmpty() || existing.type != QLatin1String("table")) return false;
     }
-    const office::wml::TableStyleSpec start = modify ? office::wml::tableStyleSpecOf(existing) : office::wml::TableStyleSpec();
+    office::wml::TableStyleSpec start = modify ? office::wml::tableStyleSpecOf(existing) : office::wml::TableStyleSpec();
+    if (!modify) start.name = startName;
     QDialog dlg(parent);
     dlg.setObjectName(QStringLiteral("tableStyleDialog"));
     dlg.setWindowTitle(modify ? tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "Modify Table Style")) : tr(QT_TRANSLATE_NOOP("jp::write::TableDialogs", "New Table Style")));

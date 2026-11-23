@@ -285,6 +285,8 @@ void applyParagraphStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId);
 void applyCharacterStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId);
 // Takes a character style off the characters that have it (their look goes back to the paragraph's).
 void clearCharacterStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId);
+// The letters' own look taken off (what clearFormatting does to them), each run going back to what its paragraph's style and its character style say; the character style stays.
+void clearDirectCharacters(WriteDoc &doc, QTextCursor &c);
 // The style the first selected paragraph has (its id).
 QString paragraphStyleAt(const WriteDoc &doc, const QTextCursor &c);
 // The format with what `was` gave it (and it still has) taken for what `now` gives: the text keeps what it says itself, and follows a style that changed.

@@ -919,4 +919,6 @@ bool pasteFormat(WriteDoc &doc, QTextCursor &c, const FormatBrush &brush)
     return changed;
 }
 
+QString styleScreenName(const Style &style) { return shownName(style); }
+
 } // namespace jp::write

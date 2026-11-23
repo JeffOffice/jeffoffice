@@ -3548,4 +3548,33 @@ void clearCharacterStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId)
     c.endEditBlock();
 }
 
+void clearDirectCharacters(WriteDoc &doc, QTextCursor &c)
+{
+    const NoteScopeGuard scopeGuard(doc, c);
+    const AutoRedefineOff noAutoUpdate;
+    if (!intoBody(c)) return;
+    c.beginEditBlock();
+    const int from = c.selectionStart(), to = c.selectionEnd();
+    QTextDocument *story = c.document();
+    for (QTextBlock b = story->findBlock(from); b.isValid() && b.position() <= std::max(to, from); b = b.next()) {
+        QTextCursor part(story);
+        part.setPosition(std::max(from, b.position()));
+        part.setPosition(std::min(to, b.position() + b.length() - 1), QTextCursor::KeepAnchor);
+        const QString paraStyle = paragraphStyleAt(doc, part);
+        QHash<QString, QTextCharFormat> bases;
+        changeCharFormat(doc, part, [&](QTextCharFormat &f) {
+            const QString own = f.stringProperty(tp::CharStyle);
+            if (!bases.contains(own)) bases.insert(own, doc.styleCharFormat(paraStyle, own));
+            const QTextCharFormat &base = bases[own];
+            for (int key : kStyleDriven) {
+                if (key == int(tp::Language)) continue;   // (the language a file states stays)
+                if (key == int(tp::HiddenText) && f.hasProperty(prop::TrackedDeleted)) continue;
+                if (base.hasProperty(key)) f.setProperty(key, base.property(key));
+                else f.clearProperty(key);
+            }
+        });
+    }
+    c.endEditBlock();
+}
+
 } // namespace jp::write

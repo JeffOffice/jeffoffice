@@ -62,6 +62,10 @@ StylesPane::StylesPane(WriteWindow *win, QWidget *parent) : QWidget(parent), m_w
     row->addWidget(manage);
     connect(manage, &QPushButton::clicked, this, [this] { m_win->act(QStringLiteral("style.manage"))->trigger(); });
     v->addLayout(row);
+    auto *inspect = new QPushButton(QCoreApplication::translate("jp::StylesPane", "Style Inspector"), this);
+    inspect->setObjectName(QStringLiteral("styleInspectorButton"));
+    connect(inspect, &QPushButton::clicked, this, [this] { m_win->act(QStringLiteral("style.inspectorPane"))->trigger(); });
+    v->addWidget(inspect);
     m_idle.setSingleShot(true);
     m_idle.setInterval(600);
     connect(&m_idle, &QTimer::timeout, this, &StylesPane::recheckUse);

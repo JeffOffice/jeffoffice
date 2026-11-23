@@ -68,6 +68,7 @@ class Ribbon;
 struct RibbonParts;
 class SizeCombo;
 class StylesPane;
+class AppliedFormatPane;
 class NavigationPane;
 class WriteOutlineView;
 class WriteFileScreen;
@@ -421,6 +422,9 @@ public:
 
     // The Styles pane on the right (made when first asked for, so null before).
     void showStylesPane();
+    // The Style Inspector: the paragraph style, the character style, and what the text says besides them where the caret is, with a button to take each off.
+    void showStyleInspector();
+    AppliedFormatPane *styleInspector() const { return m_inspector; }
     StylesPane *stylesPane() const { return m_styles; }
 
     // The Reviewing pane on the right (made when first asked for, so null before): Review > Reviewing Pane, with the page ("comments" or "changes") it is to show.
@@ -742,6 +746,9 @@ private:
     } m_readWas;
     StylesPane *m_styles = nullptr;
     QDockWidget *m_stylesDock = nullptr;
+    AppliedFormatPane *m_inspector = nullptr;
+    QDockWidget *m_inspectorDock = nullptr;
+    void refreshStyleInspector();
     PainterMode m_painter = PainterMode::Off;
     bool m_highlighting = false;
     QString m_highlightName;

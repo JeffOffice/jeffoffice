@@ -2,6 +2,7 @@
 
 #include "../isolatesettings.h"
 #include "../withdialog.h"
+#include "app/appliedformatpane.h"
 #include "core/commentops.h"
 #include "../cardchecks.h"
 #include "../packedpackagecheck.h"
@@ -1269,6 +1270,157 @@ private Q_SLOTS:
         QCOMPARE(made.second->rPr.size, std::optional<int>());
         QVERIFY(w.document()->redo());
         QCOMPARE(pair(w).second->rPr.size, std::optional<int>(44));
+    }
+
+    // Style Inspector: names the paragraph style and character style at the caret and what the text says besides them, and each button takes its part off in one step; a saved copy of a
+    // document nobody edited is the same whether or not the pane and the style boxes were opened (nothing is written back to a paragraph or a style).
+    void theStyleInspectorNamesWhatAppliesAndClearsEachInOneStep()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QByteArray body = "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/><w:jc w:val=\"center\"/><w:spacing w:before=\"480\"/></w:pPr><w:r><w:rPr><w:b/><w:i/></w:rPr><w:t>Alpha beta</w:t></w:r></w:p>"
+                                "<w:p><w:r><w:t>Plain words</w:t></w:r></w:p>";
+        auto window = windowOn(dir, headingsDocx(body));
+        QVERIFY(window);
+        WriteWindow &w = *window;
+        Quiet quiet(w);
+        w.act(QStringLiteral("style.inspectorPane"))->trigger();
+        jp::AppliedFormatPane *pane = w.styleInspector();
+        QVERIFY(pane);
+        auto look = [&](int position, int to = -1) {
+            QTextCursor &c = w.view()->cursor();
+            c.setPosition(position);
+            if (to >= 0) c.setPosition(to, QTextCursor::KeepAnchor);
+            w.act(QStringLiteral("style.inspectorPane"))->trigger();
+        };
+        look(3);
+        QCOMPARE(pane->nameOf(0), QStringLiteral("Heading 1"));
+        QVERIFY2(pane->extrasOf(0).contains(QStringLiteral("Alignment")) && pane->extrasOf(0).contains(QStringLiteral("Spacing")), qPrintable(pane->extrasOf(0)));
+        QVERIFY(pane->buttonOf(0)->isEnabled());
+        QVERIFY2(pane->nameOf(2).contains(QStringLiteral("Bold")) && pane->nameOf(2).contains(QStringLiteral("Italic")), qPrintable(pane->nameOf(2)));
+        QVERIFY(pane->buttonOf(2)->isEnabled());
+        QVERIFY(!pane->buttonOf(1)->isEnabled());   // (no character style)
+        // Clear Character Formatting: one step, the paragraph keeps its own look.
+        QTextCursor &c = w.view()->cursor();
+        look(1, 11);
+        quint64 serial = w.document()->nextStepSerial();
+        pane->buttonOf(2)->click();
+        QCOMPARE(w.document()->nextStepSerial(), serial + 1);
+        QCOMPARE(pane->nameOf(2), QStringLiteral("(nothing of its own)"));
+        QVERIFY(!pane->buttonOf(2)->isEnabled());
+        QVERIFY(pane->buttonOf(0)->isEnabled());
+        // Clear Paragraph Formatting: one step; the style stays.
+        look(3);
+        serial = w.document()->nextStepSerial();
+        pane->buttonOf(0)->click();
+        QCOMPARE(w.document()->nextStepSerial(), serial + 1);
+        QCOMPARE(pane->nameOf(0), QStringLiteral("Heading 1"));
+        QVERIFY(pane->extrasOf(0).isEmpty());
+        QVERIFY(!pane->buttonOf(0)->isEnabled());
+        QCOMPARE(c.block().blockFormat().alignment() & Qt::AlignHorizontal_Mask, Qt::AlignLeft);
+        // One Undo brings the paragraph's own look back.
+        QVERIFY(w.document()->undo());
+        look(3);
+        QVERIFY(pane->buttonOf(0)->isEnabled());
+        QVERIFY(w.document()->redo());
+        // The second paragraph has nothing of its own.
+        look(w.document()->story()->findBlockByNumber(1).position() + 2);
+        QVERIFY(!pane->buttonOf(0)->isEnabled() && !pane->buttonOf(2)->isEnabled());
+        QCOMPARE(pane->nameOf(0), QStringLiteral("Normal"));
+    }
+
+    void anUneditedDocumentIsSavedTheSameAfterTheInspectorAndTheStyleBoxesWereOpened()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QFile::remove(write::normalTemplatePath());
+        const QScopeGuard cleanup([] { QFile::remove(write::normalTemplatePath()); });
+        const QByteArray body = "<w:p><w:pPr><w:pStyle w:val=\"Heading1\"/><w:jc w:val=\"center\"/></w:pPr><w:r><w:rPr><w:b/></w:rPr><w:t>Alpha beta</w:t></w:r></w:p><w:p><w:r><w:t>Plain words</w:t></w:r></w:p>";
+        auto parts = [&](WriteWindow &w, const QString &name) -> QList<QByteArray> {
+            if (!saveInto(w, dir, name)) return {};
+            office::Package p;
+            p.read(fileBytes(dir.filePath(name)));
+            return QList<QByteArray>{p.part(QStringLiteral("/word/document.xml")), p.part(QStringLiteral("/word/styles.xml"))};
+        };
+        QList<QByteArray> plain, used;
+        {
+            auto window = windowOn(dir, headingsDocx(body));
+            QVERIFY(window);
+            Quiet quiet(*window);
+            plain = parts(*window, QStringLiteral("plain.docx"));
+            QCOMPARE(plain.size(), 2);
+        }
+        {
+            auto window = windowOn(dir, headingsDocx(body));
+            QVERIFY(window);
+            WriteWindow &w = *window;
+            Quiet quiet(w);
+            w.view()->cursor().setPosition(3);
+            w.act(QStringLiteral("style.inspectorPane"))->trigger();
+            withDialog([&] { w.act(QStringLiteral("style.modify"))->trigger(); }, QStringLiteral("styleDialog"), [](QDialog *) {});   // (OK with nothing changed)
+            withDialog([&] { w.act(QStringLiteral("style.new"))->trigger(); }, QStringLiteral("styleDialog"), [](QDialog *) {}, false);
+            w.view()->cursor().setPosition(w.document()->story()->findBlockByNumber(1).position() + 2);
+            w.act(QStringLiteral("style.inspectorPane"))->trigger();
+            QVERIFY(!w.styleInspector()->buttonOf(0)->isEnabled());
+            w.styleInspector()->parentWidget()->hide();
+            used = parts(w, QStringLiteral("used.docx"));
+        }
+        QCOMPARE(used.size(), 2);
+        QCOMPARE(used[0], plain[0]);
+        QCOMPARE(used[1], plain[1]);
+    }
+
+    // The Create Style box makes table and list styles too: it asks for the name, then opens the box for that kind with the name in it.
+    void theCreateStyleBoxMakesTableAndListStyles()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        auto window = windowOn(dir, headingsDocx("<w:p><w:r><w:t>Alpha beta</w:t></w:r></w:p>"));
+        QVERIFY(window);
+        WriteWindow &w = *window;
+        Quiet quiet(w);
+        auto answerNext = [](const QString &objectName, const std::function<void(QDialog *)> &fill) {
+            auto *timer = new QTimer(qApp);
+            auto *tries = new int(0);
+            QObject::connect(timer, &QTimer::timeout, qApp, [=] {
+                auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
+                if (dlg && dlg->objectName() == objectName) {
+                    fill(dlg);
+                    dlg->accept();
+                } else if (++*tries < 1500) {
+                    return;
+                }
+                timer->stop();
+                timer->deleteLater();
+                delete tries;
+            });
+            timer->start(20);
+        };
+        const quint64 serial = w.document()->nextStepSerial();
+        answerNext(QStringLiteral("tableStyleDialog"), [](QDialog *d) { QCOMPARE(d->findChild<QLineEdit *>(QStringLiteral("styleName"))->text(), QStringLiteral("Grid Look")); });
+        withDialog([&] { w.act(QStringLiteral("style.new"))->trigger(); }, QStringLiteral("styleDialog"), [](QDialog *d) {
+            d->findChild<QLineEdit *>(QStringLiteral("styleName"))->setText(QStringLiteral("Grid Look"));
+            auto *type = d->findChild<QComboBox *>(QStringLiteral("styleType"));
+            type->setCurrentIndex(type->findData(QStringLiteral("table")));
+            QVERIFY(!d->findChild<QCheckBox *>(QStringLiteral("styleBold"))->isEnabled());
+        });
+        QCOMPARE(w.document()->nextStepSerial(), serial + 1);
+        const office::wml::Style *table = w.document()->styleSheet().find(QStringLiteral("GridLook"));
+        QVERIFY(table);
+        QCOMPARE(table->type, QStringLiteral("table"));
+        QCOMPARE(table->name, QStringLiteral("Grid Look"));
+        // A list style: the multilevel box opens with the name, the style is kept and the paragraph has it.
+        QVERIFY(w.document()->listStyleEntries().isEmpty());
+        answerNext(QStringLiteral("multilevelListDialog"), [](QDialog *d) { QCOMPARE(d->findChild<QLineEdit *>(QStringLiteral("listStyleName"))->text(), QStringLiteral("Outline List")); });
+        w.view()->cursor().setPosition(2);
+        withDialog([&] { w.act(QStringLiteral("style.new"))->trigger(); }, QStringLiteral("styleDialog"), [](QDialog *d) {
+            d->findChild<QLineEdit *>(QStringLiteral("styleName"))->setText(QStringLiteral("Outline List"));
+            auto *type = d->findChild<QComboBox *>(QStringLiteral("styleType"));
+            type->setCurrentIndex(type->findData(QStringLiteral("list")));
+        });
+        const auto lists = w.document()->listStyleEntries();
+        QCOMPARE(lists.size(), 1);
+        QCOMPARE(lists[0].name, QStringLiteral("Outline List"));
     }
 
     // Create Style for new documents makes what the style needs in the template (the style it is based on, and the character style of a linked pair), says so when the template could not take it

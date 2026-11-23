@@ -587,6 +587,7 @@ void WriteWindow::refreshUi()
     refreshReviewUi();
     const bool has = m_doc != nullptr;
     if (m_styles && m_stylesDock->isVisible()) m_styles->refresh();
+    if (m_inspector && !m_inspectorDock->isHidden()) refreshStyleInspector();
     for (QAction *a : m_actions) {
         const QString id = a->objectName();
         if (id.startsWith(QLatin1String("fmt.")) || id.startsWith(QLatin1String("para.")) || id.startsWith(QLatin1String("ls.")) || id.startsWith(QLatin1String("layout.")) ||

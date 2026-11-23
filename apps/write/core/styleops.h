@@ -48,6 +48,8 @@ bool setStyleLocked(WriteDoc &doc, const QString &id, bool locked, QString *prob
 // told, when a style can't be copied or the file can't be written.
 bool exportStyles(const WriteDoc &doc, const QStringList &ids, const QString &path, QString *problem = nullptr);
 // The style the document has under `id`, or else the built-in one it lacks (which is not added: it is added with the first change that is made to it, as part of that step).
+// The name a style is listed by (the first letter a capital).
+QString styleScreenName(const office::wml::Style &style);
 std::optional<office::wml::Style> styleOfDocument(const WriteDoc &doc, const QString &id);
 
 // Why a name can't be given to a style (empty, too long, or taken by another style: names are compared without regard to case), as a sentence; empty when it can. `exceptId` is the

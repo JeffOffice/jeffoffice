@@ -5,7 +5,9 @@
 #include "app/uistyle.h"
 #include "app/writedialogs.h"
 
+#include "app/multileveldialog.h"
 #include "app/normaltemplateui.h"
+#include "app/tabledialogs.h"
 #include "app/widgets.h"
 #include "core/editops.h"
 #include "core/styleops.h"
@@ -95,6 +97,10 @@ bool styleDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor, const QStr
     type->addItem(QCoreApplication::translate("jp::write::StyleDialog", "Paragraph"), QStringLiteral("paragraph"));
     type->addItem(QCoreApplication::translate("jp::write::StyleDialog", "Character"), QStringLiteral("character"));
     type->addItem(QCoreApplication::translate("jp::write::StyleDialog", "Linked (paragraph and character)"), QStringLiteral("linked"));
+    if (!modify) {
+        type->addItem(QCoreApplication::translate("jp::write::StyleDialog", "Table"), QStringLiteral("table"));
+        type->addItem(QCoreApplication::translate("jp::write::StyleDialog", "List"), QStringLiteral("list"));
+    }
     type->setCurrentIndex(character ? 1 : 0);
     type->setEnabled(!modify);
     form->addRow(QCoreApplication::translate("jp::write::StyleDialog", "Style type"), type);
@@ -123,10 +129,19 @@ bool styleDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor, const QStr
     };
     select(basedOn, start.basedOn);
     select(next, start.next == modifyId ? QString() : start.next);
+    // A table or list style has a look of its own, chosen in the box that follows; the rest of this box is for paragraph, character, and linked styles.
+    std::vector<QWidget *> lookControls;
+    auto setKindOfLook = [&] {
+        const QString kind = type->currentData().toString();
+        const bool own = kind == QLatin1String("table") || kind == QLatin1String("list");
+        for (QWidget *w : lookControls) w->setEnabled(!own);
+        if (!own) next->setEnabled(kind != QLatin1String("character"));
+    };
     QObject::connect(type, &QComboBox::currentIndexChanged, &dlg, [&] {
         const bool isCharacter = type->currentData().toString() == QLatin1String("character");
         fillChoices(isCharacter);
         next->setEnabled(!isCharacter);
+        setKindOfLook();
     });
     next->setEnabled(!character);
     form->addRow(QCoreApplication::translate("jp::write::StyleDialog", "Based on"), basedOn);
@@ -233,8 +248,19 @@ bool styleDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor, const QStr
     QObject::connect(buttons, &QDialogButtonBox::rejected, &dlg, &QDialog::reject);
     QObject::connect(buttons, &QDialogButtonBox::accepted, &dlg, &QDialog::accept);
 
+    lookControls = {basedOn, next, font, size, bold, italic, underline, color, align, left, right, first, before, after, line, gallery, automatic, scope};
+
     bool done = false;
+    QString handOff;   // "table" or "list": the name is kept, and the box for that kind opens when this one closes
     dlg.tryAccept = [&]() -> bool {
+        const QString kind = type->currentData().toString();
+        if (!modify && (kind == QLatin1String("table") || kind == QLatin1String("list"))) {
+            const QString why = styleNameProblem(*doc, name->text());
+            problem->setText(why);
+            if (!why.isEmpty()) return false;
+            handOff = kind;
+            return true;
+        }
         Style def = start;
         def.name = name->text();
         def.basedOn = basedOn->currentData().toString();
@@ -308,7 +334,29 @@ bool styleDialog(QWidget *parent, WriteDoc *doc, QTextCursor *cursor, const QStr
         }
         return done;
     };
-    dlg.exec();
+    if (dlg.exec() == QDialog::Accepted && !handOff.isEmpty()) {
+        const QString styleName = name->text().trimmed();
+        if (handOff == QLatin1String("table")) done = tableStyleDialog(parent, doc, QString(), nullptr, styleName);
+        else {
+            office::wml::AbstractNum def = listDefinitionAt(*doc, cursor->block(), true);
+            QList<QPair<QString, QString>> styles;
+            for (const StyleEntry &e : doc->styleEntries())
+                if (!e.character) styles.push_back({e.id, e.name});
+            ListStyleChoice choice;
+            choice.save = true;
+            choice.name = styleName;
+            choice.check = [doc](const QString &n) { return styleNameProblem(*doc, n); };
+            if (multilevelListDialog(parent, &def, styles, &choice)) {
+                if (choice.save) {
+                    QString why;
+                    done = !saveAndApplyListStyle(*doc, *cursor, choice.name, def, &why).isEmpty();
+                } else {
+                    applyMultilevelList(*doc, *cursor, def);
+                    done = true;
+                }
+            }
+        }
+    }
     return done;
 }
 

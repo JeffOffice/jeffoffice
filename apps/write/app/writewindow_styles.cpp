@@ -4,7 +4,9 @@
 #include "app/writewindow.h"
 
 #include "app/pageview.h"
+#include "app/appliedformatpane.h"
 #include "app/stylespane.h"
+#include "core/styleinspect.h"
 #include "app/writedialogs.h"
 #include "core/editops.h"
 #include "core/styleops.h"
@@ -21,6 +23,7 @@ namespace jp {
 void WriteWindow::createStyleActions()
 {
     mk("style.pane", tr("Styles Pane"), "palette", QKeySequence(Qt::CTRL | Qt::ALT | Qt::SHIFT | Qt::Key_S), [this] { showStylesPane(); });
+    mk("style.inspectorPane", tr("Style Inspector"), "search", QKeySequence(), [this] { showStyleInspector(); });
     mk("style.new", tr("Create a Style…"), "plus", QKeySequence(), [this] { showStyleDialog(true); });
     mk("style.manage", tr("Manage Styles…"), "settings-2", QKeySequence(), [this] {
         if (!m_doc) return;
@@ -93,6 +96,47 @@ void WriteWindow::showStylesPane()
     m_stylesDock->raise();
     m_styles->refresh();
     m_styles->list()->setFocus();
+}
+
+void WriteWindow::showStyleInspector()
+{
+    if (!m_inspector) {
+        m_inspectorDock = new QDockWidget(tr("Style Inspector"), this);
+        m_inspectorDock->setObjectName(QStringLiteral("styleInspectorDock"));
+        m_inspectorDock->setFeatures(QDockWidget::DockWidgetClosable);
+        m_inspector = new AppliedFormatPane({tr("Paragraph style"), tr("Character style"), tr("Text formatting")},
+                                            {tr("Clear Paragraph Formatting"), tr("Clear Character Style"), tr("Clear Character Formatting")}, m_inspectorDock);
+        m_inspectorDock->setWidget(m_inspector);
+        addDockWidget(Qt::RightDockWidgetArea, m_inspectorDock);
+        resizeDocks({m_inspectorDock}, {260}, Qt::Horizontal);
+        connect(m_inspector, &AppliedFormatPane::clearRequested, this, [this](int section) {
+            if (!m_doc || refuseIfReadOnly()) return;
+            m_view->leaveHeaderFooter();
+            m_view->leaveNote();
+            QTextCursor &c = m_view->cursor();
+            if (section == 0) write::clearDirectParagraphFormatting(*m_doc, c);
+            else if (section == 1) write::clearCharacterStyle(*m_doc, c, write::appliedFormattingAt(*m_doc, c).characterStyle);
+            else write::clearDirectCharacterFormatting(*m_doc, c);
+            m_view->setFocus(Qt::OtherFocusReason);
+            refreshUi();
+        });
+    }
+    m_inspectorDock->show();
+    m_inspectorDock->raise();
+    refreshStyleInspector();
+}
+
+void WriteWindow::refreshStyleInspector()
+{
+    if (!m_inspector) return;
+    if (!m_doc) {
+        for (int i = 0; i < m_inspector->sectionCount(); ++i) m_inspector->setSection(i, QString(), {}, false);
+        return;
+    }
+    const write::AppliedFormatting a = write::appliedFormattingAt(*m_doc, m_view->cursor());
+    m_inspector->setSection(0, a.paragraphStyleName, a.paragraphDirect, !a.paragraphDirect.isEmpty());
+    m_inspector->setSection(1, a.characterStyleName, {}, !a.characterStyle.isEmpty(), tr("(none)"));
+    m_inspector->setSection(2, a.characterDirect.join(QStringLiteral(", ")), {}, !a.characterDirect.isEmpty(), tr("(nothing of its own)"));
 }
 
 void WriteWindow::showStyleDialog(bool create)
