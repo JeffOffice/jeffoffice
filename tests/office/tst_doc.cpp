@@ -3671,7 +3671,7 @@ private Q_SLOTS:
         QVERIFY(jp::cfb::read(fixed, &now));
         const QByteArray got = now.stream(QStringLiteral("WordDocument"));
         QVERIFY2(got.size() <= original.size() + 511 && got.left(original.size()) == original, qPrintable(QString::number(got.size()) + QLatin1Char(' ') + QString::number(original.size())));
-        QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("stored in a confusing way")), qPrintable(notes.join(QLatin1Char('|'))));
+        QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("stored in an unusual order")), qPrintable(notes.join(QLatin1Char('|'))));
     }
 
     // A link of the tables that can't be read is guessed, and what lies across the join is shown, as the program did before, with the number of the paragraph where the part that was not checked

@@ -646,7 +646,7 @@ bool salvageCompoundFile(const QByteArray &file, const QVector<CfbWish> &wishes,
     if (byScan) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "The list of the parts of the file was damaged or gone, so each part was found by searching the file for it.");
     if (out->tablesGuessed && (byDirectory || byScan)) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "Where the lists that say how the pieces of the file fit together were damaged, each piece was taken to follow the one before it in the file.");
     if (anyLaterEntry) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "Two parts of the file had the same name. The first could not be used, so a later one was used in its place.");
-    if (out->repaired) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "Part of the file was stored in a confusing way, so it was read from the file's own lists of where its pieces are.");
+    if (out->repaired) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "Part of the file was stored in an unusual order, so it was read from the file's own lists of where its pieces are.");
     out->unverified = anyUnverified;
     out->usedFree = anyFree;
     out->bytesBuilt = builtBudget - built;

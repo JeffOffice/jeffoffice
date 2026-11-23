@@ -1886,7 +1886,7 @@ private Q_SLOTS:
         QVERIFY(jp::cfb::read(fixed, &now));
         const QByteArray got = now.stream(pptDocumentStream());
         QVERIFY2(got.size() <= original.size() + 511 && got.left(original.size()) == original, qPrintable(QString::number(got.size()) + QLatin1Char(' ') + QString::number(original.size())));
-        QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("stored in a confusing way")), qPrintable(notes.join(QLatin1Char('|'))));
+        QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("stored in an unusual order")), qPrintable(notes.join(QLatin1Char('|'))));
     }
 
     // The reviewer's trigger for presentations: the stream's chain ends with its end marker before its last edit record, the directory gives three times its size, and a neighbor whose own

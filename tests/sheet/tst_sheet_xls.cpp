@@ -1895,7 +1895,7 @@ private Q_SLOTS:
             QVERIFY2(o.right == rows * 2 && o.missing == 0 && o.wrong == 0, qPrintable(QStringLiteral("%1: right %2 missing %3 wrong %4").arg(v.id).arg(o.right).arg(o.missing).arg(o.wrong)));
             const QString said = o.notes.join(QLatin1Char(' '));
             // (a container that was repaired is never reported as sound, whichever way the stream was put right)
-            QVERIFY2(!said.contains(QLatin1String("The file was sound")) && said.contains(QLatin1String("stored in a confusing way")), qPrintable(v.id + o.notes.join(QLatin1Char('|'))));
+            QVERIFY2(!said.contains(QLatin1String("The file was sound")) && said.contains(QLatin1String("stored in an unusual order")), qPrintable(v.id + o.notes.join(QLatin1Char('|'))));
             if (v.id == QLatin1String("f4")) {
                 QVERIFY2(said.contains(QLatin1String("Every sheet was read whole")) && !said.contains(QLatin1String("pieced together")), qPrintable(said));   // (no guess: nothing to warn of)
                 continue;
@@ -2137,7 +2137,7 @@ private Q_SLOTS:
         const QByteArray got = salvageXlsStream(file, Limits(), &notes, &why);
         QVERIFY2(!got.isEmpty(), qPrintable(why));
         QCOMPARE(got, a.stream());
-        QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("stored in a confusing way")), qPrintable(notes.join(QLatin1Char('|'))));
+        QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("stored in an unusual order")), qPrintable(notes.join(QLatin1Char('|'))));
     }
 
     // The reviewer's trigger (Nov 23): the workbook's chain ends with its end marker before its last end record, the directory gives three times its size, and a neighbor of whole records whose own
