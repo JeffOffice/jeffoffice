@@ -1863,7 +1863,7 @@ Berita halaman belakang	4</translation>
         <translation type="unfinished">Bagan</translation>
     </message>
     <message>
-        <location filename="../libs/office/office/chart_trend.cpp" line="+103"/>
+        <location filename="../libs/office/office/chart_trend.cpp" line="+105"/>
         <source>Exponential (%1)</source>
         <translation type="unfinished">Eksponensial (%1)</translation>
     </message>
@@ -2110,7 +2110,7 @@ Berita halaman belakang	4</translation>
         <translation type="unfinished">%1 hanya dapat memuat paling banyak %2 karakter di sini (teks ini memiliki %3).</translation>
     </message>
     <message>
-        <location filename="../libs/base/core/color.cpp" line="+119"/>
+        <location filename="../libs/base/core/color.cpp" line="+118"/>
         <source>Main</source>
         <translation type="unfinished">Utama</translation>
     </message>
@@ -8089,7 +8089,7 @@ Simpan tanpa cadangan?</translation>
         <translation type="unfinished">File tidak memiliki baris.</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/importers.cpp" line="+477"/>
+        <location filename="../apps/pub/io/importers.cpp" line="+478"/>
         <source>%1 (merged)</source>
         <translation type="unfinished">%1 (digabung)</translation>
     </message>
@@ -9062,7 +9062,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Bayangan dalam tidak dapat disimpan dalam jenis berkas ini.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/io/odpexport_text.cpp" line="+492"/>
+        <location filename="../apps/deck/io/odpexport_text.cpp" line="+493"/>
         <source>Objects set in the middle of text are left out.</source>
         <translation type="unfinished">Objek yang Sejajar dengan Teks tidak disertakan.</translation>
     </message>
@@ -11422,7 +11422,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
 <context>
     <name>Render</name>
     <message>
-        <location filename="../libs/draw/render/shapes.cpp" line="+261"/>
+        <location filename="../libs/draw/render/shapes.cpp" line="+268"/>
         <source>Rectangle</source>
         <translation type="unfinished">Persegi Panjang</translation>
     </message>
@@ -19038,7 +19038,7 @@ Penerbitan desktop</translation>
         <translation type="unfinished">Ukraina</translation>
     </message>
     <message>
-        <location filename="../libs/text/text/textengine.cpp" line="+286"/>
+        <location filename="../libs/text/text/textengine.cpp" line="+287"/>
         <source>«Greeting Line»</source>
         <translation type="unfinished">«Baris Salam»</translation>
     </message>
@@ -19068,7 +19068,7 @@ Penerbitan desktop</translation>
         <translation type="unfinished">(Lanjutan dari halaman %1)</translation>
     </message>
     <message>
-        <location line="+6786"/>
+        <location line="+6857"/>
         <source>Notes</source>
         <translation>Catatan</translation>
     </message>
@@ -25695,7 +25695,7 @@ Sumber: %3</translation>
     <message>
         <location line="+11"/>
         <location line="+48"/>
-        <location filename="../apps/crunch/app/crunchwindow_info.cpp" line="+131"/>
+        <location filename="../apps/crunch/app/crunchwindow_info.cpp" line="+132"/>
         <source>workbook</source>
         <translation type="unfinished">buku kerja</translation>
     </message>
@@ -27923,11 +27923,12 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
     <message>
         <location line="+17"/>
         <location line="+29"/>
+        <location line="+24"/>
         <source>Show All</source>
         <translation type="unfinished">Tampilkan Semua</translation>
     </message>
     <message>
-        <location line="-20"/>
+        <location line="-44"/>
         <source>Hidden rows and columns</source>
         <translation type="unfinished">Baris dan kolom tersembunyi</translation>
     </message>
@@ -27941,8 +27942,49 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <source>Show Hidden Rows and Columns</source>
         <translation type="unfinished">Tampilkan Baris dan Kolom Tersembunyi</translation>
     </message>
+    <message numerus="yes">
+        <location line="+14"/>
+        <source>%n row(s) hidden by a filter are not included here. Clear the filter to show them.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+        </translation>
+    </message>
     <message>
-        <location line="+8"/>
+        <location line="+3"/>
+        <source>Hidden names</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Names that are set to be hidden: they are not offered in lists of names, but they are in the file. Show them to see what they stand for.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>Hidden objects</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Charts, pictures, shapes, and text boxes that are set to be hidden: they do not show or print, but they are in the file. Removing them can&apos;t be undone.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+15"/>
+        <source>%n drawing(s) are too big to check all the way through, so hidden objects past the part checked are not counted.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n shape(s) of an older kind can&apos;t be read by this check, so it can&apos;t say whether any are hidden.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+4"/>
         <source>Headers and footers</source>
         <translation type="unfinished">Header dan footer</translation>
     </message>
@@ -43889,19 +43931,24 @@ Tidak ada topik bantuan bernama &quot;%1&quot;.</translation>
         <translation type="unfinished">Berikut hal yang ditemukan yang mungkin tidak ingin Anda bagikan. Hapus yang tidak ingin Anda simpan: data tidak dapat dikembalikan, kecuali dengan Urungkan jika aplikasi mendukungnya.</translation>
     </message>
     <message>
-        <location line="+21"/>
+        <location line="+26"/>
         <source>Remove All</source>
         <translation type="unfinished">Hapus Semua</translation>
     </message>
     <message>
-        <location line="+28"/>
+        <location line="+31"/>
         <source>%1 found</source>
         <translation type="unfinished">%1 ditemukan</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location line="+1"/>
         <source>None found</source>
         <translation type="unfinished">Tidak ditemukan</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Not fully checked</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+30"/>
@@ -44017,18 +44064,18 @@ Tidak ada topik bantuan bernama &quot;%1&quot;.</translation>
         <translation type="unfinished">Enkripsi dengan Sandi</translation>
     </message>
     <message>
-        <location line="-406"/>
-        <location line="+340"/>
+        <location line="-415"/>
+        <location line="+349"/>
         <source>Open File Location</source>
         <translation type="unfinished">Buka Lokasi Berkas</translation>
     </message>
     <message>
-        <location line="-339"/>
+        <location line="-348"/>
         <source>This file is on another computer. Opening its location may take a while, and the computer will see that you asked. Open it?</source>
         <translation type="unfinished">Berkas ini berada di komputer lain. Membuka lokasinya mungkin memakan waktu, dan komputer tersebut akan melihat bahwa Anda memintanya. Buka?</translation>
     </message>
     <message>
-        <location line="+406"/>
+        <location line="+415"/>
         <source>This file is protected: it asks for a password when it is opened. Change the password or take it away.</source>
         <translation type="unfinished">Berkas ini dilindungi: berkas meminta sandi saat dibuka. Ubah sandi atau hapus sandinya.</translation>
     </message>
@@ -59405,7 +59452,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     </message>
     <message>
         <location line="+19"/>
-        <location filename="../apps/write/app/writewindow_info.cpp" line="+265"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="+272"/>
         <source>This document is protected with a password, and a .rtf file can&apos;t hold one. Save it as a .docx file, or remove the password first (File &gt; Info).</source>
         <translation type="unfinished">Dokumen ini dilindungi kata sandi, dan berkas .rtf tidak dapat menyimpannya. Simpan sebagai berkas .docx, atau hapus dulu kata sandinya (Berkas &gt; Info).</translation>
     </message>
@@ -59983,7 +60030,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         </translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_info.cpp" line="-219"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="-226"/>
         <source>Pages</source>
         <translation>Halaman</translation>
     </message>
@@ -60082,8 +60129,22 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <source>The document is protected with a password when you save.</source>
         <translation type="unfinished">Dokumen dilindungi dengan kata sandi saat Anda menyimpan.</translation>
     </message>
+    <message numerus="yes">
+        <location line="+29"/>
+        <source>%n linked picture(s) or object(s) can&apos;t be checked, because the file does not say where each one goes.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n link(s) to another file are kept inside other fields, comments, or text boxes, where Remove All can&apos;t take them out.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+        </translation>
+    </message>
     <message>
-        <location line="+46"/>
+        <location line="+23"/>
         <location line="+17"/>
         <source>There is no document to check.</source>
         <translation type="unfinished">Tidak ada dokumen untuk diperiksa.</translation>
@@ -60144,7 +60205,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Beberapa versi yang disimpan sebelumnya tidak dapat diberi kata sandi baru, dan tetap seperti semula.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_info.cpp" line="-68"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="-75"/>
         <location filename="../apps/write/app/writewindow_review.cpp" line="+142"/>
         <source>Comments</source>
         <translation>Komentar</translation>
@@ -60220,7 +60281,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Gambar dan objek tertaut, serta bidang yang membaca berkas lain. Menghapus akan mengubah bidang menjadi teks dan menghapus yang tertaut. Tautan web tetap ada.</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+15"/>
         <source>Inspect Document</source>
         <translation type="unfinished">Periksa Dokumen</translation>
     </message>
@@ -64442,12 +64503,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+15"/>
-        <location line="+52"/>
+        <location line="+82"/>
         <source>There is no such name.</source>
         <translation type="unfinished">Tidak ada nama seperti itu.</translation>
     </message>
     <message>
-        <location line="-37"/>
+        <location line="-67"/>
         <source>A sheet has a name of its own like that. Renaming would change which name some formulas on that sheet read. Choose another name.</source>
         <translation type="unfinished">Lembar sudah memiliki nama tersendiri seperti itu. Mengganti nama akan mengubah nama yang dibaca beberapa rumus pada lembar tersebut. Pilih nama lain.</translation>
     </message>
@@ -64460,6 +64521,11 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+17"/>
         <source>Change Name</source>
         <translation type="unfinished">Ubah Nama</translation>
+    </message>
+    <message>
+        <location line="+30"/>
+        <source>Show Names</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+29"/>
@@ -67453,7 +67519,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
 <context>
     <name>jp::crunch::FormatCodes</name>
     <message>
-        <location filename="../apps/crunch/core/formatcodes.cpp" line="+116"/>
+        <location filename="../apps/crunch/core/formatcodes.cpp" line="+118"/>
         <source>General</source>
         <translation type="unfinished">Umum</translation>
     </message>
@@ -67513,7 +67579,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Kustom</translation>
     </message>
     <message>
-        <location line="+130"/>
+        <location line="+139"/>
         <source>Short date</source>
         <translation type="unfinished">Tanggal Singkat</translation>
     </message>
@@ -71833,7 +71899,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
 <context>
     <name>jp::crunch::SheetObjects</name>
     <message>
-        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+444"/>
+        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+450"/>
         <source>a drawing that could not be read (%1)</source>
         <translation type="unfinished">gambar yang tidak dapat dibaca (%1)</translation>
     </message>
@@ -71868,14 +71934,14 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">bentuk atau gambar yang tidak dapat dibaca</translation>
     </message>
     <message numerus="yes">
-        <location line="+467"/>
+        <location line="+521"/>
         <source>The file stores this object together with %n other(s), so they can&apos;t be deleted one at a time.</source>
         <translation type="unfinished">
             <numerusform>Berkas menyimpan objek ini bersama %n objek lain, sehingga tidak dapat dihapus satu per satu.</numerusform>
         </translation>
     </message>
     <message>
-        <location line="+752"/>
+        <location line="+790"/>
         <source>The charts made or changed here since the last save already hold as many numbers as JeffCrunch keeps (%1). Save the workbook first.</source>
         <translation type="unfinished">Bagan yang dibuat atau diubah di sini sejak penyimpanan terakhir sudah memuat sebanyak angka yang disimpan JeffCrunch (%1). Simpan buku kerja terlebih dahulu.</translation>
     </message>
@@ -71934,17 +72000,17 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">%1 objek baru adalah jumlah yang disimpan JeffCrunch sekaligus. Simpan buku kerja, lalu tambahkan lagi.</translation>
     </message>
     <message>
-        <location line="-2203"/>
+        <location line="-2295"/>
         <source>a diagram that could not be shown</source>
         <translation type="unfinished">diagram yang tidak dapat ditampilkan</translation>
     </message>
     <message>
-        <location line="+934"/>
+        <location line="+1016"/>
         <source>The pictures that stand for equations come to more than %1, so the equations past that are saved as math alone.</source>
         <translation type="unfinished">Gambar yang mewakili persamaan berjumlah lebih dari %1, sehingga persamaan setelah batas itu disimpan hanya sebagai matematika.</translation>
     </message>
     <message>
-        <location line="+567"/>
+        <location line="+577"/>
         <source>a shape whose link to a cell can&apos;t be used (it must be one cell)</source>
         <translation type="unfinished">bentuk yang tautannya ke sel tidak dapat digunakan (harus satu sel)</translation>
     </message>
@@ -74019,7 +74085,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+96"/>
         <location line="+25"/>
         <location filename="../libs/office/sheet/xlsxsave.cpp" line="+2509"/>
-        <location line="+1657"/>
+        <location line="+1675"/>
         <location line="+61"/>
         <source>The save was stopped.</source>
         <translation type="unfinished">Penyimpanan dihentikan.</translation>
@@ -74073,7 +74139,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Bagan lembar berubah saat buku kerja sedang disimpan.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-4004"/>
+        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-4022"/>
         <location line="+21"/>
         <source>The shared strings part is not in the form this program changes.</source>
         <translation type="unfinished">Bagian string bersama tidak dalam bentuk yang diubah program ini.</translation>
@@ -74086,7 +74152,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+401"/>
         <location line="+120"/>
-        <location line="+3094"/>
+        <location line="+3112"/>
         <location line="+5"/>
         <location line="+5"/>
         <location line="+5"/>
@@ -74095,7 +74161,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Bagian buku kerja tidak dalam bentuk yang diubah program ini.</translation>
     </message>
     <message>
-        <location line="-2445"/>
+        <location line="-2463"/>
         <source>The workbook was not opened from a file this program can save over.</source>
         <translation type="unfinished">Buku kerja tidak dibuka dari file yang dapat ditimpa program ini.</translation>
     </message>
@@ -74159,12 +74225,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+46"/>
-        <location line="+1763"/>
+        <location line="+1781"/>
         <source>The file this workbook was opened from is damaged.</source>
         <translation type="unfinished">Berkas tempat buku kerja ini dibuka telah rusak.</translation>
     </message>
     <message>
-        <location line="-1735"/>
+        <location line="-1753"/>
         <source>A sheet that changed has no part in the file.</source>
         <translation type="unfinished">Sebuah lembar yang diubah tidak memiliki bagian dalam berkas.</translation>
     </message>
@@ -74177,7 +74243,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+16"/>
         <location line="+6"/>
         <location line="+7"/>
-        <location line="+1681"/>
+        <location line="+1699"/>
         <source>A sheet of the file could not be read to be saved.</source>
         <translation type="unfinished">Sebuah lembar dalam berkas tidak dapat dibaca untuk disimpan.</translation>
     </message>
@@ -80642,7 +80708,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">tabel dengan lebih banyak sel daripada yang disimpan</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/writedoc_export.cpp" line="+348"/>
+        <location filename="../apps/write/core/writedoc_export.cpp" line="+370"/>
         <source>drop caps (the letters are saved as ordinary ones)</source>
         <translation type="unfinished">huruf awal besar (huruf disimpan sebagai huruf biasa)</translation>
     </message>

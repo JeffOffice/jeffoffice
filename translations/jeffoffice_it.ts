@@ -1970,7 +1970,7 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">Solo indicatori</translation>
     </message>
     <message>
-        <location filename="../libs/office/office/chart_trend.cpp" line="+103"/>
+        <location filename="../libs/office/office/chart_trend.cpp" line="+105"/>
         <source>Exponential (%1)</source>
         <translation type="unfinished">Esponenziale (%1)</translation>
     </message>
@@ -2111,7 +2111,7 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">%1 contiene al massimo %2 caratteri qui (questo testo ne ha %3).</translation>
     </message>
     <message>
-        <location filename="../libs/base/core/color.cpp" line="+119"/>
+        <location filename="../libs/base/core/color.cpp" line="+118"/>
         <source>Main</source>
         <translation type="unfinished">Principale</translation>
     </message>
@@ -8095,7 +8095,7 @@ Salvare senza backup?</translation>
         <translation type="unfinished">Il file non contiene righe.</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/importers.cpp" line="+477"/>
+        <location filename="../apps/pub/io/importers.cpp" line="+478"/>
         <source>%1 (merged)</source>
         <translation type="unfinished">%1 (unito)</translation>
     </message>
@@ -9009,7 +9009,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <translation type="unfinished">Impossibile applicare la password al file.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/io/odpexport_text.cpp" line="+492"/>
+        <location filename="../apps/deck/io/odpexport_text.cpp" line="+493"/>
         <source>Objects set in the middle of text are left out.</source>
         <translation type="unfinished">Gli oggetti inseriti all&apos;interno del testo vengono omessi.</translation>
     </message>
@@ -11431,7 +11431,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
 <context>
     <name>Render</name>
     <message>
-        <location filename="../libs/draw/render/shapes.cpp" line="+261"/>
+        <location filename="../libs/draw/render/shapes.cpp" line="+268"/>
         <source>Rectangle</source>
         <translation type="unfinished">Rettangolo</translation>
     </message>
@@ -19055,7 +19055,7 @@ Desktop publishing</translation>
         <translation type="unfinished">Ucraino</translation>
     </message>
     <message>
-        <location filename="../libs/text/text/textengine.cpp" line="+286"/>
+        <location filename="../libs/text/text/textengine.cpp" line="+287"/>
         <source>«Greeting Line»</source>
         <translation type="unfinished">«Formula di apertura»</translation>
     </message>
@@ -19085,7 +19085,7 @@ Desktop publishing</translation>
         <translation type="unfinished">(Continua da pagina %1)</translation>
     </message>
     <message>
-        <location line="+6786"/>
+        <location line="+6857"/>
         <source>Notes</source>
         <translation>Note</translation>
     </message>
@@ -27412,7 +27412,7 @@ Il file non esiste.</translation>
     <message>
         <location line="+11"/>
         <location line="+48"/>
-        <location filename="../apps/crunch/app/crunchwindow_info.cpp" line="+131"/>
+        <location filename="../apps/crunch/app/crunchwindow_info.cpp" line="+132"/>
         <source>workbook</source>
         <translation type="unfinished">cartella di lavoro</translation>
     </message>
@@ -30371,11 +30371,12 @@ Impossibile leggere il file.</translation>
     <message>
         <location line="+17"/>
         <location line="+29"/>
+        <location line="+24"/>
         <source>Show All</source>
         <translation type="unfinished">Mostra tutto</translation>
     </message>
     <message>
-        <location line="-20"/>
+        <location line="-44"/>
         <source>Hidden rows and columns</source>
         <translation type="unfinished">Righe e colonne nascoste</translation>
     </message>
@@ -30389,8 +30390,52 @@ Impossibile leggere il file.</translation>
         <source>Show Hidden Rows and Columns</source>
         <translation type="unfinished">Mostra righe e colonne nascoste</translation>
     </message>
+    <message numerus="yes">
+        <location line="+14"/>
+        <source>%n row(s) hidden by a filter are not included here. Clear the filter to show them.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
     <message>
-        <location line="+8"/>
+        <location line="+3"/>
+        <source>Hidden names</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Names that are set to be hidden: they are not offered in lists of names, but they are in the file. Show them to see what they stand for.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>Hidden objects</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Charts, pictures, shapes, and text boxes that are set to be hidden: they do not show or print, but they are in the file. Removing them can&apos;t be undone.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+15"/>
+        <source>%n drawing(s) are too big to check all the way through, so hidden objects past the part checked are not counted.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n shape(s) of an older kind can&apos;t be read by this check, so it can&apos;t say whether any are hidden.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+4"/>
         <source>Headers and footers</source>
         <translation type="unfinished">Intestazioni e piè di pagina</translation>
     </message>
@@ -43936,19 +43981,24 @@ Non esiste alcun argomento della Guida denominato &quot;%1&quot;.</translation>
         <translation type="unfinished">Sono state trovate informazioni che potresti non voler condividere. Rimuovi ciò che non vuoi conservare: non può essere recuperato, tranne con Annulla dove l&apos;app lo prevede.</translation>
     </message>
     <message>
-        <location line="+21"/>
+        <location line="+26"/>
         <source>Remove All</source>
         <translation type="unfinished">Rimuovi tutto</translation>
     </message>
     <message>
-        <location line="+28"/>
+        <location line="+31"/>
         <source>%1 found</source>
         <translation type="unfinished">%1 trovati</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location line="+1"/>
         <source>None found</source>
         <translation type="unfinished">Nessun risultato</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Not fully checked</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+30"/>
@@ -44064,18 +44114,18 @@ Non esiste alcun argomento della Guida denominato &quot;%1&quot;.</translation>
         <translation type="unfinished">Cifra con password</translation>
     </message>
     <message>
-        <location line="-406"/>
-        <location line="+340"/>
+        <location line="-415"/>
+        <location line="+349"/>
         <source>Open File Location</source>
         <translation type="unfinished">Apri posizione file</translation>
     </message>
     <message>
-        <location line="-339"/>
+        <location line="-348"/>
         <source>This file is on another computer. Opening its location may take a while, and the computer will see that you asked. Open it?</source>
         <translation type="unfinished">Questo file si trova su un altro computer. L&apos;apertura della sua posizione può richiedere del tempo e il computer registrerà la richiesta. Aprirla?</translation>
     </message>
     <message>
-        <location line="+406"/>
+        <location line="+415"/>
         <source>This file is protected: it asks for a password when it is opened. Change the password or take it away.</source>
         <translation type="unfinished">Questo file è protetto: richiede una password all&apos;apertura. Modifica la password o rimuovila.</translation>
     </message>
@@ -60617,7 +60667,7 @@ Impossibile applicare la password al file.</translation>
     </message>
     <message>
         <location line="+87"/>
-        <location filename="../apps/write/app/writewindow_info.cpp" line="+257"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="+264"/>
         <source>document</source>
         <translation type="unfinished">documento</translation>
     </message>
@@ -61646,7 +61696,7 @@ Impossibile applicare la password al file.</translation>
         <translation>Formattazione</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_info.cpp" line="-243"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="-250"/>
         <source>Pages</source>
         <translation>Pagine</translation>
     </message>
@@ -61745,8 +61795,24 @@ Impossibile applicare la password al file.</translation>
         <source>The document is protected with a password when you save.</source>
         <translation type="unfinished">Il documento viene protetto con una password al salvataggio.</translation>
     </message>
+    <message numerus="yes">
+        <location line="+29"/>
+        <source>%n linked picture(s) or object(s) can&apos;t be checked, because the file does not say where each one goes.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n link(s) to another file are kept inside other fields, comments, or text boxes, where Remove All can&apos;t take them out.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
     <message>
-        <location line="+46"/>
+        <location line="+23"/>
         <location line="+17"/>
         <source>There is no document to check.</source>
         <translation type="unfinished">Non c&apos;è alcun documento da verificare.</translation>
@@ -61807,7 +61873,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Alcune versioni precedenti non hanno potuto ricevere la nuova password e restano invariate.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_info.cpp" line="-68"/>
+        <location filename="../apps/write/app/writewindow_info.cpp" line="-75"/>
         <location filename="../apps/write/app/writewindow_review.cpp" line="+1"/>
         <source>Comments</source>
         <translation>Commenti</translation>
@@ -61883,7 +61949,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Immagini e oggetti collegati, e campi che leggono un altro file. La rimozione trasforma i campi in testo ed elimina quelli collegati. I collegamenti web restano.</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+15"/>
         <source>Inspect Document</source>
         <translation type="unfinished">Ispeziona documento</translation>
     </message>
@@ -65986,12 +66052,12 @@ Impossibile applicare la password al file.</translation>
     </message>
     <message>
         <location line="+15"/>
-        <location line="+52"/>
+        <location line="+82"/>
         <source>There is no such name.</source>
         <translation type="unfinished">Il nome non esiste.</translation>
     </message>
     <message>
-        <location line="-37"/>
+        <location line="-67"/>
         <source>A sheet has a name of its own like that. Renaming would change which name some formulas on that sheet read. Choose another name.</source>
         <translation type="unfinished">Un foglio ha già un proprio nome uguale. La ridenominazione cambierebbe il nome letto da alcune formule di quel foglio. Scegliere un altro nome.</translation>
     </message>
@@ -66004,6 +66070,11 @@ Impossibile applicare la password al file.</translation>
         <location line="+17"/>
         <source>Change Name</source>
         <translation type="unfinished">Modifica nome</translation>
+    </message>
+    <message>
+        <location line="+30"/>
+        <source>Show Names</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+29"/>
@@ -67518,7 +67589,7 @@ Impossibile applicare la password al file.</translation>
 <context>
     <name>jp::crunch::FormatCodes</name>
     <message>
-        <location filename="../apps/crunch/core/formatcodes.cpp" line="+116"/>
+        <location filename="../apps/crunch/core/formatcodes.cpp" line="+118"/>
         <source>General</source>
         <translation type="unfinished">Generale</translation>
     </message>
@@ -67578,7 +67649,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Personalizzato</translation>
     </message>
     <message>
-        <location line="+130"/>
+        <location line="+139"/>
         <source>Short date</source>
         <translation type="unfinished">Data breve</translation>
     </message>
@@ -71899,7 +71970,7 @@ Impossibile applicare la password al file.</translation>
 <context>
     <name>jp::crunch::SheetObjects</name>
     <message>
-        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+444"/>
+        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+450"/>
         <source>a drawing that could not be read (%1)</source>
         <translation type="unfinished">un disegno che non è stato possibile leggere (%1)</translation>
     </message>
@@ -71934,7 +72005,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">una forma o un&apos;immagine che non è stato possibile leggere</translation>
     </message>
     <message numerus="yes">
-        <location line="+467"/>
+        <location line="+521"/>
         <source>The file stores this object together with %n other(s), so they can&apos;t be deleted one at a time.</source>
         <translation type="unfinished">
             <numerusform>Il file memorizza questo oggetto insieme a %n altro, quindi non è possibile eliminarli singolarmente.</numerusform>
@@ -71942,7 +72013,7 @@ Impossibile applicare la password al file.</translation>
         </translation>
     </message>
     <message>
-        <location line="+752"/>
+        <location line="+790"/>
         <source>The charts made or changed here since the last save already hold as many numbers as JeffCrunch keeps (%1). Save the workbook first.</source>
         <translation type="unfinished">I grafici creati o modificati qui dall&apos;ultimo salvataggio contengono già il numero massimo di valori gestiti da JeffCrunch (%1). Salvare prima la cartella di lavoro.</translation>
     </message>
@@ -72001,17 +72072,17 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">%1 nuovi oggetti sono il massimo che JeffCrunch può salvare in una volta. Salvare la cartella di lavoro, quindi aggiungerne altri.</translation>
     </message>
     <message>
-        <location line="-2203"/>
+        <location line="-2295"/>
         <source>a diagram that could not be shown</source>
         <translation type="unfinished">un diagramma che non è stato possibile mostrare</translation>
     </message>
     <message>
-        <location line="+934"/>
+        <location line="+1016"/>
         <source>The pictures that stand for equations come to more than %1, so the equations past that are saved as math alone.</source>
         <translation type="unfinished">Le immagini che rappresentano le equazioni superano %1, quindi le equazioni oltre tale limite sono salvate solo come matematica.</translation>
     </message>
     <message>
-        <location line="+567"/>
+        <location line="+577"/>
         <source>a shape whose link to a cell can&apos;t be used (it must be one cell)</source>
         <translation type="unfinished">una forma il cui collegamento a una cella non può essere usato (deve corrispondere a una sola cella)</translation>
     </message>
@@ -74062,7 +74133,7 @@ Impossibile applicare la password al file.</translation>
         <location line="+96"/>
         <location line="+25"/>
         <location filename="../libs/office/sheet/xlsxsave.cpp" line="+2509"/>
-        <location line="+1657"/>
+        <location line="+1675"/>
         <location line="+61"/>
         <source>The save was stopped.</source>
         <translation type="unfinished">Il salvataggio è stato interrotto.</translation>
@@ -74096,7 +74167,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Impossibile salvare il foglio.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-4004"/>
+        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-4022"/>
         <location line="+21"/>
         <source>The shared strings part is not in the form this program changes.</source>
         <translation type="unfinished">La parte delle stringhe condivise non è nel formato modificabile da questo programma.</translation>
@@ -74109,7 +74180,7 @@ Impossibile applicare la password al file.</translation>
     <message>
         <location line="+401"/>
         <location line="+120"/>
-        <location line="+3094"/>
+        <location line="+3112"/>
         <location line="+5"/>
         <location line="+5"/>
         <location line="+5"/>
@@ -74118,18 +74189,18 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">La parte della cartella di lavoro non è nel formato modificabile da questo programma.</translation>
     </message>
     <message>
-        <location line="-2445"/>
+        <location line="-2463"/>
         <source>The workbook was not opened from a file this program can save over.</source>
         <translation type="unfinished">La cartella di lavoro non è stata aperta da un file che questo programma può sovrascrivere.</translation>
     </message>
     <message>
         <location line="+799"/>
-        <location line="+1763"/>
+        <location line="+1781"/>
         <source>The file this workbook was opened from is damaged.</source>
         <translation type="unfinished">Il file da cui è stata aperta questa cartella di lavoro è danneggiato.</translation>
     </message>
     <message>
-        <location line="-2552"/>
+        <location line="-2570"/>
         <location line="+461"/>
         <location line="+277"/>
         <location line="+71"/>
@@ -74142,7 +74213,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Un foglio modificato non ha una parte corrispondente nel file.</translation>
     </message>
     <message>
-        <location line="+1245"/>
+        <location line="+1263"/>
         <source>The shared strings part is not in the file.</source>
         <translation type="unfinished">La parte delle stringhe condivise non è presente nel file.</translation>
     </message>
@@ -74157,15 +74228,15 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Una tabella modificata non ha una parte corrispondente nel file.</translation>
     </message>
     <message>
-        <location line="-1226"/>
+        <location line="-1244"/>
         <location line="+6"/>
         <location line="+7"/>
-        <location line="+1681"/>
+        <location line="+1699"/>
         <source>A sheet of the file could not be read to be saved.</source>
         <translation type="unfinished">Impossibile leggere un foglio del file per salvarlo.</translation>
     </message>
     <message>
-        <location line="-2540"/>
+        <location line="-2558"/>
         <source>Objects were put on a sheet this program can&apos;t put them on.</source>
         <translation type="unfinished">Sono stati inseriti oggetti in un foglio in cui questo programma non può inserirli.</translation>
     </message>
@@ -74220,7 +74291,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Le righe e le colonne di un foglio sono state modificate troppe volte per poter essere salvate.</translation>
     </message>
     <message>
-        <location line="+276"/>
+        <location line="+294"/>
         <location line="+146"/>
         <location line="+79"/>
         <location line="+56"/>
@@ -80731,7 +80802,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">una tabella con più celle del numero mantenuto</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/writedoc_export.cpp" line="+348"/>
+        <location filename="../apps/write/core/writedoc_export.cpp" line="+370"/>
         <source>drop caps (the letters are saved as ordinary ones)</source>
         <translation type="unfinished">capolettere (le lettere vengono salvate come normali)</translation>
     </message>

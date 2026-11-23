@@ -61,7 +61,7 @@
 <context>
     <name>Import</name>
     <message numerus="yes">
-        <location filename="../apps/pub/io/importers.cpp" line="+535"/>
+        <location filename="../apps/pub/io/importers.cpp" line="+536"/>
         <source>Created %n email file(s) in %1.</source>
         <translation>
             <numerusform>Created %n email file in %1.</numerusform>
@@ -361,6 +361,30 @@
             <numerusform>Undid %1 of %n actions</numerusform>
         </translation>
     </message>
+    <message numerus="yes">
+        <location filename="../apps/crunch/app/crunchwindow_info.cpp" line="+301"/>
+        <source>%n row(s) hidden by a filter are not included here. Clear the filter to show them.</source>
+        <translation>
+            <numerusform>%n row hidden by a filter is not included here. Clear the filter to show it.</numerusform>
+            <numerusform>%n rows hidden by a filter are not included here. Clear the filter to show them.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+33"/>
+        <source>%n drawing(s) are too big to check all the way through, so hidden objects past the part checked are not counted.</source>
+        <translation>
+            <numerusform>%n drawing is too big to check all the way through, so hidden objects past the part checked are not counted.</numerusform>
+            <numerusform>%n drawings are too big to check all the way through, so hidden objects past the part checked are not counted.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n shape(s) of an older kind can&apos;t be read by this check, so it can&apos;t say whether any are hidden.</source>
+        <translation>
+            <numerusform>%n shape of an older kind can&apos;t be read by this check, so it can&apos;t say whether it is hidden.</numerusform>
+            <numerusform>%n shapes of an older kind can&apos;t be read by this check, so it can&apos;t say whether any are hidden.</numerusform>
+        </translation>
+    </message>
 </context>
 <context>
     <name>jp::DeckWindow</name>
@@ -581,6 +605,22 @@
             <numerusform>%n changes were kept as written because settling them would damage the document.</numerusform>
         </translation>
     </message>
+    <message numerus="yes">
+        <location filename="../apps/write/app/writewindow_info.cpp" line="+226"/>
+        <source>%n linked picture(s) or object(s) can&apos;t be checked, because the file does not say where each one goes.</source>
+        <translation>
+            <numerusform>%n linked picture or object can&apos;t be checked, because the file does not say where it goes.</numerusform>
+            <numerusform>%n linked pictures or objects can&apos;t be checked, because the file does not say where each one goes.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n link(s) to another file are kept inside other fields, comments, or text boxes, where Remove All can&apos;t take them out.</source>
+        <translation>
+            <numerusform>%n link to another file is kept inside another field, a comment, or a text box, where Remove All can&apos;t take it out.</numerusform>
+            <numerusform>%n links to another file are kept inside other fields, comments, or text boxes, where Remove All can&apos;t take them out.</numerusform>
+        </translation>
+    </message>
 </context>
 <context>
     <name>jp::crunch::EditSession</name>
@@ -615,7 +655,7 @@
 <context>
     <name>jp::crunch::SheetObjects</name>
     <message numerus="yes">
-        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+1202"/>
+        <location filename="../apps/crunch/core/sheetobjects.cpp" line="+1262"/>
         <source>The file stores this object together with %n other(s), so they can&apos;t be deleted one at a time.</source>
         <translation>
             <numerusform>The file stores this object together with %n other object, so they can&apos;t be deleted one at a time.</numerusform>
@@ -623,7 +663,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+1865"/>
+        <location line="+1903"/>
         <source>The file stores this chart together with %n other(s), so it can&apos;t be changed here.</source>
         <translation>
             <numerusform>The file stores this chart together with %n other chart, so it can&apos;t be changed here.</numerusform>
