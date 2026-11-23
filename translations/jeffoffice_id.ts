@@ -12944,7 +12944,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <location line="+2"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+3"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+5"/>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+5"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+8"/>
         <source>Convert</source>
         <translation type="unfinished">Konversi</translation>
     </message>
@@ -13875,7 +13875,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="+29"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+12"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+15"/>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-36"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-39"/>
         <source>Colors</source>
         <translation>Warna</translation>
     </message>
@@ -13947,7 +13947,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location line="+3"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+54"/>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+20"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+23"/>
         <source>Format</source>
         <translation>Format</translation>
     </message>
@@ -14223,7 +14223,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location line="-159"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="-177"/>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-140"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-143"/>
         <source>About</source>
         <translation type="unfinished">Tentang</translation>
     </message>
@@ -14354,7 +14354,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="+12"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+7"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+3"/>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+20"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+23"/>
         <source>Data</source>
         <translation>Data</translation>
     </message>
@@ -14631,7 +14631,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Tanda Air</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-138"/>
+        <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-141"/>
         <source>Accounting Number Format</source>
         <translation type="unfinished">Format Angka Akuntansi</translation>
     </message>
@@ -14713,6 +14713,21 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <location line="+4"/>
         <source>Conditional Formatting</source>
         <translation type="unfinished">Pemformatan Bersyarat</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Data Bars</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Color Scales</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Icon Sets</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+6"/>
@@ -14818,12 +14833,12 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Aturan Sorot Sel</translation>
     </message>
     <message>
-        <location line="-54"/>
+        <location line="-57"/>
         <source>Barcode</source>
         <translation type="unfinished">Kode Batang</translation>
     </message>
     <message>
-        <location line="+20"/>
+        <location line="+23"/>
         <source>Controls</source>
         <translation type="unfinished">Kontrol</translation>
     </message>
@@ -15292,7 +15307,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
         <translation type="unfinished">pemformatan bersyarat</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+6"/>
         <source>filters</source>
         <translation type="unfinished">filter</translation>
     </message>
@@ -15340,7 +15355,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
         <translation type="unfinished">bagan</translation>
     </message>
     <message>
-        <location line="-134"/>
+        <location line="-139"/>
         <source>chart sheets (%1): this format has no sheet that is a chart, so the chart on each is left out; move it onto a worksheet to keep it</source>
         <translation type="unfinished">lembar bagan (%1): format ini tidak memiliki lembar yang berupa bagan, jadi bagan pada setiap lembar tidak disertakan; pindahkan ke lembar kerja untuk menyimpannya</translation>
     </message>
@@ -15355,7 +15370,12 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
         <translation type="unfinished">perhitungan diatur secara manual atau tanpa tabel data</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+16"/>
+        <source>data bars, color scales, and icon sets</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
         <source>links in cells (the text stays, and the link is gone)</source>
         <translation type="unfinished">tautan dalam sel (teksnya tetap, dan tautannya hilang)</translation>
     </message>
@@ -22827,6 +22847,449 @@ Sumber: %3</translation>
     </message>
 </context>
 <context>
+    <name>jp::CondColorButton</name>
+    <message>
+        <location filename="../apps/crunch/app/condrulesdialog.cpp" line="+158"/>
+        <location line="+15"/>
+        <source>Color</source>
+        <translation>Warna</translation>
+    </message>
+</context>
+<context>
+    <name>jp::CondManageDialog</name>
+    <message>
+        <location line="+387"/>
+        <source>Manage Rules</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>New Rule…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Edit Rule…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Delete Rule</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Move Up</source>
+        <translation>Pindah ke Atas</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Move Down</source>
+        <translation>Pindah ke Bawah</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Rule</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Format</source>
+        <translation type="unfinished">Format</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Applies to</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Stop if true</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+51"/>
+        <source>AaBbCcYyZz</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>jp::CondRuleDialog</name>
+    <message>
+        <location line="-592"/>
+        <location line="+175"/>
+        <source>Cell value</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-174"/>
+        <source>Text that contains</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Text that does not contain</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Text that begins with</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Text that ends with</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A date occurring</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Blank cells</source>
+        <translation type="unfinished">Sel kosong</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cells that are not blank</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cells with errors</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cells without errors</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Top items</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Bottom items</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Top percent</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Bottom percent</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Above average</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Below average</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Duplicate values</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Unique values</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A formula</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Color scale</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Data bar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Icon set</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+28"/>
+        <source>greater than</source>
+        <translation type="unfinished">lebih besar dari</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>less than</source>
+        <translation type="unfinished">kurang dari</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>equal to</source>
+        <translation type="unfinished">sama dengan</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>not equal to</source>
+        <translation type="unfinished">tidak sama dengan</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>greater than or equal to</source>
+        <translation type="unfinished">lebih besar dari atau sama dengan</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>less than or equal to</source>
+        <translation type="unfinished">kurang dari atau sama dengan</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>between</source>
+        <translation type="unfinished">antara</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>not between</source>
+        <translation type="unfinished">tidak antara</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Lowest value</source>
+        <translation>Nilai terendah</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Number</source>
+        <translation type="unfinished">Angka</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Percent</source>
+        <translation>Persen</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Formula</source>
+        <translation type="unfinished">Rumus</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Percentile</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Highest value</source>
+        <translation>Nilai tertinggi</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+292"/>
+        <source>Automatic</source>
+        <translation type="unfinished">Otomatis</translation>
+    </message>
+    <message>
+        <location line="-220"/>
+        <source>Edit Rule</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>New Rule</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Format cells with</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>The cells that meet this are formatted.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Value</source>
+        <translation type="unfinished">Nilai</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>And</source>
+        <translation type="unfinished">Dan</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Text</source>
+        <translation type="unfinished">Teks</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Dates</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>How many</source>
+        <translation type="unfinished">Berapa banyak</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Formula that is true for the cells to format</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Keep the current look</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Cells look like this</source>
+        <translation type="unfinished">Sel tampak seperti ini</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Stop if true</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+53"/>
+        <source>Use three colors</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Lowest</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Midpoint</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Highest</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+61"/>
+        <source>Shortest bar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Longest bar</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Gradient fill</source>
+        <translation type="unfinished">Isian gradasi</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Solid fill</source>
+        <translation type="unfinished">Isian solid</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Fill</source>
+        <translation>Isian</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Bar color</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Border</source>
+        <translation type="unfinished">Bingkai</translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Same color as positive bars</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Negative bar color</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Middle of the cell</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>No axis</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Axis</source>
+        <translation type="unfinished">Sumbu</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Left to right</source>
+        <translation type="unfinished">Kiri ke kanan</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Right to left</source>
+        <translation type="unfinished">Kanan ke kiri</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Bar direction</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Show bar only</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>Icon style</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Reverse icon order</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Show icon only</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+41"/>
+        <source>When value is</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>jp::ConsolidateDialog</name>
     <message>
         <location filename="../apps/crunch/app/consolidatedialog.cpp" line="+23"/>
@@ -23596,7 +24059,7 @@ Sumber: %3</translation>
         <location line="+77"/>
         <location line="+73"/>
         <location line="+3"/>
-        <location filename="../apps/crunch/app/crunchwindow_recover.cpp" line="+237"/>
+        <location filename="../apps/crunch/app/crunchwindow_recover.cpp" line="+239"/>
         <location filename="../apps/crunch/app/crunchwindow_text.cpp" line="+22"/>
         <source>Open</source>
         <translation type="unfinished">Buka</translation>
@@ -25150,7 +25613,7 @@ Sumber: %3</translation>
         <translation type="unfinished">Tengah</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_cond.cpp" line="+137"/>
+        <location filename="../apps/crunch/app/crunchwindow_cond.cpp" line="+193"/>
         <source>Value</source>
         <translation>Nilai</translation>
     </message>
@@ -25597,7 +26060,373 @@ Sumber: %3</translation>
         <translation type="unfinished">Sel yang dipotong hanya bisa disisipkan di antara sel lain pada lembar asalnya. Untuk memindahkannya ke lembar lain, gunakan Tempel.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_cond.cpp" line="-100"/>
+        <location filename="../apps/crunch/app/condpresets.cpp" line="+41"/>
+        <source>Green - Yellow - Red Color Scale</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Red - Yellow - Green Color Scale</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Green - White - Red Color Scale</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Red - White - Green Color Scale</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Blue - White - Red Color Scale</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Red - White - Blue Color Scale</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>White - Red Color Scale</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Red - White Color Scale</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Green - White Color Scale</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>White - Green Color Scale</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Green - Yellow Color Scale</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Yellow - Green Color Scale</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Directional</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Shapes</source>
+        <translation type="unfinished">Bentuk</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Indicators</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Ratings</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>3 Arrows (Colored)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>3 Arrows (Gray)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>3 Triangles</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>4 Arrows (Colored)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>4 Arrows (Gray)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>5 Arrows (Colored)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>5 Arrows (Gray)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>3 Traffic Lights (No Border)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>3 Traffic Lights (with Border)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>3 Signs</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>4 Traffic Lights</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Red to Black</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>3 Symbols (in Circles)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>3 Symbols (Plain)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>3 Flags</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>3 Stars</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>4 Ratings</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>5 Ratings</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>5 Quarters</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>5 Boxes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+49"/>
+        <source>Yesterday</source>
+        <translation type="unfinished">Kemarin</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Today</source>
+        <translation type="unfinished">Hari Ini</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Tomorrow</source>
+        <translation type="unfinished">Besok</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>In the last 7 days</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Last week</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>This week</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Next week</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Last month</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This month</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Next month</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>between</source>
+        <translation type="unfinished">antara</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>not between</source>
+        <translation type="unfinished">tidak antara</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Cell value %1 %2 and %3</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cell value %1 %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Formula: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Three-color scale</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Two-color scale</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Data bar (gradient fill)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Data bar (solid fill)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Icon set: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Bottom %1 percent</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Top %1 percent</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Bottom items: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Top items: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Unique values</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Duplicate values</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Text contains &quot;%1&quot;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Text does not contain &quot;%1&quot;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Text begins with &quot;%1&quot;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Text ends with &quot;%1&quot;</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Cells that are not blank</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cells with errors</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cells without errors</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Dates: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location filename="../apps/crunch/app/crunchwindow_cond.cpp" line="+13"/>
+        <source>Dates</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Above average</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Below average</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+57"/>
         <source>Light Red Fill with Dark Red Text</source>
         <translation type="unfinished">Isian Merah Muda dengan Teks Merah Tua</translation>
     </message>
@@ -25627,17 +26456,20 @@ Sumber: %3</translation>
         <translation type="unfinished">Teks Biru Tua Tebal</translation>
     </message>
     <message>
-        <location line="+24"/>
+        <location filename="../apps/crunch/app/crunchwindow_cond.cpp" line="-148"/>
+        <location line="+253"/>
+        <location line="+23"/>
         <source>&quot;%1&quot; is not a formula JeffCrunch can read.</source>
         <translation type="unfinished">&quot;%1&quot; bukan rumus yang dapat dibaca JeffCrunch.</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="-267"/>
+        <location line="+275"/>
         <source>&quot;%1&quot; is not a number the rule can use.</source>
         <translation type="unfinished">&quot;%1&quot; bukan angka yang dapat digunakan aturan.</translation>
     </message>
     <message>
-        <location line="+31"/>
+        <location line="-244"/>
         <source>Greater Than…</source>
         <translation type="unfinished">Lebih Besar Dari…</translation>
     </message>
@@ -25688,6 +26520,11 @@ Sumber: %3</translation>
     </message>
     <message>
         <location line="+1"/>
+        <source>A Date Occurring…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Above Average…</source>
         <translation type="unfinished">Di Atas Rata-Rata…</translation>
     </message>
@@ -25697,7 +26534,27 @@ Sumber: %3</translation>
         <translation type="unfinished">Di Bawah Rata-Rata…</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+11"/>
+        <source>Gradient Fill, %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Solid Fill, %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+24"/>
+        <source>New Rule…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Manage Rules…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
         <source>Clear Rules from Selected Cells</source>
         <translation type="unfinished">Hapus Aturan dari Sel yang Dipilih</translation>
     </message>
@@ -25708,16 +26565,27 @@ Sumber: %3</translation>
     </message>
     <message>
         <location line="+10"/>
-        <location line="+45"/>
-        <location line="+18"/>
-        <location line="+41"/>
+        <source>Gradient Fill</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Solid Fill</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <location line="+225"/>
         <location line="+4"/>
-        <location line="+32"/>
+        <location line="+26"/>
+        <location line="+22"/>
+        <location line="+27"/>
+        <location line="+33"/>
         <source>Conditional Formatting</source>
         <translation type="unfinished">Pemformatan Bersyarat</translation>
     </message>
     <message>
-        <location line="-130"/>
+        <location line="-327"/>
         <source>From</source>
         <translation>Dari</translation>
     </message>
@@ -25732,17 +26600,18 @@ Sumber: %3</translation>
         <translation>Ke</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+13"/>
         <source>Cells look like this</source>
         <translation>Sel tampak seperti ini</translation>
     </message>
     <message>
-        <location line="+25"/>
+        <location line="+32"/>
+        <location line="+23"/>
         <source>Type a value for the rule.</source>
         <translation type="unfinished">Ketik nilai untuk aturan.</translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="-19"/>
         <source>Type the two values the cells are between.</source>
         <translation type="unfinished">Ketik dua nilai tempat sel berada di antaranya.</translation>
     </message>
@@ -26549,12 +27418,13 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation type="unfinished">Pilih berdasarkan Jenis</translation>
     </message>
     <message>
-        <location line="-61"/>
+        <location filename="../apps/crunch/app/condpresets.cpp" line="-67"/>
+        <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="-61"/>
         <source>Blank cells</source>
         <translation type="unfinished">Sel kosong</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="+1"/>
         <source>Constants (typed in, not worked out)</source>
         <translation type="unfinished">Konstanta (diketik langsung, bukan hasil hitungan)</translation>
     </message>
@@ -26614,7 +27484,7 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation type="unfinished">Angka</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_cond.cpp" line="-53"/>
+        <location filename="../apps/crunch/app/crunchwindow_cond.cpp" line="-54"/>
         <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="+1"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+377"/>
         <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-29"/>
@@ -30537,17 +31407,19 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation>Kolom</translation>
     </message>
     <message>
+        <location filename="../apps/crunch/app/condpresets.cpp" line="-149"/>
         <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="-322"/>
         <source>Blue</source>
         <translation>Biru</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location line="+1"/>
+        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+0"/>
         <source>Orange</source>
         <translation type="unfinished">Oranye</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+0"/>
         <source>Gray</source>
         <translation type="unfinished">Abu-abu</translation>
     </message>
@@ -30557,12 +31429,13 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation type="unfinished">Emas</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location filename="../apps/crunch/app/condpresets.cpp" line="-1"/>
+        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+0"/>
         <source>Green</source>
         <translation>Hijau</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+1"/>
         <source>Dark Blue</source>
         <translation type="unfinished">Biru Tua</translation>
     </message>
@@ -30577,12 +31450,13 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation type="unfinished">Hijau Kebiruan</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location filename="../apps/crunch/app/condpresets.cpp" line="+2"/>
+        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+0"/>
         <source>Purple</source>
         <translation type="unfinished">Ungu</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+0"/>
         <source>Dark Gray</source>
         <translation type="unfinished">Abu-abu Tua</translation>
     </message>
@@ -30592,12 +31466,13 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation>Hitam</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location filename="../apps/crunch/app/condpresets.cpp" line="-1"/>
+        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+0"/>
         <source>Red</source>
         <translation>Merah</translation>
     </message>
     <message>
-        <location line="+321"/>
+        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+321"/>
         <source>Win/Loss</source>
         <translation type="unfinished">Menang/Kalah</translation>
     </message>
@@ -30908,12 +31783,13 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation type="unfinished">Panel Pilihan</translation>
     </message>
     <message>
-        <location line="-32"/>
+        <location filename="../apps/crunch/app/condpresets.cpp" line="+1"/>
+        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-32"/>
         <source>Light Blue</source>
         <translation type="unfinished">Biru Muda</translation>
     </message>
     <message>
-        <location line="-609"/>
+        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-609"/>
         <source>Picture Style</source>
         <translation type="unfinished">Gaya Gambar</translation>
     </message>
@@ -32430,12 +33306,12 @@ Berkas tidak dapat dibaca.</translation>
         <translation type="unfinished">Tampilan ini akan membuat perubahan pada baris dan kolom tersembunyi lebih banyak daripada yang diizinkan sebuah tampilan (%1). Tidak ada yang diubah.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_recover.cpp" line="-185"/>
+        <location filename="../apps/crunch/app/crunchwindow_recover.cpp" line="-187"/>
         <source>This workbook is protected with a password, so no recovery copy is kept of it. Save it to keep your work.</source>
         <translation type="unfinished">Buku kerja ini dilindungi kata sandi, sehingga tidak ada salinan pemulihan yang disimpan. Simpan untuk menjaga pekerjaan Anda.</translation>
     </message>
     <message>
-        <location line="+62"/>
+        <location line="+64"/>
         <source>The workbook could not be read again for its copy: %1</source>
         <translation type="unfinished">Buku kerja tidak dapat dibaca kembali untuk salinannya: %1</translation>
     </message>
@@ -58990,7 +59866,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+231"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+239"/>
         <source>Align Left</source>
         <translation type="unfinished">Rata Kiri</translation>
     </message>
@@ -59423,7 +60299,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     </message>
     <message>
         <location line="+5"/>
-        <location line="+127"/>
+        <location line="+128"/>
         <location line="+52"/>
         <location line="+447"/>
         <location filename="../apps/write/core/designops.cpp" line="+27"/>
@@ -59431,13 +60307,13 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Buka</translation>
     </message>
     <message>
-        <location line="-625"/>
+        <location line="-626"/>
         <source>Close</source>
         <translation type="unfinished">Tutup</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+186"/>
+        <location line="+187"/>
         <location line="+5"/>
         <location line="+3"/>
         <location line="+1"/>
@@ -59460,13 +60336,13 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Simpan</translation>
     </message>
     <message>
-        <location line="-437"/>
-        <location line="+226"/>
+        <location line="-438"/>
+        <location line="+227"/>
         <source>Save As</source>
         <translation type="unfinished">Simpan Sebagai</translation>
     </message>
     <message>
-        <location line="-225"/>
+        <location line="-226"/>
         <source>Print…</source>
         <translation type="unfinished">Cetak…</translation>
     </message>
@@ -59493,13 +60369,13 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     </message>
     <message>
         <location line="+21"/>
-        <location line="+189"/>
+        <location line="+190"/>
         <location line="+23"/>
         <source>Rich Text Format (*.rtf)</source>
         <translation type="unfinished">Rich Text Format (*.rtf)</translation>
     </message>
     <message>
-        <location line="-212"/>
+        <location line="-213"/>
         <source>OpenDocument Text (*.odt *.fodt *.ott)</source>
         <translation type="unfinished">OpenDocument Text (*.odt *.fodt *.ott)</translation>
     </message>
@@ -59508,7 +60384,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <location filename="../apps/write/app/writewindow_graphics.cpp" line="+170"/>
         <location filename="../apps/write/app/writewindow_insert.cpp" line="+138"/>
         <location filename="../apps/write/app/writewindow_pictures.cpp" line="+266"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+609"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+613"/>
         <location line="+60"/>
         <location filename="../apps/write/app/writewindow_themes.cpp" line="+44"/>
         <source>All Files (*)</source>
@@ -59520,7 +60396,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Dokumen (*.docx *.docm *.dotx *.dotm *.doc *.dot *.rtf *.odt *.fodt *.ott *.txt *.html *.htm)</translation>
     </message>
     <message>
-        <location line="+54"/>
+        <location line="+55"/>
         <source>Open Plain Text</source>
         <translation type="unfinished">Buka Teks Polos</translation>
     </message>
@@ -60683,7 +61559,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-754"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-766"/>
         <source>Plain</source>
         <translation type="unfinished">Polos</translation>
     </message>
@@ -60755,7 +61631,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+194"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+206"/>
         <source>Column</source>
         <translation>Kolom</translation>
     </message>
@@ -62807,13 +63683,13 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Pindahkan Tabel</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-835"/>
-        <location line="+270"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-847"/>
+        <location line="+282"/>
         <source>Line</source>
         <translation type="unfinished">Garis</translation>
     </message>
     <message>
-        <location line="-269"/>
+        <location line="-281"/>
         <source>Arrow</source>
         <translation type="unfinished">Panah</translation>
     </message>
@@ -62970,12 +63846,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+10"/>
-        <location line="+1038"/>
+        <location line="+1059"/>
         <source>Edit Points</source>
         <translation type="unfinished">Edit Titik</translation>
     </message>
     <message>
-        <location line="-1035"/>
+        <location line="-1056"/>
         <source>Drag a point to reshape. Ctrl+click a point to delete it, or the outline to add one. Press Esc when done.</source>
         <translation type="unfinished">Seret titik untuk mengubah bentuk. Ctrl+klik titik untuk menghapusnya, atau garis tepi untuk menambahkan titik. Tekan Esc jika sudah selesai.</translation>
     </message>
@@ -63011,6 +63887,16 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <source>Flip Horizontal</source>
+        <translation type="unfinished">Balik Horizontal</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Flip Vertical</source>
+        <translation type="unfinished">Balik Vertikal</translation>
+    </message>
+    <message>
+        <location line="+4"/>
         <source>No Rotation</source>
         <translation type="unfinished">Tanpa Rotasi</translation>
     </message>
@@ -63119,6 +64005,11 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+6"/>
         <source>Ungroup</source>
         <translation type="unfinished">Pisahkan Kelompok</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Regroup</source>
+        <translation type="unfinished">Kelompokkan Ulang</translation>
     </message>
     <message>
         <location line="+9"/>
@@ -63373,7 +64264,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Atur Ulang Gambar &amp; Ukuran</translation>
     </message>
     <message>
-        <location line="+346"/>
+        <location line="+349"/>
         <source>Drag on the page to draw the shape; click to put in one of its usual size. Shift keeps it in proportion, and Esc stops.</source>
         <translation type="unfinished">Seret pada halaman untuk menggambar bentuk; klik untuk memasukkan satu dengan ukuran biasanya. Shift menjaga proporsinya, dan Esc menghentikan.</translation>
     </message>
@@ -63439,13 +64330,13 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+12"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+257"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+263"/>
         <location line="+13"/>
         <source>Object %1</source>
         <translation type="unfinished">Objek %1</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-663"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-672"/>
         <source>Edit Equation</source>
         <translation type="unfinished">Edit Persamaan</translation>
     </message>
@@ -63628,7 +64519,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="+7"/>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="+0"/>
-        <location line="+174"/>
+        <location line="+177"/>
         <source>No Outline</source>
         <translation type="unfinished">Tanpa Garis Tepi</translation>
     </message>
@@ -63688,13 +64579,13 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Grafis ini tidak dapat diubah menjadi bentuk di sini.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-105"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-108"/>
         <location line="+1"/>
         <source>Crop to Shape</source>
         <translation type="unfinished">Potong ke Bentuk</translation>
     </message>
     <message>
-        <location line="+19"/>
+        <location line="+22"/>
         <location line="+1"/>
         <source>Text Art</source>
         <translation type="unfinished">Seni Teks</translation>
@@ -64085,7 +64976,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_outline.cpp" line="+23"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-1008"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-1023"/>
         <source>Outline</source>
         <translation type="unfinished">Garis Besar</translation>
     </message>
@@ -65309,7 +66200,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Filter menurut Slicer</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editcond.cpp" line="+284"/>
+        <location filename="../apps/crunch/core/editcond.cpp" line="+307"/>
         <source>Conditional formatting of a workbook opened from this kind of file is kept when it is saved as an .xlsx workbook. Save it as one, and then change rules.</source>
         <translation type="unfinished">Pemformatan bersyarat pada buku kerja yang dibuka dari jenis berkas ini akan dipertahankan saat disimpan sebagai buku kerja .xlsx. Simpan sebagai .xlsx terlebih dahulu, lalu ubah aturan.</translation>
     </message>
@@ -65320,16 +66211,19 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+2"/>
+        <location line="+57"/>
         <source>This sheet has more rules than JeffCrunch changes (%1).</source>
         <translation type="unfinished">Lembar ini memiliki lebih banyak aturan daripada yang dapat diubah JeffCrunch (%1).</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="-43"/>
+        <location line="+69"/>
         <source>Select the cells the rule is for.</source>
         <translation type="unfinished">Pilih sel yang menjadi tujuan aturan.</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="-60"/>
+        <location line="+44"/>
         <location filename="../apps/crunch/core/editformat.cpp" line="+81"/>
         <location line="+454"/>
         <location line="+141"/>
@@ -65355,12 +66249,14 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Buku kerja sedang sibuk. Coba lagi sebentar lagi.</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="-39"/>
+        <location line="+52"/>
         <source>This workbook has no place to keep the look of a rule.</source>
         <translation type="unfinished">Buku kerja ini tidak memiliki tempat untuk menyimpan tampilan aturan.</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="-45"/>
+        <location line="+55"/>
         <source>Conditional Formatting</source>
         <translation type="unfinished">Pemformatan Bersyarat</translation>
     </message>
@@ -71787,7 +72683,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
 <context>
     <name>jp::crunch::Loader</name>
     <message>
-        <location filename="../apps/crunch/core/loader.cpp" line="+303"/>
+        <location filename="../apps/crunch/core/loader.cpp" line="+304"/>
         <source>The workbook has no sheets.</source>
         <translation type="unfinished">Buku kerja tidak memiliki lembar.</translation>
     </message>
@@ -74627,7 +75523,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Gambar catatan pada file tidak dalam bentuk yang diubah program ini.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/sheetpatch.cpp" line="+2219"/>
+        <location filename="../libs/office/sheet/sheetpatch.cpp" line="+2454"/>
         <location line="+76"/>
         <location line="+37"/>
         <location line="+267"/>
@@ -79883,7 +80779,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation>Header</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview.cpp" line="+259"/>
+        <location filename="../apps/write/app/pageview.cpp" line="+262"/>
         <source>Place in this document: %1</source>
         <translation type="unfinished">Tempatkan di dokumen ini: %1</translation>
     </message>
@@ -80057,7 +80953,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Objek hanya dapat disebar jika masing-masing ditetapkan pada posisi di halaman yang sama.</translation>
     </message>
     <message>
-        <location line="+20"/>
+        <location line="+25"/>
         <source>Select two or more objects first: click one, then hold Ctrl and click the others.</source>
         <translation type="unfinished">Pilih dua objek atau lebih terlebih dahulu: klik satu, lalu tahan Ctrl dan klik yang lain.</translation>
     </message>
@@ -80097,12 +80993,17 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Ini tidak dapat disambungkan. Garis, bagan, dan objek sejajar dengan teks tidak dapat disambungkan.</translation>
     </message>
     <message>
-        <location line="+29"/>
+        <location line="+30"/>
         <source>This group can&apos;t be taken apart: it is turned, or has another group in it.</source>
         <translation type="unfinished">Kelompok ini tidak dapat dipisahkan: sudah diputar, atau memiliki kelompok lain di dalamnya.</translation>
     </message>
     <message>
-        <location line="+987"/>
+        <location line="+28"/>
+        <source>There is no group to put back. Regroup works after Ungroup, while its objects are still there.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1005"/>
         <source>This text box holds too many paragraphs to be typed in here.</source>
         <translation type="unfinished">Kotak teks ini memuat terlalu banyak paragraf untuk diketik di sini.</translation>
     </message>
@@ -80213,7 +81114,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location filename="../apps/write/app/pageview_input.cpp" line="-353"/>
         <location filename="../apps/write/app/pageview_pictures.cpp" line="+18"/>
-        <location filename="../apps/write/core/pictureops.cpp" line="+2223"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="+2227"/>
         <source>That shape can&apos;t be put here.</source>
         <translation type="unfinished">Bentuk itu tidak dapat disisipkan di sini.</translation>
     </message>
@@ -80256,39 +81157,39 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location filename="../apps/write/core/editops.cpp" line="+2135"/>
-        <location filename="../apps/write/core/pictureops.cpp" line="-1544"/>
-        <location line="+347"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="-1548"/>
+        <location line="+351"/>
         <location line="+2051"/>
-        <location line="+1445"/>
+        <location line="+1580"/>
         <location line="+722"/>
         <source>The pictures in this document are as large together as JeffWrite puts in one, so this one is not added.</source>
         <translation type="unfinished">Gambar dalam dokumen ini jika digabungkan sudah sebesar yang dapat ditampung JeffWrite dalam satu gambar, sehingga gambar ini tidak ditambahkan.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/pictureops.cpp" line="-4577"/>
-        <location line="+373"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="-4716"/>
+        <location line="+377"/>
         <location line="+825"/>
-        <location line="+2942"/>
+        <location line="+3077"/>
         <location line="+200"/>
         <source>A picture can&apos;t be put in a header, a footer, or a note yet.</source>
         <translation type="unfinished">Gambar belum dapat disisipkan di header, footer, atau catatan.</translation>
     </message>
     <message>
-        <location line="-4288"/>
-        <location line="+346"/>
+        <location line="-4427"/>
+        <location line="+350"/>
         <location line="+823"/>
-        <location line="+2944"/>
+        <location line="+3079"/>
         <location line="+198"/>
         <source>A picture can&apos;t be put here, or this document holds as many pictures and drawn objects as JeffWrite can show.</source>
         <translation type="unfinished">Gambar tidak dapat disisipkan di sini, atau dokumen ini sudah memuat gambar dan objek gambar sebanyak yang dapat ditampilkan JeffWrite.</translation>
     </message>
     <message>
-        <location line="-4275"/>
+        <location line="-4414"/>
         <source>This document holds as many pictures and drawn objects as JeffWrite can show. Save it, and open it again, to change more.</source>
         <translation type="unfinished">Dokumen ini memuat gambar dan objek gambar sebanyak yang dapat ditampilkan JeffWrite. Simpan, lalu buka kembali, untuk mengubah lebih banyak.</translation>
     </message>
     <message>
-        <location line="+1599"/>
+        <location line="+1603"/>
         <source>Edit Points is not offered for a shape that is flipped.</source>
         <translation type="unfinished">Edit Titik tidak tersedia untuk bentuk yang dibalik.</translation>
     </message>
@@ -80311,7 +81212,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Kotak teks ini berisi lebih dari sekadar kata-kata (tabel, gambar, bidang, atau daftar), sehingga kata-katanya tidak dapat diedit di sini.</translation>
     </message>
     <message>
-        <location line="+2545"/>
+        <location line="+2680"/>
         <source>That graphic has too much to draw, so it is left as it was.</source>
         <translation type="unfinished">Gambar itu terlalu rumit untuk digambar, sehingga tetap seperti semula.</translation>
     </message>
@@ -81367,7 +82268,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+3"/>
         <location line="+3"/>
         <location filename="../libs/office/odt/odtwritebody.cpp" line="+11"/>
-        <location line="+624"/>
+        <location line="+633"/>
         <source>charts that could not be read</source>
         <translation type="unfinished">bagan yang tidak dapat dibaca</translation>
     </message>
@@ -81388,7 +82289,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+43"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="-515"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-524"/>
         <source>embedded objects past the %1 a document may have, or the size they may come to together (kept as their pictures)</source>
         <translation type="unfinished">objek tersemat melebihi %1 yang boleh dimiliki dokumen, atau ukuran gabungannya (disimpan sebagai gambarnya)</translation>
     </message>
@@ -81420,7 +82321,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+342"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="+2180"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="+2189"/>
         <source>tables nested too deeply</source>
         <translation type="unfinished">tabel bersarang terlalu dalam</translation>
     </message>
@@ -81577,20 +82478,20 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">tanda &quot;jangan periksa ejaan&quot;</translation>
     </message>
     <message>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="-2157"/>
-        <location line="+2098"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-2166"/>
+        <location line="+2107"/>
         <source>content controls (the text in them is kept)</source>
         <translation type="unfinished">kontrol konten (teks di dalamnya tetap disimpan)</translation>
     </message>
     <message>
-        <location line="-1466"/>
+        <location line="-1475"/>
         <source>form fields (kept as the text they show)</source>
         <translation type="unfinished">bidang formulir (disimpan sebagai teks yang ditampilkan)</translation>
     </message>
     <message>
         <location line="+445"/>
         <location line="+4"/>
-        <location line="+179"/>
+        <location line="+188"/>
         <location line="+226"/>
         <location line="+12"/>
         <location line="+13"/>
@@ -81657,7 +82558,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
 <context>
     <name>rtf</name>
     <message>
-        <location filename="../libs/office/rtf/rtfwrite.cpp" line="+489"/>
+        <location filename="../libs/office/rtf/rtfwrite.cpp" line="+491"/>
         <location line="+18"/>
         <source>bookmarks, and the links that go to them (the words stay)</source>
         <translation type="unfinished">penanda, dan tautan yang mengarah ke penanda tersebut (kata-katanya tetap)</translation>

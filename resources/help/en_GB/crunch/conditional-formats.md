@@ -22,13 +22,38 @@ When two rules say something about the same cell, the one that comes first in th
 
 ## Make a rule
 
-1. Select the cells.
+1. Select the cells. You can select whole columns or the whole sheet; a rule is kept for the range, not for each cell.
 2. Click **Home > Conditional Formatting**.
-3. Under **Highlight Cells Rules**, choose **Greater Than**, **Less Than**, **Between**, **Equal To**, **Text That Contains**, or **Duplicate Values**. Under **Top/Bottom Rules**, choose **Top 10 Items**, **Bottom 10 Items**, **Top 10 %**, **Bottom 10 %**, **Above Average**, or **Below Average**.
-4. Type the value (or the two values for **Between**, the text for **Text That Contains**, or how many for the Top and Bottom rules). For **Top 10 Items**, "10" is how many cells get the look. You can change it to any number.
+3. Under **Highlight Cells Rules**, choose **Greater Than**, **Less Than**, **Between**, **Equal To**, **Text That Contains**, **A Date Occurring**, or **Duplicate Values**. Under **Top/Bottom Rules**, choose **Top 10 Items**, **Bottom 10 Items**, **Top 10 %**, **Bottom 10 %**, **Above Average**, or **Below Average**.
+4. Type the value (or the two values for **Between**, the text for **Text That Contains**, or how many for the Top and Bottom rules), or pick the dates. For **Top 10 Items**, "10" is how many cells get the look. You can change it to any number.
 5. Pick how the cells should look, for example **Light Red Fill with Dark Red Text**, and click **OK**.
 
 The rule is drawn at once. Each new rule goes first, so when two rules want to change the same thing, the newer one wins. Making a rule is one step you can undo.
+
+## Data bars, colour scales, and icon sets
+
+Click **Home > Conditional Formatting**, then **Data Bars**, **Colour Scales**, or **Icon Sets**, and click a choice. The rule goes on the selected cells at once, with no window to fill in, as one step you can undo.
+
+- **Data Bars** are in six colours, each as a gradient fill or a solid fill.
+- **Colour Scales** has twelve choices, with two colours or three. The name lists the colour of the highest numbers first.
+- **Icon Sets** has twenty sets: directional (arrows and triangles), shapes (traffic lights and signs), indicators (symbols and flags), and ratings (stars, quarters, and boxes). The icons divide the range into even steps.
+
+**New Rule** at the end of the menu opens one window for every kind of rule, including a rule with your own formula, and a data bar, colour scale, or icon set with settings of your own.
+
+## Manage Rules
+
+**Home > Conditional Formatting > Manage Rules** lists the rules of the sheet in the order they work. Use **New Rule**, **Edit Rule**, and **Delete Rule**; **Move Up** and **Move Down** change the order; type other cells in **Applies to**; and tick **Stop if true**. Edit Rule changes everything a rule has:
+
+- for a **data bar**: what the shortest and longest bars stand for (lowest or highest value, a number, a percent, a percentile, or a formula), gradient or solid fill, the colours, a border, the colour of negative bars, where the axis is, which way the bars run, and **Show bar only**;
+- for a **colour scale**: two or three colours, and what each colour stands for;
+- for an **icon set**: the icon style, the value each icon starts at, **Reverse icon order**, and **Show icon only**;
+- for the other rules: the value, text, dates, or formula, and the look.
+
+Pressing **OK** applies all of your changes as one step you can undo. A rule you did not change keeps exactly what the file had, whatever its place in the list; a rule you change is written again. A rule's formula is read from the top-left cell of its range, and a formula you type for a new rule is read as if it were written in the cell with the cursor. A protected sheet that does not let cells be formatted does not take rules.
+
+## What other file kinds keep
+
+Only an .xlsx workbook keeps conditional formats. Saving as an older kind of file (.xls or .ods) leaves them out, and Check Compatibility says so, naming data bars, colour scales, and icon sets when the sheet has them. A .csv file keeps no formats at all. Conditional formats are printed as they look on the screen.
 
 ## Clear rules
 
@@ -36,6 +61,6 @@ The rule is drawn at once. Each new rule goes first, so when two rules want to c
 
 ## What is not done yet
 
-- Data bars, colour scales, and icon sets can be shown but not made yet. The window that lists, orders, and edits all the rules (**Manage Rules**) is not there yet. A rule that uses a formula can't be made from the menu yet.
-- A sheet that has data bars in the form of a newer file keeps them as they are, and JeffCrunch does not make or clear rules on that sheet. Make those changes in the program that made the workbook.
+- A sheet that has data bars in the form of a newer file keeps them as they are, and JeffCrunch does not make, change, or clear rules on that sheet. Make those changes in the program that made the workbook.
 - A workbook opened from an older kind of file keeps its rules when you save it as an .xlsx workbook, and you can add rules after that.
+- The look of a rule is one of the ready-made looks; a look of your own (borders, number formats) is not offered yet.

@@ -40,7 +40,7 @@ Click the shape to select it. Drag a handle to change its size, or drag the shap
 - **Picture Fill** stretches a picture from a file over the inside of the shape or text box. To go back to a colour, use **Shape Fill**.
 - **Align** lines the shape up with the margins or the page. See [Add and change pictures](pictures).
 - **Change Shape** puts another shape in the same place, with the same size and colours.
-- **Rotate** turns the shape a quarter turn to the right or the left, or back to no turn.
+- **Rotate** turns the shape a quarter turn to the right or the left, or back to no turn. Its menu also has **Flip Vertical** and **Flip Horizontal**, which mirror the shape (or a picture, a text box, or a group) top to bottom or left to right. Choose the same flip again to put it back. The words in a shape or text box are never mirrored: they stay readable, and only the outline, the fill, and the place are flipped. A group that is turned can't be flipped.
 - **Wrap Text** says how the words go round the shape. See [Add and change pictures](pictures) for what each choice means.
 - **Alt Text** describes the shape for people who can't see it. **Mark as Decorative** tells screen readers to skip it.
 - **Height** and **Width** set the size in numbers.
@@ -90,6 +90,8 @@ Every object must float on the page. An object that is in line with the text can
 When several objects are selected together, you can drag one of them, and all of them move.
 
 To take a group apart, select it and click **Ungroup**. Each part goes back to its own place on the page and stays selected. A group that is turned can't be taken apart.
+
+To put the last group you took apart back together, click **Regroup**. It works while all of its parts are still in the document, even if you moved some of them, and it joins them where they are now, with the wrap, the name, and the alt text the group had.
 
 You can move a group, change its size, change its layer (**Bring Forward**, **Send Backward**), and give it alt text. To change the fill or the words of one part, take the group apart first. All of this is one step to undo.
 

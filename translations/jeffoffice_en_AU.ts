@@ -396,6 +396,10 @@ Download it from %2 now? (%3, once.)</translation>
         <translation>Text Highlight Colour</translation>
     </message>
     <message>
+        <source>Color Scales</source>
+        <translation>Colour Scales</translation>
+    </message>
+    <message>
         <source>Marker Color</source>
         <translation>Marker Colour</translation>
     </message>
@@ -417,6 +421,10 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>tab colors</source>
         <translation>tab colours</translation>
+    </message>
+    <message>
+        <source>data bars, color scales, and icon sets</source>
+        <translation>data bars, colour scales, and icon sets</translation>
     </message>
     <message>
         <source>gradient fills (they are shown as one color)</source>
@@ -649,6 +657,36 @@ Download it from %2 now? (%3, once.)</translation>
     </message>
 </context>
 <context>
+    <name>jp::CondColorButton</name>
+    <message>
+        <source>Color</source>
+        <translation>Colour</translation>
+    </message>
+</context>
+<context>
+    <name>jp::CondRuleDialog</name>
+    <message>
+        <source>Color scale</source>
+        <translation>Colour scale</translation>
+    </message>
+    <message>
+        <source>Use three colors</source>
+        <translation>Use three colours</translation>
+    </message>
+    <message>
+        <source>Bar color</source>
+        <translation>Bar colour</translation>
+    </message>
+    <message>
+        <source>Same color as positive bars</source>
+        <translation>Same colour as positive bars</translation>
+    </message>
+    <message>
+        <source>Negative bar color</source>
+        <translation>Negative bar colour</translation>
+    </message>
+</context>
+<context>
     <name>jp::CrunchWindow</name>
     <message>
         <source>Gridline color</source>
@@ -657,6 +695,86 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>Center</source>
         <translation>Centre</translation>
+    </message>
+    <message>
+        <source>Green - Yellow - Red Color Scale</source>
+        <translation>Green - Yellow - Red Colour Scale</translation>
+    </message>
+    <message>
+        <source>Red - Yellow - Green Color Scale</source>
+        <translation>Red - Yellow - Green Colour Scale</translation>
+    </message>
+    <message>
+        <source>Green - White - Red Color Scale</source>
+        <translation>Green - White - Red Colour Scale</translation>
+    </message>
+    <message>
+        <source>Red - White - Green Color Scale</source>
+        <translation>Red - White - Green Colour Scale</translation>
+    </message>
+    <message>
+        <source>Blue - White - Red Color Scale</source>
+        <translation>Blue - White - Red Colour Scale</translation>
+    </message>
+    <message>
+        <source>Red - White - Blue Color Scale</source>
+        <translation>Red - White - Blue Colour Scale</translation>
+    </message>
+    <message>
+        <source>White - Red Color Scale</source>
+        <translation>White - Red Colour Scale</translation>
+    </message>
+    <message>
+        <source>Red - White Color Scale</source>
+        <translation>Red - White Colour Scale</translation>
+    </message>
+    <message>
+        <source>Green - White Color Scale</source>
+        <translation>Green - White Colour Scale</translation>
+    </message>
+    <message>
+        <source>White - Green Color Scale</source>
+        <translation>White - Green Colour Scale</translation>
+    </message>
+    <message>
+        <source>Green - Yellow Color Scale</source>
+        <translation>Green - Yellow Colour Scale</translation>
+    </message>
+    <message>
+        <source>Yellow - Green Color Scale</source>
+        <translation>Yellow - Green Colour Scale</translation>
+    </message>
+    <message>
+        <source>3 Arrows (Colored)</source>
+        <translation>3 Arrows (Coloured)</translation>
+    </message>
+    <message>
+        <source>3 Arrows (Gray)</source>
+        <translation>3 Arrows (Grey)</translation>
+    </message>
+    <message>
+        <source>4 Arrows (Colored)</source>
+        <translation>4 Arrows (Coloured)</translation>
+    </message>
+    <message>
+        <source>4 Arrows (Gray)</source>
+        <translation>4 Arrows (Grey)</translation>
+    </message>
+    <message>
+        <source>5 Arrows (Colored)</source>
+        <translation>5 Arrows (Coloured)</translation>
+    </message>
+    <message>
+        <source>5 Arrows (Gray)</source>
+        <translation>5 Arrows (Grey)</translation>
+    </message>
+    <message>
+        <source>Three-color scale</source>
+        <translation>Three-colour scale</translation>
+    </message>
+    <message>
+        <source>Two-color scale</source>
+        <translation>Two-colour scale</translation>
     </message>
     <message>
         <source>Align Center</source>
