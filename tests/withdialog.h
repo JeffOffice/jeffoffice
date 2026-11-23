@@ -67,14 +67,30 @@ inline QString answerCloseBox(const std::function<void()> &closeIt, const QStrin
     QString problems;
     bool seen = false, waitForSignal = false, wantEscape = false;
     QMessageBox::StandardButton got = QMessageBox::NoButton;
-    QTimer poll, watchdog;
-    watchdog.setSingleShot(true);
+    // Counted, not timed (Nov 23: a save slowed by a busy disk, after the box was answered, ran past a ten-second timer and the test said "no box"): ticks of the poll (every 20 ms,
+    // and only while the event loop runs) spent looking for the box, and ticks spent after it was answered, in case another box stays open.
+    int looking = 0, after = 0;
+    constexpr int kLookTicks = 3000, kAfterTicks = 15000;
+    QTimer poll;
     QObject::connect(&poll, &QTimer::timeout, [&] {
+        if (seen) {
+            if (++after > kAfterTicks) {
+                problems += QStringLiteral("a box stayed open after the answer; ");
+                if (auto *m = QApplication::activeModalWidget()) m->close();
+                poll.stop();
+            }
+            return;
+        }
         auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget());
-        if (!box || !box->isVisible()) return;
-        QAbstractButton *save = box->button(QMessageBox::Save), *discard = box->button(QMessageBox::Discard), *cancel = box->button(QMessageBox::Cancel);
-        if (!save || !discard || !cancel || !box->findChild<QLabel *>(QStringLiteral("jpBoxSign"))) return;   // (not laid out yet)
-        poll.stop();
+        QAbstractButton *save = box ? box->button(QMessageBox::Save) : nullptr, *discard = box ? box->button(QMessageBox::Discard) : nullptr, *cancel = box ? box->button(QMessageBox::Cancel) : nullptr;
+        if (!box || !box->isVisible() || !save || !discard || !cancel || !box->findChild<QLabel *>(QStringLiteral("jpBoxSign"))) {   // (none yet, or not laid out yet)
+            if (++looking > kLookTicks) {
+                problems += QStringLiteral("no box; ");
+                if (auto *m = QApplication::activeModalWidget()) m->close();
+                poll.stop();
+            }
+            return;
+        }
         seen = true;
         auto x = [&](QWidget *w) { return w->mapTo(box, QPoint(0, 0)).x(); };
         if (box->icon() != QMessageBox::Warning) problems += QStringLiteral("not a warning sign; ");
@@ -95,12 +111,7 @@ inline QString answerCloseBox(const std::function<void()> &closeIt, const QStrin
         if (waitForSignal) wantEscape = true;
         else if (box->clickedButton() != box->button(expected)) problems += QStringLiteral("the answer was not the expected button; ");
     });
-    QObject::connect(&watchdog, &QTimer::timeout, [&] {
-        problems += QStringLiteral("no box; ");
-        if (auto *m = QApplication::activeModalWidget()) m->close();
-    });
     poll.start(20);
-    watchdog.start(10000);
     closeIt();
     poll.stop();
     if (wantEscape && got != QMessageBox::Cancel) problems += QStringLiteral("the answer was not the expected button; ");
