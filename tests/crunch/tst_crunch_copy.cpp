@@ -24,6 +24,15 @@ using namespace jp;
 
 namespace {
 
+// Waits for `done` in rounds of 20 ms of the event loop, a count of rounds and not a time: a round in which the main thread sits in a slow disk sync (a save does one) is still one round,
+// where a 20-second timer ran out in the sync (Nov 23, a release candidate's Linux run beside other programs writing a lot). 5,000 rounds are at least 100 seconds.
+template <class Done>
+bool spin(Done done, int rounds = 5000)
+{
+    for (int i = 0; i < rounds && !done(); ++i) QTest::qWait(20);
+    return done();
+}
+
 // A window with a workbook open from a folder of its own, a file dialog that answers what the test says, and what was said to the person.
 struct Win {
     QTemporaryDir dir;
@@ -57,9 +66,9 @@ struct Win {
         f.close();
         QSignalSpy first(&w, &CrunchWindow::firstScreenShown), done(&w, &CrunchWindow::calculationFinished), loaded(&w, &CrunchWindow::loadFinished);
         if (!w.openFile(path)) return false;
-        if (!(first.wait(20000) && (loaded.count() > 0 || loaded.wait(20000)) && (done.count() > 0 || done.wait(20000)))) return false;
+        if (!spin([&] { return first.count() > 0 && loaded.count() > 0 && done.count() > 0; })) return false;
         w.activateWindow();
-        return QTest::qWaitForWindowActive(&w);
+        return spin([&] { return w.isActiveWindow(); });
     }
     void enter(quint32 row, quint32 col, const QString &text)
     {
@@ -67,7 +76,7 @@ struct Win {
         QTest::keyClick(w.view(), text.at(0).toLatin1());
         if (text.size() > 1) QTest::keyClicks(w.cellEditor(), text.mid(1));
         QTest::keyClick(w.cellEditor(), Qt::Key_Return);
-        QTest::qWaitFor([&] { return !w.isCalculating(); }, 20000);
+        spin([&] { return !w.isCalculating(); });
     }
     bool originalIsUntouched() const
     {
@@ -157,7 +166,7 @@ private Q_SLOTS:
         o.answer = o.dir.filePath(QStringLiteral("copy.xls"));
         QSignalSpy copied(&o.w, &CrunchWindow::copyExported);
         o.w.save();
-        QVERIFY2(copied.count() > 0 || copied.wait(20000), qPrintable(o.told.join(QLatin1Char('|'))));
+        QVERIFY2(spin([&] { return copied.count() > 0; }), qPrintable(o.told.join(QLatin1Char('|'))));
         QCOMPARE(copied.first().at(1).toBool(), true);
         Workbook wb;
         Sheet s;
@@ -179,7 +188,7 @@ private Q_SLOTS:
         o.answer = o.dir.filePath(QStringLiteral("copy.ods"));
         QSignalSpy copied(&o.w, &CrunchWindow::copyExported);
         o.w.save();
-        QVERIFY2(copied.count() > 0 || copied.wait(20000), qPrintable(o.told.join(QLatin1Char('|'))));
+        QVERIFY2(spin([&] { return copied.count() > 0; }), qPrintable(o.told.join(QLatin1Char('|'))));
         QCOMPARE(copied.first().at(1).toBool(), true);
         Workbook wb;
         Sheet s;
@@ -198,7 +207,7 @@ private Q_SLOTS:
             o.answer = o.dir.filePath(QStringLiteral("viaSave.ods"));
             QSignalSpy copied(&o.w, &CrunchWindow::copyExported);
             o.w.save();
-            QVERIFY2(copied.count() > 0 || copied.wait(20000), qPrintable(o.told.join(QLatin1Char('|'))));
+            QVERIFY2(spin([&] { return copied.count() > 0; }), qPrintable(o.told.join(QLatin1Char('|'))));
             QVERIFY(copied.first().at(1).toBool());
             QFile f(o.answer);
             QVERIFY(f.open(QIODevice::ReadOnly));
@@ -210,7 +219,7 @@ private Q_SLOTS:
             const QString out = o.dir.filePath(asCopy ? QStringLiteral("copy.ods") : QStringLiteral("viaSaveAs.ods"));
             QSignalSpy copied(&o.w, &CrunchWindow::copyExported);
             o.w.saveAs(out, asCopy);
-            QVERIFY2(copied.count() > 0 || copied.wait(20000), qPrintable(o.told.join(QLatin1Char('|'))));
+            QVERIFY2(spin([&] { return copied.count() > 0; }), qPrintable(o.told.join(QLatin1Char('|'))));
             QVERIFY(copied.first().at(1).toBool());
             QFile f(out);
             QVERIFY(f.open(QIODevice::ReadOnly));
@@ -231,7 +240,7 @@ private Q_SLOTS:
             o.enter(0, 0, QStringLiteral("5"));
             QSignalSpy written(&o.w, &CrunchWindow::recoveryWritten);
             o.w.autoRecover();
-            QVERIFY(written.count() > 0 || written.wait(20000));
+            QVERIFY(spin([&] { return written.count() > 0; }));
             const QString copy = o.w.recoveryCopy();
             QVERIFY(QFileInfo::exists(copy));
             Workbook wb;
@@ -252,7 +261,7 @@ private Q_SLOTS:
             o.answer = o.dir.filePath(name);
             QSignalSpy copied(&o.w, &CrunchWindow::copyExported);
             o.w.save();
-            return (copied.count() > 0 || copied.wait(20000)) && copied.first().at(1).toBool();
+            return (spin([&] { return copied.count() > 0; })) && copied.first().at(1).toBool();
         };
         QByteArray onBytes;
         {
@@ -315,7 +324,7 @@ private Q_SLOTS:
             Win o;
             QVERIFY(o.open(xlsxWithRules(), QStringLiteral("rules.xlsx")));
             o.w.checkCompatibility();
-            QTRY_VERIFY_WITH_TIMEOUT(!o.told.isEmpty(), 20000);
+            QVERIFY(spin([&] { return !o.told.isEmpty(); }));
             QVERIFY2(o.told.last().startsWith(QLatin1String("Check Compatibility")) && o.told.last().contains(QLatin1String("conditional formatting")), qPrintable(o.told.last()));
             QVERIFY(!o.w.isModified());
             QVERIFY(o.originalIsUntouched());
@@ -324,7 +333,7 @@ private Q_SLOTS:
             Win o;
             QVERIFY(o.open(odsBook(), QStringLiteral("book.ods")));
             o.w.checkCompatibility();
-            QTRY_VERIFY_WITH_TIMEOUT(!o.told.isEmpty(), 20000);
+            QVERIFY(spin([&] { return !o.told.isEmpty(); }));
             QVERIFY2(o.told.last().startsWith(QLatin1String("Check Compatibility")) && o.told.last().contains(QLatin1String("Nothing")), qPrintable(o.told.last()));
         }
     }
@@ -339,7 +348,7 @@ private Q_SLOTS:
             const QString target = o.dir.filePath(QStringLiteral("copy.xls"));
             QSignalSpy copied(&o.w, &CrunchWindow::copyExported);
             QVERIFY(o.w.saveAs(target));
-            QVERIFY(copied.count() > 0 || copied.wait(20000));
+            QVERIFY(spin([&] { return copied.count() > 0; }));
             QCOMPARE(copied.first().at(1).toBool(), false);
             QVERIFY2(o.told.last().contains(QLatin1String("conditional formatting")) && o.told.last().contains(QLatin1String("data validation")), qPrintable(o.told.last()));
             QVERIFY(!QFile::exists(target));
@@ -351,7 +360,7 @@ private Q_SLOTS:
             const QString target = o.dir.filePath(QStringLiteral("copy.ods"));
             QSignalSpy copied(&o.w, &CrunchWindow::copyExported);
             QVERIFY(o.w.saveAs(target));
-            QVERIFY(copied.count() > 0 || copied.wait(20000));
+            QVERIFY(spin([&] { return copied.count() > 0; }));
             QCOMPARE(copied.first().at(1).toBool(), true);
             QVERIFY(QFile::exists(target));
         }
@@ -361,9 +370,9 @@ private Q_SLOTS:
             o.lossAnswer = CrunchWindow::LossAnswer::SaveXlsx;
             QSignalSpy copied(&o.w, &CrunchWindow::copyExported), saved(&o.w, &CrunchWindow::saved);
             QVERIFY(o.w.saveAs(o.dir.filePath(QStringLiteral("copy.xls"))));
-            QVERIFY(copied.count() > 0 || copied.wait(20000));
+            QVERIFY(spin([&] { return copied.count() > 0; }));
             QCOMPARE(copied.first().at(1).toBool(), false);
-            QVERIFY(saved.count() > 0 || saved.wait(20000));
+            QVERIFY(spin([&] { return saved.count() > 0; }));
             // (written beside the name asked for, with no file box)
             QVERIFY(QFile::exists(o.dir.filePath(QStringLiteral("copy.xlsx"))));
             QVERIFY(o.asked.isEmpty());
@@ -384,7 +393,7 @@ private Q_SLOTS:
         const QString target = o.dir.filePath(QStringLiteral("copy.ods"));
         QSignalSpy copied(&o.w, &CrunchWindow::copyExported);
         QVERIFY(o.w.saveAs(target, true));
-        QVERIFY(copied.count() > 0 || copied.wait(20000));
+        QVERIFY(spin([&] { return copied.count() > 0; }));
         QVERIFY(copied.first().at(1).toBool());
         Workbook wb;
         Sheet s;
@@ -409,7 +418,7 @@ private Q_SLOTS:
         const QString target = o.dir.filePath(QStringLiteral("copy.ods"));
         QSignalSpy copied(&o.w, &CrunchWindow::copyExported);
         QVERIFY(o.w.saveAs(target));
-        QVERIFY(copied.count() > 0 || copied.wait(20000));
+        QVERIFY(spin([&] { return copied.count() > 0; }));
         QVERIFY2(o.told.last().contains(QLatin1String("custom views")), qPrintable(o.told.last()));
         QVERIFY(!QFile::exists(target));
     }
