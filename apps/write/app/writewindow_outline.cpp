@@ -7,6 +7,7 @@
 #include "app/pageview.h"
 #include "app/ribbon.h"
 #include "app/ruler.h"
+#include "app/settings.h"
 #include "core/outlineops.h"
 
 #include <QAction>
@@ -80,6 +81,17 @@ void WriteWindow::createOutlineActions()
     // (They work in the outline only, and so are off, and their keys free, otherwise.)
     for (QAction *a : m_actions)
         if (a->objectName().startsWith(QLatin1String("outline."))) a->setEnabled(false);
+    // The style area's width the person drags is kept for the next window and given to the other view.
+    connect(m_view, &write::PageView::styleAreaWidthDragged, this, [this](int width) {
+        Settings::get().setValue(QStringLiteral("view/styleAreaWidth"), width);
+        m_outline->setStyleAreaWidth(width);
+    });
+    connect(m_outline, &WriteOutlineView::styleAreaWidthDragged, this, [this](int width) {
+        Settings::get().setValue(QStringLiteral("view/styleAreaWidth"), width);
+        m_view->setStyleAreaWidth(width);
+    });
+    connect(m_view, &write::PageView::styleNameActivated, this, &WriteWindow::styleNameActivated);
+    connect(m_outline, &WriteOutlineView::styleNameActivated, this, &WriteWindow::styleNameActivated);
     connect(m_outline, &WriteOutlineView::levelKeyPressed, this, [this](int by) { act(by > 0 ? "outline.demote" : "outline.promote")->trigger(); });
     connect(m_outline, &WriteOutlineView::newParagraphWanted, this, [this] {
         if (!m_doc || !m_outlineOn || isReadOnly()) return;

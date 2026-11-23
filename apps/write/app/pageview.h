@@ -11,6 +11,7 @@ namespace jp { class ShapeTextEdit; }
 #include "app/pagepaint.h"
 #include "app/pastedefaults.h"
 #include "app/pasteoffer.h"
+#include "app/stylearea.h"
 #include "core/autoops.h"
 #include "core/contentcontrolops.h"
 #include "core/editops.h"
@@ -103,6 +104,17 @@ public:
     void setWebLayout(bool on);
     bool webLayout() const { return m_web; }
     bool draft() const { return m_draft; }
+    // The style area (a strip at the left that names each paragraph's style beside its first line, in Draft view only): its width in pixels as the person set it, 0 for none (the strip is
+    // not made until a width is set). Read Mode and the other views leave it out. A click on a name selects the paragraph; a double click on it asks for its style's box.
+    void setStyleAreaWidth(int width);
+    int styleAreaWidth() const { return m_styleWidth; }
+    void setStyleAreaSuppressed(bool on);
+    StyleArea *styleArea() const { return m_styleArea; }
+    // The names of the paragraphs that begin on the pages on show, with where their first lines are in the viewport; how many paragraphs were looked at to find them since the view was made.
+    QVector<StyleRow> styleRows();
+    qint64 styleParagraphsLooked() const { return m_styleLooked; }
+    // Selects the paragraph that has a position.
+    void selectParagraphAt(int position);
     // While a header or footer is edited the page's own text is shown dimmed (the usual), or left out.
     void setShowBodyWhileEditingHeader(bool on);
     bool showBodyWhileEditingHeader() const { return m_showBodyInHeader; }
@@ -441,6 +453,8 @@ Q_SIGNALS:
     // Document files dropped on the pages (the window opens them).
     void documentsDropped(const QStringList &paths);
     void zoomChanged(double zoom);
+    void styleAreaWidthDragged(int width);   // the person dragged the strip's edge
+    void styleNameActivated(int position);   // a double click (or Enter) on a name: the paragraph is selected, and its style's box is wanted
     void pagesChanged();                    // how many pages there are, or whether all are known
     void caretChanged();                    // the caret moved or the selection changed
     void contentChanged();                  // the text was edited
@@ -738,6 +752,11 @@ private:
     ZoomMode m_mode = ZoomMode::Percent;
     int m_across = 1, m_down = 1;
     bool m_sideToSide = false, m_draft = false, m_web = false, m_showBodyInHeader = true;
+    void applyStyleArea();
+    StyleArea *m_styleArea = nullptr;
+    int m_styleWidth = 0;
+    bool m_styleSuppressed = false;
+    qint64 m_styleLooked = 0;
     void fitWebWidth();
     bool m_marks = false;
     int m_alwaysMarks = 0;

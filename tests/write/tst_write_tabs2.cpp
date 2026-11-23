@@ -5,6 +5,9 @@
 #include "app/writeoutlineview.h"
 #include "app/pagepaint.h"
 #include "app/pageview.h"
+#include "app/settings.h"
+#include "app/stylearea.h"
+#include "app/theme.h"
 #include "app/ribbon.h"
 #include "app/writeinfo.h"
 #include "app/writewindow.h"
@@ -37,13 +40,17 @@
 #include <QDialog>
 #include <QTimer>
 #include <QDockWidget>
+#include <QDir>
 #include <QLabel>
+#include <QLineEdit>
+#include <QSignalSpy>
 #include <QMenu>
 #include <QPair>
 #include <QScrollBar>
 #include <QTemporaryDir>
 #include <QTest>
 #include <QTextCursor>
+#include <QSpinBox>
 #include <QTreeWidget>
 
 using namespace jp;
@@ -202,6 +209,82 @@ QPair<int, int> hyphenRun(WriteDoc &doc)
     return {most, int(lines.size())};
 }
 
+} // namespace
+
+// ---- the style area (Draft and Outline views)
+namespace {
+const QByteArray kAreaStyles =
+    "<w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/></w:style>"
+    "<w:style w:type=\"paragraph\" w:styleId=\"Quote1\"><w:name w:val=\"Quote Style\"/><w:basedOn w:val=\"Normal\"/></w:style>"
+    "<w:style w:type=\"paragraph\" w:styleId=\"Long1\"><w:name w:val=\"An unusually long style name that cannot fit in a narrow strip\"/><w:basedOn w:val=\"Normal\"/></w:style>";
+
+QByteArray areaPara(const char *style, const QString &text, const QByteArray &more = QByteArray())
+{
+    return "<w:p><w:pPr><w:pStyle w:val=\"" + QByteArray(style) + "\"/>" + more + "</w:pPr><w:r><w:t>" + text.toUtf8() + "</w:t></w:r></w:p>";
+}
+
+QByteArray areaCell(const QByteArray &paragraphs) { return "<w:tc><w:tcPr><w:tcW w:w=\"3000\" w:type=\"dxa\"/></w:tcPr>" + paragraphs + "</w:tc>"; }
+
+std::unique_ptr<WriteDoc> areaDoc(const QByteArray &body)
+{
+    office::PackageWriter w;
+    const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+    const QString main = QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.");
+    w.addPart(QStringLiteral("/word/document.xml"), QByteArray("<w:document ") + kNs + "><w:body>" + body + "</w:body></w:document>", main + QStringLiteral("document.main+xml"));
+    w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), QStringLiteral("/word/document.xml"));
+    w.addPart(QStringLiteral("/word/styles.xml"), QByteArray("<w:styles ") + kNs + ">" + kAreaStyles + "</w:styles>", main + QStringLiteral("styles+xml"));
+    w.addRelationship(QStringLiteral("/word/document.xml"), rel + QStringLiteral("styles"), QStringLiteral("/word/styles.xml"));
+    QString err;
+    return WriteDoc::fromDocx(w.finish(), &err);
+}
+
+// The window with the document, in Draft view, with the style area `width` wide.
+void draftWithStyleArea(WriteWindow &w, std::unique_ptr<WriteDoc> doc, int width)
+{
+    w.setNotifier([](const QString &, const QString &) {});
+    w.resize(900, 700);
+    w.setDocument(std::move(doc), QString());
+    w.show();
+    w.activateWindow();
+    QVERIFY(QTest::qWaitForWindowActive(&w));
+    w.view()->setStyleAreaWidth(width);
+    w.act(QStringLiteral("view.draft"))->trigger();
+}
+
+// Answers the dialog that opens (a modal one), looking every 20 ms for up to 400 tries: its title, and the name its box has, are noted, and it is closed.
+struct DialogSeen {
+    QString title, name;
+    int tries = 0;
+    bool seen = false;
+};
+void closeNextDialog(QObject *owner, DialogSeen *seen)
+{
+    auto *timer = new QTimer(owner);
+    timer->setInterval(20);
+    QObject::connect(timer, &QTimer::timeout, timer, [timer, seen] {
+        if (auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget())) {
+            seen->seen = true;
+            seen->title = dlg->windowTitle();
+            if (auto *name = dlg->findChild<QLineEdit *>(QStringLiteral("styleName"))) seen->name = name->text();
+            timer->stop();
+            dlg->reject();
+            timer->deleteLater();
+        } else if (++seen->tries > 400) {
+            timer->stop();
+            timer->deleteLater();
+        }
+    });
+    timer->start();
+}
+
+// A row of the strip as a click on it would reach it (the middle of its first line).
+QPoint areaRowPoint(const StyleRow &row) { return QPoint(8, row.top + std::max(1, row.height / 2)); }
+
+// Settles the event loop for a counted number of turns (what the strip schedules for later is done).
+void settleTurns(int turns = 12)
+{
+    for (int i = 0; i < turns; ++i) QCoreApplication::processEvents();
+}
 } // namespace
 
 class Tabs2Tests : public QObject {
@@ -732,6 +815,374 @@ private Q_SLOTS:
         w.act(QStringLiteral("view.draft"))->trigger();
         w.act(QStringLiteral("view.outline"))->trigger();
         QVERIFY(w.outlineMode() && !w.view()->draft() && !w.act("view.draft")->isChecked());
+    }
+
+    // ---------------------------------------------------------------- the style area
+    void theStyleAreaIsHiddenByDefaultAndCostsNothing()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.setDocument(areaDoc(areaPara("Quote1", "one") + areaPara("Normal", "two")), QString());
+        w.show();
+        w.act(QStringLiteral("view.draft"))->trigger();
+        QVERIFY(w.view()->draft());
+        QCOMPARE(w.view()->styleAreaWidth(), 0);
+        QVERIFY(!w.view()->styleArea());   // (not even made)
+        QCOMPARE(w.view()->viewport()->x(), 0);
+        const qint64 before = w.view()->styleParagraphsLooked();
+        for (int i = 0; i < 5; ++i) w.view()->verticalScrollBar()->setValue(i);
+        w.view()->setZoom(0.8);
+        settleTurns();
+        QCOMPARE(w.view()->styleParagraphsLooked(), before);
+        QCOMPARE(w.view()->styleParagraphsLooked(), qint64(0));
+        QVERIFY(!w.outlineView()->styleArea());
+    }
+
+    void theStyleAreaNamesEachParagraphBesideItsFirstLineAtAnyZoom()
+    {
+        WriteWindow w;
+        draftWithStyleArea(w, areaDoc(areaPara("Quote1", "one") + areaPara("Normal", "two") + areaPara("Long1", "three")), 120);
+        StyleArea *sa = w.view()->styleArea();
+        QVERIFY(sa && sa->isVisible());
+        QTRY_VERIFY(sa->shownNames().size() >= 3);
+        QCOMPARE(sa->shownNames().mid(0, 3), (QStringList{"Quote Style", "Normal", "An unusually long style name that cannot fit in a narrow strip"}));
+        QCOMPARE(sa->width(), 120);
+        QCOMPARE(w.view()->viewport()->x(), 120);   // (the text begins where the strip ends)
+        for (const double zoom : {1.0, 0.5, 2.0}) {
+            w.view()->setZoom(zoom);
+            w.view()->verticalScrollBar()->setValue(0);
+            QTRY_VERIFY2(sa->rows().size() >= 3 && sa->rows().at(1).top != sa->rows().at(0).top, qPrintable(QStringLiteral("zoom %1: %2 rows, scroll %3, page0 %4,%5 view h %6, looked %7").arg(zoom).arg(sa->rows().size()).arg(w.view()->verticalScrollBar()->value()).arg(w.view()->pageRect(0).top()).arg(w.view()->pageRect(0).bottom()).arg(w.view()->viewport()->height()).arg(w.view()->styleParagraphsLooked())));
+            settleTurns();
+            const QVector<StyleRow> rows = sa->rows();
+            QVERIFY(rows.size() >= 3);
+            for (int i = 0; i < 3; ++i) {
+                QTextCursor c(w.document()->story());
+                c.setPosition(rows.at(i).position);
+                w.view()->setCursor(c);
+                QRect r;
+                QVERIFY(w.view()->caretRect(&r));
+                QVERIFY2(std::abs(r.top() - rows.at(i).top) <= 2, qPrintable(QStringLiteral("zoom %1 row %2: caret %3, name %4").arg(zoom).arg(i).arg(r.top()).arg(rows.at(i).top)));
+            }
+        }
+    }
+
+    void aLongNameIsCutAndKeepsItsFullNameForScreenReaders()
+    {
+        WriteWindow w;
+        draftWithStyleArea(w, areaDoc(areaPara("Quote1", "one") + areaPara("Long1", "two")), 100);
+        StyleArea *sa = w.view()->styleArea();
+        QVERIFY(sa);
+        QTRY_VERIFY(sa->rows().size() >= 2);
+        QVERIFY(!sa->nameCut(0));   // ("Quote Style" fits)
+        QVERIFY(sa->nameCut(1));
+        QStringList accessible;
+        for (QLabel *l : sa->findChildren<QLabel *>(QStringLiteral("styleAreaName")))
+            if (l->isVisible()) accessible << l->accessibleName();
+        QVERIFY(accessible.contains(QStringLiteral("An unusually long style name that cannot fit in a narrow strip")));
+        QVERIFY(accessible.contains(QStringLiteral("Quote Style")));
+        QVERIFY(!sa->accessibleName().isEmpty());
+        QCOMPARE(sa->width(), 100);
+        // a wider strip does not cut it
+        sa->setAreaWidth(StyleArea::kMostWidth);
+        QTRY_VERIFY(!sa->nameCut(1));
+    }
+
+    void aParagraphInATableCellShowsItsOwnStyle()
+    {
+        const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"3000\"/><w:gridCol w:w=\"3000\"/></w:tblGrid>"
+                                 "<w:tr>" + areaCell(areaPara("Quote1", "a")) + areaCell(areaPara("Long1", "b")) + "</w:tr>"
+                                 "<w:tr>" + areaCell(areaPara("Long1", "c")) + areaCell(areaPara("Normal", "d")) + "</w:tr></w:tbl>";
+        WriteWindow w;
+        draftWithStyleArea(w, areaDoc(areaPara("Normal", "before") + table + areaPara("Quote1", "after")), 120);
+        StyleArea *sa = w.view()->styleArea();
+        QVERIFY(sa);
+        QTRY_VERIFY(sa->rows().size() >= 4);
+        // (Side by side, the cells' first lines are at one place: the first cell's name is the one shown for the row.)
+        QCOMPARE(sa->shownNames().mid(0, 4), (QStringList{"Normal", "Quote Style", "An unusually long style name that cannot fit in a narrow strip", "Quote Style"}));
+    }
+
+    void aTrackedStyleChangeShowsTheNewName()
+    {
+        const QByteArray changed = "<w:p><w:pPr><w:pStyle w:val=\"Quote1\"/><w:pPrChange w:id=\"1\" w:author=\"A\" w:date=\"2026-01-01T00:00:00Z\"><w:pPr><w:pStyle w:val=\"Long1\"/></w:pPr></w:pPrChange></w:pPr>"
+                                   "<w:r><w:t>words</w:t></w:r></w:p>";
+        WriteWindow w;
+        draftWithStyleArea(w, areaDoc(changed + areaPara("Normal", "plain")), 120);
+        StyleArea *sa = w.view()->styleArea();
+        QVERIFY(sa);
+        QTRY_VERIFY(sa->rows().size() >= 2);
+        QCOMPARE(sa->shownNames().mid(0, 2), (QStringList{"Quote Style", "Normal"}));
+    }
+
+    void aClickOnANameSelectsTheParagraphAndADoubleClickOpensItsStylesBox()
+    {
+        WriteWindow w;
+        draftWithStyleArea(w, areaDoc(areaPara("Normal", "first words") + areaPara("Quote1", "second paragraph") + areaPara("Normal", "third")), 120);
+        StyleArea *sa = w.view()->styleArea();
+        QVERIFY(sa);
+        QTRY_VERIFY(sa->rows().size() >= 3);
+        const StyleRow second = sa->rows().at(1);
+        QTest::mouseClick(sa, Qt::LeftButton, Qt::NoModifier, areaRowPoint(second));
+        const QTextCursor sel = w.view()->cursor();
+        QVERIFY(sel.hasSelection());
+        QCOMPARE(sel.selectionStart(), second.position);
+        QCOMPARE(sel.selectedText(), QStringLiteral("second paragraph"));
+        QVERIFY(w.view()->hasFocus());
+        // (the Styles pane's own choice does not decide which style is changed)
+        DialogSeen seen;
+        closeNextDialog(&w, &seen);
+        QTest::mouseDClick(sa, Qt::LeftButton, Qt::NoModifier, areaRowPoint(second));
+        QVERIFY(seen.seen);
+        QCOMPARE(seen.title, QStringLiteral("Modify Style"));
+        QCOMPARE(seen.name, QStringLiteral("Quote Style"));
+        QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("second paragraph"));
+        // a click between the names, or past the last, selects nothing new
+        QTextCursor none(w.document()->story());
+        w.view()->setCursor(none);
+        QTest::mouseClick(sa, Qt::LeftButton, Qt::NoModifier, QPoint(8, sa->height() - 2));
+        QVERIFY(!w.view()->cursor().hasSelection());
+    }
+
+    void theStyleAreaFollowsScrollingAndWorksOnlyForTheParagraphsOnShow()
+    {
+        QByteArray body;
+        for (int i = 0; i < 3000; ++i) body += areaPara(i % 3 == 0 ? "Quote1" : "Normal", QStringLiteral("Paragraph %1").arg(i));
+        WriteWindow w;
+        draftWithStyleArea(w, areaDoc(body), 100);
+        StyleArea *sa = w.view()->styleArea();
+        QVERIFY(sa);
+        w.view()->paginateAll();
+        QTRY_VERIFY(sa->rows().size() >= 10);
+        settleTurns();
+        QCOMPARE(w.view()->pageCount() >= 40, true);   // (the document is many pages: a pass over all of it would look at all 3,000)
+        qint64 looked = w.view()->styleParagraphsLooked();
+        // Scrolling: every name moves with its paragraph, exactly, and a step looks at the paragraphs of the pages on show only.
+        for (int step = 0; step < 20; ++step) {
+            const QVector<StyleRow> was = sa->rows();
+            QVERIFY(!was.isEmpty());
+            const qint64 lookedBefore = w.view()->styleParagraphsLooked();
+            const int at = w.view()->verticalScrollBar()->value();
+            w.view()->verticalScrollBar()->setValue(at + 37);
+            const int moved = w.view()->verticalScrollBar()->value() - at;
+            QCOMPARE(moved, 37);
+            const QVector<StyleRow> now = sa->rows();
+            QVERIFY(w.view()->styleParagraphsLooked() - lookedBefore <= 250);
+            QVERIFY(w.view()->styleParagraphsLooked() - lookedBefore > 0);
+            int matched = 0;
+            for (const StyleRow &a : was)
+                for (const StyleRow &b : now)
+                    if (a.position == b.position) {
+                        QCOMPARE(b.top, a.top - moved);
+                        ++matched;
+                    }
+            QVERIFY(matched >= 3);
+        }
+        QVERIFY(w.view()->styleParagraphsLooked() - looked <= 20 * 250);
+        // A caret move that scrolls nothing makes no rows at all.
+        w.view()->verticalScrollBar()->setValue(0);
+        settleTurns();
+        QTextCursor c(w.document()->story());
+        w.view()->setCursor(c);
+        looked = w.view()->styleParagraphsLooked();
+        const qint64 made = sa->refreshes();
+        for (int i = 0; i < 10; ++i) QTest::keyClick(w.view(), Qt::Key_Down);
+        settleTurns();
+        QCOMPARE(w.view()->verticalScrollBar()->value(), 0);
+        QCOMPARE(w.view()->styleParagraphsLooked(), looked);
+        QCOMPARE(sa->refreshes(), made);
+        // Far down the document it is the same: the names there are the paragraphs there.
+        w.view()->verticalScrollBar()->setValue(w.view()->verticalScrollBar()->maximum() / 2);
+        QVERIFY(!sa->rows().isEmpty());
+        QVERIFY(sa->rows().first().position > 10000);
+    }
+
+    void theStyleAreaIsOnlyInDraftAndOutlineViews()
+    {
+        WriteWindow w;
+        draftWithStyleArea(w, areaDoc(areaPara("Quote1", "one") + areaPara("Normal", "two")), 100);
+        StyleArea *sa = w.view()->styleArea();
+        QVERIFY(sa);
+        QTRY_VERIFY(sa->isVisible() && sa->rows().size() >= 2);
+        // Print Layout
+        w.act(QStringLiteral("view.printLayout"))->trigger();
+        QVERIFY(!sa->isVisible());
+        QCOMPARE(w.view()->viewport()->x(), 0);
+        // Web Layout
+        w.act(QStringLiteral("view.webLayout"))->trigger();
+        QVERIFY(!sa->isVisible());
+        // Read Mode
+        w.act(QStringLiteral("view.draft"))->trigger();
+        QVERIFY(sa->isVisible());
+        w.act(QStringLiteral("view.readMode"))->trigger();
+        QVERIFY(w.view()->draft());
+        QVERIFY(!sa->isVisible());
+        QCOMPARE(w.view()->viewport()->x(), 0);
+        w.act(QStringLiteral("view.readMode"))->trigger();
+        QTRY_VERIFY(sa->isVisible());
+        // Outline: its own strip (the pages' is away with the pages)
+        w.act(QStringLiteral("view.outline"))->trigger();
+        QVERIFY(w.outlineMode());
+        QVERIFY(!sa->isVisible());
+        w.outlineView()->setStyleAreaWidth(100);
+        StyleArea *os = w.outlineView()->styleArea();
+        QVERIFY(os && os->isVisible());
+        QTRY_VERIFY(os->rows().size() >= 2);
+        QCOMPARE(os->shownNames().mid(0, 2), (QStringList{"Quote Style", "Normal"}));
+        QCOMPARE(w.outlineView()->viewport()->x(), 100);
+        // a double click on a name in the outline opens that style's box
+        DialogSeen seen;
+        closeNextDialog(&w, &seen);
+        QTest::mouseDClick(os, Qt::LeftButton, Qt::NoModifier, areaRowPoint(os->rows().at(0)));
+        QVERIFY(seen.seen);
+        QCOMPARE(seen.name, QStringLiteral("Quote Style"));
+    }
+
+    void theStyleAreaIsNotPrintedAndChangesNoSavedByte()
+    {
+        QTemporaryDir dir;
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.setDocument(areaDoc(areaPara("Quote1", "one") + areaPara("Normal", "two") + areaPara("Long1", "three")), QString());
+        w.show();
+        const QString plain = dir.filePath(QStringLiteral("plain.docx"));
+        QVERIFY(w.saveTo(plain, true));
+        w.view()->setStyleAreaWidth(150);
+        w.act(QStringLiteral("view.draft"))->trigger();
+        StyleArea *sa = w.view()->styleArea();
+        QVERIFY(sa);
+        QTRY_VERIFY(sa->rows().size() >= 3);
+        w.view()->verticalScrollBar()->setValue(5);
+        QTest::mouseClick(sa, Qt::LeftButton, Qt::NoModifier, areaRowPoint(sa->rows().at(1)));
+        const QString shown = dir.filePath(QStringLiteral("shown.docx"));
+        QVERIFY(w.saveTo(shown, true));
+        QFile a(plain), b(shown);
+        QVERIFY(a.open(QIODevice::ReadOnly) && b.open(QIODevice::ReadOnly));
+        const QByteArray plainBytes = a.readAll(), shownBytes = b.readAll();
+        a.close();
+        b.close();
+        QVERIFY(!plainBytes.isEmpty());
+        QCOMPARE(shownBytes, plainBytes);
+        // The pages as printed carry no strip: a page drawn for the printer is the same with it shown and hidden.
+        const QImage withStrip = w.view()->pageImage(0, 400);
+        w.view()->setStyleAreaWidth(0);
+        QVERIFY(!sa->isVisible());
+        const QImage without = w.view()->pageImage(0, 400);
+        QVERIFY(!withStrip.isNull());
+        QCOMPARE(withStrip, without);
+    }
+
+    void theStyleAreaWidthIsAnOptionAndTheEdgeIsDragged()
+    {
+        {
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            QVector<OptionsPage> pages = w.optionsPages();
+            QList<QWidget *> built;
+            for (const OptionsPage &p : pages) built << p.build();
+            QSpinBox *box = nullptr;
+            for (QWidget *page : built)
+                if (auto *f = page->findChild<QSpinBox *>(QStringLiteral("styleAreaWidth"))) box = f;
+            QVERIFY(box);
+            QCOMPARE(box->value(), 0);   // (hidden unless the person chose)
+            box->setValue(90);
+            for (const OptionsPage &p : pages)
+                if (p.apply) p.apply();
+            qDeleteAll(built);
+            QCOMPARE(w.view()->styleAreaWidth(), 90);
+            QCOMPARE(w.outlineView()->styleAreaWidth(), 90);
+            QCOMPARE(Settings::get().value(QStringLiteral("view/styleAreaWidth"), 0).toInt(), 90);
+        }
+        // a new window starts with it, and the edge is dragged with the mouse (real press, move, and release)
+        WriteWindow w;
+        draftWithStyleArea(w, areaDoc(areaPara("Quote1", "one") + areaPara("Normal", "two")), 90);
+        StyleArea *sa = w.view()->styleArea();
+        QVERIFY(sa && sa->areaWidth() == 90);
+        QTRY_VERIFY(sa->rows().size() >= 2);
+        QTest::mousePress(sa, Qt::LeftButton, Qt::NoModifier, QPoint(sa->width() - 2, 30));
+        QTest::mouseMove(sa, QPoint(sa->width() + 38, 30));
+        QTest::mouseRelease(sa, Qt::LeftButton, Qt::NoModifier, QPoint(sa->width() + 38, 30));
+        QCOMPARE(sa->areaWidth(), 130);
+        QCOMPARE(w.view()->styleAreaWidth(), 130);
+        QCOMPARE(w.view()->viewport()->x(), 130);
+        QCOMPARE(w.outlineView()->styleAreaWidth(), 130);
+        QCOMPARE(Settings::get().value(QStringLiteral("view/styleAreaWidth"), 0).toInt(), 130);
+        // (the drag has ended: a move now changes nothing)
+        QTest::mouseMove(sa, QPoint(10, 30));
+        QCOMPARE(sa->areaWidth(), 130);
+        Settings::get().setValue(QStringLiteral("view/styleAreaWidth"), 0);
+    }
+
+    void theStyleAreaIsReachedByTheKeyboardAndFollowsAMirroredWindow()
+    {
+        {
+            WriteWindow w;
+            draftWithStyleArea(w, areaDoc(areaPara("Normal", "one") + areaPara("Quote1", "two")), 110);
+            StyleArea *sa = w.view()->styleArea();
+            QVERIFY(sa);
+            QTRY_VERIFY(sa->rows().size() >= 2);
+            // The strip takes the keyboard's Tab focus; Down goes to the next name and Enter opens that paragraph's style box.
+            QVERIFY(sa->focusPolicy() & Qt::TabFocus);
+            sa->setFocus(Qt::TabFocusReason);
+            QTRY_VERIFY(sa->hasFocus());
+            QTest::keyClick(sa, Qt::Key_Down);
+            QCOMPARE(sa->currentRow(), 1);
+            QSignalSpy spy(w.view(), &PageView::styleNameActivated);
+            DialogSeen seen;
+            closeNextDialog(&w, &seen);
+            QTest::keyClick(sa, Qt::Key_Return);
+            QCOMPARE(spy.count(), 1);
+            QCOMPARE(spy.first().first().toInt(), sa->rows().at(1).position);
+            QVERIFY(seen.seen);
+            QCOMPARE(seen.name, QStringLiteral("Quote Style"));
+            w.activateWindow();
+            QVERIFY(QTest::qWaitForWindowActive(&w));
+            sa->setFocus(Qt::TabFocusReason);
+            QTRY_VERIFY(sa->hasFocus());
+            QTest::keyClick(sa, Qt::Key_Escape);
+            QTRY_VERIFY(w.view()->hasFocus());
+            // The strip is on the left of the pages, for a paragraph that runs right to left too.
+        }
+        {
+            WriteWindow w;
+            draftWithStyleArea(w, areaDoc(areaPara("Normal", "one", "<w:bidi/>") + areaPara("Quote1", "two", "<w:bidi/>")), 110);
+            StyleArea *sa = w.view()->styleArea();
+            QVERIFY(sa);
+            QTRY_VERIFY(sa->rows().size() >= 2);
+            QVERIFY(sa->x() < w.view()->viewport()->x());
+        }
+        {
+            // A mirrored window puts the strip on the other side of the pages, as it does its scroll bar.
+            WriteWindow w;
+            w.setLayoutDirection(Qt::RightToLeft);
+            draftWithStyleArea(w, areaDoc(areaPara("Normal", "one") + areaPara("Quote1", "two")), 110);
+            StyleArea *sa = w.view()->styleArea();
+            QVERIFY(sa);
+            QTRY_VERIFY(sa->rows().size() >= 2);
+            QVERIFY2(sa->x() > w.view()->viewport()->x(), qPrintable(QStringLiteral("strip %1, viewport %2").arg(sa->x()).arg(w.view()->viewport()->x())));
+            QCOMPARE(sa->width(), 110);
+        }
+    }
+
+    // Pictures of the strip for the person who asked for it (only where JW_SHOT_DIR names a folder).
+    void theStyleAreaScreenshots()
+    {
+        const QString dir = qEnvironmentVariable("JW_SHOT_DIR");
+        if (dir.isEmpty()) QSKIP("JW_SHOT_DIR is not set");
+        jp::applyUiTheme(1);
+        const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/><w:tblBorders><w:top w:val=\"single\" w:sz=\"4\"/><w:left w:val=\"single\" w:sz=\"4\"/><w:bottom w:val=\"single\" w:sz=\"4\"/><w:right w:val=\"single\" w:sz=\"4\"/><w:insideH w:val=\"single\" w:sz=\"4\"/><w:insideV w:val=\"single\" w:sz=\"4\"/></w:tblBorders></w:tblPr><w:tblGrid><w:gridCol w:w=\"3000\"/><w:gridCol w:w=\"3000\"/></w:tblGrid>"
+                                 "<w:tr>" + areaCell(areaPara("Quote1", "Cell one")) + areaCell(areaPara("Long1", "Cell two")) + "</w:tr>"
+                                 "<w:tr>" + areaCell(areaPara("Long1", "Cell three")) + areaCell(areaPara("Normal", "Cell four")) + "</w:tr></w:tbl>";
+        const QByteArray body = areaPara("Quote1", "A paragraph in the quote style.") + areaPara("Normal", "Plain text in the normal style, long enough to wrap onto a second line so that the name stays level with the first line only.") + areaPara("Long1", "A paragraph with a very long style name.") + table + areaPara("Normal", "After the table.");
+        const int widths[] = {140, 60};
+        const char *names[] = {"stylearea-shown.png", "stylearea-narrow.png"};
+        for (int i = 0; i < 2; ++i) {
+            WriteWindow w;
+            draftWithStyleArea(w, areaDoc(body), widths[i]);
+            QTRY_VERIFY(w.view()->styleArea() && w.view()->styleArea()->rows().size() >= 6);
+            settleTurns();
+            QVERIFY(w.grab().save(QDir(dir).filePath(QString::fromLatin1(names[i]))));
+        }
     }
 
     // ---------------------------------------------------------------- Layout

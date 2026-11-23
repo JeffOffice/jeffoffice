@@ -6,6 +6,8 @@
 
 namespace jp::write {
 class WriteDoc;
+class StyleArea;
+struct StyleRow;
 }
 
 namespace jp {
@@ -36,10 +38,19 @@ public:
     static int levelOf(const QTreeWidgetItem *item);
     // Expands or collapses the selected rows' headings (or all of them where none is selected).
     void expandSelected(bool expand);
+    // The style area (a strip at the left that names the style of each paragraph beside its row): its width in pixels, 0 for none (the strip is not made until a width is set).
+    void setStyleAreaWidth(int width);
+    int styleAreaWidth() const { return m_styleWidth; }
+    write::StyleArea *styleArea() const { return m_styleArea; }
+    // The rows on show that have a paragraph, with their style names.
+    QVector<write::StyleRow> styleRows() const;
     // Whether the headings are collapsed: for tests, the words of each row that is shown.
     QStringList shownRows() const;
 
 Q_SIGNALS:
+    void styleAreaWidthDragged(int width);
+    // A double click (or Enter) on a style's name: the paragraph is where it is, and its style's box is wanted.
+    void styleNameActivated(int position);
     // Enter on a row (not in its box): a new paragraph after it. Tab and Shift+Tab: its level one lower or higher (demote and promote).
     void newParagraphWanted();
     void levelKeyPressed(int by);
@@ -48,12 +59,16 @@ Q_SIGNALS:
 
 protected:
     bool event(QEvent *e) override;
+    void updateGeometries() override;   // (the tree sets the viewport's margins itself; the strip's room is put back)
     void keyPressEvent(QKeyEvent *e) override;
 
 private:
     void applyLevel();
     void applyLook(QTreeWidgetItem *item);
     write::WriteDoc *m_doc = nullptr;
+    write::StyleArea *m_styleArea = nullptr;
+    int m_styleWidth = 0, m_styleMargin = 0;
+    bool m_marginBusy = false;
     int m_level = 0;
     bool m_formatting = true, m_firstLine = false;
     bool m_building = false;

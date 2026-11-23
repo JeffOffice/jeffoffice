@@ -5,7 +5,9 @@
 
 #include "core/writedoc.h"
 
+#include <QHash>
 #include <QStringList>
+#include <QTextBlock>
 #include <QTextCursor>
 
 namespace jp::write {
@@ -22,6 +24,8 @@ struct AppliedFormatting {
 
 // What applies at the start of the selection (or at the caret), and, for a selection, what its paragraphs and letters say together (a bounded look: a very long selection is read in part).
 AppliedFormatting appliedFormattingAt(WriteDoc &doc, const QTextCursor &c);
+// The name a person sees for the style of a paragraph (the default paragraph style's when it names none). `cache` keeps the names found by style id, for many paragraphs in a row.
+QString paragraphStyleNameOf(WriteDoc &doc, const QTextBlock &block, QHash<QString, QString> *cache = nullptr);
 // What the buttons act on: the selection, or, at a caret, the whole run of letters with the look the caret's letter has (the letter the pane describes). The cursor `c` itself is not moved.
 QTextCursor inspectedRange(const QTextCursor &c);
 // Takes the paragraphs' own look (the properties in the table) off, so that their style says them (one step); the style and what the file keeps beside the look stay.

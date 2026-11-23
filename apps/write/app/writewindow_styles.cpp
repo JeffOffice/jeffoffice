@@ -2,6 +2,7 @@
 // document is core/styleops.h and core/gotoops.h).
 
 #include "app/writewindow.h"
+#include "app/writeoutlineview.h"
 
 #include "app/pageview.h"
 #include "app/appliedformatpane.h"
@@ -145,13 +146,13 @@ void WriteWindow::refreshStyleInspector()
     m_inspector->setSection(2, a.mixedLook ? tr("Several looks in the selection") + QStringLiteral(": ") + a.characterDirect.join(QStringLiteral(", ")) : a.characterDirect.join(QStringLiteral(", ")), {}, !a.characterDirect.isEmpty(), tr("(nothing of its own)"));
 }
 
-void WriteWindow::showStyleDialog(bool create)
+void WriteWindow::showStyleDialog(bool create, const QString &styleId)
 {
     if (!m_doc) return;
     // (The styles are the text's: a header, footer, or note being edited is left first.)
     m_view->leaveHeaderFooter();
     m_view->leaveNote();
-    const QString id = create ? QString() : (m_styles && m_styles->isVisible() ? m_styles->chosenId() : write::paragraphStyleAt(*m_doc, m_view->cursor()));
+    const QString id = create ? QString() : !styleId.isEmpty() ? styleId : (m_styles && m_styles->isVisible() ? m_styles->chosenId() : write::paragraphStyleAt(*m_doc, m_view->cursor()));
     if (!create)
         for (const write::WriteDoc::ListStyleEntry &e : m_doc->listStyleEntries())
             if (e.id == id) {
@@ -212,6 +213,19 @@ void WriteWindow::paintFormatNow()
     write::pasteFormat(*m_doc, m_view->cursor(), m_brush);
     if (m_painter == PainterMode::Once) setPainterMode(PainterMode::Off);
     m_view->setFocus(Qt::OtherFocusReason);
+}
+
+// A double click on a style's name in the style area: the paragraph is selected, and the box that changes its style opens (the Styles pane's choice does not matter here).
+void WriteWindow::styleNameActivated(int position)
+{
+    if (!m_doc || isReadOnly()) return;
+    m_view->selectParagraphAt(position);
+    showStyleDialog(false, write::paragraphStyleAt(*m_doc, m_view->cursor()));
+    if (m_outlineOn) {
+        m_outline->rebuild();
+        m_outline->selectParagraphAt(position);
+        m_outline->setFocus(Qt::OtherFocusReason);
+    }
 }
 
 } // namespace jp

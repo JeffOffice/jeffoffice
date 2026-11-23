@@ -233,6 +233,19 @@ QStringList inspectedPropertyLabels(bool paragraph)
     return out;
 }
 
+QString paragraphStyleNameOf(WriteDoc &doc, const QTextBlock &block, QHash<QString, QString> *cache)
+{
+    const QString id = styleIdOf(doc, block.blockFormat());
+    if (cache) {
+        const auto found = cache->constFind(id);
+        if (found != cache->constEnd()) return found.value();
+    }
+    const std::optional<office::wml::Style> ps = styleOfDocument(doc, id);
+    const QString name = ps ? styleScreenName(*ps) : id;
+    if (cache) cache->insert(id, name);
+    return name;
+}
+
 AppliedFormatting appliedFormattingAt(WriteDoc &doc, const QTextCursor &c)
 {
     AppliedFormatting out;

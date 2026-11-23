@@ -62,6 +62,12 @@ This only changes what you see on the screen. Printing, saving to PDF, and savin
 
 **View > Draft** shows the pages one after the other, with no page edges, shadows, headers, or footers. A dotted line shows where each page ends, and it says **Page Break** or **Section Break** where one was put in. You can still write and edit. Choose **Print Layout** to go back to the pages as they print.
 
+### The style area
+
+The style area is a strip down the left edge of Draft view and Outline view. It names the style of each paragraph beside the paragraph's first line, and a name that is too long for the strip is cut with an ellipsis. Click a name to select that paragraph. Double-click a name to open the **Modify Style** box for that style. Press Tab to move to the strip, Up and Down to move between names, Enter to open the box, and Esc to go back to the text. In a table, the name beside a row is the style of the paragraph in its first cell.
+
+The strip is hidden until you give it a width. Choose **File > Options > Display** and set **Style area width in Draft and Outline views, in pixels**; 0 hides it. You can also drag the strip's edge toward the text. The strip is never printed, never saved in the file, and not shown in Print Layout, Web Layout, or Read Mode.
+
 ## Web Layout
 
 **View > Web Layout** shows your words as they would look on a web page. The text is as wide as the window, and it wraps again when you make the window wider or narrower. There are no page edges, no page breaks, no headers, and no footers. You can still write and edit. Choose **Print Layout** to go back to the pages as they print.

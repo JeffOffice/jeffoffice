@@ -9,6 +9,8 @@
 #include "app/ruler.h"
 #include "app/plaintext.h"
 #include "app/settings.h"
+#include "app/stylearea.h"
+#include "app/writeoutlineview.h"
 
 #include <QAction>
 #include <QCheckBox>
@@ -56,6 +58,9 @@ void WriteWindow::applyDisplayDefaults()
     m_view->setShowMarks(marks);
     act(QStringLiteral("table.gridlines"))->setChecked(grid);
     m_view->setShowGridlines(grid);
+    const int styleArea = Settings::get().value(QStringLiteral("view/styleAreaWidth"), 0).toInt();
+    m_view->setStyleAreaWidth(styleArea);
+    m_outline->setStyleAreaWidth(styleArea);
 }
 
 void WriteWindow::applyEditingDefaults()
@@ -70,6 +75,7 @@ QVector<OptionsPage> WriteWindow::optionsPages()
 {
     struct Fields {
         QCheckBox *marks = nullptr, *grid = nullptr;
+        QSpinBox *styleArea = nullptr;
         QVector<QCheckBox *> always;   // one for each of the marks of displayMarkKinds()
         QComboBox *units = nullptr;
         PasteDefaultsSection *pasteDefaults = nullptr;
@@ -119,10 +125,18 @@ QVector<OptionsPage> WriteWindow::optionsPages()
         f->grid->setObjectName(QStringLiteral("startWithGridlines"));
         f->grid->setChecked(st.value(QStringLiteral("view/gridlines"), false).toBool());
         form->addRow(f->grid);
+        f->styleArea = new QSpinBox(page);
+        f->styleArea->setObjectName(QStringLiteral("styleAreaWidth"));
+        f->styleArea->setRange(0, write::StyleArea::kMostWidth);
+        f->styleArea->setSpecialValueText(QCoreApplication::translate("Dialogs", "Hidden"));
+        f->styleArea->setValue(st.value(QStringLiteral("view/styleAreaWidth"), 0).toInt());
+        f->styleArea->setAccessibleName(QCoreApplication::translate("Dialogs", "Style area width in Draft and Outline views, in pixels"));
+        form->addRow(QCoreApplication::translate("Dialogs", "Style area width in Draft and Outline views, in pixels"), f->styleArea);
         return page;
     }, [this, f] {
         Settings::get().setValue(QStringLiteral("view/marks"), f->marks->isChecked());
         Settings::get().setValue(QStringLiteral("view/gridlines"), f->grid->isChecked());
+        Settings::get().setValue(QStringLiteral("view/styleAreaWidth"), f->styleArea->value());
         int n = 0, bits = 0;
         const MarkKind *kinds = markKinds(&n);
         for (int i = 0; i < n && i < f->always.size(); ++i)

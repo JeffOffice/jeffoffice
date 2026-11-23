@@ -202,12 +202,14 @@ void WriteWindow::setReadMode(bool on)
         m_readWas.zoomMode = int(m_view->zoomMode());
         m_readWas.zoom = m_view->zoom();
         m_readMode = true;
+        m_view->setStyleAreaSuppressed(true);
         setFocusMode(true);
         m_view->setReadOnly(true);
         m_view->setSideToSide(true);
         m_view->setZoomMode(write::PageView::ZoomMode::OnePage);
     } else {
         m_readMode = false;
+        m_view->setStyleAreaSuppressed(false);
         setFocusMode(false);
         m_view->setReadOnly(m_readWas.readOnly);
         m_view->setSideToSide(m_readWas.sideToSide);

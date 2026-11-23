@@ -577,7 +577,8 @@ private:
     friend struct MailUi;
     std::shared_ptr<void> m_mailHolder;   // (the Mailings tab: app/writewindow_mail.cpp)
     MailUi *m_mail = nullptr;
-    void showStyleDialog(bool create);
+    void showStyleDialog(bool create, const QString &styleId = QString());   // (styleId: the style to modify, where it is not the caret's paragraph's)
+    void styleNameActivated(int position);   // a double click on a name in the style area
     void modifyListStyleDialog(const QString &id);
     void pictureRibbonParts(RibbonParts &parts);
     void headerRibbonParts(RibbonParts &parts);

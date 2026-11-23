@@ -174,6 +174,7 @@ void PageView::setDocument(WriteDoc *doc)
         m_cursor = QTextCursor();
         setScrollRanges();
         viewport()->update();
+        if (m_styleArea) applyStyleArea();
         return;
     }
     m_cursor = QTextCursor(doc->story());
@@ -212,6 +213,7 @@ void PageView::setDocument(WriteDoc *doc)
         Q_EMIT contentChanged();
     });
     doc->pager().paginate(0);
+    if (m_styleArea || m_styleWidth > 0) applyStyleArea();
     if (m_mode != ZoomMode::Percent) applyZoomMode();
     relayout();
     verticalScrollBar()->setValue(0);
@@ -337,6 +339,7 @@ void PageView::setDraft(bool on)
         leaveNote();
     }
     m_draft = on;
+    if (m_styleArea || m_styleWidth > 0) applyStyleArea();
     relayout();
     viewport()->update();
 }
@@ -356,6 +359,7 @@ void PageView::setWebLayout(bool on)
         startPagination();
     }
     if (!on && m_mode != ZoomMode::Percent) applyZoomMode();
+    if (m_styleArea || m_styleWidth > 0) applyStyleArea();
     relayout();
     viewport()->update();
 }

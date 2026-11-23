@@ -1,11 +1,15 @@
 #include "app/writeoutlineview.h"
 
+#include "app/stylearea.h"
 #include "core/outlineops.h"
+#include "core/styleinspect.h"
 #include "core/writedoc.h"
 
 #include <QHeaderView>
 #include <QKeyEvent>
 #include <QStack>
+#include <QTextBlock>
+#include <algorithm>
 
 namespace jp {
 
@@ -60,6 +64,69 @@ void WriteOutlineView::setDocument(write::WriteDoc *doc)
 {
     m_doc = doc;
     rebuild();
+}
+
+void WriteOutlineView::updateGeometries()
+{
+    QTreeWidget::updateGeometries();
+    if (m_styleMargin == 0 || m_marginBusy) return;
+    m_marginBusy = true;
+    isRightToLeft() ? setViewportMargins(0, 0, m_styleMargin, 0) : setViewportMargins(m_styleMargin, 0, 0, 0);
+    m_marginBusy = false;
+}
+
+void WriteOutlineView::setStyleAreaWidth(int width)
+{
+    m_styleWidth = std::max(0, width);
+    if (!m_styleArea && m_styleWidth == 0) return;
+    if (!m_styleArea) {
+        m_styleArea = new write::StyleArea(this, [this] { return styleRows(); }, [this](int w) {
+            m_styleMargin = w;
+            isRightToLeft() ? setViewportMargins(0, 0, w, 0) : setViewportMargins(w, 0, 0, 0);
+        });
+        connect(m_styleArea, &write::StyleArea::rowClicked, this, [this](int position) { selectParagraphAt(position); });
+        connect(m_styleArea, &write::StyleArea::rowDoubleClicked, this, [this](int position) {
+            selectParagraphAt(position);
+            Q_EMIT styleNameActivated(position);
+        });
+        connect(m_styleArea, &write::StyleArea::widthDragged, this, [this](int width) {
+            m_styleWidth = width;
+            Q_EMIT styleAreaWidthDragged(width);
+        });
+        auto later = [this] { m_styleArea->scheduleRefresh(); };
+        connect(this, &QTreeWidget::itemExpanded, m_styleArea, later);
+        connect(this, &QTreeWidget::itemCollapsed, m_styleArea, later);
+        connect(model(), &QAbstractItemModel::rowsInserted, m_styleArea, later);
+        connect(model(), &QAbstractItemModel::rowsRemoved, m_styleArea, later);
+        connect(model(), &QAbstractItemModel::modelReset, m_styleArea, later);
+        connect(model(), &QAbstractItemModel::layoutChanged, m_styleArea, later);
+        connect(model(), &QAbstractItemModel::dataChanged, m_styleArea, later);
+    }
+    m_styleArea->setAreaWidth(m_styleWidth);
+}
+
+// The rows on show: from the one at the top of the viewport down, as far as the viewport goes (the rows hidden by a collapsed heading are not walked).
+QVector<write::StyleRow> WriteOutlineView::styleRows() const
+{
+    QVector<write::StyleRow> out;
+    if (!m_doc) return out;
+    QHash<QString, QString> names;
+    const int bottom = viewport()->height();
+    for (QTreeWidgetItem *item = itemAt(1, 0); item && out.size() < 2000; item = itemBelow(item)) {
+        const QRect r = visualItemRect(item);
+        if (r.top() >= bottom) break;
+        const int position = positionOf(item);
+        if (position < 0) continue;
+        const QTextBlock b = m_doc->story()->findBlock(position);
+        if (!b.isValid()) continue;
+        write::StyleRow row;
+        row.top = r.top();
+        row.height = r.height();
+        row.position = position;
+        row.name = write::paragraphStyleNameOf(*m_doc, b, &names);
+        out << row;
+    }
+    return out;
 }
 
 int WriteOutlineView::positionOf(const QTreeWidgetItem *item) { return item ? item->data(0, kPositionRole).toInt() : -1; }
