@@ -655,6 +655,7 @@ qt_add_executable(jdtests
   tests/deck/tst_deck_styles.cpp
   tests/deck/tst_deck_tablelimits.cpp
   tests/deck/tst_deck_tables.cpp
+  tests/deck/tst_deck_highlight.cpp
   tests/deck/tst_deck_texteffects.cpp
   tests/deck/tst_deck_themes.cpp
   tests/deck/tst_deck_transitions.cpp

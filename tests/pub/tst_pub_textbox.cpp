@@ -4,6 +4,8 @@
 #include "pubhelpers.h"
 
 #include "app/theme.h"
+#include "app/highlightmenu.h"
+#include <QMenu>
 
 #include <QDir>
 #include <QKeyEvent>
@@ -323,6 +325,59 @@ private Q_SLOTS:
         w.act(QStringLiteral("tb.dir.r90"))->trigger();
         QApplication::processEvents();
         QVERIFY(w.grab().save(dir + QStringLiteral("/pub-turned-text-box.png")));
+    }
+
+    // The Text Highlight Color button (the same command and menu as JeffDeck's): it marks the selected words in one step of Undo, the menu's No Color
+    // takes the mark off, and with nothing selected a color of the menu arms the highlighter, which Stop Highlighting ends.
+    void theHighlightButtonMarksSelectedWordsAndArmsTheHighlighter()
+    {
+        MainWindow w;
+        w.resize(1200, 800);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        w.editor()->setDocument(oneSlide());
+        Editor *ed = w.editor();
+        w.act(QStringLiteral("ins.textbox"))->trigger();
+        drag(w, QPointF(100, 100), QPointF(300, 220));
+        TextItem *box = textBoxOf(ed);
+        QVERIFY(box);
+        const QString id = box->id, storyId = box->storyId;
+        QTextCursor(ed->doc()->storyDoc(storyId)).insertText(QStringLiteral("AAAA BBBB"));
+        auto story = [&] { return ed->doc()->storyDoc(storyId); };
+        auto markOf = [&](int at) {
+            QTextCursor c(story());
+            c.setPosition(at + 1);
+            return c.charFormat().stringProperty(tp::HighlightRefP);
+        };
+        auto pick = [&](int from, int to) {
+            if (!ed->isEditingText()) ed->beginTextEdit(id, from);
+            QTextCursor c = ed->cursor();
+            c.setPosition(from);
+            c.setPosition(to, QTextCursor::KeepAnchor);
+            ed->setCursor(c);
+        };
+        pick(0, 4);
+        QAction *button = w.act(QStringLiteral("fmt.highlight"));
+        QVERIFY(button);
+        const int steps = ed->undoStack()->count();
+        button->trigger();
+        QCOMPARE(markOf(0), ColorRef::rgb(QColor(Qt::yellow)).toString());
+        QVERIFY(markOf(5).isEmpty());
+        QCOMPARE(ed->undoStack()->count(), steps + 1);
+        QMenu *menu = highlightMenu(&w, ed, w.act(QStringLiteral("fmt.stopHighlighting")));
+        pick(0, 4);
+        for (QAction *a : menu->actions())
+            if (a->text() == QStringLiteral("No Color")) a->trigger();
+        QVERIFY(markOf(0).isEmpty());
+        pick(2, 2);
+        for (QAction *a : menu->actions())
+            if (a->text() == QStringLiteral("Bright Green")) a->trigger();
+        QVERIFY(ed->highlighterArmed());
+        QVERIFY(markOf(0).isEmpty());
+        w.act(QStringLiteral("fmt.stopHighlighting"))->trigger();
+        QVERIFY(!ed->highlighterArmed());
+        delete menu;
+        ed->endTextEdit();
     }
 };
 
