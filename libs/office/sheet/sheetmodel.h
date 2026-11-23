@@ -154,6 +154,7 @@ public:
     void enter();   // the calling thread has the worker held
     void leave();   // (another thread may let a hold go than took it: then nothing is noted of it)
     bool workerServes() const { return m_worker.load(std::memory_order_acquire) != 0; }
+    const std::atomic<quintptr> *workerAtom() const { return &m_worker; }   // (for a reader that tests the worker without a call)
     bool isWorkerOrNone() const;   // whether the calling thread is the worker, or no worker serves
     bool heldHere() const;   // whether the calling thread has the worker held (a second hold on one thread would wait for the first for ever)
     void check(const char *what) const;   // one flag test when strict mode is off
@@ -193,7 +194,7 @@ public:
     };
 
     CellStore() : m_serial(nextSerial()), m_stamp(nextStamp()) {}
-    CellStore(const CellStore &o) : m_blocks(o.m_blocks), m_count(o.m_count), m_dead(o.m_dead), m_rows(o.m_rows), m_cols(o.m_cols), m_serial(nextSerial()), m_stamp(nextStamp()), m_frozen(o.frozenSpills()) { m_hasSpills = bool(m_frozen); }
+    CellStore(const CellStore &o) : m_blocks(o.m_blocks), m_count(o.m_count), m_dead(o.m_dead), m_rows(o.m_rows), m_cols(o.m_cols), m_serial(nextSerial()), m_stamp(nextStamp()), m_frozen(o.frozenSpills()) { setSpillFlag(); }
     CellStore &operator=(const CellStore &o)
     {
         m_blocks = o.m_blocks;
@@ -210,14 +211,14 @@ public:
         const std::shared_ptr<const SpillTable> blocks = o.frozenSpills();
         if (m_spill) m_spill->follow(blocks.get());
         else m_frozen = blocks;
-        m_hasSpills = m_spill || m_frozen;
+        setSpillFlag();
         return *this;
     }
     // A move takes the blocks and leaves the store it was taken from empty, with no memory of where it last added a cell (that place is a block it no longer has).
     CellStore(CellStore &&o) noexcept : m_blocks(std::move(o.m_blocks)), m_count(o.m_count), m_dead(o.m_dead), m_rows(std::move(o.m_rows)), m_cols(std::move(o.m_cols)), m_serial(o.m_serial), m_stamp(o.m_stamp), m_spill(std::move(o.m_spill)), m_frozen(std::move(o.m_frozen))
     {
-        m_hasSpills = m_spill || m_frozen;
-        o.m_hasSpills = false;
+        setSpillFlag();
+        o.m_hasSpills.store(false, std::memory_order_relaxed);
         takeLog(o);
         o.reset();
     }
@@ -233,8 +234,8 @@ public:
             m_stamp = o.m_stamp;
             m_spill = std::move(o.m_spill);
             m_frozen = std::move(o.m_frozen);
-            m_hasSpills = m_spill || m_frozen;
-            o.m_hasSpills = false;
+            setSpillFlag();
+            o.m_hasSpills.store(false, std::memory_order_relaxed);
             takeLog(o);
             m_last = nullptr;
             m_colCellsValid = false;
@@ -252,7 +253,7 @@ public:
         m_guard = guard;
         if (!m_spill) m_spill = std::make_shared<SpillPublisher>(guard);
         m_frozen.reset();
-        m_hasSpills = true;
+        setSpillFlag();
     }
     SpillPublisher *spills() const { return m_spill.get(); }
     // Notes that the blocks changed: what holds the store's cells as they were (a lookup cache, by the write count) is out of date, for any cells.
@@ -262,7 +263,8 @@ public:
         noteWrite(kNoLine, kNoLine);
     }
     // (one flag: a store with no table, which is every store with the index off, builds no view)
-    bool hasSpills() const { return m_hasSpills; }
+    // (whether a block was ever put: a store with a table that holds none, which is every store of a sheet that no formula spills into, is read as one with no table, by one load of one flag)
+    bool hasSpills() const { return m_hasSpills.load(std::memory_order_relaxed); }
     SpillView spillView() const
     {
         if (m_spill) return m_spill->view();
@@ -274,7 +276,7 @@ public:
         }
         return SpillView();
     }
-    std::shared_ptr<const SpillTable> frozenSpills() const { return spillView().frozen(); }
+    std::shared_ptr<const SpillTable> frozenSpills() const { return m_spill ? m_spill->frozen() : spillView().frozen(); }
     // The order of the sheet's rows and of its columns, as ids (see calc/linemap.h).
     const jp::calc::RowMap &rows() const { return m_rows; }
     const jp::calc::ColMap &cols() const { return m_cols; }
@@ -296,7 +298,7 @@ public:
     void finish();
     // How many cells there are (before finish(), counting any a later one will replace); those of rows and columns that are deleted are not counted.
     // The cells the store holds, and the places of its blocks that hold no cell of their own.
-    qint64 cellCount() const { return Q_UNLIKELY(m_hasSpills) ? cellCountWithSpills() : m_count - m_dead; }
+    qint64 cellCount() const { return Q_UNLIKELY(hasSpills()) ? cellCountWithSpills() : m_count - m_dead; }
     // The rows and columns the blocks reach (the last of any block, plus one; 0 for none), as the calling thread reads them: what Sheet::extentRows and extentCols leave out, which the worker no longer writes for a spill.
     void spillExtent(quint32 *rows, quint32 *cols) const
     {
@@ -1373,9 +1375,14 @@ private:
     const MutationGuard *m_guard = nullptr;
     std::shared_ptr<SpillPublisher> m_spill;           // (null: this store has no blocks table)
     std::shared_ptr<const SpillTable> m_frozen;        // (the blocks a copy of a store was made with)
-    bool m_hasSpills = false;                          // (m_spill or m_frozen is set)
+    std::atomic<bool> m_hasSpills{false};              // (a block was ever put in m_spill (which sets it as it does: bindFlag), or m_frozen holds a table; a read tests only this)
+    void setSpillFlag()
+    {
+        if (m_spill) m_spill->bindFlag(&m_hasSpills);
+        else m_hasSpills.store(bool(m_frozen), std::memory_order_relaxed);
+    }
     qint64 cellCountWithSpills() const;
-    std::optional<Cell> memberAt(const SpillView &v, quint32 row, quint32 col, const Cell *real) const;
+    std::optional<Cell> memberAt(const SpillTable &table, quint32 row, quint32 col, const Cell *real, quint32 rowId, quint32 colId) const;
     std::optional<Cell> findWithSpills(quint32 row, quint32 col) const;
     std::optional<Cell> findByIdWithSpills(quint32 rowId, quint32 colId) const;
     void guardCheck(const char *what) const

@@ -2,6 +2,8 @@
 
 #include "sheet/sheetmodel.h"
 
+#include <QThread>
+
 namespace jp::office::sheet {
 
 namespace {
@@ -44,7 +46,7 @@ SpillTable::FormulaMap &SpillTable::formulasForWrite(size_t i)
     return *p;
 }
 
-const SpillRect *SpillTable::at(quint32 row, quint32 col, qint64 *probes) const
+const SpillRect *SpillTable::atInBuckets(quint32 row, quint32 col, qint64 *probes) const
 {
     const quint64 k = key(row / kBlockRows, col / kBlockCols);
     const auto &shard = m_buckets[bucketShard(k)];
@@ -86,6 +88,24 @@ void SpillTable::erase(qint32 formula)
     m_bucketsInAll -= (qint64(r.row2 / kBlockRows) - r.row1 / kBlockRows + 1) * (qint64(r.col2 / kBlockCols) - r.col1 / kBlockCols + 1);
     formulasForWrite(formulaShard(formula)).erase(formula);
     --m_size;
+    if (m_size < kSmall) {
+        for (size_t i = 0; i <= m_size; ++i)
+            if (m_small[i].formula == formula) {
+                m_small[i] = m_small[m_size];
+                break;
+            }
+    } else if (m_size == kSmall) {
+        rebuildSmall();
+    }
+}
+
+void SpillTable::rebuildSmall()
+{
+    size_t n = 0;
+    for (const auto &shard : m_formulas)
+        if (shard)
+            for (const auto &[formula, r] : *shard)
+                if (n < kSmall) m_small[n++] = r;
 }
 
 bool SpillTable::set(const SpillRect &r)
@@ -97,6 +117,7 @@ bool SpillTable::set(const SpillRect &r)
     m_bucketsInAll += buckets;
     formulasForWrite(formulaShard(r.formula))[r.formula] = r;
     ++m_size;
+    if (m_size <= kSmall) m_small[m_size - 1] = r;
     for (quint32 rb = r.row1 / kBlockRows; rb <= r.row2 / kBlockRows; ++rb)
         for (quint32 cb = r.col1 / kBlockCols; cb <= r.col2 / kBlockCols; ++cb) {
             const quint64 k = key(rb, cb);
@@ -109,6 +130,8 @@ bool SpillTable::set(const SpillRect &r)
                 at->second.push_back(r);
             }
         }
+    m_firstRow = std::min(m_firstRow, r.row1);
+    m_firstCol = std::min(m_firstCol, r.col1);
     m_lastRow = std::max(m_lastRow, r.row2);
     m_lastCol = std::max(m_lastCol, r.col2);
     return true;
@@ -187,6 +210,16 @@ std::shared_ptr<const SpillTable> SpillPublisher::published() const
 {
     std::lock_guard<std::mutex> lock(m_lock);
     return m_published;
+}
+
+SpillPublisher::SpillPublisher(const MutationGuard *guard) : m_guard(guard), m_workerAtom(guard ? guard->workerAtom() : nullptr) {}
+
+bool SpillPublisher::isThread(quintptr thread) { return thread == quintptr(QThread::currentThreadId()); }
+
+std::shared_ptr<const SpillTable> SpillPublisher::frozen() const
+{
+    if (m_guard && m_guard->heldHere()) return m_mine.empty() ? nullptr : std::make_shared<const SpillTable>(m_mine);
+    return view().frozen();
 }
 
 SpillView SpillPublisher::view() const

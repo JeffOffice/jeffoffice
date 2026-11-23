@@ -153,15 +153,14 @@ qint64 CellStore::cellCountWithSpills() const
     return n;
 }
 
-std::optional<Cell> CellStore::memberAt(const SpillView &v, quint32 row, quint32 col, const Cell *real) const
+std::optional<Cell> CellStore::memberAt(const SpillTable &table, quint32 row, quint32 col, const Cell *real, quint32 rowId, quint32 colId) const
 {
-    const SpillRect *r = v.table->at(row, col);
+    const SpillRect *r = table.at(row, col);
     if (!r || (real && (real->type != CellType::Empty || (real->flags & (HasFormula | ArrayFormula | DataTable | SpillFormula | ArrayMember))))) return real ? std::optional<Cell>(*real) : std::nullopt;
     Cell m;
     if (real) {
         m = *real;
     } else {
-        const quint32 rowId = rowIdOf(row), colId = colIdOf(col);
         if (rowId == kNoLine || colId == kNoLine) return std::nullopt;
         m.rowId = rowId;
         m.colId = quint16(colId);
@@ -171,27 +170,34 @@ std::optional<Cell> CellStore::memberAt(const SpillView &v, quint32 row, quint32
     return m;
 }
 
-// (what the two finds do when the store has a table: apart, and first of all, so that the plain path is as it was)
+// (what the two finds do when the store has a table: apart, and first of all, so that the plain path is as it was; the thread that serves the formulas reads its own table as it is, with nothing to keep it
+// alive and no lock, and a place outside every block is answered by the table's first test)
 Q_NEVER_INLINE std::optional<Cell> CellStore::findWithSpills(quint32 row, quint32 col) const
 {
-    const Cell *c = findReal(row, col);
-    if (const SpillView v = spillView()) return memberAt(v, row, col, c);
+    const quint32 rowId = rowIdOf(row), colId = colIdOf(col);
+    const Cell *c = rowId == kNoLine || colId == kNoLine ? nullptr : findRealById(rowId, colId);
+    const SpillTable *own = nullptr;
+    if (m_spill && m_spill->readsOwn(&own)) return own ? memberAt(*own, row, col, c, rowId, colId) : c ? std::optional<Cell>(*c) : std::nullopt;
+    if (const SpillView v = spillView()) return memberAt(*v.table, row, col, c, rowId, colId);
     return c ? std::optional<Cell>(*c) : std::nullopt;
 }
 
 Q_NEVER_INLINE std::optional<Cell> CellStore::findByIdWithSpills(quint32 rowId, quint32 colId) const
 {
     const Cell *c = findRealById(rowId, colId);
-    if (const SpillView v = spillView()) {
+    const SpillTable *own = nullptr;
+    const SpillView v = m_spill && m_spill->readsOwn(&own) ? SpillView() : spillView();
+    const SpillTable *table = own ? own : v.table;
+    if (table) {
         const quint32 row = rowPosOf(rowId), col = colPosOf(colId);
-        if (row != kNoLine && col != kNoLine) return memberAt(v, row, col, c);
+        if (row != kNoLine && col != kNoLine) return memberAt(*table, row, col, c, rowId, colId);
     }
     return c ? std::optional<Cell>(*c) : std::nullopt;
 }
 
 std::optional<Cell> CellStore::find(quint32 row, quint32 col) const
 {
-    if (Q_UNLIKELY(m_hasSpills)) return findWithSpills(row, col);
+    if (Q_UNLIKELY(m_hasSpills.load(std::memory_order_relaxed))) return findWithSpills(row, col);
     // (findReal's lookup, written out: as a call of its own it costs a tenth more than a find did)
     const quint32 rowId = rowIdOf(row), colId = colIdOf(col);
     const Cell *c = rowId == kNoLine || colId == kNoLine ? nullptr : findRealById(rowId, colId);
@@ -200,7 +206,7 @@ std::optional<Cell> CellStore::find(quint32 row, quint32 col) const
 
 std::optional<Cell> CellStore::findById(quint32 rowId, quint32 colId) const
 {
-    if (Q_UNLIKELY(m_hasSpills)) return findByIdWithSpills(rowId, colId);
+    if (Q_UNLIKELY(m_hasSpills.load(std::memory_order_relaxed))) return findByIdWithSpills(rowId, colId);
     const Cell *c = findRealById(rowId, colId);
     return c ? std::optional<Cell>(*c) : std::nullopt;
 }

@@ -48,13 +48,26 @@ public:
     static constexpr qint64 kMaxBuckets = 4096;
     static constexpr qint64 kMaxTableBuckets = 1 << 18;   // (about 25 MB, and 83 blocks of the most a block can be)
     static constexpr size_t kShards = 1024;
+    static constexpr size_t kSmall = 4;   // (a table of this many blocks or fewer keeps them in a short list as well)
 
     bool empty() const { return m_size == 0; }
     size_t size() const { return m_size; }
     quint32 lastRow() const { return m_lastRow; }   // the last row and column of any block (never less: a block let go of does not lower them)
     quint32 lastCol() const { return m_lastCol; }
-    // The block that holds the place, or null. `probes`, if given, is added the number of blocks looked at.
-    const SpillRect *at(quint32 row, quint32 col, qint64 *probes = nullptr) const;
+    // The block that holds the place, or null. `probes`, if given, is added the number of blocks looked at. A place outside the rectangle that all the blocks lie in is answered at once, and a table of
+    // few blocks (up to kSmall) is looked through block by block: neither takes a bucket lookup (a find of a cell that the sheet has no block for is as cheap as one in a sheet with none).
+    const SpillRect *at(quint32 row, quint32 col, qint64 *probes = nullptr) const
+    {
+        if (row < m_firstRow || row > m_lastRow || col < m_firstCol || col > m_lastCol) return nullptr;
+        if (m_size <= kSmall) {
+            for (size_t i = 0; i < m_size; ++i) {
+                if (probes) ++*probes;
+                if (m_small[i].contains(row, col)) return &m_small[i];
+            }
+            return nullptr;
+        }
+        return atInBuckets(row, col, probes);
+    }
     const SpillRect *ofFormula(qint32 formula) const;
     // Puts the formula's block (taking away the one it had). False, and the formula has no block, when the rectangle is in more than kMaxBuckets buckets, or the table would be in more than kMaxTableBuckets.
     bool set(const SpillRect &r);
@@ -117,6 +130,8 @@ private:
     static quint64 key(quint32 rb, quint32 cb) { return (quint64(rb) << 32) | cb; }
     static size_t bucketShard(quint64 k) { return size_t((k * 0x9E3779B97F4A7C15ull) >> 54); }
     static size_t formulaShard(qint32 f) { return size_t((quint32(f) * 2654435761u) >> 22); }
+    const SpillRect *atInBuckets(quint32 row, quint32 col, qint64 *probes) const;
+    void rebuildSmall();
     BucketMap &bucketsForWrite(size_t i);
     FormulaMap &formulasForWrite(size_t i);
     template <class F>
@@ -132,6 +147,8 @@ private:
     std::array<std::shared_ptr<BucketMap>, kShards> m_buckets;     // (a shard is shared with the copies of the table until a change to it)
     std::array<std::shared_ptr<FormulaMap>, kShards> m_formulas;
     size_t m_size = 0;
+    std::array<SpillRect, kSmall> m_small;   // (the blocks, while there are kSmall or fewer; stale after that)
+    quint32 m_firstRow = 0xFFFFFFFFu, m_firstCol = 0xFFFFFFFFu;   // (with m_lastRow and m_lastCol, a rectangle that holds every block: it only grows)
     qint64 m_bucketKeys = 0;   // (the buckets that hold a block: keys of the shards)
     quint32 m_lastRow = 0, m_lastCol = 0;
     qint64 m_bucketsInAll = 0;   // (the places of rectangles in buckets, all the table's)
@@ -150,7 +167,7 @@ struct SpillView {
 // The table of one sheet: the worker's own (`mine`, changed by the thread that works formulas out, or by one that has it held back) and the copy the others read.
 class SpillPublisher {
 public:
-    explicit SpillPublisher(const MutationGuard *guard) : m_guard(guard) {}
+    explicit SpillPublisher(const MutationGuard *guard);
     SpillTable &mine() { return m_mine; }
     // Makes the worker's own table what `table` holds (none: empty), for a store that is assigned another.
     void follow(const SpillTable *table);
@@ -169,20 +186,47 @@ public:
     {
         m_changed = true;
         m_live.store(true, std::memory_order_relaxed);
+        if (m_storeFlag) m_storeFlag->store(true, std::memory_order_relaxed);
     }
     // What the calling thread reads: the worker's own table on the worker's thread, or when no worker serves; the published copy on any other.
     SpillView view() const;
+    // Whether the calling thread reads the worker's own table (it is the worker, or no worker serves): then `*table` is that table, or null when it holds no block, and nothing keeps it alive (no other thread
+    // changes it while this one reads). False for any other thread: it has view().
+    bool readsOwn(const SpillTable **table) const
+    {
+        *table = nullptr;
+        if (!m_live.load(std::memory_order_relaxed)) return true;
+        if (m_workerAtom) {
+            const quintptr worker = m_workerAtom->load(std::memory_order_acquire);
+            if (worker != 0 && !isThread(worker)) return false;   // (the check of the thread is the only call: none when no worker serves)
+        }
+        if (!m_mine.empty()) *table = &m_mine;
+        return true;
+    }
+    // The store's flag that a block was ever put (set by the first noteChanged, never taken back): the store reads it with one load before it looks for a block. It is bound again when the store moves.
+    void bindFlag(std::atomic<bool> *flag)
+    {
+        m_storeFlag = flag;
+        if (flag) flag->store(m_live.load(std::memory_order_relaxed), std::memory_order_relaxed);
+    }
+    bool live() const { return m_live.load(std::memory_order_relaxed); }
+    // A copy that no thread changes, for a snapshot of the store: while the calling thread has the worker held back, the worker's own table (which the sheet's ranges, that a save writes, agree with, and which
+    // no slice not yet taken by the window is later than); on any other thread, what view() gives. Null for no block.
+    std::shared_ptr<const SpillTable> frozen() const;
     std::shared_ptr<const SpillTable> published() const;
     qint64 publications() const { return m_publications.load(std::memory_order_relaxed); }
 
 private:
+    static bool isThread(quintptr thread);
     const MutationGuard *m_guard;
+    const std::atomic<quintptr> *m_workerAtom = nullptr;   // (the guard's worker, read without a call)
     SpillTable m_mine;
     bool m_changed = false;
     mutable std::mutex m_lock;
     std::shared_ptr<const SpillTable> m_published;
     std::vector<std::pair<qint64, std::shared_ptr<const SpillTable>>> m_staged;   // (the copies of slices not yet adopted, oldest first; under m_lock)
     std::atomic<bool> m_anyPublished{false};
+    std::atomic<bool> *m_storeFlag = nullptr;   // (the flag of the store that holds this)
     std::atomic<bool> m_live{false};   // (a block was ever put: before that no thread has anything to read)
     std::atomic<qint64> m_publications{0};
 };
