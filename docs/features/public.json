@@ -3321,8 +3321,8 @@
        "text": "f45ee3b0ef6fa676486fa15b415829852b7bae5e58d94eb98e376f06b28c73ef"
       },
       {
-       "status": "todo",
-       "text": "495e28d0d186481bf6738c07e9edef468c6f07e1488c1b2c84847768eb6cdbdb"
+       "status": "partly",
+       "text": "a435489d1cdbe8b9f6642610011066ad84b61366ecaaf7feb5a93e889720d42c"
       },
       {
        "status": "partly",
@@ -3585,8 +3585,8 @@
        "text": "0e7b7aeaf4d25cf42d37cf6fafd45dfdc0e0999cda9a72813a428d6495aa442f"
       },
       {
-       "status": "todo",
-       "text": "6cda2a1769d99219679207dc9f1d943c52ec3e9cf9000ca63138bc3c5225cd5f"
+       "status": "partly",
+       "text": "09d44eb00e2a3dc586d352d773d0efddaff67dc406ee33895d1efa0ecb7873d8"
       },
       {
        "hide_soon": true,
@@ -4103,7 +4103,7 @@
       },
       {
        "status": "partly",
-       "text": "ea67d1d1fc442a9c75807c345fc34125fd1ad7d31e8cfd9bdb4b8135665e9db6"
+       "text": "91554cc92024788552e92a4f20b05f6f8e9219292137d628d10f041b768e053d"
       },
       {
        "hide_soon": true,
@@ -8560,6 +8560,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "09d44eb00e2a3dc586d352d773d0efddaff67dc406ee33895d1efa0ecb7873d8": {
+   "drop": false,
+   "en": "Animations wait for a click on a shape and then play in the slide show.",
+   "es": "Las animaciones esperan un clic en una forma y luego se reproducen en la presentación.",
+   "fr": "Les animations attendent un clic sur une forme, puis se lancent dans le diaporama.",
+   "soon": {
+    "drop": false,
+    "en": "Sounds with effects",
+    "es": "Sonidos con efectos",
+    "fr": "Sons avec les effets"
    }
   },
   "09dc87bf59e1b28145f674f9b5a7452b479650b14f650c7ccf1094816ee96f74": {
@@ -13542,18 +13554,6 @@
     "fr": ""
    }
   },
-  "495e28d0d186481bf6738c07e9edef468c6f07e1488c1b2c84847768eb6cdbdb": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Triggers: start an effect when a named shape is clicked or a movie bookmark is reached",
-    "es": "Desencadenadores: iniciar un efecto al hacer clic en una forma con nombre o al llegar a un marcador de video",
-    "fr": "Déclencheurs : démarrer un effet au clic sur une forme nommée ou à l’atteinte d’un signet de vidéo"
-   }
-  },
   "49697235474a695cf7531f3be7e7c25db6c543d12ae8e43b06f2f3303bfa1c6f": {
    "drop": false,
    "en": "Save pages as pictures in PNG, JPEG, GIF, TIFF, or BMP format at a chosen resolution.",
@@ -16458,18 +16458,6 @@
     "fr": "Liaison d’objets à un fichier"
    }
   },
-  "6cda2a1769d99219679207dc9f1d943c52ec3e9cf9000ca63138bc3c5225cd5f": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Animation triggers on a shape click, and sounds with effects",
-    "es": "Desencadenadores de animación al hacer clic en una forma, y sonidos con efectos",
-    "fr": "Déclencheurs d’animation au clic sur une forme, et sons avec effets"
-   }
-  },
   "6cfd369e09de8aa41fa8dac0a443af7c2256e0bf0522d3a29c46ba7f83435cc7": {
    "drop": false,
    "en": "Change a picture while keeping its frame, size, place, and formatting, and reset a picture to remove its shape, border, effects, color changes, and crop.",
@@ -18726,6 +18714,18 @@
     "fr": ""
    }
   },
+  "91554cc92024788552e92a4f20b05f6f8e9219292137d628d10f041b768e053d": {
+   "drop": false,
+   "en": "Interactive sequences are read, kept, and played in the slide show and in Reading View, and written to `.odp` files. All of an object's sequences play at its click. The app shows what waits for an object that cannot be clicked. Limits are 64 objects per slide, 200 effects for each object and 1,000 for the slide, and 500 runs per showing of a slide.",
+   "es": "Las secuencias interactivas se leen, se conservan y se reproducen en la presentación y en la vista de lectura, y se escriben en archivos `.odp`. Todas las secuencias de un objeto se reproducen al hacer clic en él. La aplicación muestra lo que espera a un objeto que no se puede pulsar. Los límites son 64 objetos por diapositiva, 200 efectos por objeto y 1.000 por diapositiva, y 500 ejecuciones por cada pase de una diapositiva.",
+   "fr": "Les séquences interactives sont lues, conservées et lancées dans le diaporama et dans la vue Lecture, et écrites dans les fichiers `.odp`. Toutes les séquences d’un objet se lancent à son clic. L’application indique ce qui attend un objet qui ne peut pas être cliqué. Les limites sont de 64 objets par diapositive, 200 effets par objet et 1 000 par diapositive, et 500 exécutions par affichage d’une diapositive.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "91e7a57a97b8d086a98e5df3af551a99bdb53d3ba5e1a5ad1aff6fda1ba7d3b9": {
    "drop": false,
    "en": "Use the financial functions PDURATION and RRI.",
@@ -19996,6 +19996,18 @@
     "en": "Plain text: line breaks at each laid-out line",
     "es": "Texto sin formato: saltos de línea en cada línea del diseño",
     "fr": "Texte brut : sauts de ligne à chaque ligne mise en page"
+   }
+  },
+  "a435489d1cdbe8b9f6642610011066ad84b61366ecaaf7feb5a93e889720d42c": {
+   "drop": false,
+   "en": "Click a named shape, or press `Tab` and `Enter`, to play its effects in the slide show and in Reading View, and again at each click. Triggers are kept in `.pptx` files and written to `.odp` files.",
+   "es": "Haga clic en una forma con nombre, o pulse `Tab` y `Enter`, para reproducir sus efectos en la presentación y en la vista de lectura, y de nuevo en cada clic. Los desencadenadores se conservan en archivos `.pptx` y se escriben en archivos `.odp`.",
+   "fr": "Cliquez sur une forme nommée, ou appuyez sur `Tab` et `Entrée`, pour lancer ses effets dans le diaporama et dans la vue Lecture, et de nouveau à chaque clic. Les déclencheurs sont conservés dans les fichiers `.pptx` et écrits dans les fichiers `.odp`.",
+   "soon": {
+    "drop": false,
+    "en": "Triggers in the Animation Pane: list and create",
+    "es": "Desencadenadores en el panel de animación: mostrar y crear",
+    "fr": "Déclencheurs dans le volet Animation : afficher et créer"
    }
   },
   "a46007de7054da163783dcf395ed4386d40654ccb50cc092ffc5d427edfe7e8d": {
@@ -25132,18 +25144,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "ea67d1d1fc442a9c75807c345fc34125fd1ad7d31e8cfd9bdb4b8135665e9db6": {
-   "drop": false,
-   "en": "Interactive sequences (triggers) are read and kept.",
-   "es": "Las secuencias interactivas (desencadenadores) se leen y se conservan.",
-   "fr": "Les séquences interactives (déclencheurs) sont lues et conservées.",
-   "soon": {
-    "drop": false,
-    "en": "Interactive sequences (triggers): play and create",
-    "es": "Secuencias interactivas (desencadenadores): reproducir y crear",
-    "fr": "Séquences interactives (déclencheurs) : lecture et création"
    }
   },
   "ea6eb80d8e1c6f010e4066d5d1e4e87ce6987025098371bc52403a08c3725ba7": {
