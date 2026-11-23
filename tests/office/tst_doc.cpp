@@ -3505,6 +3505,48 @@ private Q_SLOTS:
         QCOMPARE(checked, 3);
     }
 
+    // The same 28 kinds of damage on a document that holds pictures (its data stream: 12,000 bytes, or 3,000 for the g kinds, which lie in the small-piece container): the bytes of pictures that come back are
+    // at least what the program before the rework gave, and g5 (every chain of the small pieces loops) gives all of them back, the original's.
+    void repairNeverRecoversFewerPicturesThanBefore()
+    {
+        QStringList paras;
+        const QByteArray big = repairableDoc(&paras);
+        QByteArray bigData, smallData;
+        auto withData = [&](const QByteArray &base, int size, QByteArray *data) {
+            jp::cfb::File f;
+            jp::cfb::read(base, &f);
+            jp::cfb::Entry e;
+            e.type = jp::cfb::Entry::Stream;
+            e.name = QStringLiteral("Data");
+            for (int i = 0; i < size; ++i) e.data.append(char(i * 13 + 1));
+            *data = e.data;
+            f.entries[0].children << int(f.entries.size());
+            f.entries << e;
+            return jp::cfb::write(f);
+        };
+        const QByteArray bigFile = withData(big, 12000, &bigData), smallFile = withData(simple(QStringLiteral("Hello world\rSecond paragraph\r")).build(), 3000, &smallData);
+        QList<cfbdamage::Variant> all = cfbdamage::sectorDamage(bigFile, QStringLiteral("WordDocument"), QStringLiteral("1Table"));
+        all += cfbdamage::cuts(bigFile);
+        all += cfbdamage::headerDamage(bigFile);
+        all += cfbdamage::miniDamage(smallFile);
+        const QMap<QString, int> floor{{"a", 12000}, {"b", 12000}, {"c", 12000}, {"d", 12000}, {"e", 12000}, {"f1", 12000}, {"f2", 12000}, {"f3", 12000}, {"f4", 12000}, {"f5", 12000},
+                                       {"h90", 7680}, {"i3", 12000}, {"i4", 12000}, {"i6", 12000}, {"i7", 12000}, {"i8", 12000}, {"g1", 3000}, {"g2", 3000}, {"g5", 3000}};
+        int checked = 0;
+        QStringList below;
+        for (const cfbdamage::Variant &v : std::as_const(all)) {
+            QStringList notes;
+            QString why;
+            const QByteArray fixed = doc::salvageDoc(v.file, &notes, &why);
+            jp::cfb::File now;
+            const QByteArray data = !fixed.isEmpty() && jp::cfb::read(fixed, &now) ? now.stream(QStringLiteral("Data")) : QByteArray();
+            ++checked;
+            if (data.size() < floor.value(v.id, 0)) below << QStringLiteral("%1: %2 bytes of pictures, at least %3 expected").arg(v.id).arg(data.size()).arg(floor.value(v.id, 0));
+            if (v.id == QLatin1String("g5") && data != smallData) below << QStringLiteral("g5: the pictures are not the original's (%1 bytes)").arg(data.size());
+        }
+        QCOMPARE(checked, 28);
+        QVERIFY2(below.isEmpty(), qPrintable(below.join(QLatin1String("; "))));
+    }
+
     // A sound document of any size, from our own writer (small ones live in the container's mini stream): Open and Repair says nothing was wrong and gives back the very streams it holds.
     void aSoundDocumentOfAnySizeIsRepairedToItself()
     {

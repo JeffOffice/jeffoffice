@@ -1688,8 +1688,34 @@ private Q_SLOTS:
         }
     }
 
-    // Open and Repair never recovers less than the program did before (round 4, the owner's rule: recover as much as possible and warn). For each of the 28 kinds of damage, the slides and
-    // the titles that come back are at least what the program before the rework gave (REPAIR.md, "Before"); where the rework already won (a size too small) it keeps the win. g6 is refused.
+    // A presentation with a stream of pictures of this size (made by hand: the damage tests need its bytes known).
+    static QByteArray withPictures(const QByteArray &base, int size, QByteArray *dataOut)
+    {
+        jp::cfb::File f;
+        jp::cfb::read(base, &f);
+        QByteArray data;
+        for (int i = 0; i < size; ++i) data.append(char(i * 13 + 1));
+        bool had = false;
+        for (jp::cfb::Entry &old : f.entries)
+            if (old.name == QLatin1String("Pictures")) {
+                old.data = data;
+                had = true;
+            }
+        if (!had) {
+            jp::cfb::Entry e;
+            e.type = jp::cfb::Entry::Stream;
+            e.name = QStringLiteral("Pictures");
+            e.data = data;
+            f.entries[0].children << int(f.entries.size());
+            f.entries << e;
+        }
+        *dataOut = data;
+        return jp::cfb::write(f);
+    }
+
+    // Open and Repair never recovers less than the program did before (round 4, the owner's rule: recover as much as possible and warn). For each of the 28 kinds of damage, the slides, the titles,
+    // and the bytes of the pictures that come back are at least what the program before the rework gave (REPAIR.md, "Before"); where the rework already won (a size too small) it keeps the win.
+    // g6 is refused. The g kinds hit a small presentation whose 3,000 bytes of pictures lie in the small-piece container; g5 (every chain loops) gives all of them back, as the original.
     void repairNeverRecoversLessThanBefore()
     {
         const QByteArray big = bigDeck();
@@ -1721,6 +1747,36 @@ private Q_SLOTS:
             bool titlesOk = true;
             for (const QString &t : f.titles) titlesOk = titlesOk && got.contains(t);
             if (!d || int(d->pages.size()) < f.slides || !titlesOk) below << QStringLiteral("%1: %2 slides (%3), at least %4 (%5) before").arg(v.id).arg(d ? int(d->pages.size()) : 0).arg(got.join(QLatin1Char(','))).arg(f.slides).arg(f.titles.join(QLatin1Char(',')));
+        }
+        QCOMPARE(checked, 28);
+        QVERIFY2(below.isEmpty(), qPrintable(below.join(QLatin1String("; "))));
+    }
+
+    // The same 28 kinds of damage on presentations that hold pictures (12,000 bytes; 3,000 for the g kinds, in the small-piece container): the bytes of pictures that come back are at least what the
+    // program before the rework gave (REPAIR.md, "Before"), and g5 (every chain of the small pieces loops) gives all of them back, the original's.
+    void repairNeverRecoversFewerPicturesThanBefore()
+    {
+        QByteArray bigPictures, smallPictures;
+        const QByteArray big = withPictures(bigDeck(), 12000, &bigPictures);
+        const QByteArray small = withPictures(buildPpt(), 3000, &smallPictures);
+        QList<cfbdamage::Variant> all = cfbdamage::sectorDamage(big, pptDocumentStream(), QStringLiteral("Current User"));
+        all += cfbdamage::cuts(big);
+        all += cfbdamage::headerDamage(big);
+        all += cfbdamage::miniDamage(small);
+        // (the bytes of pictures the program before the rework gave, by kind; a kind not listed gave none)
+        const QMap<QString, int> floor{{"a", 12000}, {"b", 12000}, {"c", 12000}, {"d", 12000}, {"e", 12000}, {"f1", 12000}, {"f2", 12000}, {"f3", 12000}, {"f4", 12000}, {"f5", 12000},
+                                       {"h90", 12000}, {"i3", 12000}, {"i4", 12000}, {"i6", 12000}, {"i7", 12000}, {"i8", 12000}, {"g1", 3000}, {"g2", 3000}, {"g4", 64}, {"g5", 3000}, {"g6", 3000}};
+        int checked = 0;
+        QStringList below;
+        for (const cfbdamage::Variant &v : std::as_const(all)) {
+            QStringList notes;
+            QString why;
+            const QByteArray fixed = deck::salvagePresentation(v.file, &notes, &why);
+            jp::cfb::File now;
+            const QByteArray pictures = !fixed.isEmpty() && jp::cfb::read(fixed, &now) ? now.stream(QStringLiteral("Pictures")) : QByteArray();
+            ++checked;
+            if (pictures.size() < floor.value(v.id, 0)) below << QStringLiteral("%1: %2 bytes of pictures, at least %3 before").arg(v.id).arg(pictures.size()).arg(floor.value(v.id, 0));
+            if (v.id == QLatin1String("g5") && pictures != smallPictures) below << QStringLiteral("g5: the pictures are not the original's (%1 bytes)").arg(pictures.size());
         }
         QCOMPARE(checked, 28);
         QVERIFY2(below.isEmpty(), qPrintable(below.join(QLatin1String("; "))));

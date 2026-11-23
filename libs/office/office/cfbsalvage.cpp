@@ -116,8 +116,8 @@ public:
 
     // How a stream is read, in the order the caller tries them: through the tables as far as they go (to the directory's size), through the tables on past the directory's size to
     // their own end, and through the tables with each BROKEN link (one that is free, loops, or leads outside the file) replaced by the sector that follows it in the file; the last also
-    // takes sectors the tables mark free, for want of anything else. A chain that ends with the tables' end marker ends there in every mode: nothing is read beyond it.
-    enum class Mode { Tables, PastSize, Guess, LastResort };
+    // takes sectors the tables mark free, for want of anything else. Physical (small pieces only) ignores the table of the small pieces and takes each piece after the one before, for a table whose chains loop. A chain that ends with the tables' end marker ends there in every mode: nothing is read beyond it.
+    enum class Mode { Tables, PastSize, Guess, LastResort, Physical };
 
     // True if the tables lead from the last sector the directory's size needs to another one (the stream holds more than the directory says).
     bool runsPastItsSize(const DirEntry &e)
@@ -133,6 +133,21 @@ public:
         }
         const quint32 next = m_fat[qsizetype(cur)];
         return qint64(next) < m_sectors && !seen.contains(next);
+    }
+
+    // True if the small pieces' table leads from the stream's start round to a piece it has already led to (a chain that loops, whatever the stream's size: at most one step for each small piece).
+    bool chainLoops(const DirEntry &e) const
+    {
+        const qint64 limit = qint64(m_mini.size() / m_mss);
+        quint32 cur = e.start;
+        QSet<quint32> seen;
+        for (qint64 i = 0; i <= limit; ++i) {
+            if (qint64(cur) >= limit || cur >= quint32(m_miniFat.size()) || !m_miniKnown.value(qsizetype(cur), 0)) return false;
+            if (seen.contains(cur)) return true;
+            seen.insert(cur);
+            cur = m_miniFat[qsizetype(cur)];
+        }
+        return false;
     }
 
     // One reading of a stream, and what was done to make it.
@@ -155,6 +170,7 @@ public:
         const bool mini = e.size < m_cutoff;
         if (mini && !m_haveMini) return r;
         if (mode == Mode::PastSize && (mini || !runsPastItsSize(e))) return r;
+        if (mode == Mode::Physical && (!mini || !chainLoops(e))) return r;
         const QVector<quint32> &table = mini ? m_miniFat : m_fat;
         const QVector<char> &known = mini ? m_miniKnown : m_fatKnown;
         const QVector<qint32> &owner = mini ? m_miniOwner : m_owner;
@@ -166,7 +182,8 @@ public:
         // a sector a guess may take: in the file, not part of the container's own tables, not another stream's, and not marked free (unless nothing else is left)
         auto usable = [&](quint32 n) {
             if (qint64(n) >= limit) return false;
-            if (n < quint32(owner.size()) && owner[qsizetype(n)] != -1 && owner[qsizetype(n)] != e.id) return false;
+            // (a table whose chains loop says nothing of who holds a piece: Physical takes the pieces in the file's order, as the readings before the rework did)
+            if (mode != Mode::Physical && n < quint32(owner.size()) && owner[qsizetype(n)] != -1 && owner[qsizetype(n)] != e.id) return false;
             if (n < quint32(known.size()) && known[qsizetype(n)]) {
                 const quint32 v = table[qsizetype(n)];
                 if (v == 0xFFFFFFFD || v == 0xFFFFFFFC) return false;
@@ -209,7 +226,7 @@ public:
             r.bytes.append(data.toByteArray());
             ++pieces;
             if (pieces == count) break;
-            const quint32 next = cur < quint32(table.size()) ? table[qsizetype(cur)] : kFree;
+            const quint32 next = mode != Mode::Physical && cur < quint32(table.size()) ? table[qsizetype(cur)] : kFree;
             const bool tableOk = qint64(next) < limit && !seen.contains(next);
             const bool wholeTables = mode == Mode::Tables || mode == Mode::PastSize;
             // (a table that was read and says the chain ends here: the stream ends here, whatever size the directory gives)
@@ -477,7 +494,7 @@ bool salvageCompoundFile(const QByteArray &file, const QVector<CfbWish> &wishes,
             int usedEntry = -1;
             for (int tier = 0; tier < 2 && found.isEmpty() && !fallback.set; ++tier) {
                 if (tier == 1 && !w.endsWell) break;
-                const QVector<Tolerant::Mode> modes = tier == 0 ? QVector<Tolerant::Mode>{Tolerant::Mode::Tables, Tolerant::Mode::PastSize, Tolerant::Mode::Guess}
+                const QVector<Tolerant::Mode> modes = tier == 0 ? QVector<Tolerant::Mode>{Tolerant::Mode::Tables, Tolerant::Mode::PastSize, Tolerant::Mode::Physical, Tolerant::Mode::Guess}
                                                                 : QVector<Tolerant::Mode>{Tolerant::Mode::LastResort};
                 for (int i = 0; i < named.size() && found.isEmpty(); ++i) {
                     Fallback mine;
@@ -497,7 +514,7 @@ bool salvageCompoundFile(const QByteArray &file, const QVector<CfbWish> &wishes,
                                 choose(r, mode, r.bytes.size(), true);
                                 break;
                             }
-                            if ((mode == Tolerant::Mode::Tables || mode == Tolerant::Mode::Guess) && (!mine.set || r.bytes.size() > mine.reading.bytes.size())) {
+                            if ((mode == Tolerant::Mode::Tables || mode == Tolerant::Mode::Guess || mode == Tolerant::Mode::Physical) && (!mine.set || r.bytes.size() > mine.reading.bytes.size())) {
                                 mine.reading = r;
                                 mine.mode = mode;
                                 mine.prefix = r.bytes.size();
