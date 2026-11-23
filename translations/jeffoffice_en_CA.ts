@@ -1210,6 +1210,10 @@ Download it from %2 now? (%3, once.)</translation>
         <translation>Align Centre Left</translation>
     </message>
     <message>
+        <source>Pen Color</source>
+        <translation>Pen Colour</translation>
+    </message>
+    <message>
         <source>Align Center</source>
         <translation>Align Centre</translation>
     </message>

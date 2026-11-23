@@ -5506,7 +5506,7 @@ Back page story	4</source>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="+29"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+462"/>
-        <location filename="../apps/write/app/writewindow.cpp" line="+826"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+827"/>
         <source>Save</source>
         <translation type="unfinished">Зберегти</translation>
     </message>
@@ -12691,7 +12691,7 @@ Download it from %2 now? (%3, once.)</source>
         <location line="+5"/>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="+76"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+74"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+84"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+85"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+69"/>
         <source>Help</source>
         <translation type="unfinished">Довідка</translation>
@@ -12813,7 +12813,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="-65"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-74"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-75"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-59"/>
         <source>Adjust</source>
         <translation type="unfinished">Коригування</translation>
@@ -12940,7 +12940,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+2"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+7"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+8"/>
         <source>Change Case</source>
         <translation type="unfinished">Змінити регістр</translation>
     </message>
@@ -13817,7 +13817,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="-161"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-180"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-181"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-149"/>
         <source>About</source>
         <translation type="unfinished">Про програму</translation>
@@ -13871,7 +13871,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+4"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+9"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+10"/>
         <source>Cell Size</source>
         <translation type="unfinished">Розмір комірки</translation>
     </message>
@@ -13906,6 +13906,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+1"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-34"/>
         <source>Draw Borders</source>
         <translation type="unfinished">Малювання рамок</translation>
     </message>
@@ -13941,7 +13942,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+3"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+20"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+54"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+21"/>
         <source>Format</source>
         <translation>Формат</translation>
@@ -14216,7 +14217,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Ширина:</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-175"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-176"/>
         <source>Accept</source>
         <translation type="unfinished">Прийняти</translation>
     </message>
@@ -14236,7 +14237,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Рамки й заливка</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+2"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-128"/>
         <source>Breaks</source>
         <translation type="unfinished">Розриви</translation>
@@ -58772,7 +58773,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Немає тексту для перекладу.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="-735"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="-736"/>
         <source>Document%1</source>
         <translation type="unfinished">Документ%1</translation>
     </message>
@@ -59140,7 +59141,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Цей документ містить найбільшу можливу кількість приміток, яку може обробити JeffWrite (%1), тому додати ще не можна.</translation>
     </message>
     <message>
-        <location line="+73"/>
+        <location line="+74"/>
         <source>Page %1 of %2</source>
         <translation type="unfinished">Сторінка %1 з %2</translation>
     </message>
@@ -59274,7 +59275,22 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Попередня виноска</translation>
     </message>
     <message>
+        <location line="+2"/>
+        <source>Show Notes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>This document has no footnotes.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+1"/>
+        <source>Notes can be shown in Print Layout view.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
         <source>Next Endnote</source>
         <translation type="unfinished">Наступна кінцева виноска</translation>
     </message>
@@ -59733,7 +59749,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+9"/>
         <location line="+7"/>
-        <location filename="../apps/write/app/writewindow_tables.cpp" line="+483"/>
+        <location filename="../apps/write/app/writewindow_tables.cpp" line="+565"/>
         <source>Delete</source>
         <translation type="unfinished">Видалити</translation>
     </message>
@@ -60094,7 +60110,7 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+8"/>
-        <location filename="../apps/write/app/writewindow_tables.cpp" line="-210"/>
+        <location filename="../apps/write/app/writewindow_tables.cpp" line="-278"/>
         <source>Sort…</source>
         <translation type="unfinished">Сортувати…</translation>
     </message>
@@ -62551,6 +62567,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../apps/write/app/writewindow_home.cpp" line="-121"/>
         <location filename="../apps/write/app/writewindow_tables.cpp" line="-164"/>
+        <location line="+211"/>
         <source>No Border</source>
         <translation type="unfinished">Без рамки</translation>
     </message>
@@ -62652,7 +62669,7 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+6"/>
-        <location filename="../apps/write/app/writewindow_tables.cpp" line="-41"/>
+        <location filename="../apps/write/app/writewindow_tables.cpp" line="-263"/>
         <source>Align Center</source>
         <translation type="unfinished">Вирівняти по центру</translation>
     </message>
@@ -62788,6 +62805,7 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+7"/>
+        <location filename="../apps/write/app/writewindow_tables.cpp" line="+243"/>
         <source>%1 pt</source>
         <translation type="unfinished">%1 пт</translation>
     </message>
@@ -63459,7 +63477,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Виділення маркером: виділіть текст для виділення. Оберіть «Припинити виділення» або натисніть Esc, щоб припинити.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_tables.cpp" line="-67"/>
+        <location filename="../apps/write/app/writewindow_tables.cpp" line="-312"/>
         <location line="+19"/>
         <source>A table can&apos;t be put in a table cell here.</source>
         <translation type="unfinished">Таблицю не можна вставити в комірку таблиці.</translation>
@@ -63528,6 +63546,16 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+1"/>
         <source>Delete Table</source>
         <translation type="unfinished">Видалити таблицю</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Move Table Up</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Move Table Down</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
@@ -63635,7 +63663,12 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Гумка</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+9"/>
+        <source>Border Painter</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
         <source>Text Across</source>
         <translation type="unfinished">Текст поперек</translation>
     </message>
@@ -63650,8 +63683,59 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Повернути текст угору</translation>
     </message>
     <message>
+        <location line="+183"/>
+        <location line="+1"/>
+        <source>Pen Color</source>
+        <translation type="unfinished">Колір пера</translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>Pen Weight</source>
+        <translation type="unfinished">Товщина пера</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Pen Weight: how thick the lines are that the Border Painter draws.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Single</source>
+        <translation>Одинарна</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Triple</source>
+        <translation type="unfinished">Потрійна</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Dotted</source>
+        <translation>Пунктирна</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Dashed</source>
+        <translation>Штрихова</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Pen Style</source>
+        <translation type="unfinished">Стиль пера</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Pen Style: the kind of line the Border Painter draws. No Border makes it erase borders.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+136"/>
+        <source>Move Table</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../apps/write/app/writewindow_home.cpp" line="-2"/>
-        <location filename="../apps/write/app/writewindow_tables.cpp" line="+3"/>
+        <location filename="../apps/write/app/writewindow_tables.cpp" line="-363"/>
         <source>Bottom Border</source>
         <translation type="unfinished">Нижня рамка</translation>
     </message>
@@ -63802,7 +63886,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Заливка</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_tables.cpp" line="+15"/>
+        <location filename="../apps/write/app/writewindow_tables.cpp" line="+72"/>
         <source>Table row height</source>
         <translation type="unfinished">Висота рядка таблиці</translation>
     </message>
@@ -63817,7 +63901,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Стилі таблиць</translation>
     </message>
     <message>
-        <location line="+86"/>
+        <location line="+97"/>
         <source>Insert</source>
         <translation type="unfinished">Вставити</translation>
     </message>
@@ -63828,7 +63912,7 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_pictures.cpp" line="-382"/>
-        <location filename="../apps/write/app/writewindow_tables.cpp" line="+6"/>
+        <location filename="../apps/write/app/writewindow_tables.cpp" line="+9"/>
         <source>Fit</source>
         <translation type="unfinished">Припасувати</translation>
     </message>
@@ -63968,7 +64052,8 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Вільний</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location filename="../apps/write/app/writewindow_tables.cpp" line="-163"/>
+        <location filename="../apps/write/core/designops.cpp" line="+1"/>
         <source>Double</source>
         <translation type="unfinished">Подвійний</translation>
     </message>
@@ -79277,7 +79362,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation>Верхній колонтитул</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview.cpp" line="+258"/>
+        <location filename="../apps/write/app/pageview.cpp" line="+259"/>
         <source>Place in this document: %1</source>
         <translation type="unfinished">Місце в цьому документі: %1</translation>
     </message>
@@ -79297,8 +79382,13 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Розрив сторінки</translation>
     </message>
     <message>
+        <location line="+489"/>
+        <source>Drag along the lines of a table to draw or erase its borders.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../apps/write/app/pageoutput.cpp" line="+219"/>
-        <location filename="../apps/write/app/pageview.cpp" line="+282"/>
+        <location filename="../apps/write/app/pageview.cpp" line="-167"/>
         <source>Deleted: %1</source>
         <translation type="unfinished">Видалено: %1</translation>
     </message>
@@ -79308,7 +79398,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">+%1 більше</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="+122"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="+123"/>
         <location line="+491"/>
         <source>Keep Source Formatting</source>
         <translation type="unfinished">Зберегти вихідне форматування</translation>
@@ -79411,7 +79501,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Параметри вставлення. Для вибору використовуйте клавіші зі стрілками та Enter, або Esc, щоб вийти з них.</translation>
     </message>
     <message>
-        <location line="+107"/>
+        <location line="+114"/>
         <source>Overtype: typing replaces the letters after the caret. Press Insert to go back.</source>
         <translation type="unfinished">Режим заміни: введений текст замінює літери після курсора. Натисніть Insert, щоб повернутися.</translation>
     </message>
@@ -79426,7 +79516,12 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">За текстовим полем можна розмістити лише текстове поле, яке не містить слів і ще не пов&apos;язане з іншими.</translation>
     </message>
     <message>
-        <location line="+553"/>
+        <location line="+373"/>
+        <source>Drop the table between paragraphs, not inside a table.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+262"/>
         <source>JeffWrite opens links to web addresses, email addresses, and documents or pictures on this computer only.</source>
         <translation type="unfinished">JeffWrite відкриває посилання на веб-адреси, адреси електронної пошти, а також документи чи зображення лише на цьому комп&apos;ютері.</translation>
     </message>
@@ -79630,7 +79725,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">В буфері обміну немає малюнка, який може прочитати JeffWrite.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="-303"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="-353"/>
         <location filename="../apps/write/app/pageview_pictures.cpp" line="+18"/>
         <location filename="../apps/write/core/pictureops.cpp" line="+2211"/>
         <source>That shape can&apos;t be put here.</source>
@@ -79795,7 +79890,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::write::ReadyTables</name>
     <message>
-        <location filename="../apps/write/core/tableops.cpp" line="+2061"/>
+        <location filename="../apps/write/core/tableops.cpp" line="+2228"/>
         <source>Column 1</source>
         <translation type="unfinished">Стовпець 1</translation>
     </message>
@@ -80487,7 +80582,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::write::Tables</name>
     <message>
-        <location filename="../apps/write/core/tableops.cpp" line="-1839"/>
+        <location filename="../apps/write/core/tableops.cpp" line="-2004"/>
         <source>A table can have at most 20,000 rows.</source>
         <translation type="unfinished">Таблиця може містити не більше 20 000 рядків.</translation>
     </message>
@@ -80515,7 +80610,50 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Нові стовпці не можна вставити туди: об&apos;єднані комірки перетинають місце, де вони мали б бути.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/tableops.cpp" line="+1884"/>
+        <location filename="../apps/write/core/tableops.cpp" line="+1431"/>
+        <location line="+68"/>
+        <source>A table can only be moved in the main text.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-67"/>
+        <source>Drop the table between paragraphs, not inside a table.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <location line="+77"/>
+        <source>A table can only be moved where a paragraph follows it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-74"/>
+        <location line="+70"/>
+        <source>A table can&apos;t be put right against another table. Keep a paragraph between them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-7"/>
+        <source>A table inside a table can&apos;t be moved this way.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>There is no paragraph above the table to move it past.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>There is no paragraph below the table to move it past.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>A table can&apos;t be moved below the last paragraph of the document.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+513"/>
         <source>A table can&apos;t be nested deeper than 8 tables.</source>
         <translation type="unfinished">Таблицю не можна вкладати глибше ніж у 8 таблиць.</translation>
     </message>
@@ -80621,7 +80759,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Рядки, комірки яких розташовані не в тих самих стовпцях, не можна сортувати.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="-825"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="-864"/>
         <location filename="../apps/write/core/homeops.cpp" line="-62"/>
         <location line="+35"/>
         <source>To paste cells as new columns, click in a table that has room for them.</source>

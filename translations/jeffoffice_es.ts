@@ -5371,7 +5371,7 @@ Artículo de contraportada	4</translation>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="-15"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+462"/>
-        <location filename="../apps/write/app/writewindow.cpp" line="+826"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+827"/>
         <source>Save</source>
         <translation type="unfinished">Guardar</translation>
     </message>
@@ -12795,7 +12795,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+2"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+7"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+8"/>
         <source>Change Case</source>
         <translation type="unfinished">Cambiar mayúsculas y minúsculas</translation>
     </message>
@@ -13749,7 +13749,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="-60"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+3"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-69"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-70"/>
         <source>Aspect Ratio</source>
         <translation type="unfinished">Relación de aspecto</translation>
     </message>
@@ -13775,7 +13775,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+4"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+9"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+10"/>
         <source>Cell Size</source>
         <translation type="unfinished">Tamaño de celda</translation>
     </message>
@@ -13818,6 +13818,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+1"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-34"/>
         <source>Draw Borders</source>
         <translation type="unfinished">Dibujar bordes</translation>
     </message>
@@ -13853,7 +13854,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+3"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+20"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+54"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+20"/>
         <source>Format</source>
         <translation>Formato</translation>
@@ -14128,7 +14129,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Ancho:</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-175"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-176"/>
         <source>Accept</source>
         <translation type="unfinished">Aceptar</translation>
     </message>
@@ -14143,7 +14144,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Bibliografía</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+7"/>
         <source>Captions</source>
         <translation type="unfinished">Títulos</translation>
     </message>
@@ -14158,7 +14159,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Ajustar</translation>
     </message>
     <message>
-        <location line="-47"/>
+        <location line="-48"/>
         <source>Borders and Shading</source>
         <translation type="unfinished">Bordes y sombreado</translation>
     </message>
@@ -14177,7 +14178,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Ejes</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+4"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+5"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+12"/>
         <source>Breaks</source>
         <translation type="unfinished">Saltos</translation>
@@ -58689,7 +58690,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
 <context>
     <name>jp::WriteWindow</name>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="-735"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="-736"/>
         <source>Document%1</source>
         <translation type="unfinished">Documento%1</translation>
     </message>
@@ -59052,7 +59053,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
         <translation type="unfinished">Viñetas y numeración</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_tables.cpp" line="+88"/>
+        <location filename="../apps/write/app/writewindow_tables.cpp" line="+89"/>
         <location line="+19"/>
         <source>A table can&apos;t be put in a table cell here.</source>
         <translation type="unfinished">Aquí no se puede insertar una tabla en una celda de tabla.</translation>
@@ -59121,6 +59122,16 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
         <location line="+1"/>
         <source>Delete Table</source>
         <translation type="unfinished">Eliminar tabla</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Move Table Up</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Move Table Down</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
@@ -59198,8 +59209,59 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
         <translation type="unfinished">Alinear en el centro a la izquierda</translation>
     </message>
     <message>
+        <location line="+229"/>
+        <location line="+1"/>
+        <source>Pen Color</source>
+        <translation>Color de lápiz</translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>Pen Weight</source>
+        <translation type="unfinished">Grosor de la pluma</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Pen Weight: how thick the lines are that the Border Painter draws.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Single</source>
+        <translation>Sencillo</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Triple</source>
+        <translation type="unfinished">Triple</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Dotted</source>
+        <translation>Punteado</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Dashed</source>
+        <translation>Discontinuo</translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Pen Style</source>
+        <translation type="unfinished">Estilo de la pluma</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Pen Style: the kind of line the Border Painter draws. No Border makes it erase borders.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+136"/>
+        <source>Move Table</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="-1"/>
-        <location filename="../apps/write/app/writewindow_tables.cpp" line="+1"/>
+        <location filename="../apps/write/app/writewindow_tables.cpp" line="-411"/>
         <source>Align Center</source>
         <translation type="unfinished">Alinear en el centro</translation>
     </message>
@@ -59234,7 +59296,12 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
         <translation type="unfinished">Borrador</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+9"/>
+        <source>Border Painter</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
         <source>Text Across</source>
         <translation type="unfinished">Texto horizontal</translation>
     </message>
@@ -59387,6 +59454,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
     <message>
         <location filename="../apps/write/app/writewindow_home.cpp" line="+1"/>
         <location filename="../apps/write/app/writewindow_tables.cpp" line="+1"/>
+        <location line="+211"/>
         <source>No Border</source>
         <translation type="unfinished">Sin borde</translation>
     </message>
@@ -59618,6 +59686,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
     </message>
     <message>
         <location line="+7"/>
+        <location filename="../apps/write/app/writewindow_tables.cpp" line="-20"/>
         <source>%1 pt</source>
         <translation type="unfinished">%1 pt</translation>
     </message>
@@ -60215,7 +60284,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_home.cpp" line="+0"/>
-        <location filename="../apps/write/app/writewindow_tables.cpp" line="+1"/>
+        <location filename="../apps/write/app/writewindow_tables.cpp" line="-190"/>
         <source>All Borders</source>
         <translation type="unfinished">Todos los bordes</translation>
     </message>
@@ -60342,7 +60411,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
         <translation type="unfinished">Sombreado</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_tables.cpp" line="+15"/>
+        <location filename="../apps/write/app/writewindow_tables.cpp" line="+72"/>
         <source>Table row height</source>
         <translation type="unfinished">Alto de fila de tabla</translation>
     </message>
@@ -60357,7 +60426,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
         <translation type="unfinished">Estilos de tabla</translation>
     </message>
     <message>
-        <location line="+86"/>
+        <location line="+97"/>
         <source>Insert</source>
         <translation type="unfinished">Insertar</translation>
     </message>
@@ -60368,7 +60437,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_pictures.cpp" line="+103"/>
-        <location filename="../apps/write/app/writewindow_tables.cpp" line="+6"/>
+        <location filename="../apps/write/app/writewindow_tables.cpp" line="+9"/>
         <source>Fit</source>
         <translation type="unfinished">Autoajustar</translation>
     </message>
@@ -60388,7 +60457,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
         <translation type="unfinished">Este documento tiene el número máximo de notas que admite JeffWrite (%1), por lo que no se pueden agregar más.</translation>
     </message>
     <message>
-        <location line="+73"/>
+        <location line="+74"/>
         <source>Page %1 of %2</source>
         <translation type="unfinished">Página %1 de %2</translation>
     </message>
@@ -60807,7 +60876,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
     <message>
         <location line="+9"/>
         <location line="+7"/>
-        <location filename="../apps/write/app/writewindow_tables.cpp" line="-14"/>
+        <location filename="../apps/write/app/writewindow_tables.cpp" line="-17"/>
         <source>Delete</source>
         <translation type="unfinished">Eliminar</translation>
     </message>
@@ -61390,7 +61459,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <location line="+47"/>
         <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+15"/>
         <location line="+26"/>
-        <location filename="../apps/write/app/writewindow_tables.cpp" line="-123"/>
+        <location filename="../apps/write/app/writewindow_tables.cpp" line="-191"/>
         <source>No Color</source>
         <translation type="unfinished">Sin color</translation>
     </message>
@@ -62789,7 +62858,22 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Nota al pie anterior</translation>
     </message>
     <message>
+        <location line="+2"/>
+        <source>Show Notes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>This document has no footnotes.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+1"/>
+        <source>Notes can be shown in Print Layout view.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
         <source>Next Endnote</source>
         <translation type="unfinished">Siguiente nota al final</translation>
     </message>
@@ -63895,7 +63979,8 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Relajado</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location filename="../apps/write/app/writewindow_tables.cpp" line="+132"/>
+        <location filename="../apps/write/core/designops.cpp" line="+1"/>
         <source>Double</source>
         <translation type="unfinished">Doble</translation>
     </message>
@@ -79184,7 +79269,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation>Encabezado</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview.cpp" line="+258"/>
+        <location filename="../apps/write/app/pageview.cpp" line="+259"/>
         <source>Place in this document: %1</source>
         <translation type="unfinished">Colocar en este documento: %1</translation>
     </message>
@@ -79204,8 +79289,13 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Salto de página</translation>
     </message>
     <message>
+        <location line="+489"/>
+        <source>Drag along the lines of a table to draw or erase its borders.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../apps/write/app/pageoutput.cpp" line="+219"/>
-        <location filename="../apps/write/app/pageview.cpp" line="+282"/>
+        <location filename="../apps/write/app/pageview.cpp" line="-167"/>
         <source>Deleted: %1</source>
         <translation type="unfinished">Eliminado: %1</translation>
     </message>
@@ -79215,7 +79305,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">+%1 más</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="+122"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="+123"/>
         <location line="+491"/>
         <source>Keep Source Formatting</source>
         <translation type="unfinished">Mantener formato de origen</translation>
@@ -79318,7 +79408,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Opciones de pegado. Use las teclas de flecha e Intro para elegir, o Esc para salir.</translation>
     </message>
     <message>
-        <location line="+107"/>
+        <location line="+114"/>
         <source>Overtype: typing replaces the letters after the caret. Press Insert to go back.</source>
         <translation type="unfinished">Sobrescribir: al escribir se reemplazan las letras situadas después del cursor. Pulse Insert para volver atrás.</translation>
     </message>
@@ -79333,7 +79423,12 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Un cuadro de texto solo puede ir seguido de otro cuadro de texto que no tenga palabras y que todavía no esté en ninguna cadena.</translation>
     </message>
     <message>
-        <location line="+553"/>
+        <location line="+373"/>
+        <source>Drop the table between paragraphs, not inside a table.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+262"/>
         <source>JeffWrite opens links to web addresses, email addresses, and documents or pictures on this computer only.</source>
         <translation type="unfinished">JeffWrite abre solo los vínculos a direcciones web, direcciones de correo electrónico y documentos o imágenes de este equipo.</translation>
     </message>
@@ -79502,7 +79597,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">No hay ninguna imagen en el Portapapeles que JeffWrite pueda leer.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="-303"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="-353"/>
         <location filename="../apps/write/app/pageview_pictures.cpp" line="+18"/>
         <location filename="../apps/write/core/pictureops.cpp" line="+2211"/>
         <source>That shape can&apos;t be put here.</source>
@@ -79702,7 +79797,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
 <context>
     <name>jp::write::ReadyTables</name>
     <message>
-        <location filename="../apps/write/core/tableops.cpp" line="+2061"/>
+        <location filename="../apps/write/core/tableops.cpp" line="+2228"/>
         <source>Column 1</source>
         <translation type="unfinished">Columna 1</translation>
     </message>
@@ -80392,7 +80487,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
 <context>
     <name>jp::write::Tables</name>
     <message>
-        <location filename="../apps/write/core/tableops.cpp" line="-1839"/>
+        <location filename="../apps/write/core/tableops.cpp" line="-2004"/>
         <source>A table can have at most 20,000 rows.</source>
         <translation type="unfinished">Una tabla puede tener como máximo 20.000 filas.</translation>
     </message>
@@ -80420,7 +80515,50 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">No se pueden insertar columnas nuevas ahí: las celdas combinadas se extienden por el lugar donde irían.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/tableops.cpp" line="+1884"/>
+        <location filename="../apps/write/core/tableops.cpp" line="+1431"/>
+        <location line="+68"/>
+        <source>A table can only be moved in the main text.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-67"/>
+        <source>Drop the table between paragraphs, not inside a table.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <location line="+77"/>
+        <source>A table can only be moved where a paragraph follows it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-74"/>
+        <location line="+70"/>
+        <source>A table can&apos;t be put right against another table. Keep a paragraph between them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-7"/>
+        <source>A table inside a table can&apos;t be moved this way.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>There is no paragraph above the table to move it past.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>There is no paragraph below the table to move it past.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>A table can&apos;t be moved below the last paragraph of the document.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+513"/>
         <source>A table can&apos;t be nested deeper than 8 tables.</source>
         <translation type="unfinished">Una tabla no puede anidarse a más de 8 niveles dentro de otras tablas.</translation>
     </message>
@@ -80526,7 +80664,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Las filas cuyas celdas no están en las mismas columnas no se pueden ordenar.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="-825"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="-864"/>
         <location filename="../apps/write/core/homeops.cpp" line="-62"/>
         <location line="+35"/>
         <source>To paste cells as new columns, click in a table that has room for them.</source>

@@ -72,6 +72,18 @@ Use them in **SUM**, **AVERAGE**, **COUNT**, **MIN**, **MAX**, **PRODUCT**, and 
 - **Table Design > Shading** fills the selected cells with a colour, or with **No Colour**.
 - **Borders and Shading** (in the Borders menu, or on the right-click menu) opens a window to pick the style of the line (single, double, dotted, dashed, or triple), its width and colour, which sides get it, and the fill. Choose to apply it to the selected cells or to the table.
 
+## Draw borders with the Border Painter
+
+1. On **Table Design > Draw Borders**, pick **Pen Style** (single, double, triple, dotted, or dashed), **Pen Weight**, and **Pen Colour**.
+2. Click **Border Painter**. The pointer becomes a cross, and it stays one until you press **Esc** or click the button again.
+3. Drag along the lines of the table, or along its outside edge. Each side of a cell that your drag runs along for at least half its length gets the line. A drag across the middle of a cell, or one that only crosses a line, changes nothing.
+
+To erase borders, set **Pen Style** to **No Border**, and drag along the lines the same way. The cells on both sides of a line agree, so the line is drawn or erased from both. Each drag is one step to undo.
+
+A cell that is joined from several rows has one side as tall as all of them, so a drag along at least half of that side draws or erases its line along the whole side, and a shorter drag leaves the line on that cell as it was, which can leave it showing after you erase part of it.
+
+The lines are kept in .docx, .odt, and .rtf files. A change of borders is not marked as a tracked change, even when Track Changes is on, the same as the Borders menu.
+
 ## Make your own table style
 
 Open the gallery on **Table Design** and click **New Table Style**. Give it a name, pick the style it starts from, and choose the lines, the look of the header row, the total row, and the first and last columns, and the fills of banded rows and columns. The new style goes on the table you are in. To change a style, click in a table that has it and click **Modify Table Style**. Every table that has the style changes with it. The header row and the other parts show when **Table Style Options** turns them on. Changing a style takes one step, and Undo brings the old one back.
@@ -101,6 +113,15 @@ On **Table Layout**:
 - Click in a table. A small square shows at its lower right corner. Pull it sideways to make the whole table wider or narrower. Every column grows or shrinks by the same share.
 
 Each pull is one step. Undo takes it back.
+
+## Move a table
+
+- Click in a table. A small square with a cross shows at its upper left corner. Click it to select the whole table. Pull it to another place, and a line shows where the table will go. Let go, and the table moves to just before the paragraph there. Let go inside a table, or press **Esc**, and nothing moves.
+- Or use **Table Layout > Move Table Up** and **Move Table Down**, or **Move Table** on the right-click menu. The table goes past the paragraph before it, or after it.
+
+A move is one step. The words, shading, and borders of the cells go with the table. A move is not marked as a tracked change.
+
+A table can't be put right against another table, so keep a paragraph between them. The move commands are grey where the table can't go: above the first paragraph, below the last one, or past a paragraph that would leave two tables together. A table inside another table's cell can't be moved this way. The handle is not shown in a document that is read-only or protected. Every paragraph around the table keeps its own formatting.
 
 ## Draw a table
 
