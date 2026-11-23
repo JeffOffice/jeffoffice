@@ -249,6 +249,10 @@ struct Pieces {
     QByteArray docx(const QList<int> &order = {1, 2, 3}) const { return build(bodyIn(order), finalSection, numbered, settings); }
 };
 
+const QString kBreakWhy = QStringLiteral("This section includes a section break, and moving it would change the page layout of other text, so it can't be moved.");
+const QString kFrameWhy = QStringLiteral("A section that holds endnotes or a text frame can't be moved.");
+const QString kEndnotesWhy = QStringLiteral("Sections can't be moved while endnotes are collected at the end of each section. Put the endnotes at the end of the document first.");
+
 } // namespace
 
 class SectionMoveTests : public QObject {
@@ -599,12 +603,43 @@ private Q_SLOTS:
             const QByteArray before = doc->toDocx();
             QString why;
             QVERIFY(!moveSection(*doc, positionOf(*doc, QStringLiteral("Beta")), positionOf(*doc, QStringLiteral("Alpha")), &why));
-            QVERIFY2(why.contains(QLatin1String("page setup")), qPrintable(why));
+            QCOMPARE(why, kBreakWhy);
             QVERIFY2(differsIn(doc->toDocx(), before).isEmpty(), qPrintable(differsIn(doc->toDocx(), before)));
             QVERIFY(!doc->canUndo());
             // Gamma (it ends in a break) into the middle of Beta's section (before "Beta more").
             QVERIFY(!moveSection(*doc, positionOf(*doc, QStringLiteral("Gamma")), positionOf(*doc, QStringLiteral("Beta end")), &why));
-            QVERIFY2(why.contains(QLatin1String("page setup")), qPrintable(why));
+            QCOMPARE(why, kBreakWhy);
+        }
+    }
+
+    // What the person is told when a section is refused for what it holds or where the document keeps its notes: plain words that are true of that section.
+    void theRefusalsSayWhyInPlainWords()
+    {
+        {   // A page break of the section kind in a run that does not end in one.
+            Pieces p;
+            p.beta = head("Beta") + para("Beta words", "<w:sectPr><w:pgSz w:w=\"15840\" w:h=\"12240\" w:orient=\"landscape\"/></w:sectPr>") + para("Beta end");
+            auto doc = open(p.docx());
+            QString why;
+            QVERIFY(!moveSection(*doc, positionOf(*doc, QStringLiteral("Beta")), positionOf(*doc, QStringLiteral("Alpha")), &why));
+            QCOMPARE(why, kBreakWhy);
+        }
+        {   // A paragraph in a frame of text.
+            Pieces p;
+            p.beta = head("Beta") + "<w:p><w:pPr><w:framePr w:w=\"2000\" w:h=\"1000\" w:hRule=\"exact\" w:wrap=\"around\" w:vAnchor=\"text\" w:hAnchor=\"margin\" w:xAlign=\"right\"/></w:pPr>" + run("framed words") + "</w:p>" + para("Beta words");
+            auto doc = open(p.docx());
+            QString why;
+            QVERIFY(!moveSection(*doc, positionOf(*doc, QStringLiteral("Beta")), positionOf(*doc, QStringLiteral("Alpha")), &why));
+            QCOMPARE(why, kFrameWhy);
+        }
+        {   // Endnotes collected at the end of each section.
+            Pieces p;
+            p.finalSection = "<w:sectPr><w:endnotePr><w:pos w:val=\"sectEnd\"/></w:endnotePr>" + kPageSize + "</w:sectPr>";
+            p.beta = head("Beta") + "<w:p>" + run("Beta words") + noteRef("endnote", 2) + "</w:p>";
+            auto doc = open(p.docx());
+            QVERIFY(doc->hasSectionEndEndnotes());
+            QString why;
+            QVERIFY(!moveSection(*doc, positionOf(*doc, QStringLiteral("Beta")), positionOf(*doc, QStringLiteral("Alpha")), &why));
+            QCOMPARE(why, kEndnotesWhy);
         }
     }
 

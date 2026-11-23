@@ -172,13 +172,13 @@ bool moveBlocks(WriteDoc &doc, int first, int last, int before, QString *why, in
     if (toEnd && !after.isValid()) return false;
     if (doc.trackChanges()) return refuse(QCoreApplication::translate("jp::write::BlockMove", "Turn off Track Changes to move a section."));
     if (doc.protection() && doc.protection()->enforced) return refuse(QCoreApplication::translate("jp::write::BlockMove", "This document is protected, so a section can't be moved."));
-    if (doc.hasSectionEndEndnotes()) return refuse(QCoreApplication::translate("jp::write::BlockMove", "A section can't be moved while endnotes are set at the ends of sections."));
+    if (doc.hasSectionEndEndnotes()) return refuse(QCoreApplication::translate("jp::write::BlockMove", "Sections can't be moved while endnotes are collected at the end of each section. Put the endnotes at the end of the document first."));
     // The blocks the move is about: the run `r0` to `r1`, the one before it, the one after it, and the one it goes before with the one before that.
     const int tNumber = toEnd ? lastBody.blockNumber() + 1 : t.blockNumber();
     const bool up = tNumber < a.blockNumber();
     for (QTextBlock b = a;; b = b.next()) {
         ++g_work;
-        if (b.blockFormat().hasProperty(prop::EndnoteBlock) || b.blockFormat().hasProperty(flow::fp::Frame)) return refuse(QCoreApplication::translate("jp::write::BlockMove", "A section holding the notes or a frame of the text can't be moved."));
+        if (b.blockFormat().hasProperty(prop::EndnoteBlock) || b.blockFormat().hasProperty(flow::fp::Frame)) return refuse(QCoreApplication::translate("jp::write::BlockMove", "A section that holds endnotes or a text frame can't be moved."));
         if (b == z) break;
     }
     // A table: not cut through at either end of the run or at the place, not put against another, and not left last (a paragraph follows it).
@@ -197,7 +197,7 @@ bool moveBlocks(WriteDoc &doc, int first, int last, int before, QString *why, in
         const bool startsSection = !beforeRun.isValid() || breaksSection(beforeRun);
         const bool endsSection = breaksSection(z);
         const bool placeBetween = toEnd ? false : (!beforePlace.isValid() || breaksSection(beforePlace));
-        if (!startsSection || !endsSection || !placeBetween) return refuse(QCoreApplication::translate("jp::write::BlockMove", "This section holds a page setup break that would change the layout of other text, so it can't be moved."));
+        if (!startsSection || !endsSection || !placeBetween) return refuse(QCoreApplication::translate("jp::write::BlockMove", "This section includes a section break, and moving it would change the page layout of other text, so it can't be moved."));
     }
     // Two runs side by side swap places: P, then Q. The one that is moved is the person's (R), or its neighbor when R is the first paragraph of the text, which has no paragraph break before
     // it to be cut with.
