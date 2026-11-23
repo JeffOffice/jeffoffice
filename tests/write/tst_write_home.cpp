@@ -12,6 +12,7 @@
 #include "app/settings.h"
 #include "core/fontfiles.h"
 #include "app/writedialogs.h"
+#include "app/papertray.h"
 #include "app/writewindow.h"
 #include "app/pageview.h"
 #include "app/pageoutput.h"
@@ -1887,6 +1888,91 @@ private Q_SLOTS:
         QCOMPARE(fresh->bookFoldSheets(), 8);
         QVERIFY(fresh->mirrorMargins());
         QFile::remove(normalTemplatePath());
+    }
+
+    // Page Setup's Paper source: the two boxes list the standard trays and the document's own choice, always (a tray this printer lacks is named so), a printer's missing trays are turned
+    // off, a system that can't send a tray says so, and OK changes the section's trays in one step that undoes.
+    void pageSetupPaperSourceListsTheStandardTraysAndTheDocumentsOwn()
+    {
+        setPrinterTraysStandIn([](const QString &) { return std::optional<QList<int>>(QList<int>{1, 2, 7}); });
+        setTrayReachStandIn([] { return TrayReach::None; });
+        const auto guard = qScopeGuard([] {
+            setPrinterTraysStandIn(nullptr);
+            setTrayReachStandIn(nullptr);
+        });
+        auto doc = open(makeDocx(para(run("text"))));
+        {
+            office::wml::SectionProps p = doc->sectionProps(0);
+            office::wml::setPaperSource(&p, true, 3);
+            office::wml::setPaperSource(&p, false, 7777);
+            doc->setSectionProps(0, p);
+        }
+        const QByteArray original = doc->toDocx();
+        // Untouched, OK changes nothing.
+        withDialog([&doc] { QVERIFY(!pageSetupDialog(nullptr, doc.get(), 0)); }, QStringLiteral("pageSetupDialog"), [](QDialog *) {});
+        QCOMPARE(doc->toDocx(), original);
+        withDialog([&doc] { pageSetupDialog(nullptr, doc.get(), 0); }, QStringLiteral("pageSetupDialog"), [](QDialog *d) {
+            auto *first = d->findChild<QComboBox *>(QStringLiteral("firstPageTray")), *other = d->findChild<QComboBox *>(QStringLiteral("otherPagesTray"));
+            QVERIFY(first && other);
+            QVERIFY(first->focusPolicy() & Qt::TabFocus);
+            QVERIFY(other->focusPolicy() & Qt::TabFocus);
+            QVERIFY(!first->accessibleName().isEmpty() && !other->accessibleName().isEmpty());
+            QCOMPARE(first->itemText(0), QStringLiteral("Default tray"));
+            QCOMPARE(first->count(), 1 + 13);
+            QCOMPARE(first->currentData().toInt(), 3);
+            QCOMPARE(first->currentText(), QStringLiteral("Middle tray (not on this printer)"));
+            QCOMPARE(other->count(), 1 + 13 + 1);   // (the standard ones, and the document's own)
+            QCOMPARE(other->currentText(), QStringLiteral("Tray 7777 (not on this printer)"));
+            auto enabled = [](QComboBox *box, int code) { return box->model()->flags(box->model()->index(box->findData(code), 0)) & Qt::ItemIsEnabled; };
+            QVERIFY(enabled(first, 1) && enabled(first, 2) && enabled(first, 7));
+            QVERIFY(!enabled(first, 4) && !enabled(first, 15));
+            QVERIFY(enabled(first, 3));   // (the document's own choice stays choosable)
+            // the system can't send a tray: the box says so
+            auto *hint = d->findChild<QLabel *>(QStringLiteral("trayHint"));
+            QVERIFY(hint && !hint->text().isEmpty());
+            first->setCurrentIndex(first->findData(1));
+            other->setCurrentIndex(0);
+        });
+        QCOMPARE(doc->flow().section(0).firstPageTray, std::optional<int>(1));
+        QVERIFY(!doc->flow().section(0).otherPageTray);
+        doc->undo();   // (one step)
+        QCOMPARE(doc->toDocx(), original);
+        // A system that can choose a tray for each page says nothing, and a printer that can't list its trays turns nothing off.
+        setTrayReachStandIn([] { return TrayReach::PerPage; });
+        setPrinterTraysStandIn([](const QString &) { return std::optional<QList<int>>(); });
+        withDialog([&doc] { pageSetupDialog(nullptr, doc.get(), 0); }, QStringLiteral("pageSetupDialog"), [](QDialog *d) {
+            QVERIFY(!d->findChild<QLabel *>(QStringLiteral("trayHint")));
+            auto *first = d->findChild<QComboBox *>(QStringLiteral("firstPageTray"));
+            QCOMPARE(first->count(), 1 + 13);
+            QCOMPARE(first->currentText(), QStringLiteral("Middle tray"));
+            for (int i = 0; i < first->count(); ++i) QVERIFY(first->model()->flags(first->model()->index(i, 0)) & Qt::ItemIsEnabled);
+        }, false);
+    }
+
+    // A picture of Page Setup's Paper tab with the Paper source boxes (JO_SHOT_DIR names the folder; nothing is made without it).
+    void shotPageSetupPaperSource()
+    {
+        const QString dir = qEnvironmentVariable("JO_SHOT_DIR");
+        if (dir.isEmpty()) QSKIP("JO_SHOT_DIR is not set");
+        initCore();
+        applyUiTheme(1);
+        setPrinterTraysStandIn([](const QString &) { return std::optional<QList<int>>(QList<int>{1, 2, 3, 4, 7}); });
+        setTrayReachStandIn([] { return TrayReach::None; });
+        const auto guard = qScopeGuard([] {
+            setPrinterTraysStandIn(nullptr);
+            setTrayReachStandIn(nullptr);
+        });
+        auto doc = open(makeDocx(para(run("text"))));
+        office::wml::SectionProps p = doc->sectionProps(0);
+        office::wml::setPaperSource(&p, true, 2);
+        office::wml::setPaperSource(&p, false, 7777);
+        doc->setSectionProps(0, p);
+        QDir().mkpath(dir);
+        withDialog([&doc] { pageSetupDialog(nullptr, doc.get(), 0); }, QStringLiteral("pageSetupDialog"), [&dir](QDialog *d) {
+            d->findChild<QTabWidget *>()->setCurrentIndex(1);
+            d->resize(d->sizeHint());
+            QVERIFY(d->grab().save(dir + QStringLiteral("/write-page-setup-paper-source.png")));
+        }, false);
     }
 
     // Save is the page every app shares: the default format, the recovery interval, and the default folder.

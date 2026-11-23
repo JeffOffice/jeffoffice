@@ -38,6 +38,7 @@ struct SheetLayout {
     int perSheet = 1;
     QSizeF paper;         // the sheet's size in points, upright (empty: each page's own)
     PrintTurn turn = PrintTurn::AsSet;   // tall or wide: the sheet is turned that way, whichever way its page is, and the page is scaled to fit it
+    bool trays = false;   // a printer's sheets: each is asked for the tray of the section its first page is in (the first page's of the section, or the other pages'), as a job does where the printing can
 };
 // The columns and rows that a number of pages on a sheet makes (1 for any number that isn't one of 1, 2, 4, 6, 9, 16).
 QSize sheetGrid(int perSheet);

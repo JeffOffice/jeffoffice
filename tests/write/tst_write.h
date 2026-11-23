@@ -901,6 +901,7 @@ private Q_SLOTS:
     void theWritePrintPageIsInFourGroups();
     void theCloseBoxAsksToSaveChanges();
     void thePrintPageSidesChoiceSetsTheDuplexModeOfTheJob();
+    void aPrintJobAsksThePrinterForTheTrayOfEachPage();
     void thePrintPageSidesChoiceByHandPrintsTwoRuns();
     void thePrintPageSidesChoiceFollowsThePrinterAndTheFileTarget();
     void printingGoesThroughThePainterThePdfExportUses();
@@ -1570,6 +1571,7 @@ private Q_SLOTS:
     void justifiedVerticalAlignmentSpreadsTheFreeHeightBetweenParagraphsEqually();
     void aFullPageAndAPageEndedByABreakStayAtTheTop();
     void verticalAlignmentIsKeptChangedByPageSetupAndLostInAnOdt();
+    void aSectionsPrinterTraysAreChangedByPageSetupAndOneStepUndoes();
     void aMiddleSectionKeepsItsVerticalAlignmentAndACenteredTableMovesWithTheText();
     void aSectionsLineNumbersSkipTheStartAndRunOnWhenTheFileSays();
     void rubyInAHeaderIsShown();

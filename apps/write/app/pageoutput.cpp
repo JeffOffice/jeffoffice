@@ -1,4 +1,5 @@
 #include "app/pageoutput.h"
+#include "app/papertray.h"
 #include "core/items.h"
 
 #include "app/pagepaint.h"
@@ -427,6 +428,17 @@ bool paintSheets(WriteDoc &doc, QPagedPaintDevice *device, const QVector<int> &p
         }
         p.restore();
     };
+    // The tray a sheet is printed from is the one its first page asks for: the section's first-page tray for the page the section begins on, else its other pages' tray. A sheet with no
+    // page (a blank one) leaves the tray as it was. A document that asks for no tray anywhere is not asked of the printer.
+    bool anyTray = false;
+    if (printer && layout.trays)
+        for (int i = 0; i < doc.sectionCount() && !anyTray; ++i) anyTray = doc.flow().section(i).firstPageTray || doc.flow().section(i).otherPageTray;
+    auto chooseTray = [&](const flow::MaterializedPage *page) {
+        if (!anyTray || !page) return;
+        const flow::Section &sec = doc.flow().section(std::clamp(page->section, 0, doc.sectionCount() - 1));
+        const bool first = page->firstOfSection;
+        setPrinterTray(printer, first ? sec.firstPageTray : sec.otherPageTray);
+    };
     auto begin = [&] {
         if (!started) {
             started = p.begin(device);
@@ -469,6 +481,7 @@ bool paintSheets(WriteDoc &doc, QPagedPaintDevice *device, const QVector<int> &p
         }
         const QSizeF sheet = shared ? sharedSheetSize(group[0]->size, grid, layout) : group[0]->size;
         setSheet(device, sheet);
+        chooseTray(group[0].get());
         if (!begin()) return false;
         if (!shared) {
             draw(*group[0]);

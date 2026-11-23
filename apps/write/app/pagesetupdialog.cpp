@@ -6,6 +6,7 @@
 #include "app/widgets.h"
 #include "app/userdefaults.h"
 #include "app/normaltemplateui.h"
+#include "app/papertray.h"
 #include "core/normaltemplate.h"
 #include "core/pagesetup.h"
 #include "core/pictureops.h"
@@ -131,6 +132,26 @@ bool pageSetupDialog(QWidget *parent, WriteDoc *doc, int section, QTextCursor *c
     pf->addRow(QCoreApplication::translate("jp::write::Dialogs", "Paper size"), size);
     pf->addRow(QCoreApplication::translate("jp::write::Dialogs", "Width"), width);
     pf->addRow(QCoreApplication::translate("jp::write::Dialogs", "Height"), height);
+    // Paper source: the printer tray each kind of page of the section prints from (the printer's own list where the system can give it).
+    auto *source = new jp::Section(QCoreApplication::translate("jp::write::Dialogs", "Paper source"), paperPage);
+    auto *sv = new QFormLayout(source);
+    auto *firstTray = new QComboBox(source), *otherTray = new QComboBox(source);
+    firstTray->setObjectName(QStringLiteral("firstPageTray"));
+    otherTray->setObjectName(QStringLiteral("otherPagesTray"));
+    firstTray->setAccessibleName(QCoreApplication::translate("jp::write::Dialogs", "Tray for the first page"));
+    otherTray->setAccessibleName(QCoreApplication::translate("jp::write::Dialogs", "Tray for the other pages"));
+    fillTrayBox(firstTray, before.firstPageTray, QString());
+    fillTrayBox(otherTray, before.otherPageTray, QString());
+    sv->addRow(QCoreApplication::translate("jp::write::Dialogs", "First page"), firstTray);
+    sv->addRow(QCoreApplication::translate("jp::write::Dialogs", "Other pages"), otherTray);
+    if (const QString hint = trayHint(); !hint.isEmpty()) {
+        auto *note = new QLabel(hint, source);
+        note->setObjectName(QStringLiteral("trayHint"));
+        note->setTextFormat(Qt::PlainText);
+        note->setWordWrap(true);
+        sv->addRow(note);
+    }
+    pf->addRow(source);
     tabs->addTab(paperPage, QCoreApplication::translate("jp::write::Dialogs", "Paper"));
     // The paper size box names the paper the width and height make (either way turned), else Custom.
     auto nameThePaper = [=] {
@@ -254,6 +275,8 @@ bool pageSetupDialog(QWidget *parent, WriteDoc *doc, int section, QTextCursor *c
     after.differentFirstPage = firstPage->isChecked();
     after.differentOddEven = oddEven->isChecked();
     after.pageAlign = flow::Section::PageAlign(vertical->currentData().toInt());
+    after.firstPageTray = trayChosen(firstTray);
+    after.otherPageTray = trayChosen(otherTray);
     // (book fold is the document's, whatever the margins apply to)
     doc->setBookFold(multiple->currentData().toBool(), booklet->currentData().toInt());
     // Set as Default: the margins and the paper (not how a section starts, or its headers) go to the Normal template, which new documents start from.

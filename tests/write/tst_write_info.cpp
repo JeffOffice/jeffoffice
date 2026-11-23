@@ -448,6 +448,7 @@ QVector<TruthThing> truthThings()
         {QStringLiteral("equation"), QString(), [](const P &p) { return anyPart(p, QStringLiteral("/word/document.xml"), "oMath"); }, re("equation")},
         {QStringLiteral("content control"), QStringLiteral("Control words"), [](const P &p) { return anyPart(p, QStringLiteral("/word/document.xml"), "<w:sdt>"); }, re("control|form field")},
         {QStringLiteral("tracked change"), QStringLiteral("Inserted words"), [](const P &p) { return anyPart(p, QStringLiteral("/word/document.xml"), "<w:ins "); }, re("tracked")},
+        {QStringLiteral("printer trays"), QString(), [](const P &p) { return anyPart(p, QStringLiteral("/word/document.xml"), "<w:paperSrc w:first=\"2\" w:other=\"3\"/>"); }, re("tray")},
         {QStringLiteral("chart"), QString(), [](const P &p) { return anyPart(p, QStringLiteral("/word/charts/"), QByteArray()); }, re("chart|drawing")},
     };
 }
@@ -487,7 +488,7 @@ QByteArray truthDocx()
     body += "<w:p><m:oMath xmlns:m=\"http://schemas.openxmlformats.org/officeDocument/2006/math\"><m:r><m:t>x+1</m:t></m:r></m:oMath></w:p>";
     body += "<w:p><w:sdt><w:sdtPr><w:alias w:val=\"Control\"/><w:text/></w:sdtPr><w:sdtContent>" + run("Control words") + "</w:sdtContent></w:sdt></w:p>";
     body += "<w:p><w:ins w:id=\"5\" w:author=\"Ann\" w:date=\"2026-01-01T00:00:00Z\">" + run("Inserted words") + "</w:ins></w:p>";
-    body += "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdHead\"/><w:footerReference w:type=\"default\" r:id=\"rIdFoot\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/></w:sectPr>";
+    body += "<w:sectPr><w:headerReference w:type=\"default\" r:id=\"rIdHead\"/><w:footerReference w:type=\"default\" r:id=\"rIdFoot\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/><w:paperSrc w:first=\"2\" w:other=\"3\"/></w:sectPr>";
     const QByteArray head = "<?xml version=\"1.0\"?>";
     QVector<Extra> extra;
     extra << Extra{QStringLiteral("/word/header1.xml"), kWord + QStringLiteral("header+xml"), head + "<w:hdr " + w + "><w:p>" + run("Header words") + "</w:p></w:hdr>", kRel + QStringLiteral("header"), QString(), QStringLiteral("rIdHead")};
@@ -986,6 +987,70 @@ private Q_SLOTS:
         }
         QVERIFY2(hidden.isEmpty(), qPrintable(QStringLiteral("lost and not listed: ") + hidden.join(QStringLiteral("; "))));
         QVERIFY2(over.isEmpty(), qPrintable(QStringLiteral("listed but kept: ") + over.join(QStringLiteral("; "))));
+    }
+
+    // A section's printer trays go through the window's own save and open in every kind that holds them (.docx, .odt, and .rtf), a number this program has no name for comes back as it
+    // was, and a value that is not a number a person's printer could have (huge, or not a number) is left out of the kinds that can't write it and kept as written in the .docx.
+    void printerTraysSurviveEveryKindsSaveAndOpen()
+    {
+        struct Case {
+            QByteArray attrs;
+            std::optional<int> first, other;
+            bool rtf = true;   // (a Rich Text Format number is a 16-bit one: a bigger one is not promised back)
+        };
+        const QVector<Case> cases = {
+            {"w:first=\"2\" w:other=\"3\"", 2, 3},
+            {"w:first=\"7777\" w:other=\"-4\"", 7777, -4},   // (a printer's own tray, and a negative number)
+            {"w:first=\"2\"", 2, std::nullopt},
+            {"w:other=\"15\"", std::nullopt, 15},
+            {"w:first=\"32767\" w:other=\"-32767\"", 32767, -32767},
+            {"w:first=\"2147483647\" w:other=\"-2147483648\"", 2147483647, -2147483647 - 1, false},
+            {"w:first=\"99999999999999999999\" w:other=\"abc\"", std::nullopt, std::nullopt},
+        };
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        int n = 0;
+        for (const Case &c : cases) {
+            ++n;
+            const QByteArray body = "<w:p><w:r><w:t>Letterhead</w:t></w:r></w:p><w:sectPr><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" "
+                                    "w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/><w:paperSrc " + c.attrs + "/></w:sectPr>";
+            const QString source = dir.filePath(QStringLiteral("source%1.docx").arg(n));
+            {
+                QFile f(source);
+                QVERIFY(f.open(QIODevice::WriteOnly) && f.write(makeDocx(body)) > 0);
+            }
+            WriteWindow a;
+            Quiet quiet(a);
+            QVERIFY(a.openFile(source));
+            QCOMPARE(a.document()->flow().section(0).firstPageTray, c.first);
+            QCOMPARE(a.document()->flow().section(0).otherPageTray, c.other);
+            for (const QString &ending : {QStringLiteral(".docx"), QStringLiteral(".odt"), QStringLiteral(".rtf")}) {
+                const QString name = QStringLiteral("saved%1%2").arg(n).arg(ending);
+                QVERIFY2(saveInto(a, dir, name), qPrintable(name));
+                WriteWindow b;
+                Quiet quietB(b);
+                QVERIFY2(b.openFile(dir.filePath(name)), qPrintable(name));
+                if (ending == QLatin1String(".rtf") && !c.rtf) continue;   // (it opened, and that is what is promised of it)
+                QVERIFY2(b.document()->flow().section(0).firstPageTray == c.first, qPrintable(name));
+                QVERIFY2(b.document()->flow().section(0).otherPageTray == c.other, qPrintable(name));
+                if (ending == QLatin1String(".docx")) {
+                    // (as written, whatever it says)
+                    const QByteArray xml = partsOfZip(fileBytes(dir.filePath(name))).value(QStringLiteral("/word/document.xml"));
+                    QVERIFY2(xml.contains("<w:paperSrc " + c.attrs + "/>"), qPrintable(name + QLatin1Char(' ') + QString::fromUtf8(xml.mid(xml.indexOf("<w:sectPr"), 400))));
+                }
+            }
+        }
+        // A document with no tray writes none, in any kind.
+        WriteWindow plain;
+        Quiet quietPlain(plain);
+        typeText(*plain.document(), plain.view()->cursor(), QStringLiteral("Words"));
+        for (const QString &ending : {QStringLiteral(".docx"), QStringLiteral(".odt"), QStringLiteral(".rtf")}) {
+            QVERIFY(saveInto(plain, dir, QStringLiteral("plain") + ending));
+            QByteArray all = fileBytes(dir.filePath(QStringLiteral("plain") + ending));
+            if (ending != QLatin1String(".rtf"))
+                for (const QByteArray &part : partsOfZip(all)) all += part;
+            QVERIFY(!all.contains("paperSrc") && !all.contains("paper-tray") && !all.contains("binsxn") && !all.contains("binfsxn"));
+        }
     }
 
     // A picture of Check Compatibility (JO_SHOT_DIR names the folder; nothing is made without it).

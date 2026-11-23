@@ -982,6 +982,81 @@ void WriteTests::verticalAlignmentIsKeptChangedByPageSetupAndLostInAnOdt()
 }
 
 
+// A section's printer trays (w:paperSrc) are changed by Page Setup for the section, from the cursor on, or the whole document, one attribute at a time (the other, and any attribute
+// that is not known, stays as written), in one step that undoes; none takes the value out, and the element with it when nothing is left.
+void WriteTests::aSectionsPrinterTraysAreChangedByPageSetupAndOneStepUndoes()
+{
+    jp::initCore();
+    auto count = [](const QByteArray &xml, const char *needle) { return int(xml.count(needle)); };
+    const QByteArray first = sectionXml(12240, 15840, 1440, QByteArray(), QByteArray(), "<w:paperSrc w:first=\"2\" w:other=\"3\"/>");
+    auto doc = open(makeDocxWithParts(plainP("one") + "<w:p><w:pPr>" + first + "</w:pPr></w:p>" + plainP("two"), sectionXml(12240, 15840, 1440), {}));
+    QVERIFY(doc);
+    QCOMPARE(doc->sectionCount(), 2);
+    QCOMPARE(doc->flow().section(0).firstPageTray, std::optional<int>(2));
+    QCOMPARE(doc->flow().section(0).otherPageTray, std::optional<int>(3));
+    QVERIFY(!doc->flow().section(1).firstPageTray && !doc->flow().section(1).otherPageTray);
+    const QByteArray original = documentXml(doc->toDocx());
+    // This section: only the first page's tray changes; the other's stays as written.
+    SectionSetup before = pageSetupOf(doc->sectionProps(0), false), after = before;
+    QCOMPARE(before.firstPageTray, std::optional<int>(2));
+    after.firstPageTray = 4;
+    QVERIFY(applyPageSetup(*doc, 0, PageSetupScope::ThisSection, before, after) >= 1);
+    QByteArray xml = documentXml(doc->toDocx());
+    QCOMPARE(count(xml, "<w:paperSrc "), 1);
+    QCOMPARE(count(xml, "<w:paperSrc w:first=\"4\" w:other=\"3\"/>"), 1);
+    // One step: a single undo puts the file back as it was.
+    doc->undo();
+    QCOMPARE(documentXml(doc->toDocx()), original);
+    // The whole document: the other pages' tray, for a section that had none too (first stays none there).
+    QVERIFY(applyPageSetup(*doc, 0, PageSetupScope::WholeDocument, before, [&] { SectionSetup t = before; t.otherPageTray = 5; return t; }()) >= 1);
+    QCOMPARE(doc->flow().section(0).otherPageTray, std::optional<int>(5));
+    QCOMPARE(doc->flow().section(0).firstPageTray, std::optional<int>(2));
+    QCOMPARE(doc->flow().section(1).otherPageTray, std::optional<int>(5));
+    QVERIFY(!doc->flow().section(1).firstPageTray);
+    xml = documentXml(doc->toDocx());
+    QCOMPARE(count(xml, "<w:paperSrc "), 2);
+    QCOMPARE(count(xml, "<w:paperSrc w:other=\"5\"/>"), 1);
+    // None for both takes the element out.
+    {
+        const SectionSetup now = pageSetupOf(doc->sectionProps(1), false);
+        SectionSetup none = now;
+        none.otherPageTray.reset();
+        QVERIFY(applyPageSetup(*doc, 1, PageSetupScope::ThisSection, now, none) >= 1);
+        QCOMPARE(count(documentXml(doc->toDocx()), "<w:paperSrc "), 1);
+    }
+    // From the cursor on: a section break goes in and the new section has the tray; the text before keeps its own.
+    {
+        auto three = open(makeDocxWithParts(plainP("one") + plainP("two"), sectionXml(12240, 15840, 1440), {}));
+        QVERIFY(three);
+        const SectionSetup b = pageSetupOf(three->sectionProps(0), false);
+        SectionSetup a2 = b;
+        a2.firstPageTray = 1;
+        QTextCursor c(three->story());
+        c.setPosition(three->story()->findBlockByNumber(1).position());
+        QVERIFY(applyPageSetupFromCursor(*three, c, b, a2) >= 1);
+        QCOMPARE(three->sectionCount(), 2);
+        QVERIFY(!three->flow().section(0).firstPageTray);
+        QCOMPARE(three->flow().section(1).firstPageTray, std::optional<int>(1));
+    }
+    // A value that is not a number is not shown, and stays as written while the other attribute changes.
+    auto odd = open(makeDocxWithParts(plainP("x"), sectionXml(12240, 15840, 1440, QByteArray(), QByteArray(), "<w:paperSrc w:first=\"abc\" w:other=\"3\" w:extra=\"keep\"/>"), {}));
+    QVERIFY(odd);
+    QVERIFY(!odd->flow().section(0).firstPageTray);
+    const SectionSetup ob = pageSetupOf(odd->sectionProps(0), false);
+    SectionSetup oa = ob;
+    oa.otherPageTray = 9;
+    QVERIFY(applyPageSetup(*odd, 0, PageSetupScope::ThisSection, ob, oa) >= 1);
+    xml = documentXml(odd->toDocx());
+    QCOMPARE(count(xml, "w:first=\"abc\""), 1);
+    QCOMPARE(count(xml, "w:extra=\"keep\""), 1);
+    QCOMPARE(count(xml, "w:other=\"9\""), 1);
+    // (and untouched, it comes back exactly)
+    auto same = open(makeDocxWithParts(plainP("x"), sectionXml(12240, 15840, 1440, QByteArray(), QByteArray(), "<w:paperSrc w:first=\"abc\" w:other=\"3\" w:extra=\"keep\"/>"), {}));
+    QVERIFY(same);
+    QCOMPARE(count(documentXml(same->toDocx()), "<w:paperSrc w:first=\"abc\" w:other=\"3\" w:extra=\"keep\"/>"), 1);
+}
+
+
 // A section's line numbers skip as many numbers as the file's start says (3: the first line is 4), then go on from page to page when the file says they run on (w:restart
 // "continuous") and begin again at each page when it says nothing.
 void WriteTests::aSectionsLineNumbersSkipTheStartAndRunOnWhenTheFileSays()

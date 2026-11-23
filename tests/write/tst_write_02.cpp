@@ -6,6 +6,7 @@
 #include "../pdfmarkcheck.h"
 #include "render/pdfpage.h"
 #include "app/theme.h"
+#include "app/papertray.h"
 
 
 void WriteTests::thePaperIsDescribedAsTheSectionSetsIt()
@@ -184,6 +185,76 @@ void WriteTests::thePrintPageSidesChoiceSetsTheDuplexModeOfTheJob()
     QVERIFY(openPrintPage(w));
     QCOMPARE(w.findChild<QComboBox *>(QStringLiteral("printDuplex"))->currentIndex(), 2);
     w.findChild<QComboBox *>(QStringLiteral("printDuplex"))->setCurrentIndex(0);
+}
+
+
+namespace {
+// What a job asks the printer for as the tray, in order (a machine with no printers has a printer that keeps nothing, so this is where to look), on a system that can or can't choose a tray
+// for each page.
+struct TrayStandIn {
+    QVector<std::optional<int>> asked;
+    explicit TrayStandIn(TrayReach reach)
+    {
+        setTrayRecorder([this](std::optional<int> tray) { asked << tray; });
+        setTrayReachStandIn([reach] { return reach; });
+    }
+    ~TrayStandIn()
+    {
+        setTrayReachStandIn(nullptr);
+        setTrayRecorder(nullptr);
+    }
+};
+}
+
+// A print job asks the printer for the tray of each page: a section's first-page tray for the page it begins on and its other pages' tray for the rest, where the system can choose a tray
+// for each page; else the first section's other pages' tray once, for the job. A document that asks for no tray, and a file, ask for none. (No printer is used: the job's printer writes a file.)
+void WriteTests::aPrintJobAsksThePrinterForTheTrayOfEachPage()
+{
+    jp::initCore();
+    const QByteArray pageBreak = "<w:p><w:r><w:br w:type=\"page\"/></w:r></w:p>";
+    auto body = [&](const QByteArray &firstSect) { return plainP("a") + pageBreak + plainP("b") + "<w:p><w:pPr>" + firstSect + "</w:pPr></w:p>" + plainP("c") + pageBreak + plainP("d"); };
+    const QByteArray trays0 = sectionXml(12240, 15840, 1440, QByteArray(), QByteArray(), "<w:paperSrc w:first=\"2\" w:other=\"3\"/>");
+    const QByteArray trays1 = sectionXml(12240, 15840, 1440, QByteArray(), QByteArray(), "<w:paperSrc w:first=\"7\" w:other=\"-8\"/>");
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    int jobs = 0;
+    auto run = [&](const QByteArray &docx, TrayReach reach, bool toFile, int *pages = nullptr) {
+        const TrayStandIn standIn(reach);
+        WriteWindow w;
+        w.setDocument(open(docx), QString());
+        if (!toFile)
+            w.setPrinterPreparer([&](QPrinter &p) {
+                p.setOutputFormat(QPrinter::PdfFormat);
+                p.setOutputFileName(dir.filePath(QStringLiteral("job%1.pdf").arg(++jobs)));
+            });
+        w.view()->paginateAll();
+        if (pages) *pages = w.view()->pageCount();
+        WriteOutputOptions o;
+        o.toFile = toFile;
+        if (toFile) w.setSavePathChooser([&](const QString &, const QString &) { return dir.filePath(QStringLiteral("file%1.pdf").arg(++jobs)); });
+        QStringList said;
+        setPrintNoticeStandIn([&](const QString &, const QString &text) { said << text; });
+        w.setNotifier([&](const QString &, const QString &text) { said << text; });
+        const bool printed = w.printOutput(o);
+        setPrintNoticeStandIn(nullptr);
+        if (!printed) qWarning("the job failed: %s", qPrintable(said.join(QLatin1Char('|'))));
+        return standIn.asked;
+    };
+    using Asked = QVector<std::optional<int>>;
+    int pages = 0;
+    // Where each page can be asked: the four pages are the two sections' first and other pages.
+    QCOMPARE(run(makeDocxWithParts(body(trays0), trays1, {}), TrayReach::PerPage, false, &pages), (Asked{2, 3, 7, -8}));
+    QCOMPARE(pages, 4);
+    // Where only the job can be: the first section's other pages' tray, once.
+    QCOMPARE(run(makeDocxWithParts(body(trays0), trays1, {}), TrayReach::None, false), (Asked{3}));
+    // Only a first-page tray: the other pages are left to the printer (asked as none), on every page after it.
+    QCOMPARE(run(makeDocxWithParts(body(sectionXml(12240, 15840, 1440, QByteArray(), QByteArray(), "<w:paperSrc w:first=\"4\"/>")), sectionXml(12240, 15840, 1440), {}), TrayReach::PerPage, false),
+             (Asked{4, std::nullopt, std::nullopt, std::nullopt}));
+    // No tray anywhere, or a file: the printer is not asked.
+    QVERIFY(run(makeDocxWithParts(body(sectionXml(12240, 15840, 1440)), sectionXml(12240, 15840, 1440), {}), TrayReach::PerPage, false).isEmpty());
+    QVERIFY(run(makeDocxWithParts(body(trays0), trays1, {}), TrayReach::PerPage, true).isEmpty());
+    // (a tray no standard names is sent as the printer's pick; what was asked is what the file says)
+    QCOMPARE(run(makeDocxWithParts(plainP("x"), sectionXml(12240, 15840, 1440, QByteArray(), QByteArray(), "<w:paperSrc w:first=\"7777\" w:other=\"7777\"/>"), {}), TrayReach::PerPage, false), (Asked{7777}));
 }
 
 

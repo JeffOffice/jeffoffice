@@ -301,6 +301,12 @@ jp::CompatHost WriteWindow::compatHost()
             kept << tr("Comments and footnotes, with the words in them.");
             kept << tr("Bookmarks, and links to them or to web pages (the words stay).");
             kept << tr("Tracked changes and content controls (the words stay).");
+            // (only when a section asks for a tray: a document with none has nothing of it to lose)
+            for (int i = 0; i < m_doc->sectionCount(); ++i)
+                if (m_doc->flow().section(i).firstPageTray || m_doc->flow().section(i).otherPageTray) {
+                    kept << tr("Printer trays for the first page and the other pages.");
+                    break;
+                }
         }
         CompatAnswer answer(kept);
         if (m_fileProtected) answer.cannotSave = tr("This document is protected with a password, and a plain text file can't hold one. Save it as a .docx file, or remove the password first (File > Info).");

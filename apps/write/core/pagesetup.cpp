@@ -50,7 +50,7 @@ bool SectionSetup::operator==(const SectionSetup &o) const
 {
     return !differs(paperWidth, o.paperWidth) && !differs(paperHeight, o.paperHeight) && landscape == o.landscape && !differs(top, o.top) && !differs(bottom, o.bottom) && !differs(left, o.left) &&
            !differs(right, o.right) && !differs(gutter, o.gutter) && !differs(header, o.header) && !differs(footer, o.footer) && start == o.start && differentFirstPage == o.differentFirstPage &&
-           differentOddEven == o.differentOddEven && pageAlign == o.pageAlign;
+           differentOddEven == o.differentOddEven && pageAlign == o.pageAlign && firstPageTray == o.firstPageTray && otherPageTray == o.otherPageTray;
 }
 
 SectionSetup pageSetupOf(const SectionProps &p, bool oddEven)
@@ -71,6 +71,8 @@ SectionSetup pageSetupOf(const SectionProps &p, bool oddEven)
     s.differentFirstPage = p.titlePg;
     s.differentOddEven = oddEven;
     s.pageAlign = pageAlignOf(p);
+    s.firstPageTray = office::wml::paperSourceOf(p, true);
+    s.otherPageTray = office::wml::paperSourceOf(p, false);
     return s;
 }
 
@@ -193,6 +195,8 @@ int applyPageSetup(WriteDoc &doc, int section, PageSetupScope scope, const Secti
         if (after.start != before.start) p.type = after.start == QLatin1String("nextPage") ? QString() : after.start;
         if (after.differentFirstPage != before.differentFirstPage) p.titlePg = after.differentFirstPage;
         if (after.pageAlign != before.pageAlign) setPageAlign(&p, after.pageAlign);
+        if (after.firstPageTray != before.firstPageTray) office::wml::setPaperSource(&p, true, after.firstPageTray);
+        if (after.otherPageTray != before.otherPageTray) office::wml::setPaperSource(&p, false, after.otherPageTray);
         if (paperChanged || margins) fitMargins(&p);
         return p.pageW != was.pageW || p.pageH != was.pageH || p.orient != was.orient || p.top != was.top || p.bottom != was.bottom || p.left != was.left || p.right != was.right ||
                p.gutter != was.gutter || p.header != was.header || p.footer != was.footer || p.type != was.type || p.titlePg != was.titlePg || p.extra != was.extra || p.hasPgSz != was.hasPgSz || p.hasPgMar != was.hasPgMar;

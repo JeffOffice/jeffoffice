@@ -1,6 +1,7 @@
 // Printing and exporting from JeffWrite's window: Export to PDF, and the printing the File screen's Print page asks for.
 
 #include "app/writewindow.h"
+#include "app/papertray.h"
 #include "app/printsides.h"
 #include "app/pdfproperties.h"
 #include "app/printpage.h"
@@ -1026,6 +1027,13 @@ bool WriteWindow::printOutput(const WriteOutputOptions &options)
     layout.perSheet = options.perSheet;
     layout.paper = options.scaleTo;
     layout.turn = options.turn;
+    // The trays: asked for each sheet where the system's printing can choose one for each page; else the first section's other pages' tray for the whole job (none is asked of a file).
+    if (!options.toFile && trayReach() == TrayReach::PerPage) {
+        layout.trays = true;
+    } else if (!options.toFile) {
+        const flow::Section &first = source->flow().section(0);
+        if (first.firstPageTray || first.otherPageTray) setPrinterTray(&printer, first.otherPageTray);
+    }
     // (a PDF file is tagged as the export's is)
     write::WriteTagger tagger;
     const bool tagging = options.toFile;

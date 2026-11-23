@@ -20,6 +20,7 @@ struct SectionSetup {
     bool differentFirstPage = false;
     bool differentOddEven = false;                                     // the document's
     flow::Section::PageAlign pageAlign = flow::Section::PageAlign::Top;   // where the text stands between the top and bottom margins
+    std::optional<int> firstPageTray, otherPageTray;                   // the printer tray each kind of page prints from (none: the printer picks)
     bool operator==(const SectionSetup &o) const;
 };
 
