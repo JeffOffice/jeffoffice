@@ -35,6 +35,7 @@
 #include <QStatusBar>
 #include <QTreeWidget>
 #include <QImage>
+#include <QLineEdit>
 #include <QRegularExpression>
 #include <QTest>
 #include <QTextBlock>

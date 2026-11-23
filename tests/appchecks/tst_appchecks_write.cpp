@@ -674,8 +674,6 @@ private Q_SLOTS:
              }, false},
         };
         m_app.quiet = {
-            {QStringLiteral("view.moveSectionUp"), QStringLiteral("it moves the section the caret is in, and there is no heading in the check's documents, so it says so in the status bar; commandsMoveTheSectionTheCaretIsInPastItsNeighbor runs it")},
-            {QStringLiteral("view.moveSectionDown"), QStringLiteral("it moves the section the caret is in, and there is no heading in the check's documents, so it says so in the status bar; commandsMoveTheSectionTheCaretIsInPastItsNeighbor runs it")},
             {QStringLiteral("review.autoCorrectOptions"), QStringLiteral("it opens the menu of the AutoCorrect Options button, which is there only after AutoCorrect changed a word as it was typed, and there is none; theAutoCorrectOptionsButtonIsSaidWhenItAppearsAndTheCommandOpensItsMenu types one and runs it")},
             {QStringLiteral("file.shrinkOnePage"), QStringLiteral("a document of one page has no page to take off, and it says so; shrinkByOnePageTakesOffAPageInOneStep and shrinkByOnePageRefusesForTheTrueReasonAndChangesNothing try it")},
             {QStringLiteral("win.cascade"), QStringLiteral("it places the open windows, and there is one")},
@@ -703,6 +701,8 @@ private Q_SLOTS:
         };
         m_app.neverRun = {
             {QStringLiteral("table.moveDown"), QStringLiteral("it is on only with a paragraph after the table that is not in a table, which no place here has; moveTableUpAndDownGoPastOneParagraphEach runs it on a table with paragraphs after it")},
+            {QStringLiteral("view.moveSectionUp"), QStringLiteral("it is on only with the caret in a heading or under one, and no document here has a heading; commandsMoveTheSectionTheCaretIsInPastItsNeighbor and theSectionCommandsAreOffWithTheReasonWhereTheyWouldRefuse run it")},
+            {QStringLiteral("view.moveSectionDown"), QStringLiteral("it is on only with the caret in a heading or under one, and no document here has a heading; commandsMoveTheSectionTheCaretIsInPastItsNeighbor and theSectionCommandsAreOffWithTheReasonWhereTheyWouldRefuse run it")},
             {QStringLiteral("fmt.stopHighlighting"), QStringLiteral("it is on only while the pointer is highlighting, which no place here is; pointerHighlightingStaysOnUntilStopHighlightingOrEscapeAndEachSelectionIsOneStep runs it there")},
             {QStringLiteral("insert.control.properties"), QStringLiteral("it is on only with the caret in a content control, which no place here has; thePropertiesBoxEditsTheControlInOneStep runs it on one")},
             {QStringLiteral("design.themes.reset"), QStringLiteral("it is on only once the theme differs from the one the document was opened with, which no place here changes; theDesignTabListsThemesColorsAndFontsAndTheyApplyInOneStep runs it after a change")},
