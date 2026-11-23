@@ -15335,7 +15335,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
     <message>
         <location line="-57"/>
         <location line="+52"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="+1285"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="+1286"/>
         <source>charts</source>
         <translation type="unfinished">bagan</translation>
     </message>
@@ -15643,7 +15643,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
     </message>
     <message>
         <location line="+127"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="+1555"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="+1795"/>
         <source>The sheet has more merged ranges than any real file has.</source>
         <translation type="unfinished">Lembar memiliki lebih banyak rentang sel gabungan daripada file nyata mana pun.</translation>
     </message>
@@ -15830,7 +15830,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
         <translation type="unfinished">Bagian lembar tersebut tidak ada dalam file.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xls.cpp" line="-2028"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="-2268"/>
         <location line="+2"/>
         <location line="+5"/>
         <location line="+10"/>
@@ -15915,7 +15915,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
         <translation type="unfinished">lembar makro</translation>
     </message>
     <message>
-        <location line="+180"/>
+        <location line="+420"/>
         <source>The sheet&apos;s data is not where the workbook says it is.</source>
         <translation type="unfinished">Data lembar tidak berada di lokasi yang ditunjukkan buku kerja.</translation>
     </message>
@@ -73151,7 +73151,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
 <context>
     <name>jp::deck::PptSalvage</name>
     <message>
-        <location filename="../apps/deck/io/pptsalvage.cpp" line="+140"/>
+        <location filename="../apps/deck/io/pptsalvage.cpp" line="+183"/>
         <location line="+7"/>
         <source>The presentation is protected with a password, and can&apos;t be repaired.</source>
         <translation type="unfinished">Presentasi dilindungi kata sandi dan tidak dapat diperbaiki.</translation>
@@ -73162,7 +73162,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Tidak ada presentasi yang dapat ditemukan dalam berkas: catatan awalnya rusak atau hilang.</translation>
     </message>
     <message>
-        <location line="+41"/>
+        <location line="+67"/>
         <source>The end of the presentation was lost, so it was opened as it was at its last save that is whole.</source>
         <translation type="unfinished">Bagian akhir presentasi hilang, sehingga dibuka seperti saat disimpan terakhir kali dalam kondisi utuh.</translation>
     </message>
@@ -73178,8 +73178,28 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+4"/>
+        <source>Some pictures could not be fully recovered.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>The pictures of the presentation, if it had any, could not be found.</source>
         <translation type="unfinished">Gambar dalam presentasi, jika ada, tidak dapat ditemukan.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>What comes after the last slide of this presentation was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>From slide %1 on, this presentation was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This whole presentation was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -73280,7 +73300,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
 <context>
     <name>jp::office::CfbSalvage</name>
     <message>
-        <location filename="../libs/office/office/cfbsalvage.cpp" line="+247"/>
+        <location filename="../libs/office/office/cfbsalvage.cpp" line="+436"/>
         <source>The file is too large to repair.</source>
         <translation type="unfinished">Berkas terlalu besar untuk diperbaiki.</translation>
     </message>
@@ -73290,24 +73310,49 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Terlalu banyak bagian berkas yang diminta.</translation>
     </message>
     <message>
-        <location line="+89"/>
+        <location line="+175"/>
         <source>The file holds more than can be repaired.</source>
         <translation type="unfinished">Berkas berisi lebih dari yang dapat diperbaiki.</translation>
     </message>
     <message>
-        <location line="+33"/>
-        <source>The container of the file was damaged, so its parts were followed from its directory, as far as the file goes.</source>
-        <translation type="unfinished">Wadah berkas rusak, sehingga bagian-bagiannya ditelusuri dari direktorinya, sejauh yang dapat dilakukan pada berkas.</translation>
+        <location line="+30"/>
+        <source>The file was damaged, so its parts were found by following the lists inside it, as far as they could be read.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>The directory of the file was damaged or gone, so its parts were found by their own records.</source>
-        <translation type="unfinished">Direktori berkas rusak atau hilang, sehingga bagian-bagiannya ditemukan melalui catatannya sendiri.</translation>
+        <source>The list of the parts of the file was damaged or gone, so each part was found by searching the file for it.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>The small parts kept in the mini stream of the file could not be read.</source>
-        <translation type="unfinished">Bagian kecil yang disimpan dalam mini stream berkas tidak dapat dibaca.</translation>
+        <source>Where the lists that say how the pieces of the file fit together were damaged, each piece was taken to follow the one before it in the file.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Two parts of the file had the same name. The first could not be used, so a later one was used in its place.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Part of the file was stored in an unusual order, so it was read from the file&apos;s own lists of where its pieces are.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Part of the file could not be checked to see that it is complete, so it may be cut short or hold pieces that belong somewhere else.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Pieces of the file that its lists mark as unused were read, because nothing else could be found; they may hold old data.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The small parts of the file, which are kept together in one place, could not be read.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
@@ -73535,7 +73580,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
 <context>
     <name>jp::office::doc::Salvage</name>
     <message>
-        <location filename="../libs/office/doc/docsalvage.cpp" line="+198"/>
+        <location filename="../libs/office/doc/docsalvage.cpp" line="+262"/>
         <source>No document could be found in the file.</source>
         <translation type="unfinished">Tidak ada dokumen yang dapat ditemukan dalam berkas.</translation>
     </message>
@@ -73546,12 +73591,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Dokumen dilindungi kata sandi dan tidak dapat diperbaiki.</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+47"/>
         <source>The document&apos;s tables are lost, and its text could not be found without them.</source>
         <translation type="unfinished">Tabel dokumen hilang, dan teksnya tidak dapat ditemukan tanpa tabel tersebut.</translation>
     </message>
     <message>
-        <location line="+27"/>
+        <location line="+29"/>
         <source>The document&apos;s tables are lost, and its text could not be read without them.</source>
         <translation type="unfinished">Tabel dokumen hilang, dan teksnya tidak dapat dibaca tanpa tabel tersebut.</translation>
     </message>
@@ -73562,8 +73607,33 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+2"/>
+        <source>Some pictures could not be fully recovered.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>The pictures of the document, if it had any, could not be found.</source>
         <translation type="unfinished">Gambar dalam dokumen, jika ada, tidak dapat ditemukan.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>From paragraph %1 on, this text was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>This whole document was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>The formatting of this document was pieced together from a damaged file, so some of it may be wrong. Compare the document with a backup if you have one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Part of what says how the text is formatted was pieced together from a damaged file, so some of the formatting may be wrong.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -74884,22 +74954,82 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
 <context>
     <name>jp::office::sheet::Xls</name>
     <message>
-        <location filename="../libs/office/sheet/xls.cpp" line="-779"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="-820"/>
         <source>The file is too large to repair.</source>
         <translation type="unfinished">Berkas terlalu besar untuk diperbaiki.</translation>
     </message>
     <message>
-        <location line="+26"/>
-        <source>The container of the file was sound. A sheet that is damaged keeps the cells before the damage.</source>
-        <translation type="unfinished">Kontainer berkas masih utuh. Lembar yang rusak tetap menyimpan sel sebelum kerusakan.</translation>
+        <location line="-53"/>
+        <source>This whole workbook was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>In sheet &quot;%1&quot;, from row %2 on, and in any sheet that comes after it, this data was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>In sheet &quot;%1&quot;, what comes after its last cell, and any sheet that comes after it, was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Sheet &quot;%1&quot; is empty, because its data could not be found in the file.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>Sheet &quot;%1&quot; was cut short: its rows down to row %2 were recovered, and what came after them is lost.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Sheet &quot;%1&quot; was cut short before any cell could be read.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+3"/>
+        <source>More sheets were damaged or lost than are listed here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The sheets of this file were too many to check one by one, so some may be cut short.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>The other sheets were read whole.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Every sheet was read whole.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>The front of the file, which holds the cell formats and fonts, was cut short, so some formatting may be missing.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The cell formats, fonts, and sheet names were recovered.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+68"/>
+        <source>The file was sound. A sheet that is damaged keeps the cells before the damage.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
         <source>A sheet that was cut short keeps the cells before the cut; whatever came after it is lost.</source>
         <translation type="unfinished">Lembar yang terpotong tetap menyimpan sel sebelum potongan; apa pun yang berada setelahnya hilang.</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+8"/>
         <source>No workbook could be found in the file.</source>
         <translation type="unfinished">Tidak ada buku kerja yang ditemukan dalam berkas.</translation>
     </message>

@@ -2617,18 +2617,6 @@ No se pudo aplicar la contraseña al fichero.</translation>
         <translation type="unfinished">El fichero contiene más de lo que se puede reparar.</translation>
     </message>
     <message>
-        <source>The container of the file was damaged, so its parts were followed from its directory, as far as the file goes.</source>
-        <translation type="unfinished">El contenedor del fichero estaba dañado, así que sus partes se siguieron desde su directorio, en la medida en que lo permite el fichero.</translation>
-    </message>
-    <message>
-        <source>The directory of the file was damaged or gone, so its parts were found by their own records.</source>
-        <translation type="unfinished">El directorio del fichero estaba dañado o no existe, así que sus partes se localizaron mediante sus propios registros.</translation>
-    </message>
-    <message>
-        <source>The small parts kept in the mini stream of the file could not be read.</source>
-        <translation type="unfinished">No se pudieron leer las partes pequeñas almacenadas en el flujo mini del fichero.</translation>
-    </message>
-    <message>
         <source>The file was cut short; what came after the cut is lost.</source>
         <translation type="unfinished">El fichero está truncado; se ha perdido lo que venía después del corte.</translation>
     </message>
@@ -3007,10 +2995,6 @@ No se pudo aplicar la contraseña al fichero.</translation>
     <message>
         <source>The file is too large to repair.</source>
         <translation type="unfinished">El fichero es demasiado grande para repararlo.</translation>
-    </message>
-    <message>
-        <source>The container of the file was sound. A sheet that is damaged keeps the cells before the damage.</source>
-        <translation type="unfinished">El contenedor del fichero estaba intacto. Una hoja dañada conserva las celdas anteriores al daño.</translation>
     </message>
     <message>
         <source>No workbook could be found in the file.</source>

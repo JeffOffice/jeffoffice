@@ -84,7 +84,7 @@ The repaired workbook opens with no file of its own, and a name like "Repaired b
 
 ### An .xls file
 
-An .xls file can be damaged too. If its outer wrapper is cut short or its lists are damaged, **Open and Repair** follows the wrapper as far as it can read, and when that fails, looks through the file for the start of the workbook and reads from there. A sheet that was cut short keeps the cells before the cut. Whatever came after the cut is lost, and you are told so. The repaired workbook opens as a copy, so save it under a new name.
+An .xls file can be damaged too. If its outer wrapper is cut short or its lists are damaged, **Open and Repair** follows the wrapper as far as it can read, and when that fails, looks through the file for the start of the workbook and reads from there. It recovers as much as it can. A sheet that was cut short keeps the cells before the cut, and whatever came after the cut is lost. Where the lists that say how the pieces of the file fit together were damaged, the program takes each piece to follow the one before it, and shows what it finds there. Those cells might belong to an older copy of the sheet or to another part of the file, so the message names the sheet and the row where they begin, and asks you to compare them with a backup if you have one. If the guess comes before the first sheet, the message says the whole workbook was pieced together. The message also names each sheet that was cut short and the row its cells reach, and says which sheets are empty because their data could not be found. It says the sheets were read whole, or that the cell formats and fonts were recovered, only when nothing in the file had to be guessed. The repaired workbook opens as a copy, so save it under a new name.
 
 ## Large workbooks
 

@@ -113,7 +113,7 @@
 <context>
     <name>Sheet</name>
     <message numerus="yes">
-        <location filename="../libs/office/sheet/xls.cpp" line="+1634"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="+1875"/>
         <source>%n note(s) in the file could not be read, and were left out.</source>
         <translation>
             <numerusform>%n note in the file could not be read and was left out.</numerusform>

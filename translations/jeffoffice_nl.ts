@@ -15339,7 +15339,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
     </message>
     <message>
         <location line="-54"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="+528"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="+529"/>
         <source>The workbook has more names than any real file has.</source>
         <translation type="unfinished">De werkmap bevat meer namen dan een echt bestand.</translation>
     </message>
@@ -15384,7 +15384,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
     </message>
     <message>
         <location line="+127"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="+1555"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="+1795"/>
         <source>The sheet has more merged ranges than any real file has.</source>
         <translation type="unfinished">Het blad bevat meer samengevoegde bereiken dan een echt bestand.</translation>
     </message>
@@ -15559,7 +15559,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <translation type="unfinished">Dit bestand is een samengesteld bestand, maar er zit geen werkmap in.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xls.cpp" line="-1267"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="-1507"/>
         <location line="+2"/>
         <location line="+5"/>
         <location line="+10"/>
@@ -15568,7 +15568,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
     </message>
     <message>
         <location filename="../libs/office/sheet/sheetreader.cpp" line="+1225"/>
-        <location filename="../libs/office/sheet/xls.cpp" line="+2011"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="+2251"/>
         <source>There is no such sheet.</source>
         <translation type="unfinished">Dit blad bestaat niet.</translation>
     </message>
@@ -15579,7 +15579,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <translation type="unfinished">Het onderdeel van het blad staat niet in het bestand.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xls.cpp" line="-2025"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="-2265"/>
         <location line="+13"/>
         <source>This workbook is in a file format older than this program reads.</source>
         <translation type="unfinished">Deze werkmap heeft een bestandsindeling die ouder is dan dit programma kan lezen.</translation>
@@ -15838,7 +15838,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <translation type="unfinished">macrobladen</translation>
     </message>
     <message>
-        <location line="+180"/>
+        <location line="+420"/>
         <source>The sheet&apos;s data is not where the workbook says it is.</source>
         <translation type="unfinished">De gegevens van het blad staan niet waar de werkmap aangeeft.</translation>
     </message>
@@ -73228,7 +73228,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
 <context>
     <name>jp::deck::PptSalvage</name>
     <message>
-        <location filename="../apps/deck/io/pptsalvage.cpp" line="+140"/>
+        <location filename="../apps/deck/io/pptsalvage.cpp" line="+183"/>
         <location line="+7"/>
         <source>The presentation is protected with a password, and can&apos;t be repaired.</source>
         <translation type="unfinished">De presentatie is met een wachtwoord beveiligd en kan niet worden hersteld.</translation>
@@ -73239,7 +73239,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Er is geen presentatie in het bestand gevonden: de eerste gegevens zijn beschadigd of verdwenen.</translation>
     </message>
     <message>
-        <location line="+41"/>
+        <location line="+67"/>
         <source>The end of the presentation was lost, so it was opened as it was at its last save that is whole.</source>
         <translation type="unfinished">Het einde van de presentatie is verloren gegaan, dus is die geopend zoals hij was bij de laatste intacte keer opslaan.</translation>
     </message>
@@ -73255,8 +73255,28 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     </message>
     <message>
         <location line="+4"/>
+        <source>Some pictures could not be fully recovered.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>The pictures of the presentation, if it had any, could not be found.</source>
         <translation type="unfinished">De afbeeldingen van de presentatie, als die er waren, konden niet worden gevonden.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>What comes after the last slide of this presentation was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>From slide %1 on, this presentation was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This whole presentation was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -73358,7 +73378,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
 <context>
     <name>jp::office::CfbSalvage</name>
     <message>
-        <location filename="../libs/office/office/cfbsalvage.cpp" line="+247"/>
+        <location filename="../libs/office/office/cfbsalvage.cpp" line="+436"/>
         <source>The file is too large to repair.</source>
         <translation type="unfinished">Het bestand is te groot om te herstellen.</translation>
     </message>
@@ -73368,24 +73388,49 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Er werden te veel onderdelen van het bestand opgevraagd.</translation>
     </message>
     <message>
-        <location line="+89"/>
+        <location line="+175"/>
         <source>The file holds more than can be repaired.</source>
         <translation type="unfinished">Het bestand bevat meer dan kan worden hersteld.</translation>
     </message>
     <message>
-        <location line="+33"/>
-        <source>The container of the file was damaged, so its parts were followed from its directory, as far as the file goes.</source>
-        <translation type="unfinished">De container van het bestand was beschadigd, dus de onderdelen zijn gevolgd via de map, voor zover het bestand dat toelaat.</translation>
+        <location line="+30"/>
+        <source>The file was damaged, so its parts were found by following the lists inside it, as far as they could be read.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>The directory of the file was damaged or gone, so its parts were found by their own records.</source>
-        <translation type="unfinished">De map van het bestand was beschadigd of verdwenen, dus de onderdelen zijn gevonden aan de hand van hun eigen gegevens.</translation>
+        <source>The list of the parts of the file was damaged or gone, so each part was found by searching the file for it.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>The small parts kept in the mini stream of the file could not be read.</source>
-        <translation type="unfinished">De kleine onderdelen in de mini-stroom van het bestand konden niet worden gelezen.</translation>
+        <source>Where the lists that say how the pieces of the file fit together were damaged, each piece was taken to follow the one before it in the file.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Two parts of the file had the same name. The first could not be used, so a later one was used in its place.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Part of the file was stored in an unusual order, so it was read from the file&apos;s own lists of where its pieces are.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Part of the file could not be checked to see that it is complete, so it may be cut short or hold pieces that belong somewhere else.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Pieces of the file that its lists mark as unused were read, because nothing else could be found; they may hold old data.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The small parts of the file, which are kept together in one place, could not be read.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
@@ -73615,7 +73660,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
 <context>
     <name>jp::office::doc::Salvage</name>
     <message>
-        <location filename="../libs/office/doc/docsalvage.cpp" line="+198"/>
+        <location filename="../libs/office/doc/docsalvage.cpp" line="+262"/>
         <source>No document could be found in the file.</source>
         <translation type="unfinished">Er is geen document gevonden in het bestand.</translation>
     </message>
@@ -73626,12 +73671,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Het document is met een wachtwoord beveiligd en kan niet worden hersteld.</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+47"/>
         <source>The document&apos;s tables are lost, and its text could not be found without them.</source>
         <translation type="unfinished">De tabellen van het document zijn verloren, en de tekst kon zonder die tabellen niet worden gevonden.</translation>
     </message>
     <message>
-        <location line="+27"/>
+        <location line="+29"/>
         <source>The document&apos;s tables are lost, and its text could not be read without them.</source>
         <translation type="unfinished">De tabellen van het document zijn verloren, en de tekst kon zonder die tabellen niet worden gelezen.</translation>
     </message>
@@ -73642,8 +73687,33 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     </message>
     <message>
         <location line="+2"/>
+        <source>Some pictures could not be fully recovered.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
         <source>The pictures of the document, if it had any, could not be found.</source>
         <translation type="unfinished">De afbeeldingen van het document, als die er waren, konden niet worden gevonden.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>From paragraph %1 on, this text was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>This whole document was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>The formatting of this document was pieced together from a damaged file, so some of it may be wrong. Compare the document with a backup if you have one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Part of what says how the text is formatted was pieced together from a damaged file, so some of the formatting may be wrong.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -74973,22 +75043,82 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
 <context>
     <name>jp::office::sheet::Xls</name>
     <message>
-        <location filename="../libs/office/sheet/xls.cpp" line="-779"/>
+        <location filename="../libs/office/sheet/xls.cpp" line="-820"/>
         <source>The file is too large to repair.</source>
         <translation type="unfinished">Het bestand is te groot om te herstellen.</translation>
     </message>
     <message>
-        <location line="+26"/>
-        <source>The container of the file was sound. A sheet that is damaged keeps the cells before the damage.</source>
-        <translation type="unfinished">De container van het bestand was intact. Een beschadigd blad behoudt de cellen vóór de beschadiging.</translation>
+        <location line="-53"/>
+        <source>This whole workbook was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>In sheet &quot;%1&quot;, from row %2 on, and in any sheet that comes after it, this data was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>In sheet &quot;%1&quot;, what comes after its last cell, and any sheet that comes after it, was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Sheet &quot;%1&quot; is empty, because its data could not be found in the file.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>Sheet &quot;%1&quot; was cut short: its rows down to row %2 were recovered, and what came after them is lost.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Sheet &quot;%1&quot; was cut short before any cell could be read.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+3"/>
+        <source>More sheets were damaged or lost than are listed here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The sheets of this file were too many to check one by one, so some may be cut short.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>The other sheets were read whole.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Every sheet was read whole.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>The front of the file, which holds the cell formats and fonts, was cut short, so some formatting may be missing.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The cell formats, fonts, and sheet names were recovered.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+68"/>
+        <source>The file was sound. A sheet that is damaged keeps the cells before the damage.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
         <source>A sheet that was cut short keeps the cells before the cut; whatever came after it is lost.</source>
         <translation type="unfinished">Een blad dat werd afgekapt behoudt de cellen vóór de afkapping; alles wat daarna kwam, is verloren.</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="+8"/>
         <source>No workbook could be found in the file.</source>
         <translation type="unfinished">Er kon geen werkmap in het bestand worden gevonden.</translation>
     </message>
