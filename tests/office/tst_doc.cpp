@@ -2937,7 +2937,7 @@ private Q_SLOTS:
         Document plain;
         QVERIFY(!read(bad, &plain) || bodyTexts(plain) != paras);
         QVERIFY2(blanksAgainst(repairedParagraphs(bad, &notes), paras) >= 0, qPrintable(notes.join(QLatin1Char('|'))));
-        QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("directory")), qPrintable(notes.join(QLatin1Char('|'))));
+        QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("following the lists inside it")), qPrintable(notes.join(QLatin1Char('|'))));
     }
 
     void aDocumentWhoseDirectoryIsZeroedIsFoundByItsRecords()
@@ -2948,7 +2948,7 @@ private Q_SLOTS:
         zeroSector(bad, int(le32At(bad, 48)));
         QVERIFY(!read(bad, &plain));
         QCOMPARE(repairedParagraphs(bad, &notes), paras);
-        QVERIFY(notes.join(QLatin1Char(' ')).contains(QLatin1String("directory")));
+        QVERIFY(notes.join(QLatin1Char(' ')).contains(QLatin1String("searching the file for it")));
     }
 
     void aChainOfSectorsThatLoopsIsFollowedOnce()
@@ -2964,7 +2964,7 @@ private Q_SLOTS:
         Document plain;
         QVERIFY(!read(bad, &plain, nullptr) || bodyTexts(plain) != paras);
         QVERIFY2(blanksAgainst(repairedParagraphs(bad, &notes), paras) >= 0, qPrintable(notes.join(QLatin1Char('|'))));
-        QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("directory")), qPrintable(notes.join(QLatin1Char('|'))));   // (the chain was guessed from the directory)
+        QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("following the lists inside it")), qPrintable(notes.join(QLatin1Char('|'))));   // (the chain was guessed from the directory)
         // the directory's own chain too
         QByteArray bad2 = repairableDoc(&paras);
         setLe32(bad2, (int(le32At(bad2, 76)) + 1) * 512 + int(le32At(bad2, 48)) * 4, le32At(bad2, 48));
@@ -3183,7 +3183,7 @@ private Q_SLOTS:
         QVERIFY(out.miniUnread);
         QVERIFY(!out.cutShort);
         const QString said = out.notes.join(QLatin1Char(' '));
-        QVERIFY2(!said.contains(QLatin1String("cut short")) && said.contains(QLatin1String("mini stream")), qPrintable(said));
+        QVERIFY2(!said.contains(QLatin1String("cut short")) && said.contains(QLatin1String("kept together in one place")), qPrintable(said));
     }
 
     void aFileEndingInsideTheLastSectorOfAStreamIsCutShort()
@@ -3478,7 +3478,7 @@ private Q_SLOTS:
         QByteArray bad = good;
         cfbdamage::fatSet(bad, cfbdamage::sectorsOf(good, QStringLiteral("WordDocument"))[3], cfbdamage::kEnd);
         QVERIFY(!doc::salvageDoc(bad, &notes, nullptr).isEmpty());
-        QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("each sector was taken to follow the one before it")), qPrintable(notes.join(QLatin1Char('|'))));
+        QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("each piece was taken to follow the one before it")), qPrintable(notes.join(QLatin1Char('|'))));
     }
 
     // A developer's hook, not a test: JO_REPAIR_TABLE names a file the outcome of each kind of damage is appended to.

@@ -1525,7 +1525,7 @@ int dropAcrossJoins(QByteArray *d, const QVector<qint64> &joins)
 }
 
 // What became of the sheets, in words: each sheet that is cut short (with how far its cells go) or is gone, and what was read whole.
-QStringList sheetReport(const QByteArray &stream, const Limits &limits, XlsSalvageWork *counted)
+QStringList sheetReport(const QByteArray &stream, const Limits &limits, XlsSalvageWork *counted, bool caveat)
 {
     QStringList out;
     WorkbookInfo info;
@@ -1566,8 +1566,9 @@ QStringList sheetReport(const QByteArray &stream, const Limits &limits, XlsSalva
     }
     if (damaged > kSalvageSheetsReported) out << QCoreApplication::translate("jp::office::sheet::Xls", "More sheets were damaged or lost than are listed here.");
     if (unchecked > 0) out << QCoreApplication::translate("jp::office::sheet::Xls", "The sheets of this file were too many to check one by one, so some may be cut short.");
-    if (whole > 0 && damaged > 0) out << QCoreApplication::translate("jp::office::sheet::Xls", "The other sheets were read whole.");
-    if (whole > 0 && damaged == 0 && unchecked == 0) out << QCoreApplication::translate("jp::office::sheet::Xls", "Every sheet was read whole.");
+    // ("read whole" is not said beside a note of what was left out, or of a guess, or of an end that could not be confirmed: the sheets then only end where they should)
+    if (whole > 0 && damaged > 0) out << (caveat ? QCoreApplication::translate("jp::office::sheet::Xls", "The other sheets end where they should.") : QCoreApplication::translate("jp::office::sheet::Xls", "The other sheets were read whole."));
+    if (whole > 0 && damaged == 0 && unchecked == 0) out << (caveat ? QCoreApplication::translate("jp::office::sheet::Xls", "Every sheet ends where it should.") : QCoreApplication::translate("jp::office::sheet::Xls", "Every sheet was read whole."));
     qint64 globalsWork = 1 << 20;
     if (book->globalsEnd(&globalsWork) == XlsBook::End::Whole) out << QCoreApplication::translate("jp::office::sheet::Xls", "The cell formats, fonts, and sheet names were recovered.");
     else out << QCoreApplication::translate("jp::office::sheet::Xls", "The front of the file, which holds the cell formats and fonts, was cut short, so some formatting may be missing.");
@@ -1638,11 +1639,11 @@ QByteArray salvageXlsStream(const QByteArray &file, const Limits &limits, QStrin
         }
         if (notes) {
             if (sound) {
-                *notes << QCoreApplication::translate("jp::office::sheet::Xls", "The container of the file was sound. A sheet that is damaged keeps the cells before the damage.");
+                *notes << QCoreApplication::translate("jp::office::sheet::Xls", "The file was sound. A sheet that is damaged keeps the cells before the damage.");
             } else {
                 *notes << found.notes;
                 if (dropped > 0) *notes << QCoreApplication::translate("jp::office::sheet::Xls", "%n entry of the workbook (a cell, a format, or a note) was left out because it lay across a place where pieces of the file were joined by a guess.", nullptr, dropped);
-                const QStringList report = sheetReport(stream, limits, counted);
+                const QStringList report = sheetReport(stream, limits, counted, dropped > 0 || found.tablesGuessed || found.unverified || found.usedFree);
                 if (report.isEmpty()) *notes << QCoreApplication::translate("jp::office::sheet::Xls", "A sheet that was cut short keeps the cells before the cut; whatever came after it is lost.");
                 else *notes << report;
             }

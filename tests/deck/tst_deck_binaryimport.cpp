@@ -1353,7 +1353,7 @@ private Q_SLOTS:
         d = repaired(bad, &notes, &why);
         QVERIFY2(d, qPrintable(why));
         QCOMPARE(titles(*d), (QStringList{"Plan", "Quarterly Results"}));
-        QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("directory")), qPrintable(notes.join(QLatin1Char('|'))));
+        QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("following the lists inside it")), qPrintable(notes.join(QLatin1Char('|'))));
     }
 
     void aPresentationWhoseDirectoryIsZeroedIsFoundByItsRecords()
@@ -1366,7 +1366,7 @@ private Q_SLOTS:
         auto d = repaired(bad, &notes, &why);
         QVERIFY2(d, qPrintable(why));
         QCOMPARE(titles(*d), (QStringList{"Plan", "Quarterly Results"}));
-        QVERIFY(notes.join(QLatin1Char(' ')).contains(QLatin1String("directory")));
+        QVERIFY(notes.join(QLatin1Char(' ')).contains(QLatin1String("searching the file for it")));
     }
 
     void aPresentationProtectedWithAPasswordIsNotRepaired()

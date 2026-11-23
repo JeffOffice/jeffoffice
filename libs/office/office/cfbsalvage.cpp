@@ -574,17 +574,17 @@ bool salvageCompoundFile(const QByteArray &file, const QVector<CfbWish> &wishes,
         byDirectory |= it.value() == CfbSalvage::How::Directory;
         byScan |= it.value() == CfbSalvage::How::Scan;
     }
-    if (byDirectory) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "The container of the file was damaged, so its parts were followed from its directory, as far as the file goes.");
-    if (byScan) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "The directory of the file was damaged or gone, so its parts were found by their own records.");
-    if (out->tablesGuessed && (byDirectory || byScan)) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "Where the tables of sectors were damaged, each sector was taken to follow the one before it in the file, so a value where two sectors meet may be wrong.");
-    if (out->repaired) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "The size the file gives for a part and the lists of where its pieces are stored did not agree, so the part was read as far as its pieces go.");
+    if (byDirectory) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "The file was damaged, so its parts were found by following the lists inside it, as far as they could be read.");
+    if (byScan) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "The list of the parts of the file was damaged or gone, so each part was found by searching the file for it.");
+    if (out->tablesGuessed && (byDirectory || byScan)) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "Where the lists that say how the pieces of the file fit together were damaged, each piece was taken to follow the one before it in the file.");
+    if (out->repaired) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "The size the file gives for a part and the lists that say where its pieces are did not agree, so the part was read by those lists.");
     out->unverified = anyUnverified;
     out->usedFree = anyFree;
     out->bytesBuilt = builtBudget - built;
     out->bytesChecked = budget - work;
     if (anyUnverified) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "The end of a part of the file could not be confirmed, so only what could be checked was kept.");
     if (anyFree) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "Pieces of the file that its lists mark as unused were read, because nothing else could be found; they may hold old data.");
-    if (out->miniUnread) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "The small parts kept in the mini stream of the file could not be read.");
+    if (out->miniUnread) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "The small parts of the file, which are kept together in one place, could not be read.");
     if (out->cutShort && (byDirectory || byScan)) out->notes << QCoreApplication::translate("jp::office::CfbSalvage", "The file was cut short; what came after the cut is lost.");
     if (!missing.isEmpty()) {
         if (error) *error = QCoreApplication::translate("jp::office::CfbSalvage", "No %1 could be found in the file.").arg(missing.join(QStringLiteral(", ")));

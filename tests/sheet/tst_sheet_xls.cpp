@@ -1854,9 +1854,11 @@ private Q_SLOTS:
             QVERIFY2(!o.refused, qPrintable(v.id + o.why));
             // (a cell across a place where pieces were joined by guess is left out; f4 needs no guess and loses nothing)
             QVERIFY2(o.right + o.missing == rows * 2 && o.wrong == 0 && o.missing <= (v.id == QLatin1String("f4") ? 0 : 1), qPrintable(QStringLiteral("%1: right %2 missing %3 wrong %4").arg(v.id).arg(o.right).arg(o.missing).arg(o.wrong)));
-            QVERIFY2(o.notes.join(QLatin1Char(' ')).contains(QLatin1String("Every sheet was read whole")), qPrintable(v.id + o.notes.join(QLatin1Char('|'))));
+            // (a repair that guessed says the sheets end where they should, and never that they were read whole beside the guess)
+            QVERIFY2(o.notes.join(QLatin1Char(' ')).contains(QLatin1String(v.id == QLatin1String("f4") ? "Every sheet was read whole" : "Every sheet ends where it should")), qPrintable(v.id + o.notes.join(QLatin1Char('|'))));
+            QVERIFY2(v.id == QLatin1String("f4") || !o.notes.join(QLatin1Char(' ')).contains(QLatin1String("read whole")), qPrintable(v.id + o.notes.join(QLatin1Char('|'))));
             // (a container that was repaired is never reported as sound, whichever way the stream was put right)
-            QVERIFY2(!o.notes.join(QLatin1Char(' ')).contains(QLatin1String("container of the file was sound")), qPrintable(v.id + o.notes.join(QLatin1Char('|'))));
+            QVERIFY2(!o.notes.join(QLatin1Char(' ')).contains(QLatin1String("The file was sound")), qPrintable(v.id + o.notes.join(QLatin1Char('|'))));
             QVERIFY2(o.notes.join(QLatin1Char(' ')).contains(QLatin1String("did not agree")), qPrintable(v.id + o.notes.join(QLatin1Char('|'))));
         }
         QCOMPARE(checked, 4);
@@ -1971,6 +1973,7 @@ private Q_SLOTS:
         QCOMPARE(o.right, rows * 2 - 1);
         const QString said = o.notes.join(QLatin1Char('\n'));
         QVERIFY2(said.contains(QLatin1String("1 entry of the workbook (a cell, a format, or a note) was left out")), qPrintable(said));
+        QVERIFY2(said.contains(QLatin1String("Every sheet ends where it should")) && !said.contains(QLatin1String("read whole")), qPrintable(said));   // (never "read whole" beside what was left out)
     }
 
     // A stretch of damage in the middle of the first sheet: that sheet keeps the cells before it, and the sheets after it, which the globals place by their own offsets, are kept whole.
