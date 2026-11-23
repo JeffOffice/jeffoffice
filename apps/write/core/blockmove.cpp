@@ -19,7 +19,7 @@ namespace jp::write {
 
 namespace {
 
-qint64 g_work = 0;
+qint64 g_work = 0, g_scan = 0;
 
 bool sameLook(QTextBlockFormat x, QTextBlockFormat y)
 {
@@ -72,8 +72,58 @@ bool holdsHalfAPair(const QTextBlock &a, const QTextBlock &z)
     return broken || fieldDepth != 0 || bookmarks != bookmarkEnds || comments != commentEnds;
 }
 
+// The elements kept as XML before or after a paragraph (packBlocks).
+QVector<office::wml::Block> rawOf(const QTextBlock &b, int key)
+{
+    return b.isValid() && b.blockFormat().hasProperty(key) ? unpackBlocks(storedBytes(b.blockFormat(), key)) : QVector<office::wml::Block>();
+}
+
+QVector<office::wml::Block> rawOfFormat(const QTextBlockFormat &f, int key)
+{
+    return f.hasProperty(key) ? unpackBlocks(storedBytes(f, key)) : QVector<office::wml::Block>();
+}
+
+// What stands kept before a paragraph, in two parts: the ends of wrappers (a block content control, a custom-XML block, a tracked insertion) that hold the paragraphs before it, which belong
+// with those paragraphs, and the rest, which belongs with this one.
+void splitLead(const QVector<office::wml::Block> &raw, QVector<office::wml::Block> *lead, QVector<office::wml::Block> *rest)
+{
+    int depth = 0, cut = 0;
+    for (int i = 0; i < raw.size(); ++i) {
+        if (raw[i].role == office::wml::Inline::Open) ++depth;
+        else if (raw[i].role == office::wml::Inline::Close && depth > 0) --depth;
+        else if (raw[i].role == office::wml::Inline::Close) cut = i + 1;
+    }
+    *lead = raw.mid(0, cut);
+    *rest = raw.mid(cut);
+}
+
+// Whether every wrapper kept as XML between the paragraphs `a` to `z` is whole in them: none opens before the run and ends in it, and none opens in it and ends after it. `tail` is what
+// stands before the paragraph after the run that ends wrappers of the run.
+bool wrappersWhole(const QTextBlock &a, const QTextBlock &z, const QVector<office::wml::Block> &tail)
+{
+    int depth = 0;
+    bool whole = true;
+    auto walk = [&](const QVector<office::wml::Block> &raw) {
+        for (const office::wml::Block &r : raw) {
+            if (r.role == office::wml::Inline::Open) ++depth;
+            else if (r.role == office::wml::Inline::Close && --depth < 0) whole = false;
+        }
+    };
+    for (QTextBlock b = a; b.isValid(); b = b.next()) {
+        ++g_scan;
+        QVector<office::wml::Block> before = rawOf(b, prop::RawBefore), lead;
+        if (b == a) splitLead(QVector<office::wml::Block>(before), &lead, &before);
+        walk(before);
+        walk(rawOf(b, prop::RawAfter));
+        if (b == z) break;
+    }
+    walk(tail);
+    return whole && depth == 0;
+}
+
 struct Look {
     int number = 0;
+    int was = 0;
     QTextBlockFormat format;
     QTextCharFormat mark;
 };
@@ -81,11 +131,13 @@ struct Look {
 } // namespace
 
 qint64 moveBlocksWorkForTest() { return g_work; }
+qint64 moveBlocksWrapperScanForTest() { return g_scan; }
 
 bool moveBlocks(WriteDoc &doc, int first, int last, int before, QString *why, int *movedTo)
 {
     if (why) why->clear();
     g_work = 0;
+    g_scan = 0;
     auto refuse = [&](const QString &text) {
         if (why) *why = text;
         return false;
@@ -131,15 +183,23 @@ bool moveBlocks(WriteDoc &doc, int first, int last, int before, QString *why, in
         const bool placeBetween = toEnd ? false : (!beforePlace.isValid() || breaksSection(beforePlace));
         if (!startsSection || !endsSection || !placeBetween) return refuse(QCoreApplication::translate("jp::write::BlockMove", "This section holds a page setup break that would change the layout of other text, so it can't be moved."));
     }
-    if (holdsHalfAPair(a, z) || splitsContentControl(s, a.position(), z.position() + z.length() - 1))
-        return refuse(QCoreApplication::translate("jp::write::BlockMove", "This section holds one end of a bookmark, comment, field, or content control whose other end is outside it, so it can't be moved."));
-
     // Two runs side by side swap places: P, then Q. The one that is moved is the person's (R), or its neighbor when R is the first paragraph of the text, which has no paragraph break before
     // it to be cut with.
     const int tPrev = toEnd ? lastBody.blockNumber() : tNumber - 1;
     const int p0 = up ? tNumber : a.blockNumber(), p1 = up ? a.blockNumber() - 1 : z.blockNumber();
     const int q0 = p1 + 1, q1 = up ? z.blockNumber() : tPrev;
     const int pLen = p1 - p0 + 1, qLen = q1 - q0 + 1;
+    // The run may not hold one end of a bookmark, comment, field, or content control whose other end is outside it, and neither of the two runs that swap places may hold one end of a wrapper kept
+    // as XML (a block content control, a custom-XML block, a tracked insertion) whose other end is outside it.
+    const QTextBlock pa = s->findBlockByNumber(p0), pz = s->findBlockByNumber(p1), qa = s->findBlockByNumber(q0), qz = s->findBlockByNumber(q1);
+    const QTextBlock post = s->findBlockByNumber(q1 + 1);
+    const bool hasPost = post.isValid() && post.position() <= end;
+    QVector<office::wml::Block> leadP0, headP0, leadQ0, headQ0, leadPost, headPost;
+    splitLead(rawOf(pa, prop::RawBefore), &leadP0, &headP0);
+    splitLead(rawOf(qa, prop::RawBefore), &leadQ0, &headQ0);
+    if (hasPost) splitLead(rawOf(post, prop::RawBefore), &leadPost, &headPost);
+    if (holdsHalfAPair(a, z) || splitsContentControl(s, a.position(), z.position() + z.length() - 1) || !wrappersWhole(pa, pz, leadQ0) || !wrappersWhole(qa, qz, leadPost))
+        return refuse(QCoreApplication::translate("jp::write::BlockMove", "This section holds one end of a bookmark, comment, field, or content control whose other end is outside it, so it can't be moved."));
     const bool moveQ = up || p0 == 0;
     const int m0 = moveQ ? q0 : p0, m1 = moveQ ? q1 : p1;
     auto newNumber = [&](int x) { return x >= p0 && x <= p1 ? x + qLen : x >= q0 && x <= q1 ? x - pLen : x; };
@@ -151,12 +211,25 @@ bool moveBlocks(WriteDoc &doc, int first, int last, int before, QString *why, in
         if (number < 0 || !b.isValid() || b.position() > end) return;
         Look l;
         l.number = newNumber(number);
+        l.was = number;
         l.format = b.blockFormat();
         l.mark = b.charFormat();
         looks << l;
     };
     for (int x = m0; x <= m1; ++x) keep(x);
     for (int x : {p0 - 1, p0, p1, q0, q1, q1 + 1}) keep(x);
+    // Where a wrapper ends right after a run, the end is kept before the paragraph that follows: each paragraph that now follows a run is given the ends of the one it follows now.
+    auto setRaw = [](QTextBlockFormat *f, int key, const QVector<office::wml::Block> &raw) {
+        if (raw.isEmpty()) f->clearProperty(key);
+        else setStored(*f, key, packBlocks(raw));
+    };
+    if (!leadP0.isEmpty() || !leadQ0.isEmpty() || !leadPost.isEmpty())
+        for (Look &l : looks) {
+            if (l.was == q0) setRaw(&l.format, prop::RawBefore, leadP0 + headQ0);
+            if (l.was == p0) setRaw(&l.format, prop::RawBefore, leadPost + headP0);
+            if (hasPost && l.was == q1 + 1) setRaw(&l.format, prop::RawBefore, leadQ0 + headPost);
+            if (!hasPost && l.was == p1) setRaw(&l.format, prop::RawAfter, rawOfFormat(l.format, prop::RawAfter) + leadQ0);
+        }
     const QByteArray lastSection = storedBytes(s->begin().blockFormat(), prop::LastSection);
     g_work += looks.size();
 

@@ -17,5 +17,7 @@ bool moveBlocks(WriteDoc &doc, int first, int last, int before, QString *why = n
 
 // For tests: how many paragraphs the last call looked at or changed.
 qint64 moveBlocksWorkForTest();
+// For tests: how many paragraphs the last call looked at for the ends of wrappers (the two runs that swap places).
+qint64 moveBlocksWrapperScanForTest();
 
 } // namespace jp::write

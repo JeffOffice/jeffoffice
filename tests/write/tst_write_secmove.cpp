@@ -469,6 +469,65 @@ private Q_SLOTS:
         moveAndCompare(p, false);
     }
 
+    // Block-level wrappers (a block content control, a custom-XML block, a block-level tracked insertion) around whole paragraphs. One that is wholly inside a run goes with its paragraphs, and
+    // the saved file is the one a document typed in the new order saves; one that crosses the edge of a run refuses the move.
+    static QByteArray wrapOpen(int kind)
+    {
+        return kind == 0 ? QByteArray("<w:sdt><w:sdtPr><w:alias w:val=\"Box\"/><w:id w:val=\"99\"/></w:sdtPr><w:sdtContent>")
+             : kind == 1 ? QByteArray("<w:customXml w:element=\"x\">")
+                         : QByteArray("<w:ins w:id=\"7\" w:author=\"Ann\" w:date=\"2026-01-02T03:04:05Z\">");
+    }
+    static QByteArray wrapClose(int kind) { return kind == 0 ? QByteArray("</w:sdtContent></w:sdt>") : kind == 1 ? QByteArray("</w:customXml>") : QByteArray("</w:ins>"); }
+    static QByteArray wrapped(int kind, const QByteArray &paragraphs) { return wrapOpen(kind) + paragraphs + wrapClose(kind); }
+
+    void wrapperKindMoves(int kind)
+    {
+        for (int where = 1; where <= 3; ++where)
+            for (int whole = 0; whole < 2; ++whole)
+                for (int tail = 0; tail < 2; ++tail) {
+                    // Whole: the wrapper holds the heading and its text; not: it holds one more paragraph after them.
+                    Pieces p;
+                    QByteArray &section = where == 1 ? p.alpha : where == 2 ? p.beta : p.gamma;
+                    section = whole ? wrapped(kind, section) : section + wrapped(kind, para("Wrapped words"));
+                    if (!tail) p.tail.clear();
+                    const QByteArray label = "wrapper " + QByteArray::number(kind) + " in section " + QByteArray::number(where) + (whole ? " (whole)" : " (after)") + (tail ? "" : " (no tail)");
+                    if (tail) moveAndCompare(p, true);
+                    if (!QTest::currentTestFailed()) moveAndCompare(p, false, tail);
+                    if (QTest::currentTestFailed()) {
+                        qWarning("failed for the %s", label.constData());
+                        return;
+                    }
+                }
+    }
+    void wrapperKindRefuses(int kind)
+    {
+        // Across the edge between Alpha and Beta (above the moved run's start), across the edge between Beta and Gamma (its end), and from the text before Alpha into Alpha.
+        {
+            Pieces p;
+            p.alpha = head("Alpha") + wrapOpen(kind) + marked("Alpha words");
+            p.beta = head("Beta") + wrapClose(kind) + para("Beta words");
+            refused(p, QByteArray(), QStringLiteral("content control"));
+        }
+        if (QTest::currentTestFailed()) return;
+        {
+            Pieces p;
+            p.beta = head("Beta") + wrapOpen(kind) + para("Beta words");
+            p.gamma = head("Gamma") + wrapClose(kind) + marked("Gamma words");
+            refused(p, QByteArray(), QStringLiteral("content control"));
+        }
+        if (QTest::currentTestFailed()) return;
+        {
+            Pieces p;
+            p.intro = marked("Intro words") + wrapOpen(kind) + marked("Intro two");
+            p.alpha = head("Alpha") + wrapClose(kind) + marked("Alpha words");
+            refused(p, QByteArray(), QStringLiteral("content control"));
+        }
+    }
+
+    void aBlockContentControlAroundWholeParagraphsMovesWithThemOrRefuses() { wrapperKindMoves(0); if (!QTest::currentTestFailed()) wrapperKindRefuses(0); }
+    void aCustomXmlBlockAroundWholeParagraphsMovesWithThemOrRefuses() { wrapperKindMoves(1); if (!QTest::currentTestFailed()) wrapperKindRefuses(1); }
+    void aTrackedInsertionBlockAroundWholeParagraphsMovesWithThemOrRefuses() { wrapperKindMoves(2); if (!QTest::currentTestFailed()) wrapperKindRefuses(2); }
+
     void aPageBreakBeforeTheHeadingStaysWithTheTextItIsIn()
     {
         Pieces p;
@@ -732,6 +791,9 @@ private Q_SLOTS:
         QCOMPARE(doc->story()->blockCount(), blocks);
         QCOMPARE(doc->story()->findBlockByNumber(1 + target * 5).text(), QStringLiteral("Heading 1999"));
         QVERIFY2(pane->lastDropWorkForTest() > 0 && pane->lastDropWorkForTest() <= 40, qPrintable(QString::number(pane->lastDropWorkForTest())));   // (the section's five paragraphs, a few more at the seams: 10,000 paragraphs are not looked at)
+        // The two runs that swap places are looked at for the ends of wrappers, and no paragraph more: the section and what it jumped over, not the whole text.
+        const qint64 jumped = (2000 - target) * 5;
+        QVERIFY2(moveBlocksWrapperScanForTest() >= jumped && moveBlocksWrapperScanForTest() <= jumped + 3, qPrintable(QString::number(moveBlocksWrapperScanForTest()) + QStringLiteral(" against ") + QString::number(jumped)));
     }
 
     void commandsMoveTheSectionTheCaretIsInPastItsNeighbor()
