@@ -159,6 +159,12 @@ private Q_SLOTS:
     void aSpillRangeOfAnotherSheetFollowsTheBlock();
     void aSpillBlockSurvivesACopyAndAMoveOfItsSheet();
     void aSpillFormulaTakenOutOfASheetLeavesNoBlock();
+    void cellsOfALoadedSpillThatItsBlockLetsGoOfAreTakenWithTheWorkerHeld();
+    void theWindowReadsTheBlocksOfTheBatchItTook();
+    void aTableMadeAgainUnderAHoldIsPublishedOnce();
+    void aBlockIsReadBesideTheWorkerThatChangesIt();
+    void theCellsOfALoadedBlockAreReadBesideTheWorkerThatLetsGoOfThem();
+    void aSnapshotsRangesAgreeWithItsFrozenBlocks();
     void aFormulaWithTheMarkIsSavedAsSingleAndReadBack();
     void aBigSpillBlockMovesQuickly();
     void aSaveThatFailsLeavesTheOldFile();

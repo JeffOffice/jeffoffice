@@ -64,6 +64,7 @@ struct CalcBatch {
     int percent = 0;               // of the formulas, worked out
     bool last = false;             // the calculation is over (finished, or stopped)
     bool stopped = false;          // ... because it was stopped
+    qint64 spillSeq = 0;           // the blocks the calculation had published when the batch was sent (Calculation::spillSeq): the window reads them from the batch on, with the values that fill them
     qint64 epoch = 0;              // for a last batch: how many changes the window had made when the calculation finished (WorkbookLoader::changesMade): all of them are worked out
     qint64 workerCpuMicros = 0;    // the worker thread's processor time since it began
     bool due = false;              // (a last batch) the workbook is set to be worked out by hand and has formulas waiting for it

@@ -8,6 +8,7 @@
 #include <QtGlobal>
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 #include <memory>
 #include <mutex>
@@ -46,9 +47,10 @@ public:
     static constexpr quint32 kBlockCols = 8;
     static constexpr qint64 kMaxBuckets = 4096;
     static constexpr qint64 kMaxTableBuckets = 1 << 18;   // (about 25 MB, and 83 blocks of the most a block can be)
+    static constexpr size_t kShards = 1024;
 
-    bool empty() const { return m_byFormula.empty(); }
-    size_t size() const { return m_byFormula.size(); }
+    bool empty() const { return m_size == 0; }
+    size_t size() const { return m_size; }
     quint32 lastRow() const { return m_lastRow; }   // the last row and column of any block (never less: a block let go of does not lower them)
     quint32 lastCol() const { return m_lastCol; }
     // The block that holds the place, or null. `probes`, if given, is added the number of blocks looked at.
@@ -58,6 +60,9 @@ public:
     bool set(const SpillRect &r);
     void erase(qint32 formula);
     void clear() { *this = SpillTable(); }
+    // How many entries (blocks and buckets) a change had to copy because a published copy shared the shard that held them (a table is copied by its shards' pointers, and a shard that a change touches is
+    // copied first: the cost of a publication is what the shards it changes hold, not the blocks of the table). For tests.
+    qint64 copiedEntries() const { return m_copiedEntries; }
     // Whether a block of another formula than `except` meets the rectangle (stops at the first).
     bool meetsOther(quint32 r1, quint32 c1, quint32 r2, quint32 c2, qint32 except, qint64 *probes = nullptr) const;
     // Calls f(rect) once for each block that meets the rectangle; f may give false to stop.
@@ -66,10 +71,9 @@ public:
     {
         const quint32 rb1 = r1 / kBlockRows, rb2 = r2 / kBlockRows, cb1 = c1 / kBlockCols, cb2 = c2 / kBlockCols;
         bool go = true;
-        auto visit = [&](quint32 rb, quint32 cb, const std::vector<qint32> &list) {
-            for (const qint32 i : list) {
+        auto visit = [&](quint32 rb, quint32 cb, const std::vector<SpillRect> &list) {
+            for (const SpillRect &r : list) {
                 if (probes) ++*probes;
-                const SpillRect &r = m_rects[size_t(i)];
                 if (!r.meets(r1, c1, r2, c2)) continue;
                 if (std::max(r.row1 / kBlockRows, rb1) != rb || std::max(r.col1 / kBlockCols, cb1) != cb) continue;   // (met in the first bucket of the range that it is in only)
                 if (!call(f, r)) {
@@ -79,17 +83,22 @@ public:
             }
         };
         const qint64 span = (qint64(rb2) - rb1 + 1) * (qint64(cb2) - cb1 + 1);
-        if (span > qint64(m_buckets.size())) {
-            for (const auto &[key, list] : m_buckets) {
-                const quint32 rb = quint32(key >> 32), cb = quint32(key & 0xFFFFFFFFu);
-                if (rb >= rb1 && rb <= rb2 && cb >= cb1 && cb <= cb2) visit(rb, cb, list);
-                if (!go) return;
+        if (span > m_bucketKeys) {
+            for (const auto &shard : m_buckets) {
+                if (!shard) continue;
+                for (const auto &[key, list] : *shard) {
+                    const quint32 rb = quint32(key >> 32), cb = quint32(key & 0xFFFFFFFFu);
+                    if (rb >= rb1 && rb <= rb2 && cb >= cb1 && cb <= cb2) visit(rb, cb, list);
+                    if (!go) return;
+                }
             }
         } else {
             for (quint32 rb = rb1; rb <= rb2 && go; ++rb)
                 for (quint32 cb = cb1; cb <= cb2 && go; ++cb) {
-                    const auto at = m_buckets.find(key(rb, cb));
-                    if (at != m_buckets.end()) visit(rb, cb, at->second);
+                    const auto &shard = m_buckets[bucketShard(key(rb, cb))];
+                    if (!shard) continue;
+                    const auto at = shard->find(key(rb, cb));
+                    if (at != shard->end()) visit(rb, cb, at->second);
                 }
         }
     }
@@ -97,11 +106,19 @@ public:
     template <class F>
     void forEach(F f) const
     {
-        for (const auto &[formula, i] : m_byFormula) f(m_rects[size_t(i)]);
+        for (const auto &shard : m_formulas)
+            if (shard)
+                for (const auto &[formula, r] : *shard) f(r);
     }
 
 private:
+    using BucketMap = std::unordered_map<quint64, std::vector<SpillRect>>;
+    using FormulaMap = std::unordered_map<qint32, SpillRect>;
     static quint64 key(quint32 rb, quint32 cb) { return (quint64(rb) << 32) | cb; }
+    static size_t bucketShard(quint64 k) { return size_t((k * 0x9E3779B97F4A7C15ull) >> 54); }
+    static size_t formulaShard(qint32 f) { return size_t((quint32(f) * 2654435761u) >> 22); }
+    BucketMap &bucketsForWrite(size_t i);
+    FormulaMap &formulasForWrite(size_t i);
     template <class F>
     static bool call(F &f, const SpillRect &r)
     {
@@ -112,12 +129,13 @@ private:
             return f(r);
         }
     }
-    std::vector<SpillRect> m_rects;
-    std::vector<qint32> m_free;
-    std::unordered_map<qint32, qint32> m_byFormula;
-    std::unordered_map<quint64, std::vector<qint32>> m_buckets;
+    std::array<std::shared_ptr<BucketMap>, kShards> m_buckets;     // (a shard is shared with the copies of the table until a change to it)
+    std::array<std::shared_ptr<FormulaMap>, kShards> m_formulas;
+    size_t m_size = 0;
+    qint64 m_bucketKeys = 0;   // (the buckets that hold a block: keys of the shards)
     quint32 m_lastRow = 0, m_lastCol = 0;
     qint64 m_bucketsInAll = 0;   // (the places of rectangles in buckets, all the table's)
+    qint64 m_copiedEntries = 0;
 };
 
 // What a reader has of a sheet's blocks: the table (null for none) and what keeps it alive.
@@ -137,8 +155,16 @@ public:
     // Makes the worker's own table what `table` holds (none: empty), for a store that is assigned another.
     void follow(const SpillTable *table);
     const SpillTable &mine() const { return m_mine; }
-    // Makes what `mine` holds the copy the others read, if it changed since.
+    // Makes what `mine` holds the copy the others read, if it changed since, at once (the thread that changed it with the worker held back, or no worker serves).
     void publish();
+    // The worker's end of a slice: the copy is kept apart, tagged `seq` (which only grows), and the others go on reading the one they have until adopt(seq) is called by the window's thread for a batch
+    // of values that was sent after it: the blocks and the values that fill them are of one slice. Not more than kMaxStaged are kept (the oldest is let go of; adopting it then gives the next newer).
+    void stage(qint64 seq);
+    // Makes the newest staged copy tagged `seq` or less the one that is read (none: nothing changes). The calling thread is the window's.
+    void adopt(qint64 seq);
+    qint64 stagedCount() const;
+    static constexpr size_t kMaxStaged = 8;
+    bool changed() const { return m_changed; }
     void noteChanged()
     {
         m_changed = true;
@@ -155,6 +181,7 @@ private:
     bool m_changed = false;
     mutable std::mutex m_lock;
     std::shared_ptr<const SpillTable> m_published;
+    std::vector<std::pair<qint64, std::shared_ptr<const SpillTable>>> m_staged;   // (the copies of slices not yet adopted, oldest first; under m_lock)
     std::atomic<bool> m_anyPublished{false};
     std::atomic<bool> m_live{false};   // (a block was ever put: before that no thread has anything to read)
     std::atomic<qint64> m_publications{0};

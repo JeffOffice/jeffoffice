@@ -325,6 +325,14 @@ public:
             forgetWhatWasFound();   // (the walk began again and found nothing)
             work.add(steps);
             if (!done) return false;
+            // (the places of the blocks that formulas fill are in no cell of the sheet: the table gives the last of them)
+            quint32 spillRows = 0, spillCols = 0;
+            m_q.sheet->cells.spillExtent(&spillRows, &spillCols);
+            if (spillRows > 0) {
+                any = true;
+                lastRow = std::max(lastRow, spillRows - 1);
+                lastCol = std::max(lastCol, spillCols - 1);
+            }
             m_phase = 1;
         }
         if (m_phase == 1) {

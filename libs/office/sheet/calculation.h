@@ -121,11 +121,37 @@ public:
     // The rule of the worker (see MutationGuard in sheet/sheetmodel.h): while a worker serves (its thread is given here; 0 when none does), the cells and the shape of the sheets are changed only by
     // that thread, or by one that has the worker held back (the worker's Hold notes itself with the guard). Strict mode (MutationGuard::setStrict) ends the program when another thread does.
     // Makes the blocks that the formulas spill into, as the worker has them, the ones the other threads read (see sheet/spillindex.h). Called by the thread that recalculates at the end of each slice.
+    // With staging on (the loader's worker: stageSpills), the copy is kept apart under a number that only grows (spillSeq), and the window's thread takes it with adoptSpills when the batch of values
+    // sent after it comes: the blocks and the values that fill them are of one slice. With it off, the copy is the one the others read at once.
     void publishSpills()
     {
+        if (!m_stageSpills) {
+            for (Sheet &s : m_sheets)
+                if (SpillPublisher *p = s.cells.spills()) p->publish();
+            return;
+        }
+        const qint64 seq = m_spillSeq.load(std::memory_order_relaxed) + 1;
+        bool any = false;
         for (Sheet &s : m_sheets)
-            if (SpillPublisher *p = s.cells.spills()) p->publish();
+            if (SpillPublisher *p = s.cells.spills(); p && p->changed()) {
+                p->stage(seq);
+                any = true;
+            }
+        if (any) m_spillSeq.store(seq, std::memory_order_release);
     }
+    void stageSpills(bool on) { m_stageSpills = on; }
+    qint64 spillSeq() const { return m_spillSeq.load(std::memory_order_acquire); }
+    // The window's thread: the blocks of every slice up to `seq` are the ones it reads (the batch of values it takes carries the number the worker had when it was sent).
+    void adoptSpills(qint64 seq)
+    {
+        for (Sheet &s : m_sheets)
+            if (SpillPublisher *p = s.cells.spills()) p->adopt(seq);
+    }
+    // Cells of a loaded spill that its block no longer holds, which the worker may not let go of (the window reads the store beside it): they wait here, and a thread that has the worker held back lets go of
+    // them (the loader does at each hold, and when it hands a batch to the window); the window was told they are empty when the worker found them.
+    bool hasStrays() const { return m_strayCount.load(std::memory_order_acquire) > 0; }
+    void releaseStrays();
+    qint64 straysReleased() const { return m_straysReleased; }
     // Whether this calculation keeps the cells a formula spills into as blocks of an index (set from spillIndexDefault() when the workbook is loaded) and not as cells of the store.
     bool spillIndexOn() const { return m_spillIndex; }
     void setWorkerThread(quintptr thread)
@@ -1090,6 +1116,17 @@ private:
     mutable std::mutex m_stampLock;                // (the window reads the stamps as it takes results, and the worker makes them as it answers questions)
     mutable std::atomic<size_t> m_stampCount{0};
     mutable std::atomic<qint64> m_valuesTold{0};
+    bool m_stageSpills = false;                // (see publishSpills)
+    std::atomic<qint64> m_spillSeq{0};
+    int m_deferPublish = 0;                    // (while the table is made again under a hold: one publication at the end, not one for each block)
+    struct Stray {
+        int sheet;
+        quint32 rowId, colId;
+        qint32 formula;
+    };
+    std::vector<Stray> m_strays;               // (the worker adds, a thread with the worker held back takes)
+    std::atomic<qint64> m_strayCount{0};
+    qint64 m_straysReleased = 0;
     mutable std::atomic<qint64> m_goneWalked{0};
     mutable std::atomic<qint64> m_valuesTaken{0};
     std::atomic<qint64> m_evaluations{0};

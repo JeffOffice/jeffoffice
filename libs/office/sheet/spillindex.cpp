@@ -20,40 +20,72 @@ bool spillIndexDefault()
 
 void setSpillIndexDefault(bool on) { g_default.store(on ? 1 : 0, std::memory_order_relaxed); }
 
+SpillTable::BucketMap &SpillTable::bucketsForWrite(size_t i)
+{
+    auto &p = m_buckets[i];
+    if (!p) {
+        p = std::make_shared<BucketMap>();
+    } else if (p.use_count() > 1) {
+        m_copiedEntries += qint64(p->size());
+        p = std::make_shared<BucketMap>(*p);
+    }
+    return *p;
+}
+
+SpillTable::FormulaMap &SpillTable::formulasForWrite(size_t i)
+{
+    auto &p = m_formulas[i];
+    if (!p) {
+        p = std::make_shared<FormulaMap>();
+    } else if (p.use_count() > 1) {
+        m_copiedEntries += qint64(p->size());
+        p = std::make_shared<FormulaMap>(*p);
+    }
+    return *p;
+}
+
 const SpillRect *SpillTable::at(quint32 row, quint32 col, qint64 *probes) const
 {
-    const auto list = m_buckets.find(key(row / kBlockRows, col / kBlockCols));
-    if (list == m_buckets.end()) return nullptr;
-    for (const qint32 i : list->second) {
+    const quint64 k = key(row / kBlockRows, col / kBlockCols);
+    const auto &shard = m_buckets[bucketShard(k)];
+    if (!shard) return nullptr;
+    const auto list = shard->find(k);
+    if (list == shard->end()) return nullptr;
+    for (const SpillRect &r : list->second) {
         if (probes) ++*probes;
-        if (m_rects[size_t(i)].contains(row, col)) return &m_rects[size_t(i)];
+        if (r.contains(row, col)) return &r;
     }
     return nullptr;
 }
 
 const SpillRect *SpillTable::ofFormula(qint32 formula) const
 {
-    const auto at = m_byFormula.find(formula);
-    return at == m_byFormula.end() ? nullptr : &m_rects[size_t(at->second)];
+    const auto &shard = m_formulas[formulaShard(formula)];
+    if (!shard) return nullptr;
+    const auto at = shard->find(formula);
+    return at == shard->end() ? nullptr : &at->second;
 }
 
 void SpillTable::erase(qint32 formula)
 {
-    const auto at = m_byFormula.find(formula);
-    if (at == m_byFormula.end()) return;
-    const qint32 i = at->second;
-    const SpillRect r = m_rects[size_t(i)];
+    const SpillRect *have = ofFormula(formula);
+    if (!have) return;
+    const SpillRect r = *have;
     for (quint32 rb = r.row1 / kBlockRows; rb <= r.row2 / kBlockRows; ++rb)
         for (quint32 cb = r.col1 / kBlockCols; cb <= r.col2 / kBlockCols; ++cb) {
-            const auto list = m_buckets.find(key(rb, cb));
-            if (list == m_buckets.end()) continue;
-            list->second.erase(std::remove(list->second.begin(), list->second.end(), i), list->second.end());
-            if (list->second.empty()) m_buckets.erase(list);
+            const quint64 k = key(rb, cb);
+            BucketMap &map = bucketsForWrite(bucketShard(k));
+            const auto list = map.find(k);
+            if (list == map.end()) continue;
+            list->second.erase(std::remove_if(list->second.begin(), list->second.end(), [&](const SpillRect &x) { return x.formula == formula; }), list->second.end());
+            if (list->second.empty()) {
+                map.erase(list);
+                --m_bucketKeys;
+            }
         }
     m_bucketsInAll -= (qint64(r.row2 / kBlockRows) - r.row1 / kBlockRows + 1) * (qint64(r.col2 / kBlockCols) - r.col1 / kBlockCols + 1);
-    m_rects[size_t(i)].formula = -1;
-    m_free.push_back(i);
-    m_byFormula.erase(at);
+    formulasForWrite(formulaShard(formula)).erase(formula);
+    --m_size;
 }
 
 bool SpillTable::set(const SpillRect &r)
@@ -63,18 +95,20 @@ bool SpillTable::set(const SpillRect &r)
     const qint64 buckets = (qint64(r.row2 / kBlockRows) - r.row1 / kBlockRows + 1) * (qint64(r.col2 / kBlockCols) - r.col1 / kBlockCols + 1);
     if (buckets > kMaxBuckets || m_bucketsInAll + buckets > kMaxTableBuckets) return false;
     m_bucketsInAll += buckets;
-    qint32 i;
-    if (!m_free.empty()) {
-        i = m_free.back();
-        m_free.pop_back();
-        m_rects[size_t(i)] = r;
-    } else {
-        i = qint32(m_rects.size());
-        m_rects.push_back(r);
-    }
-    m_byFormula[r.formula] = i;
+    formulasForWrite(formulaShard(r.formula))[r.formula] = r;
+    ++m_size;
     for (quint32 rb = r.row1 / kBlockRows; rb <= r.row2 / kBlockRows; ++rb)
-        for (quint32 cb = r.col1 / kBlockCols; cb <= r.col2 / kBlockCols; ++cb) m_buckets[key(rb, cb)].push_back(i);
+        for (quint32 cb = r.col1 / kBlockCols; cb <= r.col2 / kBlockCols; ++cb) {
+            const quint64 k = key(rb, cb);
+            BucketMap &map = bucketsForWrite(bucketShard(k));
+            const auto at = map.find(k);
+            if (at == map.end()) {
+                map[k].push_back(r);
+                ++m_bucketKeys;
+            } else {
+                at->second.push_back(r);
+            }
+        }
     m_lastRow = std::max(m_lastRow, r.row2);
     m_lastCol = std::max(m_lastCol, r.col2);
     return true;
@@ -113,9 +147,40 @@ void SpillPublisher::publish()
     {
         std::lock_guard<std::mutex> lock(m_lock);
         m_published = std::move(copy);
+        m_staged.clear();   // (what the others read is newer than any copy kept apart)
     }
     m_anyPublished.store(!m_mine.empty(), std::memory_order_release);
     m_publications.fetch_add(1, std::memory_order_relaxed);
+}
+
+void SpillPublisher::stage(qint64 seq)
+{
+    if (!m_changed) return;
+    m_changed = false;
+    auto copy = std::make_shared<const SpillTable>(m_mine);
+    {
+        std::lock_guard<std::mutex> lock(m_lock);
+        m_staged.emplace_back(seq, std::move(copy));
+        if (m_staged.size() > kMaxStaged) m_staged.erase(m_staged.begin());
+    }
+    m_publications.fetch_add(1, std::memory_order_relaxed);
+}
+
+void SpillPublisher::adopt(qint64 seq)
+{
+    std::lock_guard<std::mutex> lock(m_lock);
+    size_t n = 0;
+    while (n < m_staged.size() && m_staged[n].first <= seq) ++n;
+    if (n == 0) return;
+    m_published = m_staged[n - 1].second;
+    m_anyPublished.store(!m_published->empty(), std::memory_order_release);
+    m_staged.erase(m_staged.begin(), m_staged.begin() + qsizetype(n));
+}
+
+qint64 SpillPublisher::stagedCount() const
+{
+    std::lock_guard<std::mutex> lock(m_lock);
+    return qint64(m_staged.size());
 }
 
 std::shared_ptr<const SpillTable> SpillPublisher::published() const

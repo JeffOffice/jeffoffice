@@ -153,6 +153,7 @@ public:
     void setWorker(quintptr thread) { m_worker.store(thread, std::memory_order_release); }
     void enter();   // the calling thread has the worker held
     void leave();   // (another thread may let a hold go than took it: then nothing is noted of it)
+    bool workerServes() const { return m_worker.load(std::memory_order_acquire) != 0; }
     bool isWorkerOrNone() const;   // whether the calling thread is the worker, or no worker serves
     bool heldHere() const;   // whether the calling thread has the worker held (a second hold on one thread would wait for the first for ever)
     void check(const char *what) const;   // one flag test when strict mode is off
@@ -294,7 +295,18 @@ public:
     // (find, forEach) are only right after this.
     void finish();
     // How many cells there are (before finish(), counting any a later one will replace); those of rows and columns that are deleted are not counted.
-    qint64 cellCount() const { return m_count - m_dead; }
+    // The cells the store holds, and the places of its blocks that hold no cell of their own.
+    qint64 cellCount() const { return Q_UNLIKELY(m_hasSpills) ? cellCountWithSpills() : m_count - m_dead; }
+    // The rows and columns the blocks reach (the last of any block, plus one; 0 for none), as the calling thread reads them: what Sheet::extentRows and extentCols leave out, which the worker no longer writes for a spill.
+    void spillExtent(quint32 *rows, quint32 *cols) const
+    {
+        *rows = *cols = 0;
+        if (!hasSpills()) return;
+        if (const SpillView v = spillView()) {
+            *rows = v.table->lastRow() + 1;
+            *cols = v.table->lastCol() + 1;
+        }
+    }
     // A copy of the cell at the place, or none. A copy, never a pointer: the worker restructures the store while the window reads it, and a pointer into the store is left dangling by that (24 bytes, cheap to copy).
     std::optional<Cell> find(quint32 row, quint32 col) const;
     // The same by the ids of the cell's row and column (what a formula's node and the window's marks hold): no turning of places into ids, so the cell is found wherever its row and column
@@ -1362,6 +1374,7 @@ private:
     std::shared_ptr<SpillPublisher> m_spill;           // (null: this store has no blocks table)
     std::shared_ptr<const SpillTable> m_frozen;        // (the blocks a copy of a store was made with)
     bool m_hasSpills = false;                          // (m_spill or m_frozen is set)
+    qint64 cellCountWithSpills() const;
     std::optional<Cell> memberAt(const SpillView &v, quint32 row, quint32 col, const Cell *real) const;
     std::optional<Cell> findWithSpills(quint32 row, quint32 col) const;
     std::optional<Cell> findByIdWithSpills(quint32 rowId, quint32 colId) const;

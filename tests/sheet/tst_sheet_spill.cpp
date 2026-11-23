@@ -5,6 +5,10 @@
 #include "sheet/calculation.h"
 #include "sheet/xlsxsave.h"
 
+#include "core/workthread.h"
+
+#include <QThread>
+
 #include <memory>
 
 namespace {
@@ -63,6 +67,25 @@ std::vector<QString> blocksOf(const Calculation &calc, int sheet)
     if (const SpillPublisher *pub = calc.sheet(sheet).cells.spills())
         pub->mine().forEach([&](const SpillRect &r) { out.push_back(QStringLiteral("%1:%2:%3:%4").arg(r.row1).arg(r.col1).arg(r.row2).arg(r.col2)); });
     std::sort(out.begin(), out.end());
+    return out;
+}
+
+// How many cells the store holds (none made from a block).
+qint64 realCount(const CellStore &cells)
+{
+    qint64 n = 0;
+    cells.forEachReal([&](quint32, quint32, const Cell &) { ++n; });
+    return n;
+}
+
+// The cell the store holds at a place (none made from a block).
+std::optional<Cell> realAt(const CellStore &cells, quint32 row, quint32 col)
+{
+    std::optional<Cell> out;
+    cells.forEachInRangeReal(row, col, row, col, [&](quint32, quint32, const Cell &x) {
+        out = x;
+        return false;
+    });
     return out;
 }
 
@@ -302,7 +325,7 @@ private Q_SLOTS:
         QVERIFY(made > 0);
         QCOMPARE(blocksOf(*b.calc, made), std::vector<QString>{QStringLiteral("1:1:3:1")});
         QVERIFY(b.member("B4", made));
-        QCOMPARE(b.calc->sheet(made).cells.cellCount(), qint64(1));   // (the head only: no cell is made for the block)
+        QCOMPARE(realCount(b.calc->sheet(made).cells), qint64(1));   // (the head only: no cell is made for the block)
         QCOMPARE(blocksOf(*b.calc, 0), std::vector<QString>{QStringLiteral("1:1:3:1")});
     }
 
@@ -752,6 +775,120 @@ private Q_SLOTS:
             const std::optional<Cell> stored = b.calc->sheet(0).cells.find(1, b.col(name + QStringLiteral("2")));   // (a refused block keeps what the file stored in it)
             QVERIFY(stored && stored->type == CellType::Number && stored->number == 77);
         }
+    }
+
+    // A copy of a table (what a publication is) shares its shards: a change copies only the shards it touches, which hold a few of the blocks, however many there are (counted in entries copied, not timed).
+    // Fails when a change copies the whole table (kShards of 1: the change copies the 100,000 blocks).
+    void aPublicationCopiesWhatChangedNotTheTable()
+    {
+        SpillTable t;
+        const qint32 n = 100000;
+        for (qint32 f = 0; f < n; ++f) QVERIFY(t.set(SpillRect{quint32(f), 0, quint32(f), 1, f}));
+        QCOMPARE(t.size(), size_t(n));
+        QCOMPARE(t.copiedEntries(), qint64(0));   // (no copy of it was shared: nothing to copy)
+        const SpillTable published = t;           // (a publication)
+        t.set(SpillRect{5, 0, 9, 3, 5});          // (a block grows and moves)
+        t.erase(77);
+        t.set(SpillRect{quint32(n) + 4, 2, quint32(n) + 5, 3, n + 1});
+        QVERIFY2(t.copiedEntries() < 4 * n / int(SpillTable::kShards) * 8 && t.copiedEntries() > 0, qPrintable(QString::number(t.copiedEntries())));   // (a few shards of about n / kShards entries)
+        QVERIFY(t.copiedEntries() < n / 8);
+        // the copy that was shared is what it was
+        QVERIFY(published.ofFormula(77) && published.at(77, 1));
+        QCOMPARE(published.ofFormula(5)->row2, quint32(5));
+        QCOMPARE(published.size(), size_t(n));
+        QVERIFY(!t.ofFormula(77) && !t.at(77, 1));
+        QCOMPARE(t.ofFormula(5)->row2, quint32(9));
+        QCOMPARE(t.size(), size_t(n));
+        // a second change to a shard already copied copies nothing more
+        const qint64 before = t.copiedEntries();
+        t.set(SpillRect{5, 0, 9, 4, 5});
+        QCOMPARE(t.copiedEntries(), before);
+        // finding and meeting go through the shards
+        QVERIFY(t.at(99999, 1) && t.at(99999, 1)->formula == 99999);
+        QVERIFY(t.meetsOther(8, 4, 8, 4, 6) && !t.meetsOther(8, 5, 8, 5, 6));
+        qint32 seen = 0;
+        t.forEachMeeting(0, 0, 200, 7, [&](const SpillRect &) { ++seen; });
+        QCOMPARE(seen, qint32(200));   // (rows 0 to 200: 5 was joined by 6 to 9 inside its block, 77 is gone)
+    }
+
+    // The window's thread reads the blocks of the last batch it took, and the worker's slices wait until a batch comes: a copy made at the end of a slice is staged under a number, and adopt(seq) of a later
+    // batch makes it the one that is read. Fails when stage() makes the copy the one the others read at once (the reader sees the second block before its batch).
+    void blocksAreStagedByTheWorkerAndAdoptedByTheWindow()
+    {
+        MutationGuard guard;
+        SpillPublisher pub(&guard);
+        CellStore store;
+        const quintptr me = quintptr(QThread::currentThreadId());
+        guard.setWorker(me + 1);   // (a worker that is another thread: this one is the window's)
+        QVERIFY(!pub.view());
+        bool staged = false;
+        jp::WorkThread worker([&] {
+            guard.setWorker(quintptr(QThread::currentThreadId()));
+            pub.mine().set(SpillRect{0, 0, 2, 0, 0});
+            pub.noteChanged();
+            pub.stage(1);
+            pub.mine().set(SpillRect{0, 5, 3, 5, 1});
+            pub.noteChanged();
+            pub.stage(2);
+            staged = true;
+        });
+        worker.join();
+        QVERIFY(staged);
+        QCOMPARE(pub.stagedCount(), qint64(2));
+        QVERIFY(!pub.view());   // (nothing is adopted: the window reads what it read)
+        pub.adopt(0);
+        QVERIFY(!pub.view());
+        pub.adopt(1);
+        QVERIFY(pub.view() && pub.view().table->at(1, 0) && !pub.view().table->at(1, 5));
+        QCOMPARE(pub.stagedCount(), qint64(1));
+        pub.adopt(7);   // (a batch that knows later slices)
+        QVERIFY(pub.view().table->at(1, 0) && pub.view().table->at(1, 5));
+        QCOMPARE(pub.stagedCount(), qint64(0));
+        // only so many are kept apart: a window that falls behind adopts the oldest that is left
+        guard.setWorker(0);
+        SpillPublisher slow(&guard);
+        guard.setWorker(me + 1);
+        for (qint32 i = 0; i < 20; ++i) {
+            slow.mine().set(SpillRect{quint32(i), 0, quint32(i), 1, i});
+            slow.noteChanged();
+            slow.stage(i + 1);
+        }
+        QCOMPARE(slow.stagedCount(), qint64(SpillPublisher::kMaxStaged));
+        slow.adopt(3);   // (those up to 3 were let go of: nothing older than the kept ones is adopted)
+        QVERIFY(!slow.view());
+        slow.adopt(13);
+        QVERIFY(slow.view().table->at(12, 0) && !slow.view().table->at(13, 0));
+    }
+
+    // A file's spill with a stored value for each cell: the value is kept as the cell's own at load (nothing is rewritten when the formula is first worked out), the block is a rectangle, and the sheet's
+    // count of cells and the extent that print and Ctrl+End use take the block in. Fails when the count leaves the blocks out (cellCount) or the extent does not reach the block (spillExtent).
+    void aLoadedBlockKeepsItsStoredValuesAndIsCountedAndReached()
+    {
+        SpillIndexSwitch on(true);
+        const QString rows = rowXml(1, QStringLiteral("<c r=\"A1\" cm=\"1\"><f t=\"array\" ref=\"A1:D1\">_xlfn.SEQUENCE(1,4)</f><v>1</v></c>") + constant("B1", "2") + constant("C1", "3") + constant("D1", "4"));
+        Book b;
+        QString why;
+        QVERIFY(b.package.readLazy(withMetadata(blank(rows)), &why) && b.book.open(b.package, &why));
+        b.calc.reset(new Calculation(b.book));
+        QVERIFY(b.calc->load());
+        const CellStore &cells = b.calc->sheet(0).cells;
+        for (quint32 col = 1; col <= 3; ++col) {
+            const std::optional<Cell> real = realAt(cells, 0, col);   // (the stored value, still the cell's own)
+            QVERIFY(real && real->type == CellType::Number && (real->flags & SpillMember));
+            QCOMPARE(real->number, double(col + 1));
+        }
+        QCOMPARE(cells.cellCount(), qint64(4));   // (the formula's cell, and the three stored)
+        QVERIFY(b.settle());
+        QCOMPARE(QStringList({b.at("A1"), b.at("B1"), b.at("C1"), b.at("D1")}).join(QLatin1Char(' ')), QStringLiteral("n:1 n:2 n:3 n:4"));
+        QCOMPARE(cells.cellCount(), qint64(4));
+        // a block that has cells of its own for some places counts each place once
+        b.put("H5", Value::number(1));
+        QVERIFY(b.type(QStringLiteral("A3"), QStringLiteral("_xlfn.SEQUENCE(40,3)")));
+        QCOMPARE(cells.cellCount(), qint64(125));   // (6 cells of its own: A1:D1, A3, H5; the places of A3:C42 that hold none are 119)
+        quint32 rowsReached = 0, colsReached = 0;
+        cells.spillExtent(&rowsReached, &colsReached);
+        QCOMPARE(rowsReached, quint32(42));
+        QCOMPARE(colsReached, quint32(4));
     }
 
     // The table made again after an edit and the table a load makes are made of the same ranges: the one each formula's cell names. A range that is in the sheet's list and that no formula names (one that was

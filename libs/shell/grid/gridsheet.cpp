@@ -906,6 +906,13 @@ void GridSheet::usedExtent(quint32 *rows, quint32 *cols) const
 {
     *rows = m_data.sheet ? m_data.sheet->extentRows : 0;
     *cols = m_data.sheet ? m_data.sheet->extentCols : 0;
+    // (the places of the blocks that formulas fill are in no cell of the sheet's: the worker does not write them in the extent, the table is read)
+    if (m_data.sheet) {
+        quint32 spillRows = 0, spillCols = 0;
+        m_data.sheet->cells.spillExtent(&spillRows, &spillCols);
+        *rows = std::max(*rows, spillRows);
+        *cols = std::max(*cols, spillCols);
+    }
 }
 
 } // namespace jp::grid

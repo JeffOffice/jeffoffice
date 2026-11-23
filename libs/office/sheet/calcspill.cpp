@@ -245,6 +245,17 @@ CellRange Calculation::spillBlock(int sheet, quint32 row, quint32 col) const
     out.row1 = out.row2 = row;
     out.col1 = out.col2 = col;
     out.valid = true;
+    // (a thread that is neither the worker nor has it held back reads the blocks it was given, as one with the values: the sheet's ranges are the worker's, and it changes them as it works)
+    if (s.cells.spills() && !m_guard.isWorkerOrNone() && !m_guard.heldHere()) {
+        if (const SpillView v = s.cells.spillView())
+            if (const SpillRect *r = v.table->ofFormula(c->formula)) {
+                out.row1 = r->row1;
+                out.col1 = r->col1;
+                out.row2 = r->row2;
+                out.col2 = r->col2;
+            }
+        return out;
+    }
     const qint32 slot = s.formulas[c->formula].range;
     if (slot >= 0 && slot < s.ranges.size() && s.ranges[slot].valid) out = s.ranges[slot];
     return out;
@@ -335,7 +346,7 @@ void Calculation::putSpillBlock(int sheet, const SpillRect &r)
     if (!pub->mine().set(r)) pub->mine().erase(r.formula);
     pub->noteChanged();
     s.cells.noteSpillChange();
-    if (!m_guard.isWorkerOrNone()) pub->publish();
+    if (!m_guard.isWorkerOrNone() && !m_deferPublish) pub->publish();
 }
 
 void Calculation::dropSpillBlock(int sheet, qint32 formula)
@@ -346,7 +357,7 @@ void Calculation::dropSpillBlock(int sheet, qint32 formula)
     pub->mine().erase(formula);
     pub->noteChanged();
     s.cells.noteSpillChange();
-    if (!m_guard.isWorkerOrNone()) pub->publish();
+    if (!m_guard.isWorkerOrNone() && !m_deferPublish) pub->publish();
 }
 
 // The block of a loaded or edited spill, registered if it is one (see spillRegisterable) and meets no other block: the first of two that meet is the one that stands, the other is blocked when it is worked out.
@@ -384,7 +395,9 @@ void Calculation::rebuildSpillTable(int sheet)
         anchors.push_back({r.row1, r.col1, f});
     }
     std::sort(anchors.begin(), anchors.end(), [](const Anchor &a, const Anchor &b) { return a.row != b.row ? a.row < b.row : a.col != b.col ? a.col < b.col : a.formula < b.formula; });
+    ++m_deferPublish;   // (one copy for the others when the table is whole, not one for each block put: that copies the table as many times as there are blocks)
     for (const Anchor &a : anchors) registerSpill(sheet, a.formula, s.ranges[s.formulas[a.formula].range]);
+    --m_deferPublish;
     if (!m_guard.isWorkerOrNone()) pub->publish();
 }
 
@@ -422,6 +435,32 @@ static std::vector<std::pair<quint32, quint32>> membersOutside(const CellStore &
         return true;
     });
     return out;
+}
+
+// The cells of a loaded spill that its block let go of, taken from the store by a thread that has the worker held back (or by the one that serves when no worker does).
+void Calculation::releaseStrays()
+{
+    if (m_strays.empty()) return;
+    const std::vector<Stray> list = std::move(m_strays);
+    m_strays.clear();
+    m_strayCount.store(0, std::memory_order_release);
+    for (const Stray &st : list) {
+        if (st.sheet < 0 || st.sheet >= int(m_sheets.size())) continue;
+        Sheet &s = m_sheets[size_t(st.sheet)];
+        const quint32 row = s.cells.rowPlaceOf(st.rowId), col = s.cells.colPlaceOf(st.colId);
+        if (row == CellStore::kNoLine || col == CellStore::kNoLine) continue;
+        const SpillPublisher *pub = s.cells.spills();
+        const SpillRect *held = pub ? pub->mine().ofFormula(st.formula) : nullptr;
+        if (held && held->contains(row, col)) continue;   // (the formula's block holds it again)
+        Cell *c = s.cells.findMutable(row, col);
+        if (!c || !(c->flags & SpillMember) || c->formula != st.formula) continue;
+        c->flags &= quint8(~(ArrayMember | SpillMember));
+        c->formula = -1;
+        c->type = CellType::Empty;
+        c->number = 0;
+        if (c->style == 0) s.cells.erase(row, col);
+        ++m_straysReleased;
+    }
 }
 
 void Calculation::letGoOfSpill(int sheet, qint32 formula)
@@ -489,6 +528,11 @@ Value Calculation::applySpill(Node &n, quint32 id, const Value &v)
         s.cells.forEachInRangeReal(row0, col0, row0 + quint32(rows) - 1, col0 + quint32(cols) - 1, [&](quint32 row, quint32 col, const Cell &c) {
             if (row == row0 && col == col0) return true;
             if (!heldByOther(c, formula)) return true;
+            if (m_strayCount.load(std::memory_order_relaxed) > 0) {
+                // (a cell of a loaded spill that its block let go of is no longer anyone's, though it waits to be taken from the store)
+                const quint32 rowId = s.cells.rowIdAt(row), colId = s.cells.colIdAt(col);
+                if (std::any_of(m_strays.begin(), m_strays.end(), [&](const Stray &st) { return st.sheet == sheet && st.rowId == rowId && st.colId == colId; })) return true;
+            }
             blocked = true;
             return false;
         });
@@ -525,8 +569,16 @@ Value Calculation::applySpill(Node &n, quint32 id, const Value &v)
     if (!(was == now)) {
         const auto gone = membersOutside(s.cells, was, now, formula);
         std::vector<CellArea> changed;
+        // (with the index and a worker that serves, the window reads the store beside this thread: the cells of a loaded spill that its block no longer holds are told empty, and let go of by a thread that has the worker held back)
+        const bool defer = s.cells.spills() && m_guard.workerServes();
         for (const auto &[row, col] : gone) {
             const quint32 rowId = s.cells.rowIdAt(row), colId = s.cells.colIdAt(col);
+            if (defer) {
+                m_strays.push_back({sheet, rowId, colId, formula});
+                m_strayCount.store(qint64(m_strays.size()), std::memory_order_release);
+                tellGone(sheet, rowId, colId);
+                continue;
+            }
             Cell *c = s.cells.findMutable(row, col);
             if (!c) continue;
             c->flags &= quint8(~(ArrayMember | SpillMember));
@@ -540,9 +592,7 @@ Value Calculation::applySpill(Node &n, quint32 id, const Value &v)
             // (no cell is made: the block is a rectangle of the sheet's table)
             tellGoneBlock(sheet, formula, was, now, row0, col0);
             putSpillBlock(sheet, SpillRect{now.row1, now.col1, now.row2, now.col2, formula});
-            useExtent(sheet, now.row2, now.col2);
-            s.extentRows = std::max(s.extentRows, now.row2 + 1);
-            s.extentCols = std::max<quint32>(s.extentCols, now.col2 + 1);
+            useExtent(sheet, now.row2, now.col2);   // (the sheet's extentRows and extentCols are the window's: its reads add what the table reaches, CellStore::spillExtent)
         } else if (s.cells.spills()) {
             tellGoneBlock(sheet, formula, was, now, row0, col0);
             dropSpillBlock(sheet, formula);

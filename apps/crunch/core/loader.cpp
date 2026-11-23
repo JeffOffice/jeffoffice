@@ -204,6 +204,7 @@ WorkbookLoader::Hold::Hold(std::shared_ptr<State> state, jp::office::sheet::Calc
     m_state->updateHalt();
     m_state->model.lock();
     m_calc->mutationGuard().enter();
+    m_calc->releaseStrays();   // (the cells of a loaded spill that its block let go of: the worker may not take them from the store, and is held back now)
 }
 
 WorkbookLoader::Hold::~Hold()
@@ -435,11 +436,20 @@ void WorkbookLoader::serve(const std::shared_ptr<LoadedBook> &result, const std:
     auto sendBatch = [&](const std::shared_ptr<CalcBatch> &batch) {
         if (state->cancel.load()) return;
         ++state->pending;
-        QMetaObject::invokeMethod(QCoreApplication::instance(), [state, self, batch] {
-            if (!state->cancel.load() && self) Q_EMIT self->calcBatch(batch);
+        QMetaObject::invokeMethod(QCoreApplication::instance(), [state, self, batch, result] {
+            if (!state->cancel.load() && self) {
+                // (the blocks that were published before these values were sent become the ones the window reads, with the values that fill them; and the cells a block let go of, which the worker may not take from the
+                // store, are taken now, with the worker held back, as the window takes the batch)
+                if (result->calc) {
+                    result->calc->adoptSpills(batch->spillSeq);
+                    if (result->calc->hasStrays() && !self->holdingHere()) auto hold = self->hold();
+                }
+                Q_EMIT self->calcBatch(batch);
+            }
             --state->pending;
         }, Qt::QueuedConnection);
     };
+    calc->stageSpills(true);
     result->calcThread = quintptr(QThread::currentThreadId());
     std::vector<jp::grid::ValueStore::Item> items;
     calc->setCancel(&state->halt);
@@ -474,6 +484,7 @@ void WorkbookLoader::serve(const std::shared_ptr<LoadedBook> &result, const std:
         batch->epoch = epoch;
         batch->workerCpuMicros = jp::threadCpuMicros();
         batch->epochs = std::move(epochs);
+        batch->spillSeq = calc->spillSeq();
         batch->due = last && lastDue;
         batch->circular = last ? lastCircular : 0;
         batch->overBudget = last && lastOver;
@@ -584,6 +595,7 @@ void WorkbookLoader::serve(const std::shared_ptr<LoadedBook> &result, const std:
         lock.lock();
     }
     calc->setWorkerThread(0);
+    calc->stageSpills(false);
     calc->setResultSink(nullptr);
     calc->setCancel(nullptr);
 }

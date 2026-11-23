@@ -621,7 +621,9 @@ void CrunchEditTests::aSpillBlockSurvivesACopyAndAMoveOfItsSheet()
     QVERIFY(e.settle());
     QVERIFY(calc->isSpillMember(0, 3, 1) && calc->isSpillMember(made, 3, 1));
     QCOMPARE(calc->shown(0, 3, 1).debug(), QStringLiteral("n:3"));
-    QCOMPARE(calc->sheet(made).cells.cellCount(), qint64(1));   // (the copy made no cell for the block either)
+    qint64 held = 0;
+    calc->sheet(made).cells.forEachReal([&](quint32, quint32, const Cell &) { ++held; });
+    QCOMPARE(held, qint64(1));   // (the copy made no cell for the block either)
 }
 
 // A formula that is taken out of the sheet (its row deleted) fills no block: the table has none of it, and what was in its place reads empty.
@@ -646,6 +648,241 @@ void CrunchEditTests::aSpillFormulaTakenOutOfASheetLeavesNoBlock()
     QVERIFY(e.settle());
     QCOMPARE(blockOf(e, QStringLiteral("B2")), QStringLiteral("B2:B4"));
     QVERIFY(s->calculation()->isSpillMember(0, 3, 1));
+}
+
+namespace {
+
+// The cell the store holds at a place (none made from a block).
+std::optional<Cell> realAt(const CellStore &cells, quint32 row, quint32 col)
+{
+    std::optional<Cell> out;
+    cells.forEachInRangeReal(row, col, row, col, [&](quint32, quint32, const Cell &x) {
+        out = x;
+        return false;
+    });
+    return out;
+}
+
+// What a window saved, as bytes (empty when it did not).
+QByteArray savedBytes(EditWindow &e, const QString &name)
+{
+    QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+    const QString target = e.folder.dir.filePath(name);
+    if (!e.win.w.saveAs(target) || !savedOk(saved, 20000)) return QByteArray();
+    QFile f(target);
+    return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
+}
+
+// A book whose B1 is =SEQUENCE(A1) with A1 = n, as saved with the values of the block (a file's spill has them: they are the cells' own when it is loaded).
+QByteArray spillingBook(int n)
+{
+    EditWindow w;
+    if (!w.openBlank()) return QByteArray();
+    w.select(QStringLiteral("A1"));
+    w.enter(QString::number(n));
+    w.select(QStringLiteral("B1"));
+    w.enter(QStringLiteral("=SEQUENCE(A1)"));
+    if (!w.settle()) return QByteArray();
+    return savedBytes(w, QStringLiteral("spilling.xlsx"));
+}
+
+} // namespace
+
+// The cells a loaded spill had stored are cells of the store; when the block shrinks, the worker may not take them from it (the window reads the store beside it): it tells the window they are empty, and
+// a thread that has the worker held back takes them (the loader does as it hands the window the batch, and at every hold). Fails when the worker takes them itself (none is counted as taken here).
+void CrunchEditTests::cellsOfALoadedSpillThatItsBlockLetsGoOfAreTakenWithTheWorkerHeld()
+{
+    SpillIndexSwitch on(true);
+    const QByteArray bytes = spillingBook(200);
+    QVERIFY(!bytes.isEmpty());
+    EditWindow e;
+    QVERIFY(e.open(bytes, QStringLiteral("spilling.xlsx")));
+    QVERIFY(e.settle());
+    const Calculation *calc = e.win.w.session()->calculation();
+    const CellStore &cells = calc->sheet(0).cells;
+    QCOMPARE(blockOf(e, QStringLiteral("B1")), QStringLiteral("B1:B200"));
+    QVERIFY(realAt(cells, 199, 1));   // (the file's value, kept as the cell's own)
+    QCOMPARE(calc->straysReleased(), qint64(0));
+    e.select(QStringLiteral("A1"));
+    e.enter(QStringLiteral("2"));
+    QVERIFY(e.settle());
+    QCOMPARE(blockOf(e, QStringLiteral("B1")), QStringLiteral("B1:B2"));
+    QVERIFY(!calc->hasStrays());
+    QCOMPARE(calc->straysReleased(), qint64(198));
+    for (quint32 row = 2; row < 200; ++row) QVERIFY(!realAt(cells, row, 1));
+    QVERIFY(!calc->isSpillMember(0, 100, 1));
+    QCOMPARE(e.valueAt(QStringLiteral("B2")), QStringLiteral("n:2"));
+}
+
+// The window reads the blocks that were published before the values it has: a block the worker grows is the block the window reads once the batch that has the values of the slice is taken (not before,
+// and not never). Fails when the batch does not adopt the blocks (the window goes on reading the first), or when the copy of a slice is the one read at once.
+void CrunchEditTests::theWindowReadsTheBlocksOfTheBatchItTook()
+{
+    SpillIndexSwitch on(true);
+    EditWindow e;
+    QVERIFY(e.openBlank());
+    EditSession *s = e.win.w.session();
+    e.select(QStringLiteral("A1"));
+    e.enter(QStringLiteral("3"));
+    e.select(QStringLiteral("B1"));
+    e.enter(QStringLiteral("=SEQUENCE(A1)"));
+    QVERIFY(e.settle());
+    QCOMPARE(blockOf(e, QStringLiteral("B1")), QStringLiteral("B1:B3"));
+    const SpillPublisher *pub = s->calculation()->sheet(0).cells.spills();
+    QVERIFY(pub);
+    const qint64 published = pub->publications();
+    e.select(QStringLiteral("A1"));
+    e.enter(QStringLiteral("5"));   // (the worker grows the block as it works the formula out again)
+    QVERIFY(e.settle());
+    QVERIFY(pub->publications() > published);
+    QCOMPARE(blockOf(e, QStringLiteral("B1")), QStringLiteral("B1:B5"));
+    QCOMPARE(pub->stagedCount(), qint64(0));
+    QVERIFY(pub->published());
+    QCOMPARE(pub->published()->size(), pub->mine().size());
+    QCOMPARE(e.valueAt(QStringLiteral("B5")), QStringLiteral("n:5"));
+    QVERIFY(s->calculation()->isSpillMember(0, 4, 1));
+}
+
+// A table made again under a hold (rows put in) is published once, not once for each block: with a hundred spills, a hundred copies of the table would be made. Fails when each block put is published.
+void CrunchEditTests::aTableMadeAgainUnderAHoldIsPublishedOnce()
+{
+    SpillIndexSwitch on(true);
+    EditWindow e;
+    QVERIFY(e.openBlank());
+    EditSession *s = e.win.w.session();
+    const int blocks = 100;
+    for (int i = 0; i < blocks; ++i) {
+        e.select(QStringLiteral("%1%2").arg(QChar('A' + i % 26)).arg(1 + 10 * (i / 26)));
+        e.enter(QStringLiteral("=SEQUENCE(2)"));
+    }
+    QVERIFY(e.settle());
+    const SpillPublisher *pub = s->calculation()->sheet(0).cells.spills();
+    QVERIFY(pub);
+    QCOMPARE(pub->mine().size(), size_t(blocks));
+    const qint64 before = pub->publications();
+    QVERIFY(s->insertRows(0, 0, 1).ok);   // (every block moves: the table is made again)
+    QVERIFY(e.settle());
+    const qint64 made = pub->publications() - before;
+    QVERIFY2(made >= 1 && made <= 6, qPrintable(QString::number(made)));
+    QCOMPARE(pub->mine().size(), size_t(blocks));
+    QCOMPARE(blockOf(e, QStringLiteral("A12")), QStringLiteral("A12:A13"));
+}
+
+// Reads of the blocks from the window's thread while the worker grows and shrinks them and makes new ones: each read is a whole block of some state, and no read is of freed memory (the sheet's ranges, which
+// the worker writes and appends to, are not read from here). Counted rounds, no waiting: the worker works as the rounds go on. Run under the checked build too.
+void CrunchEditTests::aBlockIsReadBesideTheWorkerThatChangesIt()
+{
+    SpillIndexSwitch on(true);
+    EditWindow e;
+    QVERIFY(e.openBlank());
+    EditSession *s = e.win.w.session();
+    const Calculation *calc = s->calculation();
+    const int formulas = 40, rounds = 60, reads = 400;
+    qint64 whole = 0, torn = 0;
+    for (int f = 0; f < formulas; ++f) {
+        e.select(QStringLiteral("%1%2").arg(QChar('A' + f % 20)).arg(1 + 100 * (f / 20)));
+        e.enter(QStringLiteral("=SEQUENCE(%1)").arg(2 + f % 5));
+        for (int r = 0; r < reads / formulas; ++r)
+            for (int g = 0; g <= f; ++g) {
+                const quint32 col = quint32(g % 20), row = quint32(100 * (g / 20));
+                const CellRange b = calc->spillBlock(0, row, col);
+                if (!b.valid) {
+                    ++torn;
+                    continue;
+                }
+                if (b.row1 == row && b.col1 == col && b.col2 == col && b.row2 >= row && b.row2 <= row + 6) ++whole;
+                else ++torn;
+            }
+    }
+    // (the sizes change under the worker: a cell that its block depends on is changed round by round)
+    e.select(QStringLiteral("Z1"));
+    e.enter(QStringLiteral("2"));
+    e.select(QStringLiteral("Z2"));
+    e.enter(QStringLiteral("=SEQUENCE(Z1)"));
+    for (int r = 0; r < rounds; ++r) {
+        e.select(QStringLiteral("Z1"));
+        e.enter(QString::number(2 + r % 9));
+        for (int i = 0; i < reads; ++i) {
+            const CellRange b = calc->spillBlock(0, 1, 25);
+            if (b.valid && b.row1 == 1 && b.col1 == 25 && b.col2 == 25 && b.row2 >= 1 && b.row2 <= 10) ++whole;
+            else ++torn;
+            (void)calc->isSpillMember(0, 3, 25);
+            (void)calc->sheet(0).cells.find(3, 25);
+        }
+    }
+    QVERIFY(e.settle());
+    QCOMPARE(torn, qint64(0));
+    QVERIFY(whole > 0);
+    QCOMPARE(blockOf(e, QStringLiteral("Z2")), QStringLiteral("Z2:Z%1").arg(2 + (rounds - 1) % 9 + 1));
+}
+
+// The same for the cells of a loaded spill: the window reads the store's cells of the block, one by one, beside the worker as it lets go of those the block no longer holds; every cell it finds is the one at the
+// place asked for (a cell taken from the store by the worker moves the ones after it in its block of rows), or none. Counted, no waiting.
+void CrunchEditTests::theCellsOfALoadedBlockAreReadBesideTheWorkerThatLetsGoOfThem()
+{
+    SpillIndexSwitch on(true);
+    const QByteArray bytes = spillingBook(300);
+    QVERIFY(!bytes.isEmpty());
+    const int books = 6;
+    qint64 looked = 0, wrong = 0;
+    for (int b = 0; b < books; ++b) {
+        EditWindow e;
+        QVERIFY(e.open(bytes, QStringLiteral("spilling.xlsx")));
+        QVERIFY(e.settle());
+        const Calculation *calc = e.win.w.session()->calculation();
+        const CellStore &cells = calc->sheet(0).cells;
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("2"));   // (the worker works the formula out again and the block shrinks)
+        for (int i = 0; i < 300; ++i)
+            for (quint32 row = 0; row < 300; ++row) {
+                const std::optional<Cell> c = cells.find(row, 1);
+                ++looked;
+                if (c && cells.rowIdAt(row) != quint32(c->rowId)) ++wrong;
+            }
+        QVERIFY(e.settle());
+        QVERIFY(!realAt(cells, 150, 1));
+    }
+    QCOMPARE(wrong, qint64(0));
+    QVERIFY(looked == qint64(books) * 300 * 300);
+}
+
+// What a save reads (the sheet's ranges, written as the extent of each dynamic array) and what the windows read (the table) are the same blocks while the worker is held back: for each formula that spills, the
+// range its slot holds is the block of the table, and so is the copy of the table a copy of the store freezes. Fails when a range and its block differ (the check is on every formula, after a block grew).
+void CrunchEditTests::aSnapshotsRangesAgreeWithItsFrozenBlocks()
+{
+    SpillIndexSwitch on(true);
+    EditWindow e;
+    QVERIFY(e.openBlank());
+    for (int i = 0; i < 12; ++i) {
+        e.select(QStringLiteral("%1%2").arg(QChar('A' + i)).arg(1));
+        e.enter(QStringLiteral("=SEQUENCE(%1)").arg(2 + i % 4));
+    }
+    e.select(QStringLiteral("N1"));
+    e.enter(QStringLiteral("3"));
+    e.select(QStringLiteral("N2"));
+    e.enter(QStringLiteral("=SEQUENCE(N1,2)"));
+    e.select(QStringLiteral("N1"));
+    e.enter(QStringLiteral("5"));   // (a block that grew)
+    QVERIFY(e.settle());
+    auto hold = e.win.w.workbookLoader().hold();
+    QVERIFY(hold);
+    const Sheet &sheet = hold->calculation()->sheet(0);
+    const std::shared_ptr<const SpillTable> frozen = sheet.cells.frozenSpills();
+    QVERIFY(frozen);
+    int checked = 0;
+    for (int f = 0; f < sheet.formulas.size(); ++f) {
+        const qint32 slot = sheet.formulas[f].range;
+        if (slot < 0 || slot >= sheet.ranges.size() || !sheet.ranges[slot].valid || sheet.ranges[slot].cellCount() <= 1) continue;
+        const SpillRect *r = frozen->ofFormula(f);
+        QVERIFY2(r, qPrintable(QString::number(f)));
+        QCOMPARE(r->row1, sheet.ranges[slot].row1);
+        QCOMPARE(r->col1, sheet.ranges[slot].col1);
+        QCOMPARE(r->row2, sheet.ranges[slot].row2);
+        QCOMPARE(r->col2, sheet.ranges[slot].col2);
+        ++checked;
+    }
+    QCOMPARE(checked, 13);
+    QCOMPARE(frozen->size(), size_t(13));
 }
 
 // A formula typed with the mark @ is saved as the call a file has for it (_xlfn.SINGLE) and read back with the mark, still one value of the block; the same formula typed again without the mark is the new kind

@@ -339,6 +339,29 @@ private Q_SLOTS:
         QCOMPARE(steps, qint64(3001 + 50));
     }
 
+    // The part of the sheet that prints reaches the places a formula's block fills (they are cells of no store): A1 = SEQUENCE(1,20) is used as far as column T. Fails when the used
+    // part is looked for in the store's cells only (the part is A1).
+    void aBlockThatAFormulaFillsIsPrinted()
+    {
+        Sheet sheet;
+        PlacedCell head = numberAt(0, 0);
+        head.cell.flags |= jp::office::sheet::HasFormula | jp::office::sheet::SpillFormula;
+        sheet.cells.add(head);
+        sheet.cells.finish();
+        sheet.cells.enableSpills(nullptr);
+        sheet.cells.spills()->mine().set(jp::office::sheet::SpillRect{0, 0, 0, 19, 0});
+        sheet.cells.spills()->noteChanged();
+        quint32 reachRows = 0, reachCols = 0;
+        sheet.cells.spillExtent(&reachRows, &reachCols);
+        QVERIFY2(reachRows == 1 && reachCols == 20, qPrintable(QStringLiteral("%1 x %2").arg(reachRows).arg(reachCols)));
+        Fixture f;
+        f.request.sheet = &sheet;
+        const SheetPrint p = f.run();
+        QString areas;
+        for (const CellRange &a : p.areas) areas += QStringLiteral("[%1,%2 to %3,%4]").arg(a.row1).arg(a.col1).arg(a.row2).arg(a.col2);
+        QVERIFY2(p.areas.size() == 1 && p.areas[0].row2 == 0 && p.areas[0].col2 == 19, qPrintable(areas));   // (the used part is A1:T1, not A1)
+    }
+
     // Rows hidden between two manual breaks still make a page each (blank, with the titles): a list filtered down to a few rows keeps a page for each of its breaks.
     void hiddenRowsBetweenBreaksMakeBlankPages()
     {

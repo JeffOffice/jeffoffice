@@ -138,6 +138,21 @@ void CellStore::finish()
 
 // The cell at the place as a store with blocks answers: a place in a block that has no cell of its own is a member of the block's formula; one with a cell that holds nothing is that cell as a member; one that
 // holds something is that cell.
+qint64 CellStore::cellCountWithSpills() const
+{
+    qint64 n = m_count - m_dead;
+    if (const SpillView v = spillView())
+        v.table->forEach([&](const SpillRect &r) {
+            qint64 own = 0;
+            forEachInRangeReal(r.row1, r.col1, r.row2, r.col2, [&](quint32, quint32, const Cell &) {
+                ++own;
+                return true;
+            });
+            n += (qint64(r.row2) - r.row1 + 1) * (qint64(r.col2) - r.col1 + 1) - own;
+        });
+    return n;
+}
+
 std::optional<Cell> CellStore::memberAt(const SpillView &v, quint32 row, quint32 col, const Cell *real) const
 {
     const SpillRect *r = v.table->at(row, col);

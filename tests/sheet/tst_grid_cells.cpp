@@ -696,6 +696,29 @@ private Q_SLOTS:
         QCOMPARE(cols, 5u);
     }
 
+    // The reach of the cells includes the blocks that formulas fill (they are in the sheet's table, not its extent: the worker does not write the extent for a spill). Fails when only the extent is read.
+    void theUsedExtentReachesTheBlocksOfFormulas()
+    {
+        Sheet sheet;
+        sheet.extentRows = 3;
+        sheet.extentCols = 2;
+        sheet.cells.enableSpills(nullptr);
+        sheet.cells.spills()->mine().set(jp::office::sheet::SpillRect{0, 1, 29, 4, 0});
+        sheet.cells.spills()->noteChanged();
+        Styles styles;
+        styles.fonts = {FontSpec()};
+        styles.formats = {CellFormat()};
+        GridData data;
+        data.styles = &styles;
+        data.sheet = &sheet;
+        GridSheet g;
+        g.setData(data);
+        quint32 rows = 0, cols = 0;
+        g.usedExtent(&rows, &cols);
+        QCOMPARE(rows, 30u);
+        QCOMPARE(cols, 5u);
+    }
+
     // A cell's text is made once and kept; a change of values or formats makes the texts again, and the cache holds only as many as a screen shows.
     // A column fitted to a number holds all its digits in the digits of the cell's own font: a font of wider digits than the default's makes it wider, and one of
     // narrower digits makes it narrower.
