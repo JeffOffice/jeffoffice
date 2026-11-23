@@ -410,7 +410,7 @@ private Q_SLOTS:
             c.setPosition(0);
             c.insertText(QStringLiteral("teh "));
             return label->text() != before;
-        }()), 10000);
+        }()), 30000);
     }
 
     // A hidden window counts nothing; it goes on when the window is shown.

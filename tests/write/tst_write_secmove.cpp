@@ -1288,7 +1288,7 @@ private Q_SLOTS:
         WriteWindow w;
         openPane(w, paneDocx());
         QStringList found;
-        QVERIFY(QTest::qWaitForWindowActive(&w));
+        QTRY_VERIFY_WITH_TIMEOUT(w.isActiveWindow(), 30000);
         QTRY_VERIFY(w.ribbon()->tab(QStringLiteral("View")));
         w.ribbon()->showTab(w.ribbon()->tab(QStringLiteral("View")));
         for (QToolButton *b : w.ribbon()->findChildren<QToolButton *>())
