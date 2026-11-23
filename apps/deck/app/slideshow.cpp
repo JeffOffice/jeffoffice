@@ -48,6 +48,9 @@ namespace jp {
 
 namespace {
 
+// Only so many times a slide's objects are clicked for effects: a show left to a script can't grow its steps without end.
+constexpr int kMaxTriggerRuns = 500;
+
 // ---- drawing a slide ----
 
 // Where a slide goes in a window: as large as it fits, in the middle.
@@ -1037,6 +1040,8 @@ void SlideShow::showSlide(int pos, int steps)
     m_areasSlide = -1;
     // What a click on an object played the last time the slide was shown is not played again as a step.
     dropTriggerSteps(m_slide);
+    // The slide shown again waits for its clicks again.
+    if (m_triggerRuns >= kMaxTriggerRuns) m_plays.remove(m_slide);
     m_triggerRuns = 0;
     m_done = std::min(steps, stepsOf(m_slide));
     m_playing = -1;
@@ -1145,6 +1150,12 @@ const SlideShow::Play &SlideShow::playOf(int slide) const
         Play play;
         play.timeline = deck::playableTimeline(*m_doc, *m_doc->pages[slide]);
         if (!play.timeline.isEmpty()) play.geometry = deck::geometryOf(*m_doc, *m_doc->pages[slide]);
+        // What only a click on an object brings in starts hidden only where the object can be clicked.
+        if (!play.timeline.triggers.isEmpty()) {
+            QSet<int> shapes;
+            for (const deck::Trigger &t : std::as_const(play.timeline.triggers)) shapes.insert(t.shape);
+            deck::armTriggers(play.timeline, deck::clickableTriggerShapes(*m_doc, *m_cache, slide, shapes));
+        }
         it = m_plays.insert(slide, play);
     }
     return it.value();
@@ -1179,8 +1190,6 @@ void SlideShow::dropTriggerSteps(int slide, int at)
 
 bool SlideShow::fireTrigger(int shape)
 {
-    // Only so many times a slide's objects are clicked for effects: a show left to a script can't grow its steps without end.
-    constexpr int kMaxTriggerRuns = 500;
     if (m_atEnd || m_animating || m_slide < 0 || m_slide >= m_doc->pages.size() || m_triggerRuns >= kMaxTriggerRuns) return false;
     const deck::Timeline &known = playOf(m_slide).timeline;
     const auto trigger = std::find_if(known.triggers.cbegin(), known.triggers.cend(), [shape](const deck::Trigger &t) { return t.shape == shape; });
@@ -1192,6 +1201,11 @@ bool SlideShow::fireTrigger(int shape)
     QVector<deck::Step> &steps = m_plays[m_slide].timeline.steps;
     steps.insert(std::min(m_done, int(steps.size())), step);
     ++m_triggerRuns;
+    // Past the last run nothing waits for a click any more: what was still to come in is shown, as the slide ends.
+    if (m_triggerRuns >= kMaxTriggerRuns) {
+        for (deck::Trigger &t : m_plays[m_slide].timeline.triggers) t.hides = false;
+        m_images.remove(m_slide);
+    }
     m_frames.clear();
     m_auto.stop();
     m_blank = QColor();
@@ -1656,8 +1670,9 @@ static QString resolvedPresentationPath(const QString &address, const QString &b
 
 void SlideShow::followLink(const QString &link)
 {
+    // A click on an object that can't play its effects now (a transition, the last run) does nothing.
     if (const int shape = deck::triggerOfLink(link)) {
-        if (!fireTrigger(shape)) next();
+        fireTrigger(shape);
         return;
     }
     const office::LinkTarget t = office::parseLink(link);
@@ -1982,7 +1997,15 @@ void SlideShow::mousePressEvent(QMouseEvent *e)
             pressAt(pageAt(e->position()));
             return;
         }
-        if (!m_animating && !m_atEnd && !m_blank.isValid() && m_media->mousePress(e->position())) return;
+        if (!m_animating && !m_atEnd && !m_blank.isValid()) {
+            bool onBar = false;
+            if (m_media->mousePress(e->position(), &onBar)) {
+                // A movie or sound and effects on one object play with the one click (not for the movie's own controls).
+                if (!onBar)
+                    if (const int shape = deck::triggerOfLink(linkAt(e->position()))) fireTrigger(shape);
+                return;
+            }
+        }
         if (const QString link = linkAt(e->position()); !link.isEmpty()) {
             followLink(link);
             return;

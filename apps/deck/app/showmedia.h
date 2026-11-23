@@ -54,7 +54,8 @@ public:
     // Mouse over the slide: true when something here is the media's (its control bar, or a movie to click), and the
     // press does its work.
     bool mouseMove(const QPointF &pos);
-    bool mousePress(const QPointF &pos);
+    // Whether the click was the media's. `onBar` says it was on a part of a movie's controls.
+    bool mousePress(const QPointF &pos, bool *onBar = nullptr);
     // Over the slide, after it is painted: the movies that play, a message for a file that can't, and the control bar.
     void paint(QPainter *p);
 

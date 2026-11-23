@@ -316,8 +316,9 @@ bool ShowMedia::mouseMove(const QPointF &pos)
     return over;
 }
 
-bool ShowMedia::mousePress(const QPointF &pos)
+bool ShowMedia::mousePress(const QPointF &pos, bool *onBar)
 {
+    if (onBar) *onBar = false;
     if (!page() || m_plan.isEmpty()) return false;
     QString id;
     MediaBar::Part part;
@@ -326,6 +327,7 @@ bool ShowMedia::mousePress(const QPointF &pos)
         if (!pic) return false;
         Entry *e = entryFor(*pic, false);
         MediaPlayback *pb = e ? e->player.data() : nullptr;
+        if (onBar && part != MediaBar::Part::None) *onBar = true;
         switch (part) {
         case MediaBar::Part::Play:
             if (pb && pb->state() == MediaPlayback::State::Playing) pb->pause();

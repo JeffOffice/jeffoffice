@@ -29,6 +29,9 @@ QVector<LinkArea> linkAreas(const Document &d, LayoutCache &cache, int slide, co
 QString triggerLink(int shape);
 int triggerOfLink(const QString &link);
 
+// Which of the objects whose numbers are in `triggers` have a click area on the slide: not hidden, with a box that is not empty, on the slide, and with no link of its own (where both are, the link wins the click).
+QSet<int> clickableTriggerShapes(const Document &d, LayoutCache &cache, int slide, const QSet<int> &triggers);
+
 // How many times areas have been worked out on this thread since the program began (a count for tests of cost).
 qint64 linkAreaRunsForTest();
 

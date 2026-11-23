@@ -3359,6 +3359,29 @@ private Q_SLOTS:
         QCOMPARE(show.stepCount(), 2);
     }
 
+    // The color of a box's middle in the show as it is drawn: whether the box is there (a box's fill is red, the slide's ground is not).
+    static bool boxShown(SlideShow &show, const Item &box)
+    {
+        const QColor c = show.grab().toImage().pixelColor(box.bounds().center().toPoint());
+        return c.red() > 150 && c.green() < 100;
+    }
+
+    // Two slides, the first with `boxes` boxes numbered from 10 (as editDeck makes them).
+    static std::unique_ptr<Document> twoSlideEditDeck(int boxes)
+    {
+        auto d = showDeck(2);
+        Page &slide = *d->pages[0];
+        numberShowShapes(slide);
+        for (int i = 0; i < boxes; ++i) {
+            auto box = std::make_shared<ShapeItem>();
+            box->rect = QRectF(20 + 90 * (i % 8), 400 + 40 * (i / 8), 80, 30);
+            box->fill = Fill::solid(ColorRef::rgb(QColor(200, 60, 40)));
+            box->sourceId = 10 + i;
+            slide.items.push_back(box);
+        }
+        return d;
+    }
+
     // A file that names a trigger object the slide does not have, triggers by the hundred, or an effect that aims at its own trigger object cannot make the show loop, grow without end, or take a click.
     void hostileTriggersAreHeldToLimits()
     {
@@ -3366,10 +3389,13 @@ private Q_SLOTS:
         QVector<QPair<int, QString>> waits;
         waits.push_back({99, animAppear(3)});                  // an object that is not on the slide
         waits.push_back({10, animAppear(77)});                 // an effect on an object that is not there
-        waits.push_back({10, animFadeIn(10, 1)});              // on itself (the object is hidden until it plays: nothing to click)
-        for (int i = 0; i < 300; ++i) waits.push_back({11, animFadeIn(3, 1)});   // many times over
+        waits.push_back({10, animFadeIn(10, 1)});              // on itself
+        for (int i = 0; i < 300; ++i) waits.push_back({11, animAppear(3)});   // many times over, on one object
         const QString xml = animTriggerTiming(animSteps({animAppear(10)}), waits);
-        QCOMPARE(int(deck::readTimeline(xml).triggers.size()), deck::kMaxTriggers);   // (the 64th is the last kept)
+        // The sequences of one object are one trigger, each effect kept up to the limit.
+        const deck::Timeline read = deck::readTimeline(xml);
+        QCOMPARE(int(read.triggers.size()), 3);
+        QCOMPARE(int(read.triggers[2].effects.size()), deck::kMaxTriggerEffects);
         d->pages[0]->props[QStringLiteral("timingXml")] = xml;
         const deck::Timeline playable = deck::playableTimeline(*d, *d->pages[0]);
         QVERIFY(!std::any_of(playable.triggers.cbegin(), playable.triggers.cend(), [](const deck::Trigger &t) { return t.shape == 99; }));
@@ -3378,7 +3404,7 @@ private Q_SLOTS:
         SlideShow show(d.get(), &cache, 0);
         show.resize(960, 540);
         const QPoint box = d->pages[0]->items[3]->bounds().center().toPoint();
-        const QPoint gone = d->pages[0]->items[2]->bounds().center().toPoint();   // (box 10: its trigger names nothing)
+        const QPoint gone = d->pages[0]->items[2]->bounds().center().toPoint();   // (box 10: not there until the main sequence's step brings it in)
         QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, gone);
         QCOMPARE(show.triggerRuns(), 0);
         QCOMPARE(show.step(), 1);   // an ordinary click: the main sequence's step
@@ -3386,10 +3412,206 @@ private Q_SLOTS:
         QCOMPARE(show.triggerRuns(), 500);
         QCOMPARE(show.stepCount(), 501);
         QCOMPARE(show.currentSlide(), 0);
-        // Past that a click on the object is an ordinary click (here, the end of the slide's steps).
+        // Past that a click on the object does nothing: it is not a click on the slide either.
+        const int step = show.step();
         QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, box);
         QCOMPARE(show.triggerRuns(), 500);
-        QVERIFY(show.currentSlide() != 0);   // (the only slide is over)
+        QCOMPARE(show.currentSlide(), 0);
+        QCOMPARE(show.step(), step);
+        QVERIFY(!show.isPlayingStep());
+    }
+
+    // Every interactive sequence a file gives one object plays at its click, in the file's order.
+    void everySequenceOfAnObjectPlaysAtItsClick()
+    {
+        auto d = editDeck(4);
+        d->pages[0]->props[QStringLiteral("timingXml")] = animTriggerTiming(animSteps({}), {{11, animAppear(10)}, {11, animAppear(12)}, {11, animAppear(13)}});
+        const deck::Timeline tl = deck::playableTimeline(*d, *d->pages[0]);
+        QCOMPARE(int(tl.triggers.size()), 1);
+        QCOMPARE(int(tl.triggers[0].effects.size()), 3);
+        QCOMPARE(tl.triggers[0].effects[0].behaviors[0].target.shape, 10);
+        QCOMPARE(tl.triggers[0].effects[2].behaviors[0].target.shape, 13);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        show.show();
+        const ItemList &items = d->pages[0]->items;
+        QVERIFY(!boxShown(show, *items[2]) && !boxShown(show, *items[4]) && !boxShown(show, *items[5]));
+        QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, items[3]->bounds().center().toPoint());
+        QCOMPARE(show.triggerRuns(), 1);
+        QTRY_VERIFY(!show.isPlayingStep());
+        QVERIFY(boxShown(show, *items[2]) && boxShown(show, *items[4]) && boxShown(show, *items[5]));
+    }
+
+    // A trigger that can never be clicked (its object hidden, off the slide, with no area, brought in only by itself, or by one that waits for it) does not keep what it brings in away
+    // for the whole show; one that can be clicked still does.
+    void aTriggerNobodyCanClickLeavesItsTargetShown()
+    {
+        auto d = editDeck(11);
+        const ItemList &items = d->pages[0]->items;
+        auto box = [&](int id) -> Item & { return *items[2 + id - 10]; };
+        box(10).hidden = true;                                  // 10, hidden, waits to bring in 12
+        box(11).rect = QRectF(5000, 5000, 80, 30);              // 11, off the slide, brings in 13
+        box(14).rect = QRectF(20, 20, 0, 0);                    // 14, with no area, brings in 15
+        QVector<QPair<int, QString>> waits = {{10, animAppear(12)}, {11, animAppear(13)}, {14, animAppear(15)}, {16, animAppear(16)}, {17, animAppear(18)}, {18, animAppear(17)}, {19, animAppear(20)}};
+        d->pages[0]->props[QStringLiteral("timingXml")] = animTriggerTiming(animSteps({}), waits);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        show.show();
+        for (const int id : {12, 13, 15, 16, 17, 18}) QVERIFY2(boxShown(show, box(id)), qPrintable(QString::number(id)));
+        // The one that can be clicked: its target is not there until the click.
+        QVERIFY(!boxShown(show, box(20)));
+        QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, box(19).bounds().center().toPoint());
+        QTRY_VERIFY(!show.isPlayingStep());
+        QVERIFY(boxShown(show, box(20)));
+        // The click the object cannot have is not taken from the slide.
+        QCOMPARE(show.triggerRuns(), 1);
+    }
+
+    // After the last run, what was still to come in is shown, and a click on the object that waits does nothing.
+    void whenTheRunsAreUsedUpEverythingIsShown()
+    {
+        auto d = editDeck(5);
+        const ItemList &items = d->pages[0]->items;
+        d->pages[0]->props[QStringLiteral("timingXml")] = animTriggerTiming(animSteps({}), {{11, animAppear(12)}, {13, animAppear(14)}});
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        show.show();
+        QVERIFY(!boxShown(show, *items[6]));   // (box 14 waits for a click on box 13)
+        const QPoint first = items[3]->bounds().center().toPoint();
+        for (int i = 0; i < 500; ++i) QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, first);
+        QCOMPARE(show.triggerRuns(), 500);
+        QTRY_VERIFY(!show.isPlayingStep());
+        QVERIFY(boxShown(show, *items[6]));
+        const int step = show.step();
+        QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, items[5]->bounds().center().toPoint());
+        QCOMPARE(show.triggerRuns(), 500);
+        QCOMPARE(show.step(), step);
+        QCOMPARE(show.currentSlide(), 0);
+        // The slide shown again waits for its clicks again.
+        show.goTo(0);
+        QCOMPARE(show.triggerRuns(), 0);
+        QVERIFY(!boxShown(show, *items[6]));
+    }
+
+    // A click on an object that waits for a click, while a transition plays, does not move the show on.
+    void aTriggerClickDuringATransitionDoesNothing()
+    {
+        auto d = twoSlideEditDeck(2);
+        d->pages[0]->props[QStringLiteral("timingXml")] = animTriggerTiming(animSteps({}), {{11, animAppear(10)}});
+        deck::setTransition(*d->pages[1], showTransition("fade", 30));
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        show.show();
+        show.next();
+        QVERIFY(show.isAnimating());
+        const int target = show.targetSlide();
+        QVERIFY(!show.fireTrigger(11));
+        show.followLink(deck::triggerLink(11));
+        QVERIFY(show.isAnimating());
+        QCOMPARE(show.targetSlide(), target);
+        QCOMPARE(show.triggerRuns(), 0);
+        show.finishTransition();
+        QCOMPARE(show.currentSlide(), 1);
+    }
+
+    // An address of "jdtrigger:11" in a file is an ordinary address that goes nowhere (also as a mouse-over action); it never plays an object's effects.
+    void anAddressThatReadsLikeATriggerIsNotOne()
+    {
+        auto d = editDeck(4);
+        const ItemList &items = d->pages[0]->items;
+        items[4]->hyperlink = QStringLiteral("jdtrigger:11");
+        items[5]->hoverLink = QStringLiteral("jdtrigger:11");
+        d->pages[0]->props[QStringLiteral("timingXml")] = animTriggerTiming(animSteps({}), {{11, animAppear(10)}});
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        show.show();
+        QCOMPARE(deck::triggerOfLink(QStringLiteral("x-jdtrigger:11")), 0);
+        QTest::mouseMove(&show, items[5]->bounds().center().toPoint());
+        QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, items[4]->bounds().center().toPoint());
+        QCOMPARE(show.triggerRuns(), 0);
+        QCOMPARE(show.currentSlide(), 0);
+        QVERIFY(!boxShown(show, *items[2]));
+        // (the real object still plays)
+        QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, items[3]->bounds().center().toPoint());
+        QCOMPARE(show.triggerRuns(), 1);
+    }
+
+    // A trigger object inside a group plays its effects at a click on it.
+    void aTriggerObjectInAGroupPlaysItsEffects()
+    {
+        auto d = editDeck(3);
+        ItemList &items = d->pages[0]->items;
+        auto group = std::make_shared<GroupItem>();
+        group->children.push_back(items[3]);
+        group->syncRect();
+        items.erase(items.begin() + 3);
+        items.push_back(group);
+        d->pages[0]->props[QStringLiteral("timingXml")] = animTriggerTiming(animSteps({}), {{11, animAppear(12)}});
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        show.show();
+        QVERIFY(!boxShown(show, *items[3]));   // (box 12, now at 3)
+        QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, group->children[0]->bounds().center().toPoint());
+        QCOMPARE(show.triggerRuns(), 1);
+        QTRY_VERIFY(!show.isPlayingStep());
+        QVERIFY(boxShown(show, *items[3]));
+    }
+
+    // A click in Presenter View's slide is a click of the show's steps: it never plays an object's effects, and the steps a trigger added are not taken for the main sequence's.
+    void aClickInPresenterViewTakesTheMainSteps()
+    {
+        auto d = editDeck(3);
+        d->pages[0]->props[QStringLiteral("timingXml")] = animTriggerTiming(animSteps({animAppear(10)}), {{11, animAppear(12)}});
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        show.show();
+        PresenterView pv(&show);
+        pv.resize(1000, 700);
+        pv.show();
+        auto *current = pv.findChild<QWidget *>(QStringLiteral("currentSlide"));
+        QVERIFY(current);
+        const QPoint on = QPoint(current->width() / 2, current->height() / 2);
+        QTest::mouseClick(current, Qt::LeftButton, Qt::NoModifier, on);
+        QCOMPARE(show.triggerRuns(), 0);
+        QCOMPARE(show.step(), 1);
+        QTRY_VERIFY(!show.isPlayingStep());
+        // A trigger played in the show, then a click in Presenter View: the main sequence is over, so the click moves on.
+        QVERIFY(show.fireTrigger(11));
+        QTRY_VERIFY(!show.isPlayingStep());
+        QCOMPARE(show.stepCount(), 2);
+        QVERIFY(!pv.nextImage().isNull());
+        QTest::mouseClick(current, Qt::LeftButton, Qt::NoModifier, on);
+        QCOMPARE(show.currentSlide(), -1);   // (the only slide is over)
+    }
+
+    // The slide a trigger is playing on goes from the deck while the effect plays: the show goes on to the slide in its place, with nothing left running.
+    void aSlideTakenAwayWhileATriggerPlaysLeavesNothingRunning()
+    {
+        auto d = twoSlideEditDeck(2);
+        d->pages[0]->props[QStringLiteral("timingXml")] = animTriggerTiming(animSteps({}), {{11, animFadeIn(10, 600000)}});
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        show.show();
+        QVERIFY(show.fireTrigger(11));
+        QVERIFY(show.isPlayingStep());
+        QTRY_VERIFY(show.frameClockRunning());
+        d->pages.erase(d->pages.begin());
+        show.documentChanged();
+        QCOMPARE(show.currentSlide(), 0);
+        QVERIFY(!show.isPlayingStep());
+        QVERIFY(!show.frameClockRunning());
+        QCOMPARE(show.step(), 0);
+        QVERIFY(!show.fireTrigger(11));   // (the slide that has it is gone)
+        for (int i = 0; i < 30; ++i) QCoreApplication::processEvents();
+        QCOMPARE(show.currentSlide(), 0);
     }
 
     // The show's menu lists the presentation's custom shows (a choice plays that show from its first slide) and has Help, which lists the keys; a presentation with no custom show has no such menu.

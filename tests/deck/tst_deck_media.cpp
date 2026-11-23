@@ -2592,6 +2592,45 @@ private Q_SLOTS:
         QTRY_VERIFY(gone.isNull());
     }
 
+    // A movie that waits for a click on it, and effects that wait for the same click, play together at one click; the movie's own controls play only the movie; ending the show
+    // while the movie plays leaves nothing playing.
+    void showClickOnAMovieWithEffectsPlaysBoth()
+    {
+        auto d = showDeck(2);
+        deck::MediaPlay onClick;
+        onClick.start = deck::MediaStart::WhenClickedOn;
+        auto movie = showMedia(*d, 0, testAvi(60, QSize(64, 48), 10, true), QStringLiteral("clip.avi"), QPointF(300, 150), onClick, QSizeF(320, 240));
+        Page &slide = *d->pages[0];
+        QString xml = slide.props.value(QStringLiteral("timingXml")).toString();
+        const int at = xml.indexOf(QStringLiteral("<p:video>"));
+        QVERIFY(at > 0);
+        const QString effects = animXml("<p:seq concurrent='1' nextAc='seek'><p:cTn id='90' restart='whenNotActive' fill='hold' evtFilter='cancelBubble' nodeType='interactiveSeq'><p:stCondLst><p:cond evt='onClick' delay='0'><p:tgtEl><p:spTgt spid='%1'/></p:tgtEl></p:cond></p:stCondLst><p:endSync evt='end' delay='0'><p:rtn val='all'/></p:endSync><p:childTnLst>").arg(movie->sourceId)
+                                + animGroup(0, {animAppear(30)}) + animXml("</p:childTnLst></p:cTn></p:seq>");
+        slide.items[0]->sourceId = 30;
+        slide.props[QStringLiteral("timingXml")] = xml.left(at) + effects + xml.mid(at);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        show.show();
+        ShowMedia *media = show.media();
+        QVERIFY(!media->playbackOf(movie->id));
+        // The bar's controls are the movie's alone.
+        QTest::mouseMove(&show, showCenter(*movie));
+        const QRectF bar = media->barRect(movie->id);
+        QVERIFY(!bar.isEmpty());
+        QTest::mouseMove(&show, bar.center().toPoint());
+        QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, QPoint(int(bar.left() + 15), int(bar.center().y())));
+        QCOMPARE(show.triggerRuns(), 0);
+        QTest::mouseClick(&show, Qt::LeftButton, Qt::NoModifier, showCenter(*movie));
+        QCOMPARE(show.triggerRuns(), 1);
+        QCOMPARE(show.currentSlide(), 0);
+        QPointer<MediaPlayback> pb = media->playbackOf(movie->id);
+        QVERIFY(pb);
+        // Ending the show with the movie playing (as Esc does) takes it away.
+        QTest::keyClick(&show, Qt::Key_Escape);
+        QTRY_VERIFY_WITH_TIMEOUT(pb.isNull(), 5000);
+    }
+
     // A movie that hides while it isn't playing is not on the slide until it plays, and not after; one that plays full screen
     // fills the window.
     void showHidesAndFillsAsTheFileSays()
