@@ -138,6 +138,60 @@ void WriteTests::aBorderPainterPathIsCutAtTheMostPiecesItLooksAt()
     QCOMPARE(int(sidesUnderPath(cells, path, 3).size()), 1);
 }
 
+void WriteTests::aScribbleOverAHugeTableIsBoundedByACountedNumberOfLooks()
+{
+    using namespace jp::flow;
+    // 200 columns by 252 rows of cells ten points square: 50,400 cells, and a path of 4,096 points that crosses the whole table again and again.
+    std::vector<PaintCell> cells;
+    for (int r = 0; r < 252; ++r)
+        for (int c = 0; c < 200; ++c) cells.push_back({QRectF(c * 10, r * 10, 10, 10), r * 200 + c});
+    std::vector<QPointF> scribble;
+    for (int i = 0; i <= kMostPaintPieces; ++i) scribble.push_back({double((i * 37) % 2000), double((i * 53) % 2520)});
+    qint64 work = 0;
+    sidesUnderPath(cells, scribble, 3, &work);
+    QVERIFY2(work <= kMostPaintComparisons && work > kMostPaintComparisons - 8, qPrintable(QString::number(work)));   // (the path is cut where the looking is spent)
+    // A line of the size of a drag along a few cells takes a few steps, and finds the sides.
+    qint64 small = 0;
+    const auto sides = sidesUnderPath(cells, {{100, 4}, {100, 26}, {100, 36}}, 3, &small);
+    QVERIFY(small > 0 && small < 500);
+    QVERIFY(std::any_of(sides.begin(), sides.end(), [](const PaintedSide &s) { return s.key == 10 && s.side == CellSide::Left; }));
+}
+
+void WriteTests::aBorderPainterDragThatStartsOutsideATableSaysSoOnceAndAPageFootIsNoEdgeOfASplitCell()
+{
+    TailWin win;
+    win.w.view()->paginateAll();
+    WriteDoc *doc = win.w.document();
+    QWidget *vp = win.w.view()->viewport();
+    win.w.act(QStringLiteral("table.paintBorder"))->trigger();
+    QRect before;
+    QVERIFY(win.w.view()->positionRect(positionOf(*doc, QStringLiteral("Before")), &before));
+    QSignalSpy said(win.w.view(), &PageView::notice);
+    const quint64 serial = doc->nextStepSerial();
+    drag(vp, before.center(), before.center() + QPoint(60, 0));
+    QCOMPARE(said.size(), 1);
+    QVERIFY2(said.first().first().toString().contains(QStringLiteral("Drag along the lines of a table")), qPrintable(said.first().first().toString()));
+    QCOMPARE(doc->nextStepSerial(), serial);
+    // A cell of one row that goes over the page's foot: its bottom on the first page is where the page ends, not the cell's edge; its top on the next page is not its top.
+    QByteArray lines;
+    for (int i = 0; i < 160; ++i) lines += "<w:p><w:r><w:t>line</w:t></w:r></w:p>";
+    TailWin tall("<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"4000\"/></w:tblGrid><w:tr><w:tc>" + lines + "</w:tc></w:tr></w:tbl><w:p><w:r><w:t>End</w:t></w:r></w:p>");
+    tall.w.view()->paginateAll();
+    QTextCursor c(tall.w.document()->story());
+    c.setPosition(positionOf(*tall.w.document(), QStringLiteral("line")));
+    tall.w.view()->setCursor(c);
+    const QHash<int, QRect> cells = tall.cells();
+    QCOMPARE(cells.size(), 1);
+    const QRect box = cells.constBegin().value();
+    tall.w.act(QStringLiteral("table.paintBorder"))->trigger();
+    const quint64 tallSerial = tall.w.document()->nextStepSerial();
+    drag(tall.w.view()->viewport(), QPoint(box.left() + 10, box.bottom()), QPoint(box.right() - 10, box.bottom()));
+    QCOMPARE(tall.w.document()->nextStepSerial(), tallSerial);
+    QVERIFY(!tall.xml().contains("<w:bottom"));
+    drag(tall.w.view()->viewport(), QPoint(box.left() + 10, box.top()), QPoint(box.right() - 10, box.top()));   // (the top of the first part is the cell's own)
+    QVERIFY(tall.xml().contains("<w:top"));
+}
+
 void WriteTests::paintingBordersPutsALineOnBothCellsInOneStepAndTheFileKeepsIt()
 {
     auto doc = open(makeDocx(tableBody()));

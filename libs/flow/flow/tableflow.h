@@ -360,6 +360,7 @@ struct TableFragment {
     struct CellBox {
         QRectF box;
         int from = 0, span = 1, rows = 1;
+        bool continues = false, continued = false;   // the cell goes on below the page's foot, or goes on from the page before (a row shown in parts, or a cell joined down past the fragment)
     };
     const std::vector<CellBox> &cellBoxes() const;
     static qint64 cellBoxListsMadeForTest();

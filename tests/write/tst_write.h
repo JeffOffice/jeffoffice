@@ -1872,6 +1872,8 @@ private Q_SLOTS:
     void textThatNamesNoFontIsReplacedThroughTheDefaultFont();
     void thePathOfABorderPainterPaintsTheSidesItRunsAlong();
     void aBorderPainterPathIsCutAtTheMostPiecesItLooksAt();
+    void aScribbleOverAHugeTableIsBoundedByACountedNumberOfLooks();
+    void aBorderPainterDragThatStartsOutsideATableSaysSoOnceAndAPageFootIsNoEdgeOfASplitCell();
     void paintingBordersPutsALineOnBothCellsInOneStepAndTheFileKeepsIt();
     void draggingTheBorderPainterAlongALinePutsTheBorderOnBothSides();
     void theBorderPainterWithNoBorderAsItsStyleErasesTheLinesItIsDraggedAlong();

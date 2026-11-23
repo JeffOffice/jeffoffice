@@ -1250,22 +1250,26 @@ void PageView::finishBorderPaint(const ToolDrag &drag)
     const auto r = rendered(drag.page);
     if (!m_doc || m_readOnly || !r || !r->page || drag.path.empty()) return;
     const double reach = 4.0 / std::max(0.1, scale());
+    // The table under the start of the drag; of tables inside tables, the innermost (the smallest).
+    std::shared_ptr<flow::TableFragment> under;
     for (const auto &fragment : r->page->tables) {
-        if (!fragment->rect().adjusted(-reach, -reach, reach, reach).contains(drag.path.front())) continue;
+        const QRectF box = fragment->rect().adjusted(-reach, -reach, reach, reach);
+        if (box.contains(drag.path.front()) && (!under || box.width() * box.height() < under->rect().width() * under->rect().height())) under = fragment;
+    }
+    QVector<write::BorderEdge> edges;
+    if (under) {
         std::vector<flow::PaintCell> cells;
-        for (const flow::TableFragment::CellBox &cb : fragment->cellBoxes()) cells.push_back({cb.box, cb.from});
-        QVector<write::BorderEdge> edges;
+        for (const flow::TableFragment::CellBox &cb : under->cellBoxes()) cells.push_back({cb.box, cb.from, cb.continued, cb.continues});
         for (const flow::PaintedSide &s : flow::sidesUnderPath(cells, drag.path, reach))
             edges.push_back({s.key, s.side == flow::CellSide::Top ? write::BorderSide::Top : s.side == flow::CellSide::Left ? write::BorderSide::Left : s.side == flow::CellSide::Bottom ? write::BorderSide::Bottom : write::BorderSide::Right});
-        m_doc->tableNotice.clear();
-        if (write::paintBorderEdges(*m_doc, edges, m_borderPen)) {
-            refresh();
-            caretMoved();
-            Q_EMIT contentChanged();
-        } else if (edges.isEmpty()) {
-            Q_EMIT notice(QCoreApplication::translate("jp::write::PageView", "Drag along the lines of a table to draw or erase its borders."));
-        }
-        return;
+    }
+    m_doc->tableNotice.clear();
+    if (!edges.isEmpty() && write::paintBorderEdges(*m_doc, edges, m_borderPen)) {
+        refresh();
+        caretMoved();
+        Q_EMIT contentChanged();
+    } else if (edges.isEmpty()) {
+        Q_EMIT notice(QCoreApplication::translate("jp::write::PageView", "Drag along the lines of a table to draw or erase its borders."));
     }
 }
 

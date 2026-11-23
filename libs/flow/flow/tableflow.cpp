@@ -1494,7 +1494,12 @@ const std::vector<TableFragment::CellBox> &TableFragment::cellBoxes() const
         ++g_boxLists;
         for (const Placed &pl : place()) {
             const TableLayout::Cell &c = layout->cell(items[size_t(pl.item)].cell);
-            if (!c.covered) m_boxes.push_back({pl.clip, c.from, c.span, c.rows});
+            if (c.covered) continue;
+            CellBox cb{pl.clip, c.from, c.span, c.rows};
+            const Part *last = partOf(c.row + c.rows - 1), *first = partOf(c.row);
+            cb.continues = c.row + c.rows > endRow || (last && last->piece.next != 0);
+            cb.continued = first && std::any_of(first->piece.offsets.begin(), first->piece.offsets.end(), [](double o) { return o > 0; });
+            m_boxes.push_back(cb);
         }
         m_boxesMade = true;
     }
