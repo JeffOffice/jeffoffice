@@ -1,4 +1,5 @@
 #include "sheet/xls.h"
+#include "sheet/xlssalvagework.h"
 
 #include <atomic>
 #include <unordered_set>
@@ -1442,8 +1443,6 @@ qsizetype XlsBook::wholeEnd(qint64 *work) const
 
 namespace {
 
-std::atomic<qint64> g_salvageRecords{0}, g_salvageStream{0};
-std::atomic<int> g_salvageSheetsRead{0};
 
 // The bytes of the stream that are records one after the other (each whole, with an id the format has): where the stream is damaged or runs into what is not records, it stops.
 qsizetype recordBytes(const QByteArray &d, qint64 *walked)
@@ -1526,7 +1525,7 @@ int dropAcrossJoins(QByteArray *d, const QVector<qint64> &joins)
 }
 
 // What became of the sheets, in words: each sheet that is cut short (with how far its cells go) or is gone, and what was read whole.
-QStringList sheetReport(const QByteArray &stream, const Limits &limits)
+QStringList sheetReport(const QByteArray &stream, const Limits &limits, XlsSalvageWork *counted)
 {
     QStringList out;
     WorkbookInfo info;
@@ -1572,19 +1571,17 @@ QStringList sheetReport(const QByteArray &stream, const Limits &limits)
     qint64 globalsWork = 1 << 20;
     if (book->globalsEnd(&globalsWork) == XlsBook::End::Whole) out << QCoreApplication::translate("jp::office::sheet::Xls", "The cell formats, fonts, and sheet names were recovered.");
     else out << QCoreApplication::translate("jp::office::sheet::Xls", "The front of the file, which holds the cell formats and fonts, was cut short, so some formatting may be missing.");
-    g_salvageRecords += start - work;
-    g_salvageSheetsRead += read;
+    if (counted) {
+        counted->recordsWalked += start - work;
+        counted->sheetsRead += read;
+    }
     return out;
 }
 
 } // namespace
 
-XlsSalvageWork salvageXlsWorkForTest() { return {g_salvageRecords, g_salvageStream, g_salvageSheetsRead}; }
-
-QByteArray salvageXlsStream(const QByteArray &file, const Limits &limits, QStringList *notes, QString *error)
+QByteArray salvageXlsStream(const QByteArray &file, const Limits &limits, QStringList *notes, QString *error, XlsSalvageWork *counted)
 {
-    g_salvageRecords = g_salvageStream = 0;
-    g_salvageSheetsRead = 0;
     if (file.size() > limits.fileBytes) {
         if (error) *error = QCoreApplication::translate("jp::office::sheet::Xls", "The file is too large to repair.");
         return QByteArray();
@@ -1616,8 +1613,10 @@ QByteArray salvageXlsStream(const QByteArray &file, const Limits &limits, QStrin
             // (what the container gave that is not records, in a stream that was put together from sectors that were not all the stream's: the records before it are kept)
             qint64 walked = 0;
             qsizetype good = recordBytes(stream, &walked);
-            g_salvageRecords += walked;
-            g_salvageStream = stream.size();
+            if (counted) {
+                counted->recordsWalked += walked;
+                counted->streamBytes = stream.size();
+            }
             // (a damaged stretch in the middle of one sheet does not take the sheets after it: each is read at the place the globals give, and the stream is kept to the last that ends whole)
             WorkbookInfo info;
             SharedStrings shared;
@@ -1626,7 +1625,9 @@ QByteArray salvageXlsStream(const QByteArray &file, const Limits &limits, QStrin
             const std::shared_ptr<const XlsBook> whole = XlsBook::open(stream, false, limits, &info, &shared, &styles, &ignored);
             if (whole) {
                 qint64 work = 2 * qint64(stream.size()) + (1 << 20);
+                const qint64 allowed = work;
                 good = std::max(good, whole->wholeEnd(&work));
+                if (counted) counted->recordsWalked += allowed - work;
             }
             bool zeros = true;
             for (qsizetype i = good; i < stream.size() && zeros; ++i) zeros = stream[i] == 0;
@@ -1641,7 +1642,7 @@ QByteArray salvageXlsStream(const QByteArray &file, const Limits &limits, QStrin
             } else {
                 *notes << found.notes;
                 if (dropped > 0) *notes << QCoreApplication::translate("jp::office::sheet::Xls", "%n entry of the workbook (a cell, a format, or a note) was left out because it lay across a place where pieces of the file were joined by a guess.", nullptr, dropped);
-                const QStringList report = sheetReport(stream, limits);
+                const QStringList report = sheetReport(stream, limits, counted);
                 if (report.isEmpty()) *notes << QCoreApplication::translate("jp::office::sheet::Xls", "A sheet that was cut short keeps the cells before the cut; whatever came after it is lost.");
                 else *notes << report;
             }

@@ -11,6 +11,7 @@
 #include "sheet/calculation.h"
 #include "io/zip.h"
 #include "sheet/oldsave.h"
+#include "sheet/xlssalvagework.h"
 #include "sheet/xlsxbase.h"
 #include "sheet/xlsxsave.h"
 #include "sheet/xlscodepage.h"
@@ -2061,11 +2062,18 @@ private Q_SLOTS:
         const QByteArray cut = stream.left(from + 300);
         QStringList notes;
         QString why;
-        const QByteArray got = salvageXlsStream(cut, Limits(), &notes, &why);
+        XlsSalvageWork work;
+        const QByteArray got = salvageXlsStream(cut, Limits(), &notes, &why, &work);
         QVERIFY2(!got.isEmpty(), qPrintable(why));
-        const XlsSalvageWork work = salvageXlsWorkForTest();
+        {   // (the counts belong to the call: a second call with its own object counts the same, and neither sees the other's)
+            XlsSalvageWork again;
+            QStringList notes2;
+            salvageXlsStream(cut, Limits(), &notes2, &why, &again);
+            QCOMPARE(again.recordsWalked, work.recordsWalked);
+            QCOMPARE(again.sheetsRead, work.sheetsRead);
+        }
         QCOMPARE(work.sheetsRead, 1);   // (the one cut short is read for how far its rows go; the lost ones have nothing to read)
-        QVERIFY2(work.recordsWalked > 0 && work.recordsWalked <= 2 * qint64(got.size()) + (1 << 20), qPrintable(QString::number(work.recordsWalked)));
+        QVERIFY2(work.recordsWalked > 0 && work.recordsWalked <= 5 * qint64(got.size()) + (3 << 20), qPrintable(QString::number(work.recordsWalked)));
         const QString said = notes.join(QLatin1Char('\n'));
         QCOMPARE(said.count(QLatin1String("was cut short")), 1);
         QCOMPARE(said.count(QLatin1String("is empty, because")), kSalvageSheetsReported - 1);   // (the report lists the first 8 that are damaged or lost, and says there are more)
