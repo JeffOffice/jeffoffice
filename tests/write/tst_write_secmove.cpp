@@ -740,7 +740,7 @@ private Q_SLOTS:
         openPane(w, paneDocx());
         WriteDoc *doc = w.document();
         QVERIFY(w.act("view.moveSectionUp") && w.act("view.moveSectionDown"));
-        QCOMPARE(w.act("view.moveSectionUp")->shortcut().toString(QKeySequence::PortableText), QStringLiteral("Alt+Shift+Up"));
+        QCOMPARE(w.act("view.moveSectionUp")->shortcut().toString(QKeySequence::PortableText), QStringLiteral("Ctrl+Alt+Up"));
         const QByteArray before = doc->toDocx();
         const Pieces p = panePieces();
         QTextCursor c(doc->story());

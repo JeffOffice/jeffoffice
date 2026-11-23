@@ -48,8 +48,8 @@ void WriteWindow::createViewExtraActions()
             m_sidePartner->setGeometry(area.left() + area.width() / 2, area.top(), area.width() / 2, area.height());
         }
     });
-    mk("view.moveSectionUp", tr("Move Section Up"), "arrow-up", QKeySequence(Qt::ALT | Qt::SHIFT | Qt::Key_Up), [this] { moveSectionAtCaret(true); });
-    mk("view.moveSectionDown", tr("Move Section Down"), "arrow-down", QKeySequence(Qt::ALT | Qt::SHIFT | Qt::Key_Down), [this] { moveSectionAtCaret(false); });
+    mk("view.moveSectionUp", tr("Move Section Up"), "arrow-up", QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_Up), [this] { moveSectionAtCaret(true); });
+    mk("view.moveSectionDown", tr("Move Section Down"), "arrow-down", QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_Down), [this] { moveSectionAtCaret(false); });
     mk("view.focus", tr("Focus"), "focus", QKeySequence(Qt::Key_F11), [this] { setFocusMode(!m_focusMode); });
 }
 
