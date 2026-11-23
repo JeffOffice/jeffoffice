@@ -103,3 +103,11 @@ Click **View > Presentation Views > Normal**, or the **Normal** button on the st
 - [View tab](tab-view)
 - [Add, change, and delete slides](slides)
 - [Type and format text](text)
+
+## Reading View
+
+Reading View plays the slides inside the program's own window, for reading a presentation on your own screen without a full-screen show. Click **View > Presentation Views > Reading View**, or the book button on the status bar. The window keeps its title bar and status bar, and the ribbon and the panes are put away. It starts on the slide you were on, and the animations, transitions, movies, sounds, and links work as in a full show.
+
+- Click, or press **Right**, **Space**, or **Page Down**, to go on. **Left** or **Page Up** goes back. **Previous**, **Next**, and **Menu** on the status bar do the same; **Menu** opens the show's menu, which has **Go to Slide**, **Pointer Options**, **Screen**, and **End Show**.
+- Press **Esc** to return to the view you came from, on the slide you ended on. Choosing another view on the status bar returns too. If you drew ink with the pen, you are asked whether to keep it.
+- Example: in Slide Sorter, click **Reading View**, press **Space** twice, then press **Esc**. You are back in Slide Sorter with the third slide selected.

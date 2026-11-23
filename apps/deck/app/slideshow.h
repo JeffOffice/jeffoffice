@@ -284,6 +284,8 @@ public:
     void paintOverlay(QPainter *p, int slide, const QRectF &at) const;
     // The menu a right click opens, and its pointer part, which Presenter View shows too; `parent` owns them.
     QMenu *buildMenu(QWidget *parent);
+    // The keys of the show, as the menu's Help lists them.
+    static QString helpText();
     QMenu *pointerMenu(QWidget *parent);
 
     // Whether a show on a computer with two screens opens Presenter View.
@@ -313,6 +315,10 @@ public:
     void startNotesTyping() { Q_EMIT notesTypingStarted(); }
 
     void setVisible(bool visible) override;
+    // The show as a part of a window (Reading View) rather than a window of its own: it is `host`'s child, plays by an individual, goes where the host puts it, and
+    // takes the keys the show uses before the host's shortcuts do. Call before the show is shown.
+    void embedIn(QWidget *host);
+    bool isEmbedded() const { return m_embedded; }
 
 Q_SIGNALS:
     void notesEdited(const QString &pageId, const QString &text);
@@ -338,6 +344,7 @@ protected:
     void resizeEvent(QResizeEvent *e) override;
     void showEvent(QShowEvent *e) override;
     void closeEvent(QCloseEvent *e) override;
+    bool event(QEvent *e) override;
     bool focusNextPrevChild(bool next) override;
 
 private:
@@ -450,6 +457,7 @@ private:
     bool m_animating = false;
     bool m_started = false;    // shown once, so the slides' clocks run
     bool m_placed = false;
+    bool m_embedded = false;
     bool m_rehearsal = false;
     QColor m_blank;            // a blanked screen's color; invalid when showing
     QString m_typed;           // digits typed before Enter

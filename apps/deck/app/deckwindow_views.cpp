@@ -12,8 +12,16 @@
 #include "app/slidesorter.h"
 #include "app/slidespane.h"
 #include "core/deck.h"
+#include "core/showsettings.h"
+#include "app/slideshow.h"
 
 #include <QActionGroup>
+#include <QDockWidget>
+#include <QHBoxLayout>
+#include <QLabel>
+#include <QMenu>
+#include <QStatusBar>
+#include <QToolButton>
 #include <QSplitter>
 #include <QStackedWidget>
 #include <cmath>
@@ -57,6 +65,10 @@ void DeckWindow::createViewModeActions()
     view("view.outline", tr("Outline View"), "list-tree", View::Outline);
     view("view.sorter", tr("Slide Sorter"), "layout-grid", View::Sorter);
     view("view.notesPage", tr("Notes Page"), "notebook-pen", View::NotesPage);
+    {
+        QAction *reading = mk(QStringLiteral("view.reading"), tr("Reading View"), QStringLiteral("book-open"), QKeySequence(), [this] { startReadingView(); }, true);
+        views->addAction(reading);
+    }
     view("view.master", tr("Slide Master"), "layout-template", View::Master);
     view("view.notesMaster", tr("Notes Master"), "notebook-tabs", View::NotesMaster);
     view("view.handoutMaster", tr("Handout Master"), "files", View::HandoutMaster);
@@ -106,6 +118,7 @@ static const char *viewAction(DeckWindow::View view)
 
 void DeckWindow::setView(View view)
 {
+    if (m_reading) leaveReadingView();
     m_notes->commit();
     if (m_outline) m_outline->commit();
     if (m_notesPage) m_notesPage->commit();
@@ -173,6 +186,122 @@ void DeckWindow::setView(View view)
     else if (was != View::Normal) m_canvas->setFocus(Qt::OtherFocusReason);
     refreshNotesMasterActions();
     refreshUi();
+}
+
+// Reading View: the show is played in the place of the editor, by an individual, with the ribbon and the panes put away and the status bar kept. The status bar
+// gets Previous, Next, and a Menu button (the show's own menu); the view the person came from is where Esc, End Show, and the other views go back to.
+void DeckWindow::startReadingView()
+{
+    if (m_reading) return;
+    const bool masters = m_view == View::Master || m_view == View::NotesMaster || m_view == View::HandoutMaster;
+    if (masters || m_show) {
+        // Nothing to read in a master, and one show at a time.
+        act(viewAction(m_view))->setChecked(true);
+        return;
+    }
+    m_notes->commit();
+    if (m_outline) m_outline->commit();
+    if (m_notesPage) m_notesPage->commit();
+    m_ed->endTextEdit();
+    deck::ShowSettings settings = deck::showSettingsOf(*m_ed->doc());
+    settings.type = deck::ShowSettings::Type::Individual;
+    settings.loop = false;
+    auto *show = new SlideShow(m_ed->doc(), &m_ed->cache(), m_ed->currentPage());
+    show->setSettings(settings);
+    if (!m_ed->filePath().isEmpty()) show->setFilePath(m_ed->filePath());
+    show->embedIn(m_views);
+    m_reading = show;
+    watchShow(show, false);
+    connect(show, &SlideShow::ended, this, [this, show] {
+        if (m_reading == show) leaveReadingView();
+    });
+    m_views->addWidget(show);
+    m_views->setCurrentWidget(show);
+    m_ribbon->hide();
+    m_readingDocks.clear();
+    for (QDockWidget *dock : findChildren<QDockWidget *>())
+        if (dock->isVisible()) {
+            m_readingDocks << dock;
+            dock->hide();
+        }
+    // The controls, after the slide's place in the status bar.
+    auto *bar = new QWidget;
+    bar->setObjectName(QStringLiteral("readingBar"));
+    auto *row = new QHBoxLayout(bar);
+    row->setContentsMargins(0, 0, 0, 0);
+    auto *place = new QLabel(bar);
+    place->setObjectName(QStringLiteral("readingPlace"));
+    auto button = [&](const char *id, const QString &text, const QString &tip) {
+        auto *b = new QToolButton(bar);
+        b->setObjectName(QString::fromLatin1(id));
+        b->setText(text);
+        b->setToolTip(jp::plainToolTip(tip));
+        b->setAutoRaise(true);
+        row->addWidget(b);
+        return b;
+    };
+    QToolButton *previous = button("readingPrevious", tr("Previous"), tr("Go back one step or slide"));
+    row->addWidget(place);
+    QToolButton *next = button("readingNext", tr("Next"), tr("Go forward one step or slide"));
+    QToolButton *menu = button("readingMenu", tr("Menu"), tr("Open the menu for going to a slide, the pointer, the screen, and ending the show"));
+    connect(previous, &QToolButton::clicked, show, [show] { show->previous(); });
+    connect(next, &QToolButton::clicked, show, [show] { show->next(); });
+    connect(menu, &QToolButton::clicked, show, [show, menu] {
+        QMenu *m = show->buildMenu(menu);
+        m->setAttribute(Qt::WA_DeleteOnClose);
+        m->popup(menu->mapToGlobal(QPoint(0, 0)) - QPoint(0, m->sizeHint().height()));
+    });
+    auto update = [show, place, this] {
+        const int slide = show->targetSlide();
+        const int n = m_ed->doc()->pages.size();
+        place->setText(slide < 0 ? tr("End of the show") : tr("Slide %1 of %2").arg(slide + 1).arg(n));
+    };
+    connect(show, &SlideShow::changed, bar, update);
+    update();
+    statusBar()->insertPermanentWidget(0, bar);
+    m_readingBar = bar;
+    // What zooms the editor, and the notes pane's button, have nothing to do while reading.
+    for (QWidget *w : readingHiddenStatusWidgets()) w->hide();
+    m_slideLabel->hide();
+    act("view.reading")->setChecked(true);
+    show->show();
+    show->setFocus();
+    refreshUi();
+}
+
+// Everything Reading View put away comes back, on the view it started from. The show is closed (and goes with its timers) when this is called from a view change.
+void DeckWindow::leaveReadingView()
+{
+    SlideShow *show = m_reading;
+    m_reading.clear();
+    if (show) {
+        show->hide();
+        show->close();
+        m_views->removeWidget(show);
+    }
+    if (m_readingBar) {
+        statusBar()->removeWidget(m_readingBar);
+        m_readingBar->deleteLater();
+    }
+    m_ribbon->show();
+    for (const QPointer<QDockWidget> &dock : std::as_const(m_readingDocks))
+        if (dock) dock->show();
+    m_readingDocks.clear();
+    m_views->setCurrentWidget(m_view == View::Sorter ? static_cast<QWidget *>(m_sorter) : m_split);
+    m_slideLabel->show();
+    for (QWidget *w : readingHiddenStatusWidgets()) w->show();
+    act(viewAction(m_view))->setChecked(true);
+    refreshUi();
+}
+
+// The status bar's buttons and sliders that belong to the editor: the notes button and the zoom controls.
+QList<QWidget *> DeckWindow::readingHiddenStatusWidgets() const
+{
+    QList<QWidget *> out{m_zoomSlider, m_zoomLabel};
+    for (QToolButton *b : statusBar()->findChildren<QToolButton *>())
+        if (b->defaultAction() && (b->defaultAction() == act("view.notes") || b->defaultAction() == act("zoom.out") || b->defaultAction() == act("zoom.in") || b->defaultAction() == act("view.fit")))
+            out << b;
+    return out;
 }
 
 } // namespace jp

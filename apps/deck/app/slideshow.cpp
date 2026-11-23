@@ -2344,6 +2344,24 @@ QMenu *SlideShow::pointerMenu(QWidget *parent)
     return menu;
 }
 
+// The keys of the show, one line each, for Help in the show's menu.
+QString SlideShow::helpText()
+{
+    auto key = [](int k, Qt::KeyboardModifiers m = Qt::NoModifier) { return QKeySequence(m | k).toString(QKeySequence::NativeText); };
+    const Qt::KeyboardModifier ctrl = Qt::ControlModifier;
+    QStringList lines;
+    lines << tr("Next slide or step: Right, Down, Space, Enter, Page Down, N, or a click.");
+    lines << tr("Previous slide or step: Left, Up, Backspace, Page Up, or P.");
+    lines << tr("First or last slide: Home or End.");
+    lines << tr("A slide by number: type the number, then press Enter.");
+    lines << tr("Black or white screen: B or W (or the period and comma keys).");
+    lines << tr("Pen, highlighter, laser pointer, eraser, or arrow: %1, %2, %3, %4, or %5.").arg(key(Qt::Key_P, ctrl), key(Qt::Key_I, ctrl), key(Qt::Key_L, ctrl), key(Qt::Key_E, ctrl), key(Qt::Key_A, ctrl));
+    lines << tr("Erase all ink on the slide: E.");
+    lines << tr("The menu: a right click, the Menu key, or Shift+F10.");
+    lines << tr("Back to the arrow, then end the show: Esc.");
+    return lines.join(QLatin1Char('\n'));
+}
+
 QMenu *SlideShow::buildMenu(QWidget *parent)
 {
     auto *menu = new QMenu(parent);
@@ -2371,6 +2389,16 @@ QMenu *SlideShow::buildMenu(QWidget *parent)
         a->setChecked(!m_atEnd && pos == here);
         connect(a, &QAction::triggered, this, [this, pos] { goToPosition(pos); });
     }
+    // The presentation's custom shows, each played from its first slide.
+    if (const QVector<deck::CustomShow> shows = deck::customShowsOf(*m_doc); !shows.isEmpty()) {
+        QMenu *custom = menu->addMenu(tr("Custom Show"));
+        custom->setObjectName(QStringLiteral("customShowMenu"));
+        for (const deck::CustomShow &cs : shows) {
+            QAction *a = custom->addAction(QString(cs.name).replace(QLatin1Char('&'), QStringLiteral("&&")));
+            const int id = int(cs.id);
+            connect(a, &QAction::triggered, this, [this, id] { playCustomShow(id, false); });
+        }
+    }
     menu->addSeparator();
     menu->addMenu(pointerMenu(menu));
     QMenu *screen = menu->addMenu(tr("Screen"));
@@ -2384,6 +2412,9 @@ QMenu *SlideShow::buildMenu(QWidget *parent)
     white->setChecked(m_blank == QColor(Qt::white));
     connect(white, &QAction::triggered, this, [this] { toggleBlank(Qt::white); });
     menu->addSeparator();
+    QAction *help = menu->addAction(tr("Help"));
+    help->setObjectName(QStringLiteral("menuHelp"));
+    connect(help, &QAction::triggered, this, [this] { jp::plainInformation(this, tr("Slide Show Help"), helpText()); });
     QAction *end = menu->addAction(tr("End Show"));
     end->setObjectName(QStringLiteral("menuEnd"));
     connect(end, &QAction::triggered, this, [this] { close(); });
@@ -2499,6 +2530,29 @@ void SlideShow::closeEvent(QCloseEvent *e)
 }
 
 // ---- two screens ----
+
+void SlideShow::embedIn(QWidget *host)
+{
+    m_embedded = true;
+    m_placed = true;   // (the host's layout places it: no screens to choose between, no Presenter View)
+    setParent(host, Qt::Widget);
+}
+
+// An embedded show gets the keys it uses before the window's shortcuts see them (Ctrl+P is the pen here, Esc and the arrows are the show's).
+bool SlideShow::event(QEvent *e)
+{
+    if (m_embedded && e->type() == QEvent::ShortcutOverride) {
+        auto *k = static_cast<QKeyEvent *>(e);
+        const bool ctrl = k->modifiers() & (Qt::ControlModifier | Qt::AltModifier | Qt::MetaModifier);
+        const int key = k->key();
+        const bool pointerKey = key == Qt::Key_P || key == Qt::Key_I || key == Qt::Key_L || key == Qt::Key_E || key == Qt::Key_A || key == Qt::Key_H || key == Qt::Key_U;
+        if (!ctrl || pointerKey) {
+            e->accept();
+            return true;
+        }
+    }
+    return QWidget::event(e);
+}
 
 void SlideShow::setVisible(bool visible)
 {

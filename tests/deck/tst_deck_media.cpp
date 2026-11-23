@@ -2412,6 +2412,28 @@ private Q_SLOTS:
         r.song = r.show->media()->playbackOf(r.sound->id);
     }
 
+    // Ending Reading View while a sound plays stops the sound and lets the player go (nothing keeps playing under the window).
+    void endingReadingViewMidSoundStopsThePlayer()
+    {
+        DeckWindow w;
+        w.resize(1100, 700);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        deck::MediaPlay play;
+        play.start = deck::MediaStart::Automatically;
+        auto sound = showMedia(*w.editor()->doc(), 0, testWav(60000), QStringLiteral("song.wav"), QPointF(40, 40), play);
+        w.act("view.reading")->trigger();
+        QVERIFY(w.inReadingView());
+        QPointer<SlideShow> show = w.readingShow();
+        QPointer<MediaPlayback> song = show->media()->playbackOf(sound->id);
+        QVERIFY(song);
+        QTRY_VERIFY_WITH_TIMEOUT(playerSettled(*song, false), kHangGuardMs);
+        QTest::keyClick(show, Qt::Key_Escape);
+        QVERIFY(!w.inReadingView());
+        QTRY_VERIFY_WITH_TIMEOUT(song.isNull(), kHangGuardMs);
+        QTRY_VERIFY(show.isNull());
+    }
+
     // The sound goes on when the show advances, for as many slides as the count names counted from the slide it began on, and stops after the last of them.
     void showSoundGoesOnForTheSlidesTheCountNamesThenStops()
     {

@@ -1079,6 +1079,10 @@
             {
               "large": "view.notesPage",
               "keytip": "NP"
+            },
+            {
+              "large": "view.reading",
+              "keytip": "RV"
             }
           ]
         },

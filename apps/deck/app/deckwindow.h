@@ -151,6 +151,11 @@ public:
     View view() const { return m_view; }
     static bool borrowsZoom(View view);   // the views that use the zoom controls for their own zoom
     void setView(View view);
+    // Reading View: the show played inside this window, with its title bar and status bar, from the view the person came from (deckwindow_views.cpp). Esc, End Show, or
+    // choosing another view returns to that view.
+    void startReadingView();
+    bool inReadingView() const { return !m_reading.isNull(); }
+    SlideShow *readingShow() const { return m_reading; }
     // Slide Master view (deckwindow_master.cpp). It opens on a slide master or layout (the layout of the slide being edited when none is
     // named), and Close Master View returns to the slide. Each command is one step that undoes. Insert Slide Master and Insert Layout
     // open what they made (after the master or layout being edited) and return its id; Delete says why in `why` when it won't (the
@@ -493,6 +498,8 @@ private:
     void createShowActions();
     void playShow(int slide, const deck::ShowPlan &plan, bool recording, bool rehearsal = false);
     void watchShow(SlideShow *show, bool recording);
+    void leaveReadingView();
+    QList<QWidget *> readingHiddenStatusWidgets() const;
     void afterShow(const QHash<QString, QVector<deck::InkStroke>> &ink, const QMap<int, double> &seconds, double total, bool recording);
     bool askAboutShow(const QString &question, const QString &keep, const QString &discard);
     void tellAboutShow(const QString &text);
@@ -687,6 +694,9 @@ private:
     QList<MeasureSpin *> m_tableSizeBoxes;   // Table Layout's Row Height and Column Width
     QSizeF m_shownSize;   // the slide size the view was last fitted to
     QPointer<SlideShow> m_show;
+    QPointer<SlideShow> m_reading;        // the show Reading View plays
+    QPointer<QWidget> m_readingBar;       // its controls in the status bar
+    QList<QPointer<QDockWidget>> m_readingDocks;   // the panes that were open when it started
     deck::GridView m_gridSeen;   // the presentation's grid settings as the view last took them (applyGridView)
     QHash<QString, QAction *> m_actions;
     QString m_ribbonErrors;

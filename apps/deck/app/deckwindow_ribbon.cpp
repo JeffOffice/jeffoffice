@@ -317,6 +317,7 @@ void DeckWindow::buildStatusBar()
     button("view.notes", true);
     button("view.normal", false);
     button("view.sorter", false);
+    button("view.reading", false);
     button("view.slideShow", false);
     button("zoom.out", false);
     m_zoomSlider = new QSlider(Qt::Horizontal);

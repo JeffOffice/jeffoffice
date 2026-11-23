@@ -3118,6 +3118,203 @@ private Q_SLOTS:
         }
     }
 
+    // Reading View: the show plays inside the window (the title bar and status bar stay, the ribbon and panes go), and Esc returns to the view it was started from.
+    void readingViewPlaysTheShowInTheWindowAndEscGoesBack()
+    {
+        DeckWindow w;
+        w.resize(1100, 700);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        w.newSlide();
+        w.newSlide();
+        w.editor()->setCurrentPage(0);
+        w.act("view.outline")->trigger();
+        QCOMPARE(int(w.view()), int(DeckWindow::View::Outline));
+        QVERIFY(!w.inReadingView());
+        w.act("view.reading")->trigger();
+        QVERIFY(w.inReadingView());
+        QPointer<SlideShow> show = w.readingShow();
+        QVERIFY(show->isEmbedded());
+        QVERIFY(show->isVisible());
+        QVERIFY(!show->isWindow());
+        QVERIFY(w.isAncestorOf(show));
+        QVERIFY(w.statusBar()->isVisible());
+        QVERIFY(!w.ribbon()->isVisible());
+        QVERIFY(w.act("view.reading")->isChecked());
+        QVERIFY(w.findChild<QToolButton *>(QStringLiteral("readingNext")));
+        QCOMPARE(w.findChild<QLabel *>(QStringLiteral("readingPlace"))->text(), QStringLiteral("Slide 1 of 3"));
+        // A key goes to the show, not to the window's shortcuts.
+        QTest::keyClick(show, Qt::Key_Right);
+        QCOMPARE(show->currentSlide(), 1);
+        QCOMPARE(w.findChild<QLabel *>(QStringLiteral("readingPlace"))->text(), QStringLiteral("Slide 2 of 3"));
+        // Ctrl+P is the pen here, not Print.
+        QTest::keyClick(show, Qt::Key_P, Qt::ControlModifier);
+        QCOMPARE(int(show->pointer()), int(SlideShow::Pointer::Pen));
+        QTest::keyClick(show, Qt::Key_Escape);   // the arrow first
+        QVERIFY(w.inReadingView());
+        QTest::keyClick(show, Qt::Key_Escape);
+        QVERIFY(!w.inReadingView());
+        QVERIFY(w.ribbon()->isVisible());
+        QCOMPARE(int(w.view()), int(DeckWindow::View::Outline));
+        QVERIFY(w.act("view.outline")->isChecked());
+        QCOMPARE(w.editor()->currentPage(), 1);   // the window is on the slide the show ended on
+        QTRY_VERIFY(show.isNull());
+        // Another view ends it too.
+        w.act("view.reading")->trigger();
+        QVERIFY(w.inReadingView());
+        QPointer<SlideShow> again = w.readingShow();
+        w.act("view.normal")->trigger();
+        QVERIFY(!w.inReadingView());
+        QCOMPARE(int(w.view()), int(DeckWindow::View::Normal));
+        QTRY_VERIFY(again.isNull());
+    }
+
+    // The status bar's Previous, Next, and Menu work the show; the menu is the show's own, and End Show in it ends Reading View.
+    void readingViewStatusBarControlsAndMenu()
+    {
+        DeckWindow w;
+        w.resize(1100, 700);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        w.newSlide();
+        w.newSlide();
+        w.editor()->setCurrentPage(0);
+        w.act("view.reading")->trigger();
+        QVERIFY(w.inReadingView());
+        SlideShow *show = w.readingShow();
+        auto *next = w.findChild<QToolButton *>(QStringLiteral("readingNext"));
+        auto *previous = w.findChild<QToolButton *>(QStringLiteral("readingPrevious"));
+        auto *menuButton = w.findChild<QToolButton *>(QStringLiteral("readingMenu"));
+        QVERIFY(next && previous && menuButton);
+        next->click();
+        next->click();
+        QCOMPARE(show->currentSlide(), 2);
+        previous->click();
+        QCOMPARE(show->currentSlide(), 1);
+        menuButton->click();
+        QMenu *menu = nullptr;
+        for (int i = 0; i < 100 && !menu; ++i) {
+            for (QWidget *top : QApplication::topLevelWidgets())
+                if (top->objectName() == QLatin1String("showMenu") && top->isVisible()) menu = qobject_cast<QMenu *>(top);
+            if (!menu) QCoreApplication::processEvents();
+        }
+        QVERIFY(menu);
+        QPointer<QMenu> guarded = menu;
+        QVERIFY(menu->findChild<QAction *>(QStringLiteral("menuLastViewed")));
+        QAction *end = menu->findChild<QAction *>(QStringLiteral("menuEnd"));
+        QVERIFY(end);
+        end->trigger();
+        menu->close();
+        QVERIFY(!w.inReadingView());
+        QVERIFY(w.ribbon()->isVisible());
+        QTRY_VERIFY(guarded.isNull());
+        QTRY_VERIFY(!w.findChild<QToolButton *>(QStringLiteral("readingNext")));
+    }
+
+    // Ending Reading View in the middle of an effect stops the frame clock: no frame is drawn afterward and the show goes (nothing it queued runs on a freed show).
+    void endingReadingViewMidAnimationStopsEverything()
+    {
+        DeckWindow w;
+        w.resize(1100, 700);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        Page *page = w.editor()->doc()->pages[0].get();
+        QVERIFY(page->items.size() >= 2);
+        numberShowShapes(*page);
+        page->props[QStringLiteral("timingXml")] = animTiming(animSteps({animFadeIn(2, 600000), animAppear(3)}));
+        w.act("view.reading")->trigger();
+        QVERIFY(w.inReadingView());
+        QPointer<SlideShow> show = w.readingShow();
+        int frames = 0;
+        connect(show.data(), &SlideShow::frameChanged, &w, [&frames] { ++frames; });
+        show->next();
+        QVERIFY(show->isPlayingStep());
+        QTRY_VERIFY(frames > 0);
+        QTest::keyClick(show, Qt::Key_Escape);   // mid-animation: the first Esc ends the view (the pointer is the arrow)
+        QVERIFY(!w.inReadingView());
+        QVERIFY(!show->isPlayingStep() || show->isHidden());
+        const int atEnd = frames;
+        for (int i = 0; i < 30; ++i) QCoreApplication::processEvents();
+        QCOMPARE(frames, atEnd);
+        QTRY_VERIFY(show.isNull());
+        for (int i = 0; i < 30; ++i) QCoreApplication::processEvents();
+        QCOMPARE(frames, atEnd);
+        // A show that never played a step, ended in the same way, leaves nothing either.
+        w.act("view.reading")->trigger();
+        QPointer<SlideShow> second = w.readingShow();
+        QVERIFY(second);
+        w.act("view.normal")->trigger();
+        QTRY_VERIFY(second.isNull());
+    }
+
+    // The show's menu lists the presentation's custom shows (a choice plays that show from its first slide) and has Help, which lists the keys; a presentation with no custom show has no such menu.
+    void showMenuListsCustomShowsAndHelp()
+    {
+        auto d = showDeck(5);
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(960, 540);
+        {
+            std::unique_ptr<QMenu> menu(show.buildMenu(&show));
+            QVERIFY(!menu->findChild<QMenu *>(QStringLiteral("customShowMenu")));
+            QVERIFY(menu->findChild<QAction *>(QStringLiteral("menuHelp")));
+        }
+        deck::CustomShow a, b;
+        a.id = 4;
+        a.name = QStringLiteral("Tom & Jerry");
+        a.slides = {d->pages[3]->id, d->pages[1]->id};
+        b.id = 5;
+        b.name = QStringLiteral("Closing");
+        b.slides = {d->pages[4]->id};
+        deck::setCustomShows(*d, {a, b});
+        std::unique_ptr<QMenu> menu(show.buildMenu(&show));
+        QMenu *custom = menu->findChild<QMenu *>(QStringLiteral("customShowMenu"));
+        QVERIFY(custom);
+        QCOMPARE(custom->actions().size(), 2);
+        QCOMPARE(custom->actions().at(0)->text(), QStringLiteral("Tom && Jerry"));   // (an ampersand in a name is not a key)
+        QCOMPARE(show.currentSlide(), 0);
+        custom->actions().at(0)->trigger();
+        QCOMPARE(show.currentSlide(), 3);
+        show.next();
+        QCOMPARE(show.currentSlide(), 1);
+        custom->actions().at(1)->trigger();
+        QCOMPARE(show.currentSlide(), 4);
+        const QString help = SlideShow::helpText();
+        for (const char *word : {"Page Down", "Home", "Enter", "Esc", "Shift+F10"}) QVERIFY2(help.contains(QLatin1String(word)), word);
+    }
+
+    // Pictures of Reading View and the show's menu, when JP_SHOT_DIR names a folder.
+    void readingViewPictures()
+    {
+        if (qEnvironmentVariableIsEmpty("JP_SHOT_DIR")) QSKIP("JP_SHOT_DIR is not set");
+        jp::applyUiTheme(1);
+        const QString dir = qEnvironmentVariable("JP_SHOT_DIR");
+        DeckWindow w;
+        w.resize(1200, 760);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        w.newSlide();
+        auto *title = static_cast<TextItem *>(w.editor()->doc()->pages[0]->items[0].get());
+        w.editor()->doc()->storyDoc(title->storyId)->setPlainText(QStringLiteral("Quarterly review"));
+        w.editor()->setCurrentPage(0);
+        w.act("view.reading")->trigger();
+        QVERIFY(w.inReadingView());
+        QTest::keyClick(w.readingShow(), Qt::Key_Right);
+        QTest::keyClick(w.readingShow(), Qt::Key_Left);
+        QVERIFY(w.grab().save(dir + QStringLiteral("/reading-view.png")));
+        auto *menuButton = w.findChild<QToolButton *>(QStringLiteral("readingMenu"));
+        menuButton->click();
+        QMenu *menu = nullptr;
+        for (int i = 0; i < 100 && !menu; ++i) {
+            for (QWidget *top : QApplication::topLevelWidgets())
+                if (top->objectName() == QLatin1String("showMenu") && top->isVisible()) menu = qobject_cast<QMenu *>(top);
+            if (!menu) QCoreApplication::processEvents();
+        }
+        QVERIFY(menu);
+        QVERIFY(menu->grab().save(dir + QStringLiteral("/show-menu.png")));
+        menu->close();
+    }
+
     // The slide show skips hidden slides, goes back, ends after the last.
     void slideShowSteps()
     {
