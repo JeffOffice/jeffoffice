@@ -11532,7 +11532,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
 <context>
     <name>Render</name>
     <message>
-        <location filename="../libs/draw/render/shapes.cpp" line="+268"/>
+        <location filename="../libs/draw/render/shapes.cpp" line="+275"/>
         <source>Rectangle</source>
         <translation type="unfinished">Retângulo</translation>
     </message>
@@ -79987,7 +79987,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     <message>
         <location filename="../apps/write/app/pageview_input.cpp" line="-353"/>
         <location filename="../apps/write/app/pageview_pictures.cpp" line="+18"/>
-        <location filename="../apps/write/core/pictureops.cpp" line="+2211"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="+2223"/>
         <source>That shape can&apos;t be put here.</source>
         <translation type="unfinished">Essa forma não pode ser colocada aqui.</translation>
     </message>
@@ -80030,39 +80030,39 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     </message>
     <message>
         <location filename="../apps/write/core/editops.cpp" line="+2135"/>
-        <location filename="../apps/write/core/pictureops.cpp" line="-1541"/>
-        <location line="+346"/>
-        <location line="+2049"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="-1544"/>
+        <location line="+347"/>
+        <location line="+2051"/>
         <location line="+1445"/>
         <location line="+722"/>
         <source>The pictures in this document are as large together as JeffWrite puts in one, so this one is not added.</source>
         <translation type="unfinished">As imagens deste documento já atingem, no total, o tamanho máximo que o JeffWrite permite num documento, pelo que esta não é adicionada.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/pictureops.cpp" line="-4574"/>
-        <location line="+372"/>
-        <location line="+823"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="-4577"/>
+        <location line="+373"/>
+        <location line="+825"/>
         <location line="+2942"/>
         <location line="+200"/>
         <source>A picture can&apos;t be put in a header, a footer, or a note yet.</source>
         <translation type="unfinished">Ainda não é possível inserir uma imagem num cabeçalho, num rodapé ou numa nota.</translation>
     </message>
     <message>
-        <location line="-4285"/>
-        <location line="+345"/>
-        <location line="+821"/>
+        <location line="-4288"/>
+        <location line="+346"/>
+        <location line="+823"/>
         <location line="+2944"/>
         <location line="+198"/>
         <source>A picture can&apos;t be put here, or this document holds as many pictures and drawn objects as JeffWrite can show.</source>
         <translation type="unfinished">Não é possível inserir uma imagem aqui, ou este documento já contém tantas imagens e objetos desenhados quantos o JeffWrite consegue mostrar.</translation>
     </message>
     <message>
-        <location line="-4272"/>
+        <location line="-4275"/>
         <source>This document holds as many pictures and drawn objects as JeffWrite can show. Save it, and open it again, to change more.</source>
         <translation type="unfinished">Este documento contém tantas imagens e objetos desenhados quantos o JeffWrite consegue mostrar. Guarde-o e abra-o novamente para fazer mais alterações.</translation>
     </message>
     <message>
-        <location line="+1596"/>
+        <location line="+1599"/>
         <source>Edit Points is not offered for a shape that is flipped.</source>
         <translation type="unfinished">Editar Pontos não está disponível para uma forma que esteja invertida.</translation>
     </message>

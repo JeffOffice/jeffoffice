@@ -11502,7 +11502,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>Render</name>
     <message>
-        <location filename="../libs/draw/render/shapes.cpp" line="+268"/>
+        <location filename="../libs/draw/render/shapes.cpp" line="+275"/>
         <source>Rectangle</source>
         <translation type="unfinished"></translation>
     </message>
@@ -79746,7 +79746,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../apps/write/app/pageview_input.cpp" line="-353"/>
         <location filename="../apps/write/app/pageview_pictures.cpp" line="+18"/>
-        <location filename="../apps/write/core/pictureops.cpp" line="+2211"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="+2223"/>
         <source>That shape can&apos;t be put here.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -79789,39 +79789,39 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location filename="../apps/write/core/editops.cpp" line="+2135"/>
-        <location filename="../apps/write/core/pictureops.cpp" line="-1541"/>
-        <location line="+346"/>
-        <location line="+2049"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="-1544"/>
+        <location line="+347"/>
+        <location line="+2051"/>
         <location line="+1445"/>
         <location line="+722"/>
         <source>The pictures in this document are as large together as JeffWrite puts in one, so this one is not added.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/write/core/pictureops.cpp" line="-4574"/>
-        <location line="+372"/>
-        <location line="+823"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="-4577"/>
+        <location line="+373"/>
+        <location line="+825"/>
         <location line="+2942"/>
         <location line="+200"/>
         <source>A picture can&apos;t be put in a header, a footer, or a note yet.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-4285"/>
-        <location line="+345"/>
-        <location line="+821"/>
+        <location line="-4288"/>
+        <location line="+346"/>
+        <location line="+823"/>
         <location line="+2944"/>
         <location line="+198"/>
         <source>A picture can&apos;t be put here, or this document holds as many pictures and drawn objects as JeffWrite can show.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-4272"/>
+        <location line="-4275"/>
         <source>This document holds as many pictures and drawn objects as JeffWrite can show. Save it, and open it again, to change more.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+1596"/>
+        <location line="+1599"/>
         <source>Edit Points is not offered for a shape that is flipped.</source>
         <translation type="unfinished"></translation>
     </message>
