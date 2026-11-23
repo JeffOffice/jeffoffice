@@ -3425,6 +3425,68 @@ private Q_SLOTS:
         }
     }
 
+    // A picture stream (the document's data stream) that is damaged says so by name: one in sectors with a broken chain keeps what comes before the break and the notes say pictures could not be
+    // fully recovered; one of under 4,096 bytes, kept in the mini stream, whose mini stream is lost, gives nothing and the notes say so too. A sound file says nothing of pictures.
+    void aDamagedPictureStreamIsSaidByName()
+    {
+        QStringList paras;
+        const QByteArray big = repairableDoc(&paras);
+        auto withData = [&](int size) {
+            jp::cfb::File f;
+            [&] { QVERIFY(jp::cfb::read(big, &f)); }();
+            jp::cfb::Entry e;
+            e.type = jp::cfb::Entry::Stream;
+            e.name = QStringLiteral("Data");
+            for (int i = 0; i < size; ++i) e.data.append(char(i * 13 + 1));
+            f.entries[0].children << int(f.entries.size());
+            f.entries << e;
+            return jp::cfb::write(f);
+        };
+        const QString said = QStringLiteral("Some pictures could not be fully recovered.");
+        QStringList notes;
+        QString why;
+        const QByteArray sound = withData(12000);
+        QVERIFY(!doc::salvageDoc(sound, &notes, &why).isEmpty());
+        QVERIFY2(!notes.join(QLatin1Char(' ')).contains(QLatin1String("pictures")), qPrintable(notes.join(QLatin1Char('|'))));
+        QByteArray bad = sound;
+        cfbdamage::fatSet(bad, cfbdamage::sectorsOf(sound, QStringLiteral("Data"))[3], 0x00FFFFF0);
+        notes.clear();
+        QVERIFY2(!doc::salvageDoc(bad, &notes, &why).isEmpty(), qPrintable(why));
+        QVERIFY2(notes.contains(said), qPrintable(notes.join(QLatin1Char('|'))));
+        const QByteArray small = withData(3000);
+        notes.clear();
+        QVERIFY(!doc::salvageDoc(small, &notes, &why).isEmpty());
+        QVERIFY2(!notes.join(QLatin1Char(' ')).contains(QLatin1String("pictures")), qPrintable(notes.join(QLatin1Char('|'))));
+        int checked = 0;
+        for (const cfbdamage::Variant &v : cfbdamage::miniDamage(small)) {
+            if (v.id != QLatin1String("g1") && v.id != QLatin1String("g2") && v.id != QLatin1String("g5")) continue;
+            ++checked;
+            notes.clear();
+            QVERIFY2(!doc::salvageDoc(v.file, &notes, &why).isEmpty(), qPrintable(v.id + why));
+            QVERIFY2(notes.contains(said), qPrintable(v.id + notes.join(QLatin1Char('|'))));
+        }
+        QCOMPARE(checked, 3);
+    }
+
+    // A sound document of any size, from our own writer (small ones live in the container's mini stream): Open and Repair says nothing was wrong and gives back the very streams it holds.
+    void aSoundDocumentOfAnySizeIsRepairedToItself()
+    {
+        for (int count : {1, 3, 40, 400}) {
+            QString text;
+            for (int i = 0; i < count; ++i) text += QStringLiteral("Paragraph %1 of the sound document, with words enough to fill a line.\r").arg(i);
+            const QByteArray file = simple(text).build();
+            QStringList notes;
+            QString why;
+            const QByteArray fixed = doc::salvageDoc(file, &notes, &why);
+            QVERIFY2(!fixed.isEmpty(), qPrintable(why));
+            QVERIFY2(notes.isEmpty(), qPrintable(QStringLiteral("%1: %2").arg(count).arg(notes.join(QLatin1Char('|')))));
+            jp::cfb::File was, now;
+            QVERIFY(jp::cfb::read(file, &was) && jp::cfb::read(fixed, &now));
+            for (const QString &name : {QStringLiteral("WordDocument"), QStringLiteral("1Table")})
+                QVERIFY2(was.stream(name) == now.stream(name), qPrintable(QStringLiteral("%1 %2").arg(count).arg(name)));
+        }
+    }
+
     // The container's own tables read a chain that stops short, or runs into itself, or a directory that gives less than the tables hold: the sectors are all there, and the whole stream is read.
     void aStreamThatItsTablesCutShortIsReadToItsEnd()
     {
@@ -3505,7 +3567,7 @@ private Q_SLOTS:
         QVERIFY(jp::cfb::read(fixed, &now));
         const QByteArray got = now.stream(QStringLiteral("WordDocument"));
         QVERIFY2(got.size() <= original.size() + 511 && got.left(original.size()) == original, qPrintable(QString::number(got.size()) + QLatin1Char(' ') + QString::number(original.size())));
-        QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("did not agree")), qPrintable(notes.join(QLatin1Char('|'))));
+        QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("stored in a confusing way")), qPrintable(notes.join(QLatin1Char('|'))));
     }
 
     // A link of the tables that can't be read is guessed, and the paragraph that lies across the join is left blank, not shown: its bytes may be another sector's. The notes count it.

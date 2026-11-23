@@ -68,6 +68,9 @@ struct CfbSalvage {
     bool directoryRead = false;
     // Where pieces of a stream were joined by guess (the sector after a link that could not be read was taken), as offsets in the stream: a caller leaves out what lies across one.
     QMap<QString, QVector<qint64>> joins;
+    // Streams (by the wish's name) that were read short or damaged, as far as their tables went (a stream the caller has no check for is read by its tables alone), and streams the directory
+    // lists that nothing could be read of: a caller says that part of the file could not be recovered.
+    QStringList partial, lost;
     qint64 bytesBuilt = 0, bytesChecked = 0;   // the bytes the readings made and the bytes the caller's checks were given, for a test of the bound
     bool repaired = false;               // a stream was read other than as the directory and tables give it (its size and its tables did not agree): the container was not sound
     bool miniUnread = false;             // the container's mini stream was not read (its header gives a size of mini sector the format does not have)

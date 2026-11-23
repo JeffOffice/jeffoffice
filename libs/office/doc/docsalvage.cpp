@@ -320,6 +320,17 @@ QByteArray salvageDoc(const QByteArray &file, QStringList *notes, QString *error
         joinParagraph = paragraphAt(wdNow, textJoins.first(), ranges);
         found.streams.insert(QStringLiteral("WordDocument"), wdNow);
     }
+    // (the data stream holds the pictures: what lies before the first guessed join in it is kept, and the notes say that some could not be fully recovered)
+    bool picturesDamaged = found.partial.contains(QStringLiteral("Data")) || found.lost.contains(QStringLiteral("Data"));
+    {
+        const QVector<qint64> dataJoins = found.joins.value(QStringLiteral("Data"));
+        QByteArray data = found.streams.value(QStringLiteral("Data"));
+        if (!dataJoins.isEmpty() && dataJoins.first() < data.size()) {
+            data.truncate(qsizetype(dataJoins.first()));
+            found.streams.insert(QStringLiteral("Data"), data);
+            picturesDamaged = true;
+        }
+    }
     bool plain = !found.streams.contains(tableName) || !reads(found);
     if (plain) {
         const QByteArray wdBytes = found.streams.value(QStringLiteral("WordDocument"));
@@ -362,6 +373,8 @@ QByteArray salvageDoc(const QByteArray &file, QStringList *notes, QString *error
             return QByteArray();
         }
         said << QCoreApplication::translate("jp::office::doc::Salvage", "The tables that say how the text is formatted were lost, so the text is kept as plain paragraphs, without its styles, lists, tables, pictures, headers, footers, or footnotes.");
+    } else if (picturesDamaged) {
+        said << QCoreApplication::translate("jp::office::doc::Salvage", "Some pictures could not be fully recovered.");
     } else if (!found.streams.contains(QStringLiteral("Data")) && (!found.directoryRead || ((found.cutShort || found.tablesGuessed) && found.directoryNames.contains(QStringLiteral("Data"), Qt::CaseInsensitive)))) {
         said << QCoreApplication::translate("jp::office::doc::Salvage", "The pictures of the document, if it had any, could not be found.");
     }
@@ -370,6 +383,12 @@ QByteArray salvageDoc(const QByteArray &file, QStringList *notes, QString *error
     if (!textJoins.isEmpty() && textJoins.first() < found.streams.value(QStringLiteral("WordDocument")).size()) {
         if (joinParagraph > 0) said << QCoreApplication::translate("jp::office::doc::Salvage", "What follows a place where pieces of the file were joined by a guess was checked only to see that it is in the right form, not that it belongs here. It starts in paragraph %1.").arg(joinParagraph);
         else said << QCoreApplication::translate("jp::office::doc::Salvage", "What follows a place where pieces of the file were joined by a guess was checked only to see that it is in the right form, not that it belongs here. It starts after the text, in what holds its formatting.");
+    }
+    // (the tables that say how the text is formatted, read across a guessed join, are shown as they are, and the notes say they were checked only for their form)
+    {
+        const QVector<qint64> tableJoins = found.joins.value(tableName);
+        if (!plain && !tableJoins.isEmpty() && tableJoins.first() < found.streams.value(tableName).size())
+            said << QCoreApplication::translate("jp::office::doc::Salvage", "Part of what says how the text is formatted was put together by a guess, and was checked only to see that it is in the right form, not that it belongs here.");
     }
     if (joinSteps) *joinSteps = steps + textJoins.size();
     if (notes) *notes = said;

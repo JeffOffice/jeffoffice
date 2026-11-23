@@ -1695,6 +1695,24 @@ private Q_SLOTS:
         }
     }
 
+    // A sound presentation of any size, from our own writer (the small one lives in the container's mini stream): Open and Repair says nothing was wrong and gives back the very streams it holds.
+    void aSoundPresentationOfAnySizeIsRepairedToItself()
+    {
+        const QByteArray none;
+        const QByteArray middle = buildPpt(false, false, false, false, none, none, none, none, none, none, 1016, none, pptRec(2999, QByteArray(2000, 'x')));
+        for (const QByteArray &file : {buildPpt(), middle, bigDeck()}) {
+            QStringList notes;
+            QString why;
+            const QByteArray fixed = deck::salvagePresentation(file, &notes, &why);
+            QVERIFY2(!fixed.isEmpty(), qPrintable(why));
+            QVERIFY2(notes.isEmpty(), qPrintable(notes.join(QLatin1Char('|'))));
+            jp::cfb::File was, now;
+            QVERIFY(jp::cfb::read(file, &was) && jp::cfb::read(fixed, &now));
+            for (const QString &name : {pptDocumentStream(), QStringLiteral("Current User")})
+                QVERIFY2(was.stream(name) == now.stream(name), qPrintable(name));
+        }
+    }
+
     // A directory that gives the presentation stream three times its size: what follows its chain (another stream, or what is free) does not become part of the presentation.
     void aSizeTooLargeDoesNotTakeTheBytesAfterTheChain()
     {
@@ -1711,7 +1729,7 @@ private Q_SLOTS:
         QVERIFY(jp::cfb::read(fixed, &now));
         const QByteArray got = now.stream(pptDocumentStream());
         QVERIFY2(got.size() <= original.size() + 511 && got.left(original.size()) == original, qPrintable(QString::number(got.size()) + QLatin1Char(' ') + QString::number(original.size())));
-        QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("did not agree")), qPrintable(notes.join(QLatin1Char('|'))));
+        QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("stored in a confusing way")), qPrintable(notes.join(QLatin1Char('|'))));
     }
 
     // The reviewer's trigger for presentations: the stream's chain ends with its end marker before its last edit record, the directory gives three times its size, and a neighbor whose own
@@ -1774,6 +1792,57 @@ private Q_SLOTS:
             if (last) QVERIFY2(double(work) / double(last) < 2.0 * 1.15, qPrintable(QStringLiteral("steps grew %1 times for twice the bytes").arg(double(work) / double(last))));
             last = work;
         }
+    }
+
+    // A picture stream that is damaged says so by name, as for a document: a broken chain keeps what comes before the break and says pictures could not be fully recovered; a stream of under
+    // 4,096 bytes whose mini stream is lost gives nothing and says so too. A sound file says nothing of pictures.
+    void aDamagedPictureStreamIsSaidByName()
+    {
+        auto withPictures = [&](int size) {
+            jp::cfb::File f;
+            [&] { QVERIFY(jp::cfb::read(bigDeck(), &f)); }();
+            QByteArray data;
+            for (int i = 0; i < size; ++i) data.append(char(i * 13 + 1));
+            bool had = false;
+            for (jp::cfb::Entry &old : f.entries)
+                if (old.name == QLatin1String("Pictures")) {
+                    old.data = data;
+                    had = true;
+                }
+            if (!had) {
+                jp::cfb::Entry e;
+                e.type = jp::cfb::Entry::Stream;
+                e.name = QStringLiteral("Pictures");
+                e.data = data;
+                f.entries[0].children << int(f.entries.size());
+                f.entries << e;
+            }
+            return jp::cfb::write(f);
+        };
+        const QString said = QStringLiteral("Some pictures could not be fully recovered.");
+        QStringList notes;
+        QString why;
+        const QByteArray sound = withPictures(12000);
+        QVERIFY(!deck::salvagePresentation(sound, &notes, &why).isEmpty());
+        QVERIFY2(!notes.join(QLatin1Char(' ')).contains(QLatin1String("pictures")), qPrintable(notes.join(QLatin1Char('|'))));
+        QByteArray bad = sound;
+        cfbdamage::fatSet(bad, cfbdamage::sectorsOf(sound, QStringLiteral("Pictures"))[3], 0x00FFFFF0);
+        notes.clear();
+        QVERIFY2(!deck::salvagePresentation(bad, &notes, &why).isEmpty(), qPrintable(why));
+        QVERIFY2(notes.contains(said), qPrintable(notes.join(QLatin1Char('|'))));
+        const QByteArray small = withPictures(3000);
+        notes.clear();
+        QVERIFY(!deck::salvagePresentation(small, &notes, &why).isEmpty());
+        QVERIFY2(!notes.join(QLatin1Char(' ')).contains(QLatin1String("pictures")), qPrintable(notes.join(QLatin1Char('|'))));
+        int checked = 0;
+        for (const cfbdamage::Variant &v : cfbdamage::miniDamage(small)) {
+            if (v.id != QLatin1String("g1") && v.id != QLatin1String("g2") && v.id != QLatin1String("g5")) continue;
+            ++checked;
+            notes.clear();
+            QVERIFY2(!deck::salvagePresentation(v.file, &notes, &why).isEmpty(), qPrintable(v.id + why));
+            QVERIFY2(notes.contains(said), qPrintable(v.id + notes.join(QLatin1Char('|'))));
+        }
+        QCOMPARE(checked, 3);
     }
 
     // A link of the tables that can't be read is guessed, and the part of the presentation that lies across the join is left out (its type is made one that nothing acts on), not shown.

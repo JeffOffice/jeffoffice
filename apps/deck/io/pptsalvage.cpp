@@ -265,6 +265,18 @@ QByteArray salvagePresentation(const QByteArray &file, QStringList *notes, QStri
         found.streams.insert(QStringLiteral("PowerPoint Document"), d);
     }
 
+    // (the pictures: what lies before the first guessed join in the stream is kept, and the notes say that some could not be fully recovered)
+    bool picturesDamaged = found.partial.contains(QStringLiteral("Pictures")) || found.lost.contains(QStringLiteral("Pictures"));
+    {
+        const QVector<qint64> pictureJoins = found.joins.value(QStringLiteral("Pictures"));
+        QByteArray pictures = found.streams.value(QStringLiteral("Pictures"));
+        if (!pictureJoins.isEmpty() && pictureJoins.first() < pictures.size()) {
+            pictures.truncate(qsizetype(pictureJoins.first()));
+            found.streams.insert(QStringLiteral("Pictures"), pictures);
+            picturesDamaged = true;
+        }
+    }
+
     g_opens = 0;
     auto opens = [&](const CfbSalvage &s, QString *because) {
         ++g_opens;
@@ -341,7 +353,9 @@ QByteArray salvagePresentation(const QByteArray &file, QStringList *notes, QStri
         if (error) *error = because.isEmpty() ? QCoreApplication::translate("jp::deck::PptSalvage", "No slide of the presentation could be read.") : because;
         return QByteArray();
     }
-    if (!found.streams.contains(QStringLiteral("Pictures")) && (!found.directoryRead || ((found.cutShort || found.tablesGuessed) && found.directoryNames.contains(QStringLiteral("Pictures"), Qt::CaseInsensitive))))
+    if (picturesDamaged)
+        said << QCoreApplication::translate("jp::deck::PptSalvage", "Some pictures could not be fully recovered.");
+    else if (!found.streams.contains(QStringLiteral("Pictures")) && (!found.directoryRead || ((found.cutShort || found.tablesGuessed) && found.directoryNames.contains(QStringLiteral("Pictures"), Qt::CaseInsensitive))))
         said << QCoreApplication::translate("jp::deck::PptSalvage", "The pictures of the presentation, if it had any, could not be found.");
     if (joined) {
         if (joinSlide > 0) said << QCoreApplication::translate("jp::deck::PptSalvage", "What follows a place where pieces of the file were joined by a guess was checked only to see that it is in the right form, not that it belongs here. It starts in slide %1.").arg(joinSlide);

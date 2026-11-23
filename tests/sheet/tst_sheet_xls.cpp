@@ -1903,7 +1903,7 @@ private Q_SLOTS:
             QVERIFY2(v.id == QLatin1String("f4") || !o.notes.join(QLatin1Char(' ')).contains(QLatin1String("read whole")), qPrintable(v.id + o.notes.join(QLatin1Char('|'))));
             // (a container that was repaired is never reported as sound, whichever way the stream was put right)
             QVERIFY2(!o.notes.join(QLatin1Char(' ')).contains(QLatin1String("The file was sound")), qPrintable(v.id + o.notes.join(QLatin1Char('|'))));
-            QVERIFY2(o.notes.join(QLatin1Char(' ')).contains(QLatin1String("did not agree")), qPrintable(v.id + o.notes.join(QLatin1Char('|'))));
+            QVERIFY2(o.notes.join(QLatin1Char(' ')).contains(QLatin1String("stored in a confusing way")), qPrintable(v.id + o.notes.join(QLatin1Char('|'))));
         }
         QCOMPARE(checked, 4);
     }
@@ -1940,6 +1940,88 @@ private Q_SLOTS:
         QStringList notes2;
         const QByteArray got = salvageXlsStream(bad, Limits(), &notes2, &why);
         QVERIFY2(got == a.stream(), qPrintable(why));
+    }
+
+    // A sound workbook of any size, from our own writer (small ones live in the container's mini stream): Open and Repair says the file was sound and gives back the very stream it holds.
+    void aSoundWorkbookIsRepairedToItself()
+    {
+        for (int rows : {1, 20, 60, 300, 2000}) {
+            QByteArray cells;
+            for (int r = 0; r < rows; ++r) cells += number(r, 0, r);
+            Book b;
+            b.sheet(QStringLiteral("A"), dimensions(rows, 1) + cells);
+            QStringList notes;
+            QString why;
+            const QByteArray got = salvageXlsStream(b.file(), Limits(), &notes, &why);
+            QVERIFY2(got == b.stream(), qPrintable(QStringLiteral("%1 rows: %2").arg(rows).arg(why)));
+            QVERIFY2(notes.size() == 1 && notes.first().startsWith(QLatin1String("The file was sound.")), qPrintable(QStringLiteral("%1 rows: %2").arg(rows).arg(notes.join(QLatin1Char('|')))));
+        }
+    }
+
+    // A file cut in half loses its tables with the end of the file, so every piece is joined by guess. Exactly the cells that were whole before the cut and do not lie across a join come back: the
+    // cell the cut itself splits is not in the file (it is one of the cells after the cut), and no other cell at the edge of the cut is lost.
+    void aFileCutInHalfKeepsEveryWholeCellThatLiesInOnePiece()
+    {
+        const int rows = 600;
+        const QByteArray big = xlsOfRows(rows, {QStringLiteral("Other")});
+        const QByteArray cut = big.left(big.size() / 2);
+        const QList<quint32> c = cfbdamage::sectorsOf(big, QStringLiteral("Workbook"));
+        jp::cfb::File was;
+        QVERIFY(jp::cfb::read(big, &was));
+        const QByteArray stream = was.stream(QStringLiteral("Workbook"));
+        const qint64 available = cut.size() - cfbdamage::sectorAt(int(c[0]));   // (the stream's bytes in the cut file: its sectors lie one after the other)
+        qsizetype at = 0;
+        int whole = 0, across = 0;
+        while (at + 4 <= stream.size()) {
+            const int id = quint8(stream[at]) | quint8(stream[at + 1]) << 8, len = quint8(stream[at + 2]) | quint8(stream[at + 3]) << 8;
+            const qsizetype end = at + 4 + len;
+            if (end > available) break;
+            if (id == 0x0203) {
+                ++whole;
+                if ((end - 1) / 512 != at / 512) ++across;   // (a join falls inside it: the pieces of a cut file are joined at every 512 bytes)
+            }
+            at = end;
+        }
+        QVERIFY(whole > 300 && across > 10);
+        const XlsOutcome o = xlsOutcomeOf(cut, rows);
+        QVERIFY2(!o.refused, qPrintable(o.why));
+        QCOMPARE(o.wrong, 0);
+        QCOMPARE(o.right, whole - across);
+        QCOMPARE(o.missing, rows * 2 - (whole - across));
+    }
+
+    // Two entries of one name, the first unreadable: the later one is used, and the notes say so. When the first is used, nothing is said of it.
+    void aLaterEntryOfTheSameNameIsSaidWhenItIsUsed()
+    {
+        Book a, b;
+        QByteArray cellsA, cellsB;
+        for (int r = 0; r < 400; ++r) cellsA += number(r, 0, r + 1);
+        for (int r = 0; r < 900; ++r) cellsB += number(r, 0, 5000 + r);
+        a.sheet(QStringLiteral("A"), dimensions(400, 1) + cellsA);
+        b.sheet(QStringLiteral("A"), dimensions(900, 1) + cellsB);
+        jp::cfb::File f;
+        jp::cfb::Entry root;
+        root.type = jp::cfb::Entry::Root;
+        root.name = QStringLiteral("Root Entry");
+        f.entries.push_back(root);
+        for (const QByteArray &data : {a.stream(), b.stream()}) {
+            jp::cfb::Entry e;
+            e.type = jp::cfb::Entry::Stream;
+            e.name = QStringLiteral("Workbook");
+            e.data = data;
+            f.entries[0].children << int(f.entries.size());
+            f.entries << e;
+        }
+        QByteArray file = jp::cfb::write(f);
+        cfbdamage::set16(file, 32, 0);   // (the container is read by its directory)
+        QStringList notes;
+        QString why;
+        QCOMPARE(salvageXlsStream(file, Limits(), &notes, &why), a.stream());
+        QVERIFY2(!notes.join(QLatin1Char(' ')).contains(QLatin1String("same name")), qPrintable(notes.join(QLatin1Char('|'))));
+        cfbdamage::set32(file, cfbdamage::entryOf(file, QStringLiteral("Workbook")) + 116, 0x00FFFFF0);   // (the first entry no longer leads anywhere)
+        notes.clear();
+        QCOMPARE(salvageXlsStream(file, Limits(), &notes, &why), b.stream());
+        QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("Two parts of the file had the same name. The first could not be used, so a later one was used in its place.")), qPrintable(notes.join(QLatin1Char('|'))));
     }
 
     // A directory that gives a stream three times its size, with a neighbor of valid records after it: the stream ends where its tables end, and none of the neighbor's records come with it.
@@ -1984,7 +2066,7 @@ private Q_SLOTS:
         const QByteArray got = salvageXlsStream(file, Limits(), &notes, &why);
         QVERIFY2(!got.isEmpty(), qPrintable(why));
         QCOMPARE(got, a.stream());
-        QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("did not agree")), qPrintable(notes.join(QLatin1Char('|'))));
+        QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("stored in a confusing way")), qPrintable(notes.join(QLatin1Char('|'))));
     }
 
     // The reviewer's trigger (Nov 23): the workbook's chain ends with its end marker before its last end record, the directory gives three times its size, and a neighbor of whole records whose own

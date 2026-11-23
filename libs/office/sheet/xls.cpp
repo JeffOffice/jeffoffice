@@ -1669,7 +1669,7 @@ QStringList sheetReport(const QByteArray &stream, const Limits &limits, XlsSalva
     }
     if (damaged > kSalvageSheetsReported) out << QCoreApplication::translate("jp::office::sheet::Xls", "More sheets were damaged or lost than are listed here.");
     if (unchecked > 0) out << QCoreApplication::translate("jp::office::sheet::Xls", "The sheets of this file were too many to check one by one, so some may be cut short.");
-    // ("read whole" is not said beside a note of what was left out, or of a guess, or of an end that could not be confirmed: the sheets then only end where they should)
+    // ("read whole" is not said beside a note of what was left out, or of a guess, or of an end that could not be checked: the sheets then only end where they should)
     if (endsConfirmed && whole > 0 && damaged > 0) out << (caveat ? QCoreApplication::translate("jp::office::sheet::Xls", "The other sheets end where they should.") : QCoreApplication::translate("jp::office::sheet::Xls", "The other sheets were read whole."));
     if (endsConfirmed && whole > 0 && damaged == 0 && unchecked == 0) out << (caveat ? QCoreApplication::translate("jp::office::sheet::Xls", "Every sheet ends where it should.") : QCoreApplication::translate("jp::office::sheet::Xls", "Every sheet was read whole."));
     qint64 globalsWork = 1 << 20;
