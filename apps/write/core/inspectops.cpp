@@ -301,6 +301,7 @@ struct StoryPlan {
     };
     QVector<BlockEdit> blocks;
     QSet<QPair<bool, QString>> named;    // the Ids (with whether they are the endnotes') the atoms taken out whole name, and those the edits left out
+    QSet<QPair<bool, QString>> seen;     // every Id a link found in the story names (taken out, kept, or waiting for the limit)
     int editable = 0, applied = 0, kept = 0, unresolved = 0, fields = 0;
 };
 
@@ -328,6 +329,7 @@ StoryPlan planStory(const WriteDoc &doc, QTextDocument *story, int *limit)
             plan.unresolved += j.unresolved;
             *limit -= j.applied;
             for (const QString &id : j.named) plan.named.insert({endnote, id});
+            for (const QString &id : j.every) plan.seen.insert({endnote, id});
         };
         // (the elements kept between paragraphs: all of what they hold is inside, so a link in one goes only by an attribute)
         const QTextBlockFormat bf = b.blockFormat();
@@ -368,7 +370,10 @@ StoryPlan planStory(const WriteDoc &doc, QTextDocument *story, int *limit)
                     whole = true;
                     plan.unresolved += j.unresolved;
                     plan.whole.push_back({fr.position(), fr.length()});
-                    for (const QString &id : j.every) plan.named.insert({endnote, id});
+                    for (const QString &id : j.every) {
+                        plan.named.insert({endnote, id});
+                        plan.seen.insert({endnote, id});
+                    }
                 } else {
                     add(j);
                     if (j.applied > 0) {
@@ -384,12 +389,60 @@ StoryPlan planStory(const WriteDoc &doc, QTextDocument *story, int *limit)
     return plan;
 }
 
+int kindOfOutside(const QString &type, const QString &partType)
+{
+    const QString t = type.toLower();
+    if (t.endsWith(QLatin1String("/attachedtemplate"))) return KindTemplate;
+    if (t.contains(QLatin1String("mailmerge"))) return KindMailMerge;
+    if (t.endsWith(QLatin1String("/frame")) || t.endsWith(QLatin1String("/frameset"))) return KindFrames;
+    if (t.endsWith(QLatin1String("/subdocument"))) return KindSubDocument;
+    if (t.contains(QLatin1String("stylesheet"))) return KindStyleSheet;
+    if (t.endsWith(QLatin1String("/video")) || t.endsWith(QLatin1String("/audio")) || t.endsWith(QLatin1String("/media"))) return KindMovieOrSound;
+    if (partType.contains(QLatin1String("chart"), Qt::CaseInsensitive)) return KindChartData;
+    return 0;
+}
+
+// The elements of a settings part that attach a template (<attachedTemplate r:id="..."/>) by one of these Ids, without the first `limit` of them: how many there are (`found`), how many went
+// (`done`), and which Ids. The template's own styles are in the styles part, which is not touched.
+QByteArray withoutTemplateElements(const QByteArray &x, const QSet<QString> &ids, int limit, int *found, int *done, QSet<QString> *named, QSet<QString> *seen)
+{
+    QByteArray out;
+    qsizetype at = 0, from = 0;
+    *found = *done = 0;
+    for (;;) {
+        const qsizetype word = x.indexOf("attachedTemplate", from);
+        if (word < 0) break;
+        from = word + 16;
+        const qsizetype start = x.lastIndexOf('<', word), end = x.indexOf('>', word);
+        if (start < 0 || end < 0 || x[end - 1] != '/' || start < at) continue;
+        bool plain = true;   // (the name, with an optional prefix, follows the "<" at once)
+        for (qsizetype k = start + 1; k < word; ++k)
+            if (!(isalnum(uchar(x[k])) || x[k] == '_' || x[k] == '-' || x[k] == '.' || x[k] == ':')) plain = false;
+        if (!plain || x.mid(word + 16, end - word - 16).contains('<')) continue;
+        static const QRegularExpression idAttribute(QStringLiteral("\\s(?:[A-Za-z0-9_.-]+:)?id\\s*=\\s*(?:\"([^\"]*)\"|'([^']*)')"));
+        const QRegularExpressionMatch m = idAttribute.match(QString::fromLatin1(x.mid(word, end - word)));
+        if (!m.hasMatch()) continue;
+        const QString id = m.captured(1).isEmpty() ? m.captured(2) : m.captured(1);
+        if (!ids.contains(id)) continue;
+        ++*found;
+        seen->insert(id);
+        if (*done >= limit) continue;
+        out.append(x.constData() + at, start - at);
+        at = end + 1;
+        ++*done;
+        named->insert(id);
+    }
+    out.append(x.constData() + at, x.size() - at);
+    return out;
+}
+
 // What a part kept whole holds.
 struct PartPlan {
     QString name, contentType;
     QVector<office::Relationship> rels;
     Judged judged;
     int fields = 0, leftOut = 0;   // (links in the part's relationships that no attribute of it was found to name)
+    int kinds = 0;                 // (the kinds of link kept that the row names)
     bool tooLarge = false;
     QByteArray encodedBack;   // the bytes to put in the file, in the encoding the part came in (when it was read out of another)
     bool reencode = false;
@@ -461,17 +514,47 @@ QVector<PartPlan> planParts(const WriteDoc &doc, int *limit)
             continue;
         }
         const LinkIds ids = linkIdsOf(part.relationships, true);
-        if (mightLink(text.utf8, ids)) {
-            plan.judged = judgeXml(text.utf8, ids, false, true, *limit, text.converted);
-            *limit -= plan.judged.applied;
-            if (plan.judged.applied > 0 && text.converted) {
-                plan.reencode = true;
-                plan.encodedBack = text.back(plan.judged.edited);
+        // (the attached template goes by its element, and the file's link to it with the save)
+        QByteArray work = text.utf8;
+        QSet<QString> templateIds, templateNamed, templateSeen;
+        for (const office::Relationship &r : part.relationships)
+            if (r.external && r.type.endsWith(QLatin1String("/attachedTemplate"), Qt::CaseInsensitive)) templateIds.insert(r.id);
+        int templateFound = 0, templateDone = 0;
+        if (!templateIds.isEmpty() && work.contains("attachedTemplate")) {
+            const QByteArray edited = withoutTemplateElements(work, templateIds, std::max(*limit, 0), &templateFound, &templateDone, &templateNamed, &templateSeen);
+            if (templateDone > 0 && wellFormed(edited, false, text.converted)) {
+                work = edited;
+                for (const QString &id : std::as_const(templateIds))
+                    if (namesAnId(work, {id})) templateNamed.remove(id);   // (still named by another attribute: its link stays)
+            } else {
+                if (templateDone > 0) {   // (the edit would not be well formed: the link is kept, and said)
+                    templateFound = 0;
+                    templateSeen.clear();
+                }
+                templateDone = 0;
+                templateNamed.clear();
             }
         }
+        if (mightLink(work, ids)) plan.judged = judgeXml(work, ids, false, true, *limit - templateDone, text.converted);
+        plan.judged.editable += templateFound;
+        if (templateDone > 0) {
+            plan.judged.applied += templateDone;
+            plan.judged.named += templateNamed;
+            if (plan.judged.edited.isEmpty()) plan.judged.edited = work;
+        }
+        *limit -= plan.judged.applied;
+        if (plan.judged.applied > 0 && text.converted) {
+            plan.reencode = true;
+            plan.encodedBack = text.back(plan.judged.edited);
+        }
         // (the part's own list of relationships is the ground truth for whether it points outside the file: an address that no attribute found was seen to name is said, not passed)
-        for (const office::Relationship &r : part.relationships)
-            if (r.external && !r.type.endsWith(QLatin1String("/hyperlink")) && !plan.judged.every.contains(r.id)) ++plan.leftOut;
+        for (const office::Relationship &r : part.relationships) {
+            if (!r.external || r.type.endsWith(QLatin1String("/hyperlink")) || plan.judged.named.contains(r.id)) continue;
+            if (templateSeen.contains(r.id)) continue;
+            plan.kinds |= kindOfOutside(r.type, part.contentType);
+            if (!plan.judged.every.contains(r.id)) ++plan.leftOut;
+        }
+        if (text.utf8.contains("connectString")) plan.kinds |= KindMailMerge;   // (a data source named in the settings' own words, with no relationship)
         if (text.utf8.contains("instr")) {
             QRegularExpressionMatchIterator it = fileFieldPattern().globalMatch(QString::fromUtf8(text.utf8));
             while (it.hasNext()) {
@@ -479,7 +562,7 @@ QVector<PartPlan> planParts(const WriteDoc &doc, int *limit)
                 ++plan.fields;
             }
         }
-        if (plan.judged.editable || plan.judged.kept || plan.judged.unresolved || plan.fields || plan.leftOut) out.push_back(plan);
+        if (plan.judged.editable || plan.judged.kept || plan.judged.unresolved || plan.fields || plan.leftOut || plan.kinds) out.push_back(plan);
     }
     return out;
 }
@@ -650,25 +733,39 @@ int editLimit() { return s_mostLinkEdits > 0 ? int(s_mostLinkEdits) : kMostLinkE
 ExternalLinkScan scanExternalLinks(WriteDoc &doc)
 {
     ExternalLinkScan out;
+    int limit = editLimit(), editable = 0, applied = 0;
     for (QTextDocument *story : allStories(doc)) {
-        int limit = INT_MAX;
         const StoryPlan plan = planStory(doc, story, &limit);
         for (const auto &run : plan.whole) out.count += run.second;
         out.count += plan.editable;
+        editable += plan.editable;
+        applied += plan.applied;
         out.unread.unresolved += plan.unresolved;
         out.unread.unreachable += plan.kept + plan.fields;   // (a link or a field kept inside a text box)
         for (const FieldPlace &f : scanStory(story, false).fields) {
             if (isFileLinkField(f)) ++out.count;
             else if (f.name.isEmpty() && f.form == FieldPlace::Group && fileFieldPattern().match(QString::fromUtf8(f.groupRaw.left(1 << 16))).hasMatch()) ++out.unread.unreachable;   // (a link kept inside another field)
         }
+        // (the story's own relationships are the ground truth: an address no link found names stays in the file, and is said; one the text let go of goes with the save)
+        for (const bool endnote : {false, true}) {
+            if (endnote && story != doc.story()) break;
+            for (const office::Relationship &r : doc.storyRelationships(story, endnote)) {
+                if (!r.external || r.type.endsWith(QLatin1String("/hyperlink")) || plan.seen.contains({endnote, r.id}) || doc.storyLinkForgotten(story, r.id, endnote)) continue;
+                out.unread.kinds |= kindOfOutside(r.type, QString());
+                ++out.unread.unreachable;
+            }
+        }
     }
     // (the parts the program keeps whole: the comments, the drawings, and so on)
-    int limit = INT_MAX;
     for (const PartPlan &p : planParts(doc, &limit)) {
         out.count += p.judged.editable;
+        editable += p.judged.editable;
+        applied += p.judged.applied;
         out.unread.unresolved += p.judged.unresolved;
         out.unread.unreachable += p.judged.kept + p.fields + p.leftOut;
+        out.unread.kinds |= p.kinds;
     }
+    out.unread.pastLimit = editable - applied;   // (what one Remove All leaves for the next)
     return out;
 }
 
@@ -738,9 +835,14 @@ int removeExternalLinks(WriteDoc &doc)
         if (p.judged.applied == 0) continue;
         if (!comments.isEmpty() && p.name.compare(comments, Qt::CaseInsensitive) == 0) {
             const LinkIds ids = linkIdsOf(p.rels, true);
+            // (the comments in the order of the part, each with what is left of the limit: the same links go from every copy of them)
+            int left = p.judged.applied;
             editKeptCommentXml(doc, [&](const QByteArray &xml) {
+                if (left <= 0) return xml;
                 int done = 0;
-                return withoutLinks(xml, scanRefs(xml, ids).refs, INT_MAX, &done, nullptr);
+                const QByteArray edited = withoutLinks(xml, scanRefs(xml, ids).refs, left, &done, nullptr);
+                left -= done;
+                return edited;
             });
         }
         doc.putPackagePart(p.name, p.contentType, p.reencode ? p.encodedBack : p.judged.edited);

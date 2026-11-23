@@ -684,6 +684,12 @@ public:
         if (part.isEmpty()) m_madeLinks.insert(id);
         else m_madePartLinks.insert({part, id});
     }
+    // Whether a link of the part a story is of was let go (forgetStoryLink): it goes from the file's relationships with the next save.
+    bool storyLinkForgotten(const QTextDocument *story, const QString &id, bool endnote = false) const
+    {
+        const QString part = storyPartName(story, endnote);
+        return part.isEmpty() ? m_madeLinks.contains(id) : m_madePartLinks.contains({part, id});
+    }
     // The parts the program keeps as XML bytes and does not read into a story (comments, drawings' and charts' parts, a glossary, the settings, and a header, footer, or note part it could not
     // read), each with the relationships it has of its own: what Inspect Document looks through for links to other files.
     struct KeptXmlPart {

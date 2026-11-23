@@ -394,7 +394,10 @@ QSet<int> allCommentIds(WriteDoc &doc)
 void editKeptCommentXml(WriteDoc &doc, const std::function<QByteArray(const QByteArray &)> &edit)
 {
     CommentSource &src = sourceOf(doc);
-    for (auto it = src.byId.begin(); it != src.byId.end(); ++it) it->xml = edit(it->xml);
+    for (const int id : std::as_const(src.order)) {   // (the order the part has them in)
+        const auto it = src.byId.find(id);
+        if (it != src.byId.end()) it->xml = edit(it->xml);
+    }
 }
 
 qint64 commentBlocksScannedForTest() { return s_blocksScanned.load(); }

@@ -30,9 +30,13 @@ int externalLinkCount(WriteDoc &doc);
 // What the count could not look at, or could not take out: `unresolved` pictures and objects that name a link by an Id their part has no relationship for (the part, or its list of
 // relationships, is missing, or has no such Id), so where they go can't be told; `unreachable` fields that take from another file in the comments and in text boxes, which the program keeps as
 // they are and does not take apart.
+// The kinds of link to another file kept besides pictures and objects, which the row names.
+enum OutsideKind { KindTemplate = 1, KindMailMerge = 2, KindFrames = 4, KindChartData = 8, KindMovieOrSound = 16, KindStyleSheet = 32, KindSubDocument = 64 };
 struct ExternalLinkUnread {
     int unresolved = 0;
     int unreachable = 0;
+    int kinds = 0;       // the kinds of link kept that have a name (OutsideKind: the attached template, the mail merge data source, frames, a chart's data, movies or sounds, style sheets, subdocuments)
+    int pastLimit = 0;   // links one Remove All leaves for the next, because it takes out no more than a limit at once
 };
 ExternalLinkUnread externalLinkUnread(WriteDoc &doc);
 // Both of them from one look through the document (the box asks for the count and the sentence together).

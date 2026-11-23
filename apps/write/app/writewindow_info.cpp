@@ -222,14 +222,27 @@ QVector<InspectItem> WriteWindow::inspectItems()
                      [doc] { return write::removeCustomXml(*doc); }, true, QString()});
     // (the box asks for the count and then for the sentence: one look through the document serves both, and a removal makes the next look a new one)
     auto looked = std::make_shared<std::optional<write::ExternalLinkScan>>();
-    items.push_back({tr("External links"), tr("Linked pictures and objects, and fields that read another file. Removing turns fields into text, takes out the linked ones, and unlinks pictures in comments and text boxes that keep their own copy. Web links stay."),
+    items.push_back({tr("External links"), tr("Linked pictures and objects, the template the document is attached to, and fields that read another file. Removing turns fields into text, takes out linked pictures and objects, including those in comments and text boxes, and detaches the template. Links in comments and other kept parts can't be undone. Web links stay."),
                      [doc, looked] { *looked = write::scanExternalLinks(*doc); return (*looked)->count; }, [doc, looked] { looked->reset(); return write::removeExternalLinks(*doc); }, true, QString(),
                      [this, doc, looked] {
                          const write::ExternalLinkUnread u = looked->has_value() ? (*looked)->unread : write::scanExternalLinks(*doc).unread;
                          looked->reset();
                          QStringList said;
                          if (u.unresolved > 0) said << tr("%n linked picture(s) or object(s) can't be checked, because the file does not say where each one goes.", nullptr, u.unresolved);
-                         if (u.unreachable > 0) said << tr("%n link(s) to another file are kept inside other fields, comments, or text boxes, where Remove All can't take them out.", nullptr, u.unreachable);
+                         if (u.unreachable > 0) said << tr("%n link(s) to another file are kept where Remove All can't take them out: inside other fields, comments, text boxes, and other parts of the file.", nullptr, u.unreachable);
+                         QStringList names;
+                         if (u.kinds & write::KindTemplate) names << tr("the attached template");
+                         if (u.kinds & write::KindMailMerge) names << tr("the mail merge data source");
+                         if (u.kinds & write::KindFrames) names << tr("frames");
+                         if (u.kinds & write::KindSubDocument) names << tr("subdocuments");
+                         if (u.kinds & write::KindChartData) names << tr("a chart's outside data");
+                         if (u.kinds & write::KindMovieOrSound) names << tr("linked movies or sounds");
+                         if (u.kinds & write::KindStyleSheet) names << tr("linked style sheets");
+                         if (!names.isEmpty()) {
+                             QString list = names.size() == 1 ? names.first() : names.size() == 2 ? tr("%1 and %2").arg(names[0], names[1]) : names.mid(0, names.size() - 1).join(QStringLiteral(", ")) + tr(", and %1").arg(names.last());
+                             said << tr("The file keeps these, and Remove All can't take them out: %1.").arg(list);
+                         }
+                         if (u.pastLimit > 0) said << tr("%n more link(s) are past the most that one Remove All takes out. Run Remove All again to take them out.", nullptr, u.pastLimit);
                          return said.join(QLatin1Char(' '));
                      }});
     return items;

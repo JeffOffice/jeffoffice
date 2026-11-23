@@ -2009,6 +2009,85 @@ private Q_SLOTS:
         QVERIFY(!box.summaries().first().contains(QLatin1String("None found")));
     }
 
+    // What the file keeps that points at another file, besides pictures and objects (measured: all of these are kept through a save as a document, and none through the other forms): the
+    // attached template is detached (the text and the styles are as they were after a save and a reopen), a subdocument goes as a linked object does, and the mail merge data source, frames,
+    // a chart's outside data, movies and sounds, and an address nothing uses are named as kept. No path is hidden by "None found".
+    void inspectDetachesTheTemplateAndNamesWhatElseTheFileKeeps()
+    {
+        const QByteArray st = QByteArray("<w:settings ") + kNs + ">";
+        const QByteArray plain = "<w:p><w:pPr><w:pStyle w:val=\"Normal\"/></w:pPr><w:r><w:t>Hello template</w:t></w:r></w:p>";
+        const auto settings = [&](const QByteArray &inner) {
+            return Extra{QStringLiteral("/word/settings.xml"), kWord + QStringLiteral("settings+xml"), st + "<w:zoom w:percent=\"100\"/>" + inner + "</w:settings>", kRel + QStringLiteral("settings"), QString(), QStringLiteral("rIdSet")};
+        };
+        struct Case {
+            const char *what;
+            QByteArray body;
+            QVector<Extra> extra;
+            int count;            // found
+            const char *named;    // what the sentence says is kept ("" none)
+        };
+        const QVector<Case> cases = {
+            {"template", plain, {settings("<w:attachedTemplate r:id=\"rId1\"/>"), outside("file:///C:/Users/jsmith/MARK_template.dotm", "/word/settings.xml", "rId1", "attachedTemplate")}, 1, ""},
+            {"mail merge", plain, {settings("<w:mailMerge><w:connectString w:val=\"Data Source=C:\\Users\\jsmith\\MARK_conn.xlsx\"/><w:dataSource r:id=\"rId1\"/></w:mailMerge>"), outside("file:///C:/Users/jsmith/MARK_merge.xlsx", "/word/settings.xml", "rId1", "mailMergeSource")}, 0, "the mail merge data source"},
+            {"mail merge by its own words", plain, {settings("<w:mailMerge><w:connectString w:val=\"Data Source=C:\\Users\\jsmith\\MARK_conn.xlsx\"/></w:mailMerge>")}, 0, "the mail merge data source"},
+            {"frames", plain, {settings("<w:frameset><w:frame><w:sourceFileName r:id=\"rId1\"/></w:frame></w:frameset>"), outside("file:///C:/Users/jsmith/MARK_frame.htm", "/word/settings.xml", "rId1", "frame")}, 0, "frames"},
+            {"a chart's data", plain, {Extra{QStringLiteral("/word/charts/chart1.xml"), QStringLiteral("application/vnd.openxmlformats-officedocument.drawingml.chart+xml"), "<c:chartSpace xmlns:c=\"urn:c\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><c:externalData r:id=\"rId1\"/></c:chartSpace>", kRel + QStringLiteral("chart"), QString(), QStringLiteral("rIdCh")}, outside("file:///C:/Users/jsmith/MARK_chart.xlsx", "/word/charts/chart1.xml", "rId1", "oleObject")}, 0, "a chart's outside data"},
+            {"a movie and a sound", plain, {Extra{QStringLiteral("/word/drawings/d.xml"), QStringLiteral("application/vnd.test+xml"), "<d:x xmlns:d=\"urn:t\" xmlns:a=\"urn:a\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\"><a:videoFile r:link=\"rId1\"/><a:wavAudioFile r:link=\"rId2\"/></d:x>", kRel + QStringLiteral("drawing"), QString(), QStringLiteral("rIdD")}, outside("file:///C:/Users/jsmith/MARK_movie.avi", "/word/drawings/d.xml", "rId1", "video"), outside("file:///C:/Users/jsmith/MARK_sound.wav", "/word/drawings/d.xml", "rId2", "audio")}, 0, "linked movies or sounds"},
+            {"a style sheet", plain, {settings("<w:zoom w:percent=\"90\"/>"), outside("file:///C:/Users/jsmith/MARK_sheet.css", "/word/settings.xml", "rId1", "stylesheet")}, 0, "linked style sheets"},
+            {"a subdocument", "<w:p><w:subDoc r:id=\"rIdSub\"/></w:p>", {outside("file:///C:/Users/jsmith/MARK_sub.docx", "", "rIdSub", "subDocument")}, 1, ""},
+            {"an address of the document nothing uses", plain, {outside("file:///C:/Users/jsmith/MARK_unused.css", "", "rIdU", "customRelation")}, 0, ""},
+        };
+        setLossyStandIn([](const LossyAsk &, bool *) { return LossyChoice::SaveAnyway; });
+        const auto standDown = qScopeGuard([] { setLossyStandIn({}); });
+        for (const Case &c : cases) {
+            WriteWindow w;
+            QString err;
+            w.setDocument(WriteDoc::fromDocx(makeDocx(c.body, c.extra), &err, nullptr), QString());
+            WriteDoc &doc = *w.document();
+            QTemporaryDir dir;
+            QVERIFY(dir.isValid());
+            QVERIFY2(saveInto(w, dir, QStringLiteral("before.docx")), c.what);
+            QMap<QString, QByteArray> before;
+            QVERIFY(jp::readZip(fileBytes(dir.filePath(QStringLiteral("before.docx"))), before));
+            InspectItem item = linksItem(w);
+            QVERIFY2(item.count() == c.count, c.what);
+            const QString said = item.unread();
+            if (c.count == 0) {
+                QVERIFY2(!said.isEmpty(), c.what);
+                InspectDialog box(QStringLiteral("Inspect"), {item}, nullptr);
+                QVERIFY2(!box.summaries().first().contains(QLatin1String("None found")), c.what);
+            }
+            if (!QLatin1String(c.named).isEmpty()) QVERIFY2(said.contains(QLatin1String(c.named)), qPrintable(QString::fromLatin1(c.what) + QLatin1Char(' ') + said));
+            else if (c.count > 0) QVERIFY2(said.isEmpty(), c.what);
+            QCOMPARE(item.remove(), c.count);
+            QVERIFY2(saveInto(w, dir, QStringLiteral("after.docx")), c.what);
+            QMap<QString, QByteArray> after;
+            QVERIFY(jp::readZip(fileBytes(dir.filePath(QStringLiteral("after.docx"))), after));
+            QVERIFY2(after.value(QStringLiteral("word/styles.xml")) == before.value(QStringLiteral("word/styles.xml")), c.what);   // (the template's styles are the document's own)
+            bool leaks = false;
+            for (auto it = after.cbegin(); it != after.cend(); ++it) leaks = leaks || it.value().contains("MARK_");
+            QCOMPARE(leaks, c.count == 0);   // (what is taken out is gone from every part; what is kept is still said above)
+            if (c.count > 0) {
+                QVERIFY2(!after.value(QStringLiteral("word/settings.xml")).contains("attachedTemplate"), c.what);
+                QVERIFY2(after.value(QStringLiteral("word/settings.xml")).contains("w:zoom") || QLatin1String(c.what) == QLatin1String("a subdocument"), c.what);
+                WriteWindow again;
+                QString reErr;
+                again.setDocument(WriteDoc::fromDocx(fileBytes(dir.filePath(QStringLiteral("after.docx"))), &reErr, nullptr), QString());
+                QCOMPARE(again.document()->story()->toPlainText(), doc.story()->toPlainText());
+                QCOMPARE(linksItem(again).count(), 0);
+                QVERIFY2(linksItem(again).unread().isEmpty(), c.what);
+            }
+            // the other forms keep nothing of an outside file's address
+            for (const char *name : {"out.odt", "out.rtf"}) {
+                QVERIFY2(saveInto(w, dir, QString::fromLatin1(name)), name);
+                QMap<QString, QByteArray> parts;
+                const QByteArray bytes = fileBytes(dir.filePath(QString::fromLatin1(name)));
+                if (!jp::readZip(bytes, parts)) parts.insert(QStringLiteral("whole"), bytes);
+                for (auto it = parts.cbegin(); it != parts.cend(); ++it) QVERIFY2(!it.value().contains("MARK_"), name);
+            }
+        }
+    }
+
     void inspectRemovesHeadersAndFooters()
     {
         WriteWindow w;
