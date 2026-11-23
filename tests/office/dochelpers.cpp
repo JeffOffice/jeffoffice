@@ -6,6 +6,7 @@
 #include "io/crypto.h"
 
 #include <QBuffer>
+#include <QtEndian>
 #include <QDateTime>
 #include <QTimeZone>
 #include <QCryptographicHash>
