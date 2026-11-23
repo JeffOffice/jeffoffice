@@ -1,4 +1,6 @@
 #include "tst_crunch_edit.h"
+
+#include <QThread>
 #include "../cardchecks.h"
 #include "core/sortspec.h"
 #include "core/workthread.h"
@@ -741,6 +743,41 @@ void CrunchEditTests::theWindowReadsTheBlocksOfTheBatchItTook()
     QCOMPARE(pub->published()->size(), pub->mine().size());
     QCOMPARE(e.valueAt(QStringLiteral("B5")), QStringLiteral("n:5"));
     QVERIFY(s->calculation()->isSpillMember(0, 4, 1));
+}
+
+// A slice's blocks are staged by the worker and read by the window only when the batch of values sent after them is taken: between the two the window reads the block it had, with the values it has. Nothing
+// here lets the window's event loop run until the checks are made (the batch waits in its queue). Fails when staging makes the copy the one the window reads at once (the window reads B1:B5 with the
+// values of B1:B3).
+void CrunchEditTests::aBlockOfASliceIsNotReadUntilItsBatchIsTaken()
+{
+    SpillIndexSwitch on(true);
+    EditWindow e;
+    QVERIFY(e.openBlank());
+    EditSession *s = e.win.w.session();
+    e.select(QStringLiteral("A1"));
+    e.enter(QStringLiteral("3"));
+    e.select(QStringLiteral("B1"));
+    e.enter(QStringLiteral("=SEQUENCE(A1)"));
+    QVERIFY(e.settle());
+    QCOMPARE(blockOf(e, QStringLiteral("B1")), QStringLiteral("B1:B3"));
+    const Calculation *calc = s->calculation();
+    const SpillPublisher *pub = calc->sheet(0).cells.spills();
+    QVERIFY(pub);
+    const qint64 seq = calc->spillSeq();
+    e.select(QStringLiteral("A1"));
+    e.enter(QStringLiteral("5"));   // (the worker works the formula out again and the block grows)
+    int spins = 0;
+    while (calc->spillSeq() == seq && spins < 20000000) {   // (a count, no wait: the worker's slice is staged soon)
+        QThread::yieldCurrentThread();
+        ++spins;
+    }
+    QVERIFY2(calc->spillSeq() > seq, "the worker staged no slice");
+    QVERIFY(pub->stagedCount() >= 1);
+    QCOMPARE(blockOf(e, QStringLiteral("B1")), QStringLiteral("B1:B3"));
+    QVERIFY(calc->isSpillMember(0, 2, 1) && !calc->isSpillMember(0, 4, 1));
+    QVERIFY(e.settle());   // (the batch is taken)
+    QCOMPARE(blockOf(e, QStringLiteral("B1")), QStringLiteral("B1:B5"));
+    QCOMPARE(pub->stagedCount(), qint64(0));
 }
 
 // A table made again under a hold (rows put in) is published once, not once for each block: with a hundred spills, a hundred copies of the table would be made. Fails when each block put is published.

@@ -161,6 +161,7 @@ private Q_SLOTS:
     void aSpillFormulaTakenOutOfASheetLeavesNoBlock();
     void cellsOfALoadedSpillThatItsBlockLetsGoOfAreTakenWithTheWorkerHeld();
     void theWindowReadsTheBlocksOfTheBatchItTook();
+    void aBlockOfASliceIsNotReadUntilItsBatchIsTaken();
     void aTableMadeAgainUnderAHoldIsPublishedOnce();
     void aBlockIsReadBesideTheWorkerThatChangesIt();
     void theCellsOfALoadedBlockAreReadBesideTheWorkerThatLetsGoOfThem();

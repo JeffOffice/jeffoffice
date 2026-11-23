@@ -811,6 +811,78 @@ private Q_SLOTS:
         QCOMPARE(seen, qint32(200));   // (rows 0 to 200: 5 was joined by 6 to 9 inside its block, 77 is gone)
     }
 
+    // A table that was copied (what the others read) is what it was when the worker changes its own: blocks put, grown, and taken away leave the copy's blocks and places as they were. Fails when a change is
+    // made in a shard that the copy shares (the copy loses the block taken away, has the block that grew, and finds the new one).
+    void aPublishedCopyIsNotChangedByLaterChanges()
+    {
+        SpillTable t;
+        for (qint32 f = 0; f < 40; ++f) QVERIFY(t.set(SpillRect{quint32(f * 3), 0, quint32(f * 3 + 1), 2, f}));
+        const SpillTable published = t;
+        t.erase(3);
+        QVERIFY(t.set(SpillRect{15, 0, 19, 4, 5}));   // (grown, and over where 6 was: moved out of 6's rows below)
+        QVERIFY(t.set(SpillRect{500, 0, 501, 1, 77}));
+        QVERIFY(published.ofFormula(3) && published.at(9, 0) && published.at(9, 0)->formula == 3);
+        QCOMPARE(published.ofFormula(5)->row2, quint32(16));
+        QVERIFY(!published.at(18, 4));
+        QVERIFY(!published.ofFormula(77) && !published.at(500, 0));
+        QCOMPARE(published.size(), size_t(40));
+        QVERIFY(!t.ofFormula(3) && !t.at(9, 0) && t.at(18, 4) && t.at(500, 0));
+        QCOMPARE(t.size(), size_t(40));
+    }
+
+    // A place outside the rectangle that holds every block is answered with no block looked at, and a table of up to kSmall blocks answers from its short list: the answers are those of a search of all the
+    // blocks, through every size the table passes (4 to 5 blocks and back, a block changed, one taken away). Fails when the short list is not made again at 5 to 4 (a block taken away is still found).
+    void aSmallTableAndTheOuterRectangleAnswerAsTheBucketsDo()
+    {
+        SpillTable t;
+        std::vector<SpillRect> blocks;
+        auto brute = [&](quint32 row, quint32 col) -> const SpillRect * {
+            for (const SpillRect &r : blocks)
+                if (r.contains(row, col)) return &r;
+            return nullptr;
+        };
+        auto check = [&](const char *what) {
+            qint64 outsideProbes = 0;
+            for (quint32 row = 0; row < 40; row += 1)
+                for (quint32 col = 0; col < 40; ++col) {
+                    const SpillRect *want = brute(row, col), *got = t.at(row, col);
+                    if ((want == nullptr) != (got == nullptr) || (want && want->formula != got->formula)) {
+                        QFAIL(qPrintable(QStringLiteral("%1: place %2,%3").arg(QString::fromLatin1(what)).arg(row).arg(col)));
+                    }
+                }
+            t.at(100, 100, &outsideProbes);   // (past every block)
+            QCOMPARE(outsideProbes, qint64(0));
+            QCOMPARE(t.size(), blocks.size());
+        };
+        QVERIFY(!t.at(0, 0));
+        qint64 none = 0;
+        QVERIFY(!t.at(3, 3, &none) && none == 0);   // (an empty table looks at nothing)
+        for (qint32 f = 0; f < 6; ++f) {
+            const SpillRect r{quint32(f * 5), quint32(f * 6), quint32(f * 5 + 3), quint32(f * 6 + 4), f};
+            QVERIFY(t.set(r));
+            blocks.push_back(r);
+            check("grown");
+        }
+        for (qint32 f : {5, 0, 3}) {   // (6 to 5 to 4 to 3: the short list is made again where it begins to hold them all)
+            t.erase(f);
+            blocks.erase(std::remove_if(blocks.begin(), blocks.end(), [&](const SpillRect &r) { return r.formula == f; }), blocks.end());
+            check("shrunk");
+        }
+        const SpillRect moved{20, 0, 22, 2, 1};   // (a block changed in place)
+        QVERIFY(t.set(moved));
+        for (SpillRect &r : blocks)
+            if (r.formula == 1) r = moved;
+        check("changed");
+        QVERIFY(t.set(SpillRect{30, 30, 31, 31, 9}));
+        blocks.push_back(SpillRect{30, 30, 31, 31, 9});
+        QVERIFY(t.set(SpillRect{35, 0, 35, 0, 10}));
+        blocks.push_back(SpillRect{35, 0, 35, 0, 10});
+        check("grown again");
+        t.erase(9);
+        blocks.erase(std::remove_if(blocks.begin(), blocks.end(), [&](const SpillRect &r) { return r.formula == 9; }), blocks.end());
+        check("shrunk again");
+    }
+
     // The window's thread reads the blocks of the last batch it took, and the worker's slices wait until a batch comes: a copy made at the end of a slice is staged under a number, and adopt(seq) of a later
     // batch makes it the one that is read. Fails when stage() makes the copy the one the others read at once (the reader sees the second block before its batch).
     void blocksAreStagedByTheWorkerAndAdoptedByTheWindow()
@@ -858,6 +930,38 @@ private Q_SLOTS:
         QVERIFY(!slow.view());
         slow.adopt(13);
         QVERIFY(slow.view().table->at(12, 0) && !slow.view().table->at(13, 0));
+    }
+
+    // A copy of the store made by a thread that has the worker held back (a snapshot for a save) freezes the blocks the worker has made, which the sheet's ranges agree with, though the window has not yet taken
+    // the slice that made them; a copy made by any other thread freezes what it reads. Fails when the copy freezes the blocks the window reads whatever the thread (the block of the slice not yet taken is lost).
+    void aCopyMadeUnderAHoldFreezesTheWorkersBlocks()
+    {
+        MutationGuard guard;
+        CellStore store;
+        store.enableSpills(&guard);
+        SpillPublisher *pub = store.spills();
+        QVERIFY(pub);
+        const quintptr me = quintptr(QThread::currentThreadId());
+        guard.setWorker(me + 1);   // (a worker that is another thread: this one is the window's)
+        pub->mine().set(SpillRect{0, 0, 2, 0, 0});
+        pub->noteChanged();
+        pub->stage(1);
+        pub->adopt(1);   // (the first slice was taken)
+        pub->mine().set(SpillRect{0, 0, 5, 0, 0});   // (the next grew the block, and is not taken yet)
+        pub->noteChanged();
+        pub->stage(2);
+        QVERIFY(store.spillView().table->at(2, 0) && !store.spillView().table->at(4, 0));
+        {
+            const CellStore other(store);   // (this thread does not hold the worker back: it freezes what it reads)
+            QVERIFY(other.find(2, 0) && !other.find(4, 0));
+        }
+        guard.enter();
+        const CellStore held(store);
+        QVERIFY(held.find(5, 0));   // (the worker's block)
+        QVERIFY(held.find(5, 0)->flags & SpillMember);
+        QVERIFY(!held.find(6, 0));
+        guard.leave();
+        guard.setWorker(0);
     }
 
     // A file's spill with a stored value for each cell: the value is kept as the cell's own at load (nothing is rewritten when the formula is first worked out), the block is a rectangle, and the sheet's
