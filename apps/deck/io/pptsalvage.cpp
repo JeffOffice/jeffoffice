@@ -49,88 +49,17 @@ QVector<Top> topRecords(QByteArrayView d, qint64 *end)
     return out;
 }
 
-// Leaves out the part of the presentation that lies across each of `joins`, places where pieces of the file were joined by guess: the innermost record whose bytes run across a join is given a
-// type no reader acts on (a container holding it keeps its other records). One pass down the records with the joins in order: each record and each join is looked at once (`*steps` counts
-// them). Returns how many records were left out.
-int dropAcrossJoins(QByteArray &d, QVector<qint64> joins, qint64 *steps)
-{
-    std::sort(joins.begin(), joins.end());
-    struct Frame {
-        qint64 pos, to;
-    };
-    QVector<Frame> stack;
-    stack.push_back({0, d.size()});
-    int dropped = 0, ji = 0;
-    while (!stack.isEmpty() && ji < joins.size()) {
-        Frame &f = stack.last();
-        if (f.pos + 8 > f.to) {
-            stack.pop_back();
-            continue;
-        }
-        const qint64 pos = f.pos, len = u32(d, pos + 4), end = pos + 8 + len;
-        ++*steps;
-        if (len > f.to - pos - 8) {   // (a record that does not fit: nothing more is read in this one)
-            while (ji < joins.size() && joins[ji] < f.to) ++ji;
-            stack.pop_back();
-            continue;
-        }
-        while (ji < joins.size() && joins[ji] <= pos) ++ji;
-        f.pos = end;
-        if (ji >= joins.size() || joins[ji] >= end) continue;
-        if ((u16(d, pos) & 0xF) == 0xF && joins[ji] >= pos + 8 && stack.size() < 64) {
-            stack.push_back({pos + 8, end});
-            continue;
-        }
-        qToLittleEndian(quint16(9999), d.data() + pos + 2);
-        ++dropped;
-        while (ji < joins.size() && joins[ji] < end) {
-            ++ji;
-            ++*steps;
-        }
-    }
-    return dropped;
-}
-
-// Where the presentation stops fitting its own structure after the first place where pieces were joined by guess. The presentation's lists of where its parts are kept (the persist
-// directories) name the offset of every document, slide, notes, and master record; after the join, such a record that begins at an offset no list names, and an offset a list names
-// that is not where a record begins, do not fit. Returns the start of the first record that does not fit, -1 if all fit. `*slide` is the number of the slide the join falls in (0 before the first).
-qint64 stopAfterJoin(QByteArrayView d, qint64 join, int *slide)
+// The number of the slide the byte at `join` is in (the slide records that begin at or before it, counted in the order of the stream), 0 before the first slide. One pass down the records, once
+// each (`*steps` counts them).
+int slideAt(QByteArrayView d, qint64 join, qint64 *steps)
 {
     qint64 end = 0;
     const QVector<Top> tops = topRecords(d, &end);
-    QVector<qint64> named;
-    for (const Top &t : tops) {
-        if (t.type != kPersistDirectory) continue;
-        for (qint64 pos = t.off + 8; pos + 4 <= t.end();) {
-            const quint32 head = u32(d, pos);
-            const qint64 count = head >> 20;
-            pos += 4;
-            for (qint64 i = 0; i < count && pos + 4 <= t.end(); ++i, pos += 4) named << qint64(u32(d, pos));
-        }
-    }
-    std::sort(named.begin(), named.end());
-    *slide = 0;
+    *steps += tops.size();
+    int slide = 0;
     for (const Top &t : tops)
-        if (t.type == kSlide && t.off <= join) ++*slide;
-    qint64 stop = -1;
-    auto fits = [&](const Top &t) { return t.type != kDocument && t.type != kSlide && t.type != kNotes && t.type != kMainMaster ? true : std::binary_search(named.cbegin(), named.cend(), t.off); };
-    for (const Top &t : tops)
-        if (t.off >= join && !fits(t)) {
-            stop = t.off;
-            break;
-        }
-    // (a place a list names, inside the stream, that is not the start of a record: the record that runs across it)
-    for (qint64 place : std::as_const(named)) {
-        if (place < join || place >= end) continue;
-        const auto it = std::upper_bound(tops.cbegin(), tops.cend(), place, [](qint64 v, const Top &t) { return v < t.off; });
-        if (it == tops.cbegin()) continue;
-        const Top &t = *(it - 1);
-        if (t.off != place) {
-            stop = stop < 0 ? t.off : std::min(stop, t.off);
-            break;
-        }
-    }
-    return stop;
+        if (t.type == kSlide && t.off <= join) ++slide;
+    return slide;
 }
 
 QByteArray record(quint16 type, const QByteArray &data)
@@ -248,33 +177,28 @@ QByteArray salvagePresentation(const QByteArray &file, QStringList *notes, QStri
     const QByteArray oldUser = found.streams.value(QStringLiteral("Current User"));
     if (u32(oldUser, 12) == kTokenEncrypted) return protectedFile();
     QStringList said = found.notes;
-    int dropped = 0, joinSlide = 0;
+    int joinSlide = 0;
     bool joined = false;
     {
-        QByteArray d = found.streams.value(QStringLiteral("PowerPoint Document"));
+        // (what lies across or after a guessed join is shown as it is read, and the notes say the slide where the part that was not checked begins)
+        const QByteArray d = found.streams.value(QStringLiteral("PowerPoint Document"));
         const QVector<qint64> joins = found.joins.value(QStringLiteral("PowerPoint Document"));
         qint64 steps = 0;
-        dropped = dropAcrossJoins(d, joins, &steps);
-        if (joinSteps) *joinSteps = steps + joins.size();
-        // (what follows the first join is kept only while it fits the presentation's own lists of where its parts are)
-        if (!joins.isEmpty() && joins.first() < d.size()) {
-            const qint64 stop = stopAfterJoin(d, joins.first(), &joinSlide);
-            if (stop >= 0) d.truncate(qsizetype(stop));
-            joined = joins.first() < d.size();
+        if (!joins.isEmpty()) {
+            const qint64 first = *std::min_element(joins.cbegin(), joins.cend());
+            if (first < d.size()) {
+                joined = true;
+                joinSlide = slideAt(d, first, &steps);
+            }
         }
-        found.streams.insert(QStringLiteral("PowerPoint Document"), d);
+        if (joinSteps) *joinSteps = steps + joins.size();
     }
 
-    // (the pictures: what lies before the first guessed join in the stream is kept, and the notes say that some could not be fully recovered)
+    // (the pictures are read as far as they go, and the notes say that some may not be whole)
     bool picturesDamaged = found.partial.contains(QStringLiteral("Pictures")) || found.lost.contains(QStringLiteral("Pictures"));
     {
         const QVector<qint64> pictureJoins = found.joins.value(QStringLiteral("Pictures"));
-        QByteArray pictures = found.streams.value(QStringLiteral("Pictures"));
-        if (!pictureJoins.isEmpty() && pictureJoins.first() < pictures.size()) {
-            pictures.truncate(qsizetype(pictureJoins.first()));
-            found.streams.insert(QStringLiteral("Pictures"), pictures);
-            picturesDamaged = true;
-        }
+        if (!pictureJoins.isEmpty() && pictureJoins.first() < found.streams.value(QStringLiteral("Pictures")).size()) picturesDamaged = true;
     }
 
     g_opens = 0;
@@ -358,10 +282,9 @@ QByteArray salvagePresentation(const QByteArray &file, QStringList *notes, QStri
     else if (!found.streams.contains(QStringLiteral("Pictures")) && (!found.directoryRead || ((found.cutShort || found.tablesGuessed) && found.directoryNames.contains(QStringLiteral("Pictures"), Qt::CaseInsensitive))))
         said << QCoreApplication::translate("jp::deck::PptSalvage", "The pictures of the presentation, if it had any, could not be found.");
     if (joined) {
-        if (joinSlide > 0) said << QCoreApplication::translate("jp::deck::PptSalvage", "What follows a place where pieces of the file were joined by a guess was checked only to see that it is in the right form, not that it belongs here. It starts in slide %1.").arg(joinSlide);
-        else said << QCoreApplication::translate("jp::deck::PptSalvage", "What follows a place where pieces of the file were joined by a guess was checked only to see that it is in the right form, not that it belongs here. It starts before the first slide.");
+        if (joinSlide > 0) said << QCoreApplication::translate("jp::deck::PptSalvage", "From slide %1 on, this presentation was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.").arg(joinSlide);
+        else said << QCoreApplication::translate("jp::deck::PptSalvage", "This whole presentation was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.");
     }
-    if (dropped > 0) said << QCoreApplication::translate("jp::deck::PptSalvage", "%n part of the presentation (a shape, a line of text, or a picture) was left out because it lay across a place where pieces of the file were joined by a guess.", nullptr, dropped);
     if (notes) *notes = said;
     return jp::office::rebuildCompoundFile(found);
 }

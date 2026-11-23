@@ -1879,7 +1879,8 @@ private Q_SLOTS:
         QVERIFY(!none.openFile(dir.filePath(QStringLiteral("missing.xls")), &why));
         QVERIFY(!why.isEmpty());
     }
-    // Open and Repair of a workbook whose container has a damaged chain of sectors, a directory that says too little, or sectors out of order beyond what the tables can say.
+    // Open and Repair of a workbook whose container has a damaged chain of sectors, a directory that says too little, or sectors out of order beyond what the tables can say: every cell comes back, a guess
+    // is said and where it begins, and a repair that guessed never says the sheets end where they should or were read whole.
     void aBrokenChainInASoundLookingContainerIsReadWhole()
     {
         const int rows = 600;
@@ -1891,21 +1892,90 @@ private Q_SLOTS:
             ++checked;
             const XlsOutcome o = xlsOutcomeOf(v.file, rows);
             QVERIFY2(!o.refused, qPrintable(v.id + o.why));
-            // (a cell across a place where pieces were joined by guess is left out; f4 needs no guess and loses nothing)
-            // (d: the tables end the chain with their own end marker half way; nothing is read past it)
-            QVERIFY2(o.right + o.missing == rows * 2 && o.wrong == 0 && (v.id == QLatin1String("d") ? o.right > 300 && o.right < rows * 2 : o.missing <= (v.id == QLatin1String("f4") ? 0 : 1)), qPrintable(QStringLiteral("%1: right %2 missing %3 wrong %4").arg(v.id).arg(o.right).arg(o.missing).arg(o.wrong)));
-            if (v.id == QLatin1String("d")) {
-                QVERIFY2(o.notes.join(QLatin1Char(' ')).contains(QLatin1String("cut short")) && !o.notes.join(QLatin1Char(' ')).contains(QLatin1String("ends where it should")), qPrintable(o.notes.join(QLatin1Char('|'))));
+            QVERIFY2(o.right == rows * 2 && o.missing == 0 && o.wrong == 0, qPrintable(QStringLiteral("%1: right %2 missing %3 wrong %4").arg(v.id).arg(o.right).arg(o.missing).arg(o.wrong)));
+            const QString said = o.notes.join(QLatin1Char(' '));
+            // (a container that was repaired is never reported as sound, whichever way the stream was put right)
+            QVERIFY2(!said.contains(QLatin1String("The file was sound")) && said.contains(QLatin1String("stored in a confusing way")), qPrintable(v.id + o.notes.join(QLatin1Char('|'))));
+            if (v.id == QLatin1String("f4")) {
+                QVERIFY2(said.contains(QLatin1String("Every sheet was read whole")) && !said.contains(QLatin1String("pieced together")), qPrintable(said));   // (no guess: nothing to warn of)
                 continue;
             }
-            // (a repair that guessed says the sheets end where they should, and never that they were read whole beside the guess)
-            QVERIFY2(o.notes.join(QLatin1Char(' ')).contains(QLatin1String(v.id == QLatin1String("f4") ? "Every sheet was read whole" : "Every sheet ends where it should")), qPrintable(v.id + o.notes.join(QLatin1Char('|'))));
-            QVERIFY2(v.id == QLatin1String("f4") || !o.notes.join(QLatin1Char(' ')).contains(QLatin1String("read whole")), qPrintable(v.id + o.notes.join(QLatin1Char('|'))));
-            // (a container that was repaired is never reported as sound, whichever way the stream was put right)
-            QVERIFY2(!o.notes.join(QLatin1Char(' ')).contains(QLatin1String("The file was sound")), qPrintable(v.id + o.notes.join(QLatin1Char('|'))));
-            QVERIFY2(o.notes.join(QLatin1Char(' ')).contains(QLatin1String("stored in a confusing way")), qPrintable(v.id + o.notes.join(QLatin1Char('|'))));
+            // (a guess: the sheet and the row where it begins are named, and nothing is said to end where it should or to be whole)
+            QVERIFY2(said.contains(QLatin1String("In sheet \"A\", from row ")) && said.contains(QLatin1String("Compare it with a backup")), qPrintable(v.id + o.notes.join(QLatin1Char('|'))));
+            QVERIFY2(!said.contains(QLatin1String("ends where it should")) && !said.contains(QLatin1String("read whole")) && !said.contains(QLatin1String("were recovered")), qPrintable(v.id + o.notes.join(QLatin1Char('|'))));
         }
         QCOMPARE(checked, 4);
+    }
+
+    // Open and Repair never recovers less than the program did before (round 4, the owner's rule: recover as much as possible and warn). For each of the 28 kinds of damage, the numbers that
+    // come back are at least what the program before the rework gave (measured on that program: REPAIR.md, "Before"), and where the rework already won (a chain that is broken, a size that is
+    // too small) it keeps the win. g6 is refused, as it was.
+    void repairNeverRecoversLessThanBefore()
+    {
+        const int rows = 600;
+        const QByteArray big = xlsOfRows(rows, {QStringLiteral("Other")});
+        QList<cfbdamage::Variant> all = cfbdamage::sectorDamage(big, QStringLiteral("Workbook"), QStringLiteral("Other"));
+        all += cfbdamage::cuts(big);
+        all += cfbdamage::headerDamage(big);
+        const QByteArray small = xlsOfRows(30);
+        all += cfbdamage::miniDamage(small);
+        const QMap<QString, int> floor{{"a", 1200}, {"b", 1199}, {"c", 1199}, {"d", 622}, {"e", 1200}, {"f1", 1200}, {"f2", 1200}, {"f3", 1200}, {"f4", 1200}, {"f5", 1200}, {"h25", 330}, {"h50", 750}, {"h90", 1200},
+                                       {"i1", 1200}, {"i2", 1200}, {"i3", 1200}, {"i4", 1200}, {"i5", 1200}, {"i6", 1200}, {"i7", 1200}, {"i8", 1200}, {"i9", 1200},
+                                       {"g1", 60}, {"g2", 60}, {"g3", 60}, {"g4", 60}, {"g5", 60}, {"g6", 0}};
+        int checked = 0;
+        QStringList below;
+        for (const cfbdamage::Variant &v : std::as_const(all)) {
+            const XlsOutcome o = xlsOutcomeOf(v.file, v.id.startsWith(QLatin1Char('g')) ? 30 : rows);
+            ++checked;
+            if (v.id == QLatin1String("g6")) {
+                if (!o.refused) below << v.id + QStringLiteral(" (should be refused)");
+                continue;
+            }
+            if (o.refused || o.right < floor.value(v.id, 1 << 30)) below << QStringLiteral("%1: %2 right, at least %3 before").arg(v.id).arg(o.right).arg(floor.value(v.id));
+        }
+        QCOMPARE(checked, 28);
+        QVERIFY2(below.isEmpty(), qPrintable(below.join(QLatin1String("; "))));
+    }
+
+    // A stale copy of the workbook (an older save left in the file, in the same layout) lies right after a broken link: the guess takes its cells, nothing but the bytes tells them from the real ones, and
+    // so they are SHOWN, as the program did before, and WARNED of: the note names the sheet and a row at or before the first stale cell. A join at the very start (inside the front of the file, before the
+    // first sheet) says the whole workbook was pieced together.
+    void aStaleCopyAfterAJoinIsShownAndWarnedOf()
+    {
+        const int rows = 600;
+        QByteArray cells, stale;
+        for (int r = 0; r < rows; ++r) {
+            cells += number(r, 0, r);
+            stale += number(r, 0, r + 5000);
+        }
+        Book real, old;
+        real.sheet(QStringLiteral("A"), dimensions(rows, 1) + cells);
+        old.sheet(QStringLiteral("A"), dimensions(rows, 1) + stale);
+        const QByteArray good = cfbdamage::addStream(real.file(), QStringLiteral("Other"), old.stream());
+        const int n = int(cfbdamage::sectorsOf(good, QStringLiteral("Workbook")).size());
+        for (int k : {0, n / 2}) {
+            const QByteArray file = cfbdamage::staleAfterBrokenLink(good, QStringLiteral("Workbook"), QStringLiteral("Other"), k);
+            QStringList notes;
+            QString why;
+            const QByteArray stream = salvageXlsStream(file, Limits(), &notes, &why);
+            QVERIFY2(!stream.isEmpty(), qPrintable(why));
+            Workbook wb;
+            Sheet s;
+            QVERIFY2(wb.openBinary(stream, &why), qPrintable(why));
+            wb.readSheet(0, &s);
+            int firstStale = -1;
+            for (int r = 0; r < rows && firstStale < 0; ++r)
+                if (shown(wb, s, QStringLiteral("A%1").arg(r + 1)) == QStringLiteral("n:%1").arg(r + 5000)) firstStale = r;
+            QVERIFY2(firstStale >= 0, qPrintable(QStringLiteral("k=%1: no stale cell shown").arg(k)));
+            const QString said = notes.join(QLatin1Char('\n'));
+            QVERIFY2(said.contains(QLatin1String("Compare it with a backup")) && !said.contains(QLatin1String("ends where it should")) && !said.contains(QLatin1String("read whole")), qPrintable(said));
+            const QRegularExpressionMatch row = QRegularExpression(QStringLiteral("In sheet \"A\", from row (\\d+) on")).match(said);
+            if (k == 0) {
+                QVERIFY2(said.contains(QLatin1String("This whole workbook was pieced together")), qPrintable(said));
+                continue;
+            }
+            QVERIFY2(row.hasMatch() && row.captured(1).toInt() - 1 <= firstStale && firstStale - (row.captured(1).toInt() - 1) < 100, qPrintable(QStringLiteral("first stale row %1: ").arg(firstStale + 1) + said));
+        }
     }
 
     // Two directory entries of one name: the reading that is whole comes from one entry, and the sectors of the other are never joined to it.
@@ -1958,9 +2028,9 @@ private Q_SLOTS:
         }
     }
 
-    // A file cut in half loses its tables with the end of the file, so every piece is joined by guess. Exactly the cells that were whole before the cut and do not lie across a join come back: the
-    // cell the cut itself splits is not in the file (it is one of the cells after the cut), and no other cell at the edge of the cut is lost.
-    void aFileCutInHalfKeepsEveryWholeCellThatLiesInOnePiece()
+    // A file cut in half loses its tables with the end of the file, so every piece is joined by guess. Exactly the cells that were whole before the cut come back, the ones that lie across a join too
+    // (the piece in the file after another is the right one here): the cell the cut itself splits is not in the file, and no other cell at the edge of the cut is lost.
+    void aFileCutInHalfKeepsEveryWholeCell()
     {
         const int rows = 600;
         const QByteArray big = xlsOfRows(rows, {QStringLiteral("Other")});
@@ -1986,8 +2056,9 @@ private Q_SLOTS:
         const XlsOutcome o = xlsOutcomeOf(cut, rows);
         QVERIFY2(!o.refused, qPrintable(o.why));
         QCOMPARE(o.wrong, 0);
-        QCOMPARE(o.right, whole - across);
-        QCOMPARE(o.missing, rows * 2 - (whole - across));
+        QCOMPARE(o.right, whole);
+        QCOMPARE(o.missing, rows * 2 - whole);
+        QVERIFY2(o.notes.join(QLatin1Char(' ')).contains(QLatin1String("pieced together from a damaged file")), qPrintable(o.notes.join(QLatin1Char('|'))));
     }
 
     // Two entries of one name, the first unreadable: the later one is used, and the notes say so. When the first is used, nothing is said of it.
@@ -2097,9 +2168,9 @@ private Q_SLOTS:
         QVERIFY(right > 100);
     }
 
-    // The same, with the link after the neighbor's place broken instead of ended: the next piece in the file is the neighbor's. What follows the join is checked against the sheet's dimensions
-    // and the workbook's own list of where sheets start; cells outside them stop the stream, and the notes name the sheet where the unchecked part begins.
-    void whatFollowsAGuessedJoinIsCheckedAndSaid()
+    // The same, with the link after the neighbor's place broken instead of ended: the next piece in the file is the neighbor's, and it is read as it was before the rework, shown, with the notes naming
+    // the sheet and the row where what was not checked begins (the row of the first cell record at the join).
+    void whatFollowsAGuessedJoinIsShownAndSaid()
     {
         const XlsNeighbor n = xlsNeighbor(600);
         const QByteArray file = cfbdamage::neighborAfterBrokenLink(n.placed, QStringLiteral("Workbook"), QStringLiteral("Other"), n.k);
@@ -2107,13 +2178,14 @@ private Q_SLOTS:
         QString why;
         const QByteArray stream = salvageXlsStream(file, Limits(), &notes, &why);
         QVERIFY2(!stream.isEmpty(), qPrintable(why));
-        QVERIFY(!stream.contains(n.marker));   // (a cell below the sheet's last row is no cell of it)
         const QString said = notes.join(QLatin1Char('\n'));
-        QVERIFY2(said.contains(QLatin1String("checked only to see that it is in the right form")) && said.contains(QLatin1String("sheet \"A\"")), qPrintable(said));
+        const QRegularExpressionMatch row = QRegularExpression(QStringLiteral("In sheet \"A\", from row (\\d+) on")).match(said);
+        QVERIFY2(row.hasMatch() && said.contains(QLatin1String("Compare it with a backup")), qPrintable(said));
+        QVERIFY2(row.captured(1).toInt() > 1 && row.captured(1).toInt() < n.rows, qPrintable(said));
         QVERIFY2(!said.contains(QLatin1String("ends where it should")) && !said.contains(QLatin1String("read whole")), qPrintable(said));
     }
 
-    // A neighbor whose cells fall inside the sheet's dimensions cannot be told by its form: they are shown, and the notes say they were checked only for form and where they start.
+    // A neighbor whose cells fall inside the sheet's dimensions cannot be told by its form: they are shown, and the notes say where the part that was not checked begins.
     void aNeighborInsideTheDimensionsIsSaidNotHidden()
     {
         const XlsNeighbor n = xlsNeighbor(600, 100);
@@ -2123,12 +2195,12 @@ private Q_SLOTS:
         const QByteArray stream = salvageXlsStream(file, Limits(), &notes, &why);
         QVERIFY2(!stream.isEmpty(), qPrintable(why));
         const QString said = notes.join(QLatin1Char('\n'));
-        QVERIFY2(said.contains(QLatin1String("checked only to see that it is in the right form")) && said.contains(QLatin1String("sheet \"A\"")), qPrintable(said));
+        QVERIFY2(said.contains(QLatin1String("In sheet \"A\", from row ")) && said.contains(QLatin1String("Compare it with a backup")), qPrintable(said));
         QVERIFY2(!said.contains(QLatin1String("ends where it should")) && !said.contains(QLatin1String("read whole")), qPrintable(said));
     }
 
-    // A neighbor that is a whole workbook (its own globals begin record) can't be part of a sheet: the stream stops where it begins.
-    void aWholeWorkbookAfterAJoinStopsTheStream()
+    // A neighbor that is a whole workbook (its own globals begin record) after a guessed join: the workbook still opens, and nothing of the neighbor is made a cell of the sheet.
+    void aWholeWorkbookAfterAJoinIsNoCellOfTheSheet()
     {
         const XlsNeighbor n = xlsNeighbor(600);
         jp::cfb::File f;
@@ -2146,8 +2218,11 @@ private Q_SLOTS:
         QString why;
         const QByteArray stream = salvageXlsStream(file, Limits(), &notes, &why);
         QVERIFY2(!stream.isEmpty(), qPrintable(why));
-        QVERIFY(!stream.contains(number(0, 0, 9000)));
-        QVERIFY(!stream.contains(number(5, 0, 9005)));
+        Workbook wb;
+        QVERIFY2(wb.openBinary(stream, &why), qPrintable(why));
+        Sheet sh;
+        wb.readSheet(0, &sh);
+        QVERIFY(shown(wb, sh, QStringLiteral("A1")) == QLatin1String("n:0"));
     }
 
     // The work of leaving out what lies across guessed joins is one pass over the records and the joins: counted at 1, 2, and 4 MB it grows with the size and no faster. The sheet holds
@@ -2191,8 +2266,9 @@ private Q_SLOTS:
         }
     }
 
-    // A link of the tables that can't be read is guessed, and the cell that lies across the join is left out, not shown: the bytes there may be another sector's. The notes count it.
-    void aCellAcrossAGuessedJoinIsLeftOut()
+    // A link of the tables that can't be read is guessed, and the cell that lies across the join is shown, as the program did before; the notes name the sheet and the row of that cell, where what
+    // was not checked begins, and do not say the sheets end where they should.
+    void aCellAcrossAGuessedJoinIsShownAndItsRowNamed()
     {
         const int rows = 600;
         QByteArray f = xlsOfRows(rows);
@@ -2201,13 +2277,16 @@ private Q_SLOTS:
         const QByteArray stream = was.stream(QStringLiteral("Workbook"));
         const QList<quint32> c = cfbdamage::sectorsOf(f, QStringLiteral("Workbook"));
         // (the first sector from the 5th on that begins in the middle of a number cell)
-        int m = 5;
+        int m = 5, row = -1;
         for (; m < c.size() - 2; ++m) {
             qsizetype at = 0;
             bool inside = false;
             while (at + 4 <= stream.size() && at < m * 512) {
                 const int id = quint8(stream[at]) | quint8(stream[at + 1]) << 8, len = quint8(stream[at + 2]) | quint8(stream[at + 3]) << 8;
-                if (at < m * 512 && m * 512 < at + 4 + len) inside = id == 0x0203;
+                if (at < m * 512 && m * 512 < at + 4 + len) {
+                    inside = id == 0x0203;
+                    row = quint8(stream[at + 4]) | quint8(stream[at + 5]) << 8;
+                }
                 at += 4 + len;
             }
             if (inside) break;
@@ -2217,11 +2296,11 @@ private Q_SLOTS:
         const XlsOutcome o = xlsOutcomeOf(f, rows);
         QVERIFY2(!o.refused, qPrintable(o.why));
         QCOMPARE(o.wrong, 0);
-        QCOMPARE(o.missing, 1);
-        QCOMPARE(o.right, rows * 2 - 1);
+        QCOMPARE(o.missing, 0);
+        QCOMPARE(o.right, rows * 2);
         const QString said = o.notes.join(QLatin1Char('\n'));
-        QVERIFY2(said.contains(QLatin1String("1 entry of the workbook (a cell, a format, or a note) was left out")), qPrintable(said));
-        QVERIFY2(said.contains(QLatin1String("Every sheet ends where it should")) && !said.contains(QLatin1String("read whole")), qPrintable(said));   // (never "read whole" beside what was left out)
+        QVERIFY2(said.contains(QStringLiteral("In sheet \"A\", from row %1 on, and in any sheet that comes after it, this data was pieced together from a damaged file.").arg(row + 1)), qPrintable(said));
+        QVERIFY2(!said.contains(QLatin1String("ends where it should")) && !said.contains(QLatin1String("read whole")) && !said.contains(QLatin1String("left out")), qPrintable(said));   // (nothing is said to be whole beside a guess)
     }
 
     // A stretch of damage in the middle of the first sheet: that sheet keeps the cells before it, and the sheets after it, which the globals place by their own offsets, are kept whole.
@@ -2282,7 +2361,7 @@ private Q_SLOTS:
         QVERIFY2(row.hasMatch() && std::abs(row.captured(1).toInt() - (o.right + o.wrong + 1) / 2) <= 40, qPrintable(said + QString::number(o.right)));   // (a cell is left out at each join)
     }
 
-    // A file cut in the middle of its only sheet says which rows were recovered, and that the formats came whole.
+    // A file cut in the middle of its only sheet says which rows were recovered; the tables were guessed, so it does not say the formats came whole.
     void aSheetCutShortSaysHowFarItsRowsGo()
     {
         const int rows = 600;
@@ -2293,7 +2372,7 @@ private Q_SLOTS:
         const QString said = o.notes.join(QLatin1Char('\n'));
         const QRegularExpressionMatch row = QRegularExpression(QStringLiteral("Sheet \"A\" was cut short: its rows down to row (\\d+) were recovered")).match(said);
         QVERIFY2(row.hasMatch() && std::abs(row.captured(1).toInt() - (o.right + 1) / 2) <= 40, qPrintable(said));   // (a cell is left out at each join)
-        QVERIFY2(said.contains(QLatin1String("cell formats, fonts, and sheet names were recovered")), qPrintable(said));
+        QVERIFY2(!said.contains(QLatin1String("were recovered.")) && !said.contains(QLatin1String("read whole")) && said.contains(QLatin1String("pieced together from a damaged file")), qPrintable(said));
     }
 
     // Many sheets lost with the end of the file: the report lists the first few and says there are more, and the records walked to tell them apart stay inside the bound.

@@ -1381,8 +1381,11 @@ private Q_SLOTS:
             QVERIFY2(w.openFile(path, OpenHow::Repair), qPrintable(v.id));
             const QString shown = told.join(QLatin1Char('\n'));
             QVERIFY2(shown.contains(QLatin1String("Open and Repair")), qPrintable(v.id + shown));
-            if (v.id == QLatin1String("b")) QVERIFY2(shown.contains(QLatin1String("joined by a guess")), qPrintable(shown));
-            else QVERIFY2(shown.contains(QLatin1String("cut short")) || shown.contains(QLatin1String("could not be checked to see that it was complete")) || shown.contains(QLatin1String("lost")), qPrintable(v.id + shown));
+            // (what was pieced together by a guess is shown, and the message says so, with the slide where to start looking, or the whole presentation)
+            QVERIFY2(shown.contains(QLatin1String("pieced together from a damaged file")) && shown.contains(QLatin1String("Compare it with a backup")), qPrintable(v.id + shown));
+            if (v.id != QLatin1String("h50")) QVERIFY2(shown.contains(QLatin1String("From slide ")) || shown.contains(QLatin1String("This whole presentation")), qPrintable(v.id + shown));
+            else QVERIFY2(shown.contains(QLatin1String("cut short")) || shown.contains(QLatin1String("lost")), qPrintable(v.id + shown));
+            QVERIFY2(!shown.contains(QLatin1String("left out because")), qPrintable(v.id + shown));
         for (const QString &word : {QStringLiteral("sector"), QStringLiteral("stream"), QStringLiteral("directory"), QStringLiteral("chain"), QStringLiteral("FAT")})
             QVERIFY2(!shown.contains(word, Qt::CaseInsensitive), qPrintable(v.id + QLatin1Char(' ') + shown));
             w.editor()->markSaved();

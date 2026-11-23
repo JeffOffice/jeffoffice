@@ -704,8 +704,11 @@ void WriteTests::theWindowTellsWhatOpenAndRepairDidToADoc()
         QVERIFY2(w.openFile(path, OpenHow::Repair), qPrintable(v.id));
         const QString shown = told.join(QLatin1Char('\n'));
         QVERIFY2(shown.contains(QLatin1String("Open and Repair")), qPrintable(v.id + shown));
-        if (v.id == QLatin1String("b")) QVERIFY2(shown.contains(QLatin1String("checked only to see that it is in the right form")) && shown.contains(QLatin1String("paragraph")), qPrintable(shown));
-        else QVERIFY2(shown.contains(QLatin1String("cut short")) || shown.contains(QLatin1String("could not be checked to see that it was complete")), qPrintable(v.id + shown));
+        // (what was pieced together by a guess is shown, and the message says so, with the paragraph where to start looking, or the whole document)
+        QVERIFY2(shown.contains(QLatin1String("pieced together from a damaged file")) && shown.contains(QLatin1String("Compare it with a backup")), qPrintable(v.id + shown));
+        if (v.id != QLatin1String("h50")) QVERIFY2(shown.contains(QLatin1String("From paragraph ")) || shown.contains(QLatin1String("This whole document")), qPrintable(v.id + shown));
+        else QVERIFY2(shown.contains(QLatin1String("cut short")), qPrintable(v.id + shown));
+        QVERIFY2(!shown.contains(QLatin1String("left blank")), qPrintable(v.id + shown));
         for (const QString &word : {QStringLiteral("sector"), QStringLiteral("stream"), QStringLiteral("directory"), QStringLiteral("chain"), QStringLiteral("FAT")})
             QVERIFY2(!shown.contains(word, Qt::CaseInsensitive), qPrintable(v.id + QLatin1Char(' ') + shown));
     }

@@ -1665,19 +1665,12 @@ private Q_SLOTS:
             QStringList notes;
             QString why;
             auto d = repaired(v.file, &notes, &why);
-            if (v.id == QLatin1String("d")) {
-                // (the tables end the chain with their own end marker half way: nothing is read past it, so slides may be lost, and none is another's)
-                if (d) for (const QString &t : titles(*d)) QVERIFY2(t == QLatin1String("Plan") || t == QLatin1String("Quarterly Results") || t.isEmpty(), qPrintable(t));
-                continue;
-            }
             QVERIFY2(d, qPrintable(v.id + QLatin1Char(' ') + why));
-            if (notes.join(QLatin1Char(' ')).contains(QLatin1String("left out because it lay across"))) {
-                // (a part across a place where pieces were joined by guess is left out: a slide may be lost, and none is another's)
-                QVERIFY2(!d->pages.empty() && d->pages.size() <= 2, qPrintable(v.id));
-                for (const QString &t : titles(*d)) QVERIFY2(t == QLatin1String("Plan") || t == QLatin1String("Quarterly Results") || t.isEmpty(), qPrintable(v.id + t));
-            } else {
-                QVERIFY2(titles(*d) == (QStringList{"Plan", "Quarterly Results"}), qPrintable(v.id));
-            }
+            // (both slides come back; where pieces were joined by guess the notes say so and where it begins, and where nothing was guessed they say nothing of it)
+            QVERIFY2(titles(*d) == (QStringList{"Plan", "Quarterly Results"}), qPrintable(v.id + QLatin1Char(' ') + titles(*d).join(QLatin1Char(','))));
+            const QString said = notes.join(QLatin1Char(' '));
+            if (v.id == QLatin1String("b") || v.id == QLatin1String("c") || v.id == QLatin1String("d")) QVERIFY2(said.contains(QLatin1String("pieced together from a damaged file")) && said.contains(QLatin1String("Compare it with a backup")), qPrintable(v.id + said));
+            QVERIFY2(!said.contains(QLatin1String("left out")) && !said.contains(QLatin1String("was sound")), qPrintable(v.id + said));
         }
         for (const cfbdamage::Variant &v : cfbdamage::miniDamage(buildPpt())) {
             QStringList notes;
@@ -1688,11 +1681,79 @@ private Q_SLOTS:
                 QVERIFY(!why.isEmpty());
             } else {
                 QVERIFY2(d, qPrintable(v.id + QLatin1Char(' ') + why));
-                // (the small streams of a damaged mini container are joined by guess at every small sector: a slide may lose a part, and is not another's)
-                if (notes.join(QLatin1Char(' ')).contains(QLatin1String("left out because it lay across"))) QVERIFY2(!d->pages.empty() && d->pages.size() <= 2, qPrintable(v.id));
-                else QCOMPARE(int(d->pages.size()), 2);
+                // (the small streams of a damaged mini container are joined by guess at every small sector: both slides come back, and the notes say the whole presentation was pieced together)
+                QCOMPARE(int(d->pages.size()), 2);
+                if (v.id == QLatin1String("g1") || v.id == QLatin1String("g2")) QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("pieced together from a damaged file")), qPrintable(v.id + notes.join(QLatin1Char('|'))));
             }
         }
+    }
+
+    // Open and Repair never recovers less than the program did before (round 4, the owner's rule: recover as much as possible and warn). For each of the 28 kinds of damage, the slides and
+    // the titles that come back are at least what the program before the rework gave (REPAIR.md, "Before"); where the rework already won (a size too small) it keeps the win. g6 is refused.
+    void repairNeverRecoversLessThanBefore()
+    {
+        const QByteArray big = bigDeck();
+        QList<cfbdamage::Variant> all = cfbdamage::sectorDamage(big, pptDocumentStream(), QStringLiteral("Current User"));
+        all += cfbdamage::cuts(big);
+        all += cfbdamage::headerDamage(big);
+        all += cfbdamage::miniDamage(buildPpt());
+        struct Floor {
+            int slides;
+            QStringList titles;
+        };
+        const Floor both{2, {"Plan", "Quarterly Results"}}, second{1, {"Quarterly Results"}};
+        const QMap<QString, Floor> floor{{"a", both}, {"b", both}, {"c", both}, {"d", both}, {"e", both}, {"f1", both}, {"f2", both}, {"f3", both}, {"f4", both}, {"f5", both}, {"h25", {1, {}}}, {"h50", second},
+                                         {"h90", second}, {"i1", both}, {"i2", both}, {"i3", both}, {"i4", both}, {"i5", both}, {"i6", both}, {"i7", both}, {"i8", both}, {"i9", both},
+                                         {"g1", both}, {"g2", both}, {"g3", both}, {"g4", both}, {"g5", both}, {"g6", {0, {}}}};
+        int checked = 0;
+        QStringList below;
+        for (const cfbdamage::Variant &v : std::as_const(all)) {
+            QStringList notes;
+            QString why;
+            auto d = repaired(v.file, &notes, &why);
+            ++checked;
+            if (v.id == QLatin1String("g6")) {
+                if (d) below << v.id + QStringLiteral(" (should be refused)");
+                continue;
+            }
+            const Floor f = floor.value(v.id);
+            const QStringList got = d ? titles(*d) : QStringList();
+            bool titlesOk = true;
+            for (const QString &t : f.titles) titlesOk = titlesOk && got.contains(t);
+            if (!d || int(d->pages.size()) < f.slides || !titlesOk) below << QStringLiteral("%1: %2 slides (%3), at least %4 (%5) before").arg(v.id).arg(d ? int(d->pages.size()) : 0).arg(got.join(QLatin1Char(','))).arg(f.slides).arg(f.titles.join(QLatin1Char(',')));
+        }
+        QCOMPARE(checked, 28);
+        QVERIFY2(below.isEmpty(), qPrintable(below.join(QLatin1String("; "))));
+    }
+
+    // A stale copy of the presentation stream (an older save left in the file, the same layout) lies right after a broken link: its slide text is SHOWN, as the program did before, and WARNED of, with the
+    // slide where the unchecked part begins; a join at the very start, before the first slide, says the whole presentation was pieced together.
+    void aStaleCopyAfterAJoinIsShownAndWarnedOfInAPresentation()
+    {
+        const QByteArray big = bigDeck();
+        jp::cfb::File was;
+        QVERIFY(jp::cfb::read(big, &was));
+        QByteArray old = was.stream(pptDocumentStream());
+        const QByteArray plain = QByteArray("Quarterly Results");
+        const bool wide = old.contains(QByteArray(reinterpret_cast<const char *>(u"Quarterly Results"), 34));
+        old.replace(wide ? QByteArray(reinterpret_cast<const char *>(u"Quarterly Results"), 34) : plain, wide ? QByteArray(reinterpret_cast<const char *>(u"Staleish Copy!!!!"), 34) : QByteArray("Staleish Copy!!!!"));
+        const QByteArray good = cfbdamage::addStream(big, QStringLiteral("Other"), old);
+        const int n = int(cfbdamage::sectorsOf(good, pptDocumentStream()).size());
+        bool sawStale = false;
+        for (int k = 0; k + 1 < n; ++k) {
+            QStringList notes;
+            QString why;
+            auto d = repaired(cfbdamage::staleAfterBrokenLink(good, pptDocumentStream(), QStringLiteral("Other"), k), &notes, &why);
+            const QString said = notes.join(QLatin1Char('\n'));
+            if (!d) continue;
+            if (titles(*d).contains(QLatin1String("Staleish Copy!!!!"))) {
+                sawStale = true;
+                QVERIFY2(said.contains(QLatin1String("Compare it with a backup")) && (said.contains(QLatin1String("From slide ")) || said.contains(QLatin1String("This whole presentation"))), qPrintable(QStringLiteral("k=%1: ").arg(k) + said));
+                if (said.contains(QLatin1String("From slide "))) QVERIFY2(!said.contains(QLatin1String("From slide 3")), qPrintable(said));
+            }
+            if (k == 0) QVERIFY2(said.contains(QLatin1String("This whole presentation was pieced together")) || said.contains(QLatin1String("From slide 1 on")), qPrintable(said));
+        }
+        QVERIFY2(sawStale, "the stale title was never shown");
     }
 
     // A sound presentation of any size, from our own writer (the small one lives in the container's mini stream): Open and Repair says nothing was wrong and gives back the very streams it holds.
@@ -1762,12 +1823,9 @@ private Q_SLOTS:
         const QByteArray broken = cfbdamage::neighborAfterBrokenLink(placed, pptDocumentStream(), QStringLiteral("Other"), k);
         QStringList notes2;
         const QByteArray fixed2 = deck::salvagePresentation(broken, &notes2, &why);
-        if (!fixed2.isEmpty()) {
-            jp::cfb::File now;
-            QVERIFY(jp::cfb::read(fixed2, &now));
-            QVERIFY(!now.stream(pptDocumentStream()).contains(QByteArray(200, 'F')));
-        }
-        QVERIFY2(notes2.join(QLatin1Char(' ')).contains(QLatin1String("checked only to see that it is in the right form")), qPrintable(notes2.join(QLatin1Char('|'))));
+        // (it is shown, as the program did before, and the notes say where the part that was not checked begins)
+        QVERIFY2(!fixed2.isEmpty() || !why.isEmpty(), "nothing said");
+        QVERIFY2(notes2.join(QLatin1Char(' ')).contains(QLatin1String("this presentation was pieced together from a damaged file")), qPrintable(notes2.join(QLatin1Char('|'))));
     }
 
     // Leaving out what lies across guessed joins is one pass over the records and the joins: counted at 1, 2, and 4 MB of tiny records in one slide (a rescan of the siblings for every join made
@@ -1845,8 +1903,9 @@ private Q_SLOTS:
         QCOMPARE(checked, 3);
     }
 
-    // A link of the tables that can't be read is guessed, and the part of the presentation that lies across the join is left out (its type is made one that nothing acts on), not shown.
-    void aPartAcrossAGuessedJoinIsLeftOut()
+    // A link of the tables that can't be read is guessed, and what lies across the join is shown, as the program did before (the next piece in the file is the right one here, so the stream is as it
+    // was written); the notes name the slide where the part that was not checked begins: the number of slide records that begin at or before the join.
+    void aPartAcrossAGuessedJoinIsShownAndItsSlideNamed()
     {
         const QByteArray big = bigDeck();
         jp::cfb::File was;
@@ -1883,10 +1942,16 @@ private Q_SLOTS:
         QVERIFY(jp::cfb::read(fixed, &now));
         const QByteArray got = now.stream(pptDocumentStream());
         QVERIFY(got.size() >= original.size());
-        QByteArray expected = original;
-        qToLittleEndian(quint16(9999), expected.data() + part + 2);
-        QCOMPARE(got.left(original.size()), expected);
-        QVERIFY2(notes.join(QLatin1Char('\n')).contains(QLatin1String("1 part of the presentation (a shape, a line of text, or a picture) was left out")), qPrintable(notes.join(QLatin1Char('|'))));
+        QCOMPARE(got.left(original.size()), original);
+        int slide = 0;
+        for (qint64 pos = 0; pos + 8 <= original.size() && pos <= qint64(m) * 512;) {
+            if (qFromLittleEndian<quint16>(original.constData() + pos + 2) == 1006) ++slide;
+            pos += 8 + qFromLittleEndian<quint32>(original.constData() + pos + 4);
+        }
+        const QString said = notes.join(QLatin1Char('\n'));
+        if (slide > 0) QVERIFY2(said.contains(QStringLiteral("From slide %1 on, this presentation was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.").arg(slide)), qPrintable(said));
+        else QVERIFY2(said.contains(QLatin1String("This whole presentation was pieced together from a damaged file.")), qPrintable(said));
+        QVERIFY2(!said.contains(QLatin1String("left out")), qPrintable(said));
     }
 
     // A developer's hook, not a test: JO_REPAIR_TABLE names a file the outcome of each kind of damage is appended to.

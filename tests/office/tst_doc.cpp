@@ -3344,17 +3344,14 @@ private Q_SLOTS:
             QStringList notes;
             QString why;
             const QStringList gotParas = repairedParagraphs(v.file, &notes, &why);
-            if (v.id == QLatin1String("d")) {
-                // (the tables end the chain with their own end marker half way: nothing is read past it, so the text stops there, and the notes say it was cut short)
-                QVERIFY2(gotParas.size() > 10 && gotParas.size() < paras.size(), qPrintable(why));
-                QVERIFY(blanksAgainst(gotParas.mid(0, gotParas.size() - 1), paras.mid(0, gotParas.size() - 1)) >= 0);
-                ++checked;
-                continue;
-            }
-            const int blank = blanksAgainst(gotParas, paras);
-            QVERIFY2(blank >= 0 && blank <= int(paras.size()) / 5, qPrintable(v.id + why));
-            // (a paragraph is left blank only where the notes say pieces were joined by guess, and then they say how many)
-            QCOMPARE(blank > 0, notes.join(QLatin1Char(' ')).contains(QLatin1String("left blank")));
+            // (what lies across a guessed join is shown, as the program did before, and the notes say where it begins; with no guess nothing differs from the text written)
+            const QString said = notes.join(QLatin1Char('\n'));
+            const bool warned = said.contains(QLatin1String("pieced together from a damaged file"));
+            QVERIFY2(gotParas.size() == paras.size(), qPrintable(v.id + why));
+            QVERIFY2(warned || gotParas == paras, qPrintable(v.id + QLatin1Char(' ') + said));
+            // (a chain that ends early, loops, or points past the end is joined by guess in the middle of the text: the notes name the paragraph where it begins)
+            if (v.id == QLatin1String("b") || v.id == QLatin1String("c") || v.id == QLatin1String("d")) QVERIFY2(said.contains(QLatin1String("From paragraph ")) && said.contains(QLatin1String("Compare it with a backup")), qPrintable(v.id + QLatin1Char(' ') + said));
+            QVERIFY2(!said.contains(QLatin1String("left blank")) && !said.contains(QLatin1String("was sound")), qPrintable(v.id + QLatin1Char(' ') + said));
             ++checked;
         }
         QCOMPARE(checked, 19);
@@ -3369,6 +3366,46 @@ private Q_SLOTS:
                 QCOMPARE(repairedParagraphs(v.file, &notes, &why), (QStringList{"Hello world", "Second paragraph"}));
             }
         }
+    }
+
+    // Open and Repair never recovers less than the program did before (round 4, the owner's rule: recover as much as possible and warn). For each of the 28 kinds of damage, the paragraphs
+    // that come back right are at least what the program before the rework gave (REPAIR.md, "Before"); where the rework already won (a size too small) it keeps the win. g6 is refused.
+    void repairNeverRecoversLessThanBefore()
+    {
+        QStringList paras;
+        const QByteArray big = repairableDoc(&paras);
+        QList<cfbdamage::Variant> all = cfbdamage::sectorDamage(big, QStringLiteral("WordDocument"), QStringLiteral("1Table"));
+        all += cfbdamage::cuts(big);
+        all += cfbdamage::headerDamage(big);
+        const QByteArray small = simple(QStringLiteral("Hello world\rSecond paragraph\r")).build();
+        all += cfbdamage::miniDamage(small);
+        const QMap<QString, int> floor{{"a", 400}, {"b", 400}, {"c", 400}, {"d", 400}, {"e", 400}, {"f1", 400}, {"f2", 400}, {"f3", 400}, {"f4", 400}, {"f5", 400}, {"h25", 95}, {"h50", 238}, {"h90", 400},
+                                       {"i1", 400}, {"i2", 400}, {"i3", 400}, {"i4", 400}, {"i5", 400}, {"i6", 400}, {"i7", 400}, {"i8", 400}, {"i9", 400},
+                                       {"g1", 2}, {"g2", 2}, {"g3", 2}, {"g4", 2}, {"g5", 2}, {"g6", 0}};
+        int checked = 0;
+        QStringList below;
+        for (const cfbdamage::Variant &v : std::as_const(all)) {
+            const bool mini = v.id.startsWith(QLatin1Char('g'));
+            const QStringList want = mini ? QStringList{"Hello world", "Second paragraph"} : paras;
+            QStringList notes;
+            QString why;
+            const QByteArray fixed = doc::salvageDoc(v.file, &notes, &why);
+            Document d;
+            ++checked;
+            const bool opened = !fixed.isEmpty() && read(fixed, &d);
+            if (v.id == QLatin1String("g6")) {
+                if (opened) below << v.id + QStringLiteral(" (should be refused)");
+                continue;
+            }
+            int right = 0;
+            if (opened) {
+                const QStringList got = bodyTexts(d);
+                for (int i = 0; i < got.size() && i < want.size(); ++i) right += got[i] == want[i];
+            }
+            if (right < floor.value(v.id, 1 << 30)) below << QStringLiteral("%1: %2 right, at least %3 before").arg(v.id).arg(right).arg(floor.value(v.id));
+        }
+        QCOMPARE(checked, 28);
+        QVERIFY2(below.isEmpty(), qPrintable(below.join(QLatin1String("; "))));
     }
 
     // The reviewer's trigger for documents: the document stream's chain ends with its end marker inside the text, the directory gives three times its size, and a neighbor whose own start
@@ -3395,16 +3432,16 @@ private Q_SLOTS:
         for (const QString &p : got) QVERIFY2(!p.contains(QLatin1Char(0x5a)), qPrintable(p.left(60)));
         const QString said = notes.join(QLatin1Char('\n'));
         QVERIFY2(!said.contains(QLatin1String("was sound")), qPrintable(said));
-        // (with the link broken instead, the neighbor follows by guess: its text is not told by its form, so the notes say where the unchecked part begins)
+        // (with the link broken instead, the neighbor follows by guess, as it did before the rework: its text is shown, and the notes say where the part that was not checked begins)
         const QByteArray broken = cfbdamage::neighborAfterBrokenLink(placed, QStringLiteral("WordDocument"), QStringLiteral("Other"), k);
         QStringList notes2;
         repairedParagraphs(broken, &notes2, &why);
         const QString said2 = notes2.join(QLatin1Char('\n'));
-        QVERIFY2(said2.contains(QLatin1String("checked only to see that it is in the right form")) && said2.contains(QLatin1String("paragraph")), qPrintable(said2));
+        QVERIFY2(said2.contains(QLatin1String("pieced together from a damaged file")) && said2.contains(QLatin1String("Compare it with a backup")), qPrintable(said2));
     }
 
-    // Leaving blank what lies across guessed joins is one pass over the text and the joins: counted at 1, 2, and 4 MB of text with no paragraph mark but the last (the shape that made a scan for
-    // each join quadratic), with every other link of the chain broken, the work grows with the size and no faster.
+    // Telling the paragraph where the first guessed join falls is one pass over the text before it, and the joins are met once each: counted at 1, 2, and 4 MB of text with no paragraph mark but the
+    // last, with every other link of the chain broken, the work grows with the size and no faster.
     void theWorkAcrossJoinsGrowsInStepWithTheFileInADocument()
     {
         QVector<qint64> steps;
@@ -3413,12 +3450,12 @@ private Q_SLOTS:
             const QByteArray good = simple(QString(mb * 1024 * 1024, QLatin1Char('x')) + QLatin1Char('\r')).build();
             QByteArray file = good;
             const QList<quint32> c = cfbdamage::sectorsOf(good, QStringLiteral("WordDocument"));
-            for (int i = 3; i < c.size(); i += 2) cfbdamage::fatSet(file, c[i], 0x00FFFFF0);
+            for (int i = int(c.size()) / 2; i < c.size(); i += 2) cfbdamage::fatSet(file, c[i], 0x00FFFFF0);   // (the first join is half way: the text before it is gone over once)
             qint64 work = -1;
             QStringList notes;
             QString why;
             doc::salvageDoc(file, &notes, &why, &work);
-            QVERIFY2(work > 0, qPrintable(why));
+            QVERIFY2(work > qint64(good.size()) / 4, qPrintable(why));
             QVERIFY2(work <= 4 * qint64(good.size()) + c.size() * 2, qPrintable(QStringLiteral("%1 MB: %2 steps for %3 bytes").arg(mb).arg(work).arg(good.size())));
             if (last) QVERIFY2(double(work) / double(last) < 2.0 * 1.15, qPrintable(QStringLiteral("steps grew %1 times for twice the bytes").arg(double(work) / double(last))));
             last = work;
@@ -3527,10 +3564,10 @@ private Q_SLOTS:
             QVERIFY2(jp::office::salvageCompoundFile(bad, {w}, &out, &why), qPrintable(why));
             const QByteArray got = out.streams.value(QStringLiteral("S"));
             if (kind == 0) {
-                // (an end marker in the middle of the chain is the tables' own word that the stream ends there: nothing is read past it)
-                QCOMPARE(got, e.data.left(8 * 512));
-                QVERIFY(out.repaired);
-                QVERIFY(!out.joins.contains(QStringLiteral("S")));
+                // (an end marker in the middle of the chain, with pieces right after it that nobody claims, that are not marked free, and that fill exactly what the size still needs: the stream is
+                // read on through them, as it was before the rework, and the join is listed so that the caller says where the part that was not checked begins)
+                QCOMPARE(got, e.data);
+                QCOMPARE(out.joins.value(QStringLiteral("S")), (QVector<qint64>{8 * 512}));
                 continue;
             }
             QVERIFY2(got == e.data, qPrintable(QString::number(kind) + QLatin1Char(' ') + QString::number(got.size())));
@@ -3538,7 +3575,19 @@ private Q_SLOTS:
             // (a link that could not be read is a join by guess, and the stream says where; a size that disagrees with the tables is not)
             QCOMPARE(out.joins.contains(QStringLiteral("S")), kind < 3);
         }
-        // a stream with nothing to check it by is read as far as its tables and its size agree, and not past a link that can't be read
+        // (a marker followed by pieces that do not fit: one of them marked free, or the run too short for the size: the stream ends at the marker, and nothing is joined)
+        for (int kind = 0; kind < 2; ++kind) {
+            QByteArray bad = good;
+            cfbdamage::fatSet(bad, c[7], cfbdamage::kEnd);
+            if (kind == 0) cfbdamage::fatSet(bad, c[10], 0xFFFFFFFF);
+            if (kind == 1) cfbdamage::fatSet(bad, c[12], cfbdamage::kEnd);
+            jp::office::CfbSalvage out;
+            QString why;
+            QVERIFY2(jp::office::salvageCompoundFile(bad, {w}, &out, &why), qPrintable(why));
+            QCOMPARE(out.streams.value(QStringLiteral("S")), e.data.left(8 * 512));
+            QVERIFY2(!out.joins.contains(QStringLiteral("S")), qPrintable(QString::number(kind)));
+        }
+        // a stream with nothing to check it by is read the same way: on through the unclaimed pieces that fill its size
         {
             QByteArray bad = good;
             cfbdamage::fatSet(bad, c[7], cfbdamage::kEnd);
@@ -3547,7 +3596,7 @@ private Q_SLOTS:
             jp::office::CfbSalvage out;
             QString why;
             QVERIFY2(jp::office::salvageCompoundFile(bad, {plain}, &out, &why), qPrintable(why));
-            QCOMPARE(out.streams.value(QStringLiteral("S")), e.data.left(8 * 512));
+            QCOMPARE(out.streams.value(QStringLiteral("S")), e.data);
         }
     }
 
@@ -3570,8 +3619,9 @@ private Q_SLOTS:
         QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("stored in a confusing way")), qPrintable(notes.join(QLatin1Char('|'))));
     }
 
-    // A link of the tables that can't be read is guessed, and the paragraph that lies across the join is left blank, not shown: its bytes may be another sector's. The notes count it.
-    void aParagraphAcrossAGuessedJoinIsLeftBlank()
+    // A link of the tables that can't be read is guessed, and what lies across the join is shown, as the program did before, with the number of the paragraph where the part that was not checked
+    // begins, which is the paragraph the join falls in.
+    void aParagraphAcrossAGuessedJoinIsShownAndNamed()
     {
         QStringList paras, notes;
         const QByteArray good = repairableDoc(&paras);
@@ -3590,15 +3640,41 @@ private Q_SLOTS:
         QByteArray bad = good;
         cfbdamage::fatSet(bad, c[m - 1], 0x00FFFFF0);
         const QStringList got = repairedParagraphs(bad, &notes);
-        QCOMPARE(int(got.size()), int(paras.size()));
-        int different = 0;
-        for (int i = 0; i < got.size(); ++i) {
-            if (got[i] == paras[i]) continue;
-            ++different;
-            QVERIFY2(got[i].trimmed().isEmpty(), qPrintable(got[i]));
+        QCOMPARE(got, paras);   // (the next sector in the file is the right one here: it is shown, and the notes say it was a guess)
+        const qint64 paragraph = stream.mid(textStart, m * 512 - textStart).count('\r') + 1;
+        const QString said = notes.join(QLatin1Char('\n'));
+        QVERIFY2(said.contains(QStringLiteral("From paragraph %1 on, this text was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.").arg(paragraph)), qPrintable(said));
+        QVERIFY2(!said.contains(QLatin1String("left blank")) && !said.contains(QLatin1String("This whole document")), qPrintable(said));
+    }
+
+    // A stale copy of the document stream (an older save left in the file, the same layout) lies right after a broken link: its text is SHOWN, as the program did before, and WARNED of: the note names a
+    // paragraph at or before the first stale one. A join at the very start (in the header) says the whole document was pieced together.
+    void aStaleCopyAfterAJoinIsShownAndWarnedOfInADocument()
+    {
+        QStringList paras;
+        const QByteArray big = repairableDoc(&paras);
+        jp::cfb::File was;
+        QVERIFY(jp::cfb::read(big, &was));
+        QByteArray old = was.stream(QStringLiteral("WordDocument"));
+        old.replace("Paragraph", "Stalecopy");
+        const QByteArray good = cfbdamage::addStream(big, QStringLiteral("Other"), old);
+        const int n = int(cfbdamage::sectorsOf(good, QStringLiteral("WordDocument")).size());
+        for (int k : {0, n / 2}) {
+            QStringList notes;
+            const QStringList got = repairedParagraphs(cfbdamage::staleAfterBrokenLink(good, QStringLiteral("WordDocument"), QStringLiteral("Other"), k), &notes);
+            int firstStale = -1;
+            for (int i = 0; i < got.size() && firstStale < 0; ++i)
+                if (got[i].startsWith(QLatin1String("Stalecopy"))) firstStale = i;
+            const QString said = notes.join(QLatin1Char('\n'));
+            QVERIFY2(firstStale >= 0 || k == 0, qPrintable(QStringLiteral("k=%1: no stale paragraph shown. ").arg(k) + said));
+            QVERIFY2(said.contains(QLatin1String("Compare it with a backup")), qPrintable(said));
+            if (k == 0) {
+                QVERIFY2(said.contains(QLatin1String("This whole document was pieced together")), qPrintable(said));
+                continue;
+            }
+            const QRegularExpressionMatch p = QRegularExpression(QStringLiteral("From paragraph (\\d+) on")).match(said);
+            QVERIFY2(p.hasMatch() && p.captured(1).toInt() - 1 <= firstStale && firstStale - (p.captured(1).toInt() - 1) <= 3, qPrintable(QStringLiteral("first stale paragraph %1: ").arg(firstStale + 1) + said));
         }
-        QCOMPARE(different, 1);
-        QVERIFY2(notes.join(QLatin1Char('\n')).contains(QLatin1String("1 paragraph was left blank")), qPrintable(notes.join(QLatin1Char('|'))));
     }
 
     // The mere fact that the tables were guessed is said, and a sound container says nothing.

@@ -132,58 +132,41 @@ bool findText(const Span &wd, qint64 chars, qint64 from, qint64 *at, bool *unico
     return false;
 }
 
-// Leaves blank the paragraph that lies across each place where pieces of the file were joined by guess: the characters of the run between the paragraph marks on either side of the join
-// become spaces. `ranges` are the stretches of the stream that hold text (first byte, end, and whether two bytes make a character). Returns how many paragraphs were left blank. The joins
-// and the stretches are taken in order, and a join inside a paragraph already left blank is passed: the work is the bytes of the paragraphs and the joins, once each (`*steps` counts them).
-int blankAcrossJoins(QByteArray *wd, QVector<qint64> joins, QVector<std::array<qint64, 3>> ranges, qint64 *steps)
+// Where a byte of the stream falls in the text: before it (in the header), in a paragraph (counted from 1, by the paragraph marks of the stretches that hold text in the order of the text), or
+// after it (where the formatting is kept). `ranges` are the stretches of the stream that hold text (first byte, end, and whether two bytes make a character). One pass over the bytes before
+// the place, once each (`*steps` counts them).
+struct TextPlace {
+    enum Kind { Before, Paragraph, After } kind = After;
+    qint64 paragraph = 0;
+};
+TextPlace placeInText(const QByteArray &wd, qint64 j, const QVector<std::array<qint64, 3>> &ranges, qint64 *steps)
 {
-    std::sort(joins.begin(), joins.end());
-    std::sort(ranges.begin(), ranges.end());
-    int blanked = 0;
-    qint64 lastEnd = -1;
-    for (qint64 j : joins) {
-        ++*steps;
-        auto it = std::upper_bound(ranges.cbegin(), ranges.cend(), j, [](qint64 v, const std::array<qint64, 3> &r) { return v < r[0]; });   // (the first stretch that begins after the join)
-        if (it == ranges.cbegin()) continue;
-        const std::array<qint64, 3> &r = *(it - 1);
-        const qint64 from = r[0], to = r[1], unit = r[2] ? 2 : 1;
-        if (j <= from || j >= to || to > wd->size() || (j - from) % unit != 0 || j < lastEnd) continue;
-        auto mark = [&](qint64 o) { return unit == 1 ? quint8((*wd)[qsizetype(o)]) == 13 : quint8((*wd)[qsizetype(o)]) == 13 && (*wd)[qsizetype(o) + 1] == 0; };
-        qint64 a = j - unit, b = j;
-        while (a >= from && !mark(a)) {
-            a -= unit;
-            ++*steps;
-        }
-        while (b + unit <= to && !mark(b)) {
-            b += unit;
-            ++*steps;
-        }
-        a += unit;
-        if (b + unit > to && !mark(b)) b = to;   // (the text ends without a mark)
-        if (a >= lastEnd) ++blanked;
-        lastEnd = std::max(lastEnd, b);
-        for (qint64 o = a; o < b; o += unit) {
-            (*wd)[qsizetype(o)] = ' ';
-            if (unit == 2) (*wd)[qsizetype(o) + 1] = 0;
-            ++*steps;
-        }
+    TextPlace out;
+    if (ranges.isEmpty()) return out;
+    qint64 first = ranges.first()[0], last = 0;
+    for (const auto &r : ranges) {
+        first = std::min(first, r[0]);
+        last = std::max(last, std::min<qint64>(r[1], wd.size()));
     }
-    return blanked;
-}
-
-// The number (counting from 1) of the paragraph that the byte at offset `j` of the stream is in, counting the paragraph marks of the stretches that hold text in the order of the text; 0 if
-// that byte is not in the text.
-qint64 paragraphAt(const QByteArray &wd, qint64 j, const QVector<std::array<qint64, 3>> &ranges)
-{
+    if (j < first) {
+        out.kind = TextPlace::Before;
+        return out;
+    }
+    if (j >= last) return out;
+    out.kind = TextPlace::Paragraph;
     qint64 n = 1;
     for (const auto &r : ranges) {
         const qint64 from = r[0], to = std::min<qint64>(r[1], wd.size()), unit = r[2] ? 2 : 1;
-        const bool here = j >= from && j < to;
-        for (qint64 o = from; o + unit <= (here ? j : to); o += unit)
+        // (a join in a stretch counts the marks before it; a join before the stretch, or after it, counts all of it or none: the stretches are in the order of the text)
+        const qint64 stop = std::clamp<qint64>(j, from, to);
+        for (qint64 o = from; o + unit <= stop; o += unit) {
+            ++*steps;
             if (quint8(wd[qsizetype(o)]) == 13 && (unit == 1 || wd[qsizetype(o) + 1] == 0)) ++n;
-        if (here) return n;
+        }
+        if (j >= from && j < to) break;
     }
-    return 0;
+    out.paragraph = n;
+    return out;
 }
 
 } // namespace
@@ -300,13 +283,13 @@ QByteArray salvageDoc(const QByteArray &file, QStringList *notes, QString *error
         QString ignored;
         return !toDocxPackage(rebuildCompoundFile(s), &ignored, nullptr).isEmpty();
     };
-    // (where pieces were joined by guess in the text, the paragraph that lies across the join is left blank)
-    int blanked = 0;
+    // (where pieces were joined by guess in the text, what lies across and after the first join is shown as it is read, and the notes say where it begins)
     qint64 steps = 0;
-    qint64 joinParagraph = -1;   // the paragraph the first guessed join is in, 0 if it is not in the text
+    TextPlace joinPlace;   // where the first guessed join falls: before the text, in a paragraph, or after the text
     const QVector<qint64> textJoins = found.joins.value(QStringLiteral("WordDocument"));
-    if (!textJoins.isEmpty() && found.streams.contains(tableName)) {
-        QByteArray wdNow = found.streams.value(QStringLiteral("WordDocument"));
+    const qint64 firstJoin = textJoins.isEmpty() ? -1 : *std::min_element(textJoins.cbegin(), textJoins.cend());
+    if (firstJoin >= 0 && firstJoin < found.streams.value(QStringLiteral("WordDocument")).size() && found.streams.contains(tableName)) {
+        const QByteArray wdNow = found.streams.value(QStringLiteral("WordDocument"));
         const Span wdSpan(wdNow);
         const QByteArray tbl = found.streams.value(tableName);
         const Span tableSpan(tbl);
@@ -316,20 +299,14 @@ QByteArray salvageDoc(const QByteArray &file, QStringList *notes, QString *error
         QVector<std::array<qint64, 3>> ranges;
         if (clx.lcb > 0 && qint64(clx.fc) + clx.lcb <= tbl.size() && table.read(tableSpan.sub(clx.fc, clx.lcb), wdSpan, fib.ccpText, &truncated))
             for (const Piece &p : table.pieces()) ranges.push_back({p.fc, p.fc + (p.cp1 - p.cp0) * (p.unicode ? 2 : 1), p.unicode ? 1 : 0});
-        blanked = blankAcrossJoins(&wdNow, textJoins, ranges, &steps);
-        joinParagraph = paragraphAt(wdNow, textJoins.first(), ranges);
-        found.streams.insert(QStringLiteral("WordDocument"), wdNow);
+        joinPlace = placeInText(wdNow, firstJoin, ranges, &steps);
+        if (ranges.isEmpty()) joinPlace.kind = TextPlace::Before;   // (the text can't be told: the whole document is in doubt)
     }
-    // (the data stream holds the pictures: what lies before the first guessed join in it is kept, and the notes say that some could not be fully recovered)
+    // (the data stream holds the pictures: they are read as far as they go, and the notes say that some may not be whole)
     bool picturesDamaged = found.partial.contains(QStringLiteral("Data")) || found.lost.contains(QStringLiteral("Data"));
     {
         const QVector<qint64> dataJoins = found.joins.value(QStringLiteral("Data"));
-        QByteArray data = found.streams.value(QStringLiteral("Data"));
-        if (!dataJoins.isEmpty() && dataJoins.first() < data.size()) {
-            data.truncate(qsizetype(dataJoins.first()));
-            found.streams.insert(QStringLiteral("Data"), data);
-            picturesDamaged = true;
-        }
+        if (!dataJoins.isEmpty() && dataJoins.first() < found.streams.value(QStringLiteral("Data")).size()) picturesDamaged = true;
     }
     bool plain = !found.streams.contains(tableName) || !reads(found);
     if (plain) {
@@ -363,8 +340,7 @@ QByteArray salvageDoc(const QByteArray &file, QStringList *notes, QString *error
         for (qint64 k : {16, 20, 28, 32, 36, 40}) put32(header, at.ccp + k, 0);   // (the stories after the main text)
         put32(header, at.ccp + 12, quint32(length));
         const QVector<std::array<qint64, 3>> one{{start, start + length * (wide ? 2 : 1), wide ? 1 : 0}};
-        if (blanked == 0) blanked = blankAcrossJoins(&header, textJoins, one, &steps);
-        if (!textJoins.isEmpty()) joinParagraph = paragraphAt(header, textJoins.first(), one);
+        if (firstJoin >= 0) joinPlace = placeInText(header, firstJoin, one, &steps);
         found.streams.insert(QStringLiteral("WordDocument"), header);
         found.streams.insert(tableName, clx);
         found.streams.remove(QStringLiteral("Data"));
@@ -378,17 +354,20 @@ QByteArray salvageDoc(const QByteArray &file, QStringList *notes, QString *error
     } else if (!found.streams.contains(QStringLiteral("Data")) && (!found.directoryRead || ((found.cutShort || found.tablesGuessed) && found.directoryNames.contains(QStringLiteral("Data"), Qt::CaseInsensitive)))) {
         said << QCoreApplication::translate("jp::office::doc::Salvage", "The pictures of the document, if it had any, could not be found.");
     }
-    if (blanked > 0) said << QCoreApplication::translate("jp::office::doc::Salvage", "%n paragraph was left blank because it lay across a place where pieces of the file were joined by a guess.", nullptr, blanked);
-    // (what follows a guessed join has no structure to check it by except the header and the table of pieces, which it fits: it is shown, and the notes say where it starts)
-    if (!textJoins.isEmpty() && textJoins.first() < found.streams.value(QStringLiteral("WordDocument")).size()) {
-        if (joinParagraph > 0) said << QCoreApplication::translate("jp::office::doc::Salvage", "What follows a place where pieces of the file were joined by a guess was checked only to see that it is in the right form, not that it belongs here. It starts in paragraph %1.").arg(joinParagraph);
-        else said << QCoreApplication::translate("jp::office::doc::Salvage", "What follows a place where pieces of the file were joined by a guess was checked only to see that it is in the right form, not that it belongs here. It starts after the text, in what holds its formatting.");
+    // (what lies across or after a guessed join is shown as it is read; the notes say where the part that was not checked begins)
+    if (firstJoin >= 0 && firstJoin < found.streams.value(QStringLiteral("WordDocument")).size()) {
+        if (joinPlace.kind == TextPlace::Paragraph)
+            said << QCoreApplication::translate("jp::office::doc::Salvage", "From paragraph %1 on, this text was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.").arg(joinPlace.paragraph);
+        else if (joinPlace.kind == TextPlace::Before)
+            said << QCoreApplication::translate("jp::office::doc::Salvage", "This whole document was pieced together from a damaged file. It may be an older version or come from another part of the file. Compare it with a backup if you have one.");
+        else
+            said << QCoreApplication::translate("jp::office::doc::Salvage", "The formatting of this document was pieced together from a damaged file, so some of it may be wrong. Compare the document with a backup if you have one.");
     }
     // (the tables that say how the text is formatted, read across a guessed join, are shown as they are, and the notes say they were checked only for their form)
     {
         const QVector<qint64> tableJoins = found.joins.value(tableName);
         if (!plain && !tableJoins.isEmpty() && tableJoins.first() < found.streams.value(tableName).size())
-            said << QCoreApplication::translate("jp::office::doc::Salvage", "Part of what says how the text is formatted was put together by a guess, and was checked only to see that it is in the right form, not that it belongs here.");
+            said << QCoreApplication::translate("jp::office::doc::Salvage", "Part of what says how the text is formatted was pieced together from a damaged file, so some of the formatting may be wrong.");
     }
     if (joinSteps) *joinSteps = steps + textJoins.size();
     if (notes) *notes = said;

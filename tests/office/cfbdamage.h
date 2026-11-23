@@ -2,6 +2,8 @@
 // Damage done to a compound file, built in code from a sound one our own writers make, for the tests of Open and Repair of every old binary format (a document, a presentation, a
 // workbook). The functions work on the bytes: the header, the table of sectors, the directory, and the mini stream are found as the format lays them out.
 
+#include "io/cfb.h"
+
 #include <QByteArray>
 #include <QList>
 #include <QPair>
@@ -96,6 +98,43 @@ inline QByteArray neighborAfterBrokenLink(const QByteArray &placed, const QStrin
 {
     QByteArray f = placed;
     const QList<quint32> c = sectorsOf(placed, name);
+    fatSet(f, c[k], 0x00FFFFF0);
+    set32(f, entryOf(f, other) + 116, 0x00FFFFF0);
+    return f;
+}
+
+// `good` with one more stream, `other`: a copy of the stream `name` in the same layout (the same length) whose bytes are `copy`. A stale copy of the kind an earlier save leaves behind.
+inline QByteArray addStream(const QByteArray &good, const QString &other, const QByteArray &copy)
+{
+    jp::cfb::File f;
+    jp::cfb::read(good, &f);
+    jp::cfb::Entry e;
+    e.type = jp::cfb::Entry::Stream;
+    e.name = other;
+    e.data = copy;
+    f.entries[0].children << int(f.entries.size());
+    f.entries << e;
+    return jp::cfb::write(f);
+}
+
+// The stale copy `other` laid in the file so that its sectors from the (k+1)-th on lie right after the k-th sector of `name`'s chain, in the same order as `name`'s own (the chains follow the
+// bytes, so both streams still read); then the link after the k-th sector is broken and the copy's start is damaged, so that no chain claims its sectors. A guess that takes the next piece in the
+// file takes the stale copy's bytes where `name`'s own were, and nothing but the bytes tells them apart.
+inline QByteArray staleAfterBrokenLink(const QByteArray &good, const QString &name, const QString &other, int k)
+{
+    QByteArray f = good;
+    const QList<quint32> c = sectorsOf(good, name), o = sectorsOf(good, other);
+    const int m = int(std::min<qsizetype>(o.size() - (k + 1), c.size() - k - 1));
+    for (int t = 0; t < m; ++t) {
+        const QByteArray a = good.mid(sectorAt(int(c[k + 1 + t])), 512), b = good.mid(sectorAt(int(o[k + 1 + t])), 512);
+        f.replace(sectorAt(int(c[k + 1 + t])), 512, b);
+        f.replace(sectorAt(int(o[k + 1 + t])), 512, a);
+    }
+    // (the copy's bytes now lie in `name`'s places and `name`'s in the copy's: the chains are changed to follow the bytes)
+    QList<quint32> otherSeq = o.mid(0, k + 1);
+    for (int t = 0; t < m; ++t) otherSeq << c[k + 1 + t];
+    otherSeq += o.mid(k + 1 + m);
+    for (int i = 0; i < int(otherSeq.size()); ++i) fatSet(f, otherSeq[i], i + 1 < int(otherSeq.size()) ? otherSeq[i + 1] : kEnd);
     fatSet(f, c[k], 0x00FFFFF0);
     set32(f, entryOf(f, other) + 116, 0x00FFFFF0);
     return f;
