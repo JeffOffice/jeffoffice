@@ -85,12 +85,15 @@ protected:
 private:
     void rebuild(const QStringList &pickedKeys = QStringList());
     QStringList keysOfRows(const QVector<int> &rows) const;
+    int effectRowOf(int listRow) const;   // -1 for the title of a trigger's effects
+    int listRowOf(int effectRow) const;
     QListWidget *m_list = nullptr;
     QPushButton *m_playAll = nullptr, *m_playFrom = nullptr, *m_earlier = nullptr, *m_later = nullptr;
     QLabel *m_empty = nullptr;
     Editor *m_ed;
     deck::AnimSequence m_seq;
-    QVector<Row> m_rows;
+    QVector<Row> m_rows;        // by row of the list: effects, and the titles of triggers' effects
+    QVector<int> m_listRows;    // the row of the list that each effect (as the sequence has it) is in
     int m_scale = 1000;       // ms the bars run to
     QString m_page;
     quint64 m_signature = 0;
@@ -106,6 +109,8 @@ public:
     // Plays the effects of `slide` from click step `fromStep` (0 is the first), the slide drawn in `area` of the widget.
     // False when the slide has nothing to play.
     bool play(int slide, const QRect &area, int fromStep = 0);
+    // Plays the effects that wait for a click on the object `shape`, as that click would start them.
+    bool playTrigger(int slide, const QRect &area, int shape);
     bool isPlaying() const { return m_timer.isActive(); }
     // Ends it at once (the presentation it plays is gone): no step is drawn after this.
     void cancel()
@@ -116,6 +121,8 @@ public:
     }
     // The click step playing.
     int step() const { return m_step; }
+    // How many milliseconds the steps it plays take.
+    double length() const { return m_total; }
 
 Q_SIGNALS:
     void stepChanged(int step);
@@ -129,6 +136,7 @@ protected:
 private:
     void tick();
     void stop();
+    void begin(int slide, const QRect &area, int fromStep);
     const Document *m_doc;
     LayoutCache *m_cache;
     QTimer m_timer;

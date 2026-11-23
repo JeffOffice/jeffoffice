@@ -899,6 +899,7 @@ void Editor::deleteItems(const QStringList &ids)
         if (Item *it = m_doc->item(id); it && it->type() == ItemType::Group)
             walkItems(static_cast<GroupItem *>(it)->children, [&](const ItemPtr &c) { all << c->id; });
     }
+    if (itemsDeleting) itemsDeleting(all);
     removeFromChains(all);
     for (const auto &id : ids) {
         const auto loc = m_doc->find(id);

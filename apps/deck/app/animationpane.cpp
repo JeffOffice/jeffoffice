@@ -129,6 +129,9 @@ struct AnimationPane::Row {
     int click = 0, begin = 0, end = 0;
     deck::EffectClass cls = deck::EffectClass::Entrance;
     bool onClick = false, playing = false;
+    bool header = false;     // "When Button is clicked": the title of a trigger's effects, not an effect
+    bool trigger = false;    // an effect of a trigger (it starts at the click on the object)
+    int effectRow = -1;      // the effect it stands for, as the sequence has it; -1 for a title
     QIcon icon;
 };
 
@@ -137,7 +140,11 @@ namespace {
 class RowDelegate : public QStyledItemDelegate {
 public:
     RowDelegate(const QVector<AnimationPane::Row> *rows, const int *scale, QObject *parent) : QStyledItemDelegate(parent), m_rows(rows), m_scale(scale) {}
-    QSize sizeHint(const QStyleOptionViewItem &, const QModelIndex &) const override { return QSize(100, 42); }
+    QSize sizeHint(const QStyleOptionViewItem &, const QModelIndex &index) const override
+    {
+        const int row = index.row();
+        return QSize(100, row >= 0 && row < m_rows->size() && (*m_rows)[row].header ? 30 : 42);
+    }
 
     void paint(QPainter *p, const QStyleOptionViewItem &option, const QModelIndex &index) const override
     {
@@ -147,6 +154,31 @@ public:
         p->save();
         p->setRenderHint(QPainter::Antialiasing);
         const QRect r = option.rect;
+        if (d.header) {
+            // "When Button is clicked": a pointer, and the object's name, over a faint band.
+            const QColor band = uiAccent();
+            p->fillRect(r.adjusted(2, 1, -2, 0), QColor(band.red(), band.green(), band.blue(), 24));
+            p->setPen(QPen(uiText(), 1.4));
+            p->setBrush(Qt::NoBrush);
+            QPainterPath pointer;
+            const QPointF at(r.left() + 12, r.center().y() - 6);
+            pointer.moveTo(at);
+            pointer.lineTo(at + QPointF(0, 11));
+            pointer.lineTo(at + QPointF(3, 8));
+            pointer.lineTo(at + QPointF(6, 13));
+            pointer.lineTo(at + QPointF(8, 12));
+            pointer.lineTo(at + QPointF(5.5, 7));
+            pointer.lineTo(at + QPointF(9, 7));
+            pointer.closeSubpath();
+            p->drawPath(pointer);
+            QFont f = option.font;
+            f.setBold(true);
+            p->setFont(f);
+            p->setPen(uiText());
+            p->drawText(QRect(r.left() + 30, r.top(), r.width() - 38, r.height()), Qt::AlignLeft | Qt::AlignVCenter, QFontMetrics(f).elidedText(d.shape, Qt::ElideRight, r.width() - 38));
+            p->restore();
+            return;
+        }
         const bool selected = option.state & QStyle::State_Selected;
         const QColor accent = uiAccent();
         if (selected) p->fillRect(r.adjusted(2, 1, -2, -1), QColor(accent.red(), accent.green(), accent.blue(), 46));
@@ -157,7 +189,25 @@ public:
         const int mid = r.center().y();
         // The click it takes: a number for an effect that starts at a click; the others hang from the one before.
         const QRect badge(x, mid - 9, 20, 18);
-        if (d.onClick) {
+        if (d.onClick && d.trigger) {
+            // At the click on the object, not a click of the slide's own: a pointer instead of a number.
+            p->setPen(Qt::NoPen);
+            p->setBrush(accent);
+            p->drawRoundedRect(badge, 5, 5);
+            p->setPen(QPen(Qt::white, 1.3));
+            p->setBrush(Qt::NoBrush);
+            QPainterPath pointer;
+            const QPointF at(badge.center().x() - 4, badge.top() + 3);
+            pointer.moveTo(at);
+            pointer.lineTo(at + QPointF(0, 10));
+            pointer.lineTo(at + QPointF(2.6, 7.4));
+            pointer.lineTo(at + QPointF(5, 11.5));
+            pointer.lineTo(at + QPointF(6.4, 10.8));
+            pointer.lineTo(at + QPointF(4.2, 6.6));
+            pointer.lineTo(at + QPointF(7.6, 6.6));
+            pointer.closeSubpath();
+            p->drawPath(pointer);
+        } else if (d.onClick) {
             p->setPen(Qt::NoPen);
             p->setBrush(accent);
             p->drawRoundedRect(badge, 5, 5);
@@ -419,8 +469,20 @@ AnimationPane::AnimationPane(Editor *ed, QWidget *parent) : QWidget(parent), m_e
     });
     connect(m_earlier, &QPushButton::clicked, this, [this] { Q_EMIT reorderRequested(-1); });
     connect(m_later, &QPushButton::clicked, this, [this] { Q_EMIT reorderRequested(1); });
-    list->moved = [this](int from, int to) { Q_EMIT moveRequested(from, to); };
-    list->removed = [this](const QVector<int> &rows) { Q_EMIT removeRequested(rows); };
+    list->moved = [this](int from, int to) {
+        // A drop on a title lands at the start of its effects; below the last row, at the end.
+        const int effectFrom = effectRowOf(from);
+        int effectTo = effectRowOf(to);
+        if (effectTo < 0 && to >= 0 && to < m_rows.size())
+            for (int k = to + 1; k < m_rows.size() && effectTo < 0; ++k) effectTo = m_rows[k].effectRow;
+        if (effectFrom >= 0 && effectTo >= 0) Q_EMIT moveRequested(effectFrom, effectTo);
+    };
+    list->removed = [this](const QVector<int> &rows) {
+        QVector<int> effects;
+        for (int r : rows)
+            if (const int e = effectRowOf(r); e >= 0) effects << e;
+        if (!effects.isEmpty()) Q_EMIT removeRequested(effects);
+    };
     connect(m_list, &QListWidget::itemSelectionChanged, this, [this] {
         const QVector<int> rows = selectedRows();
         m_playFrom->setEnabled(!rows.isEmpty());
@@ -430,11 +492,13 @@ AnimationPane::AnimationPane(Editor *ed, QWidget *parent) : QWidget(parent), m_e
     });
     connect(m_list, &QListWidget::customContextMenuRequested, this, [this](const QPoint &at) {
         const QModelIndex i = m_list->indexAt(at);
-        if (!i.isValid()) return;
+        if (!i.isValid() || effectRowOf(i.row()) < 0) return;
         if (!m_list->selectionModel()->isSelected(i)) m_list->setCurrentRow(i.row());
-        Q_EMIT menuRequested(i.row(), m_list->viewport()->mapToGlobal(at));
+        Q_EMIT menuRequested(effectRowOf(i.row()), m_list->viewport()->mapToGlobal(at));
     });
-    connect(m_list, &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem *it) { Q_EMIT optionsRequested(m_list->row(it)); });
+    connect(m_list, &QListWidget::itemDoubleClicked, this, [this](QListWidgetItem *it) {
+        if (const int e = effectRowOf(m_list->row(it)); e >= 0) Q_EMIT optionsRequested(e);
+    });
     connect(ed, &Editor::changed, this, &AnimationPane::reload);
     connect(ed, &Editor::pageChanged, this, &AnimationPane::reload);
     connect(ed, &Editor::documentReplaced, this, &AnimationPane::reload);
@@ -454,12 +518,17 @@ bool AnimationPane::eventFilter(QObject *o, QEvent *e)
     return QWidget::eventFilter(o, e);
 }
 
-int AnimationPane::rowCount() const { return m_list->count(); }
+int AnimationPane::rowCount() const { return m_seq.rowCount(); }
+
+int AnimationPane::effectRowOf(int listRow) const { return listRow >= 0 && listRow < m_rows.size() ? m_rows[listRow].effectRow : -1; }
+
+int AnimationPane::listRowOf(int effectRow) const { return effectRow >= 0 && effectRow < m_listRows.size() ? m_listRows[effectRow] : -1; }
 
 QVector<int> AnimationPane::selectedRows() const
 {
     QVector<int> rows;
-    for (const QModelIndex &i : m_list->selectionModel()->selectedRows()) rows << i.row();
+    for (const QModelIndex &i : m_list->selectionModel()->selectedRows())
+        if (const int e = effectRowOf(i.row()); e >= 0) rows << e;
     std::sort(rows.begin(), rows.end());
     return rows;
 }
@@ -470,24 +539,24 @@ void AnimationPane::selectRows(const QVector<int> &rows)
     m_quiet = true;
     m_list->clearSelection();
     for (int r : rows)
-        if (r >= 0 && r < m_list->count()) m_list->item(r)->setSelected(true);
-    if (!rows.isEmpty() && rows.first() < m_list->count()) m_list->setCurrentRow(rows.first(), QItemSelectionModel::NoUpdate);
+        if (const int at = listRowOf(r); at >= 0) m_list->item(at)->setSelected(true);
+    if (!rows.isEmpty() && listRowOf(rows.first()) >= 0) m_list->setCurrentRow(listRowOf(rows.first()), QItemSelectionModel::NoUpdate);
     m_quiet = was;
 }
 
 void AnimationPane::selectShapes(const QSet<int> &numbers)
 {
     QVector<int> rows;
-    for (int i = 0; i < m_seq.effects.size(); ++i)
-        if (numbers.contains(m_seq.effects[i].shape)) rows << i;
+    for (int i = 0; i < m_seq.rowCount(); ++i)
+        if (numbers.contains(m_seq.anim(i).shape)) rows << i;
     selectRows(rows);
 }
 
-const deck::Anim *AnimationPane::effect(int row) const { return row >= 0 && row < m_seq.effects.size() ? &m_seq.effects[row] : nullptr; }
+const deck::Anim *AnimationPane::effect(int row) const { return row >= 0 && row < m_seq.rowCount() ? &m_seq.anim(row) : nullptr; }
 
 void AnimationPane::setPlaying(int row)
 {
-    for (int i = 0; i < m_rows.size(); ++i) m_rows[i].playing = i == row;
+    for (int i = 0; i < m_rows.size(); ++i) m_rows[i].playing = m_rows[i].effectRow == row && row >= 0;
     m_list->viewport()->update();
 }
 
@@ -530,12 +599,14 @@ void AnimationPane::rebuild(const QStringList &pickedKeys)
         if (it->sourceId > 0 && !shapes.contains(it->sourceId)) shapes.insert(it->sourceId, it.get());
     });
     m_rows.clear();
+    m_listRows.clear();
     const bool was = m_quiet;
     m_quiet = true;
     m_list->clear();
     int longest = 1000;
-    for (int i = 0; i < m_seq.effects.size(); ++i) {
-        const deck::Anim &a = m_seq.effects[i];
+    // One row of the list for the effect at `effectRow`.
+    auto addEffect = [&](int effectRow, bool trigger) {
+        const deck::Anim &a = m_seq.anim(effectRow);
         Row r;
         const Item *it = shapes.value(a.shape, nullptr);
         const QString name = it ? shapeName(*it) : tr("Shape %1").arg(a.shape);
@@ -544,11 +615,13 @@ void AnimationPane::rebuild(const QStringList &pickedKeys)
         r.shape = text.isEmpty() ? name : text;
         r.effect = effectLabel(a);   // its class shows in the picture's color, and in the tip
         r.start = startLabel(a.start);
-        r.click = m_seq.clickOf(i);
-        r.begin = m_seq.beginOf(i);
-        r.end = m_seq.endOf(i);
+        r.click = m_seq.clickOf(effectRow);
+        r.begin = m_seq.beginOf(effectRow);
+        r.end = m_seq.endOf(effectRow);
         r.cls = a.cls;
         r.onClick = a.start == deck::EffectStart::OnClick;
+        r.trigger = trigger;
+        r.effectRow = effectRow;
         const deck::EffectKind *kind = a.custom() ? nullptr : deck::effectKind(a.kind);
         if (kind) {
             r.icon = effectIcon(*kind, a.variant);
@@ -565,15 +638,32 @@ void AnimationPane::rebuild(const QStringList &pickedKeys)
         }
         longest = std::max(longest, r.end);
         m_rows.push_back(r);
-        auto *item = new QListWidgetItem(QStringLiteral("%1. %2, %3: %4, %5").arg(r.click).arg(r.shape, effectClassLabel(a.cls), r.effect, r.start), m_list);
+        m_listRows.push_back(int(m_rows.size()) - 1);
+        auto *item = new QListWidgetItem(trigger ? QStringLiteral("%1, %2: %3, %4").arg(r.shape, effectClassLabel(a.cls), r.effect, r.start)
+                                                 : QStringLiteral("%1. %2, %3: %4, %5").arg(r.click).arg(r.shape, effectClassLabel(a.cls), r.effect, r.start),
+                                         m_list);
         item->setData(Qt::AccessibleTextRole, item->text());
         item->setToolTip(jp::plainToolTip(QStringLiteral("%1\n%2\n%3").arg(name, effectClassLabel(a.cls) + QStringLiteral(": ") + effectLabel(a), r.start)));
+    };
+    for (int i = 0; i < m_seq.effects.size(); ++i) addEffect(i, false);
+    for (int g = 0; g < m_seq.triggers.size(); ++g) {
+        const deck::TriggerSeq &t = m_seq.triggers[g];
+        if (t.effects.isEmpty()) continue;
+        Row title;
+        const Item *it = shapes.value(t.shape, nullptr);
+        title.shape = tr("When %1 is clicked").arg(it ? shapeName(*it) : tr("Shape %1").arg(t.shape));
+        title.header = true;
+        m_rows.push_back(title);
+        auto *head = new QListWidgetItem(title.shape, m_list);
+        head->setData(Qt::AccessibleTextRole, title.shape);
+        head->setFlags(Qt::ItemIsEnabled);
+        for (int i = 0; i < t.effects.size(); ++i) addEffect(m_seq.rowOf(g, i), true);
     }
     m_scale = std::min(longest, 30000);
     for (int r : picked)
-        if (r < m_list->count()) m_list->item(r)->setSelected(true);
+        if (listRowOf(r) >= 0) m_list->item(listRowOf(r))->setSelected(true);
     m_quiet = was;
-    m_empty->setVisible(m_seq.effects.isEmpty());
+    m_empty->setVisible(m_seq.rowCount() == 0);
     m_empty->setGeometry(m_list->viewport()->rect());
     m_playAll->setEnabled(!m_seq.effects.isEmpty());
     m_playFrom->setEnabled(!selectedRows().isEmpty());
@@ -597,6 +687,27 @@ bool AnimationPreview::play(int slide, const QRect &area, int fromStep)
     const Page &page = *m_doc->pages[slide];
     m_timeline = deck::playableTimeline(*m_doc, page);
     if (m_timeline.steps.isEmpty()) return false;
+    begin(slide, area, fromStep);
+    return true;
+}
+
+bool AnimationPreview::playTrigger(int slide, const QRect &area, int shape)
+{
+    if (slide < 0 || slide >= m_doc->pages.size()) return false;
+    const Page &page = *m_doc->pages[slide];
+    const deck::Timeline all = deck::playableTimeline(*m_doc, page);
+    const auto found = std::find_if(all.triggers.cbegin(), all.triggers.cend(), [shape](const deck::Trigger &t) { return t.shape == shape; });
+    if (found == all.triggers.cend() || !found->step().visual()) return false;
+    // Only the click on the object: its effects, as one step, with what they bring in hidden until they play.
+    m_timeline = deck::Timeline();
+    m_timeline.steps.push_back(found->step());
+    begin(slide, area, 0);
+    return true;
+}
+
+void AnimationPreview::begin(int slide, const QRect &area, int fromStep)
+{
+    const Page &page = *m_doc->pages[slide];
     m_geometry = deck::geometryOf(*m_doc, page);
     m_slide = slide;
     m_area = area;
@@ -611,7 +722,6 @@ bool AnimationPreview::play(int slide, const QRect &area, int fromStep)
     m_clock.start();
     m_timer.start();
     tick();
-    return true;
 }
 
 void AnimationPreview::tick()

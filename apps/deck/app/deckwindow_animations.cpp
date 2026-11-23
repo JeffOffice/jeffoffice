@@ -24,6 +24,8 @@
 #include <QCoreApplication>
 #include <QDockWidget>
 #include <QDoubleSpinBox>
+#include <QInputDialog>
+#include <QLabel>
 #include <QMenu>
 #include <QPainter>
 #include <QPointer>
@@ -39,6 +41,7 @@ namespace jp {
 namespace {
 
 const QSize kGalleryItem(64, 52);   // a gallery picture: the slide, and the name under it
+constexpr int kStartWhenClicked = 3;   // the Start box's choice for effects that wait for a click on an object (the others are EffectStart)
 
 // What the controls do, kept in one place. The pane shows the sequence and the ribbon says what was asked; this reads the
 // slide's animations, changes them as one undo step, and keeps what shows them in step.
@@ -99,6 +102,15 @@ struct Anims {
     // when the change keeps the effects where they are, and are let go otherwise.
     bool edit(const QString &label, const std::function<void(deck::AnimSequence &, Page &)> &fn, bool keepPicked = false)
     {
+        return editOr(label, [&](deck::AnimSequence &seq, Page &p) {
+            fn(seq, p);
+            return true;
+        }, keepPicked);
+    }
+
+    // The same, for a change that may be refused: when `fn` says false nothing is changed (and no step is made).
+    bool editOr(const QString &label, const std::function<bool(deck::AnimSequence &, Page &)> &fn, bool keepPicked = false)
+    {
         Page *p = slide();
         if (!p) return false;
         sequence();   // (the rows picked follow the effects if the list changed since)
@@ -109,7 +121,10 @@ struct Anims {
         }
         ed->endTextEdit();
         ed->beginChange(label);
-        fn(seq, *p);
+        if (!fn(seq, *p)) {
+            ed->cancelChange();
+            return false;
+        }
         deck::setAnimations(*doc(), *p, seq);
         ed->endChange();
         if (!keepPicked) {
@@ -142,21 +157,28 @@ struct Anims {
     // The effects a command means: the rows picked in the pane, else those of the shapes selected on the slide.
     QVector<int> targets(const deck::AnimSequence &seq, Page &p) const
     {
+        // (the effects of a trigger that can't be changed here are not meant by a command)
+        auto changeable = [&seq](int r) {
+            const deck::AnimSequence::Place at = seq.place(r);
+            return at.valid() && (at.trigger < 0 || !seq.triggers[at.trigger].locked);
+        };
         QVector<int> rows;
         for (int r : picked)
-            if (r >= 0 && r < seq.effects.size()) rows << r;
+            if (changeable(r)) rows << r;
         if (!rows.isEmpty()) return rows;
         const QVector<int> shapes = selectedShapes(p, false);
-        for (int i = 0; i < seq.effects.size(); ++i)
-            if (shapes.contains(seq.effects[i].shape)) rows << i;
+        // (the rows the pane shows picked when a shape is selected: its effects in the slide's own sequence and in triggers)
+        for (int i = 0; i < seq.rowCount(); ++i)
+            if (changeable(i) && shapes.contains(seq.anim(i).shape)) rows << i;
         return rows;
     }
 
     // The build an effect is in: its shape's effects of the same group that aim at paragraphs, beside it; else just it.
     static QVector<int> buildOf(const deck::AnimSequence &seq, int row)
     {
-        const deck::Anim &a = seq.effects[row];
         QVector<int> out{row};
+        if (row >= seq.effects.size()) return out;   // (a trigger's effects are not built by paragraph)
+        const deck::Anim &a = seq.effects[row];
         if (!a.paragraphs()) return out;
         for (int i = row - 1; i >= 0 && seq.effects[i].shape == a.shape && seq.effects[i].group == a.group && seq.effects[i].paragraphs(); --i) out.prepend(i);
         for (int i = row + 1; i < seq.effects.size() && seq.effects[i].shape == a.shape && seq.effects[i].group == a.group && seq.effects[i].paragraphs(); ++i) out.append(i);
@@ -189,14 +211,14 @@ struct Anims {
             QVector<int> change;
             if (!rows.isEmpty()) {
                 for (int r : rows)
-                    if (r < seq.effects.size()) change << r;
+                    if (r < seq.rowCount()) change << r;
             } else {
                 for (int s : shapes) {
                     const QVector<int> have = seq.effectsOf(s);
                     if (!have.isEmpty()) change << have.first();
                 }
             }
-            for (int r : withBuilds(seq, change)) deck::changeKind(seq.effects[r], *kind);
+            for (int r : withBuilds(seq, change)) deck::changeKind(seq.anim(r), *kind);
             if (!rows.isEmpty()) return;
             // The first shape starts on a click, and the others with it.
             bool first = true;
@@ -229,7 +251,7 @@ struct Anims {
     void removeRows(const QVector<int> &rows)
     {
         edit(QCoreApplication::translate("Animation", "Remove Animation"), [&](deck::AnimSequence &seq, Page &) {
-            for (int i = int(rows.size()) - 1; i >= 0; --i) seq.remove(rows[i]);
+            for (int i = int(rows.size()) - 1; i >= 0; --i) seq.removeRow(rows[i]);
         });
         picked.clear();
     }
@@ -243,50 +265,176 @@ struct Anims {
             QVector<int> remove = rows;
             if (remove.isEmpty()) remove = targets(seq, p);
             std::sort(remove.begin(), remove.end());
-            for (int i = int(remove.size()) - 1; i >= 0; --i)
-                if (remove[i] < seq.effects.size()) seq.remove(remove[i]);
+            for (int i = int(remove.size()) - 1; i >= 0; --i) seq.removeRow(remove[i]);
         });
         picked.clear();
     }
 
+    // How each effect starts. An effect of a trigger that is given a start of the slide's own goes to the end of the main sequence.
     void setStart(deck::EffectStart start)
     {
+        bool moved = false;
         edit(QCoreApplication::translate("Animation", "Start"), [&](deck::AnimSequence &seq, Page &p) {
-            for (int r : targets(seq, p)) seq.effects[r].start = start;
+            const QVector<int> rows = targets(seq, p);
+            QVector<deck::Anim> leaving;
+            for (int i = int(rows.size()) - 1; i >= 0; --i) {
+                if (seq.place(rows[i]).trigger < 0) {
+                    seq.effects[rows[i]].start = start;
+                    continue;
+                }
+                leaving.prepend(seq.anim(rows[i]));
+                seq.removeRow(rows[i]);
+            }
+            for (deck::Anim a : std::as_const(leaving)) {
+                a.start = start;
+                seq.add(a);
+                moved = true;
+            }
         }, true);
+        if (!moved) return;
+        // The rows picked are of the list as it was.
+        picked.clear();
+        pane->selectRows({});
+        picksChanged();
+    }
+
+    // The text for what a limit or a group that can't be changed says.
+    static QString refusalText(deck::TriggerRefusal why)
+    {
+        switch (why) {
+        case deck::TriggerRefusal::TooManyTriggers: return QCoreApplication::translate("Animation", "A slide can have effects that wait for a click on up to %1 objects.").arg(deck::kMaxTriggers);
+        case deck::TriggerRefusal::TooManyEffects: return QCoreApplication::translate("Animation", "An object can start up to %1 effects when it is clicked.").arg(deck::kMaxTriggerEffects);
+        case deck::TriggerRefusal::TooManyOnSlide: return QCoreApplication::translate("Animation", "A slide can have up to %1 effects that wait for a click on an object.").arg(deck::kMaxSlideTriggerEffects);
+        case deck::TriggerRefusal::Locked: return QCoreApplication::translate("Animation", "The effects that wait for a click on this object can't be changed here.");
+        default: return QString();
+        }
+    }
+    void say(const QString &text) const
+    {
+        if (!text.isEmpty()) w->statusBar()->showMessage(text, 7000);
+    }
+
+    // The effects picked (or of the shapes selected) wait for a click on the object `shape`, in the order they have now, at the end of its group.
+    void setTrigger(const QString &itemId)
+    {
+        deck::TriggerRefusal why = deck::TriggerRefusal::None;
+        const bool done = editOr(QCoreApplication::translate("Animation", "Start When Clicked"), [&](deck::AnimSequence &seq, Page &p) {
+            const int shape = deck::shapeNumber(p, itemId);
+            const QVector<int> rows = targets(seq, p);
+            if (shape <= 0 || rows.isEmpty()) return false;
+            QVector<deck::Anim> taken;
+            for (int i = int(rows.size()) - 1; i >= 0; --i) {
+                const deck::AnimSequence::Place at = seq.place(rows[i]);
+                // (an effect already waiting for this object stays where it is)
+                if (at.trigger >= 0 && seq.triggers[at.trigger].shape == shape) continue;
+                taken.prepend(seq.anim(rows[i]));
+                seq.removeRow(rows[i]);
+            }
+            if (taken.isEmpty()) return false;
+            for (const deck::Anim &a : std::as_const(taken)) {
+                const deck::AnimSequence before = seq;
+                const int row = seq.moveToTrigger(seq.add(a), shape, &why);
+                Q_UNUSED(row)
+                if (why != deck::TriggerRefusal::None) {
+                    seq = before;
+                    return false;
+                }
+            }
+            return true;
+        }, false);
+        if (!done) say(refusalText(why));
+        picksChanged();
+    }
+
+    // Asks which object a click on starts the effects; the objects are named as the pane names them.
+    void chooseTrigger()
+    {
+        Page *p = slide();
+        if (!p) return;
+        const deck::AnimSequence seq = deck::readAnimations(*p, doc());
+        const QVector<int> rows = targets(seq, *p);
+        if (rows.isEmpty()) return;
+        // An object that is not there until the effect plays can't be clicked to play it.
+        QSet<int> notThere;
+        int current = 0;
+        for (int r : rows) {
+            const deck::Anim &a = seq.anim(r);
+            if (a.cls == deck::EffectClass::Entrance) notThere.insert(a.shape);
+            if (const auto at = seq.place(r); at.trigger >= 0 && !current) current = seq.triggers[at.trigger].shape;
+        }
+        QStringList names, ids;
+        QHash<QString, int> seen;
+        bool left = false;
+        walkItems(p->items, [&](const ItemPtr &it) {
+            if (it->bounds().isEmpty() || it->type() == ItemType::Group) return;
+            if (it->sourceId > 0 && notThere.contains(it->sourceId)) {
+                left = true;
+                return;
+            }
+            QString name = it->name.isEmpty() ? QCoreApplication::translate("Animation", "Shape %1").arg(it->sourceId > 0 ? it->sourceId : int(ids.size()) + 1) : it->name;
+            if (const int n = ++seen[name]; n > 1) name += QStringLiteral(" (%1)").arg(n);
+            names << name;
+            ids << it->id;
+        });
+        if (names.isEmpty()) {
+            say(QCoreApplication::translate("Animation", "There is no object on this slide to click."));
+            picksChanged();
+            return;
+        }
+        QInputDialog dialog(w);
+        dialog.setObjectName(QStringLiteral("triggerObjectDialog"));
+        dialog.setWindowTitle(QCoreApplication::translate("Animation", "When an Object Is Clicked"));
+        QString text = QCoreApplication::translate("Animation", "The effects start when this object is clicked during the slide show.");
+        if (left) text += QLatin1Char('\n') + QCoreApplication::translate("Animation", "An object that an effect makes appear is not listed for that effect, because it can't be clicked before it appears.");
+        dialog.setLabelText(text);
+        dialog.setComboBoxItems(names);
+        dialog.setOption(QInputDialog::UseListViewForComboBoxItems, true);
+        for (int i = 0; i < ids.size() && current > 0; ++i)
+            walkItems(p->items, [&](const ItemPtr &it) {
+                if (it->id == ids[i] && it->sourceId == current) dialog.setTextValue(names[i]);
+            });
+        const bool accepted = dialog.exec() == QDialog::Accepted;
+        const int at = names.indexOf(dialog.textValue());
+        if (accepted && at >= 0) setTrigger(ids[at]);
+        else picksChanged();
     }
 
     // Changes each effect the command means, with its whole build (the paragraphs of a list change together).
     void change(const QString &label, const std::function<void(deck::Anim &)> &fn)
     {
         edit(label, [&](deck::AnimSequence &seq, Page &p) {
-            for (int r : withBuilds(seq, targets(seq, p))) fn(seq.effects[r]);
+            for (int r : withBuilds(seq, targets(seq, p))) fn(seq.anim(r));
         }, true);
     }
 
-    // The rows picked each move one place earlier (-1) or later (1), staying in the order they are in.
+    // The rows picked each move one place earlier (-1) or later (1), staying in the order they are in, each inside its own sequence.
     void moveRows(const QVector<int> &rows, int by)
     {
         QVector<int> after;
         edit(QCoreApplication::translate("Animation", "Reorder Animation"), [&](deck::AnimSequence &seq, Page &) {
-            QVector<bool> chosen(seq.effects.size(), false);
+            QVector<bool> chosen(seq.rowCount(), false);
             for (int r : rows)
                 if (r >= 0 && r < chosen.size()) chosen[r] = true;
-            const int n = int(chosen.size());
-            if (by < 0) {
-                for (int i = 1; i < n; ++i)
-                    if (chosen[i] && !chosen[i - 1]) {
-                        seq.move(i, i - 1);
-                        std::swap(chosen[i], chosen[i - 1]);
-                    }
-            } else {
-                for (int i = n - 2; i >= 0; --i)
-                    if (chosen[i] && !chosen[i + 1]) {
-                        seq.move(i, i + 1);
-                        std::swap(chosen[i], chosen[i + 1]);
-                    }
-            }
-            for (int i = 0; i < n; ++i)
+            auto shift = [&](QVector<deck::Anim> &list, int base) {
+                const int n = int(list.size());
+                if (by < 0) {
+                    for (int i = 1; i < n; ++i)
+                        if (chosen[base + i] && !chosen[base + i - 1]) {
+                            std::swap(list[i], list[i - 1]);
+                            std::swap(chosen[base + i], chosen[base + i - 1]);
+                        }
+                } else {
+                    for (int i = n - 2; i >= 0; --i)
+                        if (chosen[base + i] && !chosen[base + i + 1]) {
+                            std::swap(list[i], list[i + 1]);
+                            std::swap(chosen[base + i], chosen[base + i + 1]);
+                        }
+                }
+            };
+            shift(seq.effects, 0);
+            for (int g = 0; g < seq.triggers.size(); ++g)
+                if (!seq.triggers[g].locked) shift(seq.triggers[g].effects, seq.rowOf(g, 0));
+            for (int i = 0; i < chosen.size(); ++i)
                 if (chosen[i]) after << i;
         });
         picked = after;
@@ -304,9 +452,9 @@ struct Anims {
         const deck::AnimSequence &seq = sequence();
         QStringList ids;
         for (int r : rows) {
-            if (r < 0 || r >= seq.effects.size()) continue;
+            if (r < 0 || r >= seq.rowCount()) continue;
             walkItems(p->items, [&](const ItemPtr &it) {
-                if (it->sourceId == seq.effects[r].shape && !ids.contains(it->id)) ids << it->id;
+                if (it->sourceId == seq.anim(r).shape && !ids.contains(it->id)) ids << it->id;
             });
         }
         pickingShapes = true;
@@ -355,6 +503,18 @@ void DeckWindow::createAnimationActions()
         auto *preview = new AnimationPreview(m_ed->doc(), &m_ed->cache(), m_canvas);
         const QRect area = QRectF(m_canvas->pageToView(QPointF(0, 0)), m_canvas->pageToView(QPointF(m_ed->doc()->pageSize().width(), m_ed->doc()->pageSize().height()))).toAlignedRect();
         const deck::AnimSequence seq = deck::readAnimations(*p, m_ed->doc());
+        // A row of a trigger plays what a click on its object starts, and nothing else.
+        if (const deck::AnimSequence::Place at = seq.place(row); row >= 0 && at.trigger >= 0) {
+            const int first = seq.rowOf(at.trigger, 0);
+            connect(preview, &AnimationPreview::stepChanged, this, [this, first](int step) { m_animPane->setPlaying(step >= 0 ? first : -1); });
+            connect(preview, &AnimationPreview::finished, preview, &QObject::deleteLater);
+            connect(m_ed, &Editor::documentReplaced, preview, &AnimationPreview::cancel);
+            if (!preview->playTrigger(m_ed->currentPage(), area, seq.triggers[at.trigger].shape)) {
+                delete preview;
+                statusBar()->showMessage(tr("This slide has no animation to play."), 4000);
+            }
+            return;
+        }
         connect(preview, &AnimationPreview::stepChanged, this, [this, seq](int step) {
             int shown = -1;
             if (step >= 0) {
@@ -372,7 +532,14 @@ void DeckWindow::createAnimationActions()
             statusBar()->showMessage(tr("This slide has no animation to play."), 4000);
         }
     };
-    mk("anim.preview", tr("Preview"), "play", QKeySequence(), [play] { play(-1); });
+    mk("anim.preview", tr("Preview"), "play", QKeySequence(), [play, st] {
+        // With an effect of a trigger picked, it is that click that plays.
+        const deck::AnimSequence &seq = st->sequence();
+        int row = -1;
+        for (int r : std::as_const(st->picked))
+            if (row < 0 && seq.place(r).trigger >= 0) row = r;
+        play(row);
+    });
     connect(m_animPane, &AnimationPane::playRequested, this, [play](int row) { play(row); });
 
     mk("anim.pane", tr("Animation Pane"), "list-video", QKeySequence(), [this] { showAnimationPane(act("anim.pane")->isChecked()); }, true);
@@ -409,14 +576,14 @@ void DeckWindow::createAnimationActions()
         const deck::AnimSequence seq = deck::readAnimations(*p, m_ed->doc());
         const QVector<int> rows = st->targets(seq, *p);
         if (rows.isEmpty()) return;
-        const deck::Anim shown = seq.effects[rows.first()];
+        const deck::Anim shown = seq.anim(rows.first());
         AnimationOptionsDialog dlg(shown, st->hasText(*p, shown.shape), tab, this);
         if (dlg.exec() != QDialog::Accepted) return;
         const deck::Anim r = dlg.result();
         const bool byParagraph = dlg.byParagraph();
         st->edit(tr("Effect Options"), [&](deck::AnimSequence &s, Page &page) {
             for (int i : Anims::withBuilds(s, rows)) {
-                deck::Anim &e = s.effects[i];
+                deck::Anim &e = s.anim(i);
                 if (rows.contains(i)) e.start = r.start;   // each paragraph of a build keeps its own start
                 if (e.custom()) continue;
                 e.variant = r.variant;
@@ -430,7 +597,7 @@ void DeckWindow::createAnimationActions()
                 e.after = e.cls == deck::EffectClass::Exit ? deck::AfterEffect::None : r.after;
             }
             const int row = rows.first();
-            if (!s.effects[row].custom() && s.effects[row].paragraphs() != byParagraph) deck::setByParagraph(s, row, byParagraph, *st->doc(), page);
+            if (row < s.effects.size() && !s.effects[row].custom() && s.effects[row].paragraphs() != byParagraph) deck::setByParagraph(s, row, byParagraph, *st->doc(), page);
         }, true);
     };
     mk("anim.options", tr("Effect Options…"), "sliders-horizontal", QKeySequence(), [options] { options(AnimationOptionsDialog::EffectTab); });
@@ -438,6 +605,7 @@ void DeckWindow::createAnimationActions()
     mk("anim.start.click", tr("On Click"), QString(), QKeySequence(), [st] { st->setStart(deck::EffectStart::OnClick); }, true);
     mk("anim.start.with", tr("With Previous"), QString(), QKeySequence(), [st] { st->setStart(deck::EffectStart::WithPrevious); }, true);
     mk("anim.start.after", tr("After Previous"), QString(), QKeySequence(), [st] { st->setStart(deck::EffectStart::AfterPrevious); }, true);
+    mk("anim.start.trigger", tr("When an Object Is Clicked"), QString(), QKeySequence(), [st] { st->chooseTrigger(); }, true);
     mk("anim.remove", tr("Remove"), "trash-2", QKeySequence(), [st] { st->clear(); });
 
     // The pane asks.
@@ -446,8 +614,15 @@ void DeckWindow::createAnimationActions()
         st->selectShapesOf(rows);
     });
     connect(m_animPane, &AnimationPane::moveRequested, this, [st](int from, int to) {
-        st->edit(QCoreApplication::translate("Animation", "Reorder Animation"), [&](deck::AnimSequence &seq, Page &) { seq.move(from, to); });
-        st->picked = {std::clamp(to, 0, std::max(0, int(st->sequence().effects.size()) - 1))};
+        // The effect takes the place of the row it is dropped on, in that row's sequence: another trigger, or the main sequence.
+        deck::TriggerRefusal why = deck::TriggerRefusal::None;
+        int now = to;
+        const bool moved = st->editOr(QCoreApplication::translate("Animation", "Reorder Animation"), [&](deck::AnimSequence &seq, Page &) {
+            now = seq.moveRow(from, to, &why);
+            return why == deck::TriggerRefusal::None;
+        });
+        if (!moved) st->say(Anims::refusalText(why));
+        st->picked = {std::clamp(moved ? now : from, 0, std::max(0, st->sequence().rowCount() - 1))};
         st->pane->selectRows(st->picked);
         st->picksChanged();
     });
@@ -466,9 +641,13 @@ void DeckWindow::createAnimationActions()
         for (const auto &s : starts) {
             QAction *item = act(QString::fromLatin1(s.id));
             item->setEnabled(a != nullptr);
-            item->setChecked(a && a->start == s.start);
+            item->setChecked(a && a->start == s.start && st->sequence().place(row).trigger < 0);
             menu->addAction(item);
         }
+        QAction *waits = act("anim.start.trigger");
+        waits->setEnabled(a != nullptr);
+        waits->setChecked(a && st->sequence().place(row).trigger >= 0);
+        menu->addAction(waits);
         menu->addSeparator();
         menu->addAction(act("anim.options"));
         menu->addAction(act("anim.timing"));
@@ -551,15 +730,16 @@ void DeckWindow::createAnimationActions()
         Page *p = st->slide();
         const bool any = p && (!st->ed->selection().isEmpty() || !st->picked.isEmpty());
         const deck::AnimSequence &seq = st->sequence();
-        const bool has = !seq.effects.isEmpty();
+        const bool has = seq.rowCount() > 0;
         act("anim.preview")->setEnabled(has);
         act("anim.painter")->setEnabled(p && st->selectedShapes(*p, false).size() == 1);
         const QVector<int> rows = p ? st->targets(seq, *p) : QVector<int>();
         act("anim.earlier")->setEnabled(!rows.isEmpty() && rows.first() > 0);
-        act("anim.later")->setEnabled(!rows.isEmpty() && rows.last() < seq.effects.size() - 1);
+        act("anim.later")->setEnabled(!rows.isEmpty() && rows.last() < seq.rowCount() - 1);
         act("anim.options")->setEnabled(!rows.isEmpty());
         act("anim.timing")->setEnabled(!rows.isEmpty());
         act("anim.remove")->setEnabled(!rows.isEmpty());
+        act("anim.start.trigger")->setEnabled(!rows.isEmpty());
         Q_UNUSED(any)
     };
     st->listeners << sync;
@@ -571,6 +751,30 @@ void DeckWindow::createAnimationActions()
     connect(m_ed, &Editor::documentReplaced, this, sync);
     connect(m_animPane, &AnimationPane::rowsChosen, this, sync);
     sync();
+    // Deleting or cutting an object that effects wait for a click on: they go to the end of the main sequence, in the same step, and are never left waiting for nothing.
+    m_ed->itemsDeleting = [this, st](const QStringList &ids) {
+        Page *p = st->slide();
+        if (!p || !m_ed->masterView().isEmpty()) return;
+        deck::AnimSequence seq = deck::readAnimations(*p, m_ed->doc());
+        if (!seq.editable || seq.triggers.isEmpty()) return;
+        QSet<int> going;
+        walkItems(p->items, [&](const ItemPtr &it) {
+            if (it->sourceId > 0 && ids.contains(it->id)) going.insert(it->sourceId);
+        });
+        bool released = false;
+        for (int g = 0; g < seq.triggers.size(); ++g) {
+            deck::TriggerSeq &t = seq.triggers[g];
+            if (!going.contains(t.shape) || t.locked || t.effects.isEmpty()) continue;
+            // (what aims at an object that goes with it goes too)
+            for (int i = int(t.effects.size()) - 1; i >= 0; --i)
+                if (going.contains(t.effects[i].shape)) t.effects.remove(i);
+            seq.releaseTrigger(g);
+            released = true;
+        }
+        if (!released) return;
+        deck::setAnimations(*m_ed->doc(), *p, seq);
+        statusBar()->showMessage(tr("Effects that waited for a click on the deleted object now play in the main sequence."), 8000);
+    };
     m_animations = st;
 }
 
@@ -628,7 +832,7 @@ void DeckWindow::addAnimationParts(RibbonParts &parts)
             Page *p = st->slide();
             const QVector<int> rows = p ? st->targets(st->sequence(), *p) : QVector<int>();
             gallery->setEnabled(p && (!st->ed->selection().isEmpty() || !rows.isEmpty()));
-            const deck::Anim *a = rows.isEmpty() ? nullptr : &st->sequence().effects[rows.first()];
+            const deck::Anim *a = rows.isEmpty() ? nullptr : &st->sequence().anim(rows.first());
             gallery->setCurrent(a && !a->custom() ? a->kind : QString());
         });
         syncs->last()();
@@ -652,7 +856,7 @@ void DeckWindow::addAnimationParts(RibbonParts &parts)
             Page *p = st->slide();
             const deck::AnimSequence seq = p ? deck::readAnimations(*p, m_ed->doc()) : deck::AnimSequence();
             const QVector<int> rows = p ? st->targets(seq, *p) : QVector<int>();
-            const deck::Anim *a = rows.isEmpty() ? nullptr : &seq.effects[rows.first()];
+            const deck::Anim *a = rows.isEmpty() ? nullptr : &seq.anim(rows.first());
             const deck::EffectKind *kind = a && !a->custom() ? deck::effectKind(a->kind) : nullptr;
             if (!kind) {
                 menu->addAction(tr("No Effect Options"))->setEnabled(false);
@@ -683,7 +887,7 @@ void DeckWindow::addAnimationParts(RibbonParts &parts)
                     connect(item, &QAction::triggered, menu, [st, value] { st->change(QCoreApplication::translate("Animation", "Effect Options"), [value](deck::Anim &e) { if (!e.custom()) e.amount = value; }); });
                 }
             }
-            if (st->hasText(*p, a->shape)) {
+            if (rows.first() < seq.effects.size() && st->hasText(*p, a->shape)) {
                 menu->addSection(tr("Sequence"));
                 for (bool byParagraph : {false, true}) {
                     QAction *item = menu->addAction(byParagraph ? tr("By Paragraph") : tr("As One Object"));
@@ -711,8 +915,12 @@ void DeckWindow::addAnimationParts(RibbonParts &parts)
         box->setAccessibleName(tr("Start"));
         box->setToolTip(tr("Start: when the effect begins, at a click, with the effect before it, or when that one ends."));
         for (deck::EffectStart s : {deck::EffectStart::OnClick, deck::EffectStart::WithPrevious, deck::EffectStart::AfterPrevious}) box->addItem(startLabel(s), int(s));
-        box->setFixedWidth(140);
-        connect(box, &QComboBox::activated, this, [st, box](int i) { st->setStart(deck::EffectStart(box->itemData(i).toInt())); });
+        box->addItem(tr("When an Object Is Clicked"), kStartWhenClicked);
+        box->setFixedWidth(200);
+        connect(box, &QComboBox::activated, this, [st, box](int i) {
+            if (box->itemData(i).toInt() == kStartWhenClicked) st->chooseTrigger();
+            else st->setStart(deck::EffectStart(box->itemData(i).toInt()));
+        });
         syncs->append([box, st] {
             Page *p = st->slide();
             const deck::AnimSequence &seq = st->sequence();
@@ -721,9 +929,10 @@ void DeckWindow::addAnimationParts(RibbonParts &parts)
             box->setEnabled(!rows.isEmpty());
             int shown = -1;
             if (!rows.isEmpty()) {
-                shown = int(seq.effects[rows.first()].start);
+                auto startOf = [&seq](int r) { return seq.place(r).trigger >= 0 ? kStartWhenClicked : int(seq.anim(r).start); };
+                shown = startOf(rows.first());
                 for (int r : rows)
-                    if (int(seq.effects[r].start) != shown) shown = -1;
+                    if (startOf(r) != shown) shown = -1;
             }
             box->setCurrentIndex(shown < 0 ? -1 : box->findData(shown));
         });
@@ -757,7 +966,7 @@ void DeckWindow::addAnimationParts(RibbonParts &parts)
             const deck::AnimSequence &seq = st->sequence();
             const QVector<int> rows = p ? st->targets(seq, *p) : QVector<int>();
             const QSignalBlocker block(spin);
-            const deck::Anim *a = rows.isEmpty() ? nullptr : &seq.effects[rows.first()];
+            const deck::Anim *a = rows.isEmpty() ? nullptr : &seq.anim(rows.first());
             spin->setEnabled(a && !a->custom() && (!duration || a->duration > 0));
             if (a) spin->setValue((duration ? std::max(a->duration, 10) : a->delay) / 1000.0);
         });

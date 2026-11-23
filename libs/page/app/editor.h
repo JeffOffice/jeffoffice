@@ -222,6 +222,8 @@ public:
     // document as it stands and as it was when the change began; what it changes joins the same undo step (it says whether it changed
     // anything). Not called for a change that changed nothing.
     std::function<bool(Document &now, const Document &before)> masterEdited;
+    // Told, in the step that deletes items (before they go), the ids of everything the step takes out, groups' children included.
+    std::function<void(const QStringList &ids)> itemsDeleting;
     void notifyLive();                 // repaint during a drag without recording
     void flushTyping();
     void undo();
