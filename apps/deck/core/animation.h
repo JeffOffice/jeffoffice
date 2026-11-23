@@ -267,7 +267,26 @@ struct Anim {
     bool paragraphs() const { return firstParagraph >= 0; }
     // How long it lasts, delay and repeats included; 0 for an effect with no length.
     int span() const;
+    bool operator==(const Anim &o) const
+    {
+        return kind == o.kind && cls == o.cls && variant == o.variant && shape == o.shape && firstParagraph == o.firstParagraph && lastParagraph == o.lastParagraph && start == o.start &&
+               duration == o.duration && delay == o.delay && smoothStart == o.smoothStart && smoothEnd == o.smoothEnd && rewind == o.rewind && after == o.after && repeat == o.repeat &&
+               amount == o.amount && group == o.group && xml == o.xml;
+    }
+    bool operator!=(const Anim &o) const { return !(*this == o); }
 };
+
+// The effects that start when an object is clicked: the file's interactive sequences for the object, as one group (a click starts them together).
+struct TriggerSeq {
+    int shape = 0;                   // the object's number (Item::sourceId)
+    QVector<Anim> effects;           // in file order
+    QVector<int> kept;               // the nodes of AnimSequence::kept this group was read from; written as they were while the effects are as read
+    QVector<Anim> original;          // the effects as they were read, to tell a group nobody changed
+    bool locked = false;             // holds what the effects here do not show: listed, and kept as written
+    bool edited() const { return effects != original; }
+};
+// Why an effect could not be put in a trigger.
+enum class TriggerRefusal { None, TooManyTriggers, TooManyEffects, TooManyOnSlide, Locked };
 
 struct AnimSequence {
     QVector<Anim> effects;           // the main sequence, in order
@@ -277,8 +296,33 @@ struct AnimSequence {
     QString extension;               // what follows the root node in the timing, as written
     QStringList builds;              // builds of what the file keeps (charts, diagrams), as written
     bool editable = true;            // false when the sequence is too long to be changed safely
+    QVector<TriggerSeq> triggers;    // the effects that wait for a click on an object, in file order (their nodes stay in `kept` until a group is changed)
     bool isEmpty() const { return effects.isEmpty() && kept.isEmpty(); }
-    // The click that starts effect `i`: 1 for the first, 0 for those that play when the slide shows.
+    // The rows the pane lists: the main sequence's effects, then each trigger's. A row is `index` of the main sequence (trigger -1) or of a trigger.
+    struct Place {
+        int trigger = -1, index = -1;
+        bool valid() const { return index >= 0; }
+    };
+    int rowCount() const;
+    Place place(int row) const;
+    int rowOf(int trigger, int index) const;
+    const Anim &anim(int row) const;
+    Anim &anim(int row);
+    // The group of the object `shape`, or -1.
+    int triggerOf(int shape) const;
+    // The effects of every trigger, together.
+    int triggerEffects() const;
+    // Takes the effect in `row` out of where it is and puts it in the trigger group of `shape` at its end (a group is made when the object has none),
+    // or in the main sequence (shape 0) at `at` (-1: the end); the row it has now. Nothing changes, and `refusal` says why, when a limit or a locked group is in the way.
+    int moveToTrigger(int row, int shape, TriggerRefusal *refusal = nullptr);
+    int moveToMain(int row, int at = -1, TriggerRefusal *refusal = nullptr);
+    // The effect in `row` takes the place of the one in `to` (either may be in any sequence); a row in another sequence moves it there. Returns its new row.
+    int moveRow(int row, int to, TriggerRefusal *refusal = nullptr);
+    // Takes the effect in `row` out, wherever it is; a trigger left with no effect goes.
+    void removeRow(int row);
+    // The effects of the trigger group `i` go to the end of the main sequence (the first starts on a click) and the group goes.
+    void releaseTrigger(int i);
+    // The click that starts effect `i` (a row; every effect of a trigger is at its one click, 1): 1 for the first, 0 for those that play when the slide shows.
     int clickOf(int i) const;
     // How many clicks the effects take.
     int clicks() const;

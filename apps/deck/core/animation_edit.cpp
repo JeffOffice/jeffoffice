@@ -642,6 +642,10 @@ void dropGoneEffects(AnimSequence &seq, const QHash<int, ShapeInfo> &shapes)
 {
     for (int i = int(seq.effects.size()) - 1; i >= 0; --i)
         if (!aimsAtThings(shapes, seq.effects[i])) seq.remove(i);
+    for (TriggerSeq &t : seq.triggers)
+        if (!t.locked)
+            for (int i = int(t.effects.size()) - 1; i >= 0; --i)
+                if (!aimsAtThings(shapes, t.effects[i])) t.effects.remove(i);
 }
 
 // ---- reading ----
@@ -779,7 +783,7 @@ Anim readEffect(const QDomElement &par, const QDomElement &cTn, int span)
 
 thread_local qint64 g_effectsRead = 0;
 
-void collectEffects(const QDomElement &list, int depth, QVector<Anim> *out, bool *tooMany)
+void collectEffects(const QDomElement &list, int depth, QVector<Anim> *out, bool *tooMany, int limit = kMaxAnims)
 {
     if (depth > kMaxDepth) return;
     for (const QDomElement &par : office::children(list)) {
@@ -787,7 +791,7 @@ void collectEffects(const QDomElement &list, int depth, QVector<Anim> *out, bool
         const QDomElement cTn = pChild(par, "cTn");
         const QString nodeType = attr(cTn, QStringLiteral("nodeType"));
         if (hasAttr(cTn, QStringLiteral("presetClass")) || nodeType == QLatin1String("clickEffect") || nodeType == QLatin1String("withEffect") || nodeType == QLatin1String("afterEffect")) {
-            if (out->size() >= kMaxAnims) {
+            if (out->size() >= limit) {
                 *tooMany = true;
                 return;
             }
@@ -797,7 +801,7 @@ void collectEffects(const QDomElement &list, int depth, QVector<Anim> *out, bool
             ++g_effectsRead;
             out->push_back(readEffect(par, cTn, int(std::min<qint64>(length, 3600000))));
         } else {
-            collectEffects(pChild(cTn, "childTnLst"), depth + 1, out, tooMany);
+            collectEffects(pChild(cTn, "childTnLst"), depth + 1, out, tooMany, limit);
         }
     }
 }
@@ -853,10 +857,14 @@ QStringList effectKeys(const AnimSequence &seq)
 {
     QStringList keys;
     QHash<QString, int> seen;
-    for (const Anim &a : seq.effects) {
-        const QString key = QStringLiteral("%1|%2|%3|%4|%5|%6|%7|%8|%9").arg(a.kind, a.variant).arg(a.shape).arg(a.firstParagraph).arg(a.lastParagraph).arg(int(a.cls)).arg(int(a.start)).arg(a.duration).arg(a.delay);
+    auto add = [&](const Anim &a, int trigger) {
+        const QString key = QStringLiteral("%1|%2|%3|%4|%5|%6|%7|%8|%9").arg(a.kind, a.variant).arg(a.shape).arg(a.firstParagraph).arg(a.lastParagraph).arg(int(a.cls)).arg(int(a.start)).arg(a.duration).arg(a.delay) +
+                           (trigger > 0 ? QStringLiteral("|when%1").arg(trigger) : QString());
         keys << key + QLatin1Char('#') + QString::number(seen[key]++) + (a.custom() ? QLatin1Char('|') + QString::number(qHash(a.xml)) : QString());
-    }
+    };
+    for (const Anim &a : seq.effects) add(a, 0);
+    for (const TriggerSeq &t : seq.triggers)
+        for (const Anim &a : t.effects) add(a, t.shape);
     return keys;
 }
 
@@ -888,7 +896,29 @@ AnimSequence readAnimations(const Page &slide, const Document *doc)
             seq.keptBeforeMain = int(seq.kept.size());
             collectEffects(pChild(cTn, "childTnLst"), 0, &seq.effects, &tooMany);
         } else if (!tooMany) {
+            const int keptAt = int(seq.kept.size());
             seq.kept << keptText(s, texts, i, declarations);
+            if (!cTn.isNull() && attr(cTn, QStringLiteral("nodeType")) == QLatin1String("interactiveSeq")) {
+                int shape = 0;
+                for (const QDomElement &cond : pChildren(pChild(cTn, "stCondLst"), "cond"))
+                    if (const QDomElement sp = pChild(pChild(cond, "tgtEl"), "spTgt"); !sp.isNull()) shape = int(std::clamp<qint64>(attr(sp, QStringLiteral("spid")).toLongLong(), 0, 2000000000));
+                int have = 0;
+                for (const TriggerSeq &t : std::as_const(seq.triggers)) have += int(t.effects.size());
+                if (shape > 0 && have < kMaxAnims) {
+                    QVector<Anim> found;
+                    collectEffects(pChild(cTn, "childTnLst"), 0, &found, &tooMany, kMaxAnims - have);
+                    auto same = std::find_if(seq.triggers.begin(), seq.triggers.end(), [shape](const TriggerSeq &t) { return t.shape == shape; });
+                    if (same == seq.triggers.end()) {
+                        seq.triggers.push_back(TriggerSeq());
+                        same = seq.triggers.end() - 1;
+                        same->shape = shape;
+                    }
+                    same->kept << keptAt;
+                    same->effects += found;
+                } else if (shape > 0) {
+                    tooMany = true;
+                }
+            }
         }
     }
     if (const QDomElement ext = pChild(root, "extLst"); !ext.isNull()) seq.extension = standalone(ext);
@@ -899,13 +929,22 @@ AnimSequence readAnimations(const Page &slide, const Document *doc)
     }
     seq.editable = !tooMany;
     // A sequence whose effects were not all found here (the file lays its time nodes out another way) is shown, and not rewritten.
-    if (seq.editable) {
-        qsizetype read = 0;
-        for (const deck::Step &step : readTimeline(xml).steps)
-            for (const deck::Effect &e : step.effects) read += e.implied ? 0 : 1;
-        if (read != seq.effects.size()) seq.editable = false;
+    if (seq.editable || !seq.triggers.isEmpty()) {
+        const Timeline timeline = readTimeline(xml);
+        if (seq.editable) {
+            qsizetype read = 0;
+            for (const deck::Step &step : timeline.steps)
+                for (const deck::Effect &e : step.effects) read += e.implied ? 0 : 1;
+            if (read != seq.effects.size()) seq.editable = false;
+        }
+        // A trigger whose effects were not all found here (or that the show cuts short) is listed, and kept as written.
+        for (TriggerSeq &t : seq.triggers) {
+            const auto played = std::find_if(timeline.triggers.cbegin(), timeline.triggers.cend(), [&t](const Trigger &x) { return x.shape == t.shape; });
+            t.locked = played == timeline.triggers.cend() || played->effects.size() != t.effects.size() || t.effects.size() > kMaxTriggerEffects || timeline.triggers.size() > kMaxTriggers;
+        }
     }
     if (doc) dropGoneEffects(seq, shapeInfos(slide, doc));
+    for (TriggerSeq &t : seq.triggers) t.original = t.effects;
     return seq;
 }
 
@@ -957,6 +996,7 @@ QVector<Placed> layoutOf(const QVector<Anim> &effects)
 
 int AnimSequence::clickOf(int i) const
 {
+    if (i >= effects.size()) return place(i).valid() ? 1 : 0;
     int n = 0;
     for (int k = 0; k <= i && k < effects.size(); ++k)
         if (effects[k].start == EffectStart::OnClick) ++n;
@@ -964,8 +1004,170 @@ int AnimSequence::clickOf(int i) const
 }
 
 int AnimSequence::clicks() const { return clickOf(int(effects.size()) - 1); }
-int AnimSequence::beginOf(int i) const { return i >= 0 && i < effects.size() ? layoutOf(effects)[i].begin : 0; }
-int AnimSequence::endOf(int i) const { return i >= 0 && i < effects.size() ? layoutOf(effects)[i].end : 0; }
+int AnimSequence::beginOf(int i) const
+{
+    const Place p = place(i);
+    if (!p.valid()) return 0;
+    return layoutOf(p.trigger < 0 ? effects : triggers[p.trigger].effects)[p.index].begin;
+}
+int AnimSequence::endOf(int i) const
+{
+    const Place p = place(i);
+    if (!p.valid()) return 0;
+    return layoutOf(p.trigger < 0 ? effects : triggers[p.trigger].effects)[p.index].end;
+}
+
+int AnimSequence::rowCount() const { return int(effects.size()) + triggerEffects(); }
+
+AnimSequence::Place AnimSequence::place(int row) const
+{
+    if (row < 0) return Place();
+    if (row < effects.size()) return {-1, row};
+    int left = row - int(effects.size());
+    for (int t = 0; t < triggers.size(); ++t) {
+        if (left < triggers[t].effects.size()) return {t, left};
+        left -= int(triggers[t].effects.size());
+    }
+    return Place();
+}
+
+int AnimSequence::rowOf(int trigger, int index) const
+{
+    if (trigger < 0) return index;
+    int row = int(effects.size());
+    for (int t = 0; t < trigger && t < triggers.size(); ++t) row += int(triggers[t].effects.size());
+    return row + index;
+}
+
+const Anim &AnimSequence::anim(int row) const
+{
+    const Place p = place(row);
+    return p.trigger < 0 ? effects[p.index] : triggers[p.trigger].effects[p.index];
+}
+
+Anim &AnimSequence::anim(int row)
+{
+    const Place p = place(row);
+    return p.trigger < 0 ? effects[p.index] : triggers[p.trigger].effects[p.index];
+}
+
+int AnimSequence::triggerOf(int shape) const
+{
+    for (int t = 0; t < triggers.size(); ++t)
+        if (triggers[t].shape == shape) return t;
+    return -1;
+}
+
+int AnimSequence::triggerEffects() const
+{
+    int n = 0;
+    for (const TriggerSeq &t : triggers) n += int(t.effects.size());
+    return n;
+}
+
+namespace {
+
+int activeTriggers(const AnimSequence &seq)
+{
+    int n = 0;
+    for (const TriggerSeq &t : seq.triggers) n += t.effects.isEmpty() ? 0 : 1;
+    return n;
+}
+
+// Takes the effect in `row` out and puts it at `toIndex` of the main sequence (`toTrigger` -1) or of that trigger.
+int transplant(AnimSequence &seq, int row, int toTrigger, int toIndex, TriggerRefusal *refusal)
+{
+    if (refusal) *refusal = TriggerRefusal::None;
+    const AnimSequence::Place from = seq.place(row);
+    if (!from.valid()) return row;
+    auto refuse = [&](TriggerRefusal why) {
+        if (refusal) *refusal = why;
+        return row;
+    };
+    if ((from.trigger >= 0 && seq.triggers[from.trigger].locked) || (toTrigger >= 0 && seq.triggers[toTrigger].locked)) return refuse(TriggerRefusal::Locked);
+    if (toTrigger >= 0 && toTrigger != from.trigger) {
+        if (seq.triggers[toTrigger].effects.size() >= kMaxTriggerEffects) return refuse(TriggerRefusal::TooManyEffects);
+        if (from.trigger < 0 && seq.triggerEffects() >= kMaxSlideTriggerEffects) return refuse(TriggerRefusal::TooManyOnSlide);
+    }
+    const Anim a = seq.anim(row);
+    if (from.trigger < 0) seq.remove(from.index);
+    else seq.triggers[from.trigger].effects.remove(from.index);
+    QVector<Anim> &list = toTrigger < 0 ? seq.effects : seq.triggers[toTrigger].effects;
+    toIndex = toIndex < 0 || toIndex > list.size() ? int(list.size()) : toIndex;
+    list.insert(toIndex, a);
+    return seq.rowOf(toTrigger, toIndex);
+}
+
+} // namespace
+
+int AnimSequence::moveToTrigger(int row, int shape, TriggerRefusal *refusal)
+{
+    if (refusal) *refusal = TriggerRefusal::None;
+    const Place from = place(row);
+    if (!from.valid() || shape <= 0) return row;
+    int at = triggerOf(shape);
+    if (at >= 0 && at == from.trigger) return row;
+    if (at < 0 || triggers[at].effects.isEmpty()) {
+        // A trigger the effect leaves empty is not counted, so moving the only one of a trigger to another object is not a new trigger.
+        const int active = activeTriggers(*this) - (from.trigger >= 0 && triggers[from.trigger].effects.size() == 1 ? 1 : 0);
+        if (active >= kMaxTriggers) {
+            if (refusal) *refusal = TriggerRefusal::TooManyTriggers;
+            return row;
+        }
+    }
+    if (at < 0) {
+        TriggerSeq made;
+        made.shape = shape;
+        triggers.push_back(made);
+        at = int(triggers.size()) - 1;
+    }
+    return transplant(*this, row, at, -1, refusal);
+}
+
+int AnimSequence::moveToMain(int row, int at, TriggerRefusal *refusal)
+{
+    return transplant(*this, row, -1, at, refusal);
+}
+
+int AnimSequence::moveRow(int row, int to, TriggerRefusal *refusal)
+{
+    if (refusal) *refusal = TriggerRefusal::None;
+    const Place from = place(row), at = place(to);
+    if (!from.valid() || !at.valid()) return row;
+    if (from.trigger != at.trigger) return transplant(*this, row, at.trigger, at.index, refusal);
+    if (from.trigger < 0) {
+        move(from.index, at.index);
+        return std::clamp(at.index, 0, int(effects.size()) - 1);
+    }
+    if (triggers[from.trigger].locked) {
+        if (refusal) *refusal = TriggerRefusal::Locked;
+        return row;
+    }
+    QVector<Anim> &list = triggers[from.trigger].effects;
+    const Anim a = list[from.index];
+    list.remove(from.index);
+    list.insert(at.index, a);
+    return rowOf(from.trigger, at.index);
+}
+
+void AnimSequence::removeRow(int row)
+{
+    const Place p = place(row);
+    if (!p.valid()) return;
+    if (p.trigger < 0) remove(p.index);
+    else if (!triggers[p.trigger].locked) triggers[p.trigger].effects.remove(p.index);
+}
+
+void AnimSequence::releaseTrigger(int i)
+{
+    if (i < 0 || i >= triggers.size() || triggers[i].locked) return;
+    QVector<Anim> moved = triggers[i].effects;
+    triggers[i].effects.clear();
+    for (int k = 0; k < moved.size(); ++k) {
+        if (k == 0) moved[k].start = EffectStart::OnClick;
+        effects.push_back(moved[k]);
+    }
+}
 
 int AnimSequence::add(const Anim &anim, int at)
 {
@@ -1233,37 +1435,66 @@ QString animationsXml(const Document &doc, const Page &slide, const AnimSequence
     AnimSequence live = seq;
     dropGoneEffects(live, shapes);
     const QVector<Anim> &effects = live.effects;
-    if (effects.isEmpty() && seq.kept.isEmpty()) return QString();
+    if (effects.isEmpty() && seq.kept.isEmpty() && live.triggerEffects() == 0) return QString();
+    // The groups of effects that wait for a click that were changed are written afresh; the others stay as the file wrote them, in their places.
+    QHash<int, int> ownerOfKept;   // a node of `kept` -> its group
+    for (int g = 0; g < live.triggers.size(); ++g)
+        for (int k : std::as_const(live.triggers[g].kept)) ownerOfKept.insert(k, g);
+    auto rewritten = [&](int g) { return !live.triggers[g].locked && live.triggers[g].edited(); };
+    auto keptIsWritten = [&](qsizetype k) {
+        const auto owner = ownerOfKept.constFind(int(k));
+        return owner == ownerOfKept.constEnd() || !rewritten(owner.value());
+    };
 
     // Which build each effect belongs to: per shape, the groups in the order they come, numbered from 0 around the ones kept effects hold.
     QHash<int, QSet<int>> taken;
     for (const Anim &a : effects)
         if (a.custom() && a.group >= 0)
             for (int s : shapesOfKept(a.xml)) taken[s].insert(a.group);
+    for (int g = 0; g < live.triggers.size(); ++g) {
+        if (rewritten(g)) {
+            for (const Anim &a : live.triggers[g].effects)
+                if (a.custom() && a.group >= 0)
+                    for (int s : shapesOfKept(a.xml)) taken[s].insert(a.group);
+        } else {
+            // What is written as it was keeps the builds it has.
+            for (const Anim &a : live.triggers[g].effects)
+                if (a.group >= 0) taken[a.shape].insert(a.group);
+        }
+    }
     QHash<QPair<int, int>, int> numbered;
     QHash<int, int> nextGroup;
-    QVector<int> grp(effects.size(), -1);
-    for (int i = 0; i < effects.size(); ++i) {
-        const Anim &a = effects[i];
-        if (a.custom() || !shapes.value(a.shape).sp) continue;
-        const QPair<int, int> key(a.shape, a.group >= 0 ? a.group : 100000 + i);
-        if (!numbered.contains(key)) {
-            int n = nextGroup.value(a.shape, 0);
-            while (taken[a.shape].contains(n)) ++n;
-            numbered.insert(key, n);
-            nextGroup[a.shape] = n + 1;
+    // The numbers of the builds: the main sequence's effects, then those of each changed trigger; the same build number is not shared by two of them.
+    auto numberBuilds = [&](const QVector<Anim> &list, int container) {
+        QVector<int> out(list.size(), -1);
+        for (int i = 0; i < list.size(); ++i) {
+            const Anim &a = list[i];
+            if (a.custom() || !shapes.value(a.shape).sp) continue;
+            const QPair<int, int> key(a.shape, container * 200000 + (a.group >= 0 ? a.group : 100000 + i));
+            if (!numbered.contains(key)) {
+                int n = nextGroup.value(a.shape, 0);
+                while (taken[a.shape].contains(n)) ++n;
+                numbered.insert(key, n);
+                nextGroup[a.shape] = n + 1;
+            }
+            out[i] = numbered.value(key);
         }
-        grp[i] = numbered.value(key);
-    }
+        return out;
+    };
+    const QVector<int> grp = numberBuilds(effects, 0);
+    QVector<QVector<int>> triggerGrp(live.triggers.size());
+    for (int g = 0; g < live.triggers.size(); ++g)
+        if (rewritten(g)) triggerGrp[g] = numberBuilds(live.triggers[g].effects, g + 1);
 
     // What the file keeps beside the main sequence keeps its own numbers; the rest are numbered around them, in document order: each
     // click step, each part of it, each effect.
     const QString declared = declarationsFor(seq.declarations);
     Ids ids;
     QSet<int> aimedAt;
-    for (const QString &k : seq.kept) {
-        ids.reserved.unite(timeNodeIds(k, declared));
-        aimedAt.unite(shapesOfKept(k));
+    for (qsizetype k = 0; k < seq.kept.size(); ++k) {
+        if (!keptIsWritten(k)) continue;
+        ids.reserved.unite(timeNodeIds(seq.kept[k], declared));
+        aimedAt.unite(shapesOfKept(seq.kept[k]));
     }
     const int rootId = ids.take(), mainId = ids.take();
     const QVector<Placed> placed = layoutOf(effects);
@@ -1277,6 +1508,21 @@ QString animationsXml(const Document &doc, const Page &slide, const AnimSequence
     QSet<QPair<int, int>> built;
     int step = -1, part = -1, clickId = 0, partId = 0, partDelay = 0;
     bool automatic = false;
+    // One effect written (a kept one in a marker), and the build it needs.
+    auto emit = [&](const Anim &a, int g, QString *into) {
+        if (a.custom()) {
+            *into += keptEffects.add(a, a.start, &ids);
+            aimedAt.unite(shapesOfKept(a.xml));
+            return;
+        }
+        const ShapeInfo si = shapes.value(a.shape);
+        *into += effectXml(a, g, si.placeholder && !a.paragraphs(), &ids);
+        aimedAt.insert(a.shape);
+        if (si.sp && !built.contains({a.shape, g})) {
+            built.insert({a.shape, g});
+            builds.push_back({si.order, g, QStringLiteral("<p:bldP spid=\"%1\" grpId=\"%2\"%3%4/>").arg(a.shape).arg(g).arg(a.paragraphs() ? QStringLiteral(" build=\"p\"") : QString(), si.background ? QStringLiteral(" animBg=\"1\"") : QString())});
+        }
+    };
     auto closePart = [&] {
         if (part < 0) return;
         parts += QStringLiteral("<p:par><p:cTn id=\"%1\" fill=\"hold\"><p:stCondLst><p:cond delay=\"%2\"/></p:stCondLst><p:childTnLst>").arg(partId).arg(partDelay) + inside + QStringLiteral("</p:childTnLst></p:cTn></p:par>");
@@ -1306,20 +1552,41 @@ QString animationsXml(const Document &doc, const Page &slide, const AnimSequence
             partId = ids.take();
             partDelay = placed[i].innerStart;
         }
-        if (a.custom()) {
-            inside += keptEffects.add(a, a.start, &ids);
-            aimedAt.unite(shapesOfKept(a.xml));
-            continue;
-        }
-        const ShapeInfo &si = shapes.value(a.shape);
-        inside += effectXml(a, grp[i], si.placeholder && !a.paragraphs(), &ids);
-        aimedAt.insert(a.shape);
-        if (si.sp && !built.contains({a.shape, grp[i]})) {
-            built.insert({a.shape, grp[i]});
-            builds.push_back({si.order, grp[i], QStringLiteral("<p:bldP spid=\"%1\" grpId=\"%2\"%3%4/>").arg(a.shape).arg(grp[i]).arg(a.paragraphs() ? QStringLiteral(" build=\"p\"") : QString(), si.background ? QStringLiteral(" animBg=\"1\"") : QString())});
-        }
+        emit(a, grp[i], &inside);
     }
     closeStep();
+    // Each trigger that was changed: one interactive sequence for the object, all its effects at its click.
+    QStringList triggerXml(live.triggers.size());
+    for (int g = 0; g < live.triggers.size(); ++g) {
+        const TriggerSeq &t = live.triggers[g];
+        if (!rewritten(g) || t.effects.isEmpty()) continue;
+        aimedAt.insert(t.shape);
+        const QVector<Placed> there = layoutOf(t.effects);
+        const int seqId = ids.take(), clickPar = ids.take();
+        QString tparts, tinside;
+        int tpart = -1, tpartId = 0, tpartDelay = 0;
+        auto closeTPart = [&] {
+            if (tpart < 0) return;
+            tparts += QStringLiteral("<p:par><p:cTn id=\"%1\" fill=\"hold\"><p:stCondLst><p:cond delay=\"%2\"/></p:stCondLst><p:childTnLst>").arg(tpartId).arg(tpartDelay) + tinside + QStringLiteral("</p:childTnLst></p:cTn></p:par>");
+            tinside.clear();
+            tpart = -1;
+        };
+        for (int i = 0; i < t.effects.size(); ++i) {
+            if (tpart != there[i].inner || tpart < 0) {
+                closeTPart();
+                tpart = there[i].inner;
+                tpartId = ids.take();
+                tpartDelay = there[i].innerStart;
+            }
+            emit(t.effects[i], triggerGrp[g][i], &tinside);
+        }
+        closeTPart();
+        const QString target = QStringLiteral("<p:tgtEl><p:spTgt spid=\"%1\"/></p:tgtEl>").arg(t.shape);
+        triggerXml[g] = QStringLiteral("<p:seq concurrent=\"1\" nextAc=\"seek\"><p:cTn id=\"%1\" restart=\"whenNotActive\" fill=\"hold\" evtFilter=\"cancelBubble\" nodeType=\"interactiveSeq\"><p:stCondLst><p:cond evt=\"onClick\" delay=\"0\">%2</p:cond></p:stCondLst>"
+                                       "<p:endSync evt=\"end\" delay=\"0\"><p:rtn val=\"all\"/></p:endSync><p:childTnLst><p:par><p:cTn id=\"%3\" fill=\"hold\"><p:stCondLst><p:cond delay=\"0\"/></p:stCondLst><p:childTnLst>")
+                            .arg(seqId).arg(target).arg(clickPar) +
+                        tparts + QStringLiteral("</p:childTnLst></p:cTn></p:par></p:childTnLst></p:cTn><p:nextCondLst><p:cond evt=\"onClick\" delay=\"0\">%1</p:cond></p:nextCondLst></p:seq>").arg(target);
+    }
     // The builds of what the file holds (charts, diagrams) stay as long as a shape they are for is still aimed at, by the main sequence or another.
     for (const QString &b : seq.builds) {
         static const QRegularExpression spid(QStringLiteral("\\bspid\\s*=\\s*[\"'](\\d+)[\"']")), grpIdRe(QStringLiteral("\\bgrpId\\s*=\\s*[\"'](\\d+)[\"']"));
@@ -1336,8 +1603,24 @@ QString animationsXml(const Document &doc, const Page &slide, const AnimSequence
     const int before = std::clamp(seq.keptBeforeMain, 0, int(seq.kept.size()));
     QString xml = QStringLiteral("<p:timing%1><p:tnLst><p:par><p:cTn id=\"%2\" dur=\"indefinite\" restart=\"never\" nodeType=\"tmRoot\"><p:childTnLst>").arg(declared, QString::number(rootId));
     // (The main sequence is filled in first: that numbers the kept effects the kept nodes may name.)
-    const QString mainFilled = keptEffects.fill(mainXml);
-    for (int i = 0; i < before; ++i) xml += keptEffects.follow(seq.kept[i]);
+    // Nothing to write: a slide whose effects were all taken out, and whose other nodes all went with them, has no timing.
+    {
+        bool anything = !mainXml.isEmpty();
+        for (qsizetype k = 0; k < seq.kept.size() && !anything; ++k) anything = keptIsWritten(k);
+        for (qsizetype g = 0; g < triggerXml.size() && !anything; ++g) anything = !triggerXml[g].isEmpty();
+        if (!anything) return QString();
+    }
+    // (A separator no XML holds keeps the pieces apart while they are filled in, once.)
+    const QChar sep(0x03);
+    QStringList pieces = keptEffects.fill(mainXml + sep + triggerXml.join(sep)).split(sep);
+    const QString mainFilled = pieces.takeFirst();
+    auto keptNode = [&](qsizetype k) {
+        const auto owner = ownerOfKept.constFind(int(k));
+        if (owner == ownerOfKept.constEnd() || !rewritten(owner.value())) return keptEffects.follow(seq.kept[k]);
+        // A changed group is written, in the place its first sequence had.
+        return owner.value() < pieces.size() && live.triggers[owner.value()].kept.first() == k ? pieces[owner.value()] : QString();
+    };
+    for (int i = 0; i < before; ++i) xml += keptNode(i);
     // A main sequence with no effects in it isn't written: the presentation program writes none (a slide that has only what waits for a click
     // has none), and refuses a file that has an empty one.
     if (!mainXml.isEmpty()) {
@@ -1345,7 +1628,10 @@ QString animationsXml(const Document &doc, const Page &slide, const AnimSequence
         xml += QStringLiteral("<p:prevCondLst><p:cond evt=\"onPrev\" delay=\"0\"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:prevCondLst>"
                               "<p:nextCondLst><p:cond evt=\"onNext\" delay=\"0\"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:nextCondLst></p:seq>");
     }
-    for (qsizetype i = before; i < seq.kept.size(); ++i) xml += keptEffects.follow(seq.kept[i]);
+    for (qsizetype i = before; i < seq.kept.size(); ++i) xml += keptNode(i);
+    // The groups made here have no sequence of the file's to take the place of.
+    for (int g = 0; g < live.triggers.size(); ++g)
+        if (live.triggers[g].kept.isEmpty() && g < pieces.size()) xml += pieces[g];
     xml += QStringLiteral("</p:childTnLst></p:cTn></p:par></p:tnLst>");
     if (!buildXml.isEmpty()) xml += QStringLiteral("<p:bldLst>") + buildXml + QStringLiteral("</p:bldLst>");
     xml += seq.extension + QStringLiteral("</p:timing>");
