@@ -2,6 +2,7 @@
 // Each document is built here from a few lines of XML.
 
 #include "../isolatesettings.h"
+#include "../withdialog.h"
 #include "app/barcodedialog.h"
 #include "app/linktargetpicker.h"
 #include "app/navpane.h"
@@ -262,38 +263,6 @@ QVector<QLineF> columnLines(WriteWindow &w, int page)
 const char kSect1[] = "<w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/>";
 
 QByteArray para(const char *text) { return QByteArray("<w:p><w:r><w:t xml:space=\"preserve\">") + text + "</w:t></w:r></w:p>"; }
-
-// Runs `open`, which makes a modal dialog, and meanwhile runs `fill` on that dialog, then closes it (a watchdog closes whatever stays open after ten seconds and fails the test).
-void withDialog(const std::function<void()> &opener, const QString &objectName, const std::function<void(QDialog *)> &fill, bool accept = true)
-{
-    QString opened;
-    bool leftOpen = false;
-    auto closeAll = [](bool ok) {
-        for (QWidget *top : QApplication::topLevelWidgets())
-            if (auto *d = qobject_cast<QDialog *>(top); d && d->isVisible()) {
-                if (ok) d->accept();
-                else d->reject();
-            }
-    };
-    QTimer once, watchdog;
-    once.setSingleShot(true);
-    watchdog.setSingleShot(true);
-    QObject::connect(&once, &QTimer::timeout, [&] {
-        auto *dlg = qobject_cast<QDialog *>(QApplication::activeModalWidget());
-        if (dlg) opened = dlg->objectName();
-        if (dlg && opened == objectName) fill(dlg);
-        closeAll(accept && opened == objectName);
-    });
-    QObject::connect(&watchdog, &QTimer::timeout, [&] {
-        leftOpen = true;
-        closeAll(false);
-    });
-    once.start(0);
-    watchdog.start(10000);
-    opener();
-    QCOMPARE(opened, objectName);
-    QVERIFY2(!leftOpen, "the dialog was left open");
-}
 
 // A window on a document of the paragraphs given, the caret at the end of the text of the first.
 struct Win {
