@@ -15,11 +15,13 @@
 #include "core/blockmove.h"
 #include "core/fonts.h"
 #include "core/editops.h"
+#include "core/items.h"
 #include "core/sectionmove.h"
 #include "core/tableops.h"
 #include "core/writedoc.h"
 #include "core/writeprops.h"
 #include "office/package.h"
+#include "text/textengine.h"
 #include "text/textprops.h"
 
 #include <QAction>
@@ -38,6 +40,7 @@
 #include <QTextDocument>
 #include <QTextList>
 #include <QToolButton>
+#include <tuple>
 
 using namespace jp;
 using namespace jp::write;
@@ -420,23 +423,124 @@ private Q_SLOTS:
         moveAndCompare(p, false);
     }
 
-    // The rule: a section that holds one end of a bookmark (or of a comment's range, a field, or a content control) whose other end is outside it is not moved; the person is told.
-    void aBookmarkThatEndsOutsideTheSectionRefusesTheMove()
+    // The rule: a section that holds one end of a bookmark (or of a comment's range, a field, or a content control) whose other end is outside it is not moved; the person is told. Each case is a test
+    // of its own, so that one that fails does not hide the others.
+    void aBookmarkThatBeginsInTheSectionAndEndsBelowItRefusesTheMove()
     {
         Pieces p;
         p.beta = head("Beta") + "<w:p><w:bookmarkStart w:id=\"7\" w:name=\"across\"/>" + run("Beta words") + "</w:p>";
         p.gamma = head("Gamma") + "<w:p>" + run("Gamma words") + "<w:bookmarkEnd w:id=\"7\"/></w:p>";
         refused(p, QByteArray(), QStringLiteral("bookmark"));
-        // One that begins above the section and ends inside it.
+    }
+    void aBookmarkThatBeginsAboveTheSectionAndEndsInsideItRefusesTheMove()
+    {
         Pieces q;
         q.alpha = head("Alpha") + "<w:p><w:bookmarkStart w:id=\"8\" w:name=\"from\"/>" + run("Alpha words") + "</w:p>";
         q.beta = head("Beta") + "<w:p>" + run("Beta words") + "<w:bookmarkEnd w:id=\"8\"/></w:p>";
         refused(q, QByteArray(), QStringLiteral("bookmark"));
-        // And a comment's range.
+    }
+    void aCommentRangeThatEndsOutsideTheSectionRefusesTheMove()
+    {
         Pieces r;
         r.beta = head("Beta") + "<w:p><w:commentRangeStart w:id=\"0\"/>" + run("Beta words") + "</w:p>";
         r.gamma = head("Gamma") + "<w:p>" + run("Gamma words") + "<w:commentRangeEnd w:id=\"0\"/><w:r><w:commentReference w:id=\"0\"/></w:r></w:p>";
         refused(r, QByteArray(), QStringLiteral("comment"));
+    }
+
+    static QByteArray fieldPart(const char *type, const QByteArray &instr = QByteArray())
+    {
+        return "<w:r><w:fldChar w:fldCharType=\"" + QByteArray(type) + "\"/></w:r>" + (instr.isEmpty() ? QByteArray() : "<w:r><w:instrText xml:space=\"preserve\"> " + instr + " </w:instrText></w:r>");
+    }
+    // A field that begins in the section and ends below it, and one that begins above it and ends inside it.
+    void aFieldThatBeginsInTheSectionAndEndsBelowItRefusesTheMove()
+    {
+        Pieces p;
+        p.beta = head("Beta") + "<w:p>" + run("Beta words ") + fieldPart("begin", "SEQ Figure") + fieldPart("separate") + run("1") + "</w:p>";
+        p.gamma = head("Gamma") + "<w:p>" + run("Gamma words") + fieldPart("end") + "</w:p>";
+        refused(p, QByteArray(), QStringLiteral("field"));
+    }
+    void aFieldThatBeginsAboveTheSectionAndEndsInsideItRefusesTheMove()
+    {
+        Pieces p;
+        p.alpha = head("Alpha") + "<w:p>" + run("Alpha words ") + fieldPart("begin", "SEQ Figure") + fieldPart("separate") + run("1") + "</w:p>";
+        p.beta = head("Beta") + "<w:p>" + run("Beta words") + fieldPart("end") + "</w:p>";
+        refused(p, QByteArray(), QStringLiteral("field"));
+    }
+    void aFieldThatIsWholeInsideTheSectionMovesWithIt()
+    {
+        Pieces p;
+        p.beta = head("Beta") + "<w:p>" + run("Beta words ") + fieldPart("begin", "SEQ Figure") + fieldPart("separate") + run("1") + fieldPart("end") + "</w:p>";
+        moveAndCompare(p, true);
+        moveAndCompare(p, false);
+    }
+    // A content control with ends in two sections is a wrapper around whole paragraphs (one in a paragraph can't have an end in another): it refuses the move whichever way the section goes.
+    void aContentControlWithAnEndOutsideTheSectionRefusesTheMoveUpAndDown()
+    {
+        Pieces p;
+        p.beta = head("Beta") + wrapOpen(0) + para("Beta words");
+        p.gamma = head("Gamma") + wrapClose(0) + marked("Gamma words");
+        refused(p, QByteArray(), QStringLiteral("content control"));
+        auto doc = open(p.docx());
+        const QByteArray before = doc->toDocx();
+        QString why;
+        QVERIFY(!moveSection(*doc, positionOf(*doc, QStringLiteral("Beta")), positionOf(*doc, QStringLiteral("Closing")), &why));
+        QVERIFY2(why.contains(QLatin1String("content control")), qPrintable(why));
+        QVERIFY2(differsIn(doc->toDocx(), before).isEmpty(), qPrintable(differsIn(doc->toDocx(), before)));
+        QVERIFY(!doc->canUndo());
+    }
+
+    // The words of every line of every box of every page, as the pages lay them out: the numbers of the footnotes are in them, where the page puts them.
+    static QStringList pageLines(WriteDoc &doc)
+    {
+        QStringList out;
+        for (int known = -1; !doc.pager().complete() && doc.pager().pagesKnown() != known;) {
+            known = doc.pager().pagesKnown();
+            doc.pager().paginate(known);
+        }
+        for (int page = 0; page < doc.pager().pageCount(); ++page) {
+            const auto made = doc.pager().materialize(page);
+            if (!made) continue;
+            for (int box = 0; box < made->boxes.size(); ++box) {
+                const auto *item = dynamic_cast<const TextItem *>(made->doc->item(made->boxes[box]));
+                if (!item) continue;
+                FrameSpec fs;
+                fs.size = item->rect.size();
+                fs.insets = QMarginsF(0, 0, 0, 0);
+                fs.hyphenate = false;
+                StoryLayout layout;
+                layout.build(made->doc->story(item->storyId)->doc.get(), {fs}, doc.flow().env);
+                for (const auto &l : layout.lineInfo(0)) out << QStringLiteral("%1.%2: %3").arg(page).arg(box).arg(QString(l.text).remove(QChar(0x2060)).trimmed());
+            }
+        }
+        return out;
+    }
+    // Footnote numbers that begin again in each section, with a heading between the section breaks: after a section moves, the numbers are those of a document typed in the new order.
+    void footnoteNumbersThatRestartInEachSectionAreThoseOfTheNewOrder()
+    {
+        const QByteArray brk = "<w:sectPr>" + kPageSize + "</w:sectPr>";
+        Pieces p;
+        p.settings = "<w:footnotePr><w:numRestart w:val=\"eachSect\"/></w:footnotePr>";
+        p.intro = para("Intro words", brk);
+        p.alpha = head("Alpha") + "<w:p>" + run("Alpha words ") + noteRef("footnote", 2) + run(" and ") + noteRef("footnote", 3) + "</w:p>" + para("Alpha end", brk);
+        p.beta = head("Beta") + "<w:p>" + run("Beta words ") + noteRef("footnote", 4) + "</w:p>" + para("Beta end", brk);
+        p.gamma = head("Gamma") + para("Gamma words", brk);
+        auto moved = [&](bool up, QString *why) {
+            auto doc = open(p.docx());
+            const bool ok = moveSection(*doc, positionOf(*doc, QStringLiteral("Beta")), up ? positionOf(*doc, QStringLiteral("Alpha")) : positionOf(*doc, QStringLiteral("Closing")), why);
+            return std::make_pair(ok, pageLines(*doc));
+        };
+        const QStringList wasLines = pageLines(*open(p.docx()));
+        QVERIFY(wasLines.size() > 6);
+        for (const bool up : {true, false}) {
+            QString why;
+            const auto [ok, lines] = moved(up, &why);
+            QVERIFY2(ok, qPrintable(why));
+            const QStringList typed = pageLines(*open(p.docx(up ? QList<int>{2, 1, 3} : QList<int>{1, 3, 2})));
+            QCOMPARE(lines, typed);
+            QVERIFY(lines != wasLines);   // (the notes of the sections now follow the new order)
+        }
+        moveAndCompare(p, true);
+        moveAndCompare(p, false);
     }
 
     void aFieldAndCrossReferencesToHeadingsInsideAndOutsideMove()
