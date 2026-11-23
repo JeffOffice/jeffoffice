@@ -157,7 +157,7 @@ void WriteTests::aScribbleOverAHugeTableIsBoundedByACountedNumberOfLooks()
     QVERIFY(std::any_of(sides.begin(), sides.end(), [](const PaintedSide &s) { return s.key == 10 && s.side == CellSide::Left; }));
 }
 
-void WriteTests::aBorderPainterDragThatStartsOutsideATableSaysSoOnceAndAPageFootIsNoEdgeOfASplitCell()
+void WriteTests::aBorderPainterDragThatStartsOutsideATableSaysSoOnce()
 {
     TailWin win;
     win.w.view()->paginateAll();
@@ -172,24 +172,6 @@ void WriteTests::aBorderPainterDragThatStartsOutsideATableSaysSoOnceAndAPageFoot
     QCOMPARE(said.size(), 1);
     QVERIFY2(said.first().first().toString().contains(QStringLiteral("Drag along the lines of a table")), qPrintable(said.first().first().toString()));
     QCOMPARE(doc->nextStepSerial(), serial);
-    // A cell of one row that goes over the page's foot: its bottom on the first page is where the page ends, not the cell's edge; its top on the next page is not its top.
-    QByteArray lines;
-    for (int i = 0; i < 160; ++i) lines += "<w:p><w:r><w:t>line</w:t></w:r></w:p>";
-    TailWin tall("<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"4000\"/></w:tblGrid><w:tr><w:tc>" + lines + "</w:tc></w:tr></w:tbl><w:p><w:r><w:t>End</w:t></w:r></w:p>");
-    tall.w.view()->paginateAll();
-    QTextCursor c(tall.w.document()->story());
-    c.setPosition(positionOf(*tall.w.document(), QStringLiteral("line")));
-    tall.w.view()->setCursor(c);
-    const QHash<int, QRect> cells = tall.cells();
-    QCOMPARE(cells.size(), 1);
-    const QRect box = cells.constBegin().value();
-    tall.w.act(QStringLiteral("table.paintBorder"))->trigger();
-    const quint64 tallSerial = tall.w.document()->nextStepSerial();
-    drag(tall.w.view()->viewport(), QPoint(box.left() + 10, box.bottom()), QPoint(box.right() - 10, box.bottom()));
-    QCOMPARE(tall.w.document()->nextStepSerial(), tallSerial);
-    QVERIFY(!tall.xml().contains("<w:bottom"));
-    drag(tall.w.view()->viewport(), QPoint(box.left() + 10, box.top()), QPoint(box.right() - 10, box.top()));   // (the top of the first part is the cell's own)
-    QVERIFY(tall.xml().contains("<w:top"));
 }
 
 void WriteTests::paintingBordersPutsALineOnBothCellsInOneStepAndTheFileKeepsIt()
@@ -786,13 +768,324 @@ void WriteTests::showNotesGoesFromAMarkToItsNoteAndBackAndFromTheTextToTheNeares
 }
 
 // A developer's hook, not a test: JW_TAIL_SHOTS names a folder for pictures of the border painter, the move handle, and Show Notes at work.
+namespace {
+
+// The pen the painted-border tests use: red, thick enough to be found in a picture of the page.
+flow::TableLine redPen() { return flow::TableLine{flow::TableLine::Style::Single, 4.5, QColor(255, 0, 0)}; }
+
+// The columns of a picture where red is drawn between two rows, as the first and the last (-1: none).
+struct RedColumns {
+    int first = -1, last = -1;
+    double middle() const { return (first + last) / 2.0; }
+};
+
+RedColumns redColumns(const QImage &img, int y0, int y1, int x0 = 0, int x1 = 1 << 20)
+{
+    RedColumns out;
+    for (int y = std::max(0, y0); y < std::min(img.height(), y1); ++y)
+        for (int x = std::max(0, x0); x < std::min(img.width(), x1); ++x) {
+            const QColor c = img.pixelColor(x, y);
+            if (c.red() < 200 || c.green() > 90 || c.blue() > 90) continue;
+            if (out.first < 0 || x < out.first) out.first = x;
+            out.last = std::max(out.last, x);
+        }
+    return out;
+}
+
+// The page's first picture, as large as the page is in the view (so that a point of the view is a point of the picture, less the page's corner).
+QImage pageAsInView(PageView *view) { return view->pageImage(0, view->pageRect(0).width()); }
+
+// A table of two columns, "WWWWWWWW" and "i", marked right to left (the file format's visual-order property) or not.
+QByteArray twoCellTable(bool rtl)
+{
+    return QByteArray("<w:tbl><w:tblPr>") + (rtl ? "<w:bidiVisual/>" : "") + "<w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"2000\"/><w:gridCol w:w=\"2000\"/></w:tblGrid>"
+           "<w:tr>" + cellXml("WWWWWWWW") + cellXml("i") + "</w:tr></w:tbl><w:p><w:r><w:t>End</w:t></w:r></w:p>";
+}
+
+} // namespace
+
+// Measured on Nov 22: our layout does not read the table's right-to-left mark (it is read and written, never used): the cells are in the same places as in the same table without it,
+// and a "left" border is drawn at the physical left of its cell, a "right" one at the physical right. The painter stores the side that is drawn where the pointer went, and this holds that
+// down by the picture: if the layout ever mirrors a table, the sides would have to be swapped, and this fails first.
+void WriteTests::aBorderPaintedInARightToLeftTableIsStoredOnTheSideThatIsDrawnWhereTheDragWent()
+{
+    jp::initCore();
+    QList<double> leftDrawn, rightDrawn;
+    for (const bool rtl : {false, true}) {
+        const QString why = rtl ? QStringLiteral("right to left") : QStringLiteral("left to right");
+        TailWin win(twoCellTable(rtl));
+        win.w.view()->paginateAll();
+        const QHash<int, QRect> cells = win.cells();
+        QCOMPARE(cells.size(), 2);
+        const int a = positionOf(*win.w.document(), QStringLiteral("W")), b = positionOf(*win.w.document(), QStringLiteral("i"));
+        const QRect ra = cells.value(a), rb = cells.value(b);
+        QVERIFY2(ra.right() <= rb.left() + 1, qPrintable(why + QStringLiteral(": the first cell is not at the left")));   // (cells are not mirrored)
+        win.w.act(QStringLiteral("table.paintBorder"))->trigger();
+        win.w.view()->setBorderPen(redPen());
+        QWidget *vp = win.w.view()->viewport();
+        const QPoint corner = win.w.view()->pageRect(0).topLeft();
+        // Down the table's left edge, from the first cell's top to its bottom: the first cell's left side.
+        drag(vp, QPoint(ra.left(), ra.top() + 2), QPoint(ra.left(), ra.bottom() - 2));
+        QByteArray xml = win.xml();
+        QVERIFY2(bordersOf(xml, "WWWWWWWW").contains("<w:left w:val=\"single\""), qPrintable(why + QStringLiteral(": ") + bordersOf(xml, "WWWWWWWW")));
+        QVERIFY2(!bordersOf(xml, "WWWWWWWW").contains("<w:right"), qPrintable(why));
+        QVERIFY2(bordersOf(xml, "i").isEmpty(), qPrintable(why));
+        win.w.view()->refresh();
+        RedColumns red = redColumns(pageAsInView(win.w.view()), ra.top() + 2 - corner.y(), ra.bottom() - 2 - corner.y());
+        QVERIFY2(red.first >= 0, qPrintable(why + QStringLiteral(": no line drawn")));
+        QVERIFY2(std::abs(red.middle() - (ra.left() - corner.x())) <= 4, qPrintable(why + QStringLiteral(": drawn at ") + QString::number(red.middle()) + QStringLiteral(", dragged at ") + QString::number(ra.left() - corner.x())));
+        leftDrawn << red.middle() - (ra.left() - corner.x());
+        // Down the line between the two cells: the first cell's right side and the second's left side, drawn where the line between them is.
+        win.w.document()->story()->undo();
+        const int between = ra.right() + 1;
+        drag(vp, QPoint(between, ra.top() + 2), QPoint(between, ra.bottom() - 2));
+        xml = win.xml();
+        QVERIFY2(bordersOf(xml, "WWWWWWWW").contains("<w:right w:val=\"single\""), qPrintable(why + QStringLiteral(": ") + bordersOf(xml, "WWWWWWWW")));
+        QVERIFY2(bordersOf(xml, "i").contains("<w:left w:val=\"single\""), qPrintable(why));
+        QVERIFY2(!bordersOf(xml, "WWWWWWWW").contains("<w:left"), qPrintable(why));
+        win.w.view()->refresh();
+        red = redColumns(pageAsInView(win.w.view()), ra.top() + 2 - corner.y(), ra.bottom() - 2 - corner.y());
+        QVERIFY2(red.first >= 0 && std::abs(red.middle() - (between - corner.x())) <= 4, qPrintable(why + QStringLiteral(": drawn at ") + QString::number(red.middle()) + QStringLiteral(", dragged at ") + QString::number(between - corner.x())));
+        rightDrawn << red.middle() - (between - corner.x());
+    }
+    // The same table with and without the mark is drawn the same.
+    QVERIFY(std::abs(leftDrawn[0] - leftDrawn[1]) < 1.5);
+    QVERIFY(std::abs(rightDrawn[0] - rightDrawn[1]) < 1.5);
+}
+
+namespace {
+
+// An outer table of two cells; the first holds a table of two cells ("n1", "n2"), then a paragraph ("tail"); the second is "o2".
+QByteArray nestedTableBody()
+{
+    return "<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"4000\"/><w:gridCol w:w=\"3000\"/></w:tblGrid><w:tr><w:tc>"
+           "<w:tbl><w:tblPr><w:tblW w:w=\"3600\" w:type=\"dxa\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"1800\"/><w:gridCol w:w=\"1800\"/></w:tblGrid><w:tr>" + cellXml("n1") + cellXml("n2") + "</w:tr></w:tbl>"
+           "<w:p><w:r><w:t>tail</w:t></w:r></w:p></w:tc>" + cellXml("o2") + "</w:tr></w:tbl><w:p><w:r><w:t>End</w:t></w:r></w:p>";
+}
+
+} // namespace
+
+// A table inside a cell is not a fragment of its own among the page's tables (the page lists the outermost tables, and each has its nested ones whole in its cells' contents):
+// the drag looks for the innermost table that has the start of the drag in it, and so finds the nested one.
+void WriteTests::aDragInsideANestedTablePaintsTheNestedTablesCellsAndNotTheOuterOnes()
+{
+    TailWin win(nestedTableBody());
+    win.w.view()->paginateAll();
+    PageView *view = win.w.view();
+    const int n1 = positionOf(*win.w.document(), QStringLiteral("n1")), n2 = positionOf(*win.w.document(), QStringLiteral("n2"));
+    QTextCursor c(win.w.document()->story());
+    c.setPosition(n1);
+    view->setCursor(c);
+    win.w.refreshForTest();
+    QRect first, second;
+    QVERIFY(view->positionRect(n1, &first));
+    QVERIFY(view->positionRect(n2, &second));
+    // The line between the two nested cells is a cell margin (5.4 points, 7.2 pixels at the view's scale) before the second one's text, as tall as the text's line.
+    const int x = second.left() - 7;
+    win.w.act(QStringLiteral("table.paintBorder"))->trigger();
+    QWidget *vp = view->viewport();
+    const quint64 serial = win.w.document()->nextStepSerial();
+    drag(vp, QPoint(x, first.top() - 1), QPoint(x, first.bottom() + 1));
+    QVERIFY2(win.w.document()->nextStepSerial() != serial, "nothing was painted");
+    const QByteArray xml = win.xml();
+    QVERIFY2(bordersOf(xml, "n1").contains("<w:right w:val=\"single\""), qPrintable(bordersOf(xml, "n1")));
+    QVERIFY2(bordersOf(xml, "n2").contains("<w:left w:val=\"single\""), qPrintable(bordersOf(xml, "n2")));
+    QVERIFY(!bordersOf(xml, "n1").contains("<w:left") && !bordersOf(xml, "n2").contains("<w:right"));
+    QCOMPARE(int(xml.count("<w:tcBorders>")), 2);   // (no outer cell has any)
+    // A drag along the outer table's line between its cells (right of the nested table's cells) goes to the outer table.
+    win.w.document()->story()->undo();
+    QCOMPARE(int(win.xml().count("<w:tcBorders>")), 0);
+    QRect tail, outerRight;
+    QVERIFY(view->positionRect(positionOf(*win.w.document(), QStringLiteral("tail")), &tail));
+    QVERIFY(view->positionRect(positionOf(*win.w.document(), QStringLiteral("o2")), &outerRight));
+    const int between = outerRight.left() - 7;   // (the outer line: before the outer second cell's text, the same margin)
+    drag(vp, QPoint(between, first.top()), QPoint(between, tail.bottom()));
+    const QByteArray outer = win.xml();
+    QVERIFY2(outer.count("<w:tcBorders>") >= 1, "nothing was painted on the outer table");
+    QVERIFY2(bordersOf(outer, "o2").contains("<w:left w:val=\"single\""), qPrintable(bordersOf(outer, "o2")));
+    QVERIFY(bordersOf(outer, "n1").isEmpty() && bordersOf(outer, "n2").isEmpty());
+}
+
+namespace {
+
+// A column of one cell joined down over three rows ("M") beside three cells ("x1", "x2", "x3"), each row 30 points tall.
+QByteArray mergedTableBody()
+{
+    auto row = [](const char *joined, const char *text) {
+        return QByteArray("<w:tr><w:trPr><w:trHeight w:val=\"600\"/></w:trPr><w:tc><w:tcPr>") + joined + "</w:tcPr><w:p/></w:tc>" + cellXml(text) + "</w:tr>";
+    };
+    return "<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"2000\"/><w:gridCol w:w=\"2000\"/></w:tblGrid>" +
+           QByteArray("<w:tr><w:trPr><w:trHeight w:val=\"600\"/></w:trPr><w:tc><w:tcPr><w:vMerge w:val=\"restart\"/></w:tcPr><w:p><w:r><w:t>M</w:t></w:r></w:p></w:tc>") + cellXml("x1") + "</w:tr>" +
+           row("<w:vMerge/>", "x2") + row("<w:vMerge/>", "x3") + "</w:tbl><w:p><w:r><w:t>End</w:t></w:r></w:p>";
+}
+
+} // namespace
+
+// What a drag along a joined cell's side does today (pinned, not designed): the joined cell's side is one side, so a drag that runs along at least half of its height puts the line on all of
+// it, and one that runs along less puts it on none of it, while each unjoined cell beside it is painted by what the drag covers of its own side. Erasing along part of it therefore
+// takes the line off the cells beside the part, and leaves the joined cell's own line, which is drawn there still.
+void WriteTests::paintingAlongAPartOfAMergedCellsSideIsAllOrNothingByHalfAndErasingPartLeavesTheLine()
+{
+    jp::initCore();
+    auto setup = [](TailWin &win, QHash<int, QRect> *cells, int *m, int *x1, int *x2, int *x3) {
+        win.w.view()->paginateAll();
+        *cells = win.cells();
+        *m = positionOf(*win.w.document(), QStringLiteral("M"));
+        *x1 = positionOf(*win.w.document(), QStringLiteral("x1"));
+        *x2 = positionOf(*win.w.document(), QStringLiteral("x2"));
+        *x3 = positionOf(*win.w.document(), QStringLiteral("x3"));
+    };
+    QHash<int, QRect> cells;
+    int m = 0, p1 = 0, p2 = 0, p3 = 0;
+    {
+        // Two rows of three (more than half): the joined cell has its whole right side painted, the third cell beside it has none.
+        TailWin win(mergedTableBody());
+        setup(win, &cells, &m, &p1, &p2, &p3);
+        QCOMPARE(cells.size(), 4);
+        const QRect rm = cells.value(m), r1 = cells.value(p1), r2 = cells.value(p2);
+        QVERIFY(rm.height() >= 2 * r1.height());
+        win.w.act(QStringLiteral("table.paintBorder"))->trigger();
+        drag(win.w.view()->viewport(), QPoint(rm.right() + 1, r1.top() + 2), QPoint(rm.right() + 1, r2.bottom() - 2));
+        const QByteArray xml = win.xml();
+        QVERIFY2(bordersOf(xml, "M").contains("<w:right w:val=\"single\""), qPrintable(bordersOf(xml, "M")));
+        QVERIFY2(bordersOf(xml, "x1").contains("<w:left w:val=\"single\""), qPrintable(bordersOf(xml, "x1")));
+        QVERIFY(bordersOf(xml, "x2").contains("<w:left w:val=\"single\""));
+        QVERIFY(bordersOf(xml, "x3").isEmpty());
+        QCOMPARE(int(xml.count("<w:tcBorders>")), 3);
+    }
+    {
+        // One row of three (less than half): the joined cell has nothing, the cell beside the row has its left.
+        TailWin win(mergedTableBody());
+        setup(win, &cells, &m, &p1, &p2, &p3);
+        const QRect rm = cells.value(m), r1 = cells.value(p1);
+        win.w.act(QStringLiteral("table.paintBorder"))->trigger();
+        drag(win.w.view()->viewport(), QPoint(rm.right() + 1, r1.top() + 2), QPoint(rm.right() + 1, r1.bottom() - 2));
+        const QByteArray xml = win.xml();
+        QVERIFY2(bordersOf(xml, "M").isEmpty(), qPrintable(bordersOf(xml, "M")));
+        QVERIFY2(bordersOf(xml, "x1").contains("<w:left w:val=\"single\""), qPrintable(bordersOf(xml, "x1")));
+        QCOMPARE(int(xml.count("<w:tcBorders>")), 1);
+    }
+    {
+        // Every side is red, then the first row's part of the line between the columns is erased: the line comes off the cell beside it and stays on the joined cell, and is still drawn there.
+        TailWin win(mergedTableBody());
+        QTextCursor all = win.w.view()->cursor();
+        selectInTable(*win.w.document(), all, TableUnit::Table);
+        setBorders(*win.w.document(), all, BorderSide::All, redPen());
+        win.w.view()->refresh();
+        setup(win, &cells, &m, &p1, &p2, &p3);
+        const QRect rm = cells.value(m), r1 = cells.value(p1), r3 = cells.value(p3);
+        const QPoint corner = win.w.view()->pageRect(0).topLeft();
+        const int x = rm.right() + 1;
+        // Whether red is drawn at the line between the columns, at the height of the row.
+        auto lineAt = [&](const QRect &row) {
+            win.w.view()->refresh();
+            const int y = row.center().y() - corner.y();
+            return redColumns(pageAsInView(win.w.view()), y - 2, y + 2, x - corner.x() - 5, x - corner.x() + 6).first >= 0;
+        };
+        QVERIFY(lineAt(r1) && lineAt(r3));
+        win.w.act(QStringLiteral("table.paintBorder"))->trigger();
+        win.w.view()->setBorderPen(flow::TableLine());
+        drag(win.w.view()->viewport(), QPoint(x, r1.top() + 2), QPoint(x, r1.bottom() - 2));
+        const QByteArray xml = win.xml();
+        QVERIFY2(bordersOf(xml, "x1").contains("<w:left w:val=\"nil\"/>"), qPrintable(bordersOf(xml, "x1")));
+        QVERIFY2(bordersOf(xml, "M").contains("<w:right w:val=\"single\""), qPrintable(bordersOf(xml, "M")));   // (the joined cell keeps its right side)
+        QVERIFY2(bordersOf(xml, "x2").contains("<w:left w:val=\"single\""), qPrintable(bordersOf(xml, "x2")));
+        QVERIFY2(lineAt(r1), "the line the joined cell keeps is drawn in the first row still");
+        // Erased along all of it, every one of them comes off.
+        drag(win.w.view()->viewport(), QPoint(x, rm.top() + 2), QPoint(x, rm.bottom() - 2));
+        const QByteArray gone = win.xml();
+        QVERIFY2(bordersOf(gone, "M").contains("<w:right w:val=\"nil\"/>") && bordersOf(gone, "x2").contains("<w:left w:val=\"nil\"/>") && bordersOf(gone, "x3").contains("<w:left w:val=\"nil\"/>"), qPrintable(bordersOf(gone, "M")));
+        QVERIFY(!lineAt(r1) && !lineAt(r3));
+    }
+}
+
+// The cell that is split across pages: its end on a page that it goes on from is where the page ends, not a side of the cell; the top of a part that goes on from the page before is not its top.
+void WriteTests::aCellSplitAcrossAPageGetsNoSideAtTheFootAndNoneAtTheTopOfTheNextPart()
+{
+    QByteArray lines;
+    for (int i = 0; i < 130; ++i) lines += "<w:p><w:r><w:t>line</w:t></w:r></w:p>";
+    TailWin tall("<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"4000\"/></w:tblGrid><w:tr><w:tc>" + lines + "</w:tc></w:tr></w:tbl><w:p><w:r><w:t>End</w:t></w:r></w:p>");
+    tall.w.view()->paginateAll();
+    PageView *view = tall.w.view();
+    QWidget *vp = view->viewport();
+    const QString story = tall.w.document()->story()->toPlainText();
+    // The cell's box on the page that has the paragraph `nth` (0 based) of the lines.
+    auto boxAt = [&](int nth) {
+        int at = -1;
+        for (int i = 0; i <= nth; ++i) at = story.indexOf(QStringLiteral("line"), at + 1);
+        QTextCursor c(tall.w.document()->story());
+        c.setPosition(at);
+        view->setCursor(c);
+        tall.w.refreshForTest();
+        const QHash<int, QRect> cells = tall.cells();
+        return cells.size() == 1 ? cells.constBegin().value() : QRect();
+    };
+    tall.w.act(QStringLiteral("table.paintBorder"))->trigger();
+    QSignalSpy said(view, &PageView::notice);
+    // `side` of the box (0 top, 1 bottom) dragged along; what it painted ("top", "bottom", or "" for nothing), then taken back.
+    auto along = [&](const QRect &box, int side) {
+        const quint64 serial = tall.w.document()->nextStepSerial();
+        const int y = side == 0 ? box.top() : box.bottom();
+        drag(vp, QPoint(box.left() + 10, y), QPoint(box.right() - 10, y));
+        const bool painted = tall.w.document()->nextStepSerial() != serial;
+        if (painted) tall.w.document()->story()->undo();
+        return painted ? (side == 0 ? QByteArray("top") : QByteArray("bottom")) : QByteArray();
+    };
+    // The first part: its top is the cell's, its bottom is the page's foot.
+    const QRect first = boxAt(2);
+    QVERIFY(!first.isNull());
+    QCOMPARE(along(first, 0), QByteArray("top"));
+    said.clear();
+    QCOMPARE(along(first, 1), QByteArray());
+    QCOMPARE(said.size(), 1);   // (it is a drag along no line)
+    // A part in the middle has neither.
+    const QRect middle = boxAt(60);
+    QVERIFY(!middle.isNull());
+    QCOMPARE(along(middle, 0), QByteArray());
+    QCOMPARE(along(middle, 1), QByteArray());
+    // The last part: not its top, but its bottom is the cell's own.
+    const QRect last = boxAt(125);
+    QVERIFY(!last.isNull());
+    QCOMPARE(along(last, 0), QByteArray());
+    QCOMPARE(along(last, 1), QByteArray("bottom"));
+    QVERIFY(!tall.xml().contains("<w:tcBorders>"));
+}
+
+// The geometry alone: a cell that goes on below the page's foot has no bottom, one that goes on from the page above has no top; the other sides are found.
+void WriteTests::theGeometryGivesNoSideToTheEndOfACellThatContinues()
+{
+    using namespace jp::flow;
+    auto sides = [](bool continued, bool continues, const std::vector<QPointF> &path) {
+        PaintCell cell{QRectF(0, 0, 100, 50), 7, continued, continues};
+        return sidesUnderPath({cell}, path, 3);
+    };
+    const std::vector<QPointF> bottom = {{2, 50}, {98, 50}}, top = {{2, 0}, {98, 0}};
+    QCOMPARE(int(sides(false, false, bottom).size()), 1);
+    QCOMPARE(int(sides(false, true, bottom).size()), 0);
+    QCOMPARE(int(sides(true, false, bottom).size()), 1);
+    QCOMPARE(int(sides(false, false, top).size()), 1);
+    QCOMPARE(int(sides(true, false, top).size()), 0);
+    QCOMPARE(int(sides(false, true, top).size()), 1);
+    // A part that has both (a middle part) has neither, and still has its left.
+    QCOMPARE(int(sides(true, true, top).size() + sides(true, true, bottom).size()), 0);
+    QCOMPARE(int(sides(true, true, {{0, 2}, {0, 48}}).size()), 1);
+}
+
 void WriteTests::picturesOfTheBorderPainterTheMoveHandleAndShowNotes()
 {
     const QString dir = qEnvironmentVariable("JW_TAIL_SHOTS");
     if (dir.isEmpty()) QSKIP("JW_TAIL_SHOTS is not set");
     QDir().mkpath(dir);
     jp::applyUiTheme(1);
-    TailWin win;
+    // (a table of three rows by three columns, each row 45 points tall, so that a drag along a line has some length to be seen)
+    QByteArray rows;
+    for (const char *row : {"abc", "def", "ghi"}) {
+        rows += "<w:tr><w:trPr><w:trHeight w:val=\"900\"/></w:trPr>";
+        for (const char *ch = row; *ch; ++ch) rows += cellXml(QByteArray(1, *ch).constData());
+        rows += "</w:tr>";
+    }
+    TailWin win("<w:p><w:r><w:t>Before</w:t></w:r></w:p><w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"2400\"/><w:gridCol w:w=\"2400\"/><w:gridCol w:w=\"2400\"/></w:tblGrid>" + rows +
+                "</w:tbl><w:p><w:r><w:t>After one</w:t></w:r></w:p><w:p><w:r><w:t>After two</w:t></w:r></w:p>");
     win.w.resize(1200, 820);
     {
         // (the table has visible borders, so that the painting and the move can be seen against them)
@@ -810,11 +1103,13 @@ void WriteTests::picturesOfTheBorderPainterTheMoveHandleAndShowNotes()
     win.w.view()->setBorderPen(flow::TableLine{flow::TableLine::Style::Double, 2.25, QColor(0xC0, 0x39, 0x2B)});
     QWidget *vp = win.w.view()->viewport();
     const int x = ra.right() + 1;
-    QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, QPoint(x, ra.top() + 4));
-    for (int i = 1; i <= 5; ++i) QTest::mouseMove(vp, QPoint(x, ra.top() + 4 + (ra.height() - 8) * i / 10));
+    const QRect rg = cells.value(positionOf(*win.w.document(), QStringLiteral("g")));
+    const int top = ra.top() + 4, bottom = rg.bottom() - 4;   // (the line between the first and the second column, down the table's three rows)
+    QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, QPoint(x, top));
+    for (int i = 1; i <= 6; ++i) QTest::mouseMove(vp, QPoint(x, top + (bottom - top) * i / 10));
     win.w.grab().save(QDir(dir).filePath(QStringLiteral("border-painter-dragging.png")));
-    QTest::mouseMove(vp, QPoint(x, ra.bottom() - 4));
-    QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, QPoint(x, ra.bottom() - 4));
+    for (int i = 7; i <= 10; ++i) QTest::mouseMove(vp, QPoint(x, top + (bottom - top) * i / 10));
+    QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, QPoint(x, bottom));
     QTest::keyClick(vp, Qt::Key_Escape);
     win.w.view()->refresh();
     win.w.grab().save(QDir(dir).filePath(QStringLiteral("border-painter-done.png")));

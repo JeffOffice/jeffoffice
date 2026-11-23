@@ -1873,7 +1873,7 @@ private Q_SLOTS:
     void thePathOfABorderPainterPaintsTheSidesItRunsAlong();
     void aBorderPainterPathIsCutAtTheMostPiecesItLooksAt();
     void aScribbleOverAHugeTableIsBoundedByACountedNumberOfLooks();
-    void aBorderPainterDragThatStartsOutsideATableSaysSoOnceAndAPageFootIsNoEdgeOfASplitCell();
+    void aBorderPainterDragThatStartsOutsideATableSaysSoOnce();
     void paintingBordersPutsALineOnBothCellsInOneStepAndTheFileKeepsIt();
     void draggingTheBorderPainterAlongALinePutsTheBorderOnBothSides();
     void theBorderPainterWithNoBorderAsItsStyleErasesTheLinesItIsDraggedAlong();
@@ -1893,6 +1893,11 @@ private Q_SLOTS:
     void theMoveHandleIsNotShownWhereTheDocumentCannotBeChanged();
     void aTableMovesInAColumnSectionAndNotInAHeaderWithNothingLost();
     void showNotesGoesFromAMarkToItsNoteAndBackAndFromTheTextToTheNearestMark();
+    void aCellSplitAcrossAPageGetsNoSideAtTheFootAndNoneAtTheTopOfTheNextPart();
+    void theGeometryGivesNoSideToTheEndOfACellThatContinues();
+    void aBorderPaintedInARightToLeftTableIsStoredOnTheSideThatIsDrawnWhereTheDragWent();
+    void aDragInsideANestedTablePaintsTheNestedTablesCellsAndNotTheOuterOnes();
+    void paintingAlongAPartOfAMergedCellsSideIsAllOrNothingByHalfAndErasingPartLeavesTheLine();
     void picturesOfTheBorderPainterTheMoveHandleAndShowNotes();
 
 public:

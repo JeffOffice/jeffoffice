@@ -1250,21 +1250,27 @@ void PageView::finishBorderPaint(const ToolDrag &drag)
     const auto r = rendered(drag.page);
     if (!m_doc || m_readOnly || !r || !r->page || drag.path.empty()) return;
     const double reach = 4.0 / std::max(0.1, scale());
-    // The table under the start of the drag; of tables inside tables, the innermost (the smallest).
-    std::shared_ptr<flow::TableFragment> under;
-    for (const auto &fragment : r->page->tables) {
-        const QRectF box = fragment->rect().adjusted(-reach, -reach, reach, reach);
-        if (box.contains(drag.path.front()) && (!under || box.width() * box.height() < under->rect().width() * under->rect().height())) under = fragment;
-    }
+    // The table under the start of the drag; of tables inside tables (which the page does not list: each is among the cells of the table it is in), the innermost (the smallest).
+    std::vector<flow::PaintCell> cells;
+    double smallest = 0;
+    int depth = 0;
+    bool found = false;
+    for (const auto &fragment : r->page->tables)
+        fragment->forTables([&](const flow::TableFragment &table, int cellsDeep) {
+            const QRectF rect = table.rect(), box = rect.adjusted(-reach, -reach, reach, reach);
+            if (!box.contains(drag.path.front()) || (found && rect.width() * rect.height() >= smallest)) return;
+            found = true;
+            smallest = rect.width() * rect.height();
+            depth = cellsDeep;
+            cells.clear();
+            for (const flow::TableFragment::CellBox &cb : table.cellBoxes()) cells.push_back({cb.box, cb.from, cb.continued, cb.continues});
+        });
     QVector<write::BorderEdge> edges;
-    if (under) {
-        std::vector<flow::PaintCell> cells;
-        for (const flow::TableFragment::CellBox &cb : under->cellBoxes()) cells.push_back({cb.box, cb.from, cb.continued, cb.continues});
+    if (found)
         for (const flow::PaintedSide &s : flow::sidesUnderPath(cells, drag.path, reach))
             edges.push_back({s.key, s.side == flow::CellSide::Top ? write::BorderSide::Top : s.side == flow::CellSide::Left ? write::BorderSide::Left : s.side == flow::CellSide::Bottom ? write::BorderSide::Bottom : write::BorderSide::Right});
-    }
     m_doc->tableNotice.clear();
-    if (!edges.isEmpty() && write::paintBorderEdges(*m_doc, edges, m_borderPen)) {
+    if (!edges.isEmpty() && write::paintBorderEdges(*m_doc, edges, m_borderPen, depth)) {
         refresh();
         caretMoved();
         Q_EMIT contentChanged();

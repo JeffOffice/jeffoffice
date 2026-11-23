@@ -1485,6 +1485,20 @@ QRectF TableFragment::cellRect(int pos) const
     return QRectF();
 }
 
+void TableFragment::forTables(const std::function<void(const TableFragment &table, int depth)> &visit, int depth) const
+{
+    visit(*this, depth);
+    for (const Placed &pl : place()) {
+        if (pl.turned) continue;
+        for (const CellContent::Part &part : items[size_t(pl.item)].content->parts) {
+            if (!part.table) continue;
+            TableFragment nested = *part.table;
+            nested.origin = QPointF(pl.text.x(), pl.text.y() + part.y);
+            nested.forTables(visit, depth + 1);
+        }
+    }
+}
+
 namespace { qint64 g_boxLists = 0; }
 qint64 TableFragment::cellBoxListsMadeForTest() { return g_boxLists; }
 

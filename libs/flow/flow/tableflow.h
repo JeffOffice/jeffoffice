@@ -364,6 +364,9 @@ struct TableFragment {
     };
     const std::vector<CellBox> &cellBoxes() const;
     static qint64 cellBoxListsMadeForTest();
+    // This table and then each table in its cells (and in theirs), each given as a fragment of its own at its place on the page, so that its cellBoxes() are in page coordinates,
+    // with how many cells deep it is (this one: `depth`, 0 unless the caller says).
+    void forTables(const std::function<void(const TableFragment &table, int depth)> &visit, int depth = 0) const;
 
 private:
     struct Placed {

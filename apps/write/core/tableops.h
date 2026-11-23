@@ -151,12 +151,12 @@ enum : int { Top = 1, Left = 2, Bottom = 4, Right = 8, InsideH = 16, InsideV = 3
 void setBorders(WriteDoc &doc, QTextCursor &c, int sides, const flow::TableLine &line);
 // The border painter: each (cell, side) has the line put on it, or taken off with a line that is not visible. `cell` is the place in the story of the
 // cell's first paragraph (flow::TableFragment::CellBox::from), `side` one of BorderSide::Top, Left, Bottom, and Right. The cells are those of the table the first
-// one is in; one step that undoes. False (nothing done) when nothing was changed. Changes of borders are not recorded as tracked changes, as the Borders commands are not.
+// one is in, at `depth` cells deep (-1: the innermost; a cell that begins with a table inside it has its first paragraph in that one, so the outer table says its depth); one step that undoes. False (nothing done) when nothing was changed. Changes of borders are not recorded as tracked changes, as the Borders commands are not.
 struct BorderEdge {
     int cell = 0;
     int side = 0;
 };
-bool paintBorderEdges(WriteDoc &doc, const QVector<BorderEdge> &edges, const flow::TableLine &line);
+bool paintBorderEdges(WriteDoc &doc, const QVector<BorderEdge> &edges, const flow::TableLine &line, int depth = -1);
 // Shading of the selected cells (an invalid color: none).
 void setShading(WriteDoc &doc, QTextCursor &c, const QColor &fill);
 // The nine positions of text in a cell: across as the paragraphs' alignment, down as the cell's.

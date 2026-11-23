@@ -68,7 +68,8 @@ struct View {
     explicit View(std::shared_ptr<flow::TableIndex> i) : own(std::move(i)), index(*own) {}
 };
 
-std::shared_ptr<View> viewAt(WriteDoc &doc, int position)
+// The table that has the position, at `depth` cells deep (-1: the innermost one that has it).
+std::shared_ptr<View> viewAt(WriteDoc &doc, int position, int depth = -1)
 {
     QTextDocument *story = tableStory(doc);
     const QTextBlock b = story->findBlock(std::clamp(position, 0, std::max(0, story->characterCount() - 1)));
@@ -90,14 +91,15 @@ std::shared_ptr<View> viewAt(WriteDoc &doc, int position)
         const std::vector<flow::BlockRef> &refs = last->index.refs();
         if (b.position() >= refs[size_t(last->first)].pos && b.position() < refs[size_t(last->last - 1)].end) {
             const QVector<const flow::CellRecord *> &chain = last->index.chain(key);
-            if (int(chain.size()) - 1 == last->depth) return last;
+            if (depth < 0 ? int(chain.size()) - 1 == last->depth : depth == last->depth && int(chain.size()) > depth) return last;
         }
     }
     auto v = std::make_shared<View>(cache.index);
     const QVector<const flow::CellRecord *> &chain = v->index.chain(key);
     if (chain.isEmpty()) return nullptr;
-    v->depth = int(chain.size()) - 1;
-    const flow::TableData *table = chain.last()->table.get();
+    if (depth >= int(chain.size())) return nullptr;
+    v->depth = depth < 0 ? int(chain.size()) - 1 : depth;
+    const flow::TableData *table = chain[v->depth]->table.get();
     const std::vector<flow::BlockRef> &refs = v->index.refs();
     const auto found = std::lower_bound(refs.begin(), refs.end(), b.position(), [](const flow::BlockRef &r, int p) { return r.pos < p; });
     if (found == refs.end() || found->pos != b.position()) return nullptr;
@@ -1530,9 +1532,9 @@ void giveNewKeys(WriteDoc &doc, const View &v, const XTable &x, const QVector<QV
 }
 
 // Changes the table the cursor is in: `edit` changes the parts, and the cells are made again from them.
-bool editTable(WriteDoc &doc, QTextCursor &c, const std::function<bool(XTable &, const View &, const Area &)> &edit)
+bool editTable(WriteDoc &doc, QTextCursor &c, const std::function<bool(XTable &, const View &, const Area &)> &edit, int depth = -1)
 {
-    const auto v = viewAt(doc, c.selectionStart());
+    const auto v = viewAt(doc, c.selectionStart(), depth);
     if (!v) return false;
     const Area area = areaOf(*v, c);
     XTable x = modelOf(*v);
@@ -1796,7 +1798,7 @@ bool moveTableByParagraph(WriteDoc &doc, QTextCursor &c, bool up)
     return moveTable(doc, c, room.first, target);
 }
 
-bool paintBorderEdges(WriteDoc &doc, const QVector<BorderEdge> &edges, const flow::TableLine &line)
+bool paintBorderEdges(WriteDoc &doc, const QVector<BorderEdge> &edges, const flow::TableLine &line, int depth)
 {
     if (edges.isEmpty()) return false;
     TableCommand command(doc);
@@ -1819,7 +1821,7 @@ bool paintBorderEdges(WriteDoc &doc, const QVector<BorderEdge> &edges, const flo
                 changed = true;
             }
         return changed;
-    });
+    }, depth);
     return changed;
 }
 
