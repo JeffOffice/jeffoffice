@@ -598,7 +598,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/write/app/writewindow_review.cpp" line="+417"/>
+        <location filename="../apps/write/app/writewindow_review.cpp" line="+419"/>
         <source>%n change(s) were kept as written because settling them would damage the document.</source>
         <translation>
             <numerusform>%n change was kept as written because settling it would damage the document.</numerusform>

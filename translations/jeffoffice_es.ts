@@ -873,6 +873,8 @@
     </message>
     <message>
         <location line="+22"/>
+        <location filename="../apps/write/app/writewindow_view.cpp" line="+66"/>
+        <location line="+2"/>
         <source>This file is open for reading only. Use Save a Copy, or Save As, to make a copy you can change.</source>
         <translation type="unfinished">Este archivo está abierto solo para lectura. Use Guardar una copia o Guardar como para crear una copia que pueda modificar.</translation>
     </message>
@@ -50143,13 +50145,13 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
 <context>
     <name>jp::NavigationPane</name>
     <message>
-        <location filename="../apps/write/app/navpane.cpp" line="+48"/>
+        <location filename="../apps/write/app/navpane.cpp" line="+57"/>
         <location line="+2"/>
         <source>Headings</source>
         <translation type="unfinished">Encabezados</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+13"/>
         <source>Promote</source>
         <translation type="unfinished">Subir de nivel</translation>
     </message>
@@ -50157,6 +50159,16 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
         <location line="+1"/>
         <source>Demote</source>
         <translation type="unfinished">Bajar de nivel</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Move Section Up</source>
+        <translation type="unfinished">Subir sección</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Move Section Down</source>
+        <translation type="unfinished">Bajar sección</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -50206,7 +50218,12 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
         <translation type="unfinished">Resultados</translation>
     </message>
     <message>
-        <location line="+229"/>
+        <location line="+166"/>
+        <source>The headings changed, so the list was updated. Choose the heading again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+268"/>
         <source>Before the first heading</source>
         <translation type="unfinished">Antes del primer encabezado</translation>
     </message>
@@ -58716,6 +58733,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
     </message>
     <message>
         <location line="+51"/>
+        <location filename="../apps/write/app/writewindow_view.cpp" line="+21"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
@@ -61675,7 +61693,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">El control de cambios está desactivado.</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+5"/>
         <source>Accept</source>
         <translation type="unfinished">Aceptar</translation>
     </message>
@@ -61700,7 +61718,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Aceptar todos los cambios</translation>
     </message>
     <message>
-        <location line="+329"/>
+        <location line="+330"/>
         <source>1 change accepted.</source>
         <translation type="unfinished">Se aceptó 1 cambio.</translation>
     </message>
@@ -61710,12 +61728,12 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Se aceptaron %1 cambios.</translation>
     </message>
     <message>
-        <location line="-319"/>
+        <location line="-320"/>
         <source>Accept All Changes and Stop Tracking</source>
         <translation type="unfinished">Aceptar todos los cambios y detener el seguimiento</translation>
     </message>
     <message>
-        <location line="+320"/>
+        <location line="+321"/>
         <source>1 change accepted. Track Changes is off.</source>
         <translation type="unfinished">Se aceptó 1 cambio. El control de cambios está desactivado.</translation>
     </message>
@@ -62177,18 +62195,18 @@ No se pudo aplicar la contraseña al archivo.</translation>
         </translation>
     </message>
     <message>
-        <location line="-372"/>
-        <location line="+168"/>
+        <location line="-374"/>
+        <location line="+170"/>
         <source>Spelling</source>
         <translation type="unfinished">Ortografía</translation>
     </message>
     <message>
-        <location line="-166"/>
+        <location line="-168"/>
         <source>AutoCorrect Options Menu</source>
         <translation type="unfinished">Menú de opciones de autocorrección</translation>
     </message>
     <message>
-        <location line="+184"/>
+        <location line="+186"/>
         <source>Reviewing</source>
         <translation type="unfinished">Revisión</translation>
     </message>
@@ -63763,7 +63781,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Primero coloque el cursor en una tabla de autoridades.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_view.cpp" line="+25"/>
+        <location filename="../apps/write/app/writewindow_view.cpp" line="-59"/>
         <source>Navigation Pane</source>
         <translation type="unfinished">Panel de navegación</translation>
     </message>
@@ -63814,11 +63832,31 @@ No se pudo aplicar la contraseña al archivo.</translation>
     </message>
     <message>
         <location line="+7"/>
+        <source>Move Section Up</source>
+        <translation type="unfinished">Subir sección</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Move Section Down</source>
+        <translation type="unfinished">Bajar sección</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Focus</source>
         <translation type="unfinished">Enfoque</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+15"/>
+        <source>Sections can be moved only from the main text of the document, not from a header, footer, note, text box, or comment.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Put the caret in a heading, or under one, to move its section.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+49"/>
         <source>Navigation</source>
         <translation type="unfinished">Navegación</translation>
     </message>
@@ -75298,6 +75336,56 @@ No se pudo aplicar la contraseña al archivo.</translation>
     </message>
 </context>
 <context>
+    <name>jp::write::BlockMove</name>
+    <message>
+        <location filename="../apps/write/app/writewindow_view.cpp" line="-213"/>
+        <location filename="../apps/write/core/blockmove.cpp" line="+174"/>
+        <source>This document is protected, so a section can&apos;t be moved.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <location filename="../apps/write/core/blockmove.cpp" line="-1"/>
+        <source>Turn off Track Changes to move a section.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../apps/write/core/blockmove.cpp" line="+2"/>
+        <source>Sections can&apos;t be moved while endnotes are collected at the end of each section. Put the endnotes at the end of the document first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>A section that holds endnotes or a text frame can&apos;t be moved.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>A section can&apos;t be moved from or to the middle of a table.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A table can&apos;t be put right against another table. Keep a paragraph between them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A table can&apos;t be moved below the last paragraph of the document.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>This section includes a section break, and moving it would change the page layout of other text, so it can&apos;t be moved.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>This section holds one end of a bookmark, comment, field, or content control whose other end is outside it, so it can&apos;t be moved.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>jp::write::Bookmarks</name>
     <message>
         <location filename="../apps/write/core/refops.cpp" line="+111"/>
@@ -80053,6 +80141,25 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <location line="+1"/>
         <source>The top and bottom margins of the pages on show.</source>
         <translation type="unfinished">Muestra los márgenes superior e inferior de las páginas.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::write::SectionMove</name>
+    <message>
+        <location filename="../apps/write/core/sectionmove.cpp" line="+65"/>
+        <location line="+11"/>
+        <source>Only a heading, with what is under it, can be moved.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>This section can&apos;t move up: there is no section of the same level above it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>This section can&apos;t move down: there is no section of the same level below it.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>

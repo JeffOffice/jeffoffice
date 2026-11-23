@@ -873,6 +873,8 @@
     </message>
     <message>
         <location line="+22"/>
+        <location filename="../apps/write/app/writewindow_view.cpp" line="+66"/>
+        <location line="+2"/>
         <source>This file is open for reading only. Use Save a Copy, or Save As, to make a copy you can change.</source>
         <translation type="unfinished">Цей файл відкрито лише для читання. Щоб створити копію, яку можна змінювати, скористайтеся командою «Зберегти копію» або «Зберегти як».</translation>
     </message>
@@ -50198,13 +50200,13 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::NavigationPane</name>
     <message>
-        <location filename="../apps/write/app/navpane.cpp" line="+48"/>
+        <location filename="../apps/write/app/navpane.cpp" line="+57"/>
         <location line="+2"/>
         <source>Headings</source>
         <translation type="unfinished">Заголовки</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+13"/>
         <source>Promote</source>
         <translation type="unfinished">Підвищити</translation>
     </message>
@@ -50212,6 +50214,16 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+1"/>
         <source>Demote</source>
         <translation type="unfinished">Понизити</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Move Section Up</source>
+        <translation type="unfinished">Перемістити розділ вгору</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Move Section Down</source>
+        <translation type="unfinished">Перемістити розділ вниз</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -50261,7 +50273,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Результати</translation>
     </message>
     <message>
-        <location line="+229"/>
+        <location line="+166"/>
+        <source>The headings changed, so the list was updated. Choose the heading again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+268"/>
         <source>Before the first heading</source>
         <translation type="unfinished">Перед першим заголовком</translation>
     </message>
@@ -58799,6 +58816,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+51"/>
+        <location filename="../apps/write/app/writewindow_view.cpp" line="+21"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
@@ -60317,7 +60335,7 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+13"/>
-        <location filename="../apps/write/app/writewindow_review.cpp" line="+142"/>
+        <location filename="../apps/write/app/writewindow_review.cpp" line="+144"/>
         <source>Comments</source>
         <translation>Коментарі</translation>
     </message>
@@ -62132,13 +62150,13 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Спершу поставте курсор у таблицю джерел.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_review.cpp" line="-97"/>
-        <location line="+168"/>
+        <location filename="../apps/write/app/writewindow_review.cpp" line="-99"/>
+        <location line="+170"/>
         <source>Spelling</source>
         <translation type="unfinished">Правопис</translation>
     </message>
     <message>
-        <location line="-166"/>
+        <location line="-168"/>
         <source>AutoCorrect Options Menu</source>
         <translation type="unfinished">Меню параметрів автовиправлення</translation>
     </message>
@@ -62169,7 +62187,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Відстеження змін вимкнено.</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+5"/>
         <source>Accept</source>
         <translation type="unfinished">Прийняти</translation>
     </message>
@@ -62194,7 +62212,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Прийняти всі зміни</translation>
     </message>
     <message>
-        <location line="+329"/>
+        <location line="+330"/>
         <source>1 change accepted.</source>
         <translation type="unfinished">Прийнято 1 зміну.</translation>
     </message>
@@ -62204,12 +62222,12 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Прийнято змін: %1.</translation>
     </message>
     <message>
-        <location line="-319"/>
+        <location line="-320"/>
         <source>Accept All Changes and Stop Tracking</source>
         <translation type="unfinished">Прийняти всі зміни та зупинити відстеження</translation>
     </message>
     <message>
-        <location line="+320"/>
+        <location line="+321"/>
         <source>1 change accepted. Track Changes is off.</source>
         <translation type="unfinished">Прийнято 1 зміну. Відстеження змін вимкнено.</translation>
     </message>
@@ -63982,7 +64000,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Повернуто до «%1». Збережіть документ, щоб зберегти це.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_view.cpp" line="+25"/>
+        <location filename="../apps/write/app/writewindow_view.cpp" line="-59"/>
         <source>Navigation Pane</source>
         <translation type="unfinished">Панель навігації</translation>
     </message>
@@ -64033,11 +64051,31 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+7"/>
+        <source>Move Section Up</source>
+        <translation type="unfinished">Перемістити розділ вгору</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Move Section Down</source>
+        <translation type="unfinished">Перемістити розділ вниз</translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Focus</source>
         <translation type="unfinished">Фокус</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location line="+15"/>
+        <source>Sections can be moved only from the main text of the document, not from a header, footer, note, text box, or comment.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Put the caret in a heading, or under one, to move its section.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+49"/>
         <source>Navigation</source>
         <translation type="unfinished">Навігація</translation>
     </message>
@@ -75392,6 +75430,56 @@ The password couldn&apos;t be put on the file.</source>
     </message>
 </context>
 <context>
+    <name>jp::write::BlockMove</name>
+    <message>
+        <location filename="../apps/write/app/writewindow_view.cpp" line="-213"/>
+        <location filename="../apps/write/core/blockmove.cpp" line="+174"/>
+        <source>This document is protected, so a section can&apos;t be moved.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <location filename="../apps/write/core/blockmove.cpp" line="-1"/>
+        <source>Turn off Track Changes to move a section.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../apps/write/core/blockmove.cpp" line="+2"/>
+        <source>Sections can&apos;t be moved while endnotes are collected at the end of each section. Put the endnotes at the end of the document first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>A section that holds endnotes or a text frame can&apos;t be moved.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>A section can&apos;t be moved from or to the middle of a table.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A table can&apos;t be put right against another table. Keep a paragraph between them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A table can&apos;t be moved below the last paragraph of the document.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>This section includes a section break, and moving it would change the page layout of other text, so it can&apos;t be moved.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>This section holds one end of a bookmark, comment, field, or content control whose other end is outside it, so it can&apos;t be moved.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>jp::write::Bookmarks</name>
     <message>
         <location filename="../apps/write/core/refops.cpp" line="+111"/>
@@ -80148,6 +80236,25 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+1"/>
         <source>The top and bottom margins of the pages on show.</source>
         <translation type="unfinished">Верхнє й нижнє поля сторінок, що відображаються.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::write::SectionMove</name>
+    <message>
+        <location filename="../apps/write/core/sectionmove.cpp" line="+65"/>
+        <location line="+11"/>
+        <source>Only a heading, with what is under it, can be moved.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>This section can&apos;t move up: there is no section of the same level above it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>This section can&apos;t move down: there is no section of the same level below it.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
