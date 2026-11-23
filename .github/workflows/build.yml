@@ -709,6 +709,10 @@ jobs:
           echo "building: ${TARGETS:-everything}"
           # (this job builds beside the tests job of the same run, on the same sixteen processors: eight compiles at a time, so that neither waits on the other)
           if [ "${JO_CHECKS_SELF:-}" = 1 ]; then export CMAKE_BUILD_PARALLEL_LEVEL=8; fi
+          # (a kept build folder: the moc step of a library depends on the file list it read last, not on the files the configure step globbed since, so a new
+          # header with Q_OBJECT was compiled but never run through moc and the link failed with an undefined vtable: November 23, 2026, twice on our Mac.
+          # Removing the steps' stamps makes each one run again; it rewrites its output only when that changed, so nothing else rebuilds.)
+          rm -f build/*_autogen/timestamp
           cmake --build build --parallel ${CMAKE_BUILD_PARALLEL_LEVEL:-} $TARGETS
           if command -v ccache >/dev/null 2>&1; then
             ccache --show-stats
