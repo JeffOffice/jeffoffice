@@ -35,7 +35,7 @@ SYSTEMS = {
 def cmake_programs() -> list:
     names = set()
     for path in ROOT.rglob("CMakeLists.txt"):
-        if "build" in path.relative_to(ROOT).parts[:1]:
+        if path.relative_to(ROOT).parts[0].startswith("build"):   # (build, build-asan, and the like: their _deps hold other projects' tests)
             continue
         text = path.read_text(encoding="utf-8", errors="replace")
         text = re.sub(r"#[^\n]*", "", text)
