@@ -299,6 +299,12 @@ void WriteWindow::buildStatusBar()
     m_pageLabel->setObjectName(QStringLiteral("pageNumber"));
     m_pageLabel->setMinimumWidth(110);
     sb->addWidget(m_pageLabel);
+    // The caret's line and column on its page.
+    m_placeLabel = plainLabel(new QLabel(this));
+    m_placeLabel->setObjectName(QStringLiteral("caretPlace"));
+    m_placeLabel->setToolTip(tr("The caret's line on the page and its place in the line"));
+    m_placeLabel->setMinimumWidth(110);
+    sb->addWidget(statusHolder(m_placeLabel));
     // The section the caret is in, shown where the document has more than one.
     m_sectionLabel = plainLabel(new QLabel(this));
     m_sectionLabel->setObjectName(QStringLiteral("sectionNumber"));
@@ -310,6 +316,16 @@ void WriteWindow::buildStatusBar()
     m_wordLabel->setTextFormat(Qt::PlainText);
     m_wordLabel->setMinimumWidth(90);
     sb->addWidget(m_wordLabel);
+    // How many spelling and grammar errors there are, which a click goes to the next of.
+    m_proofLabel = new QToolButton();
+    m_proofLabel->setObjectName(QStringLiteral("proofingStatus"));
+    m_proofLabel->setAutoRaise(true);
+    m_proofLabel->setToolButtonStyle(Qt::ToolButtonTextOnly);
+    m_proofLabel->setToolTip(tr("Spelling and grammar errors. Click to go to the next one."));
+    m_proofLabel->setAccessibleName(tr("Spelling and grammar errors"));
+    m_proofLabel->hide();
+    connect(m_proofLabel, &QToolButton::clicked, this, [this] { goToNextProofingError(); });
+    sb->addWidget(statusHolder(m_proofLabel));
     // Track Changes, on or off, which a click turns the other way.
     m_trackLabel = new QToolButton();
     m_trackLabel->setObjectName(QStringLiteral("trackStatus"));

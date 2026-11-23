@@ -22,7 +22,7 @@ The page area shows your document as pages, one under another, on a gray backgro
 - **Page Width** makes the page as wide as the window.
 - You can zoom from 10% to 500%. Hold **Ctrl** and turn the mouse wheel to zoom.
 
-The first page appears at once, even in a very long document. JeffWrite works out the rest of the pages while you read, so the page count at the bottom left may grow for a moment. It shows **Page 2 of 40+** until it has counted them all. The word count is beside it.
+The first page appears at once, even in a very long document. JeffWrite works out the rest of the pages while you read, so the page count at the bottom left may grow for a moment. It shows **Page 2 of 40+** until it has counted them all. The word count is beside it. Next to the page count, the status bar also shows the caret's place: its line on the page, counted from the top of the page, and its column in that line, such as **Line 4, Column 12**. The place is blank in a header, a footer, a note, a table, and a text box.
 
 ## Where things are
 

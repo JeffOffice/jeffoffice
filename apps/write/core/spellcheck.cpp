@@ -42,6 +42,12 @@ struct SpellCheck::Answer : QTextBlockUserData {
     int checkedTo = 0;                 // how far in the paragraph (an offset) the words have been looked at
     bool done = false;                 // the whole paragraph has
     QVector<QPair<int, int>> words;    // the misspelled ones so far, as [start, end) in the paragraph
+    int counted = 0;                   // how many of them the check's total holds
+    QPointer<SpellCheck> owner;
+    ~Answer() override
+    {
+        if (owner) owner->m_total -= counted;
+    }
 };
 
 namespace {
@@ -78,6 +84,20 @@ SpellCheck::SpellCheck(QTextDocument *story, QObject *parent) : QObject(parent),
     connect(&m_idle, &QTimer::timeout, this, &SpellCheck::idle);
     // (Words another app added or excluded: the pages are drawn again, and the paragraphs are checked as the words now stand.)
     connect(Speller::get().watch(), &SpellingWatch::changed, this, &SpellCheck::refresh);
+    // (An edit: the paragraphs it touched are checked again in idle time when the count is being kept, so the total is not left as it was.)
+    if (story)
+        connect(story, &QTextDocument::contentsChange, this, [this](int position, int, int added) {
+            if (m_counting && m_enabled) want(position, position + std::max(added, 1));
+        });
+}
+
+void SpellCheck::setCounting(bool on)
+{
+    if (on == m_counting) return;
+    m_counting = on;
+    m_swept = false;
+    m_sweepPos = 0;
+    if (on) m_idle.start();
 }
 
 void SpellCheck::setEnabled(bool on)
@@ -87,14 +107,24 @@ void SpellCheck::setEnabled(bool on)
     if (!on) {
         m_wanted.clear();
         m_idle.stop();
+    } else if (m_counting) {
+        m_swept = false;
+        m_sweepPos = 0;
+        m_idle.start();
     }
     Q_EMIT changed();
+    Q_EMIT countChanged();
 }
 
 void SpellCheck::setDefaultLanguage(const QString &tag)
 {
     if (tag == m_language) return;
     m_language = tag;
+    if (m_counting) {
+        m_swept = false;
+        m_sweepPos = 0;
+        m_idle.start();
+    }
     Q_EMIT changed();
 }
 
@@ -132,6 +162,7 @@ SpellCheck::Answer *SpellCheck::check(const QTextBlock &block, int revision, int
     auto *a = dynamic_cast<Answer *>(b.userData());
     if (!a) {
         a = new Answer;
+        a->owner = this;
         b.setUserData(a);
     }
     const Stamp stamp = stampOf(block, m_language);
@@ -170,6 +201,11 @@ SpellCheck::Answer *SpellCheck::check(const QTextBlock &block, int revision, int
             whole.setPlainText(block.previous().text() + lead.captured());
             if (!misspellingsIn(whole.begin(), m_language).isEmpty()) a->words.prepend(qMakePair(0, int(lead.capturedLength())));
         }
+    }
+    if (a->counted != int(a->words.size())) {
+        m_total += int(a->words.size()) - a->counted;
+        a->counted = int(a->words.size());
+        if (m_counting) Q_EMIT countChanged();
     }
     return a;
 }
@@ -216,14 +252,43 @@ QVector<QPair<int, int>> SpellCheck::misspelledIn(int from, int to)
 
 void SpellCheck::idle()
 {
-    if (m_wanted.isEmpty()) return;
+    const bool sweeping = m_counting && m_enabled && m_story && !m_swept;
+    if (m_wanted.isEmpty() && !sweeping) return;
     const QVector<QPair<int, int>> wanted = std::exchange(m_wanted, {});
     const qint64 before = m_checked, wordsBefore = m_words;
     {
         Pass pass(*this, kIdleBudgetMs);
         for (const auto &w : wanted) misspelledIn(w.first, w.second);   // (what it can't do in time is wanted again)
+        if (sweeping) sweepStep();
     }
+    if (m_counting && m_enabled && !m_swept) m_idle.start();
     if (m_checked != before || m_words != wordsBefore) Q_EMIT changed();
+}
+
+// The counting pass: the paragraphs from where it left off that are not checked, for as long as the pass has time. (A change of the words accepted begins it again.)
+void SpellCheck::sweepStep()
+{
+    const int revision = currentRevision();
+    if (revision != m_sweepRevision) {
+        m_sweepRevision = revision;
+        m_sweepPos = 0;
+    }
+    QTextBlock b = m_story->findBlock(std::max(0, m_sweepPos));
+    for (; b.isValid(); b = b.next()) {
+        Answer *a = answerFor(b, revision);
+        if (!a || !a->done) {
+            if (outOfTime()) break;
+            a = check(b, revision);
+            if (!a->done) break;
+        }
+    }
+    if (b.isValid()) {
+        m_sweepPos = b.position();
+        return;
+    }
+    m_swept = true;
+    m_sweepPos = 0;
+    Q_EMIT countChanged();
 }
 
 QPair<int, int> SpellCheck::misspellingAt(int position)

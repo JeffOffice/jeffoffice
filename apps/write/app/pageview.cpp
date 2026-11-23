@@ -2327,4 +2327,41 @@ int PageView::cursorSection()
     return m_doc->sectionAt(m_cursor.position());
 }
 
+// ---- (status bar) the caret's line and column: one separate block, for the status bar
+// The caret's line (counted from the top of the page, from 1) and column (from 1) in the text of the page. False where the caret is not in the page's own text lines: in a header or
+// footer, a note, a table, or a text box, or on a page that is not laid out.
+bool PageView::caretLineColumn(int *line, int *column)
+{
+    if (!m_doc || m_hf.active || m_note.active) return false;
+    const int position = m_cursor.position();
+    int page = 0;
+    QLineF at;
+    if (!caretLine(position, &page, &at)) return false;
+    const auto r = rendered(page);
+    if (!r || !r->page || r->boxes.isEmpty()) return false;
+    for (const auto &fragment : r->page->tables) {
+        int edge = 0;
+        if (fragment->lineEdge(position, false, &edge)) return false;
+    }
+    if (FrameSpot spot; frameSpotAt(*r, position, &spot)) return false;
+    const LayoutCache::FrameLayout fl = r->layouts.textFrame(*r->page->doc, *r->boxes.first(), r->page->number, RenderOptions());
+    if (!fl.layout) return false;
+    // (The line is the one the caret is drawn on: a position at the end of a line that wraps is also the start of the next.)
+    const double middle = (at.y1() + at.y2()) / 2;
+    int number = 0;
+    for (int f = 0; f < r->boxes.size(); ++f) {
+        const double top = r->boxes[f]->rect.top();
+        for (const auto &l : fl.layout->lineInfo(f)) {
+            ++number;
+            const int a = l.docPos + r->page->storyFrom;
+            if (middle >= top + l.rect.top() && middle <= top + l.rect.bottom() && position >= a && position <= std::max(l.docEnd, l.docPos) + r->page->storyFrom) {
+                *line = number;
+                *column = position - a + 1;
+                return true;
+            }
+        }
+    }
+    return false;
+}
+
 } // namespace jp::write

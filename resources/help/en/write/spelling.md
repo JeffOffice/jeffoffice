@@ -28,6 +28,12 @@ Press **F7**, or click **Review > Spelling**. The Spelling pane opens on the rig
 
 The pane begins where the caret is: in the text, or in the text box, footnote, header, or footer you are editing. It goes through the text of the document first, tables included, then the text boxes, then the footnotes, then the headers and footers. When a word is in a text box, footnote, header, or footer, JeffWrite opens it for editing, as Find does, so you see the word where it is. A header or footer that no page shows is passed by, and **Change All** leaves it as it is too. From the caret it goes to the end of that place, then on through the others in this order, then continues from the top, up to the place where it began. **Change** is one step that undoes, and **Change All** looks in every place the pane goes to and is one step too. A word in an endnote can be ignored or added, but not changed. When no more are left, the pane says that the spelling check is complete. It goes on to grammar and style issues when the spelling is done (see Check grammar, below).
 
+## Count the errors in the status bar
+
+The status bar shows how many spelling and grammar errors the document has, such as **3 proofing errors**. Click it to select the next error after the caret. When you reach the last one, a click goes back to the first.
+
+JeffWrite counts while you work, a little at a time, and checks again only the paragraphs you change. In a long document the count shows a plus, such as **120+ proofing errors**, until every paragraph has been checked. Grammar errors are counted for the paragraphs the grammar check has already looked at, so that number can grow as you scroll. The count is hidden when spelling and grammar checking are both off.
+
 ## Your own words
 
 Click **File > Options > Proofing > Custom Dictionary** to see and change your words. The dialog has two lists, each with a **Find** box to narrow it:

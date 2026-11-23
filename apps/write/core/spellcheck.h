@@ -58,7 +58,20 @@ public:
     QPair<int, int> nextMisspelling(int from);
 
     // Tells the pages to be drawn again (the words accepted have changed: the answers kept are stale).
-    void refresh() { Q_EMIT changed(); }
+    void refresh()
+    {
+        m_swept = false;
+        m_sweepPos = 0;
+        Q_EMIT changed();
+    }
+
+    // The count for the status bar. With counting on, the paragraphs not yet checked are checked in idle time, a slice at a time, and a paragraph that is edited is checked again
+    // in idle time; the total is kept as paragraphs are checked, so asking for it looks at no text. `knownMisspellings` is how many misspelled words the answers kept hold,
+    // and `counted` says whether every paragraph has been checked (the number is a lower bound until then).
+    void setCounting(bool on);
+    bool counting() const { return m_counting; }
+    int knownMisspellings() const { return m_total; }
+    bool counted() const { return m_swept; }
 
     // How many paragraphs have been checked (a paragraph checked again counts again), and how many words were looked at in all, and the bytes that what is
     // kept takes (not counting the document's own): for the tests.
@@ -69,6 +82,8 @@ public:
 Q_SIGNALS:
     // Words have been checked in idle time, or the checking changed: the pages should be drawn again.
     void changed();
+    // The total of misspelled words known (or whether all of them are) is not what it was.
+    void countChanged();
 
 private:
     struct Answer;
@@ -80,6 +95,7 @@ private:
     bool outOfTime() const;
     void want(int from, int to);
     void idle();
+    void sweepStep();
 
     QPointer<QTextDocument> m_story;
     QString m_language;
@@ -91,6 +107,10 @@ private:
     int m_doneInPass = 0;
     QVector<QPair<int, int>> m_wanted;   // the ranges that paragraphs were left unchecked in
     QTimer m_idle;
+    bool m_counting = false, m_swept = false;
+    int m_total = 0;           // the misspelled words in the answers kept, over the whole story
+    int m_sweepPos = 0;        // where the counting pass goes on from, a position in the story
+    int m_sweepRevision = -1;  // the words accepted and the options the pass began with
 };
 
 // Puts `text` in place of the words [from, to) of the story, in the look of their first letter, as one step that undoes.

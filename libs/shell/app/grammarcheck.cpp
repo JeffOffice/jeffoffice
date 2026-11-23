@@ -247,6 +247,20 @@ QVector<GrammarCheck::Issue> GrammarCheck::issuesIn(int from, int to)
     return out;
 }
 
+int GrammarCheck::knownIssues() const
+{
+    if (!m_enabled || !m_story) return 0;
+    int total = 0;
+    for (auto it = m_looks.constBegin(); it != m_looks.constEnd(); ++it) {
+        const QTextBlock b = m_story->findBlockByNumber(it.key());
+        const BlockLook &seen = it.value();
+        if (!b.isValid() || seen.position != b.position() || seen.revision != b.revision() || seen.length != b.length()) continue;   // (not the paragraph it was made of)
+        const auto kept = m_kept.constFind(seen.look.key);
+        if (kept != m_kept.constEnd()) total += int(issuesOf(b, seen.look, *kept).size());
+    }
+    return total;
+}
+
 GrammarCheck::Issue GrammarCheck::issueAt(int position)
 {
     if (!m_enabled || !m_story) return Issue();

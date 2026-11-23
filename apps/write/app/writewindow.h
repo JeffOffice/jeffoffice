@@ -631,6 +631,10 @@ private:
     HelpWindow *showHelpOver(const QString &topic);
     void updateStatus();
     void updateWords();
+    void updateCaretPlace();
+    void updateProofing();
+    void watchProofing();
+    void goToNextProofingError();
 
     ReviewPane *m_review = nullptr;
     QDockWidget *m_reviewDock = nullptr;
@@ -638,7 +642,8 @@ private:
     bool m_showInsertionsAndDeletions = true, m_showFormatting = true, m_showComments = true;
     int m_balloons = 0;   // 0 revisions inline, 1 in balloons, 2 only comments and formatting in balloons
     QActionGroup *m_viewGroup = nullptr, *m_balloonGroup = nullptr;
-    QToolButton *m_trackLabel = nullptr;
+    QToolButton *m_trackLabel = nullptr, *m_proofLabel = nullptr;
+    QLabel *m_placeLabel = nullptr;
     bool m_updatingReview = false;
     // Whether the text has changes and comments (looked for again when the text changed: at once in a short document, else a moment after the last edit).
     bool m_hasRevisions = false, m_hasComments = false;
@@ -755,7 +760,7 @@ private:
     QString m_protectKind;   // what the enforced protection of the document allows (readOnly, comments, trackedChanges, or forms), else empty
     bool m_readOnlyByProtection = false;
     QString m_titledKind;
-    QTimer m_refreshTimer, m_recoverTimer, m_wordTimer;
+    QTimer m_refreshTimer, m_recoverTimer, m_wordTimer, m_proofTimer;
     quint64 m_serial = 0;
     bool m_updatingFields = false;
     MiniToolbar *m_mini = nullptr;

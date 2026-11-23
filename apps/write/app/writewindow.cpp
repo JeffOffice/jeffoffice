@@ -177,6 +177,9 @@ WriteWindow::WriteWindow(QWidget *parent) : AppWindow(parent)
     m_wordTimer.setSingleShot(true);
     m_wordTimer.setInterval(500);
     connect(&m_wordTimer, &QTimer::timeout, this, &WriteWindow::updateWords);
+    m_proofTimer.setSingleShot(true);
+    m_proofTimer.setInterval(300);
+    connect(&m_proofTimer, &QTimer::timeout, this, &WriteWindow::updateProofing);
 
     QString templateNote;
     setDocument(write::newBlankDocument(&templateNote), QString());
@@ -306,6 +309,7 @@ void WriteWindow::setDocument(std::unique_ptr<write::WriteDoc> doc, const QStrin
         connect(m_doc->story(), &QTextDocument::contentsChange, this, [this](int position, int removed, int added) { recordPlace(position + added, removed, added); });
     }
     m_view->setDocument(m_doc.get());
+    watchProofing();
     if (m_split->isVisible()) m_split->setDocument(m_doc.get());
     m_view->setZoomMode(write::PageView::ZoomMode::Percent);
     m_view->setZoom(1.0);
@@ -769,6 +773,7 @@ void WriteWindow::updateStatus()
         if (several) m_sectionLabel->setText(tr("Section %1").arg(m_view->cursorSection() + 1));
     }
     updateLanguage();
+    updateCaretPlace();
     if (m_doc && !m_wordTimer.isActive()) m_wordTimer.start();
 }
 

@@ -61,6 +61,9 @@ public:
     // The issues that overlap [from, to), in order: those of the paragraphs already checked; the others are sent to the checker and `changed` says when they are back.
     QVector<Issue> issuesIn(int from, int to);
     QTextDocument *story() const { return m_story; }
+    // How many issues the paragraphs already looked at and answered hold (a paragraph the checker has not been asked about, or not answered yet, holds none here): it reads what is kept,
+    // sends nothing to the checker, and looks at no text, so it is cheap enough to ask after every pause in typing.
+    int knownIssues() const;
     // The issue a position is in or at the end of (none: an invalid Issue), if its paragraph has been checked.
     Issue issueAt(int position);
     // The first issue that starts at or after a position, checking paragraphs on this thread for about `budgetMs` milliseconds (at least one): Found, None (to the

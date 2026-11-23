@@ -125,6 +125,8 @@ public:
     bool caretRect(QRect *rect);
     // The line of text at a position of the document, as a rectangle of the viewport (a caret's place); false when that page is not laid out.
     bool positionRect(int position, QRect *rect);
+    // The caret's line on its page (from 1, counted from the top of the page) and column in that line (from 1); false where the caret is not in the page's own text.
+    bool caretLineColumn(int *line, int *column);
     // Draws the caret while the view has not the keyboard (for screenshots).
     void setCaretWithoutFocus(bool on) { m_caretWithoutFocus = on; viewport()->update(); }
 
