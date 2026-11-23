@@ -16,8 +16,10 @@
 #include "app/slideshow.h"
 
 #include <QActionGroup>
+#include <QCoreApplication>
 #include <QDockWidget>
 #include <QHBoxLayout>
+#include <QKeyEvent>
 #include <QLabel>
 #include <QMenu>
 #include <QStatusBar>
@@ -270,6 +272,16 @@ void DeckWindow::startReadingView()
     show->show();
     show->setFocus();
     refreshUi();
+}
+
+// Esc is the show's whatever in the window has the keyboard (a status bar control that Tab reached ignores it, and it comes here).
+void DeckWindow::keyPressEvent(QKeyEvent *e)
+{
+    if (m_reading && e->key() == Qt::Key_Escape && e->modifiers() == Qt::NoModifier) {
+        QCoreApplication::sendEvent(m_reading, e);
+        return;
+    }
+    AppWindow::keyPressEvent(e);
 }
 
 void DeckWindow::endReadingView()

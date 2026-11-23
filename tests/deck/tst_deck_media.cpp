@@ -2436,6 +2436,44 @@ private Q_SLOTS:
         QTRY_VERIFY(show.isNull());
     }
 
+    // Esc ends Reading View whatever has the keyboard in the window: the show, or a control of the status bar (Tab reaches them), as the key goes through the window
+    // and not straight to the show; the sound's player goes with the show.
+    void escEndsReadingViewFromAnyFocusWhileASoundPlays_data()
+    {
+        QTest::addColumn<QString>("holder");
+        for (const char *h : {"show", "readingPrevious", "readingNext", "readingMenu"})
+            QTest::newRow(h) << QString::fromLatin1(h);
+    }
+    void escEndsReadingViewFromAnyFocusWhileASoundPlays()
+    {
+        QFETCH(QString, holder);
+        DeckWindow w;
+        w.resize(1100, 700);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        deck::MediaPlay play;
+        play.start = deck::MediaStart::Automatically;
+        auto sound = showMedia(*w.editor()->doc(), 0, testWav(60000), QStringLiteral("song.wav"), QPointF(40, 40), play);
+        w.act("view.reading")->trigger();
+        QVERIFY(w.inReadingView());
+        QPointer<SlideShow> show = w.readingShow();
+        QPointer<MediaPlayback> song = show->media()->playbackOf(sound->id);
+        QVERIFY(song);
+        QTRY_VERIFY_WITH_TIMEOUT(playerSettled(*song, false), kHangGuardMs);
+        w.activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        if (holder != QLatin1String("show")) {
+            auto *button = w.findChild<QToolButton *>(holder);
+            QVERIFY(button);
+            button->setFocus(Qt::TabFocusReason);
+            QCOMPARE(QApplication::focusWidget(), static_cast<QWidget *>(button));
+        }
+        QTest::keyClick(w.windowHandle(), Qt::Key_Escape);
+        QVERIFY(!w.inReadingView());
+        QVERIFY(song.isNull());
+        QTRY_VERIFY(show.isNull());
+    }
+
     // The sound goes on when the show advances, for as many slides as the count names counted from the slide it began on, and stops after the last of them.
     void showSoundGoesOnForTheSlidesTheCountNamesThenStops()
     {

@@ -487,6 +487,7 @@ public:
 
 protected:
     void closeEvent(QCloseEvent *e) override;
+    void keyPressEvent(QKeyEvent *e) override;
     void changeEvent(QEvent *e) override;
     void resizeEvent(QResizeEvent *e) override;
     bool eventFilter(QObject *o, QEvent *e) override;
