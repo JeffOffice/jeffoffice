@@ -2088,6 +2088,63 @@ private Q_SLOTS:
         }
     }
 
+    // The most that one Remove All takes out governs every copy of a link the same: the part's bytes, the file's relationships, and the comments' own copies (the saved file's comments come from
+    // those). The row says before the click that some are past it and that Remove All can be run again; and before the click that links in comments and kept parts can't be undone.
+    void inspectCapIsAnnouncedAndGovernsEveryCopy()
+    {
+        const int comments = 300, cap = 100;
+        QByteArray part = QByteArray("<w:comments ") + kNs + ">";
+        QVector<Extra> extra = {{QStringLiteral("/word/media/image1.png"), QStringLiteral("image/png"), noisePng(4), kRel + QStringLiteral("image"), QString(), QStringLiteral("rIdI")}};
+        for (int i = 0; i < comments; ++i) {
+            const QByteArray id = "rIdK" + QByteArray::number(i);
+            part += "<w:comment w:id=\"" + QByteArray::number(i) + "\" w:author=\"A\"><w:p>" + pictureXml("r:embed=\"rIdCI\" r:link=\"" + id + "\"") + "</w:p></w:comment>";
+            extra << outside(("file:///C:/commentlinks/c" + QByteArray::number(i) + ".png").constData(), "/word/comments.xml", id.constData());
+        }
+        part += "</w:comments>";
+        extra << Extra{QStringLiteral("/word/comments.xml"), kWord + QStringLiteral("comments+xml"), part, kRel + QStringLiteral("comments"), QString(), QStringLiteral("rIdCm")};
+        extra << Extra{QStringLiteral("/word/media/image1.png"), QString(), QByteArray(), kRel + QStringLiteral("image"), QStringLiteral("/word/comments.xml"), QStringLiteral("rIdCI"), false, true};
+        WriteWindow w;
+        QString err;
+        w.setDocument(WriteDoc::fromDocx(makeDocx("<w:p><w:r><w:t>B</w:t></w:r></w:p>", extra), &err, nullptr), QString());
+        WriteDoc &doc = *w.document();
+        {   // (a new comment makes the file's comments be written from the copies the program keeps of each: those are what the saved file shows)
+            QTextCursor c(doc.story());
+            c.select(QTextCursor::Document);
+            QVERIFY(addComment(doc, c, QStringLiteral("new")) >= 0);
+        }
+        const auto restore = qScopeGuard([] { setMostExternalLinkEditsForTest(0); });
+        setMostExternalLinkEditsForTest(cap);
+        const auto saved = [&](int *inFile, int *inRels) {
+            QString saveErr;
+            const QByteArray bytes = doc.toDocx(&saveErr);
+            QMap<QString, QByteArray> parts;
+            QVERIFY2(jp::readZip(bytes, parts), qPrintable(saveErr));
+            *inFile = parts.value(QStringLiteral("word/comments.xml")).count("r:link=");
+            *inRels = parts.value(QStringLiteral("word/_rels/comments.xml.rels")).count("commentlinks/");
+        };
+        InspectItem item = linksItem(w);
+        QVERIFY2(item.detail.contains(QLatin1String("can't be undone")) && item.detail.contains(QLatin1String("comments")), qPrintable(item.detail));
+        QCOMPARE(item.count(), comments);
+        QVERIFY2(item.unread().contains(QStringLiteral("%1 more link").arg(comments - cap)) && item.unread().contains(QLatin1String("Run Remove All again")), qPrintable(item.unread()));
+        QCOMPARE(item.remove(), cap);
+        int inFile = 0, inRels = 0;
+        saved(&inFile, &inRels);
+        QCOMPARE(inFile, comments - cap);   // (the comments the file is written from, not only the part's bytes)
+        QCOMPARE(inRels, comments - cap);   // (and the relationships agree with them)
+        QCOMPARE(doc.partData(QStringLiteral("/word/comments.xml")).count("r:link="), comments - cap);
+        item = linksItem(w);
+        QCOMPARE(item.count(), comments - cap);
+        QVERIFY2(item.unread().contains(QStringLiteral("%1 more link").arg(comments - 2 * cap)), qPrintable(item.unread()));
+        QCOMPARE(item.remove(), cap);
+        QCOMPARE(item.remove(), cap);
+        item = linksItem(w);
+        QCOMPARE(item.count(), 0);
+        QVERIFY2(item.unread().isEmpty(), qPrintable(item.unread()));
+        saved(&inFile, &inRels);
+        QCOMPARE(inFile, 0);
+        QCOMPARE(inRels, 0);
+    }
+
     void inspectRemovesHeadersAndFooters()
     {
         WriteWindow w;
