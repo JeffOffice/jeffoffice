@@ -1805,6 +1805,22 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts, con
             }
         }
     }
+    // The file's own cell of a formula that spills keeps the range the file had for its block: when a cell its block fills is written (the block grew), the formula's cell is written whole with the block it has now.
+    {
+        std::vector<Marked> anchors;
+        std::set<quint64> have;
+        for (const Marked &m : touchedInOrder) have.insert(m.key);
+        for (const Marked &m : touchedInOrder) {
+            int sheet;
+            quint32 row, col;
+            CellRange block;
+            if (!placeOfMark(m.key, &sheet, &row, &col) || !calc->isSpillMember(sheet, row, col, &block)) continue;
+            const quint64 key = markOf(sheet, block.row1, block.col1);
+            if (key == kNoKey || !have.insert(key).second) continue;
+            anchors.push_back({keyOf(sheet, block.row1, block.col1), key});
+        }
+        touchedInOrder.insert(touchedInOrder.end(), anchors.begin(), anchors.end());
+    }
     bool anyTouched = !touchedInOrder.empty();   // (the formulas written whole because what they read moved are changes, and those the saver gives another text are: see the end)
     std::sort(touchedInOrder.begin(), touchedInOrder.end(), [](const Marked &a, const Marked &b) { return a.place < b.place; });
     // (a sheet that was added is made whole from the model, and one that was deleted is not in the file: the marks of their cells are not what is put in)

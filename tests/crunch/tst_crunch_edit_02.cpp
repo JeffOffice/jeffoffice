@@ -716,6 +716,30 @@ void CrunchEditTests::cellsOfALoadedSpillThatItsBlockLetsGoOfAreTakenWithTheWork
     QCOMPARE(e.valueAt(QStringLiteral("B2")), QStringLiteral("n:2"));
 }
 
+// A file's spill, a column of 5 as saved by the window, grows to 7 and is saved: the file's cell for the formula said B1:B5, and it is written again with B1:B7 (it was kept as it was, the two new cells were
+// written as values, and the file opened as #SPILL! over them with the first five gone). Fails when the formula's cell is kept as the file had it (a block of B1:B5 over values in B6 and B7), with the index on and off.
+void CrunchEditTests::aLoadedSpillThatGrewIsSavedWithTheBlockItHasNow()
+{
+    for (const bool index : {false, true}) {
+        SpillIndexSwitch sw(index);
+        const QByteArray bytes = spillingBook(5);
+        QVERIFY(!bytes.isEmpty());
+        EditWindow e;
+        QVERIFY(e.open(bytes, QStringLiteral("spilling.xlsx")));
+        QVERIFY(e.settle());
+        e.select(QStringLiteral("A1"));
+        e.enter(QStringLiteral("7"));
+        QVERIFY(e.settle());
+        const QByteArray again = savedBytes(e, QStringLiteral("grown.xlsx"));
+        QVERIFY(!again.isEmpty());
+        EditWindow f;
+        QVERIFY(f.open(again, QStringLiteral("grown.xlsx")));
+        QVERIFY(f.settle());
+        QCOMPARE(blockOf(f, QStringLiteral("B1")), QStringLiteral("B1:B7"));
+        for (int row = 1; row <= 7; ++row) QCOMPARE(f.valueAt(QStringLiteral("B%1").arg(row)), QStringLiteral("n:%1").arg(row));
+    }
+}
+
 // The window reads the blocks that were published before the values it has: a block the worker grows is the block the window reads once the batch that has the values of the slice is taken (not before,
 // and not never). Fails when the batch does not adopt the blocks (the window goes on reading the first), or when the copy of a slice is the one read at once.
 void CrunchEditTests::theWindowReadsTheBlocksOfTheBatchItTook()
