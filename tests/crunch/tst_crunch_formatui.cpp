@@ -1336,9 +1336,9 @@ private Q_SLOTS:
         int at = 0;
         while (at < now.size() && at < was.size() && now[at] == was[at]) ++at;
         QVERIFY2(now == was, qPrintable(QStringLiteral("differs at %1: saved \"%2\" file \"%3\"").arg(at).arg(now.mid(at - 20, 120), was.mid(at - 20, 120))));
-        // and the priorities are the file's plus one, in the main list and in the 2010 block
-        QVERIFY(out.contains(QLatin1String("priority=\"3\"")) && out.contains(QLatin1String("priority=\"4\"")) && out.contains(QLatin1String("priority=\"5\"")));
-        QVERIFY(!out.contains(QLatin1String("priority=\"2\"")));
+        // and the rules are numbered one after the other in their order, the new rule first, in the main list and in the 2010 block
+        QVERIFY(out.contains(QLatin1String("priority=\"2\"")) && out.contains(QLatin1String("priority=\"3\"")) && out.contains(QLatin1String("priority=\"4\"")));
+        QVERIFY(!out.contains(QLatin1String("priority=\"5\"")));
         // opened again: every rule is there
         Window second;
         QVERIFY(second.open(e.copyOfFile()));
@@ -1620,7 +1620,7 @@ private Q_SLOTS:
         QVERIFY(!xml.contains(QLatin1String("dataBar")));
     }
 
-    // Two 2010 rules in one element, and a 2010 rule that has no rule of the main list: a clear takes out only the rule asked for, an added rule moves every priority by one, and the rule with no
+    // Two 2010 rules in one element, and a 2010 rule that has no rule of the main list: a clear takes out only the rule asked for, an added rule goes first and the rules are numbered after it in their order, and the rule with no
     // priority stays without one.
     void twoExtensionRulesInOneElementAndOneWithNoMainRule()
     {
@@ -1648,7 +1648,7 @@ private Q_SLOTS:
         run(e, "cond.greater");
         QVERIFY2(e.win.told.isEmpty(), qPrintable(e.win.told.join('|')));
         QVERIFY(saveNow(e));
-        QCOMPARE(prioritiesOfSaved(e), (QList<int>{1, 2, 3, 2, 3, 10}));   // (the new rule 1; the main list 2 and 3; the 2010 entries 2, 3, and the one with no main rule 10)
+        QCOMPARE(prioritiesOfSaved(e), (QList<int>{1, 2, 3, 2, 3, 4}));   // (the new rule 1; the main list 2 and 3; the 2010 entries 2, 3, and the one with no main rule, after them, 4)
         // the data bar is cleared: its entry goes out of the element that has another, whose cells and rule stay
         QVERIFY(s->clearCondRules(0, rangeOf(QStringLiteral("A1:A3"))).ok);   // (both rules of A1:A3 are cleared)
         QVERIFY(saveNow(e));

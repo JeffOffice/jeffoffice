@@ -37,7 +37,8 @@ namespace {
 // Whether every sheet a parsed formula names is in the workbook (a name the formula gives to a sheet that is not there would be an error in every cell of the rule).
 bool sheetsAreThere(const jp::calc::ParseResult &parsed, const jp::office::sheet::Calculation *calc)
 {
-    if (!calc || !parsed.ok() || parsed.program->external) return true;
+    if (!parsed.ok()) return false;
+    if (!calc || parsed.program->external) return true;
     for (const QString &name : parsed.program->sheetNames)
         if (calc->sheetIndex(name) < 0) return false;
     return true;
