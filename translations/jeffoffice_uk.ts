@@ -5506,7 +5506,7 @@ Back page story	4</source>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="+29"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+462"/>
-        <location filename="../apps/write/app/writewindow.cpp" line="+827"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+832"/>
         <source>Save</source>
         <translation type="unfinished">Зберегти</translation>
     </message>
@@ -11225,7 +11225,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>Proofing</name>
     <message>
-        <location filename="../libs/shell/app/spelling.cpp" line="+182"/>
+        <location filename="../libs/shell/app/spelling.cpp" line="+183"/>
         <location line="+147"/>
         <source>The file is read-only.</source>
         <translation type="unfinished">Файл доступний лише для читання.</translation>
@@ -58773,7 +58773,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Немає тексту для перекладу.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="-736"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="-741"/>
         <source>Document%1</source>
         <translation type="unfinished">Документ%1</translation>
     </message>
@@ -58798,12 +58798,12 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Цей документ занадто великий для подальшої перевірки граматики. Перевірку граматики зупинено; перевірка правопису працює.</translation>
     </message>
     <message>
-        <location line="+48"/>
+        <location line="+51"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
     <message>
-        <location line="+118"/>
+        <location line="+119"/>
         <source> (Protected)</source>
         <translation type="unfinished"> (захищено)</translation>
     </message>
@@ -59151,7 +59151,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Розділ %1</translation>
     </message>
     <message numerus="yes">
-        <location line="+34"/>
+        <location line="+35"/>
         <source>%1 of %n word(s)</source>
         <translation type="unfinished">
             <numerusform>%1 з %n слово</numerusform>
@@ -59331,13 +59331,13 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Перейти до виноски</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_file.cpp" line="+94"/>
+        <location filename="../apps/write/app/writewindow_file.cpp" line="+95"/>
         <source>New</source>
         <translation type="unfinished">Створити</translation>
     </message>
     <message>
         <location line="+5"/>
-        <location line="+125"/>
+        <location line="+127"/>
         <location line="+52"/>
         <location line="+447"/>
         <location filename="../apps/write/core/designops.cpp" line="+27"/>
@@ -59345,13 +59345,13 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Відкрити</translation>
     </message>
     <message>
-        <location line="-623"/>
+        <location line="-625"/>
         <source>Close</source>
         <translation type="unfinished">Закрити</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+184"/>
+        <location line="+186"/>
         <location line="+5"/>
         <location line="+3"/>
         <location line="+1"/>
@@ -59374,13 +59374,13 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Зберегти</translation>
     </message>
     <message>
-        <location line="-435"/>
-        <location line="+224"/>
+        <location line="-437"/>
+        <location line="+226"/>
         <source>Save As</source>
         <translation type="unfinished">Зберегти як</translation>
     </message>
     <message>
-        <location line="-223"/>
+        <location line="-225"/>
         <source>Print…</source>
         <translation type="unfinished">Друк…</translation>
     </message>
@@ -59406,7 +59406,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Параметри</translation>
     </message>
     <message>
-        <location line="+19"/>
+        <location line="+21"/>
         <source>Documents (*.docx *.docm *.dotx *.dotm *.doc *.dot *.rtf *.odt *.fodt *.ott *.txt *.html *.htm)</source>
         <translation type="unfinished">Документи (*.docx *.docm *.dotx *.dotm *.doc *.dot *.rtf *.odt *.fodt *.ott *.txt *.html *.htm)</translation>
     </message>
@@ -62154,7 +62154,7 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+13"/>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+125"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+141"/>
         <source>Track Changes</source>
         <translation type="unfinished">Відстежувати зміни</translation>
     </message>
@@ -62402,7 +62402,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Більше немає коментарів.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="-104"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="-120"/>
         <source>No Shading</source>
         <translation type="unfinished">Без заливки</translation>
     </message>
@@ -62428,11 +62428,26 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+45"/>
+        <source>The caret&apos;s line on the page and its place in the line</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
         <source>The section the caret is in</source>
         <translation type="unfinished">Розділ, у якому розташовано курсор</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+13"/>
+        <source>Spelling and grammar errors. Click to go to the next one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Spelling and grammar errors</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
         <source>Track Changes (Ctrl+Shift+E)</source>
         <translation type="unfinished">Відстеження змін (Ctrl+Shift+E)</translation>
     </message>
@@ -63880,7 +63895,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Готові таблиці</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="-180"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="-196"/>
         <location filename="../apps/write/app/writewindow_tables.cpp" line="+32"/>
         <source>Shading</source>
         <translation type="unfinished">Заливка</translation>
@@ -64295,6 +64310,34 @@ The password couldn&apos;t be put on the file.</source>
         <location filename="../apps/write/app/writewindow_packandgo.cpp" line="+18"/>
         <source>The document couldn&apos;t be saved for Pack and Go.</source>
         <translation type="unfinished">Документ не вдалося зберегти для функції «Упакувати й перемістити».</translation>
+    </message>
+    <message>
+        <location filename="../apps/write/app/writewindow_proofstatus.cpp" line="+28"/>
+        <source>Line %1, Column %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+18"/>
+        <source>%n+ proofing error(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+0"/>
+        <source>%n proofing error(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+26"/>
+        <source>There are no spelling or grammar errors in this document.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>

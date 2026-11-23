@@ -5371,7 +5371,7 @@ Artikel achterpagina	4</translation>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="-15"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+462"/>
-        <location filename="../apps/write/app/writewindow.cpp" line="+827"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+832"/>
         <source>Save</source>
         <translation type="unfinished">Opslaan</translation>
     </message>
@@ -11331,7 +11331,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">(Geen spellingsuggesties)</translation>
     </message>
     <message>
-        <location filename="../libs/shell/app/spelling.cpp" line="+182"/>
+        <location filename="../libs/shell/app/spelling.cpp" line="+183"/>
         <location line="+147"/>
         <source>The file is read-only.</source>
         <translation type="unfinished">Het bestand is alleen-lezen.</translation>
@@ -58690,7 +58690,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::WriteWindow</name>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="-736"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="-741"/>
         <source>Document%1</source>
         <translation type="unfinished">Document%1</translation>
     </message>
@@ -58715,12 +58715,12 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Dit document is te groot om de grammatica verder te controleren. De grammaticacontrole is gestopt; spelling werkt nog wel.</translation>
     </message>
     <message>
-        <location line="+48"/>
+        <location line="+51"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
     <message>
-        <location line="+118"/>
+        <location line="+119"/>
         <source> (Protected)</source>
         <translation type="unfinished"> (Beveiligd)</translation>
     </message>
@@ -60467,7 +60467,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Sectie %1</translation>
     </message>
     <message numerus="yes">
-        <location line="+34"/>
+        <location line="+35"/>
         <source>%1 of %n word(s)</source>
         <translation type="unfinished">
             <numerusform>%1 van %n woord</numerusform>
@@ -60483,13 +60483,13 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         </translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_file.cpp" line="+94"/>
+        <location filename="../apps/write/app/writewindow_file.cpp" line="+95"/>
         <source>New</source>
         <translation type="unfinished">Nieuw</translation>
     </message>
     <message>
         <location line="+5"/>
-        <location line="+125"/>
+        <location line="+127"/>
         <location line="+52"/>
         <location line="+447"/>
         <location filename="../apps/write/core/designops.cpp" line="+27"/>
@@ -60520,7 +60520,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">OpenDocument-tekst (*.odt *.fodt *.ott)</translation>
     </message>
     <message>
-        <location line="-27"/>
+        <location line="-29"/>
         <source>Close</source>
         <translation type="unfinished">Sluiten</translation>
     </message>
@@ -60531,7 +60531,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_file.cpp" line="+1"/>
-        <location line="+184"/>
+        <location line="+186"/>
         <location line="+5"/>
         <location line="+3"/>
         <location line="+1"/>
@@ -60554,13 +60554,13 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Opslaan</translation>
     </message>
     <message>
-        <location line="-435"/>
-        <location line="+224"/>
+        <location line="-437"/>
+        <location line="+226"/>
         <source>Save As</source>
         <translation type="unfinished">Opslaan als</translation>
     </message>
     <message>
-        <location line="-223"/>
+        <location line="-225"/>
         <source>Print…</source>
         <translation type="unfinished">Afdrukken…</translation>
     </message>
@@ -60586,7 +60586,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Opties</translation>
     </message>
     <message>
-        <location line="+73"/>
+        <location line="+75"/>
         <source>Open Plain Text</source>
         <translation type="unfinished">Platte tekst openen</translation>
     </message>
@@ -61583,11 +61583,26 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     </message>
     <message>
         <location line="+45"/>
+        <source>The caret&apos;s line on the page and its place in the line</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
         <source>The section the caret is in</source>
         <translation type="unfinished">De sectie waarin de invoegpositie staat</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+13"/>
+        <source>Spelling and grammar errors. Click to go to the next one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Spelling and grammar errors</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
         <source>Track Changes (Ctrl+Shift+E)</source>
         <translation type="unfinished">Wijzigingen bijhouden (Ctrl+Shift+E)</translation>
     </message>
@@ -64226,6 +64241,32 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location filename="../apps/write/app/writewindow_packandgo.cpp" line="+18"/>
         <source>The document couldn&apos;t be saved for Pack and Go.</source>
         <translation type="unfinished">Het document kon niet worden opgeslagen voor Pack and Go.</translation>
+    </message>
+    <message>
+        <location filename="../apps/write/app/writewindow_proofstatus.cpp" line="+28"/>
+        <source>Line %1, Column %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+18"/>
+        <source>%n+ proofing error(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+0"/>
+        <source>%n proofing error(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+26"/>
+        <source>There are no spelling or grammar errors in this document.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>

@@ -5370,7 +5370,7 @@ Berita halaman belakang	4</translation>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="-15"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+462"/>
-        <location filename="../apps/write/app/writewindow.cpp" line="+827"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+832"/>
         <source>Save</source>
         <translation type="unfinished">Simpan</translation>
     </message>
@@ -11323,7 +11323,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">(Tidak ada saran ejaan)</translation>
     </message>
     <message>
-        <location filename="../libs/shell/app/spelling.cpp" line="+182"/>
+        <location filename="../libs/shell/app/spelling.cpp" line="+183"/>
         <location line="+147"/>
         <source>The file is read-only.</source>
         <translation type="unfinished">Berkas hanya dapat dibaca.</translation>
@@ -58631,7 +58631,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
 <context>
     <name>jp::WriteWindow</name>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="-736"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="-741"/>
         <source>Document%1</source>
         <translation type="unfinished">Dokumen%1</translation>
     </message>
@@ -58656,12 +58656,12 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Dokumen ini terlalu besar untuk diperiksa tata bahasanya lebih lanjut. Pemeriksaan tata bahasa dihentikan; pemeriksaan ejaan tetap berfungsi.</translation>
     </message>
     <message>
-        <location line="+48"/>
+        <location line="+51"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
     <message>
-        <location line="+118"/>
+        <location line="+119"/>
         <source> (Protected)</source>
         <translation type="unfinished"> (Dilindungi)</translation>
     </message>
@@ -59009,7 +59009,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Bagian %1</translation>
     </message>
     <message numerus="yes">
-        <location line="+34"/>
+        <location line="+35"/>
         <source>%1 of %n word(s)</source>
         <translation type="unfinished">
             <numerusform>%1 dari %n kata</numerusform>
@@ -59184,13 +59184,13 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Memeriksa kata sandi…</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_file.cpp" line="+94"/>
+        <location filename="../apps/write/app/writewindow_file.cpp" line="+95"/>
         <source>New</source>
         <translation type="unfinished">Baru</translation>
     </message>
     <message>
         <location line="+5"/>
-        <location line="+125"/>
+        <location line="+127"/>
         <location line="+52"/>
         <location line="+447"/>
         <location filename="../apps/write/core/designops.cpp" line="+27"/>
@@ -59198,13 +59198,13 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Buka</translation>
     </message>
     <message>
-        <location line="-623"/>
+        <location line="-625"/>
         <source>Close</source>
         <translation type="unfinished">Tutup</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+184"/>
+        <location line="+186"/>
         <location line="+5"/>
         <location line="+3"/>
         <location line="+1"/>
@@ -59227,13 +59227,13 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Simpan</translation>
     </message>
     <message>
-        <location line="-435"/>
-        <location line="+224"/>
+        <location line="-437"/>
+        <location line="+226"/>
         <source>Save As</source>
         <translation type="unfinished">Simpan Sebagai</translation>
     </message>
     <message>
-        <location line="-223"/>
+        <location line="-225"/>
         <source>Print…</source>
         <translation type="unfinished">Cetak…</translation>
     </message>
@@ -59259,7 +59259,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Opsi</translation>
     </message>
     <message>
-        <location line="+19"/>
+        <location line="+21"/>
         <location line="+189"/>
         <location line="+23"/>
         <source>Rich Text Format (*.rtf)</source>
@@ -61825,7 +61825,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+13"/>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+125"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+141"/>
         <source>Track Changes</source>
         <translation type="unfinished">Lacak Perubahan</translation>
     </message>
@@ -62082,7 +62082,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Tidak ada komentar lagi.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="-164"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="-180"/>
         <source>Font Color</source>
         <translation type="unfinished">Warna Font</translation>
     </message>
@@ -62186,11 +62186,26 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+45"/>
+        <source>The caret&apos;s line on the page and its place in the line</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
         <source>The section the caret is in</source>
         <translation type="unfinished">Bagian tempat kursor berada</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+13"/>
+        <source>Spelling and grammar errors. Click to go to the next one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Spelling and grammar errors</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
         <source>Track Changes (Ctrl+Shift+E)</source>
         <translation type="unfinished">Lacak Perubahan (Ctrl+Shift+E)</translation>
     </message>
@@ -63638,7 +63653,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Tabel Siap Pakai</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="-180"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="-196"/>
         <location filename="../apps/write/app/writewindow_tables.cpp" line="+32"/>
         <source>Shading</source>
         <translation type="unfinished">Pewarnaan</translation>
@@ -64157,6 +64172,30 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location filename="../apps/write/app/writewindow_packandgo.cpp" line="+18"/>
         <source>The document couldn&apos;t be saved for Pack and Go.</source>
         <translation type="unfinished">Dokumen tidak dapat disimpan untuk Pack and Go.</translation>
+    </message>
+    <message>
+        <location filename="../apps/write/app/writewindow_proofstatus.cpp" line="+28"/>
+        <source>Line %1, Column %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+18"/>
+        <source>%n+ proofing error(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+0"/>
+        <source>%n proofing error(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+26"/>
+        <source>There are no spelling or grammar errors in this document.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>

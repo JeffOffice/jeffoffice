@@ -5371,7 +5371,7 @@ Article de dernière page	4</translation>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="-15"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+462"/>
-        <location filename="../apps/write/app/writewindow.cpp" line="+827"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+832"/>
         <source>Save</source>
         <translation type="unfinished">Enregistrement</translation>
     </message>
@@ -11331,7 +11331,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <translation type="unfinished">(Aucune suggestion d&apos;orthographe)</translation>
     </message>
     <message>
-        <location filename="../libs/shell/app/spelling.cpp" line="+182"/>
+        <location filename="../libs/shell/app/spelling.cpp" line="+183"/>
         <location line="+147"/>
         <source>The file is read-only.</source>
         <translation type="unfinished">Le fichier est en lecture seule.</translation>
@@ -58690,7 +58690,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
 <context>
     <name>jp::WriteWindow</name>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="-736"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="-741"/>
         <source>Document%1</source>
         <translation type="unfinished">Document%1</translation>
     </message>
@@ -58715,12 +58715,12 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
         <translation type="unfinished">Ce document est trop volumineux pour poursuivre la vérification grammaticale. La vérification de la grammaire s&apos;est arrêtée ; l&apos;orthographe fonctionne toujours.</translation>
     </message>
     <message>
-        <location line="+48"/>
+        <location line="+51"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
     <message>
-        <location line="+118"/>
+        <location line="+119"/>
         <source> (Protected)</source>
         <translation type="unfinished"> (Protégé)</translation>
     </message>
@@ -60467,7 +60467,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
         <translation type="unfinished">Section %1</translation>
     </message>
     <message numerus="yes">
-        <location line="+34"/>
+        <location line="+35"/>
         <source>%1 of %n word(s)</source>
         <translation type="unfinished">
             <numerusform>%1 sur %n mot</numerusform>
@@ -60483,13 +60483,13 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
         </translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_file.cpp" line="+94"/>
+        <location filename="../apps/write/app/writewindow_file.cpp" line="+95"/>
         <source>New</source>
         <translation type="unfinished">Nouveau</translation>
     </message>
     <message>
         <location line="+5"/>
-        <location line="+125"/>
+        <location line="+127"/>
         <location line="+52"/>
         <location line="+447"/>
         <location filename="../apps/write/core/designops.cpp" line="+27"/>
@@ -60520,7 +60520,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
         <translation type="unfinished">Texte OpenDocument (*.odt *.fodt *.ott)</translation>
     </message>
     <message>
-        <location line="-27"/>
+        <location line="-29"/>
         <source>Close</source>
         <translation type="unfinished">Fermer</translation>
     </message>
@@ -60531,7 +60531,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_file.cpp" line="+1"/>
-        <location line="+184"/>
+        <location line="+186"/>
         <location line="+5"/>
         <location line="+3"/>
         <location line="+1"/>
@@ -60554,13 +60554,13 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
         <translation type="unfinished">Enregistrer</translation>
     </message>
     <message>
-        <location line="-435"/>
-        <location line="+224"/>
+        <location line="-437"/>
+        <location line="+226"/>
         <source>Save As</source>
         <translation type="unfinished">Enregistrer sous</translation>
     </message>
     <message>
-        <location line="-223"/>
+        <location line="-225"/>
         <source>Print…</source>
         <translation type="unfinished">Imprimer…</translation>
     </message>
@@ -60586,7 +60586,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
         <translation type="unfinished">Options</translation>
     </message>
     <message>
-        <location line="+73"/>
+        <location line="+75"/>
         <source>Open Plain Text</source>
         <translation type="unfinished">Ouvrir en texte brut</translation>
     </message>
@@ -61583,11 +61583,26 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     </message>
     <message>
         <location line="+45"/>
+        <source>The caret&apos;s line on the page and its place in the line</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
         <source>The section the caret is in</source>
         <translation type="unfinished">La section où se trouve le curseur</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+13"/>
+        <source>Spelling and grammar errors. Click to go to the next one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Spelling and grammar errors</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
         <source>Track Changes (Ctrl+Shift+E)</source>
         <translation type="unfinished">Suivi des modifications (Ctrl+Maj+E)</translation>
     </message>
@@ -64226,6 +64241,32 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <location filename="../apps/write/app/writewindow_packandgo.cpp" line="+18"/>
         <source>The document couldn&apos;t be saved for Pack and Go.</source>
         <translation type="unfinished">Le document n&apos;a pas pu être enregistré pour Pack and Go.</translation>
+    </message>
+    <message>
+        <location filename="../apps/write/app/writewindow_proofstatus.cpp" line="+28"/>
+        <source>Line %1, Column %2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+18"/>
+        <source>%n+ proofing error(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+0"/>
+        <source>%n proofing error(s)</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+26"/>
+        <source>There are no spelling or grammar errors in this document.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>

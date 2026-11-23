@@ -83,7 +83,7 @@
 <context>
     <name>Proofing</name>
     <message numerus="yes">
-        <location filename="../libs/shell/app/spelling.cpp" line="+319"/>
+        <location filename="../libs/shell/app/spelling.cpp" line="+320"/>
         <source>A word can&apos;t be empty, have a space or a control character in it, or be longer than %n letters.</source>
         <translation>
             <numerusform>A word can&apos;t be empty, have a space or a control character in it, or be longer than %n letter.</numerusform>
@@ -550,7 +550,7 @@
 <context>
     <name>jp::WriteWindow</name>
     <message numerus="yes">
-        <location filename="../apps/write/app/writewindow.cpp" line="+803"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+808"/>
         <source>%1 of %n word(s)</source>
         <translation>
             <numerusform>%1 of %n word</numerusform>
@@ -627,6 +627,22 @@
         <translation>
             <numerusform>%n more link is past the most that one Remove All takes out. Run Remove All again to take it out.</numerusform>
             <numerusform>%n more links are past the most that one Remove All takes out. Run Remove All again to take them out.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../apps/write/app/writewindow_proofstatus.cpp" line="+46"/>
+        <source>%n+ proofing error(s)</source>
+        <translation>
+            <numerusform>%n+ proofing error</numerusform>
+            <numerusform>%n+ proofing errors</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+0"/>
+        <source>%n proofing error(s)</source>
+        <translation>
+            <numerusform>%n proofing error</numerusform>
+            <numerusform>%n proofing errors</numerusform>
         </translation>
     </message>
 </context>
