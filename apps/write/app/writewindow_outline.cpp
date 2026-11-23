@@ -62,8 +62,8 @@ void WriteWindow::createOutlineActions()
             }
         };
     };
-    mk("outline.moveUp", tr("Move Up"), "arrow-up", QKeySequence(Qt::ALT | Qt::SHIFT | Qt::Key_Up), move(true));
-    mk("outline.moveDown", tr("Move Down"), "arrow-down", QKeySequence(Qt::ALT | Qt::SHIFT | Qt::Key_Down), move(false));
+    mk("outline.moveUp", tr("Move Up"), "arrow-up", QKeySequence(), move(true));   // (its key, Alt+Shift+Up, is Move Section Up's, which comes here in Outline view)
+    mk("outline.moveDown", tr("Move Down"), "arrow-down", QKeySequence(), move(false));
     mk("outline.expand", tr("Expand"), "plus", QKeySequence(Qt::ALT | Qt::SHIFT | Qt::Key_Plus), [this] { m_outline->expandSelected(true); });
     mk("outline.collapse", tr("Collapse"), "minus", QKeySequence(Qt::ALT | Qt::SHIFT | Qt::Key_Minus), [this] { m_outline->expandSelected(false); });
     auto *levels = new QActionGroup(this);

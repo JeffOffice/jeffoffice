@@ -1,11 +1,19 @@
 // Tests of moving a section (a heading with what is under it): the move keeps every part of the saved file as if the section had been typed at the new place, and nothing else changes.
 
 #include "../isolatesettings.h"
+#include "app/icons.h"
+#include "app/keymap.h"
 #include "app/navpane.h"
+#include "app/reviewpane.h"
+#include "app/ribbon.h"
 #include "app/pageview.h"
 #include "app/theme.h"
+#include "app/writeinfo.h"
+#include "app/writeoutlineview.h"
 #include "app/writewindow.h"
+#include "core/appinfo.h"
 #include "core/blockmove.h"
+#include "core/fonts.h"
 #include "core/editops.h"
 #include "core/sectionmove.h"
 #include "core/tableops.h"
@@ -29,6 +37,7 @@
 #include <QTextBlock>
 #include <QTextDocument>
 #include <QTextList>
+#include <QToolButton>
 
 using namespace jp;
 using namespace jp::write;
@@ -309,7 +318,16 @@ class SectionMoveTests : public QObject {
     }
 
 private Q_SLOTS:
-    void initTestCase() {}
+    // The run's settings are its own, and none reached the person's (checked at the end).
+    void cleanupTestCase() { QVERIFY(jptest::settingsStayInTheRunsFolder()); }
+
+    void initTestCase()
+    {
+        Q_INIT_RESOURCE(resources);
+        Q_INIT_RESOURCE(write);
+        setAppInfo(writeAppInfo());
+        jp::initCore();
+    }
 
     void aPlainSectionMovesUpAndDownLikeTextTypedThere()
     {
@@ -681,7 +699,7 @@ private Q_SLOTS:
         QCOMPARE(pane->draggedHeading(), 1);
         QCOMPARE(pane->dropBefore(), 0);
         QVERIFY(pane->dropLine()->isVisible());
-        QCOMPARE(pane->dropLine()->geometry().center().y(), tree->visualItemRect(alpha).top());
+        QVERIFY(pane->dropLine()->geometry().top() <= tree->visualItemRect(alpha).top() && pane->dropLine()->geometry().bottom() >= tree->visualItemRect(alpha).top());   // (it lies on the edge between the rows)
         QVERIFY(!doc->canUndo());   // (nothing is changed while the pointer moves)
         release(tree, inRow(tree, alpha, 1));
         QVERIFY(!pane->dropLine()->isVisible());
@@ -802,20 +820,22 @@ private Q_SLOTS:
         openPane(w, paneDocx());
         WriteDoc *doc = w.document();
         QVERIFY(w.act("view.moveSectionUp") && w.act("view.moveSectionDown"));
-        QCOMPARE(w.act("view.moveSectionUp")->shortcut().toString(QKeySequence::PortableText), QStringLiteral("Ctrl+Alt+Up"));
+        QCOMPARE(w.act("view.moveSectionUp")->shortcut().toString(QKeySequence::PortableText), QStringLiteral("Alt+Shift+Up"));
         const QByteArray before = doc->toDocx();
         const Pieces p = panePieces();
         QTextCursor c(doc->story());
         c.setPosition(positionOf(*doc, QStringLiteral("Beta sub words")));   // (in the text under the sub-heading: that section is the one that moves, and it has no neighbor of its level)
         w.view()->showCursor(c);
+        w.refreshNow();
         w.act("view.moveSectionUp")->trigger();
         QVERIFY(!doc->canUndo());
         QVERIFY2(w.statusBar()->currentMessage().contains(QLatin1String("same level")), qPrintable(w.statusBar()->currentMessage()));
         c.setPosition(positionOf(*doc, QStringLiteral("Beta words")));
         w.view()->showCursor(c);
+        w.refreshNow();
         w.act("view.moveSectionUp")->trigger();
         QVERIFY2(differsIn(doc->toDocx(), open(p.docx({2, 1, 3}))->toDocx()).isEmpty(), qPrintable(differsIn(doc->toDocx(), open(p.docx({2, 1, 3}))->toDocx())));
-        QCOMPARE(w.view()->cursor().block().text(), QStringLiteral("Beta"));   // (the caret goes with the section)
+        QCOMPARE(w.view()->cursor().block().text(), QStringLiteral("Beta words"));   // (the caret stays in the text it was in, which went with the section)
         w.act("view.moveSectionDown")->trigger();
         w.act("view.moveSectionDown")->trigger();
         QVERIFY2(differsIn(doc->toDocx(), open(p.docx({1, 3, 2}))->toDocx()).isEmpty(), qPrintable(differsIn(doc->toDocx(), open(p.docx({1, 3, 2}))->toDocx())));
@@ -824,6 +844,7 @@ private Q_SLOTS:
         doc->undo();
         QVERIFY2(differsIn(doc->toDocx(), before).isEmpty(), qPrintable(differsIn(doc->toDocx(), before)));
         // The pane's own commands (the context menu's) are those too, for the row they are on.
+        w.navigationPane()->rescan();   // (the text was edited since the pane looked: its rows are not used)
         QTreeWidget *tree = w.navigationPane()->headings();
         QVERIFY(w.navigationPane()->moveSectionBy(rowOf(tree, QStringLiteral("Gamma")), true));
         QVERIFY2(differsIn(doc->toDocx(), open(p.docx({1, 3, 2}))->toDocx()).isEmpty(), qPrintable(differsIn(doc->toDocx(), open(p.docx({1, 3, 2}))->toDocx())));
@@ -849,11 +870,291 @@ private Q_SLOTS:
             QTextCursor c(doc->story());
             c.setPosition(positionOf(*doc, QStringLiteral("Beta words")));
             w.view()->showCursor(c);
+            w.refreshNow();
+            QVERIFY(!w.act("view.moveSectionUp")->isEnabled());
+            w.moveSectionAtCaret(true);   // (the key can come before the commands are brought up to date)
+            QVERIFY(w.statusBar()->currentMessage().contains(QLatin1String("protected")) || w.statusBar()->currentMessage().contains(QLatin1String("reading only")));
             w.act("view.moveSectionUp")->trigger();
             QVERIFY(!w.navigationPane()->moveSectionBy(beta, true));
             QVERIFY(!doc->canUndo());
             QVERIFY2(differsIn(doc->toDocx(), before).isEmpty(), qPrintable(differsIn(doc->toDocx(), before)));
         }
+    }
+
+    // ---- where the commands work and what they leave alone
+
+    // The caret in a heading's text, `offset` characters into the paragraph that starts with `words`.
+    static void caretIn(WriteWindow &w, const QString &words, int offset)
+    {
+        QTextCursor c(w.document()->story());
+        c.setPosition(positionOf(*w.document(), words) + offset);
+        w.view()->showCursor(c);
+        w.refreshNow();   // (the commands are brought up to date a moment after a change: a test does not wait for the moment)
+    }
+    // Where the caret and the other end of the selection are, as the paragraph they are in and how far into it.
+    static QString whereIs(WriteWindow &w)
+    {
+        const QTextCursor &c = w.view()->cursor();
+        const QTextBlock a = c.document()->findBlock(c.anchor());
+        return QStringLiteral("%1:%2 to %3:%4").arg(a.text().remove(QChar(0xFFFC)), QString::number(c.anchor() - a.position()), c.block().text().remove(QChar(0xFFFC)), QString::number(c.positionInBlock()));
+    }
+
+    // A caret in a header, a footer, a note, a box of text, or a comment is not in a section of the text: the commands are off, and used all the same (the key), they change nothing and say why.
+    void theSectionCommandsRefuseWhereTheCaretIsNotInTheText()
+    {
+        for (int story = 0; story < 6; ++story) {
+            Pieces p = panePieces();
+            if (story == 5) p.beta = head("Beta") + "<w:p><w:commentRangeStart w:id=\"0\"/>" + run("Beta words") + "<w:commentRangeEnd w:id=\"0\"/><w:r><w:commentReference w:id=\"0\"/></w:r></w:p>" + head("Beta sub", 2) + para("Beta sub words");
+            if (story == 4) p.beta = head("Beta") + "<w:p>" + run("Beta box ") + textBox(5) + "</w:p>" + head("Beta sub", 2) + para("Beta sub words");
+            WriteWindow w;
+            openPane(w, p.docx());
+            WriteDoc *doc = w.document();
+            const QByteArray before = doc->toDocx();
+            const QString which = QStringList{"header", "footer", "footnote", "endnote", "text box", "comment"}.at(story);
+            caretIn(w, QStringLiteral("Beta words"), 3);
+            switch (story) {
+            case 0: QVERIFY(w.view()->enterHeaderFooter(0, false, true)); break;
+            case 1: QVERIFY(w.view()->enterHeaderFooter(0, true, true)); break;
+            case 2: w.act("refs.footnote")->trigger(); QVERIFY(w.view()->inNote()); break;
+            case 3: w.act("refs.endnote")->trigger(); QVERIFY(doc->endnoteIdOf(w.view()->cursor().block(), nullptr) || write::inEndnoteWords(w.view()->cursor())); break;
+            case 4: {
+                const int box = doc->story()->toPlainText().indexOf(QChar(0xFFFC));
+                QVERIFY(box >= 0);
+                w.view()->selectPicture(box);
+                QVERIFY(w.view()->beginShapeTextEdit());
+                QVERIFY(w.view()->editingShapeText());
+                break;
+            }
+            default: {
+                w.showReviewPane(false);
+                QTRY_VERIFY(w.reviewPane()->commentList()->topLevelItemCount() > 0);
+                w.reviewPane()->commentList()->setCurrentItem(w.reviewPane()->commentList()->topLevelItem(0));
+                QVERIFY(w.reviewPane()->replyField()->isEnabled());
+                w.reviewPane()->replyField()->setFocus();
+                QVERIFY(w.focusWidget() == w.reviewPane()->replyField());
+                break;
+            }
+            }
+            const QByteArray typed = doc->toDocx();
+            w.refreshNow();
+            QVERIFY2(!w.act("view.moveSectionUp")->isEnabled() && !w.act("view.moveSectionDown")->isEnabled(), qPrintable(which));
+            QVERIFY2(w.act("view.moveSectionUp")->toolTip().contains(QLatin1String("main text")), qPrintable(which + QLatin1Char(' ') + w.act("view.moveSectionUp")->toolTip()));
+            // (A key can arrive before the commands are brought up to date: the move itself looks too.)
+            w.statusBar()->clearMessage();
+            w.moveSectionAtCaret(true);
+            w.moveSectionAtCaret(false);
+            QVERIFY2(w.statusBar()->currentMessage().contains(QLatin1String("main text")), qPrintable(which + QLatin1Char(' ') + w.statusBar()->currentMessage()));
+            QVERIFY2(differsIn(doc->toDocx(), typed).isEmpty(), qPrintable(which + QLatin1Char(' ') + differsIn(doc->toDocx(), typed)));
+            Q_UNUSED(before);
+        }
+    }
+
+    // Where a move would be refused for a reason that does not depend on what is moved, the commands are off, and the tooltip says why (and is gone when the reason is).
+    void theSectionCommandsAreOffWithTheReasonWhereTheyWouldRefuse()
+    {
+        auto offWith = [](WriteWindow &w, const QString &part) {
+            w.refreshNow();
+            for (const char *id : {"view.moveSectionUp", "view.moveSectionDown"}) {
+                QVERIFY2(!w.act(QString::fromLatin1(id))->isEnabled(), id);
+                QVERIFY2(w.act(QString::fromLatin1(id))->toolTip().contains(part), qPrintable(w.act(QString::fromLatin1(id))->toolTip()));
+                QVERIFY2(w.act(QString::fromLatin1(id))->statusTip().contains(part), qPrintable(w.act(QString::fromLatin1(id))->statusTip()));
+            }
+        };
+        {   // No heading at or above the caret: in a text with none, and above the first one.
+            WriteWindow w;
+            openPane(w, build(para("Just words") + para("More words")));
+            caretIn(w, QStringLiteral("More"), 1);
+            offWith(w, QStringLiteral("heading"));
+        }
+        if (QTest::currentTestFailed()) return;
+        {
+            WriteWindow w;
+            openPane(w, paneDocx());
+            caretIn(w, QStringLiteral("Intro"), 1);
+            offWith(w, QStringLiteral("heading"));
+            if (QTest::currentTestFailed()) return;
+            caretIn(w, QStringLiteral("Beta words"), 1);
+            w.refreshNow();
+            QVERIFY(w.act("view.moveSectionUp")->isEnabled() && w.act("view.moveSectionDown")->isEnabled());
+            QVERIFY(w.act("view.moveSectionUp")->toolTip().contains(QLatin1String("Move Section Up")));
+            // Track Changes on, and off again.
+            w.document()->setTrackChanges(true);
+            offWith(w, QStringLiteral("Track Changes"));
+            if (QTest::currentTestFailed()) return;
+            w.document()->setTrackChanges(false);
+            w.refreshNow();
+            QVERIFY(w.act("view.moveSectionUp")->isEnabled());
+        }
+        {   // Read only, and protected.
+            WriteWindow w;
+            openPane(w, paneDocx());
+            caretIn(w, QStringLiteral("Beta words"), 1);
+            w.setReadOnly(true);
+            offWith(w, QStringLiteral("reading only"));
+        }
+        if (QTest::currentTestFailed()) return;
+        {
+            WriteWindow w;
+            openPane(w, paneDocx("<w:documentProtection w:edit=\"readOnly\" w:enforcement=\"1\"/>"));
+            caretIn(w, QStringLiteral("Beta words"), 1);
+            offWith(w, QStringLiteral("protected"));
+        }
+    }
+
+    // The caret stays at the same place in the same text, and a selection stays on the same words, wherever the move comes from.
+    void afterAMoveTheCaretAndTheSelectionStayInTheSameText()
+    {
+        {
+            WriteWindow w;
+            openPane(w, paneDocx());
+            QTextCursor c(w.document()->story());
+            const int at = positionOf(*w.document(), QStringLiteral("Beta words"));
+            c.setPosition(at + 2);
+            c.setPosition(at + 6, QTextCursor::KeepAnchor);   // ("ta w")
+            w.view()->setCursor(c);
+            w.refreshNow();
+            QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("ta w"));
+            w.act("view.moveSectionUp")->trigger();
+            QCOMPARE(w.document()->story()->findBlockByNumber(1).text(), QStringLiteral("Beta"));   // (it moved)
+            QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("ta w"));
+            QCOMPARE(whereIs(w), QStringLiteral("Beta words:2 to Beta words:6"));
+            w.act("view.moveSectionDown")->trigger();
+            QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("ta w"));
+            QCOMPARE(whereIs(w), QStringLiteral("Beta words:2 to Beta words:6"));
+            // A caret with no selection, in the middle of a word of the heading itself.
+            caretIn(w, QStringLiteral("Beta"), 2);
+            w.act("view.moveSectionDown")->trigger();
+            QCOMPARE(whereIs(w), QStringLiteral("Beta:2 to Beta:2"));
+        }
+        {   // A caret in the text the section jumps over (above it), and in text below.
+            WriteWindow w;
+            openPane(w, paneDocx());
+            QTreeWidget *tree = w.navigationPane()->headings();
+            caretIn(w, QStringLiteral("Alpha words"), 4);
+            QVERIFY(w.navigationPane()->moveSectionBy(rowOf(tree, QStringLiteral("Beta")), true));   // (the menu's command: Beta goes above Alpha)
+            QCOMPARE(whereIs(w), QStringLiteral("Alpha words:4 to Alpha words:4"));
+            caretIn(w, QStringLiteral("Gamma words"), 3);
+            QVERIFY(w.navigationPane()->moveSectionBy(rowOf(tree, QStringLiteral("Beta")), false));
+            QCOMPARE(whereIs(w), QStringLiteral("Gamma words:3 to Gamma words:3"));
+        }
+        {   // The drop of a dragged heading.
+            WriteWindow w;
+            openPane(w, paneDocx());
+            QTreeWidget *tree = w.navigationPane()->headings();
+            caretIn(w, QStringLiteral("Gamma words"), 5);
+            QTreeWidgetItem *beta = rowOf(tree, QStringLiteral("Beta")), *alpha = rowOf(tree, QStringLiteral("Alpha"));
+            press(tree, inRow(tree, beta, 3));
+            move(tree, inRow(tree, alpha, 1));
+            release(tree, inRow(tree, alpha, 1));
+            QCOMPARE(w.document()->story()->findBlockByNumber(1).text(), QStringLiteral("Beta"));
+            QCOMPARE(whereIs(w), QStringLiteral("Gamma words:5 to Gamma words:5"));
+        }
+    }
+
+    // Rows that the text has left behind (an edit the pane has not looked at yet) are not used: the move is refused and nothing changes, from the menu's commands as from a drop.
+    void rowsThatWentStaleRefuseTheMenuCommands()
+    {
+        WriteWindow w;
+        openPane(w, paneDocx());
+        WriteDoc *doc = w.document();
+        NavigationPane *pane = w.navigationPane();
+        QTreeWidget *tree = pane->headings();
+        QTreeWidgetItem *alpha = rowOf(tree, QStringLiteral("Alpha")), *gamma = rowOf(tree, QStringLiteral("Gamma"));
+        QVERIFY(alpha && gamma);
+        QVERIFY(moveSection(*doc, positionOf(*doc, QStringLiteral("Gamma")), positionOf(*doc, QStringLiteral("Alpha"))));   // (the text now has Gamma first; the rows say Alpha is the first)
+        const QByteArray edited = doc->toDocx();
+        const quint64 revision = doc->story()->revision();
+        w.statusBar()->clearMessage();
+        QVERIFY(!pane->moveSectionBy(alpha, false));
+        QVERIFY2(w.statusBar()->currentMessage().contains(QLatin1String("changed")), qPrintable(w.statusBar()->currentMessage()));
+        QCOMPARE(doc->story()->revision(), revision);
+        QVERIFY2(differsIn(doc->toDocx(), edited).isEmpty(), qPrintable(differsIn(doc->toDocx(), edited)));
+        // (The pane has looked at the text again: the rows it has now are current, and work.)
+        QTreeWidgetItem *now = rowOf(tree, QStringLiteral("Alpha"));
+        QVERIFY(now);
+        QVERIFY(moveSection(*doc, positionOf(*doc, QStringLiteral("Beta")), positionOf(*doc, QStringLiteral("Gamma"))));
+        const QByteArray again = doc->toDocx();
+        w.statusBar()->clearMessage();
+        QVERIFY(!pane->moveSectionTo(now, 0));
+        QVERIFY2(w.statusBar()->currentMessage().contains(QLatin1String("changed")), qPrintable(w.statusBar()->currentMessage()));
+        QVERIFY2(differsIn(doc->toDocx(), again).isEmpty(), qPrintable(differsIn(doc->toDocx(), again)));
+        QTreeWidgetItem *fresh = rowOf(tree, QStringLiteral("Beta"));
+        QVERIFY(fresh);
+        QVERIFY(pane->moveSectionBy(fresh, false));
+    }
+
+    // The keys of the two commands are Alt+Shift+Up and Alt+Shift+Down, the ones Outline view uses for its own move, and no command shares them; in Outline view they move the selected heading there.
+    void theKeysAreTheOnesTheOutlineUsesAndNoCommandSharesThem()
+    {
+        WriteWindow w;
+        openPane(w, paneDocx());
+        const QKeySequence up(Qt::ALT | Qt::SHIFT | Qt::Key_Up), down(Qt::ALT | Qt::SHIFT | Qt::Key_Down);
+        QCOMPARE(w.act("view.moveSectionUp")->shortcut().toString(QKeySequence::PortableText), up.toString(QKeySequence::PortableText));
+        QCOMPARE(w.act("view.moveSectionDown")->shortcut().toString(QKeySequence::PortableText), down.toString(QKeySequence::PortableText));
+        // (The window gives the commands the keys of the person's settings, and drops a key that two commands have: after it has, both commands still have theirs.)
+        QCoreApplication::sendPostedEvents();
+        QCoreApplication::processEvents();
+        QCOMPARE(w.act("view.moveSectionUp")->shortcut().toString(QKeySequence::PortableText), up.toString(QKeySequence::PortableText));
+        QCOMPARE(w.act("view.moveSectionDown")->shortcut().toString(QKeySequence::PortableText), down.toString(QKeySequence::PortableText));
+        // (No two commands of the window have either key, so the Keyboard page shows no clash.)
+        KeyMap map(&w, false);
+        for (const QKeySequence &key : {up, down}) {
+            QStringList owners;
+            for (const QString &id : w.actionIds())
+                if (w.act(id)->shortcuts().contains(key)) owners << id;
+            QVERIFY2(owners.size() == 1, qPrintable(owners.join(QLatin1Char(' '))));
+            QVERIFY(map.owner(key).isEmpty() || map.owner(key) == owners.first());
+        }
+        // In Outline view the same keys move the selected heading and what is under it, as the outline's own command does.
+        QByteArray moved[2];
+        for (int own = 0; own < 2; ++own) {
+            WriteWindow o;
+            openPane(o, paneDocx());
+            o.act("view.outline")->trigger();
+            QVERIFY(o.outlineView());
+            o.outlineView()->selectParagraphAt(positionOf(*o.document(), QStringLiteral("Beta")));
+            o.act(own ? "outline.moveUp" : "view.moveSectionUp")->trigger();
+            moved[own] = o.document()->toDocx();
+        }
+        QVERIFY2(differsIn(moved[0], moved[1]).isEmpty(), qPrintable(differsIn(moved[0], moved[1])));
+        QVERIFY(differsIn(moved[0], w.document()->toDocx()).size() > 0);   // (and it did move)
+    }
+
+    // View > Move Section Up and Move Section Down are on the ribbon, by the Navigation pane's button.
+    void theCommandsAreOnTheViewTabNextToTheNavigationPane()
+    {
+        WriteWindow w;
+        openPane(w, paneDocx());
+        QStringList found;
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        QTRY_VERIFY(w.ribbon()->tab(QStringLiteral("View")));
+        w.ribbon()->showTab(w.ribbon()->tab(QStringLiteral("View")));
+        for (QToolButton *b : w.ribbon()->findChildren<QToolButton *>())
+            if (b->defaultAction() && (b->defaultAction() == w.act("view.moveSectionUp") || b->defaultAction() == w.act("view.moveSectionDown") || b->defaultAction() == w.act("view.navigationPane")))
+                found << b->defaultAction()->objectName();
+        found.removeDuplicates();
+        found.sort();
+        QCOMPARE(found, (QStringList{"view.moveSectionDown", "view.moveSectionUp", "view.navigationPane"}));
+    }
+
+    // The line that shows where a dragged heading will land is as plain to see as the line of a table that is moved: the accent color, two pixels thick.
+    void theDropLineIsTheAccentColorAndTwoPixelsThick()
+    {
+        applyUiTheme(1);
+        WriteWindow w;
+        openPane(w, paneDocx());
+        NavigationPane *pane = w.navigationPane();
+        QTreeWidget *tree = pane->headings();
+        QTreeWidgetItem *beta = rowOf(tree, QStringLiteral("Beta")), *alpha = rowOf(tree, QStringLiteral("Alpha"));
+        press(tree, inRow(tree, beta, 3));
+        move(tree, inRow(tree, alpha, 1));
+        QVERIFY(pane->dropLine()->isVisible());
+        QCOMPARE(pane->dropLine()->height(), 2);
+        const QImage line = pane->dropLine()->grab().toImage();
+        QCOMPARE(line.height(), 2);
+        for (int y = 0; y < 2; ++y)
+            for (int x : {0, line.width() / 2, line.width() - 1}) QCOMPARE(line.pixelColor(x, y).name(), uiAccent().name());
+        release(tree, inRow(tree, alpha, 1));
     }
 
     // Screenshots for looking at (only with JW_SHOT_DIR set): in the middle of a drag, with the line, and after the drop.

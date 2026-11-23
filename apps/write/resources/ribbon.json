@@ -1465,6 +1465,14 @@
               "keytip": "SN"
             },
             {
+              "small": "view.moveSectionUp",
+              "keytip": "SU"
+            },
+            {
+              "small": "view.moveSectionDown",
+              "keytip": "SO"
+            },
+            {
               "large": "view.selectionPane",
               "keytip": "SE"
             }

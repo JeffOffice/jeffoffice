@@ -78,6 +78,7 @@ void WriteWindow::createReviewActions()
         statusBar()->showMessage(m_doc->trackChanges() ? tr("Track Changes is on.") : tr("Track Changes is off."), 4000);
         m_view->setFocus(Qt::OtherFocusReason);
         refreshReviewUi();
+        refreshSectionMoveUi();
     }, true);
     mk("review.accept", tr("Accept"), "check", QKeySequence(), [this] { resolveHere(true); });
     mk("review.reject", tr("Reject"), "x", QKeySequence(), [this] { resolveHere(false); });
@@ -102,6 +103,7 @@ void WriteWindow::createReviewActions()
         statusBar()->showMessage(resolvedMessage(true, n, kept, true), 5000);
         m_view->setFocus(Qt::OtherFocusReason);
         refreshReviewUi();
+        refreshSectionMoveUi();
     });
     mk("review.rejectAll", tr("Reject All Changes"), "circle-x", QKeySequence(), [this] {
         if (!m_doc) return;

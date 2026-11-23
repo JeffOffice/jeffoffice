@@ -4,8 +4,12 @@
 
 #include "app/navpane.h"
 #include "app/pageview.h"
+#include "app/plaintext.h"
+#include "app/reviewpane.h"
 #include "app/ribbon.h"
 #include "app/ruler.h"
+#include "core/editops.h"
+#include "core/blockmove.h"
 #include "core/sectionmove.h"
 
 #include <QAction>
@@ -48,31 +52,70 @@ void WriteWindow::createViewExtraActions()
             m_sidePartner->setGeometry(area.left() + area.width() / 2, area.top(), area.width() / 2, area.height());
         }
     });
-    mk("view.moveSectionUp", tr("Move Section Up"), "arrow-up", QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_Up), [this] { moveSectionAtCaret(true); });
-    mk("view.moveSectionDown", tr("Move Section Down"), "arrow-down", QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_Down), [this] { moveSectionAtCaret(false); });
+    mk("view.moveSectionUp", tr("Move Section Up"), "arrow-up", QKeySequence(Qt::ALT | Qt::SHIFT | Qt::Key_Up), [this] { moveSectionAtCaret(true); });
+    mk("view.moveSectionDown", tr("Move Section Down"), "arrow-down", QKeySequence(Qt::ALT | Qt::SHIFT | Qt::Key_Down), [this] { moveSectionAtCaret(false); });
     mk("view.focus", tr("Focus"), "focus", QKeySequence(Qt::Key_F11), [this] { setFocusMode(!m_focusMode); });
+}
+
+// Why the commands that move a section can't work now, empty where they can (in Outline view they move the selected heading, as the same keys always did); `heading` gets the position of the
+// heading of the section the caret is in.
+QString WriteWindow::sectionMoveBlocker(int *heading) const
+{
+    if (heading) *heading = -1;
+    if (!m_doc) return QString();
+    if (m_outlineOn) return isReadOnly() ? QCoreApplication::translate("AppWindow", "This file is open for reading only. Use Save a Copy, or Save As, to make a copy you can change.") : QString();
+    if (m_doc->protection() && m_doc->protection()->enforced) return QCoreApplication::translate("jp::write::BlockMove", "This document is protected, so a section can't be moved.");
+    if (isReadOnly()) return QCoreApplication::translate("AppWindow", "This file is open for reading only. Use Save a Copy, or Save As, to make a copy you can change.");
+    // The caret is in the text of the document: not in a header, a footer, a note, a box of text, a comment, or the endnotes that are set after the text.
+    const bool inComment = m_review && focusWidget() && m_review->isAncestorOf(focusWidget());
+    if (m_view->inHeaderFooter() || m_view->inNote() || m_view->editingShapeText() || inComment || m_view->cursor().document() != m_doc->story() || write::inEndnoteWords(m_view->cursor()))
+        return tr("Sections can be moved only from the main text of the document, not from a header, footer, note, text box, or comment.");
+    if (m_doc->trackChanges()) return QCoreApplication::translate("jp::write::BlockMove", "Turn off Track Changes to move a section.");
+    const int at = write::headingAtOrAbove(*m_doc, m_view->cursor().position());
+    if (at < 0) return tr("Put the caret in a heading, or under one, to move its section.");
+    if (heading) *heading = at;
+    return QString();
+}
+
+// The two commands are off, and say why in their tooltips, where they would refuse.
+void WriteWindow::refreshSectionMoveUi()
+{
+    const QString why = m_doc ? sectionMoveBlocker() : QString();
+    for (const char *id : {"view.moveSectionUp", "view.moveSectionDown"}) {
+        QAction *a = act(QString::fromLatin1(id));
+        if (!a) continue;
+        const QString name = QString(a->text()).remove(QLatin1Char('&'));
+        a->setEnabled(m_doc && why.isEmpty());
+        a->setToolTip(jp::plainToolTip(why.isEmpty() ? tr("%1 (%2)").arg(name, a->shortcut().toString(QKeySequence::NativeText)) : why));
+        a->setStatusTip(jp::plainToolTip(why));
+    }
 }
 
 void WriteWindow::moveSectionAtCaret(bool up)
 {
-    if (!m_doc || m_outlineOn) return;
-    // The section is the one of the nearest heading at or above the caret.
-    QTextBlock b = m_doc->story()->findBlock(m_view->cursor().position());
-    while (b.isValid() && !write::sectionAt(*m_doc, b.position(), nullptr)) b = b.previous();
-    if (!b.isValid()) {
-        statusBar()->showMessage(tr("Put the caret in a heading, or under one, to move its section."), 5000);
+    if (!m_doc) return;
+    if (m_outlineOn) {
+        act(up ? "outline.moveUp" : "outline.moveDown")->trigger();
         return;
     }
+    int heading = -1;
+    const QString blocked = sectionMoveBlocker(&heading);
+    if (!blocked.isEmpty()) {
+        statusBar()->showMessage(blocked, 6000);
+        return;
+    }
+    const int wasAnchor = m_view->cursor().anchor(), wasPosition = m_view->cursor().position();   // (numbers: a cursor follows the edit, and the move collapses it)
+    write::SectionRange range;
+    if (!write::sectionAt(*m_doc, heading, &range)) return;
     QString why;
     int movedTo = -1;
-    if (!write::moveSectionBy(*m_doc, b.position(), up, &why, &movedTo)) {
+    if (!write::moveSectionBy(*m_doc, heading, up, &why, &movedTo)) {
         if (!why.isEmpty()) statusBar()->showMessage(why, 6000);
         return;
     }
-    QTextCursor c(m_doc->story());
-    c.setPosition(movedTo);
-    m_view->showCursor(c);
-    if (m_nav) m_nav->refresh();
+    // The caret (and the selection) stays at the same place in the same text.
+    m_view->showCursor(write::cursorAfterMove(m_doc->story(), wasAnchor, wasPosition, range.first, range.end - range.first, movedTo));
+    if (m_nav) m_nav->rescan();
 }
 
 void WriteWindow::showNavigationPane(bool show)
@@ -292,6 +335,7 @@ void WriteWindow::refreshViewUi()
     if (m_nav && m_navDock && m_navDock->isVisible()) m_nav->refresh();
     // (Reset Window Position puts a pair of side-by-side windows back: with none it has nothing to do.)
     act(QStringLiteral("view.resetWindowPosition"))->setEnabled(m_sidePartner != nullptr);
+    refreshSectionMoveUi();
 }
 
 } // namespace jp

@@ -548,6 +548,8 @@ private:
     void createOutlineActions();
     void outlineEdited();
     void refreshViewUi();
+    QString sectionMoveBlocker(int *heading = nullptr) const;
+    void refreshSectionMoveUi();
     void layoutRibbonParts(RibbonParts &parts);
     void themeRibbonParts(RibbonParts &parts);
     void createThemeActions();

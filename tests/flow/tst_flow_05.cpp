@@ -723,6 +723,7 @@ void FlowTests::anObjectSetFromAParagraphBelowWhatItPushedIsWhereItWasAskedFor()
         const auto page = pg.materialize(0);
         QVERIFY(page);
         const Item *obj = objectOfSize(*page, columnWidth, height);
+        if (!obj) for (const auto &it : page->doc->pages[0]->items) qWarning() << "ITEM" << it->id << it->rect << int(it->type());
         QVERIFY2(obj, qPrintable(QStringLiteral("dy %1 second %2 items %3 pages %4").arg(dy).arg(second).arg(page->doc->pages[0]->items.size()).arg(pg.pageCount())));
         QVERIFY2(std::abs(obj->rect.top() - (second + dy)) < 0.05, qPrintable(QStringLiteral("distance %1: the object is at %2, its paragraph would be at %3 and it is set %4 above it").arg(wide).arg(obj->rect.top()).arg(second).arg(-dy)));
     }
