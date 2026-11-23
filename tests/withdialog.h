@@ -70,7 +70,7 @@ inline QString answerCloseBox(const std::function<void()> &closeIt, const QStrin
     // Counted, not timed (Nov 23: a save slowed by a busy disk, after the box was answered, ran past a ten-second timer and the test said "no box"): ticks of the poll (every 20 ms,
     // and only while the event loop runs) spent looking for the box, and ticks spent after it was answered, in case another box stays open.
     int looking = 0, after = 0;
-    constexpr int kLookTicks = 3000, kAfterTicks = 15000;
+    constexpr int kLookTicks = 15000, kAfterTicks = 15000;
     QTimer poll;
     QObject::connect(&poll, &QTimer::timeout, [&] {
         if (seen) {

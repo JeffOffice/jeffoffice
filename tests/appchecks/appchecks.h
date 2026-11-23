@@ -123,8 +123,8 @@ struct Adapter {
 QString fingerprint(jp::AppWindow *w, const QAction *skip = nullptr);
 bool differByMoreThanACaret(const QImage &a, const QImage &b);
 
-// Waits (on the event loop) until `done` is true, for at most `ceiling` ms.
-bool waitFor(const std::function<bool()> &done, int ceiling = 20000);
+// Waits (on the event loop) until `done` is true, for at most `ceiling` ms counted in rounds of 20 ms: the default is for a hang only, a wait returns as soon as `done` holds.
+bool waitFor(const std::function<bool()> &done, int ceiling = 300000);
 
 // Runs the events that are waiting, and those they make, until there are none.
 void drain();

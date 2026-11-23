@@ -284,11 +284,21 @@ bool hasDrawnContent(const QPixmap &picture)
 }
 
 // (Rounds of 20 ms of the event loop, counted: a round that the main thread spends in a slow disk sync, which a save does, is one round. A timer of 20 seconds ran out in such syncs on
-// Nov 23 when a release candidate's Linux run shared the disk with other programs' writes: CrunchAppChecks::firstFiveMinutes.)
+// Nov 23 when a release candidate's Linux run shared the disk with other programs' writes: CrunchAppChecks::firstFiveMinutes.) A wait returns in the round in which its condition holds;
+// the ceiling (five minutes of rounds by default) is only for a hang, so no load can use it up.
 bool waitFor(const std::function<bool()> &done, int ceiling)
 {
     for (int i = 0, rounds = ceiling / 20; i < rounds && !done(); ++i) QTest::qWait(20);
     return done();
+}
+
+// Makes `w` the active window: asks again at every look (a key sent to a window that is not yet the active one reaches no shortcut), for as long as a busy machine needs.
+static bool activate(QWidget *w)
+{
+    return waitFor([&] {
+        if (QApplication::activeWindow() != w) w->activateWindow();
+        return QApplication::activeWindow() == w;
+    });
 }
 
 void drain()
@@ -403,7 +413,7 @@ QStringList checkTypingWithoutAClick(Adapter &app)
             return;
         }
         w->activateWindow();
-        if (!QTest::qWaitForWindowActive(w)) failures << which + QStringLiteral(": the window did not become active");
+        if (!activate(w)) failures << which + QStringLiteral(": the window did not become active");
         if (app.settle) app.settle(w);
         QWidget *focus = QApplication::focusWidget();
         if (!focus) {
@@ -542,6 +552,14 @@ QString reachableFrom(jp::AppWindow *w, QAction *a, const QString &label)
     return {};
 }
 
+// A change comes in stages (the window's dimmed commands first, the saved bytes of the document a turn later, and a loaded machine decides which one a look finds first, so the same command read
+// "changed what the window shows" through the menu and "changed the document" through its key on Nov 23): those two are one kind when the menu and the key are compared.
+static QString sameKind(const QString &how)
+{
+    if (how == QLatin1String("changed the document, the selection, or the view") || how == QLatin1String("changed what the window shows")) return QStringLiteral("changed the document or what the window shows");
+    return how;
+}
+
 QStringList checkStandardCommands(Adapter &app, const QHash<QString, QList<QKeySequence>> &keysOf, const QHash<QString, QString> &labelOf)
 {
     QStringList fails;
@@ -609,7 +627,7 @@ QStringList checkStandardCommands(Adapter &app, const QHash<QString, QList<QKeyS
                 waitFor([&] { return b->isEnabled(); });
             }
             k->activateWindow();
-            if (!QTest::qWaitForWindowActive(k.get(), 5000)) {
+            if (!activate(k.get())) {
                 fail(QStringLiteral("can't be tried by its shortcut: the window did not become the active one"));
                 continue;
             }
@@ -617,7 +635,7 @@ QStringList checkStandardCommands(Adapter &app, const QHash<QString, QList<QKeyS
             const QString pressed = key.toString(QKeySequence::PortableText);
             if (!p.changed) fail(QStringLiteral("does nothing when its shortcut ") + pressed + QLatin1String(" is pressed"));
             // (the same thing as the command: the same kind of change, the same dialogs, the same windows)
-            else if (p.how != o.how || p.windows != o.windows || QStringList(p.dialogs).replaceInStrings(QRegularExpression(QStringLiteral(": .*")), QString()) != QStringList(o.dialogs).replaceInStrings(QRegularExpression(QStringLiteral(": .*")), QString()))
+            else if (sameKind(p.how) != sameKind(o.how) || p.windows != o.windows || QStringList(p.dialogs).replaceInStrings(QRegularExpression(QStringLiteral(": .*")), QString()) != QStringList(o.dialogs).replaceInStrings(QRegularExpression(QStringLiteral(": .*")), QString()))
                 fail(QStringLiteral("does something else when its shortcut ") + pressed + QLatin1String(" is pressed (") + p.how + QLatin1String(", not ") + o.how + QLatin1Char(')'));
             k->hide();
         }
@@ -715,10 +733,13 @@ Outcome observe(Adapter &app, jp::AppWindow *w, const QAction *skip, Watch &watc
     out.how = changes();
     // (JP_CHECKS_CEILING shortens the wait while the checks are being written; the tests run with the default)
     if (const int shorter = qEnvironmentVariableIntValue("JP_CHECKS_CEILING"); shorter > 0) ceiling = shorter;
-    if (out.how.isEmpty() && !quiet) {
+    if (!quiet) {
         QElapsedTimer waited;
         waited.start();
-        waitFor([&] { return !(out.how = changes()).isEmpty(); }, ceiling);
+        // (what the command began on another thread or in the program's own busy state is waited for on that state, to a hang's ceiling: a counted look of `ceiling` rounds is only for the timers
+        // that are due, which a busy machine runs late but never skips, and it is not for work that a starved thread has not yet done: Nov 23, F7 "did nothing" in a loaded gate)
+        if (app.settle) app.settle(w);
+        if (out.how.isEmpty()) waitFor([&] { return !(out.how = changes()).isEmpty(); }, ceiling);
         g_waitedMs += waited.elapsed();
     }
     if (checkable && out.how.isEmpty() && skip->isChecked() != markBefore) out.refusal = QStringLiteral("turned its mark over and nothing else");
@@ -920,10 +941,7 @@ QStringList runEveryAction(Adapter &app, bool fromFile, QStringList *report)
                 // (the keys of a window go to it when it is the active one)
                 // (asked again at every look, for as long as a busy machine needs: a key sent to a window that is not yet the active one reaches no shortcut, and the command then seems to do nothing)
                 w->raise();
-                waitFor([&] {
-                    if (QApplication::activeWindow() != w.get()) w->activateWindow();
-                    return QApplication::activeWindow() == w.get();
-                }, 20000);
+                activate(w.get());
                 drain();
                 QTest::keySequence(w.get(), key);
             }, quiet || !waits);
@@ -971,7 +989,7 @@ QStringList runEveryAction(Adapter &app, bool fromFile, QStringList *report)
                     auto kinds = [](const QStringList &dialogs) { return QStringList(dialogs).replaceInStrings(QRegularExpression(QStringLiteral(": .*")), QString()); };
                     if (qEnvironmentVariableIsSet("JP_CHECKS_DEBUG")) std::fprintf(stderr, "key %s of %s in %s (was: %s): changed=%d how=%s dialogs=%s active=%p w=%p enabled=%d\n", qPrintable(pressed), qPrintable(id), usedContext >= 0 ? qPrintable(contexts[usedContext]->name) : "launch", qPrintable(ref.how), int(last.changed), qPrintable(last.how), qPrintable(last.dialogs.join('|')), static_cast<void *>(QApplication::activeWindow()), static_cast<void *>(w.get()), int(w->act(id)->isEnabled()));
                     if (!last.changed) fail(id, QStringLiteral("does nothing when its shortcut %1 is pressed").arg(pressed));
-                    else if (last.how != ref.how || last.windows != ref.windows || kinds(last.dialogs) != kinds(ref.dialogs))
+                    else if (sameKind(last.how) != sameKind(ref.how) || last.windows != ref.windows || kinds(last.dialogs) != kinds(ref.dialogs))
                         fail(id, QStringLiteral("does something else when its shortcut %1 is pressed%6 (%2, not %3; key: %4 [windows %7, dialogs %8]; menu: %5 [windows %9, dialogs %10])")
                                  .arg(pressed, last.how, ref.how, last.detail.left(400), ref.detail.left(400), where).arg(last.windows).arg(last.dialogs.join(QLatin1Char('|'))).arg(ref.windows).arg(ref.dialogs.join(QLatin1Char('|'))));
                 }
