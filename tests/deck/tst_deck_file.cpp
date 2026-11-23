@@ -8,6 +8,7 @@
 #include "core/threadcheck.h"
 #include "core/version.h"
 #include "deckhelpers.h"
+#include "../office/cfbdamage.h"
 #include "app/trust.h"
 #include "app/notespane.h"
 #include "app/outlineview.h"
@@ -1354,6 +1355,39 @@ private Q_SLOTS:
         QVERIFY(w.editor()->doc()->pages.size() >= 1);
         QVERIFY2(!told.isEmpty() && told.first().contains(QLatin1String("Open and Repair")) && told.first().contains(QLatin1String("cut short")), qPrintable(told.join(QLatin1Char('|'))));
         w.editor()->markSaved();
+    }
+
+    // The window's own Open and Repair on three kinds of damage to an old .ppt container: the person is told in plain words what was done.
+    void theWindowTellsWhatOpenAndRepairDidToAPpt()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QByteArray none;
+        const QByteArray whole = buildPpt(false, false, false, false, none, none, none, none, none, none, 1016, none, pptRec(2999, QByteArray(9000, 'x')));
+        QList<cfbdamage::Variant> kinds = cfbdamage::sectorDamage(whole, QStringLiteral("PowerPoint Document"), QStringLiteral("Other"));
+        kinds += cfbdamage::cuts(whole);
+        int checked = 0;
+        for (const cfbdamage::Variant &v : std::as_const(kinds)) {
+            if (v.id != QLatin1String("b") && v.id != QLatin1String("d") && v.id != QLatin1String("h50")) continue;
+            ++checked;
+            const QString path = dir.filePath(QStringLiteral("damaged%1.ppt").arg(v.id));
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::WriteOnly));
+            f.write(v.file);
+            f.close();
+            DeckWindow w;
+            QStringList told;
+            w.setNotifier([&](const QString &title, const QString &text) { told << title + QStringLiteral(": ") + text; });
+            QVERIFY2(w.openFile(path, OpenHow::Repair), qPrintable(v.id));
+            const QString shown = told.join(QLatin1Char('\n'));
+            QVERIFY2(shown.contains(QLatin1String("Open and Repair")), qPrintable(v.id + shown));
+            if (v.id == QLatin1String("b")) QVERIFY2(shown.contains(QLatin1String("joined by a guess")), qPrintable(shown));
+            else QVERIFY2(shown.contains(QLatin1String("cut short")) || shown.contains(QLatin1String("could not be checked to see that it was complete")) || shown.contains(QLatin1String("lost")), qPrintable(v.id + shown));
+        for (const QString &word : {QStringLiteral("sector"), QStringLiteral("stream"), QStringLiteral("directory"), QStringLiteral("chain"), QStringLiteral("FAT")})
+            QVERIFY2(!shown.contains(word, Qt::CaseInsensitive), qPrintable(v.id + QLatin1Char(' ') + shown));
+            w.editor()->markSaved();
+        }
+        QCOMPARE(checked, 3);
     }
 
     // Export: a button for each way out, each running the command the window

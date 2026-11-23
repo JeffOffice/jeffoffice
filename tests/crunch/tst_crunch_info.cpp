@@ -19,6 +19,7 @@
 #include "editwindow.h"
 #include "office/packageprops.h"
 #include "../localepin.h"
+#include "../office/cfbdamage.h"
 #include "../sheet/drawinghelpers.h"
 #include "sheet/xlsxsave.h"
 #include "sheet/drawingsave.h"
@@ -1276,6 +1277,44 @@ private Q_SLOTS:
         QCOMPARE(fixed.shownAt(QStringLiteral("A1")), QStringLiteral("3"));
         QCOMPARE(fixed.shownAt(QStringLiteral("A100")), QStringLiteral("300"));
         QVERIFY2(fixed.win.told.join(QLatin1Char('|')).contains(QLatin1String("repaired")), qPrintable(fixed.win.told.join(QLatin1Char('|'))));
+    }
+
+    // The window's own Open and Repair on three kinds of damage to an .xls container (a broken link of the tables, a chain ended early by the tables' own end marker, and a cut): the person is
+    // told in plain words what was done, and a join made by guess is named with the sheet where what was not checked begins.
+    void theWindowTellsWhatOpenAndRepairDidToAnXls()
+    {
+        QByteArray rows;
+        for (int r = 1; r <= 700; ++r) rows += "<row r=\"" + QByteArray::number(r) + "\"><c r=\"A" + QByteArray::number(r) + "\"><v>" + QByteArray::number(r * 3) + "</v></c></row>";
+        QByteArray whole;
+        {
+            EditWindow e;
+            QVERIFY(e.open(buildXlsx({worksheet(QString::fromLatin1(rows))})));
+            const QString target = e.folder.dir.filePath(QStringLiteral("whole.xls"));
+            QSignalSpy copied(&e.win.w, &CrunchWindow::copyExported);
+            QVERIFY(e.win.w.saveAs(target));
+            QVERIFY(copied.count() > 0 || copied.wait(20000));
+            QFile f(target);
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            whole = f.readAll();
+        }
+        QList<cfbdamage::Variant> kinds = cfbdamage::sectorDamage(whole, QStringLiteral("Workbook"), QStringLiteral("Other"));
+        kinds += cfbdamage::cuts(whole);
+        int checked = 0;
+        for (const cfbdamage::Variant &v : std::as_const(kinds)) {
+            if (v.id != QLatin1String("b") && v.id != QLatin1String("d") && v.id != QLatin1String("h50")) continue;
+            ++checked;
+            EditWindow fixed;
+            QVERIFY2(fixed.win.open(fixed.folder.write(QStringLiteral("damaged.xls"), v.file), OpenHow::Repair), qPrintable(v.id + fixed.win.told.join(QLatin1Char('|'))));
+            QVERIFY(fixed.settle());
+            const QString shown = fixed.win.told.join(QLatin1Char('\n'));
+            QVERIFY2(shown.contains(QLatin1String("Open and Repair")), qPrintable(v.id + shown));
+            if (v.id == QLatin1String("b")) QVERIFY2(shown.contains(QLatin1String("checked only to see that it is in the right form")) && shown.contains(QLatin1String("sheet \"")), qPrintable(shown));
+            else QVERIFY2(shown.contains(QLatin1String("cut short")), qPrintable(v.id + shown));
+            QVERIFY2(!shown.contains(QLatin1String("ends where it should")) || v.id == QLatin1String("b"), qPrintable(v.id + shown));
+        for (const QString &word : {QStringLiteral("sector"), QStringLiteral("stream"), QStringLiteral("directory"), QStringLiteral("chain"), QStringLiteral("FAT")})
+            QVERIFY2(!shown.contains(word, Qt::CaseInsensitive), qPrintable(v.id + QLatin1Char(' ') + shown));
+        }
+        QCOMPARE(checked, 3);
     }
 
     // Versions of a workbook: one is kept, listed, and gone back to (the workbook as it was just before is kept first), and one opens as a copy in a window of its own.

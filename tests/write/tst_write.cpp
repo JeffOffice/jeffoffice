@@ -1,4 +1,5 @@
 #include "tst_write.h"
+#include "../office/cfbdamage.h"
 #include "app/passworddialogs.h"
 #include "core/inspectops.h"
 #include <memory>
@@ -676,6 +677,40 @@ void WriteTests::aDamagedDocOpensRepairedWithWhatCouldBeRead()
     QVERIFY(w.save());
 }
 
+
+// The window's own Open and Repair on three kinds of damage to an old binary document: the person is told in plain words what was done, and a join made by guess is named with the paragraph
+// where what was not checked begins.
+void WriteTests::theWindowTellsWhatOpenAndRepairDidToADoc()
+{
+    QTemporaryDir dir;
+    QVERIFY(dir.isValid());
+    dochelp::DocWriter doc;
+    for (int i = 1; i <= 400; ++i) doc.text += QStringLiteral("Paragraph %1 has some words in it, and a few more.\r").arg(i);
+    const QByteArray whole = doc.build();
+    QList<cfbdamage::Variant> kinds = cfbdamage::sectorDamage(whole, QStringLiteral("WordDocument"), QStringLiteral("Other"));
+    kinds += cfbdamage::cuts(whole);
+    int checked = 0;
+    for (const cfbdamage::Variant &v : std::as_const(kinds)) {
+        if (v.id != QLatin1String("b") && v.id != QLatin1String("d") && v.id != QLatin1String("h50")) continue;
+        ++checked;
+        const QString path = dir.filePath(QStringLiteral("damaged%1.doc").arg(v.id));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(v.file);
+        f.close();
+        WriteWindow w;
+        QStringList told;
+        w.setNotifier([&](const QString &title, const QString &text) { told << title + QStringLiteral(": ") + text; });
+        QVERIFY2(w.openFile(path, OpenHow::Repair), qPrintable(v.id));
+        const QString shown = told.join(QLatin1Char('\n'));
+        QVERIFY2(shown.contains(QLatin1String("Open and Repair")), qPrintable(v.id + shown));
+        if (v.id == QLatin1String("b")) QVERIFY2(shown.contains(QLatin1String("checked only to see that it is in the right form")) && shown.contains(QLatin1String("paragraph")), qPrintable(shown));
+        else QVERIFY2(shown.contains(QLatin1String("cut short")) || shown.contains(QLatin1String("could not be checked to see that it was complete")), qPrintable(v.id + shown));
+        for (const QString &word : {QStringLiteral("sector"), QStringLiteral("stream"), QStringLiteral("directory"), QStringLiteral("chain"), QStringLiteral("FAT")})
+            QVERIFY2(!shown.contains(word, Qt::CaseInsensitive), qPrintable(v.id + QLatin1Char(' ') + shown));
+    }
+    QCOMPARE(checked, 3);
+}
 
 void WriteTests::anOldBinaryFileWithAPasswordOpensWithItAndSavesAsDocxProtected()
 {

@@ -845,6 +845,7 @@ private Q_SLOTS:
     void aDamagedDocxOpensRepairedWithWhatCouldBeRead();
     void anOldBinaryFileOpensAndShowsItsText();
     void aDamagedDocOpensRepairedWithWhatCouldBeRead();
+    void theWindowTellsWhatOpenAndRepairDidToADoc();
     void anOldBinaryFileWithAPasswordOpensWithItAndSavesAsDocxProtected();
     void savingAnOldBinaryFileAsksForADocxName();
     void whatAnOldFileHoldsThatCannotBeShownIsSaid();
