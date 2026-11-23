@@ -177,7 +177,7 @@ Q_NEVER_INLINE std::optional<Cell> CellStore::findWithSpills(quint32 row, quint3
     const quint32 rowId = rowIdOf(row), colId = colIdOf(col);
     const Cell *c = rowId == kNoLine || colId == kNoLine ? nullptr : findRealById(rowId, colId);
     const SpillTable *own = nullptr;
-    if (m_spill && m_spill->readsOwn(&own)) return own ? memberAt(*own, row, col, c, rowId, colId) : c ? std::optional<Cell>(*c) : std::nullopt;
+    if (m_spill && m_spill->readBare(&own)) return own ? memberAt(*own, row, col, c, rowId, colId) : c ? std::optional<Cell>(*c) : std::nullopt;
     if (const SpillView v = spillView()) return memberAt(*v.table, row, col, c, rowId, colId);
     return c ? std::optional<Cell>(*c) : std::nullopt;
 }
@@ -186,7 +186,7 @@ Q_NEVER_INLINE std::optional<Cell> CellStore::findByIdWithSpills(quint32 rowId, 
 {
     const Cell *c = findRealById(rowId, colId);
     const SpillTable *own = nullptr;
-    const SpillView v = m_spill && m_spill->readsOwn(&own) ? SpillView() : spillView();
+    const SpillView v = m_spill && m_spill->readBare(&own) ? SpillView() : spillView();
     const SpillTable *table = own ? own : v.table;
     if (table) {
         const quint32 row = rowPosOf(rowId), col = colPosOf(colId);

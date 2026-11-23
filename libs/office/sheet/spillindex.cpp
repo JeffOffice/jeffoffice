@@ -170,6 +170,7 @@ void SpillPublisher::publish()
     {
         std::lock_guard<std::mutex> lock(m_lock);
         m_published = std::move(copy);
+        m_version.fetch_add(1, std::memory_order_release);
         m_staged.clear();   // (what the others read is newer than any copy kept apart)
     }
     m_anyPublished.store(!m_mine.empty(), std::memory_order_release);
@@ -191,11 +192,13 @@ void SpillPublisher::stage(qint64 seq)
 
 void SpillPublisher::adopt(qint64 seq)
 {
+    m_windowThread.store(thisThread(), std::memory_order_relaxed);
     std::lock_guard<std::mutex> lock(m_lock);
     size_t n = 0;
     while (n < m_staged.size() && m_staged[n].first <= seq) ++n;
     if (n == 0) return;
     m_published = m_staged[n - 1].second;
+    m_version.fetch_add(1, std::memory_order_release);
     m_anyPublished.store(!m_published->empty(), std::memory_order_release);
     m_staged.erase(m_staged.begin(), m_staged.begin() + qsizetype(n));
 }
@@ -215,6 +218,21 @@ std::shared_ptr<const SpillTable> SpillPublisher::published() const
 SpillPublisher::SpillPublisher(const MutationGuard *guard) : m_guard(guard), m_workerAtom(guard ? guard->workerAtom() : nullptr) {}
 
 bool SpillPublisher::isThread(quintptr thread) { return thread == quintptr(QThread::currentThreadId()); }
+
+quintptr SpillPublisher::thisThread() { return quintptr(QThread::currentThreadId()); }
+
+bool SpillPublisher::readWindow(const SpillTable **table, quintptr me) const
+{
+    if (me != m_windowThread.load(std::memory_order_relaxed)) return false;
+    if (m_version.load(std::memory_order_acquire) != m_cacheVersion) {
+        std::lock_guard<std::mutex> lock(m_lock);
+        m_cacheKeep = m_published;
+        m_cacheVersion = m_version.load(std::memory_order_relaxed);
+        m_cacheTable = m_cacheKeep && !m_cacheKeep->empty() ? m_cacheKeep.get() : nullptr;
+    }
+    *table = m_cacheTable;
+    return true;
+}
 
 std::shared_ptr<const SpillTable> SpillPublisher::frozen() const
 {

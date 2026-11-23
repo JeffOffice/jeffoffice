@@ -203,6 +203,22 @@ public:
         if (!m_mine.empty()) *table = &m_mine;
         return true;
     }
+    // Like readsOwn, and also for the window's thread (the one that last called adopt): what it reads is the copy it took at its last look, held by this publisher between looks, so a find takes no lock and no
+    // share of the copy. False for any other thread, which has view(). `*table` is good until the window's thread next reads or adopts.
+    bool readBare(const SpillTable **table) const
+    {
+        *table = nullptr;
+        if (!m_live.load(std::memory_order_relaxed)) return true;
+        if (m_workerAtom) {
+            const quintptr worker = m_workerAtom->load(std::memory_order_acquire);
+            if (worker != 0) {
+                const quintptr me = thisThread();
+                if (worker != me) return readWindow(table, me);
+            }
+        }
+        if (!m_mine.empty()) *table = &m_mine;
+        return true;
+    }
     // The store's flag that a block was ever put (set by the first noteChanged, never taken back): the store reads it with one load before it looks for a block. It is bound again when the store moves.
     void bindFlag(std::atomic<bool> *flag)
     {
@@ -218,6 +234,8 @@ public:
 
 private:
     static bool isThread(quintptr thread);
+    static quintptr thisThread();
+    bool readWindow(const SpillTable **table, quintptr me) const;
     const MutationGuard *m_guard;
     const std::atomic<quintptr> *m_workerAtom = nullptr;   // (the guard's worker, read without a call)
     SpillTable m_mine;
@@ -226,6 +244,11 @@ private:
     std::shared_ptr<const SpillTable> m_published;
     std::vector<std::pair<qint64, std::shared_ptr<const SpillTable>>> m_staged;   // (the copies of slices not yet adopted, oldest first; under m_lock)
     std::atomic<bool> m_anyPublished{false};
+    std::atomic<quint64> m_version{0};                       // (moves each time m_published is replaced; under m_lock)
+    std::atomic<quintptr> m_windowThread{0};                 // (the thread that last adopted: the only one that uses the cache below)
+    mutable std::shared_ptr<const SpillTable> m_cacheKeep;   // (the window's thread's: the copy it reads, kept alive here)
+    mutable const SpillTable *m_cacheTable = nullptr;
+    mutable quint64 m_cacheVersion = 0;
     std::atomic<bool> *m_storeFlag = nullptr;   // (the flag of the store that holds this)
     std::atomic<bool> m_live{false};   // (a block was ever put: before that no thread has anything to read)
     std::atomic<qint64> m_publications{0};

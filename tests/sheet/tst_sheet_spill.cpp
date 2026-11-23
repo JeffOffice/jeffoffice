@@ -932,6 +932,45 @@ private Q_SLOTS:
         QVERIFY(slow.view().table->at(12, 0) && !slow.view().table->at(13, 0));
     }
 
+    // The window's thread (the one that adopts) reads the copy it took without a lock or a share of it (readBare), and sees a copy that is adopted or published later; a thread that did not adopt has no bare
+    // copy (it takes view()). Fails when readBare gives a copy to any thread (the other thread), or goes on giving the old copy after an adopt or a publish.
+    void theWindowsThreadReadsItsCopyBareAndSeesLaterOnes()
+    {
+        MutationGuard guard;
+        SpillPublisher pub(&guard);
+        const quintptr me = quintptr(QThread::currentThreadId());
+        guard.setWorker(me + 1);
+        const SpillTable *t = nullptr;
+        jp::WorkThread worker([&] {
+            guard.setWorker(quintptr(QThread::currentThreadId()));
+            pub.mine().set(SpillRect{0, 0, 2, 0, 0});
+            pub.noteChanged();
+            pub.stage(1);
+            pub.mine().set(SpillRect{0, 5, 3, 5, 1});
+            pub.noteChanged();
+            pub.stage(2);
+        });
+        worker.join();
+        QVERIFY(!pub.readBare(&t));   // (this thread has not adopted: it is not the window's)
+        pub.adopt(1);
+        QVERIFY(pub.readBare(&t) && t && t->at(1, 0) && !t->at(1, 5));
+        pub.adopt(2);
+        QVERIFY(pub.readBare(&t) && t && t->at(1, 0) && t->at(1, 5));
+        bool other = true;
+        jp::WorkThread reader([&] { const SpillTable *x = nullptr; other = pub.readBare(&x); });
+        reader.join();
+        QVERIFY(!other);   // (another thread has no bare copy)
+        guard.setWorker(0);
+        guard.setWorker(me + 1);
+        guard.enter();   // (a thread that has the worker held back changes the table and publishes it at once)
+        pub.mine().erase(0);
+        pub.noteChanged();
+        pub.publish();
+        guard.leave();
+        QVERIFY(pub.readBare(&t) && t && !t->at(1, 0) && t->at(1, 5));
+        guard.setWorker(0);
+    }
+
     // A copy of the store made by a thread that has the worker held back (a snapshot for a save) freezes the blocks the worker has made, which the sheet's ranges agree with, though the window has not yet taken
     // the slice that made them; a copy made by any other thread freezes what it reads. Fails when the copy freezes the blocks the window reads whatever the thread (the block of the slice not yet taken is lost).
     void aCopyMadeUnderAHoldFreezesTheWorkersBlocks()
