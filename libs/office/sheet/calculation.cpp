@@ -1140,6 +1140,15 @@ void Calculation::storeResult(Node &n, quint32 id, const Value &given, bool publ
     }
 }
 
+namespace {
+// The value of a place of a formula's array. A cell that a spill filled and does not now (the cell of a loaded file, kept for the window until it is let go of) is empty, as it is once it is let go of.
+Value memberOfArray(const Value &array, const Cell &c, int row, int col)
+{
+    if ((c.flags & SpillMember) && (row >= array.rows() || col >= array.cols())) return Value();
+    return array.at(row, col);
+}
+} // namespace
+
 bool Calculation::formulaValue(int sheet, quint32 row, quint32 col, const Cell &c, Value *out) const
 {
     const SheetState &st = m_state[size_t(sheet)];
@@ -1157,7 +1166,7 @@ bool Calculation::formulaValue(int sheet, quint32 row, quint32 col, const Cell &
         if (n.flags & Worked) {
             if (c.flags & ArrayMember) {
                 const Value array = m_arrays.value(id);   // (an array is shared, not copied)
-                *out = array.isArray() ? array.at(int(row - rowOf(n)), int(col - colOf(n))) : nodeValue(n, id);
+                *out = array.isArray() ? memberOfArray(array, c, int(row - rowOf(n)), int(col - colOf(n))) : nodeValue(n, id);
                 m_staleReads.emplace(id, array.isArray() ? array : *out);
             } else {
                 *out = nodeValue(n, id);
@@ -1178,7 +1187,7 @@ bool Calculation::formulaValue(int sheet, quint32 row, quint32 col, const Cell &
     if (n.flags & (Mismatch | Cascade)) m_readCascade = true;
     if (c.flags & ArrayMember) {
         const Value array = m_arrays.value(id);
-        *out = array.isArray() ? array.at(int(row - rowOf(n)), int(col - colOf(n))) : nodeValue(n, id);
+        *out = array.isArray() ? memberOfArray(array, c, int(row - rowOf(n)), int(col - colOf(n))) : nodeValue(n, id);
     } else {
         *out = nodeValue(n, id);
     }

@@ -172,6 +172,7 @@ private Q_SLOTS:
     void anOldFileSpillOfTextOrBooleansOpensWhole();
     void aResizedSpillIsRewrittenOnlyUntilASaveHasWrittenIt();
     void aSpillAnchoredAwayFromColumnBIsOpenedAtItsOwnCell();
+    void aFormulaReadingACellAShrunkLoadedSpillNoLongerFillsGetsNoError();
     void theWindowReadsTheBlocksOfTheBatchItTook();
     void theFormulaBarReadsNoNodeOfTheWorker();
     void aBlockOfASliceIsNotReadUntilItsBatchIsTaken();
