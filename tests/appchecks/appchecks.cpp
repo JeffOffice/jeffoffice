@@ -283,7 +283,13 @@ bool hasDrawnContent(const QPixmap &picture)
     return false;
 }
 
-bool waitFor(const std::function<bool()> &done, int ceiling) { return QTest::qWaitFor(done, ceiling); }
+// (Rounds of 20 ms of the event loop, counted: a round that the main thread spends in a slow disk sync, which a save does, is one round. A timer of 20 seconds ran out in such syncs on
+// Nov 23 when a release candidate's Linux run shared the disk with other programs' writes: CrunchAppChecks::firstFiveMinutes.)
+bool waitFor(const std::function<bool()> &done, int ceiling)
+{
+    for (int i = 0, rounds = ceiling / 20; i < rounds && !done(); ++i) QTest::qWait(20);
+    return done();
+}
 
 void drain()
 {
