@@ -221,7 +221,7 @@
         },
         {
          "status": "partly",
-         "text": "8dca46a6d7479a16809dd3187b1765ba384137fb8bea24e9769384bbb0db873f"
+         "text": "0ac3577ab5d4eeea479b8939406471712a79dfb036d9940c7f2534422ca976c8"
         },
         {
          "hide_soon": true,
@@ -2528,7 +2528,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "eb598e7bd021c2d34c5ecaed87dc0858fac308c83468bbffd238a568baf4d7cc"
+         "text": "5b4243905d5580f3337b38eb3c908903caffa8244751f2ff477d21cd377aa993"
         },
         {
          "hide_soon": true,
@@ -6011,7 +6011,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "908be1579511040c7ff241bd6d51dd04ea926287c5a2e6fea7b8f76521a9122e"
+         "text": "1c5990c6b6143c8b5b6b4ee2557f607c67ded4c40df4daa6d38f8b6b9ec67b6c"
         },
         {
          "hide_soon": true,
@@ -8657,6 +8657,18 @@
     "fr": ""
    }
   },
+  "0ac3577ab5d4eeea479b8939406471712a79dfb036d9940c7f2534422ca976c8": {
+   "drop": false,
+   "en": "Recover the cell values, formulas, and styles that can be read from a damaged `.xlsx` or `.xls` file with Open and Repair. The workbook opens as a copy with a note of what was dropped, and a warning names the sheet and row where pieces were joined by guess.",
+   "es": "Recupere los valores de celda, las fórmulas y los estilos que se puedan leer de un archivo `.xlsx` o `.xls` dañado con Abrir y reparar. El libro se abre como copia con una nota de lo que se omitió, y una advertencia indica la hoja y la fila donde se unieron piezas por suposición.",
+   "fr": "Récupérez les valeurs de cellule, les formules et les styles lisibles d’un fichier `.xlsx` ou `.xls` endommagé avec Ouvrir et réparer. Le classeur s’ouvre sous forme de copie avec une note indiquant ce qui a été abandonné, et un avertissement indique la feuille et la ligne où des morceaux ont été assemblés par supposition.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "0b34cd64f82fde71f3a8b0ba442f605358125c966553788d079f42478c3b6ea5": {
    "drop": false,
    "en": "A file’s theme fonts and colors are read and used.",
@@ -9766,6 +9778,18 @@
    "en": "Open and save `.pptm`, `.ppsm`, and `.potm` files. The macro project is kept unchanged and is never run.",
    "es": "Abra y guarde archivos `.pptm`, `.ppsm` y `.potm`. El proyecto de macros se conserva sin cambios y nunca se ejecuta.",
    "fr": "Ouvrez et enregistrez des fichiers `.pptm`, `.ppsm` et `.potm`. Le projet de macros est conservé sans modification et n’est jamais exécuté.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "1c5990c6b6143c8b5b6b4ee2557f607c67ded4c40df4daa6d38f8b6b9ec67b6c": {
+   "drop": false,
+   "en": "Recover the text and pictures that can be read from a damaged `.docx` or `.doc` file with Open and Repair. The result opens as a copy, and the app says what was cut or left out and warns where pieces were joined by guess.",
+   "es": "Recupere el texto y las imágenes que se puedan leer de un archivo `.docx` o `.doc` dañado con Abrir y reparar. El resultado se abre como copia, y la aplicación indica qué se cortó o se omitió y advierte dónde se unieron piezas por suposición.",
+   "fr": "Récupérez le texte et les images lisibles d’un fichier `.docx` ou `.doc` endommagé avec Ouvrir et réparer. Le résultat s’ouvre sous forme de copie, et l’application indique ce qui a été coupé ou omis et avertit là où des morceaux ont été assemblés par supposition.",
    "soon": {
     "drop": true,
     "en": "",
@@ -14813,6 +14837,18 @@
     "fr": ""
    }
   },
+  "5b4243905d5580f3337b38eb3c908903caffa8244751f2ff477d21cd377aa993": {
+   "drop": false,
+   "en": "Recover what can be read from a damaged `.pptx`, `.odp`, or `.ppt` file with Open and Repair. The repaired presentation opens as a copy with a note of what was left out, and a warning appears where pieces were joined by guess.",
+   "es": "Recupere lo que se pueda leer de un archivo `.pptx`, `.odp` o `.ppt` dañado con Abrir y reparar. La presentación reparada se abre como copia con una nota de lo que se omitió, y aparece una advertencia donde se unieron piezas por suposición.",
+   "fr": "Récupérez ce qui peut être lu dans un fichier `.pptx`, `.odp` ou `.ppt` endommagé avec Ouvrir et réparer. La présentation réparée s’ouvre sous forme de copie avec une note indiquant ce qui a été omis, et un avertissement apparaît là où des morceaux ont été assemblés par supposition.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "5b4687aa720f811bed63a22a69b73bf8974ddd9f0d3a615e10d023dd9765872b": {
    "drop": false,
    "en": "Work with both date systems: the 1900 system, which counts February 29, 1900 (serial number 60), and the 1904 system used by Mac files. A serial number shows as a date in the file’s own system and converts when copied between workbooks that use different systems.",
@@ -18485,18 +18521,6 @@
     "fr": "Paramètres de champ : fonctions de sous-total personnalisées et affichage des éléments sans données"
    }
   },
-  "8dca46a6d7479a16809dd3187b1765ba384137fb8bea24e9769384bbb0db873f": {
-   "drop": false,
-   "en": "Open and Repair recovers what can be read from a damaged `.xlsx` file, keeps a sheet that broke part way as far as it goes, leaves out what can't be read, and opens the workbook as a copy with a note of what was dropped. For a damaged `.xls` file with a cut-short container or broken sector tables, it reads the workbook as far as it goes and says so in a note.",
-   "es": "Abrir y reparar recupera lo que se puede leer de un archivo `.xlsx` dañado, conserva hasta donde llega una hoja que se interrumpió a medias, omite lo que no se puede leer y abre el libro como copia con una nota de lo que se descartó. En un archivo `.xls` dañado con el contenedor cortado o las tablas de sectores rotas, lee el libro hasta donde llega e indica esto en una nota.",
-   "fr": "Ouvrir et réparer récupère ce qui peut être lu d’un fichier `.xlsx` endommagé, conserve jusqu’où elle va une feuille interrompue en cours de route, omet ce qui n’est pas lisible et ouvre le classeur sous forme de copie avec une note indiquant ce qui a été supprimé. Pour un fichier `.xls` endommagé dont le conteneur est tronqué ou les tables de secteurs brisées, il lit le classeur aussi loin que possible et l’indique dans une note.",
-   "soon": {
-    "drop": false,
-    "en": "Repair of a damaged `.xls` stream whose sectors are out of order",
-    "es": "Reparación de un flujo `.xls` dañado cuyos sectores están desordenados",
-    "fr": "Réparation d’un flux `.xls` endommagé dont les secteurs sont désordonnés"
-   }
-  },
   "8de0da0c29dd254fe752e10bcc139c7e205599686e509d769acdb999dc638c00": {
    "drop": false,
    "en": "Delete the open comment, all comments on the slide, or all comments in the presentation. Previous and Next move through the comments, and Show Comments hides or shows the pane and markers. A presentation with comments opens with them shown, and `Ctrl+Z` undoes any of these actions.",
@@ -18615,18 +18639,6 @@
     "en": "Notes master text styles: edit",
     "es": "Estilos de texto del patrón de notas: editar",
     "fr": "Styles de texte du masque des notes : modifier"
-   }
-  },
-  "908be1579511040c7ff241bd6d51dd04ea926287c5a2e6fea7b8f76521a9122e": {
-   "drop": false,
-   "en": "Open and Repair recovers the text and pictures that can be read from a damaged `.docx` or `.doc` file and opens the result as a copy, saying what was left out. A password-protected document is refused.",
-   "es": "Abrir y reparar recupera el texto y las imágenes que se pueden leer de un archivo `.docx` o `.doc` dañado y abre el resultado como copia, indicando lo que se omitió. Un documento protegido con contraseña se rechaza.",
-   "fr": "Ouvrir et réparer récupère le texte et les images lisibles d’un fichier `.docx` ou `.doc` endommagé et ouvre le résultat comme copie, en indiquant ce qui a été omis. Un document protégé par mot de passe est refusé.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
    }
   },
   "908e56f9d41e2f11df0c45780cdeca715dd47b799273f0b7d5d6910f367bd389": {
@@ -25162,18 +25174,6 @@
    "en": "Comments",
    "es": "Comentarios",
    "fr": "Commentaires",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "eb598e7bd021c2d34c5ecaed87dc0858fac308c83468bbffd238a568baf4d7cc": {
-   "drop": false,
-   "en": "Open and Repair recovers what can be read from a damaged `.pptx`, `.odp`, or `.ppt` file and opens it as a copy with a note of what was left out. A password-protected presentation is refused.",
-   "es": "Abrir y reparar recupera lo que se puede leer de un archivo `.pptx`, `.odp` o `.ppt` dañado y lo abre como copia con una nota de lo que se omitió. Una presentación protegida con contraseña se rechaza.",
-   "fr": "Ouvrir et réparer récupère ce qui peut être lu d’un fichier `.pptx`, `.odp` ou `.ppt` endommagé et l’ouvre comme copie avec une note indiquant ce qui a été omis. Une présentation protégée par mot de passe est refusée.",
    "soon": {
     "drop": true,
     "en": "",
