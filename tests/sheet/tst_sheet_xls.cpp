@@ -86,6 +86,45 @@ QByteArray xlsOfRows(int rows, const QStringList &extra = QStringList())
     return jp::cfb::write(f);
 }
 
+// A workbook of one sheet "A" with `rows` numbers in column A (and the dimensions record a sheet has), beside a neighbor stream "Other" of cell records for rows 5000 on (values 9000 and up,
+// ended by an end record, as a stream of whole records is), and the neighbor's first sectors placed in the file right after the k-th sector of the workbook's chain.
+struct XlsNeighbor {
+    QByteArray good, placed;
+    QByteArray marker;   // the first cell record of the neighbor
+    int rows = 0, k = 0;
+};
+XlsNeighbor xlsNeighbor(int rows, int firstNeighborRow = 5000)
+{
+    XlsNeighbor n;
+    n.rows = rows;
+    QByteArray cells;
+    for (int r = 0; r < rows; ++r) cells += number(r, 0, r);
+    Book b;
+    b.sheet(QStringLiteral("A"), dimensions(rows, 1) + cells);
+    QByteArray other;
+    for (int r = 0; r < 400; ++r) other += number(firstNeighborRow + r, 0, 9000 + r);
+    other += rec(0x000A);
+    n.marker = number(firstNeighborRow, 0, 9000);
+    jp::cfb::File f;
+    jp::cfb::Entry root;
+    root.type = jp::cfb::Entry::Root;
+    root.name = QStringLiteral("Root Entry");
+    f.entries.push_back(root);
+    const QList<QPair<QString, QByteArray>> streams{{QStringLiteral("Workbook"), b.stream()}, {QStringLiteral("Other"), other}};
+    for (const auto &one : streams) {
+        jp::cfb::Entry e;
+        e.type = jp::cfb::Entry::Stream;
+        e.name = one.first;
+        e.data = one.second;
+        f.entries[0].children << int(f.entries.size());
+        f.entries << e;
+    }
+    n.good = jp::cfb::write(f);
+    n.k = int(cfbdamage::sectorsOf(n.good, QStringLiteral("Workbook")).size()) - 4;
+    n.placed = cfbdamage::placeAfter(n.good, QStringLiteral("Workbook"), QStringLiteral("Other"), n.k);
+    return n;
+}
+
 } // namespace
 
 class SheetXlsTests : public QObject {
@@ -1853,7 +1892,12 @@ private Q_SLOTS:
             const XlsOutcome o = xlsOutcomeOf(v.file, rows);
             QVERIFY2(!o.refused, qPrintable(v.id + o.why));
             // (a cell across a place where pieces were joined by guess is left out; f4 needs no guess and loses nothing)
-            QVERIFY2(o.right + o.missing == rows * 2 && o.wrong == 0 && o.missing <= (v.id == QLatin1String("f4") ? 0 : 1), qPrintable(QStringLiteral("%1: right %2 missing %3 wrong %4").arg(v.id).arg(o.right).arg(o.missing).arg(o.wrong)));
+            // (d: the tables end the chain with their own end marker half way; nothing is read past it)
+            QVERIFY2(o.right + o.missing == rows * 2 && o.wrong == 0 && (v.id == QLatin1String("d") ? o.right > 300 && o.right < rows * 2 : o.missing <= (v.id == QLatin1String("f4") ? 0 : 1)), qPrintable(QStringLiteral("%1: right %2 missing %3 wrong %4").arg(v.id).arg(o.right).arg(o.missing).arg(o.wrong)));
+            if (v.id == QLatin1String("d")) {
+                QVERIFY2(o.notes.join(QLatin1Char(' ')).contains(QLatin1String("cut short")) && !o.notes.join(QLatin1Char(' ')).contains(QLatin1String("ends where it should")), qPrintable(o.notes.join(QLatin1Char('|'))));
+                continue;
+            }
             // (a repair that guessed says the sheets end where they should, and never that they were read whole beside the guess)
             QVERIFY2(o.notes.join(QLatin1Char(' ')).contains(QLatin1String(v.id == QLatin1String("f4") ? "Every sheet was read whole" : "Every sheet ends where it should")), qPrintable(v.id + o.notes.join(QLatin1Char('|'))));
             QVERIFY2(v.id == QLatin1String("f4") || !o.notes.join(QLatin1Char(' ')).contains(QLatin1String("read whole")), qPrintable(v.id + o.notes.join(QLatin1Char('|'))));
@@ -1941,6 +1985,87 @@ private Q_SLOTS:
         QVERIFY2(!got.isEmpty(), qPrintable(why));
         QCOMPARE(got, a.stream());
         QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("did not agree")), qPrintable(notes.join(QLatin1Char('|'))));
+    }
+
+    // The reviewer's trigger (Nov 23): the workbook's chain ends with its end marker before its last end record, the directory gives three times its size, and a neighbor of whole records whose own
+    // start is damaged lies right after. Nothing is read beyond the marker, so none of the neighbor's cells is shown, and the notes do not say the sheets end where they should.
+    void aChainEndedByItsMarkerIsNeverReadPast()
+    {
+        const XlsNeighbor n = xlsNeighbor(600);
+        Workbook plainSound;
+        QString why;
+        QVERIFY2(plainSound.openBinary(n.placed, &why), qPrintable(why));   // (the fixture is a sound file)
+        const QByteArray file = cfbdamage::neighborAfterEnd(n.placed, QStringLiteral("Workbook"), QStringLiteral("Other"), n.k);
+        QStringList notes;
+        const QByteArray stream = salvageXlsStream(file, Limits(), &notes, &why);
+        QVERIFY2(!stream.isEmpty(), qPrintable(why));
+        QVERIFY(!stream.contains(n.marker));
+        const QString said = notes.join(QLatin1Char('\n'));
+        QVERIFY2(!said.contains(QLatin1String("ends where it should")) && !said.contains(QLatin1String("read whole")) && !said.contains(QLatin1String("was sound")), qPrintable(said));
+        Workbook wb;
+        Sheet s;
+        QVERIFY(wb.openBinary(stream, &why));
+        wb.readSheet(0, &s);
+        int right = 0;
+        for (int r = 0; r < n.rows; ++r) {
+            const QString got = shown(wb, s, QStringLiteral("A%1").arg(r + 1));
+            if (got == QStringLiteral("n:%1").arg(r)) ++right;
+            else QVERIFY2(got == QLatin1String("none") || got == QLatin1String("-"), qPrintable(QStringLiteral("row %1 shows %2").arg(r + 1).arg(got)));
+        }
+        QVERIFY(right > 100);
+    }
+
+    // The same, with the link after the neighbor's place broken instead of ended: the next piece in the file is the neighbor's. What follows the join is checked against the sheet's dimensions
+    // and the workbook's own list of where sheets start; cells outside them stop the stream, and the notes name the sheet where the unchecked part begins.
+    void whatFollowsAGuessedJoinIsCheckedAndSaid()
+    {
+        const XlsNeighbor n = xlsNeighbor(600);
+        const QByteArray file = cfbdamage::neighborAfterBrokenLink(n.placed, QStringLiteral("Workbook"), QStringLiteral("Other"), n.k);
+        QStringList notes;
+        QString why;
+        const QByteArray stream = salvageXlsStream(file, Limits(), &notes, &why);
+        QVERIFY2(!stream.isEmpty(), qPrintable(why));
+        QVERIFY(!stream.contains(n.marker));   // (a cell below the sheet's last row is no cell of it)
+        const QString said = notes.join(QLatin1Char('\n'));
+        QVERIFY2(said.contains(QLatin1String("checked only to see that it is in the right form")) && said.contains(QLatin1String("sheet \"A\"")), qPrintable(said));
+        QVERIFY2(!said.contains(QLatin1String("ends where it should")) && !said.contains(QLatin1String("read whole")), qPrintable(said));
+    }
+
+    // A neighbor whose cells fall inside the sheet's dimensions cannot be told by its form: they are shown, and the notes say they were checked only for form and where they start.
+    void aNeighborInsideTheDimensionsIsSaidNotHidden()
+    {
+        const XlsNeighbor n = xlsNeighbor(600, 100);
+        const QByteArray file = cfbdamage::neighborAfterBrokenLink(n.placed, QStringLiteral("Workbook"), QStringLiteral("Other"), n.k);
+        QStringList notes;
+        QString why;
+        const QByteArray stream = salvageXlsStream(file, Limits(), &notes, &why);
+        QVERIFY2(!stream.isEmpty(), qPrintable(why));
+        const QString said = notes.join(QLatin1Char('\n'));
+        QVERIFY2(said.contains(QLatin1String("checked only to see that it is in the right form")) && said.contains(QLatin1String("sheet \"A\"")), qPrintable(said));
+        QVERIFY2(!said.contains(QLatin1String("ends where it should")) && !said.contains(QLatin1String("read whole")), qPrintable(said));
+    }
+
+    // A neighbor that is a whole workbook (its own globals begin record) can't be part of a sheet: the stream stops where it begins.
+    void aWholeWorkbookAfterAJoinStopsTheStream()
+    {
+        const XlsNeighbor n = xlsNeighbor(600);
+        jp::cfb::File f;
+        QVERIFY(jp::cfb::read(n.good, &f));
+        Book other;
+        QByteArray cells;
+        for (int r = 0; r < 700; ++r) cells += number(r, 0, 9000 + r);
+        other.sheet(QStringLiteral("B"), dimensions(700, 1) + cells);
+        for (jp::cfb::Entry &e : f.entries)
+            if (e.name == QLatin1String("Other")) e.data = other.stream();
+        const QByteArray good = jp::cfb::write(f);
+        const QByteArray placed = cfbdamage::placeAfter(good, QStringLiteral("Workbook"), QStringLiteral("Other"), n.k);
+        const QByteArray file = cfbdamage::neighborAfterBrokenLink(placed, QStringLiteral("Workbook"), QStringLiteral("Other"), n.k);
+        QStringList notes;
+        QString why;
+        const QByteArray stream = salvageXlsStream(file, Limits(), &notes, &why);
+        QVERIFY2(!stream.isEmpty(), qPrintable(why));
+        QVERIFY(!stream.contains(number(0, 0, 9000)));
+        QVERIFY(!stream.contains(number(5, 0, 9005)));
     }
 
     // A link of the tables that can't be read is guessed, and the cell that lies across the join is left out, not shown: the bytes there may be another sector's. The notes count it.

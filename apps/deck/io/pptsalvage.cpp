@@ -78,6 +78,48 @@ int dropAcrossJoin(QByteArray &d, qint64 join)
     return 0;
 }
 
+// Where the presentation stops fitting its own structure after the first place where pieces were joined by guess. The presentation's lists of where its parts are kept (the persist
+// directories) name the offset of every document, slide, notes, and master record; after the join, such a record that begins at an offset no list names, and an offset a list names
+// that is not where a record begins, do not fit. Returns the start of the first record that does not fit, -1 if all fit. `*slide` is the number of the slide the join falls in (0 before the first).
+qint64 stopAfterJoin(QByteArrayView d, qint64 join, int *slide)
+{
+    qint64 end = 0;
+    const QVector<Top> tops = topRecords(d, &end);
+    QVector<qint64> named;
+    for (const Top &t : tops) {
+        if (t.type != kPersistDirectory) continue;
+        for (qint64 pos = t.off + 8; pos + 4 <= t.end();) {
+            const quint32 head = u32(d, pos);
+            const qint64 count = head >> 20;
+            pos += 4;
+            for (qint64 i = 0; i < count && pos + 4 <= t.end(); ++i, pos += 4) named << qint64(u32(d, pos));
+        }
+    }
+    std::sort(named.begin(), named.end());
+    *slide = 0;
+    for (const Top &t : tops)
+        if (t.type == kSlide && t.off <= join) ++*slide;
+    qint64 stop = -1;
+    auto fits = [&](const Top &t) { return t.type != kDocument && t.type != kSlide && t.type != kNotes && t.type != kMainMaster ? true : std::binary_search(named.cbegin(), named.cend(), t.off); };
+    for (const Top &t : tops)
+        if (t.off >= join && !fits(t)) {
+            stop = t.off;
+            break;
+        }
+    // (a place a list names, inside the stream, that is not the start of a record: the record that runs across it)
+    for (qint64 place : std::as_const(named)) {
+        if (place < join || place >= end) continue;
+        const auto it = std::upper_bound(tops.cbegin(), tops.cend(), place, [](qint64 v, const Top &t) { return v < t.off; });
+        if (it == tops.cbegin()) continue;
+        const Top &t = *(it - 1);
+        if (t.off != place) {
+            stop = stop < 0 ? t.off : std::min(stop, t.off);
+            break;
+        }
+    }
+    return stop;
+}
+
 QByteArray record(quint16 type, const QByteArray &data)
 {
     QByteArray r(8, '\0');
@@ -150,14 +192,16 @@ QByteArray salvagePresentation(const QByteArray &file, QStringList *notes, QStri
         return 0;
     };
     // it ends well when its records are whole to the end (zeros after them are the padding of a sector) and the last is an edit record, as every save ends it
-    stream.endsWell = [](QByteArrayView bytes, const QMap<QString, QByteArray> &) {
+    // The last edit record must be the one the presentation's own "Current User" stream names (its offset is the 4 bytes at 16); with that stream gone, the end can't be confirmed.
+    stream.endsWell = [](QByteArrayView bytes, const QMap<QString, QByteArray> &found) {
         CfbWish::End end;
         qint64 at = 0;
         const QVector<Top> tops = topRecords(bytes, &at);
         end.prefix = at;
         bool zeros = true;
         for (qint64 i = at; i < bytes.size() && zeros; ++i) zeros = bytes[qsizetype(i)] == 0;
-        if (!tops.isEmpty() && tops.last().type == kUserEdit && zeros) end.whole = at;
+        const QByteArray user = found.value(QStringLiteral("Current User"));
+        if (!tops.isEmpty() && tops.last().type == kUserEdit && zeros && u16(user, 2) == kCurrentUser && qint64(u32(user, 16)) == tops.last().off) end.whole = at;
         return end;
     };
     CfbWish user;
@@ -191,10 +235,18 @@ QByteArray salvagePresentation(const QByteArray &file, QStringList *notes, QStri
     const QByteArray oldUser = found.streams.value(QStringLiteral("Current User"));
     if (u32(oldUser, 12) == kTokenEncrypted) return protectedFile();
     QStringList said = found.notes;
-    int dropped = 0;
+    int dropped = 0, joinSlide = 0;
+    bool joined = false;
     {
         QByteArray d = found.streams.value(QStringLiteral("PowerPoint Document"));
-        for (qint64 j : found.joins.value(QStringLiteral("PowerPoint Document"))) dropped += dropAcrossJoin(d, j);
+        const QVector<qint64> joins = found.joins.value(QStringLiteral("PowerPoint Document"));
+        for (qint64 j : joins) dropped += dropAcrossJoin(d, j);
+        // (what follows the first join is kept only while it fits the presentation's own lists of where its parts are)
+        if (!joins.isEmpty() && joins.first() < d.size()) {
+            const qint64 stop = stopAfterJoin(d, joins.first(), &joinSlide);
+            if (stop >= 0) d.truncate(qsizetype(stop));
+            joined = joins.first() < d.size();
+        }
         found.streams.insert(QStringLiteral("PowerPoint Document"), d);
     }
 
@@ -276,6 +328,10 @@ QByteArray salvagePresentation(const QByteArray &file, QStringList *notes, QStri
     }
     if (!found.streams.contains(QStringLiteral("Pictures")) && (!found.directoryRead || ((found.cutShort || found.tablesGuessed) && found.directoryNames.contains(QStringLiteral("Pictures"), Qt::CaseInsensitive))))
         said << QCoreApplication::translate("jp::deck::PptSalvage", "The pictures of the presentation, if it had any, could not be found.");
+    if (joined) {
+        if (joinSlide > 0) said << QCoreApplication::translate("jp::deck::PptSalvage", "What follows a place where pieces of the file were joined by a guess was checked only to see that it is in the right form, not that it belongs here. It starts in slide %1.").arg(joinSlide);
+        else said << QCoreApplication::translate("jp::deck::PptSalvage", "What follows a place where pieces of the file were joined by a guess was checked only to see that it is in the right form, not that it belongs here. It starts before the first slide.");
+    }
     if (dropped > 0) said << QCoreApplication::translate("jp::deck::PptSalvage", "%n part of the presentation (a shape, a line of text, or a picture) was left out because it lay across a place where pieces of the file were joined by a guess.", nullptr, dropped);
     if (notes) *notes = said;
     return jp::office::rebuildCompoundFile(found);

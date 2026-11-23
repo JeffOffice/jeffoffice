@@ -3343,7 +3343,15 @@ private Q_SLOTS:
         for (const cfbdamage::Variant &v : std::as_const(all)) {
             QStringList notes;
             QString why;
-            const int blank = blanksAgainst(repairedParagraphs(v.file, &notes, &why), paras);
+            const QStringList gotParas = repairedParagraphs(v.file, &notes, &why);
+            if (v.id == QLatin1String("d")) {
+                // (the tables end the chain with their own end marker half way: nothing is read past it, so the text stops there, and the notes say it was cut short)
+                QVERIFY2(gotParas.size() > 10 && gotParas.size() < paras.size(), qPrintable(why));
+                QVERIFY(blanksAgainst(gotParas.mid(0, gotParas.size() - 1), paras.mid(0, gotParas.size() - 1)) >= 0);
+                ++checked;
+                continue;
+            }
+            const int blank = blanksAgainst(gotParas, paras);
             QVERIFY2(blank >= 0 && blank <= int(paras.size()) / 5, qPrintable(v.id + why));
             // (a paragraph is left blank only where the notes say pieces were joined by guess, and then they say how many)
             QCOMPARE(blank > 0, notes.join(QLatin1Char(' ')).contains(QLatin1String("left blank")));
@@ -3361,6 +3369,38 @@ private Q_SLOTS:
                 QCOMPARE(repairedParagraphs(v.file, &notes, &why), (QStringList{"Hello world", "Second paragraph"}));
             }
         }
+    }
+
+    // The reviewer's trigger for documents: the document stream's chain ends with its end marker inside the text, the directory gives three times its size, and a neighbor whose own start
+    // is damaged lies right after. Nothing is read beyond the marker, so none of the neighbor's text is shown as the document's. (The neighbor is paragraphs with the letter Z.)
+    void aChainEndedByItsMarkerIsNeverReadPastInADocument()
+    {
+        QStringList paras;
+        const QByteArray big = repairableDoc(&paras);
+        jp::cfb::File f;
+        QVERIFY(jp::cfb::read(big, &f));
+        jp::cfb::Entry e;
+        e.type = jp::cfb::Entry::Stream;
+        e.name = QStringLiteral("Other");
+        while (e.data.size() < 5000) e.data += QByteArray("Foreign text Z, a paragraph of the neighbor.\r");
+        f.entries[0].children << int(f.entries.size());
+        f.entries << e;
+        const QByteArray good = jp::cfb::write(f);
+        const int k = 2;
+        const QByteArray placed = cfbdamage::placeAfter(good, QStringLiteral("WordDocument"), QStringLiteral("Other"), k);
+        const QByteArray file = cfbdamage::neighborAfterEnd(placed, QStringLiteral("WordDocument"), QStringLiteral("Other"), k);
+        QStringList notes;
+        QString why;
+        const QStringList got = repairedParagraphs(file, &notes, &why);
+        for (const QString &p : got) QVERIFY2(!p.contains(QLatin1Char(0x5a)), qPrintable(p.left(60)));
+        const QString said = notes.join(QLatin1Char('\n'));
+        QVERIFY2(!said.contains(QLatin1String("was sound")), qPrintable(said));
+        // (with the link broken instead, the neighbor follows by guess: its text is not told by its form, so the notes say where the unchecked part begins)
+        const QByteArray broken = cfbdamage::neighborAfterBrokenLink(placed, QStringLiteral("WordDocument"), QStringLiteral("Other"), k);
+        QStringList notes2;
+        repairedParagraphs(broken, &notes2, &why);
+        const QString said2 = notes2.join(QLatin1Char('\n'));
+        QVERIFY2(said2.contains(QLatin1String("checked only to see that it is in the right form")) && said2.contains(QLatin1String("paragraph")), qPrintable(said2));
     }
 
     // The container's own tables read a chain that stops short, or runs into itself, or a directory that gives less than the tables hold: the sectors are all there, and the whole stream is read.
@@ -3402,6 +3442,13 @@ private Q_SLOTS:
             QString why;
             QVERIFY2(jp::office::salvageCompoundFile(bad, {w}, &out, &why), qPrintable(why));
             const QByteArray got = out.streams.value(QStringLiteral("S"));
+            if (kind == 0) {
+                // (an end marker in the middle of the chain is the tables' own word that the stream ends there: nothing is read past it)
+                QCOMPARE(got, e.data.left(8 * 512));
+                QVERIFY(out.repaired);
+                QVERIFY(!out.joins.contains(QStringLiteral("S")));
+                continue;
+            }
             QVERIFY2(got == e.data, qPrintable(QString::number(kind) + QLatin1Char(' ') + QString::number(got.size())));
             QVERIFY2(out.repaired || out.tablesGuessed, qPrintable(QString::number(kind)));
             // (a link that could not be read is a join by guess, and the stream says where; a size that disagrees with the tables is not)
@@ -3476,7 +3523,7 @@ private Q_SLOTS:
         QStringList paras, notes;
         const QByteArray good = repairableDoc(&paras);
         QByteArray bad = good;
-        cfbdamage::fatSet(bad, cfbdamage::sectorsOf(good, QStringLiteral("WordDocument"))[3], cfbdamage::kEnd);
+        cfbdamage::fatSet(bad, cfbdamage::sectorsOf(good, QStringLiteral("WordDocument"))[3], 0x00FFFFF0);
         QVERIFY(!doc::salvageDoc(bad, &notes, nullptr).isEmpty());
         QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("each piece was taken to follow the one before it")), qPrintable(notes.join(QLatin1Char('|'))));
     }

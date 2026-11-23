@@ -115,9 +115,9 @@ public:
     }
 
     // How a stream is read, in the order the caller tries them: through the tables as far as they go (to the directory's size), through the tables on past the directory's size to
-    // their own end, through the tables with each link that can't be read replaced by the next sector in the file, and as one run of sectors; the last also takes sectors the tables
-    // mark free, for want of anything else.
-    enum class Mode { Tables, PastSize, Guess, Contiguous, LastResort };
+    // their own end, and through the tables with each BROKEN link (one that is free, loops, or leads outside the file) replaced by the sector that follows it in the file; the last also
+    // takes sectors the tables mark free, for want of anything else. A chain that ends with the tables' end marker ends there in every mode: nothing is read beyond it.
+    enum class Mode { Tables, PastSize, Guess, LastResort };
 
     // True if the tables lead from the last sector the directory's size needs to another one (the stream holds more than the directory says).
     bool runsPastItsSize(const DirEntry &e)
@@ -197,6 +197,11 @@ public:
             const quint32 next = cur < quint32(table.size()) ? table[qsizetype(cur)] : kFree;
             const bool tableOk = qint64(next) < limit && !seen.contains(next);
             const bool wholeTables = mode == Mode::Tables || mode == Mode::PastSize;
+            // (a table that was read and says the chain ends here: the stream ends here, whatever size the directory gives)
+            if (!wholeTables && next == kEnd && cur < quint32(known.size()) && known[qsizetype(cur)]) {
+                r.chainBroke = true;
+                break;
+            }
             if (wholeTables) {
                 if (!tableOk) {
                     if (qint64(next) >= limit && next < 0xFFFFFFFC) r.cutShort = true;   // (a link to a place the file does not reach)
@@ -207,7 +212,7 @@ public:
                 continue;
             }
             const quint32 after = cur + 1;
-            if (mode == Mode::Guess && tableOk) {
+            if (tableOk) {
                 cur = next;
                 continue;
             }
@@ -216,10 +221,8 @@ public:
                 else r.chainBroke = true;
                 break;
             }
-            if (!(tableOk && next == after)) {
-                r.guessed = true;
-                r.joins << qint64(pieces) * unit;
-            }
+            r.guessed = true;
+            r.joins << qint64(pieces) * unit;
             cur = after;
         }
         if (mode != Mode::PastSize && quint64(r.bytes.size()) < e.size && pieces < count) r.chainBroke = r.chainBroke || !r.cutShort;
@@ -258,6 +261,7 @@ private:
             out << cur;
             if (i + 1 == count) break;
             const quint32 next = cur < quint32(table.size()) ? table[qsizetype(cur)] : kFree;
+            if (next == kEnd) break;   // (the tables say the chain ends here)
             if (qint64(next) < limit && !seen.contains(next)) {
                 cur = next;
             } else {
@@ -448,7 +452,7 @@ bool salvageCompoundFile(const QByteArray &file, const QVector<CfbWish> &wishes,
             } fallback;
             for (int tier = 0; tier < 2 && found.isEmpty() && !fallback.set; ++tier) {
                 if (tier == 1 && !w.endsWell) break;
-                const QVector<Tolerant::Mode> modes = tier == 0 ? QVector<Tolerant::Mode>{Tolerant::Mode::Tables, Tolerant::Mode::PastSize, Tolerant::Mode::Guess, Tolerant::Mode::Contiguous}
+                const QVector<Tolerant::Mode> modes = tier == 0 ? QVector<Tolerant::Mode>{Tolerant::Mode::Tables, Tolerant::Mode::PastSize, Tolerant::Mode::Guess}
                                                                 : QVector<Tolerant::Mode>{Tolerant::Mode::LastResort};
                 for (int i = 0; i < named.size() && found.isEmpty(); ++i) {
                     Fallback mine;

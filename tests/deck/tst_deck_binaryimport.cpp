@@ -1665,6 +1665,11 @@ private Q_SLOTS:
             QStringList notes;
             QString why;
             auto d = repaired(v.file, &notes, &why);
+            if (v.id == QLatin1String("d")) {
+                // (the tables end the chain with their own end marker half way: nothing is read past it, so slides may be lost, and none is another's)
+                if (d) for (const QString &t : titles(*d)) QVERIFY2(t == QLatin1String("Plan") || t == QLatin1String("Quarterly Results") || t.isEmpty(), qPrintable(t));
+                continue;
+            }
             QVERIFY2(d, qPrintable(v.id + QLatin1Char(' ') + why));
             if (notes.join(QLatin1Char(' ')).contains(QLatin1String("left out because it lay across"))) {
                 // (a part across a place where pieces were joined by guess is left out: a slide may be lost, and none is another's)
@@ -1707,6 +1712,44 @@ private Q_SLOTS:
         const QByteArray got = now.stream(pptDocumentStream());
         QVERIFY2(got.size() <= original.size() + 511 && got.left(original.size()) == original, qPrintable(QString::number(got.size()) + QLatin1Char(' ') + QString::number(original.size())));
         QVERIFY2(notes.join(QLatin1Char(' ')).contains(QLatin1String("did not agree")), qPrintable(notes.join(QLatin1Char('|'))));
+    }
+
+    // The reviewer's trigger for presentations: the stream's chain ends with its end marker before its last edit record, the directory gives three times its size, and a neighbor whose own
+    // start is damaged lies right after. Nothing is read beyond the marker, so none of the neighbor's records is part of the presentation.
+    void aChainEndedByItsMarkerIsNeverReadPastInAPresentation()
+    {
+        jp::cfb::File f;
+        QVERIFY(jp::cfb::read(bigDeck(), &f));
+        jp::cfb::Entry e;
+        e.type = jp::cfb::Entry::Stream;
+        e.name = QStringLiteral("Other");
+        e.data = pptRec(1006, QByteArray(6000, 'F'));
+        f.entries[0].children << int(f.entries.size());
+        f.entries << e;
+        const QByteArray good = jp::cfb::write(f);
+        const int k = int(cfbdamage::sectorsOf(good, pptDocumentStream()).size()) - 3;
+        const QByteArray placed = cfbdamage::placeAfter(good, pptDocumentStream(), QStringLiteral("Other"), k);
+        const QByteArray file = cfbdamage::neighborAfterEnd(placed, pptDocumentStream(), QStringLiteral("Other"), k);
+        QStringList notes;
+        QString why;
+        const QByteArray fixed = deck::salvagePresentation(file, &notes, &why);
+        QVERIFY2(!fixed.isEmpty(), qPrintable(why));   // (the part before the end marker is whole: the presentation is made from it)
+        {
+            jp::cfb::File now;
+            QVERIFY(jp::cfb::read(fixed, &now));
+            QVERIFY(!now.stream(pptDocumentStream()).contains(QByteArray(200, 'F')));
+        }
+        QVERIFY2(!notes.join(QLatin1Char(' ')).contains(QLatin1String("was sound")), qPrintable(notes.join(QLatin1Char('|'))));
+        // (with the link broken instead the neighbor follows by guess: a slide record that the presentation's own list does not name is no slide of it, and the notes say where the unchecked part begins)
+        const QByteArray broken = cfbdamage::neighborAfterBrokenLink(placed, pptDocumentStream(), QStringLiteral("Other"), k);
+        QStringList notes2;
+        const QByteArray fixed2 = deck::salvagePresentation(broken, &notes2, &why);
+        if (!fixed2.isEmpty()) {
+            jp::cfb::File now;
+            QVERIFY(jp::cfb::read(fixed2, &now));
+            QVERIFY(!now.stream(pptDocumentStream()).contains(QByteArray(200, 'F')));
+        }
+        QVERIFY2(notes2.join(QLatin1Char(' ')).contains(QLatin1String("checked only to see that it is in the right form")), qPrintable(notes2.join(QLatin1Char('|'))));
     }
 
     // A link of the tables that can't be read is guessed, and the part of the presentation that lies across the join is left out (its type is made one that nothing acts on), not shown.

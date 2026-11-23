@@ -1457,29 +1457,117 @@ qsizetype recordBytes(const QByteArray &d, qint64 *walked)
     return at;
 }
 
-// Whether a workbook's stream ends well: its records are whole and each substream a begin record opens is closed by an end record, the last record is an end record, and only zeros (the
-// padding of a sector) follow it. `prefix` is the bytes that are whole records from the start, however the stream ends.
+// Whether a workbook's stream ends well: its records are whole and each substream a begin record opens is closed by an end record, only zeros (the padding of a sector) follow the last
+// end record, and that record closes the LAST sheet the workbook's own list names, the one that begins at the offset the list gives (a workbook with no list is one substream from the start).
+// An end record that closes some other substream, or a stream that ends with another stream's records, does not make it whole. `prefix` is the bytes that are whole records from the start.
 jp::office::CfbWish::End workbookEnd(QByteArrayView d)
 {
     jp::office::CfbWish::End out;
-    qsizetype at = 0, lastEnd = -1;
-    int depth = 0;
+    qsizetype at = 0, lastEnd = -1, lastStart = -1, listed = -1;
+    int depth = 0, top = 0;
     bool started = false;
     while (at + 4 <= d.size()) {
         const int id = quint8(d[at]) | quint8(d[at + 1]) << 8, len = quint8(d[at + 2]) | quint8(d[at + 3]) << 8;
         if (id == 0 || id >= 0x2000 || at + 4 + len > d.size()) break;
-        at += 4 + len;
         if (isBof(id)) {
+            if (depth == 0) {
+                lastStart = at;
+                ++top;
+            }
             ++depth;
             started = true;
+        } else if (id == 0x0085 && depth == 1 && top == 1 && len >= 4) {
+            listed = std::max<qsizetype>(listed, qsizetype(quint8(d[at + 4]) | quint8(d[at + 5]) << 8 | quint8(d[at + 6]) << 16 | quint32(quint8(d[at + 7])) << 24));
         } else if (id == kEof && depth > 0 && --depth == 0) {
-            lastEnd = at;
+            lastEnd = at + 4 + len;
         }
+        at += 4 + len;
     }
     out.prefix = at;
     bool zeros = true;
     for (qsizetype i = at; i < d.size() && zeros; ++i) zeros = d[i] == 0;
-    if (started && depth == 0 && lastEnd == at && zeros) out.whole = at;
+    if (started && depth == 0 && lastEnd == at && zeros && lastStart == std::max<qsizetype>(listed, 0)) out.whole = at;
+    return out;
+}
+
+// What the records after the first place where pieces were joined by guess say of themselves. They are kept only while they fit the workbook's own structure, and the stream stops at
+// the first record that does not: a substream that begins where the workbook's list of sheets gives no sheet (or a workbook's globals, or a sheet, inside another substream); a place the
+// list gives for a sheet that is not the start of a record, or is inside another substream; a cell outside the dimensions its sheet gives; an end record with nothing to end.
+struct JoinCheck {
+    qsizetype stopAt = -1;   // where the stream stops (the start of the first record that does not fit), -1 if every record fits
+    int sheet = -1;          // the sheet (in the order the workbook lists them) the first join falls in, -1 if it falls in the globals
+};
+JoinCheck checkAfterJoin(const QByteArray &d, qint64 firstJoin)
+{
+    JoinCheck out;
+    auto u16 = [&](qsizetype o) { return int(quint8(d[o]) | quint8(d[o + 1]) << 8); };
+    // (the list of where the sheets start: the sheet records of the globals, the first substream)
+    QVector<qsizetype> listed;
+    {
+        qsizetype at = 0;
+        int depth = 0;
+        while (at + 4 <= d.size()) {
+            const int id = u16(at), len = u16(at + 2);
+            if (id == 0 || id >= 0x2000 || at + 4 + len > d.size()) break;
+            if (isBof(id)) ++depth;
+            else if (id == kEof && --depth <= 0) break;
+            else if (id == 0x0085 && depth == 1 && len >= 4) listed << qsizetype(quint32(u16(at + 4)) | quint32(u16(at + 6)) << 16);
+            at += 4 + len;
+        }
+    }
+    QVector<qsizetype> sorted = listed;
+    std::sort(sorted.begin(), sorted.end());
+    for (int i = 0; i < listed.size(); ++i)
+        if (listed[i] <= firstJoin && (out.sheet < 0 || listed[i] >= listed[out.sheet])) out.sheet = i;
+    qsizetype at = 0, prev = 0;
+    int depth = 0;
+    qint64 rowMax = -1, colMax = -1;
+    int next = 0;   // the first listed place (in order of offset) at or after the first join not passed yet
+    while (next < sorted.size() && sorted[next] < firstJoin) ++next;
+    while (at + 4 <= d.size()) {
+        const int id = u16(at), len = u16(at + 2);
+        if (id == 0 || id >= 0x2000 || at + 4 + len > d.size()) break;
+        if (at >= firstJoin) {
+            // (a place the list gives was passed without a record beginning there: the record before it runs across it)
+            if (next < sorted.size() && sorted[next] < at) {
+                out.stopAt = prev;
+                return out;
+            }
+            bool bad = false;
+            if (next < sorted.size() && sorted[next] == at) {
+                bad = depth != 0 || !isBof(id);
+                ++next;
+            }
+            if (isBof(id)) {
+                const int type = len >= 4 ? u16(at + 6) : 0;
+                if (depth == 0 ? !std::binary_search(sorted.cbegin(), sorted.cend(), at) : type != 0x20) bad = true;
+            } else if (id == kEof && depth == 0) {
+                bad = true;
+            } else if (depth == 1 && rowMax >= 0 && len >= 4 && (id == 0x0006 || id == 0x0201 || id == 0x0203 || id == 0x0204 || id == 0x0205 || id == 0x00FD || id == 0x027E || id == 0x00BD || id == 0x00BE)) {
+                bad = u16(at + 4) >= rowMax || u16(at + 6) >= colMax;
+            }
+            if (bad) {
+                out.stopAt = at;
+                return out;
+            }
+        }
+        if (isBof(id)) {
+            if (depth == 0) rowMax = colMax = -1;
+            ++depth;
+        } else if (id == kEof && depth > 0) {
+            --depth;
+        } else if (id == 0x0200 && depth == 1) {
+            if (len >= 14) {
+                rowMax = qint64(quint32(u16(at + 8)) | quint32(u16(at + 10)) << 16);
+                colMax = u16(at + 14);
+            } else if (len >= 10) {
+                rowMax = u16(at + 6);
+                colMax = u16(at + 10);
+            }
+        }
+        prev = at;
+        at += 4 + len;
+    }
     return out;
 }
 
@@ -1519,13 +1607,14 @@ int dropAcrossJoins(QByteArray *d, const QVector<qint64> &joins)
         for (int i = first; i <= last; ++i) {
             (*d)[recs[i].at] = char(0xFF);
             (*d)[recs[i].at + 1] = char(0x1F);
+            std::fill(d->begin() + recs[i].at + 4, d->begin() + recs[i].end, '\0');   // (what was in it may be another stream's: it is not kept)
         }
     }
     return dropped;
 }
 
 // What became of the sheets, in words: each sheet that is cut short (with how far its cells go) or is gone, and what was read whole.
-QStringList sheetReport(const QByteArray &stream, const Limits &limits, XlsSalvageWork *counted, bool caveat)
+QStringList sheetReport(const QByteArray &stream, const Limits &limits, XlsSalvageWork *counted, bool caveat, bool endsConfirmed, bool joined, int joinSheet)
 {
     QStringList out;
     WorkbookInfo info;
@@ -1537,6 +1626,11 @@ QStringList sheetReport(const QByteArray &stream, const Limits &limits, XlsSalva
     qint64 work = 2 * qint64(stream.size()) + (1 << 20);
     const qint64 start = work;
     int damaged = 0, whole = 0, unchecked = 0, read = 0;
+    // (what follows a place where pieces were joined by a guess was checked only for its form: the sheet where it starts is named)
+    if (joined) {
+        if (joinSheet >= 0 && joinSheet < info.sheets.size()) out << QCoreApplication::translate("jp::office::sheet::Xls", "What follows a place where pieces of the file were joined by a guess was checked only to see that it is in the right form, not that it belongs here. It starts in sheet \"%1\".").arg(info.sheets[joinSheet].name);
+        else out << QCoreApplication::translate("jp::office::sheet::Xls", "What follows a place where pieces of the file were joined by a guess was checked only to see that it is in the right form, not that it belongs here. It starts in the front of the file, which holds the cell formats and fonts.");
+    }
     for (int i = 0; i < info.sheets.size(); ++i) {
         const QString name = info.sheets[i].name;
         const XlsBook::End end = book->sheetEnd(i, &work);
@@ -1567,8 +1661,8 @@ QStringList sheetReport(const QByteArray &stream, const Limits &limits, XlsSalva
     if (damaged > kSalvageSheetsReported) out << QCoreApplication::translate("jp::office::sheet::Xls", "More sheets were damaged or lost than are listed here.");
     if (unchecked > 0) out << QCoreApplication::translate("jp::office::sheet::Xls", "The sheets of this file were too many to check one by one, so some may be cut short.");
     // ("read whole" is not said beside a note of what was left out, or of a guess, or of an end that could not be confirmed: the sheets then only end where they should)
-    if (whole > 0 && damaged > 0) out << (caveat ? QCoreApplication::translate("jp::office::sheet::Xls", "The other sheets end where they should.") : QCoreApplication::translate("jp::office::sheet::Xls", "The other sheets were read whole."));
-    if (whole > 0 && damaged == 0 && unchecked == 0) out << (caveat ? QCoreApplication::translate("jp::office::sheet::Xls", "Every sheet ends where it should.") : QCoreApplication::translate("jp::office::sheet::Xls", "Every sheet was read whole."));
+    if (endsConfirmed && whole > 0 && damaged > 0) out << (caveat ? QCoreApplication::translate("jp::office::sheet::Xls", "The other sheets end where they should.") : QCoreApplication::translate("jp::office::sheet::Xls", "The other sheets were read whole."));
+    if (endsConfirmed && whole > 0 && damaged == 0 && unchecked == 0) out << (caveat ? QCoreApplication::translate("jp::office::sheet::Xls", "Every sheet ends where it should.") : QCoreApplication::translate("jp::office::sheet::Xls", "Every sheet was read whole."));
     qint64 globalsWork = 1 << 20;
     if (book->globalsEnd(&globalsWork) == XlsBook::End::Whole) out << QCoreApplication::translate("jp::office::sheet::Xls", "The cell formats, fonts, and sheet names were recovered.");
     else out << QCoreApplication::translate("jp::office::sheet::Xls", "The front of the file, which holds the cell formats and fonts, was cut short, so some formatting may be missing.");
@@ -1608,7 +1702,18 @@ QByteArray salvageXlsStream(const QByteArray &file, const Limits &limits, QStrin
     QString why;
     if (jp::office::salvageCompoundFile(file, {wish}, &found, &why)) {
         QByteArray stream = found.streams.value(QStringLiteral("Workbook"));
-        const int dropped = dropAcrossJoins(&stream, found.joins.value(QStringLiteral("Workbook")));
+        const QVector<qint64> joins = found.joins.value(QStringLiteral("Workbook"));
+        const int dropped = dropAcrossJoins(&stream, joins);
+        // (what follows the first guessed join is kept only while it fits the workbook's own structure)
+        qint64 firstJoin = -1;
+        for (qint64 j : joins)
+            if (j < stream.size() && (firstJoin < 0 || j < firstJoin)) firstJoin = j;
+        JoinCheck afterJoin;
+        if (firstJoin >= 0) {
+            afterJoin = checkAfterJoin(stream, firstJoin);
+            if (afterJoin.stopAt >= 0) stream.truncate(afterJoin.stopAt);
+            if (firstJoin >= stream.size()) firstJoin = -1;
+        }
         const bool sound = found.how.value(QStringLiteral("Workbook")) == jp::office::CfbSalvage::How::Whole && found.notes.isEmpty() && !found.repaired;
         if (!sound) {
             // (what the container gave that is not records, in a stream that was put together from sectors that were not all the stream's: the records before it are kept)
@@ -1643,7 +1748,7 @@ QByteArray salvageXlsStream(const QByteArray &file, const Limits &limits, QStrin
             } else {
                 *notes << found.notes;
                 if (dropped > 0) *notes << QCoreApplication::translate("jp::office::sheet::Xls", "%n entry of the workbook (a cell, a format, or a note) was left out because it lay across a place where pieces of the file were joined by a guess.", nullptr, dropped);
-                const QStringList report = sheetReport(stream, limits, counted, dropped > 0 || found.tablesGuessed || found.unverified || found.usedFree);
+                const QStringList report = sheetReport(stream, limits, counted, dropped > 0 || found.tablesGuessed || found.unverified || found.usedFree, !found.unverified, firstJoin >= 0, afterJoin.sheet);
                 if (report.isEmpty()) *notes << QCoreApplication::translate("jp::office::sheet::Xls", "A sheet that was cut short keeps the cells before the cut; whatever came after it is lost.");
                 else *notes << report;
             }

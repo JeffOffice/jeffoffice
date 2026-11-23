@@ -8,6 +8,7 @@
 #include <QString>
 #include <QtEndian>
 
+#include <algorithm>
 #include <functional>
 
 namespace cfbdamage {
@@ -53,6 +54,52 @@ struct Variant {
     QString what;
     QByteArray file;
 };
+
+// Two streams kept in sectors (`name` and `other`), both sound, with the first sectors of `other` moved to lie in the file right after the k-th sector of `name`'s chain (the chains
+// are changed to follow the bytes, so that both streams still read). `*first` is the sector where `other` now starts, and `*moved` how many of its sectors lie there.
+inline QByteArray placeAfter(const QByteArray &good, const QString &name, const QString &other, int k, quint32 *first = nullptr, int *moved = nullptr)
+{
+    QByteArray f = good;
+    const QList<quint32> c = sectorsOf(good, name), o = sectorsOf(good, other);
+    const int m = int(std::min<qsizetype>(o.size(), c.size() - k - 1));
+    if (m <= 0) return f;
+    for (int j = 0; j < m; ++j) {
+        const QByteArray a = good.mid(sectorAt(int(c[k + 1 + j])), 512), b = good.mid(sectorAt(int(o[j])), 512);
+        f.replace(sectorAt(int(c[k + 1 + j])), 512, b);
+        f.replace(sectorAt(int(o[j])), 512, a);
+    }
+    QList<quint32> nameSeq = c.mid(0, k + 1), otherSeq;
+    for (int j = 0; j < m; ++j) nameSeq << o[j];
+    nameSeq += c.mid(k + 1 + m);
+    for (int j = 0; j < m; ++j) otherSeq << c[k + 1 + j];
+    otherSeq += o.mid(m);
+    for (const QList<quint32> &seq : {nameSeq, otherSeq})
+        for (int i = 0; i < int(seq.size()); ++i) fatSet(f, seq[i], i + 1 < int(seq.size()) ? seq[i + 1] : kEnd);
+    set32(f, entryOf(f, other) + 116, otherSeq[0]);
+    if (first) *first = otherSeq[0];
+    if (moved) *moved = m;
+    return f;
+}
+
+// The arrangements of a damaged stream beside a neighbor whose own start field is damaged, so that no chain claims its sectors. In both the neighbor's sectors follow the k-th
+// sector of `name`'s chain in the file. (1) the chain ends there with its end marker and the directory gives three times the size; (2) the link after it is broken (past the end of the file).
+inline QByteArray neighborAfterEnd(const QByteArray &placed, const QString &name, const QString &other, int k)
+{
+    QByteArray f = placed;
+    const QList<quint32> c = sectorsOf(placed, name);
+    fatSet(f, c[k], kEnd);
+    set32(f, entryOf(f, name) + 120, sizeOf(placed, name) * 3);
+    set32(f, entryOf(f, other) + 116, 0x00FFFFF0);
+    return f;
+}
+inline QByteArray neighborAfterBrokenLink(const QByteArray &placed, const QString &name, const QString &other, int k)
+{
+    QByteArray f = placed;
+    const QList<quint32> c = sectorsOf(placed, name);
+    fatSet(f, c[k], 0x00FFFFF0);
+    set32(f, entryOf(f, other) + 116, 0x00FFFFF0);
+    return f;
+}
 
 // The damage to the sectors of the stream `name` (one kept in sectors, at least 8 of them) and, to name a second stream for the sharing, `other`.
 inline QList<Variant> sectorDamage(const QByteArray &good, const QString &name, const QString &other)
