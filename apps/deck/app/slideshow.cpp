@@ -2376,7 +2376,7 @@ QString SlideShow::helpText()
     lines << tr("A slide by number: type the number, then press Enter.");
     lines << tr("Black or white screen: B or W (or the period and comma keys).");
     lines << tr("Pen, highlighter, laser pointer, or arrow: %1, %2, %3, or %4.").arg(key(Qt::Key_P, ctrl), key(Qt::Key_I, ctrl), key(Qt::Key_L, ctrl), key(Qt::Key_A, ctrl));
-    lines << tr("Eraser, to rub out ink as you drag: %1.").arg(key(Qt::Key_E, ctrl));
+    lines << tr("Eraser, to remove ink as you drag: %1.").arg(key(Qt::Key_E, ctrl));
     lines << tr("Erase all ink on the slide at once: E, without Ctrl.");
     lines << tr("The menu: a right click, the Menu key, or Shift+F10.");
     lines << tr("Esc: put the pointer back to an arrow; press again to end the show.");
