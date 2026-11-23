@@ -4,6 +4,8 @@
 #include "flow/borderpaint.h"
 #include "app/theme.h"
 
+#include <limits>
+#include <set>
 #include <QAction>
 #include <QMenu>
 #include <QTimer>
@@ -136,6 +138,78 @@ void WriteTests::aBorderPainterPathIsCutAtTheMostPiecesItLooksAt()
     path.assign(5120 - 4096 > 0 ? 0 : 0, QPointF());
     for (int x = 4990; x <= 5200; ++x) path.push_back({double(x), 0});
     QCOMPARE(int(sidesUnderPath(cells, path, 3).size()), 1);
+}
+
+void WriteTests::aBorderPainterFindsTheSameSidesAnywhereOnThePage()
+{
+    using namespace jp::flow;
+    constexpr double reach = 3;
+    // The answer worked out side by side against every piece, for paths made only of horizontal and vertical pieces: a side is painted when the pieces
+    // within the reach of its line cover at least half of its length.
+    auto brute = [&](const std::vector<PaintCell> &cells, const std::vector<QPointF> &path) {
+        std::set<std::pair<int, int>> out;
+        for (const PaintCell &c : cells)
+            for (const CellSide side : {CellSide::Top, CellSide::Left, CellSide::Bottom, CellSide::Right}) {
+                const bool horizontal = side == CellSide::Top || side == CellSide::Bottom;
+                const double at = side == CellSide::Top ? c.box.top() : side == CellSide::Bottom ? c.box.bottom() : side == CellSide::Left ? c.box.left() : c.box.right();
+                const double from = horizontal ? c.box.left() : c.box.top(), to = horizontal ? c.box.right() : c.box.bottom();
+                std::vector<std::pair<double, double>> spans;
+                for (size_t i = 1; i < path.size(); ++i) {
+                    const double pa = horizontal ? path[i - 1].y() : path[i - 1].x(), qa = horizontal ? path[i].y() : path[i].x();
+                    const double pb = horizontal ? path[i - 1].x() : path[i - 1].y(), qb = horizontal ? path[i].x() : path[i].y();
+                    if (pa != qa || std::abs(pa - at) > reach) continue;   // (only pieces along the line count here)
+                    spans.push_back({std::max(std::min(pb, qb), from), std::min(std::max(pb, qb), to)});
+                }
+                std::sort(spans.begin(), spans.end());
+                double covered = 0, end = from;
+                for (const auto &sp : spans)
+                    if (sp.second > std::max(sp.first, end)) {
+                        covered += sp.second - std::max(sp.first, end);
+                        end = sp.second;
+                    }
+                if (covered * 2 >= to - from) out.insert({c.key, int(side)});
+            }
+        return out;
+    };
+    auto found = [](const std::vector<PaintedSide> &v) {
+        std::set<std::pair<int, int>> out;
+        for (const PaintedSide &s : v) out.insert({s.key, int(s.side)});
+        return out;
+    };
+    // Four columns by three rows of cells 40 by 20, the table's corner at each place: below and left of the page (negative squares of the grid), at the
+    // start, across the zero lines, and very far away (past the range where squares of the grid are told apart, where they only share candidates).
+    const QPointF corners[] = {{-1, -1}, {0, 0}, {-33, -5}, {-1000.5, -777}, {-31.5, 12}, {1e9, -1e9}, {-3e10, 3e10}, {-1e12, -1e12}, {1e15, 1e15}};
+    for (const QPointF &o : corners) {
+        std::vector<PaintCell> cells;
+        for (int r = 0; r < 3; ++r)
+            for (int c = 0; c < 4; ++c) cells.push_back({QRectF(o.x() + 40 * c, o.y() + 20 * r, 40, 20), r * 4 + c});
+        const std::vector<std::vector<QPointF>> paths = {
+            {{o.x() + 40, o.y() - 2}, {o.x() + 40, o.y() + 30}, {o.x() + 40, o.y() + 60}},   // down a line between columns, past the table's top
+            {{o.x() - 5, o.y() + 20}, {o.x() + 80, o.y() + 20}, {o.x() + 160, o.y() + 20}},   // along a line between rows, past the left edge
+            {{o.x() + 160, o.y()}, {o.x() + 160, o.y() + 60}, {o.x() + 100, o.y() + 60}},   // down the right edge, then along the foot
+            {{o.x(), o.y()}, {o.x(), o.y() + 60}},   // the left edge
+            {{o.x() + 10, o.y() + 10}, {o.x() + 20, o.y() + 10}},   // through the middle of a cell: nothing
+            {{o.x() - 500, o.y() - 500}, {o.x() - 500, o.y() - 400}},   // far from the table: nothing
+        };
+        for (size_t i = 0; i < paths.size(); ++i) {
+            const auto want = brute(cells, paths[i]);
+            const auto got = found(sidesUnderPath(cells, paths[i], reach));
+            QVERIFY2(got == want, qPrintable(QStringLiteral("corner %1,%2 path %3: %4 sides, want %5").arg(o.x()).arg(o.y()).arg(i).arg(got.size()).arg(want.size())));
+            if (i < 4) QVERIFY(!want.empty());
+        }
+    }
+    // One cell as large as the page's numbers allow is found by a path along its edge, and the looking stays counted.
+    std::vector<PaintCell> big = {{QRectF(-1e12, -1e12, 2e12, 2e12), 7}, {QRectF(-40, -20, 40, 20), 8}};
+    qint64 work = 0;
+    const auto onBig = found(sidesUnderPath(big, {{-1e12, -5e11}, {-1e12, 5e11}}, reach, &work));
+    QVERIFY(onBig.count({7, int(CellSide::Left)}));
+    QVERIFY(work > 0 && work <= kMostPaintComparisons);
+    // A point that is not a number, or at infinity, does no harm.
+    const double nan = std::numeric_limits<double>::quiet_NaN(), inf = std::numeric_limits<double>::infinity();
+    sidesUnderPath(big, {{nan, 0}, {0, nan}}, reach, &work);
+    QVERIFY(work <= kMostPaintComparisons);
+    sidesUnderPath(big, {{-inf, 0}, {inf, 0}}, reach, &work);
+    QVERIFY(work <= kMostPaintComparisons);
 }
 
 void WriteTests::aScribbleOverAHugeTableIsBoundedByACountedNumberOfLooks()

@@ -44,15 +44,28 @@ std::vector<PaintedSide> sidesUnderPath(const std::vector<PaintCell> &cells, con
     if (path.size() == 1) pieces.push_back({path[0], path[0]});
     for (size_t i = 1; i < path.size() && int(pieces.size()) < kMostPaintPieces; ++i) pieces.push_back({path[i - 1], path[i]});
     // The cells by the squares of a grid they reach (with the reach added), so that a piece looks at the cells near it, not at all of them.
+    // A square's number is whole and kept within +-kMostSquare (about +-3.4e10 points), so that far or odd coordinates (negative, huge, infinite, not a number)
+    // never overflow; the key adds the same amount to each number, so no two squares inside that range share a key. Past the range squares are merged,
+    // which only makes a cell a candidate more often: every candidate is still tested against the piece's box below.
     constexpr double kSquare = 32;
-    auto squareOf = [](double v) { return int(std::floor(v / kSquare)); };
-    QHash<qint64, std::vector<int>> grid;
-    auto key = [](int x, int y) { return (qint64(x) << 32) ^ qint64(unsigned(y)); };
+    constexpr qint64 kMostSquare = qint64(1) << 30, kMostSquaresOfACell = 1024;
+    auto squareOf = [](double v) -> qint64 {
+        if (std::isnan(v)) return 0;
+        return qint64(std::clamp(std::floor(v / kSquare), -double(kMostSquare), double(kMostSquare)));
+    };
+    auto key = [](qint64 x, qint64 y) { return (quint64(x + kMostSquare) << 32) | quint64(y + kMostSquare); };
+    QHash<quint64, std::vector<int>> grid;
+    std::vector<int> large;   // cells that reach more squares than kMostSquaresOfACell: each is looked at for every piece, not entered in every square
     for (size_t i = 0; i < cells.size(); ++i) {
         const QRectF b = cells[i].box.adjusted(-reach, -reach, reach, reach);
         if (!(b.width() >= 0) || !(b.height() >= 0)) continue;
-        for (int x = squareOf(b.left()); x <= squareOf(b.right()); ++x)
-            for (int y = squareOf(b.top()); y <= squareOf(b.bottom()); ++y) grid[key(x, y)].push_back(int(i));
+        const qint64 x0 = squareOf(b.left()), x1 = squareOf(b.right()), y0 = squareOf(b.top()), y1 = squareOf(b.bottom());
+        if ((x1 - x0 + 1) * (y1 - y0 + 1) > kMostSquaresOfACell) {
+            large.push_back(int(i));
+            continue;
+        }
+        for (qint64 x = x0; x <= x1; ++x)
+            for (qint64 y = y0; y <= y1; ++y) grid[key(x, y)].push_back(int(i));
     }
     qint64 done = 0;
     qint64 &count = work ? *work : done;
@@ -63,8 +76,32 @@ std::vector<PaintedSide> sidesUnderPath(const std::vector<PaintCell> &cells, con
     bool cut = false;
     for (size_t k = 0; k < pieces.size() && !cut; ++k) {
         const QRectF box = QRectF(pieces[k].first, pieces[k].second).normalized().adjusted(-reach, -reach, reach, reach);
-        for (int x = squareOf(box.left()); x <= squareOf(box.right()) && !cut; ++x)
-            for (int y = squareOf(box.top()); y <= squareOf(box.bottom()) && !cut; ++y) {
+        // The cells in one list, each looked at once for this piece; true when the count is used up.
+        auto lookAt = [&](const std::vector<int> &list) {
+            for (const int ci : list) {
+                if (seen[size_t(ci)] == int(k)) continue;
+                seen[size_t(ci)] = int(k);
+                if (count + 5 > kMostPaintComparisons) return true;
+                ++count;   // (a cell)
+                const PaintCell &cell = cells[size_t(ci)];
+                if (!cell.box.intersects(box)) continue;
+                for (const CellSide side : {CellSide::Top, CellSide::Left, CellSide::Bottom, CellSide::Right}) {
+                    if ((side == CellSide::Top && cell.continued) || (side == CellSide::Bottom && cell.continues)) continue;
+                    ++count;   // (a piece against a side)
+                    const bool horizontal = side == CellSide::Top || side == CellSide::Bottom;
+                    const double at = side == CellSide::Top ? cell.box.top() : side == CellSide::Bottom ? cell.box.bottom() : side == CellSide::Left ? cell.box.left() : cell.box.right();
+                    const double from = horizontal ? cell.box.left() : cell.box.top(), to = horizontal ? cell.box.right() : cell.box.bottom();
+                    if (to - from <= 0) continue;
+                    double lo = 0, hi = 0;
+                    if (clipped(pieces[k].first, pieces[k].second, horizontal, at, reach, &lo, &hi)) spansOf[ci * 4 + int(side)].push_back({std::max(lo, from), std::min(hi, to)});
+                }
+            }
+            return false;
+        };
+        cut = lookAt(large);
+        const qint64 x1 = squareOf(box.right()), y1 = squareOf(box.bottom());
+        for (qint64 x = squareOf(box.left()); x <= x1 && !cut; ++x)
+            for (qint64 y = squareOf(box.top()); y <= y1 && !cut; ++y) {
                 if (count >= kMostPaintComparisons) {
                     cut = true;
                     break;
@@ -72,27 +109,7 @@ std::vector<PaintedSide> sidesUnderPath(const std::vector<PaintCell> &cells, con
                 ++count;   // (a square looked into)
                 const auto found = grid.constFind(key(x, y));
                 if (found == grid.constEnd()) continue;
-                for (const int ci : found.value()) {
-                    if (seen[size_t(ci)] == int(k)) continue;
-                    seen[size_t(ci)] = int(k);
-                    if (count + 5 > kMostPaintComparisons) {
-                        cut = true;
-                        break;
-                    }
-                    ++count;   // (a cell)
-                    const PaintCell &cell = cells[size_t(ci)];
-                    if (!cell.box.intersects(box)) continue;
-                    for (const CellSide side : {CellSide::Top, CellSide::Left, CellSide::Bottom, CellSide::Right}) {
-                        if ((side == CellSide::Top && cell.continued) || (side == CellSide::Bottom && cell.continues)) continue;
-                        ++count;   // (a piece against a side)
-                        const bool horizontal = side == CellSide::Top || side == CellSide::Bottom;
-                        const double at = side == CellSide::Top ? cell.box.top() : side == CellSide::Bottom ? cell.box.bottom() : side == CellSide::Left ? cell.box.left() : cell.box.right();
-                        const double from = horizontal ? cell.box.left() : cell.box.top(), to = horizontal ? cell.box.right() : cell.box.bottom();
-                        if (to - from <= 0) continue;
-                        double lo = 0, hi = 0;
-                        if (clipped(pieces[k].first, pieces[k].second, horizontal, at, reach, &lo, &hi)) spansOf[ci * 4 + int(side)].push_back({std::max(lo, from), std::min(hi, to)});
-                    }
-                }
+                cut = lookAt(found.value());
             }
     }
     for (auto &entry : spansOf) {
