@@ -13,6 +13,7 @@ class QListWidget;
 class QTabWidget;
 class QTreeWidget;
 class QTreeWidgetItem;
+class QFrame;
 
 namespace jp {
 
@@ -36,6 +37,15 @@ public:
     void goToHeading(QTreeWidgetItem *item);
     // Promotes or demotes the heading of the row and the headings under it by one level; false where a level would pass the ends.
     bool moveHeadingLevel(QTreeWidgetItem *item, int by);
+    // Moves the section of the heading of the row (the heading and what is under it, to the next of its level or a higher one) to before the heading of the row numbered `before` (the end of the
+    // text when it is the number of rows), keeping its level, as one step of the history; says in the status bar why when it is refused. True if it moved.
+    bool moveSectionTo(QTreeWidgetItem *item, int before);
+    // Moves it past the section of the same level above it or below it (the context menu's and the keys' commands).
+    bool moveSectionBy(QTreeWidgetItem *item, bool up);
+    // While a heading is being dragged: the number of its row (-1 when none), the number of the heading the line shows it will go before (-1 where there is no place to drop it), and the line.
+    int draggedHeading() const { return m_dragFrom; }
+    int dropBefore() const { return m_dropBefore; }
+    QWidget *dropLine() const { return m_line; }
     // Finds the text in the box (at most kMostResults places), listing each with the words round it.
     void search();
     static constexpr int kMostResults = 500;
@@ -44,8 +54,17 @@ public:
     int rebuildCountForTest() const { return m_rebuildCount; }
     int scanCountForTest() const { return m_scanCount; }
     int thumbnailsMadeForTest() const { return m_thumbnailsMade; }
+    // For tests: the rows looked at by the mouse moves of drags (a move looks at the rows under the pointer and the one below it, never at the text), and the paragraphs the last drop worked on.
+    qint64 dragRowsLookedAtForTest() const { return m_dragRows; }
+    qint64 dragMovesForTest() const { return m_dragMoves; }
+    qint64 lastDropWorkForTest() const { return m_dropWork; }
+
+protected:
+    bool eventFilter(QObject *watched, QEvent *event) override;
 
 private:
+    void dragMoved(const QPoint &at);
+    void endDrag(const QPoint &at, bool drop);
     void scanHeadings();
     void rebuildPages();
     void fillThumbnails();
@@ -65,6 +84,11 @@ private:
     QVector<int> m_positions;                        // where each heading is now, in order
     QVector<std::pair<QString, int>> m_shown;        // the words and level of each heading the tree shows
     int m_rebuildCount = 0, m_scanCount = 0, m_thumbnailsMade = 0;
+    QFrame *m_line = nullptr;                        // (the line that shows where a dragged heading will land)
+    QPoint m_pressAt;
+    int m_pressed = -1, m_dragFrom = -1, m_dragEnd = 0, m_dropBefore = -1;   // (the row pressed, the row dragged, the number after its section's last heading, the place the line shows)
+    bool m_swallowRelease = false;
+    qint64 m_dragRows = 0, m_dragMoves = 0, m_dropWork = 0;
 };
 
 } // namespace jp

@@ -6,6 +6,7 @@
 #include "app/pageview.h"
 #include "app/ribbon.h"
 #include "app/ruler.h"
+#include "core/sectionmove.h"
 
 #include <QAction>
 #include <QApplication>
@@ -47,7 +48,31 @@ void WriteWindow::createViewExtraActions()
             m_sidePartner->setGeometry(area.left() + area.width() / 2, area.top(), area.width() / 2, area.height());
         }
     });
+    mk("view.moveSectionUp", tr("Move Section Up"), "arrow-up", QKeySequence(Qt::ALT | Qt::SHIFT | Qt::Key_Up), [this] { moveSectionAtCaret(true); });
+    mk("view.moveSectionDown", tr("Move Section Down"), "arrow-down", QKeySequence(Qt::ALT | Qt::SHIFT | Qt::Key_Down), [this] { moveSectionAtCaret(false); });
     mk("view.focus", tr("Focus"), "focus", QKeySequence(Qt::Key_F11), [this] { setFocusMode(!m_focusMode); });
+}
+
+void WriteWindow::moveSectionAtCaret(bool up)
+{
+    if (!m_doc || m_outlineOn) return;
+    // The section is the one of the nearest heading at or above the caret.
+    QTextBlock b = m_doc->story()->findBlock(m_view->cursor().position());
+    while (b.isValid() && !write::sectionAt(*m_doc, b.position(), nullptr)) b = b.previous();
+    if (!b.isValid()) {
+        statusBar()->showMessage(tr("Put the caret in a heading, or under one, to move its section."), 5000);
+        return;
+    }
+    QString why;
+    int movedTo = -1;
+    if (!write::moveSectionBy(*m_doc, b.position(), up, &why, &movedTo)) {
+        if (!why.isEmpty()) statusBar()->showMessage(why, 6000);
+        return;
+    }
+    QTextCursor c(m_doc->story());
+    c.setPosition(movedTo);
+    m_view->showCursor(c);
+    if (m_nav) m_nav->refresh();
 }
 
 void WriteWindow::showNavigationPane(bool show)

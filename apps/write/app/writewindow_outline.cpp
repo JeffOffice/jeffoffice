@@ -169,6 +169,8 @@ void WriteWindow::setOutlineMode(bool on)
     m_pagesColumn->setStretchFactor(m_pagesBody, on ? 0 : 1);
     for (QAction *a : m_actions)
         if (a->objectName().startsWith(QLatin1String("outline."))) a->setEnabled(on);
+    act("view.moveSectionUp")->setEnabled(!on);   // (the outline's own moves have these keys there)
+    act("view.moveSectionDown")->setEnabled(!on);
     if (on) {
         // The pages and the ruler give way to the tree; it opens on the paragraph the caret is in.
         const int at = m_view->cursor().position();

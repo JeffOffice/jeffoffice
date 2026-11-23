@@ -4,9 +4,17 @@
 #include "app/writewindow.h"
 #include "core/editops.h"
 #include "core/gotoops.h"
+#include "core/blockmove.h"
+#include "core/sectionmove.h"
 #include "core/writedoc.h"
 #include "core/writeprops.h"
 
+#include <QApplication>
+#include <QComboBox>
+#include <QFrame>
+#include <QKeyEvent>
+#include <QMouseEvent>
+#include <QStatusBar>
 #include <QComboBox>
 #include <QCoreApplication>
 #include <QHeaderView>
@@ -48,6 +56,14 @@ NavigationPane::NavigationPane(WriteWindow *win, QWidget *parent) : QWidget(pare
     m_headings->setAccessibleName(tr("Headings"));
     m_headings->setContextMenuPolicy(Qt::CustomContextMenu);
     m_tabs->addTab(m_headings, tr("Headings"));
+    m_line = new QFrame(m_headings->viewport());
+    m_line->setObjectName(QStringLiteral("navigationDropLine"));
+    m_line->setAttribute(Qt::WA_TransparentForMouseEvents);
+    m_line->setStyleSheet(QStringLiteral("QFrame#navigationDropLine { background-color: palette(highlight); border: none; }"));
+    m_line->setFixedHeight(3);
+    m_line->hide();
+    m_headings->viewport()->installEventFilter(this);
+    m_headings->installEventFilter(this);
     connect(m_headings, &QTreeWidget::itemClicked, this, [this](QTreeWidgetItem *item) { goToHeading(item); });
     connect(m_headings, &QWidget::customContextMenuRequested, this, [this](const QPoint &at) {
         QTreeWidgetItem *item = m_headings->itemAt(at);
@@ -55,6 +71,9 @@ NavigationPane::NavigationPane(WriteWindow *win, QWidget *parent) : QWidget(pare
         if (item) {
             connect(menu.addAction(tr("Promote")), &QAction::triggered, this, [this, item] { moveHeadingLevel(item, -1); });
             connect(menu.addAction(tr("Demote")), &QAction::triggered, this, [this, item] { moveHeadingLevel(item, 1); });
+            menu.addSeparator();
+            connect(menu.addAction(tr("Move Section Up")), &QAction::triggered, this, [this, item] { moveSectionBy(item, true); });
+            connect(menu.addAction(tr("Move Section Down")), &QAction::triggered, this, [this, item] { moveSectionBy(item, false); });
             menu.addSeparator();
         }
         connect(menu.addAction(tr("Expand All")), &QAction::triggered, m_headings, &QTreeWidget::expandAll);
@@ -247,6 +266,178 @@ bool NavigationPane::moveHeadingLevel(QTreeWidgetItem *item, int by)
     }
     scanHeadings();
     return true;
+}
+
+bool NavigationPane::moveSectionTo(QTreeWidgetItem *item, int before)
+{
+    write::WriteDoc *doc = m_win->document();
+    const int number = numberOf(item);
+    if (number < 0 || !doc) return false;
+    if (m_win->refuseIfReadOnly()) return false;
+    const int position = m_positions[number];
+    const int target = before >= 0 && before < m_positions.size() ? m_positions[before] : -1;
+    QString why;
+    int movedTo = -1;
+    const qint64 steps = doc->story()->revision();
+    const bool moved = write::moveSection(*doc, position, target, &why, &movedTo);
+    m_dropWork = write::moveBlocksWorkForTest();
+    if (!moved) {
+        if (!why.isEmpty()) m_win->statusBar()->showMessage(why, 6000);
+        return false;
+    }
+    Q_UNUSED(steps);
+    scanHeadings();
+    QTextCursor c(doc->story());
+    c.setPosition(std::clamp(movedTo, 0, write::editableEnd(doc->story())));
+    m_win->view()->showCursor(c);
+    markCaretHeading();
+    return true;
+}
+
+bool NavigationPane::moveSectionBy(QTreeWidgetItem *item, bool up)
+{
+    write::WriteDoc *doc = m_win->document();
+    const int number = numberOf(item);
+    if (number < 0 || !doc) return false;
+    if (m_win->refuseIfReadOnly()) return false;
+    QString why;
+    int movedTo = -1;
+    if (!write::moveSectionBy(*doc, m_positions[number], up, &why, &movedTo)) {
+        m_dropWork = write::moveBlocksWorkForTest();
+        if (!why.isEmpty()) m_win->statusBar()->showMessage(why, 6000);
+        return false;
+    }
+    m_dropWork = write::moveBlocksWorkForTest();
+    scanHeadings();
+    QTextCursor c(doc->story());
+    c.setPosition(std::clamp(movedTo, 0, write::editableEnd(doc->story())));
+    m_win->view()->showCursor(c);
+    markCaretHeading();
+    return true;
+}
+
+// Dragging a heading: the press, the moves, and the release of the pointer on the tree are watched here (not Qt's own drag, which holds the program in a loop of its own). A move looks only at the
+// row under the pointer and the one below it: the place the line shows is the heading of the row that follows it, and what is not a place (the section itself, what is inside it, and where it
+// already is) shows no line. The drop is one edit.
+bool NavigationPane::eventFilter(QObject *watched, QEvent *event)
+{
+    if (watched == m_headings && m_dragFrom >= 0 && (event->type() == QEvent::KeyPress || event->type() == QEvent::ShortcutOverride)) {
+        auto *key = static_cast<QKeyEvent *>(event);
+        if (key->key() == Qt::Key_Escape) {
+            event->accept();
+            if (event->type() == QEvent::KeyPress) endDrag(QPoint(), false);
+            return true;
+        }
+    }
+    if (watched != m_headings->viewport()) return QWidget::eventFilter(watched, event);
+    switch (event->type()) {
+    case QEvent::MouseButtonPress: {
+        auto *e = static_cast<QMouseEvent *>(event);
+        m_pressed = -1;
+        m_swallowRelease = false;
+        if (e->button() != Qt::LeftButton) break;
+        if (QTreeWidgetItem *item = m_headings->itemAt(e->position().toPoint())) m_pressed = item->data(0, kPositionRole).toInt();
+        m_pressAt = e->position().toPoint();
+        break;
+    }
+    case QEvent::MouseMove: {
+        auto *e = static_cast<QMouseEvent *>(event);
+        if (!(e->buttons() & Qt::LeftButton) || m_pressed < 0 || m_pressed >= m_items.size()) break;
+        if (m_dragFrom < 0 && !m_swallowRelease) {
+            if ((e->position().toPoint() - m_pressAt).manhattanLength() < QApplication::startDragDistance()) break;
+            if (m_win->refuseIfReadOnly()) {
+                m_swallowRelease = true;
+                return true;
+            }
+            m_dragFrom = m_pressed;
+            m_dragEnd = m_dragFrom + 1;
+            while (m_dragEnd < m_shown.size() && m_shown[m_dragEnd].second > m_shown[m_dragFrom].second) ++m_dragEnd;
+            m_dropBefore = -1;
+        }
+        if (m_dragFrom >= 0) {
+            dragMoved(e->position().toPoint());
+            return true;
+        }
+        break;
+    }
+    case QEvent::MouseButtonRelease: {
+        auto *e = static_cast<QMouseEvent *>(event);
+        if (e->button() != Qt::LeftButton) break;
+        if (m_dragFrom >= 0) {
+            endDrag(e->position().toPoint(), true);
+            return true;
+        }
+        if (m_swallowRelease) {
+            m_swallowRelease = false;
+            return true;
+        }
+        break;
+    }
+    default:
+        break;
+    }
+    return QWidget::eventFilter(watched, event);
+}
+
+void NavigationPane::dragMoved(const QPoint &at)
+{
+    ++m_dragMoves;
+    QWidget *view = m_headings->viewport();
+    // (Near the top or the bottom edge the list scrolls a step with each move.)
+    if (at.y() < 14) m_headings->verticalScrollBar()->setValue(m_headings->verticalScrollBar()->value() - m_headings->verticalScrollBar()->singleStep());
+    else if (at.y() > view->height() - 14) m_headings->verticalScrollBar()->setValue(m_headings->verticalScrollBar()->value() + m_headings->verticalScrollBar()->singleStep());
+    m_dropBefore = -1;
+    int lineY = -1;
+    QTreeWidgetItem *row = view->rect().contains(at) ? m_headings->itemAt(at) : nullptr;
+    ++m_dragRows;
+    if (row) {
+        const QRect box = m_headings->visualItemRect(row);
+        const bool upper = at.y() < box.center().y();
+        const int number = row->data(0, kPositionRole).toInt();
+        if (upper) {
+            m_dropBefore = number;
+            lineY = box.top();
+        } else {
+            QTreeWidgetItem *below = m_headings->itemBelow(row);
+            ++m_dragRows;
+            m_dropBefore = below ? below->data(0, kPositionRole).toInt() : int(m_shown.size());
+            lineY = box.bottom() + 1;
+        }
+        if (m_dropBefore >= m_dragFrom && m_dropBefore <= m_dragEnd) m_dropBefore = -1;   // (in the section, or where it is)
+    } else if (view->rect().contains(at) && !m_items.isEmpty() && at.y() > m_headings->visualItemRect(m_items.last()).bottom()) {
+        // Below the last row (the list may end in collapsed rows: the last visible one is what the line goes under).
+        QTreeWidgetItem *last = m_headings->topLevelItem(m_headings->topLevelItemCount() - 1);
+        while (last && last->isExpanded() && last->childCount() > 0) last = last->child(last->childCount() - 1);
+        ++m_dragRows;
+        if (last) {
+            m_dropBefore = int(m_shown.size());
+            lineY = m_headings->visualItemRect(last).bottom() + 1;
+            if (m_dropBefore <= m_dragEnd) m_dropBefore = -1;
+        }
+    }
+    if (m_dropBefore < 0) {
+        m_line->hide();
+        view->setCursor(Qt::ForbiddenCursor);
+        return;
+    }
+    view->setCursor(Qt::ArrowCursor);
+    m_line->setGeometry(0, lineY - 1, view->width(), 3);
+    m_line->show();
+    m_line->raise();
+}
+
+void NavigationPane::endDrag(const QPoint &at, bool drop)
+{
+    const int from = m_dragFrom, before = m_dropBefore;
+    m_dragFrom = m_pressed = -1;
+    m_dropBefore = -1;
+    m_line->hide();
+    m_headings->viewport()->unsetCursor();
+    if (!drop || from < 0 || before < 0 || !m_headings->viewport()->rect().contains(at)) return;
+    if (from >= m_items.size()) return;
+    // (The headings are looked for again if the text changed since the press: a drag that was begun on rows that are not those any more does nothing.)
+    if (m_revision != m_win->document()->story()->revision()) return;
+    moveSectionTo(m_items[from], before);
 }
 
 // The pages as small pictures: the list has a place for each page, and a picture is made for a page when its place is in view (as the list is shown, and as it is scrolled).

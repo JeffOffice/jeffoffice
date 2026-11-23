@@ -393,6 +393,8 @@ public:
 
     // The Navigation pane on the left (made when first shown, so null before): View > Navigation Pane.
     void showNavigationPane(bool show = true);
+    // Moves the section the caret is in (the nearest heading above it, with what is under it) past its neighbor of the same level.
+    void moveSectionAtCaret(bool up);
     NavigationPane *navigationPane() const { return m_nav; }
     // Focus mode: the ribbon, ruler, status bar, and panes hidden and the window full screen (View > Focus, F11; Esc leaves it).
     void setFocusMode(bool on);

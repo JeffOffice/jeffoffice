@@ -1,5 +1,5 @@
 # Find your way with the Navigation pane
-<!-- keywords: web layout, web view, wrap to window, collapse heading, expand heading, fold, triangle, navigation pane, navigation, headings, outline, pages, thumbnails, results, results by heading, results by page, search, promote, demote, collapse, expand, outline view, outlining, page movement, side to side, read mode, draft view, split, move heading, show level, focus, focus mode, full screen, gridlines -->
+<!-- keywords: web layout, web view, wrap to window, collapse heading, expand heading, fold, triangle, navigation pane, navigation, headings, outline, pages, thumbnails, results, results by heading, results by page, search, promote, demote, collapse, expand, outline view, outlining, page movement, side to side, read mode, draft view, split, move heading, move section, reorder sections, drag a heading, show level, focus, focus mode, full screen, gridlines -->
 
 The **Navigation pane** is a panel on the left of the window. Open it with **View > Navigation Pane**. It has three tabs.
 
@@ -10,6 +10,9 @@ This is an outline of your document. It lists each paragraph that has an **outli
 - Click a heading to go to it.
 - Click the small arrow beside a heading to hide or show the headings under it.
 - Right-click a heading and choose **Promote** or **Demote** to make it, and the headings under it, one level bigger or smaller. This gives them the style Heading 1, Heading 2, and so on. It is one step to undo.
+- Drag a heading up or down the list to move it, with everything under it (up to the next heading of the same or a bigger size), to a new place. A line shows where it will land. Drop it on itself, or inside its own section, to do nothing, or press **Esc** to cancel. The section keeps its level, and it is one step to undo.
+- Right-click a heading and choose **Move Section Up** or **Move Section Down** to move it past the section of the same level next to it. In the text, **Alt+Shift+Up** and **Alt+Shift+Down** (**View > Move Section Up** and **Move Section Down**) move the section the caret is in.
+- A section is not moved, and the status bar says why, when Track Changes is on, when the document is protected or read only, when it holds one end of a bookmark, comment, field, or content control whose other end is outside it, when it holds a section break that would change the page setup of other text, or when the move would cut a table.
 - Right-click and choose **Expand All** or **Collapse All** to open or close the whole list.
 
 ## Pages
