@@ -6631,7 +6631,7 @@
         },
         {
          "status": "partly",
-         "text": "01da7f516424cc5b59761ae90de1d46c4c10cc58d2fc17e87670e6357806d057"
+         "text": "6801c4850e10b6a6231fb3adff0f155497f76c88f8d5c66f4b2505af0a60b3ca"
         },
         {
          "hide_soon": true,
@@ -7887,18 +7887,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "01da7f516424cc5b59761ae90de1d46c4c10cc58d2fc17e87670e6357806d057": {
-   "drop": false,
-   "en": "Set margins with a gutter on the left, orientation, paper size, section start, a different first page, different odd and even pages, and header and footer distances, for a section or the whole document. Apply changes from this point forward, and set the vertical alignment of the page (top, center, justified, or bottom). Line numbers are set in Layout > Line Numbers and page borders in Design.",
-   "es": "Defina márgenes con medianil a la izquierda, orientación, tamaño del papel, inicio de sección, primera página distinta, páginas pares e impares distintas y distancias del encabezado y del pie de página, para una sección o todo el documento. Aplique los cambios desde este punto en adelante y defina la alineación vertical de la página (superior, centrada, justificada o inferior). Los números de línea se definen en Diseño de página > Números de línea y los bordes de página en Diseño.",
-   "fr": "Définissez les marges avec une reliure à gauche, l’orientation, le format du papier, le début de section, une première page différente, des pages paires et impaires différentes et les distances de l’en-tête et du pied de page, pour une section ou tout le document. Appliquez les changements à partir de ce point et définissez l’alignement vertical de la page (haut, centré, justifié ou bas). Les numéros de ligne se définissent dans Mise en page > Numéros de ligne et les bordures de page dans Création.",
-   "soon": {
-    "drop": false,
-    "en": "Page Setup: paper source and a gutter at the top",
-    "es": "Configurar página: origen del papel y medianil en la parte superior",
-    "fr": "Mise en page : source du papier et reliure en haut"
    }
   },
   "025da5213017d5f3cdbb40b530a254abbd9a6887dc95c4c8191545066040a862": {
@@ -15891,6 +15879,18 @@
     "en": "Form fields: insert and fill in",
     "es": "Campos de formulario: insertar y rellenar",
     "fr": "Champs de formulaire : insertion et remplissage"
+   }
+  },
+  "6801c4850e10b6a6231fb3adff0f155497f76c88f8d5c66f4b2505af0a60b3ca": {
+   "drop": false,
+   "en": "Set margins with a left gutter, orientation, and paper size in the Page Setup dialog. Choose the section start, different odd and even pages, a different first page, and header and footer distances from the edge, and set vertical page alignment (top, center, justified, or bottom). Choose a paper tray for the first page and for the other pages. Apply the settings to the section, the whole document, or from this point forward.",
+   "es": "Defina en el cuadro de diálogo Configurar página los márgenes con medianil a la izquierda, la orientación y el tamaño del papel. Elija el inicio de sección, páginas pares e impares distintas, una primera página distinta y las distancias del encabezado y del pie de página al borde, y establezca la alineación vertical de la página (superior, centrada, justificada o inferior). Elija una bandeja de papel para la primera página y otra para el resto. Aplique los ajustes a la sección, a todo el documento o desde este punto en adelante.",
+   "fr": "Définissez dans la boîte de dialogue Mise en page les marges avec une reliure à gauche, l’orientation et le format du papier. Choisissez le début de section, des pages paires et impaires différentes, une première page différente et les distances de l’en-tête et du pied de page par rapport au bord, et réglez l’alignement vertical de la page (haut, centré, justifié ou bas). Choisissez un bac à papier pour la première page et un autre pour les pages suivantes. Appliquez les réglages à la section, à tout le document ou à partir de ce point.",
+   "soon": {
+    "drop": false,
+    "en": "Gutter at the top of the page",
+    "es": "Medianil en la parte superior de la página",
+    "fr": "Reliure en haut de la page"
    }
   },
   "681503eea6266c84d44bac0530d3d04df8ed2c847de4f1c7e22381c174d68b3e": {
