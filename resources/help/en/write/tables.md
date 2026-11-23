@@ -80,6 +80,8 @@ Use them in **SUM**, **AVERAGE**, **COUNT**, **MIN**, **MAX**, **PRODUCT**, and 
 
 To erase borders, set **Pen Style** to **No Border**, and drag along the lines the same way. The cells on both sides of a line agree, so the line is drawn or erased from both. Each drag is one step to undo.
 
+A cell that is joined from several rows has one side as tall as all of them, so a drag along at least half of that side draws or erases its line along the whole side, and a shorter drag leaves the line on that cell as it was, which can leave it showing after you erase part of it.
+
 The lines are kept in .docx, .odt, and .rtf files. A change of borders is not marked as a tracked change, even when Track Changes is on, the same as the Borders menu.
 
 ## Make your own table style
