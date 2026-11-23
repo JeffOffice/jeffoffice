@@ -5919,7 +5919,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "ec98a2bdb99a59e033266f6092fdc2ac7d1451c992bfac5811a7ec05961aec86"
+         "text": "b3e9be2c0faef5246bb5d4612d3977bc13e80ff9f245acd467888f1da15a462e"
         },
         {
          "hide_soon": true,
@@ -20992,6 +20992,18 @@
     "fr": ""
    }
   },
+  "b3e9be2c0faef5246bb5d4612d3977bc13e80ff9f245acd467888f1da15a462e": {
+   "drop": false,
+   "en": "Inspect the document before sharing: find and remove comments, tracked changes, personal information, hidden text, custom XML, and headers and footers, and see a count of each kind. Links to other files are also found and removed.",
+   "es": "Inspeccione el documento antes de compartirlo: busque y elimine comentarios, cambios con control de cambios, información personal, texto oculto, XML personalizado, y encabezados y pies de página, y vea el recuento de cada tipo. También se encuentran y eliminan los vínculos a otros archivos.",
+   "fr": "Inspectez le document avant de le partager : recherchez et supprimez les commentaires, les modifications suivies, les informations personnelles, le texte masqué, le XML personnalisé, ainsi que les en-têtes et pieds de page, et consultez le nombre d’éléments de chaque type. Les liens vers d’autres fichiers sont également détectés et supprimés.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "b40954ad2678d8dc579f66df89f32930bed3508001a231fe23c0e47a25257822": {
    "drop": false,
    "en": "Open and save macro-enabled `.pptm`, `.ppsm`, and `.potm` files. The macro project is kept unchanged and is never run.",
@@ -25250,18 +25262,6 @@
     "en": "Edit Recipient List: sort, filter, find duplicates, validate addresses, and include or exclude records",
     "es": "Editar lista de destinatarios: ordenar, filtrar, buscar duplicados, validar direcciones e incluir o excluir registros",
     "fr": "Modification de la liste de destinataires : trier, filtrer, trouver les doublons, valider les adresses et inclure ou exclure des enregistrements"
-   }
-  },
-  "ec98a2bdb99a59e033266f6092fdc2ac7d1451c992bfac5811a7ec05961aec86": {
-   "drop": false,
-   "en": "Find and remove comments, tracked changes, personal information, hidden text, custom XML, links to other files, and headers and footers before sharing a document. Each kind is counted and removed with one button.",
-   "es": "Busque y elimine comentarios, cambios con seguimiento, información personal, texto oculto, XML personalizado, vínculos a otros archivos, y encabezados y pies de página antes de compartir un documento. Cada tipo se cuenta y se elimina con un solo botón.",
-   "fr": "Recherchez et supprimez les commentaires, les modifications suivies, les informations personnelles, le texte masqué, le XML personnalisé, les liens vers d’autres fichiers, ainsi que les en-têtes et pieds de page avant de partager un document. Chaque type est compté et supprimé en un seul clic.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
    }
   },
   "eca3f6af7c24d5ad068714876ae3af6e0a606ee21d84daadaa5010189ccc1acd": {
