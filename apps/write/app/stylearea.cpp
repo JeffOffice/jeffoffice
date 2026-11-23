@@ -8,6 +8,8 @@
 #include <QCoreApplication>
 #include <QEvent>
 #include <QFocusEvent>
+#include <QHideEvent>
+#include <QInputMethodEvent>
 #include <QFontMetrics>
 #include <QKeyEvent>
 #include <QLabel>
@@ -228,6 +230,7 @@ void StyleArea::mousePressEvent(QMouseEvent *e)
 
 void StyleArea::mouseMoveEvent(QMouseEvent *e)
 {
+    if (m_dragging && !(e->buttons() & Qt::LeftButton)) m_dragging = false;
     if (m_dragging) {
         const bool onLeftOfText = x() < m_host->viewport()->x();
         const int moved = e->globalPosition().toPoint().x() - m_dragFrom;
@@ -256,8 +259,10 @@ void StyleArea::mouseDoubleClickEvent(QMouseEvent *e)
 // The keyboard: Up and Down go from name to name on show, Enter opens the style's box, Escape returns to the text.
 void StyleArea::keyPressEvent(QKeyEvent *e)
 {
+    // (Every other key is the strip's too, and does nothing: it must not reach the text it stands beside.)
     if (m_rows.isEmpty()) {
-        QWidget::keyPressEvent(e);
+        if (e->key() == Qt::Key_Escape) m_host->setFocus(Qt::OtherFocusReason);
+        e->accept();
         return;
     }
     switch (e->key()) {
@@ -268,9 +273,21 @@ void StyleArea::keyPressEvent(QKeyEvent *e)
         if (m_current >= 0) Q_EMIT rowDoubleClicked(m_rows[m_current].position);
         return;
     case Qt::Key_Escape: m_host->setFocus(Qt::OtherFocusReason); return;
-    default: QWidget::keyPressEvent(e); return;
+    default: e->accept(); return;
     }
     update();
+}
+
+// (Typing by input method, or a paste into the strip, is not for the text beside it.)
+void StyleArea::inputMethodEvent(QInputMethodEvent *e)
+{
+    e->accept();
+}
+
+void StyleArea::hideEvent(QHideEvent *e)
+{
+    m_dragging = false;
+    QWidget::hideEvent(e);
 }
 
 void StyleArea::focusInEvent(QFocusEvent *e)

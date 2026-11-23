@@ -93,7 +93,8 @@ void WriteOutlineView::setStyleAreaWidth(int width)
             m_styleWidth = width;
             Q_EMIT styleAreaWidthDragged(width);
         });
-        auto later = [this] { m_styleArea->scheduleRefresh(); };
+        QPointer<write::StyleArea> area = m_styleArea;   // (the model resets from ~QTreeWidget, when this view is no longer a WriteOutlineView)
+        auto later = [area] { if (area) area->scheduleRefresh(); };
         connect(this, &QTreeWidget::itemExpanded, m_styleArea, later);
         connect(this, &QTreeWidget::itemCollapsed, m_styleArea, later);
         connect(model(), &QAbstractItemModel::rowsInserted, m_styleArea, later);

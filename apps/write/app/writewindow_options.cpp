@@ -10,6 +10,7 @@
 #include "app/plaintext.h"
 #include "app/settings.h"
 #include "app/stylearea.h"
+#include "app/widgets.h"
 #include "app/writeoutlineview.h"
 
 #include <QAction>
@@ -25,6 +26,8 @@
 #include <QPushButton>
 #include <QSpinBox>
 #include <QStandardPaths>
+#include <algorithm>
+#include <cmath>
 #include <memory>
 
 namespace jp {
@@ -75,7 +78,7 @@ QVector<OptionsPage> WriteWindow::optionsPages()
 {
     struct Fields {
         QCheckBox *marks = nullptr, *grid = nullptr;
-        QSpinBox *styleArea = nullptr;
+        MeasureSpin *styleArea = nullptr;
         QVector<QCheckBox *> always;   // one for each of the marks of displayMarkKinds()
         QComboBox *units = nullptr;
         PasteDefaultsSection *pasteDefaults = nullptr;
@@ -125,18 +128,32 @@ QVector<OptionsPage> WriteWindow::optionsPages()
         f->grid->setObjectName(QStringLiteral("startWithGridlines"));
         f->grid->setChecked(st.value(QStringLiteral("view/gridlines"), false).toBool());
         form->addRow(f->grid);
-        f->styleArea = new QSpinBox(page);
+        // (The width is kept in pixels, the strip's own measure; the box shows it in the person's units, a pixel being 3/4 of a point.)
+        constexpr double kPointsPerPixel = 0.75;
+        f->styleArea = new MeasureSpin(page);
         f->styleArea->setObjectName(QStringLiteral("styleAreaWidth"));
-        f->styleArea->setRange(0, write::StyleArea::kMostWidth);
+        f->styleArea->setRange(0, write::StyleArea::kMostWidth * kPointsPerPixel);
         f->styleArea->setSpecialValueText(QCoreApplication::translate("Dialogs", "Hidden"));
-        f->styleArea->setValue(st.value(QStringLiteral("view/styleAreaWidth"), 0).toInt());
-        f->styleArea->setAccessibleName(QCoreApplication::translate("Dialogs", "Style area width in Draft and Outline views, in pixels"));
-        form->addRow(QCoreApplication::translate("Dialogs", "Style area width in Draft and Outline views, in pixels"), f->styleArea);
+        f->styleArea->setPoints(st.value(QStringLiteral("view/styleAreaWidth"), 0).toInt() * kPointsPerPixel);
+        // (Nothing between hidden and the least width: going down from the least hides the strip, and going up from hidden stops at the least.)
+        auto last = std::make_shared<double>(f->styleArea->value());
+        const double least = write::StyleArea::kLeastWidth * kPointsPerPixel;
+        connect(f->styleArea, &QDoubleSpinBox::valueChanged, f->styleArea, [box = f->styleArea, last, least](double v) {
+            const double before = *last;
+            *last = v;
+            if (v > 0 && v < least) {
+                *last = before >= least ? 0 : least;
+                box->setValue(*last);
+            }
+        });
+        f->styleArea->setAccessibleName(QCoreApplication::translate("Dialogs", "Style area width in Draft and Outline views"));
+        form->addRow(QCoreApplication::translate("Dialogs", "Style area width in Draft and Outline views"), f->styleArea);
         return page;
     }, [this, f] {
         Settings::get().setValue(QStringLiteral("view/marks"), f->marks->isChecked());
         Settings::get().setValue(QStringLiteral("view/gridlines"), f->grid->isChecked());
-        Settings::get().setValue(QStringLiteral("view/styleAreaWidth"), f->styleArea->value());
+        const int styleWidth = int(std::lround(f->styleArea->value() / 0.75));
+        Settings::get().setValue(QStringLiteral("view/styleAreaWidth"), styleWidth <= 0 ? 0 : std::clamp(styleWidth, int(write::StyleArea::kLeastWidth), int(write::StyleArea::kMostWidth)));
         int n = 0, bits = 0;
         const MarkKind *kinds = markKinds(&n);
         for (int i = 0; i < n && i < f->always.size(); ++i)

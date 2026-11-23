@@ -66,7 +66,7 @@ This only changes what you see on the screen. Printing, saving to PDF, and savin
 
 The style area is a strip down the left edge of Draft view and Outline view. It names the style of each paragraph beside the paragraph's first line, and a name that is too long for the strip is cut with an ellipsis. Click a name to select that paragraph. Double-click a name to open the **Modify Style** box for that style. Press Tab to move to the strip, Up and Down to move between names, Enter to open the box, and Esc to go back to the text. In a table, the name beside a row is the style of the paragraph in its first cell.
 
-The strip is hidden until you give it a width. Choose **File > Options > Display** and set **Style area width in Draft and Outline views, in pixels**; 0 hides it. You can also drag the strip's edge toward the text. The strip is never printed, never saved in the file, and not shown in Print Layout, Web Layout, or Read Mode.
+The strip is hidden until you give it a width. Choose **File > Options > Display** and set **Style area width in Draft and Outline views**; Hidden hides it. You can also drag the strip's edge toward the text. The strip is never printed, never saved in the file, and not shown in Print Layout, Web Layout, or Read Mode.
 
 ## Web Layout
 

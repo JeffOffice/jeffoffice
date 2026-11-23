@@ -31,6 +31,7 @@
 
 #include "office/package.h"
 #include <QAction>
+#include <QInputMethodEvent>
 #include <QBuffer>
 #include <QImage>
 #include <QRegularExpression>
@@ -281,6 +282,11 @@ void closeNextDialog(QObject *owner, DialogSeen *seen)
 QPoint areaRowPoint(const StyleRow &row) { return QPoint(8, row.top + std::max(1, row.height / 2)); }
 
 // Settles the event loop for a counted number of turns (what the strip schedules for later is done).
+// Puts the style area's width setting back to hidden when a test ends, whichever way it ends.
+struct StyleWidthReset {
+    ~StyleWidthReset() { Settings::get().setValue(QStringLiteral("view/styleAreaWidth"), 0); }
+};
+
 void settleTurns(int turns = 12)
 {
     for (int i = 0; i < turns; ++i) QCoreApplication::processEvents();
@@ -1074,18 +1080,28 @@ private Q_SLOTS:
 
     void theStyleAreaWidthIsAnOptionAndTheEdgeIsDragged()
     {
+        const StyleWidthReset reset;
         {
             WriteWindow w;
             w.setNotifier([](const QString &, const QString &) {});
             QVector<OptionsPage> pages = w.optionsPages();
             QList<QWidget *> built;
             for (const OptionsPage &p : pages) built << p.build();
-            QSpinBox *box = nullptr;
+            MeasureSpin *box = nullptr;
             for (QWidget *page : built)
-                if (auto *f = page->findChild<QSpinBox *>(QStringLiteral("styleAreaWidth"))) box = f;
+                if (auto *f = page->findChild<MeasureSpin *>(QStringLiteral("styleAreaWidth"))) box = f;
             QVERIFY(box);
             QCOMPARE(box->value(), 0);   // (hidden unless the person chose)
-            box->setValue(90);
+            // (in the person's units: a pixel is 3/4 of a point; nothing lies between hidden and the least width the strip takes)
+            box->setValue(0.5 * StyleArea::kLeastWidth * 0.75);
+            QCOMPARE(box->value(), StyleArea::kLeastWidth * 0.75);
+            box->setValue(0);
+            box->setValue(90 * 0.75);
+            QCOMPARE(box->value(), 90 * 0.75);
+            box->setValue(StyleArea::kLeastWidth * 0.75 - 1);
+            QCOMPARE(box->value(), 0.0);
+            QCOMPARE(box->maximum(), StyleArea::kMostWidth * 0.75);
+            box->setValue(90 * 0.75);
             for (const OptionsPage &p : pages)
                 if (p.apply) p.apply();
             qDeleteAll(built);
@@ -1110,7 +1126,6 @@ private Q_SLOTS:
         // (the drag has ended: a move now changes nothing)
         QTest::mouseMove(sa, QPoint(10, 30));
         QCOMPARE(sa->areaWidth(), 130);
-        Settings::get().setValue(QStringLiteral("view/styleAreaWidth"), 0);
     }
 
     void theStyleAreaIsReachedByTheKeyboardAndFollowsAMirroredWindow()
@@ -1162,6 +1177,128 @@ private Q_SLOTS:
             QVERIFY2(sa->x() > w.view()->viewport()->x(), qPrintable(QStringLiteral("strip %1, viewport %2").arg(sa->x()).arg(w.view()->viewport()->x())));
             QCOMPARE(sa->width(), 110);
         }
+    }
+
+    void typingAndPastingWhileTheStripHasTheFocusDoNotChangeTheText()
+    {
+        WriteWindow w;
+        draftWithStyleArea(w, areaDoc(areaPara("Normal", "one") + areaPara("Quote1", "two")), 110);
+        StyleArea *sa = w.view()->styleArea();
+        QVERIFY(sa);
+        QTRY_VERIFY(sa->rows().size() >= 2);
+        const QString before = w.document()->story()->toPlainText();
+        QTextCursor c(w.document()->story());
+        c.setPosition(2);
+        w.view()->setCursor(c);
+        sa->setFocus(Qt::TabFocusReason);
+        QTRY_VERIFY(sa->hasFocus());
+        for (Qt::Key key : {Qt::Key_Z, Qt::Key_Space, Qt::Key_Backspace, Qt::Key_Delete, Qt::Key_Left, Qt::Key_Right, Qt::Key_Home, Qt::Key_End, Qt::Key_PageDown, Qt::Key_A}) QTest::keyClick(sa, key);
+        QTest::keyClicks(sa, QStringLiteral("zzz"));
+        QCOMPARE(w.document()->story()->toPlainText(), before);
+        QCOMPARE(w.view()->cursor().position(), 2);
+        // typing by input method
+        QInputMethodEvent im(QString(), {});
+        im.setCommitString(QStringLiteral("yyy"));
+        QCoreApplication::sendEvent(sa, &im);
+        QCOMPARE(w.document()->story()->toPlainText(), before);
+        // Tab leaves the strip and Escape returns to the text, as before
+        QTest::keyClick(sa, Qt::Key_Escape);
+        QTRY_VERIFY(w.view()->hasFocus());
+    }
+
+    void windowShortcutsStillWorkWhileTheStripHasTheFocus()
+    {
+        WriteWindow w;
+        draftWithStyleArea(w, areaDoc(areaPara("Normal", "one") + areaPara("Quote1", "two")), 110);
+        StyleArea *sa = w.view()->styleArea();
+        QVERIFY(sa);
+        QTRY_VERIFY(sa->rows().size() >= 2);
+        QTextCursor c(w.document()->story());
+        c.setPosition(2);
+        insertText(*w.document(), c, QStringLiteral("XY"));
+        w.view()->setCursor(c);
+        w.refreshNow();
+        QCOMPARE(w.document()->story()->toPlainText().left(5), QStringLiteral("onXYe"));
+        QAction *undo = w.act(QStringLiteral("edit.undo"));
+        QVERIFY(undo->isEnabled());
+        QSignalSpy spy(undo, &QAction::triggered);
+        sa->setFocus(Qt::TabFocusReason);
+        QTRY_VERIFY(sa->hasFocus());
+        const QKeyCombination key = QKeySequence(QKeySequence::Undo)[0];
+        QTest::keyClick(sa, key.key(), key.keyboardModifiers());
+        QCOMPARE(spy.count(), 1);   // (the shortcut path: the strip does not claim the key)
+    }
+
+    void leavingDraftMidDragEndsTheDragAndAMoveWithNoButtonNeverResizes()
+    {
+        const StyleWidthReset reset;
+        WriteWindow w;
+        draftWithStyleArea(w, areaDoc(areaPara("Quote1", "one") + areaPara("Normal", "two")), 90);
+        StyleArea *sa = w.view()->styleArea();
+        QVERIFY(sa);
+        QTRY_VERIFY(sa->rows().size() >= 2);
+        auto move = [sa](int x, Qt::MouseButtons buttons) {
+            const QPoint p(x, 30);
+            QMouseEvent e(QEvent::MouseMove, p, sa->mapToGlobal(p), Qt::NoButton, buttons, Qt::NoModifier);
+            QCoreApplication::sendEvent(sa, &e);
+        };
+        auto release = [sa](int x) {
+            const QPoint p(x, 30);
+            QMouseEvent e(QEvent::MouseButtonRelease, p, sa->mapToGlobal(p), Qt::LeftButton, Qt::NoButton, Qt::NoModifier);
+            QCoreApplication::sendEvent(sa, &e);
+        };
+        auto press = [sa](int x) {
+            const QPoint p(x, 30);
+            QMouseEvent e(QEvent::MouseButtonPress, p, sa->mapToGlobal(p), Qt::LeftButton, Qt::LeftButton, Qt::NoModifier);
+            QCoreApplication::sendEvent(sa, &e);
+        };
+        // A: the pointer leaves with the button still down; the strip is hidden, then shown again.
+        press(sa->width() - 2);
+        move(sa->width() + 8, Qt::LeftButton);
+        QCOMPARE(sa->areaWidth(), 100);
+        w.act(QStringLiteral("view.printLayout"))->trigger();
+        QVERIFY(!sa->isVisible());
+        w.act(QStringLiteral("view.draft"))->trigger();
+        QTRY_VERIFY(sa->isVisible());
+        move(sa->width() + 40, Qt::LeftButton);
+        QCOMPARE(sa->areaWidth(), 100);
+        release(sa->width());
+        // B: a move that arrives with no button down ends a drag.
+        press(sa->width() - 2);
+        move(sa->width() + 8, Qt::LeftButton);
+        QCOMPARE(sa->areaWidth(), 110);
+        move(sa->width() + 40, Qt::NoButton);
+        QCOMPARE(sa->areaWidth(), 110);
+        release(sa->width());
+    }
+
+    void aStyleChangeShowsInTheNamesOfBothViewsOfTheDocument()
+    {
+        const StyleWidthReset reset;
+        WriteWindow w;
+        draftWithStyleArea(w, areaDoc(areaPara("Normal", "one") + areaPara("Normal", "two")), 110);
+        w.outlineView()->setStyleAreaWidth(110);
+        StyleArea *draft = w.view()->styleArea();
+        QVERIFY(draft);
+        QTRY_COMPARE(draft->shownNames().mid(0, 2), (QStringList{"Normal", "Normal"}));
+        QTextCursor c(w.document()->story());
+        c.setPosition(w.document()->story()->findBlockByNumber(1).position());
+        applyParagraphStyle(*w.document(), c, QStringLiteral("Quote1"));
+        w.view()->setCursor(c);
+        w.refreshNow();
+        QTRY_COMPARE(draft->shownNames().mid(0, 2), (QStringList{"Normal", "Quote Style"}));
+        w.act(QStringLiteral("view.outline"))->trigger();
+        QVERIFY(w.outlineMode());
+        StyleArea *outline = w.outlineView()->styleArea();
+        QVERIFY(outline);
+        QTRY_COMPARE(outline->shownNames().mid(0, 2), (QStringList{"Normal", "Quote Style"}));
+        QTextCursor d(w.document()->story());
+        d.setPosition(0);
+        applyParagraphStyle(*w.document(), d, QStringLiteral("Long1"));
+        w.outlineView()->rebuild();
+        QTRY_COMPARE(outline->shownNames().mid(0, 2), (QStringList{"An unusually long style name that cannot fit in a narrow strip", "Quote Style"}));
+        w.act(QStringLiteral("view.draft"))->trigger();
+        QTRY_COMPARE(draft->shownNames().mid(0, 2), (QStringList{"An unusually long style name that cannot fit in a narrow strip", "Quote Style"}));
     }
 
     // Pictures of the strip for the person who asked for it (only where JW_SHOT_DIR names a folder).
