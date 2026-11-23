@@ -121,7 +121,7 @@
         },
         {
          "status": "partly",
-         "text": "8122c7a8d52b53fe224551de94c042eab5975e21c4ed323b1d6d553e413cf662"
+         "text": "79bffb0eab309c588592f0959679ea306d440535f515875e95e2d08d96b2afd0"
         },
         {
          "status": "partly",
@@ -5919,7 +5919,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "0120d4eb5ae0f32617e0ac9e5195ec7473a2030d706ce0a29b74a758b67f04c1"
+         "text": "ec98a2bdb99a59e033266f6092fdc2ac7d1451c992bfac5811a7ec05961aec86"
         },
         {
          "hide_soon": true,
@@ -7833,18 +7833,6 @@
    "en": "Mark a document as final: it opens read-only with a note in the status bar, and it can be made editable again.",
    "es": "Marque un documento como final: se abre en modo de solo lectura con una nota en la barra de estado, y se puede volver a hacer editable.",
    "fr": "Marquez un document comme final : il s’ouvre en lecture seule avec une note dans la barre d’état, et peut être rendu de nouveau modifiable.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "0120d4eb5ae0f32617e0ac9e5195ec7473a2030d706ce0a29b74a758b67f04c1": {
-   "drop": false,
-   "en": "Inspect the document before sharing to find and remove comments, tracked changes, personal information, hidden text, custom XML, headers and footers, and links to other files, each with one button.",
-   "es": "Inspeccione el documento antes de compartirlo para encontrar y quitar comentarios, cambios de seguimiento, información personal, texto oculto, XML personalizado, encabezados y pies de página, y vínculos a otros archivos, cada uno con un solo botón.",
-   "fr": "Inspectez le document avant de le partager pour trouver et supprimer les commentaires, les modifications suivies, les informations personnelles, le texte masqué, le XML personnalisé, les en-têtes et pieds de page, et les liens vers d’autres fichiers, chacun d’un seul bouton.",
    "soon": {
     "drop": true,
     "en": "",
@@ -17212,6 +17200,18 @@
     "fr": "Champs COMPARE, SET, ASK, FILLIN, LISTNUM et SYMBOL"
    }
   },
+  "79bffb0eab309c588592f0959679ea306d440535f515875e95e2d08d96b2afd0": {
+   "drop": false,
+   "en": "Find and remove comments, personal information, hidden sheets, rows, and columns, custom XML, headers and footers, external links, hidden names, and hidden objects before sharing a workbook.",
+   "es": "Busque y elimine comentarios, información personal, hojas, filas y columnas ocultas, XML personalizado, encabezados y pies de página, vínculos externos, nombres ocultos y objetos ocultos antes de compartir un libro.",
+   "fr": "Recherchez et supprimez les commentaires, les informations personnelles, les feuilles, lignes et colonnes masquées, le XML personnalisé, les en-têtes et pieds de page, les liens externes, les noms masqués et les objets masqués avant de partager un classeur.",
+   "soon": {
+    "drop": false,
+    "en": "Inspection of rows hidden by a filter",
+    "es": "Inspección de las filas ocultas por un filtro",
+    "fr": "Inspection des lignes masquées par un filtre"
+   }
+  },
   "79f9a9b38276b0824a91e9e2b520c5a67607ed23afbad698bda283714fd0ca28": {
    "drop": false,
    "en": "Export slides, notes pages, handouts, and the outline to PDF, with real text and fonts inside.",
@@ -17702,18 +17702,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "8122c7a8d52b53fe224551de94c042eab5975e21c4ed323b1d6d553e413cf662": {
-   "drop": false,
-   "en": "Inspect Workbook counts notes, personal information, hidden sheets, external links, and custom XML. It removes notes, personal information, headers, and footers, and shows hidden sheets, rows, and columns. Remove All on external links turns linked cells into the values they show.",
-   "es": "Inspeccionar libro cuenta las notas, la información personal, las hojas ocultas, los vínculos externos y el XML personalizado. Elimina las notas, la información personal, los encabezados y los pies de página, y muestra las hojas, filas y columnas ocultas. Quitar todo en los vínculos externos convierte las celdas vinculadas en los valores que muestran.",
-   "fr": "Inspecter le classeur compte les notes, les informations personnelles, les feuilles masquées, les liens externes et le XML personnalisé. Il supprime les notes, les informations personnelles, les en-têtes et les pieds de page, et affiche les feuilles, lignes et colonnes masquées. Tout supprimer sur les liens externes transforme les cellules liées en les valeurs qu’elles affichent.",
-   "soon": {
-    "drop": false,
-    "en": "Inspect Workbook: find and remove invisible objects",
-    "es": "Inspeccionar libro: buscar y eliminar objetos invisibles",
-    "fr": "Inspecter le classeur : rechercher et supprimer les objets invisibles"
    }
   },
   "819b7a42f84d10870048a82a7c06c2118ce84f9641bc90b7af451b61b36d9356": {
@@ -25262,6 +25250,18 @@
     "en": "Edit Recipient List: sort, filter, find duplicates, validate addresses, and include or exclude records",
     "es": "Editar lista de destinatarios: ordenar, filtrar, buscar duplicados, validar direcciones e incluir o excluir registros",
     "fr": "Modification de la liste de destinataires : trier, filtrer, trouver les doublons, valider les adresses et inclure ou exclure des enregistrements"
+   }
+  },
+  "ec98a2bdb99a59e033266f6092fdc2ac7d1451c992bfac5811a7ec05961aec86": {
+   "drop": false,
+   "en": "Find and remove comments, tracked changes, personal information, hidden text, custom XML, links to other files, and headers and footers before sharing a document. Each kind is counted and removed with one button.",
+   "es": "Busque y elimine comentarios, cambios con seguimiento, información personal, texto oculto, XML personalizado, vínculos a otros archivos, y encabezados y pies de página antes de compartir un documento. Cada tipo se cuenta y se elimina con un solo botón.",
+   "fr": "Recherchez et supprimez les commentaires, les modifications suivies, les informations personnelles, le texte masqué, le XML personnalisé, les liens vers d’autres fichiers, ainsi que les en-têtes et pieds de page avant de partager un document. Chaque type est compté et supprimé en un seul clic.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "eca3f6af7c24d5ad068714876ae3af6e0a606ee21d84daadaa5010189ccc1acd": {
