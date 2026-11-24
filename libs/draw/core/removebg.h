@@ -25,6 +25,11 @@ constexpr int kRemoveBgMaxMarkPoints = 8192;
 constexpr int kRemoveBgFitPasses = 6;
 constexpr int kRemoveBgMaxGroups = 8;
 
+// How much of a side's edge samples a color must fill to be at that side, and how much of the picture a color found at one side only must fill to be
+// taken for a subject that runs off the edge.
+constexpr double kRemoveBgSideShare = 0.04;
+constexpr double kRemoveBgSubjectArea = 0.05;
+
 // A stroke dragged over the picture: where the pixels under it are to stay (keep) or go. The points are shares of the picture's width and
 // height (0 to 1), and the radius a share of its longer side.
 struct BackgroundMark {
@@ -60,5 +65,9 @@ QImage applyBackgroundRemoval(const QImage &picture, const BackgroundRemoval &re
 // The same for a picture of any size: the mask is stretched over it (for a picture already made smaller or changed in its colors, with a tint
 // to show what is going).
 QImage tintBackgroundRemoval(const QImage &picture, const BackgroundRemoval &removal, const QColor &tint = QColor());
+
+// The finished picture for a file another program reads (the original and the mask are kept beside it): the picture with the removed part clear,
+// made smaller when it has more pixels than `shown` (its size in points on the page) needs at `dpi` (never larger than it was).
+QImage finishedBackgroundRemoval(const QImage &picture, const BackgroundRemoval &removal, const QSizeF &shown, double dpi);
 
 } // namespace jp

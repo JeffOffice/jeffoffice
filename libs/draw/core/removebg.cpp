@@ -93,7 +93,11 @@ Work makeWork(const QImage &picture)
     const qint64 px = qint64(picture.width()) * picture.height();
     if (px > kRemoveBgWorkPixels) {
         const double k = std::sqrt(double(kRemoveBgWorkPixels) / double(px));
-        small = picture.scaled(std::max(1, int(picture.width() * k)), std::max(1, int(picture.height() * k)), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+        // (each side at least one pixel, and then the count held to the cap: a picture one pixel wide and twenty million long is shortened, not kept long)
+        qint64 nw = std::max(1, int(picture.width() * k)), nh = std::max(1, int(picture.height() * k));
+        nh = std::min(nh, std::max<qint64>(1, kRemoveBgWorkPixels / nw));
+        nw = std::min(nw, std::max<qint64>(1, kRemoveBgWorkPixels / nh));
+        small = picture.scaled(int(nw), int(nh), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
     }
     small = small.convertToFormat(QImage::Format_ARGB32);
     wk.w = small.width();
@@ -131,18 +135,23 @@ Work makeWork(const QImage &picture)
 
 // The pixels under the strokes: 1 where the last stroke over them keeps them, 2 where it takes them away (a later stroke wins where two meet),
 // and the colors found under each kind.
-void paintMarks(const QVector<BackgroundMark> &marks, const Work &wk, QVector<uchar> &state, QVector<Rgb> &keepColors, QVector<Rgb> &dropColors)
+bool stop(const std::function<bool(int)> &progress, int percent);
+
+// (false when the work was stopped: asked between strokes, and now and then inside a long one)
+bool paintMarks(const QVector<BackgroundMark> &marks, const Work &wk, QVector<uchar> &state, QVector<Rgb> &keepColors, QVector<Rgb> &dropColors, const std::function<bool(int)> &progress)
 {
     const double side = std::max(wk.w, wk.h);
     int points = 0;
     bool over = false;
     for (const BackgroundMark &m : marks) {
         if (over) break;
+        if (stop(progress, 10)) return false;
         const uchar kind = m.keep ? 1 : 2;
         const double r = std::clamp(m.radius, 0.001, 0.25) * side;
         const int ri = std::max(1, int(std::ceil(r)));
         for (const QPointF &pt : m.points) {
             if (++points > kRemoveBgMaxMarkPoints) { over = true; break; }
+            if ((points & 0x3F) == 0 && stop(progress, 10)) return false;
             const double cx = std::clamp(pt.x(), 0.0, 1.0) * (wk.w - 1), cy = std::clamp(pt.y(), 0.0, 1.0) * (wk.h - 1);
             // (a row of the disc at a time: a stroke may have thousands of points, each the size of a quarter of the picture)
             for (int y = std::max(0, int(cy) - ri); y <= std::min(wk.h - 1, int(cy) + ri); ++y) {
@@ -160,6 +169,7 @@ void paintMarks(const QVector<BackgroundMark> &marks, const Work &wk, QVector<uc
         QVector<Rgb> &colors = state[i] == 1 ? keepColors : dropColors;
         if (colors.size() < 2048 || (i % 7) == 0) { if (colors.size() < 8192) colors << wk.blurred[i]; }
     }
+    return true;
 }
 
 bool stop(const std::function<bool(int)> &progress, int percent) { return progress && !progress(percent); }
@@ -187,10 +197,17 @@ QJsonObject BackgroundRemoval::toJson() const
     o["size"] = QJsonArray{size.width(), size.height()};
     o["mask"] = QString::fromLatin1(qCompress(mask, 9).toBase64());
     QJsonArray ms;
+    // (no more than fromJson takes back: the most strokes, and the most points over all of them)
+    int points = 0;
     for (const BackgroundMark &m : marks) {
+        if (ms.size() >= kRemoveBgMaxMarks) break;
         QJsonArray pts;
-        for (const QPointF &p : m.points) pts << QJsonArray{std::round(p.x() * 10000) / 10000, std::round(p.y() * 10000) / 10000};
+        for (const QPointF &p : m.points) {
+            if (++points > kRemoveBgMaxMarkPoints) break;
+            pts << QJsonArray{std::round(p.x() * 10000) / 10000, std::round(p.y() * 10000) / 10000};
+        }
         ms << QJsonObject{{"keep", m.keep}, {"radius", m.radius}, {"points", pts}};
+        if (points > kRemoveBgMaxMarkPoints) break;
     }
     if (!ms.isEmpty()) o["marks"] = ms;
     return o;
@@ -245,13 +262,14 @@ BackgroundRemoval findBackground(const QImage &picture, const QVector<Background
     QVector<Rgb> keepColors, dropColors;
     {
         QVector<uchar> state(n, 0);
-        paintMarks(marks, wk, state, keepColors, dropColors);
+        if (!paintMarks(marks, wk, state, keepColors, dropColors, progress)) return {};
         for (qsizetype i = 0; i < n; ++i) {
             keepFixed[i] = state[i] == 1;
             dropFixed[i] = state[i] == 2;
         }
     }
     QVector<Rgb> edge;
+    QVector<uchar> edgeSides;   // for each sample, the sides of the picture it lies on (bit 0 left, 1 right, 2 top, 3 bottom)
     const int ring = std::max(2, std::min(w, h) / 100);
     const qsizetype step = std::max<qsizetype>(1, qsizetype(2) * (qsizetype(w) + h) * ring / 4096);
     qsizetype seen = 0;
@@ -259,9 +277,38 @@ BackgroundRemoval findBackground(const QImage &picture, const QVector<Background
         for (int x = 0; x < w; ++x) {
             if (x >= ring && y >= ring && x < w - ring && y < h - ring) { x = w - ring - 1; continue; }
             const qsizetype i = qsizetype(y) * w + x;
-            if (!wk.clear[i] && (seen++ % step) == 0) edge << wk.blurred[i];
+            if (!wk.clear[i] && (seen++ % step) == 0) {
+                edge << wk.blurred[i];
+                edgeSides << uchar((x < ring ? 1 : 0) | (x >= w - ring ? 2 : 0) | (y < ring ? 4 : 0) | (y >= h - ring ? 8 : 0));
+            }
         }
     QVector<Group> bg = fitGroups(edge, kRemoveBgMaxGroups, std::max<int>(2, edge.size() / 50));
+    // A subject that runs off the picture's edge (a shirt that meets the bottom) puts its colors among the edge's. A color found along ONE side of the
+    // picture only, and nowhere on the other three (under kRemoveBgSideShare of the samples there), that fills more than kRemoveBgSubjectArea of the
+    // picture, is a subject and not the background (a background reaches round the subject, so it is at the edge on two sides or more). It is left out
+    // unless that would leave no color for the background.
+    {
+        QVector<Group> background;
+        for (const Group &g : std::as_const(bg)) {
+            int sideCount[4] = {0, 0, 0, 0}, sideTotal[4] = {0, 0, 0, 0};
+            for (qsizetype s = 0; s < edge.size(); ++s)
+                for (int k = 0; k < 4; ++k)
+                    if (edgeSides[s] & (1 << k)) {
+                        ++sideTotal[k];
+                        if (dist2(edge[s], g.center) <= g.tolerance2) ++sideCount[k];
+                    }
+            int sides = 0;
+            for (int k = 0; k < 4; ++k) sides += sideTotal[k] > 0 && sideCount[k] >= kRemoveBgSideShare * sideTotal[k];
+            bool subject = false;
+            if (sides == 1) {
+                qsizetype like = 0;
+                for (qsizetype i = 0; i < n; ++i) like += dist2(wk.blurred[i], g.center) <= g.tolerance2;
+                subject = like >= kRemoveBgSubjectArea * n;
+            }
+            if (!subject) background << g;
+        }
+        if (!background.isEmpty()) bg = background;
+    }
     if (!dropColors.isEmpty()) bg += fitGroups(dropColors, 4, int(dropColors.size() / 10) + 1);
     const QVector<Group> fg = keepColors.isEmpty() ? QVector<Group>() : fitGroups(keepColors, 4, int(keepColors.size() / 10) + 1);
     if (stop(progress, 25)) return {};
@@ -299,12 +346,13 @@ BackgroundRemoval findBackground(const QImage &picture, const QVector<Background
         }
         return true;
     };
+    QVector<uchar> protectedKeep(n, 0);   // what the strokes that keep reach: the flood does not go into it, whatever the step between neighbors
     if (!fg.isEmpty()) {
         QVector<uchar> kept(n, 0), taken(n, 0);
         if (!spread(kept, keepFixed, [&](qsizetype, qsizetype j) { return nearness(wk.blurred[j], fg) <= 1.f; })) return {};
         if (!spread(taken, dropFixed, [&](qsizetype, qsizetype j) { return may[j] != 0; })) return {};
         for (qsizetype i = 0; i < n; ++i)
-            if (kept[i] && !taken[i]) may[i] = 0;
+            if (kept[i] && !taken[i]) { may[i] = 0; protectedKeep[i] = 1; }
     }
     if (stop(progress, 55)) return {};
 
@@ -318,7 +366,7 @@ BackgroundRemoval findBackground(const QImage &picture, const QVector<Background
         if (!may[i]) from[i] = 0;
     }
     constexpr float kStep2 = 4.f * 4.f;
-    if (!spread(gone, from, [&](qsizetype i, qsizetype j) { return may[j] || (!keepFixed[j] && dist2(wk.blurred[i], wk.blurred[j]) <= kStep2); })) return {};
+    if (!spread(gone, from, [&](qsizetype i, qsizetype j) { return may[j] || (!keepFixed[j] && !protectedKeep[j] && dist2(wk.blurred[i], wk.blurred[j]) <= kStep2); })) return {};
 
     // Foreground specks too small to be a subject (grain the colors did not catch) go, unless a stroke keeps them.
     {
@@ -442,6 +490,16 @@ QImage tintBackgroundRemoval(const QImage &picture, const BackgroundRemoval &rem
         }
     }
     return out;
+}
+
+QImage finishedBackgroundRemoval(const QImage &picture, const BackgroundRemoval &removal, const QSizeF &shown, double dpi)
+{
+    if (picture.isNull() || !removal.isValid() || removal.source != picture.size()) return picture;
+    if (shown.width() <= 0 || shown.height() <= 0 || dpi <= 0) return applyBackgroundRemoval(picture, removal);
+    const double k = std::min(1.0, std::min(shown.width() / 72.0 * dpi / picture.width(), shown.height() / 72.0 * dpi / picture.height()));
+    if (k >= 1.0) return applyBackgroundRemoval(picture, removal);
+    const QImage smaller = picture.scaled(std::max(1, int(std::lround(picture.width() * k))), std::max(1, int(std::lround(picture.height() * k))), Qt::IgnoreAspectRatio, Qt::SmoothTransformation);
+    return tintBackgroundRemoval(smaller, removal);
 }
 
 } // namespace jp
