@@ -2030,17 +2030,17 @@ static void offerAutoflow(QWidget *p, Editor *ed, const QString &boxId)
 QString askTextFile(QWidget *p)
 {
     return QFileDialog::getOpenFileName(p, QCoreApplication::translate("Dialogs", "Insert Text"), QString(),
-                                        QCoreApplication::translate("Dialogs", "Text Files (*.txt *.rtf *.html *.htm *.docx *.md)") + QStringLiteral(";;")
+                                        QCoreApplication::translate("Dialogs", "Text Files (*.txt *.rtf *.html *.htm *.docx *.doc *.odt *.md)") + QStringLiteral(";;")
                                             + QCoreApplication::translate("Dialogs", "All Files (*)"));
 }
 
-QString insertTextFile(QWidget *p, Editor *ed, const QString &f)
+QString insertTextFile(QWidget *p, Editor *ed, const QString &f, QString *note)
 {
     // (read before anything changes: a file that can't be read leaves no empty box and no step to undo)
     QString problem;
     if (ed->isEditingText()) {
         QTextDocument tmp;
-        if (!loadTextFileInto(&tmp, f, &problem)) return problem;
+        if (!loadTextFileInto(&tmp, f, &problem, note)) return problem;
         ed->beginChange(QCoreApplication::translate("Dialogs", "Insert File"));
         ed->cursor().insertFragment(QTextDocumentFragment(&tmp));
         ed->endChange();
@@ -2055,7 +2055,7 @@ QString insertTextFile(QWidget *p, Editor *ed, const QString &f)
     const QSizeF ps = ed->doc()->pageSize();
     const QRectF content = QRectF(QPointF(0, 0), ps).marginsRemoved(ed->doc()->setup.margins);
     auto t = std::static_pointer_cast<TextItem>(ed->newTextBox(content));
-    if (!loadTextFileInto(ed->doc()->storyDoc(t->storyId), f, &problem)) {
+    if (!loadTextFileInto(ed->doc()->storyDoc(t->storyId), f, &problem, note)) {
         ed->doc()->removeStory(t->storyId);
         return problem;
     }

@@ -90,6 +90,11 @@ private Q_SLOTS:
     void insertFilePutsTheTextInAsOneStep();
     void insertFileRefusesAFileOverTheLimitAndChangesNothing();
     void insertFileRefusesAFileThatIsNotWhatItsNameSays();
+    void insertFileTakesAnOldBinaryDocument();
+    void insertFileTakesAnOpenDocumentText();
+    void insertFileSaysWhatItLeftOut();
+    void insertFileRefusesAProtectedOrDamagedDocumentOfEitherKind();
+    void aHugeOldDocumentIsCutAtTheReadersLimitAndSaid();
     void aDroppedTextFileThatCantBeReadIsToldAboutAndTheOthersComeIn();
     void aPublicationFileOverTheLimitIsRefusedBeforeItIsRead();
     void aRecipientListOverTheLimitIsRefusedBeforeItIsRead();

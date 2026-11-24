@@ -1,4 +1,7 @@
 #include "tst_pub_file.h"
+#include "../office/dochelpers.h"
+#include "doc/doc.h"
+#include "odt/odt.h"
 
 void PubFileTests::initTestCase() { initPubTestCase(); }
 
@@ -852,6 +855,182 @@ void PubFileTests::insertFileRefusesAFileThatIsNotWhatItsNameSays()
     }
 }
 
+namespace {
+// An open-document text built in code: the mimetype stored first, then the content and the manifest.
+QByteArray odtOf(const QString &body, bool encrypted = false)
+{
+    jp::ZipWriter z;
+    z.add(QStringLiteral("mimetype"), QByteArray("application/vnd.oasis.opendocument.text"), false);
+    z.add(QStringLiteral("META-INF/manifest.xml"),
+          QByteArray("<manifest:manifest xmlns:manifest=\"urn:oasis:names:tc:opendocument:xmlns:manifest:1.0\"><manifest:file-entry manifest:full-path=\"/\" manifest:media-type=\"application/vnd.oasis.opendocument.text\"/>")
+              + (encrypted ? QByteArray("<manifest:file-entry manifest:full-path=\"content.xml\"><manifest:encryption-data/></manifest:file-entry>") : QByteArray()) + "</manifest:manifest>",
+          true);
+    z.add(QStringLiteral("content.xml"),
+          QByteArray("<office:document-content xmlns:office=\"urn:oasis:names:tc:opendocument:xmlns:office:1.0\" xmlns:text=\"urn:oasis:names:tc:opendocument:xmlns:text:1.0\" "
+                     "xmlns:table=\"urn:oasis:names:tc:opendocument:xmlns:table:1.0\" xmlns:style=\"urn:oasis:names:tc:opendocument:xmlns:style:1.0\" "
+                     "xmlns:fo=\"urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0\" office:version=\"1.3\"><office:automatic-styles>"
+                     "<style:style style:name=\"B\" style:family=\"text\"><style:text-properties fo:font-weight=\"bold\"/></style:style></office:automatic-styles><office:body><office:text>")
+              + body.toUtf8() + "</office:text></office:body></office:document-content>",
+          true);
+    return z.finish();
+}
+QByteArray docxOf(const QByteArray &body)
+{
+    jp::ZipWriter z;
+    z.add(QStringLiteral("word/document.xml"), QByteArray("<w:document xmlns:w=\"w\"><w:body>") + body + "</w:body></w:document>", true);
+    return z.finish();
+}
+// Whether the first character of the story is bold.
+bool startsBold(const QTextDocument *d)
+{
+    QTextCursor c(const_cast<QTextDocument *>(d));
+    c.setPosition(1);
+    return c.charFormat().fontWeight() >= QFont::Bold;
+}
+}
+
+void PubFileTests::insertFileTakesAnOldBinaryDocument()
+{
+    InsertFileRig r;
+    QVERIFY(r.dir.isValid());
+    dochelp::DocWriter w;
+    w.text = QStringLiteral("Tulips bloom\rAlong the river walk\r");
+    w.chars.push_back({0, 6, dochelp::sprm1(dochelp::sprm::bold, 1)});
+    const QString path = r.write(QStringLiteral("old.doc"), w.build());
+    const int items = r.items(), steps = r.steps();
+    r.w.insertTextFile(path);
+    QVERIFY2(r.told.isEmpty(), qPrintable(r.told.join(QLatin1Char('|'))));
+    QCOMPARE(r.items(), items + 1);
+    QCOMPARE(r.steps(), steps + 1);
+    const QTextDocument *story = r.w.editor()->doc()->storyDocs().last();
+    QVERIFY(story->toPlainText().contains(QStringLiteral("Tulips bloom")));
+    QVERIFY(story->toPlainText().contains(QStringLiteral("Along the river walk")));
+    QCOMPARE(story->blockCount(), 2);   // (two paragraphs, as the .docx path makes them)
+    QVERIFY(startsBold(story));
+    r.w.editor()->undoStack()->undo();
+    QCOMPARE(r.items(), items);
+}
+
+void PubFileTests::insertFileTakesAnOpenDocumentText()
+{
+    InsertFileRig r;
+    QVERIFY(r.dir.isValid());
+    const QString path = r.write(QStringLiteral("open.odt"), odtOf(QStringLiteral("<text:p><text:span text:style-name=\"B\">Tulips</text:span> bloom</text:p><text:p>Along the river walk</text:p>")));
+    const int items = r.items(), steps = r.steps();
+    r.w.insertTextFile(path);
+    QVERIFY2(r.told.isEmpty(), qPrintable(r.told.join(QLatin1Char('|'))));
+    QCOMPARE(r.items(), items + 1);
+    QCOMPARE(r.steps(), steps + 1);
+    const QTextDocument *story = r.w.editor()->doc()->storyDocs().last();
+    QVERIFY(story->toPlainText().contains(QStringLiteral("Tulips bloom")));
+    QVERIFY(story->toPlainText().contains(QStringLiteral("Along the river walk")));
+    QVERIFY(startsBold(story));
+    r.w.editor()->undoStack()->undo();
+    QCOMPARE(r.items(), items);
+    // (a dropped file of either kind comes in too, and the other files dropped with it)
+    r.w.insertFiles({path, r.write(QStringLiteral("old.doc"), [] { dochelp::DocWriter w; w.text = QStringLiteral("Grand opening\r"); return w.build(); }())}, QPointF(-1, -1));
+    QVERIFY2(r.told.isEmpty(), qPrintable(r.told.join(QLatin1Char('|'))));
+    QCOMPARE(r.items(), items + 2);
+}
+
+void PubFileTests::insertFileSaysWhatItLeftOut()
+{
+    InsertFileRig r;
+    QVERIFY(r.dir.isValid());
+    const QByteArray table = "<w:tbl><w:tr><w:tc><w:p><w:r><w:t>cell</w:t></w:r></w:p></w:tc></w:tr></w:tbl>";
+    const QByteArray listItem = "<w:p><w:pPr><w:numPr><w:ilvl w:val=\"0\"/><w:numId w:val=\"1\"/></w:numPr></w:pPr><w:r><w:t>item</w:t></w:r></w:p>";
+    struct Case {
+        QString name;
+        QByteArray bytes;
+        QString count;   // (the wording of a counted message comes from the language's forms, so only its number is asked)
+    };
+    dochelp::DocWriter withPicture;
+    withPicture.text = QStringLiteral("See \x01 here\r");
+    const int pic = withPicture.addPicture(dochelp::tinyPng(), 1440, 720);
+    withPicture.chars = {{4, 5, dochelp::sprm1(dochelp::sprm::special, 1) + dochelp::sprm4(dochelp::sprm::picture, quint32(pic))}};
+    const QVector<Case> cases = {
+        // two tables and a list of three (a list is counted once): 3, in the plural
+        {QStringLiteral("a.docx"), docxOf(table + "<w:p/>" + table + listItem + listItem + listItem), QStringLiteral("3")},
+        {QStringLiteral("b.odt"), odtOf(QStringLiteral("<table:table><table:table-row><table:table-cell><text:p>cell</text:p></table:table-cell></table:table-row></table:table>")), QStringLiteral("1")},
+        {QStringLiteral("c.doc"), withPicture.build(), QStringLiteral("1")},
+    };
+    for (const Case &c : cases) {
+        r.told.clear();
+        const int items = r.items(), steps = r.steps();
+        r.w.insertTextFile(r.write(c.name, c.bytes));
+        QCOMPARE(r.told.size(), 1);
+        QVERIFY2(r.told.first().contains(c.name), qPrintable(r.told.first()));
+        QVERIFY2(r.told.first().startsWith(c.count + QLatin1Char(' ')), qPrintable(r.told.first()));
+        // (the text came in all the same, as one step)
+        QCOMPARE(r.items(), items + 1);
+        QCOMPARE(r.steps(), steps + 1);
+    }
+    // a file of text alone says nothing
+    r.told.clear();
+    r.w.insertTextFile(r.write(QStringLiteral("plain.odt"), odtOf(QStringLiteral("<text:p>Just words</text:p>"))));
+    QVERIFY(r.told.isEmpty());
+}
+
+void PubFileTests::insertFileRefusesAProtectedOrDamagedDocumentOfEitherKind()
+{
+    InsertFileRig r;
+    QVERIFY(r.dir.isValid());
+    dochelp::DocWriter w;
+    w.text = QStringLiteral("Secret plans\r");
+    const QByteArray good = w.build();
+    struct Case {
+        QString name;
+        QByteArray bytes;
+        QString why;   // part of the reason, where the file says one
+    };
+    const QVector<Case> cases = {
+        {QStringLiteral("locked.doc"), w.buildProtected(QStringLiteral("pw"), 1), QStringLiteral("password")},
+        {QStringLiteral("locked.odt"), odtOf(QStringLiteral("<text:p>x</text:p>"), true), QStringLiteral("password")},
+        {QStringLiteral("cut.doc"), good.left(good.size() / 2), QString()},
+        {QStringLiteral("junk.doc"), QByteArray("not a compound file at all"), QString()},
+        {QStringLiteral("junk.odt"), QByteArray("PK\x03\x04 not really a package"), QString()},
+        {QStringLiteral("empty.odt"), QByteArray(), QString()},
+    };
+    const int items = r.items(), steps = r.steps(), stories = r.stories();
+    for (const Case &c : cases) {
+        r.told.clear();
+        r.w.insertTextFile(r.write(c.name, c.bytes));
+        QCOMPARE(r.told.size(), 1);
+        QVERIFY2(r.told.first().contains(QStringLiteral("nothing was inserted")), qPrintable(r.told.first()));
+        QVERIFY2(r.told.first().contains(c.name), qPrintable(r.told.first()));
+        if (!c.why.isEmpty()) QVERIFY2(r.told.first().contains(c.why), qPrintable(r.told.first()));
+        QCOMPARE(r.items(), items);
+        QCOMPARE(r.steps(), steps);
+        QCOMPARE(r.stories(), stories);
+    }
+}
+
+// The reader's own limit holds on this path: 450,000 runs from a few kilobytes of file make at most the XML the reader allows, and the box gets whole
+// paragraphs of what came before the cut, with the cut said.
+void PubFileTests::aHugeOldDocumentIsCutAtTheReadersLimitAndSaid()
+{
+    InsertFileRig r;
+    QVERIFY(r.dir.isValid());
+    const QString line = QStringLiteral("abcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyzabcdefghijklmnopqrstuvwxyz").left(89);
+    dochelp::DocWriter w;
+    w.text = line + QLatin1Char('\r');
+    for (int i = 0; i < 89; ++i) w.chars.push_back({i, i + 1, dochelp::sprm1(dochelp::sprm::bold, i & 1)});
+    w.repeatText = 5000;
+    const QByteArray file = w.build();
+    QVERIFY(file.size() < 200000);
+    // (through the reader's call itself: a window would ask whether to continue so much text on new pages)
+    QTextDocument story;
+    QString problem, note;
+    QVERIFY2(jp::loadTextFileInto(&story, r.write(QStringLiteral("huge.doc"), file), &problem, &note), qPrintable(problem));
+    const jp::office::doc::ReadWork work = jp::office::doc::readWorkForTest();
+    QVERIFY2(work.outputElements <= jp::office::doc::kMaxOutputElements + 100, qPrintable(QString::number(work.outputElements)));
+    QVERIFY2(work.outputBytes <= jp::office::doc::kMaxOutputBytes + (1 << 20), qPrintable(QString::number(work.outputBytes)));
+    QVERIFY2(note.contains(QStringLiteral("huge.doc")), qPrintable(note));
+    QVERIFY2(note.contains(QStringLiteral("left out")), qPrintable(note));
+    QVERIFY(story.blockCount() > 100 && story.blockCount() < 5000);
+    QVERIFY(story.toPlainText().startsWith(line));
+}
+
 void PubFileTests::aDroppedTextFileThatCantBeReadIsToldAboutAndTheOthersComeIn()
 {
     InsertFileRig r;
@@ -925,6 +1104,8 @@ void PubFileTests::aDamagedTextFileOrListIsTakenInOrRefusedWithAReason()
     };
     const QVector<Seed> seeds = {
         {QStringLiteral("a.docx"), z.finish(), false},
+        {QStringLiteral("a.doc"), [] { dochelp::DocWriter w; w.text = QStringLiteral("Hello world\rSecond\r"); w.chars.push_back({0, 5, dochelp::sprm1(dochelp::sprm::bold, 1)}); return w.build(); }(), false},
+        {QStringLiteral("a.odt"), odtOf(QStringLiteral("<text:p>Hello <text:span text:style-name=\"B\">world</text:span></text:p><text:p>Second</text:p>")), false},
         {QStringLiteral("a.rtf"), QByteArray("{\\rtf1\\ansi{\\fonttbl{\\f0 Arial;}}\\f0 Hello \\b world\\b0\\par Second\\par}"), false},
         {QStringLiteral("a.html"), QByteArray("<html><body><p>Hello <b>world</b></p><ul><li>one</li></ul></body></html>"), false},
         {QStringLiteral("a.md"), QByteArray("# Title\n\nHello **world**\n\n- one\n- two\n"), false},

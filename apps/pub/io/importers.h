@@ -26,12 +26,17 @@ struct PaintContext;
 
 class Editor;
 
-// The most a text file may be for Insert File and a dropped file (a .txt, .rtf, .html, .md, or .docx); a larger one is refused before it is read.
+// The most a text file may be for Insert File and a dropped file (a .txt, .rtf, .html, .md, .docx, .doc, or .odt); a larger one is refused before it is read.
 constexpr qint64 kMaxTextFileBytes = qint64(64) << 20;
+// Whether Insert File and a dropped file take a file of this suffix (lower case, no dot) as text.
+bool isInsertableTextSuffix(const QString &suffix);
 // Puts the file's text at the end of `doc`. False, with `problem` set to a sentence for the person (when given), and `doc` unchanged,
-// when the file can't be opened, is over kMaxTextFileBytes, or isn't a document of its kind.
-bool loadTextFileInto(QTextDocument *doc, const QString &path, QString *problem = nullptr);
-QString docxToHtml(const QByteArray &docx);
+// when the file can't be opened, is over kMaxTextFileBytes, or isn't a document of its kind (a .doc and an .odt are read by libs/office's readers and then
+// go in as a .docx does; one that is damaged or protected with a password is refused with the reader's reason). On success `note`, when given, says what came in
+// as plain text or was left out (the pictures, tables, lists, and notes of a document, and what the reader could not read), or is empty.
+bool loadTextFileInto(QTextDocument *doc, const QString &path, QString *problem = nullptr, QString *note = nullptr);
+// The text of the document part of a .docx package as simple HTML; `left`, when given, is how many pictures, tables, lists, and notes it has that the text alone leaves out.
+QString docxToHtml(const QByteArray &docx, int *left = nullptr);
 
 std::unique_ptr<Document> mergeToNewPublication(const Document &src);
 void mergeToEmailFiles(QWidget *parent, Editor *ed);

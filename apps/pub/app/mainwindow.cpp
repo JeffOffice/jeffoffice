@@ -2068,19 +2068,21 @@ void MainWindow::insertFiles(const QStringList &paths, const QPointF &atIn, Pict
     int pictures = 0;
     for (const QString &path : paths) {
         const QString suffix = QFileInfo(path).suffix().toLower();
-        pictures += !(suffix == "txt" || suffix == "html" || suffix == "htm" || suffix == "rtf" || suffix == "md" || suffix == "docx");
+        pictures += !isInsertableTextSuffix(suffix);
     }
     const bool toTray = pictures > 1 && atIn.x() < 0 && m_ed->view.scratch && m_ed->masterView().isEmpty();
     for (const QString &path : paths) {
         const QString suffix = QFileInfo(path).suffix().toLower();
-        if (suffix == "txt" || suffix == "html" || suffix == "htm" || suffix == "rtf" || suffix == "md" || suffix == "docx") {
+        if (isInsertableTextSuffix(suffix)) {
             auto t = std::static_pointer_cast<TextItem>(m_ed->newTextBox(QRectF(at.x() < 0 ? ps.width() * 0.15 : at.x(), at.y() < 0 ? ps.height() * 0.2 : at.y(), ps.width() * 0.7, ps.height() * 0.5)));
             QString problem;
-            if (!loadTextFileInto(d->storyDoc(t->storyId), path, &problem)) {
+            QString note;
+            if (!loadTextFileInto(d->storyDoc(t->storyId), path, &problem, &note)) {
                 d->removeStory(t->storyId);
                 problems << problem;
                 continue;
             }
+            if (!note.isEmpty()) problems << note;
             m_ed->surfaceItems().push_back(t);
             made << t->id;
             continue;
@@ -2123,8 +2125,10 @@ void MainWindow::insertFiles(const QStringList &paths, const QPointF &atIn, Pict
 
 void MainWindow::insertTextFile(const QString &path)
 {
-    const QString problem = jp::insertTextFile(this, m_ed, path);
+    QString note;
+    const QString problem = jp::insertTextFile(this, m_ed, path, &note);
     if (!problem.isEmpty()) notice(tr("Insert File"), problem, true);
+    else if (!note.isEmpty()) notice(tr("Insert File"), note, false);
 }
 
 void MainWindow::editTextArt(const QString &id) { textArtTextDialog(this, m_ed, id); }

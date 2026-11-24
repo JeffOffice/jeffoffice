@@ -325,7 +325,7 @@ qt_add_executable(jptests
   tests/pub/tst_pub_threads.cpp
   tests/pub/tst_pub_export.cpp
   tests/pub/tst_pub_invariants.cpp
-  tests/pub/tst_pub_file.cpp tests/pub/tst_pub_file_02.cpp
+  tests/pub/tst_pub_file.cpp tests/pub/tst_pub_file_02.cpp tests/office/dochelpers.cpp
   tests/pub/tst_pub_find.cpp
   tests/pub/tst_pub_info.cpp
   tests/pub/tst_pub_formatpane.cpp

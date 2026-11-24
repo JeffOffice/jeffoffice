@@ -7,6 +7,8 @@
 #include "io/jpubfile.h"
 #include "io/pubimport.h"
 #include "io/zip.h"
+#include "doc/doc.h"
+#include "odt/odt.h"
 #include "office/package.h"
 #include "render/renderer.h"
 #include "text/textprops.h"
@@ -233,7 +235,7 @@ QMap<QString, QByteArray> readOfficeZip(const QByteArray &zip, const QStringList
 }
 } // namespace
 
-QString docxToHtml(const QByteArray &docx)
+QString docxToHtml(const QByteArray &docx, int *left)
 {
     const auto files = readOfficeZip(docx, {QStringLiteral("word/document.xml")});
     const QByteArray xml = files.value("word/document.xml");
@@ -242,11 +244,18 @@ QString docxToHtml(const QByteArray &docx)
     QString html = "<html><body>";
     bool inPara = false, bold = false, italic = false, underline = false;
     QString align;
+    // What the text alone leaves out, counted: pictures (one inside another, or beside its stand-in, once), tables, lists (a run of numbered paragraphs once), and notes.
+    int picture = 0, fallback = 0, leftOut = 0;
+    bool numbered = false, wasNumbered = false;
     while (!r.atEnd()) {
         r.readNext();
         const QStringView n = r.name();
         if (r.isStartElement()) {
-            if (n == u"p") { inPara = true; align.clear(); html += "<p>"; }
+            if (n == u"Fallback") ++fallback;
+            else if ((n == u"drawing" || n == u"pict" || n == u"object") && ++picture == 1 && fallback == 0) ++leftOut;
+            else if (n == u"tbl" || n == u"footnoteReference" || n == u"endnoteReference") ++leftOut;
+            else if (n == u"numId" && inPara && r.attributes().value("w:val") != u"0") numbered = true;
+            if (n == u"p") { inPara = true; align.clear(); numbered = false; html += "<p>"; }
             else if (n == u"jc") align = r.attributes().value("w:val").toString();
             else if (n == u"r") { bold = italic = underline = false; }
             else if (n == u"b") bold = r.attributes().value("w:val") != u"0";
@@ -260,7 +269,13 @@ QString docxToHtml(const QByteArray &docx)
                 html += t;
             } else if (n == u"tab") html += "\t";
             else if (n == u"br") html += "<br>";
+        } else if (r.isEndElement() && (n == u"drawing" || n == u"pict" || n == u"object")) {
+            if (picture > 0) --picture;
+        } else if (r.isEndElement() && n == u"Fallback") {
+            if (fallback > 0) --fallback;
         } else if (r.isEndElement() && n == u"p" && inPara) {
+            if (numbered && !wasNumbered) ++leftOut;
+            wasNumbered = numbered;
             if (!align.isEmpty()) {
                 const QString a = align == u"center" ? "center" : align == u"right" || align == u"end" ? "right" : align == u"both" ? "justify" : "left";
                 const int at = html.lastIndexOf("<p>");
@@ -270,6 +285,7 @@ QString docxToHtml(const QByteArray &docx)
             inPara = false;
         }
     }
+    if (left) *left = leftOut;
     return html + "</body></html>";
 }
 
@@ -308,7 +324,12 @@ static QString rtfToText(const QByteArray &rtf)
     return out.trimmed();
 }
 
-bool loadTextFileInto(QTextDocument *doc, const QString &path, QString *problem)
+bool isInsertableTextSuffix(const QString &suffix)
+{
+    return suffix == "txt" || suffix == "html" || suffix == "htm" || suffix == "rtf" || suffix == "md" || suffix == "docx" || suffix == "doc" || suffix == "odt";
+}
+
+bool loadTextFileInto(QTextDocument *doc, const QString &path, QString *problem, QString *note)
 {
     const QString name = QFileInfo(path).fileName();
     QByteArray data;
@@ -323,8 +344,26 @@ bool loadTextFileInto(QTextDocument *doc, const QString &path, QString *problem)
     const QString suffix = QFileInfo(path).suffix().toLower();
     QString docxHtml;
     bool unreadable = false;
-    if (suffix == "docx") {
-        docxHtml = docxToHtml(data);
+    int left = 0;
+    bool readerLeftOut = false;
+    // (a .doc or .odt is made into the package of a .docx by the repository's own readers, and goes on as a .docx does)
+    const bool packaged = suffix == "docx" || suffix == "doc" || suffix == "odt";
+    if (packaged) {
+        QByteArray package = data;
+        if (suffix == "doc") {
+            office::wml::ReadNotes notes;
+            package = office::doc::toDocxPackage(data, &why, &notes);
+            readerLeftOut = notes.leftOut;
+        } else if (suffix == "odt") {
+            QStringList notes;
+            package = office::odt::toDocxPackage(data, &why, &notes);
+            readerLeftOut = !notes.isEmpty();
+        }
+        if (package.isEmpty() && !why.isEmpty()) {
+            if (problem) *problem = QCoreApplication::translate("Importers", "\"%1\" couldn't be read, so nothing was inserted.\n%2").arg(name, why);
+            return false;
+        }
+        docxHtml = docxToHtml(package, &left);
         unreadable = docxHtml.isEmpty();
     } else if (suffix == "rtf") {
         unreadable = !data.trimmed().startsWith("{\\rtf");
@@ -335,7 +374,7 @@ bool loadTextFileInto(QTextDocument *doc, const QString &path, QString *problem)
     }
     QTextCursor c(doc);
     c.movePosition(QTextCursor::End);
-    if (suffix == "docx") {
+    if (packaged) {
         c.insertFragment(QTextDocumentFragment::fromHtml(docxHtml));
     } else if (suffix == "html" || suffix == "htm") {
         c.insertFragment(QTextDocumentFragment::fromHtml(QString::fromUtf8(data)));
@@ -350,6 +389,16 @@ bool loadTextFileInto(QTextDocument *doc, const QString &path, QString *problem)
         QString text = dec.decode(data);
         if (dec.hasError()) text = QString::fromLatin1(data);
         c.insertText(text);
+    }
+    if (note) {
+        note->clear();
+        if (left > 0)
+            *note = QCoreApplication::translate("Importers", "%n picture, table, list, or note in \"%1\" was left out or came in as plain text.",
+                                                "", left).arg(name);
+        if (readerLeftOut) {
+            if (!note->isEmpty()) *note += QLatin1Char(' ');
+            *note += QCoreApplication::translate("Importers", "Some parts of \"%1\" could not be read and were left out.").arg(name);
+        }
     }
     return true;
 }
