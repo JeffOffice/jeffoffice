@@ -8607,7 +8607,7 @@ Guardar sem cópia de segurança?</translation>
 <context>
     <name>IconPicker</name>
     <message>
-        <location filename="../libs/page/app/iconpicker.cpp" line="+81"/>
+        <location filename="../libs/page/app/iconpicker.cpp" line="+87"/>
         <location line="+110"/>
         <source>Insert Icons</source>
         <translation type="unfinished">Inserir Ícones</translation>

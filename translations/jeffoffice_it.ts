@@ -8607,7 +8607,7 @@ Salvare senza backup?</translation>
 <context>
     <name>IconPicker</name>
     <message>
-        <location filename="../libs/page/app/iconpicker.cpp" line="+81"/>
+        <location filename="../libs/page/app/iconpicker.cpp" line="+87"/>
         <location line="+110"/>
         <source>Insert Icons</source>
         <translation type="unfinished">Inserisci icone</translation>
