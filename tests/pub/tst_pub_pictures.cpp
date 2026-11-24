@@ -21,6 +21,8 @@
 #include "core/blipeffects.h"
 #include "core/picturefx.h"
 #include "app/theme.h"
+#include "io/zip.h"
+#include "render/renderer.h"
 #include <QMessageBox>
 #include <QThread>
 #include <atomic>
@@ -685,6 +687,47 @@ private Q_SLOTS:
         jp::MainWindow w;
         QVERIFY(w.openFile(dir.filePath(QStringLiteral("a.pub"))));
         QVERIFY(jp::blipFilters(thePicture(w.editor())->blipEffects).isEmpty());
+    }
+
+    // Inspect in JeffPub lists the original that stays under a picture effect and takes it out: the saved file no longer holds the original, and the picture looks the same.
+    void inspectListsAndRemovesTheOriginalUnderAPictureEffect()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        jp::MainWindow w;
+        w.resize(1400, 900);
+        w.show();
+        jp::PictureItem *p = addDisc(w);
+        jp::Editor *ed = w.editor();
+        const QByteArray original = ed->doc()->images.value(p->imageId).bytes;
+        jp::applyArtisticEffect(ed, &w, int(jp::ArtisticStyle::Mosaic));
+        const QVector<jp::InspectItem> rows = w.inspectItems();
+        const jp::InspectItem *row = nullptr;
+        for (const jp::InspectItem &r : rows)
+            if (r.title == QStringLiteral("Original pictures kept under picture effects")) row = &r;
+        QVERIFY(row);
+        QCOMPARE(row->count(), 1);
+        auto holdsOriginal = [&](const QString &path) {
+            QFile f(path);
+            QMap<QString, QByteArray> parts;
+            if (!f.open(QIODevice::ReadOnly) || !jp::readZip(f.readAll(), parts)) return false;
+            for (const QByteArray &part : parts)
+                if (part == original) return true;
+            return false;
+        };
+        const QImage looked = jp::Renderer::processedImage(*ed->doc(), *thePicture(ed), QSizeF(), QSizeF());
+        QVERIFY(w.saveTo(dir.filePath(QStringLiteral("a.jpub"))));
+        QVERIFY(holdsOriginal(dir.filePath(QStringLiteral("a.jpub"))));
+        const int steps = ed->undoStack()->index();
+        QCOMPARE(row->remove(), 1);
+        QCOMPARE(ed->undoStack()->index(), steps + 1);
+        QCOMPARE(row->count(), 0);
+        QVERIFY(jp::blipFilters(thePicture(ed)->blipEffects).isEmpty());
+        QCOMPARE(jp::Renderer::processedImage(*ed->doc(), *thePicture(ed), QSizeF(), QSizeF()), looked);
+        QVERIFY(w.saveTo(dir.filePath(QStringLiteral("b.jpub"))));
+        QVERIFY(!holdsOriginal(dir.filePath(QStringLiteral("b.jpub"))));
+        ed->undoStack()->undo();
+        QCOMPARE(row->count(), 1);
     }
 
     // The Background Removal tab, for the docs, when JO_SHOT_DIR names a folder.

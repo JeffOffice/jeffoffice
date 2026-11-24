@@ -1,6 +1,7 @@
 // JeffDeck's Info page: the presentation's properties, Mark as Final, a password, Inspect Presentation, and Version History. The page itself is libs/shell/app/infopage.cpp; this gives it the
 // presentation's facts and does what its cards ask. The properties are kept in the presentation (so Undo covers them) and written to the file's properties when it is saved.
 #include "app/deckwindow.h"
+#include "app/picturetools.h"
 
 #include "app/deckcanvas.h"
 #include "app/deckfilescreen.h"
@@ -314,6 +315,7 @@ QVector<InspectItem> DeckWindow::inspectItems()
     if (const int authors = authorSlides(*m_ed->doc()); authors > 0)
         items.push_back({tr("Author field on %n slide(s)", nullptr, authors), tr("A field that shows the author's name in the text of a slide. With Remove personal information on, it is saved with no text."),
                          [doc, authorSlides] { return authorSlides(*doc()); }, [] { return 0; }, false, QString()});
+    for (const InspectItem &keptRow : pictureInspectItems(ed)) items.push_back(keptRow);
     items.push_back({tr("Hidden slides"), tr("Slides that are set to be hidden: the slide show skips them, but they are in the file. Show them to see what they hold."),
                      [doc] {
                          int n = 0;

@@ -4,6 +4,7 @@
 // looks themselves are core/picturestyles.h's, and the effect presets formatpresets.h's.
 
 #include "app/editor.h"
+#include "app/infopage.h"
 #include "app/widgets.h"
 #include "core/style.h"
 
@@ -59,6 +60,16 @@ void changePicturesWithFilter(Editor *ed, QWidget *window, const QString &step, 
 int pictureFxThreadedRuns();
 // Called at the start of the work on its thread, with the flag the Cancel button sets (for tests, as Editor::removeBgWorkerHook is).
 extern std::function<void(const std::atomic<bool> &)> pictureFxWorkerHook;
+
+// What Inspect finds beside the finished look of pictures (every page, master, and the scratch area): the original that stays in the file under a picture effect, the whole picture
+// under a removed background, and the parts cropped out of sight. The rows count them and take them out; a picture then keeps only what shows, as a picture of its own (Reset Picture
+// and Remove Background can't bring the rest back). One step of Undo for each.
+enum class PictureKept { FilterOriginals, RemovedBackgrounds, CroppedAreas };
+int picturesKeeping(const Document &doc, PictureKept kind);
+int removeKeptPictureParts(Editor *ed, PictureKept kind);
+// How many pictures have filters left out (more than can be worked out on the picture: only a file can have them).
+int picturesWithEffectsLeftOut(const Document &doc);
+QVector<InspectItem> pictureInspectItems(Editor *ed);
 
 // Crop to Shape's gallery: the closed shapes of the Shapes gallery that a file keeps by a preset name (the id is the shape's id: office::presetForShape gives its preset).
 QVector<GalleryItem> cropShapeItems();

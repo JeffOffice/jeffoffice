@@ -5,6 +5,7 @@
 #include "core/blipeffects.h"
 #include "core/picturefx.h"
 #include "core/picturestyles.h"
+#include "core/removebg.h"
 #include "core/workthread.h"
 #include "office/drawingml_write.h"
 #include "render/shapes.h"
@@ -399,6 +400,139 @@ void changePicturesWithFilter(Editor *ed, QWidget *window, const QString &step, 
     ed->forEachSelected(step, [&change](Item *it) {
         if (plainPicture(it)) change(*static_cast<PictureItem *>(it));
     });
+}
+
+namespace {
+
+// A picture of pixels (not a drawing kept as drawing: those have nothing to take away).
+bool bakeable(const Document &doc, const PictureItem &p)
+{
+    if (!p.mediaKind.isEmpty() || !p.chartXml.isEmpty() || p.imageId.isEmpty()) return false;
+    const QString format = doc.images.value(p.imageId).format;
+    return format != QLatin1String("svg") && format != QLatin1String("wmf") && format != QLatin1String("emf") && format != QLatin1String("pdf") && doc.imageSize(p.imageId).isValid();
+}
+
+// A crop of less than this (in points) is the picture cut to whole pixels, not a crop to list.
+constexpr double kCropSlack = 1.5;
+
+// The part of the picture that shows, frame-local (as imgRect is).
+QRectF shownPart(const PictureItem &p) { return QRectF(QPointF(0, 0), p.rect.size()).intersected(p.imgRect); }
+
+bool keeps(const Document &doc, const PictureItem &p, PictureKept kind)
+{
+    if (!bakeable(doc, p)) return false;
+    switch (kind) {
+    case PictureKept::FilterOriginals: return blipEffectsChange(blipFilters(p.blipEffects));
+    case PictureKept::RemovedBackgrounds: return p.removal.isValid() && p.removal.source == doc.imageSize(p.imageId);
+    case PictureKept::CroppedAreas: {
+        const QRectF vis = shownPart(p);
+        return !p.imgRect.isEmpty() && vis.width() >= 1 && vis.height() >= 1 && (vis.width() < p.imgRect.width() - kCropSlack || vis.height() < p.imgRect.height() - kCropSlack);
+    }
+    }
+    return false;
+}
+
+// The picture as a finished picture of its own: with the removal and the filters worked in (as they are drawn: removal first), and cut to what shows when `crop`. The removal is worked
+// in whenever the filters are (it can't stay beside a picture made another size by them).
+bool bakePicture(Document &doc, PictureItem &p, PictureKept kind)
+{
+    const bool filters = kind == PictureKept::FilterOriginals, removal = p.removal.isValid() && p.removal.source == doc.imageSize(p.imageId) && (filters || kind == PictureKept::RemovedBackgrounds),
+               crop = kind == PictureKept::CroppedAreas;
+    QImage img = doc.image(p.imageId);
+    if (img.isNull()) return false;
+    if (removal) img = applyBackgroundRemoval(img, p.removal);
+    if (filters) img = applyBlipEffects(img, blipFilters(p.blipEffects));
+    QRectF newRect = p.imgRect;
+    if (crop) {
+        const QRectF vis = shownPart(p);
+        const double sx = img.width() / p.imgRect.width(), sy = img.height() / p.imgRect.height();
+        const QRect px = QRect(int(std::floor((vis.x() - p.imgRect.x()) * sx)), int(std::floor((vis.y() - p.imgRect.y()) * sy)), std::max(1, int(std::ceil(vis.width() * sx))), std::max(1, int(std::ceil(vis.height() * sy)))).intersected(img.rect());
+        if (px.isEmpty()) return false;
+        img = img.copy(px);
+        newRect = QRectF(p.imgRect.x() + px.x() / sx, p.imgRect.y() + px.y() / sy, px.width() / sx, px.height() / sy);
+    }
+    QByteArray png;
+    QBuffer buffer(&png);
+    buffer.open(QIODevice::WriteOnly);
+    if (!img.convertToFormat(QImage::Format_ARGB32).save(&buffer, "PNG")) return false;
+    p.imageId = doc.addImage(png, QStringLiteral("png"));
+    p.imgRect = newRect;
+    if (removal) p.removal = BackgroundRemoval();
+    if (filters) p.blipEffects = blipColorEffects(p.blipEffects);
+    return true;
+}
+
+} // namespace
+
+int picturesKeeping(const Document &doc, PictureKept kind)
+{
+    int n = 0;
+    doc.forEachItem([&](Item *it, int, const QString &) {
+        if (const auto *p = dynamic_cast<const PictureItem *>(it); p && keeps(doc, *p, kind)) ++n;
+    });
+    return n;
+}
+
+int picturesWithEffectsLeftOut(const Document &doc)
+{
+    int n = 0;
+    doc.forEachItem([&](Item *it, int, const QString &) {
+        const auto *p = dynamic_cast<const PictureItem *>(it);
+        if (p && bakeable(doc, *p) && blipFiltersLeftOut(qint64(doc.imageSize(p->imageId).width()) * doc.imageSize(p->imageId).height(), p->blipEffects) > 0) ++n;
+    });
+    return n;
+}
+
+int removeKeptPictureParts(Editor *ed, PictureKept kind)
+{
+    QVector<PictureItem *> pics;
+    ed->doc()->forEachItem([&](Item *it, int, const QString &) {
+        if (auto *p = dynamic_cast<PictureItem *>(it); p && keeps(*ed->doc(), *p, kind)) pics << p;
+    });
+    int n = 0;
+    const QString step = kind == PictureKept::FilterOriginals ? QCoreApplication::translate("jp::PictureTools", "Remove Original Pictures")
+                       : kind == PictureKept::RemovedBackgrounds ? QCoreApplication::translate("jp::PictureTools", "Remove Pictures Under Removed Backgrounds")
+                                                                 : QCoreApplication::translate("jp::PictureTools", "Remove Cropped Areas");
+    ed->change(step, [&] {
+        for (PictureItem *p : pics)
+            if (bakePicture(*ed->doc(), *p, kind)) ++n;
+    });
+    return n;
+}
+
+QVector<InspectItem> pictureInspectItems(Editor *ed)
+{
+    auto row = [ed](PictureKept kind, const QString &title, const QString &detail, const QString &action) {
+        InspectItem item;
+        item.title = title;
+        item.detail = detail;
+        item.count = [ed, kind] { return picturesKeeping(*ed->doc(), kind); };
+        item.remove = [ed, kind] { return removeKeptPictureParts(ed, kind); };
+        item.action = action;
+        return item;
+    };
+    QVector<InspectItem> rows{
+        row(PictureKept::FilterOriginals, QCoreApplication::translate("jp::PictureTools", "Original pictures kept under picture effects"),
+            QCoreApplication::translate("jp::PictureTools", "A picture effect such as Blur or Mosaic changes how a picture looks, but the original picture stays in the file, and anyone who gets the file can take it out. Removing it keeps only the finished picture: Reset Picture can then no longer bring the original back."),
+            QCoreApplication::translate("jp::PictureTools", "Remove Originals")),
+        row(PictureKept::RemovedBackgrounds, QCoreApplication::translate("jp::PictureTools", "Whole pictures kept under removed backgrounds"),
+            QCoreApplication::translate("jp::PictureTools", "When you remove the background of a picture, the whole original picture stays in the file. Removing it keeps only the picture without its background: Remove Background can then no longer bring the background back."),
+            QCoreApplication::translate("jp::PictureTools", "Remove Originals")),
+        row(PictureKept::CroppedAreas, QCoreApplication::translate("jp::PictureTools", "Cropped-away parts of pictures"),
+            QCoreApplication::translate("jp::PictureTools", "A cropped picture still holds the parts you cropped away, and anyone who gets the file can see them. Removing them cuts each picture down to what shows: the crop can then no longer be undone by dragging its edges out."),
+            QCoreApplication::translate("jp::PictureTools", "Remove Cropped Parts")),
+    };
+    // (only a file can hold more effects than can be worked out: said, never left out silently)
+    if (picturesWithEffectsLeftOut(*ed->doc()) > 0) {
+        InspectItem left;
+        left.title = QCoreApplication::translate("jp::PictureTools", "Picture effects that are left out");
+        left.detail = QCoreApplication::translate("jp::PictureTools", "A picture in this file has more effects than can be worked out. It shows the first ones, and the rest are left out. Take effects off the picture to see it as it should look.");
+        left.count = [ed] { return picturesWithEffectsLeftOut(*ed->doc()); };
+        left.remove = [] { return 0; };
+        left.removable = false;
+        rows.push_back(left);
+    }
+    return rows;
 }
 
 } // namespace jp

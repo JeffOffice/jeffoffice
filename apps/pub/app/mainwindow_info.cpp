@@ -1,6 +1,7 @@
 // JeffPub's Info page: the publication's properties, Mark as Final, Inspect Publication, and Version History. The page itself is libs/shell/app/infopage.cpp; this gives it the publication's facts
 // and does what its cards ask. A password is for .jpub files only: a .pub file must stay one the other publisher program opens. The properties are kept in the publication (so Undo covers them) and saved with it.
 #include "app/mainwindow.h"
+#include "app/picturetools.h"
 
 #include "app/backstage.h"
 #include "app/dialogs.h"
@@ -316,6 +317,7 @@ QVector<InspectItem> MainWindow::inspectItems()
                          return n;
                      },
                      true, QString()});
+    for (const InspectItem &keptRow : pictureInspectItems(ed)) items.push_back(keptRow);
     return items;
 }
 
