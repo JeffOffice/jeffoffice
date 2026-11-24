@@ -1734,8 +1734,8 @@
          "text": "e2e36689d284a1aeefa898aac3dfb0aca24ead9e659e775923fb374d03eb3904"
         },
         {
-         "status": "todo",
-         "text": "7af548a96b87ea065562937711e69b5c4415cf099fbcb1255af7b19b3c688df6"
+         "status": "partly",
+         "text": "5bd72953cabc3c29c8fcec325ba00a25f78053efebcc26851759d6f1c477a1a7"
         },
         {
          "hide_soon": true,
@@ -14975,6 +14975,18 @@
     "fr": ""
    }
   },
+  "5bd72953cabc3c29c8fcec325ba00a25f78053efebcc26851759d6f1c477a1a7": {
+   "drop": false,
+   "en": "Type and see function names in the language of the interface, while the file always stores the English names. Argument separators follow the computer's regional settings (`;` where the comma is the decimal mark), and an option, \"Use English function names\", is available under Options > Formulas.",
+   "es": "Escriba y vea los nombres de las funciones en el idioma de la interfaz, mientras que el archivo siempre guarda los nombres en inglés. Los separadores de argumentos siguen la configuración regional del equipo (`;` cuando la coma es el separador decimal), y en Opciones > Fórmulas hay una opción, \"Use English function names\".",
+   "fr": "Saisissez et affichez les noms de fonctions dans la langue de l’interface, tandis que le fichier conserve toujours les noms anglais. Les séparateurs d’arguments suivent les paramètres régionaux de l’ordinateur (`;` lorsque la virgule est le séparateur décimal), et une option, « Use English function names », se trouve dans Options > Formules.",
+   "soon": {
+    "drop": false,
+    "en": "Local function names: the dotted statistics and engineering functions, error values shown in cells, and formula fields of conditional formats, data validation, and chart series",
+    "es": "Nombres locales de funciones: funciones estadísticas con punto y de ingeniería, valores de error mostrados en celdas y campos de fórmula de formatos condicionales, validación de datos y series de gráficos",
+    "fr": "Noms de fonctions localisés : fonctions statistiques à point et d’ingénierie, valeurs d’erreur affichées dans les cellules et champs de formule des mises en forme conditionnelles, de la validation des données et des séries de graphiques"
+   }
+  },
   "5c237df33390abaad70067f48bd95ebb34af64c9262c57fc39b56960144ab640": {
    "drop": false,
    "en": "Share and Export",
@@ -17397,18 +17409,6 @@
     "en": "Scenarios: merge from other workbooks and hide on a protected sheet",
     "es": "Escenarios: combinar desde otros libros y ocultar en una hoja protegida",
     "fr": "Scénarios : fusion depuis d’autres classeurs et masquage sur une feuille protégée"
-   }
-  },
-  "7af548a96b87ea065562937711e69b5c4415cf099fbcb1255af7b19b3c688df6": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Function names in the language of the interface, with locale-specific argument separators",
-    "es": "Nombres de funciones en el idioma de la interfaz, con separadores de argumentos según el idioma",
-    "fr": "Noms de fonctions dans la langue de l’interface, avec séparateurs d’arguments selon la langue"
    }
   },
   "7bc9c63477a68415f084fa48769930fb919027b5dddda90484230652e1ea26ff": {
