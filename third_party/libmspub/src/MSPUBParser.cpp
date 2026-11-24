@@ -822,6 +822,8 @@ bool MSPUBParser::parsePageChunk(librevenge::RVNGInputStream *input, const Conte
   while (stillReading(input, chunk.offset + length))
   {
     MSPUBBlockInfo info = parseBlock(input);
+    if (jpTraceOn())
+      fprintf(stderr, "PAGEBLOCK seq=%u id=0x%x type=0x%x data=%u len=%lu\n", chunk.seqNum, info.id, info.type, info.data, info.dataLength);
     // JeffPub patch: a master's side (3 single, 1 right-hand, 0 left-hand part).
     if (info.id == 0x10 && info.type == 0x20)
       side = info.data;
@@ -862,6 +864,8 @@ bool MSPUBParser::parsePageChunk(librevenge::RVNGInputStream *input, const Conte
       skipBlock(input, info);
     }
   }
+  if (jpTraceOn())
+    fprintf(stderr, "PAGEKIND seq=%u dummy=%d kind=%d master=%d\n", chunk.seqNum, int(type != NORMAL), kindByte, int(isMaster));
   if (type == NORMAL && !isMaster && kindByte >= 0)
     m_collector->setPageKind(chunk.seqNum, kindByte);
   if (isMaster)
@@ -875,6 +879,8 @@ bool MSPUBParser::parsePageShapeList(librevenge::RVNGInputStream *input, MSPUBBl
   while (stillReading(input, info.dataOffset + info.dataLength))
   {
     MSPUBBlockInfo subInfo = parseBlock(input, true);
+    if (jpTraceOn())
+      fprintf(stderr, "PAGESHAPE page=%u id=0x%x type=0x%x data=%u\n", pageSeqNum, subInfo.id, subInfo.type, subInfo.data);
     if (subInfo.type == SHAPE_SEQNUM)
     {
       m_collector->setShapePage(subInfo.data, pageSeqNum);
@@ -910,7 +916,13 @@ bool MSPUBParser::parseShape(librevenge::RVNGInputStream *input,
         input->seek(here, librevenge::RVNG_SEEK_SET);
         fprintf(stderr, "\n");
       }
-      if (info.id == TABLE_CELLS_SEQNUM)
+      // JeffPub: a table set in text carries its story's number for it in field 0f, as any
+      // other object set in text does.
+      if (info.id == 0x0f && info.type == 0x20)
+      {
+        m_collector->setShapeInlineNum(chunk.seqNum, info.data);
+      }
+      else if (info.id == TABLE_CELLS_SEQNUM)
       {
         cellsSeqNum = info.data;
       }
@@ -2333,6 +2345,7 @@ void MSPUBParser::parseEscherShape(librevenge::RVNGInputStream *input, const Esc
     {
       if (spid)
         m_seqBySpid[spid] = *shapeSeqNum;
+      if (jpTraceOn()) fprintf(stderr, "ESCHERSHAPE seq=%u leader=%d\n", *shapeSeqNum, int(isGroupLeader));
       m_collector->setShapeType(*shapeSeqNum, st);
       m_collector->setShapeFlip(*shapeSeqNum, shapeFlags & SF_FLIP_V, shapeFlags & SF_FLIP_H);
       input->seek(sp.contentsOffset, librevenge::RVNG_SEEK_SET);

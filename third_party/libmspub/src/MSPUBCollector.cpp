@@ -943,6 +943,8 @@ std::function<void(void)> MSPUBCollector::paintShape(const ShapeInfo &info, cons
   boost::optional<std::vector<TextParagraph> > maybeText = getShapeText(info);
   auto hasText = bool(maybeText);
   const auto isTable = bool(info.m_tableInfo);
+  if (jpTraceOn() && isTable)
+    fprintf(stderr, "TABLEPAINT hasText=%d textId=%d\n", int(hasText), bool(info.m_textId) ? int(get(info.m_textId)) : -1);
   bool makeLayer = hasBorderArt ||
                    (hasStroke && hasFill) || (hasStroke && hasText) || (hasFill && hasText);
   if (makeLayer)
@@ -2384,6 +2386,7 @@ void MSPUBCollector::assignShapesToPages()
   for (auto &topLevelShape : m_topLevelShapes)
   {
     unsigned *ptr_pageSeqNum = getIfExists(m_pageSeqNumsByShapeSeqNum, topLevelShape->getSeqNum());
+    if (jpTraceOn()) fprintf(stderr, "TOPLEVEL seq=%u page=%d pagexists=%d\n", topLevelShape->getSeqNum(), ptr_pageSeqNum ? int(*ptr_pageSeqNum) : -1, int(ptr_pageSeqNum && m_pagesBySeqNum.count(*ptr_pageSeqNum)));
     topLevelShape->setup(std::bind(&MSPUBCollector::setupShapeStructures, this, _1));
     if (ptr_pageSeqNum)
     {
@@ -2603,6 +2606,9 @@ bool MSPUBCollector::go()
       break;
     special.insert(seq);
   }
+  if (jpTraceOn())
+    for (unsigned seq : listed)
+      fprintf(stderr, "PAGELIST seq=%u kind=%d blank=%d special=%d shapes=%zu\n", seq, kindOf(seq), int(blank(seq)), int(special.count(seq)), m_pagesBySeqNum.count(seq) ? m_pagesBySeqNum.at(seq).m_shapeGroupsOrdered.size() : size_t(0));
   // In a booklet or folded card every page after the first is marked 0
   // (Publisher 2021, Oct 7); elsewhere a page marked 0 is a special one.
   const bool spreads = m_publicationLayout == 1 || m_publicationLayout == 3;

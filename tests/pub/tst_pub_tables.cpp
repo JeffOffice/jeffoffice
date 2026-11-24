@@ -1893,6 +1893,47 @@ private Q_SLOTS:
         QCOMPARE(int(bt->cell(2, 2).valign), int(jp::VAlign::Top));
     }
 
+    // A table set in text carries its story's number for it (field 0f of its record), as any other object set in text does: it
+    // comes back in the text, not lost on the page of its own that Publisher keeps such objects on.
+    void pubTableSetInTextComesBackInTheText()
+    {
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        auto frame = std::make_shared<jp::TextItem>();
+        frame->rect = QRectF(72, 72, 300, 300);
+        frame->storyId = doc->createStory(QStringLiteral("Before after"));
+        jp::TableItem table;
+        table.rows = 2;
+        table.cols = 2;
+        table.colW = {60, 70};
+        table.rowH = {20, 30};
+        table.rect = QRectF(0, 0, 0, 0);
+        table.syncRect();
+        table.cells.resize(4);
+        for (auto &c : table.cells) c.storyId = doc->createStory(QStringLiteral("Cell"));
+        QTextCursor c(doc->storyDoc(frame->storyId));
+        c.setPosition(7);
+        QTextCharFormat of = c.charFormat();
+        of.setProperty(jp::tp::InlineObject, QString::fromUtf8(QJsonDocument(table.toJson()).toJson(QJsonDocument::Compact)));
+        c.insertText(QString(QChar::ObjectReplacementCharacter), of);
+        doc->pages[0]->items = {frame};
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("table-in-text.pub"));
+        QString err;
+        QVERIFY2(jp::exportPublisher(*doc, path, &err), qPrintable(err));
+        auto back = jp::importPublisherFile(path, &err);
+        QVERIFY2(back, qPrintable(err));
+        QCOMPARE(int(back->pages[0]->items.size()), 1);   // the table is in the text, not on the page
+        auto *bt = dynamic_cast<jp::TextItem *>(back->pages[0]->items[0].get());
+        QVERIFY(bt);
+        QTextCursor bc(back->storyDoc(bt->storyId));
+        bc.setPosition(8);
+        const jp::ItemPtr obj = jp::Item::fromJsonAny(QJsonDocument::fromJson(bc.charFormat().stringProperty(jp::tp::InlineObject).toUtf8()).object());
+        QVERIFY(obj && obj->type() == jp::ItemType::Table);
+        const auto *got = static_cast<const jp::TableItem *>(obj.get());
+        QCOMPARE(got->rows, 2);
+        QCOMPARE(got->cols, 2);
+    }
+
     // A cell divided by a diagonal is kept in a .pub file: its direction, the
     // line along it (or none, when Publisher prints no line), and the text.
     void pubTableCellDiagonalsKept()
