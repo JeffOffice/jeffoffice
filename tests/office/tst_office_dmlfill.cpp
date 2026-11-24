@@ -609,13 +609,8 @@ private Q_SLOTS:
         QVERIFY(qint64(copy.width()) * copy.height() <= jp::kPictureFxWorkPixels);
         QVERIFY(copy.width() * 2 >= 5000 / 2);
         QCOMPARE(jp::pictureFxWorkCopy(filterSample()).size(), filterSample().size());
-        // What the filters cost counts the work copy, not the picture: 100 million pixels with one filter is the work of 4 million.
-        QCOMPARE(jp::blipEffectsWork(100'000'000, {filterEffect(jp::BlipEffect::Sharpen, 0.5)}), jp::kPictureFxWorkPixels * jp::kBlipFilterCost);
-        // So many filters that the picture would take over the bound are not done (the picture comes back as it was), and a file's list is cut at kMaxBlipEffects.
-        QVector<jp::BlipEffect> many(jp::kMaxBlipEffects, filterEffect(jp::BlipEffect::Artistic, 0.5, 0));
-        QVERIFY(jp::blipEffectsWork(4'000'000, many) > jp::kMaxBlipWork);
-        const QImage large(2000, 2000, QImage::Format_ARGB32);
-        QCOMPARE(jp::applyBlipEffects(large, many).cacheKey(), large.cacheKey());
+        // What the filters cost counts the work copy, not the picture: 100 million pixels with one filter is the work of 4 million, at the filter's own cost per pixel.
+        QCOMPARE(jp::blipEffectsWork(100'000'000, {filterEffect(jp::BlipEffect::Sharpen, 0.5)}), jp::kPictureFxWorkPixels * jp::blipFilterCost(filterEffect(jp::BlipEffect::Sharpen, 0.5)));
         QJsonArray hostile;
         for (int i = 0; i < 1000; ++i) hostile.append(QJsonObject{{"k", "artistic"}, {"amt", 1e300}, {"style", 99}});
         const QVector<jp::BlipEffect> read = jp::blipEffectsFromJson(hostile);
@@ -637,6 +632,129 @@ private Q_SLOTS:
         QCOMPARE(jp::blipAdjustedMade(), made + 1);
         QCOMPARE(jp::blipAdjusted(again, one).cacheKey(), first.cacheKey());
         QCOMPARE(jp::blipAdjustedMade(), made + 1);
+    }
+
+    // The costs of the filters are the measured ones (a reviewer's numbers on 4 million pixels, in milliseconds), rounded up.
+    void filterCostsAreTheMeasuredOnes()
+    {
+        const struct { jp::BlipEffect e; qint64 ms; } measured[] = {
+            {filterEffect(jp::BlipEffect::Sharpen, 0.5), 197},
+            {filterEffect(jp::BlipEffect::Artistic, 0.5, int(jp::ArtisticStyle::Blur)), 178},
+            {filterEffect(jp::BlipEffect::Artistic, 0.5, int(jp::ArtisticStyle::GlowEdges)), 144},
+            {filterEffect(jp::BlipEffect::Artistic, 0.5, int(jp::ArtisticStyle::PencilGrayscale)), 61},
+            {filterEffect(jp::BlipEffect::Artistic, 0.5, int(jp::ArtisticStyle::Mosaic)), 19},
+            {filterEffect(jp::BlipEffect::Temperature, 0.5), 10},
+        };
+        for (const auto &m : measured) {
+            const qint64 ns = jp::kPictureFxWorkPixels * jp::blipFilterCost(m.e);
+            QVERIFY2(ns >= m.ms * 1'000'000 && ns <= m.ms * 1'000'000 * 3 / 2 + 10'000'000, qPrintable(jp::blipFilterName(m.e) + ": " + QString::number(ns)));
+        }
+        // One of each kind of the dearest (sharpen, temperature, blur) on a picture of 4 million pixels is under half a second: the busy box is not for it.
+        QVERIFY(jp::blipEffectsWork(4'000'000, {filterEffect(jp::BlipEffect::Sharpen, 0.5), filterEffect(jp::BlipEffect::Temperature, 0.5), filterEffect(jp::BlipEffect::Artistic, 0.5, 0)}) < jp::kPictureFxBusyWork);
+        // Two of those pictures at once are (the work of a change to several pictures is the sum of theirs).
+        const qint64 one = jp::blipEffectsWork(4'000'000, {filterEffect(jp::BlipEffect::Sharpen, 0.5), filterEffect(jp::BlipEffect::Temperature, 0.5), filterEffect(jp::BlipEffect::Artistic, 0.5, 0)});
+        QVERIFY(one * 2 > jp::kPictureFxBusyWork);
+    }
+
+    // The work cap never turns the filters off for what a person can put on a picture: a photograph of 4 million pixels with sharpen, temperature, and an artistic effect comes out filtered.
+    // A longer list (a file's) is worked through in order until its budget is used, and the number left out is told.
+    void filtersAreDoneForEveryLegalCombinationAndALongListIsCutWithATell()
+    {
+        const QImage photo = filterSample(2000, 2000);
+        const QVector<jp::BlipEffect> legal{filterEffect(jp::BlipEffect::Sharpen, 0.5), filterEffect(jp::BlipEffect::Temperature, 0.5), filterEffect(jp::BlipEffect::Artistic, 0.5, int(jp::ArtisticStyle::Blur))};
+        QCOMPARE(jp::blipFiltersLeftOut(qint64(photo.width()) * photo.height(), legal), 0);
+        const QImage all = jp::applyBlipEffects(photo, legal);
+        QVERIFY(all.cacheKey() != photo.cacheKey());
+        // Each of them took part: left off one at a time, the picture is not the same.
+        for (int i = 0; i < legal.size(); ++i) {
+            QVector<jp::BlipEffect> without = legal;
+            without.removeAt(i);
+            QVERIFY2(pixelHash(jp::applyBlipEffects(photo, without)) != pixelHash(all), qPrintable(QString::number(i)));
+        }
+        // Even two of each of the dearest on a picture of any size.
+        const QVector<jp::BlipEffect> dear{filterEffect(jp::BlipEffect::Sharpen, 0.5), filterEffect(jp::BlipEffect::Artistic, 0.5, int(jp::ArtisticStyle::Blur)), filterEffect(jp::BlipEffect::Artistic, 0.5, int(jp::ArtisticStyle::GlowEdges)),
+                                           filterEffect(jp::BlipEffect::Artistic, 0.5, int(jp::ArtisticStyle::PencilGrayscale)), filterEffect(jp::BlipEffect::Temperature, 0.5)};
+        QCOMPARE(jp::blipFiltersLeftOut(100'000'000, dear), 0);
+        // A list only a file can make: 32 sharpens on a million pixels. The first are done (20 fit), the rest are left out, and the count says so.
+        const QImage million = filterSample(1000, 1000);
+        const QVector<jp::BlipEffect> hostile(jp::kMaxBlipEffects, filterEffect(jp::BlipEffect::Sharpen, 0.5));
+        const int fit = int(jp::kMaxBlipFilterWork / (qint64(1000) * 1000 * jp::blipFilterCost(hostile[0])));
+        QVERIFY(fit > 0 && fit < jp::kMaxBlipEffects);
+        QCOMPARE(jp::blipFiltersLeftOut(1'000'000, hostile), jp::kMaxBlipEffects - fit);
+        const QImage cut = jp::applyBlipEffects(million, hostile);
+        QVERIFY(cut.cacheKey() != million.cacheKey());
+        QCOMPARE(pixelHash(cut), pixelHash(jp::applyBlipEffects(million, hostile.mid(0, fit))));
+        QVERIFY(pixelHash(cut) != pixelHash(jp::applyBlipEffects(million, hostile.mid(0, fit - 1))));
+    }
+
+    // The filters' work is linear in the pixels whatever the picture's shape (a window of the blur is started once for each row and column, and a radius is held to the picture's own size),
+    // counted in steps and never timed; and a flag set at the start stops them before the first row.
+    void filtersWorkLinearlyInTheirPixelsForEveryShapeAndStopWhenAsked()
+    {
+        const jp::BlipEffect effects[] = {filterEffect(jp::BlipEffect::Sharpen, 0.7), filterEffect(jp::BlipEffect::Sharpen, -0.7), filterEffect(jp::BlipEffect::Temperature, 0.7),
+                                          filterEffect(jp::BlipEffect::Artistic, 0.7, int(jp::ArtisticStyle::Blur)), filterEffect(jp::BlipEffect::Artistic, 0.7, int(jp::ArtisticStyle::PencilGrayscale)),
+                                          filterEffect(jp::BlipEffect::Artistic, 0.7, int(jp::ArtisticStyle::GlowEdges)), filterEffect(jp::BlipEffect::Artistic, 0.7, int(jp::ArtisticStyle::Mosaic))};
+        for (const jp::BlipEffect &e : effects) {
+            for (const int pixels : {4096, 16384, 65536}) {
+                const int side = int(std::lround(std::sqrt(double(pixels))));
+                const QSize shapes[] = {QSize(1, pixels), QSize(pixels, 1), QSize(side, side)};
+                for (const QSize &shape : shapes) {
+                    QImage im(shape, QImage::Format_ARGB32);
+                    im.fill(qRgb(90, 120, 200));
+                    jp::FilterCount count;
+                    const QImage out = jp::applyBlipFilter(im, e, nullptr, &count);
+                    QCOMPARE(out.size(), im.size());
+                    const QString what = jp::blipFilterName(e) + " " + QString::number(shape.width()) + "x" + QString::number(shape.height());
+                    QVERIFY2(count.steps > 0 && count.steps <= qint64(pixels) * 40, qPrintable(what + ": " + QString::number(count.steps)));
+                }
+            }
+            // A legal picture one pixel wide and a million tall costs the same for its pixels as a square one, within a small factor (a window is started on every row; it was a hundred times).
+            QImage tall(1, 1'000'000, QImage::Format_ARGB32), square(1000, 1000, QImage::Format_ARGB32);
+            tall.fill(qRgb(10, 20, 30));
+            square.fill(qRgb(10, 20, 30));
+            jp::FilterCount a, b;
+            jp::applyBlipFilter(tall, e, nullptr, &a);
+            jp::applyBlipFilter(square, e, nullptr, &b);
+            QVERIFY2(a.steps <= b.steps * 3 + 1000, qPrintable(jp::blipFilterName(e) + ": " + QString::number(a.steps) + " against " + QString::number(b.steps)));
+            // A flag already set: no step is taken, and the picture comes back as it was.
+            std::atomic<bool> stop{true};
+            jp::FilterCount none;
+            QImage im(300, 200, QImage::Format_ARGB32);
+            im.fill(qRgb(1, 2, 3));
+            QCOMPARE(jp::applyBlipFilter(im, e, &stop, &none).cacheKey(), im.cacheKey());
+            QCOMPARE(none.steps, qint64(0));
+        }
+    }
+
+    // The filtered picture made beside the window: drawn as it is at once, finished later (the window is told), and what was made is kept by the picture's own name, so that
+    // a picture made again from the same source each time is worked out once.
+    void filtersAreWorkedOutBesideTheWindowAndKeptByTheSourcesName()
+    {
+        const QImage photo = filterSample(320, 240);
+        const QVector<jp::BlipEffect> fx{filterEffect(jp::BlipEffect::Artistic, 0.8, int(jp::ArtisticStyle::Blur))};
+        int told = 0;
+        const int listener = jp::addBlipFilterListener([&told] { ++told; });
+        const int made = jp::blipAdjustedMade();
+        bool pending = false;
+        const QImage first = jp::blipAdjustedLater(photo, fx, QStringLiteral("test|beside"), &pending);
+        QVERIFY(pending);
+        QCOMPARE(first.cacheKey(), photo.cacheKey());   // (drawn as it is, with no wait)
+        QTRY_VERIFY(told >= 1);
+        const QImage done = jp::blipAdjustedLater(photo, fx, QStringLiteral("test|beside"), &pending);
+        QVERIFY(!pending);
+        QVERIFY(done.cacheKey() != photo.cacheKey());
+        QCOMPARE(jp::blipAdjustedMade(), made + 1);
+        // The same source made again as a new image (a removal or a profile does that at each paint) is found, not worked out.
+        const QImage again = photo.copy();
+        QVERIFY(again.cacheKey() != photo.cacheKey());
+        QCOMPARE(jp::blipAdjustedLater(again, fx, QStringLiteral("test|beside"), &pending).cacheKey(), done.cacheKey());
+        QVERIFY(!pending);
+        QCOMPARE(jp::blipAdjusted(again, fx, nullptr, QStringLiteral("test|beside")).cacheKey(), done.cacheKey());
+        QCOMPARE(jp::blipAdjustedMade(), made + 1);
+        // Asked for by the pixels' own key (no name), a new image is a new picture.
+        jp::blipAdjusted(again, fx);
+        QCOMPARE(jp::blipAdjustedMade(), made + 2);
+        jp::removeBlipFilterListener(listener);
     }
 
     void blipEffectsKeepNeutralGraysAndTintsOfNoneAsTheyAre()

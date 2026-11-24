@@ -1002,11 +1002,15 @@ void writePicture(QXmlStreamWriter &w, const PictureItem &p, DrawingWriteContext
     const bool hasFilters = blipEffectsChange(filters);
     if ((p.removal.isValid() || hasFilters) && ctx.imageBytes) {
         QString format;
-        const QImage whole = QImage::fromData(ctx.imageBytes(p.imageId, &format));
+        const QByteArray bytes = ctx.imageBytes(p.imageId, &format);
+        const QImage whole = QImage::fromData(bytes);
         const bool takesRemoval = p.removal.isValid() && !whole.isNull() && whole.size() == p.removal.source;
         if (!whole.isNull() && (takesRemoval || hasFilters)) {
             QImage finished = takesRemoval ? finishedBackgroundRemoval(whole, p.removal, p.imgRect.size(), kRemovalFinishedDpi) : whole;
-            if (hasFilters) finished = applyBlipEffects(finished, filters);
+            // (what the filters make of this picture is kept by what it is made of, so that a second save does not work it out again)
+            if (hasFilters)
+                finished = blipAdjusted(finished, filters, nullptr,
+                                        QStringLiteral("save|%1|%2|%3|%4x%5").arg(p.imageId).arg(qHash(bytes)).arg(takesRemoval ? p.removal.key() : QString()).arg(p.imgRect.width()).arg(p.imgRect.height()));
             QByteArray png;
             QBuffer buffer(&png);
             buffer.open(QIODevice::WriteOnly);
@@ -1067,8 +1071,8 @@ void writePicture(QXmlStreamWriter &w, const PictureItem &p, DrawingWriteContext
         if (filtered) {
             begin(w, "a:ext");
             attribute(w, "uri", QString::fromLatin1(kPictureFxExtension));
-            begin(w, "jdr:filters");
-            w.writeAttribute(QStringLiteral("xmlns:jdr"), QString::fromLatin1(kRemovalNamespace));
+            begin(w, "jfx:filters");
+            w.writeAttribute(QStringLiteral("xmlns:jfx"), QString::fromLatin1(kPictureFxNamespace));
             attribute(w, "r:embed", rId);
             attribute(w, "data", QString::fromLatin1(QJsonDocument(QJsonObject{{"effects", blipEffectsToJson(filters)}}).toJson(QJsonDocument::Compact).toBase64()));
             w.writeEndElement();

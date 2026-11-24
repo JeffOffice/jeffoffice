@@ -915,7 +915,7 @@ static bool pngHasProfile(const QByteArray &png)
     return false;
 }
 
-QImage Renderer::processedImage(const Document &doc, const PictureItem &pic, const QSizeF &deviceSize, const QSizeF &exactSize, const QColor &removalTint)
+QImage Renderer::processedImage(const Document &doc, const PictureItem &pic, const QSizeF &deviceSize, const QSizeF &exactSize, const QColor &removalTint, bool waitForFilters)
 {
     jp::threadcheck::guiOnlyCache();
     static QCache<QString, QImage> cache(256 * 1024);   // KB
@@ -950,12 +950,24 @@ QImage Renderer::processedImage(const Document &doc, const PictureItem &pic, con
                             .arg(level).arg(doc.colors.c[0].name()).arg(shown.width()).arg(shown.height()) + (removed ? QLatin1Char('|') + pic.removal.key() + (tinted ? removalTint.name(QColor::HexArgb) : QString()) : QString());
     const QString effectsKey = effects.isEmpty() ? QString() : (slide ? QStringLiteral("s") : QStringLiteral("p")) + blipEffectsKey(effects);
     if (QImage *c = cache.object(key + QLatin1Char('|') + effectsKey)) return *c;
+    // What the filters come to is kept under the picture's own name (its id and size, and what is done to it before them: a removal, a profile), not under the pixels they are given, which
+    // a removal or a profile makes again each time the picture is drawn.
+    const QString filterSource = QStringLiteral("%1|%2x%3|%4|%5").arg(pic.imageId).arg(src.width()).arg(src.height()).arg(QString::number(src.cacheKey()), (slide ? QStringLiteral("s") : QStringLiteral("p")) + (removed && !tinted ? pic.removal.key() : QString()));
+    bool filtersPending = false;
+    const auto filtered = [&](const QImage &im) {
+        const QVector<BlipEffect> filters = blipFilters(effects);
+        if (waitForFilters) return blipAdjusted(im, filters, nullptr, filterSource);
+        bool pending = false;
+        const QImage out = blipAdjustedLater(im, filters, filterSource, &pending);
+        filtersPending = filtersPending || pending;
+        return out;
+    };
     // The background taken off the picture is clear before anything else changes the picture.
     if (removed && !tinted && !slide) src = applyBackgroundRemoval(src, pic.removal);
     // The picture filters (sharpen, temperature, artistic effects) work on the picture itself, not on the size it is drawn at, so that it looks the same at every zoom and in print; the
     // copy they work on is made smaller when the picture is large, and it is not made smaller again to the level above.
     const QSize beforeFilters = src.size();
-    if (!slide && !blipFilters(effects).isEmpty()) src = blipAdjusted(src, blipFilters(effects));
+    if (!slide && !blipFilters(effects).isEmpty()) src = filtered(src);
     if (slide) {
         // A PNG file's profile of its own (a screen's, most often) makes its numbers colors of that profile, which the presentation program
         // draws as screen colors. (A profile worked out from the gamma and primaries a file names is not one: the program leaves those out.)
@@ -964,7 +976,8 @@ QImage Renderer::processedImage(const Document &doc, const PictureItem &pic, con
         if (profile.isValid() && profile != QColorSpace(QColorSpace::SRgb) && data.format == QLatin1String("png") && pngHasProfile(data.bytes))
             src = src.convertedToColorSpace(QColorSpace(QColorSpace::SRgb));
         if (removed && !tinted) src = applyBackgroundRemoval(src, pic.removal);
-        src = blipAdjusted(blipAdjusted(src, blipFilters(effects)), blipColorEffects(effects));
+        src = blipFilters(effects).isEmpty() ? src : filtered(src);
+        src = blipAdjusted(src, blipColorEffects(effects));
     }
     if (src.size() != beforeFilters) level = 0;
     QImage img = level ? src.scaledToWidth(std::max(1, src.width() >> level), Qt::SmoothTransformation) : src;
@@ -1000,7 +1013,8 @@ QImage Renderer::processedImage(const Document &doc, const PictureItem &pic, con
     }
     if (!slide && !effects.isEmpty()) img = applyBlipEffects(img, blipColorEffects(effects));
     if (tinted) img = tintBackgroundRemoval(img, pic.removal, removalTint);
-    cache.insert(key + QLatin1Char('|') + effectsKey, new QImage(img), std::max<qsizetype>(1, img.sizeInBytes() / 1024));
+    // (a picture drawn while its filters are being worked out is drawn as it is for now, and not kept)
+    if (!filtersPending) cache.insert(key + QLatin1Char('|') + effectsKey, new QImage(img), std::max<qsizetype>(1, img.sizeInBytes() / 1024));
     return img;
 }
 
@@ -1364,9 +1378,9 @@ static void paintPicture(QPainter *p, const PaintContext &ctx, const PictureItem
                 p->save();
                 p->setWorldTransform(toDevice.inverted());
                 p->setClipRect(*visible, Qt::IntersectClip);
-                p->drawImage(*place, Renderer::processedImage(*ctx.doc, pic, dev, pixels ? QSizeF(place->size()) : exact, goneTint));
+                p->drawImage(*place, Renderer::processedImage(*ctx.doc, pic, dev, pixels ? QSizeF(place->size()) : exact, goneTint, ctx.opt.output));
                 p->restore();
-            } else p->drawImage(pic.imgRect, Renderer::processedImage(*ctx.doc, pic, dev, pixels ? QSizeF(pic.imgRect.width() * ds, pic.imgRect.height() * ds) : exact, goneTint));
+            } else p->drawImage(pic.imgRect, Renderer::processedImage(*ctx.doc, pic, dev, pixels ? QSizeF(pic.imgRect.width() * ds, pic.imgRect.height() * ds) : exact, goneTint, ctx.opt.output));
             if (ctx.opt.textOutput == TextOutput::Pdf && !ctx.opt.flattenTransparency) paintDrawnWords(p, src, pic.imgRect, r);
         }
         p->restore();

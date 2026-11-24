@@ -5,6 +5,8 @@
 #include "app/sectionui.h"
 #include "app/slideclipboard.h"
 #include "app/theme.h"
+#include "core/blipeffects.h"
+#include "core/picturefx.h"
 #include "core/deck.h"
 #include "core/sections.h"
 #include "core/transition.h"
@@ -59,6 +61,8 @@ void addPage(QCryptographicHash &h, const Document &d, const PageBase &page, boo
     h.addData(page.showMasterItems ? QByteArrayView("m1") : QByteArrayView("m0"));
     walkItems(page.items, [&](const ItemPtr &it) {
         h.addData(compact(it->toJson()));
+        // (a picture with filters is drawn as it is until they are worked out beside the window: its thumbnail is drawn again when they are)
+        if (const auto *pic = dynamic_cast<const PictureItem *>(it.get()); pic && !blipFilters(pic->blipEffects).isEmpty()) h.addData(QByteArray::number(blipFiltersFinished()));
         for (const QString &id : storiesOf(*it)) {
             const QTextDocument *story = id.isEmpty() ? nullptr : d.storyDoc(id);
             if (!story) continue;

@@ -198,7 +198,8 @@ public:
     static qint64 linearFormsMadeForTest();
     static qint64 textArtPicturesMadeForTest();
     // shown: a picture drawn into pixels smaller than it is comes back at that size, each pixel the average of those it covers.
-    static QImage processedImage(const Document &doc, const PictureItem &pic, const QSizeF &deviceSize, const QSizeF &shown = QSizeF(), const QColor &removalTint = QColor());
+    static QImage processedImage(const Document &doc, const PictureItem &pic, const QSizeF &deviceSize, const QSizeF &shown = QSizeF(), const QColor &removalTint = QColor(),
+                                bool waitForFilters = true);
     static QImage renderToImage(const PaintContext &ctx, int pageIndex, double scale, bool transparent = false);
     static QImage renderItemsToImage(const PaintContext &ctx, const ItemList &items, double scale, double pad = 4);
 

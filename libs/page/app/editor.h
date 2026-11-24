@@ -552,6 +552,7 @@ private:
     // Spelling results per story, recomputed only when the story's text changes.
     struct SpellEntry { quint64 serial = 0; int revision = -1; QVector<QPair<int, int>> ranges; };
     mutable QHash<QString, SpellEntry> m_spell;
+    int m_filterListener = 0;   // (blipeffects.h: draws again when a picture's filters are done)
     // The grammar checks, one for each story, on one thread and one budget (the pool is declared first, so it is destroyed last).
     mutable std::unique_ptr<QThreadPool> m_grammarPool;
     mutable std::shared_ptr<GrammarCheck::Shared> m_grammarShared;

@@ -18,6 +18,8 @@ namespace jp::office::dmlwrite {
 constexpr const char *kRemovalExtension = "{4A0C4E2B-6D55-4B1E-9C1A-3F6B7A0E5D21}";
 // The picture filters (core/picturefx.h): the settings, and the original the finished picture of the blip was made from.
 constexpr const char *kPictureFxExtension = "{7C1D5E90-2B3A-4F68-A1D4-5E8B9C0F3A62}";
+// (its own namespace: the filters are new, and no released file has them under the removal's)
+constexpr const char *kPictureFxNamespace = "http://jeffoffice.com/ns/picturefx/2026";
 // The finished picture a file carries for other programs (beside the original and the mask) has the pixels it needs at this many to the inch where it is shown, no more.
 constexpr double kRemovalFinishedDpi = 220;
 constexpr const char *kRemovalNamespace = "http://jeffoffice.com/ns/removal/2026";

@@ -1298,7 +1298,8 @@ QString PubWriter::recoloredPictureImage(const PictureItem &pic)
     QImage img = m_doc.image(pic.imageId);
     if (img.isNull()) return pic.imageId;
     if (taken) img = applyBackgroundRemoval(img, pic.removal);
-    if (filtered) img = applyBlipEffects(img, filters);
+    // (kept by what the picture is made of, so that a second save does not work the filters out again)
+    if (filtered) img = blipAdjusted(img, filters, nullptr, QStringLiteral("pub|%1|%2|%3").arg(pic.imageId).arg(m_doc.image(pic.imageId).cacheKey()).arg(taken ? pic.removal.key() : QString()));
     img = img.convertToFormat(QImage::Format_ARGB32);
     if (pic.recolor != PictureItem::Grayscale && pic.recolor != PictureItem::BlackWhite) return madeImage(img, pic.imageId, true);
     for (int y = 0; y < img.height(); ++y) {

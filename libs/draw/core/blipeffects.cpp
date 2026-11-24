@@ -1,15 +1,24 @@
 #include "core/blipeffects.h"
 
 #include "core/picturefx.h"
+#include "core/workthread.h"
 
 #include <QCache>
+#include <QCoreApplication>
+#include <QElapsedTimer>
+#include <QThread>
 #include <QJsonArray>
 #include <QJsonDocument>
 #include <QMutex>
 #include <QMutexLocker>
+#include <QSet>
 #include <algorithm>
 #include <atomic>
 #include <cmath>
+#include <deque>
+#include <functional>
+#include <memory>
+#include <mutex>
 
 namespace jp {
 
@@ -89,6 +98,21 @@ QVector<BlipEffect> changing(const QVector<BlipEffect> &effects)
 float moved(float v, float by) { return by >= 0 ? v + (1 - v) * by : v * (1 + by); }
 
 std::atomic<int> made{0};
+std::atomic<int> finishedLater{0};
+
+// The most of one kind of cost: (the first `fit` of these filters fit in kMaxBlipFilterWork, on `pixels` of the work copy)
+int filtersThatFit(qint64 pixels, const QVector<BlipEffect> &filters)
+{
+    const qint64 work = std::min(pixels, kPictureFxWorkPixels);
+    qint64 used = 0;
+    int fit = 0;
+    for (const BlipEffect &f : filters) {
+        used += work * blipFilterCost(f);
+        if (used > kMaxBlipFilterWork) break;
+        ++fit;
+    }
+    return fit;
+}
 
 } // namespace
 
@@ -189,11 +213,17 @@ qint64 blipEffectsWork(qint64 pixels, const QVector<BlipEffect> &effects)
     qint64 each = 0, filtered = 0;
     for (const BlipEffect &e : effects) {
         if (changesNothing(e)) continue;
-        if (isBlipFilter(e)) filtered += kBlipFilterCost;
+        if (isBlipFilter(e)) filtered += blipFilterCost(e);
         else each += e.kind == BlipEffect::Hsl || e.kind == BlipEffect::Tint ? kBlipHslCost : kBlipPixelCost;
     }
     // (the filters work on a copy of at most kPictureFxWorkPixels)
     return pixels * each + std::min(pixels, kPictureFxWorkPixels) * filtered;
+}
+
+int blipFiltersLeftOut(qint64 pixels, const QVector<BlipEffect> &effects)
+{
+    const QVector<BlipEffect> filters = blipFilters(changing(effects));
+    return int(filters.size()) - filtersThatFit(pixels, filters);
 }
 
 int blipAdjustedMade() { return made; }
@@ -223,14 +253,24 @@ QImage applyBlipEffects(const QImage &image, const QVector<BlipEffect> &all, con
     if (image.isNull() || all.isEmpty()) return image;
     const qint64 pixels = qint64(image.width()) * image.height();
     const QVector<BlipEffect> effects = changing(all);
-    if (effects.isEmpty() || pixels > kMaxBlipPixels || blipEffectsWork(pixels, effects) > kMaxBlipWork) return image;
+    if (effects.isEmpty() || pixels > kMaxBlipPixels) return image;
+    const QVector<BlipEffect> filters = blipFilters(effects);
+    // The filters work on a copy of at most kPictureFxWorkPixels, which is their bound: they are always done, as many of the list as fit kMaxBlipFilterWork. The color effects, which
+    // work on whatever size is left, are held to kMaxBlipWork as before.
+    const qint64 colorPixels = filters.isEmpty() ? pixels : std::min(pixels, kPictureFxWorkPixels);
+    QVector<BlipEffect> colors = blipColorEffects(effects);
+    if (blipEffectsWork(colorPixels, colors) > kMaxBlipWork) {
+        if (filters.isEmpty()) return image;
+        colors.clear();
+    }
     QImage img = image.convertToFormat(QImage::Format_ARGB32);
     // The filters come first, on a copy made smaller when it is large; the color effects follow.
-    if (const QVector<BlipEffect> filters = blipFilters(effects); !filters.isEmpty()) {
-        img = pictureFxWorkCopy(img);
-        for (const BlipEffect &f : filters) img = applyBlipFilter(img, f, stop);
+    if (!filters.isEmpty()) {
+        img = pictureFxWorkCopy(img, stop);
+        const int fit = filtersThatFit(pixels, filters);
+        for (int i = 0; i < fit; ++i) img = applyBlipFilter(img, filters[i], stop);
     }
-    for (const BlipEffect &e : blipColorEffects(effects)) {
+    for (const BlipEffect &e : colors) {
         const QColor from = e.color, to = e.color2;
         switch (e.kind) {
         case BlipEffect::Luminance: {
@@ -318,24 +358,198 @@ QImage applyBlipEffects(const QImage &image, const QVector<BlipEffect> &all, con
     return img;
 }
 
-QImage blipAdjusted(const QImage &image, const QVector<BlipEffect> &effects, const std::atomic<bool> *stop)
+namespace {
+
+// The kept results, and the lock that guards them. (A function's static, so that it is made before anything that uses it and goes after.)
+struct Kept {
+    QMutex lock;
+    QCache<QString, QImage> cache{256 * 1024};   // KB
+};
+
+// (made with new and never deleted: the thread beside the window may still be using it when the program ends)
+Kept &kept()
+{
+    static Kept *k = new Kept;
+    return *k;
+}
+
+QString keptKey(const QImage &image, const QVector<BlipEffect> &effects, const QString &sourceKey)
+{
+    return (sourceKey.isEmpty() ? QString::number(image.cacheKey()) : sourceKey) + QLatin1Char('|') + blipEffectsKey(effects);
+}
+
+QImage keptImage(const QString &key)
+{
+    Kept &k = kept();
+    QMutexLocker locked(&k.lock);
+    if (const QImage *found = k.cache.object(key)) return *found;
+    return QImage();
+}
+
+// The pictures to be filtered beside the window (one thread at a time, the oldest first), a few at the most: what comes after is asked for again the next time the picture is drawn.
+class Later {
+public:
+    static constexpr size_t kMost = 16;
+    struct Job {
+        QString key, sourceKey;
+        QImage image;
+        QVector<BlipEffect> effects;
+    };
+
+    Later() { kept(); }
+
+    // Ends what is queued and what is running (the thread looks between rows), and waits for it at most `budgetMs`; 0 when it has ended, else 1.
+    int stopAll(int budgetMs)
+    {
+        stop = true;
+        QElapsedTimer clock;
+        clock.start();
+        for (;;) {
+            {
+                std::lock_guard<std::mutex> g(m);
+                jobs.clear();
+                queued.clear();
+                if (!running) return 0;
+            }
+            if (clock.elapsed() >= budgetMs) return 1;
+            QThread::msleep(1);
+        }
+    }
+
+    // False when the queue is full.
+    bool add(Job job)
+    {
+        std::lock_guard<std::mutex> g(m);
+        if (queued.contains(job.key)) return true;
+        if (jobs.size() >= kMost) return false;
+        queued.insert(job.key);
+        jobs.push_back(std::move(job));
+        if (!running) {
+            running = true;
+            thread.reset();   // (the one before has ended, or is ending: it set `running` off as its last act under the lock)
+            thread = std::make_unique<WorkThread>([this] { work(); });
+            if (!thread->started()) {
+                running = false;
+                jobs.clear();
+                queued.clear();
+                return false;
+            }
+        }
+        return true;
+    }
+
+    bool waiting(const QString &key)
+    {
+        std::lock_guard<std::mutex> g(m);
+        return queued.contains(key);
+    }
+
+    int listen(std::function<void()> f)
+    {
+        listeners.push_back({++lastId, std::move(f)});
+        return lastId;
+    }
+    void unlisten(int id)
+    {
+        for (size_t i = 0; i < listeners.size(); ++i)
+            if (listeners[i].first == id) {
+                listeners.erase(listeners.begin() + i);
+                return;
+            }
+    }
+
+private:
+    void work()
+    {
+        for (;;) {
+            Job job;
+            {
+                std::lock_guard<std::mutex> g(m);
+                if (jobs.empty() || stop) {
+                    running = false;
+                    return;
+                }
+                job = std::move(jobs.front());
+                jobs.pop_front();
+            }
+            blipAdjusted(job.image, job.effects, &stop, job.sourceKey);
+            ++finishedLater;
+            {
+                std::lock_guard<std::mutex> g(m);
+                queued.remove(job.key);
+            }
+            if (QCoreApplication *app = QCoreApplication::instance())
+                QMetaObject::invokeMethod(app, [this] {
+                    const auto copy = listeners;   // (a listener may remove itself)
+                    for (const auto &l : copy) l.second();
+                }, Qt::QueuedConnection);
+        }
+    }
+
+    std::mutex m;
+    std::deque<Job> jobs;
+    QSet<QString> queued;
+    std::unique_ptr<WorkThread> thread;
+    bool running = false;
+    std::atomic<bool> stop{false};
+    std::vector<std::pair<int, std::function<void()>>> listeners;   // (the application's thread only)
+    int lastId = 0;
+};
+
+std::atomic<Later *> theLater{nullptr};
+
+// (made with new and never deleted, so that no destructor of a static waits for the thread: libs/shell/app/shutdown.h)
+Later &later()
+{
+    static Later *l = [] {
+        Later *made = new Later;
+        theLater = made;
+        return made;
+    }();
+    return *l;
+}
+
+} // namespace
+
+QImage blipAdjusted(const QImage &image, const QVector<BlipEffect> &effects, const std::atomic<bool> *stop, const QString &sourceKey)
 {
     if (image.isNull() || changing(effects).isEmpty()) return image;
-    static QMutex lock;
-    static QCache<QString, QImage> cache(256 * 1024);   // KB
-    const QString key = QString::number(image.cacheKey()) + QLatin1Char('|') + blipEffectsKey(effects);
-    {
-        QMutexLocker locked(&lock);
-        if (const QImage *kept = cache.object(key)) return *kept;
-    }
+    const QString key = keptKey(image, effects, sourceKey);
+    if (const QImage found = keptImage(key); !found.isNull()) return found;
     const QImage result = applyBlipEffects(image, effects, stop);
     if (stop && stop->load()) return result;
-    // A picture left as it is (too big, or too much to do) has nothing to keep.
-    if (result.cacheKey() == image.cacheKey()) return result;
-    ++made;
-    QMutexLocker locked(&lock);
-    cache.insert(key, new QImage(result), std::max<qsizetype>(1, result.sizeInBytes() / 1024));
+    // A picture left as it is (too big, or too much to do) is kept as that, at no cost, so that it is not tried again.
+    const bool same = result.cacheKey() == image.cacheKey();
+    if (!same) ++made;
+    Kept &k = kept();
+    QMutexLocker locked(&k.lock);
+    k.cache.insert(key, new QImage(result), same ? 1 : std::max<qsizetype>(1, result.sizeInBytes() / 1024));
     return result;
 }
+
+QImage blipAdjustedLater(const QImage &image, const QVector<BlipEffect> &effects, const QString &sourceKey, bool *pending)
+{
+    if (pending) *pending = false;
+    if (image.isNull() || changing(effects).isEmpty()) return image;
+    const QString key = keptKey(image, effects, sourceKey);
+    if (const QImage found = keptImage(key); !found.isNull()) return found;
+    // (a picture that is left as it is has nothing kept: it is made at once, as it costs nothing)
+    if (qint64(image.width()) * image.height() > kMaxBlipPixels) return image;
+    if (pending) *pending = true;
+    later().add({key, sourceKey, image, effects});
+    return image;
+}
+
+int blipFiltersFinished() { return finishedLater; }
+
+int stopBlipFilters(int budgetMs)
+{
+    Later *l = theLater;
+    return l ? l->stopAll(budgetMs) : 0;
+}
+
+int addBlipFilterListener(const std::function<void()> &listener) { return later().listen(listener); }
+
+void removeBlipFilterListener(int id) { later().unlisten(id); }
 
 } // namespace jp

@@ -346,7 +346,7 @@ QString Exporter::addPictureChanged(const QString &imageId, const QVector<BlipEf
     if (imageId.isEmpty() || !blipEffectsChange(effects)) return addPicture(imageId);
     const QString key = QStringLiteral("fx:") + imageId + QLatin1Char('|') + blipEffectsKey(effects);
     if (const auto it = m_pictureNames.constFind(key); it != m_pictureNames.cend()) return it.value();
-    const QImage source = m_doc.image(imageId), changed = applyBlipEffects(source, effects);
+    const QImage source = m_doc.image(imageId), changed = blipAdjusted(source, effects);
     QByteArray png;
     QBuffer buffer(&png);
     buffer.open(QIODevice::WriteOnly);

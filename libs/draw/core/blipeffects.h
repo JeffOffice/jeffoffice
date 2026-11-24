@@ -12,6 +12,7 @@
 #include <QString>
 #include <QVector>
 #include <atomic>
+#include <functional>
 
 namespace jp {
 
@@ -20,7 +21,7 @@ namespace jp {
 constexpr int kMaxBlipEffects = 32;
 // The most pixels a picture is changed in (the reference presentations' largest has 9 million, so this is 11 times that).
 constexpr qint64 kMaxBlipPixels = 100LL * 1000 * 1000;
-// What one picture's effects may cost (blipEffectsWork: its pixels times what each effect takes of one pixel, in nanoseconds as measured on a
+// What one picture's color effects may cost (the filters have a bound of their own, kMaxBlipFilterWork; blipEffectsWork: its pixels times what each effect takes of one pixel, in nanoseconds as measured on a
 // busy machine, so a bound on the seconds): about half a second. The reference presentations' largest picture (9 million pixels) with three
 // effects of the plain kind is 216 million, and a 12 million pixel photograph with a hue turned 540 million; a picture and effects that cost
 // more than this are drawn as the picture is (32 hue turns on a 12 million pixel photograph would take 17 seconds).
@@ -54,11 +55,25 @@ QVector<uchar> luminanceTable(double brightness, double factor);
 // Whether any of the effects can make a color clear (so a page that has the picture needs transparency to be drawn).
 bool blipEffectsClear(const QVector<BlipEffect> &effects);
 
-// `image` with the effects applied in order, as an image of 32 bits (it as it is if none of them changes a color, or it is too big).
+// `image` with the effects applied in order, as an image of 32 bits (it as it is if none of them changes a color, or it is too big). The filters (core/picturefx.h) are always done, on
+// a copy of at most kPictureFxWorkPixels; of a list longer than kMaxBlipFilterWork allows, the first are done (blipFiltersLeftOut says how many are not).
 QImage applyBlipEffects(const QImage &image, const QVector<BlipEffect> &all, const std::atomic<bool> *stop = nullptr);
+// How many of the filters in `effects` are left out on a picture of `pixels` (0 for every list a person can make).
+int blipFiltersLeftOut(qint64 pixels, const QVector<BlipEffect> &effects);
 // The same, kept: the image of the same pixels asked for again, with the same effects, is not made again (to a budget of its own, as the
-// copies of the pictures drawn are).
+// copies of the pictures drawn are). `sourceKey` (if given) names the pixels in place of the image's own key, for an image made again each time from the same picture (a removal or a
+// profile applied), so that what it comes to is kept once.
 // With `stop` set to true the work ends early; what comes back then is not finished, and is not kept.
-QImage blipAdjusted(const QImage &image, const QVector<BlipEffect> &effects, const std::atomic<bool> *stop = nullptr);
+QImage blipAdjusted(const QImage &image, const QVector<BlipEffect> &effects, const std::atomic<bool> *stop = nullptr, const QString &sourceKey = QString());
+// The same without waiting: what was kept if there is one; otherwise `image` as it is, with `*pending` set, and the work is queued for a thread of its own (a few at the most, one at a
+// time). When it is done the listeners are called on the application's thread, and the same call gives the finished picture.
+QImage blipAdjustedLater(const QImage &image, const QVector<BlipEffect> &effects, const QString &sourceKey, bool *pending);
+// How many pictures the thread of its own has finished since the program began (a thumbnail drawn before one was finished is drawn again).
+int blipFiltersFinished();
+// Called, on the application's thread, after each picture a thread of its own has finished (a window draws again). The id removes it.
+// Ends the work beside the window and what waits for it, for the program's end (it waits for the thread at most `budgetMs`: 0 when it ended, 1 when it had to be let go of).
+int stopBlipFilters(int budgetMs);
+int addBlipFilterListener(const std::function<void()> &listener);
+void removeBlipFilterListener(int id);
 
 } // namespace jp

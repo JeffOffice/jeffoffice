@@ -3,6 +3,8 @@
 #include <QSet>
 #include <QThreadPool>
 #include "app/pastedefaults.h"
+#include "app/shutdown.h"
+#include "core/blipeffects.h"
 #include "app/pastetable.h"
 #include "app/pictureask.h"
 #include "app/settings.h"
@@ -70,6 +72,10 @@ Editor::Editor(QObject *parent) : QObject(parent)
     view.spelling = spellAsYouType();
     // (Words another app added or excluded: the text is checked again.)
     connect(Speller::get().watch(), &SpellingWatch::changed, this, [this] { invalidateSpelling(); });
+    // (A picture's filters finished beside the window: it is drawn again.)
+    m_filterListener = addBlipFilterListener([this] { Q_EMIT changed(); });
+    static const bool stopStep = (addShutdownStep([](int budgetMs) { return stopBlipFilters(budgetMs); }), true);
+    Q_UNUSED(stopStep)
     connect(&SpellSettingNotifier::get(), &SpellSettingNotifier::changed, this, [this](bool on) {
         view.spelling = on;
         Q_EMIT viewChanged();
@@ -91,6 +97,7 @@ Editor::Editor(QObject *parent) : QObject(parent)
 
 Editor::~Editor()
 {
+    removeBlipFilterListener(m_filterListener);
     // Destroying the undo stack emits cleanChanged; nothing should hear about
     // an editor that is going away.
     blockSignals(true);
