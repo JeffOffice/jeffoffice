@@ -18,6 +18,7 @@
 #include "core/appinfo.h"
 #include "core/deck.h"
 #include "core/themes.h"
+#include "core/decktemplates.h"
 #include "io/deckoutput.h"
 #include "io/presentationdefaults.h"
 #include "render/renderer.h"
@@ -28,6 +29,7 @@
 #include <QComboBox>
 #include <QFileInfo>
 #include <QFormLayout>
+#include <QGridLayout>
 #include <QGuiApplication>
 #include <QHBoxLayout>
 #include <QKeyEvent>
@@ -198,6 +200,27 @@ QWidget *DeckFileScreen::buildNew()
     row->addWidget(tile);
     row->addStretch(1);
     v->addLayout(row);
+    // The templates: presentations to start from, each with a theme of its own and sample slides to write over, shown as the first slide of what they make.
+    v->addWidget(sectionLabel(tr("Templates"), w));
+    const QSize templateBox(224, 140);
+    auto *templates = new QGridLayout();
+    int templateAt = 0;
+    for (const deck::BuiltInTemplate &tmpl : deck::builtInTemplates()) {
+        auto doc = deck::builtInTemplateDocument(tmpl.id);
+        if (!doc) continue;
+        LayoutCache shown;
+        QImage firstSlide = deck::slideImage(*doc, &shown, 0, qRound((templateBox.width() - 16) * dpr));
+        firstSlide.setDevicePixelRatio(dpr);
+        auto *card = new StartTile(tmpl.name, paperPixmap(firstSlide, templateBox, dpr), w);
+        card->setObjectName(QStringLiteral("template_") + tmpl.id);
+        card->setToolTip(plainToolTip(tmpl.description));
+        const QString id = tmpl.id;
+        connect(card, &QAbstractButton::clicked, this, [this, id] { startFrom([id] { return deck::builtInTemplateDocument(id); }); });
+        templates->addWidget(card, templateAt / 3, templateAt % 3);
+        ++templateAt;
+    }
+    templates->setColumnStretch(3, 1);
+    v->addLayout(templates);
     // The built-in themes, each in its four variants, shown as the first slide of a presentation made in it. The page comes up at once with plain pictures;
     // they are drawn a few at a time as the page is shown (those in view first), once for the run of the program (themePicture keeps them).
     v->addWidget(sectionLabel(tr("Themes"), w));

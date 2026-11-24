@@ -768,6 +768,13 @@ std::unique_ptr<Document> themePresentation(int theme, int variant, bool named)
 
 namespace detail {
 
+void bulletizeBody(Document &d, TextItem &item, double size, const DeckTheme &theme, int slot)
+{
+    Text x;
+    x.size = size;
+    bulletize(d, item, x, theme, slot);
+}
+
 // The words on the Title Slide of a theme's presentation.
 void sayOnTitleSlide(Document &d, const QString &title)
 {

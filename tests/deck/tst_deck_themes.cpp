@@ -6,6 +6,17 @@
 #include "app/themedialogs.h"
 #include "office/themelib.h"
 #include "io/presentationdefaults.h"
+#include "core/decktemplates.h"
+#include "io/deckoutput.h"
+#include "app/filescreen.h"
+#include "app/theme.h"
+#include "io/pptxexport.h"
+#include "io/pptximport.h"
+#include "io/odpexport.h"
+#include "app/pagefonts.h"
+#include "core/fonts.h"
+#include "io/zip.h"
+#include "../stablesaves.h"
 
 #include <QProcess>
 #include <cstdio>
@@ -280,6 +291,159 @@ private Q_SLOTS:
 
     // JeffDeck ships nine themes of its own: the first is the one a new presentation has, the others are named and drawn by
     // JeffOffice (no other program's names), with four variants each, in fonts it bundles.
+    // What is wrong with a template's presentation, or nothing: a font the program does not bundle, text that does not read on what is behind it (4.5 to 1), a save that leaves
+    // something out, a save that is not the same when saved again, a name of another maker stored in it, or a slide count outside three to five. (Looped over every template.)
+    static QString templateProblem(Document &doc)
+    {
+        using namespace jp::deck;
+        if (doc.pages.size() < 3 || doc.pages.size() > 5) return QStringLiteral("slides: %1").arg(doc.pages.size());
+        const QStringList bundled = bundledFamilies();
+        const DeckTheme theme = themeOf(doc);
+        for (const FontUse &use : pageFontsUsed(doc)) {
+            const QString family = use.key == QLatin1String("+Heading") ? theme.headingFont : use.key == QLatin1String("+Body") ? theme.bodyFont : use.key;
+            if (!bundled.contains(family, Qt::CaseInsensitive)) return QStringLiteral("font ") + family;
+        }
+        for (const QString &family : {theme.headingFont, theme.bodyFont})
+            if (!bundled.contains(family, Qt::CaseInsensitive)) return QStringLiteral("theme font ") + family;
+        for (const auto &page : doc.pages) {
+            const MasterPage *layout = doc.masterFor(*page);
+            if (!layout) return QStringLiteral("a slide without a layout");
+            for (const auto &it : page->items) {
+                if (it->type() != ItemType::Text) continue;
+                const auto *text = static_cast<const TextItem *>(it.get());
+                QTextDocument *sd = doc.storyDoc(text->storyId);
+                if (!sd || sd->toPlainText().trimmed().isEmpty()) continue;
+                const QVector<QColor> behind = colorsUnder(doc, *layout, text->rect.center());
+                for (QTextBlock b = sd->begin(); b.isValid(); b = b.next())
+                    for (auto f = b.begin(); !f.atEnd(); ++f) {
+                        const QTextCharFormat cf = f.fragment().charFormat();
+                        const QColor color = cf.foreground().style() == Qt::NoBrush ? QColor(Qt::black) : cf.foreground().color();
+                        for (const QColor &back : behind)
+                            if (jp::deck::contrastRatio(color, back) < 4.5) return QStringLiteral("contrast %1 of %2 on %3 in \"%4\"").arg(jp::deck::contrastRatio(color, back), 0, 'f', 2).arg(color.name(), back.name(), f.fragment().text());
+                    }
+            }
+        }
+        QString err;
+        QStringList skipped;
+        const QByteArray first = exportPresentation(doc, &err, &skipped);
+        if (first.isEmpty()) return QStringLiteral("no pptx: ") + err;
+        if (!skipped.isEmpty()) return QStringLiteral("pptx leaves out: ") + skipped.join(QLatin1Char('|'));
+        skipped.clear();
+        if (exportOdp(doc, false, &err, &skipped).isEmpty() || !skipped.isEmpty()) return QStringLiteral("odp leaves out: ") + skipped.join(QLatin1Char('|')) + err;
+        auto again = importPresentation(first, &err);
+        if (!again) return QStringLiteral("does not open: ") + err;
+        // (the first save of a new presentation adds the notes master the file needs; from then on a save is the same as the file it was opened from)
+        if (again->pages.size() != doc.pages.size()) return QStringLiteral("slides lost: %1 of %2").arg(again->pages.size()).arg(doc.pages.size());
+        const QByteArray second = exportPresentation(*again, &err);
+        auto third = importPresentation(second, &err);
+        if (!third) return QStringLiteral("does not open again: ") + err;
+        if (const QString part = stable::firstDifference({second, exportPresentation(*third, &err)}); !part.isEmpty()) return QStringLiteral("saved again differently: ") + part;
+        QMap<QString, QByteArray> parts;
+        if (!readZip(first, parts)) return QStringLiteral("not a package");
+        for (auto it = parts.cbegin(); it != parts.cend(); ++it)
+            for (const char *name : {"Microsoft", "LibreOffice", "OpenOffice", "Google", "Apple", "Canva"})
+                if (it.value().contains(name)) return QStringLiteral("names ") + QLatin1String(name) + QStringLiteral(" in ") + it.key();
+        return {};
+    }
+
+    void everyBuiltInTemplateOpensCleanAndSavesBackTheSame()
+    {
+        using namespace jp::deck;
+        const QVector<BuiltInTemplate> all = builtInTemplates();
+        QVERIFY(all.size() >= 6);
+        QStringList seen;
+        for (const BuiltInTemplate &t : all) {
+            QVERIFY2(!t.name.isEmpty() && !t.description.isEmpty() && !seen.contains(t.id) && !seen.contains(t.name), qPrintable(t.id));
+            seen << t.id << t.name;
+            auto doc = builtInTemplateDocument(t.id);
+            QVERIFY2(doc, qPrintable(t.id));
+            const QString problem = templateProblem(*doc);
+            QVERIFY2(problem.isEmpty(), qPrintable(t.id + QLatin1String(": ") + problem));
+        }
+        for (const char *id : {"pitch", "status", "lesson", "album", "minimallight", "minimaldark"}) QVERIFY2(seen.contains(QLatin1String(id)), id);
+        QVERIFY(!builtInTemplateDocument(QStringLiteral("no such template")));
+    }
+
+    void theCheckOfATemplateFailsForAFontOrAColorThatIsWrong()
+    {
+        using namespace jp::deck;
+        auto fonts = builtInTemplateDocument(QStringLiteral("pitch"));
+        QVERIFY(fonts && templateProblem(*fonts).isEmpty());
+        applyFonts(*fonts, FontSet{QStringLiteral("x"), QStringLiteral("Zzyzx Gothic Display"), QStringLiteral("Zzyzx Gothic Display")});
+        QVERIFY2(templateProblem(*fonts).startsWith(QLatin1String("font")), qPrintable(templateProblem(*fonts)));
+        // (light text on a slide gone light)
+        auto dark = builtInTemplateDocument(QStringLiteral("minimaldark"));
+        QVERIFY(dark);
+        for (auto &m : dark->masters) {
+            if (isSlideMaster(*m)) m->background = backgroundStyle(themeOf(*dark), 0);
+            else m->background = Fill();
+        }
+        QVERIFY2(templateProblem(*dark).startsWith(QLatin1String("contrast")), qPrintable(templateProblem(*dark)));
+    }
+
+    void theNewPageShowsEveryTemplateAndMakesAPresentationFromOne()
+    {
+        using namespace jp::deck;
+        DeckWindow w;
+        w.resize(1300, 900);
+        w.show();
+        w.showFileScreen(QStringLiteral("new"));
+        auto *screen = w.findChild<FileScreen *>();
+        QVERIFY(screen);
+        for (const BuiltInTemplate &t : builtInTemplates()) {
+            auto *tile = screen->findChild<QAbstractButton *>(QStringLiteral("template_") + t.id);
+            QVERIFY2(tile, qPrintable(t.id));
+            QCOMPARE(tile->toolTip(), t.description);
+        }
+        auto *lesson = screen->findChild<QAbstractButton *>(QStringLiteral("template_lesson"));
+        QVERIFY(lesson);
+        lesson->click();
+        QCOMPARE(int(w.editor()->doc()->pages.size()), 5);
+        QCOMPARE(themeOf(*w.editor()->doc()).bodyFont, QStringLiteral("Nunito"));
+        w.editor()->markSaved();
+    }
+
+    // Pictures of every template's slides and of the New page (only with JO_TEMPLATE_SHOT_DIR set; the folder is made).
+    void picturesOfTheTemplates()
+    {
+        using namespace jp::deck;
+        const QString shots = qEnvironmentVariable("JO_TEMPLATE_SHOT_DIR");
+        if (shots.isEmpty()) QSKIP("JO_TEMPLATE_SHOT_DIR is not set");
+        QDir().mkpath(shots);
+        applyUiTheme(1);
+        for (const BuiltInTemplate &t : builtInTemplates()) {
+            auto doc = builtInTemplateDocument(t.id);
+            QVERIFY(doc);
+            LayoutCache cache;
+            for (int i = 0; i < int(doc->pages.size()); ++i) QVERIFY(slideImage(*doc, &cache, i, 960).save(QDir(shots).filePath(QStringLiteral("deck-%1-%2.png").arg(t.id).arg(i + 1))));
+        }
+        DeckWindow w;
+        w.resize(1300, 1200);
+        w.show();
+        w.showFileScreen(QStringLiteral("new"));
+        QTest::qWait(0);
+        QVERIFY(w.grab().save(QDir(shots).filePath(QStringLiteral("deck-new.png"))));
+        w.editor()->markSaved();
+    }
+
+    void aTemplateMakesAPresentationWithItsOwnThemeAndSampleText()
+    {
+        using namespace jp::deck;
+        QSet<QString> looks;
+        for (const BuiltInTemplate &t : builtInTemplates()) {
+            auto doc = builtInTemplateDocument(t.id);
+            QVERIFY(doc);
+            const DeckTheme theme = themeOf(*doc);
+            looks.insert(theme.headingFont + theme.bodyFont + theme.colors[4].name() + theme.colors[0].name());
+            QVERIFY(doc->pages.size() >= 3);
+            QString all;
+            for (const auto &it : doc->pages[0]->items)
+                if (it->type() == ItemType::Text) all += doc->storyDoc(static_cast<TextItem *>(it.get())->storyId)->toPlainText();
+            QVERIFY2(all.contains(QLatin1Char('[')), qPrintable(t.id));   // (the Title Slide has a prompt in brackets to write over)
+        }
+        QCOMPARE(looks.size(), builtInTemplates().size());   // (no two look the same)
+    }
+
     void builtinThemesAreNineOriginalOnes()
     {
         QCOMPARE(deck::builtinThemeCount(), 9);

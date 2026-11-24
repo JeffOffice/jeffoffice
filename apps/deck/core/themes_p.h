@@ -31,6 +31,10 @@ QByteArray themePartXml(const DeckTheme &t);
 // `xml` with the colors and fonts of `t` in it (the rest as it was); empty if `xml` is no theme part.
 QByteArray patchThemePart(const QByteArray &xml, const DeckTheme &t);
 
+// The five sample paragraphs of a body place of a slide master or layout become the five levels of a list, as the built-in themes have them: bullets in theme color `slot`, the first
+// level `size` points.
+void bulletizeBody(Document &d, TextItem &item, double size, const DeckTheme &theme, int slot);
+
 // Says `title` and a subtitle on the first slide (a Title Slide), in the look the layout gave it.
 void sayOnTitleSlide(Document &d, const QString &title);
 
