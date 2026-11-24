@@ -2500,6 +2500,10 @@
          "hide_soon": true,
          "status": "done",
          "text": "df04a4155ff3b4ba4cbcc1f518dfca84065199ef4032dcac5678a72e443fca0e"
+        },
+        {
+         "status": "partly",
+         "text": "dd94b2415808600f734da1b5a6f3842aa5b0ad161cb999bd97840fb677427b6b"
         }
        ]
       },
@@ -3328,7 +3332,7 @@
       },
       {
        "status": "partly",
-       "text": "7771b66b2212973de2a9f9611ba8f73e7413cfafc040f32964d78f3be11c5d70"
+       "text": "0cf53c9dd771df6baca84a788b4378b47d2cca1ff5890e6738d5c306b4ec0418"
       },
       {
        "status": "partly",
@@ -4114,7 +4118,7 @@
       },
       {
        "status": "partly",
-       "text": "a197546753783f50c8dd6944297958fa2b30319a66fe1f57a8999c02330f86f4"
+       "text": "910dc41c674e6fb1c4e5a1930b573f5574dc8a4739cedf35d1cf3c0bc47f6570"
       },
       {
        "hide_soon": true,
@@ -5971,11 +5975,11 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "86d40c77eaae4d6396ae1a838f2dd8f2afdfd634e962568c6d768df5dfa8a2bb"
+         "text": "1338b478649ebbdc46a7299f25de81e5f6ac6f9d45c28676f722da72be845097"
         },
         {
-         "status": "todo",
-         "text": "ce022df46ca9a928ff09b1706fb373e4e0cd14a9ffe4cbf28c56b3106907b90b"
+         "status": "partly",
+         "text": "99a653d65ec0e174563f7d1f257943658242e4642cc4844e867e89c32da716c1"
         },
         {
          "hide_soon": true,
@@ -8836,6 +8840,18 @@
     "fr": "Récupération de données depuis un tableau ou une plage, une page web, un classeur, XML, JSON, un dossier et un PDF, en étapes modifiables et actualisables"
    }
   },
+  "0cf53c9dd771df6baca84a788b4378b47d2cca1ff5890e6738d5c306b4ec0418": {
+   "drop": false,
+   "en": "Click a shape, or press `Tab` and `Enter`, to play its effects in the show and in Reading View, and again at each click. Triggers are kept in `.pptx` files and written to `.odp` files. They are listed in the Animation Pane under \"When an object is clicked\" and made with the Start box. Effects can be moved, reordered, and removed in the pane; deleting the object returns its effects to the main sequence.",
+   "es": "Haga clic en una forma, o pulse `Tab` y `Enter`, para reproducir sus efectos en la presentación y en la vista de lectura, y de nuevo en cada clic. Los desencadenadores se conservan en archivos `.pptx` y se escriben en archivos `.odp`. Aparecen en el panel de animación bajo «When an object is clicked» y se crean con el cuadro Inicio. Los efectos se pueden mover, reordenar y quitar en el panel; al eliminar el objeto, sus efectos vuelven a la secuencia principal.",
+   "fr": "Cliquez sur une forme, ou appuyez sur `Tab` et `Entrée`, pour lancer ses effets dans le diaporama et en mode lecture, et à nouveau à chaque clic. Les déclencheurs sont conservés dans les fichiers `.pptx` et écrits dans les fichiers `.odp`. Ils figurent dans le volet Animation sous « When an object is clicked » et se créent avec la zone Début. Les effets peuvent être déplacés, réordonnés et supprimés dans le volet ; la suppression de l’objet remet ses effets dans la séquence principale.",
+   "soon": {
+    "drop": false,
+    "en": "Triggers that start an effect when a movie bookmark is reached",
+    "es": "Desencadenadores que inician un efecto al llegar a un marcador de video",
+    "fr": "Déclencheurs qui lancent un effet à l’arrivée à un signet de vidéo"
+   }
+  },
   "0d4d5ec33d83b0e410846e0e0705fd863ff0ca8d4ec7f83a73ba39a105c8a02b": {
    "drop": false,
    "en": "Add numbered footnotes and endnotes (Insert > References). Footnotes sit at the bottom of the column under a short rule and split across columns when too tall; endnotes appear under \"Notes\" after the story. Note text is edited in a dialog.",
@@ -9278,6 +9294,18 @@
     "en": "Group and ungroup rows and columns, automatic outline, and clear outline",
     "es": "Agrupar y desagrupar filas y columnas, esquema automático y borrar esquema",
     "fr": "Grouper et dissocier des lignes et des colonnes, plan automatique et effacement du plan"
+   }
+  },
+  "1338b478649ebbdc46a7299f25de81e5f6ac6f9d45c28676f722da72be845097": {
+   "drop": false,
+   "en": "Start from a blank document or one of 14 built-in templates, each shown as a tile with a preview of the first page it makes and grouped under the heading of its kind. My Templates stays below.",
+   "es": "Comience con un documento en blanco o con una de las 14 plantillas integradas, cada una mostrada como un mosaico con una vista previa de la primera página que genera y agrupada bajo el encabezado de su tipo. Mis plantillas permanece debajo.",
+   "fr": "Commencez avec un document vierge ou l’un des 14 modèles intégrés, chacun présenté sous forme de vignette avec un aperçu de la première page qu’il crée, et regroupé sous le titre de son type. Mes modèles reste en dessous.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "13568da8935054403b7a6bc9f02824f6592d5243c5390c3a6f760ab308cec725": {
@@ -17152,18 +17180,6 @@
     "fr": ""
    }
   },
-  "7771b66b2212973de2a9f9611ba8f73e7413cfafc040f32964d78f3be11c5d70": {
-   "drop": false,
-   "en": "Start an effect when a named shape is clicked, or when you press `Tab` and `Enter` on it. The effects play in the slide show and in Reading View, and again at each click. Triggers are kept in `.pptx` files and written to `.odp` files. They are listed in the Animation Pane under \"When an object is clicked\" and made with the Start box. They can be moved, reordered, and removed in the pane, with up to 64 objects, 200 effects for each, and 1,000 effects a slide.",
-   "es": "Inicie un efecto cuando se haga clic en una forma con nombre, o cuando pulse `Tab` y `Enter` sobre ella. Los efectos se reproducen en la presentación y en la vista de lectura, y de nuevo en cada clic. Los desencadenadores se conservan en archivos `.pptx` y se escriben en archivos `.odp`. Aparecen en el panel de animación bajo «Al hacer clic en un objeto» y se crean con el cuadro Inicio. Se pueden mover, reordenar y quitar en el panel, con hasta 64 objetos, 200 efectos por objeto y 1.000 efectos por diapositiva.",
-   "fr": "Lancez un effet lorsqu’on clique sur une forme nommée, ou lorsque vous appuyez sur `Tab` et `Entrée` sur celle-ci. Les effets sont lus dans le diaporama et en mode lecture, et à nouveau à chaque clic. Les déclencheurs sont conservés dans les fichiers `.pptx` et écrits dans les fichiers `.odp`. Ils sont répertoriés dans le volet Animation sous « Lors d’un clic sur un objet » et créés avec la zone Début. Ils peuvent être déplacés, réordonnés et supprimés dans le volet, avec jusqu’à 64 objets, 200 effets par objet et 1 000 effets par diapositive.",
-   "soon": {
-    "drop": false,
-    "en": "Triggers that start an effect when a movie bookmark is reached",
-    "es": "Desencadenadores que inician un efecto al llegar a un marcador de película",
-    "fr": "Déclencheurs qui lancent un effet à l’atteinte d’un signet de film"
-   }
-  },
   "778b25cf94fb73ec6b48b40f0a15248d600b60c752da6b67a2385bbd6feebda8": {
    "drop": false,
    "en": "Documents opened from `.doc`, `.rtf`, and older `.docx` files are laid out by the options their files hold.",
@@ -18112,18 +18128,6 @@
     "fr": "Styles de texte des éléments du graphique"
    }
   },
-  "86d40c77eaae4d6396ae1a838f2dd8f2afdfd634e962568c6d768df5dfa8a2bb": {
-   "drop": false,
-   "en": "Start a new document from Blank Document or one of five built-in templates. Each template is an ordinary document with its own styles, and each tile shows the first page it makes, grouped under the heading of its kind.",
-   "es": "Inicie un documento nuevo desde Documento en blanco o desde una de las cinco plantillas integradas. Cada plantilla es un documento común con sus propios estilos, y cada mosaico muestra la primera página que crea, agrupado bajo el encabezado de su tipo.",
-   "fr": "Créez un document à partir de Document vierge ou de l’un des cinq modèles intégrés. Chaque modèle est un document ordinaire avec ses propres styles, et chaque vignette affiche la première page qu’il crée, regroupée sous le titre de son type.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "86d4fd2ebc486f01f2f4cfbc972259f19ec4329da39f67f7bb1bca4b5971681d": {
    "drop": false,
    "en": "Save a text file in more code pages: Japanese, both Chinese, Korean, Hebrew, Arabic, Baltic, Vietnamese, and Thai. If a page is not supported, the file is saved in UTF-8 with a mark, and the app says so.",
@@ -18760,6 +18764,18 @@
     "fr": ""
    }
   },
+  "910dc41c674e6fb1c4e5a1930b573f5574dc8a4739cedf35d1cf3c0bc47f6570": {
+   "drop": false,
+   "en": "Interactive sequences are read, kept, and played in the show and in Reading View, with limits of 64 objects per slide, 200 effects for each object, 1,000 effects for the slide, and 500 runs per showing of a slide. All of an object's sequences play at its click, and what waits for an object that cannot be clicked is shown. Sequences are written to `.odp` files, and listed and made in the Animation Pane.",
+   "es": "Las secuencias interactivas se leen, se conservan y se reproducen en la presentación y en la vista de lectura, con límites de 64 objetos por diapositiva, 200 efectos por objeto, 1000 efectos por diapositiva y 500 ejecuciones por cada pase de una diapositiva. Todas las secuencias de un objeto se reproducen al hacer clic en él, y se muestra lo que espera a un objeto en el que no se puede hacer clic. Las secuencias se escriben en archivos `.odp` y se muestran y crean en el panel de animación.",
+   "fr": "Les séquences interactives sont lues, conservées et jouées dans le diaporama et en mode lecture, avec des limites de 64 objets par diapositive, 200 effets par objet, 1 000 effets par diapositive et 500 exécutions par affichage d’une diapositive. Toutes les séquences d’un objet se jouent à son clic, et ce qui attend un objet sur lequel on ne peut pas cliquer est affiché. Les séquences sont écrites dans les fichiers `.odp`, et listées et créées dans le volet Animation.",
+   "soon": {
+    "drop": false,
+    "en": "Effects that wait for a movie bookmark: play",
+    "es": "Efectos que esperan un marcador de video: reproducir",
+    "fr": "Effets qui attendent un signet de vidéo : lecture"
+   }
+  },
   "911cfa245408b97bac94cb87e157891170b36f82fb2483ac7f6238b4e9c73390": {
    "drop": false,
    "en": "Bundled open fonts, with stand-ins that keep the letter widths of common fonts, so a document lays out the same on a computer without those fonts.",
@@ -19360,6 +19376,18 @@
     "fr": "Insertion de la date et de l’heure, des informations du document, de blocs de construction et d’images dans les en-têtes et pieds de page"
    }
   },
+  "99a653d65ec0e174563f7d1f257943658242e4642cc4844e867e89c32da716c1": {
+   "drop": false,
+   "en": "Start from built-in templates for resumes, cover letters, invoices, flyers, and meeting notes.",
+   "es": "Comience con plantillas integradas de currículos, cartas de presentación, facturas, folletos y notas de reunión.",
+   "fr": "Commencez avec des modèles intégrés de CV, de lettres de motivation, de factures, de flyers et de notes de réunion.",
+   "soon": {
+    "drop": false,
+    "en": "Built-in templates for brochures, legal pleadings, and book interiors",
+    "es": "Plantillas integradas de folletos, escritos legales e interiores de libros",
+    "fr": "Modèles intégrés de brochures, d’actes de procédure et de pages intérieures de livres"
+   }
+  },
   "99b6d6798b3ee468bac92a3a7c49a8e1eef2c5782f3421d5d71593cd9e1c40a3": {
    "drop": false,
    "en": "Runs on Windows, macOS, and Linux. The Mac app isn't signed yet, so macOS asks before opening it the first time.",
@@ -19917,18 +19945,6 @@
    "en": "Shape Effects (shadow, reflection, glow, and soft edges) are on the Shape Format tab and in the Format Shape pane.",
    "es": "Los efectos de forma (sombra, reflejo, resplandor y bordes suaves) están en la pestaña Formato de forma y en el panel Formato de forma.",
    "fr": "Les effets de forme (ombre, reflet, lueur et bords adoucis) se trouvent dans l’onglet Format de la forme et dans le volet Format de la forme.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "a197546753783f50c8dd6944297958fa2b30319a66fe1f57a8999c02330f86f4": {
-   "drop": false,
-   "en": "Interactive sequences (triggers) are read, kept, and played in the slide show and in Reading View, and written to `.odp` files. They are listed and made in the Animation Pane. Limits are 64 objects per slide, 200 effects for each object, 1,000 for the slide, and 500 runs per showing of a slide. All of an object's sequences play at its click, and what waits for an object that cannot be clicked is shown.",
-   "es": "Las secuencias interactivas (desencadenadores) se leen, se conservan y se reproducen en la presentación y en la vista de lectura, y se escriben en archivos `.odp`. Aparecen y se crean en el panel de animación. Los límites son 64 objetos por diapositiva, 200 efectos por objeto, 1.000 por diapositiva y 500 ejecuciones por cada pase de una diapositiva. Todas las secuencias de un objeto se reproducen al hacer clic en él, y se muestra lo que espera a un objeto en el que no se puede hacer clic.",
-   "fr": "Les séquences interactives (déclencheurs) sont lues, conservées et jouées dans le diaporama et en mode lecture, et écrites dans les fichiers `.odp`. Elles sont répertoriées et créées dans le volet Animation. Les limites sont de 64 objets par diapositive, 200 effets par objet, 1 000 par diapositive et 500 exécutions par affichage d’une diapositive. Toutes les séquences d’un objet se jouent à son clic, et ce qui attend un objet sur lequel on ne peut pas cliquer est affiché.",
    "soon": {
     "drop": true,
     "en": "",
@@ -22900,18 +22916,6 @@
     "fr": "Options d’impression pour les propriétés du document, les codes de champ, les dessins, la liste des marques de révision, les champs mis à jour et les images d’arrière-plan"
    }
   },
-  "ce022df46ca9a928ff09b1706fb373e4e0cd14a9ffe4cbf28c56b3106907b90b": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "More built-in templates: resumes, cover letters, invoices, flyers, brochures, meeting notes, legal pleadings, and book interiors",
-    "es": "Más plantillas integradas: currículos, cartas de presentación, facturas, volantes, folletos, notas de reunión, escritos legales e interiores de libros",
-    "fr": "Plus de modèles intégrés : CV, lettres de motivation, factures, flyers, brochures, notes de réunion, actes de procédure et intérieurs de livres"
-   }
-  },
   "ce30db5db371901c1dbbcd571377340dd7bd78a0e16307ee20e97fbdaaa9d7f7": {
    "drop": false,
    "en": "Protect Sheet with an optional password, choosing what stays allowed: selecting cells, formatting, inserting or deleting rows and columns, sorting, filters, pivot tables, and editing objects and scenarios. Unprotect Sheet removes the protection.",
@@ -24122,6 +24126,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "dd94b2415808600f734da1b5a6f3842aa5b0ad161cb999bd97840fb677427b6b": {
+   "drop": false,
+   "en": "Start from a photo album template with layouts for one, two, or three pictures and a caption, under Templates on the New page.",
+   "es": "Comience con una plantilla de álbum de fotos con diseños para una, dos o tres imágenes y un pie de foto, en Plantillas, en la página Nuevo.",
+   "fr": "Commencez avec un modèle d’album photo proposant des mises en page pour une, deux ou trois images et une légende, sous Modèles dans la page Nouveau.",
+   "soon": {
+    "drop": false,
+    "en": "Photo Album on the Insert tab: choose a folder and create the slides",
+    "es": "Álbum de fotos en la pestaña Insertar: elegir una carpeta y crear las diapositivas",
+    "fr": "Album photo dans l’onglet Insertion : choisir un dossier et créer les diapositives"
    }
   },
   "de3a22c9368c5a43d3868b4404dc3e290ffd9f4344f2169e33b21f2839de8dfa": {
