@@ -281,7 +281,7 @@ void Ruler::mouseReleaseEvent(QMouseEvent *e)
 void Ruler::commit()
 {
     WriteDoc *doc = m_view->document();
-    if (!doc) return;
+    if (!doc || m_view->editsBlocked()) return;
     QTextCursor c = cursor();
     const double value = m_dragValue;
     switch (m_drag) {

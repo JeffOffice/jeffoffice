@@ -241,7 +241,7 @@ bool NavigationPane::moveHeadingLevel(QTreeWidgetItem *item, int by)
 {
     write::WriteDoc *doc = m_win->document();
     const int number = numberOf(item);
-    if (number < 0 || number >= m_shown.size() || m_win->isReadOnly()) return false;
+    if (number < 0 || number >= m_shown.size() || !m_win->mayEdit()) return false;
     const int start = m_positions[number];
     // The heading and those under it (to the next of the same or a higher level): found in the text, each by its block.
     QVector<int> blocks;

@@ -360,7 +360,7 @@ bool ReviewPane::postReply()
     write::WriteDoc *doc = m_win->document();
     const int id = chosenComment();
     const QString text = m_reply->text().trimmed();
-    if (!doc || id < 0 || text.isEmpty()) return false;
+    if (!doc || id < 0 || text.isEmpty() || !m_win->mayEdit()) return false;
     // A reply goes to the comment the thread begins with.
     const std::optional<write::Comment> c = write::commentById(*doc, id);
     const int root = c && c->parent >= 0 ? c->parent : id;
@@ -380,7 +380,7 @@ void ReviewPane::toggleResolved()
 {
     write::WriteDoc *doc = m_win->document();
     const int id = chosenComment();
-    if (!doc || id < 0) return;
+    if (!doc || id < 0 || !m_win->mayEdit()) return;
     const std::optional<write::Comment> c = write::commentById(*doc, id);
     if (!c) return;
     const int root = c->parent >= 0 ? c->parent : id;
@@ -392,7 +392,7 @@ void ReviewPane::deleteChosen()
 {
     write::WriteDoc *doc = m_win->document();
     const int id = chosenComment();
-    if (!doc || id < 0) return;
+    if (!doc || id < 0 || !m_win->mayEdit()) return;
     write::deleteComment(*doc, id);
     refresh();
 }
@@ -401,7 +401,7 @@ void ReviewPane::editChosen()
 {
     write::WriteDoc *doc = m_win->document();
     const int id = chosenComment();
-    if (!doc || id < 0) return;
+    if (!doc || id < 0 || !m_win->mayEdit()) return;
     const std::optional<write::Comment> c = write::commentById(*doc, id);
     if (!c) return;
     bool ok = false;
@@ -419,7 +419,7 @@ void ReviewPane::resolveChange(bool accept)
 {
     write::WriteDoc *doc = m_win->document();
     const QList<QTreeWidgetItem *> sel = m_changes->selectedItems();
-    if (!doc || sel.isEmpty()) return;
+    if (!doc || sel.isEmpty() || !m_win->mayEdit()) return;
     // The change of the row, by what it is: its kind, its Id, and where it begins (never by a place that is near it).
     const int from = sel.first()->data(0, Qt::UserRole).toInt(), kind = sel.first()->data(0, Qt::UserRole + 2).toInt();
     const QString id = sel.first()->data(0, Qt::UserRole + 3).toString();

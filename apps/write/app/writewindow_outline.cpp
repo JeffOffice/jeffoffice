@@ -34,7 +34,7 @@ void WriteWindow::createOutlineActions()
     mk("view.draft", tr("Draft"), "scroll-text", QKeySequence(), [this] { setDraftView(act("view.draft")->isChecked()); }, true);
     auto onRows = [this](const std::function<void(write::WriteDoc &, int, int)> &run) {
         return [this, run] {
-            if (!m_doc || !m_outlineOn || isReadOnly()) return;
+            if (!m_doc || !m_outlineOn || !mayEdit()) return;
             const QPair<int, int> range = m_outline->selectedRange();
             if (range.first < 0) {
                 statusBar()->showMessage(tr("Select a heading or a paragraph in the outline first."), 5000);
@@ -51,7 +51,7 @@ void WriteWindow::createOutlineActions()
     mk("outline.toBody", tr("Demote to Body Text"), "chevrons-right", QKeySequence(), onRows([](write::WriteDoc &d, int a, int b) { write::outlineSetLevel(d, a, b, write::kBodyLevel); }));
     auto move = [this](bool up) {
         return [this, up] {
-            if (!m_doc || !m_outlineOn || isReadOnly()) return;
+            if (!m_doc || !m_outlineOn || !mayEdit()) return;
             const QPair<int, int> range = m_outline->selectedRange();
             if (range.first < 0) return;
             int at = -1;
@@ -94,7 +94,7 @@ void WriteWindow::createOutlineActions()
     connect(m_outline, &WriteOutlineView::styleNameActivated, this, &WriteWindow::styleNameActivated);
     connect(m_outline, &WriteOutlineView::levelKeyPressed, this, [this](int by) { act(by > 0 ? "outline.demote" : "outline.promote")->trigger(); });
     connect(m_outline, &WriteOutlineView::newParagraphWanted, this, [this] {
-        if (!m_doc || !m_outlineOn || isReadOnly()) return;
+        if (!m_doc || !m_outlineOn || !mayEdit()) return;
         const QPair<int, int> range = m_outline->selectedRange();
         int at = -1;
         if (range.first < 0 || !write::outlineInsertAfter(*m_doc, range.second, &at)) return;
@@ -104,7 +104,7 @@ void WriteWindow::createOutlineActions()
     });
     connect(m_outline, &WriteOutlineView::textTyped, this, [this](int position, const QString &text) {
         if (!m_doc || !m_outlineOn) return;
-        if (isReadOnly()) {
+        if (!mayEdit()) {
             QTimer::singleShot(0, this, [this] { if (m_outlineOn) m_outline->rebuild(); });
             return;
         }
