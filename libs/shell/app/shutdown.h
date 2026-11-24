@@ -35,6 +35,10 @@ JO_COMMON_EXPORT void addLastShutdownStep(const ShutdownStep &step);
 // the tests of the programs; a person's run never writes it.
 JO_COMMON_EXPORT int shutdownServices();
 
+// Runs `work` on a thread of its own and waits for it at most `budgetMs`; true when it finished. A thread that has not finished is left running (and its object kept: never deleted
+// while it runs), for the step that used it to count as one let go of.
+JO_COMMON_EXPORT bool runWithinTime(const std::function<void()> &work, int budgetMs);
+
 // Ends the program's services however main() is left, by any return: declare it right after the application object (it runs before the application object goes).
 struct ShutdownGuard {
     ShutdownGuard() = default;

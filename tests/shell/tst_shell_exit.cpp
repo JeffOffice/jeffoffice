@@ -11,6 +11,7 @@
 #include <QtTest>
 
 #include <atomic>
+#include <memory>
 
 namespace {
 
@@ -280,6 +281,15 @@ private Q_SLOTS:
         QCOMPARE(jp::shutdownServices(), 0);
         QCOMPARE(activeInLast.load(), 0);   // (nothing is on the pool, and its work is done, when the settings are written)
     }
+    void aWriteThatDoesNotEndInItsTimeIsLetGoOf()
+    {
+        auto hold = std::make_shared<QSemaphore>(), started = std::make_shared<QSemaphore>();   // (owned by the thread too: it may outlive this function)
+        QVERIFY(jp::runWithinTime([] {}, 30000));
+        QVERIFY(!jp::runWithinTime([hold, started] { started->release(); hold->acquire(); }, 0));   // (a budget of nothing: the work is still going when the wait is over)
+        QVERIFY(started->tryAcquire(1, 30000));
+        hold->release();   // (the thread ends by itself; its object is kept, as the function says)
+    }
+
     void aStepThatLetGoOfAThreadIsRemembered()
     {
         QVERIFY(!jp::shutdownLetGo());

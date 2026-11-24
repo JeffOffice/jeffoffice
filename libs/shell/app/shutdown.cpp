@@ -5,6 +5,7 @@
 #include <QCoreApplication>
 #include <QElapsedTimer>
 #include <QFile>
+#include <QThread>
 #include <QThreadPool>
 
 #include <algorithm>
@@ -84,6 +85,20 @@ int shutdownServices()
         if (f.open(QIODevice::WriteOnly | QIODevice::Truncate)) f.write("threads=" + QByteArray::number(left) + " steps=" + QByteArray::number(int(todo.size() + last.size())) + "\n");
     }
     return left;
+}
+
+bool runWithinTime(const std::function<void()> &work, int budgetMs)
+{
+    QThread *thread = QThread::create(work);
+    thread->start();
+    if (!thread->wait(static_cast<unsigned long>(std::max(0, budgetMs)))) {
+        std::lock_guard<std::mutex> hold(stepsLock());
+        static auto *kept = new std::vector<QThread *>;   // (still running: never deleted, and not lost)
+        kept->push_back(thread);
+        return false;
+    }
+    delete thread;
+    return true;
 }
 
 int runProgram(const std::function<int()> &program)
