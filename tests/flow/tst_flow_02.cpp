@@ -1125,6 +1125,117 @@ void FlowTests::paragraphBordersAndShadingAreDrawn()
 }
 
 
+// A thin rule of a paragraph's border in a picture is whole device pixels at every scale: one run of pure black rows as thick as its width in device pixels rounded (never
+// under one), not two faint rows at one scale and a dark one at another. The rule is the same at every device pixel ratio.
+void FlowTests::aThinParagraphBorderIsCrispAtEveryScale()
+{
+    for (const int eighths : {4, 8}) {
+        for (const double scale : {1.0, 1.25, 4.0 / 3, 1.5, 2.0, 2.5, 3.0, 5.0 / 3, 7.0 / 6}) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat run;
+            run.setFontFamilies({QStringLiteral("Times New Roman")});
+            run.setFontPointSize(12);
+            QTextBlockFormat bf;
+            bf.setLeftMargin(30);
+            bf.setRightMargin(30);
+            bf.setTopMargin(20);
+            tp::ParaBox box;
+            box.top = {QStringLiteral("single"), eighths, 3, QColor(Qt::black)};
+            box.bottom = {QStringLiteral("single"), eighths, 3, QColor(Qt::black)};
+            bf.setProperty(tp::Borders, box.spec());
+            c.setBlockFormat(bf);
+            c.insertText(QStringLiteral("boxed"), run);
+            LayoutEnv env;
+            env.wordLines = true;
+            StoryLayout lay;
+            lay.build(&doc, {plainFrame(200, 100)}, env);
+            QImage img(int(200 * scale) + 1, int(100 * scale) + 1, QImage::Format_RGB32);
+            img.fill(Qt::white);
+            QPainter p(&img);
+            p.scale(scale, scale);
+            lay.paint(&p, 0, PaintOptions());
+            p.end();
+            // (A column to the right of the text, inside the rule's length: only the two rules are in it.)
+            const int x = int(150 * scale);
+            QVector<int> runs;
+            int gray = 0, length = 0;
+            for (int y = 0; y <= img.height(); ++y) {
+                const int v = y < img.height() ? qGray(img.pixel(x, y)) : 255;
+                if (v != 255 && v != 0) ++gray;
+                if (v != 255) ++length;
+                else if (length) runs << length, length = 0;
+            }
+            const int thick = std::max(1, int(std::ceil(eighths / 8.0 * scale - 0.5 - 1e-6)));   // (a half rounds down)
+            const QString where = QStringLiteral("%1 eighths at scale %2: ").arg(eighths).arg(scale);
+            QVERIFY2(gray == 0, qPrintable(where + QStringLiteral("%1 pixels of gray").arg(gray)));
+            QVERIFY2(runs.size() == 2, qPrintable(where + QStringLiteral("%1 runs").arg(runs.size())));
+            for (int r : runs) QVERIFY2(r == thick, qPrintable(where + QStringLiteral("a rule %1 pixels thick, not %2").arg(r).arg(thick)));
+        }
+    }
+}
+
+
+// The four sides of a paragraph's box border meet at its corners at every scale, in a picture: the corner pixel is dark and the pixels just outside it are not (no gap, no
+// overhang); and a double border is two lines of the width with the gap the reference shows (lines of 2 pixels with 3 between them at 15 eighths and 4/3).
+void FlowTests::aBoxBorderMeetsAtItsCornersAtEveryScale()
+{
+    for (const int eighths : {4, 8, 15}) {
+        for (const QString &style : {QStringLiteral("single"), QStringLiteral("double")}) {
+            for (const double scale : {1.0, 1.25, 4.0 / 3, 1.5, 2.0}) {
+                QTextDocument doc;
+                QTextCursor c(&doc);
+                QTextCharFormat run;
+                run.setFontFamilies({QStringLiteral("Times New Roman")});
+                run.setFontPointSize(12);
+                QTextBlockFormat bf;
+                bf.setLeftMargin(30);
+                bf.setRightMargin(30);
+                bf.setTopMargin(20);
+                tp::ParaBox box;
+                box.top = box.bottom = box.left = box.right = {style, eighths, 3, QColor(Qt::black)};
+                bf.setProperty(tp::Borders, box.spec());
+                c.setBlockFormat(bf);
+                c.insertText(QStringLiteral("boxed"), run);
+                LayoutEnv env;
+                env.wordLines = true;
+                StoryLayout lay;
+                lay.build(&doc, {plainFrame(200, 100)}, env);
+                QImage img(int(200 * scale) + 1, int(100 * scale) + 1, QImage::Format_RGB32);
+                img.fill(Qt::white);
+                QPainter p(&img);
+                p.scale(scale, scale);
+                lay.paint(&p, 0, PaintOptions());
+                p.end();
+                const QString where = QStringLiteral("%1 %2 eighths at scale %3: ").arg(style).arg(eighths).arg(scale);
+                auto dark = [&](int x, int y) { return x >= 0 && y >= 0 && x < img.width() && y < img.height() && qGray(img.pixel(x, y)) == 0; };
+                // The outer bounds of the dark pixels along the middle row and the middle column of the box (the left and right rules, the top and bottom ones).
+                const int midY = int(lay.lineInfo(0)[0].rect.center().y() * scale), midX = int(150 * scale);
+                int left = -1, right = -1, top = -1, bottom = -1;
+                for (int x = 0; x < img.width(); ++x)
+                    if (dark(x, midY)) { if (left < 0) left = x; right = x; }
+                for (int y = 0; y < img.height(); ++y)
+                    if (dark(midX, y)) { if (top < 0) top = y; bottom = y; }
+                QVERIFY2(left >= 0 && top >= 0, qPrintable(where + QStringLiteral("no box")));
+                QVERIFY2(dark(left, top) && dark(right, top) && dark(left, bottom) && dark(right, bottom), qPrintable(where + QStringLiteral("a corner pixel is not drawn")));
+                QVERIFY2(!dark(left - 1, top) && !dark(left, top - 1) && !dark(right + 1, top) && !dark(right, top - 1) && !dark(left - 1, bottom) && !dark(left, bottom + 1) &&
+                             !dark(right + 1, bottom) && !dark(right, bottom + 1), qPrintable(where + QStringLiteral("a rule goes past a corner")));
+                if (style == QLatin1String("double") && eighths == 15 && std::abs(scale - 4.0 / 3) < 1e-9) {
+                    QVector<int> runs;
+                    int length = 0;
+                    for (int x = left - 1; x <= left + 12; ++x) {
+                        if (dark(x, midY)) ++length;
+                        else if (length) runs << length, length = 0;
+                    }
+                    QCOMPARE(runs, (QVector<int>{2, 2}));
+                    QVERIFY2(dark(left, midY) && !dark(left + 2, midY) && !dark(left + 4, midY) && dark(left + 5, midY) && dark(left + 6, midY) && !dark(left + 7, midY), qPrintable(where + QStringLiteral("not 2 on, 3 off, 2 on")));
+                }
+            }
+        }
+    }
+}
+
+
 // A word processor's underscore leader is one line from where its tab starts to the stop (W124's "NAME:" and the "COUNTY" after the right tab), not underscores on a grid with a
 // gap of two fifths of one at each end.
 void FlowTests::anUnderscoreLeaderIsOneLineFromTheTabToItsStop()

@@ -11,6 +11,7 @@
 #include "text/opentype.h"
 #include "text/textprops.h"
 #include "core/syslocale.h"
+#include "render/pixelsnap.h"
 
 #include <QBuffer>
 #include <QCache>
@@ -772,24 +773,49 @@ tp::BoxSide runBorderOf(const QString &spec)
     return side;
 }
 
+// A solid line of a box side, whole device pixels: its outer edge (the near edge of `r`, or the far one on the bottom and the right) on the nearest pixel line, as thick as
+// `w` in pixels with a half rounded down (never under one pixel), `inset` logical units in from that edge, and its ends at the nearest pixel lines of `r`'s own ends, so
+// that the four sides of a box meet at its corners with no gap and no overhang. False where the painter is turned or slanted.
+bool fillBoxLinePixels(QPainter *p, const QRectF &r, bool horizontal, bool far, double w, double inset, const QColor &color)
+{
+    if (!jp::paintsAxisAligned(p)) return false;
+    const QTransform t = p->deviceTransform();
+    const QRectF d = t.mapRect(r.normalized());
+    auto nearest = [](double v) { return int(std::floor(v + 0.5 + 1e-6)); };
+    const double scale = horizontal ? t.m22() : t.m11();
+    const int thick = std::max(1, int(std::ceil(w * scale - 0.5 - 1e-6))), in = nearest(inset * scale);
+    const int outer = horizontal ? (far ? nearest(d.bottom()) : nearest(d.top())) : (far ? nearest(d.right()) : nearest(d.left()));
+    const int from = far ? outer - in - thick : outer + in;
+    const int a0 = nearest(horizontal ? d.left() : d.top());
+    const int a1 = std::max(a0 + 1, nearest(horizontal ? d.right() : d.bottom()));
+    jp::fillDeviceBox(p, horizontal ? QRect(QPoint(a0, from), QPoint(a1 - 1, from + thick - 1)) : QRect(QPoint(from, a0), QPoint(from + thick - 1, a1 - 1)), color);
+    return true;
+}
+
 // One side of a box (a paragraph's or a run's) drawn in `r`, which is as wide or as high as the side's lines are (a double one is two lines with a line's width between them,
-// a dashed or dotted one a line of that style).
-void drawBoxSide(QPainter *p, const tp::BoxSide &s, const QRectF &r, bool horizontal)
+// a dashed or dotted one a line of that style). `far`: the bottom or the right side.
+void drawBoxSide(QPainter *p, const tp::BoxSide &s, const QRectF &r, bool horizontal, bool far = false)
 {
     if (!s.visible()) return;
     const QColor color = s.color.isValid() ? s.color : QColor(Qt::black);
     const double w = s.eighths / 8.0;
+    // In pixels (the screen, a picture of a page) a rule is whole device pixels and never under one, at any scale; on paper and in a PDF it keeps its width.
+    const bool pixels = p->paintEngine() && p->paintEngine()->type() == QPaintEngine::Raster;
+    auto fill = [&](const QRectF &part, double inset) {
+        if (pixels && w > 0 && fillBoxLinePixels(p, r, horizontal, far, w, inset, color)) return;
+        p->fillRect(part, color);
+    };
     if (s.style == QLatin1String("double")) {
         // (two lines of the width, with a line's width between them)
         for (int k : {0, 2}) {
             const QRectF part = horizontal ? QRectF(r.left(), r.top() + k * w, r.width(), w) : QRectF(r.left() + k * w, r.top(), w, r.height());
-            p->fillRect(part, color);
+            fill(part, (far ? 2 - k : k) * w);
         }
         return;
     }
     const bool dashed = s.style.startsWith(QLatin1String("dash")) || s.style == QLatin1String("dotted") || s.style.startsWith(QLatin1String("dot"));
     if (!dashed) {
-        p->fillRect(r, color);
+        fill(r, 0);
         return;
     }
     QPen pen(color, w, s.style == QLatin1String("dotted") ? Qt::DotLine : Qt::DashLine);
@@ -6729,12 +6755,12 @@ void StoryLayout::paintBox(QPainter *p, int bi, int frame) const
     }
     const double x0 = B.boxLeft - box.left.reserve(), x1 = B.boxRight + box.right.reserve();
     if (box.fill.isValid()) p->fillRect(QRectF(x0, yTop, x1 - x0, yBottom - yTop), box.fill);
-    auto line = [&](const tp::BoxSide &s, const QRectF &r, bool horizontal) { drawBoxSide(p, s, r, horizontal); };
+    auto line = [&](const tp::BoxSide &s, const QRectF &r, bool horizontal, bool far = false) { drawBoxSide(p, s, r, horizontal, far); };
     if (startsHere && !B.boxTopOff && !B.boxJoinedBefore) line(box.top, QRectF(x0, yTop, x1 - x0, box.top.width()), true);
     if (startsHere && B.boxJoinedBefore) line(box.between, QRectF(x0, yTop, x1 - x0, box.between.width()), true);
-    if (endsHere && !B.boxJoinedAfter) line(box.bottom, QRectF(x0, yBottom - box.bottom.width(), x1 - x0, box.bottom.width()), true);
+    if (endsHere && !B.boxJoinedAfter) line(box.bottom, QRectF(x0, yBottom - box.bottom.width(), x1 - x0, box.bottom.width()), true, true);
     line(box.left, QRectF(x0, yTop, box.left.width(), yBottom - yTop), false);
-    line(box.right, QRectF(x1 - box.right.width(), yTop, box.right.width(), yBottom - yTop), false);
+    line(box.right, QRectF(x1 - box.right.width(), yTop, box.right.width(), yBottom - yTop), false, true);
 }
 
 QVector<bool> StoryLayout::seeThroughLinesOf(const Block &B) const
@@ -6825,9 +6851,9 @@ void StoryLayout::paint(QPainter *p, int frame, const PaintOptions &o) const
                     const double baseline = l.y() + l.ascent(), w = rb.side.width(), room = rb.side.space + w;
                     const QRectF box(x1 - room, baseline - rb.ascent - room, x2 - x1 + 2 * room, rb.ascent + rb.descent + 2 * room);
                     drawBoxSide(p, rb.side, QRectF(box.left(), box.top(), box.width(), w), true);
-                    drawBoxSide(p, rb.side, QRectF(box.left(), box.bottom() - w, box.width(), w), true);
+                    drawBoxSide(p, rb.side, QRectF(box.left(), box.bottom() - w, box.width(), w), true, true);
                     drawBoxSide(p, rb.side, QRectF(box.left(), box.top(), w, box.height()), false);
-                    drawBoxSide(p, rb.side, QRectF(box.right() - w, box.top(), w, box.height()), false);
+                    drawBoxSide(p, rb.side, QRectF(box.right() - w, box.top(), w, box.height()), false, true);
                 }
             p->restore();
         }

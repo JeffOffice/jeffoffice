@@ -1476,6 +1476,7 @@ private Q_SLOTS:
     void theFirstLineOfABorderedParagraphGoesInAFrameThatIsTooShort();
     void paragraphBordersAndShadingAreDrawn();
     void aThinParagraphBorderIsCrispAtEveryScale();
+    void aBoxBorderMeetsAtItsCornersAtEveryScale();
     void anUnderscoreLeaderIsOneLineFromTheTabToItsStop();
     void anAbsolutePositionTabGoesToItsPlaceWhateverTheParagraphsStops();
     void anAbsolutePositionTabLeavesTheParagraphsStopsToItsOrdinaryTabs();
