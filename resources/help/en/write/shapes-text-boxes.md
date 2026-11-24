@@ -47,6 +47,20 @@ Click the shape to select it. Drag a handle to change its size, or drag the shap
 
 Each change is one step to undo.
 
+## Merge shapes
+
+Select two or more shapes or text boxes that are set at a place on the same page (click the first, then hold **Ctrl** and click the others), then click **Shape Format > Insert Shapes > Merge Shapes**. The new shape has the fill, line, effects, words, wrap, and alt text of the shape you selected first, and sits where the old ones were. The other shapes go. Merge Shapes is off when something in the selection is a picture, chart, group, line, or Text Art, sits in line with the text, or is on another page.
+
+- **Union** makes one shape of everything the shapes cover.
+- **Combine** keeps what only one of the shapes covers and cuts out the places where they overlap.
+- **Subtract** takes the other shapes away from the one you selected first.
+- **Intersect** keeps only what all of the shapes cover.
+- **Fragment** cuts the shapes into every piece they make. Each piece is a shape of its own, with the look of the first shape and no words.
+
+A shape that is turned or flipped is merged where it is on the page. Holes stay holes. You can merge up to 64 shapes at a time, and a fragment can make up to 256 pieces. A merge that takes long shows a box with **Cancel**, and the shapes stay as they were if you cancel it.
+
+The words of the first shape stay with it. If any of the other shapes has words, you are asked once before they are removed, and the status bar says so afterward. Each merge is one step of Undo, and the new shapes are left selected. The new shape is a freeform: **Edit Points** works on it. It is saved in a `.docx` or `.odt` file like any other freeform.
+
 ## Text Art
 
 **Text Art** is a few words drawn in big, bold letters that bend into a shape, such as a wave or an arch.
