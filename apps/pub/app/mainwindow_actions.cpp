@@ -1375,7 +1375,6 @@ void MainWindow::createActions()
             return;
         }
         m_ribbon->setContextVisible(QStringLiteral("Background Removal"), true, true);
-        updateContextTabs();
     });
     mk("pic.markKeep", tr("Mark Areas to Keep"), "circle-plus", QKeySequence(), [ed] { ed->setRemoveBgTool(Editor::RemoveBgTool::Keep); }, true);
     mk("pic.markRemove", tr("Mark Areas to Remove"), "circle-minus", QKeySequence(), [ed] { ed->setRemoveBgTool(Editor::RemoveBgTool::Remove); }, true);

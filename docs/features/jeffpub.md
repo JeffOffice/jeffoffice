@@ -259,6 +259,7 @@ The tabs that appear only while something is selected or being edited: master pa
 
 ### Picture Tools Format tab
 - [x] **1.0** Insert: Change Picture, Remove Picture, Swap (between picture frames), Arrange Thumbnails
+- [x] **later** Remove Background: mark areas to keep and remove *(done November 24, 2026: the same button, tab, and strokes as JeffDeck; .jpub keeps the original and the mask, .pub and the exports keep the finished picture and Check Compatibility says so)*
 - [x] **1.0** Adjust: Corrections (brightness and contrast presets), Recolor (presets, more variations, set transparent color), Compress Pictures, Reset Picture
 - [x] **1.0** Picture Styles gallery, Picture Border, Picture Effects, Caption gallery, Picture Shape (any closed shape)
 - [x] **1.0** Crop (handles, drag picture inside frame), Crop to Shape, Aspect Ratio (12 shapes, as in JeffDeck), Fit, Fill, Clear Crop, Pan picture

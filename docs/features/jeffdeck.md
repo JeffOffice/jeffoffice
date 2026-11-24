@@ -427,7 +427,7 @@ These tabs are shown while something is selected. JeffDeck has Playback (while a
 - [x] **1.0** Alt Text, Arrange, and Size (see Shape Format) *(Arrange is on the Home tab; alt text and size are in the pane's Size & Properties page; done November 20, 2026: the Picture Format tab has Accessibility (Alt Text), Arrange (Align), and Size (Height and Width) groups, as the Shape Format tab does; test: thePictureFormatTabHasAltTextArrangeAndSize)*
 - [ ] **later** Artistic Effects (blur, pencil sketch, paint, and the rest) *(a picture's blur and fill overlay are neither drawn nor saved yet)*
 - [x] **1.0** Compress Pictures: a resolution for screen, print, or email, and delete the cropped areas
-- [ ] **later** Remove Background: mark areas to keep and remove
+- [x] **later** Remove Background: mark areas to keep and remove *(done November 24, 2026: Picture Format > Adjust > Remove Background tints what goes, strokes keep or remove, the last stroke wins, one step to undo, Esc discards, Reset Picture brings it back; the pptx keeps the original and the mask in an extension of its own and the finished picture in the picture, the odp keeps the finished picture and Check Compatibility says so; another program's own removal data on a picture is kept as it was until the background is removed here)*
 - [ ] **later** Picture Layout: turn pictures into a diagram
 - [ ] **later** Graphics Format for icons and SVG pictures: Graphics Fill, Outline, and Effects, Change Graphic, and Convert to Shape *(an icon takes the theme's text color today)*
 - [x] **1.0** Resize a picture at a corner to keep its proportions, Shift to stretch it freely, turn it by its handle, and drop one picture on another to swap them (Ctrl to copy)

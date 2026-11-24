@@ -150,7 +150,7 @@ void paintMarks(const QVector<BackgroundMark> &marks, const Work &wk, QVector<uc
                 if (rest < 0) continue;
                 const double reach = std::sqrt(rest);
                 const int from = std::max(0, int(std::ceil(cx - reach))), to = std::min(wk.w - 1, int(std::floor(cx + reach)));
-                if (from <= to) std::fill(state.begin() + qsizetype(y) * wk.w + from, state.begin() + qsizetype(y) * wk.w + to + 1, kind);
+                if (from <= to) for (qsizetype q = qsizetype(y) * wk.w + from; q <= qsizetype(y) * wk.w + to; ++q) state[q] = kind;
             }
         }
     }

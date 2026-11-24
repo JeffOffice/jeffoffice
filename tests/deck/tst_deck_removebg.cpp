@@ -4,6 +4,8 @@
 #include "core/removebg.h"
 #include "app/lossywarning.h"
 #include "app/removebgprogress.h"
+#include "app/theme.h"
+#include "../withdialog.h"
 
 #include <QBuffer>
 #include <QCryptographicHash>
@@ -269,6 +271,7 @@ private Q_SLOTS:
         Editor *ed = w.editor();
         const int steps = ed->undoStack()->count();
         w.act(QStringLiteral("pic.removeBackground"))->trigger();
+        QCOMPARE(w.ribbon()->current(), w.ribbon()->tab(QStringLiteral("Background Removal")));   // the tab opens
         QCOMPARE(ed->removeBgItem, pic->id);
         QTRY_VERIFY(!ed->removeBackgroundBusy());
         QVERIFY(pic->removal.isValid());
@@ -386,6 +389,54 @@ private Q_SLOTS:
         QCOMPARE(firstPicture(w)->removal.marks.size(), 0);
         QCOMPARE(ed->undoStack()->count(), steps + 1);
     }
+    // The pictures for the docs, when JO_SHOT_DIR names a folder: the mode with the tint, a stroke being dragged, and the result on a colored slide.
+    void picturesForTheDocs()
+    {
+        if (qEnvironmentVariableIsEmpty("JO_SHOT_DIR")) QSKIP("JO_SHOT_DIR is not set");
+        jp::applyUiTheme(1);
+        DeckWindow w;
+        w.resize(1440, 900);
+        w.show();
+        Editor *ed = w.editor();
+        ed->doc()->pages[0]->items.clear();
+        auto back = std::make_shared<ShapeItem>();
+        back->shape = QStringLiteral("rect");
+        back->rect = QRectF(0, 0, ed->doc()->pageSize().width(), ed->doc()->pageSize().height());
+        back->fill.type = Fill::Solid;
+        back->fill.color = ColorRef::fromString(QStringLiteral("#1f4e79"));
+        ed->addItem(back, false);
+        const QImage im = disc(480, 360, QColor(230, 120, 30), [](int x, int y) { return QColor(150 + x / 8, 190 + y / 12, 230 - x / 12); }, 5, QPointF(0.5, 0.52), 0.32);
+        QByteArray png;
+        QBuffer buffer(&png);
+        buffer.open(QIODevice::WriteOnly);
+        im.save(&buffer, "PNG");
+        auto pic = std::make_shared<PictureItem>();
+        pic->imageId = ed->doc()->addImage(png, QStringLiteral("png"));
+        pic->rect = QRectF(180, 90, 480, 360);
+        pic->imgRect = QRectF(QPointF(0, 0), pic->rect.size());
+        ed->addItem(pic, false);
+        ed->select(pic->id);
+        QTRY_VERIFY(w.act(QStringLiteral("pic.removeBackground"))->isEnabled());
+        w.act(QStringLiteral("pic.removeBackground"))->trigger();
+        QTRY_VERIFY(!ed->removeBackgroundBusy());
+        QCoreApplication::processEvents();
+        shotOf(&w, QStringLiteral("deck-removebg-mode"));
+        // A stroke, being dragged with real mouse events.
+        w.act(QStringLiteral("pic.markKeep"))->trigger();
+        QWidget *view = w.canvas()->viewport();
+        const QPoint a = w.canvas()->pageToView(QPointF(330, 270)).toPoint(), b = w.canvas()->pageToView(QPointF(400, 300)).toPoint();
+        QTest::mousePress(view, Qt::LeftButton, Qt::NoModifier, a);
+        QMouseEvent mv(QEvent::MouseMove, QPointF(b), view->mapToGlobal(QPointF(b)), Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+        QApplication::sendEvent(view, &mv);
+        shotOf(&w, QStringLiteral("deck-removebg-stroke"));
+        QTest::mouseRelease(view, Qt::LeftButton, Qt::NoModifier, b);
+        QTRY_VERIFY(!ed->removeBackgroundBusy());
+        w.act(QStringLiteral("pic.keepRemoval"))->trigger();
+        ed->select(QString());
+        QTest::qWait(500);   // (a picture for the docs only: the slide list draws its small pictures late)
+        shotOf(&w, QStringLiteral("deck-removebg-result"));
+    }
+
     void resetPictureBringsTheWholePictureBack()
     {
         DeckWindow w;

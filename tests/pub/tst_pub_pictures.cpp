@@ -12,6 +12,12 @@
 #include "app/picturetools.h"
 #include "core/picturestyles.h"
 #include <QBuffer>
+#include <QPainter>
+#include <QScopeGuard>
+#include <QTemporaryDir>
+#include "app/lossywarning.h"
+#include "core/removebg.h"
+#include "app/theme.h"
 #include <QMessageBox>
 #include <QRandomGenerator>
 
@@ -332,6 +338,140 @@ private Q_SLOTS:
         QCOMPARE(picture()->rect.size(), QSizeF(120, 60));
         QCOMPARE(picture()->rect.center(), frame.center());
         QVERIFY(!picture()->fx.any());
+    }
+
+    // ---- Remove Background, as in JeffDeck: the same button, tab, and names ----
+    static QByteArray discPng()
+    {
+        QImage im(240, 200, QImage::Format_ARGB32);
+        im.fill(Qt::white);
+        QPainter p(&im);
+        p.setPen(Qt::NoPen);
+        p.setBrush(Qt::red);
+        p.drawEllipse(QPointF(120, 100), 60, 60);
+        p.end();
+        QByteArray png;
+        QBuffer buf(&png);
+        buf.open(QIODevice::WriteOnly);
+        im.save(&buf, "PNG");
+        return png;
+    }
+    static jp::PictureItem *thePicture(jp::Editor *ed)
+    {
+        for (const auto &it : ed->doc()->pages[0]->items)
+            if (it->type() == jp::ItemType::Picture) return static_cast<jp::PictureItem *>(it.get());
+        return nullptr;
+    }
+    void removeBackgroundHasItsTabAndWorksInOneStep()
+    {
+        jp::MainWindow w;
+        w.resize(1400, 900);
+        w.show();
+        jp::Editor *ed = w.editor();
+        auto p = std::make_shared<jp::PictureItem>();
+        p->imageId = ed->doc()->addImage(discPng(), "png");
+        p->rect = QRectF(100, 100, 240, 200);
+        p->imgRect = QRectF(QPointF(0, 0), p->rect.size());
+        ed->addItem(p);
+        ed->select(p->id);
+        QCOMPARE(w.act(QStringLiteral("pic.removeBackground"))->text(), QStringLiteral("Remove Background"));
+        QCOMPARE(w.act(QStringLiteral("pic.markKeep"))->text(), QStringLiteral("Mark Areas to Keep"));
+        QCOMPARE(w.act(QStringLiteral("pic.markRemove"))->text(), QStringLiteral("Mark Areas to Remove"));
+        QCOMPARE(w.act(QStringLiteral("pic.discardRemoval"))->text(), QStringLiteral("Discard All Changes"));
+        QCOMPARE(w.act(QStringLiteral("pic.keepRemoval"))->text(), QStringLiteral("Keep Changes"));
+        const int steps = ed->undoStack()->index();
+        w.act(QStringLiteral("pic.removeBackground"))->trigger();
+        QCOMPARE(ed->removeBgItem, p->id);
+        QTRY_VERIFY(!ed->removeBackgroundBusy());
+        QVERIFY(thePicture(ed)->removal.isValid());
+        QVERIFY(w.ribbon()->tab(QStringLiteral("Background Removal")));
+        QCOMPARE(w.ribbon()->current(), w.ribbon()->tab(QStringLiteral("Background Removal")));   // the tab opens
+        w.act(QStringLiteral("pic.markRemove"))->trigger();
+        QVERIFY(w.act(QStringLiteral("pic.markRemove"))->isChecked());
+        w.act(QStringLiteral("pic.keepRemoval"))->trigger();
+        QVERIFY(ed->removeBgItem.isEmpty());
+        QCOMPARE(ed->undoStack()->index(), steps + 1);
+        QVERIFY(w.ribbon()->current() != w.ribbon()->tab(QStringLiteral("Background Removal")));   // and goes when the mode ends
+        QVERIFY(thePicture(ed)->removal.isValid());
+        // Esc takes a session back.
+        w.act(QStringLiteral("pic.removeBackground"))->trigger();
+        QTRY_VERIFY(!ed->removeBackgroundBusy());
+        w.act(QStringLiteral("pic.discardRemoval"))->trigger();
+        QCOMPARE(ed->undoStack()->index(), steps + 1);
+        // Reset Picture brings the whole picture back.
+        ed->select(p->id);
+        w.act(QStringLiteral("pic.reset"))->trigger();
+        QVERIFY(!thePicture(ed)->removal.isValid());
+    }
+    void removeBackgroundIsKeptInOurFileAndTheOtherFormatsKeepTheResult()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        jp::BackgroundRemoval made;
+        {
+            jp::MainWindow w;
+            w.resize(1400, 900);
+            w.show();
+            jp::Editor *ed = w.editor();
+            auto p = std::make_shared<jp::PictureItem>();
+            p->imageId = ed->doc()->addImage(discPng(), "png");
+            p->rect = QRectF(100, 100, 240, 200);
+            p->imgRect = QRectF(QPointF(0, 0), p->rect.size());
+            ed->addItem(p);
+            ed->select(p->id);
+            w.act(QStringLiteral("pic.removeBackground"))->trigger();
+            QTRY_VERIFY(!ed->removeBackgroundBusy());
+            ed->endRemoveBackground(true);
+            made = thePicture(ed)->removal;
+            QVERIFY(made.isValid());
+            QVERIFY(w.saveTo(dir.filePath(QStringLiteral("a.jpub"))));
+            QString said;
+            jp::setLossyStandIn([&](const jp::LossyAsk &a, bool *) {
+                said = a.lost.join(QLatin1Char('|'));
+                return jp::LossyChoice::SaveAnyway;
+            });
+            const auto reset = qScopeGuard([] { jp::setLossyStandIn(nullptr); });
+            QVERIFY(w.saveTo(dir.filePath(QStringLiteral("a.pub"))));
+            QVERIFY2(said.contains(QStringLiteral("background was removed")), qPrintable(said));
+        }
+        {
+            jp::MainWindow w;
+            QVERIFY(w.openFile(dir.filePath(QStringLiteral("a.jpub"))));
+            const jp::PictureItem *pic = thePicture(w.editor());
+            QVERIFY(pic && pic->removal.isValid());
+            QCOMPARE(pic->removal.mask, made.mask);
+            QCOMPARE(qAlpha(w.editor()->doc()->image(pic->imageId).pixel(2, 2)), 255);   // the original, so the removal can be edited again
+        }
+        {
+            jp::MainWindow w;
+            QVERIFY(w.openFile(dir.filePath(QStringLiteral("a.pub"))));
+            const jp::PictureItem *pic = thePicture(w.editor());
+            QVERIFY(pic);
+            QVERIFY(!pic->removal.isValid());
+            QCOMPARE(qAlpha(w.editor()->doc()->image(pic->imageId).pixel(2, 2)), 0);   // the finished picture
+        }
+    }
+
+    // The Background Removal tab, for the docs, when JO_SHOT_DIR names a folder.
+    void theBackgroundRemovalTabPicture()
+    {
+        if (qEnvironmentVariableIsEmpty("JO_SHOT_DIR")) QSKIP("JO_SHOT_DIR is not set");
+        jp::applyUiTheme(1);
+        jp::MainWindow w;
+        w.resize(1440, 900);
+        w.show();
+        jp::Editor *ed = w.editor();
+        auto p = std::make_shared<jp::PictureItem>();
+        p->imageId = ed->doc()->addImage(discPng(), "png");
+        p->rect = QRectF(150, 150, 240, 200);
+        p->imgRect = QRectF(QPointF(0, 0), p->rect.size());
+        ed->addItem(p);
+        ed->select(p->id);
+        w.act(QStringLiteral("pic.removeBackground"))->trigger();
+        QTRY_VERIFY(!ed->removeBackgroundBusy());
+        QCoreApplication::processEvents();
+        const QString dir = qEnvironmentVariable("JO_SHOT_DIR");
+        w.grab().save(dir + QStringLiteral("/pub-removebg-tab.png"));
     }
 
     // Aspect Ratio is on the Picture Format tab as it is in JeffDeck: the frame is cut to the shape around its middle, the picture stays where it is on the page, and it is one step.

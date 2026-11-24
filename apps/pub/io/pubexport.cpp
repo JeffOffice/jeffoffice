@@ -1230,7 +1230,7 @@ QString PubWriter::shapedPictureImage(const PictureItem &pic)
 {
     const QSizeF fs = pic.rect.size();
     const QRectF ir = pic.imgRect.isEmpty() ? QRectF(QPointF(), fs) : pic.imgRect;
-    const bool adjusted = pic.brightness || pic.contrast || pic.recolor != PictureItem::NoRecolor || pic.hasTransparentColor;
+    const bool adjusted = pic.brightness || pic.contrast || pic.recolor != PictureItem::NoRecolor || pic.hasTransparentColor || pic.removal.isValid();
     QImage img = adjusted ? Renderer::processedImage(m_doc, pic, QSizeF()) : m_doc.image(pic.imageId);
     if (img.isNull() || ir.isEmpty()) return pic.imageId;
     const double sx = img.width() / ir.width(), sy = img.height() / ir.height();
@@ -1287,10 +1287,14 @@ QString PubWriter::madeImage(const QImage &img, const QString &sourceId, bool se
 // either again changes nothing.
 QString PubWriter::recoloredPictureImage(const PictureItem &pic)
 {
-    if (pic.recolor != PictureItem::Grayscale && pic.recolor != PictureItem::BlackWhite) return pic.imageId;
+    // (the background taken off a picture is saved as a picture of its own: this kind of file has no place for the mask)
+    const bool taken = pic.removal.isValid();
+    if (!taken && pic.recolor != PictureItem::Grayscale && pic.recolor != PictureItem::BlackWhite) return pic.imageId;
     QImage img = m_doc.image(pic.imageId);
     if (img.isNull()) return pic.imageId;
+    if (taken) img = applyBackgroundRemoval(img, pic.removal);
     img = img.convertToFormat(QImage::Format_ARGB32);
+    if (pic.recolor != PictureItem::Grayscale && pic.recolor != PictureItem::BlackWhite) return madeImage(img, pic.imageId, true);
     for (int y = 0; y < img.height(); ++y) {
         QRgb *line = reinterpret_cast<QRgb *>(img.scanLine(y));
         for (int x = 0; x < img.width(); ++x) {
@@ -1513,7 +1517,7 @@ QByteArray PubWriter::write(QStringList *skipped)
     int spid = 0x401;
     QHash<QString, quint32> spidOf;   // item -> its drawing shape id, for connector rules
     QHash<QString, const Item *> itemOfId;   // and the item itself (a connector rule names the side of it that an end is on)
-    int skippedCount = 0, equationsAsPictures = 0, droppedFormats = 0, droppedCells = 0, droppedHalves = 0, chartPictures = 0;
+    int skippedCount = 0, equationsAsPictures = 0, droppedFormats = 0, droppedCells = 0, droppedHalves = 0, chartPictures = 0, removedBackgrounds = 0;
     const double cx = ps.width() / 2, cy = ps.height() / 2;
     auto anchor = [&](const QRectF &r) {
         return clientBlocks(0xf010, {u32(0x01, quint32(qint32(emu(r.left() - cx)))), u32(0x02, quint32(qint32(emu(r.top() - cy)))),
@@ -2303,6 +2307,7 @@ QByteArray PubWriter::write(QStringList *skipped)
             }
             if (it->type() == ItemType::Picture) {
                 auto *pic = static_cast<const PictureItem *>(it.get());
+                if (pic->removal.isValid()) ++removedBackgrounds;
                 // A picture cut to a shape, or see-through, is saved the way
                 // .pub files store them: a shape filled with the picture.
                 const bool shapedPic = !pic->maskShape.isEmpty() && pic->maskShape != QLatin1String("rect") && shapeDef(pic->maskShape);
@@ -2412,6 +2417,7 @@ QByteArray PubWriter::write(QStringList *skipped)
         }
     }
     if (skipped && skippedCount) *skipped << QCoreApplication::translate("Export", "%n object(s) couldn't be saved to .pub", nullptr, skippedCount);
+    if (skipped && removedBackgrounds) *skipped << QCoreApplication::translate("Export", "pictures whose background was removed were saved as the finished pictures, so the background can't be brought back or marked again in a .pub file");
     if (skipped && chartPictures) *skipped << QCoreApplication::translate("Export", "charts were saved as pictures, so their data can't be edited in a .pub file");
     if (skipped && equationsAsPictures) *skipped << QCoreApplication::translate("Export", "equations were saved to .pub as pictures, because .pub has no equations");
     if (skipped && m_droppedHighlight) *skipped << QCoreApplication::translate("Export", "text highlight colors couldn't be saved to .pub");

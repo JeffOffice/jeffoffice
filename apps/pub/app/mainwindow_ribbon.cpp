@@ -1097,7 +1097,7 @@ void MainWindow::updateContextTabs()
     m_ribbon->setContextVisible(QStringLiteral("Drawing Tools"), shape && !text);
     const bool marking = !m_ed->removeBgItem.isEmpty();
     m_ribbon->setContextVisible(QStringLiteral("Picture Tools"), picture && !marking);
-    m_ribbon->setContextVisible(QStringLiteral("Background Removal"), marking, false);
+    if (!marking) m_ribbon->setContextVisible(QStringLiteral("Background Removal"), false);   // (it is shown, and selected, by the command that begins the mode)
     m_ribbon->setContextVisible(QStringLiteral("Table Tools"), table);
     m_ribbon->setContextVisible(QStringLiteral("Text Art Tools"), textart);
     {

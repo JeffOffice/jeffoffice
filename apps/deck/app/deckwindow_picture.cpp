@@ -95,7 +95,7 @@ void DeckWindow::createCropActions()
     mk("pic.keepRemoval", tr("Keep Changes"), "check", QKeySequence(), [ed] { ed->endRemoveBackground(true); });
     connect(ed, &Editor::viewChanged, this, [this, ed] {
         const bool on = !ed->removeBgItem.isEmpty();
-        if (m_ribbon) m_ribbon->setContextVisible(QStringLiteral("Background Removal"), on, false);
+        if (m_ribbon && !on) m_ribbon->setContextVisible(QStringLiteral("Background Removal"), false);   // (it is shown, and selected, by the command that begins the mode)
         act("pic.markKeep")->setChecked(on && ed->removeBgTool == Editor::RemoveBgTool::Keep);
         act("pic.markRemove")->setChecked(on && ed->removeBgTool == Editor::RemoveBgTool::Remove);
     });
