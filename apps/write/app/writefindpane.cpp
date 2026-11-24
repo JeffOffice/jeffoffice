@@ -749,21 +749,22 @@ void WriteFindPane::showBusyBox()
 }
 
 // The search has ended: the thread is waited for, the box goes, and editing is allowed again.
-void WriteFindPane::endJob(Job &job)
+void WriteFindPane::endJob(Job &job, bool restoreInput)
 {
     if (m_busyTimer) m_busyTimer->stop();
     if (job.thread) job.thread->join();
     delete job.box.data();
+    if (!restoreInput) return;   // (the window is going: it is not touched)
     m_win->view()->setReadOnly(job.viewWasReadOnly);
     if (job.focus) job.focus->setFocus(Qt::OtherFocusReason);
 }
 
-void WriteFindPane::cancelSearch()
+void WriteFindPane::cancelSearch(bool restoreInput)
 {
     if (!m_job) return;
     m_job->cancel->store(true);
     const std::unique_ptr<Job> job = std::move(m_job);
-    endJob(*job);
+    endJob(*job, restoreInput);
     m_retry = nullptr;
     m_wait = false;
 }
@@ -782,7 +783,7 @@ void WriteFindPane::jobDone(quint64 id)
 {
     if (!m_job || m_job->id != id) return;
     const std::unique_ptr<Job> job = std::move(m_job);
-    endJob(*job);
+    endJob(*job, true);
     const std::function<void()> again = std::move(m_retry);
     const bool whenStale = m_retryWhenStale;
     m_retry = nullptr;
@@ -878,7 +879,7 @@ void WriteFindPane::refreshMatches()
     else m_status->setText(tr("%1 matches").arg(m_matches.size()));
 }
 
-WriteFindPane::~WriteFindPane() { cancelSearch(); }   // (the search's thread is waited for before anything it reads is gone)
+WriteFindPane::~WriteFindPane() { cancelSearch(false); }   // (the search's thread is waited for before anything it reads is gone)
 
 void WriteFindPane::focusBox(bool replace)
 {
@@ -1038,7 +1039,11 @@ QString WriteFindPane::whereIs(QTextDocument *story, int page)
 
 bool WriteFindPane::findNext()
 {
-    if (!m_win->document() || !searching() || m_job) return false;
+    if (!m_win->document() || !searching()) return false;
+    if (m_job) {   // (a search is under way: this is done when it is)
+        waitThen([this] { findNext(); });
+        return false;
+    }
     m_wait = false;
     write::PageView *view = m_win->view();
     QTextDocument *body = m_win->document()->story();
@@ -1187,42 +1192,53 @@ bool WriteFindPane::holdsMark(const QString &plain, int from, int to)
 bool WriteFindPane::holdsMark(const QString &plain, const QTextCursor &match) { return holdsMark(plain, match.selectionStart(), match.selectionEnd()); }
 
 // Swaps every match in one story (the text, or a header, a footer, or a note), as one edit of that story; how many.
-int WriteFindPane::replaceInStory(QTextDocument *story, QString *problem, StoryWords *given, bool onlyLook)
+bool WriteFindPane::planStory(QTextDocument *story, QString *problem, StoryWords *given, Plan *plan)
 {
     StoryWords *text = given ? given : wordsOfStory(story);
-    if (!text) return 0;
+    if (!text) return true;
     const bool wild = m_wild->isChecked(), regex = m_regex->isChecked();
-    const write::FindPattern pattern = regex ? write::regexPattern(m_find->text(), m_case->isChecked()) : wild || codesTyped() ? write::wildcardPattern(patternText(), m_case->isChecked()) : write::FindPattern();
-    if (!pattern.error.isEmpty()) {
-        *problem = pattern.error;
-        return 0;
+    plan->story = story;
+    plan->text = text;
+    plan->pattern = regex ? write::regexPattern(m_find->text(), m_case->isChecked()) : wild || codesTyped() ? write::wildcardPattern(patternText(), m_case->isChecked()) : write::FindPattern();
+    if (!plan->pattern.error.isEmpty()) {
+        *problem = plan->pattern.error;
+        return false;
     }
     // Every match is found first, then swapped from the last to the first (so that no swap moves another), each with its own groups.
-    const FindWords w = wordsOf(text);
-    const QString plain = text->plain();
-    QVector<QTextCursor> found;
-    QVector<QStringList> groups;
-    for (int at = 0; found.size() < kMostMatches;) {
+    plan->w = wordsOf(text);
+    plan->plain = text->plain();
+    for (int at = 0; plan->found.size() < kMostMatches;) {
         const QTextCursor m = matchIn(text, at, problem);
         if (m.isNull()) break;
         at = nextPlace(m, at);
-        if (!(w.skip && w.skip(m)) && !holdsMark(plain, m)) {   // (a section break, a field's start, or a note's mark is found, not swapped: it would lose what it stands for)
-            found.push_back(m);
-            if (regex) groups.push_back(m_lastGroups);
+        if (!(plan->w.skip && plan->w.skip(m)) && !holdsMark(plan->plain, m)) {   // (a section break, a field's start, or a note's mark is found, not swapped: it would lose what it stands for)
+            plan->found.push_back(m);
+            if (regex) plan->groups.push_back(m_lastGroups);
         }
     }
-    if (m_wait || !problem->isEmpty()) return 0;   // (a search that is not done, or was cancelled or stopped: nothing of this story is swapped)
-    if (onlyLook) return int(found.size());
-    QTextCursor block(story);
+    return !m_wait && problem->isEmpty();   // (a search that is not done, or was cancelled or stopped: nothing of this story is swapped)
+}
+
+int WriteFindPane::applyPlan(const Plan &plan)
+{
+    const bool wild = m_wild->isChecked(), regex = m_regex->isChecked();
+    QTextCursor block(plan.story);
     block.beginEditBlock();
     int n = 0;
-    for (int i = int(found.size()) - 1; i >= 0; --i) {
-        QTextCursor m = found[i];
-        w.put(m, regex ? write::expandRegexReplacement(m_replace->text(), groups[i]) : wild ? write::expandReplacement(m_replace->text(), pattern.regex.match(plain, m.selectionStart())) : m_replace->text());
+    for (int i = int(plan.found.size()) - 1; i >= 0; --i) {
+        QTextCursor m = plan.found[i];
+        plan.w.put(m, regex ? write::expandRegexReplacement(m_replace->text(), plan.groups[i]) : wild ? write::expandReplacement(m_replace->text(), plan.pattern.regex.match(plan.plain, m.selectionStart())) : m_replace->text());
         ++n;
     }
     block.endEditBlock();
     return n;
+}
+
+int WriteFindPane::replaceInStory(QTextDocument *story, QString *problem, StoryWords *given, bool onlyLook)
+{
+    Plan plan;
+    if (!planStory(story, problem, given, &plan)) return 0;
+    return onlyLook ? int(plan.found.size()) : applyPlan(plan);
 }
 
 // Swaps every match in the words of the text boxes and shapes of the text, each box's words as a story of their own, put back in the box (as the step the swaps are part of); how many.
@@ -1283,40 +1299,42 @@ int WriteFindPane::replaceInTextBoxes(QString *problem, int *tooLarge, bool only
 void WriteFindPane::replaceAll()
 {
     const QString q = m_find->text();
-    if (!m_win->document() || !searching() || m_job || m_win->refuseIfReadOnly()) return;
+    if (!m_win->document() || !searching() || m_win->refuseIfReadOnly()) return;
+    if (m_job) {   // (a search is under way: this is done when it is)
+        waitThen([this] { replaceAll(); });
+        return;
+    }
     m_wait = false;
     QString problem;
-    // A pattern is searched for in every story first, before anything is changed: a search that is cancelled, that needs too much work, or that has to wait for a thread of its own, changes nothing.
-    if (m_regex->isChecked()) {
-        replaceInStory(m_win->document()->story(), &problem, nullptr, true);
-        if (problem.isEmpty() && !m_wait)
-            for (QTextDocument *d : sideStories()) {
-                replaceInStory(d, &problem, nullptr, true);
-                if (!problem.isEmpty() || m_wait) break;
+    // Every story is searched first, before anything is changed: a search that is cancelled, that needs too much work, or that has to wait for a thread of its own, changes nothing. (What is
+    // found is kept as it is, and the swaps are made from it: no search is made after the first swap.)
+    QVector<Plan> plans(1);
+    bool ok = planStory(m_win->document()->story(), &problem, nullptr, &plans[0]);
+    if (ok)
+        for (QTextDocument *d : sideStories()) {
+            plans.push_back(Plan());
+            if (!planStory(d, &problem, nullptr, &plans.last())) {
+                ok = false;
+                break;
             }
-        if (m_wait) {   // (this is asked again, from the start, when the search is done)
-            waitThen([this] { replaceAll(); });
-            return;
         }
-        int none = 0;
-        if (problem.isEmpty()) replaceInTextBoxes(&problem, &none, true);
-        if (!problem.isEmpty()) {
-            m_status->setText(problem);
-            return;
-        }
+    if (m_wait) {   // (this is asked again, from the start, when the search is done)
+        waitThen([this] { replaceAll(); });
+        return;
+    }
+    int none = 0;
+    if (ok && m_regex->isChecked()) replaceInTextBoxes(&problem, &none, true);   // (the words of the boxes are short and searched here; this only looks)
+    if (!problem.isEmpty()) {
+        m_status->setText(problem);
+        return;
     }
     // The text, then the headers, footers, and notes; the swaps in all of them are one step that undoes.
     const write::WriteDoc::StepGroup group(*m_win->document());
-    int n = replaceInStory(m_win->document()->story(), &problem);
-    if (problem.isEmpty())
-        for (QTextDocument *d : sideStories()) {
-            n += replaceInStory(d, &problem);
-            if (!problem.isEmpty()) break;
-        }
+    int n = 0;
+    for (const Plan &plan : plans) n += plan.story ? applyPlan(plan) : 0;
     int tooLarge = 0;
     m_boxesStopped = false;
-    if (problem.isEmpty()) n += replaceInTextBoxes(&problem, &tooLarge);
-    if (m_wait && problem.isEmpty()) problem = tr("That pattern needed too much work on this text, so the search stopped. Nothing was changed.");   // (cannot happen: every story was searched above)
+    n += replaceInTextBoxes(&problem, &tooLarge);
     if (!problem.isEmpty()) {
         m_status->setText(problem);
         return;

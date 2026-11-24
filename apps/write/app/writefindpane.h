@@ -68,7 +68,7 @@ public:
     bool searchRunning() const { return bool(m_job); }
     std::shared_ptr<std::atomic<bool>> searchCancelFlag() const;
     // Stops a search that is under way, waits for its thread to end, and drops what it found. Nothing is changed.
-    void cancelSearch();
+    void cancelSearch(bool restoreInput = true);
     // Advanced Find: words that sound like the one typed, every form of it, and letters found with punctuation or spaces between them that the box leaves out.
     QCheckBox *soundsLike() const { return m_sounds; }
     QCheckBox *wordForms() const { return m_forms; }
@@ -110,7 +110,7 @@ private:
     bool startScan(StoryWords *text, const QString &plain, const write::FindPattern &pattern, int from, int most, bool fresh);
     void showBusyBox();
     void jobDone(quint64 id);
-    void endJob(Job &job);
+    void endJob(Job &job, bool restoreInput);
     QString searchSignature() const;
     void waitThen(const std::function<void()> &again, bool againWhenStale = false);
     static int nextPlace(const QTextCursor &match, int at);
@@ -126,6 +126,18 @@ private:
     QString whereIs(QTextDocument *story, int page);
     QVector<QTextDocument *> sideStories();
     bool lastMatchBefore(QTextDocument *story, int before, QTextCursor *found, QString *problem);
+    // What a Replace All found in one story, to be swapped when every story has been searched.
+    struct Plan {
+        QTextDocument *story = nullptr;
+        StoryWords *text = nullptr;
+        FindWords w;
+        QString plain;
+        write::FindPattern pattern;
+        QVector<QTextCursor> found;
+        QVector<QStringList> groups;
+    };
+    bool planStory(QTextDocument *story, QString *problem, StoryWords *given, Plan *plan);
+    int applyPlan(const Plan &plan);
     int replaceInStory(QTextDocument *story, QString *problem, StoryWords *given = nullptr, bool onlyLook = false);
     int replaceInTextBoxes(QString *problem, int *tooLarge, bool onlyLook = false);
     bool m_boxesStopped = false;
