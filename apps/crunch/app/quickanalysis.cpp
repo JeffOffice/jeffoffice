@@ -43,11 +43,23 @@ QuickAnalysis::QuickAnalysis(QWidget *host, QWidget *focus, const Tabs &tabs) : 
 
 QuickAnalysis::~QuickAnalysis()
 {
-    if (m_box) {
-        m_box->removeEventFilter(this);
-        delete m_box;
-    }
+    dropBox();
     if (m_button) delete m_button;
+}
+
+// The box and its tiles are deleted without a word to anyone (their events are not looked at while that goes on).
+void QuickAnalysis::dropBox()
+{
+    if (!m_box) return;
+    QFrame *box = m_box;
+    m_boxObject = nullptr;
+    m_closing = true;
+    box->removeEventFilter(this);
+    for (const auto &list : m_tiles)
+        for (QToolButton *tile : list) tile->removeEventFilter(this);
+    m_tiles.clear();
+    delete box;
+    m_closing = false;
 }
 
 void QuickAnalysis::setButtonIcon(const QIcon &icon)
@@ -100,19 +112,16 @@ QString QuickAnalysis::currentTab() const { return m_tab >= 0 && m_tab < m_tabs.
 
 void QuickAnalysis::build()
 {
-    if (m_box) {
-        m_box->removeEventFilter(this);
-        delete m_box;
-    }
+    dropBox();
     m_tabButtons.clear();
     m_tiles.clear();
     m_current.clear();
-    QWidget *top = m_host ? m_host->window() : nullptr;
-    m_box = new QFrame(top, Qt::Popup);
+    m_box = new QFrame(nullptr, Qt::Popup);   // (no parent: the box is deleted here, with nobody told, and not by the window that is going away)
     m_box->setObjectName(QStringLiteral("quickAnalysisBox"));
     m_box->setFrameShape(QFrame::StyledPanel);
     m_box->setAttribute(Qt::WA_ShowWithoutActivating, false);
     m_box->installEventFilter(this);
+    m_boxObject = m_box;
     auto *column = new QVBoxLayout(m_box);
     column->setContentsMargins(6, 6, 6, 6);
     column->setSpacing(4);
@@ -294,7 +303,7 @@ void QuickAnalysis::move(int dx, int dy)
 
 bool QuickAnalysis::eventFilter(QObject *watched, QEvent *event)
 {
-    if (watched == m_box) {
+    if (watched == m_boxObject) {
         if (event->type() == QEvent::Hide && !m_closing) {
             m_closing = true;   // (closed by the system: a click outside)
             endLook();

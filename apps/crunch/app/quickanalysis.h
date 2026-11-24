@@ -75,8 +75,10 @@ private:
     void move(int dx, int dy);
     void showTab(int index);
     void endLook();
+    void dropBox();
     QPointer<QToolButton> m_button;
     QPointer<QFrame> m_box;
+    QObject *m_boxObject = nullptr;   // (the box as an object, to tell its events from its tiles' while it is being deleted: a QPointer to it is not a frame then)
     QPointer<QWidget> m_host, m_focus;
     QVector<QuickTab> m_tabs;
     QVector<QToolButton *> m_tabButtons;
