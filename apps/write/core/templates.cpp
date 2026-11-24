@@ -1,5 +1,6 @@
 #include "core/templates.h"
 #include "app/settings.h"
+#include "app/i18n.h"
 
 #include "core/writedoc.h"
 #include "core/tocops.h"
@@ -52,6 +53,7 @@ struct Look {
     QByteArray accent = "1F5F7A";       // a color: hexadecimal, no #
     int titleSize = 52;
     QByteArray extra;                   // styles of the template's own (already written out)
+    QByteArray lang = "en-US";          // the language of the text (see documentLanguage)
 };
 
 QByteArray stylesPart(const Look &k)
@@ -59,7 +61,7 @@ QByteArray stylesPart(const Look &k)
     auto font = [](const QByteArray &f) { return "<w:rFonts w:ascii=\"" + f + "\" w:hAnsi=\"" + f + "\" w:eastAsia=\"" + f + "\" w:cs=\"" + f + "\"/>"; };
     QByteArray x = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n<w:styles " + QByteArray(kNs) + ">";
     x += "<w:docDefaults><w:rPrDefault><w:rPr>" + font(k.body) + "<w:sz w:val=\"" + QByteArray::number(k.size) + "\"/><w:szCs w:val=\"" + QByteArray::number(k.size) +
-         "\"/><w:lang w:val=\"en-US\"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after=\"" + QByteArray::number(k.after) + "\" w:line=\"" + QByteArray::number(k.line) +
+         "\"/><w:lang w:val=\"" + k.lang + "\"/></w:rPr></w:rPrDefault><w:pPrDefault><w:pPr><w:spacing w:after=\"" + QByteArray::number(k.after) + "\" w:line=\"" + QByteArray::number(k.line) +
          "\" w:lineRule=\"auto\"/></w:pPr></w:pPrDefault></w:docDefaults>";
     x += "<w:style w:type=\"paragraph\" w:default=\"1\" w:styleId=\"Normal\"><w:name w:val=\"Normal\"/><w:qFormat/></w:style>";
     x += "<w:style w:type=\"character\" w:default=\"1\" w:styleId=\"DefaultParagraphFont\"><w:name w:val=\"Default Paragraph Font\"/><w:uiPriority w:val=\"1\"/><w:semiHidden/></w:style>";
@@ -136,11 +138,21 @@ QByteArray assemble(const Look &look, const QByteArray &body, const QByteArray &
     return w.finish();
 }
 
+// The language the text of a template is in: the language of the program ("de_DE" is German as written in Germany), American English for English.
+QByteArray documentLanguage(const QString &ui)
+{
+    QString tag = ui;
+    tag.replace(QLatin1Char('_'), QLatin1Char('-'));
+    if (tag.isEmpty() || tag == QLatin1String("en")) tag = QStringLiteral("en-US");
+    return tag.toLatin1();
+}
+
 QByteArray rule(const QByteArray &color, int size = 8) { return "<w:pBdr><w:bottom w:val=\"single\" w:sz=\"" + QByteArray::number(size) + "\" w:space=\"4\" w:color=\"" + color + "\"/></w:pBdr>"; }
 
-QByteArray letter()
+QByteArray letter(const QByteArray &lang)
 {
     Look k;
+    k.lang = lang;
     k.body = k.head = "Caladea";
     k.size = 23;
     k.after = 200;
@@ -169,9 +181,10 @@ QByteArray letter()
     return assemble(k, b);
 }
 
-QByteArray report()
+QByteArray report(const QByteArray &lang)
 {
     Look k;
+    k.lang = lang;
     k.body = "Carlito";
     k.head = "Lora";
     k.accent = "1F5F7A";
@@ -179,8 +192,7 @@ QByteArray report()
     k.after = 140;
     Page p = pageSize();
     QByteArray b;
-    b += para(nullptr, QString(), "<w:spacing w:before=\"1800\" w:after=\"0\"/>");
-    b += para("Title", t(QT_TRANSLATE_NOOP("Templates", "Report Title")), rule(k.accent, 12));
+    b += para("Title", t(QT_TRANSLATE_NOOP("Templates", "Report Title")), rule(k.accent, 12) + "<w:spacing w:before=\"1800\" w:after=\"120\"/>");
     b += para("Subtitle", t(QT_TRANSLATE_NOOP("Templates", "A short line about what the report covers")));
     b += para(nullptr, t(QT_TRANSLATE_NOOP("Templates", "Prepared by Your Name")), "<w:spacing w:after=\"0\"/>", "<w:color w:val=\"595959\"/>");
     b += para(nullptr, t(QT_TRANSLATE_NOOP("Templates", "Month 1, 2027")), "<w:spacing w:after=\"600\"/>", "<w:color w:val=\"595959\"/>");
@@ -200,9 +212,10 @@ QByteArray report()
     return assemble(k, b, {}, footer);
 }
 
-QByteArray brief()
+QByteArray brief(const QByteArray &lang)
 {
     Look k;
+    k.lang = lang;
     k.body = "Lato";
     k.head = "Lato";
     k.size = 21;
@@ -218,8 +231,7 @@ QByteArray brief()
     b += para(nullptr, t(QT_TRANSLATE_NOOP("Templates", "To:\tName or team")), tabs, "<w:b/>");
     b += para(nullptr, t(QT_TRANSLATE_NOOP("Templates", "From:\tYour name")), tabs, "<w:b/>");
     b += para(nullptr, t(QT_TRANSLATE_NOOP("Templates", "Date:\tMonth 1, 2027")), tabs, "<w:b/>");
-    b += para(nullptr, t(QT_TRANSLATE_NOOP("Templates", "Subject:\tWhat this brief is about")), tabs, "<w:b/>");
-    b += para(nullptr, QString(), rule("BFBFBF", 4) + "<w:spacing w:after=\"120\"/>");
+    b += para(nullptr, t(QT_TRANSLATE_NOOP("Templates", "Subject:\tWhat this brief is about")), rule("BFBFBF") + QByteArray(tabs).replace("w:after=\"40\"", "w:after=\"200\""), "<w:b/>");
     b += para("Heading1", t(QT_TRANSLATE_NOOP("Templates", "Purpose")));
     b += para(nullptr, t(QT_TRANSLATE_NOOP("Templates", "State in one or two sentences what you want the reader to know or to decide.")));
     b += para("Heading1", t(QT_TRANSLATE_NOOP("Templates", "Background")));
@@ -230,9 +242,10 @@ QByteArray brief()
     return assemble(k, b);
 }
 
-QByteArray manuscript()
+QByteArray manuscript(const QByteArray &lang)
 {
     Look k;
+    k.lang = lang;
     k.body = k.head = "Courier Prime";
     k.size = 24;
     k.after = 0;
@@ -254,9 +267,10 @@ QByteArray manuscript()
     return assemble(k, b, header);
 }
 
-QByteArray newsletter()
+QByteArray newsletter(const QByteArray &lang)
 {
     Look k;
+    k.lang = lang;
     k.body = "Lora";
     k.head = "Playfair Display";
     k.size = 21;
@@ -339,23 +353,31 @@ QByteArray numberingPart(const QByteArray &font, const QByteArray &color)
                              "\"/></w:rPr></w:lvl></w:abstractNum><w:num w:numId=\"1\"><w:abstractNumId w:val=\"0\"/></w:num>");
 }
 
-// A table: column widths (twips), its rows (from row()), and its look. `borders` is the inside and outside rules, `margins` the room inside each cell.
-QByteArray tableOf(const QVector<int> &cols, const QByteArray &rows, const QByteArray &borders = {}, const QByteArray &margins = "<w:top w:w=\"60\" w:type=\"dxa\"/><w:left w:w=\"100\" w:type=\"dxa\"/><w:bottom w:w=\"60\" w:type=\"dxa\"/><w:right w:w=\"100\" w:type=\"dxa\"/>",
+// A table: column widths (twips, which say how the room is shared), its rows (from row()), and its look. `borders` is the inside and outside rules, `margins` the room inside each cell.
+// The widths are written as shares of `room` (the text's width), so the table stays inside the margins on any paper.
+QByteArray tableOf(int room, const QVector<int> &cols, const QByteArray &rows, const QByteArray &borders = {}, const QByteArray &margins = "<w:top w:w=\"60\" w:type=\"dxa\"/><w:left w:w=\"100\" w:type=\"dxa\"/><w:bottom w:w=\"60\" w:type=\"dxa\"/><w:right w:w=\"100\" w:type=\"dxa\"/>",
                    const QByteArray &jc = {}, int indent = 0)
 {
     int sum = 0;
-    QByteArray grid;
-    for (int c : cols) {
-        sum += c;
-        grid += "<w:gridCol w:w=\"" + QByteArray::number(c) + "\"/>";
+    for (int c : cols) sum += c;
+    auto share = [&](int twips) { return QByteArray::number(qRound(twips * 5000.0 / room)); };
+    // (each cell's width is a share too)
+    QByteArray cells = rows;
+    for (int at = 0; (at = cells.indexOf("<w:tcW w:w=\"", at)) >= 0;) {
+        const int from = at + 12, to = cells.indexOf('"', from);
+        const int twips = cells.mid(from, to - from).toInt();
+        const QByteArray old = "<w:tcW w:w=\"" + cells.mid(from, to - from) + "\" w:type=\"dxa\"/>";
+        const QByteArray now = "<w:tcW w:w=\"" + share(twips) + "\" w:type=\"pct\"/>";
+        cells.replace(at, old.size(), now);
+        at += now.size();
     }
-    return "<w:tbl><w:tblPr><w:tblW w:w=\"" + QByteArray::number(sum) + "\" w:type=\"dxa\"/>" + jc + (indent ? "<w:tblInd w:w=\"" + QByteArray::number(indent) + "\" w:type=\"dxa\"/>" : QByteArray()) + "<w:tblBorders>" + (borders.isEmpty() ? QByteArray("<w:top w:val=\"nil\"/><w:left w:val=\"nil\"/><w:bottom w:val=\"nil\"/><w:right w:val=\"nil\"/><w:insideH w:val=\"nil\"/><w:insideV w:val=\"nil\"/>") : borders) +
-           "</w:tblBorders><w:tblLayout w:type=\"fixed\"/><w:tblCellMar>" + margins + "</w:tblCellMar><w:tblLook w:val=\"0000\"/></w:tblPr><w:tblGrid>" + grid + "</w:tblGrid>" + rows + "</w:tbl>";
+    return "<w:tbl><w:tblPr><w:tblW w:w=\"" + share(sum) + "\" w:type=\"pct\"/>" + jc + (indent ? "<w:tblInd w:w=\"" + QByteArray::number(indent) + "\" w:type=\"dxa\"/>" : QByteArray()) + "<w:tblBorders>" + (borders.isEmpty() ? QByteArray("<w:top w:val=\"nil\"/><w:left w:val=\"nil\"/><w:bottom w:val=\"nil\"/><w:right w:val=\"nil\"/><w:insideH w:val=\"nil\"/><w:insideV w:val=\"nil\"/>") : borders) +
+           "</w:tblBorders><w:tblCellMar>" + margins + "</w:tblCellMar><w:tblLook w:val=\"0000\"/></w:tblPr><w:tblGrid/>" + cells + "</w:tbl>";
 }
 
 QByteArray row(const QByteArray &cells, int minHeight = 0, bool header = false)
 {
-    return "<w:tr><w:trPr><w:cantSplit/>" + (minHeight ? "<w:trHeight w:val=\"" + QByteArray::number(minHeight) + "\" w:hRule=\"atLeast\"/>" : QByteArray()) + (header ? QByteArray("<w:tblHeader/>") : QByteArray()) + "</w:trPr>" + cells + "</w:tr>";
+    return "<w:tr><w:trPr>" + (minHeight ? "<w:trHeight w:val=\"" + QByteArray::number(minHeight) + "\" w:hRule=\"atLeast\"/>" : QByteArray()) + (header ? QByteArray("<w:tblHeader/>") : QByteArray()) + "</w:trPr>" + cells + "</w:tr>";
 }
 
 QByteArray cell(int width, const QByteArray &content, const QByteArray &tcPr = {})
@@ -371,7 +393,8 @@ QByteArray cellMargins(int top, int left, int bottom, int right)
            "\" w:type=\"dxa\"/><w:right w:w=\"" + QByteArray::number(right) + "\" w:type=\"dxa\"/></w:tcMar>";
 }
 
-QByteArray line(const char *edge, const QByteArray &color, int size = 4) { return QByteArray("<w:") + edge + " w:val=\"single\" w:sz=\"" + QByteArray::number(size) + "\" w:space=\"0\" w:color=\"" + color + "\"/>"; }
+// (a rule is 1 point or more: a thinner one is drawn faint or uneven at some zooms)
+QByteArray line(const char *edge, const QByteArray &color, int size = 8, int space = 0) { return QByteArray("<w:") + edge + " w:val=\"single\" w:sz=\"" + QByteArray::number(size) + "\" w:space=\"" + QByteArray::number(space) + "\" w:color=\"" + color + "\"/>"; }
 
 // Every part and the rules of the page of a template of this group.
 struct Made {
@@ -392,16 +415,17 @@ QByteArray assembleMore(Made &m, const QByteArray &body, const QByteArray &heade
 
 QByteArray tabRight(int pos) { return "<w:tabs><w:tab w:val=\"right\" w:pos=\"" + QByteArray::number(pos) + "\"/></w:tabs>"; }
 
-QByteArray resume()
+QByteArray resume(const QByteArray &lang)
 {
     Look k;
+    k.lang = lang;
     k.body = "Carlito";
     k.head = "Caladea";
     k.size = 21;
     k.after = 80;
     k.line = 252;
     k.accent = "2E3B4E";
-    k.titleSize = 56;
+    k.titleSize = 68;
     Page p = pageSize();
     p.top = p.bottom = 900;
     p.left = p.right = 1200;
@@ -409,8 +433,8 @@ QByteArray resume()
     const QByteArray accent = k.accent;
     m.look.extra = cstyle("Dates", "Dates", "<w:b w:val=\"0\"/><w:color w:val=\"595959\"/>") +
                    pstyle("ContactLine", "Contact Line", "<w:pBdr>" + line("bottom", "BFBFBF") + "</w:pBdr><w:spacing w:after=\"160\"/>", "<w:color w:val=\"595959\"/>") +
-                   pstyle("SectionHeading", "Section Heading", "<w:keepNext/><w:pBdr>" + line("bottom", accent) + "</w:pBdr><w:spacing w:before=\"260\" w:after=\"100\"/><w:outlineLvl w:val=\"0\"/>",
-                          fontOf(k.head) + "<w:b/><w:caps/><w:color w:val=\"" + accent + "\"/><w:spacing w:val=\"20\"/><w:sz w:val=\"22\"/>") +
+                   pstyle("SectionHeading", "Section Heading", "<w:keepNext/><w:pBdr>" + line("bottom", accent, 12, 2) + "</w:pBdr><w:spacing w:before=\"320\" w:after=\"120\"/><w:outlineLvl w:val=\"0\"/>",
+                          fontOf(k.head) + "<w:b/><w:caps/><w:color w:val=\"" + accent + "\"/><w:spacing w:val=\"20\"/><w:sz w:val=\"24\"/>") +
                    pstyle("EntryTitle", "Entry Title", "<w:keepNext/>" + tabRight(m.width) + "<w:spacing w:before=\"100\" w:after=\"0\"/>", "<w:b/>") +
                    pstyle("EntryDetail", "Entry Detail", "<w:keepNext/><w:spacing w:after=\"40\"/>", "<w:i/><w:color w:val=\"595959\"/>") + bulletStyle();
     QByteArray b;
@@ -434,9 +458,10 @@ QByteArray resume()
     return assembleMore(m, b, {}, {}, true);
 }
 
-QByteArray resumeWithSideColumn()
+QByteArray resumeWithSideColumn(const QByteArray &lang)
 {
     Look k;
+    k.lang = lang;
     k.body = "Carlito";
     k.head = "Lato";
     k.size = 21;
@@ -454,7 +479,7 @@ QByteArray resumeWithSideColumn()
     m.look.extra = cstyle("Dates", "Dates", "<w:b w:val=\"0\"/><w:color w:val=\"595959\"/>") +
                    pstyle("SideHeading", "Side Heading", "<w:keepNext/><w:spacing w:before=\"280\" w:after=\"80\"/>", fontOf(k.head) + "<w:b/><w:caps/><w:color w:val=\"" + accent + "\"/><w:spacing w:val=\"20\"/><w:sz w:val=\"20\"/>") +
                    pstyle("SideText", "Side Text", "<w:spacing w:after=\"60\"/>", "<w:sz w:val=\"20\"/>") +
-                   pstyle("SectionHeading", "Section Heading", "<w:keepNext/><w:spacing w:before=\"280\" w:after=\"100\"/><w:outlineLvl w:val=\"0\"/>",
+                   pstyle("SectionHeading", "Section Heading", "<w:keepNext/><w:pBdr>" + line("bottom", accent, 8, 2) + "</w:pBdr><w:spacing w:before=\"280\" w:after=\"100\"/><w:outlineLvl w:val=\"0\"/>",
                           fontOf(k.head) + "<w:b/><w:caps/><w:color w:val=\"" + accent + "\"/><w:spacing w:val=\"20\"/><w:sz w:val=\"22\"/>") +
                    pstyle("EntryTitle", "Entry Title", "<w:keepNext/>" + tabRight(entryWidth) + "<w:spacing w:before=\"100\" w:after=\"0\"/>", "<w:b/>") +
                    pstyle("EntryDetail", "Entry Detail", "<w:keepNext/><w:spacing w:after=\"40\"/>", "<w:i/><w:color w:val=\"595959\"/>") + bulletStyle();
@@ -485,15 +510,16 @@ QByteArray resumeWithSideColumn()
     }
     const int height = p.h - p.top - p.bottom - 1700;   // (the room inside the cells is added to a row's height)
     const QByteArray rows = row(cell(side, left, shade("EAF0F4") + cellMargins(480, 320, 360, 320)) + cell(main, right, cellMargins(480, 480, 360, 320)), height);
-    QByteArray b = tableOf({side, main}, rows, {}, "<w:top w:w=\"0\" w:type=\"dxa\"/><w:left w:w=\"0\" w:type=\"dxa\"/><w:bottom w:w=\"0\" w:type=\"dxa\"/><w:right w:w=\"0\" w:type=\"dxa\"/>", {}, 320);
+    QByteArray b = tableOf(m.width, {side, main}, rows, {}, "<w:top w:w=\"0\" w:type=\"dxa\"/><w:left w:w=\"0\" w:type=\"dxa\"/><w:bottom w:w=\"0\" w:type=\"dxa\"/><w:right w:w=\"0\" w:type=\"dxa\"/>", {}, 320);
     b += para(nullptr, QString(), "<w:spacing w:after=\"0\" w:line=\"20\" w:lineRule=\"exact\"/>");
     b += sectPr(m.page, false, false);
     return assembleMore(m, b, {}, {}, true);
 }
 
-QByteArray coverLetter()
+QByteArray coverLetter(const QByteArray &lang)
 {
     Look k;
+    k.lang = lang;
     k.body = "Lato";
     k.head = "Lato";
     k.size = 21;
@@ -505,12 +531,12 @@ QByteArray coverLetter()
     p.top = 1200;
     p.left = p.right = 1500;
     Made m = made(k, p);
-    m.look.extra = pstyle("ContactLine", "Contact Line", "<w:pBdr>" + line("bottom", k.accent, 12) + "</w:pBdr><w:spacing w:after=\"600\"/>", "<w:color w:val=\"595959\"/>") +
+    m.look.extra = pstyle("ContactLine", "Contact Line", "<w:pBdr>" + line("bottom", k.accent, 12, 8) + "</w:pBdr><w:spacing w:after=\"600\"/>", "<w:color w:val=\"595959\"/>") +
                    pstyle("Recipient", "Recipient", "<w:spacing w:after=\"0\"/>", {}) + pstyle("Subject", "Subject Line", "<w:spacing w:before=\"240\" w:after=\"240\"/>", "<w:b/><w:color w:val=\"" + k.accent + "\"/>");
     QByteArray b;
     b += para("Title", t(QT_TRANSLATE_NOOP("Templates", "[Your Name]")), "<w:spacing w:after=\"40\"/>");
     b += para("ContactLine", t(QT_TRANSLATE_NOOP("Templates", "[Phone number]  |  [Email address]  |  [City, State]")));
-    b += para(nullptr, t(QT_TRANSLATE_NOOP("Templates", "[Month 1, 2027]")), "<w:spacing w:after=\"360\"/>");
+    b += para(nullptr, t(QT_TRANSLATE_NOOP("Templates", "[Date]")), "<w:spacing w:after=\"360\"/>");
     b += para("Recipient", t(QT_TRANSLATE_NOOP("Templates", "[Hiring Manager's Name]")));
     b += para("Recipient", t(QT_TRANSLATE_NOOP("Templates", "[Title]")));
     b += para("Recipient", t(QT_TRANSLATE_NOOP("Templates", "[Company or Organization]")));
@@ -527,9 +553,10 @@ QByteArray coverLetter()
     return assembleMore(m, b);
 }
 
-QByteArray businessLetter()
+QByteArray businessLetter(const QByteArray &lang)
 {
     Look k;
+    k.lang = lang;
     k.body = "Carlito";
     k.head = "Montserrat";
     k.size = 22;
@@ -545,7 +572,7 @@ QByteArray businessLetter()
                    pstyle("Recipient", "Recipient", "<w:spacing w:after=\"0\"/>", {}) + pstyle("Subject", "Subject Line", "<w:spacing w:before=\"120\" w:after=\"240\"/>", "<w:b/>") +
                    pstyle("Address", "Address Line", "<w:jc w:val=\"center\"/><w:spacing w:after=\"0\"/>", "<w:color w:val=\"595959\"/><w:sz w:val=\"18\"/>");
     QByteArray b;
-    b += para(nullptr, t(QT_TRANSLATE_NOOP("Templates", "[Month 1, 2027]")), "<w:spacing w:after=\"360\"/>");
+    b += para(nullptr, t(QT_TRANSLATE_NOOP("Templates", "[Date]")), "<w:spacing w:after=\"360\"/>");
     b += para("Recipient", t(QT_TRANSLATE_NOOP("Templates", "[Recipient Name]")));
     b += para("Recipient", t(QT_TRANSLATE_NOOP("Templates", "[Title]")));
     b += para("Recipient", t(QT_TRANSLATE_NOOP("Templates", "[Company or Organization]")));
@@ -566,9 +593,10 @@ QByteArray businessLetter()
     return assembleMore(m, b, header, footer);
 }
 
-QByteArray invoice()
+QByteArray invoice(const QByteArray &lang)
 {
     Look k;
+    k.lang = lang;
     k.body = "Carlito";
     k.head = "Lato";
     k.size = 21;
@@ -579,33 +607,31 @@ QByteArray invoice()
     p.top = p.bottom = 1080;
     p.left = p.right = 1080;
     Made m = made(k, p);
-    const int total = 3400;
     const QByteArray gray = "<w:color w:val=\"595959\"/>";
     m.look.extra = pstyle("CompanyName", "Company Name", "<w:spacing w:after=\"40\"/>", fontOf(k.head) + "<w:b/><w:color w:val=\"" + k.accent + "\"/><w:sz w:val=\"30\"/>") +
                    pstyle("InvoiceTitle", "Invoice Title", "<w:spacing w:after=\"0\"/><w:jc w:val=\"right\"/>", fontOf(k.head) + "<w:b/><w:caps/><w:color w:val=\"" + k.accent + "\"/><w:spacing w:val=\"60\"/><w:sz w:val=\"48\"/>") +
-                   pstyle("SmallLabel", "Small Label", "<w:keepNext/><w:spacing w:after=\"40\"/>", fontOf(k.head) + "<w:b/><w:caps/>" + gray + "<w:spacing w:val=\"20\"/><w:sz w:val=\"17\"/>") +
+                   pstyle("SmallLabel", "Small Label", "<w:keepNext/><w:spacing w:before=\"360\" w:after=\"40\"/>", fontOf(k.head) + "<w:b/><w:caps/>" + gray + "<w:spacing w:val=\"20\"/><w:sz w:val=\"17\"/>") +
                    pstyle("TableHead", "Table Heading", "<w:spacing w:after=\"0\"/>", fontOf(k.head) + "<w:b/><w:color w:val=\"FFFFFF\"/><w:sz w:val=\"19\"/>") +
                    pstyle("TableText", "Table Text", "<w:spacing w:after=\"0\"/>", {}) +
                    pstyle("TableNumber", "Table Number", "<w:spacing w:after=\"0\"/><w:jc w:val=\"right\"/>", {}) +
-                   pstyle("MetaLine", "Meta Line", tabRight(3300) + "<w:spacing w:after=\"40\"/>", {});
+                   pstyle("BillLine", "Bill Line", "<w:tabs><w:tab w:val=\"left\" w:pos=\"4800\"/><w:tab w:val=\"right\" w:pos=\"" + QByteArray::number(m.width) + "\"/></w:tabs><w:spacing w:after=\"40\"/>", {}) +
+                   pstyle("SumLine", "Sum Line", "<w:tabs><w:tab w:val=\"right\" w:pos=\"" + QByteArray::number(m.width - 120) + "\"/></w:tabs><w:spacing w:after=\"40\"/><w:ind w:left=\"" + QByteArray::number(m.width - 3400) + "\"/>", {});
     const int bill = 4800, meta = m.width - bill;
+    const QByteArray zero = "<w:top w:w=\"0\" w:type=\"dxa\"/><w:left w:w=\"0\" w:type=\"dxa\"/><w:bottom w:w=\"0\" w:type=\"dxa\"/><w:right w:w=\"0\" w:type=\"dxa\"/>";
     QByteArray b;
     QByteArray from = para("CompanyName", t(QT_TRANSLATE_NOOP("Templates", "[Your Company Name]")));
     from += para(nullptr, t(QT_TRANSLATE_NOOP("Templates", "[Street Address]")), "<w:spacing w:after=\"0\"/>");
     from += para(nullptr, t(QT_TRANSLATE_NOOP("Templates", "[City, State ZIP]")), "<w:spacing w:after=\"0\"/>");
     from += para(nullptr, t(QT_TRANSLATE_NOOP("Templates", "[Phone number]  |  [Email address]")));
-    b += tableOf({bill, meta}, row(cell(bill, from) + cell(meta, para("InvoiceTitle", t(QT_TRANSLATE_NOOP("Templates", "Invoice"))))), {}, "<w:top w:w=\"0\" w:type=\"dxa\"/><w:left w:w=\"0\" w:type=\"dxa\"/><w:bottom w:w=\"0\" w:type=\"dxa\"/><w:right w:w=\"0\" w:type=\"dxa\"/>");
-    b += para(nullptr, QString(), "<w:spacing w:after=\"240\"/>");
-    QByteArray to = para("SmallLabel", t(QT_TRANSLATE_NOOP("Templates", "Bill to")));
-    to += para(nullptr, t(QT_TRANSLATE_NOOP("Templates", "[Client Name]")), "<w:spacing w:after=\"0\"/>", "<w:b/>");
-    to += para(nullptr, t(QT_TRANSLATE_NOOP("Templates", "[Client Company]")), "<w:spacing w:after=\"0\"/>");
-    to += para(nullptr, t(QT_TRANSLATE_NOOP("Templates", "[Street Address, City, State ZIP]")));
-    QByteArray info;
-    info += para("MetaLine", t(QT_TRANSLATE_NOOP("Templates", "Invoice number\t[0001]")), "<w:tabs><w:tab w:val=\"right\" w:pos=\"" + QByteArray::number(meta) + "\"/></w:tabs>");
-    info += para("MetaLine", t(QT_TRANSLATE_NOOP("Templates", "Invoice date\t[Month 1, 2027]")), "<w:tabs><w:tab w:val=\"right\" w:pos=\"" + QByteArray::number(meta) + "\"/></w:tabs>");
-    info += para("MetaLine", t(QT_TRANSLATE_NOOP("Templates", "Due date\t[Month 1, 2027]")), "<w:tabs><w:tab w:val=\"right\" w:pos=\"" + QByteArray::number(meta) + "\"/></w:tabs>");
-    b += tableOf({bill, meta}, row(cell(bill, to) + cell(meta, info)), {}, "<w:top w:w=\"0\" w:type=\"dxa\"/><w:left w:w=\"0\" w:type=\"dxa\"/><w:bottom w:w=\"0\" w:type=\"dxa\"/><w:right w:w=\"0\" w:type=\"dxa\"/>");
-    b += para(nullptr, QString(), "<w:spacing w:after=\"200\"/>");
+    b += tableOf(m.width, {bill, meta}, row(cell(bill, from) + cell(meta, para("InvoiceTitle", t(QT_TRANSLATE_NOOP("Templates", "Invoice"))))), {}, zero);
+    // (who is billed at the left, and the number and dates at the right: a line each, with a tab between)
+    b += para("SmallLabel", t(QT_TRANSLATE_NOOP("Templates", "Bill to")));
+    auto billLine = [&](const QString &left, const QString &label, const QString &value, const QByteArray &leftLook = {}, const QByteArray &pPr = {}) {
+        return paraOf("BillLine", runOf(left, leftLook) + "<w:r><w:tab/></w:r>" + runOf(label) + "<w:r><w:tab/></w:r>" + runOf(value), pPr);
+    };
+    b += billLine(t(QT_TRANSLATE_NOOP("Templates", "[Client Name]")), t(QT_TRANSLATE_NOOP("Templates", "Invoice number")), t(QT_TRANSLATE_NOOP("Templates", "[0001]")), "<w:b/>");
+    b += billLine(t(QT_TRANSLATE_NOOP("Templates", "[Client Company]")), t(QT_TRANSLATE_NOOP("Templates", "Invoice date")), t(QT_TRANSLATE_NOOP("Templates", "[Date]")));
+    b += billLine(t(QT_TRANSLATE_NOOP("Templates", "[Street Address, City, State ZIP]")), t(QT_TRANSLATE_NOOP("Templates", "Due date")), t(QT_TRANSLATE_NOOP("Templates", "[Date]")), {}, "<w:spacing w:after=\"280\"/>");
     const int qty = 900, unit = 1700, amount = 1800, desc = m.width - qty - unit - amount;
     const QByteArray hfill = shade(k.accent), hmargin = cellMargins(100, 120, 100, 120);
     QByteArray rows = row(cell(desc, para("TableHead", t(QT_TRANSLATE_NOOP("Templates", "Description"))), hfill + hmargin) + cell(qty, para("TableHead", t(QT_TRANSLATE_NOOP("Templates", "Qty")), "<w:jc w:val=\"right\"/>"), hfill + hmargin) +
@@ -616,25 +642,22 @@ QByteArray invoice()
         rows += row(cell(desc, para("TableText", first ? t(QT_TRANSLATE_NOOP("Templates", "[Describe the item or service]")) : QString()), margin) + cell(qty, para("TableNumber", first ? t(QT_TRANSLATE_NOOP("Templates", "[1]")) : QString()), margin) +
                     cell(unit, para("TableNumber", first ? t(QT_TRANSLATE_NOOP("Templates", "[0.00]")) : QString()), margin) + cell(amount, para("TableNumber", first ? t(QT_TRANSLATE_NOOP("Templates", "[0.00]")) : QString()), margin));
     }
-    b += tableOf({desc, qty, unit, amount}, rows, line("bottom", "BFBFBF") + line("insideH", "D9D9D9"), "<w:top w:w=\"0\" w:type=\"dxa\"/><w:left w:w=\"0\" w:type=\"dxa\"/><w:bottom w:w=\"0\" w:type=\"dxa\"/><w:right w:w=\"0\" w:type=\"dxa\"/>", {}, 120);
-    b += para(nullptr, QString(), "<w:spacing w:after=\"120\"/>");
-    const int tl = total - 1500, tr = 1500;
-    const QByteArray tm = cellMargins(70, 120, 70, 120);
-    QByteArray sums = row(cell(tl, para("TableText", t(QT_TRANSLATE_NOOP("Templates", "Subtotal"))), tm) + cell(tr, para("TableNumber", t(QT_TRANSLATE_NOOP("Templates", "[0.00]"))), tm));
-    sums += row(cell(tl, para("TableText", t(QT_TRANSLATE_NOOP("Templates", "Tax"))), tm) + cell(tr, para("TableNumber", t(QT_TRANSLATE_NOOP("Templates", "[0.00]"))), tm));
-    const QByteArray topRule = "<w:tcBorders>" + line("top", k.accent, 12) + "</w:tcBorders>";
-    sums += row(cell(tl, para("TableText", t(QT_TRANSLATE_NOOP("Templates", "Total due")), {}, "<w:b/><w:sz w:val=\"24\"/>"), topRule + tm) + cell(tr, para("TableNumber", t(QT_TRANSLATE_NOOP("Templates", "[0.00]")), {}, "<w:b/><w:sz w:val=\"24\"/>"), topRule + tm));
-    b += tableOf({tl, tr}, sums, {}, "<w:top w:w=\"0\" w:type=\"dxa\"/><w:left w:w=\"0\" w:type=\"dxa\"/><w:bottom w:w=\"0\" w:type=\"dxa\"/><w:right w:w=\"0\" w:type=\"dxa\"/>", "<w:jc w:val=\"right\"/>");
-    b += para("SmallLabel", t(QT_TRANSLATE_NOOP("Templates", "Payment terms")), "<w:spacing w:before=\"360\" w:after=\"40\"/>");
+    b += tableOf(m.width, {desc, qty, unit, amount}, rows, line("bottom", "BFBFBF") + line("insideH", "D9D9D9"), zero, {}, 120);
+    // (the sums: a line each, the amount at the right edge, the total ruled off above)
+    b += para("SumLine", t(QT_TRANSLATE_NOOP("Templates", "Subtotal\t[0.00]")), "<w:spacing w:before=\"160\" w:after=\"40\"/>");
+    b += para("SumLine", t(QT_TRANSLATE_NOOP("Templates", "Tax\t[0.00]")));
+    b += para("SumLine", t(QT_TRANSLATE_NOOP("Templates", "Total due\t[0.00]")), "<w:pBdr>" + line("top", k.accent, 12, 4) + "</w:pBdr><w:spacing w:before=\"60\"/>", "<w:b/><w:sz w:val=\"24\"/>");
+    b += para("SmallLabel", t(QT_TRANSLATE_NOOP("Templates", "Payment terms")));
     b += para(nullptr, t(QT_TRANSLATE_NOOP("Templates", "[Say when payment is due and how to pay: a bank transfer, a check address, or a payment link.]")));
     b += para(nullptr, t(QT_TRANSLATE_NOOP("Templates", "Thank you for your business.")), "<w:spacing w:before=\"360\"/><w:jc w:val=\"center\"/>", gray);
     b += sectPr(m.page, false, false);
     return assembleMore(m, b);
 }
 
-QByteArray meetingAgenda()
+QByteArray meetingAgenda(const QByteArray &lang)
 {
     Look k;
+    k.lang = lang;
     k.body = "Carlito";
     k.head = "Lato";
     k.size = 22;
@@ -654,7 +677,7 @@ QByteArray meetingAgenda()
     const int half = m.width / 2;
     const QByteArray none = "<w:top w:w=\"0\" w:type=\"dxa\"/><w:left w:w=\"0\" w:type=\"dxa\"/><w:bottom w:w=\"0\" w:type=\"dxa\"/><w:right w:w=\"0\" w:type=\"dxa\"/>";
     auto fact = [](const QString &label, const QString &value) { return para("SmallLabel", label) + para(nullptr, value, "<w:spacing w:after=\"160\"/>"); };
-    b += tableOf({half, m.width - half}, row(cell(half, fact(t(QT_TRANSLATE_NOOP("Templates", "Date")), t(QT_TRANSLATE_NOOP("Templates", "[Month 1, 2027]"))) + fact(t(QT_TRANSLATE_NOOP("Templates", "Location")), t(QT_TRANSLATE_NOOP("Templates", "[Room, address, or meeting link]")))) +
+    b += tableOf(m.width, {half, m.width - half}, row(cell(half, fact(t(QT_TRANSLATE_NOOP("Templates", "Date")), t(QT_TRANSLATE_NOOP("Templates", "[Date]"))) + fact(t(QT_TRANSLATE_NOOP("Templates", "Location")), t(QT_TRANSLATE_NOOP("Templates", "[Room, address, or meeting link]")))) +
                                                 cell(m.width - half, fact(t(QT_TRANSLATE_NOOP("Templates", "Time")), t(QT_TRANSLATE_NOOP("Templates", "[Start time] to [End time]"))) + fact(t(QT_TRANSLATE_NOOP("Templates", "Facilitator")), t(QT_TRANSLATE_NOOP("Templates", "[Name]"))))), {}, none);
     b += para("Heading2", t(QT_TRANSLATE_NOOP("Templates", "Attendees")));
     b += para(nullptr, t(QT_TRANSLATE_NOOP("Templates", "[Names of the people who are invited]")));
@@ -667,7 +690,7 @@ QByteArray meetingAgenda()
         rows += row(cell(time, para("TableText", i == 0 ? t(QT_TRANSLATE_NOOP("Templates", "[5 min]")) : QString()), cm) + cell(topic, para("TableText", i == 0 ? t(QT_TRANSLATE_NOOP("Templates", "[What will be covered, and what you need from the group]")) : QString()), cm) +
                     cell(lead, para("TableText", i == 0 ? t(QT_TRANSLATE_NOOP("Templates", "[Name]")) : QString()), cm));
     }
-    b += tableOf({time, topic, lead}, rows, line("top", "BFBFBF") + line("bottom", "BFBFBF") + line("insideH", "D9D9D9"), none, {}, 120);
+    b += tableOf(m.width, {time, topic, lead}, rows, line("top", "BFBFBF") + line("bottom", "BFBFBF") + line("insideH", "D9D9D9"), none, {}, 120);
     b += para("Heading2", t(QT_TRANSLATE_NOOP("Templates", "Before the meeting")));
     b += para("ListBullet", t(QT_TRANSLATE_NOOP("Templates", "[A document to read, or something to prepare]")));
     b += para("ListBullet", t(QT_TRANSLATE_NOOP("Templates", "[Something to bring]")));
@@ -675,9 +698,10 @@ QByteArray meetingAgenda()
     return assembleMore(m, b, {}, {}, true);
 }
 
-QByteArray meetingNotes()
+QByteArray meetingNotes(const QByteArray &lang)
 {
     Look k;
+    k.lang = lang;
     k.body = "Carlito";
     k.head = "Lato";
     k.size = 22;
@@ -694,7 +718,7 @@ QByteArray meetingNotes()
     QByteArray b;
     b += para("Title", t(QT_TRANSLATE_NOOP("Templates", "Meeting Notes")), "<w:spacing w:after=\"40\"/>");
     b += para("Subtitle", t(QT_TRANSLATE_NOOP("Templates", "[Meeting name or topic]")));
-    b += para("MeetingFact", t(QT_TRANSLATE_NOOP("Templates", "Date:\t[Month 1, 2027], [Start time] to [End time]")), {}, "<w:b/>");
+    b += para("MeetingFact", t(QT_TRANSLATE_NOOP("Templates", "Date:\t[Date], [Start time] to [End time]")), {}, "<w:b/>");
     b += para("MeetingFact", t(QT_TRANSLATE_NOOP("Templates", "Location:\t[Room, address, or meeting link]")), {}, "<w:b/>");
     b += para("MeetingFact", t(QT_TRANSLATE_NOOP("Templates", "Present:\t[Names of the people who came]")), {}, "<w:b/>");
     b += para("MeetingFact", t(QT_TRANSLATE_NOOP("Templates", "Absent:\t[Names of the people who did not]")), {}, "<w:b/>");
@@ -712,8 +736,8 @@ QByteArray meetingNotes()
     const QByteArray hm = cellMargins(100, 120, 100, 120), fill = shade("EAF0F4"), cm = cellMargins(120, 120, 120, 120);
     QByteArray rows = row(cell(action, para("TableHead", t(QT_TRANSLATE_NOOP("Templates", "Action"))), fill + hm) + cell(owner, para("TableHead", t(QT_TRANSLATE_NOOP("Templates", "Owner"))), fill + hm) + cell(due, para("TableHead", t(QT_TRANSLATE_NOOP("Templates", "Due"))), fill + hm), 0, true);
     for (int i = 0; i < 4; ++i)
-        rows += row(cell(action, para("TableText", i == 0 ? t(QT_TRANSLATE_NOOP("Templates", "[What needs to be done]")) : QString()), cm) + cell(owner, para("TableText", i == 0 ? t(QT_TRANSLATE_NOOP("Templates", "[Name]")) : QString()), cm) + cell(due, para("TableText", i == 0 ? t(QT_TRANSLATE_NOOP("Templates", "[Month 1]")) : QString()), cm));
-    b += tableOf({action, owner, due}, rows, line("top", "BFBFBF") + line("bottom", "BFBFBF") + line("insideH", "D9D9D9"),
+        rows += row(cell(action, para("TableText", i == 0 ? t(QT_TRANSLATE_NOOP("Templates", "[What needs to be done]")) : QString()), cm) + cell(owner, para("TableText", i == 0 ? t(QT_TRANSLATE_NOOP("Templates", "[Name]")) : QString()), cm) + cell(due, para("TableText", i == 0 ? t(QT_TRANSLATE_NOOP("Templates", "[Date]")) : QString()), cm));
+    b += tableOf(m.width, {action, owner, due}, rows, line("top", "BFBFBF") + line("bottom", "BFBFBF") + line("insideH", "D9D9D9"),
                  "<w:top w:w=\"0\" w:type=\"dxa\"/><w:left w:w=\"0\" w:type=\"dxa\"/><w:bottom w:w=\"0\" w:type=\"dxa\"/><w:right w:w=\"0\" w:type=\"dxa\"/>", {}, 120);
     b += para("Heading1", t(QT_TRANSLATE_NOOP("Templates", "Next meeting")));
     b += para(nullptr, t(QT_TRANSLATE_NOOP("Templates", "[Date, time, and place, and what the group will cover]")), {}, gray);
@@ -721,9 +745,10 @@ QByteArray meetingNotes()
     return assembleMore(m, b, {}, {}, true);
 }
 
-QByteArray reportWithCover()
+QByteArray reportWithCover(const QByteArray &lang)
 {
     Look k;
+    k.lang = lang;
     k.body = "Carlito";
     k.head = "Lora";
     k.accent = "1F5F7A";
@@ -731,21 +756,20 @@ QByteArray reportWithCover()
     k.after = 140;
     Page p = pageSize();
     Made m = made(k, p);
-    m.look.extra = pstyle("TOCHeading", "TOC Heading", "<w:keepNext/><w:spacing w:before=\"0\" w:after=\"240\"/>", fontOf(k.head) + "<w:b/><w:color w:val=\"" + k.accent + "\"/><w:sz w:val=\"32\"/>") +
+    m.look.extra = pstyle("CoverTitle", "Cover Title", "<w:pBdr>" + line("bottom", k.accent, 18, 4) + "</w:pBdr><w:spacing w:before=\"3000\" w:after=\"240\"/>", {}, "Title") +
+                   pstyle("CoverSubtitle", "Cover Subtitle", "<w:spacing w:after=\"2400\"/>", {}, "Subtitle") +
+                   pstyle("TOCHeading", "TOC Heading", "<w:keepNext/><w:pageBreakBefore/><w:spacing w:before=\"0\" w:after=\"240\"/>", fontOf(k.head) + "<w:b/><w:color w:val=\"" + k.accent + "\"/><w:sz w:val=\"32\"/>") +
                    pstyle("CoverLine", "Cover Line", "<w:spacing w:after=\"0\"/>", "<w:color w:val=\"595959\"/><w:sz w:val=\"24\"/>");
     QByteArray b;
-    b += para(nullptr, QString(), "<w:spacing w:before=\"3000\" w:after=\"0\"/>");
-    b += para("Title", t(QT_TRANSLATE_NOOP("Templates", "[Report Title]")), rule(k.accent, 18) + "<w:spacing w:after=\"240\"/>");
-    b += para("Subtitle", t(QT_TRANSLATE_NOOP("Templates", "[A line about what the report covers]")), "<w:spacing w:after=\"2400\"/>");
+    b += para("CoverTitle", t(QT_TRANSLATE_NOOP("Templates", "[Report Title]")));
+    b += para("CoverSubtitle", t(QT_TRANSLATE_NOOP("Templates", "[A line about what the report covers]")));
     b += para("CoverLine", t(QT_TRANSLATE_NOOP("Templates", "Prepared by [Your Name]")));
     b += para("CoverLine", t(QT_TRANSLATE_NOOP("Templates", "[Team or Organization]")));
-    b += para("CoverLine", t(QT_TRANSLATE_NOOP("Templates", "[Month 1, 2027]")));
-    b += "<w:p><w:r><w:br w:type=\"page\"/></w:r></w:p>";
+    b += para("CoverLine", t(QT_TRANSLATE_NOOP("Templates", "[Date]")));
     b += para("TOCHeading", t(QT_TRANSLATE_NOOP("Templates", "Contents")));
     // (the contents are made from the headings once the document is open: see builtInTemplateDocument)
     b += para(nullptr, QStringLiteral("@@contents@@"));
-    b += "<w:p><w:r><w:br w:type=\"page\"/></w:r></w:p>";
-    b += para("Heading1", t(QT_TRANSLATE_NOOP("Templates", "Summary")));
+    b += para("Heading1", t(QT_TRANSLATE_NOOP("Templates", "Summary")), "<w:pageBreakBefore/>");
     b += para(nullptr, t(QT_TRANSLATE_NOOP("Templates", "[Give the main points in a few sentences. A reader who stops here should know what you found and what you suggest.]")));
     b += para("Heading1", t(QT_TRANSLATE_NOOP("Templates", "Introduction")));
     b += para(nullptr, t(QT_TRANSLATE_NOOP("Templates", "[Say why the report was written, who it is for, and what the reader needs to know first.]")));
@@ -766,9 +790,10 @@ QByteArray reportWithCover()
     return assembleMore(m, b, {}, footer);
 }
 
-QByteArray flyer()
+QByteArray flyer(const QByteArray &lang)
 {
     Look k;
+    k.lang = lang;
     k.body = "Lato";
     k.head = "Montserrat";
     k.size = 24;
@@ -788,16 +813,16 @@ QByteArray flyer()
                    pstyle("ContactStrip", "Contact Strip", "<w:spacing w:after=\"0\"/><w:jc w:val=\"center\"/>", "<w:color w:val=\"1F2937\"/><w:sz w:val=\"26\"/>");
     QByteArray b;
     QByteArray top = para("FlyerTitle", t(QT_TRANSLATE_NOOP("Templates", "[Event or Offer Name]"))) + para("FlyerTagline", t(QT_TRANSLATE_NOOP("Templates", "[One line that says what it is]")));
-    b += tableOf({m.width}, row(cell(m.width, top, shade(k.accent) + cellMargins(900, 700, 900, 700)), 4200), {}, zero, {}, 700);
+    b += tableOf(m.width, {m.width}, row(cell(m.width, top, shade(k.accent) + cellMargins(900, 700, 900, 700)), 4200), {}, zero, {}, 700);
     b += para("FlyerHeadline", t(QT_TRANSLATE_NOOP("Templates", "[A short, bold line that gives people a reason to come]")));
     const int lab = 2000, val = m.width - lab;
     QByteArray rows;
     const QString labels[] = {t(QT_TRANSLATE_NOOP("Templates", "When")), t(QT_TRANSLATE_NOOP("Templates", "Where")), t(QT_TRANSLATE_NOOP("Templates", "Cost"))};
     const QString values[] = {t(QT_TRANSLATE_NOOP("Templates", "[Day, date, and time]")), t(QT_TRANSLATE_NOOP("Templates", "[Place and address]")), t(QT_TRANSLATE_NOOP("Templates", "[Price, or Free]"))};
     for (int i = 0; i < 3; ++i) rows += row(cell(lab, para("DetailLabel", labels[i]), cellMargins(160, 0, 160, 120)) + cell(val, para("DetailText", values[i]), cellMargins(160, 0, 160, 0)));
-    b += tableOf({lab, val}, rows, line("top", "D9D9D9") + line("bottom", "D9D9D9") + line("insideH", "D9D9D9"), zero);
+    b += tableOf(m.width, {lab, val}, rows, line("top", "D9D9D9") + line("bottom", "D9D9D9") + line("insideH", "D9D9D9"), zero);
     b += para(nullptr, t(QT_TRANSLATE_NOOP("Templates", "[Two or three sentences about what people will see, learn, or get. Keep it short: a flyer is read in seconds.]")), "<w:spacing w:before=\"360\" w:after=\"480\"/>");
-    b += tableOf({m.width}, row(cell(m.width, para("ContactStrip", t(QT_TRANSLATE_NOOP("Templates", "[Phone number]   |   [Email address]   |   [Website]"))), shade("F1F3F5") + cellMargins(240, 200, 240, 200))), {}, zero, {}, 200);
+    b += tableOf(m.width, {m.width}, row(cell(m.width, para("ContactStrip", t(QT_TRANSLATE_NOOP("Templates", "[Phone number]   |   [Email address]   |   [Website]"))), shade("F1F3F5") + cellMargins(240, 200, 240, 200))), {}, zero, {}, 200);
     b += para(nullptr, QString(), "<w:spacing w:after=\"0\" w:line=\"20\" w:lineRule=\"exact\"/>");
     b += sectPr(m.page, false, false);
     return assembleMore(m, b);
@@ -825,23 +850,24 @@ QVector<BuiltInTemplate> builtInTemplates()
     };
 }
 
-std::unique_ptr<WriteDoc> builtInTemplateDocument(const QString &id)
+std::unique_ptr<WriteDoc> builtInTemplateDocument(const QString &id, const QString &uiLanguage)
 {
+    const QByteArray lang = documentLanguage(uiLanguage.isNull() ? currentUiLanguage() : uiLanguage);
     QByteArray docx;
-    if (id == QLatin1String("letter")) docx = letter();
-    else if (id == QLatin1String("report")) docx = report();
-    else if (id == QLatin1String("brief")) docx = brief();
-    else if (id == QLatin1String("manuscript")) docx = manuscript();
-    else if (id == QLatin1String("newsletter")) docx = newsletter();
-    else if (id == QLatin1String("coverletter")) docx = coverLetter();
-    else if (id == QLatin1String("businessletter")) docx = businessLetter();
-    else if (id == QLatin1String("reportcover")) docx = reportWithCover();
-    else if (id == QLatin1String("flyer")) docx = flyer();
-    else if (id == QLatin1String("resume")) docx = resume();
-    else if (id == QLatin1String("resumeside")) docx = resumeWithSideColumn();
-    else if (id == QLatin1String("invoice")) docx = invoice();
-    else if (id == QLatin1String("agenda")) docx = meetingAgenda();
-    else if (id == QLatin1String("meetingnotes")) docx = meetingNotes();
+    if (id == QLatin1String("letter")) docx = letter(lang);
+    else if (id == QLatin1String("report")) docx = report(lang);
+    else if (id == QLatin1String("brief")) docx = brief(lang);
+    else if (id == QLatin1String("manuscript")) docx = manuscript(lang);
+    else if (id == QLatin1String("newsletter")) docx = newsletter(lang);
+    else if (id == QLatin1String("coverletter")) docx = coverLetter(lang);
+    else if (id == QLatin1String("businessletter")) docx = businessLetter(lang);
+    else if (id == QLatin1String("reportcover")) docx = reportWithCover(lang);
+    else if (id == QLatin1String("flyer")) docx = flyer(lang);
+    else if (id == QLatin1String("resume")) docx = resume(lang);
+    else if (id == QLatin1String("resumeside")) docx = resumeWithSideColumn(lang);
+    else if (id == QLatin1String("invoice")) docx = invoice(lang);
+    else if (id == QLatin1String("agenda")) docx = meetingAgenda(lang);
+    else if (id == QLatin1String("meetingnotes")) docx = meetingNotes(lang);
     else return nullptr;
     QString err;
     auto doc = WriteDoc::fromDocx(docx, &err, nullptr);

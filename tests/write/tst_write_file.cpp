@@ -79,6 +79,9 @@
 #include <QPrinter>
 #include <QPdfWriter>
 #include <QRegularExpression>
+#include <QXmlStreamReader>
+#include <QTextBlock>
+#include "flow/tableflow.h"
 #include <QPushButton>
 #include <QTimer>
 #include <QTemporaryDir>
@@ -4179,6 +4182,170 @@ private Q_SLOTS:
                 if (pg.pagesKnown() == known) break;
             }
             QVERIFY2(pg.pagesKnown() == 1, id);
+        }
+    }
+
+    // The words of the story that no page shows (as a count), and the first line or table that goes past the foot of its page ("" for none), once every page is laid out.
+    static int wordsNotOnAPage(WriteDoc &doc, QString *cutOff)
+    {
+        flow::Paginator &pg = doc.pager();
+        pg.paginate(-1);
+        QVector<QPair<int, int>> seen;
+        for (int p = 0; p < pg.pagesKnown(); ++p) {
+            for (const auto &line : pg.lines(p)) seen.push_back({line.pos, line.end});
+            const auto page = pg.materialize(p);
+            if (!page) return 1 << 20;
+            for (const auto &frag : page->tables) {
+                if (cutOff && cutOff->isEmpty() && frag->rect().bottom() > page->bodyArea.bottom() + 1) *cutOff = QStringLiteral("a table at the foot of page %1").arg(p + 1);
+                frag->forLines([&](const StoryLayout::LineBrief &line, const QRectF &rect) {
+                    seen.push_back({line.pos, line.end});
+                    if (cutOff && cutOff->isEmpty() && rect.bottom() > page->bodyArea.bottom() + 1) *cutOff = QStringLiteral("a line at the foot of page %1").arg(p + 1);
+                });
+            }
+        }
+        int lost = 0;
+        const QString text = doc.story()->toPlainText();
+        QRegularExpressionMatchIterator words = QRegularExpression(QStringLiteral("\\S+")).globalMatch(text);
+        while (words.hasNext()) {
+            const int at = words.next().capturedStart();
+            bool shown = false;
+            for (const auto &s : seen) shown = shown || (at >= s.first && at < std::max(s.second, s.first + 1));
+            lost += shown ? 0 : 1;
+        }
+        return lost;
+    }
+
+    void everyWriteTemplateKeepsEveryWordWhenItsTextIsThreeTimesAsLong()
+    {
+        // (three times as long, and eight times, which is more than a page for the templates that keep their text in one row of a table)
+        for (const int copies : {3, 8}) {
+            for (const BuiltInTemplate &t : builtInTemplates()) {
+                auto doc = builtInTemplateDocument(t.id);
+                QVERIFY2(doc, qPrintable(t.id));
+                QString cut;
+                QVERIFY2(wordsNotOnAPage(*doc, &cut) == 0, qPrintable(t.id + QLatin1String(" before")));
+                // each paragraph with words in it says them again (the last first, so that the places of the others stand)
+                for (QTextBlock b = doc->story()->lastBlock(); b.isValid(); b = b.previous()) {
+                    const QString words = b.text();
+                    if (!words.contains(QRegularExpression(QStringLiteral("[A-Za-z]")))) continue;
+                    QTextCursor c(doc->story());
+                    c.setPosition(b.position() + b.length() - 1);
+                    QString more;
+                    for (int i = 1; i < copies; ++i) more += QLatin1Char(' ') + words;
+                    typeText(*doc, c, more);
+                }
+                const int lost = wordsNotOnAPage(*doc, &cut);
+                QVERIFY2(lost == 0, qPrintable(QStringLiteral("%1 at %2 times: %3 words are on no page").arg(t.id).arg(copies).arg(lost)));
+                QVERIFY2(cut.isEmpty(), qPrintable(t.id + QLatin1String(": ") + cut));
+            }
+        }
+    }
+
+    void theTablesOfEveryWriteTemplateStayInsideTheTextOnLetterAndA4()
+    {
+        for (const BuiltInTemplate &t : builtInTemplates()) {
+            for (const bool letterMade : {true, false}) {
+                PinnedLocale locale(letterMade ? QLocale(QLocale::English, QLocale::UnitedStates) : QLocale(QLocale::German, QLocale::Germany));
+                auto doc = builtInTemplateDocument(t.id);
+                QVERIFY2(doc, qPrintable(t.id));
+                // (made for one paper, then saved with the page set up for the other, or for a narrower one, and opened again)
+                for (const int width : {12240, 11906, 8391}) {
+                    for (int i = 0; i < doc->sectionCount(); ++i) {
+                        office::wml::SectionProps props = doc->sectionProps(i);
+                        props.pageW = width;
+                        doc->setSectionProps(i, props);
+                    }
+                    QString err;
+                    auto opened = WriteDoc::fromDocx(doc->toDocx(&err), &err, nullptr);
+                    QVERIFY2(opened, qPrintable(err));
+                    flow::Paginator &pg = opened->pager();
+                    pg.paginate(-1);
+                    for (int p = 0; p < pg.pagesKnown(); ++p) {
+                        const auto page = pg.materialize(p);
+                        QVERIFY(page);
+                        for (const auto &frag : page->tables) {
+                            const QRectF r = frag->rect();
+                            QVERIFY2(r.left() >= page->bodyArea.left() - 1 && r.right() <= page->bodyArea.right() + 1,
+                                     qPrintable(QStringLiteral("%1 at %2 twips wide: a table is %3 to %4 in a text area of %5 to %6").arg(t.id).arg(width).arg(r.left()).arg(r.right()).arg(page->bodyArea.left()).arg(page->bodyArea.right())));
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    void theWriteTemplatesAreInTheLanguageOfTheProgramAndPromptForNoFixedDate()
+    {
+        for (const BuiltInTemplate &t : builtInTemplates()) {
+            auto german = builtInTemplateDocument(t.id, QStringLiteral("de_DE"));
+            auto english = builtInTemplateDocument(t.id, QStringLiteral("en"));
+            QVERIFY2(german && english, qPrintable(t.id));
+            QCOMPARE(german->proofingLanguage(), QStringLiteral("de-DE"));
+            QCOMPARE(english->proofingLanguage(), QStringLiteral("en-US"));
+        }
+        for (const char *id : {"coverletter", "businessletter", "reportcover", "invoice", "agenda", "meetingnotes"}) {
+            const QString text = builtInTemplateDocument(QString::fromLatin1(id))->story()->toPlainText();
+            QVERIFY2(text.contains(QLatin1String("[Date]")), id);
+            QVERIFY2(!text.contains(QLatin1String("2027")) && !text.contains(QLatin1String("Month 1")), id);
+        }
+    }
+
+    // What the XML of a template's document is made of: no paragraph with nothing in it that is only a space (the room is the paragraphs' own), no page break of its own,
+    // and no rule thinner than a point (it is drawn faint or uneven at some zooms).
+    void theWriteTemplatesUseRealSpacingAndRulesOfAPointOrMore()
+    {
+        for (const BuiltInTemplate &t : builtInTemplates()) {
+            auto doc = builtInTemplateDocument(t.id);
+            QVERIFY2(doc, qPrintable(t.id));
+            QString err;
+            QMap<QString, QByteArray> parts;
+            QVERIFY(jp::readZip(doc->toDocx(&err), parts));
+            for (auto it = parts.cbegin(); it != parts.cend(); ++it) {
+                if (!it.key().endsWith(QLatin1String(".xml"))) continue;
+                QRegularExpressionMatchIterator sizes = QRegularExpression(QStringLiteral("w:val=\"single\" w:sz=\"(\\d+)\"")).globalMatch(QString::fromUtf8(it.value()));
+                while (sizes.hasNext()) QVERIFY2(sizes.next().captured(1).toInt() >= 8, qPrintable(t.id + QLatin1Char(' ') + it.key()));
+            }
+            const QByteArray body = parts.value(QStringLiteral("word/document.xml"));
+            QVERIFY2(!body.contains("w:type=\"page\""), qPrintable(t.id + QLatin1String(": a page break of its own")));
+            // (outside the cells of a table, a paragraph that holds nothing is the one a section ends in, or the last, which a table before it needs)
+            QXmlStreamReader xml(body);
+            int cells = 0, paragraphs = 0, empty = 0;
+            bool hasContent = false, inBody = false;
+            QVector<bool> emptyOnes;
+            while (!xml.atEnd()) {
+                xml.readNext();
+                if (xml.isStartElement()) {
+                    const QStringView n = xml.name();
+                    if (n == QLatin1String("tc")) ++cells;
+                    else if (n == QLatin1String("p") && !cells) { hasContent = false; inBody = true; ++paragraphs; }
+                    else if (inBody && (n == QLatin1String("t") || n == QLatin1String("sectPr") || n == QLatin1String("fldChar") || n == QLatin1String("drawing") || n == QLatin1String("tab"))) hasContent = true;
+                } else if (xml.isEndElement()) {
+                    const QStringView n = xml.name();
+                    if (n == QLatin1String("tc")) --cells;
+                    else if (n == QLatin1String("p") && !cells && inBody) { emptyOnes.push_back(!hasContent); inBody = false; }
+                }
+            }
+            for (int i = 0; i < emptyOnes.size() - 1; ++i) {
+                empty += emptyOnes[i] ? 1 : 0;
+                QVERIFY2(!emptyOnes[i], qPrintable(QStringLiteral("%1: paragraph %2 is empty").arg(t.id).arg(i + 1)));
+            }
+            QVERIFY(paragraphs > 0);
+            Q_UNUSED(empty);
+        }
+    }
+
+    void bothResumesHaveARuleUnderEachSectionHeading()
+    {
+        for (const char *id : {"resume", "resumeside"}) {
+            auto doc = builtInTemplateDocument(QString::fromLatin1(id));
+            QString err;
+            QMap<QString, QByteArray> parts;
+            QVERIFY(jp::readZip(doc->toDocx(&err), parts));
+            const QString styles = QString::fromUtf8(parts.value(QStringLiteral("word/styles.xml")));
+            const int at = styles.indexOf(QLatin1String("w:styleId=\"SectionHeading\""));
+            QVERIFY2(at >= 0, id);
+            const int end = styles.indexOf(QLatin1String("</w:style>"), at);
+            QVERIFY2(styles.mid(at, end - at).contains(QLatin1String("<w:pBdr>")), id);
         }
     }
 

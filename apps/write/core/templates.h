@@ -21,7 +21,7 @@ struct BuiltInTemplate {
 // Every template, in the order the New page shows them.
 QVector<BuiltInTemplate> builtInTemplates();
 
-// A new document made from the template; null for an id that names none.
-std::unique_ptr<WriteDoc> builtInTemplateDocument(const QString &id);
+// A new document made from the template; null for an id that names none. Its text is in the language of the program (`uiLanguage`, "de_DE", when it is not null).
+std::unique_ptr<WriteDoc> builtInTemplateDocument(const QString &id, const QString &uiLanguage = QString());
 
 } // namespace jp::write
