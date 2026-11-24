@@ -1528,7 +1528,7 @@ Berita halaman belakang	4</translation>
         <translation type="unfinished">Area katalog: %1 per halaman</translation>
     </message>
     <message>
-        <location line="+597"/>
+        <location line="+603"/>
         <source>Editing %1</source>
         <translation type="unfinished">Mengedit %1</translation>
     </message>
@@ -1538,7 +1538,7 @@ Berita halaman belakang	4</translation>
         <translation type="unfinished">Buat Tautan Kotak Teks</translation>
     </message>
     <message>
-        <location line="-1617"/>
+        <location line="-1623"/>
         <source>Move Ruler Zero Point</source>
         <translation type="unfinished">Pindahkan Titik Nol Penggaris</translation>
     </message>
@@ -1553,7 +1553,7 @@ Berita halaman belakang	4</translation>
         <translation type="unfinished">Seret untuk memindahkan titik nol kedua penggaris. Klik dua kali untuk mengembalikannya ke sudut halaman.</translation>
     </message>
     <message>
-        <location line="+1633"/>
+        <location line="+1639"/>
         <source>Delete Wrap Point</source>
         <translation type="unfinished">Hapus Titik Pembungkus</translation>
     </message>
@@ -8766,7 +8766,7 @@ Buka dengan program email Anda untuk mengirimnya.</translation>
         <translation type="unfinished">Konten publikasi rusak: %1</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubimport.cpp" line="+1288"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+1296"/>
         <source>A %1 picture could not be displayed.</source>
         <translation type="unfinished">Gambar %1 tidak dapat ditampilkan.</translation>
     </message>
@@ -20746,7 +20746,7 @@ Penerbitan desktop</translation>
         <translation type="unfinished">(Lanjutan dari halaman %1)</translation>
     </message>
     <message>
-        <location line="+6882"/>
+        <location line="+6902"/>
         <source>Notes</source>
         <translation>Catatan</translation>
     </message>
@@ -23010,7 +23010,7 @@ Penerbitan desktop</translation>
 <context>
     <name>jp::CatalogPane</name>
     <message>
-        <location filename="../apps/pub/app/taskpane.cpp" line="+617"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="+618"/>
         <source>Choose the list of products or items (a spreadsheet, a CSV file or a list you type).</source>
         <translation type="unfinished">Pilih daftar produk atau item (lembar kerja, berkas CSV, atau daftar yang Anda ketik).</translation>
     </message>
@@ -42026,7 +42026,7 @@ Berkas tidak dapat dibaca.</translation>
 <context>
     <name>jp::DesignChecker</name>
     <message>
-        <location filename="../apps/pub/app/taskpane.cpp" line="-676"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="-677"/>
         <source>Run general design checks</source>
         <translation type="unfinished">Jalankan Pemeriksaan Desain Umum</translation>
     </message>
@@ -42071,6 +42071,11 @@ Berkas tidak dapat dibaca.</translation>
         <translation type="unfinished">Cerita dengan Teks Meluap</translation>
     </message>
     <message>
+        <location line="+1"/>
+        <source>Table cut off by its text box</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+4"/>
         <source>Text is shrunk a great deal to fit</source>
         <translation type="unfinished">Teks diperkecil jauh agar pas</translation>
@@ -42106,12 +42111,12 @@ Berkas tidak dapat dibaca.</translation>
         <translation type="unfinished">Gambar tertaut, bukan tersemat</translation>
     </message>
     <message>
-        <location line="-57"/>
+        <location line="-58"/>
         <source>Select an item to fix</source>
         <translation>Pilih item untuk diperbaiki</translation>
     </message>
     <message>
-        <location line="+76"/>
+        <location line="+77"/>
         <source>Object has transparency or effects (may print differently)</source>
         <translation type="unfinished">Objek memiliki transparansi atau efek (mungkin tercetak berbeda)</translation>
     </message>
@@ -59168,7 +59173,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
 <context>
     <name>jp::TaskPane</name>
     <message>
-        <location filename="../apps/pub/app/taskpane.cpp" line="-798"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="-799"/>
         <source>Close</source>
         <translation type="unfinished">Tutup</translation>
     </message>
@@ -60217,7 +60222,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
 <context>
     <name>jp::TranslateTaskPane</name>
     <message>
-        <location filename="../apps/pub/app/taskpane.cpp" line="+999"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="+1000"/>
         <source>Translate</source>
         <translation type="unfinished">Terjemahkan</translation>
     </message>
@@ -75782,7 +75787,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
 <context>
     <name>jp::crunch::SheetControls</name>
     <message>
-        <location filename="../apps/crunch/core/sheetcontrols.cpp" line="+40"/>
+        <location filename="../apps/crunch/core/sheetcontrols.cpp" line="+48"/>
         <source>Check Box</source>
         <translation type="unfinished">Kotak Centang</translation>
     </message>

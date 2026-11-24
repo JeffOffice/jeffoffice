@@ -1528,7 +1528,7 @@ Artículo de contraportada	4</translation>
         <translation type="unfinished">Área de catálogo: %1 por página</translation>
     </message>
     <message>
-        <location line="+597"/>
+        <location line="+603"/>
         <source>Editing %1</source>
         <translation type="unfinished">Editando %1</translation>
     </message>
@@ -1538,7 +1538,7 @@ Artículo de contraportada	4</translation>
         <translation type="unfinished">Crear vínculo de cuadro de texto</translation>
     </message>
     <message>
-        <location line="-1617"/>
+        <location line="-1623"/>
         <source>Move Ruler Zero Point</source>
         <translation type="unfinished">Mover el punto cero de la regla</translation>
     </message>
@@ -1553,7 +1553,7 @@ Artículo de contraportada	4</translation>
         <translation type="unfinished">Arrastre para mover el punto cero de ambas reglas. Haga doble clic para devolverlo a la esquina de la página.</translation>
     </message>
     <message>
-        <location line="+1633"/>
+        <location line="+1639"/>
         <source>Delete Wrap Point</source>
         <translation type="unfinished">Eliminar punto de ajuste</translation>
     </message>
@@ -8773,7 +8773,7 @@ Open them with your email program to send.</source>
         <translation type="unfinished">El contenido de la publicación está dañado: %1</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubimport.cpp" line="+1288"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+1296"/>
         <source>A %1 picture could not be displayed.</source>
         <translation type="unfinished">No se pudo mostrar una imagen %1.</translation>
     </message>
@@ -20770,7 +20770,7 @@ Autoedición</translation>
         <translation type="unfinished">(Viene de la página %1)</translation>
     </message>
     <message>
-        <location line="+6882"/>
+        <location line="+6902"/>
         <source>Notes</source>
         <translation>Notas</translation>
     </message>
@@ -23040,7 +23040,7 @@ Autoedición</translation>
 <context>
     <name>jp::CatalogPane</name>
     <message>
-        <location filename="../apps/pub/app/taskpane.cpp" line="+617"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="+618"/>
         <source>Choose the list of products or items (a spreadsheet, a CSV file or a list you type).</source>
         <translation type="unfinished">Elija la lista de productos o artículos (una hoja de cálculo, un archivo CSV o una lista que escriba).</translation>
     </message>
@@ -42083,7 +42083,7 @@ No se puede leer el archivo.</translation>
 <context>
     <name>jp::DesignChecker</name>
     <message>
-        <location filename="../apps/pub/app/taskpane.cpp" line="-676"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="-677"/>
         <source>Run general design checks</source>
         <translation type="unfinished">Ejecutar comprobaciones generales de diseño</translation>
     </message>
@@ -42128,6 +42128,11 @@ No se puede leer el archivo.</translation>
         <translation type="unfinished">Artículo con texto desbordado</translation>
     </message>
     <message>
+        <location line="+1"/>
+        <source>Table cut off by its text box</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+4"/>
         <source>Text is shrunk a great deal to fit</source>
         <translation type="unfinished">El texto está muy reducido para ajustarse</translation>
@@ -42163,12 +42168,12 @@ No se puede leer el archivo.</translation>
         <translation type="unfinished">La imagen está vinculada, no incrustada</translation>
     </message>
     <message>
-        <location line="-57"/>
+        <location line="-58"/>
         <source>Select an item to fix</source>
         <translation>Seleccione un elemento para corregirlo</translation>
     </message>
     <message>
-        <location line="+76"/>
+        <location line="+77"/>
         <source>Object has transparency or effects (may print differently)</source>
         <translation type="unfinished">El objeto tiene transparencia o efectos (puede imprimirse de forma diferente)</translation>
     </message>
@@ -59237,7 +59242,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
 <context>
     <name>jp::TaskPane</name>
     <message>
-        <location filename="../apps/pub/app/taskpane.cpp" line="-798"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="-799"/>
         <source>Close</source>
         <translation type="unfinished">Cerrar</translation>
     </message>
@@ -60286,7 +60291,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
 <context>
     <name>jp::TranslateTaskPane</name>
     <message>
-        <location filename="../apps/pub/app/taskpane.cpp" line="+999"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="+1000"/>
         <source>Translate</source>
         <translation type="unfinished">Traducir</translation>
     </message>
@@ -75867,7 +75872,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
 <context>
     <name>jp::crunch::SheetControls</name>
     <message>
-        <location filename="../apps/crunch/core/sheetcontrols.cpp" line="+40"/>
+        <location filename="../apps/crunch/core/sheetcontrols.cpp" line="+48"/>
         <source>Check Box</source>
         <translation type="unfinished">Casilla de verificación</translation>
     </message>

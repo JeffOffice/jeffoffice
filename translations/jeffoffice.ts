@@ -1522,7 +1522,7 @@ Back page story	4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+597"/>
+        <location line="+603"/>
         <source>Editing %1</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1532,7 +1532,7 @@ Back page story	4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-1617"/>
+        <location line="-1623"/>
         <source>Move Ruler Zero Point</source>
         <translation type="unfinished"></translation>
     </message>
@@ -1547,7 +1547,7 @@ Back page story	4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+1633"/>
+        <location line="+1639"/>
         <source>Delete Wrap Point</source>
         <translation type="unfinished"></translation>
     </message>
@@ -8750,7 +8750,7 @@ Open them with your email program to send.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubimport.cpp" line="+1288"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+1296"/>
         <source>A %1 picture could not be displayed.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -20693,7 +20693,7 @@ Desktop publishing</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+6882"/>
+        <location line="+6902"/>
         <source>Notes</source>
         <translation type="unfinished"></translation>
     </message>
@@ -22956,7 +22956,7 @@ Desktop publishing</source>
 <context>
     <name>jp::CatalogPane</name>
     <message>
-        <location filename="../apps/pub/app/taskpane.cpp" line="+617"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="+618"/>
         <source>Choose the list of products or items (a spreadsheet, a CSV file or a list you type).</source>
         <translation type="unfinished"></translation>
     </message>
@@ -41930,7 +41930,7 @@ The file can&apos;t be read.</source>
 <context>
     <name>jp::DesignChecker</name>
     <message>
-        <location filename="../apps/pub/app/taskpane.cpp" line="-676"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="-677"/>
         <source>Run general design checks</source>
         <translation type="unfinished"></translation>
     </message>
@@ -41975,6 +41975,11 @@ The file can&apos;t be read.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
+        <location line="+1"/>
+        <source>Table cut off by its text box</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+4"/>
         <source>Text is shrunk a great deal to fit</source>
         <translation type="unfinished"></translation>
@@ -42010,12 +42015,12 @@ The file can&apos;t be read.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-57"/>
+        <location line="-58"/>
         <source>Select an item to fix</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+76"/>
+        <location line="+77"/>
         <source>Object has transparency or effects (may print differently)</source>
         <translation type="unfinished"></translation>
     </message>
@@ -59043,7 +59048,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::TaskPane</name>
     <message>
-        <location filename="../apps/pub/app/taskpane.cpp" line="-798"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="-799"/>
         <source>Close</source>
         <translation type="unfinished"></translation>
     </message>
@@ -60092,7 +60097,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::TranslateTaskPane</name>
     <message>
-        <location filename="../apps/pub/app/taskpane.cpp" line="+999"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="+1000"/>
         <source>Translate</source>
         <translation type="unfinished"></translation>
     </message>
@@ -75631,7 +75636,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::crunch::SheetControls</name>
     <message>
-        <location filename="../apps/crunch/core/sheetcontrols.cpp" line="+40"/>
+        <location filename="../apps/crunch/core/sheetcontrols.cpp" line="+48"/>
         <source>Check Box</source>
         <translation type="unfinished"></translation>
     </message>

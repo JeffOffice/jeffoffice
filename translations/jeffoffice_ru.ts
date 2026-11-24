@@ -1528,7 +1528,7 @@ Back page story	4</source>
         <translation type="unfinished">Область каталога: %1 на странице</translation>
     </message>
     <message>
-        <location line="+597"/>
+        <location line="+603"/>
         <source>Editing %1</source>
         <translation type="unfinished">Редактирование: %1</translation>
     </message>
@@ -1538,7 +1538,7 @@ Back page story	4</source>
         <translation type="unfinished">Создать связь текстовых полей</translation>
     </message>
     <message>
-        <location line="-1617"/>
+        <location line="-1623"/>
         <source>Move Ruler Zero Point</source>
         <translation type="unfinished">Переместить нулевую точку линейки</translation>
     </message>
@@ -1553,7 +1553,7 @@ Back page story	4</source>
         <translation type="unfinished">Перетащите, чтобы переместить нулевую точку обеих линеек. Дважды щёлкните, чтобы вернуть её в угол страницы.</translation>
     </message>
     <message>
-        <location line="+1633"/>
+        <location line="+1639"/>
         <source>Delete Wrap Point</source>
         <translation type="unfinished">Удалить точку обтекания</translation>
     </message>
@@ -8780,7 +8780,7 @@ Open them with your email program to send.</source>
         <translation type="unfinished">Содержимое публикации повреждено: %1</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubimport.cpp" line="+1288"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+1296"/>
         <source>A %1 picture could not be displayed.</source>
         <translation type="unfinished">Не удалось отобразить рисунок %1.</translation>
     </message>
@@ -20794,7 +20794,7 @@ Desktop publishing</source>
         <translation type="unfinished">(Продолжение со страницы %1)</translation>
     </message>
     <message>
-        <location line="+6882"/>
+        <location line="+6902"/>
         <source>Notes</source>
         <translation>Заметки</translation>
     </message>
@@ -23070,7 +23070,7 @@ Desktop publishing</source>
 <context>
     <name>jp::CatalogPane</name>
     <message>
-        <location filename="../apps/pub/app/taskpane.cpp" line="+617"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="+618"/>
         <source>Choose the list of products or items (a spreadsheet, a CSV file or a list you type).</source>
         <translation type="unfinished">Выберите список товаров или элементов (таблицу, файл CSV или список, который вы введёте).</translation>
     </message>
@@ -42140,7 +42140,7 @@ The file can&apos;t be read.</source>
 <context>
     <name>jp::DesignChecker</name>
     <message>
-        <location filename="../apps/pub/app/taskpane.cpp" line="-676"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="-677"/>
         <source>Run general design checks</source>
         <translation type="unfinished">Запустить общие проверки дизайна</translation>
     </message>
@@ -42185,6 +42185,11 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Фрагмент текста с переполненной областью</translation>
     </message>
     <message>
+        <location line="+1"/>
+        <source>Table cut off by its text box</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+4"/>
         <source>Text is shrunk a great deal to fit</source>
         <translation type="unfinished">Текст сильно сжат, чтобы поместиться</translation>
@@ -42220,12 +42225,12 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Рисунок связан, а не внедрён</translation>
     </message>
     <message>
-        <location line="-57"/>
+        <location line="-58"/>
         <source>Select an item to fix</source>
         <translation>Выберите элемент для исправления</translation>
     </message>
     <message>
-        <location line="+76"/>
+        <location line="+77"/>
         <source>Object has transparency or effects (may print differently)</source>
         <translation type="unfinished">Объект имеет прозрачность или эффекты (может печататься иначе)</translation>
     </message>
@@ -59306,7 +59311,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::TaskPane</name>
     <message>
-        <location filename="../apps/pub/app/taskpane.cpp" line="-798"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="-799"/>
         <source>Close</source>
         <translation type="unfinished">Закрыть</translation>
     </message>
@@ -60355,7 +60360,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::TranslateTaskPane</name>
     <message>
-        <location filename="../apps/pub/app/taskpane.cpp" line="+999"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="+1000"/>
         <source>Translate</source>
         <translation type="unfinished">Перевод</translation>
     </message>
@@ -75952,7 +75957,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::crunch::SheetControls</name>
     <message>
-        <location filename="../apps/crunch/core/sheetcontrols.cpp" line="+40"/>
+        <location filename="../apps/crunch/core/sheetcontrols.cpp" line="+48"/>
         <source>Check Box</source>
         <translation type="unfinished">Флажок</translation>
     </message>

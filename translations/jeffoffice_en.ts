@@ -535,7 +535,7 @@
 <context>
     <name>jp::FindPane</name>
     <message numerus="yes">
-        <location filename="../apps/pub/app/taskpane.cpp" line="+333"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="+334"/>
         <source>JeffPub made %n replacement(s).</source>
         <translation>
             <numerusform>JeffPub made %n replacement.</numerusform>

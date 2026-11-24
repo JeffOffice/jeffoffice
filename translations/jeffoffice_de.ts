@@ -1528,7 +1528,7 @@ Artikel auf der Rückseite	4</translation>
         <translation type="unfinished">Katalogbereich: %1 pro Seite</translation>
     </message>
     <message>
-        <location line="+597"/>
+        <location line="+603"/>
         <source>Editing %1</source>
         <translation type="unfinished">%1 wird bearbeitet</translation>
     </message>
@@ -1538,7 +1538,7 @@ Artikel auf der Rückseite	4</translation>
         <translation type="unfinished">Textfeldverknüpfung erstellen</translation>
     </message>
     <message>
-        <location line="-1617"/>
+        <location line="-1623"/>
         <source>Move Ruler Zero Point</source>
         <translation type="unfinished">Linealnullpunkt verschieben</translation>
     </message>
@@ -1553,7 +1553,7 @@ Artikel auf der Rückseite	4</translation>
         <translation type="unfinished">Ziehen Sie, um den Nullpunkt beider Lineale zu verschieben. Doppelklicken Sie, um ihn wieder an die Seitenecke zu setzen.</translation>
     </message>
     <message>
-        <location line="+1633"/>
+        <location line="+1639"/>
         <source>Delete Wrap Point</source>
         <translation type="unfinished">Umbruchpunkt löschen</translation>
     </message>
@@ -8773,7 +8773,7 @@ Open them with your email program to send.</source>
         <translation type="unfinished">Der Publikationsinhalt ist beschädigt: %1</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubimport.cpp" line="+1288"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+1296"/>
         <source>A %1 picture could not be displayed.</source>
         <translation type="unfinished">Ein %1-Bild konnte nicht angezeigt werden.</translation>
     </message>
@@ -20770,7 +20770,7 @@ Desktop-Publishing</translation>
         <translation type="unfinished">(Fortsetzung von Seite %1)</translation>
     </message>
     <message>
-        <location line="+6882"/>
+        <location line="+6902"/>
         <source>Notes</source>
         <translation>Notizen</translation>
     </message>
@@ -23040,7 +23040,7 @@ Desktop-Publishing</translation>
 <context>
     <name>jp::CatalogPane</name>
     <message>
-        <location filename="../apps/pub/app/taskpane.cpp" line="+617"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="+618"/>
         <source>Choose the list of products or items (a spreadsheet, a CSV file or a list you type).</source>
         <translation type="unfinished">Wählen Sie die Liste der Produkte oder Artikel aus (eine Tabellenkalkulationsdatei, eine CSV-Datei oder eine selbst eingegebene Liste).</translation>
     </message>
@@ -42083,7 +42083,7 @@ Die Datei kann nicht gelesen werden.</translation>
 <context>
     <name>jp::DesignChecker</name>
     <message>
-        <location filename="../apps/pub/app/taskpane.cpp" line="-676"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="-677"/>
         <source>Run general design checks</source>
         <translation type="unfinished">Allgemeine Entwurfsprüfungen ausführen</translation>
     </message>
@@ -42128,6 +42128,11 @@ Die Datei kann nicht gelesen werden.</translation>
         <translation type="unfinished">Textabschnitt mit Text im Überlauf</translation>
     </message>
     <message>
+        <location line="+1"/>
+        <source>Table cut off by its text box</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+4"/>
         <source>Text is shrunk a great deal to fit</source>
         <translation type="unfinished">Text wurde zum Anpassen stark verkleinert</translation>
@@ -42163,12 +42168,12 @@ Die Datei kann nicht gelesen werden.</translation>
         <translation type="unfinished">Bild ist verknüpft, nicht eingebettet</translation>
     </message>
     <message>
-        <location line="-57"/>
+        <location line="-58"/>
         <source>Select an item to fix</source>
         <translation>Wählen Sie ein Element zum Korrigieren aus</translation>
     </message>
     <message>
-        <location line="+76"/>
+        <location line="+77"/>
         <source>Object has transparency or effects (may print differently)</source>
         <translation type="unfinished">Objekt hat Transparenz oder Effekte (wird möglicherweise anders gedruckt)</translation>
     </message>
@@ -59237,7 +59242,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
 <context>
     <name>jp::TaskPane</name>
     <message>
-        <location filename="../apps/pub/app/taskpane.cpp" line="-798"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="-799"/>
         <source>Close</source>
         <translation type="unfinished">Schließen</translation>
     </message>
@@ -60286,7 +60291,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
 <context>
     <name>jp::TranslateTaskPane</name>
     <message>
-        <location filename="../apps/pub/app/taskpane.cpp" line="+999"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="+1000"/>
         <source>Translate</source>
         <translation type="unfinished">Übersetzen</translation>
     </message>
@@ -75867,7 +75872,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
 <context>
     <name>jp::crunch::SheetControls</name>
     <message>
-        <location filename="../apps/crunch/core/sheetcontrols.cpp" line="+40"/>
+        <location filename="../apps/crunch/core/sheetcontrols.cpp" line="+48"/>
         <source>Check Box</source>
         <translation type="unfinished">Kontrollkästchen</translation>
     </message>

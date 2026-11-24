@@ -1528,7 +1528,7 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">Catalogusgebied: %1 per pagina</translation>
     </message>
     <message>
-        <location line="+597"/>
+        <location line="+603"/>
         <source>Editing %1</source>
         <translation type="unfinished">Bezig met bewerken van %1</translation>
     </message>
@@ -1538,7 +1538,7 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">Tekstvakkoppeling maken</translation>
     </message>
     <message>
-        <location line="-1617"/>
+        <location line="-1623"/>
         <source>Move Ruler Zero Point</source>
         <translation type="unfinished">Nulpunt van liniaal verplaatsen</translation>
     </message>
@@ -1553,7 +1553,7 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">Sleep om het nulpunt van beide linialen te verplaatsen. Dubbelklik om het terug te zetten op de hoek van de pagina.</translation>
     </message>
     <message>
-        <location line="+1633"/>
+        <location line="+1639"/>
         <source>Delete Wrap Point</source>
         <translation type="unfinished">Teruglooppunt verwijderen</translation>
     </message>
@@ -8773,7 +8773,7 @@ Open deze bestanden in uw e-mailprogramma om ze te verzenden.</translation>
         <translation type="unfinished">De publicatie-inhoud is beschadigd: %1</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubimport.cpp" line="+1288"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+1296"/>
         <source>A %1 picture could not be displayed.</source>
         <translation type="unfinished">Een %1-afbeelding kan niet worden weergegeven.</translation>
     </message>
@@ -20770,7 +20770,7 @@ Desktop publishing</translation>
         <translation type="unfinished">(Vervolg van pagina %1)</translation>
     </message>
     <message>
-        <location line="+6882"/>
+        <location line="+6902"/>
         <source>Notes</source>
         <translation>Notities</translation>
     </message>
@@ -23040,7 +23040,7 @@ Desktop publishing</translation>
 <context>
     <name>jp::CatalogPane</name>
     <message>
-        <location filename="../apps/pub/app/taskpane.cpp" line="+617"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="+618"/>
         <source>Choose the list of products or items (a spreadsheet, a CSV file or a list you type).</source>
         <translation type="unfinished">Kies de lijst met producten of items (een spreadsheet, een CSV-bestand of een lijst die u typt).</translation>
     </message>
@@ -42083,7 +42083,7 @@ Het bestand kan niet worden gelezen.</translation>
 <context>
     <name>jp::DesignChecker</name>
     <message>
-        <location filename="../apps/pub/app/taskpane.cpp" line="-676"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="-677"/>
         <source>Run general design checks</source>
         <translation type="unfinished">Algemene ontwerpcontroles uitvoeren</translation>
     </message>
@@ -42128,6 +42128,11 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Artikel met overlooptekst</translation>
     </message>
     <message>
+        <location line="+1"/>
+        <source>Table cut off by its text box</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+4"/>
         <source>Text is shrunk a great deal to fit</source>
         <translation type="unfinished">Tekst is sterk verkleind om te passen</translation>
@@ -42163,12 +42168,12 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Afbeelding is gekoppeld, niet ingesloten</translation>
     </message>
     <message>
-        <location line="-57"/>
+        <location line="-58"/>
         <source>Select an item to fix</source>
         <translation>Selecteer een item om te herstellen</translation>
     </message>
     <message>
-        <location line="+76"/>
+        <location line="+77"/>
         <source>Object has transparency or effects (may print differently)</source>
         <translation type="unfinished">Object heeft transparantie of effecten (wordt mogelijk anders afgedrukt)</translation>
     </message>
@@ -59237,7 +59242,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::TaskPane</name>
     <message>
-        <location filename="../apps/pub/app/taskpane.cpp" line="-798"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="-799"/>
         <source>Close</source>
         <translation type="unfinished">Sluiten</translation>
     </message>
@@ -60286,7 +60291,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::TranslateTaskPane</name>
     <message>
-        <location filename="../apps/pub/app/taskpane.cpp" line="+999"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="+1000"/>
         <source>Translate</source>
         <translation type="unfinished">Vertalen</translation>
     </message>
@@ -75867,7 +75872,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
 <context>
     <name>jp::crunch::SheetControls</name>
     <message>
-        <location filename="../apps/crunch/core/sheetcontrols.cpp" line="+40"/>
+        <location filename="../apps/crunch/core/sheetcontrols.cpp" line="+48"/>
         <source>Check Box</source>
         <translation type="unfinished">Selectievakje</translation>
     </message>

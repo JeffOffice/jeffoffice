@@ -1528,7 +1528,7 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">Area catalogo: %1 per pagina</translation>
     </message>
     <message>
-        <location line="+597"/>
+        <location line="+603"/>
         <source>Editing %1</source>
         <translation type="unfinished">Modifica di %1</translation>
     </message>
@@ -1538,7 +1538,7 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">Crea collegamento casella di testo</translation>
     </message>
     <message>
-        <location line="-1617"/>
+        <location line="-1623"/>
         <source>Move Ruler Zero Point</source>
         <translation type="unfinished">Sposta punto zero del righello</translation>
     </message>
@@ -1553,7 +1553,7 @@ Articolo dell&apos;ultima pagina	4</translation>
         <translation type="unfinished">Trascina per spostare il punto zero di entrambi i righelli. Fai doppio clic per riportarlo all&apos;angolo della pagina.</translation>
     </message>
     <message>
-        <location line="+1633"/>
+        <location line="+1639"/>
         <source>Delete Wrap Point</source>
         <translation type="unfinished">Elimina punto di disposizione</translation>
     </message>
@@ -8773,7 +8773,7 @@ Aprili con il programma di posta elettronica per inviarli.</translation>
         <translation type="unfinished">Il contenuto della pubblicazione è danneggiato: %1</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubimport.cpp" line="+1288"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+1296"/>
         <source>A %1 picture could not be displayed.</source>
         <translation type="unfinished">Impossibile visualizzare un&apos;immagine %1.</translation>
     </message>
@@ -20770,7 +20770,7 @@ Desktop publishing</translation>
         <translation type="unfinished">(Continua da pagina %1)</translation>
     </message>
     <message>
-        <location line="+6882"/>
+        <location line="+6902"/>
         <source>Notes</source>
         <translation>Note</translation>
     </message>
@@ -23040,7 +23040,7 @@ Desktop publishing</translation>
 <context>
     <name>jp::CatalogPane</name>
     <message>
-        <location filename="../apps/pub/app/taskpane.cpp" line="+617"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="+618"/>
         <source>Choose the list of products or items (a spreadsheet, a CSV file or a list you type).</source>
         <translation type="unfinished">Scegli l&apos;elenco di prodotti o articoli (un foglio di calcolo, un file CSV o un elenco digitato).</translation>
     </message>
@@ -42083,7 +42083,7 @@ Impossibile leggere il file.</translation>
 <context>
     <name>jp::DesignChecker</name>
     <message>
-        <location filename="../apps/pub/app/taskpane.cpp" line="-676"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="-677"/>
         <source>Run general design checks</source>
         <translation type="unfinished">Esegui verifiche generali della struttura</translation>
     </message>
@@ -42128,6 +42128,11 @@ Impossibile leggere il file.</translation>
         <translation type="unfinished">Articolo con testo in eccesso</translation>
     </message>
     <message>
+        <location line="+1"/>
+        <source>Table cut off by its text box</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+4"/>
         <source>Text is shrunk a great deal to fit</source>
         <translation type="unfinished">Il testo è stato ridotto notevolmente per adattarlo</translation>
@@ -42163,12 +42168,12 @@ Impossibile leggere il file.</translation>
         <translation type="unfinished">L&apos;immagine è collegata, non incorporata</translation>
     </message>
     <message>
-        <location line="-57"/>
+        <location line="-58"/>
         <source>Select an item to fix</source>
         <translation>Selezionare un elemento da correggere</translation>
     </message>
     <message>
-        <location line="+76"/>
+        <location line="+77"/>
         <source>Object has transparency or effects (may print differently)</source>
         <translation type="unfinished">L&apos;oggetto ha trasparenza o effetti (la stampa potrebbe essere diversa)</translation>
     </message>
@@ -59237,7 +59242,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
 <context>
     <name>jp::TaskPane</name>
     <message>
-        <location filename="../apps/pub/app/taskpane.cpp" line="-798"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="-799"/>
         <source>Close</source>
         <translation type="unfinished">Chiudi</translation>
     </message>
@@ -60286,7 +60291,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
 <context>
     <name>jp::TranslateTaskPane</name>
     <message>
-        <location filename="../apps/pub/app/taskpane.cpp" line="+999"/>
+        <location filename="../apps/pub/app/taskpane.cpp" line="+1000"/>
         <source>Translate</source>
         <translation type="unfinished">Traduci</translation>
     </message>
@@ -75867,7 +75872,7 @@ Impossibile applicare la password al file.</translation>
 <context>
     <name>jp::crunch::SheetControls</name>
     <message>
-        <location filename="../apps/crunch/core/sheetcontrols.cpp" line="+40"/>
+        <location filename="../apps/crunch/core/sheetcontrols.cpp" line="+48"/>
         <source>Check Box</source>
         <translation type="unfinished">Casella di controllo</translation>
     </message>
