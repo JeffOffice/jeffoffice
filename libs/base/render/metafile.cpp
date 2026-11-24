@@ -1083,8 +1083,9 @@ bool Metafile::looksLikeMetafile(const QByteArray &d)
 }
 
 // The enhanced metafile a metafile carries in comment records (an escape of 0x000F whose text starts "WMFC", of kind 1): its pieces joined in
-// order. Empty when it carries none, or when the pieces do not add up to the size they name. What is named can be no larger than the file
-// that holds it, and the records read are those the file has, so nothing here grows past the input.
+// order. Empty when it carries none, or when the pieces do not add up as the format defines: every piece names the same number of pieces and
+// the same whole size, and says how many bytes remain after it. What is named can be no larger than the file that holds it, and the records
+// read are those the file has, so nothing here grows past the input.
 static QByteArray carriedEmf(const QByteArray &data)
 {
     const qint64 n = data.size();
@@ -1092,7 +1093,7 @@ static QByteArray carriedEmf(const QByteArray &data)
     qint64 p = qFromLittleEndian<quint32>(d) == 0x9AC6CDD7u ? 22 : 0;
     p += 18;   // the standard header
     QByteArray out;
-    quint32 whole = 0;
+    quint32 whole = 0, count = 0, seen = 0;
     while (p + 6 <= n) {
         const qint64 len = qint64(qFromLittleEndian<quint32>(d + p)) * 2;
         const quint16 fn = qFromLittleEndian<quint16>(d + p + 4);
@@ -1102,18 +1103,43 @@ static QByteArray carriedEmf(const QByteArray &data)
         constexpr qint64 kHead = 6 + 4 + 34;
         if (fn == 0x0626 && len >= kHead && qFromLittleEndian<quint16>(d + p + 6) == 0x000F && qFromLittleEndian<quint32>(d + p + 10) == 0x43464D57u
             && qFromLittleEndian<quint32>(d + p + 14) == 1) {
+            const quint32 pieces = qFromLittleEndian<quint32>(d + p + 6 + 4 + 4 + 4 + 4 + 2 + 4);
             const quint32 piece = qFromLittleEndian<quint32>(d + p + 6 + 4 + 4 + 4 + 4 + 2 + 4 + 4);
+            const quint32 left = qFromLittleEndian<quint32>(d + p + 6 + 4 + 4 + 4 + 4 + 2 + 4 + 4 + 4);
             const quint32 total = qFromLittleEndian<quint32>(d + p + 6 + 4 + 4 + 4 + 4 + 2 + 4 + 4 + 4 + 4);
             if (piece > len - kHead || total > n) return QByteArray();
-            if (out.isEmpty()) whole = total;
-            else if (total != whole) return QByteArray();
+            if (out.isEmpty() && seen == 0) { whole = total; count = pieces; }
+            else if (total != whole || pieces != count) return QByteArray();
             out.append(data.constData() + p + kHead, qsizetype(piece));
-            if (quint32(out.size()) > whole) return QByteArray();
+            ++seen;
+            if (quint32(out.size()) > whole || left != whole - quint32(out.size())) return QByteArray();
         }
         if (fn == 0) break;
         p += len;
     }
-    return whole >= 88 && quint32(out.size()) == whole ? out : QByteArray();
+    return seen == count && whole >= 88 && quint32(out.size()) == whole ? out : QByteArray();
+}
+
+// Whether a carried enhanced metafile can stand in for the picture: its records walk from the header to the end-of-file record exactly at the
+// size the header names (inside what was carried), and at least one of them draws. One pass, a record at least 8 bytes each.
+static bool carriedEmfDraws(const QByteArray &e)
+{
+    const uchar *d = reinterpret_cast<const uchar *>(e.constData());
+    const qint64 n = e.size();
+    if (n < 88 || qFromLittleEndian<quint32>(d) != 1) return false;
+    const qint64 named = qFromLittleEndian<quint32>(d + 48);
+    if (named < 88 || named > n) return false;
+    bool draws = false;
+    for (qint64 p = 0; p + 8 <= named;) {
+        const quint32 type = qFromLittleEndian<quint32>(d + p);
+        const quint32 size = qFromLittleEndian<quint32>(d + p + 4);
+        if (size < 8 || size % 4 || p + qint64(size) > named) return false;
+        if (type == 14) return draws && p + qint64(size) == named;
+        if ((type >= 2 && type <= 8) || (type >= 42 && type <= 47) || type == 54 || type == 55 || (type >= 62 && type <= 64) || type == 76 || type == 77
+            || type == 81 || type == 83 || type == 84 || (type >= 85 && type <= 91)) draws = true;
+        p += size;
+    }
+    return false;
 }
 
 bool Metafile::load(const QByteArray &data)
@@ -1123,11 +1149,7 @@ bool Metafile::load(const QByteArray &data)
     if (!looksLikeMetafile(data)) return false;
     const uchar *d = reinterpret_cast<const uchar *>(data.constData());
     const quint32 m = qFromLittleEndian<quint32>(d);
-    if (m != 1) {
-        // A metafile that carries an enhanced one is that picture: the older format's own records are what a reader that cannot read the other shows.
-        const QByteArray inner = carriedEmf(data);
-        if (!inner.isEmpty() && qFromLittleEndian<quint32>(inner.constData()) == 1 && looksLikeMetafile(inner)) return load(inner);
-    }
+    m_carried.clear();
     if (m == 1) {
         if (data.size() < 88) return false;   // the header is 88 bytes
         m_emf = true;
@@ -1154,6 +1176,23 @@ bool Metafile::load(const QByteArray &data)
             m_sizePt = QSizeF(144, 144);
         }
     }
+    if (m != 1) {
+        // A metafile that carries an enhanced one shows that drawing, in the outer picture's own frame and size, when it is sound; otherwise
+        // the outer picture's own records play as they do for a reader that cannot read the other format.
+        const QByteArray inner = carriedEmf(data);
+        if (!inner.isEmpty() && looksLikeMetafile(inner) && carriedEmfDraws(inner)) {
+            const uchar *e = reinterpret_cast<const uchar *>(inner.constData());
+            const double fl = qFromLittleEndian<qint32>(e + 24), ft = qFromLittleEndian<qint32>(e + 28), fr = qFromLittleEndian<qint32>(e + 32), fb = qFromLittleEndian<qint32>(e + 36);
+            const double bl = qFromLittleEndian<qint32>(e + 8), bt = qFromLittleEndian<qint32>(e + 12), br = qFromLittleEndian<qint32>(e + 16), bb = qFromLittleEndian<qint32>(e + 20);
+            const double devX = qFromLittleEndian<qint32>(e + 72), devY = qFromLittleEndian<qint32>(e + 76);
+            const double mmX = qFromLittleEndian<qint32>(e + 80), mmY = qFromLittleEndian<qint32>(e + 84);
+            const double pxPerMmX = mmX > 0 ? devX / mmX : 3.78, pxPerMmY = mmY > 0 ? devY / mmY : 3.78;
+            QRectF frame(QPointF(fl / 100 * pxPerMmX, ft / 100 * pxPerMmY), QPointF(fr / 100 * pxPerMmX, fb / 100 * pxPerMmY));
+            if (frame.width() <= 0 || frame.height() <= 0) frame = QRectF(QPointF(bl, bt), QPointF(br, bb));
+            m_carriedBounds = frame.normalized();
+            if (m_carriedBounds.width() > 0 && m_carriedBounds.height() > 0) m_carried = inner;
+        }
+    }
     m_valid = true;
     return true;
 }
@@ -1167,10 +1206,18 @@ void Metafile::play(QPainter *p, const QRectF &target, const std::function<QColo
     p->setRenderHint(QPainter::Antialiasing);
     p->setRenderHint(QPainter::TextAntialiasing);
     p->setClipRect(target, Qt::IntersectClip);
-    Player pl(p, m_emf);
+    const bool carried = !m_emf && !m_carried.isEmpty();
+    Player pl(p, m_emf || carried);
     pl.recolor = recolor;
     const QTransform outer = p->transform();
-    if (m_emf) {
+    if (carried) {
+        // The carried drawing is mapped into the outer picture's frame, which is the picture's size.
+        QTransform t;
+        t.translate(target.x(), target.y());
+        t.scale(target.width() / std::max(1e-6, m_carriedBounds.width()), target.height() / std::max(1e-6, m_carriedBounds.height()));
+        t.translate(-m_carriedBounds.x(), -m_carriedBounds.y());
+        pl.base = t * outer;
+    } else if (m_emf) {
         QTransform t;
         t.translate(target.x(), target.y());
         t.scale(target.width() / std::max(1e-6, m_bounds.width()), target.height() / std::max(1e-6, m_bounds.height()));
@@ -1184,7 +1231,7 @@ void Metafile::play(QPainter *p, const QRectF &target, const std::function<QColo
         pl.base = t * outer;
         pl.wmfWindowFallback = m_bounds.isValid() ? m_bounds : QRectF(0, 0, 1000, 1000);
     }
-    pl.play(m_data);
+    pl.play(carried ? m_carried : m_data);
     // A picture may leave saved states open; closing them here keeps the restore below to this play's own save.
     pl.unwind();
     p->restore();

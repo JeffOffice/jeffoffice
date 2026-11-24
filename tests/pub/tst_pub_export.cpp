@@ -2144,8 +2144,13 @@ private Q_SLOTS:
         // keeps what it cannot say in it): the carried drawing plays, however many pieces it came in, and a comment that claims more than
         // the file holds is left alone.
         {
+            // The outer picture is a placeable one 400 by 300 points: its size and frame are what the carried drawing is mapped into.
             auto standardHead = [&](const QByteArray &body) {
                 QByteArray standard;
+                le32(standard, 0x9AC6CDD7u);
+                for (int v : {0, 0, 0, 400, 300, 72}) le16(standard, v);
+                le32(standard, 0);
+                le16(standard, 0);
                 for (int v : {1, 9, 0x300}) le16(standard, v);
                 le32(standard, quint32((18 + body.size()) / 2));
                 le16(standard, 4);
@@ -2191,6 +2196,45 @@ private Q_SLOTS:
             Metafile cutFile;
             cutFile.load(runsPast);
             QVERIFY(!cutFile.isEmf());
+            // A carried drawing that cannot be trusted (only a header, cut short, junk records, or records that draw nothing) leaves the outer
+            // picture's own records playing, exactly as when nothing is carried; the same when the pieces' counts, remainders, or order do not
+            // add up as the format defines.
+            QByteArray blackBrush = words({0});
+            le32(blackBrush, 0);
+            le16(blackBrush, 0);
+            const QByteArray outerBox = wmfRecord(0x02FC, blackBrush) + wmfRecord(0x012D, words({0})) + wmfRecord(0x041B, words({220, 300, 80, 100}));
+            const QByteArray plain = standardHead(outerBox + end);
+            const QImage plainImg = picture(plain);
+            QVERIFY(ink(plainImg, QRect(0, 0, 400, 300)) > 500);
+            QCOMPARE(plainImg.size(), QSize(400, 300));
+            auto outerStill = [&](const QByteArray &carriedPieces) {
+                const QImage got = picture(standardHead(outerBox + carriedPieces + end));
+                return got.size() == plainImg.size() && got == plainImg;
+            };
+            QVERIFY(outerStill(piece(carried.left(88), 1, 0, 88)));                                    // only a header
+            QVERIFY(outerStill(piece(carried.left(carried.size() - 40), 1, 0, quint32(carried.size() - 40))));   // cut short
+            QByteArray junk = carried.left(88);
+            for (int i = 0; i < 200; ++i) junk.append(char(0x5A + i));
+            qToLittleEndian<quint32>(quint32(junk.size()), junk.data() + 48);
+            QVERIFY(outerStill(piece(junk, 1, 0, quint32(junk.size()))));                              // junk records
+            QByteArray draws0 = carried.left(88) + emfRecord(37, ints({3})) + emfRecord(24, ints({0})) + emfRecord(14, ints({0, 16, 20}));
+            qToLittleEndian<quint32>(quint32(draws0.size()), draws0.data() + 48);
+            QVERIFY(outerStill(piece(draws0, 1, 0, quint32(draws0.size()))));                          // nothing it draws
+            QVERIFY(outerStill(piece(carried.left(cut), 2, carried.size() - cut, quint32(carried.size())) + piece(carried.mid(cut), 2, 5, quint32(carried.size()))));   // wrong remainder
+            QVERIFY(outerStill(piece(carried.left(cut), 3, carried.size() - cut, quint32(carried.size())) + piece(carried.mid(cut), 3, 0, quint32(carried.size()))));   // wrong count
+            QVERIFY(outerStill(piece(carried.mid(cut), 2, 0, quint32(carried.size())) + piece(carried.left(cut), 2, carried.size() - cut, quint32(carried.size()))));   // wrong order
+            QVERIFY(outerStill(piece(carried.left(cut), 2, carried.size() - cut, quint32(carried.size())) + piece(carried.left(cut), 2, 0, quint32(carried.size()))));   // one half twice
+            QVERIFY(!outerStill(piece(carried, 1, 0, quint32(carried.size()))));                       // sanity: a good one is not the outer picture
+            // The picture's size and aspect stay the outer picture's, whatever frame the carried drawing names (here a square one).
+            QByteArray squareFrame = carried;
+            qToLittleEndian<qint32>(10583, squareFrame.data() + 24 + 12);
+            Metafile withSquare, withoutCarried;
+            QVERIFY(withSquare.load(standardHead(piece(squareFrame, 1, 0, quint32(squareFrame.size())) + end)));
+            QVERIFY(withoutCarried.load(plain));
+            QCOMPARE(withSquare.naturalSize(), withoutCarried.naturalSize());
+            const QImage squared = withSquare.toImage(400);
+            QCOMPARE(squared.size(), plainImg.size());
+            QVERIFY(squared != plainImg);   // and it is the carried drawing that plays
         }
         // Wingdings' round bullet is a solid disc, with the font or without
         // it: not an empty box for a missing letter, nor a thin "l".

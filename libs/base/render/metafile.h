@@ -35,6 +35,8 @@ private:
     bool m_emf = false;
     QRectF m_bounds;      // logical (WMF) or device (EMF) bounds
     QSizeF m_sizePt;
+    QByteArray m_carried;       // a sound enhanced metafile a WMF carries; played in place of its own records
+    QRectF m_carriedBounds;
 };
 
 } // namespace jp
