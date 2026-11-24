@@ -632,6 +632,125 @@ void collectMediaShapes(const Node &n, QSet<int> &out, int depth = 0)
     for (const Node &k : n.kids) collectMediaShapes(k, out, depth + 1);
 }
 
+namespace {
+
+// ---- what the timing names of shapes the file doesn't get ----
+
+bool namesMissingShape(const Node &n, const QSet<qint64> &shapes, int depth = 0)
+{
+    if (const QString spid = n.attr("spid"); !spid.isEmpty() && !shapes.contains(spid.toLongLong())) return true;
+    if (depth > kMaxTreeDepth) return false;
+    for (const Node &k : n.kids)
+        if (namesMissingShape(k, shapes, depth + 1)) return true;
+    return false;
+}
+
+bool isEffectNode(const Node &n)
+{
+    const Node *cTn = n.local() == QLatin1String("par") ? n.find("cTn") : nullptr;
+    const QString type = cTn ? cTn->attr("nodeType") : QString();
+    return type == QLatin1String("clickEffect") || type == QLatin1String("withEffect") || type == QLatin1String("afterEffect");
+}
+
+bool isInteractiveSequence(const Node &n)
+{
+    const Node *cTn = n.local() == QLatin1String("seq") ? n.find("cTn") : nullptr;
+    return cTn && cTn->attr("nodeType") == QLatin1String("interactiveSeq");
+}
+
+bool holdsEffect(const Node &n, int depth = 0)
+{
+    if (isEffectNode(n)) return true;
+    if (depth > kMaxTreeDepth) return false;
+    for (const Node &k : n.kids)
+        if (holdsEffect(k, depth + 1)) return true;
+    return false;
+}
+
+// The shape a click waits for (the same one the animation reader takes), 0 for none.
+int triggerObjectOf(const Node &seq)
+{
+    const Node *cTn = seq.find("cTn");
+    const Node *conds = cTn ? cTn->find("stCondLst") : nullptr;
+    int shape = 0;
+    if (conds)
+        for (const Node &cond : conds->kids)
+            if (const Node *tgt = cond.find("tgtEl"))
+                if (const Node *sp = tgt->find("spTgt")) shape = sp->attr("spid").toInt();
+    return shape;
+}
+
+// Takes out of the nodes under `n` what names a shape that is not among `shapes`: an effect, a whole sequence that waits for a click on such a shape (or has no
+// effect left), a movie's or sound's node; what held only those goes with them. What names one elsewhere stays, and the caller sees it is still there.
+bool dropMissingShapes(Node &n, const QSet<qint64> &shapes, int &removed, int depth = 0)
+{
+    if (depth > kMaxTreeDepth) return false;
+    bool changed = false;
+    for (size_t i = 0; i < n.kids.size();) {
+        Node &k = n.kids[i];
+        const QString local = k.local();
+        bool gone = false;
+        if (isEffectNode(k)) {
+            gone = namesMissingShape(k, shapes);
+        } else if (isInteractiveSequence(k)) {
+            const int object = triggerObjectOf(k);
+            if (object > 0 && !shapes.contains(object)) gone = true;
+            else if (dropMissingShapes(k, shapes, removed, depth + 1)) gone = !holdsEffect(k);
+        } else if (local == QLatin1String("video") || local == QLatin1String("audio")) {
+            gone = namesMissingShape(k, shapes);
+        } else if (dropMissingShapes(k, shapes, removed, depth + 1)) {
+            changed = true;
+            gone = local == QLatin1String("par") && containerIsEmpty(k);
+        }
+        if (gone) {
+            if (isEffectNode(k) || isInteractiveSequence(k) || local == QLatin1String("video") || local == QLatin1String("audio")) ++removed;
+            n.kids.erase(n.kids.begin() + i);
+            changed = true;
+        } else {
+            ++i;
+        }
+    }
+    return changed;
+}
+
+// Whether every time node a condition starts at is one the timing still has.
+bool timeNodeRefsHold(const Node &root)
+{
+    QSet<QString> ids, refs;
+    std::vector<const Node *> stack{&root};
+    int count = 0;
+    while (!stack.empty() && ++count <= kMaxTreeNodes) {
+        const Node &n = *stack.back();
+        stack.pop_back();
+        if (n.local() == QLatin1String("cTn")) ids.insert(n.attr("id"));
+        if (n.local() == QLatin1String("tn")) refs.insert(n.attr("val"));
+        for (const Node &k : n.kids) stack.push_back(&k);
+    }
+    return refs.subtract(ids).isEmpty();
+}
+
+} // namespace
+
+QString timingWithoutShapes(const QString &timingXml, const QSet<qint64> &shapes, int *removedCount)
+{
+    if (removedCount) *removedCount = 0;
+    TimingTree t;
+    if (timingXml.isEmpty() || !readTree(timingXml, &t.root) || t.root.local() != QLatin1String("timing") || !t.locate()) return timingXml;
+    int removed = 0;
+    dropMissingShapes(*t.list, shapes, removed);
+    if (Node *builds = t.root.find("bldLst")) {
+        const size_t had = builds->kids.size();
+        builds->kids.erase(std::remove_if(builds->kids.begin(), builds->kids.end(), [&](const Node &b) { return namesMissingShape(b, shapes); }), builds->kids.end());
+        if (builds->kids.size() != had) ++removed;
+        if (builds->kids.empty())
+            t.root.kids.erase(std::remove_if(t.root.kids.begin(), t.root.kids.end(), [](const Node &k) { return k.local() == QLatin1String("bldLst"); }), t.root.kids.end());
+    }
+    if (removed == 0 || !timeNodeRefsHold(t.root)) return timingXml;
+    if (removedCount) *removedCount = removed;
+    dropEmptyMainSequence(t);
+    return timingIsEmpty(t) ? QString() : treeXml(t.root);
+}
+
 QString mediaTimingForShapes(const QString &timingXml, const QSet<qint64> &shapes)
 {
     TimingTree t;

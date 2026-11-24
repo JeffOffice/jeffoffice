@@ -858,8 +858,15 @@ QString Exporter::keptSlideXml(const Page &slide, const char *key, const QString
 {
     const QString given = xmlGiven ? *xmlGiven : slide.props.value(QLatin1String(key)).toString();
     // The movie or sound of a picture that was deleted is taken out of the timing; the rest of it stays.
-    const QString xml = !given.isEmpty() && std::strcmp(key, "timingXml") == 0 ? deck::mediaTimingForShapes(given, frameIds) : given;
+    QString xml = !given.isEmpty() && std::strcmp(key, "timingXml") == 0 ? deck::mediaTimingForShapes(given, frameIds) : given;
     if (xml.isEmpty()) return QString();
+    // What names a shape that is gone (an effect, or a sequence that waits for a click on it) is taken out; the rest of the timing stays.
+    if (std::strcmp(key, "timingXml") == 0) {
+        int removed = 0;
+        xml = deck::timingWithoutShapes(xml, frameIds, &removed);
+        if (removed > 0) note(QCoreApplication::translate("PptxExport", "%1: parts of the %2 that name shapes that are gone were left out.").arg(where, what));
+        if (xml.isEmpty()) return QString();
+    }
     QDomDocument dom;
     if (!parsesAlone(xml, &dom)) {
         note(QCoreApplication::translate("PptxExport", "%1: the %2 can't be read and was left out.").arg(where, what));

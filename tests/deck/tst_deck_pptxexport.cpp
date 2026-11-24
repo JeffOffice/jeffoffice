@@ -2069,6 +2069,66 @@ private Q_SLOTS:
         auto back = deck::importPresentation(deck::exportPresentation(*read, &err), &err);
         QVERIFY(back && deck::handoutMasterOf(*back, QSizeF(540, 720)).landscape);
     }
+
+    // A shape taken away that a trigger names (as its object, or as an effect's target) takes only what names it: the main sequence, the other
+    // triggers, and the rest of a trigger's effects go through a save and an open (the whole timing was dropped before), and the person is told.
+    void exportTakesOnlyWhatNamesAShapeThatIsGone()
+    {
+        for (const char *which : {"object", "target", "both"}) {
+            const QString mode = QString::fromLatin1(which);
+            auto d = deck::newPresentation();
+            Page &slide = *d->pages[0];
+            QHash<QString, std::shared_ptr<ShapeItem>> shapes;
+            auto shape = [&](const char *name, double x) {
+                auto s = std::make_shared<ShapeItem>();
+                s->name = QString::fromLatin1(name);
+                s->rect = QRectF(x, 400, 60, 40);
+                s->fill = Fill::solid(ColorRef::rgb(Qt::red));
+                slide.items.push_back(s);
+                shapes.insert(s->name, s);
+                return deck::shapeNumber(slide, s->id);
+            };
+            const int a = shape("A", 20), b = shape("B", 100), c = shape("C", 180), dd = shape("D", 260), e = shape("E", 340), f = shape("F", 420);
+            QVector<QPair<int, QString>> waits;
+            if (mode == QLatin1String("object")) waits = {{b, animFadeIn(dd, 500)}, {e, animFadeIn(f, 500)}};
+            else if (mode == QLatin1String("target")) waits = {{e, animFadeIn(b, 500)}, {e, animFadeIn(f, 500)}, {dd, animFadeIn(b, 500) + animFadeIn(f, 500, "withEffect")}};
+            else waits = {{b, animFadeIn(b, 500)}, {e, animFadeIn(f, 500)}};
+            QString after;
+            int id = 100;
+            for (const auto &w : waits)
+                after += animXml(QStringLiteral("<p:seq concurrent='1' nextAc='seek'><p:cTn id='%1' restart='whenNotActive' fill='hold' evtFilter='cancelBubble' nodeType='interactiveSeq'><p:stCondLst><p:cond evt='onClick' delay='0'><p:tgtEl><p:spTgt spid='%2'/></p:tgtEl></p:cond></p:stCondLst><p:endSync evt='end' delay='0'><p:rtn val='all'/></p:endSync><p:childTnLst>").arg(++id).arg(w.first).toLatin1().constData())
+                    + animGroup(0, {w.second}) + animXml("</p:childTnLst></p:cTn></p:seq>");
+            slide.props[QStringLiteral("timingXml")] = animTiming(animSteps({animFadeIn(a, 500), animFadeIn(c, 500)}), after);
+            const QString before = slide.props.value(QStringLiteral("timingXml")).toString();
+            // Plain delete: the shape leaves the slide, and nothing else is touched.
+            ItemPtr gone = shapes.value(QStringLiteral("B"));
+            slide.items.erase(std::remove(slide.items.begin(), slide.items.end(), gone), slide.items.end());
+            QString err;
+            QStringList skipped;
+            const QByteArray bytes = deck::exportPresentation(*d, &err, &skipped);
+            QVERIFY2(!bytes.isEmpty(), qPrintable(err));
+            QVERIFY2(skipped.join(QLatin1Char('\n')).contains(QStringLiteral("gone")), qPrintable(mode + QLatin1String(": ") + skipped.join(QLatin1Char('\n'))));
+            auto back = deck::importPresentation(bytes, &err);
+            QVERIFY2(back, qPrintable(err));
+            QHash<QString, int> numbers;
+            for (const ItemPtr &it : back->pages[0]->items) numbers.insert(it->name, it->sourceId);
+            QSet<int> mainShapes;
+            for (const deck::Anim &an : deck::readAnimations(*back->pages[0]).effects) mainShapes.insert(an.shape);
+            QVERIFY2(mainShapes == QSet<int>({numbers.value(QStringLiteral("A")), numbers.value(QStringLiteral("C"))}), qPrintable(mode + QLatin1String(": main sequence")));
+            const deck::Timeline tl = deck::timelineOf(*back->pages[0]);
+            QHash<int, QSet<int>> triggers;
+            for (const deck::Trigger &t : tl.triggers)
+                for (const deck::Effect &ef : t.effects)
+                    for (const deck::Behavior &bh : ef.behaviors) triggers[t.shape].insert(bh.target.shape);
+            QHash<int, QSet<int>> want;
+            const int nd = numbers.value(QStringLiteral("D")), ne = numbers.value(QStringLiteral("E")), nf = numbers.value(QStringLiteral("F"));
+            if (mode == QLatin1String("object")) want = {{ne, {nf}}};
+            else if (mode == QLatin1String("target")) want = {{ne, {nf}}, {nd, {nf}}};
+            else want = {{ne, {nf}}};
+            QVERIFY2(triggers == want, qPrintable(mode + QLatin1String(": triggers")));
+            QCOMPARE(slide.props.value(QStringLiteral("timingXml")).toString(), before);   // the document itself is as it was
+        }
+    }
 };
 
 JP_TEST_CLASS(DeckPptxExportTests)

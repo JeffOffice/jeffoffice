@@ -76,6 +76,11 @@ void clearMediaPlay(Page &slide, int shape);
 // The same string when nothing goes; empty when nothing is left.
 QString mediaTimingForShapes(const QString &timingXml, const QSet<qint64> &shapes);
 
+// The timing as it is, but for what names a shape that is not among `shapes`: an effect on it, a sequence that waits for a click on it (the whole sequence), and the
+// movie or sound of it; the effects and sequences on the other shapes stay. The same string when nothing goes (or a time node another names would be lost); empty when
+// nothing is left. `removed` is how many effects and sequences went.
+QString timingWithoutShapes(const QString &timingXml, const QSet<qint64> &shapes, int *removed = nullptr);
+
 // What the slide's timing says to do with a movie or sound, as the show plays
 // it. A cue is a call at a moment: ms after its step starts.
 struct MediaCue {
