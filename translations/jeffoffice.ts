@@ -25261,8 +25261,8 @@ Source: %3</source>
 <context>
     <name>jp::CrunchWindow</name>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+193"/>
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+198"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+195"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+207"/>
         <source>The new workbook is getting ready. It can be changed in a moment.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -25450,7 +25450,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="+7"/>
-        <location line="+586"/>
+        <location line="+605"/>
         <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-216"/>
         <location line="+6"/>
         <location line="+14"/>
@@ -25482,7 +25482,7 @@ Source: %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-585"/>
+        <location line="-604"/>
         <source>Save As…</source>
         <translation type="unfinished"></translation>
     </message>
@@ -25511,8 +25511,8 @@ Source: %3</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="-493"/>
-        <location line="+49"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="-500"/>
+        <location line="+56"/>
         <source>Undo</source>
         <translation type="unfinished"></translation>
     </message>
@@ -25533,7 +25533,7 @@ Source: %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+118"/>
+        <location line="+137"/>
         <source>Places</source>
         <translation type="unfinished"></translation>
     </message>
@@ -25559,7 +25559,7 @@ Source: %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-945"/>
+        <location line="-964"/>
         <source>End</source>
         <translation type="unfinished"></translation>
     </message>
@@ -25570,7 +25570,17 @@ Source: %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+28"/>
+        <location line="+32"/>
+        <source>Use English function names</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Type and read formulas with English names such as SUM and IF, not the names of the display language. Workbooks are saved the same either way.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <source>These settings belong to this workbook. They are saved in its file and are not kept for other workbooks.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -25585,7 +25595,7 @@ Source: %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+59"/>
+        <location line="+67"/>
         <location line="+4"/>
         <source>After pressing Enter, move the selection</source>
         <translation type="unfinished"></translation>
@@ -26003,7 +26013,7 @@ Source: %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-706"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-714"/>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="-160"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+128"/>
         <location filename="../apps/crunch/app/crunchwindow_page.cpp" line="+196"/>
@@ -26072,7 +26082,7 @@ Source: %3</source>
     <message>
         <location filename="../apps/crunch/app/crunchwindow.cpp" line="-28"/>
         <location line="+4"/>
-        <location line="+52"/>
+        <location line="+60"/>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="-12"/>
         <location line="+118"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+225"/>
@@ -26080,7 +26090,7 @@ Source: %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-55"/>
+        <location line="-63"/>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="-176"/>
         <source>Automatic Except Data Tables</source>
         <translation type="unfinished"></translation>
@@ -26407,7 +26417,7 @@ Source: %3</source>
         <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+47"/>
         <location line="+31"/>
         <location line="+268"/>
-        <location filename="../apps/crunch/app/crunchwindow_function.cpp" line="+108"/>
+        <location filename="../apps/crunch/app/crunchwindow_function.cpp" line="+109"/>
         <location filename="../apps/crunch/app/crunchwindow_point.cpp" line="+239"/>
         <source>Edit</source>
         <translation type="unfinished"></translation>
@@ -27074,7 +27084,7 @@ Source: %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+662"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+670"/>
         <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+30"/>
         <location line="+17"/>
         <location line="+12"/>
@@ -27140,7 +27150,7 @@ Source: %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-675"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-693"/>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="-344"/>
         <location line="+300"/>
         <location line="+44"/>
@@ -28750,7 +28760,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+463"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+481"/>
         <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="-223"/>
         <location line="+8"/>
         <location line="+4"/>
@@ -29660,7 +29670,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_formulas.cpp" line="+105"/>
+        <location filename="../apps/crunch/app/crunchwindow_formulas.cpp" line="+107"/>
         <source>A table.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -29791,7 +29801,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_function.cpp" line="-81"/>
+        <location filename="../apps/crunch/app/crunchwindow_function.cpp" line="-82"/>
         <source>Pick a Function…</source>
         <translation type="unfinished"></translation>
     </message>
@@ -29801,7 +29811,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+292"/>
+        <location line="+294"/>
         <source>(no function used yet)</source>
         <translation type="unfinished"></translation>
     </message>
@@ -46646,7 +46656,7 @@ There is no help topic called &quot;%1&quot;.</source>
 <context>
     <name>jp::InsertFunctionDialog</name>
     <message>
-        <location filename="../apps/crunch/app/insertfunctiondialog.cpp" line="+24"/>
+        <location filename="../apps/crunch/app/insertfunctiondialog.cpp" line="+25"/>
         <source>Pick a Function</source>
         <translation type="unfinished"></translation>
     </message>
@@ -46696,7 +46706,7 @@ There is no help topic called &quot;%1&quot;.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+59"/>
+        <location line="+60"/>
         <source>No function fits.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -46708,7 +46718,7 @@ There is no help topic called &quot;%1&quot;.</source>
         </translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+20"/>
         <source>(none)</source>
         <translation type="unfinished"></translation>
     </message>
@@ -67494,7 +67504,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+230"/>
+        <location line="+247"/>
         <source>JeffCrunch could not check what you typed against the rule for this cell just now, so it was not entered. Try again in a moment.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -68008,8 +68018,8 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+83"/>
         <location filename="../apps/crunch/core/editpaste.cpp" line="-396"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="-483"/>
-        <location line="+580"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-500"/>
+        <location line="+597"/>
         <location line="+27"/>
         <location line="+122"/>
         <source>You can&apos;t change part of an array or a data table.</source>
@@ -68162,7 +68172,7 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+46"/>
         <location filename="../apps/crunch/core/editnotes.cpp" line="+8"/>
         <location line="+171"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="-746"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-763"/>
         <location filename="../apps/crunch/core/editsheets.cpp" line="+378"/>
         <source>That cell is outside the sheet.</source>
         <translation type="unfinished"></translation>
@@ -68359,7 +68369,7 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+174"/>
         <location line="+352"/>
         <location line="+114"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="+371"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="+388"/>
         <location line="+206"/>
         <source>That is more cells than JeffCrunch changes at once (%1). Select fewer cells.</source>
         <translation type="unfinished"></translation>
@@ -68446,7 +68456,7 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+7"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="-589"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-606"/>
         <location filename="../apps/crunch/core/editsheets.cpp" line="-494"/>
         <location line="+84"/>
         <location line="+108"/>
@@ -70512,7 +70522,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::crunch::Functions</name>
     <message>
-        <location filename="../apps/crunch/core/functioninfo.cpp" line="+17"/>
+        <location filename="../apps/crunch/core/functioninfo.cpp" line="+18"/>
         <source>Gives one value when a condition holds and another when it does not.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -74026,7 +74036,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+36"/>
         <source>Financial</source>
         <translation type="unfinished"></translation>
     </message>
@@ -76391,7 +76401,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::office::sheet::Entry</name>
     <message>
-        <location filename="../libs/office/sheet/entry.cpp" line="+963"/>
+        <location filename="../libs/office/sheet/entry.cpp" line="+1161"/>
         <source>A formula can hold up to %1 characters, and this one has %2. Shorten it, and try again.</source>
         <translation type="unfinished"></translation>
     </message>

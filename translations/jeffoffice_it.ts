@@ -25339,7 +25339,7 @@ Origine: %3</translation>
 <context>
     <name>jp::CrunchWindow</name>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+330"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+332"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+888"/>
         <location filename="../apps/crunch/app/crunchwindow_windows.cpp" line="+108"/>
         <source>%1 (%2)</source>
@@ -25347,7 +25347,7 @@ Origine: %3</translation>
     </message>
     <message>
         <location line="-137"/>
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+198"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+207"/>
         <source>The new workbook is getting ready. It can be changed in a moment.</source>
         <translation type="unfinished">La nuova cartella di lavoro è in preparazione. Sarà possibile modificarla tra un istante.</translation>
     </message>
@@ -25487,7 +25487,7 @@ Origine: %3</translation>
         <translation type="unfinished">Apri cartella di lavoro…</translation>
     </message>
     <message>
-        <location line="+140"/>
+        <location line="+159"/>
         <source>Offer to finish a text from the cells above and below (AutoComplete)</source>
         <translation type="unfinished">Proponi di completare un testo dalle celle sopra e sotto (Completamento automatico)</translation>
     </message>
@@ -25624,7 +25624,7 @@ Origine: %3</translation>
         <translation type="unfinished">Chiudi la finestra al termine di Ricerca obiettivo o Riepilogo scenari.</translation>
     </message>
     <message>
-        <location line="-774"/>
+        <location line="-793"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-286"/>
         <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+1302"/>
         <location filename="../apps/crunch/app/crunchwindow_themes.cpp" line="+39"/>
@@ -25648,7 +25648,7 @@ Origine: %3</translation>
     </message>
     <message>
         <location line="+7"/>
-        <location line="+586"/>
+        <location line="+605"/>
         <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-216"/>
         <location line="+6"/>
         <location line="+14"/>
@@ -25680,7 +25680,7 @@ Origine: %3</translation>
         <translation type="unfinished">Salva</translation>
     </message>
     <message>
-        <location line="-585"/>
+        <location line="-604"/>
         <source>Save As…</source>
         <translation type="unfinished">Salva con nome…</translation>
     </message>
@@ -25708,8 +25708,8 @@ Origine: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="-493"/>
-        <location line="+49"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="-500"/>
+        <location line="+56"/>
         <source>Undo</source>
         <translation type="unfinished">Annulla</translation>
     </message>
@@ -25736,7 +25736,17 @@ Origine: %3</translation>
         <translation type="unfinished">Cartella di lavoro (*.xlsx)</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+19"/>
+        <source>Use English function names</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Type and read formulas with English names such as SUM and IF, not the names of the display language. Workbooks are saved the same either way.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <source>These settings belong to this workbook. They are saved in its file and are not kept for other workbooks.</source>
         <translation type="unfinished">Queste impostazioni appartengono a questa cartella di lavoro. Sono salvate nel suo file e non vengono mantenute per le altre cartelle di lavoro.</translation>
     </message>
@@ -25751,7 +25761,7 @@ Origine: %3</translation>
         <translation type="unfinished">Calcola le formule prima che la cartella di lavoro venga salvata (quando il calcolo è manuale)</translation>
     </message>
     <message>
-        <location line="+54"/>
+        <location line="+62"/>
         <location line="+467"/>
         <source>Editing</source>
         <translation type="unfinished">Modifica</translation>
@@ -26358,7 +26368,7 @@ Origine: %3</translation>
         <translation type="unfinished">Incolla</translation>
     </message>
     <message>
-        <location line="-818"/>
+        <location line="-837"/>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-201"/>
         <location line="+1"/>
         <location line="+43"/>
@@ -26384,7 +26394,7 @@ Origine: %3</translation>
         <translation type="unfinished">Min</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+221"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+240"/>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+2"/>
         <source>Down</source>
         <translation type="unfinished">In basso</translation>
@@ -27199,7 +27209,7 @@ Origine: %3</translation>
         <translation>Carattere</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-64"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-72"/>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="-160"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+28"/>
         <location filename="../apps/crunch/app/crunchwindow_page.cpp" line="+196"/>
@@ -27268,7 +27278,7 @@ Origine: %3</translation>
     <message>
         <location filename="../apps/crunch/app/crunchwindow.cpp" line="-28"/>
         <location line="+4"/>
-        <location line="+52"/>
+        <location line="+60"/>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="-12"/>
         <location line="+118"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+225"/>
@@ -27276,7 +27286,7 @@ Origine: %3</translation>
         <translation type="unfinished">Calcolo</translation>
     </message>
     <message>
-        <location line="-55"/>
+        <location line="-63"/>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="-176"/>
         <source>Automatic Except Data Tables</source>
         <translation type="unfinished">Automatico eccetto tabelle dati</translation>
@@ -27625,7 +27635,7 @@ Origine: %3</translation>
         <translation>Vai a</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+450"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+458"/>
         <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="-74"/>
         <location line="+8"/>
         <location line="+4"/>
@@ -28437,7 +28447,7 @@ Origine: %3</translation>
         <translation type="unfinished">Celle che la tabella dovrà occupare (la prima cella resta invariata):</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-607"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-626"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="+59"/>
         <source>Count</source>
         <translation type="unfinished">Conteggio</translation>
@@ -28830,7 +28840,7 @@ Origine: %3</translation>
         <translation type="unfinished">Valori</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+144"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+145"/>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="-344"/>
         <location line="+300"/>
         <location line="+44"/>
@@ -29118,7 +29128,7 @@ Origine: %3</translation>
         <translation type="unfinished">Salta celle vuote</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+505"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+523"/>
         <source>&quot;%1&quot; is not an address JeffCrunch can go to.</source>
         <translation type="unfinished">&quot;%1&quot; non è un indirizzo a cui JeffCrunch può accedere.</translation>
     </message>
@@ -29218,7 +29228,7 @@ Origine: %3</translation>
         <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="-554"/>
         <location line="+31"/>
         <location line="+268"/>
-        <location filename="../apps/crunch/app/crunchwindow_function.cpp" line="+108"/>
+        <location filename="../apps/crunch/app/crunchwindow_function.cpp" line="+109"/>
         <location filename="../apps/crunch/app/crunchwindow_point.cpp" line="+239"/>
         <source>Edit</source>
         <translation type="unfinished">Modifica</translation>
@@ -29500,7 +29510,7 @@ Il file non esiste.</translation>
         <translation type="unfinished">È possibile salvare il lavoro come copia e mantenere entrambi i file, oppure sovrascrivere il file.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-734"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-753"/>
         <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+1"/>
         <source>Save a Copy…</source>
         <translation type="unfinished">Salva una copia…</translation>
@@ -30471,7 +30481,7 @@ Il file esistente non è stato modificato.</translation>
         <translation type="unfinished">Filtraggio</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_formulas.cpp" line="+105"/>
+        <location filename="../apps/crunch/app/crunchwindow_formulas.cpp" line="+107"/>
         <source>A table.</source>
         <translation type="unfinished">Una tabella.</translation>
     </message>
@@ -30605,7 +30615,7 @@ Il file esistente non è stato modificato.</translation>
         <translation type="unfinished">Altro…</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_function.cpp" line="-81"/>
+        <location filename="../apps/crunch/app/crunchwindow_function.cpp" line="-82"/>
         <source>Pick a Function…</source>
         <translation type="unfinished">Scegli una funzione…</translation>
     </message>
@@ -30615,7 +30625,7 @@ Il file esistente non è stato modificato.</translation>
         <translation type="unfinished">Tutte le funzioni…</translation>
     </message>
     <message>
-        <location line="+292"/>
+        <location line="+294"/>
         <source>(no function used yet)</source>
         <translation type="unfinished">(nessuna funzione ancora usata)</translation>
     </message>
@@ -46800,7 +46810,7 @@ Non esiste alcun argomento della Guida denominato &quot;%1&quot;.</translation>
 <context>
     <name>jp::InsertFunctionDialog</name>
     <message>
-        <location filename="../apps/crunch/app/insertfunctiondialog.cpp" line="+24"/>
+        <location filename="../apps/crunch/app/insertfunctiondialog.cpp" line="+25"/>
         <source>Pick a Function</source>
         <translation type="unfinished">Scegli una funzione</translation>
     </message>
@@ -46850,7 +46860,7 @@ Non esiste alcun argomento della Guida denominato &quot;%1&quot;.</translation>
         <translation type="unfinished">Argomenti della funzione</translation>
     </message>
     <message>
-        <location line="+59"/>
+        <location line="+60"/>
         <source>No function fits.</source>
         <translation type="unfinished">Nessuna funzione corrispondente.</translation>
     </message>
@@ -46863,7 +46873,7 @@ Non esiste alcun argomento della Guida denominato &quot;%1&quot;.</translation>
         </translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+20"/>
         <source>(none)</source>
         <translation type="unfinished">(nessuno)</translation>
     </message>
@@ -67511,7 +67521,7 @@ Impossibile applicare la password al file.</translation>
 <context>
     <name>jp::crunch::EditSession</name>
     <message numerus="yes">
-        <location filename="../apps/crunch/core/editsession.cpp" line="+1281"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="+1298"/>
         <source>Clearing %n cell(s)</source>
         <translation type="unfinished">
             <numerusform>Cancellazione di %n cella</numerusform>
@@ -67844,8 +67854,8 @@ Impossibile applicare la password al file.</translation>
     <message>
         <location line="+83"/>
         <location filename="../apps/crunch/core/editpaste.cpp" line="-396"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="-483"/>
-        <location line="+580"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-500"/>
+        <location line="+597"/>
         <location line="+27"/>
         <location line="+122"/>
         <source>You can&apos;t change part of an array or a data table.</source>
@@ -68173,7 +68183,7 @@ Impossibile applicare la password al file.</translation>
         <location filename="../apps/crunch/core/editpaste.cpp" line="-444"/>
         <location line="+185"/>
         <location filename="../apps/crunch/core/editrecommend.cpp" line="+18"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="-603"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-620"/>
         <source>The workbook is still being opened. It can be changed when it is open.</source>
         <translation type="unfinished">La cartella di lavoro è ancora in apertura. Sarà possibile modificarla una volta aperta.</translation>
     </message>
@@ -68448,7 +68458,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Il foglio è protetto e la cella è bloccata, quindi non è possibile modificarla. Per modificarla, scegliere Rimuovi protezione foglio nella scheda Revisione.</translation>
     </message>
     <message>
-        <location line="+230"/>
+        <location line="+247"/>
         <source>JeffCrunch could not check what you typed against the rule for this cell just now, so it was not entered. Try again in a moment.</source>
         <translation type="unfinished">JeffCrunch non è riuscito a verificare il valore digitato rispetto alla regola della cella, quindi non è stato immesso. Riprovare tra qualche istante.</translation>
     </message>
@@ -70733,7 +70743,7 @@ Impossibile applicare la password al file.</translation>
 <context>
     <name>jp::crunch::Functions</name>
     <message>
-        <location filename="../apps/crunch/core/functioninfo.cpp" line="+17"/>
+        <location filename="../apps/crunch/core/functioninfo.cpp" line="+18"/>
         <source>Gives one value when a condition holds and another when it does not.</source>
         <translation type="unfinished">Restituisce un valore se una condizione è vera e un altro se non lo è.</translation>
     </message>
@@ -74247,7 +74257,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Il rendimento annuo del titolo.</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+36"/>
         <source>Financial</source>
         <translation type="unfinished">Finanziarie</translation>
     </message>
@@ -76619,7 +76629,7 @@ Impossibile applicare la password al file.</translation>
 <context>
     <name>jp::office::sheet::Entry</name>
     <message>
-        <location filename="../libs/office/sheet/entry.cpp" line="+963"/>
+        <location filename="../libs/office/sheet/entry.cpp" line="+1161"/>
         <source>A formula can hold up to %1 characters, and this one has %2. Shorten it, and try again.</source>
         <translation type="unfinished">Una formula può contenere al massimo %1 caratteri e questa ne contiene %2. Abbreviala e riprova.</translation>
     </message>

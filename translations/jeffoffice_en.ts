@@ -258,7 +258,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/crunch/app/crunchwindow_formulas.cpp" line="+209"/>
+        <location filename="../apps/crunch/app/crunchwindow_formulas.cpp" line="+211"/>
         <source>%n name(s) made. %1 left out: empty, repeated, or already there.</source>
         <translation>
             <numerusform>%n name made. %1 left out: empty, repeated, or already there.</numerusform>
@@ -357,7 +357,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+719"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+728"/>
         <source>Redid %1 of %n action(s)</source>
         <translation>
             <numerusform>Redid %1 of %n action</numerusform>
@@ -468,7 +468,7 @@
 <context>
     <name>jp::InsertFunctionDialog</name>
     <message numerus="yes">
-        <location filename="../apps/crunch/app/insertfunctiondialog.cpp" line="+125"/>
+        <location filename="../apps/crunch/app/insertfunctiondialog.cpp" line="+127"/>
         <source>%n function(s)</source>
         <translation>
             <numerusform>%n function</numerusform>
@@ -671,7 +671,7 @@
 <context>
     <name>jp::crunch::EditSession</name>
     <message numerus="yes">
-        <location filename="../apps/crunch/core/editsession.cpp" line="+1281"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="+1298"/>
         <source>Clearing %n cell(s)</source>
         <translation>
             <numerusform>Clearing %n cell</numerusform>

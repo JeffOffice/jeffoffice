@@ -25362,8 +25362,8 @@ Source: %3</source>
 <context>
     <name>jp::CrunchWindow</name>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+193"/>
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+198"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+195"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+207"/>
         <source>The new workbook is getting ready. It can be changed in a moment.</source>
         <translation type="unfinished">Нова книга готується. Її можна буде змінити за мить.</translation>
     </message>
@@ -25551,7 +25551,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="+7"/>
-        <location line="+586"/>
+        <location line="+605"/>
         <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-216"/>
         <location line="+6"/>
         <location line="+14"/>
@@ -25583,7 +25583,7 @@ Source: %3</source>
         <translation type="unfinished">Зберегти</translation>
     </message>
     <message>
-        <location line="-585"/>
+        <location line="-604"/>
         <source>Save As…</source>
         <translation type="unfinished">Зберегти як…</translation>
     </message>
@@ -25612,8 +25612,8 @@ Source: %3</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="-493"/>
-        <location line="+49"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="-500"/>
+        <location line="+56"/>
         <source>Undo</source>
         <translation type="unfinished">Скасувати</translation>
     </message>
@@ -25634,7 +25634,7 @@ Source: %3</source>
         <translation type="unfinished">Книга (*.xlsx)</translation>
     </message>
     <message>
-        <location line="+80"/>
+        <location line="+99"/>
         <location line="+467"/>
         <source>Editing</source>
         <translation type="unfinished">Редагування</translation>
@@ -25702,7 +25702,7 @@ Source: %3</source>
         <translation type="unfinished">Пропонувати завершити текст із комірок вище й нижче (автозавершення)</translation>
     </message>
     <message>
-        <location line="-489"/>
+        <location line="-508"/>
         <source>End</source>
         <translation type="unfinished">Кінець</translation>
     </message>
@@ -25713,7 +25713,17 @@ Source: %3</source>
         <translation type="unfinished">Повторити</translation>
     </message>
     <message>
-        <location line="+28"/>
+        <location line="+32"/>
+        <source>Use English function names</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Type and read formulas with English names such as SUM and IF, not the names of the display language. Workbooks are saved the same either way.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <source>These settings belong to this workbook. They are saved in its file and are not kept for other workbooks.</source>
         <translation type="unfinished">Ці параметри належать до цієї книги. Їх зберігають у файлі книги, і для інших книг вони не використовуються.</translation>
     </message>
@@ -25728,7 +25738,7 @@ Source: %3</source>
         <translation type="unfinished">Обчислювати формули перед збереженням книги (під час ручного обчислення)</translation>
     </message>
     <message>
-        <location line="+69"/>
+        <location line="+77"/>
         <source>Use the fill handle, and drag cells to move or copy them</source>
         <translation type="unfinished">Використовувати маркер заповнення та перетягувати комірки для переміщення або копіювання</translation>
     </message>
@@ -26239,7 +26249,7 @@ Source: %3</source>
         <translation type="unfinished"> або більше</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-706"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-714"/>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="-160"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+1028"/>
         <location filename="../apps/crunch/app/crunchwindow_page.cpp" line="+196"/>
@@ -26293,7 +26303,7 @@ Source: %3</source>
     <message>
         <location filename="../apps/crunch/app/crunchwindow.cpp" line="-28"/>
         <location line="+4"/>
-        <location line="+52"/>
+        <location line="+60"/>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="+5"/>
         <location line="+118"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+225"/>
@@ -26331,7 +26341,7 @@ Source: %3</source>
         <translation type="unfinished">Циклічні формули не обчислюються</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-55"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-63"/>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="-200"/>
         <source>Automatic Except Data Tables</source>
         <translation type="unfinished">Автоматично, крім таблиць даних</translation>
@@ -26649,7 +26659,7 @@ Source: %3</source>
         <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+47"/>
         <location line="+31"/>
         <location line="+268"/>
-        <location filename="../apps/crunch/app/crunchwindow_function.cpp" line="+108"/>
+        <location filename="../apps/crunch/app/crunchwindow_function.cpp" line="+109"/>
         <location filename="../apps/crunch/app/crunchwindow_point.cpp" line="+239"/>
         <source>Edit</source>
         <translation type="unfinished">Редагування</translation>
@@ -27347,7 +27357,7 @@ Source: %3</source>
         <translation type="unfinished">%1 скопійовано</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+662"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+670"/>
         <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+30"/>
         <location line="+17"/>
         <location line="+12"/>
@@ -27413,7 +27423,7 @@ Source: %3</source>
         <translation type="unfinished">Значення</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-675"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-693"/>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="-344"/>
         <location line="+300"/>
         <location line="+44"/>
@@ -30084,7 +30094,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Користувацький</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_formulas.cpp" line="+105"/>
+        <location filename="../apps/crunch/app/crunchwindow_formulas.cpp" line="+107"/>
         <source>A table.</source>
         <translation type="unfinished">Таблиця.</translation>
     </message>
@@ -30221,7 +30231,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Більше…</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_function.cpp" line="-81"/>
+        <location filename="../apps/crunch/app/crunchwindow_function.cpp" line="-82"/>
         <source>Pick a Function…</source>
         <translation type="unfinished">Вибрати функцію…</translation>
     </message>
@@ -30231,7 +30241,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished">Усі функції…</translation>
     </message>
     <message>
-        <location line="+277"/>
+        <location line="+279"/>
         <location filename="../apps/crunch/app/crunchwindow_pagelayout.cpp" line="-394"/>
         <source>(none)</source>
         <translation type="unfinished">(немає)</translation>
@@ -46851,7 +46861,7 @@ There is no help topic called &quot;%1&quot;.</source>
 <context>
     <name>jp::InsertFunctionDialog</name>
     <message>
-        <location filename="../apps/crunch/app/insertfunctiondialog.cpp" line="+24"/>
+        <location filename="../apps/crunch/app/insertfunctiondialog.cpp" line="+25"/>
         <source>Pick a Function</source>
         <translation type="unfinished">Вибір функції</translation>
     </message>
@@ -46901,7 +46911,7 @@ There is no help topic called &quot;%1&quot;.</source>
         <translation type="unfinished">Аргументи функції</translation>
     </message>
     <message>
-        <location line="+59"/>
+        <location line="+60"/>
         <source>No function fits.</source>
         <translation type="unfinished">Жодна функція не підходить.</translation>
     </message>
@@ -46915,7 +46925,7 @@ There is no help topic called &quot;%1&quot;.</source>
         </translation>
     </message>
     <message>
-        <location line="+18"/>
+        <location line="+20"/>
         <source>(none)</source>
         <translation type="unfinished">(немає)</translation>
     </message>
@@ -67701,7 +67711,7 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+81"/>
         <location line="+65"/>
         <location filename="../apps/crunch/core/editpaste.cpp" line="+621"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="+485"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="+502"/>
         <location filename="../apps/crunch/core/editsheets.cpp" line="-657"/>
         <location line="+279"/>
         <location filename="../apps/crunch/core/editsize.cpp" line="+294"/>
@@ -68068,8 +68078,8 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+83"/>
         <location filename="../apps/crunch/core/editpaste.cpp" line="-396"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="-575"/>
-        <location line="+580"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-592"/>
+        <location line="+597"/>
         <location line="+27"/>
         <location line="+122"/>
         <source>You can&apos;t change part of an array or a data table.</source>
@@ -68520,7 +68530,7 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+7"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="-758"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-775"/>
         <location filename="../apps/crunch/core/editsheets.cpp" line="-116"/>
         <location line="+84"/>
         <location line="+108"/>
@@ -69538,7 +69548,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Цей аркуш захищено, а комірка заблокована, тому її не можна змінити. Щоб змінити її, виберіть «Зняти захист з аркуша» на вкладці «Рецензування».</translation>
     </message>
     <message>
-        <location line="+230"/>
+        <location line="+247"/>
         <source>JeffCrunch could not check what you typed against the rule for this cell just now, so it was not entered. Try again in a moment.</source>
         <translation type="unfinished">JeffCrunch не зміг щойно перевірити введене відповідно до правила для цієї комірки, тому його не введено. Спробуйте ще раз трохи пізніше.</translation>
     </message>
@@ -70808,7 +70818,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::crunch::Functions</name>
     <message>
-        <location filename="../apps/crunch/core/functioninfo.cpp" line="+17"/>
+        <location filename="../apps/crunch/core/functioninfo.cpp" line="+18"/>
         <source>Gives one value when a condition holds and another when it does not.</source>
         <translation type="unfinished">Повертає одне значення, якщо умова виконується, і інше, якщо ні.</translation>
     </message>
@@ -74322,7 +74332,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Річна дохідність цінного папера.</translation>
     </message>
     <message>
-        <location line="+22"/>
+        <location line="+36"/>
         <source>Financial</source>
         <translation type="unfinished">Фінансові</translation>
     </message>
@@ -76701,7 +76711,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::office::sheet::Entry</name>
     <message>
-        <location filename="../libs/office/sheet/entry.cpp" line="+963"/>
+        <location filename="../libs/office/sheet/entry.cpp" line="+1161"/>
         <source>A formula can hold up to %1 characters, and this one has %2. Shorten it, and try again.</source>
         <translation type="unfinished">Формула може містити до %1 символів, а ця має %2. Скоротіть її й спробуйте знову.</translation>
     </message>
