@@ -5462,6 +5462,109 @@ private Q_SLOTS:
         for (const auto &c : big.changes) commentsListed += c.kind == jp::review::Kind::Commented;
         QCOMPARE(commentsListed, 1);
     }
+
+    // A document with a tracked change, and the document as it was before the change: Reject All gives back the saved bytes of the second, Accept All leaves no marks and the bytes of `accepted`,
+    // each is one step, and undo gives back the saved bytes of the tracked document.
+    static void verifyRejectAndAcceptRestore(const QByteArray &before, const QByteArray &tracked, const QByteArray &accepted, const char *what, bool markFirstToo = true)
+    {
+        const QByteArray was = documentXml(open(makeDocx(before))->toDocx()), acc = documentXml(open(makeDocx(accepted))->toDocx());
+        for (const bool accept : {false, true}) {
+            auto doc = open(makeDocx(tracked));
+            QVERIFY2(doc, what);
+            const QByteArray marked = documentXml(doc->toDocx());
+            QVERIFY2((accept ? acceptAll(*doc) : rejectAll(*doc)) > 0, what);
+            QCOMPARE(revisionCount(doc->story()), 0);
+            const QByteArray x = documentXml(doc->toDocx());
+            QVERIFY2(x == (accept ? acc : was), QByteArray(what) + (accept ? ", accepted: " : ", rejected: ") + x);
+            QVERIFY2(!x.contains("<w:ins ") && !x.contains("<w:del "), what);
+            QVERIFY2(doc->undo(), what);
+            QVERIFY2(!doc->canUndo(), what);   // (one step)
+            QVERIFY2(documentXml(doc->toDocx()) == marked, what);
+            QVERIFY2(doc->redo(), what);
+            QVERIFY2(documentXml(doc->toDocx()) == x, what);
+        }
+        // One change at a time, in both directions of the review pane (next change and previous).
+        for (const bool accept : {false, true}) {
+            for (const bool backwards : {false, true}) {
+                if (backwards && !accept && !markFirstToo) continue;   // (a mark rejected before its own words leaves an empty paragraph: a plain one is not a change to take out)
+                auto doc = open(makeDocx(tracked));
+                QVERIFY2(doc, what);
+                for (int guard = 0; guard < 8 && revisionCount(doc->story()) > 0; ++guard) {
+                    const QVector<Revision> all = revisionsIn(doc->story());
+                    const Revision r = backwards ? all.last() : all.first();
+                    QVERIFY2(resolveRevisions(*doc, doc->story(), {r}, accept) >= 0, what);
+                }
+                QCOMPARE(revisionCount(doc->story()), 0);
+                QVERIFY2(documentXml(doc->toDocx()) == (accept ? acc : was), what);
+            }
+        }
+    }
+
+    // What Reject All does with a paragraph that has a tracked inserted mark and the section's properties: it takes the section break out with the mark (a paragraph like that may be an inserted
+    // section break, and rejecting that one gives back the document as it was). Whether a break on a text paragraph should instead go to the joined paragraph awaits evidence from files made
+    // in the reference program (see EVIDENCE-NEEDED.md); this only records what is.
+    void aTrackedInsertedMarkWithASectionBreakIsTakenOutWithItWhenRejected()
+    {
+        const QByteArray mk = "<w:rPr><w:ins" + rev(90) + "/></w:rPr>", sect = sectionProps(12240, 15840);
+        // an inserted section break: its paragraph is empty
+        verifyRejectAndAcceptRestore(para(run("One")) + para(run("Two")), para(run("One")) + para(QByteArray(), sect + mk) + para(run("Two")),
+                                     para(run("One")) + para(QByteArray(), sect) + para(run("Two")), "inserted break");
+        // a text paragraph with a break: the words join the next, and the break goes
+        auto doc = open(makeDocx(para(run("Two"), sect + mk) + para(run("Three"))));
+        QVERIFY(doc);
+        QVERIFY(rejectAll(*doc) > 0);
+        QCOMPARE(documentXml(doc->toDocx()), documentXml(open(makeDocx(para(run("Two") + run("Three"))))->toDocx()));
+    }
+
+    void aMarkRejectedBeforeATableLeavesNoEmptyParagraphAndKeepsTheWordsOfTheParagraph()
+    {
+        const QByteArray mk = "<w:rPr><w:ins" + rev(90) + "/></w:rPr>";
+        const QByteArray tbl = "<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"2000\"/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t>cell</w:t></w:r></w:p></w:tc></w:tr></w:tbl>";
+        const QByteArray plain = para(run("One")) + tbl + para(run("End"));
+        // An inserted paragraph that is empty, and one whose words are inserted too: both go.
+        verifyRejectAndAcceptRestore(plain, para(run("One")) + para(QByteArray(), mk) + tbl + para(run("End")), para(run("One")) + para(QByteArray()) + tbl + para(run("End")), "empty");
+        verifyRejectAndAcceptRestore(plain, para(run("One")) + para(inserted(91, "new"), mk) + tbl + para(run("End")), para(run("One")) + para(run("new")) + tbl + para(run("End")), "with words", false);
+        // Words that were there before stay: only the mark goes, and the paragraph is still before the table.
+        verifyRejectAndAcceptRestore(para(run("Two")) + tbl + para(run("End")), para(run("Two"), mk) + tbl + para(run("End")), para(run("Two")) + tbl + para(run("End")), "words kept");
+    }
+
+    void aHeadingWithEnterAtItsEndIsGivenBackWithItsPropertiesWhenRejected()
+    {
+        const QByteArray mk = "<w:rPr><w:ins" + rev(90) + "/></w:rPr>", props = "<w:keepNext/><w:outlineLvl w:val=\"0\"/><w:jc w:val=\"center\"/>";
+        const QByteArray before = para(run("Head"), props) + para(run("End"));
+        // Enter at the end of the heading (the new paragraph is a plain one), and Enter then words typed in the new paragraph.
+        verifyRejectAndAcceptRestore(before, para(run("Head"), props + mk) + para(QByteArray()) + para(run("End")),
+                                     para(run("Head"), props) + para(QByteArray()) + para(run("End")), "enter at the end");
+        verifyRejectAndAcceptRestore(before, para(run("Head"), props + mk) + para(inserted(91, "typed")) + para(run("End")),
+                                     para(run("Head"), props) + para(run("typed")) + para(run("End")), "enter and words");
+    }
+
+    void aHundredThousandTrackedMarksAreSettledInCountedWork()
+    {
+        const QByteArray mk = "<w:rPr><w:ins" + rev(90) + "/></w:rPr>";
+        int counts[2] = {0, 0};
+        int sizes[2] = {25000, 100000};
+        for (int k = 0; k < 2; ++k) {
+            QByteArray body;
+            body.reserve(sizes[k] * 120);
+            // groups of four paragraphs: three marks inserted, the fourth is the one they were joined to
+            for (int i = 0; i < sizes[k]; ++i) body += para(run("w"), (i % 4 == 3) ? QByteArray() : mk);
+            auto doc = open(makeDocx(body));
+            QVERIFY(doc);
+            QCOMPARE(revisionCount(doc->story()), sizes[k] - sizes[k] / 4);
+            int changes = 0;
+            QObject::connect(doc->story(), &QTextDocument::contentsChange, doc->story(), [&](int, int, int) { ++changes; });
+            const int done = rejectAll(*doc);
+            QCOMPARE(done, sizes[k] - sizes[k] / 4);
+            QCOMPARE(revisionCount(doc->story()), 0);
+            QCOMPARE(doc->story()->blockCount(), sizes[k] / 4);
+            counts[k] = changes;
+            // one removal per mark, and a few changes besides for each paragraph: a small constant per mark
+            QVERIFY2(changes <= 4 * done, qPrintable(QString::number(changes)));
+        }
+        // four times the marks, about four times the work (counted changes, not time)
+        QVERIFY2(counts[1] <= 4 * counts[0] + 100, qPrintable(QStringLiteral("%1 vs %2").arg(counts[0]).arg(counts[1])));
+    }
 };
 
 QTEST_MAIN(ReviewTests)

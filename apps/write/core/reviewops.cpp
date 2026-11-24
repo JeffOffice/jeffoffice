@@ -992,6 +992,16 @@ void removeMark(WriteDoc &doc, QTextDocument *d, int blockNumber)
         t.removeSelectedText();
         return;
     }
+    if (n.isValid() && !isLocked(b) && !canJoinBlocks(b, n) && b.length() == 1 && b.position() > 0 && !b.previous().blockFormat().hasProperty(prop::EndnoteBlock) && !isLocked(b.previous()) &&
+        canJoinBlocks(b.previous(), b) && !bf.hasProperty(prop::RawBefore) && !bf.hasProperty(prop::RawAfter) && !bf.boolProperty(flow::fp::SectionBreakAfter) &&
+        bf.intProperty(flow::fp::Frame) == b.previous().blockFormat().intProperty(flow::fp::Frame)) {
+        // Nothing of it is left and the next is a table's, which it can't join: the paragraph goes, as it would before a paragraph.
+        QTextCursor t(d);
+        t.setPosition(b.position() - 1);
+        t.setPosition(b.position(), QTextCursor::KeepAnchor);
+        t.removeSelectedText();
+        return;
+    }
     if (!n.isValid() || isLocked(b) || isLocked(n) || !canJoinBlocks(b, n) || n.blockFormat().hasProperty(prop::EndnoteBlock) ||
         bf.intProperty(flow::fp::Frame) != n.blockFormat().intProperty(flow::fp::Frame)) {
         clearMarkRecord(b);
