@@ -9,6 +9,7 @@
 #include <QCoreApplication>
 
 #include <algorithm>
+#include <unordered_set>
 
 namespace jp::crunch {
 
@@ -65,27 +66,37 @@ EditSession::QuickTotalsPlan EditSession::planQuickTotals(int sheet, const CellR
         plan.problem = tr("That is more cells than Quick Analysis looks at (%1). Select fewer cells.").arg(jp::systemLocale().toString(kQuickScan));
         return plan;
     }
-    auto isNumber = [&](quint32 r, quint32 c) { return valueAt(sheet, r, c).isNumber(); };
-    auto anyNumber = [&](quint32 ra, quint32 ca, quint32 rb, quint32 cb) {
-        for (quint32 r = ra; r <= rb; ++r)
-            for (quint32 c = ca; c <= cb; ++c)
-                if (isNumber(r, c)) return true;
-        return false;
-    };
-    // (a first row or column with no number in it, over cells that have numbers, holds names)
-    if (r1 > r0 && !anyNumber(r0, c0, r0, c1) && anyNumber(r0 + 1, c0, r1, c1)) ++r0;
-    if (c1 > c0 && !anyNumber(r0, c0, r1, c0) && anyNumber(r0, c0 + 1, r1, c1)) ++c0;
-    if (!anyNumber(r0, c0, r1, c1)) {
+    // (one pass over the block: how many numbers each row and each column holds; every check after it reads these counts, not the cells)
+    m_quickReads = 0;
+    const quint32 rows = r1 - r0 + 1, cols = c1 - c0 + 1;
+    std::vector<quint32> rowN(rows, 0), colN(cols, 0);
+    qint64 total = 0;
+    for (quint32 r = r0; r <= r1; ++r)
+        for (quint32 c = c0; c <= c1; ++c) {
+            ++m_quickReads;
+            if (valueAt(sheet, r, c).isNumber()) {
+                ++rowN[r - r0];
+                ++colN[c - c0];
+                ++total;
+            }
+        }
+    if (total == 0) {
         plan.problem = tr("There are no numbers here to total.");
         return plan;
     }
+    // (a first row or column with no number in it, over cells that have numbers, holds names: it had none to take out of the counts of the other lines)
+    const quint32 rowBase = r0, colBase = c0;
+    if (r1 > r0 && rowN[0] == 0) ++r0;
+    if (c1 > c0 && colN[0] == 0) ++c0;
     plan.data = CellRange{r0, c0, r1, c1, true};
-    auto put = [&](quint32 row, quint32 col, const QString &formula, bool percent) {
+    plan.blockCells = qint64(r1 - r0 + 1) * qint64(c1 - c0 + 1);
+    auto put = [&](quint32 row, quint32 col, const QString &formula, bool percent, const CellRange &range) {
         QuickCell cell;
         cell.row = row;
         cell.col = col;
         cell.formula = formula;
         cell.percent = percent;
+        cell.range = range;
         plan.cells.push_back(cell);
     };
     auto fn = [&](const QString &range) {
@@ -96,6 +107,7 @@ EditSession::QuickTotalsPlan EditSession::planQuickTotals(int sheet, const CellR
         default: return QStringLiteral("SUM(") + range + QStringLiteral(")/SUM(") + blockOf(r0, c0, r1, c1, true) + QLatin1Char(')');
         }
     };
+    const bool percent = kind == QuickTotal::PercentOfTotal;
     const quint32 lastRow = jp::calc::kGridRows - 1, lastCol = jp::calc::kGridCols - 1;
     if (kind == QuickTotal::RunningTotal) {
         if (down ? c1 + 1 + (c1 - c0) > lastCol : r1 + 1 + (r1 - r0) > lastRow) {
@@ -103,11 +115,11 @@ EditSession::QuickTotalsPlan EditSession::planQuickTotals(int sheet, const CellR
             return plan;
         }
         for (quint32 c = c0; c <= c1; ++c) {
-            if (down && !anyNumber(r0, c, r1, c)) continue;
+            if (down && colN[c - colBase] == 0) continue;
             for (quint32 r = r0; r <= r1; ++r) {
-                if (!down && !anyNumber(r, c0, r, c1)) continue;
-                if (down) put(r, c1 + 1 + (c - c0), QStringLiteral("SUM(%1:%2)").arg(refOf(r0, c, true, false), refOf(r, c)), false);
-                else put(r1 + 1 + (r - r0), c, QStringLiteral("SUM(%1:%2)").arg(refOf(r, c0, false, true), refOf(r, c)), false);
+                if (!down && rowN[r - rowBase] == 0) continue;
+                if (down) put(r, c1 + 1 + (c - c0), QStringLiteral("SUM(%1:%2)").arg(refOf(r0, c, true, false), refOf(r, c)), false, CellRange{r0, c, r, c, true});
+                else put(r1 + 1 + (r - r0), c, QStringLiteral("SUM(%1:%2)").arg(refOf(r, c0, false, true), refOf(r, c)), false, CellRange{r, c0, r, c, true});
             }
         }
     } else if (down) {
@@ -116,14 +128,14 @@ EditSession::QuickTotalsPlan EditSession::planQuickTotals(int sheet, const CellR
             return plan;
         }
         for (quint32 c = c0; c <= c1; ++c)
-            if (anyNumber(r0, c, r1, c)) put(r1 + 1, c, fn(blockOf(r0, c, r1, c)), kind == QuickTotal::PercentOfTotal);
+            if (colN[c - colBase] > 0) put(r1 + 1, c, fn(blockOf(r0, c, r1, c)), percent, CellRange{r0, c, r1, c, true});
     } else {
         if (c1 + 1 > lastCol) {
             plan.problem = tr("There is no room beside the cells for the totals.");
             return plan;
         }
         for (quint32 r = r0; r <= r1; ++r)
-            if (anyNumber(r, c0, r, c1)) put(r, c1 + 1, fn(blockOf(r, c0, r, c1)), kind == QuickTotal::PercentOfTotal);
+            if (rowN[r - rowBase] > 0) put(r, c1 + 1, fn(blockOf(r, c0, r, c1)), percent, CellRange{r, c0, r, c1, true});
     }
     if (plan.cells.empty()) {
         plan.problem = tr("There are no numbers here to total.");
@@ -133,10 +145,95 @@ EditSession::QuickTotalsPlan EditSession::planQuickTotals(int sheet, const CellR
         plan.problem = tr("That is more cells than JeffCrunch changes at once (%1). Select fewer cells.").arg(jp::systemLocale().toString(kMaxCellsPerEdit));
         return plan;
     }
+    // (the cells the totals go in: none may be filled by another formula's spill, or be covered by a merge)
+    {
+        std::unordered_set<quint64> places;
+        quint32 top = plan.cells.front().row, bottom = top, left = plan.cells.front().col, right = left;
+        for (const QuickCell &cell : plan.cells) {
+            if (m_book->calc->isSpillMember(sheet, cell.row, cell.col)) {
+                plan.problem = tr("The totals would block a spilled result next to the cells. Move the spilled result, or select other cells.");
+                return plan;
+            }
+            places.insert((quint64(cell.row) << 32) | cell.col);
+            top = std::min(top, cell.row);
+            bottom = std::max(bottom, cell.row);
+            left = std::min(left, cell.col);
+            right = std::max(right, cell.col);
+        }
+        const QVector<CellRange> merges = m_book->calc->mergesOf(sheet);
+        for (const CellRange &m : merges) {
+            if (!m.valid || m.row2 < top || m.row1 > bottom || m.col2 < left || m.col1 > right) continue;
+            for (quint32 r = std::max(m.row1, top); r <= std::min(m.row2, bottom); ++r)
+                for (quint32 c = std::max(m.col1, left); c <= std::min(m.col2, right); ++c)
+                    if ((r != m.row1 || c != m.col1) && places.count((quint64(r) << 32) | c)) {
+                        plan.problem = tr("Some of the cells where the totals go are part of merged cells. Unmerge them, or select other cells.");
+                        return plan;
+                    }
+        }
+    }
     for (const QuickCell &cell : plan.cells)
         if (!valueAt(sheet, cell.row, cell.col).isEmpty() || m_book->calc->content(sheet, cell.row, cell.col).isFormula) ++plan.overwrites;
     plan.ok = true;
     return plan;
+}
+
+EditSession::QuickLook EditSession::lookQuickTotals(int sheet, const QuickTotalsPlan &plan, QuickTotal kind, int most) const
+{
+    QuickLook look;
+    if (!plan.ok || !m_book || !m_book->calc) return look;
+    const size_t n = std::min<size_t>(plan.cells.size(), size_t(std::max(0, most)));
+    // (what the look would read is counted first, from the plan: the whole block once for a share of the whole, and the range of each cell shown)
+    qint64 need = kind == QuickTotal::PercentOfTotal ? plan.blockCells : 0;
+    for (size_t i = 0; i < n; ++i) need += plan.cells[i].range.cellCount();
+    if (need > kQuickLookReads) {
+        look.tooMany = true;
+        return look;
+    }
+    struct Sum {
+        double sum = 0;
+        qint64 count = 0;
+        bool error = false;
+        jp::calc::ErrorKind kind = jp::calc::ErrorKind::Value;
+    };
+    auto sumOf = [&](const CellRange &r) {
+        Sum out;
+        for (quint32 row = r.row1; row <= r.row2; ++row)
+            for (quint32 col = r.col1; col <= r.col2; ++col) {
+                ++m_quickReads;
+                const jp::calc::Value v = valueAt(sheet, row, col);
+                if (v.isNumber()) {
+                    out.sum += v.number();
+                    ++out.count;
+                } else if (v.isError() && !out.error) {
+                    out.error = true;
+                    out.kind = v.errorKind();
+                }
+            }
+        return out;
+    };
+    Sum whole;
+    if (kind == QuickTotal::PercentOfTotal) whole = sumOf(plan.data);
+    auto error = [](jp::calc::ErrorKind e) { return jp::calc::errorKindText(e); };
+    for (size_t i = 0; i < n; ++i) {
+        const QuickCell &cell = plan.cells[i];
+        const Sum part = sumOf(cell.range);
+        QString text;
+        if (part.error) {
+            text = error(part.kind);
+        } else if (kind == QuickTotal::Count) {
+            text = m_locale.toString(part.count);
+        } else if (kind == QuickTotal::Average) {
+            text = part.count == 0 ? error(jp::calc::ErrorKind::Div0) : m_locale.toString(part.sum / double(part.count), 'g', 10);
+        } else if (kind == QuickTotal::PercentOfTotal) {
+            if (whole.error) text = error(whole.kind);
+            else if (whole.sum == 0) text = error(jp::calc::ErrorKind::Div0);
+            else text = jp::systemLocale().toString(part.sum / whole.sum * 100, 'f', 1) + QLatin1Char('%');
+        } else {
+            text = m_locale.toString(part.sum, 'g', 10);
+        }
+        look.shown.push_back(text);
+    }
+    return look;
 }
 
 EditSession::Outcome EditSession::applyQuickTotals(int sheet, const QuickTotalsPlan &plan, const QString &text)
@@ -187,6 +284,7 @@ EditSession::Outcome EditSession::previewCondRule(int sheet, CondRule rule, cons
     bool added = false;
     std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
     if (!hold) return refuse(tr("The workbook is busy. Try again in a moment."));
+    if (m_previewSheet >= 0) return refuse(tr("The workbook is busy. Try again in a moment."));   // (the rule of the look before is still on the sheet: it is not taken for the sheet's own)
     const qsizetype before = m_book->book->addedDxfs().size();
     dxf = m_book->book->dxfFor(format);
     added = m_book->book->addedDxfs().size() > before;
@@ -208,13 +306,20 @@ EditSession::Outcome EditSession::previewCondRule(int sheet, CondRule rule, cons
 
 void EditSession::endCondPreview()
 {
+    m_previewTimer.stop();
     if (m_previewSheet < 0) return;
     const int sheet = m_previewSheet;
-    m_previewSheet = -1;
-    if (std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold()) {
-        hold->calculation()->replaceConditionalFormats(sheet, m_previewBefore);
-        if (m_previewDxf >= 0) m_book->book->removeAddedDxf(m_previewDxf);
+    std::unique_ptr<WorkbookLoader::Hold> hold = m_loader->hold();
+    if (!hold) {
+        // (the rule stays, and is what condPreviewShown says, until it is really out: the next try is a moment on, a few times at most; a save tries again)
+        if (++m_previewTries <= kMostPreviewTries) m_previewTimer.start();
+        return;
     }
+    m_previewSheet = -1;
+    m_previewTries = 0;
+    hold->calculation()->replaceConditionalFormats(sheet, m_previewBefore);
+    if (m_previewDxf >= 0) m_book->book->removeAddedDxf(m_previewDxf);
+    hold.reset();
     m_previewBefore.clear();
     m_previewDxf = -1;
     Q_EMIT conditionalFormatsChanged(sheet);

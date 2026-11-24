@@ -282,6 +282,7 @@ public:
     void setCondSpecAsker(const std::function<bool(CondSpec *, bool editing)> &asker) { m_condSpecAsker = asker; }
     // Quick Analysis (crunchwindow_quick.cpp): the button and its box, for tests.
     QuickAnalysis *quickAnalysis() const { return m_quick; }
+    QString quickLookNote() const { return m_quickLookNote; }   // (the line a look shows in place of what it can't, for tests)
     // Manage Rules asks for the list as it is to be (a test answers in place of the window): the rules as they are, and the editor that New Rule and Edit Rule use.
     using CondEditor = CondManageDialog::Editor;
     void setCondManageAsker(const std::function<bool(const QVector<CondManageDialog::Item> &, const CondEditor &, QVector<crunch::EditSession::CondManaged> *)> &asker) { m_manageAsker = asker; }
@@ -1396,6 +1397,7 @@ private:
     void quickApply(const QString &id);
     bool quickCondSpec(const QString &id, CondSpec *spec, QString *why);
     QuickAnalysis *m_quick = nullptr;
+    QString m_quickLookNote;
     QuickPreviewLayer *m_quickLayer = nullptr;
     bool m_quickCharts = false;
     jp::office::sheet::CellRange m_quickRange;   // the cells the box was opened for

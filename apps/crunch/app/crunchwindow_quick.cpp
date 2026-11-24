@@ -57,7 +57,7 @@ QString totalName(Total kind, bool down)
     case Total::Average: return down ? CrunchWindow::tr("Average") : CrunchWindow::tr("Row Average");
     case Total::Count: return down ? CrunchWindow::tr("Count") : CrunchWindow::tr("Row Count");
     case Total::PercentOfTotal: return down ? CrunchWindow::tr("% of Total") : CrunchWindow::tr("Row % of Total");
-    case Total::RunningTotal: return down ? CrunchWindow::tr("Running Total") : CrunchWindow::tr("Row Running");
+    case Total::RunningTotal: return down ? CrunchWindow::tr("Running Total") : CrunchWindow::tr("Row Running Total");
     }
     return QString();
 }
@@ -340,20 +340,28 @@ void CrunchWindow::quickPreview(const QString &id)
         const bool down = parts[2] == QLatin1String("down");
         const crunch::EditSession::QuickTotalsPlan plan = m_session->planQuickTotals(m_sheet, range, Total(parts[1].toInt()), down);
         if (!plan.ok) return;
-        QVector<QPair<QPoint, QString>> cells;   // (row and column, and what the formula comes to)
+        const Total kind = Total(parts[1].toInt());
+        const crunch::EditSession::QuickLook found = m_session->lookQuickTotals(m_sheet, plan, kind, kLookCells);
+        if (found.tooMany) {
+            // (past what a look is allowed to read: the choice itself still works when it is clicked)
+            const QString note = tr("There are too many cells to show a preview.");
+            m_quickLookNote = note;
+            m_quickLayer->showLook([note, base, accent, ink](QPainter &p) {
+                const QFontMetrics fm(p.font());
+                const QRect box(QPoint(12, 12), QSize(fm.horizontalAdvance(note) + 20, fm.height() + 14));
+                p.fillRect(box, base);
+                p.setPen(accent);
+                p.drawRect(box);
+                p.setPen(ink);
+                p.drawText(box, Qt::AlignCenter, note);
+            });
+            return;
+        }
         QVector<QString> shown;
         QVector<QPoint> at;
-        for (size_t i = 0; i < plan.cells.size() && int(i) < kLookCells; ++i) {
-            const crunch::EditSession::QuickCell &c = plan.cells[i];
-            const auto v = m_session->previewFormula(c.formula, m_sheet, c.row, c.col);
-            QString text = v.ok || v.error ? v.shown : QString();
-            if (c.percent && v.ok && !v.error) {
-                bool ok = false;
-                const double d = jp::systemLocale().locale.toDouble(v.shown, &ok);
-                if (ok) text = jp::systemLocale().toString(d * 100, 'f', 1) + QLatin1Char('%');
-            }
-            shown.append(text);
-            at.append(QPoint(int(c.col), int(c.row)));
+        for (size_t i = 0; i < found.shown.size(); ++i) {
+            shown.append(found.shown[i]);
+            at.append(QPoint(int(plan.cells[i].col), int(plan.cells[i].row)));
         }
         m_quickLayer->showLook([this, shown, at, base, accent, ink](QPainter &p) {
             p.setFont(m_view->font());
@@ -461,6 +469,7 @@ void CrunchWindow::quickPreview(const QString &id)
 void CrunchWindow::quickPreviewEnd()
 {
     if (m_session) m_session->endCondPreview();
+    m_quickLookNote.clear();
     if (m_quickLayer) m_quickLayer->clear();
 }
 

@@ -38,6 +38,26 @@ QByteArray quickBook()
                     QStringLiteral("B3=30"), QStringLiteral("C3=40"), QStringLiteral("A4=z"), QStringLiteral("B4=5"), QStringLiteral("C4=15")});
 }
 
+// A block of 400 by 400 cells: numbers in all of them, or words in all of them but the last column (one number in each row).
+constexpr int kBig = 400;
+QByteArray bigBook(bool wordsAndOneNumber)
+{
+    QStringList specs;
+    specs.reserve(kBig * kBig);
+    for (int r = 0; r < kBig; ++r)
+        for (int c = 0; c < kBig; ++c)
+            specs << cellName(quint32(r), quint32(c)) + QLatin1Char('=') + (wordsAndOneNumber && c < kBig - 1 ? QStringLiteral("t") : QString::number(r + c + 1));
+    return sheetOf(specs);
+}
+
+// The block the totals are tried on: all 400 by 400 cells, or for a running total (which writes a cell for each cell, and no more than 100,000 are changed at once) 300 by 300 that include the numbers.
+QString bigBlock(bool running, bool wordsAndOneNumber)
+{
+    const int first = running && wordsAndOneNumber ? kBig - 300 : 0;
+    const int rows = running ? 300 : kBig, cols = running ? 300 : kBig;
+    return cellName(0, quint32(first)) + QLatin1Char(':') + cellName(quint32(rows - 1), quint32(first + cols - 1));
+}
+
 void pick(EditWindow &e, const QString &range)
 {
     const CellRange r = rangeOf(range);
@@ -347,6 +367,295 @@ private Q_SLOTS:
         }
         quick(e)->close();
         QVERIFY(!layerOf(e)->isVisible());
+    }
+
+    // ---- the review's fixes (Nov 24)
+
+    void aRefusedHoldAtTheEndOfALookKeepsTheRuleUntilItIsTakenOut()
+    {
+        EditWindow e;
+        QVERIFY(e.open(quickBook()));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        pick(e, QStringLiteral("B2:C4"));
+        QVERIFY(quick(e)->open());
+        const auto rules = s->condRules(0);
+        quick(e)->look(QStringLiteral("fmt.bars"));
+        QVERIFY(s->condPreviewShown());
+        e.win.w.workbookLoader().refuseHolds(1);
+        s->endCondPreview();
+        QVERIFY(s->condPreviewShown());   // (the rule is still on the sheet, so it is still said to be)
+        QCOMPARE(s->condRules(0).size(), rules.size() + 1);
+        QTRY_VERIFY(!s->condPreviewShown());   // (the next try takes it out)
+        QCOMPARE(s->condRules(0).size(), rules.size());
+        quick(e)->close();
+    }
+
+    void aSaveWhileTheHoldIsRefusedStillWritesNoRule()
+    {
+        EditWindow e;
+        QVERIFY(e.open(quickBook()));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->type(0, 8, 8, QStringLiteral("1")).ok);
+        QVERIFY(e.settle());
+        pick(e, QStringLiteral("B2:C4"));
+        QVERIFY(quick(e)->open());
+        quick(e)->look(QStringLiteral("fmt.top"));
+        QVERIFY(s->condPreviewShown());
+        e.win.w.workbookLoader().refuseHolds(1);
+        QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+        QVERIFY(e.win.w.save());
+        QVERIFY2(savedOk(saved), "the save failed");
+        e.win.w.workbookLoader().refuseHolds(0);
+        Window again;
+        QVERIFY(again.open(e.copyOfFile()));
+        QVERIFY(again.w.session()->condRules(0).isEmpty());
+        quick(e)->close();
+    }
+
+    void undoAndRedoWhileLookingLeaveTheLookOutOfTheirSteps()
+    {
+        EditWindow e;
+        QVERIFY(e.open(quickBook()));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        pick(e, QStringLiteral("B2:C4"));
+        QVERIFY(choose(e, QStringLiteral("fmt.scale")));   // (a step: one rule)
+        const qsizetype one = s->condRules(0).size();
+        QVERIFY(one >= 1);
+        pick(e, QStringLiteral("B2:C4"));
+        QVERIFY(quick(e)->open());
+        quick(e)->look(QStringLiteral("fmt.bars"));
+        QCOMPARE(s->condRules(0).size(), one + 1);
+        e.win.w.undoStack()->undo();
+        QVERIFY(!s->condPreviewShown());
+        QCOMPARE(s->condRules(0).size(), qsizetype(0));
+        quick(e)->look(QStringLiteral("fmt.bars"));
+        QVERIFY(quick(e)->currentChoice() == QStringLiteral("fmt.bars"));
+        e.win.w.undoStack()->redo();
+        QVERIFY(!s->condPreviewShown());
+        QCOMPARE(s->condRules(0).size(), one);
+        quick(e)->close();
+        QCOMPARE(s->condRules(0).size(), one);
+    }
+
+    void deletingTheSheetBeingLookedAtLeavesTheOtherSheetsRulesAlone()
+    {
+        EditWindow e;
+        QVERIFY(e.open(quickBook()));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->insertSheet(-1, QStringLiteral("Two")).ok);
+        QVERIFY(e.settle());
+        jp::office::sheet::CondRule own;
+        own.type = jp::office::sheet::CondRule::Type::CellIs;
+        own.ranges = {rangeOf(QStringLiteral("A1:A3"))};
+        own.op = jp::office::sheet::CondRule::Operator::GreaterThan;
+        own.formula1 = QStringLiteral("0");
+        jp::office::sheet::DifferentialFormat bold;
+        bold.bold = true;
+        QVERIFY(s->addCondRule(1, own, bold).ok);
+        const qsizetype second = s->condRules(1).size();
+        QCOMPARE(second, qsizetype(1));
+        pick(e, QStringLiteral("B2:C4"));
+        QVERIFY(quick(e)->open());
+        quick(e)->look(QStringLiteral("fmt.bars"));
+        QVERIFY(s->condPreviewShown());
+        QVERIFY(s->deleteSheet(0).ok);
+        QVERIFY(e.settle());
+        quick(e)->close();
+        QVERIFY(!s->condPreviewShown());
+        QCOMPARE(s->condRules(1).size(), second);   // (the sheets are never renumbered: the other one is still the second)
+    }
+
+    void aWindowThatGoesWhileLookingTakesTheRuleOffFirst()
+    {
+        auto *e = new EditWindow;
+        QVERIFY(e->open(quickBook()));
+        QVERIFY(e->settle());
+        crunch::EditSession *s = e->win.w.session();
+        pick(*e, QStringLiteral("B2:C4"));
+        QVERIFY(quick(*e)->open());
+        quick(*e)->look(QStringLiteral("fmt.bars"));
+        QVERIFY(s->condPreviewShown());
+        int ended = 0;
+        qsizetype rulesThen = -1;
+        bool shownThen = true;
+        connect(quick(*e), &QuickAnalysis::previewEnded, this, [&] {   // (after the window's own: the rules are read as that left them, and the session is still there)
+            ++ended;
+            rulesThen = s->condRules(0).size();
+            shownThen = s->condPreviewShown();
+        });
+        delete e;
+        QCOMPARE(ended, 1);
+        QCOMPARE(rulesThen, qsizetype(0));
+        QVERIFY(!shownThen);
+    }
+
+    void theButtonIsHiddenForTheWholeOfAnEdit()
+    {
+        EditWindow e;
+        QVERIFY(e.open(quickBook()));
+        QVERIFY(e.settle());
+        pick(e, QStringLiteral("A1:C4"));
+        QVERIFY(quick(e)->isShown());
+        e.type(QStringLiteral("7"));
+        QVERIFY(e.win.w.cellEditor()->isVisible());
+        QVERIFY(!quick(e)->isShown());
+        e.key(Qt::Key_Escape);
+        QVERIFY(!e.win.w.cellEditor()->isVisible());
+        QTRY_VERIFY(quick(e)->isShown());
+        e.type(QStringLiteral("8"));
+        QVERIFY(!quick(e)->isShown());
+        e.key(Qt::Key_Return);
+        QVERIFY(!e.win.w.cellEditor()->isVisible());
+        QTRY_VERIFY(quick(e)->isShown());
+    }
+
+    void theRowRunningTileSaysTotal()
+    {
+        EditWindow e;
+        QVERIFY(e.open(quickBook()));
+        QVERIFY(e.settle());
+        pick(e, QStringLiteral("A1:C4"));
+        QVERIFY(quick(e)->open());
+        QStringList names;
+        for (const QToolButton *b : quick(e)->box()->findChildren<QToolButton *>())
+            if (b->text().contains(QStringLiteral("Running"))) names << b->text();
+        names.sort();
+        QCOMPARE(names, (QStringList{QStringLiteral("Row Running Total"), QStringLiteral("Running Total")}));
+        quick(e)->close();
+    }
+
+    void thePivotTableChoiceIsOneStepOfUndo()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({QStringLiteral("A1=Item"), QStringLiteral("B1=Q1"), QStringLiteral("A2=x"), QStringLiteral("B2=10"), QStringLiteral("A3=y"), QStringLiteral("B3=30"), QStringLiteral("A4=x"),
+                                QStringLiteral("B4=5"), QStringLiteral("A5=y"), QStringLiteral("B5=7")})));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        pick(e, QStringLiteral("A1:B5"));
+        const int index = e.win.w.undoStack()->index(), sheets = int(e.win.w.loaded()->book->info().sheets.size());
+        QVERIFY(choose(e, QStringLiteral("tab.pivot")));
+        QVERIFY(e.settle());
+        QCOMPARE(int(e.win.w.loaded()->book->info().sheets.size()), sheets + 1);
+        QCOMPARE(e.win.w.undoStack()->index(), index + 1);   // (the table and its sheet are one step)
+        e.win.w.undoStack()->undo();
+        QCOMPARE(int(e.win.w.loaded()->book->info().sheets.size()), sheets);
+        QCOMPARE(s->workbook()->pivots().tableCount(), 0);
+    }
+
+    void totalsRefuseASpilledResultBesideTheCells()
+    {
+        EditWindow e;
+        QVERIFY(e.open(quickBook()));
+        QVERIFY(e.settle());
+        crunch::EditSession *s = e.win.w.session();
+        QVERIFY(s->type(0, 4, 0, QStringLiteral("=SEQUENCE(1,3)")).ok);   // (A5, B5, and C5)
+        QVERIFY(e.settle());
+        QCOMPARE(e.shownAt(QStringLiteral("B5")), QStringLiteral("2"));
+        pick(e, QStringLiteral("A1:C4"));
+        const auto plan = s->planQuickTotals(0, rangeOf(QStringLiteral("A1:C4")), crunch::EditSession::QuickTotal::Sum, true);
+        QVERIFY(!plan.ok);
+        QVERIFY(plan.problem.contains(QStringLiteral("spilled")));
+        const int index = e.win.w.undoStack()->index();
+        QVERIFY(choose(e, QStringLiteral("tot.0.down")));
+        QVERIFY(e.settle());
+        QCOMPARE(e.win.w.undoStack()->index(), index);
+        QCOMPARE(e.win.told.size(), 1);
+        QCOMPARE(e.shownAt(QStringLiteral("B5")), QStringLiteral("2"));
+        QCOMPARE(e.shownAt(QStringLiteral("C5")), QStringLiteral("3"));
+    }
+
+    void totalsRefuseCellsCoveredByAMerge()
+    {
+        for (const bool down : {true, false}) {
+            EditWindow e;
+            QVERIFY(e.open(quickBook()));
+            QVERIFY(e.settle());
+            crunch::EditSession *s = e.win.w.session();
+            // (down: B5 is the merge's anchor and C5 is covered; across: the same in column D)
+            const CellRange merged = rangeOf(down ? QStringLiteral("B5:C5") : QStringLiteral("D3:D4"));
+            QVERIFY(s->mergeCells(0, merged, crunch::EditSession::MergeKind::Merge, true).ok);
+            QVERIFY(e.settle());
+            const auto before = e.win.w.calculation()->mergesOf(0);
+            QCOMPARE(before.size(), 1);
+            pick(e, QStringLiteral("A1:C4"));
+            const int index = e.win.w.undoStack()->index();
+            QVERIFY(choose(e, down ? QStringLiteral("tot.0.down") : QStringLiteral("tot.0.across")));
+            QVERIFY(e.settle());
+            QCOMPARE(e.win.w.undoStack()->index(), index);
+            QCOMPARE(e.win.told.size(), 1);
+            QVERIFY(e.win.told.first().contains(QStringLiteral("merged")));
+            QCOMPARE(e.win.w.calculation()->mergesOf(0), before);   // (the merge is as it was)
+            QCOMPARE(e.shownAt(down ? QStringLiteral("B5") : QStringLiteral("D2")), QString());
+            QCOMPARE(e.shownAt(down ? QStringLiteral("C5") : QStringLiteral("D3")), QString());
+        }
+    }
+
+    void aPlanReadsEachCellOfTheBlockOnce()
+    {
+        for (const bool words : {false, true}) {
+            EditWindow e;
+            QVERIFY(e.open(bigBook(words)));
+            QVERIFY(e.settle());
+            crunch::EditSession *s = e.win.w.session();
+            for (int kind = 0; kind <= 4; ++kind)
+                for (const bool down : {true, false}) {
+                    const CellRange block = rangeOf(bigBlock(kind == 4, words));
+                    const auto plan = s->planQuickTotals(0, block, crunch::EditSession::QuickTotal(kind), down);
+                    QVERIFY2(plan.ok, qPrintable(plan.problem));
+                    QCOMPARE(s->quickCellsRead(), block.cellCount());   // (one pass: a plan that looks for numbers cell by cell reads many times that)
+                    QVERIFY(!plan.cells.empty());
+                }
+        }
+    }
+
+    void aLookAtTotalsReadsNoMoreThanItsBudget()
+    {
+        for (const bool words : {false, true}) {
+            EditWindow e;
+            QVERIFY(e.open(bigBook(words)));
+            QVERIFY(e.settle());
+            crunch::EditSession *s = e.win.w.session();
+            for (int kind = 0; kind <= 4; ++kind)
+                for (const QString &way : {QStringLiteral("down"), QStringLiteral("across")}) {
+                    pick(e, bigBlock(kind == 4, words));
+                    QVERIFY(quick(e)->open());
+                    const qint64 cells = rangeOf(bigBlock(kind == 4, words)).cellCount();
+                    const QString id = QStringLiteral("tot.%1.%2").arg(kind).arg(way);
+                    quick(e)->look(id);
+                    QCOMPARE(quick(e)->currentChoice(), id);
+                    QVERIFY2(layerOf(e)->isVisible(), qPrintable(id));
+                    // (the plan's one pass, and a look that reads at most its budget: the largest block of a share of the whole counts the block too)
+                    QVERIFY2(s->quickCellsRead() <= cells + crunch::EditSession::kQuickLookReads, qPrintable(id));
+                    if (!e.win.w.quickLookNote().isEmpty()) {
+                        QCOMPARE(e.win.w.quickLookNote(), QStringLiteral("There are too many cells to show a preview."));
+                        QCOMPARE(s->quickCellsRead(), cells);   // (it said so before it read any)
+                    }
+                    quick(e)->close();
+                }
+        }
+    }
+
+    void aLookTooBigToShowStillLetsTheChoiceBeMade()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bigBook(false)));
+        QVERIFY(e.settle());
+        pick(e, cellName(0, 0) + QLatin1Char(':') + cellName(kBig - 1, kBig - 1));
+        QVERIFY(quick(e)->open());
+        quick(e)->look(QStringLiteral("tot.3.down"));   // (a share of the whole: the whole block and 200 columns of it, more than the budget)
+        QCOMPARE(e.win.w.quickLookNote(), QStringLiteral("There are too many cells to show a preview."));
+        quick(e)->look(QStringLiteral("tot.0.down"));   // (a sum of 200 columns: within it)
+        QVERIFY(e.win.w.quickLookNote().isEmpty());
+        quick(e)->close();
+        const int index = e.win.w.undoStack()->index();
+        QVERIFY(choose(e, QStringLiteral("tot.3.down")));
+        QVERIFY(e.settle());
+        QCOMPARE(e.win.w.undoStack()->index(), index + 1);
+        QVERIFY(e.shownAt(cellName(kBig, 0)).endsWith(QLatin1Char('%')));
     }
 
     void aTableASparklineGroupAndAPivotTableAreMade()

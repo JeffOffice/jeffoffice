@@ -43,6 +43,7 @@ QuickAnalysis::QuickAnalysis(QWidget *host, QWidget *focus, const Tabs &tabs) : 
 
 QuickAnalysis::~QuickAnalysis()
 {
+    endLook();   // (whoever is looking is told, as a close tells them)
     dropBox();
     if (m_button) delete m_button;
 }

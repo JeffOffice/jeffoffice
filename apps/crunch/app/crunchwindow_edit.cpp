@@ -257,6 +257,7 @@ void CrunchWindow::beginEdit(const QString &initial, CellEditor::Mode mode, bool
         return;
     }
     m_edit.active = true;
+    updateQuickAnalysis();   // (no button while a cell is being edited)
     m_autoTyped = initial;
     m_autoColumn.clear();
     m_autoColumnKnown = false;
@@ -604,6 +605,7 @@ void CrunchWindow::finishEdit(CellEditor::Way way)
     else m_tabRow = m_view->selection().activeRow;
     m_finishing = false;
     updateBars();
+    updateQuickAnalysis();
 }
 
 void CrunchWindow::cancelEdit()
@@ -621,6 +623,7 @@ void CrunchWindow::cancelEdit()
     if (!m_calculating && !m_loading) setStatus(tr("Ready"));
     m_view->setFocus(Qt::OtherFocusReason);
     updateBars();
+    updateQuickAnalysis();
 }
 
 void CrunchWindow::onCellsChanged(int sheet, const std::vector<jp::grid::ValueStore::Item> &cells)

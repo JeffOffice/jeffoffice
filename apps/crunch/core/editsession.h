@@ -525,6 +525,7 @@ public:
         quint32 row = 0, col = 0;
         QString formula;   // without the "=", as the file writes it
         bool percent = false;
+        jp::office::sheet::CellRange range;   // the cells it totals (what a look at it reads)
     };
     struct QuickTotalsPlan {
         bool ok = false;
@@ -532,17 +533,28 @@ public:
         std::vector<QuickCell> cells;
         qint64 overwrites = 0;           // how many of the cells already hold something
         jp::office::sheet::CellRange data;   // the cells the totals are of
+        qint64 blockCells = 0;           // the cells of the whole block (a share of the whole reads them once)
     };
     QuickTotalsPlan planQuickTotals(int sheet, const jp::office::sheet::CellRange &selection, QuickTotal kind, bool down) const;
     Outcome applyQuickTotals(int sheet, const QuickTotalsPlan &plan, const QString &text);
     // The most cells a plan looks at, and the fewest with data the button needs to be offered; whether the cells of the block hold at least two things (looking at no more than kQuickProbe).
     static constexpr qint64 kQuickScan = 250000;
     static constexpr qint64 kQuickProbe = 4096;
+    static constexpr int kMostPreviewTries = 40;   // (tries to take a rule of a look out when the workbook is busy)
     bool quickHasData(int sheet, const jp::office::sheet::CellRange &selection) const;
+    // What a look at totals shows: the first `most` cells of the plan worked out from the cells (the plan itself is not evaluated as formulas). It reads at most kQuickLookReads cells; a look that
+    // would read more is `tooMany` and shows nothing. `quickCellsRead` counts the cells the last plan and look read (for tests).
+    struct QuickLook {
+        bool tooMany = false;
+        std::vector<QString> shown;
+    };
+    static constexpr qint64 kQuickLookReads = 200000;
+    QuickLook lookQuickTotals(int sheet, const QuickTotalsPlan &plan, QuickTotal kind, int most) const;
+    qint64 quickCellsRead() const { return m_quickReads; }
     // The rule shown on the sheet while a choice is looked at: put in the sheet's rules without a step of Undo, and taken out again by `endCondPreview` (nothing else is changed, and the file
     // is as it was). Not ok, with the reason, when the sheet's rules can't be changed now.
     Outcome previewCondRule(int sheet, jp::office::sheet::CondRule rule, const jp::office::sheet::DifferentialFormat &format);
-    void endCondPreview();
+    void endCondPreview();   // (if the workbook is busy, the rule stays and is taken out at the next try: another look, a save, or the timer, a bounded number of times)
     bool condPreviewShown() const { return m_previewSheet >= 0; }
 
     // Fill: the cells past a block, in a direction, given what the block holds (the fill handle and Fill Series), or a copy of it (Ctrl+D, Ctrl+R). Each line of the block (a column
@@ -1551,6 +1563,9 @@ private:
     QList<QStringList> m_customLists;
     int m_previewSheet = -1;   // the sheet that shows a rule of Quick Analysis (previewCondRule), and what it had to give back
     QVector<jp::office::sheet::CondRule> m_previewBefore;
+    int m_previewTries = 0;
+    QTimer m_previewTimer;
+    mutable qint64 m_quickReads = 0;
     qint32 m_previewDxf = -1;
     quint32 m_condUid = 0, m_condUidMark = 0;   // (the uid the last rule made had, and the one it had when the file was last saved)
     struct CondSnap {

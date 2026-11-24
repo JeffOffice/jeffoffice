@@ -316,6 +316,9 @@ EditSession::EditSession(WorkbookLoader *loader, const std::shared_ptr<LoadedBoo
     connect(&m_purgeTimer, &QTimer::timeout, this, [this] {
         if (purgeSome(kPurgeSliceCells)) m_purgeTimer.start();
     });
+    m_previewTimer.setSingleShot(true);
+    m_previewTimer.setInterval(50);
+    connect(&m_previewTimer, &QTimer::timeout, this, [this] { endCondPreview(); });
     if (m_book && m_book->calc) {
         m_pages.open(*m_book->calc);
         std::vector<std::vector<jp::office::sheet::LinkSpec>> links;

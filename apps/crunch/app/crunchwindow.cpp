@@ -287,6 +287,10 @@ CrunchWindow::CrunchWindow(QWidget *parent) : AppWindow(parent)
 CrunchWindow::~CrunchWindow()
 {
     qApp->removeEventFilter(this);   // (the filter of the File screen: off before anything it reads goes)
+    if (m_quick) {
+        m_quick->close();   // (a look at a choice is ended while the session is whole: its rule comes off the sheet)
+        m_quick->disconnect(this);
+    }
     delete m_pasteOffer;   // (the button does not call back a window that is closing)
     if (m_compatCancel) m_compatCancel->store(true);   // (a check of what a copy would lose is stopped and waited for, before anything it uses goes)
     m_compatWorker.reset();
