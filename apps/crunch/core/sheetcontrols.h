@@ -65,8 +65,8 @@ public:
 
     // The workbook whose controls are shown; everything is forgotten.
     void open(const std::shared_ptr<jp::office::sheet::Workbook> &book);
-    // Where the value of a cell is asked (as the grid shows it).
-    void setValueSource(ValueSource source) { m_values = std::move(source); }
+    // Where the value of a cell is asked (as the grid shows it). The controls already listed take their cells' values as the ones they are to follow from here on.
+    void setValueSource(ValueSource source);
     // Where the edits of rows and columns made since the file was read or saved are kept: a control moves with them (its anchor, and the cell and range it names), and one whose first cell is
     // deleted is gone until Undo brings the cells back.
     using EditsSource = std::function<const std::vector<jp::office::sheet::StructEdit> &()>;

@@ -34,6 +34,14 @@ void SheetControls::open(const std::shared_ptr<Workbook> &book)
     if (m_book) m_sheets.resize(size_t(std::max(0, int(m_book->info().sheets.size()))));
 }
 
+void SheetControls::setValueSource(ValueSource source)
+{
+    m_values = std::move(source);
+    // (a sheet shown before the values were here had no look at its cells: what they say now is where it starts, so a change after this is seen as one)
+    for (size_t sheet = 0; sheet < m_sheets.size(); ++sheet)
+        if (m_sheets[sheet].listed) refresh(int(sheet));
+}
+
 QString SheetControls::kindName(ControlKind kind)
 {
     switch (kind) {

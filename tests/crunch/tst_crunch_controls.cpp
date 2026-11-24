@@ -878,6 +878,39 @@ private Q_SLOTS:
         QCOMPARE(controls->itemsOf(0, idOf(e, QStringLiteral("List Box 7"))).value(1), QStringLiteral("7"));
     }
 
+    // A sheet shown before the values were there (the first screen comes before the whole workbook) still follows its cells: a cell that changes after that is seen as a change.
+    void aSheetShownBeforeTheValuesFollowsItsCells()
+    {
+        EditWindow e;
+        QVERIFY(e.open(controlBook()));
+        QTRY_COMPARE(shownCount(e), 10);
+        QVERIFY(e.settle());
+        const std::shared_ptr<jp::office::sheet::Workbook> book = e.win.w.workbookLoader().result()->book;
+        for (const bool valuesFirst : {false, true}) {
+            crunch::SheetControls fresh;
+            fresh.open(book);
+            jp::calc::Value cell;   // (E1)
+            auto source = [&cell](int, quint32 row, quint32 col) { return row == 0 && col == 4 ? cell : jp::calc::Value(); };
+            if (valuesFirst) fresh.setValueSource(source);
+            QCOMPARE(int(fresh.layerObjects(0).size()), 10);   // (the sheet is shown)
+            if (!valuesFirst) {
+                QCOMPARE(fresh.looks(), qint64(0));   // (no values: no look at any cell)
+                fresh.setValueSource(source);
+            }
+            const int id = idOf(e, QStringLiteral("Check Box 1"));
+            QCOMPARE(fresh.controlOf(0, id).checked, 0);
+            cell = jp::calc::Value::boolean(true);
+            jp::grid::ValueStore::Item item;
+            item.sheet = 0;
+            item.row = 0;
+            item.col = 4;
+            item.value = cell;
+            const std::vector<int> changed = fresh.refreshCells({item});
+            QVERIFY2(fresh.controlOf(0, id).checked == 1, qPrintable(QStringLiteral("values first: %1, checked %2").arg(valuesFirst).arg(fresh.controlOf(0, id).checked)));
+            QCOMPARE(int(changed.size()), 1);
+        }
+    }
+
     // Format Control shows a limit as the file has it (past 30000 too), and an OK that changes nothing changes nothing.
     void formatControlWithNoChangeWritesNothing()
     {
