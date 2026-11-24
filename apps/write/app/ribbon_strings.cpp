@@ -104,6 +104,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Mailings"),
     QT_TRANSLATE_NOOP("Ribbon", "Margins"),
     QT_TRANSLATE_NOOP("Ribbon", "Merge"),
+    QT_TRANSLATE_NOOP("Ribbon", "Merge Shapes"),
     QT_TRANSLATE_NOOP("Ribbon", "Multilevel List"),
     QT_TRANSLATE_NOOP("Ribbon", "Navigation"),
     QT_TRANSLATE_NOOP("Ribbon", "Object"),

@@ -2263,6 +2263,14 @@ bool PageView::noteLineAtEdge(int dir)
 
 bool PageView::floatingPictureRect(int position, QRectF *onPage, int *pageOut)
 {
+    std::shared_ptr<Item> item;
+    if (!floatingPictureItem(position, &item, pageOut)) return false;
+    *onPage = item->rect;
+    return true;
+}
+
+bool PageView::floatingPictureItem(int position, std::shared_ptr<Item> *item, int *pageOut)
+{
     if (!m_doc || m_hf.active || m_note.active) return false;
     const QTextCharFormat cf = charFormatAt(m_doc->story(), position);
     const int id = cf.intProperty(flow::fp::AnchorId);
@@ -2276,7 +2284,7 @@ bool PageView::floatingPictureRect(int position, QRectF *onPage, int *pageOut)
         const QString prefix = QStringLiteral("flow-object-%1-%2-").arg(r->page->doc->pages[0]->id).arg(id);
         for (const auto &it : r->page->doc->pages[0]->items)
             if (it->id.startsWith(prefix)) {
-                *onPage = it->rect;
+                *item = it;
                 *pageOut = candidate;
                 return true;
             }

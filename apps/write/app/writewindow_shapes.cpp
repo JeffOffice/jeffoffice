@@ -8,6 +8,8 @@
 #include "app/icons.h"
 #include <QScrollBar>
 #include "app/pageview.h"
+#include "app/shapetools.h"
+#include "app/uistyle.h"
 #include "app/ribbon.h"
 #include "app/filedialogs.h"
 #include "app/ribbonbuilder.h"
@@ -212,6 +214,19 @@ void WriteWindow::createShapeActions()
         if (act("shape.editPoints")->isChecked()) statusBar()->showMessage(tr("Drag a point to reshape. Ctrl+click a point to delete it, or the outline to add one. Press Esc when done."), 8000);
         m_view->setFocus(Qt::OtherFocusReason);
     }, true);
+    {
+        // Merge Shapes: the commands, words, and icons of the other programs (libs/page/app/shapetools.cpp).
+        const pathops::Op ops[5] = {pathops::Op::Union, pathops::Op::Combine, pathops::Op::Subtract, pathops::Op::Intersect, pathops::Op::Fragment};
+        const char *icons[5] = {"combine", "merge", "square-minus", "blend", "slice"};
+        const QString names[5] = {QCoreApplication::translate("jp::ShapeTools", "Union"), QCoreApplication::translate("jp::ShapeTools", "Combine"), QCoreApplication::translate("jp::ShapeTools", "Subtract"),
+                                  QCoreApplication::translate("jp::ShapeTools", "Intersect"), QCoreApplication::translate("jp::ShapeTools", "Fragment")};
+        for (int i = 0; i < 5; ++i) {
+            const pathops::Op op = ops[i];
+            mk(QLatin1String(jp::kMergeShapeIds[i]), names[i], icons[i], QKeySequence(), [this, op] { mergeShapes(op); });
+        }
+        connect(m_view, &write::PageView::mergeBusy, this, [this](const QString &text, std::atomic<bool> *cancel) { jp::showMergeBox(this, text, cancel); });
+        connect(m_view, &write::PageView::mergeBusyEnded, this, [this] { jp::closeMergeBox(this); });
+    }
     mk("shape.editText", tr("Edit Text…"), "square-pen", QKeySequence(), [this] { editShapeText(); });
     mk("shape.createLink", tr("Create Link"), "link", QKeySequence(), [this] {
         if (!m_doc) return;
@@ -1187,6 +1202,29 @@ void WriteWindow::shapeRibbonParts(RibbonParts &parts)
     }
 }
 
+void WriteWindow::mergeShapes(jp::pathops::Op op)
+{
+    if (!m_doc) return;
+    // (The words of the shapes taken out go: ask once first.)
+    if (m_view->mergeWordsLost() > 0) {
+        jp::MessageBox box(QMessageBox::Question, QCoreApplication::translate("jp::ShapeTools", "Merge Shapes"),
+                           tr("Some of the shapes have text. Merging removes the text of every shape but the first one you selected. Merge anyway?"), QMessageBox::NoButton, this);
+        box.setObjectName(QStringLiteral("mergeTextBox"));
+        box.setTextFormat(Qt::PlainText);
+        box.addButton(QMessageBox::Cancel);
+        QPushButton *go = box.addButton(QCoreApplication::translate("jp::ShapeTools", "Merge"), QMessageBox::AcceptRole);
+        box.exec();
+        if (box.clickedButton() != go) return;
+    }
+    QString why;
+    int made = 0, lost = 0;
+    const bool ok = m_view->mergeSelectedShapes(op, &why, &made, &lost);
+    QString message = !ok ? why : made > 1 ? QCoreApplication::translate("jp::ShapeTools", "Made %n shapes.", "", made) : QString();
+    if (ok && lost > 0) message += (message.isEmpty() ? QString() : QStringLiteral(" ")) + tr("The text of the other shapes was removed.");
+    if (!message.isEmpty()) statusBar()->showMessage(message, 8000);
+    m_view->setFocus(Qt::OtherFocusReason);
+}
+
 void WriteWindow::refreshShapeUi()
 {
     const bool body = m_doc && !m_view->inHeaderFooter() && !m_view->inNote();
@@ -1217,6 +1255,11 @@ void WriteWindow::refreshShapeUi()
         if (name == QLatin1String("picture.crop") || name == QLatin1String("picture.reset") || name == QLatin1String("picture.change") || name == QLatin1String("picture.compress") || name.startsWith(QLatin1String("picture.correct.")) ||
             name.startsWith(QLatin1String("picture.recolor.")) || name.startsWith(QLatin1String("picture.aspect.")) || name == QLatin1String("picture.fill") || name == QLatin1String("picture.fit"))
             a->setEnabled(picture);
+    }
+    {
+        // Merge Shapes needs two or more shapes or text boxes set at a place on one page (what the command would refuse stays off).
+        const bool merges = m_doc && !isReadOnly() && m_view->canMergeSelectedShapes();
+        for (const char *id : jp::kMergeShapeIds) act(QLatin1String(id))->setEnabled(merges);
     }
     if (picture) {
         for (const int v : {-40, -20, 20, 40}) {

@@ -18,6 +18,7 @@ namespace jp { class ShapeTextEdit; }
 #include "core/editops.h"
 #include "core/pictureops.h"
 #include "core/tableops.h"
+#include "core/pathops.h"
 #include "core/writedoc.h"
 #include "ole/embedobj.h"
 #include "wml/wmlhtmlread.h"
@@ -27,6 +28,7 @@ namespace jp { class ShapeTextEdit; }
 #include <QPointer>
 #include <QTextCursor>
 #include <QTimer>
+#include <atomic>
 #include <functional>
 #include <QHash>
 #include <memory>
@@ -337,6 +339,14 @@ public:
     // Group joins the selected objects into one (two or more, each set at a place on one page), Ungroup takes the selected group apart; each is one step, and false with a notice
     // when it can't be done.
     bool groupSelectedObjects();
+    // Merge Shapes: the shapes selected together (two or more shapes or text boxes set at a place on one page, at most 64) become one outline, or the pieces they cut one another into; the first
+    // selected keeps its look, words, and place in the text, the others go; one step. `*why` says it when nothing is done (and a notice is not sent); `*made` is the number of shapes made;
+    // `*wordsLost` the number of the shapes taken out that held words (their words go; the window asks first, with mergeWordsLost). Work past a quick one runs on a thread of its own
+    // between mergeBusy and mergeBusyEnded; the box that cancels it is the window's.
+    bool canMergeSelectedShapes();
+    int mergeWordsLost();
+    bool mergeSelectedShapes(pathops::Op op, QString *why = nullptr, int *made = nullptr, int *wordsLost = nullptr);
+    std::function<void(int step, std::atomic<bool> &cancel)> mergeStepHook;   // (for tests: called on the worker before each step)
     // Distribute: the three or more objects selected together (each set at a place, on one page) are spread to equal gaps across or down, as one step.
     bool distributeSelectedObjects(bool horizontal);
     // Edit Points: the points of the selected shape's outline are shown and pulled (Ctrl+click a point takes it away, Ctrl+click the outline puts one in); Escape, or another selection, ends it.
@@ -479,6 +489,8 @@ Q_SIGNALS:
     void headerFooterModeChanged();         // a header or footer is edited now, or none is any more
     void noteModeChanged();                 // a footnote is edited now, or none is any more
     void notice(const QString &text);       // a sentence for the person about what a command could not do
+    void mergeBusy(const QString &text, std::atomic<bool> *cancel);   // a merge of shapes takes long: a box with Cancel is shown (it sets `*cancel`)
+    void mergeBusyEnded();
     void linkFollowed(const QString &address, const QString &shown);   // Ctrl+click on a link to an address outside the document, with the words it shows (the window asks if need be, then opens it)
 
 protected:
@@ -631,6 +643,8 @@ private:
     // A picture set at a place on the page: its rectangle on the page (points) and the page, from the items the page was made with; and the position of the picture a point of a page
     // is in (the front-most), -1 for none.
     bool floatingPictureRect(int position, QRectF *onPage, int *page);
+    // The same with the item the page was made with (its outline, turn, and flips).
+    bool floatingPictureItem(int position, std::shared_ptr<Item> *item, int *page);
     int floatingPictureAt(const Hit &hit);
     // A drag of the selected text: begun by a press inside the selection (`pending`, until the pointer has moved far enough), carried while the drag runs (`active`), and `done` once a
     // drop on this view has moved or copied the text.

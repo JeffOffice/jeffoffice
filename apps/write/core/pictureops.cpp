@@ -4230,6 +4230,182 @@ bool ungroupObject(WriteDoc &doc, int position, const QPointF &pageTopLeft, QVec
     return true;
 }
 
+// ---- Merge Shapes
+
+namespace {
+
+// A drawing larger than this is not looked into for Merge Shapes (its outline is bounded by the shared limits, but its words are not).
+constexpr qsizetype kMostMergeBytes = 1 << 20;
+
+// The shape at a place when it can be merged with others: one set at a place on the page, in a paragraph that is not locked, that is a plain shape or text box (no picture, chart, group, line, or
+// text art). `out` gets its drawing.
+bool mergeableAt(const WriteDoc &doc, int position, Model *out = nullptr)
+{
+    const QTextDocument *story = doc.story();
+    if (!story || position < 0 || position + 1 > story->characterCount() - 1 || isLocked(story->findBlock(position))) return false;
+    Inline atom;
+    if (!drawingAtomOf(formatAfter(story, position), &atom) || atom.raw.size() > kMostMergeBytes) return false;
+    Model m;
+    if (!parseDrawing(atom.raw, &m) || !m.floating || m.cx <= 0 || m.cy <= 0 || !isShapeGraphic(m.graphic) || m.graphic.contains("<wpg:wgp") || m.graphic.contains("c:chart")) return false;
+    SpPr sp;
+    if (!splitSpPr(m.graphic, &sp)) return false;
+    const PictureInfo info = pictureAt(doc, story, position);
+    if (!info.valid || !info.editable || (info.kind != DrawnKind::Shape && info.kind != DrawnKind::TextBox) || textArtAt(doc, position)) return false;
+    if (out) *out = m;
+    return true;
+}
+
+} // namespace
+
+bool canMergeShape(const WriteDoc &doc, int position) { return mergeableAt(doc, position); }
+
+bool shapeHoldsWords(const WriteDoc &doc, int position)
+{
+    Model m;
+    if (!mergeableAt(doc, position, &m)) return false;
+    const qsizetype open = m.graphic.indexOf("<w:txbxContent");
+    if (open < 0) return false;
+    const qsizetype close = m.graphic.lastIndexOf("</w:txbxContent>");
+    const QString inside = QString::fromUtf8(m.graphic.mid(open, close < open ? -1 : close - open));
+    // (Words, or anything else a text box can hold that a shape without a box does not: a picture, a field, a symbol.)
+    static const QRegularExpression held(QStringLiteral("<w:t(?:\\s[^>]*)?>[^<]*\\S|<w:drawing|<w:pict|<w:object|<w:fldChar|<w:fldSimple|<w:sym\\b"));
+    return held.match(inside).hasMatch();
+}
+
+bool mergeShapeObjects(WriteDoc &doc, const QVector<int> &positions, const QVector<QPainterPath> &pieces, const QTransform &firstTurn, QVector<int> *made)
+{
+    QTextDocument *story = doc.story();
+    constexpr int kMostPiecesMade = 256, kMostShapesMerged = 64;   // (the shared merge's: pathops::kMostShapes and kMostPieces)
+    if (!story || positions.size() < 2 || positions.size() > kMostShapesMerged || pieces.isEmpty() || pieces.size() > kMostPiecesMade) return false;
+    QVector<Model> models;
+    for (int i = 0; i < positions.size(); ++i) {
+        for (int j = 0; j < i; ++j)
+            if (positions[j] == positions[i]) return false;
+        Model m;
+        if (!mergeableAt(doc, positions[i], &m)) return false;
+        models.push_back(m);
+    }
+    // (The words of the first shape keep their turn and flips: the outline is then worked out in the first shape's own frame. Without words the new shape is not turned.)
+    const bool keepTurn = shapeHoldsWords(doc, positions.first());
+    const QTransform linear(firstTurn.m11(), firstTurn.m12(), firstTurn.m21(), firstTurn.m22(), 0, 0);
+    bool turnable = false;
+    const QTransform back = keepTurn ? linear.inverted(&turnable) : QTransform();
+    if (keepTurn && (!turnable || !std::isfinite(back.m11()) || !std::isfinite(back.m12()) || !std::isfinite(back.m21()) || !std::isfinite(back.m22()))) return false;
+    const QTransform into = keepTurn ? back : QTransform();
+    const QTransform out = keepTurn ? linear : QTransform();
+    struct Piece {
+        QPainterPath local;   // in the new frame, in points
+        QSizeF size;
+        qint64 x = 0, y = 0, cx = 0, cy = 0;   // the frame on the page, in EMU
+    };
+    QVector<Piece> made_;
+    for (const QPainterPath &page : pieces) {
+        const QPainterPath turned = into.map(page);
+        const QRectF box = turned.boundingRect();
+        if (turned.isEmpty() || !std::isfinite(box.left()) || !std::isfinite(box.top()) || !std::isfinite(box.width()) || !std::isfinite(box.height())) return false;
+        Piece p;
+        p.size = QSizeF(std::max(box.width(), 0.05), std::max(box.height(), 0.05));
+        p.local = QTransform::fromTranslate(-box.left(), -box.top()).map(turned);
+        const QPointF centre = out.map(box.center());
+        p.x = emuRound(centre.x() - p.size.width() / 2);
+        p.y = emuRound(centre.y() - p.size.height() / 2);
+        p.cx = std::max<qint64>(1, emuOf(p.size.width()));
+        p.cy = std::max<qint64>(1, emuOf(p.size.height()));
+        if (p.cx > emuOf(kMostPictureSize * 2) || p.cy > emuOf(kMostPictureSize * 2)) return false;
+        made_.push_back(p);
+    }
+    // The drawing of one piece: the first shape's, with its outline and frame the piece's; the extra pieces have no words.
+    auto shaped = [&](Model m, const Piece &p, bool extra) {
+        if (extra) {
+            const qsizetype open = m.graphic.indexOf("<wps:txbx"), close = m.graphic.lastIndexOf("</wps:txbx>");
+            if (open >= 0 && close > open) m.graphic.remove(open, close + 11 - open);
+            static const QRegularExpression linked(QStringLiteral("<wps:linkedTxbx\\b[^>]*/>"));
+            m.graphic = QString::fromUtf8(m.graphic).remove(linked).toUtf8();
+        }
+        SpPr sp;
+        if (!splitSpPr(m.graphic, &sp)) return Model();
+        QByteArray attrs;
+        for (const SpPr::Child &c : sp.children)
+            if (c.slot == SlotXfrm) {
+                Attributes a = attributesOf(c.raw.left(c.raw.indexOf('>') + 1));
+                if (!keepTurn) {
+                    removeAttribute(&a, "rot");
+                    removeAttribute(&a, "flipH");
+                    removeAttribute(&a, "flipV");
+                }
+                attrs = written(a);
+            }
+        auto n = [](qint64 v) { return QByteArray::number(v); };
+        setSlot(&sp, SlotXfrm, "xfrm", "<a:xfrm" + attrs + "><a:off x=\"0\" y=\"0\"/><a:ext cx=\"" + n(p.cx) + "\" cy=\"" + n(p.cy) + "\"/></a:xfrm>");
+        setSlot(&sp, SlotGeometry, "custGeom", office::customGeometryXml(p.local, p.size, QRectF(QPointF(0, 0), p.size), pts::sideSites(p.local, p.size)));
+        m.graphic = joinSpPr(m.graphic, sp);
+        m.cx = p.cx;
+        m.cy = p.cy;
+        m.posH = "<wp:positionH relativeFrom=\"page\"><wp:posOffset>" + n(p.x) + "</wp:posOffset></wp:positionH>";
+        m.posV = "<wp:positionV relativeFrom=\"page\"><wp:posOffset>" + n(p.y) + "</wp:posOffset></wp:positionV>";
+        m.effectExtent.clear();
+        if (m.wrap == PictureWrap::Tight) m.wrapRaw.clear();
+        return m;
+    };
+    const int first = positions.first();
+    const Model firstModel = shaped(models.first(), made_.first(), false);
+    if (firstModel.graphic.isEmpty()) return false;
+    QTextCursor edit(story);
+    edit.beginEditBlock();
+    const bool changed = changePicture(doc, first, [&](Model &g) {
+        g = firstModel;
+        return true;
+    });
+    if (!changed) {
+        edit.endEditBlock();
+        return false;
+    }
+    // The other shapes go, from the last to the first so that the places hold.
+    QVector<int> gone = positions.mid(1);
+    std::sort(gone.begin(), gone.end(), std::greater<int>());
+    int before = 0;
+    for (const int at : gone) {
+        const QTextCharFormat was = formatAfter(story, at);
+        QTextCursor del(story);
+        del.setPosition(at);
+        del.setPosition(at + 1, QTextCursor::KeepAnchor);
+        del.removeSelectedText();
+        doc.retireDrawnForm(was);
+        if (at < first) ++before;
+    }
+    const int place = first - before;
+    QVector<int> where{place};
+    for (int i = 1; i < made_.size(); ++i) {
+        Model m = shaped(firstModel, made_[i], true);
+        if (m.graphic.isEmpty()) {
+            edit.endEditBlock();
+            doc.undo();
+            return false;
+        }
+        const int id = doc.nextDrawingId(story);
+        setAttribute(&m.docPr, "id", quote(QByteArray::number(id)));
+        setAttribute(&m.docPr, "name", quote("Freeform " + QByteArray::number(id)));
+        m.docPrInner.clear();
+        // (The same layer as the first: the pieces are drawn where the first was, below what was in front of it, in the order of their places.)
+        Inline atom;
+        atom.kind = Inline::RunAtom;
+        atom.tag = QStringLiteral("drawing");
+        atom.raw = drawingXml(m);
+        QTextCursor at(story);
+        at.setPosition(place + i);
+        if (!insertDrawnAtom(doc, at, atom)) {
+            edit.endEditBlock();
+            doc.undo();
+            return false;
+        }
+        where.push_back(place + i);
+    }
+    edit.endEditBlock();
+    doc.keepObjectsForTheHistory();
+    if (made) *made = where;
+    return true;
+}
+
 namespace {
 // The start tag of the element `raw` begins with, again with the attributes `edit` changed (it says whether it changed any); the rest of `raw` stays as it was.
 bool retagFirst(QByteArray *raw, const std::function<bool(Attributes *)> &edit)

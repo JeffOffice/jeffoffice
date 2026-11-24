@@ -2607,6 +2607,21 @@
               "keytip": "EP"
             },
             {
+              "large": {
+                "id": "ribbon.mergeShapes",
+                "text": "Merge Shapes",
+                "icon": "combine"
+              },
+              "keytip": "MS",
+              "menu": [
+                "shape.union",
+                "shape.combine",
+                "shape.subtract",
+                "shape.intersect",
+                "shape.fragment"
+              ]
+            },
+            {
               "large": "shape.editText",
               "keytip": "ET"
             },

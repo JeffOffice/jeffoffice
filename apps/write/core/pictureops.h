@@ -16,9 +16,11 @@
 #include <QImage>
 #include <QJsonObject>
 #include <QMarginsF>
+#include <QPainterPath>
 #include <QPointF>
 #include <QRectF>
 #include <QSizeF>
+#include <QTransform>
 #include <QStringList>
 #include <QVector>
 #include <QPolygonF>
@@ -476,6 +478,19 @@ bool groupObjects(WriteDoc &doc, const QVector<int> &positions, const QVector<QR
 // flipped group, and one with a group inside it, is not taken apart. `positions` gets the members' places in the text.
 // `look` gets what the group had besides its parts (see groupObjects).
 bool ungroupObject(WriteDoc &doc, int position, const QPointF &pageTopLeft, QVector<int> *positions = nullptr, std::shared_ptr<const GroupLook> *look = nullptr);
+
+// ---- Merge Shapes
+
+// Whether the drawing at `position` is a shape or text box that Merge Shapes can use: set at a place (not in line with the text), in a paragraph that is not locked, and no picture, chart, group, line, or text art.
+bool canMergeShape(const WriteDoc &doc, int position);
+// Whether the shape holds words (or a picture or field in its text box): the merged shape keeps the first shape's, and the other shapes' are lost.
+bool shapeHoldsWords(const WriteDoc &doc, int position);
+// The shapes at `positions` (two or more, the first selected first) become the outlines `pieces` (each in points on the page, as the shared Merge Shapes made it from the shapes as the page draws
+// them): the first shape takes the first piece as its own outline (a freeform), keeping its look, words, wrap, anchor, and alt text, and is set where the piece is on the page; the other shapes
+// are taken out; each piece after the first is a new shape with the first one's look and no words, next to it. One step. `firstTurn` is the first shape's transform on the page: a first shape
+// with words keeps its turn and flips (the piece is put in its frame); otherwise the new shape is not turned. `made` gets the places of the shapes made. False (nothing done) where one
+// shape cannot be used or the pieces cannot be drawn.
+bool mergeShapeObjects(WriteDoc &doc, const QVector<int> &positions, const QVector<QPainterPath> &pieces, const QTransform &firstTurn, QVector<int> *made = nullptr);
 
 // ---- Charts
 

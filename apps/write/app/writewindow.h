@@ -3,6 +3,7 @@
 
 #include "flow/tabledata.h"
 #include "app/appwindow.h"
+#include "core/pathops.h"
 #include "app/chartdesign.h"
 #include "app/compatdialog.h"
 #include "app/infopage.h"
@@ -508,6 +509,7 @@ private:
     void createGridActions();   // writewindow_grid.cpp: the drawing grid and the alignment guides
     void applyGridView();
     void keepGridChoices(const SnapOptions &options);
+    void mergeShapes(jp::pathops::Op op);
     void createPictureAdjustActions();
     void insertEquationDialog();
     void equationDialog(const QString &pick);   // Insert or Edit Equation, with what a button of the Equation tab puts in the line
