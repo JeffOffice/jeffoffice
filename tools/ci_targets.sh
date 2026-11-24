@@ -53,15 +53,15 @@ mode=${4:-targets}
 
 case "$part/$shard" in
 tests/)
-    runs="flowtests crunchtests jdtests writetests writereviewtests writeinfotests writehometests writeinserttests sheettests jptests officetests wmltests odttests writeodttests writerefstests writemailtests writefieldtests writetabs2tests writetailtests writesecmovetests writedrawtests writefiletests" ;;
+    runs="flowtests crunchtests jdtests writetests writereviewtests writeinfotests writehometests writeinserttests sheettests jptests officetests wmltests odttests writeodttests writerefstests writemailtests writefieldtests writetabs2tests writetailtests writesecmovetests writedrawtests writefiletests exittests" ;;
 # (our own Windows machine: the whole part in one job, and JeffDeck's checks with it, which GitHub's job that packages and signs the installer ran until
 # Nov 19 2026: 5 of that job's 14 minutes, the longest of a run)
 tests/ours)
-    runs="flowtests crunchtests jdtests writetests writereviewtests writeinfotests writehometests writeinserttests sheettests jptests officetests wmltests odttests writeodttests writerefstests writemailtests writefieldtests writetabs2tests writetailtests writesecmovetests writedrawtests writefiletests deckchecks" ;;
+    runs="flowtests crunchtests jdtests writetests writereviewtests writeinfotests writehometests writeinserttests sheettests jptests officetests wmltests odttests writeodttests writerefstests writemailtests writefieldtests writetabs2tests writetailtests writesecmovetests writedrawtests writefiletests deckchecks exittests" ;;
 tests/1/2)
     runs="crunchtests:1/2 flowtests writetests jdtests officetests wmltests odttests writeodttests writedrawtests" ;;
 tests/2/2)
-    runs="crunchtests:2/2 jptests sheettests writereviewtests writeinfotests writehometests writeinserttests writerefstests writemailtests writefieldtests writetabs2tests writefiletests writetailtests writesecmovetests" ;;
+    runs="crunchtests:2/2 jptests sheettests writereviewtests writeinfotests writehometests writeinserttests writerefstests writemailtests writefieldtests writetabs2tests writefiletests writetailtests writesecmovetests exittests" ;;
 checks/)
     runs="crunchchecks writechecks pubchecks deckchecks"
     extra="jeffpub jeffdeck jeffwrite jeffcrunch jpubtool jdecktool" ;;

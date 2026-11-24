@@ -743,6 +743,13 @@ set_target_properties(rtfsweep PROPERTIES WIN32_EXECUTABLE OFF EXCLUDE_FROM_ALL 
 qt_add_executable(jwritetool tools/jwritetool.cpp)
 target_link_libraries(jwritetool PRIVATE jwcore)
 set_target_properties(jwritetool PROPERTIES WIN32_EXECUTABLE OFF EXCLUDE_FROM_ALL TRUE)
+# The four programs, started as the person starts them and asked to close their window: each must be gone soon after (tests/shell/tst_shell_exit.cpp).
+qt_add_executable(exittests tests/shell/tst_shell_exit.cpp)
+target_link_libraries(exittests PRIVATE Qt6::Test)
+set_target_properties(exittests PROPERTIES WIN32_EXECUTABLE OFF)
+add_dependencies(exittests jeffpub jeffdeck jeffwrite jeffcrunch)
+add_test(NAME exittests COMMAND exittests)
+set_tests_properties(exittests PROPERTIES ENVIRONMENT "QT_QPA_PLATFORM=offscreen")
 qt_add_executable(writetailtests tests/write/tst_write_tail.cpp)
 target_link_libraries(writetailtests PRIVATE jwcore Qt6::Test)
 set_target_properties(writetailtests PROPERTIES WIN32_EXECUTABLE OFF)
