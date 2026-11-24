@@ -94,6 +94,8 @@ Editor::~Editor()
     // Destroying the undo stack emits cleanChanged; nothing should hear about
     // an editor that is going away.
     blockSignals(true);
+    for (auto &j : m_rbJobs) j->cancel = true;
+    m_rbJobs.clear();
     // (the jobs not begun are let go, so that closing does not wait for the backlog)
     if (m_grammarShared) GrammarCheck::shutDown(m_grammarShared);
     if (m_grammarPool) m_grammarPool->clear();
@@ -118,6 +120,8 @@ void Editor::setDocument(std::unique_ptr<Document> d, const QString &path)
     m_changeDepth = 0;
     if (m_cropOpen) cropItem.clear();
     m_cropOpen = false;
+    if (m_rbOpen) { for (auto &j : m_rbJobs) j->cancel = true; m_rbJobs.clear(); removeBgItem.clear(); }
+    m_rbOpen = false;
     m_text = TextTarget();
     m_cursor = QTextCursor();
     m_readStory.clear();
@@ -443,6 +447,7 @@ void Editor::select(const QStringList &ids, bool add)
     if (!pointsItem.isEmpty() && !next.contains(pointsItem)) pointsItem.clear();
     if (!wrapItem.isEmpty() && !next.contains(wrapItem)) wrapItem.clear();
     if (m_cropOpen && next != QStringList{cropItem}) endCrop(true);
+    if (m_rbOpen && next != QStringList{removeBgItem}) endRemoveBackground(true);
     m_sel = next;
     Q_EMIT selectionChanged();
 }
@@ -453,6 +458,7 @@ void Editor::toggleSelect(const QString &id)
     if (next.contains(id)) next.removeAll(id); else next << id;
     if (isEditingText()) endTextEdit();
     if (m_cropOpen && next != QStringList{cropItem}) endCrop(true);
+    if (m_rbOpen && next != QStringList{removeBgItem}) endRemoveBackground(true);
     m_block = CellBlock();
     m_sel = next;
     Q_EMIT selectionChanged();

@@ -517,11 +517,12 @@ void Exporter::writePicture(X &x, Scope &sc, const PictureItem &p)
     const bool masked = !p.maskShape.isEmpty() && p.maskShape != QLatin1String("rect");
     const bool baked = masked || p.recolor == PictureItem::Sepia || p.recolor == PictureItem::ColorTint || (p.hasTransparentColor && p.transparentColor.isValid()) ||
                        blipEffectsChange(p.blipEffects);
+    if (p.removal.isValid()) sayOnce(QStringLiteral("removebackground"), QCoreApplication::translate("OdpExport", "A picture whose background was removed is kept as the finished picture, and its background can't be brought back or marked again."));
     if (baked) {
         writeAsPicture(x, sc, p);
         return;
     }
-    const QString part = addPicture(p.imageId);
+    const QString part = p.removal.isValid() ? addPictureWithoutBackground(p.imageId, p.removal) : addPicture(p.imageId);
     if (part.isEmpty()) {
         sayOnce(QStringLiteral("nopicture"), QCoreApplication::translate("OdpExport", "A picture that can't be read was left out."));
         return;

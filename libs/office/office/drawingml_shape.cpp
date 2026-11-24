@@ -22,6 +22,7 @@
 #include "wml/wmlmathedit.h"
 #include "wml/wmlmathpath.h"
 
+#include <QJsonDocument>
 #include <QRegularExpression>
 #include <QTextDocument>
 #include <QtMath>
@@ -966,7 +967,21 @@ ItemPtr Reader::pic(const QDomElement &e, const QVector<QDomElement> &inheritsFr
     const QDomElement blipFill = childNamed(e, "blipFill"), blip = childNamed(blipFill, "blip");
     auto p = std::make_shared<PictureItem>();
     decorate(*p, cNvPr, frame, properties, style);
-    p->imageId = loadImage(attrNs(blip, ns::R, QStringLiteral("embed")), styleContext());
+    // A picture whose background was taken off here: the original and the mask are in an extension of ours, and are what the picture is; the blip is the picture as other programs draw it
+    // (it is the picture as it is when the extension is not one this program can use).
+    for (QDomElement ext = childNamed(childNamed(blip, "extLst"), "ext"); !ext.isNull() && p->imageId.isEmpty(); ext = ext.nextSiblingElement()) {
+        const QDomElement kept = childNamed(ext, "removal");
+        const QString data = attr(kept, QStringLiteral("data"));
+        if (kept.isNull() || data.isEmpty() || data.size() > 8 * 1024 * 1024) continue;
+        const QJsonDocument json = QJsonDocument::fromJson(QByteArray::fromBase64(data.toLatin1()));
+        const BackgroundRemoval removal = BackgroundRemoval::fromJson(json.object());
+        if (!removal.isValid()) continue;
+        const QString original = loadImage(attrNs(kept, ns::R, QStringLiteral("embed")), styleContext());
+        if (original.isEmpty()) continue;
+        p->imageId = original;
+        p->removal = removal;
+    }
+    if (p->imageId.isEmpty()) p->imageId = loadImage(attrNs(blip, ns::R, QStringLiteral("embed")), styleContext());
     media(childNamed(childNamed(e, "nvPicPr"), "nvPr"), *p);
 
     // The whole picture's place in the frame.

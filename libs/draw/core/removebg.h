@@ -57,4 +57,8 @@ BackgroundRemoval findBackground(const QImage &picture, const QVector<Background
 // to see what is going).
 QImage applyBackgroundRemoval(const QImage &picture, const BackgroundRemoval &removal, const QColor &tint = QColor());
 
+// The same for a picture of any size: the mask is stretched over it (for a picture already made smaller or changed in its colors, with a tint
+// to show what is going).
+QImage tintBackgroundRemoval(const QImage &picture, const BackgroundRemoval &removal, const QColor &tint = QColor());
+
 } // namespace jp

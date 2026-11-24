@@ -1,8 +1,11 @@
 // Taking the background off a picture: how well the mask follows a known subject, what the strokes change, and how the removal is kept.
 #include "deckhelpers.h"
 #include "core/removebg.h"
+#include "app/lossywarning.h"
 
+#include <QBuffer>
 #include <QPainter>
+#include <QTemporaryDir>
 #include <QRandomGenerator>
 
 class DeckRemoveBgTests : public QObject {
@@ -175,6 +178,194 @@ private Q_SLOTS:
         QCOMPARE(qAlpha(shown.pixel(2, 2)), 255);
         QVERIFY(qGreen(shown.pixel(2, 2)) < 120);                 // white turned toward the tint
         QCOMPARE(shown.pixel(150, 120), im.pixel(150, 120));      // the subject as it was
+    }
+
+private:
+    // ---- the mode, in JeffDeck's window ----
+    static PictureItem *addDiscPicture(DeckWindow &w, const QString &format = QStringLiteral("png"))
+    {
+        const QImage im = disc(200, 150, Qt::red, [](int, int) { return QColor(Qt::white); });
+        QByteArray bytes;
+        QBuffer buffer(&bytes);
+        buffer.open(QIODevice::WriteOnly);
+        im.save(&buffer, "PNG");
+        auto pic = std::make_shared<PictureItem>();
+        pic->name = QStringLiteral("disc");
+        pic->imageId = w.editor()->doc()->addImage(bytes, format);
+        pic->rect = QRectF(100, 100, 200, 150);
+        pic->imgRect = QRectF(QPointF(0, 0), pic->rect.size());
+        w.editor()->setCurrentPage(0);
+        w.editor()->addItem(pic, false);
+        w.editor()->select(pic->id);
+        return pic.get();
+    }
+    static PictureItem *firstPicture(DeckWindow &w)
+    {
+        for (const auto &it : w.editor()->doc()->pages[0]->items)
+            if (it->type() == ItemType::Picture) return static_cast<PictureItem *>(it.get());
+        return nullptr;
+    }
+
+private Q_SLOTS:
+    void theModeIsOneStepOfUndoAndKeepsTheOriginal()
+    {
+        DeckWindow w;
+        w.resize(1200, 800);
+        w.show();
+        PictureItem *pic = addDiscPicture(w);
+        const QString imageId = pic->imageId;
+        Editor *ed = w.editor();
+        const int steps = ed->undoStack()->count();
+        w.act(QStringLiteral("pic.removeBackground"))->trigger();
+        QCOMPARE(ed->removeBgItem, pic->id);
+        QTRY_VERIFY(!ed->removeBackgroundBusy());
+        QVERIFY(pic->removal.isValid());
+        QVERIFY(pic->removalTint.isValid());
+        // A stroke runs the work again with it fixed; the mode is still open, and nothing is a step yet.
+        BackgroundMark stroke;
+        stroke.keep = false;
+        stroke.points << QPointF(0.05, 0.05) << QPointF(0.1, 0.05);
+        ed->addRemoveBackgroundMark(stroke);
+        QTRY_VERIFY(!ed->removeBackgroundBusy());
+        QCOMPARE(pic->removal.marks.size(), 1);
+        QCOMPARE(ed->undoStack()->count(), steps);
+        ed->endRemoveBackground(true);
+        QVERIFY(ed->removeBgItem.isEmpty());
+        QVERIFY(!pic->removalTint.isValid());
+        QCOMPARE(ed->undoStack()->count(), steps + 1);   // one step for the whole of it
+        QCOMPARE(pic->imageId, imageId);                  // the original is as it was
+        QVERIFY(pic->removal.isValid());
+        ed->undo();
+        QVERIFY(!firstPicture(w)->removal.isValid());
+        ed->redo();
+        QVERIFY(firstPicture(w)->removal.isValid());
+        QCOMPARE(firstPicture(w)->removal.marks.size(), 1);
+        // The mode again on the same picture starts from the removal it has, and Esc takes the changes of the session back.
+        pic = firstPicture(w);
+        const QByteArray before = pic->removal.mask;
+        w.act(QStringLiteral("pic.removeBackground"))->trigger();
+        QCOMPARE(ed->removeBgItem, pic->id);
+        BackgroundMark keep;
+        keep.keep = true;
+        keep.points << QPointF(0.5, 0.5);
+        ed->addRemoveBackgroundMark(keep);
+        QTRY_VERIFY(!ed->removeBackgroundBusy());
+        QCOMPARE(firstPicture(w)->removal.marks.size(), 2);
+        ed->endRemoveBackground(false);
+        QCOMPARE(firstPicture(w)->removal.mask, before);
+        QCOMPARE(firstPicture(w)->removal.marks.size(), 1);
+        QVERIFY(!firstPicture(w)->removalTint.isValid());
+        QCOMPARE(ed->undoStack()->count(), steps + 1);
+    }
+    void resetPictureBringsTheWholePictureBack()
+    {
+        DeckWindow w;
+        w.show();
+        PictureItem *pic = addDiscPicture(w);
+        w.act(QStringLiteral("pic.removeBackground"))->trigger();
+        QTRY_VERIFY(!w.editor()->removeBackgroundBusy());
+        w.editor()->endRemoveBackground(true);
+        QVERIFY(firstPicture(w)->removal.isValid());
+        w.editor()->select(pic->id);
+        w.act(QStringLiteral("pic.reset"))->trigger();
+        QVERIFY(!firstPicture(w)->removal.isValid());
+    }
+    void aDrawingMadeOfLinesIsRefusedWithAPlainMessage()
+    {
+        DeckWindow w;
+        w.show();
+        addDiscPicture(w);
+        QString why;
+        Document &d = *w.editor()->doc();
+        const QString vector = d.addImage("<svg xmlns='http://www.w3.org/2000/svg' width='20' height='20'><rect width='20' height='20'/></svg>", QStringLiteral("svg"));
+        QVERIFY(!vector.isEmpty());
+        firstPicture(w)->imageId = vector;
+        QVERIFY(!w.editor()->beginRemoveBackground(firstPicture(w)->id, &why));
+        QVERIFY2(why.contains(QStringLiteral("drawing")), qPrintable(why));
+        QVERIFY(w.editor()->removeBgItem.isEmpty());
+    }
+    void thePictureIsDrawnWithTheBackgroundClearAndAMismatchedMaskIsIgnored()
+    {
+        DeckWindow w;
+        w.show();
+        PictureItem *pic = addDiscPicture(w);
+        const Document &doc = *w.editor()->doc();
+        const QImage whole = doc.image(pic->imageId);
+        pic->removal = findBackground(whole, {});
+        QVERIFY(pic->removal.isValid());
+        const QImage drawn = Renderer::processedImage(doc, *pic, QSizeF(), QSizeF());
+        QCOMPARE(drawn.size(), whole.size());
+        QCOMPARE(qAlpha(drawn.pixel(2, 2)), 0);
+        QCOMPARE(qAlpha(drawn.pixel(100, 75)), 255);
+        // With the tint the removed part is shown, not clear.
+        pic->removalTint = QColor(255, 0, 255, 200);
+        const QImage tinted = Renderer::processedImage(doc, *pic, QSizeF(), QSizeF());
+        QCOMPARE(qAlpha(tinted.pixel(2, 2)), 255);
+        pic->removalTint = QColor();
+        // A mask made for a picture of another size is not used: the picture is shown whole.
+        pic->removal.source = QSize(whole.width() + 1, whole.height());
+        QCOMPARE(qAlpha(Renderer::processedImage(doc, *pic, QSizeF(), QSizeF()).pixel(2, 2)), 255);
+    }
+    void thePresentationKeepsTheRemovalInItsOwnFileAndOtherFormatsKeepTheResult()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        BackgroundRemoval made;
+        {
+            DeckWindow w;
+            w.show();
+            PictureItem *pic = addDiscPicture(w);
+            w.act(QStringLiteral("pic.removeBackground"))->trigger();
+            QTRY_VERIFY(!w.editor()->removeBackgroundBusy());
+            w.editor()->endRemoveBackground(true);
+            made = firstPicture(w)->removal;
+            QVERIFY(made.isValid());
+            QVERIFY(w.saveTo(dir.filePath(QStringLiteral("talk.pptx"))));
+            // The other kind of file is told to the person: the box lists what it can't hold.
+            QString said;
+            jp::setLossyStandIn([&](const jp::LossyAsk &a, bool *) {
+                said = a.lost.join(QLatin1Char('|'));
+                return jp::LossyChoice::SaveAnyway;
+            });
+            const bool saved = w.saveTo(dir.filePath(QStringLiteral("talk.odp")), true);
+            jp::setLossyStandIn(nullptr);
+            QVERIFY(saved);
+            QVERIFY2(said.contains(QStringLiteral("background was removed")), qPrintable(said));
+            Q_UNUSED(pic);
+        }
+        // The presentation file: the original and the mask are back, so the removal can be edited.
+        {
+            DeckWindow w;
+            QVERIFY(w.openFile(dir.filePath(QStringLiteral("talk.pptx"))));
+            const PictureItem *pic = firstPicture(w);
+            QVERIFY(pic);
+            QVERIFY(pic->removal.isValid());
+            QCOMPARE(pic->removal.mask, made.mask);
+            QCOMPARE(w.editor()->doc()->image(pic->imageId).size(), made.source);
+            QCOMPARE(qAlpha(w.editor()->doc()->image(pic->imageId).pixel(2, 2)), 255);   // the original, not the result
+        }
+        // The other kind of file holds the finished picture.
+        {
+            DeckWindow w;
+            QVERIFY(w.openFile(dir.filePath(QStringLiteral("talk.odp"))));
+            const PictureItem *pic = firstPicture(w);
+            QVERIFY(pic);
+            QVERIFY(!pic->removal.isValid());
+            QCOMPARE(qAlpha(w.editor()->doc()->image(pic->imageId).pixel(2, 2)), 0);
+        }
+    }
+    void aPresentationFromOtherProgramsWithoutOurExtensionShowsThePictureAsItIs()
+    {
+        // The blip's own picture is what such a file draws; the extension is optional, so a file without it opens as a plain picture.
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        w.show();
+        addDiscPicture(w);
+        QVERIFY(w.saveTo(dir.filePath(QStringLiteral("plain.pptx"))));
+        DeckWindow v;
+        QVERIFY(v.openFile(dir.filePath(QStringLiteral("plain.pptx"))));
+        QVERIFY(!firstPicture(v)->removal.isValid());
     }
 };
 

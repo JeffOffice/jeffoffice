@@ -443,6 +443,7 @@ QJsonObject PictureItem::toJson() const
     if (transparency) o["transparency"] = transparency;
     if (blackWhiteLevel != 0.5) o["bwLevel"] = blackWhiteLevel;
     if (!blipEffects.isEmpty()) o["effects"] = blipEffectsToJson(blipEffects);
+    if (removal.isValid()) o["removal"] = removal.toJson();
     if (!caption.isEmpty()) o["caption"] = caption;
     if (!chartXml.isEmpty()) {
         o["chart"] = QString::fromLatin1(chartXml.toBase64());
@@ -480,6 +481,7 @@ void PictureItem::fromJson(const QJsonObject &o)
     transparency = o["transparency"].toDouble();
     blackWhiteLevel = o["bwLevel"].toDouble(0.5);
     blipEffects = blipEffectsFromJson(o["effects"].toArray());
+    removal = BackgroundRemoval::fromJson(o["removal"].toObject());
     caption = o["caption"].toString();
     // (A part is the text's size less its coding: one past the most is not decoded.)
     const QString coded = o["chart"].toString();

@@ -920,6 +920,9 @@ QImage Renderer::processedImage(const Document &doc, const PictureItem &pic, con
     static QCache<QString, QImage> cache(256 * 1024);   // KB
     QImage src = doc.image(pic.imageId);
     if (src.isNull()) return src;
+    // (A removal made for a picture of another size is not used.)
+    const bool removed = pic.removal.isValid() && pic.removal.source == src.size();
+    const bool tinted = removed && pic.removalTint.isValid();
     // A slide's picture is changed as the presentation program changes it (PictureItem::colorEffects), all at once and in the pixels of the
     // picture itself, before it is made smaller (a color picked out is picked out where it is exact), and once for the picture and its changes,
     // however many sizes it is shown at. A publication's, and the Sepia, Washout,
@@ -943,9 +946,11 @@ QImage Renderer::processedImage(const Document &doc, const PictureItem &pic, con
     }
     const QString key = QStringLiteral("%1|%2|%3|%4|%5|%6|%7|%8|%9x%10").arg(pic.imageId).arg(pic.brightness).arg(pic.contrast).arg(int(pic.recolor))
                             .arg(pic.recolorColor.resolve(doc.colors).name()).arg(pic.hasTransparentColor ? pic.transparentColor.name() : QString())
-                            .arg(level).arg(doc.colors.c[0].name()).arg(shown.width()).arg(shown.height());
+                            .arg(level).arg(doc.colors.c[0].name()).arg(shown.width()).arg(shown.height()) + (removed ? QLatin1Char('|') + pic.removal.key() + (tinted ? pic.removalTint.name(QColor::HexArgb) : QString()) : QString());
     const QString effectsKey = effects.isEmpty() ? QString() : (slide ? QStringLiteral("s") : QStringLiteral("p")) + blipEffectsKey(effects);
     if (QImage *c = cache.object(key + QLatin1Char('|') + effectsKey)) return *c;
+    // The background taken off the picture is clear before anything else changes the picture.
+    if (removed && !tinted && !slide) src = applyBackgroundRemoval(src, pic.removal);
     if (slide) {
         // A PNG file's profile of its own (a screen's, most often) makes its numbers colors of that profile, which the presentation program
         // draws as screen colors. (A profile worked out from the gamma and primaries a file names is not one: the program leaves those out.)
@@ -953,6 +958,7 @@ QImage Renderer::processedImage(const Document &doc, const PictureItem &pic, con
         const ImageData data = doc.images.value(pic.imageId);
         if (profile.isValid() && profile != QColorSpace(QColorSpace::SRgb) && data.format == QLatin1String("png") && pngHasProfile(data.bytes))
             src = src.convertedToColorSpace(QColorSpace(QColorSpace::SRgb));
+        if (removed && !tinted) src = applyBackgroundRemoval(src, pic.removal);
         src = blipAdjusted(src, effects);
     }
     QImage img = level ? src.scaledToWidth(std::max(1, src.width() >> level), Qt::SmoothTransformation) : src;
@@ -987,6 +993,7 @@ QImage Renderer::processedImage(const Document &doc, const PictureItem &pic, con
         }
     }
     if (!slide && !effects.isEmpty()) img = applyBlipEffects(img, effects);
+    if (tinted) img = tintBackgroundRemoval(img, pic.removal, pic.removalTint);
     cache.insert(key + QLatin1Char('|') + effectsKey, new QImage(img), std::max<qsizetype>(1, img.sizeInBytes() / 1024));
     return img;
 }

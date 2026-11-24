@@ -1730,6 +1730,10 @@
           "keytip": "ZA",
           "items": [
             {
+              "large": "pic.removeBackground",
+              "keytip": "RB"
+            },
+            {
               "large": "pic.change",
               "keytip": "CP"
             },
@@ -1899,6 +1903,42 @@
         {"use": "accessibilityGroup"},
         {"use": "arrangeGroup"},
         {"use": "sizeGroup"}
+      ]
+    },
+    {
+      "name": "Background Removal",
+      "keytip": "JR",
+      "context": "Background Removal",
+      "color": "pictureFormat",
+      "groups": [
+        {
+          "name": "Refine",
+          "keytip": "ZR",
+          "items": [
+            {
+              "large": "pic.markKeep",
+              "keytip": "MK"
+            },
+            {
+              "large": "pic.markRemove",
+              "keytip": "MR"
+            }
+          ]
+        },
+        {
+          "name": "Close",
+          "keytip": "ZC",
+          "items": [
+            {
+              "large": "pic.discardRemoval",
+              "keytip": "DA"
+            },
+            {
+              "large": "pic.keepRemoval",
+              "keytip": "KC"
+            }
+          ]
+        }
       ]
     },
     {

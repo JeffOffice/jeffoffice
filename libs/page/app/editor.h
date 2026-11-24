@@ -5,6 +5,7 @@
 // before/after snapshot as one undo step.
 
 #include "core/export.h"
+#include "core/workthread.h"
 #include "app/grammarcheck.h"
 #include "core/document.h"
 #include "core/items.h"
@@ -18,6 +19,8 @@
 #include <QTimer>
 
 #include <atomic>
+#include <memory>
+#include <vector>
 #include <functional>
 
 class QKeyEvent;
@@ -254,6 +257,22 @@ public:
     // is one step that undoes, and Esc (endCrop(false)) takes all of it back. Off, as in JeffPub, each drag of a handle is a step of its own.
     bool cropSessions = false;
     void endCrop(bool keep);
+
+    // ---- Remove Background (core/removebg.h; app/editor_removebg.cpp) ----
+    // The mode: a picture's background shown in a tint, strokes that keep or take away what they pass over, and one step of Undo for the whole of it (Esc takes it all back,
+    // Keep Changes ends it keeping the removal). The work is done on a thread of its own: busy until the removal asked for is in the picture.
+    enum class RemoveBgTool { None, Keep, Remove };
+    QString removeBgItem;                                // picture in the mode
+    RemoveBgTool removeBgTool = RemoveBgTool::Keep;
+    // False, and why in `why` (plain words), when the picture cannot have its background removed (a movie, a chart, a drawing made of lines, an animated picture, or too many pixels).
+    bool beginRemoveBackground(const QString &id, QString *why = nullptr);
+    void endRemoveBackground(bool keep);
+    void setRemoveBgTool(RemoveBgTool t) { removeBgTool = t; Q_EMIT viewChanged(); }
+    // A stroke dragged on the picture (points as shares of the picture, 0 to 1): the removal is found again with it fixed.
+    void addRemoveBackgroundMark(const BackgroundMark &mark);
+    bool removeBackgroundBusy() const;
+    // Ends the work when it has been asked for and waits for it (what a save or Keep Changes does first).
+    void finishRemoveBackgroundWork();
     void setPointsItem(const QString &id) { pointsItem = id; Q_EMIT viewChanged(); }
     void setWrapItem(const QString &id) { wrapItem = id; Q_EMIT viewChanged(); }
 
@@ -486,6 +505,7 @@ public:
     QVector<QTextCursor> formatTargets() const;   // cursor(s) a formatting command applies to
 
 Q_SIGNALS:
+    void removeBackgroundProgress(int percent);          // 0 to 100, while the work runs; 100 when the picture has its removal
     void busyStarted(const QString &text, std::atomic<bool> *cancel);
     void busyEnded();
     // Undo or redo is about to run (a step still being made by a control, which undo would wait for, may end first).
@@ -535,6 +555,22 @@ private:
     QStringList visibleStories() const;   // the stories of the objects on the surface (and the one being typed in)
     QUndoStack m_undo;
     QString m_originId = newPasteDocumentId();   // what a copy made here says it came from (app/pastedefaults.h)
+    struct RemoveBgJob {
+        std::atomic<bool> cancel{false};
+        std::atomic<int> told{-1};
+        QImage picture;
+        QVector<BackgroundMark> marks;
+        BackgroundRemoval result;
+        bool done = false;                 // set on the window's thread, when the result has come
+        std::unique_ptr<WorkThread> thread;
+    };
+    std::vector<std::shared_ptr<RemoveBgJob>> m_rbJobs;   // the work asked for, the last of them the one that counts
+    bool m_rbOpen = false;                                // a Remove Background session holds a change open
+    int m_rbPage = 0;
+    QStringList m_rbSel;
+    QVector<BackgroundMark> m_rbMarks;                    // the strokes of the session (kept in the picture's removal when a result is taken)
+    void startRemoveBackground(const QVector<BackgroundMark> &marks);
+    void takeRemoveBackgroundResult(const std::shared_ptr<RemoveBgJob> &job);
     bool m_cropOpen = false;   // a crop session holds a change open (cropSessions)
     int m_cropPage = 0;        // the slide and the selection it began with, which its step is filed under
     QStringList m_cropSel;

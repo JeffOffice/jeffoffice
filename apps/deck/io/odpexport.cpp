@@ -362,6 +362,22 @@ QString Exporter::addPictureChanged(const QString &imageId, const QVector<BlipEf
     return name;
 }
 
+QString Exporter::addPictureWithoutBackground(const QString &imageId, const BackgroundRemoval &removal)
+{
+    const QImage source = m_doc.image(imageId);
+    if (imageId.isEmpty() || source.isNull() || source.size() != removal.source) return addPicture(imageId);
+    const QString key = QStringLiteral("rb:") + imageId + QLatin1Char('|') + removal.key();
+    if (const auto it = m_pictureNames.constFind(key); it != m_pictureNames.cend()) return it.value();
+    QByteArray png;
+    QBuffer buffer(&png);
+    buffer.open(QIODevice::WriteOnly);
+    if (!applyBackgroundRemoval(source, removal).save(&buffer, "PNG")) return addPicture(imageId);
+    const QString name = QStringLiteral("Pictures/image%1.png").arg(m_pictureNames.size() + 1);
+    addFile(name, png, QStringLiteral("image/png"), false);
+    m_pictureNames.insert(key, name);
+    return name;
+}
+
 // A movie or sound kept in the presentation, as a part of the package under Media/; empty (a link to a file outside has none) if there are no bytes.
 QString Exporter::addMedia(const QString &mediaId, QString *mediaType, const QString &kind)
 {

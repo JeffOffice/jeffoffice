@@ -155,6 +155,7 @@ bool resetPictureLook(PictureItem *pic, const QSize &px, bool andSize)
     pic->transparency = 0;
     pic->blackWhiteLevel = 0.5;
     pic->blipEffects.clear();
+    pic->removal = BackgroundRemoval();
     if (px.isEmpty() || pic->imgRect.width() <= 0 || pic->imgRect.height() <= 0) {
         // A picture of no known size has no whole picture to show: the crop is taken off all the same.
         pic->imgRect = QRectF(QPointF(0, 0), pic->rect.size());
@@ -176,6 +177,7 @@ void changePictureImage(PictureItem *pic, const QString &imageId, const QSize &p
     const bool same = !px.isEmpty() && whole.width() > 0 && whole.height() > 0 &&
                       std::abs(double(px.width()) / px.height() - whole.width() / whole.height()) < 0.02 * whole.width() / whole.height();
     pic->imageId = imageId;
+    pic->removal = BackgroundRemoval();
     // The picture of the same proportions goes where the old one was; any other fills the frame.
     if (!same) pic->fitImage(px, true);
     pic->chartXml.clear();

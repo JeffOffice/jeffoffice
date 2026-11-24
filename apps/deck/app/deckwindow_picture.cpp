@@ -75,6 +75,29 @@ void DeckWindow::createCropActions()
         });
     });
 
+    // Remove Background: the mode (strokes on the picture, with the tint where the background goes), and its four commands on their own tab.
+    mk("pic.removeBackground", tr("Remove Background"), "image-minus", QKeySequence(), [this, ed] {
+        leaveCrop(ed);
+        const QVector<PictureItem *> pictures = croppablePictures(ed);
+        QString why;
+        if (pictures.size() != 1 || !ed->beginRemoveBackground(pictures[0]->id, &why)) {
+            statusBar()->showMessage(why.isEmpty() ? tr("Select a picture to remove its background.") : why, 8000);
+            return;
+        }
+        m_ribbon->setContextVisible(QStringLiteral("Background Removal"), true, true);
+        refreshCrop();
+    });
+    mk("pic.markKeep", tr("Mark Areas to Keep"), "circle-plus", QKeySequence(), [ed] { ed->setRemoveBgTool(Editor::RemoveBgTool::Keep); }, true);
+    mk("pic.markRemove", tr("Mark Areas to Remove"), "circle-minus", QKeySequence(), [ed] { ed->setRemoveBgTool(Editor::RemoveBgTool::Remove); }, true);
+    mk("pic.discardRemoval", tr("Discard All Changes"), "undo-2", QKeySequence(), [ed] { ed->endRemoveBackground(false); });
+    mk("pic.keepRemoval", tr("Keep Changes"), "check", QKeySequence(), [ed] { ed->endRemoveBackground(true); });
+    connect(ed, &Editor::viewChanged, this, [this, ed] {
+        const bool on = !ed->removeBgItem.isEmpty();
+        if (m_ribbon) m_ribbon->setContextVisible(QStringLiteral("Background Removal"), on, false);
+        act("pic.markKeep")->setChecked(on && ed->removeBgTool == Editor::RemoveBgTool::Keep);
+        act("pic.markRemove")->setChecked(on && ed->removeBgTool == Editor::RemoveBgTool::Remove);
+    });
+
     mk("pic.change", tr("Change Picture…"), "image-up", QKeySequence(), [this] { changePictureFromFile(); });
     mk("pic.reset", tr("Reset Picture"), "rotate-ccw", QKeySequence(), [this, ed] {
         leaveCrop(ed);
@@ -227,7 +250,8 @@ bool DeckWindow::changePictureFromFile(const QString &chosen)
 void DeckWindow::refreshCrop()
 {
     const QVector<PictureItem *> pictures = croppablePictures(m_ed);
-    const bool shows = m_ed->selection().size() == 1 && pictures.size() == 1 && pictures[0]->mediaKind.isEmpty() && pictures[0]->chartXml.isEmpty();
+    const bool marking = !m_ed->removeBgItem.isEmpty();
+    const bool shows = !marking && m_ed->selection().size() == 1 && pictures.size() == 1 && pictures[0]->mediaKind.isEmpty() && pictures[0]->chartXml.isEmpty();
     if (m_ribbon) m_ribbon->setContextVisible(QStringLiteral("Picture Tools"), shows);
     for (QAction *a : m_actions)
         if (a->objectName().startsWith(QLatin1String("pic.")) && a->objectName() != QLatin1String("pic.crop")) a->setEnabled(!pictures.isEmpty());
@@ -235,9 +259,11 @@ void DeckWindow::refreshCrop()
     bool plain = false;
     for (const PictureItem *p : pictures) plain = plain || (p->mediaKind.isEmpty() && p->chartXml.isEmpty());
     act("pic.change")->setEnabled(shows);
+    act("pic.removeBackground")->setEnabled(shows && plain && m_ed->removeBgItem.isEmpty());
     act("pic.reset")->setEnabled(plain);
     act("pic.resetSize")->setEnabled(plain);
     act("pic.crop")->setEnabled(shows);
+    for (const char *id : {"pic.markKeep", "pic.markRemove", "pic.discardRemoval", "pic.keepRemoval"}) act(QString::fromLatin1(id))->setEnabled(marking);
     act("pic.crop")->setChecked(shows && m_ed->cropItem == pictures[0]->id);
 }
 

@@ -1053,6 +1053,15 @@ void Canvas::paintOverlay(QPainter &p)
                 p.drawRect(QRectF(c - QPointF(3.5, 3.5), QSizeF(7, 7)));
             }
         }
+    // The stroke being dragged in the Remove Background mode: green where it keeps, red where it takes away.
+    if (m_drag == Drag::RemoveBg && !m_rbStroke.isEmpty()) {
+        QPolygonF line;
+        for (const QPointF &pt : std::as_const(m_rbStroke)) line << pageToView(pt);
+        p.setPen(QPen(m_ed->removeBgTool == Editor::RemoveBgTool::Keep ? QColor(40, 160, 70, 200) : QColor(210, 50, 50, 200), 12, Qt::SolidLine, Qt::RoundCap, Qt::RoundJoin));
+        p.setBrush(Qt::NoBrush);
+        if (line.size() == 1) line << line.first();
+        p.drawPolyline(line);
+    }
     // The stroke of the table pen or eraser, up to the pointer.
     if (m_drag == Drag::TableLine) {
         p.setPen(QPen(m_ed->tool() == Tool::TableEraser ? QColor(200, 40, 40) : QColor(30, 30, 30), 1, Qt::DashLine));
@@ -1539,6 +1548,19 @@ void Canvas::mousePressEvent(QMouseEvent *e)
         m_drag = Drag::Pan;
         viewport()->setCursor(Qt::ClosedHandCursor);
         return;
+    }
+    // Remove Background: a drag on the picture is a stroke that keeps or takes away what it passes over; a click anywhere else ends the mode, keeping it.
+    if (e->button() == Qt::LeftButton && !m_ed->removeBgItem.isEmpty()) {
+        const auto *pic = dynamic_cast<const PictureItem *>(m_ed->doc()->item(m_ed->removeBgItem));
+        const bool onPicture = pic && QRectF(QPointF(0, 0), pic->rect.size()).contains(pic->transform().inverted().map(m_pressPage));
+        if (onPicture && m_ed->removeBgTool != Editor::RemoveBgTool::None) {
+            m_drag = Drag::RemoveBg;
+            m_rbStroke = {m_pressPage};
+            viewport()->update();
+            return;
+        }
+        if (!onPicture) m_ed->endRemoveBackground(true);
+        else return;
     }
     if (e->button() == Qt::LeftButton && (e->modifiers() & Qt::ShiftModifier) && !m_ed->pointsItem.isEmpty()) {
         // Edit Points: Shift+click puts a glue point (a connection site of the shape's own) where the pointer is, or takes the one that is there away.
@@ -2149,6 +2171,10 @@ void Canvas::mouseMoveEvent(QMouseEvent *e)
         m_ed->notifyLive();
         return;
     }
+    case Drag::RemoveBg:
+        if (m_rbStroke.isEmpty() || QLineF(pageToView(m_rbStroke.last()), e->position()).length() >= 3) m_rbStroke << page;
+        viewport()->update();
+        return;
     case Drag::CropMove: {
         auto *pic = dynamic_cast<PictureItem *>(m_ed->single());
         if (!pic) return;
@@ -2359,6 +2385,24 @@ void Canvas::mouseReleaseEvent(QMouseEvent *e)
     case Drag::WrapPoint:
     case Drag::Rotate:
     case Drag::LineBend:
+    case Drag::RemoveBg: {
+        // The stroke, as shares of the picture, with the brush a few pixels wide as the window shows them.
+        const auto *pic = dynamic_cast<const PictureItem *>(m_ed->doc()->item(m_ed->removeBgItem));
+        if (pic && pic->imgRect.width() > 0 && pic->imgRect.height() > 0) {
+            const QTransform inv = pic->transform().inverted();
+            BackgroundMark mark;
+            mark.keep = m_ed->removeBgTool == Editor::RemoveBgTool::Keep;
+            for (const QPointF &pt : std::as_const(m_rbStroke)) {
+                const QPointF local = inv.map(pt);
+                mark.points << QPointF(std::clamp((local.x() - pic->imgRect.x()) / pic->imgRect.width(), 0.0, 1.0), std::clamp((local.y() - pic->imgRect.y()) / pic->imgRect.height(), 0.0, 1.0));
+            }
+            mark.radius = std::clamp(6.0 / ppp() / std::max(pic->imgRect.width(), pic->imgRect.height()), 0.002, 0.25);
+            m_ed->addRemoveBackgroundMark(mark);
+        }
+        m_rbStroke.clear();
+        viewport()->update();
+        break;
+    }
     case Drag::Adjust:
     case Drag::Crop:
     case Drag::CropMove:
@@ -2972,6 +3016,11 @@ void Canvas::keyPressEvent(QKeyEvent *e)
     const bool ctrl = e->modifiers() & Qt::ControlModifier;
     const bool alt = e->modifiers() & Qt::AltModifier;
     const double step = alt ? 1.0 / ppp() : Settings::get().nudge();
+    // Remove Background: Esc takes it all back, Enter keeps it.
+    if (!m_ed->removeBgItem.isEmpty() && (e->key() == Qt::Key_Escape || e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter)) {
+        m_ed->endRemoveBackground(e->key() != Qt::Key_Escape);
+        return;
+    }
     // Enter ends a crop, keeping it (Editor::cropSessions).
     if (m_ed->cropSessions && !m_ed->cropItem.isEmpty() && (e->key() == Qt::Key_Return || e->key() == Qt::Key_Enter)) {
         m_ed->endCrop(true);

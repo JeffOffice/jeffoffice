@@ -7,6 +7,7 @@
 #include "core/animation.h"
 #include "core/deck.h"
 #include "core/document.h"
+#include "core/removebg.h"
 #include "core/showsettings.h"
 #include "core/style.h"
 #include "core/transition.h"
@@ -171,6 +172,8 @@ private:
     QString addPictureBytes(const QString &key, const QByteArray &bytes);
     // The same, with the changes of a picture fill's colors made in it (the other suite has no way to say them); the picture as it is if there are none.
     QString addPictureChanged(const QString &imageId, const QVector<BlipEffect> &effects);
+    // The picture with the background taken off, as a picture of its own (the file format has no place for the mask).
+    QString addPictureWithoutBackground(const QString &imageId, const BackgroundRemoval &removal);
     QString addMedia(const QString &mediaId, QString *mediaType, const QString &kind = QString());
     void addFile(const QString &path, const QByteArray &data, const QString &mediaType, bool compress);
     QString fontDecl(const QString &family);

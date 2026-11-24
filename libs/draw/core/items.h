@@ -4,6 +4,7 @@
 
 #include "core/textdirection.h"
 #include "core/itemsfwd.h"
+#include "core/removebg.h"
 #include "core/style.h"
 #include "core/valign.h"
 
@@ -198,6 +199,12 @@ public:
     // have no setting of their own (see core/blipeffects.h). In order, what the picture's colors go through.
     double blackWhiteLevel = 0.5;
     QVector<BlipEffect> blipEffects;
+    // The background taken off the picture (core/removebg.h): a mask beside the picture, which stays as it was, drawn wherever the picture is.
+    // Empty (nothing removed) when the picture has none, or has one that is not for a picture of its size.
+    BackgroundRemoval removal;
+    // Not kept in a file: while the person is marking the background, the part to go is shown in this color (a color of its own, set only for the
+    // time of the marking) instead of being clear.
+    QColor removalTint;
     // Every change of the picture's colors, in the order they are drawn: the settings, then blipEffects.
     QVector<BlipEffect> colorEffects() const;
     // How far the picture's colors are moved in saturation, from -100 (gray) to 100 (as strong as they go), as the first hue, saturation, and lightness change of blipEffects says (0 with

@@ -391,6 +391,12 @@ BackgroundRemoval findBackground(const QImage &picture, const QVector<Background
 QImage applyBackgroundRemoval(const QImage &picture, const BackgroundRemoval &removal, const QColor &tint)
 {
     if (picture.isNull() || !removal.isValid() || removal.source != picture.size()) return picture;
+    return tintBackgroundRemoval(picture, removal, tint);
+}
+
+QImage tintBackgroundRemoval(const QImage &picture, const BackgroundRemoval &removal, const QColor &tint)
+{
+    if (picture.isNull() || !removal.isValid()) return picture;
     QImage out = picture.convertToFormat(QImage::Format_ARGB32);
     const int w = out.width(), h = out.height(), mw = removal.size.width(), mh = removal.size.height();
     // Each pixel's mask by the four nearest of the mask's, as a picture made larger is.

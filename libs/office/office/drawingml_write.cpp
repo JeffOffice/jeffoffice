@@ -20,6 +20,7 @@
 #include <QBuffer>
 #include <QCoreApplication>
 #include <QCryptographicHash>
+#include <QJsonDocument>
 #include <QXmlStreamReader>
 #include <QTextDocument>
 #include <algorithm>
@@ -989,6 +990,19 @@ void writePicture(QXmlStreamWriter &w, const PictureItem &p, DrawingWriteContext
         if (skipped) skipped->append(QCoreApplication::translate("DrawingWriter", "\"%1\": a picture that can't be read was left out.").arg(p.name.isEmpty() ? p.id : p.name));
         return;
     }
+    // The background taken off the picture: the blip is the picture with it clear (what any program draws), and the original and the mask are kept in an extension of ours.
+    QString shownId = rId;
+    if (p.removal.isValid() && ctx.imageBytes) {
+        QString format;
+        const QImage whole = QImage::fromData(ctx.imageBytes(p.imageId, &format));
+        if (!whole.isNull() && whole.size() == p.removal.source) {
+            QByteArray png;
+            QBuffer buffer(&png);
+            buffer.open(QIODevice::WriteOnly);
+            if (applyBackgroundRemoval(whole, p.removal).save(&buffer, "PNG"))
+                if (const QString made = relatePictureBytes(ctx, png); !made.isEmpty()) shownId = made;
+        }
+    }
     const int id = takeId(ctx, p);
     const MediaRelations media = relateMedia(ctx, p);
     begin(w, "p:pic");
@@ -1005,7 +1019,7 @@ void writePicture(QXmlStreamWriter &w, const PictureItem &p, DrawingWriteContext
 
     begin(w, "p:blipFill");
     begin(w, "a:blip");
-    attribute(w, "r:embed", rId);
+    attribute(w, "r:embed", shownId);
     if (p.transparency > 0) {
         begin(w, "a:alphaModFix");
         attribute(w, "amt", std::clamp<qint64>(percent(1.0 - p.transparency), 0, 100000));
@@ -1015,15 +1029,29 @@ void writePicture(QXmlStreamWriter &w, const PictureItem &p, DrawingWriteContext
     writeBlipEffects(w, p.colorEffects());
     // An SVG picture: the PNG above is for programs that don't draw SVG, and the SVG itself is linked here, as the presentation
     // program links it, last in the blip.
-    if (const QString svgId = relateSvg(ctx, p.imageId); !svgId.isEmpty()) {
+    const QString svgId = relateSvg(ctx, p.imageId);
+    const bool removed = shownId != rId;
+    if (!svgId.isEmpty() || removed) {
         begin(w, "a:extLst");
-        begin(w, "a:ext");
-        attribute(w, "uri", QStringLiteral("{96DAC541-7B7A-43D3-8B79-37D633B846F1}"));
-        begin(w, "asvg:svgBlip");
-        w.writeAttribute(QStringLiteral("xmlns:asvg"), QStringLiteral("http://schemas.microsoft.com/office/drawing/2016/SVG/main"));
-        attribute(w, "r:embed", svgId);
-        w.writeEndElement();
-        w.writeEndElement();
+        if (!svgId.isEmpty()) {
+            begin(w, "a:ext");
+            attribute(w, "uri", QStringLiteral("{96DAC541-7B7A-43D3-8B79-37D633B846F1}"));
+            begin(w, "asvg:svgBlip");
+            w.writeAttribute(QStringLiteral("xmlns:asvg"), QStringLiteral("http://schemas.microsoft.com/office/drawing/2016/SVG/main"));
+            attribute(w, "r:embed", svgId);
+            w.writeEndElement();
+            w.writeEndElement();
+        }
+        if (removed) {
+            begin(w, "a:ext");
+            attribute(w, "uri", QString::fromLatin1(kRemovalExtension));
+            begin(w, "jdr:removal");
+            w.writeAttribute(QStringLiteral("xmlns:jdr"), QString::fromLatin1(kRemovalNamespace));
+            attribute(w, "r:embed", rId);
+            attribute(w, "data", QString::fromLatin1(QJsonDocument(p.removal.toJson()).toJson(QJsonDocument::Compact).toBase64()));
+            w.writeEndElement();
+            w.writeEndElement();
+        }
         w.writeEndElement();
     }
     w.writeEndElement();
