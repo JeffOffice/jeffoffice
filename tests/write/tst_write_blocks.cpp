@@ -6,9 +6,17 @@
 #include "core/pictureops.h"
 #include "io/blocklibrary.h"
 #include "io/zip.h"
+#include "app/blockgallery.h"
+#include "app/pagepaint.h"
+#include "app/theme.h"
 
 #include <QBuffer>
 #include <QImage>
+#include <QLineEdit>
+#include <QListWidget>
+#include <QMenu>
+#include <QPainter>
+#include <QTimer>
 #include <QRegularExpression>
 #include <QTemporaryDir>
 #include <QTextFrame>
@@ -323,4 +331,155 @@ void WriteTests::aGlossaryPartOfAFileIsKeptByteForByte()
     saved.clear();
     QVERIFY(jp::readZip(doc->toDocx(), saved));
     QCOMPARE(saved.value(gloss), glossary);
+}
+
+// The gallery draws a block when its cell comes into view, never all of a large library at once; a pick goes in at the caret as one step.
+void WriteTests::theGalleryDrawsOnlyWhatIsInViewAndAPickGoesInAsOneStep()
+{
+    QTemporaryDir dir;
+    jp::BlockLibrary::setSharedPath(dir.filePath(QStringLiteral("shared.jblocks")));
+    const QByteArray block = savedFromSource();
+    QVERIFY(!block.isEmpty());
+    for (int i = 0; i < 40; ++i) {
+        jp::BlockEntry e;
+        e.info.name = QStringLiteral("Block %1").arg(i, 2, 10, QLatin1Char('0'));
+        e.info.gallery = jp::kBlocksGallery;
+        e.info.format = QStringLiteral("docx");
+        e.data = block;
+        QString err;
+        QVERIFY2(jp::BlockLibrary::shared().add(e, nullptr, &err), qPrintable(err));
+    }
+    int drawn = 0;
+    QString picked;
+    jp::BlockInfo info;
+    QByteArray bytes;
+    QMenu *menu = jp::blocksMenu(nullptr, jp::kBlocksGallery, QStringLiteral("docx"),
+                                 [&](const jp::BlockEntry &, const QSize &size, qreal) {
+                                     ++drawn;
+                                     QImage img(size, QImage::Format_RGB32);
+                                     img.fill(Qt::white);
+                                     return img;
+                                 },
+                                 [&](const jp::BlockInfo &i, const QByteArray &d) {
+                                     info = i;
+                                     bytes = d;
+                                 },
+                                 {});
+    auto *gal = menu->findChild<jp::BlockGalleryList *>();
+    QVERIFY(gal);
+    gal->reload();
+    QCOMPARE(gal->list()->count(), 40);
+    gal->show();
+    gal->grab();
+    QVERIFY(drawn >= 1);
+    QVERIFY(drawn < 40);
+    QCOMPARE(gal->previewsMade(), drawn);
+    // Search by name narrows the list.
+    gal->search()->setText(QStringLiteral("block 07"));
+    QCOMPARE(gal->shownIds().size(), 1);
+    gal->search()->setText(QStringLiteral("nothing like this"));
+    QCOMPARE(gal->shownIds().size(), 0);
+    gal->search()->clear();
+    QCOMPARE(gal->shownIds().size(), 40);
+    // A pick is handed on with the block's bytes.
+    Q_EMIT gal->picked(gal->shownIds().first());
+    QCOMPARE(bytes, block);
+    delete menu;
+
+    WriteWindow win;
+    win.resize(900, 700);
+    win.show();
+    win.setDocument(open(makeDocx("<w:p><w:r><w:t>Start</w:t></w:r></w:p>", kPlainStyles)), QString());
+    win.view()->paginateAll();
+    QTextCursor c(win.document()->story());
+    c.setPosition(5);
+    win.view()->setCursor(c);
+    const QString before = allText(*win.document());
+    QVERIFY(win.insertSavedBlock(info, bytes));
+    QVERIFY(allText(*win.document()).contains(QStringLiteral("Payment is due in thirty days.")));
+    QVERIFY(win.document()->undo());
+    QCOMPARE(allText(*win.document()), before);
+    jp::BlockLibrary::setSharedPath(QString());
+}
+
+// Pictures of the saved blocks' windows for the person who reviews them (only when JW_SHOT_DIR names a folder).
+void WriteTests::thePicturesOfTheSavedBlocksWindows()
+{
+    const QString shots = qEnvironmentVariable("JW_SHOT_DIR");
+    if (shots.isEmpty()) QSKIP("set JW_SHOT_DIR to take the pictures");
+    jp::applyUiTheme(1);
+    QTemporaryDir dir;
+    jp::BlockLibrary::setSharedPath(dir.filePath(QStringLiteral("shot.jblocks")));
+    const QStringList names{QStringLiteral("Payment terms"), QStringLiteral("Signature"), QStringLiteral("Confidential notice"), QStringLiteral("Letterhead"), QStringLiteral("Closing line")};
+    const QStringList texts{QStringLiteral("Payment is due in thirty days."), QStringLiteral("Kind regards,\nJeff"), QStringLiteral("CONFIDENTIAL: for the named reader only."), QStringLiteral("JeffOffice LLC\n12 Main Street"), QStringLiteral("Thank you for your business.")};
+    for (int i = 0; i < names.size(); ++i) {
+        QByteArray body;
+        for (const QString &line : texts[i].split(QLatin1Char('\n'))) body += "<w:p><w:r><w:t>" + line.toUtf8() + "</w:t></w:r></w:p>";
+        auto src = open(makeDocx(body, kStyles));
+        QTextCursor all(src->story());
+        all.select(QTextCursor::Document);
+        jp::BlockEntry e;
+        e.info.name = names[i];
+        e.info.gallery = i == 4 ? jp::kShortcutsGallery : jp::kBlocksGallery;
+        e.info.description = QStringLiteral("Saved from a letter");
+        e.info.format = QStringLiteral("docx");
+        e.data = jp::write::blockFromSelection(*src, all);
+        QVERIFY(!e.data.isEmpty());
+        QString err;
+        QVERIFY2(jp::BlockLibrary::shared().add(e, nullptr, &err), qPrintable(err));
+    }
+    WriteWindow win;
+    win.resize(1200, 800);
+    win.show();
+    win.setDocument(open(makeDocx("<w:p><w:r><w:t>Dear customer,</w:t></w:r></w:p>", kStyles)), QString());
+    win.view()->paginateAll();
+    win.ribbon()->showTab(win.ribbon()->tab(QStringLiteral("Insert")));
+    QMenu *menu = win.findChild<QMenu *>(QStringLiteral("blocksMenu"));
+    QVERIFY(menu);
+    menu->popup(win.mapToGlobal(QPoint(300, 120)));
+    QTRY_VERIFY(menu->isVisible());
+    auto *gal = menu->findChild<jp::BlockGalleryList *>();
+    QVERIFY(gal);
+    QTRY_VERIFY(gal->previewsMade() >= 3);
+    menu->grab().save(QDir(shots).filePath(QStringLiteral("blocks-gallery.png")));
+    menu->close();
+    auto shoot = [&](const char *objectName, const QString &file) {
+        int tries = 0;
+        auto *t = new QTimer(this);
+        t->setInterval(20);
+        connect(t, &QTimer::timeout, this, [=, &tries] {
+            QWidget *w = QApplication::activeModalWidget();
+            if (w && w->objectName() == QLatin1String(objectName) && w->isVisible()) {
+                w->grab().save(file);
+                w->close();
+            } else if (++tries > 400 && w) {
+                w->close();
+            }
+        });
+        t->start();
+        return t;
+    };
+    jp::BlockInfo info;
+    info.name = QStringLiteral("Payment terms");
+    QTimer *t1 = shoot("saveBlockBox", QDir(shots).filePath(QStringLiteral("blocks-save.png")));
+    jp::saveBlockBox(&win, &info);
+    delete t1;
+    QTimer *t2 = shoot("manageBlocksBox", QDir(shots).filePath(QStringLiteral("blocks-organizer.png")));
+    jp::manageBlocksBox(&win, QStringLiteral("docx"), [](const jp::BlockEntry &e, const QSize &size, qreal dpr) {
+        const auto doc = WriteDoc::fromDocx(e.data);
+        QImage img(QSize(qRound(size.width() * dpr), qRound(size.height() * dpr)), QImage::Format_RGB32);
+        img.fill(Qt::white);
+        img.setDevicePixelRatio(dpr);
+        if (!doc) return img;
+        const auto page = doc->pager().materialize(0);
+        if (!page) return img;
+        QPainter p(&img);
+        p.scale(size.width() / 250.0, size.width() / 250.0);
+        p.translate(-62, -62);
+        LayoutCache cache;
+        paintPage(&p, *page, &cache, PageDrawing());
+        return img;
+    });
+    delete t2;
+    jp::BlockLibrary::setSharedPath(QString());
 }

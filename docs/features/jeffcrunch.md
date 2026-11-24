@@ -794,3 +794,7 @@ Not planned, because they only work with an online service or a product JeffOffi
 11. Protected View (files from the Internet open read-only until you choose to edit): add it, or is a plain read-only open enough?
 12. East Asian features (the double-byte text functions, phonetic guides, and the Japanese era and Hijri calendars): stay at 1.0 and later, or does anyone who will use JeffCrunch need them for the first release?
 13. Which built-in templates come first: budget, invoice, expense report, loan schedule, calendar, or timesheet?
+
+## Saved blocks (shared store)
+
+The shared library of saved blocks (`libs/base/io/blocklibrary.h`, one file for every app, built for JeffWrite on 2026-11-24) is not used here yet. To wire JeffCrunch: save the selected cells with their formats and formulas as the entry bytes (`format` `jcrunch-cells`, the bytes of its own copy), list them with `jp::blocksMenu` and `jp::manageBlocksBox` (`libs/shell/app/blockgallery.h`) with a preview drawn by the grid, and insert them at the selected cell as one step.

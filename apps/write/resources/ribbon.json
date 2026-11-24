@@ -486,6 +486,15 @@
             },
             {
               "large": {
+                "id": "ribbon.savedBlocks",
+                "text": "Saved Blocks",
+                "icon": "package-plus"
+              },
+              "keytip": "QK",
+              "menu": "@savedBlocks"
+            },
+            {
+              "large": {
                 "id": "ribbon.dropCap",
                 "text": "Drop Cap",
                 "icon": "letter-text"

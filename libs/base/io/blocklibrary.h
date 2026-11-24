@@ -45,8 +45,8 @@ struct BlockEntry {
     QByteArray data;
 };
 
-inline const QString kBlocksGallery = QStringLiteral("saved");
-inline const QString kShortcutsGallery = QStringLiteral("shortcuts");
+static const QString kBlocksGallery = QStringLiteral("saved");
+static const QString kShortcutsGallery = QStringLiteral("shortcuts");
 
 class JO_COMMON_EXPORT BlockLibrary {
 public:

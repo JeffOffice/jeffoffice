@@ -16,12 +16,16 @@
 #include "core/linkops.h"
 #include "text/textprops.h"
 #include "app/writedialogs.h"
+#include "app/blockgallery.h"
+#include "app/pagepaint.h"
+#include "core/blockops.h"
 
 #include <QAction>
 #include <QMessageBox>
 #include <QFile>
 #include <QFileDialog>
 #include <QFileInfo>
+#include <QPainter>
 #include <QStandardPaths>
 #include <QStatusBar>
 #include <QDesktopServices>
@@ -32,6 +36,78 @@
 #include <QWidgetAction>
 
 namespace jp {
+
+namespace {
+
+// A block drawn the way a page of it is: its first page, from just inside the margins, at the size of a gallery cell.
+QImage blockPreviewImage(const jp::BlockEntry &e, const QSize &size, qreal dpr)
+{
+    const auto doc = write::WriteDoc::fromDocx(e.data);
+    if (!doc) return QImage();
+    const auto page = doc->pager().materialize(0);
+    if (!page) return QImage();
+    QImage img(QSize(qRound(size.width() * dpr), qRound(size.height() * dpr)), QImage::Format_RGB32);
+    img.fill(Qt::white);
+    img.setDevicePixelRatio(dpr);
+    QPainter p(&img);
+    const double k = size.width() / 250.0;
+    p.scale(k, k);
+    p.translate(-62, -62);
+    LayoutCache cache;
+    write::paintPage(&p, *page, &cache, write::PageDrawing());
+    return img;
+}
+
+} // namespace
+
+bool WriteWindow::insertSavedBlock(const jp::BlockInfo &info, const QByteArray &data)
+{
+    if (!m_doc || refuseIfReadOnly()) return false;
+    if (m_view->inHeaderFooter() || m_view->inNote()) {
+        statusBar()->showMessage(tr("A saved block can be put in the text of the document, not in a header, a footer, or a note."), 6000);
+        return false;
+    }
+    QTextCursor c = m_view->cursor();
+    QString why;
+    if (!write::insertBlock(*m_doc, c, data, info.insertAs, &why)) {
+        statusBar()->showMessage(why, 6000);
+        return false;
+    }
+    m_view->showCursor(c);
+    m_view->setFocus(Qt::OtherFocusReason);
+    return true;
+}
+
+void WriteWindow::saveSelectionAsBlock()
+{
+    if (!m_doc) return;
+    const QTextCursor sel = m_view->cursor();
+    QString why;
+    const QByteArray bytes = write::blockFromSelection(*m_doc, sel, &why);
+    if (bytes.isEmpty()) {
+        statusBar()->showMessage(why, 6000);
+        return;
+    }
+    jp::BlockInfo info;
+    info.name = write::suggestedBlockName(sel);
+    info.gallery = jp::kBlocksGallery;
+    info.format = QStringLiteral("docx");
+    if (!jp::saveBlockBox(this, &info)) return;
+    if (jp::saveBlock(this, info, bytes)) statusBar()->showMessage(tr("Saved \"%1\" to %2.").arg(info.name, jp::blockGalleryName(info.gallery)), 5000);
+    m_view->setFocus(Qt::OtherFocusReason);
+}
+
+// F3: the Text Shortcut typed before the caret becomes its block.
+void WriteWindow::expandTextShortcut()
+{
+    if (!m_doc || refuseIfReadOnly() || m_view->inHeaderFooter() || m_view->inNote()) return;
+    jp::BlockLibrary &lib = jp::BlockLibrary::shared();
+    lib.load();
+    QTextCursor c = m_view->cursor();
+    QString why;
+    if (write::expandShortcut(*m_doc, c, lib, &why)) m_view->showCursor(c);
+    else statusBar()->showMessage(why.isEmpty() ? tr("No Text Shortcut ends just before the cursor.") : why, 5000);
+}
 
 void WriteWindow::createInsertActions()
 {
@@ -147,6 +223,12 @@ void WriteWindow::createInsertActions()
         if (!write::insertTextFromFile(*m_doc, m_view->cursor(), f.readAll(), &why)) statusBar()->showMessage(why, 8000);
         m_view->setFocus(Qt::OtherFocusReason);
     });
+    mk("insert.saveBlock", tr("Save Selection as a Block…"), "package-plus", QKeySequence(), [this] { saveSelectionAsBlock(); });
+    mk("insert.manageBlocks", tr("Manage Saved Blocks…"), "package-open", QKeySequence(), [this] {
+        jp::manageBlocksBox(this, QStringLiteral("docx"), blockPreviewImage);
+        m_view->setFocus(Qt::OtherFocusReason);
+    });
+    mk("insert.expandShortcut", tr("Expand Text Shortcut"), "zap", QKeySequence(Qt::Key_F3), [this] { expandTextShortcut(); });
     mk("insert.hyperlink", tr("Link…"), "link", QKeySequence(Qt::CTRL | Qt::Key_K), [this] {
         if (!m_doc) return;
         write::linkDialog(this, m_doc.get(), m_view);
@@ -185,6 +267,11 @@ void WriteWindow::createInsertActions()
 
 void WriteWindow::insertRibbonParts(RibbonParts &parts)
 {
+    parts.menus[QStringLiteral("savedBlocks")] = [this](QWidget *owner) {
+        return jp::blocksMenu(owner, jp::kBlocksGallery, QStringLiteral("docx"), blockPreviewImage,
+                              [this](const jp::BlockInfo &info, const QByteArray &data) { insertSavedBlock(info, data); },
+                              {act("insert.saveBlock"), act("insert.manageBlocks"), act("insert.expandShortcut")});
+    };
     // Symbol: the symbols used lately to click, then More Symbols.
     parts.menus[QStringLiteral("symbolMenu")] = [this](QWidget *owner) {
         auto *sm = new QMenu(owner);
@@ -246,6 +333,8 @@ void WriteWindow::refreshInsertUi()
     refreshObjectUi();
     act("insert.dateTime")->setEnabled(m_doc && !m_view->inHeaderFooter() && !m_view->inNote());
     act("insert.textFromFile")->setEnabled(m_doc && !m_view->inHeaderFooter() && !m_view->inNote());
+    act("insert.saveBlock")->setEnabled(m_doc && m_view->cursor().hasSelection());
+    act("insert.expandShortcut")->setEnabled(m_doc && !m_view->inHeaderFooter() && !m_view->inNote());
     act("insert.hyperlink")->setEnabled(m_doc && !m_view->inHeaderFooter() && !m_view->inNote());
     act("insert.removeHyperlink")->setEnabled(m_doc && !m_view->inHeaderFooter() && !m_view->inNote() && write::hyperlinkAt(*m_doc, m_view->cursor().position()).valid());
     for (const char *id : {"insert.blankPage", "layout.columnBreak", "layout.sectionBreak.continuous", "layout.sectionBreak.evenPage", "layout.sectionBreak.oddPage"})

@@ -15,7 +15,6 @@ namespace jp::write {
 
 namespace {
 
-QString tr(const char *text) { return QCoreApplication::translate("jp::write::Blocks", text); }
 
 // The paragraph and character styles the text from `from` to `to` uses.
 QStringList stylesBetween(QTextDocument *d, int from, int to)
@@ -42,19 +41,19 @@ QByteArray blockFromSelection(const WriteDoc &doc, const QTextCursor &selection,
         if (problem) *problem = why;
         return QByteArray();
     };
-    if (!selection.hasSelection()) return fail(tr("Select what you want to save first."));
+    if (!selection.hasSelection()) return fail(QCoreApplication::translate("jp::write::Blocks", "Select what you want to save first."));
     const Clip clip = copySelection(doc, selection);
-    if (clip.isEmpty()) return fail(tr("There is nothing in the selection that can be saved as a block."));
+    if (clip.isEmpty()) return fail(QCoreApplication::translate("jp::write::Blocks", "There is nothing in the selection that can be saved as a block."));
     std::unique_ptr<WriteDoc> blank = WriteDoc::blank();
     // (The styles first, so the paragraphs pasted find them; a style the blank document has under the same name is kept as it is.)
     importStyles(*blank, doc, stylesBetween(selection.document(), selection.selectionStart(), selection.selectionEnd()), false);
     QTextCursor into(blank->story());
     pasteClip(*blank, into, clip);
-    if (blank->story()->characterCount() <= 1) return fail(tr("There is nothing in the selection that can be saved as a block."));
+    if (blank->story()->characterCount() <= 1) return fail(QCoreApplication::translate("jp::write::Blocks", "There is nothing in the selection that can be saved as a block."));
     QString err;
     const QByteArray bytes = blank->toDocx(&err);
-    if (bytes.isEmpty()) return fail(tr("The selection could not be saved as a block."));
-    if (bytes.size() > BlockLibrary::kMostEntryBytes) return fail(tr("The selection is too large to save as a block."));
+    if (bytes.isEmpty()) return fail(QCoreApplication::translate("jp::write::Blocks", "The selection could not be saved as a block."));
+    if (bytes.size() > BlockLibrary::kMostEntryBytes) return fail(QCoreApplication::translate("jp::write::Blocks", "The selection is too large to save as a block."));
     return bytes;
 }
 
@@ -77,14 +76,14 @@ bool insertBlock(WriteDoc &doc, QTextCursor &c, const QByteArray &block, BlockIn
         if (problem) *problem = why;
         return false;
     };
-    if (block.isEmpty() || block.size() > BlockLibrary::kMostEntryBytes) return fail(tr("This block cannot be read."));
+    if (block.isEmpty() || block.size() > BlockLibrary::kMostEntryBytes) return fail(QCoreApplication::translate("jp::write::Blocks", "This block cannot be read."));
     QString err;
     std::unique_ptr<WriteDoc> entry = WriteDoc::fromDocx(block, &err);
-    if (!entry) return fail(tr("This block cannot be read."));
+    if (!entry) return fail(QCoreApplication::translate("jp::write::Blocks", "This block cannot be read."));
     QTextCursor all(entry->story());
     all.select(QTextCursor::Document);
     const Clip clip = copySelection(*entry, all);
-    if (clip.isEmpty()) return fail(tr("This block is empty."));
+    if (clip.isEmpty()) return fail(QCoreApplication::translate("jp::write::Blocks", "This block is empty."));
     const QStringList styles = stylesBetween(entry->story(), 0, entry->story()->characterCount());
     QTextDocument *story = c.document();
     c.beginEditBlock();
@@ -105,7 +104,7 @@ bool insertBlock(WriteDoc &doc, QTextCursor &c, const QByteArray &block, BlockIn
     const int to = c.position();
     if (how == BlockInsert::Page) insertPageBreak(doc, c);
     c.endEditBlock();
-    if (to <= from && story == doc.story()) return fail(tr("The block could not be put in here."));
+    if (to <= from && story == doc.story()) return fail(QCoreApplication::translate("jp::write::Blocks", "The block could not be put in here."));
     if (story == doc.story()) {
         UpdateOptions o;
         o.from = from;

@@ -1913,6 +1913,8 @@ private Q_SLOTS:
     void aTextShortcutBecomesItsBlockWhereTheNameWasTyped();
     void aBlockThatIsNoDocumentIsRefusedAndNothingChanges();
     void aGlossaryPartOfAFileIsKeptByteForByte();
+    void theGalleryDrawsOnlyWhatIsInViewAndAPickGoesInAsOneStep();
+    void thePicturesOfTheSavedBlocksWindows();
 
 public:
     static std::unique_ptr<WriteDoc> speechDoc();

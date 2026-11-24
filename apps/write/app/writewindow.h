@@ -4,6 +4,7 @@
 #include "flow/tabledata.h"
 #include "app/appwindow.h"
 #include "core/pathops.h"
+#include "io/blocklibrary.h"
 #include "app/chartdesign.h"
 #include "app/compatdialog.h"
 #include "app/infopage.h"
@@ -126,6 +127,8 @@ struct WriteOutputOptions {
 class WriteWindow : public AppWindow, private ChartDesignHost {
     Q_OBJECT
 public:
+    // Saved blocks: puts a block of the library in at the caret as one step (the gallery's pick), and tells what went wrong in the status bar.
+    bool insertSavedBlock(const jp::BlockInfo &info, const QByteArray &data);
     explicit WriteWindow(QWidget *parent = nullptr);
     ~WriteWindow() override;
 
@@ -565,6 +568,8 @@ private:
     void createThemeActions();
     void refreshLayoutUi();
     void insertRibbonParts(RibbonParts &parts);
+    void saveSelectionAsBlock();
+    void expandTextShortcut();
     void refreshInsertUi();
     void createStyleActions();
     void makeSavedKeyCommands();

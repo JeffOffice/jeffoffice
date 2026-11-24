@@ -720,3 +720,7 @@ Not planned, because they only work with an online service or a product JeffOffi
 7. Present Online: leave it out, or build viewing on the local network in a browser, with no account?
 8. Compare and merge: 1.0, or later with the shared review model?
 9. Translate: is an offline translation model (size and license to check) worth shipping, or is Translate left out?
+
+## Saved blocks (shared store)
+
+The shared library of saved blocks (`libs/base/io/blocklibrary.h`, one file for every app, built for JeffWrite on 2026-11-24) is not used here yet. To wire JeffDeck: save the selected shapes on a slide as the entry bytes (`format` `jdeck-items`, the bytes of its own copy), list them with `jp::blocksMenu` and `jp::manageBlocksBox` (`libs/shell/app/blockgallery.h`) with a preview drawn by the slide renderer, and insert them as one step on the open slide.

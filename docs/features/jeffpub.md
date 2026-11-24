@@ -468,3 +468,7 @@ Not planned, because they only work with an online service or a product JeffOffi
 7. Web pages: build Publisher's Web tab (hotspots, navigation bars, form controls, HTML fragments), or leave web design out and keep the single-file web page?
 8. East Asian layout (phonetic guides, enclosed characters, horizontal text in vertical lines, and conversion between Chinese forms): 1.0 for the people who need it, or later?
 9. Letters have Reflection and a Text Styles gallery; Bevel needs a bevel in the text engine first: does JeffPub wait for the shared effects code that JeffDeck's list plans, or add one to its own text engine?
+
+## Saved blocks (shared store)
+
+JeffPub already keeps a person's own building blocks as files in its data folder (Save as Building Block). The shared library of saved blocks (`libs/base/io/blocklibrary.h`, one file for every app, built for JeffWrite on 2026-11-24) is not used here yet. To wire it: save the selected objects as the entry bytes with `format` set to `jpub-items` (the bytes of today's `application/x-jeffpub-items` copy), list those entries in the Building Blocks gallery through `jp::blocksMenu` (`libs/shell/app/blockgallery.h`) with a preview drawn by the page renderer, insert them as one step, and move the files in `BuildingBlocks` into the library once.
