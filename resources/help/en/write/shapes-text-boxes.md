@@ -78,6 +78,8 @@ Two choices on the **View** tab, in the **Grid** group, help you set pictures, s
 
 Hold **Alt** while you drag to leave snapping off for that one drag. A turned object lines up by the smallest box that holds all of it. Nothing snaps when both choices are off.
 
+If you also use JeffDeck, note the differences. In JeffDeck, alignment guides are on from the start, the grid is stored in the presentation, and a guide line crosses the whole slide. In JeffWrite, all three choices start off, they are yours on this computer, and a guide line stays on the page you are dragging on.
+
 ## Join shapes with a connector
 
 A **connector** is a line or an arrow that stays joined to two shapes. When you move either shape, or change its size, the connector moves its end to follow.
