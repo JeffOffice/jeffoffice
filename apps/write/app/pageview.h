@@ -344,6 +344,8 @@ public:
     // `*wordsLost` the number of the shapes taken out that held words (their words go; the window asks first, with mergeWordsLost). Work past a quick one runs on a thread of its own
     // between mergeBusy and mergeBusyEnded; the box that cancels it is the window's.
     bool canMergeSelectedShapes();
+    // A merge that is running (it waits in a loop of its own) is told to stop: the window is closing.
+    void cancelMerge();
     int mergeWordsLost();
     bool mergeSelectedShapes(pathops::Op op, QString *why = nullptr, int *made = nullptr, int *wordsLost = nullptr);
     std::function<void(int step, std::atomic<bool> &cancel)> mergeStepHook;   // (for tests: called on the worker before each step)
@@ -782,6 +784,13 @@ private:
     std::shared_ptr<const GroupLook> m_regroupLook;   // and what that group had besides its parts
 
     WriteDoc *m_doc = nullptr;
+    int m_docEpoch = 0;   // counts the documents shown (a merge that finds it changed drops its result)
+    std::atomic<bool> *m_mergeCancel = nullptr;
+    struct MergeCheck {
+        int epoch = -1, revision = -1;
+        QVector<int> positions;
+        bool ok = false;
+    } m_mergeCheck;   // the last answer of canMergeSelectedShapes, kept while the document and the selection stay as they were
     QTextCursor m_cursor;
     double m_zoom = 1.0;
     ZoomMode m_mode = ZoomMode::Percent;

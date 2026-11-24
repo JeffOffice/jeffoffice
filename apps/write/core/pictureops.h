@@ -201,6 +201,7 @@ bool moveFloatingObject(WriteDoc &doc, int position, int by);
 // For the tests: how many times the story was scanned for its drawings, how many drawings those scans read, and how many drawings were written again (all since the program began).
 qint64 drawingScansForTest();
 qint64 drawingsParsedForTest();
+qint64 mergeShapesReadForTest();   // how many drawings a merge check looked into (since the program began)
 qint64 drawingsWrittenForTest();
 // Mark as Decorative: the picture is marked as adding nothing to the page's meaning, and its description is taken off; off, the mark goes.
 bool setPictureDecorative(WriteDoc &doc, int position, bool decorative);
@@ -483,6 +484,8 @@ bool ungroupObject(WriteDoc &doc, int position, const QPointF &pageTopLeft, QVec
 
 // Whether the drawing at `position` is a shape or text box that Merge Shapes can use: set at a place (not in line with the text), in a paragraph that is not locked, and no picture, chart, group, line, or text art.
 bool canMergeShape(const WriteDoc &doc, int position);
+// Whether the drawings of these shapes, taken together, are small enough to be looked into for a merge (at most 64 shapes and 4 MB of drawing in all); only their sizes are read.
+bool mergeSelectionWithinLimits(const WriteDoc &doc, const QVector<int> &positions);
 // Whether the shape holds words (or a picture or field in its text box): the merged shape keeps the first shape's, and the other shapes' are lost.
 bool shapeHoldsWords(const WriteDoc &doc, int position);
 // The shapes at `positions` (two or more, the first selected first) become the outlines `pieces` (each in points on the page, as the shared Merge Shapes made it from the shapes as the page draws

@@ -96,7 +96,10 @@ QVector<QPainterPath> mergeBounded(pathops::Op op, const QVector<QPainterPath> &
             });
             QMetaObject::invokeMethod(&loop, &QEventLoop::quit, Qt::QueuedConnection);
         });
-        if (worker.started()) loop.exec();
+        if (worker.started()) {
+            loop.exec();
+            cancel = true;   // (a loop that was left early, as at quit, ends the worker at its next step)
+        }
         else result = pathops::merge(op, outlines, refused);
     }
     if (ended) ended();

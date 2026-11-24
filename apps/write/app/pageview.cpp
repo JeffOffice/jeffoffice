@@ -133,10 +133,11 @@ PageView::PageView(QWidget *parent) : QAbstractScrollArea(parent)
     });
 }
 
-PageView::~PageView() = default;
+PageView::~PageView() { cancelMerge(); }
 
 void PageView::setDocument(WriteDoc *doc)
 {
+    ++m_docEpoch;
     if (m_note.active) {
         QObject::disconnect(m_hfEdit);
         m_note = NoteEdit();

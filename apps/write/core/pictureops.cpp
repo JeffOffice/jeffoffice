@@ -65,11 +65,12 @@ namespace jp::write {
 
 namespace {
 // Work done on the drawings of the story, read by the tests (atomic, as the other counters of the document are).
-std::atomic<qint64> g_drawingScans{0}, g_drawingsParsed{0}, g_drawingsWritten{0};
+std::atomic<qint64> g_drawingScans{0}, g_drawingsParsed{0}, g_drawingsWritten{0}, g_mergeShapesRead{0};
 } // namespace
 
 qint64 drawingScansForTest() { return g_drawingScans.load(); }
 qint64 drawingsParsedForTest() { return g_drawingsParsed.load(); }
+qint64 mergeShapesReadForTest() { return g_mergeShapesRead.load(); }
 qint64 drawingsWrittenForTest() { return g_drawingsWritten.load(); }
 
 using namespace office::wml;
@@ -4236,6 +4237,8 @@ namespace {
 
 // A drawing larger than this is not looked into for Merge Shapes (its outline is bounded by the shared limits, but its words are not).
 constexpr qsizetype kMostMergeBytes = 1 << 20;
+// And the shapes selected together are not looked into past this many bytes of drawing in all (a size read is all it costs to refuse them).
+constexpr qsizetype kMostMergeTotalBytes = 4 << 20;
 
 // The shape at a place when it can be merged with others: one set at a place on the page, in a paragraph that is not locked, that is a plain shape or text box (no picture, chart, group, line, or
 // text art). `out` gets its drawing.
@@ -4246,6 +4249,7 @@ bool mergeableAt(const WriteDoc &doc, int position, Model *out = nullptr)
     Inline atom;
     if (!drawingAtomOf(formatAfter(story, position), &atom) || atom.raw.size() > kMostMergeBytes) return false;
     Model m;
+    ++g_mergeShapesRead;
     if (!parseDrawing(atom.raw, &m) || !m.floating || m.cx <= 0 || m.cy <= 0 || !isShapeGraphic(m.graphic) || m.graphic.contains("<wpg:wgp") || m.graphic.contains("c:chart")) return false;
     SpPr sp;
     if (!splitSpPr(m.graphic, &sp)) return false;
@@ -4258,6 +4262,20 @@ bool mergeableAt(const WriteDoc &doc, int position, Model *out = nullptr)
 } // namespace
 
 bool canMergeShape(const WriteDoc &doc, int position) { return mergeableAt(doc, position); }
+
+bool mergeSelectionWithinLimits(const WriteDoc &doc, const QVector<int> &positions)
+{
+    const QTextDocument *story = doc.story();
+    if (!story || positions.size() > 64) return false;
+    qsizetype total = 0;
+    for (const int position : positions) {
+        Inline atom;
+        if (position < 0 || position + 1 > story->characterCount() - 1 || !drawingAtomOf(formatAfter(story, position), &atom)) return false;
+        total += atom.raw.size();
+        if (atom.raw.size() > kMostMergeBytes || total > kMostMergeTotalBytes) return false;
+    }
+    return true;
+}
 
 bool shapeHoldsWords(const WriteDoc &doc, int position)
 {
@@ -4276,7 +4294,7 @@ bool mergeShapeObjects(WriteDoc &doc, const QVector<int> &positions, const QVect
 {
     QTextDocument *story = doc.story();
     constexpr int kMostPiecesMade = 256, kMostShapesMerged = 64;   // (the shared merge's: pathops::kMostShapes and kMostPieces)
-    if (!story || positions.size() < 2 || positions.size() > kMostShapesMerged || pieces.isEmpty() || pieces.size() > kMostPiecesMade) return false;
+    if (!story || positions.size() < 2 || positions.size() > kMostShapesMerged || pieces.isEmpty() || pieces.size() > kMostPiecesMade || !mergeSelectionWithinLimits(doc, positions)) return false;
     QVector<Model> models;
     for (int i = 0; i < positions.size(); ++i) {
         for (int j = 0; j < i; ++j)

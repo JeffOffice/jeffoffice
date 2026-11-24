@@ -4,14 +4,28 @@
 #include "core/items.h"
 
 #include <QCoreApplication>
+#include <QPointer>
 
 namespace jp::write {
+
+void PageView::cancelMerge()
+{
+    if (m_mergeCancel) *m_mergeCancel = true;
+}
 
 bool PageView::canMergeSelectedShapes()
 {
     if (!m_doc || m_readOnly) return false;
     const QVector<int> positions = selectedObjects();
     if (positions.size() < 2 || positions.size() > pathops::kMostShapes) return false;
+    // (The sizes of the drawings are read first: a selection that is too big is off at once. The answer is kept for the same selection of the same document.)
+    const int revision = m_doc->story() ? m_doc->story()->revision() : -1;
+    if (m_mergeCheck.epoch == m_docEpoch && m_mergeCheck.revision == revision && m_mergeCheck.positions == positions) return m_mergeCheck.ok;
+    m_mergeCheck.epoch = m_docEpoch;
+    m_mergeCheck.revision = revision;
+    m_mergeCheck.positions = positions;
+    m_mergeCheck.ok = false;
+    if (!mergeSelectionWithinLimits(*m_doc, positions)) return false;
     int page = -1;
     for (const int p : positions) {
         std::shared_ptr<Item> item;
@@ -20,6 +34,7 @@ bool PageView::canMergeSelectedShapes()
         if (!canMergeShape(*m_doc, p) || !floatingPictureItem(p, &item, &at) || (page >= 0 && at != page) || !shapeOutlineOnPage(*item, &outline)) return false;
         page = at;
     }
+    m_mergeCheck.ok = true;
     return true;
 }
 
@@ -44,6 +59,7 @@ bool PageView::mergeSelectedShapes(pathops::Op op, QString *why, int *made, int 
     const QVector<int> positions = selectedObjects();
     if (positions.size() < 2) return refuse(QCoreApplication::translate("jp::Editor", "Select two or more shapes first."));
     if (positions.size() > pathops::kMostShapes) return refuse(QCoreApplication::translate("jp::Editor", "Select no more than 64 shapes."));
+    if (!mergeSelectionWithinLimits(*m_doc, positions)) return refuse(QCoreApplication::translate("jp::Editor", "The shapes are too complex to merge."));
     QVector<QPainterPath> outlines;
     QTransform firstTurn;
     int page = -1;
@@ -58,8 +74,24 @@ bool PageView::mergeSelectedShapes(pathops::Op op, QString *why, int *made, int 
         outlines << outline;
     }
     int refused = 0;
+    // (The merge waits in a loop of its own: the window can close or show another document meanwhile, and then the result is dropped.)
+    const QPointer<PageView> self(this);
+    const auto hook = mergeStepHook;
+    const int epoch = m_docEpoch, revision = m_doc->story()->revision();
     const QVector<QPainterPath> result = mergeBounded(
-        op, outlines, &refused, [this](const QString &text, std::atomic<bool> *cancel) { Q_EMIT mergeBusy(text, cancel); }, [this] { Q_EMIT mergeBusyEnded(); }, mergeStepHook);
+        op, outlines, &refused,
+        [self](const QString &text, std::atomic<bool> *cancel) {
+            if (!self) return;
+            self->m_mergeCancel = cancel;
+            Q_EMIT self->mergeBusy(text, cancel);
+        },
+        [self] {
+            if (!self) return;
+            self->m_mergeCancel = nullptr;
+            Q_EMIT self->mergeBusyEnded();
+        },
+        hook);
+    if (!self || epoch != m_docEpoch || !m_doc || !m_doc->story() || revision != m_doc->story()->revision()) return refuse(QCoreApplication::translate("jp::Editor", "Cancelled. The shapes are as they were."));
     if (result.isEmpty()) return refuse(mergeRefusal(refused));
     const int lost = mergeWordsLost();
     m_doc->pictureNotice.clear();

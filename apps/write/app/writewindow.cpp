@@ -937,6 +937,7 @@ void WriteWindow::closeEvent(QCloseEvent *e)
     stopHighlighting();
     setPainterMode(PainterMode::Off);
     rememberPlace();
+    if (m_view) m_view->cancelMerge();
     e->accept();
 }
 
