@@ -179,6 +179,7 @@ void Editor::setCurrentPage(int i, bool keepTextEdit)
 
 void Editor::setMasterView(const QString &id)
 {
+    stopHighlighter();   // (a changed view ends the highlighter)
     endTextEdit();
     if (!id.isEmpty() && !m_doc->master(id)) return;
     leaveCrop();

@@ -482,12 +482,23 @@ void Editor::setTextHighlight(const ColorRef &c)
         }
         // Off: the runs are listed first, then changed (changing one while walking the list would move it).
         QVector<QPair<int, int>> runs;
-        for (QTextBlock b = t.document()->findBlock(t.selectionStart()); b.isValid() && b.position() < t.selectionEnd(); b = b.next())
+        QVector<int> marks;   // paragraphs whose own format carries the color (files saved before the words-only rule)
+        for (QTextBlock b = t.document()->findBlock(t.selectionStart()); b.isValid() && b.position() < t.selectionEnd(); b = b.next()) {
+            if (b.charFormat().hasProperty(tp::HighlightRefP)) marks << b.position();
             for (auto it = b.begin(); !it.atEnd(); ++it) {
                 const QTextFragment fr = it.fragment();
                 const int from = std::max(t.selectionStart(), fr.position()), to = std::min(t.selectionEnd(), fr.position() + fr.length());
                 if (from < to && fr.charFormat().hasProperty(tp::HighlightRefP)) runs << qMakePair(from, to);
             }
+        }
+        for (const int pos : std::as_const(marks)) {
+            QTextCursor bc(t.document());
+            bc.setPosition(pos);
+            QTextCharFormat bf = bc.blockCharFormat();
+            bf.clearProperty(tp::HighlightRefP);
+            tp::removeDirect(bf, {tp::HighlightRefP});
+            bc.setBlockCharFormat(bf);
+        }
         for (const auto &r : std::as_const(runs)) {
             QTextCursor fc(t.document());
             fc.setPosition(r.first);

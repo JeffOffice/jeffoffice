@@ -140,6 +140,7 @@ void DeckWindow::setView(View view)
     if (notesMasters && !wasNotesMasters) m_viewBeforeMasters = was == View::Master ? View::Normal : was;
     m_view = view;
     if (view != was) {
+        m_ed->stopHighlighter();   // (a changed view ends the highlighter)
         if (borrowsZoom(view) && !borrowsZoom(was)) {
             m_ed->endTextEdit();
             m_normalFit = int(m_canvas->fitMode());

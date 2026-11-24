@@ -29,15 +29,15 @@ QString colorName(const QString &key)
 {
     using QCA = QCoreApplication;
     if (key == QLatin1String("yellow")) return QCA::translate("HighlightMenu", "Yellow");
-    if (key == QLatin1String("green")) return QCA::translate("HighlightMenu", "Bright Green");
-    if (key == QLatin1String("cyan")) return QCA::translate("HighlightMenu", "Turquoise");
-    if (key == QLatin1String("magenta")) return QCA::translate("HighlightMenu", "Pink");
+    if (key == QLatin1String("green")) return QCA::translate("HighlightMenu", "Green");
+    if (key == QLatin1String("cyan")) return QCA::translate("HighlightMenu", "Cyan");
+    if (key == QLatin1String("magenta")) return QCA::translate("HighlightMenu", "Magenta");
     if (key == QLatin1String("blue")) return QCA::translate("HighlightMenu", "Blue");
     if (key == QLatin1String("red")) return QCA::translate("HighlightMenu", "Red");
     if (key == QLatin1String("darkBlue")) return QCA::translate("HighlightMenu", "Dark Blue");
-    if (key == QLatin1String("darkCyan")) return QCA::translate("HighlightMenu", "Teal");
-    if (key == QLatin1String("darkGreen")) return QCA::translate("HighlightMenu", "Green");
-    if (key == QLatin1String("darkMagenta")) return QCA::translate("HighlightMenu", "Violet");
+    if (key == QLatin1String("darkCyan")) return QCA::translate("HighlightMenu", "Dark Cyan");
+    if (key == QLatin1String("darkGreen")) return QCA::translate("HighlightMenu", "Dark Green");
+    if (key == QLatin1String("darkMagenta")) return QCA::translate("HighlightMenu", "Dark Magenta");
     if (key == QLatin1String("darkRed")) return QCA::translate("HighlightMenu", "Dark Red");
     if (key == QLatin1String("darkYellow")) return QCA::translate("HighlightMenu", "Dark Yellow");
     if (key == QLatin1String("darkGray")) return QCA::translate("HighlightMenu", "Dark Gray");

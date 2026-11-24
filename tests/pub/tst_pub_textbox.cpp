@@ -6,6 +6,11 @@
 #include "app/theme.h"
 #include "app/highlightmenu.h"
 #include <QMenu>
+#include <QStatusBar>
+#include "app/lossywarning.h"
+#include <QScopeGuard>
+#include "io/zip.h"
+#include "render/renderer.h"
 
 #include <QDir>
 #include <QKeyEvent>
@@ -50,6 +55,22 @@ QByteArray bytesOf(const QString &path)
 {
     QFile f(path);
     return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
+}
+
+// A box of "AAAA BBBB" with the first word highlighted yellow, in a window of its own.
+std::shared_ptr<TextItem> markedBox(MainWindow &w)
+{
+    Editor *ed = w.editor();
+    auto box = std::static_pointer_cast<TextItem>(ed->newTextBox(QRectF(72, 72, 400, 200), QStringLiteral("AAAA BBBB")));
+    ed->addItem(box);
+    ed->beginTextEdit(box->id, 0);
+    QTextCursor c = ed->cursor();
+    c.setPosition(0);
+    c.setPosition(4, QTextCursor::KeepAnchor);
+    ed->setCursor(c);
+    ed->chooseHighlight(ColorRef::rgb(QColor(Qt::yellow)));
+    ed->endTextEdit();
+    return box;
 }
 
 } // namespace
@@ -371,12 +392,155 @@ private Q_SLOTS:
         QVERIFY(markOf(0).isEmpty());
         pick(2, 2);
         for (QAction *a : menu->actions())
-            if (a->text() == QStringLiteral("Bright Green")) a->trigger();
+            if (a->text() == QStringLiteral("Green")) a->trigger();
         QVERIFY(ed->highlighterArmed());
         QVERIFY(markOf(0).isEmpty());
         w.act(QStringLiteral("fmt.stopHighlighting"))->trigger();
         QVERIFY(!ed->highlighterArmed());
         delete menu;
+        ed->endTextEdit();
+    }
+
+    // A second click on the button turns the highlighter off, Esc does too wherever focus is in the window, and so does a changed view.
+    void aSecondClickEscAndAChangedViewEndTheHighlighter()
+    {
+        MainWindow w;
+        w.resize(1200, 800);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        w.editor()->setDocument(oneSlide());
+        Editor *ed = w.editor();
+        QAction *button = w.act(QStringLiteral("fmt.highlight"));
+        button->trigger();
+        QVERIFY(ed->highlighterArmed());
+        QVERIFY(button->isChecked());
+        button->trigger();
+        QVERIFY(!ed->highlighterArmed());
+        QVERIFY(!button->isChecked());
+        button->trigger();
+        QVERIFY(ed->highlighterArmed());
+        QTest::keyClick(w.statusBar(), Qt::Key_Escape);   // (not the canvas)
+        QVERIFY(!ed->highlighterArmed());
+        QVERIFY(!button->isChecked());
+        QVERIFY(!ed->doc()->masters.empty());
+        button->trigger();
+        QVERIFY(ed->highlighterArmed());
+        ed->setMasterView(ed->doc()->masters[0]->id);
+        QVERIFY(!ed->highlighterArmed());
+        ed->setMasterView(QString());
+    }
+
+    // No Color also takes off a mark that a paragraph's own format carries (a file saved before the mark went on the words only).
+    void noColorTakesOffAMarkOfTheParagraphFormatToo()
+    {
+        MainWindow w;
+        Editor *ed = w.editor();
+        auto box = markedBox(w);
+        QTextDocument *story = ed->doc()->storyDoc(box->storyId);
+        {
+            QTextCursor bc(story);
+            QTextCharFormat bf = bc.blockCharFormat();
+            bf.setProperty(tp::HighlightRefP, ColorRef::rgb(QColor(Qt::green)).toString());
+            bc.setBlockCharFormat(bf);
+        }
+        QVERIFY(story->begin().charFormat().hasProperty(tp::HighlightRefP));
+        ed->beginTextEdit(box->id, 0);
+        QTextCursor c = ed->cursor();
+        c.select(QTextCursor::Document);
+        ed->setCursor(c);
+        ed->chooseHighlight(ColorRef());
+        QVERIFY(!story->begin().charFormat().hasProperty(tp::HighlightRefP));
+        QTextCursor w1(story);
+        w1.setPosition(2);
+        QVERIFY(!w1.charFormat().hasProperty(tp::HighlightRefP));
+        ed->endTextEdit();
+    }
+
+    // A .pub file has no place for a highlight: the save warning and Check Compatibility name it, and only when some text has one. EPUB keeps it as a
+    // background, and the drawn page and the SVG show it.
+    void everyFormatKeepsTheHighlightOrSaysItIsLost()
+    {
+        MainWindow w;
+        Editor *ed = w.editor();
+        auto box = std::static_pointer_cast<TextItem>(ed->newTextBox(QRectF(72, 72, 400, 200), QStringLiteral("AAAA BBBB")));
+        ed->addItem(box);
+        auto namesHighlight = [&] {
+            for (const QString &line : w.pubLosses())
+                if (line.contains(QStringLiteral("highlight"))) return true;
+            return false;
+        };
+        QVERIFY(!namesHighlight());
+        markedBox(w);
+        QVERIFY(namesHighlight());
+        QTemporaryDir dir;
+        // The save to .pub asks first, and the box names the highlight.
+        QString said;
+        jp::setLossyStandIn([&](const jp::LossyAsk &a, bool *) {
+            said = a.lost.join(QLatin1Char('\n'));
+            return jp::LossyChoice::SaveAnyway;
+        });
+        const auto reset = qScopeGuard([] { jp::setLossyStandIn(nullptr); });
+        QVERIFY(w.saveTo(dir.filePath(QStringLiteral("marked.pub")), true));
+        QVERIFY2(said.contains(QStringLiteral("text highlight colors couldn't be saved to .pub"), Qt::CaseInsensitive), qPrintable(said));
+        // EPUB
+        QString err;
+        const QString epubPath = dir.filePath(QStringLiteral("book.epub"));
+        QVERIFY2(w.exportEpubTo(epubPath, QStringLiteral("Book"), QString(), false, &err), qPrintable(err));
+        QMap<QString, QByteArray> zip;
+        QVERIFY(jp::readZip(bytesOf(epubPath), zip, &err));
+        QString text;
+        for (auto it = zip.cbegin(); it != zip.cend(); ++it)
+            if (it.key().endsWith(QStringLiteral(".xhtml"))) text += QString::fromUtf8(it.value());
+        QVERIFY2(text.contains(QStringLiteral("<span style=\"background-color: #ffff00\">AAAA</span>")), qPrintable(text.left(600)));
+        // The page drawn (the PDF, the images, and the HTML page are made from it) and the SVG.
+        LayoutCache cache;
+        PaintContext ctx;
+        ctx.doc = ed->doc();
+        ctx.cache = &cache;
+        const QImage img = Renderer::renderToImage(ctx, 0, 1.0);
+        int yellow = 0;
+        for (int y = 0; y < img.height(); ++y)
+            for (int x = 0; x < img.width(); ++x) {
+                const QColor c = img.pixelColor(x, y);
+                if (c.red() > 200 && c.green() > 200 && c.blue() < 90) ++yellow;
+            }
+        QVERIFY(yellow > 100);
+        const QString svgPath = dir.filePath(QStringLiteral("page.svg"));
+        QVERIFY(w.exportSvgTo(svgPath, &err));
+        QVERIFY(QString::fromUtf8(bytesOf(svgPath)).contains(QStringLiteral("#ffff00")));
+    }
+
+    // Copy Formatting carries a highlight, and Clear All Formatting takes it off.
+    void copyFormattingCarriesAHighlightAndClearAllFormattingTakesItOff()
+    {
+        MainWindow w;
+        Editor *ed = w.editor();
+        auto box = markedBox(w);
+        QTextDocument *story = ed->doc()->storyDoc(box->storyId);
+        auto markOf = [&](int at) {
+            QTextCursor c(story);
+            c.setPosition(at + 1);
+            return c.charFormat().stringProperty(tp::HighlightRefP);
+        };
+        const QString yellow = ColorRef::rgb(QColor(Qt::yellow)).toString();
+        ed->beginTextEdit(box->id, 0);
+        QTextCursor c = ed->cursor();
+        c.setPosition(0);
+        c.setPosition(4, QTextCursor::KeepAnchor);
+        ed->setCursor(c);
+        ed->copyFormatting();
+        c.setPosition(5);
+        c.setPosition(9, QTextCursor::KeepAnchor);
+        ed->setCursor(c);
+        QVERIFY(markOf(5).isEmpty());
+        ed->pasteFormatting();
+        QCOMPARE(markOf(5), yellow);
+        c.setPosition(0);
+        c.setPosition(9, QTextCursor::KeepAnchor);
+        ed->setCursor(c);
+        ed->clearFormatting();
+        QVERIFY(markOf(0).isEmpty());
+        QVERIFY(markOf(5).isEmpty());
         ed->endTextEdit();
     }
 };

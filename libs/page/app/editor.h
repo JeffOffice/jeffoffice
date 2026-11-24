@@ -241,8 +241,6 @@ public:
     QTextCharFormat painterText;       // Copy Formatting: copied text formatting
     bool painterHasText = false;
     bool painterLocked = false;
-    bool m_highlighterOn = false;
-    ColorRef m_lastHighlight = ColorRef::rgb(QColor(Qt::yellow));
     // Copy Formatting (Ctrl+Shift+C): the selected object's fill, outline and
     // effects, and the formatting of the text at the cursor or in the object.
     // Paste Formatting (Ctrl+Shift+V) gives them to the selected text, or to
@@ -506,6 +504,8 @@ Q_SIGNALS:
     void modifiedChanged(bool);
 
 private:
+    bool m_highlighterOn = false;
+    ColorRef m_lastHighlight = ColorRef::rgb(QColor(Qt::yellow));
     bool moveSelectionToSurface(PageBase &from, PageBase &to, bool toMaster, const std::function<double(const Item &)> &dx, QString *why);
     GroupItem *buildGroup(const QStringList &ids);
     bool regroupPossible(QString *why) const;

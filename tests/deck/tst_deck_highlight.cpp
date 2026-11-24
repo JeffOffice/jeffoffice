@@ -6,6 +6,8 @@
 #include "text/textengine.h"
 
 #include <QMenu>
+#include <QStatusBar>
+#include "app/slideshow.h"
 #include <QTemporaryDir>
 
 class DeckHighlightTests : public QObject {
@@ -118,7 +120,7 @@ private Q_SLOTS:
         // The menu: sixteen colors, No Color, Stop Highlighting; a color of it goes on at once and is the one the button uses next.
         QMenu *menu = highlightMenu(&w, ed, w.act(QStringLiteral("fmt.stopHighlighting")));
         QCOMPARE(menu->actions().size(), 16 + 1 + 1 + 1);
-        QAction *pink = menuAction(menu, QStringLiteral("Pink"));
+        QAction *pink = menuAction(menu, QStringLiteral("Magenta"));
         QVERIFY(pink);
         pick(0, 4);
         pink->trigger();
@@ -183,7 +185,7 @@ private Q_SLOTS:
         c.setPosition(0);
         ed->setCursor(c);
         QMenu *menu = highlightMenu(&w, ed, w.act(QStringLiteral("fmt.stopHighlighting")));
-        menuAction(menu, QStringLiteral("Turquoise"))->trigger();
+        menuAction(menu, QStringLiteral("Cyan"))->trigger();
         QVERIFY(ed->highlighterArmed());
         auto drag = [&](int from, int to) {
             QTest::mousePress(rig.view, Qt::LeftButton, Qt::NoModifier, rig.inside(from));
@@ -207,6 +209,60 @@ private Q_SLOTS:
         QVERIFY(!(QGuiApplication::mouseButtons() & Qt::LeftButton));
         delete menu;
         ed->endTextEdit();
+    }
+
+    // A second click on the button turns the highlighter off, Esc does too wherever focus is in the window, and so do a changed view and a slide show.
+    void aSecondClickEscAViewAndAShowEndTheHighlighter()
+    {
+        DeckWindow w;
+        w.resize(1440, 900);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        Editor *ed = w.editor();
+        QAction *button = w.act(QStringLiteral("fmt.highlight"));
+        button->trigger();
+        QVERIFY(ed->highlighterArmed());
+        QVERIFY(button->isChecked());
+        button->trigger();
+        QVERIFY(!ed->highlighterArmed());
+        QVERIFY(!button->isChecked());
+        button->trigger();
+        QVERIFY(ed->highlighterArmed());
+        QTest::keyClick(w.statusBar(), Qt::Key_Escape);   // (not the slide)
+        QVERIFY(!ed->highlighterArmed());
+        QVERIFY(!button->isChecked());
+        button->trigger();
+        QVERIFY(ed->highlighterArmed());
+        w.setView(DeckWindow::View::Sorter);
+        QVERIFY(!ed->highlighterArmed());
+        w.setView(DeckWindow::View::Normal);
+        button->trigger();
+        QVERIFY(ed->highlighterArmed());
+        w.startShow(0);
+        QVERIFY(!ed->highlighterArmed());
+        for (QWidget *top : QApplication::topLevelWidgets())
+            if (qobject_cast<SlideShow *>(top)) top->close();
+        QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+    }
+
+    // No Color also takes off a mark that a paragraph's own format carries (a file saved before the mark went on the words only).
+    void noColorTakesOffAMarkOfTheParagraphFormatToo()
+    {
+        DeckWindow w;
+        Editor *ed = w.editor();
+        QTextDocument *story = editTitle(w, QStringLiteral("AAAA BBBB"), 0, 9);
+        {
+            QTextCursor bc(story);
+            QTextCharFormat bf = bc.blockCharFormat();
+            bf.setProperty(tp::HighlightRefP, ColorRef::rgb(QColor(Qt::green)).toString());
+            bc.setBlockCharFormat(bf);
+        }
+        QVERIFY(story->begin().charFormat().hasProperty(tp::HighlightRefP));
+        w.act(QStringLiteral("fmt.highlight"))->trigger();
+        QVERIFY(!highlightOf(story, QStringLiteral("AAAA")).isEmpty());
+        ed->chooseHighlight(ColorRef());
+        QVERIFY(!story->begin().charFormat().hasProperty(tp::HighlightRefP));
+        QVERIFY(highlightOf(story, QStringLiteral("AAAA")).isEmpty());
     }
 
     // Clear All Formatting takes it off; Copy Formatting and Paste Formatting carry it.

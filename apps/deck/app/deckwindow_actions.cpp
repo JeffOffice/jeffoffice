@@ -31,6 +31,7 @@
 #include <QMessageBox>
 #include <QPainter>
 #include <QPushButton>
+#include <QShortcut>
 #include <QStandardPaths>
 #include <QStatusBar>
 #include <QTextBlock>
@@ -117,12 +118,18 @@ void DeckWindow::createFormatActions()
         ed->setTextShadow(!Editor::hasTextShadow(ed->currentCharFormat()), tr("Text Shadow"));
     }, true);
     mk("fmt.highlight", tr("Text Highlight Color"), "highlighter", QKeySequence(), [this, ed] {
-        ed->chooseHighlight(ed->lastHighlight());
+        if (ed->highlighterArmed()) ed->stopHighlighter();   // (a second click turns it off)
+        else ed->chooseHighlight(ed->lastHighlight());
         act("fmt.highlight")->setChecked(ed->highlighterArmed());   // (shown pressed while the highlighter is armed)
     }, true);
     mk("fmt.stopHighlighting", tr("Stop Highlighting"), "", QKeySequence(), [ed] { ed->stopHighlighter(); });
     act("fmt.stopHighlighting")->setEnabled(false);
-    connect(ed, &Editor::highlighterChanged, this, [this, ed] {
+    // Esc stops an armed highlighter wherever focus is in the window (only while armed, so Esc keeps its other jobs).
+    auto *stopKey = new QShortcut(QKeySequence(Qt::Key_Escape), this);
+    stopKey->setEnabled(false);
+    connect(stopKey, &QShortcut::activated, ed, [ed] { ed->stopHighlighter(); });
+    connect(ed, &Editor::highlighterChanged, this, [this, ed, stopKey] {
+        stopKey->setEnabled(ed->highlighterArmed());
         act("fmt.stopHighlighting")->setEnabled(ed->highlighterArmed());
         act("fmt.highlight")->setChecked(ed->highlighterArmed());
         if (ed->highlighterArmed()) statusBar()->showMessage(tr("Highlighting: select the text to highlight. Choose Stop Highlighting or press Esc to stop."));

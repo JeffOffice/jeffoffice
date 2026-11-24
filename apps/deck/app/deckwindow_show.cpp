@@ -570,6 +570,7 @@ void DeckWindow::playShow(int slide, const deck::ShowPlan &plan, bool recording,
 {
     m_notes->commit();
     if (m_outline) m_outline->commit();
+    m_ed->stopHighlighter();   // (a slide show ends the highlighter)
     m_ed->endTextEdit();
     endReadingView();
     if (m_show) m_show->close();
