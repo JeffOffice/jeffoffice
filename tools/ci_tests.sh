@@ -119,19 +119,14 @@ xargs -P "$jobs" -L 1 bash -c 'id=$1; prog=$2; shard=$3; shift 3; started=$(date
     # (Windows and macOS: no variable moves the data and cache folders there, Qt asks the system and ignores APPDATA, LOCALAPPDATA, and HOME. Each test program
     # isolates itself: tests/isolatesettings.h turns on Qt test mode and names the process uniquely, and the folders are taken away at exit.)
     export JP_CLASS_TIMES=1
-    # (a program that has finished its run, and written <part>.done (JP_DONE_FILE, tests/testrunner.cpp), but is still there a minute later is stuck at exit: it is given up, not waited
-    # for: a step that waits for it waits for the 45 minutes of the step, and the program, which nothing ends, keeps the Qt folder'"'"'s files; Nov 23 2026, Azure runner, run 45275261813)
+    # (a program that has finished its run, and written <part>.done (JP_DONE_FILE, tests/testrunner.cpp), and then uses no CPU for a long time is stuck at exit: tools/ci_wait_exit.sh
+    # prints what it is doing and gives it up, where a step that waits for it waits for the 45 minutes of the step, and the program, which nothing ends, keeps the Qt folders files; Nov 23 2026,
+    # Azure runner, run 45275261813. A slow exit that is still working is waited for.)
     rm -f "$id.done"; export JP_DONE_FILE="$PWD/$id.done"
     "build/$prog'"$ext"'" "$@" -v1 -o "$id-results.txt,txt" -o -,txt > "$id.log" 2>&1 &
-    pid=$!; late=0
-    while kill -0 "$pid" 2>/dev/null; do
-        if [ -f "$id.done" ]; then late=$((late + 1)); [ "$late" -ge 60 ] && break; fi
-        sleep 1
-    done
-    if kill -0 "$pid" 2>/dev/null; then
-        echo "$id: STUCK AT EXIT: the run finished (exit code $(cat "$id.done")) and process $pid is still there after 60 s" | tee -a "$id.log"
-        c=$(cat "$id.done"); echo $(( c == 0 ? 97 : c )) > "$id.code"
-    else wait "$pid"; echo $? > "$id.code"; fi
+    pid=$!
+    if bash tools/ci_wait_exit.sh "$pid" "$id" > "$id.stuck" 2>&1; then wait "$pid"; echo $? > "$id.code"
+    else cat "$id.stuck" >> "$id.log"; c=$(cat "$id.done"); echo $(( c == 0 ? 97 : c )) > "$id.code"; fi
     echo "$id finished in $(( $(date +%s) - started )) s"' _ < "$parts"
 
 # (macOS has no timeout command; Homebrew's coreutils name it gtimeout; without either, the debugger runs unbounded under the step's own time limit)
