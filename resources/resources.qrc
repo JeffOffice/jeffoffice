@@ -1544,6 +1544,7 @@
   </qresource>
   <qresource prefix="/">
     <file>app.png</file>
+    <file>functionnames.txt</file>
     <file>icon-tags.txt</file>
     <file>ribbon.json</file>
     <file>cmdsearch.json</file>

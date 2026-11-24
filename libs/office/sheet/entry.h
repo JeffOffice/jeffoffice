@@ -13,6 +13,8 @@
 #include <QString>
 #include <QStringList>
 
+#include <functional>
+
 namespace jp::office::sheet {
 
 // The most characters a cell's text, and a formula, may have.
@@ -40,6 +42,10 @@ struct LocaleSigns {
 struct EntryLocale {
     QLocale locale;
     LocaleSigns signs;
+    // The language the names of functions, the errors, and TRUE and FALSE of a formula are written in (a column of the table in fnnames.h: "de"); empty: the English ones, and the file's
+    // own array separators. `definedName` says whether a word is a name the workbook defines (it is then not TRUE or FALSE of the language).
+    QString language;
+    std::function<bool(const QString &)> definedName;
     EntryLocale() = default;
     EntryLocale(const QLocale &l, const LocaleSigns &s = LocaleSigns()) : locale(l), signs(s) {}
     static EntryLocale ofSystem()
@@ -61,6 +67,8 @@ struct EntryOptions {
     jp::calc::DateSystem dateSystem = jp::calc::DateSystem::Date1900;
     QDate today;                                                    // the year of a date written without one; the current date when not valid
     bool textFormat = false;                                        // the cell's format is Text: everything but a formula stays as typed
+    QString formulaLanguage;                                        // the language of the names in a formula (EntryLocale::language); empty: English
+    std::function<bool(const QString &)> definedName;               // and whether a word is a name the workbook defines
 };
 
 struct EntryResult {
@@ -91,10 +99,12 @@ const QStringList &prefixedFunctionNames();
 // Formulas in a locale that writes a comma for the decimal point (German, French, Spanish, and many more): there the arguments of a function are separated by a semicolon, and a number
 // has a comma in it ("=SUM(A1;A2)*0,5"). The file always has the format's own (commas between arguments, dots in numbers). `formulaFromLocale` turns what was typed into the file's,
 // `formulaToLocale` the file's into what is typed; text in quotes, names of sheets, brackets, and braces are left as they are, and so is a formula in any other locale.
-// (Names of functions are English for now.)
+// With a language in the EntryLocale (fnnames.h), the names of functions, the errors, and TRUE and FALSE are the language's as well (English ones are read too), and in a locale with a
+// decimal comma the constants of an array are written {1;2\3;4} (columns apart by a semicolon, rows by a backslash).
 QString formulaFromLocale(const QString &typed, const QLocale &locale);
 QString formulaFromLocale(const QString &typed, const EntryLocale &locale);
 QString formulaToLocale(const QString &formula, const QLocale &locale);
+QString formulaToLocale(const QString &formula, const EntryLocale &locale);
 
 // What a cell is shown as when it is edited: the value as it would be typed to give the same value (a percent with its "%", a date in the locale's short form), not cut to the
 // width of the cell. A text that would be read as something else (a number, a date, TRUE, a formula) has an apostrophe put in front.

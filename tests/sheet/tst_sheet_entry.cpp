@@ -8,6 +8,7 @@
 #include "calc/numfmt.h"
 #include "calc/formula.h"
 #include "sheet/entry.h"
+#include "sheet/fnnames.h"
 #include "sheet/styles.h"
 
 #include <QCoreApplication>
@@ -478,6 +479,143 @@ private Q_SLOTS:
         QCOMPARE(formulaToLocale(QStringLiteral("SUM(A1,A2)*0.5"), en), QStringLiteral("SUM(A1,A2)*0.5"));
         for (const QString &f : {"SUM(A1,A2)*0.5", "IF(A1>1,\"a,b\",2.5E-3)", "A1+B1", "AVERAGE(A1:A3,.5,6.)", "SUM({1,2;3,4},1.5)"})
             QCOMPARE(formulaFromLocale(formulaToLocale(f, de), de), f);
+    }
+
+    // Every function the engine has has a row in the table of local names: a local name, or an explicit mark that its English one is kept; no local name is another function's English
+    // name, and none is two functions' (both would make a typed name mean two things).
+    void everyFunctionHasARowInTheTableOfLocalNames()
+    {
+        const QStringList rows = formulaNameRows();
+        const QSet<QString> have(rows.begin(), rows.end());
+        QStringList missing;
+        for (int i = 0; i < jp::calc::functionCount(); ++i) {
+            const QString name = QString::fromLatin1(jp::calc::functionAt(i).name);
+            if (!have.contains(name)) missing << name;
+        }
+        QVERIFY2(missing.isEmpty(), qPrintable(missing.join(QLatin1Char(' '))));
+        for (const QString &row : rows)
+            if (!row.startsWith(QLatin1Char('#'))) QVERIFY2(jp::calc::findFunction(row), qPrintable(row));   // (no row for a function that is not there)
+        const QStringList languages = formulaNameLanguages();
+        QCOMPARE(languages, (QStringList{"de", "fr", "es", "it", "nl", "pt_BR", "pt_PT", "ru", "uk", "id"}));
+        for (const QString &language : languages) {
+            QHash<QString, QString> seen;
+            for (const QString &row : rows) {
+                const QString local = localFormulaName(row, language);
+                QCOMPARE(englishFormulaName(local, language).isEmpty() && local.compare(row, Qt::CaseInsensitive) != 0, false);
+                if (local.compare(row, Qt::CaseInsensitive) == 0) continue;
+                QVERIFY2(!seen.contains(local.toUpper()), qPrintable(language + QLatin1Char(' ') + local));
+                seen.insert(local.toUpper(), row);
+                QVERIFY2(!jp::calc::findFunction(local) || row.startsWith(QLatin1Char('#')), qPrintable(language + QLatin1Char(' ') + row + QLatin1Char('>') + local));
+                QCOMPARE(englishFormulaName(local, language), row);
+            }
+        }
+        // (what each language has: the languages whose names were not confirmed keep the English ones)
+        QVERIFY(localFormulaNameCount(QStringLiteral("de")) >= 200);
+        QVERIFY(localFormulaNameCount(QStringLiteral("ru")) >= 200);
+        QCOMPARE(localFormulaNameCount(QStringLiteral("uk")), 0);
+        QCOMPARE(localFormulaNameCount(QStringLiteral("id")), 0);
+        QVERIFY(formulaNameKeptEnglish(QStringLiteral("UNICODE")));
+        QVERIFY(formulaNameKeptEnglish(QStringLiteral("YIELD")));
+        QVERIFY(!formulaNameKeptEnglish(QStringLiteral("SUM")));
+        QCOMPARE(formulaLanguageOf(QStringLiteral("es_ES")), QStringLiteral("es"));
+        QCOMPARE(formulaLanguageOf(QStringLiteral("pt_PT")), QStringLiteral("pt_PT"));
+        QCOMPARE(formulaLanguageOf(QStringLiteral("en_GB")), QString());
+        QCOMPARE(formulaLanguageOf(QString()), QString());
+    }
+
+    // With the program in German, a formula is typed and shown with German names, TRUE and FALSE, and errors; English ones are read too; the file's form is English.
+    void formulasAreTypedAndShownWithLocalNames()
+    {
+        EntryOptions o = options(de);
+        o.formulaLanguage = QStringLiteral("de");
+        QCOMPARE(read(QStringLiteral("=SUMME(A1;A2)*0,5"), o), QStringLiteral("f:SUM(A1,A2)*0.5"));
+        QCOMPARE(read(QStringLiteral("=summe(A1;A2)"), o), QStringLiteral("f:SUM(A1,A2)"));
+        QCOMPARE(read(QStringLiteral("=SUM(A1;A2)"), o), QStringLiteral("f:SUM(A1,A2)"));   // (English, as well)
+        QCOMPARE(read(QStringLiteral("=WENN(A1>1;WAHR;FALSCH)"), o), QStringLiteral("f:IF(A1>1,TRUE,FALSE)"));
+        QCOMPARE(read(QStringLiteral("=WENNFEHLER(SVERWEIS(A1;B1:C9;2;FALSCH);#NV)"), o), QStringLiteral("f:_xlfn.IFERROR(VLOOKUP(A1,B1:C9,2,FALSE),#N/A)").replace(QStringLiteral("_xlfn."), QString()));
+        QCOMPARE(read(QStringLiteral("=STABW(A1:A3)"), o), QStringLiteral("f:STDEV(A1:A3)"));
+        QCOMPARE(read(QStringLiteral("=TEXT(A1;\"WENN;SUMME\")&\"WAHR\""), o), QStringLiteral("f:TEXT(A1,\"WENN;SUMME\")&\"WAHR\""));   // (text is text)
+        QCOMPARE(read(QStringLiteral("=SUMME({1,5;2\\3;4})"), o), QStringLiteral("f:SUM({1.5,2;3,4})"));
+        QCOMPARE(read(QStringLiteral("=SUMME({WAHR;#NV})"), o), QStringLiteral("f:SUM({TRUE,#N/A})"));
+        // a name of a sheet or of a workbook is not a function or TRUE
+        QCOMPARE(read(QStringLiteral("=Summe!A1+WAHR!B2"), o), QStringLiteral("f:Summe!A1+WAHR!B2"));
+        o.definedName = [](const QString &w) { return w.compare(QLatin1String("wahr"), Qt::CaseInsensitive) == 0; };
+        QCOMPARE(read(QStringLiteral("=WAHR+1"), o), QStringLiteral("f:WAHR+1"));
+        // shown
+        EntryLocale l(de);
+        l.language = QStringLiteral("de");
+        QCOMPARE(formulaToLocale(QStringLiteral("IF(SUM(A1,A2)*0.5>1,TRUE,FALSE)"), l), QStringLiteral("WENN(SUMME(A1;A2)*0,5>1;WAHR;FALSCH)"));
+        QCOMPARE(formulaToLocale(QStringLiteral("IFERROR(VLOOKUP(A1,B1:C9,2,FALSE),#N/A)+#REF!"), l), QStringLiteral("WENNFEHLER(SVERWEIS(A1;B1:C9;2;FALSCH);#NV)+#BEZUG!"));
+        QCOMPARE(formulaToLocale(QStringLiteral("SUM({1.5,2;3,4})+Summe!A1+TEXT(A1,\"SUM,TRUE\")"), l), QStringLiteral("SUMME({1,5;2\\3;4})+Summe!A1+TEXT(A1;\"SUM,TRUE\")"));
+        // a name the language has no word for stays; so does a language without names, and without a language the text is as it was
+        QCOMPARE(formulaToLocale(QStringLiteral("ABS(A1)+MyName(2)"), l), QStringLiteral("ABS(A1)+MyName(2)"));
+        EntryLocale indonesian(QLocale(QLocale::Indonesian, QLocale::Indonesia));
+        indonesian.language = QStringLiteral("id");
+        QCOMPARE(formulaToLocale(QStringLiteral("SUM(A1,A2)*0.5"), indonesian), QStringLiteral("SUM(A1;A2)*0,5"));
+        QCOMPARE(formulaToLocale(QStringLiteral("SUM({1,2;3,4})"), de), QStringLiteral("SUM({1,2;3,4})"));
+        // Russian: the names in Cyrillic, and the separators of a locale with a comma
+        EntryLocale ru(QLocale(QLocale::Russian, QLocale::Russia));
+        ru.language = QStringLiteral("ru");
+        QCOMPARE(formulaToLocale(QStringLiteral("IF(A1>0.5,SUM(A1:A3),#DIV/0!)"), ru), QStringLiteral("ЕСЛИ(A1>0,5;СУММ(A1:A3);#ДЕЛ/0!)"));
+        QCOMPARE(formulaFromLocale(QStringLiteral("ЕСЛИ(A1>0,5;СУММ(A1:A3);#ДЕЛ/0!)"), ru), QStringLiteral("IF(A1>0.5,SUM(A1:A3),#DIV/0!)"));
+        // a United States locale with a Spanish program: names are Spanish, arguments are separated by commas
+        EntryLocale us(QLocale(QLocale::English, QLocale::UnitedStates));
+        us.language = QStringLiteral("es");
+        QCOMPARE(formulaToLocale(QStringLiteral("IF(SUM(A1,A2)>0.5,TRUE,#NAME?)"), us), QStringLiteral("SI(SUMA(A1,A2)>0.5,VERDADERO,#¿NOMBRE?)"));
+        QCOMPARE(formulaFromLocale(QStringLiteral("SI(SUMA(A1,A2)>0.5,VERDADERO,#¿NOMBRE?)"), us), QStringLiteral("IF(SUM(A1,A2)>0.5,TRUE,#NAME?)"));
+    }
+
+    // parse(show(f)) is f for every function, with every separator combination and in every language the table has (a generated test), and a workbook made in one language reads in another.
+    void everyFunctionGoesRoundInEveryLanguage()
+    {
+        const QStringList rows = formulaNameRows();
+        const QList<QLocale> locales = {de, QLocale(QLocale::English, QLocale::UnitedStates), QLocale(QLocale::Russian, QLocale::Russia), QLocale(QLocale::French, QLocale::France)};
+        int checked = 0;
+        for (const QString &language : formulaNameLanguages()) {
+            for (const QLocale &locale : locales) {
+                EntryLocale l(locale);
+                l.language = language;
+                for (const QString &row : rows) {
+                    if (row.startsWith(QLatin1Char('#'))) continue;
+                    const QString f = row + QStringLiteral("(A1,2.5,\"a,b;c\",{1.5,2;TRUE,#N/A},B2:C3)+") + row + QStringLiteral("()-FALSE*Sheet1!A1+#DIV/0!");
+                    const QString shown = formulaToLocale(f, l);
+                    QCOMPARE(formulaFromLocale(shown, l), f);
+                    ++checked;
+                }
+                // every error and TRUE and FALSE
+                for (const QString &w : {"#NULL!", "#DIV/0!", "#VALUE!", "#REF!", "#NAME?", "#NUM!", "#N/A", "TRUE", "FALSE"}) {
+                    const QString f = QStringLiteral("IF(") + w + QStringLiteral(",{") + w + QStringLiteral("},1)");
+                    QCOMPARE(formulaFromLocale(formulaToLocale(f, l), l), f);
+                }
+            }
+        }
+        QVERIFY(checked > 4 * 10 * 250);
+        // made in one language, shown in another: the file's form is the one thing between them
+        EntryLocale german(de), spanish(QLocale(QLocale::Spanish, QLocale::Spain));
+        german.language = QStringLiteral("de");
+        spanish.language = QStringLiteral("es");
+        const QString file = formulaFromLocale(QStringLiteral("WENN(SUMME(A1;A2)>1,5;WAHR;#WERT!)"), german);
+        QCOMPARE(file, QStringLiteral("IF(SUM(A1,A2)>1.5,TRUE,#VALUE!)"));
+        QCOMPARE(formulaToLocale(file, spanish), QStringLiteral("SI(SUMA(A1;A2)>1,5;VERDADERO;#¡VALOR!)"));
+    }
+
+    // Hostile text is bounded: a name too long to be one is left, mixed separators and unknown words pass through, and an unfinished array or text does not run on.
+    void localNamesInHostileFormulasAreBounded()
+    {
+        EntryLocale l(de);
+        l.language = QStringLiteral("de");
+        const QString longName(5000, QLatin1Char('S'));
+        QCOMPARE(formulaFromLocale(longName + QStringLiteral("(A1;2)"), l), longName + QStringLiteral("(A1,2)"));
+        QCOMPARE(formulaToLocale(longName + QStringLiteral("(A1,2)"), l), longName + QStringLiteral("(A1;2)"));
+        QCOMPARE(englishFormulaName(longName, QStringLiteral("de")), QString());
+        QCOMPARE(formulaFromLocale(QStringLiteral("SUMME(A1,A2;3)+{1;2"), l), QStringLiteral("SUM(A1.A2,3)+{1,2"));
+        QCOMPARE(formulaFromLocale(QStringLiteral("SUMME(\"offen;WAHR"), l), QStringLiteral("SUM(\"offen;WAHR"));
+        QCOMPARE(formulaFromLocale(QStringLiteral("#NV#NV##WERT"), l), QStringLiteral("#N/A#N/A##WERT"));   // (a word after a "#" that is not an error stays)
+        QCOMPARE(formulaFromLocale(QString(), l), QString());
+        EntryLocale nothing(de);
+        nothing.language = QStringLiteral("xx");   // (no such column: the English words)
+        QCOMPARE(formulaToLocale(QStringLiteral("SUM(A1,2)"), nothing), QStringLiteral("SUM(A1;2)"));
+        QCOMPARE(formulaFromLocale(QStringLiteral("SUMME(A1;2)"), nothing), QStringLiteral("SUMME(A1,2)"));
     }
 
     // The digits of other scripts and the apostrophe of Swiss German are read as numbers: ar-EG, fa-IR, and de-CH.

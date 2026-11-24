@@ -3,6 +3,7 @@
 #include "calc/formula.h"
 #include "calc/functions.h"
 #include "calc/numfmt.h"
+#include "sheet/fnnames.h"
 
 #include <QCoreApplication>
 #include <QRegularExpression>
@@ -864,10 +865,163 @@ int verbatimEnd(const QString &f, int i)
 
 } // namespace
 
+namespace {
+
+bool nameStart(QChar c) { return c.isLetter() || c == QLatin1Char('_') || c == QLatin1Char('\\'); }
+bool namePart(QChar c) { return c.isLetterOrNumber() || c == QLatin1Char('_') || c == QLatin1Char('.') || c == QLatin1Char('\\'); }
+
+// The error values at `i` (a "#"): the one of the language, or the English one, and its length; the other form of it.
+bool errorAt(const QString &f, int i, const QString &language, bool toLocal, int *length, QString *other)
+{
+    static const QStringList errors = {QStringLiteral("#NULL!"), QStringLiteral("#DIV/0!"), QStringLiteral("#VALUE!"), QStringLiteral("#REF!"), QStringLiteral("#NAME?"), QStringLiteral("#NUM!"), QStringLiteral("#N/A")};
+    for (const QString &english : errors) {
+        const QString local = localFormulaName(english, language);
+        const QString &mine = toLocal ? english : local;
+        if (f.size() - i >= mine.size() && f.mid(i, mine.size()).compare(mine, Qt::CaseInsensitive) == 0) {
+            *length = int(mine.size());
+            *other = toLocal ? local : english;
+            return true;
+        }
+        if (!toLocal && f.size() - i >= english.size() && f.mid(i, english.size()).compare(english, Qt::CaseInsensitive) == 0) {
+            *length = int(english.size());
+            *other = english;
+            return true;
+        }
+    }
+    return false;
+}
+
+// The constants of an array, written by a locale with a decimal comma (columns by a semicolon, rows by a backslash) or as a file writes them, with the words of the language.
+QString arrayNames(const QString &inner, const EntryLocale &locale, bool toLocal, bool comma)
+{
+    QString out;
+    out.reserve(inner.size());
+    const int n = int(inner.size());
+    for (int i = 0; i < n;) {
+        const QChar c = inner[i];
+        if (c == QLatin1Char('"')) {
+            const int end = verbatimEnd(inner, i);
+            out += inner.mid(i, end - i);
+            i = end;
+            continue;
+        }
+        if (c == QLatin1Char('#')) {
+            int len = 0;
+            QString other;
+            if (errorAt(inner, i, locale.language, toLocal, &len, &other)) {
+                out += other;
+                i += len;
+                continue;
+            }
+        }
+        if (isDigit(c)) {
+            int j = i;
+            while (j < n && (isDigit(inner[j]) || inner[j] == QLatin1Char('.') || inner[j] == QLatin1Char('E') || inner[j] == QLatin1Char('e') || ((inner[j] == QLatin1Char('+') || inner[j] == QLatin1Char('-')) && j > i && (inner[j - 1] == QLatin1Char('E') || inner[j - 1] == QLatin1Char('e')))))
+                ++j;
+            QString number = inner.mid(i, j - i);
+            if (comma && toLocal) number.replace(QLatin1Char('.'), QLatin1Char(','));
+            out += number;
+            i = j;
+            continue;
+        }
+        if (c.isLetter() || c == QLatin1Char('_')) {
+            int j = i;
+            while (j < n && (inner[j].isLetterOrNumber() || inner[j] == QLatin1Char('_') || inner[j] == QLatin1Char('.'))) ++j;
+            const QString word = inner.mid(i, j - i);
+            const QString english = toLocal ? word.toUpper() : englishFormulaName(word, locale.language);
+            const bool boolean = english == QLatin1String("TRUE") || english == QLatin1String("FALSE");
+            if (boolean) out += toLocal ? localFormulaName(english, locale.language) : english;
+            else if (!toLocal && word.compare(QLatin1String("TRUE"), Qt::CaseInsensitive) == 0) out += QLatin1String("TRUE");
+            else out += word;
+            i = j;
+            continue;
+        }
+        if (comma && !toLocal) {
+            out += c == QLatin1Char(';') ? QLatin1Char(',') : c == QLatin1Char('\\') ? QLatin1Char(';') : c == QLatin1Char(',') ? QLatin1Char('.') : c;
+        } else if (comma) {
+            out += c == QLatin1Char(',') ? QLatin1Char(';') : c == QLatin1Char(';') ? QLatin1Char('\\') : c;
+        } else {
+            out += c;
+        }
+        ++i;
+    }
+    return out;
+}
+
+// The names of a formula in the language (toLocal: from the file's English) or from it. Only a word followed by a bracket is a function; TRUE and FALSE are the words alone, and not
+// the name of a sheet (before a "!") nor a name the workbook defines.
+QString formulaNames(const QString &f, const EntryLocale &locale, bool toLocal)
+{
+    const bool comma = commaDecimal(locale);
+    QString out;
+    out.reserve(f.size());
+    const int n = int(f.size());
+    for (int i = 0; i < n;) {
+        const QChar c = f[i];
+        if (c == QLatin1Char('"') || c == QLatin1Char('\'') || c == QLatin1Char('[')) {
+            const int end = verbatimEnd(f, i);
+            out += f.mid(i, end - i);
+            i = end;
+            continue;
+        }
+        if (c == QLatin1Char('{')) {
+            const int end = verbatimEnd(f, i);
+            const bool closed = end - i >= 2 && f[end - 1] == QLatin1Char('}');
+            out += QLatin1Char('{') + arrayNames(f.mid(i + 1, end - i - (closed ? 2 : 1)), locale, toLocal, comma) + (closed ? QString(QLatin1Char('}')) : QString());
+            i = end;
+            continue;
+        }
+        if (c == QLatin1Char('#')) {
+            int len = 0;
+            QString other;
+            if (errorAt(f, i, locale.language, toLocal, &len, &other)) {
+                out += other;
+                i += len;
+                continue;
+            }
+        }
+        if (nameStart(c)) {
+            int j = i;
+            while (j < n && namePart(f[j])) ++j;
+            const QString word = f.mid(i, j - i);
+            const bool afterBang = !out.isEmpty() && out.back() == QLatin1Char('!');
+            const bool beforeBang = j < n && f[j] == QLatin1Char('!');
+            if (word.size() > kMaxFormulaNameChars || afterBang || beforeBang) {
+                out += word;
+            } else if (j < n && f[j] == QLatin1Char('(')) {
+                const QString english = toLocal ? word.toUpper() : englishFormulaName(word, locale.language);
+                if (toLocal) {
+                    const QString local = localFormulaName(english, locale.language);
+                    out += local == english ? word : local;
+                } else {
+                    out += english.isEmpty() ? word : english;
+                }
+            } else {
+                const QString english = toLocal ? word.toUpper() : englishFormulaName(word, locale.language);
+                const bool boolean = english == QLatin1String("TRUE") || english == QLatin1String("FALSE");
+                if (boolean && !(locale.definedName && locale.definedName(word))) out += toLocal ? localFormulaName(english, locale.language) : english;
+                else out += word;
+            }
+            i = j;
+            continue;
+        }
+        out += c;
+        ++i;
+    }
+    return out;
+}
+
+} // namespace
+
 QString formulaFromLocale(const QString &typed, const QLocale &locale) { return formulaFromLocale(typed, EntryLocale(locale)); }
 
 QString formulaFromLocale(const QString &typed, const EntryLocale &locale)
 {
+    if (!locale.language.isEmpty()) {
+        EntryLocale withNames = locale;
+        withNames.language.clear();
+        return formulaFromLocale(formulaNames(typed, locale, false), withNames);
+    }
     if (!commaDecimal(locale) || !(typed.contains(QLatin1Char(';')) || typed.contains(QLatin1Char(',')))) return typed;
     QString out;
     out.reserve(typed.size());
@@ -885,8 +1039,15 @@ QString formulaFromLocale(const QString &typed, const EntryLocale &locale)
     return out;
 }
 
-QString formulaToLocale(const QString &formula, const QLocale &locale)
+QString formulaToLocale(const QString &formula, const QLocale &locale) { return formulaToLocale(formula, EntryLocale(locale)); }
+
+QString formulaToLocale(const QString &formula, const EntryLocale &locale)
 {
+    if (!locale.language.isEmpty()) {
+        EntryLocale withoutNames = locale;
+        withoutNames.language.clear();
+        return formulaNames(formulaToLocale(formula, withoutNames), locale, true);
+    }
     if (!commaDecimal(locale) || !(formula.contains(QLatin1Char('.')) || formula.contains(QLatin1Char(',')))) return formula;
     auto digit = [](QChar c) { return c.unicode() >= '0' && c.unicode() <= '9'; };
     auto identStart = [](QChar c) { return c.isLetter() || c == QLatin1Char('_') || c == QLatin1Char('\\'); };
@@ -946,7 +1107,9 @@ EntryResult readEntry(const QString &typedIn, const EntryOptions &options)
 {
     EntryResult r;
     const QString &typed = typedIn;
-    const EntryLocale entryLocale(options.locale, options.signs);
+    EntryLocale entryLocale(options.locale, options.signs);
+    entryLocale.language = options.formulaLanguage;
+    entryLocale.definedName = options.definedName;
     auto tooLong = [&](int limit, const QString &what) {
         r.ok = false;
         r.problem = what.arg(jp::systemLocale().toString(limit), jp::systemLocale().toString(typed.size()));
