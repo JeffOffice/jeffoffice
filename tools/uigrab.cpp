@@ -1,5 +1,6 @@
 // Developer tool: saves pictures of the shared dialog pieces (message boxes, buttons) as PNGs, for looking at the style (docs/design/STYLE.md).
 //   jo_uigrab <folder> [light|dark]
+#include "app/shutdown.h"
 #include "app/icons.h"
 #include "app/lossywarning.h"
 #include "app/pdfprotection.h"
@@ -19,6 +20,7 @@
 int main(int argc, char **argv)
 {
     QApplication app(argc, argv);
+    ::jp::ShutdownGuard programEnd;   // (the background services end, and the settings are written, however main is left: app/shutdown.h)
     if (argc < 2) return 2;
     const QString dir = QString::fromLocal8Bit(argv[1]);
     const bool dark = argc > 2 && QByteArray(argv[2]) == "dark";

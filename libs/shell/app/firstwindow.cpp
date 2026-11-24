@@ -2,6 +2,7 @@
 #include "core/startuptrace.h"
 
 #include "core/fonts.h"
+#include "app/settings.h"
 #include "app/spelling.h"
 
 #include <QApplication>
@@ -152,7 +153,7 @@ void closeAfterTurns(const QPointer<QWidget> &window, int turns)
 
 void grabAfterStart(QWidget *window)
 {
-    if (qEnvironmentVariableIsSet("JP_CLOSE_AFTER_TURNS")) {
+    if (qEnvironmentVariableIsSet("JP_CLOSE_AFTER_TURNS") && settingsKeptApart()) {   // (a test run only: a person's program never closes itself)
         Speller::get().watch();
         QThreadPool::globalInstance()->start([] {});
         closeAfterTurns(window, std::max(1, qEnvironmentVariableIntValue("JP_CLOSE_AFTER_TURNS")));

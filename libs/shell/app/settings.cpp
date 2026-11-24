@@ -15,6 +15,7 @@
 #include <QRegularExpression>
 #include <QStandardPaths>
 #include <QTemporaryDir>
+#include <QThread>
 #include <QCoreApplication>
 #include <cstdio>
 #include <cstdlib>
@@ -27,9 +28,16 @@ Settings &Settings::get()
     // (made with new and never deleted, see app/shutdown.h: a QSettings that is destroyed at the end of the program locks against every thread; what is changed is written by the step)
     static Settings *s = [] {
         auto *made = new Settings;
-        addShutdownStep([made](int) {
-            made->sync();
-            return 0;
+        // (written on a thread of its own and waited for at most the time given: a settings store that is locked or slow (a file on a network drive, the registry) must not keep the program from ending; when the
+        // wait runs out, the thread is let go of and counted, and the program leaves without destroying statics, app/shutdown.h. The one that is waited for is the only one using the settings by then)
+        addLastShutdownStep([made](int budgetMs) {
+            QThread *writer = QThread::create([made] { made->sync(); });
+            writer->start();
+            if (writer->wait(static_cast<unsigned long>(budgetMs))) {
+                delete writer;
+                return 0;
+            }
+            return 1;   // (the thread's object is left: it is still running)
         });
         return made;
     }();

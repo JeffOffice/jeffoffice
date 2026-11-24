@@ -745,7 +745,7 @@ target_link_libraries(jwritetool PRIVATE jwcore)
 set_target_properties(jwritetool PROPERTIES WIN32_EXECUTABLE OFF EXCLUDE_FROM_ALL TRUE)
 # The four programs, started as the person starts them and asked to close their window: each must be gone soon after (tests/shell/tst_shell_exit.cpp).
 qt_add_executable(exittests tests/shell/tst_shell_exit.cpp)
-target_link_libraries(exittests PRIVATE Qt6::Test)
+target_link_libraries(exittests PRIVATE jeffoffice-common Qt6::Test)
 set_target_properties(exittests PROPERTIES WIN32_EXECUTABLE OFF)
 add_dependencies(exittests jeffpub jeffdeck jeffwrite jeffcrunch)
 add_test(NAME exittests COMMAND exittests)

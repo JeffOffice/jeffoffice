@@ -10,6 +10,7 @@
 //   jdecktool morph <file> <from> <to> <outdir> [width=1280] [objects|words|characters]   the Morph transition from slide <from> to slide <to> at 0, 25, 50, 75, and 100% (morph-000.png ... morph-100.png), and its pairs listed
 //   jdecktool morph-demo <out.pptx>                           a presentation of slides that morph into one another, by object, by word, and by character
 
+#include "app/shutdown.h"
 #include "app/deckinfo.h"
 #include "app/morph.h"
 #include "app/slideshow.h"
@@ -376,6 +377,7 @@ int main(int argc, char **argv)
     if (!qEnvironmentVariableIsSet("QT_QPA_PLATFORM")) qputenv("QT_QPA_PLATFORM", "offscreen");
     if (!qEnvironmentVariableIsSet("QT_IM_MODULE")) qputenv("QT_IM_MODULE", "none");
     QGuiApplication app(argc, argv);
+    ::jp::ShutdownGuard programEnd;   // (the background services end, and the settings are written, however main is left: app/shutdown.h)
     setAppInfo(deckAppInfo());
     initCore();
     // JP_NOW (an ISO 8601 date and time, say 2026-10-15T19:31:36-04:00) is the moment automatic dates and times show, so that a render can be made

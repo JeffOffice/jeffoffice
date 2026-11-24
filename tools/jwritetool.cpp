@@ -7,6 +7,7 @@
 //                                            With an out-dir the files saved are kept there, named <n>-docx.docx and <n>-odt.odt, <n> being JW_SAVE_CHECK_NAME or `file`.
 // (tools/write_save_checks.py samples the collections, runs this for each file under a time limit and a memory cap, and opens each saved file in LibreOffice.)
 
+#include "app/shutdown.h"
 #include "core/tableops.h"
 #include "core/writedoc.h"
 #include "core/writeprops.h"
@@ -79,6 +80,7 @@ int main(int argc, char **argv)
     qputenv("QT_QPA_PLATFORM", "offscreen");
     qputenv("JP_NO_TELEMETRY", "1");
     QApplication app(argc, argv);
+    ::jp::ShutdownGuard programEnd;   // (the background services end, and the settings are written, however main is left: app/shutdown.h)
     const QStringList args = app.arguments();
     if (args.size() < 3 || args[1] != QLatin1String("save-check")) {
         QTextStream(stderr) << "usage: jwritetool save-check <file> [out-dir]\n";

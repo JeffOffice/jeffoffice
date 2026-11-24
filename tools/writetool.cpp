@@ -20,6 +20,7 @@
 // the section and starts the next with a page of its own.
 // Options: columns=N, a4, legal, landscape, margin=INCHES, hyphenate, justify.
 
+#include "app/shutdown.h"
 #include "core/fonts.h"
 #include "flow/paginator.h"
 #include "render/renderer.h"
@@ -511,6 +512,7 @@ int main(int argc, char **argv)
     if (!qEnvironmentVariableIsSet("QT_QPA_PLATFORM")) qputenv("QT_QPA_PLATFORM", "offscreen");
     if (!qEnvironmentVariableIsSet("QT_IM_MODULE")) qputenv("QT_IM_MODULE", "none");
     QGuiApplication app(argc, argv);
+    ::jp::ShutdownGuard programEnd;   // (the background services end, and the settings are written, however main is left: app/shutdown.h)
     initCore();
     const QStringList args = app.arguments();
     QTextStream out(stdout);

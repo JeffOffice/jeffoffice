@@ -69,7 +69,7 @@ public:
 };
 } // namespace
 
-int main(int argc, char **argv)
+static int run(int argc, char **argv)
 {
     jp::startupMark("main entered");
     Q_INIT_RESOURCE(resources);   // icons and font measurements, in the shared libraries
@@ -80,6 +80,7 @@ int main(int argc, char **argv)
     QApplication::setApplicationVersion(jp::versionText());
     QApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
     QApplication app(argc, argv);
+    jp::ShutdownGuard programEnd;   // (every way out of here ends the background services first, and writes the settings: app/shutdown.h)
     jp::keepSettingsApart();   // (a test run or a screenshot never changes the person's own settings)
     jp::startupMark("QApplication built");
     jp::crash::install(jp::crash::reportPath());   // sent with the statistics on the next start, if they're on
@@ -147,9 +148,7 @@ int main(int argc, char **argv)
             w->grab().save(out);
             QApplication::exit(0);
         });
-        const int code = app.exec();
-        jp::shutdownServices();
-        return code;
+        return app.exec();
     }
     w->show();
     jp::startupMark("window shown");
@@ -163,7 +162,10 @@ int main(int argc, char **argv)
     up->checkOnStartup();
     jp::telemetry::start(w);
     jp::grabAfterStart(w);
-    const int code = app.exec();
-    jp::shutdownServices();   // (what runs in the background is stopped, or let go of after a counted wait: app/shutdown.h)
-    return code;
+    return app.exec();
+}
+
+int main(int argc, char **argv)
+{
+    return jp::runProgram([&] { return run(argc, argv); });
 }

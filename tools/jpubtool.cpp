@@ -6,6 +6,7 @@
 //   jpubtool pdfcheck <file.pdf> <outdir> [pages] compare a PDF's pages drawn as
 //                                                 vectors with PDFium's raster
 
+#include "app/shutdown.h"
 #include "core/fonts.h"
 #include "core/items.h"
 #include "io/cfb.h"
@@ -43,6 +44,7 @@ int main(int argc, char **argv)
     // seconds for a slow IBus daemon at every start.
     if (!qEnvironmentVariableIsSet("QT_IM_MODULE")) qputenv("QT_IM_MODULE", "none");
     QGuiApplication app(argc, argv);
+    ::jp::ShutdownGuard programEnd;   // (the background services end, and the settings are written, however main is left: app/shutdown.h)
     setAppInfo(pubAppInfo());
     initCore();
     const QStringList args = app.arguments();

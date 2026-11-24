@@ -61,6 +61,7 @@
 //                                                  matched, how many workbooks matched whole, how each function fared, the commonest mismatches, and the commonest unsupported
 //                                                  functions (tools/crunch_recalc.py does the work)
 
+#include "app/shutdown.h"
 #include "io/crypto.h"
 #include "sheet/sheetcrypt.h"
 #include "office/officecrypt.h"
@@ -906,6 +907,7 @@ int main(int argc, char **argv)
         Q_INIT_RESOURCE(crunch);
         ::jp::setAppInfo(::jp::crunchAppInfo());
         QApplication gui(argc, argv);
+        ::jp::ShutdownGuard programEnd;   // (the background services end, and the settings are written, however main is left: app/shutdown.h)
         // (JC_CRASH_REPORT names a file for the report of a crash: where the program stopped, which addr2line turns to lines)
         if (!qEnvironmentVariableIsEmpty("JC_CRASH_REPORT")) ::jp::crash::install(qEnvironmentVariable("JC_CRASH_REPORT"));
         ::jp::initCore();   // the program's own fonts, as JeffCrunch loads them
@@ -921,12 +923,14 @@ int main(int argc, char **argv)
 #ifdef JC_GRID
     // (copy-check saves workbooks as the window does: with the window system parts and the program's fonts, which the writers of the copies measure text with)
     std::unique_ptr<QApplication> copyGui;
+    std::unique_ptr<::jp::ShutdownGuard> copyEnd;
     if (argc > 1 && QByteArray(argv[1]) == "copy-check") {
         if (qEnvironmentVariableIsEmpty("QT_QPA_PLATFORM")) qputenv("QT_QPA_PLATFORM", "offscreen");
         Q_INIT_RESOURCE(resources);
         Q_INIT_RESOURCE(crunch);
         ::jp::setAppInfo(::jp::crunchAppInfo());
         copyGui = std::make_unique<QApplication>(argc, argv);
+        copyEnd = std::make_unique<::jp::ShutdownGuard>();   // (ends before copyGui goes: it is declared after it)
         ::jp::initCore();
     }
     std::unique_ptr<QCoreApplication> coreApp;

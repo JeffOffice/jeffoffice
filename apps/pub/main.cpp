@@ -57,7 +57,7 @@
 
 
 
-int main(int argc, char **argv)
+static int run(int argc, char **argv)
 {
     jp::startupMark("main entered");
     Q_INIT_RESOURCE(resources);   // the icons live in the static jpcore library
@@ -67,6 +67,7 @@ int main(int argc, char **argv)
     QApplication::setApplicationVersion(jp::versionText());
     QApplication::setHighDpiScaleFactorRoundingPolicy(Qt::HighDpiScaleFactorRoundingPolicy::PassThrough);
     QApplication app(argc, argv);
+    jp::ShutdownGuard programEnd;   // (every way out of here ends the background services first, and writes the settings: app/shutdown.h)
     jp::keepSettingsApart();   // (a test run or a screenshot never changes the person's own settings)
     jp::startupMark("QApplication built");
     QApplication::setWindowIcon(QIcon(QStringLiteral(":/app.png")));
@@ -189,9 +190,7 @@ int main(int argc, char **argv)
             w->screenshotTo(out);
             QApplication::exit(0);
         });
-        const int code = app.exec();
-        jp::shutdownServices();
-        return code;
+        return app.exec();
     }
 
     w->show();
@@ -210,7 +209,10 @@ int main(int argc, char **argv)
             w->showBackstage(QStringLiteral("new"));
     }
     jp::grabAfterStart(w);
-    const int code = app.exec();
-    jp::shutdownServices();   // (what runs in the background is stopped, or let go of after a counted wait: app/shutdown.h)
-    return code;
+    return app.exec();
+}
+
+int main(int argc, char **argv)
+{
+    return jp::runProgram([&] { return run(argc, argv); });
 }
