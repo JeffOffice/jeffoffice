@@ -20,6 +20,7 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 - [How formulas are shown and calculated](formulas)
 - [Names for cells and values](names)
 - [Conditional formats](conditional-formats)
+- [Quick Analysis](quick-analysis)
 
 ## Change a workbook
 
