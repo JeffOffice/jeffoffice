@@ -3323,7 +3323,7 @@
       },
       {
        "status": "partly",
-       "text": "a435489d1cdbe8b9f6642610011066ad84b61366ecaaf7feb5a93e889720d42c"
+       "text": "7771b66b2212973de2a9f9611ba8f73e7413cfafc040f32964d78f3be11c5d70"
       },
       {
        "status": "partly",
@@ -3587,7 +3587,7 @@
       },
       {
        "status": "partly",
-       "text": "09d44eb00e2a3dc586d352d773d0efddaff67dc406ee33895d1efa0ecb7873d8"
+       "text": "9098219370ba67ee5a5ddbfa5ed04bea2d4b37e9d8beeef096cd60278e25642b"
       },
       {
        "hide_soon": true,
@@ -4104,7 +4104,7 @@
       },
       {
        "status": "partly",
-       "text": "91554cc92024788552e92a4f20b05f6f8e9219292137d628d10f041b768e053d"
+       "text": "a197546753783f50c8dd6944297958fa2b30319a66fe1f57a8999c02330f86f4"
       },
       {
        "hide_soon": true,
@@ -8567,18 +8567,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "09d44eb00e2a3dc586d352d773d0efddaff67dc406ee33895d1efa0ecb7873d8": {
-   "drop": false,
-   "en": "Animations wait for a click on a shape and then play in the slide show.",
-   "es": "Las animaciones esperan un clic en una forma y luego se reproducen en la presentación.",
-   "fr": "Les animations attendent un clic sur une forme, puis se lancent dans le diaporama.",
-   "soon": {
-    "drop": false,
-    "en": "Sounds with effects",
-    "es": "Sonidos con efectos",
-    "fr": "Sons avec les effets"
    }
   },
   "09dc87bf59e1b28145f674f9b5a7452b479650b14f650c7ccf1094816ee96f74": {
@@ -17101,6 +17089,18 @@
     "fr": ""
    }
   },
+  "7771b66b2212973de2a9f9611ba8f73e7413cfafc040f32964d78f3be11c5d70": {
+   "drop": false,
+   "en": "Start an effect when a named shape is clicked, or when you press `Tab` and `Enter` on it. The effects play in the slide show and in Reading View, and again at each click. Triggers are kept in `.pptx` files and written to `.odp` files. They are listed in the Animation Pane under \"When an object is clicked\" and made with the Start box. They can be moved, reordered, and removed in the pane, with up to 64 objects, 200 effects for each, and 1,000 effects a slide.",
+   "es": "Inicie un efecto cuando se haga clic en una forma con nombre, o cuando pulse `Tab` y `Enter` sobre ella. Los efectos se reproducen en la presentación y en la vista de lectura, y de nuevo en cada clic. Los desencadenadores se conservan en archivos `.pptx` y se escriben en archivos `.odp`. Aparecen en el panel de animación bajo «Al hacer clic en un objeto» y se crean con el cuadro Inicio. Se pueden mover, reordenar y quitar en el panel, con hasta 64 objetos, 200 efectos por objeto y 1.000 efectos por diapositiva.",
+   "fr": "Lancez un effet lorsqu’on clique sur une forme nommée, ou lorsque vous appuyez sur `Tab` et `Entrée` sur celle-ci. Les effets sont lus dans le diaporama et en mode lecture, et à nouveau à chaque clic. Les déclencheurs sont conservés dans les fichiers `.pptx` et écrits dans les fichiers `.odp`. Ils sont répertoriés dans le volet Animation sous « Lors d’un clic sur un objet » et créés avec la zone Début. Ils peuvent être déplacés, réordonnés et supprimés dans le volet, avec jusqu’à 64 objets, 200 effets par objet et 1 000 effets par diapositive.",
+   "soon": {
+    "drop": false,
+    "en": "Triggers that start an effect when a movie bookmark is reached",
+    "es": "Desencadenadores que inician un efecto al llegar a un marcador de película",
+    "fr": "Déclencheurs qui lancent un effet à l’atteinte d’un signet de film"
+   }
+  },
   "778b25cf94fb73ec6b48b40f0a15248d600b60c752da6b67a2385bbd6feebda8": {
    "drop": false,
    "en": "Documents opened from `.doc`, `.rtf`, and older `.docx` files are laid out by the options their files hold.",
@@ -18673,6 +18673,18 @@
     "fr": ""
    }
   },
+  "9098219370ba67ee5a5ddbfa5ed04bea2d4b37e9d8beeef096cd60278e25642b": {
+   "drop": false,
+   "en": "Animations that wait for a click on a shape (triggers) are played in the slide show, listed in the Animation Pane, and made there.",
+   "es": "Las animaciones que esperan un clic en una forma (desencadenadores) se reproducen en la presentación, aparecen en el panel de animación y se crean allí.",
+   "fr": "Les animations qui attendent un clic sur une forme (déclencheurs) sont lues dans le diaporama, répertoriées dans le volet Animation et créées à cet endroit.",
+   "soon": {
+    "drop": false,
+    "en": "Sounds with effects",
+    "es": "Sonidos con efectos",
+    "fr": "Sons avec les effets"
+   }
+  },
   "909c91fb614e43e06c262b372c3cd81d268e0dd620b2c361fb2d671b12bf4d1c": {
    "drop": false,
    "en": "File formats",
@@ -18738,18 +18750,6 @@
    "en": "Run the Design Checker from Info.",
    "es": "Ejecute el Comprobador de diseño desde Información.",
    "fr": "Lancez le Vérificateur de conception depuis Informations.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "91554cc92024788552e92a4f20b05f6f8e9219292137d628d10f041b768e053d": {
-   "drop": false,
-   "en": "Interactive sequences are read, kept, and played in the slide show and in Reading View, and written to `.odp` files. All of an object's sequences play at its click. The app shows what waits for an object that cannot be clicked. Limits are 64 objects per slide, 200 effects for each object and 1,000 for the slide, and 500 runs per showing of a slide.",
-   "es": "Las secuencias interactivas se leen, se conservan y se reproducen en la presentación y en la vista de lectura, y se escriben en archivos `.odp`. Todas las secuencias de un objeto se reproducen al hacer clic en él. La aplicación muestra lo que espera a un objeto que no se puede pulsar. Los límites son 64 objetos por diapositiva, 200 efectos por objeto y 1.000 por diapositiva, y 500 ejecuciones por cada pase de una diapositiva.",
-   "fr": "Les séquences interactives sont lues, conservées et lancées dans le diaporama et dans la vue Lecture, et écrites dans les fichiers `.odp`. Toutes les séquences d’un objet se lancent à son clic. L’application indique ce qui attend un objet qui ne peut pas être cliqué. Les limites sont de 64 objets par diapositive, 200 effets par objet et 1 000 par diapositive, et 500 exécutions par affichage d’une diapositive.",
    "soon": {
     "drop": true,
     "en": "",
@@ -19873,6 +19873,18 @@
     "fr": ""
    }
   },
+  "a197546753783f50c8dd6944297958fa2b30319a66fe1f57a8999c02330f86f4": {
+   "drop": false,
+   "en": "Interactive sequences (triggers) are read, kept, and played in the slide show and in Reading View, and written to `.odp` files. They are listed and made in the Animation Pane. Limits are 64 objects per slide, 200 effects for each object, 1,000 for the slide, and 500 runs per showing of a slide. All of an object's sequences play at its click, and what waits for an object that cannot be clicked is shown.",
+   "es": "Las secuencias interactivas (desencadenadores) se leen, se conservan y se reproducen en la presentación y en la vista de lectura, y se escriben en archivos `.odp`. Aparecen y se crean en el panel de animación. Los límites son 64 objetos por diapositiva, 200 efectos por objeto, 1.000 por diapositiva y 500 ejecuciones por cada pase de una diapositiva. Todas las secuencias de un objeto se reproducen al hacer clic en él, y se muestra lo que espera a un objeto en el que no se puede hacer clic.",
+   "fr": "Les séquences interactives (déclencheurs) sont lues, conservées et jouées dans le diaporama et en mode lecture, et écrites dans les fichiers `.odp`. Elles sont répertoriées et créées dans le volet Animation. Les limites sont de 64 objets par diapositive, 200 effets par objet, 1 000 par diapositive et 500 exécutions par affichage d’une diapositive. Toutes les séquences d’un objet se jouent à son clic, et ce qui attend un objet sur lequel on ne peut pas cliquer est affiché.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "a1bee98c903dcb49df49adb6de24442e6441dd77eef7e96c7a2da4d1afa1c6b9": {
    "drop": false,
    "en": "Collapse the Ribbon with `Ctrl+F1` and use Full Screen with `Ctrl+Shift+F1`. Right-click the status bar numbers to choose Average, Count, Numerical Count, Minimum, Maximum, and Sum of the selection.",
@@ -20003,18 +20015,6 @@
     "en": "Plain text: line breaks at each laid-out line",
     "es": "Texto sin formato: saltos de línea en cada línea del diseño",
     "fr": "Texte brut : sauts de ligne à chaque ligne mise en page"
-   }
-  },
-  "a435489d1cdbe8b9f6642610011066ad84b61366ecaaf7feb5a93e889720d42c": {
-   "drop": false,
-   "en": "Click a named shape, or press `Tab` and `Enter`, to play its effects in the slide show and in Reading View, and again at each click. Triggers are kept in `.pptx` files and written to `.odp` files.",
-   "es": "Haga clic en una forma con nombre, o pulse `Tab` y `Enter`, para reproducir sus efectos en la presentación y en la vista de lectura, y de nuevo en cada clic. Los desencadenadores se conservan en archivos `.pptx` y se escriben en archivos `.odp`.",
-   "fr": "Cliquez sur une forme nommée, ou appuyez sur `Tab` et `Entrée`, pour lancer ses effets dans le diaporama et dans la vue Lecture, et de nouveau à chaque clic. Les déclencheurs sont conservés dans les fichiers `.pptx` et écrits dans les fichiers `.odp`.",
-   "soon": {
-    "drop": false,
-    "en": "Triggers in the Animation Pane: list and create",
-    "es": "Desencadenadores en el panel de animación: mostrar y crear",
-    "fr": "Déclencheurs dans le volet Animation : afficher et créer"
    }
   },
   "a46007de7054da163783dcf395ed4386d40654ccb50cc092ffc5d427edfe7e8d": {
