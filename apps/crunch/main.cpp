@@ -19,6 +19,7 @@
 #include "app/icons.h"
 #include "app/recovery.h"
 #include "app/settings.h"
+#include "app/shutdown.h"
 #include "app/firstwindow.h"
 #include "app/telemetry.h"
 #include "app/theme.h"
@@ -171,7 +172,9 @@ int main(int argc, char **argv)
                 if (!ok) shoot();
             });
         }
-        return app.exec();
+        const int code = app.exec();
+        jp::shutdownServices();
+        return code;
     }
     w->setPromptForText(true);   // (a text file asks how it is read)
     if (cli.isSet(sepOpt) || cli.isSet(encOpt) || cli.isSet(decOpt)) {   // (for the files on this command line, and only them)
@@ -219,5 +222,7 @@ int main(int argc, char **argv)
     up->checkOnStartup();
     jp::telemetry::start(w);
     jp::grabAfterStart(w);
-    return app.exec();
+    const int code = app.exec();
+    jp::shutdownServices();   // (what runs in the background is stopped, or let go of after a counted wait: app/shutdown.h)
+    return code;
 }

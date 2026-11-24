@@ -2,6 +2,7 @@
 #include "core/startuptrace.h"
 
 #include "core/fonts.h"
+#include "app/spelling.h"
 
 #include <QApplication>
 #include <QCoreApplication>
@@ -12,9 +13,11 @@
 #include <QElapsedTimer>
 #include <QFileOpenEvent>
 #include <QPointer>
+#include <QThreadPool>
 #include <QTimer>
 #include <QWindow>
 
+#include <algorithm>
 #include <cstdio>
 
 namespace jp {
@@ -132,8 +135,29 @@ bool StagedStart::showFirst(QWidget *window, const QString &fileToOpen, const st
     return true;
 }
 
+namespace {
+// A program that is started by a test with JP_CLOSE_AFTER_TURNS=N closes its window, the way a person does, when the event loop has gone round N times since the window came up; the
+// background services that the program starts for itself (the dictionary's watcher, the pool of threads every program shares) are started first so that the close ends them too.
+// Counted turns, not time: a slow machine only takes longer.
+void closeAfterTurns(const QPointer<QWidget> &window, int turns)
+{
+    if (!window) return;
+    if (turns > 0) {
+        QTimer::singleShot(0, window, [window, turns] { closeAfterTurns(window, turns - 1); });
+        return;
+    }
+    window->close();
+}
+} // namespace
+
 void grabAfterStart(QWidget *window)
 {
+    if (qEnvironmentVariableIsSet("JP_CLOSE_AFTER_TURNS")) {
+        Speller::get().watch();
+        QThreadPool::globalInstance()->start([] {});
+        closeAfterTurns(window, std::max(1, qEnvironmentVariableIntValue("JP_CLOSE_AFTER_TURNS")));
+        return;
+    }
     if (!qEnvironmentVariableIsSet("JP_GRAB") || !qEnvironmentVariableIsSet("JP_STARTUP_TRACE")) return;
     const int ms = qEnvironmentVariableIntValue("JP_GRAB_MS");
     QTimer::singleShot(ms > 0 ? ms : 1500, window, [window] {

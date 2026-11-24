@@ -1,4 +1,5 @@
 #include "app/settings.h"
+#include "app/shutdown.h"
 
 #include "core/appinfo.h"
 #include "core/remotepath.h"
@@ -23,8 +24,16 @@ namespace jp {
 
 Settings &Settings::get()
 {
-    static Settings s;
-    return s;
+    // (made with new and never deleted, see app/shutdown.h: a QSettings that is destroyed at the end of the program locks against every thread; what is changed is written by the step)
+    static Settings *s = [] {
+        auto *made = new Settings;
+        addShutdownStep([made](int) {
+            made->sync();
+            return 0;
+        });
+        return made;
+    }();
+    return *s;
 }
 
 void copyMissingSettings(const QSettings &from, QSettings &to)
@@ -90,20 +99,20 @@ void migrateSpellSetting(QSettings &app, QSettings &suite)
 
 SpellSettingNotifier &SpellSettingNotifier::get()
 {
-    static SpellSettingNotifier n;
-    return n;
+    static SpellSettingNotifier *n = new SpellSettingNotifier;   // (never deleted: app/shutdown.h)
+    return *n;
 }
 
 ObjectSnapNotifier &ObjectSnapNotifier::get()
 {
-    static ObjectSnapNotifier n;
-    return n;
+    static ObjectSnapNotifier *n = new ObjectSnapNotifier;   // (never deleted: app/shutdown.h)
+    return *n;
 }
 
 AutoRecoverNotifier &AutoRecoverNotifier::get()
 {
-    static AutoRecoverNotifier n;
-    return n;
+    static AutoRecoverNotifier *n = new AutoRecoverNotifier;   // (never deleted: app/shutdown.h)
+    return *n;
 }
 
 QString defaultSaveFormat() { return Settings::get().value(QStringLiteral("save/format")).toString(); }
@@ -147,14 +156,14 @@ void setMiniToolbarOnSelection(bool on)
 
 MiniToolbarSettingNotifier &MiniToolbarSettingNotifier::get()
 {
-    static MiniToolbarSettingNotifier n;
-    return n;
+    static MiniToolbarSettingNotifier *n = new MiniToolbarSettingNotifier;   // (never deleted: app/shutdown.h)
+    return *n;
 }
 
 GrammarSettingNotifier &GrammarSettingNotifier::get()
 {
-    static GrammarSettingNotifier n;
-    return n;
+    static GrammarSettingNotifier *n = new GrammarSettingNotifier;   // (never deleted: app/shutdown.h)
+    return *n;
 }
 
 bool grammarAsYouType() { return Settings::get().value(QStringLiteral("proof/checkGrammarAsYouType"), true).toBool(); }

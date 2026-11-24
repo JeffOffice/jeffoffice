@@ -1,10 +1,12 @@
 #include "app/spelling.h"
 
 #include "app/settings.h"
+#include "app/shutdown.h"
 #include "text/dictionaries.h"
 #include "text/textprops.h"
 
 #include <QCoreApplication>
+#include <QPointer>
 #include <QDir>
 #include <QFile>
 #include <QFileInfo>
@@ -261,6 +263,12 @@ SpellingWatch *Speller::watch()
     if (!m_watch) {
         m_watch = new SpellingWatch(this);
         m_watch->watchFiles({customPath(), excludedPath()});
+        // (the watcher has a helper thread: it is ended when the program ends, app/shutdown.h)
+        QObject::connect(m_watch, &QObject::destroyed, [this] { m_watch = nullptr; });
+        addShutdownStep([w = QPointer<SpellingWatch>(m_watch)](int) {
+            delete w.data();
+            return 0;
+        });
     }
     return m_watch;
 }

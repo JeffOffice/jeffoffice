@@ -27,6 +27,7 @@
 #include "app/ribbon.h"
 #include "app/updater.h"
 #include "app/settings.h"
+#include "app/shutdown.h"
 #include "app/firstwindow.h"
 #include "app/icons.h"
 #include "core/fonts.h"
@@ -188,7 +189,9 @@ int main(int argc, char **argv)
             w->screenshotTo(out);
             QApplication::exit(0);
         });
-        return app.exec();
+        const int code = app.exec();
+        jp::shutdownServices();
+        return code;
     }
 
     w->show();
@@ -207,5 +210,7 @@ int main(int argc, char **argv)
             w->showBackstage(QStringLiteral("new"));
     }
     jp::grabAfterStart(w);
-    return app.exec();
+    const int code = app.exec();
+    jp::shutdownServices();   // (what runs in the background is stopped, or let go of after a counted wait: app/shutdown.h)
+    return code;
 }

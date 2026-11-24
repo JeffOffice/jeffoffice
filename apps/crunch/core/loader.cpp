@@ -1,4 +1,5 @@
 #include "core/loader.h"
+#include "app/shutdown.h"
 #include "sheet/externalbooks.h"
 #include "sheet/foreignbook.h"
 #include "sheet/drawing.h"
@@ -60,18 +61,35 @@ struct Janitor {
         workers.erase(std::remove_if(workers.begin(), workers.end(), [](const Worker &x) { return x.thread->isFinished(); }), workers.end());
         workers.push_back({t, std::move(stop)});
     }
-    ~Janitor()
+    // Every worker is told to stop, and each is waited for until the time given is used; how many are still going is the answer.
+    int stopAll(int budgetMs)
     {
-        for (const Worker &w : workers)
+        std::vector<Worker> all;
+        {
+            std::lock_guard<std::mutex> lock(mutex);
+            all = workers;
+        }
+        for (const Worker &w : all)
             if (w.stop) w.stop();
-        for (const Worker &w : workers) w.thread->wait();
+        QElapsedTimer clock;
+        clock.start();
+        int left = 0;
+        for (const Worker &w : all)
+            if (!w.thread->wait(static_cast<unsigned long>(std::max<qint64>(0, budgetMs - clock.elapsed())))) ++left;
+        return left;
     }
 };
 
+// (made with new and never deleted, and ended by a step of jp::shutdownServices: a static's destructor that waits for a thread is stuck for ever on Windows when the thread was ended
+// first, app/shutdown.h)
 Janitor &janitor()
 {
-    static Janitor j;
-    return j;
+    static Janitor *j = [] {
+        auto *made = new Janitor;
+        jp::addShutdownStep([made](int budgetMs) { return made->stopAll(budgetMs); });
+        return made;
+    }();
+    return *j;
 }
 
 } // namespace
