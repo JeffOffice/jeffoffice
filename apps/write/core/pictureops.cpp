@@ -4364,8 +4364,12 @@ bool mergeShapeObjects(WriteDoc &doc, const QVector<int> &positions, const QVect
     QVector<int> gone = positions.mid(1);
     std::sort(gone.begin(), gone.end(), std::greater<int>());
     int before = 0;
+    QSet<int> goneIds;
     for (const int at : gone) {
         const QTextCharFormat was = formatAfter(story, at);
+        Inline goneAtom;
+        if (drawingAtomOf(was, &goneAtom))
+            for (const int id : drawingIdsIn(goneAtom.raw)) goneIds.insert(id);
         QTextCursor del(story);
         del.setPosition(at);
         del.setPosition(at + 1, QTextCursor::KeepAnchor);
@@ -4399,6 +4403,26 @@ bool mergeShapeObjects(WriteDoc &doc, const QVector<int> &positions, const QVect
             return false;
         }
         where.push_back(place + i);
+    }
+    // A connector that was glued to a shape that is gone lets go of that end, which stays where it was.
+    if (!goneIds.isEmpty()) {
+        QVector<int> glued;
+        for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
+            for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+                Inline atom;
+                if (!it.fragment().charFormat().hasProperty(prop::Atom) || !drawingAtomOf(it.fragment().charFormat(), &atom) || !atom.raw.contains("Cxn")) continue;
+                const Glue g = glueOf(atom.raw);
+                if (goneIds.contains(g.startId) || goneIds.contains(g.endId)) glued.push_back(it.fragment().position());
+            }
+        for (const int at : glued)
+            changePicture(doc, at, [&](Model &g) {
+                const Glue was = glueOf(g.graphic);
+                QString text = QString::fromUtf8(g.graphic);
+                if (goneIds.contains(was.startId)) text.remove(QRegularExpression(QStringLiteral("<a:stCxn\\b[^>]*/>")));
+                if (goneIds.contains(was.endId)) text.remove(QRegularExpression(QStringLiteral("<a:endCxn\\b[^>]*/>")));
+                g.graphic = text.toUtf8();
+                return true;
+            });
     }
     edit.endEditBlock();
     doc.keepObjectsForTheHistory();
