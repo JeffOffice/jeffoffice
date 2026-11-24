@@ -21,7 +21,7 @@ struct AppInfo {
     QColor link;            // the dark interface's link color (invalid: accentDark lightened)
     QString helpFolder;     // where its Help topics are under each language ("deck": resources/help/en/deck/); empty: the language's own folder
     bool online = true;     // checks for updates and sends usage statistics (when chosen); false for an app that does neither
-    QString unknownFontStandIn;   // the font drawn for a missing font that no stand-in table names ("Carlito"); empty: the system's choice
+    QString unknownFontStandIn;   // the default family's stand-in, drawn for a missing font that no stand-in table names and for Helvetica; empty: the system's choice
 };
 
 const AppInfo &appInfo();

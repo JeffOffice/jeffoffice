@@ -4,6 +4,7 @@
 #include "core/textlines.h"
 #include "core/workthread.h"
 #include "app/iconpicker.h"
+#include "app/mainwindow.h"
 
 #include <QElapsedTimer>
 #include <QScopeGuard>
@@ -1280,9 +1281,9 @@ private Q_SLOTS:
         }
     }
 
-    // A font the reference program lacks is drawn there in Calibri (108 of 114 such families in the practice files, as its PDFs name the fonts): where the app asks
-    // for it, a missing font that no table names and nothing measured is drawn in Carlito, and a document keeps the name it gave.
-    void unknownMissingFontIsDrawnInCalibrisStandIn()
+    // A font the reference program lacks is drawn there in its default family (108 of 114 such families in the practice files, as its PDFs name the fonts): where the
+    // app asks for it, a missing font that no table names and nothing measured is drawn in that family's stand-in, and a document keeps the name it gave.
+    void unknownMissingFontIsDrawnInTheDefaultFamilysStandIn()
     {
         const QString text = QStringLiteral("Defense Force volunteers serve their state");
         auto widthIn = [&](const QString &family) {
@@ -1324,6 +1325,119 @@ private Q_SLOTS:
         jp::setAppInfo(info);
         widthIn(madeToo);
         QVERIFY(!QFont::substitutes(madeToo).join(QLatin1Char(',')).toLower().contains(QLatin1String("carlito")));
+    }
+
+    // The choice for Helvetica and for the case of a name is made when asked, not when the table is first built, and a family is looked at again when fonts change;
+    // the person's own choice in the missing-fonts dialog comes first.
+    void standInChoicesAreMadeWhenAsked()
+    {
+        const jp::AppInfo saved = jp::appInfo();
+        const auto restore = qScopeGuard([&] { jp::setAppInfo(saved); });
+        jp::AppInfo info = saved;
+        info.unknownFontStandIn = QStringLiteral("Carlito");
+        if (!QFontDatabase::hasFamily(QStringLiteral("Helvetica"))) {
+            info.unknownFontStandIn.clear();
+            jp::setAppInfo(info);
+            QCOMPARE(jp::substituteFor(QStringLiteral("Helvetica")), QStringLiteral("Arimo"));   // (a first lookup, before the app asks)
+            info.unknownFontStandIn = QStringLiteral("Carlito");
+            jp::setAppInfo(info);
+            QCOMPARE(jp::substituteFor(QStringLiteral("Helvetica")), QStringLiteral("Carlito"));
+            info.unknownFontStandIn.clear();
+            jp::setAppInfo(info);
+            QCOMPARE(jp::substituteFor(QStringLiteral("Helvetica")), QStringLiteral("Arimo"));
+            info.unknownFontStandIn = QStringLiteral("Carlito");
+        }
+        // A name in other letters is the same family.
+        if (!QFontDatabase::hasFamily(QStringLiteral("Tahoma"))) {
+            QVERIFY(!jp::substituteFor(QStringLiteral("Tahoma")).isEmpty());
+            QCOMPARE(jp::substituteFor(QStringLiteral("tahoma")), jp::substituteFor(QStringLiteral("Tahoma")));
+        }
+        jp::setAppInfo(info);
+        // Looked at again when fonts come or go.
+        const QString made = QStringLiteral("Zzyzx Reed Test");
+        auto drawnInStandIn = [&] { return QFont::substitutes(made).join(QLatin1Char(',')).toLower().contains(QLatin1String("carlito")); };
+        jp::standInForUnknownFamily(made);
+        QVERIFY(drawnInStandIn());
+        QFont::removeSubstitutions(made);
+        jp::standInForUnknownFamily(made);
+        QVERIFY(!drawnInStandIn());   // (looked at once)
+        jp::fontsChanged();
+        jp::standInForUnknownFamily(made);
+        QVERIFY(drawnInStandIn());
+        // The person's choice wins.
+        const QString chosen = QStringLiteral("Zzyzx Pen Test");
+        jp::setFontReplacement(chosen, QStringLiteral("Arimo"));
+        const auto undo = qScopeGuard([&] { jp::setFontReplacement(chosen, QString()); });
+        jp::standInForUnknownFamily(chosen);
+        QVERIFY(!QFont::substitutes(chosen).join(QLatin1Char(',')).toLower().contains(QLatin1String("carlito")));
+        QVERIFY(jp::substituteFor(chosen).isEmpty());
+    }
+
+    // A missing family's bold and italic runs are drawn in the stand-in's own bold and italic faces (the widths are the stand-in's, face by face), and a PDF made of a
+    // page that uses it names and embeds the stand-in, the page keeps the family name, and the export does not fail.
+    void missingFamilyDrawsAndExportsInTheStandIn()
+    {
+        const jp::AppInfo saved = jp::appInfo();
+        const auto restore = qScopeGuard([&] { jp::setAppInfo(saved); });
+        jp::AppInfo info = saved;
+        info.unknownFontStandIn = QStringLiteral("Carlito");
+        jp::setAppInfo(info);
+        const QString made = QStringLiteral("Zzyzx Face Test"), text = QStringLiteral("Defense Force volunteers serve their state");
+        auto widthIn = [&](const QString &family, bool bold, bool italic) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat f;
+            f.setFontFamilies(QStringList{family});
+            f.setFontPointSize(10);
+            if (bold) f.setFontWeight(QFont::Bold);
+            f.setFontItalic(italic);
+            c.insertText(text, f);
+            jp::FrameSpec fs;
+            fs.size = QSizeF(10000, 100);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            fs.hyphenate = false;
+            jp::StoryLayout lay;
+            lay.build(&doc, {fs}, jp::LayoutEnv());
+            int frame = -1;
+            QRectF r;
+            lay.caretRect(text.size(), &frame, &r);
+            return r.x();
+        };
+        const double regular = widthIn(QStringLiteral("Carlito"), false, false);
+        for (const auto &[bold, italic] : {std::pair{true, false}, std::pair{false, true}, std::pair{true, true}}) {
+            const double own = widthIn(QStringLiteral("Carlito"), bold, italic);
+            QCOMPARE(widthIn(made, bold, italic), own);
+            if (bold) QVERIFY(own != regular);   // (the bold face is a real one: it is not the regular's width)
+        }
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        jp::MainWindow w;
+        w.resize(1280, 800);
+        w.show();
+        jp::Editor *ed = w.editor();
+        QString storyId;
+        ed->change(QStringLiteral("Add"), [&] {
+            auto t = std::make_shared<jp::TextItem>();
+            t->rect = QRectF(72, 72, 400, 60);
+            t->storyId = storyId = ed->doc()->createStory(text);
+            ed->doc()->pages[0]->items.push_back(t);
+            QTextCursor c(ed->doc()->storyDoc(storyId));
+            c.select(QTextCursor::Document);
+            QTextCharFormat f;
+            f.setFontFamilies(QStringList{made});
+            f.setFontWeight(QFont::Bold);
+            c.mergeCharFormat(f);
+        });
+        const QString path = dir.filePath(QStringLiteral("a.pdf"));
+        QVERIFY(w.exportPdfTo(path, jp::MainWindow::PdfSettings()));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        const QByteArray pdf = f.readAll();
+        QVERIFY(pdf.startsWith("%PDF-"));
+        QVERIFY2(pdf.contains("Carlito") || pdf.contains("+Carlito"), "the stand-in is named in the PDF");
+        QVERIFY(pdf.contains("/FontFile"));   // (embedded)
+        QVERIFY(!pdf.contains("Zzyzx"));
+        QCOMPARE(ed->doc()->storyDoc(storyId)->begin().begin().fragment().charFormat().fontFamilies().toStringList(), QStringList{made});
     }
 
     // A font's stand-in is looked up once, not on every layout of every run

@@ -125,8 +125,7 @@ QStringList bundledFamilies() { return g_families; }
 static const QHash<QString, QString> &table()
 {
     static const QHash<QString, QString> t{
-        {"Arial", "Arimo"}, {"Helvetica", appInfo().unknownFontStandIn.isEmpty() ? QStringLiteral("Arimo") : appInfo().unknownFontStandIn},   // (the reference program draws a missing Helvetica as it draws any other font it lacks)
-        {"Arial Unicode MS", "Arimo"}, {"Liberation Sans", "Arimo"},
+        {"Arial", "Arimo"}, {"Helvetica", "Arimo"}, {"Arial Unicode MS", "Arimo"}, {"Liberation Sans", "Arimo"},
         {"Times New Roman", "Tinos"}, {"Times", "Tinos"}, {"Liberation Serif", "Tinos"},
         {"Courier New", "Cousine"}, {"Courier", "Cousine"}, {"Liberation Mono", "Cousine"}, {"Lucida Console", "Cousine"},
         {"Calibri", "Carlito"}, {"Calibri Light", "Carlito"}, {"Cambria", "Caladea"}, {"Georgia", "Gelasio"},
@@ -934,22 +933,51 @@ bool symbolBullet(const QString &family, uint code, SymbolBullet *out)
     return false;
 }
 
+// The table's stand-in for a family, whatever the case of its name, or empty. Asked each time: the default family's stand-in (core/appinfo.h) is set after the table
+// is built, and the app that sets it draws Helvetica in that stand-in.
+static bool inTable(const QString &family)
+{
+    static const QHash<QString, QString> lower = [] {
+        QHash<QString, QString> t;
+        for (auto it = table().cbegin(); it != table().cend(); ++it) t.insert(it.key().toLower(), it.key());
+        return t;
+    }();
+    return table().contains(family) || lower.contains(family.toLower());
+}
+
+static QString tableStandIn(const QString &family)
+{
+    static const QHash<QString, QString> lower = [] {
+        QHash<QString, QString> t;
+        for (auto it = table().cbegin(); it != table().cend(); ++it) t.insert(it.key().toLower(), it.value());
+        return t;
+    }();
+    if (!appInfo().unknownFontStandIn.isEmpty() && family.compare(QLatin1String("Helvetica"), Qt::CaseInsensitive) == 0) return appInfo().unknownFontStandIn;
+    const auto exact = table().constFind(family);
+    return exact != table().constEnd() ? exact.value() : lower.value(family.toLower());
+}
+
 QString substituteFor(const QString &family)
 {
     if (fontReplacement(family).size()) return {};   // (a font the person chose a stand-in for is treated as installed: the stand-in is drawn as it is)
     if (haveFamily(family)) return {};
-    return standInOnThisPlatform(table().value(family));
+    return standInOnThisPlatform(tableStandIn(family));
 }
 
 void standInForUnknownFamily(const QString &family)
 {
     const QString wanted = appInfo().unknownFontStandIn;
     if (wanted.isEmpty() || family.trimmed().isEmpty()) return;
-    static QSet<QString> done;   // (layout thread only, like haveFamily)
+    static QSet<QString> done;   // (layout thread only, like haveFamily; forgotten when fonts come or go, so that a family is looked at again)
+    static int seenGeneration = -1;
+    if (seenGeneration != fontGeneration()) {
+        done.clear();
+        seenGeneration = fontGeneration();
+    }
     const QString key = family.toLower();
     if (done.contains(key)) return;
     done.insert(key);
-    if (table().contains(family) || fontReplacement(family).size() || isSymbolFont(family) || haveFamily(family)) return;
+    if (inTable(family) || fontReplacement(family).size() || isSymbolFont(family) || haveFamily(family)) return;
     for (const bool bold : {false, true})
         for (const bool italic : {false, true})
             if (originalLetterWidths(family, bold, italic)) return;
@@ -983,7 +1011,7 @@ QString substituteStyleName(const QString &family, bool bold, bool italic)
 {
     if (fontReplacement(family).size()) return {};
     if (haveFamily(family)) return {};
-    const QString standIn = table().value(family), here = standInOnThisPlatform(standIn);
+    const QString standIn = tableStandIn(family), here = standInOnThisPlatform(standIn);
     if (here.size() < standIn.size()) return standIn.mid(here.size()).trimmed();
     // A face of the stand-in's family drawn by weight (Jost Medium, Roboto
     // Slab ExtraBold) is named too, where the family lists it. An italic run
@@ -1074,9 +1102,8 @@ QStringList missingSubstituteKeys()
 
 static void substitute(const QStringList &keys)
 {
-    const auto &t = table();
     for (const QString &key : keys) {
-        const QString standIn = t.value(key);
+        const QString standIn = tableStandIn(key);
         QStringList subs{standInOnThisPlatform(standIn)};
         // Sensible generic fallbacks after the named substitute.
         subs << (standIn.contains("Mono") || standIn == "Cousine" ? QStringLiteral("Cousine") : QStringLiteral("Arimo"));
@@ -1156,7 +1183,7 @@ QString sameWidthStandIn(const QString &family)
         QStringLiteral("Cambria"), QStringLiteral("Georgia"), QStringLiteral("Segoe UI"), QStringLiteral("Segoe UI Light"), QStringLiteral("Segoe UI Semilight"),
         QStringLiteral("Segoe UI Semibold"), QStringLiteral("Comic Sans MS"), QStringLiteral("Arial Narrow")};
     if (!made.contains(family) || fontReplacement(family).size()) return {};   // (a font the person chose something else for is drawn as that)
-    const QString standIn = table().value(family);
+    const QString standIn = tableStandIn(family);
     return haveFamily(standIn) ? standIn : QString();
 }
 
@@ -1182,7 +1209,7 @@ QString measuringFamily(const QString &family)
 
 QString automaticStandIn(const QString &family)
 {
-    if (const QString standIn = standInOnThisPlatform(table().value(family)); !standIn.isEmpty()) return standIn;
+    if (const QString standIn = standInOnThisPlatform(tableStandIn(family)); !standIn.isEmpty()) return standIn;
     std::lock_guard<std::mutex> hold(replacementLock());
     const QString key = family.toLower();
     const bool replaced = replacements().contains(key);

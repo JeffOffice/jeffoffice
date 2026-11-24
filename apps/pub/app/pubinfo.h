@@ -10,7 +10,7 @@ inline AppInfo pubAppInfo()
 {
     AppInfo info{QStringLiteral("JeffPub"), QStringLiteral("jeffpub"), QStringLiteral("JeffOffice"), QStringLiteral("JeffOffice/jeffoffice"),
                  QColor(0x9E, 0x1F, 0x63), QColor(0xE0, 0x6A, 0xA5), QStringLiteral("JP"), QColor(0xC2, 0x4A, 0x8A), QColor(0xE0, 0x7A, 0xB0)};
-    info.unknownFontStandIn = QStringLiteral("Carlito");   // (a font the reference program lacks is drawn in its Calibri)
+    info.unknownFontStandIn = QStringLiteral("Carlito");   // (the default family's stand-in, as the reference program draws what it lacks)
     return info;
 }
 
