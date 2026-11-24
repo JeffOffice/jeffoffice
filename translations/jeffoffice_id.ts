@@ -5825,7 +5825,7 @@ Berita halaman belakang	4</translation>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="-15"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+462"/>
-        <location filename="../apps/write/app/writewindow.cpp" line="+833"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+835"/>
         <source>Save</source>
         <translation type="unfinished">Simpan</translation>
     </message>
@@ -8342,12 +8342,13 @@ Simpan tanpa cadangan?</translation>
 <context>
     <name>GuidesDialog</name>
     <message>
-        <location filename="../libs/page/app/guidesdialog.cpp" line="+24"/>
+        <location filename="../libs/page/app/guidesdialog.cpp" line="+54"/>
         <source>Grid and Guides</source>
         <translation type="unfinished">Kisi dan Panduan</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="-26"/>
+        <location line="+32"/>
         <source>Grid spacing</source>
         <translation type="unfinished">Jarak Kisi</translation>
     </message>
@@ -8357,12 +8358,28 @@ Simpan tanpa cadangan?</translation>
         <translation type="unfinished">Tampilkan kisi pada slaid</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-31"/>
+        <location line="+32"/>
         <source>Snap objects to the grid</source>
         <translation type="unfinished">Tarik objek ke kisi</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-33"/>
+        <source>Show the drawing grid on the page</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Show alignment guides and snap objects to them</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Hold Alt while dragging to leave snapping off.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+30"/>
         <source>Snap objects to other objects</source>
         <translation type="unfinished">Tarik objek ke objek lain</translation>
     </message>
@@ -13446,7 +13463,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+2"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+8"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+7"/>
         <source>Change Case</source>
         <translation type="unfinished">Ubah Huruf</translation>
     </message>
@@ -13555,7 +13572,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+7"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+8"/>
         <source>Drop Cap</source>
         <translation type="unfinished">Huruf Awal Besar</translation>
     </message>
@@ -13653,7 +13670,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+2"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+3"/>
         <source>Header &amp; Footer</source>
         <translation type="unfinished">Header &amp; Footer</translation>
     </message>
@@ -14400,7 +14417,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="-60"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+3"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-70"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-71"/>
         <source>Aspect Ratio</source>
         <translation type="unfinished">Rasio Aspek</translation>
     </message>
@@ -14426,7 +14443,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     </message>
     <message>
         <location line="+4"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+10"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+9"/>
         <source>Cell Size</source>
         <translation type="unfinished">Ukuran Sel</translation>
     </message>
@@ -14469,7 +14486,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-34"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+6"/>
         <source>Draw Borders</source>
         <translation type="unfinished">Gambar Bingkai</translation>
     </message>
@@ -14505,7 +14522,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     </message>
     <message>
         <location line="+3"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+54"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+15"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+23"/>
         <source>Format</source>
         <translation>Format</translation>
@@ -14527,7 +14544,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+10"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+11"/>
         <source>Height:</source>
         <translation type="unfinished">Tinggi:</translation>
     </message>
@@ -14781,7 +14798,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     </message>
     <message>
         <location line="-159"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-177"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-178"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-143"/>
         <source>About</source>
         <translation type="unfinished">Tentang</translation>
@@ -14814,7 +14831,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Bingkai dan Pewarnaan</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+12"/>
         <source>Breaks</source>
         <translation type="unfinished">Pemisah</translation>
@@ -14943,7 +14960,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Gambar</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+9"/>
         <source>Fit</source>
         <translation type="unfinished">Pas</translation>
     </message>
@@ -14973,7 +14990,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Gradasi</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+9"/>
         <source>Header from Top:</source>
         <translation type="unfinished">Header dari Atas:</translation>
     </message>
@@ -15022,12 +15039,12 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Opsi</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-82"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-84"/>
         <source>Change Graphic</source>
         <translation type="unfinished">Ganti Grafis</translation>
     </message>
     <message>
-        <location line="+48"/>
+        <location line="+49"/>
         <source>Graphics Effects</source>
         <translation type="unfinished">Efek Grafis</translation>
     </message>
@@ -15047,7 +15064,12 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Alat Grafis</translation>
     </message>
     <message>
-        <location line="+33"/>
+        <location line="+2"/>
+        <source>Grid</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+32"/>
         <source>Outline Tools</source>
         <translation type="unfinished">Alat Garis Besar</translation>
     </message>
@@ -15232,7 +15254,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="-52"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="-53"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-151"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-153"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+1"/>
         <source>Chart</source>
         <translation type="unfinished">Bagan</translation>
@@ -15361,7 +15383,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="+33"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+36"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+47"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+49"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+2"/>
         <source>Gridlines</source>
         <translation type="unfinished">Garis Kisi</translation>
@@ -61179,7 +61201,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
 <context>
     <name>jp::WriteWindow</name>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="-742"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="-744"/>
         <source>Document%1</source>
         <translation type="unfinished">Dokumen%1</translation>
     </message>
@@ -61204,7 +61226,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Dokumen ini terlalu besar untuk diperiksa tata bahasanya lebih lanjut. Pemeriksaan tata bahasa dihentikan; pemeriksaan ejaan tetap berfungsi.</translation>
     </message>
     <message>
-        <location line="+51"/>
+        <location line="+52"/>
         <location filename="../apps/write/app/writewindow_view.cpp" line="+21"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
@@ -61220,7 +61242,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished"> (Hanya Baca)</translation>
     </message>
     <message>
-        <location line="+46"/>
+        <location line="+47"/>
         <source>Formatting is limited in this document. Only styles that are not locked can be used.</source>
         <translation type="unfinished">Pemformatan terbatas dalam dokumen ini. Hanya gaya yang tidak dikunci yang dapat digunakan.</translation>
     </message>
@@ -66846,6 +66868,56 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+26"/>
         <source>There are no spelling or grammar errors in this document.</source>
         <translation type="unfinished">Tidak ada kesalahan ejaan atau tata bahasa dalam dokumen ini.</translation>
+    </message>
+    <message>
+        <location filename="../apps/write/app/writewindow_grid.cpp" line="+62"/>
+        <source>Drawing Grid</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The drawing grid is shown on the page.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>The drawing grid is hidden.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Snap to Grid</source>
+        <translation type="unfinished">Tarik ke Kisi</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Snap to Grid is on: pictures, shapes, and text boxes go to the grid as you drag them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Snap to Grid is off.</source>
+        <translation type="unfinished">Tarik ke Kisi nonaktif.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Alignment Guides</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Alignment Guides are on: lines show when an object lines up with another object, the page, or the margins, and it snaps to them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Alignment Guides are off.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Grid and Guides…</source>
+        <translation type="unfinished">Kisi dan Panduan…</translation>
     </message>
 </context>
 <context>
@@ -82229,7 +82301,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Ctrl+klik untuk mengikuti tautan</translation>
     </message>
     <message>
-        <location line="+530"/>
+        <location line="+531"/>
         <source>Section Break</source>
         <translation type="unfinished">Pemisah Bagian</translation>
     </message>
@@ -82239,7 +82311,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Pemisah Halaman</translation>
     </message>
     <message>
-        <location line="+489"/>
+        <location line="+490"/>
         <source>Drag along the lines of a table to draw or erase its borders.</source>
         <translation type="unfinished">Seret di sepanjang garis tabel untuk menggambar atau menghapus bingkainya.</translation>
     </message>
@@ -82358,7 +82430,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Opsi Tempel. Gunakan tombol panah dan Enter untuk memilih, atau Esc untuk keluar.</translation>
     </message>
     <message>
-        <location line="+114"/>
+        <location line="+121"/>
         <source>Overtype: typing replaces the letters after the caret. Press Insert to go back.</source>
         <translation type="unfinished">Timpa: mengetik menggantikan huruf setelah kursor. Tekan Insert untuk kembali.</translation>
     </message>
@@ -82443,7 +82515,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+1005"/>
+        <location line="+1025"/>
         <source>This text box holds too many paragraphs to be typed in here.</source>
         <translation type="unfinished">Kotak teks ini memuat terlalu banyak paragraf untuk diketik di sini.</translation>
     </message>
@@ -83659,7 +83731,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Baris yang selnya tidak berada di kolom yang sama tidak dapat diurutkan.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="-864"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="-871"/>
         <location filename="../apps/write/core/homeops.cpp" line="-62"/>
         <location line="+35"/>
         <source>To paste cells as new columns, click in a table that has room for them.</source>

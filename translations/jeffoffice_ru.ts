@@ -5827,7 +5827,7 @@ Back page story	4</source>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="-15"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+462"/>
-        <location filename="../apps/write/app/writewindow.cpp" line="+833"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+835"/>
         <source>Save</source>
         <translation type="unfinished">Сохранить</translation>
     </message>
@@ -8354,12 +8354,13 @@ Save without a backup?</source>
 <context>
     <name>GuidesDialog</name>
     <message>
-        <location filename="../libs/page/app/guidesdialog.cpp" line="+24"/>
+        <location filename="../libs/page/app/guidesdialog.cpp" line="+54"/>
         <source>Grid and Guides</source>
         <translation type="unfinished">Сетка и направляющие</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="-26"/>
+        <location line="+32"/>
         <source>Grid spacing</source>
         <translation type="unfinished">Шаг сетки</translation>
     </message>
@@ -8369,12 +8370,28 @@ Save without a backup?</source>
         <translation type="unfinished">Показывать сетку на слайде</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-31"/>
+        <location line="+32"/>
         <source>Snap objects to the grid</source>
         <translation type="unfinished">Привязывать объекты к сетке</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-33"/>
+        <source>Show the drawing grid on the page</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Show alignment guides and snap objects to them</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Hold Alt while dragging to leave snapping off.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+30"/>
         <source>Snap objects to other objects</source>
         <translation type="unfinished">Привязывать объекты к другим объектам</translation>
     </message>
@@ -13466,7 +13483,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+2"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+8"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+7"/>
         <source>Change Case</source>
         <translation type="unfinished">Изменить регистр</translation>
     </message>
@@ -13575,7 +13592,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+7"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+8"/>
         <source>Drop Cap</source>
         <translation type="unfinished">Буквица</translation>
     </message>
@@ -13673,7 +13690,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+2"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+3"/>
         <source>Header &amp; Footer</source>
         <translation type="unfinished">Колонтитулы</translation>
     </message>
@@ -14420,7 +14437,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="-60"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+3"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-70"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-71"/>
         <source>Aspect Ratio</source>
         <translation type="unfinished">Соотношение сторон</translation>
     </message>
@@ -14446,7 +14463,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+4"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+10"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+9"/>
         <source>Cell Size</source>
         <translation type="unfinished">Размер ячейки</translation>
     </message>
@@ -14489,7 +14506,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-34"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+6"/>
         <source>Draw Borders</source>
         <translation type="unfinished">Нарисовать границы</translation>
     </message>
@@ -14525,7 +14542,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+3"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+54"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+15"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+23"/>
         <source>Format</source>
         <translation>Формат</translation>
@@ -14547,7 +14564,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+10"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+11"/>
         <source>Height:</source>
         <translation type="unfinished">Высота:</translation>
     </message>
@@ -14801,7 +14818,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="-159"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-177"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-178"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-143"/>
         <source>About</source>
         <translation type="unfinished">О программе</translation>
@@ -14834,7 +14851,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Границы и заливка</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+12"/>
         <source>Breaks</source>
         <translation type="unfinished">Разрывы</translation>
@@ -14963,7 +14980,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Рисование</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+9"/>
         <source>Fit</source>
         <translation type="unfinished">Вписать в страницу</translation>
     </message>
@@ -14993,7 +15010,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Градиент</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+9"/>
         <source>Header from Top:</source>
         <translation type="unfinished">Верхний колонтитул от верха:</translation>
     </message>
@@ -15042,12 +15059,12 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Параметры</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-82"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-84"/>
         <source>Change Graphic</source>
         <translation type="unfinished">Заменить рисунок</translation>
     </message>
     <message>
-        <location line="+48"/>
+        <location line="+49"/>
         <source>Graphics Effects</source>
         <translation type="unfinished">Эффекты рисунка</translation>
     </message>
@@ -15067,7 +15084,12 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Работа с графикой</translation>
     </message>
     <message>
-        <location line="+33"/>
+        <location line="+2"/>
+        <source>Grid</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+32"/>
         <source>Outline Tools</source>
         <translation type="unfinished">Инструменты структуры</translation>
     </message>
@@ -15252,7 +15274,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="-52"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="-53"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-151"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-153"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+1"/>
         <source>Chart</source>
         <translation type="unfinished">Диаграмма</translation>
@@ -15381,7 +15403,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="+33"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+36"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+47"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+49"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+2"/>
         <source>Gridlines</source>
         <translation type="unfinished">Сетка</translation>
@@ -61299,7 +61321,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::WriteWindow</name>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="-742"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="-744"/>
         <source>Document%1</source>
         <translation type="unfinished">Документ%1</translation>
     </message>
@@ -61324,7 +61346,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Этот документ слишком большой для дальнейшей проверки грамматики. Проверка грамматики остановлена; проверка орфографии по-прежнему работает.</translation>
     </message>
     <message>
-        <location line="+51"/>
+        <location line="+52"/>
         <location filename="../apps/write/app/writewindow_view.cpp" line="+21"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
@@ -61340,7 +61362,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished"> (Только чтение)</translation>
     </message>
     <message>
-        <location line="+46"/>
+        <location line="+47"/>
         <source>Formatting is limited in this document. Only styles that are not locked can be used.</source>
         <translation type="unfinished">В этом документе форматирование ограничено. Можно использовать только стили, которые не заблокированы.</translation>
     </message>
@@ -66990,6 +67012,56 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+26"/>
         <source>There are no spelling or grammar errors in this document.</source>
         <translation type="unfinished">В этом документе нет ошибок правописания и грамматики.</translation>
+    </message>
+    <message>
+        <location filename="../apps/write/app/writewindow_grid.cpp" line="+62"/>
+        <source>Drawing Grid</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The drawing grid is shown on the page.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>The drawing grid is hidden.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Snap to Grid</source>
+        <translation type="unfinished">Привязка к сетке</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Snap to Grid is on: pictures, shapes, and text boxes go to the grid as you drag them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Snap to Grid is off.</source>
+        <translation type="unfinished">Привязка к сетке выключена.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Alignment Guides</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Alignment Guides are on: lines show when an object lines up with another object, the page, or the margins, and it snaps to them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Alignment Guides are off.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Grid and Guides…</source>
+        <translation type="unfinished">Сетка и направляющие…</translation>
     </message>
 </context>
 <context>
@@ -82421,7 +82493,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Ctrl+щелчок, чтобы перейти по ссылке</translation>
     </message>
     <message>
-        <location line="+530"/>
+        <location line="+531"/>
         <source>Section Break</source>
         <translation type="unfinished">Разрыв раздела</translation>
     </message>
@@ -82431,7 +82503,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Разрыв страницы</translation>
     </message>
     <message>
-        <location line="+489"/>
+        <location line="+490"/>
         <source>Drag along the lines of a table to draw or erase its borders.</source>
         <translation type="unfinished">Перетаскивайте по линиям таблицы, чтобы нарисовать или стереть её границы.</translation>
     </message>
@@ -82550,7 +82622,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Параметры вставки. Используйте клавиши со стрелками и Enter для выбора или Esc, чтобы выйти из них.</translation>
     </message>
     <message>
-        <location line="+114"/>
+        <location line="+121"/>
         <source>Overtype: typing replaces the letters after the caret. Press Insert to go back.</source>
         <translation type="unfinished">Замена: при вводе текст заменяет буквы после курсора. Нажмите Insert, чтобы вернуться.</translation>
     </message>
@@ -82635,7 +82707,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+1005"/>
+        <location line="+1025"/>
         <source>This text box holds too many paragraphs to be typed in here.</source>
         <translation type="unfinished">Это текстовое поле содержит слишком много абзацев для ввода здесь.</translation>
     </message>
@@ -83855,7 +83927,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Строки, ячейки которых расположены не в одних и тех же столбцах, нельзя сортировать.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="-864"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="-871"/>
         <location filename="../apps/write/core/homeops.cpp" line="-62"/>
         <location line="+35"/>
         <source>To paste cells as new columns, click in a table that has room for them.</source>

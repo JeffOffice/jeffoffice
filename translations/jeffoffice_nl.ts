@@ -5826,7 +5826,7 @@ Artikel achterpagina	4</translation>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="-15"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+462"/>
-        <location filename="../apps/write/app/writewindow.cpp" line="+833"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+835"/>
         <source>Save</source>
         <translation type="unfinished">Opslaan</translation>
     </message>
@@ -8348,12 +8348,13 @@ Opslaan zonder reservekopie?</translation>
 <context>
     <name>GuidesDialog</name>
     <message>
-        <location filename="../libs/page/app/guidesdialog.cpp" line="+24"/>
+        <location filename="../libs/page/app/guidesdialog.cpp" line="+54"/>
         <source>Grid and Guides</source>
         <translation type="unfinished">Raster en hulplijnen</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="-26"/>
+        <location line="+32"/>
         <source>Grid spacing</source>
         <translation type="unfinished">Rasterafstand</translation>
     </message>
@@ -8363,12 +8364,28 @@ Opslaan zonder reservekopie?</translation>
         <translation type="unfinished">Raster op de dia weergeven</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-31"/>
+        <location line="+32"/>
         <source>Snap objects to the grid</source>
         <translation type="unfinished">Objecten uitlijnen op het raster</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-33"/>
+        <source>Show the drawing grid on the page</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Show alignment guides and snap objects to them</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Hold Alt while dragging to leave snapping off.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+30"/>
         <source>Snap objects to other objects</source>
         <translation type="unfinished">Objecten uitlijnen op andere objecten</translation>
     </message>
@@ -13456,7 +13473,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+2"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+8"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+7"/>
         <source>Change Case</source>
         <translation type="unfinished">Hoofdlettergebruik</translation>
     </message>
@@ -13565,7 +13582,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+7"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+8"/>
         <source>Drop Cap</source>
         <translation type="unfinished">Initiaal</translation>
     </message>
@@ -13663,7 +13680,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+2"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+3"/>
         <source>Header &amp; Footer</source>
         <translation type="unfinished">Koptekst en voettekst</translation>
     </message>
@@ -14410,7 +14427,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="-60"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+3"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-70"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-71"/>
         <source>Aspect Ratio</source>
         <translation type="unfinished">Hoogte-breedteverhouding</translation>
     </message>
@@ -14436,7 +14453,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     </message>
     <message>
         <location line="+4"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+10"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+9"/>
         <source>Cell Size</source>
         <translation type="unfinished">Celgrootte</translation>
     </message>
@@ -14479,7 +14496,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-34"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+6"/>
         <source>Draw Borders</source>
         <translation type="unfinished">Randen tekenen</translation>
     </message>
@@ -14515,7 +14532,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     </message>
     <message>
         <location line="+3"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+54"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+15"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+23"/>
         <source>Format</source>
         <translation>Opmaak</translation>
@@ -14537,7 +14554,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+10"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+11"/>
         <source>Height:</source>
         <translation type="unfinished">Hoogte:</translation>
     </message>
@@ -14790,7 +14807,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Breedte:</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-176"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-177"/>
         <source>Accept</source>
         <translation type="unfinished">Accepteren</translation>
     </message>
@@ -14805,7 +14822,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Bibliografie</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+6"/>
         <source>Captions</source>
         <translation type="unfinished">Bijschriften</translation>
     </message>
@@ -14815,7 +14832,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Afbeelding wijzigen</translation>
     </message>
     <message>
-        <location line="+39"/>
+        <location line="+40"/>
         <source>Fit</source>
         <translation type="unfinished">Passend maken</translation>
     </message>
@@ -14839,7 +14856,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Assen</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+5"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+4"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+12"/>
         <source>Breaks</source>
         <translation type="unfinished">Eindemarkeringen</translation>
@@ -14955,7 +14972,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Tekenen</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="+10"/>
         <source>Focus</source>
         <translation type="unfinished">Focus</translation>
     </message>
@@ -15000,7 +15017,12 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">Afbeeldingshulpmiddelen</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+2"/>
+        <source>Grid</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
         <source>Header from Top:</source>
         <translation type="unfinished">Koptekst vanaf bovenkant:</translation>
     </message>
@@ -15213,7 +15235,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="-52"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="-53"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-151"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-153"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+16"/>
         <source>Chart</source>
         <translation type="unfinished">Grafiek</translation>
@@ -15285,7 +15307,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="+32"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+34"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+45"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+47"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+10"/>
         <source>Layouts</source>
         <translation type="unfinished">Indelingen</translation>
@@ -61239,7 +61261,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
 <context>
     <name>jp::WriteWindow</name>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="-742"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="-744"/>
         <source>Document%1</source>
         <translation type="unfinished">Document%1</translation>
     </message>
@@ -61264,7 +61286,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished">Dit document is te groot om de grammatica verder te controleren. De grammaticacontrole is gestopt; spelling werkt nog wel.</translation>
     </message>
     <message>
-        <location line="+51"/>
+        <location line="+52"/>
         <location filename="../apps/write/app/writewindow_view.cpp" line="+21"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
@@ -61280,7 +61302,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <translation type="unfinished"> (Alleen-lezen)</translation>
     </message>
     <message>
-        <location line="+46"/>
+        <location line="+47"/>
         <source>Formatting is limited in this document. Only styles that are not locked can be used.</source>
         <translation type="unfinished">De opmaak is beperkt in dit document. Alleen stijlen die niet zijn vergrendeld, kunnen worden gebruikt.</translation>
     </message>
@@ -66918,6 +66940,56 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location line="+26"/>
         <source>There are no spelling or grammar errors in this document.</source>
         <translation type="unfinished">Er zijn geen spelling- of grammaticafouten in dit document.</translation>
+    </message>
+    <message>
+        <location filename="../apps/write/app/writewindow_grid.cpp" line="+62"/>
+        <source>Drawing Grid</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The drawing grid is shown on the page.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>The drawing grid is hidden.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Snap to Grid</source>
+        <translation type="unfinished">Uitlijnen op raster</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Snap to Grid is on: pictures, shapes, and text boxes go to the grid as you drag them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Snap to Grid is off.</source>
+        <translation type="unfinished">Uitlijnen op raster is uitgeschakeld.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Alignment Guides</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Alignment Guides are on: lines show when an object lines up with another object, the page, or the margins, and it snaps to them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Alignment Guides are off.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Grid and Guides…</source>
+        <translation type="unfinished">Raster en hulplijnen…</translation>
     </message>
 </context>
 <context>
@@ -82325,7 +82397,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Ctrl+klik om de koppeling te volgen</translation>
     </message>
     <message>
-        <location line="+530"/>
+        <location line="+531"/>
         <source>Section Break</source>
         <translation type="unfinished">Sectie-einde</translation>
     </message>
@@ -82335,7 +82407,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Pagina-einde</translation>
     </message>
     <message>
-        <location line="+489"/>
+        <location line="+490"/>
         <source>Drag along the lines of a table to draw or erase its borders.</source>
         <translation type="unfinished">Sleep langs de lijnen van een tabel om de randen ervan te tekenen of te wissen.</translation>
     </message>
@@ -82454,7 +82526,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Plakopties. Gebruik de pijltjestoetsen en Enter om te kiezen, of Esc om ze te verlaten.</translation>
     </message>
     <message>
-        <location line="+114"/>
+        <location line="+121"/>
         <source>Overtype: typing replaces the letters after the caret. Press Insert to go back.</source>
         <translation type="unfinished">Overtypen: typen vervangt de letters na de invoegpositie. Druk op Invoegen om terug te gaan.</translation>
     </message>
@@ -82539,7 +82611,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+1005"/>
+        <location line="+1025"/>
         <source>This text box holds too many paragraphs to be typed in here.</source>
         <translation type="unfinished">Dit tekstvak bevat te veel alinea&apos;s om hier te worden getypt.</translation>
     </message>
@@ -83757,7 +83829,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Rijen waarvan de cellen niet in dezelfde kolommen staan, kunnen niet worden gesorteerd.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="-864"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="-871"/>
         <location filename="../apps/write/core/homeops.cpp" line="-62"/>
         <location line="+35"/>
         <source>To paste cells as new columns, click in a table that has room for them.</source>

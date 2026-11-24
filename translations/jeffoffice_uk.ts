@@ -5961,7 +5961,7 @@ Back page story	4</source>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="+29"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+462"/>
-        <location filename="../apps/write/app/writewindow.cpp" line="+833"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+835"/>
         <source>Save</source>
         <translation type="unfinished">Зберегти</translation>
     </message>
@@ -8354,12 +8354,13 @@ Save without a backup?</source>
 <context>
     <name>GuidesDialog</name>
     <message>
-        <location filename="../libs/page/app/guidesdialog.cpp" line="+24"/>
+        <location filename="../libs/page/app/guidesdialog.cpp" line="+54"/>
         <source>Grid and Guides</source>
         <translation type="unfinished">Сітка і направляючі</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="-26"/>
+        <location line="+32"/>
         <source>Grid spacing</source>
         <translation type="unfinished">Крок сітки</translation>
     </message>
@@ -8369,12 +8370,28 @@ Save without a backup?</source>
         <translation type="unfinished">Показувати сітку на слайді</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-31"/>
+        <location line="+32"/>
         <source>Snap objects to the grid</source>
         <translation type="unfinished">Прив&apos;язувати об&apos;єкти до сітки</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-33"/>
+        <source>Show the drawing grid on the page</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Show alignment guides and snap objects to them</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Hold Alt while dragging to leave snapping off.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+30"/>
         <source>Snap objects to other objects</source>
         <translation type="unfinished">Прив&apos;язувати об&apos;єкти до інших об&apos;єктів</translation>
     </message>
@@ -13353,7 +13370,7 @@ Download it from %2 now? (%3, once.)</source>
         <location line="+5"/>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="+76"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+74"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+85"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+86"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+72"/>
         <source>Help</source>
         <translation type="unfinished">Довідка</translation>
@@ -13475,7 +13492,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="-65"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-75"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-76"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-62"/>
         <source>Adjust</source>
         <translation type="unfinished">Коригування</translation>
@@ -13602,7 +13619,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+2"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+8"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+7"/>
         <source>Change Case</source>
         <translation type="unfinished">Змінити регістр</translation>
     </message>
@@ -13769,7 +13786,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+7"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+8"/>
         <source>Drop Cap</source>
         <translation type="unfinished">Буквиця</translation>
     </message>
@@ -13863,7 +13880,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+1"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+1"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+2"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+1"/>
         <source>Gridlines</source>
         <translation type="unfinished">Лінії сітки</translation>
@@ -14479,7 +14496,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="-161"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-181"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-182"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-152"/>
         <source>About</source>
         <translation type="unfinished">Про програму</translation>
@@ -14533,7 +14550,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+4"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+10"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+9"/>
         <source>Cell Size</source>
         <translation type="unfinished">Розмір комірки</translation>
     </message>
@@ -14568,7 +14585,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-34"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+6"/>
         <source>Draw Borders</source>
         <translation type="unfinished">Малювання рамок</translation>
     </message>
@@ -14604,7 +14621,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+3"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+54"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+15"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+24"/>
         <source>Format</source>
         <translation>Формат</translation>
@@ -14626,7 +14643,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+10"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+11"/>
         <source>Height:</source>
         <translation type="unfinished">Висота:</translation>
     </message>
@@ -14879,7 +14896,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Ширина:</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-176"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-177"/>
         <source>Accept</source>
         <translation type="unfinished">Прийняти</translation>
     </message>
@@ -14899,7 +14916,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Рамки й заливка</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-131"/>
         <source>Breaks</source>
         <translation type="unfinished">Розриви</translation>
@@ -14999,7 +15016,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Малювання</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+9"/>
         <source>Fit</source>
         <translation type="unfinished">Припасувати</translation>
     </message>
@@ -15049,7 +15066,12 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Засоби роботи з графікою</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+2"/>
+        <source>Grid</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
         <source>Header from Top:</source>
         <translation type="unfinished">Верхній колонтитул зверху:</translation>
     </message>
@@ -15276,7 +15298,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="-121"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="-8"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-148"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-150"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+3"/>
         <source>Chart Parts</source>
         <translation type="unfinished">Елементи діаграми</translation>
@@ -15429,7 +15451,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="+46"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+49"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+63"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+65"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+23"/>
         <source>Layouts</source>
         <translation type="unfinished">Макети</translation>
@@ -61323,7 +61345,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Немає тексту для перекладу.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="-742"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="-744"/>
         <source>Document%1</source>
         <translation type="unfinished">Документ%1</translation>
     </message>
@@ -61348,7 +61370,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Цей документ занадто великий для подальшої перевірки граматики. Перевірку граматики зупинено; перевірка правопису працює.</translation>
     </message>
     <message>
-        <location line="+51"/>
+        <location line="+52"/>
         <location filename="../apps/write/app/writewindow_view.cpp" line="+21"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
@@ -61364,7 +61386,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished"> (лише для читання)</translation>
     </message>
     <message>
-        <location line="+46"/>
+        <location line="+47"/>
         <source>Formatting is limited in this document. Only styles that are not locked can be used.</source>
         <translation type="unfinished">Форматування в цьому документі обмежено. Можна використовувати лише стилі, які не заблоковано.</translation>
     </message>
@@ -66990,6 +67012,56 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+26"/>
         <source>There are no spelling or grammar errors in this document.</source>
         <translation type="unfinished">У цьому документі немає помилок правопису чи граматики.</translation>
+    </message>
+    <message>
+        <location filename="../apps/write/app/writewindow_grid.cpp" line="+62"/>
+        <source>Drawing Grid</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The drawing grid is shown on the page.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>The drawing grid is hidden.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Snap to Grid</source>
+        <translation type="unfinished">Прив&apos;язка до сітки</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Snap to Grid is on: pictures, shapes, and text boxes go to the grid as you drag them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Snap to Grid is off.</source>
+        <translation type="unfinished">Прив&apos;язку до сітки вимкнено.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Alignment Guides</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Alignment Guides are on: lines show when an object lines up with another object, the page, or the margins, and it snaps to them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Alignment Guides are off.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Grid and Guides…</source>
+        <translation type="unfinished">Сітка і направляючі…</translation>
     </message>
 </context>
 <context>
@@ -82421,7 +82493,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Ctrl+клацання, щоб перейти за посиланням</translation>
     </message>
     <message>
-        <location line="+530"/>
+        <location line="+531"/>
         <source>Section Break</source>
         <translation type="unfinished">Розрив розділу</translation>
     </message>
@@ -82431,7 +82503,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Розрив сторінки</translation>
     </message>
     <message>
-        <location line="+489"/>
+        <location line="+490"/>
         <source>Drag along the lines of a table to draw or erase its borders.</source>
         <translation type="unfinished">Перетягуйте вздовж ліній таблиці, щоб малювати або стирати її рамки.</translation>
     </message>
@@ -82550,7 +82622,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Параметри вставлення. Для вибору використовуйте клавіші зі стрілками та Enter, або Esc, щоб вийти з них.</translation>
     </message>
     <message>
-        <location line="+114"/>
+        <location line="+121"/>
         <source>Overtype: typing replaces the letters after the caret. Press Insert to go back.</source>
         <translation type="unfinished">Режим заміни: введений текст замінює літери після курсора. Натисніть Insert, щоб повернутися.</translation>
     </message>
@@ -82635,7 +82707,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+1005"/>
+        <location line="+1025"/>
         <source>This text box holds too many paragraphs to be typed in here.</source>
         <translation type="unfinished">Це текстове поле містить забагато абзаців, щоб вводити їх тут.</translation>
     </message>
@@ -83855,7 +83927,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Рядки, комірки яких розташовані не в тих самих стовпцях, не можна сортувати.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="-864"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="-871"/>
         <location filename="../apps/write/core/homeops.cpp" line="-62"/>
         <location line="+35"/>
         <source>To paste cells as new columns, click in a table that has room for them.</source>

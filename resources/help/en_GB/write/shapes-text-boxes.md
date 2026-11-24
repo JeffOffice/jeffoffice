@@ -1,5 +1,5 @@
 # Shapes and text boxes
-<!-- keywords: selection pane, hide object, rename object, object name, shape, shapes, text box, textbox, rectangle, arrow, star, callout, line, draw, insert shape, shape format, fill, outline, weight, dashes, rotate, text direction, vertical text, draw text box, change shape, edit text, sidebar, pull quote, banner, shape styles, gradient, align, gradient fill, group, ungroup, select several, picture fill, text art, warp, drawing canvas, connector, connect shapes, glue, link text boxes, create link, break link, linked text boxes, chain, diagram, diagrams -->
+<!-- keywords: drawing grid, snap to grid, alignment guides, guides, line up objects, align objects, grid spacing, selection pane, hide object, rename object, object name, shape, shapes, text box, textbox, rectangle, arrow, star, callout, line, draw, insert shape, shape format, fill, outline, weight, dashes, rotate, text direction, vertical text, draw text box, change shape, edit text, sidebar, pull quote, banner, shape styles, gradient, align, gradient fill, group, ungroup, select several, picture fill, text art, warp, drawing canvas, connector, connect shapes, glue, link text boxes, create link, break link, linked text boxes, chain, diagram, diagrams -->
 
 A **shape** is a drawn figure, such as a rectangle, an arrow, a star, or a speech bubble. A **text box** is a shape that holds words. Both float on the page, and the words of the document go round them. This topic shows how to put them in and change them.
 
@@ -66,6 +66,19 @@ A **drawing canvas** is a frame for shapes that belong together.
 3. Click the canvas, hold **Ctrl** and click each shape, and click **Group**.
 
 The canvas and its shapes now move and change size as one piece.
+
+## Line objects up with the grid and the alignment guides
+
+Two choices on the **View** tab, in the **Grid** group, help you set pictures, shapes, and text boxes exactly where you want them. They apply to objects that sit at a place on the page, not to objects that move along with the text. They are your choices, not part of the document: they stay the same in every document and every window, they are never saved in a file, and they never print.
+
+- **Drawing Grid** shows a pattern of small dots over each page. It is not the same as **View Gridlines**, which shows the edges of table cells.
+- **Snap to Grid** pulls an object toward the dots while you drag or resize it: its edges settle on the nearest dot lines.
+- **Alignment Guides** draws a thin red line while an edge or the centre of the object you are dragging lines up with an edge or the centre of another object on the same page, with the edge or the centre of the page, or with a margin. The object snaps to the line when it comes within a few pixels of it.
+- **Grid and Guides** opens a box where you set the spacing between dots, in the units you chose in File > Options, and turn each of these on or off.
+
+Hold **Alt** while you drag to leave snapping off for that one drag. A turned object lines up by the smallest box that holds all of it. Nothing snaps when both choices are off.
+
+If you also use JeffDeck, note the differences. In JeffDeck, alignment guides are on from the start, the grid is stored in the presentation, and a guide line crosses the whole slide. In JeffWrite, all three choices start off, they are yours on this computer, and a guide line stays on the page you are dragging on.
 
 ## Join shapes with a connector
 

@@ -5826,7 +5826,7 @@ Artículo de contraportada	4</translation>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="-15"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+462"/>
-        <location filename="../apps/write/app/writewindow.cpp" line="+833"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+835"/>
         <source>Save</source>
         <translation type="unfinished">Guardar</translation>
     </message>
@@ -8348,12 +8348,13 @@ Save without a backup?</source>
 <context>
     <name>GuidesDialog</name>
     <message>
-        <location filename="../libs/page/app/guidesdialog.cpp" line="+24"/>
+        <location filename="../libs/page/app/guidesdialog.cpp" line="+54"/>
         <source>Grid and Guides</source>
         <translation type="unfinished">Cuadrícula y guías</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="-26"/>
+        <location line="+32"/>
         <source>Grid spacing</source>
         <translation type="unfinished">Espaciado de la cuadrícula</translation>
     </message>
@@ -8363,12 +8364,28 @@ Save without a backup?</source>
         <translation type="unfinished">Mostrar cuadrícula en la diapositiva</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-31"/>
+        <location line="+32"/>
         <source>Snap objects to the grid</source>
         <translation type="unfinished">Ajustar objetos a la cuadrícula</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-33"/>
+        <source>Show the drawing grid on the page</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Show alignment guides and snap objects to them</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Hold Alt while dragging to leave snapping off.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+30"/>
         <source>Snap objects to other objects</source>
         <translation type="unfinished">Ajustar objetos a otros objetos</translation>
     </message>
@@ -13456,7 +13473,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+2"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+8"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+7"/>
         <source>Change Case</source>
         <translation type="unfinished">Cambiar mayúsculas y minúsculas</translation>
     </message>
@@ -13565,7 +13582,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+7"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+8"/>
         <source>Drop Cap</source>
         <translation type="unfinished">Letra capital</translation>
     </message>
@@ -13663,7 +13680,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+2"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+3"/>
         <source>Header &amp; Footer</source>
         <translation type="unfinished">Encabezado y pie de página</translation>
     </message>
@@ -14410,7 +14427,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="-60"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+3"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-70"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-71"/>
         <source>Aspect Ratio</source>
         <translation type="unfinished">Relación de aspecto</translation>
     </message>
@@ -14436,7 +14453,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+4"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+10"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+9"/>
         <source>Cell Size</source>
         <translation type="unfinished">Tamaño de celda</translation>
     </message>
@@ -14479,7 +14496,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-34"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+6"/>
         <source>Draw Borders</source>
         <translation type="unfinished">Dibujar bordes</translation>
     </message>
@@ -14515,7 +14532,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+3"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+54"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+15"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+23"/>
         <source>Format</source>
         <translation>Formato</translation>
@@ -14537,7 +14554,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+10"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+11"/>
         <source>Height:</source>
         <translation type="unfinished">Alto:</translation>
     </message>
@@ -14790,7 +14807,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Ancho:</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-176"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-177"/>
         <source>Accept</source>
         <translation type="unfinished">Aceptar</translation>
     </message>
@@ -14805,7 +14822,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Bibliografía</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+6"/>
         <source>Captions</source>
         <translation type="unfinished">Títulos</translation>
     </message>
@@ -14815,7 +14832,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Cambiar gráfico</translation>
     </message>
     <message>
-        <location line="+39"/>
+        <location line="+40"/>
         <source>Fit</source>
         <translation type="unfinished">Ajustar</translation>
     </message>
@@ -14839,7 +14856,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Ejes</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+5"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+4"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+12"/>
         <source>Breaks</source>
         <translation type="unfinished">Saltos</translation>
@@ -14955,7 +14972,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Dibujar</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location line="+10"/>
         <source>Focus</source>
         <translation type="unfinished">Enfoque</translation>
     </message>
@@ -15000,7 +15017,12 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Herramientas de gráficos</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+2"/>
+        <source>Grid</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
         <source>Header from Top:</source>
         <translation type="unfinished">Encabezado desde arriba:</translation>
     </message>
@@ -15213,7 +15235,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="-52"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="-53"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-151"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-153"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+16"/>
         <source>Chart</source>
         <translation type="unfinished">Gráfico</translation>
@@ -15285,7 +15307,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="+32"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+34"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+45"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+47"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+10"/>
         <source>Layouts</source>
         <translation type="unfinished">Diseños</translation>
@@ -61239,7 +61261,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
 <context>
     <name>jp::WriteWindow</name>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="-742"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="-744"/>
         <source>Document%1</source>
         <translation type="unfinished">Documento%1</translation>
     </message>
@@ -61264,7 +61286,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
         <translation type="unfinished">Este documento es demasiado grande para seguir comprobando la gramática. La comprobación gramatical se ha detenido; la ortografía sigue funcionando.</translation>
     </message>
     <message>
-        <location line="+51"/>
+        <location line="+52"/>
         <location filename="../apps/write/app/writewindow_view.cpp" line="+21"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
@@ -61280,7 +61302,7 @@ Su explorador web abrirá LibreTranslate, un servicio de traducción gratuito y 
         <translation type="unfinished"> (Solo lectura)</translation>
     </message>
     <message>
-        <location line="+46"/>
+        <location line="+47"/>
         <source>Formatting is limited in this document. Only styles that are not locked can be used.</source>
         <translation type="unfinished">El formato está limitado en este documento. Solo se pueden usar los estilos que no están bloqueados.</translation>
     </message>
@@ -66918,6 +66940,56 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <location line="+26"/>
         <source>There are no spelling or grammar errors in this document.</source>
         <translation type="unfinished">No hay errores ortográficos ni gramaticales en este documento.</translation>
+    </message>
+    <message>
+        <location filename="../apps/write/app/writewindow_grid.cpp" line="+62"/>
+        <source>Drawing Grid</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The drawing grid is shown on the page.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>The drawing grid is hidden.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Snap to Grid</source>
+        <translation type="unfinished">Ajustar a la cuadrícula</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Snap to Grid is on: pictures, shapes, and text boxes go to the grid as you drag them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Snap to Grid is off.</source>
+        <translation type="unfinished">Ajustar a la cuadrícula está desactivado.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Alignment Guides</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Alignment Guides are on: lines show when an object lines up with another object, the page, or the margins, and it snaps to them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Alignment Guides are off.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Grid and Guides…</source>
+        <translation type="unfinished">Cuadrícula y guías…</translation>
     </message>
 </context>
 <context>
@@ -82325,7 +82397,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Ctrl+clic para seguir el vínculo</translation>
     </message>
     <message>
-        <location line="+530"/>
+        <location line="+531"/>
         <source>Section Break</source>
         <translation type="unfinished">Salto de sección</translation>
     </message>
@@ -82335,7 +82407,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Salto de página</translation>
     </message>
     <message>
-        <location line="+489"/>
+        <location line="+490"/>
         <source>Drag along the lines of a table to draw or erase its borders.</source>
         <translation type="unfinished">Arrastre a lo largo de las líneas de una tabla para dibujar o borrar sus bordes.</translation>
     </message>
@@ -82454,7 +82526,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Opciones de pegado. Use las teclas de flecha e Intro para elegir, o Esc para salir.</translation>
     </message>
     <message>
-        <location line="+114"/>
+        <location line="+121"/>
         <source>Overtype: typing replaces the letters after the caret. Press Insert to go back.</source>
         <translation type="unfinished">Sobrescribir: al escribir se reemplazan las letras situadas después del cursor. Pulse Insert para volver atrás.</translation>
     </message>
@@ -82539,7 +82611,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+1005"/>
+        <location line="+1025"/>
         <source>This text box holds too many paragraphs to be typed in here.</source>
         <translation type="unfinished">Este cuadro de texto contiene demasiados párrafos para escribirlos aquí.</translation>
     </message>
@@ -83757,7 +83829,7 @@ No se pudo aplicar la contraseña al archivo.</translation>
         <translation type="unfinished">Las filas cuyas celdas no están en las mismas columnas no se pueden ordenar.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="-864"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="-871"/>
         <location filename="../apps/write/core/homeops.cpp" line="-62"/>
         <location line="+35"/>
         <source>To paste cells as new columns, click in a table that has room for them.</source>
