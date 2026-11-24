@@ -1904,6 +1904,16 @@ private Q_SLOTS:
     void paintingAlongAPartOfAMergedCellsSideIsAllOrNothingByHalfAndErasingPartLeavesTheLine();
     void picturesOfTheBorderPainterTheMoveHandleAndShowNotes();
 
+    // saved blocks (tst_write_blocks.cpp)
+    void aSelectionIsKeptWithItsFormatAndStylesAndPutInAgainAsOneStep();
+    void aStyleTheDocumentHasIsNotChanged();
+    void aBlockGoesInAsItIsInAParagraphOfItsOwnOrOnAPageOfItsOwn();
+    void aPictureAndTheWordsOfATableComeAlong();
+    void aFieldInABlockShowsTheDocumentsOwnValueOnceItIsIn();
+    void aTextShortcutBecomesItsBlockWhereTheNameWasTyped();
+    void aBlockThatIsNoDocumentIsRefusedAndNothingChanges();
+    void aGlossaryPartOfAFileIsKeptByteForByte();
+
 public:
     static std::unique_ptr<WriteDoc> speechDoc();
 };
