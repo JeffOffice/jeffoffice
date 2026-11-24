@@ -31,8 +31,14 @@ struct Table {
 Table parseTable(const QString &text)
 {
     Table out;
-    const QStringList lines = text.split(QLatin1Char('\n'));
-    for (const QString &line : lines) {
+    // (a checkout may end its lines with CRLF or CR, start with a byte order mark, and a line may end in spaces or tabs)
+    QString clean = text;
+    if (clean.startsWith(QChar(0xFEFF))) clean.remove(0, 1);
+    clean.replace(QStringLiteral("\r\n"), QStringLiteral("\n"));
+    clean.replace(QLatin1Char('\r'), QLatin1Char('\n'));
+    const QStringList lines = clean.split(QLatin1Char('\n'));
+    for (const QString &rawLine : lines) {
+        const QString line = rawLine.simplified();
         if (line.startsWith(QStringLiteral("#columns "))) {
             out.languages = line.mid(9).split(QLatin1Char(' '), Qt::SkipEmptyParts);
             out.columns.resize(size_t(out.languages.size()));

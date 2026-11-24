@@ -797,6 +797,31 @@ private Q_SLOTS:
         QCOMPARE(localFormulaName(QStringLiteral("SUM"), QStringLiteral("de")), QStringLiteral("SUMME"));
     }
 
+    // The table read from a file with CRLF or CR lines, a byte order mark, spaces and tabs at the ends of lines and between cells, or no final newline gives what the LF form gives.
+    void theTableIsReadWhateverItsLineEndings()
+    {
+        const QString lf = QStringLiteral("# note\n#columns de fr\nSUM SUMME SOMME\nSUMIF SUMMEWENN|SUMMEWENN2 SOMME.SI\n#N/A #NV #N/D\n");
+        QString crlf = lf, cr = lf, spaced = lf, bom = lf, noFinal = lf;
+        crlf.replace(QLatin1Char('\n'), QStringLiteral("\r\n"));
+        cr.replace(QLatin1Char('\n'), QLatin1Char('\r'));
+        spaced.replace(QLatin1Char('\n'), QStringLiteral(" \t \n"));
+        spaced.replace(QStringLiteral("SUM SUMME"), QStringLiteral("SUM \t SUMME"));
+        bom.prepend(QChar(0xFEFF));
+        noFinal.chop(1);
+        for (const QString &text : {crlf, cr, spaced, bom, noFinal, bom + QString()}) {
+            for (const QString &language : {QStringLiteral("de"), QStringLiteral("fr")}) {
+                for (const QString &english : {QStringLiteral("SUM"), QStringLiteral("SUMIF"), QStringLiteral("#N/A")}) {
+                    const QString want = localFormulaNameIn(lf, english, language);
+                    QCOMPARE(localFormulaNameIn(text, english, language), want);
+                    QCOMPARE(englishFormulaNameIn(text, want, language), englishFormulaNameIn(lf, want, language));
+                }
+            }
+            QCOMPARE(localFormulaNameIn(text, QStringLiteral("SUM"), QStringLiteral("fr")), QStringLiteral("SOMME"));
+            QCOMPARE(englishFormulaNameIn(text, QStringLiteral("summewenn2"), QStringLiteral("de")), QStringLiteral("SUMIF"));
+            QCOMPARE(formulaNameProblems(text), formulaNameProblems(lf));
+        }
+    }
+
     // A name the workbook defines does not change what a call is: as in English, a word followed by a bracket is a function, so a defined name equal to a local function name
     // is still read as that function there, and is a name where it stands alone.
     void aDefinedNameDoesNotTurnALocalFunctionNameIntoANameWithBrackets()
