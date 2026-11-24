@@ -3,6 +3,7 @@
 #include "core/editops.h"
 #include "core/commentops.h"
 #include "core/fieldops.h"
+#include "core/refops.h"
 #include "core/reviewops.h"
 #include "core/tableops.h"
 #include "core/writeprops.h"
@@ -10,6 +11,7 @@
 #include "text/textprops.h"
 
 #include <QCoreApplication>
+#include <QRegularExpression>
 #include <QSet>
 #include <QTextBlock>
 #include <QTextDocument>
@@ -51,6 +53,80 @@ void whatIsIn(QTextDocument *d, int from, int to, bool *table, bool *note)
     }
 }
 
+// The value of an attribute of a kept element (a bookmark's name is letters, digits, and underscores: nothing to unescape).
+QByteArray attributeValue(const QByteArray &raw, const char *name)
+{
+    const QByteArray key = QByteArray("w:") + name + "=\"";
+    const qsizetype at = raw.indexOf(key);
+    if (at < 0) return QByteArray();
+    const qsizetype end = raw.indexOf('"', at + key.size());
+    return end < 0 ? QByteArray() : raw.mid(at + key.size(), end - at - key.size());
+}
+
+// The bookmarks that came with a block, from `from` to `to` in the text: each has a name no other bookmark of the document has (a name taken gets "_2", "_3", and so on after it, within the 40
+// characters a name may have), and numbers of their own, so that putting a block in twice is two bookmarks and never one that is two places.
+void giveBlockBookmarksNamesOfTheirOwn(WriteDoc &doc, int from, int to)
+{
+    struct Mark {
+        int at = 0;
+        office::wml::Inline atom;
+        QTextCharFormat format;
+    };
+    QTextDocument *d = doc.story();
+    QVector<Mark> pasted;
+    QSet<QString> taken;
+    long highest = 0;
+    static const QRegularExpression idPattern(QStringLiteral("(w:id=\")[^\"]*(\")")), namePattern(QStringLiteral("(w:name=\")([^\"]*)(\")"));
+    for (QTextBlock b = d->begin(); b.isValid(); b = b.next())
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            const QTextFragment f = it.fragment();
+            const QTextCharFormat cf = f.charFormat();
+            if (!cf.hasProperty(prop::Atom)) continue;
+            const QByteArray bytes = storedBytes(cf, prop::Atom);
+            if (!bytes.contains("bookmark")) continue;
+            const office::wml::Inline atom = unpackAtom(bytes);
+            const bool start = atom.tag == QLatin1String("bookmarkStart");
+            if (!start && atom.tag != QLatin1String("bookmarkEnd")) continue;
+            highest = std::max(highest, atom.key.toLong());
+            const QString text = f.text();
+            for (int k = 0; k < text.size(); ++k) {
+                const int at = f.position() + k;
+                if (text[k] != QChar::ObjectReplacementCharacter) continue;
+                if (at >= from && at < to) pasted.push_back({at, atom, cf});
+                else if (start) taken.insert(QString::fromUtf8(attributeValue(atom.raw, "name")).toLower());
+            }
+        }
+    if (pasted.isEmpty()) return;
+    QHash<QString, QString> nameOf, idOf;   // by the id the mark had
+    for (const Mark &m : std::as_const(pasted)) {
+        if (!idOf.contains(m.atom.key)) idOf.insert(m.atom.key, QString::number(++highest));
+        if (m.atom.tag != QLatin1String("bookmarkStart")) continue;
+        const QString name = QString::fromUtf8(attributeValue(m.atom.raw, "name"));
+        QString now = name;
+        for (int n = 2; taken.contains(now.toLower()) && n < 100000; ++n) now = name.left(kMostBookmarkNameLength - 1 - int(QString::number(n).size())) + QLatin1Char('_') + QString::number(n);
+        taken.insert(now.toLower());
+        nameOf.insert(m.atom.key, now);
+    }
+    for (const Mark &m : std::as_const(pasted)) {
+        office::wml::Inline atom = m.atom;
+        QString raw = QString::fromUtf8(atom.raw);
+        raw.replace(idPattern, QLatin1String("\\1") + idOf.value(atom.key) + QLatin1String("\\2"));
+        if (atom.tag == QLatin1String("bookmarkStart") && nameOf.contains(atom.key)) {
+            QString escaped = nameOf.value(atom.key);
+            escaped.replace(QLatin1Char('&'), QLatin1String("&amp;")).replace(QLatin1Char('<'), QLatin1String("&lt;")).replace(QLatin1Char('"'), QLatin1String("&quot;"));
+            raw.replace(namePattern, QLatin1String("\\1") + escaped + QLatin1String("\\3"));
+        }
+        atom.key = idOf.value(atom.key);
+        atom.raw = raw.toUtf8();
+        QTextCharFormat nf = m.format;
+        setStored(nf, prop::Atom, packAtom(atom));
+        QTextCursor t(d);
+        t.setPosition(m.at);
+        t.setPosition(m.at + 1, QTextCursor::KeepAnchor);
+        t.setCharFormat(nf);
+    }
+}
+
 } // namespace
 
 QByteArray blockFromSelection(const WriteDoc &doc, const QTextCursor &selection, QString *problem, QStringList *leftOut)
@@ -60,7 +136,7 @@ QByteArray blockFromSelection(const WriteDoc &doc, const QTextCursor &selection,
         return QByteArray();
     };
     if (!selection.hasSelection()) return fail(QCoreApplication::translate("jp::write::Blocks", "Select what you want to save first."));
-    const Clip clip = copySelection(doc, selection);
+    const Clip clip = copySelection(doc, selection, true);   // (a table with a tracked change is kept as a table: the changes are accepted below)
     if (clip.isEmpty()) return fail(QCoreApplication::translate("jp::write::Blocks", "There is nothing in the selection that can be saved as a block."));
     std::unique_ptr<WriteDoc> blank = WriteDoc::blank();
     // (The styles first, so the paragraphs pasted find them; a style the blank document has under the same name is kept as it is.)
@@ -72,7 +148,7 @@ QByteArray blockFromSelection(const WriteDoc &doc, const QTextCursor &selection,
     if (leftOut) {
         bool table = false, note = false;
         whatIsIn(selection.document(), selection.selectionStart(), selection.selectionEnd(), &table, &note);
-        if (table) leftOut->push_back(QCoreApplication::translate("jp::write::Blocks", "A table is saved as its words, one paragraph for each cell, and not as a table."));
+        if (clip.tablesAsWords > 0) leftOut->push_back(QCoreApplication::translate("jp::write::Blocks", "Part of a table, or a table that is too large, is saved as its words, one paragraph for each cell, and not as a table."));
         if (note) leftOut->push_back(QCoreApplication::translate("jp::write::Blocks", "Footnotes and endnotes are left out."));
     }
     if (deleteAllComments(*blank) > 0 && leftOut) leftOut->push_back(QCoreApplication::translate("jp::write::Blocks", "Comments are left out."));
@@ -130,6 +206,7 @@ bool insertBlock(WriteDoc &doc, QTextCursor &c, const QByteArray &block, BlockIn
     const int from = c.position();
     pasteClip(doc, c, clip);
     const int to = c.position();
+    if (story == doc.story() && to > from) giveBlockBookmarksNamesOfTheirOwn(doc, from, to);
     if (how == BlockInsert::Page) insertPageBreak(doc, c);
     c.endEditBlock();
     if (to <= from && story == doc.story()) return fail(QCoreApplication::translate("jp::write::Blocks", "The block could not be put in here."));

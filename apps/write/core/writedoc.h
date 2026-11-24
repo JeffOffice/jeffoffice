@@ -196,6 +196,7 @@ public:
     bool docxSnapshot(office::wml::Document *out);
 
     flow::FlowDocument &flow() { return *m_flow; }
+    const flow::FlowDocument &flow() const { return *m_flow; }
     QTextDocument *story() const { return m_flow->story(); }
     flow::Paginator &pager() { return *m_pager; }
 

@@ -79,6 +79,8 @@ bool deleteStyle(WriteDoc &doc, const QString &id, QString *problem = nullptr);
 // document has already is left as it is unless `replace` is true and the style was asked for (not just a base): then it is replaced, and the text that has it follows. A style that is not a paragraph
 // or character style, that the other document lacks, or whose name another style of this document has, is not copied; the other document's list numbering is not carried over.
 int importStyles(WriteDoc &doc, const WriteDoc &from, const QStringList &ids, bool replace, QString *problem = nullptr);
+// Puts the table styles `styles` (bases first, as a copy of a table held them) in the document where it lacks their ids, and the built-in ones of `used` it lacks; one it has is left as it is. Returns how many were put.
+int importTableStyles(WriteDoc &doc, const QVector<office::wml::Style> &styles, const QStringList &used);
 // Table styles: creates the table style the choices describe (based on any table style; the id is made from the name), or changes style `id` to them (the styles under it stay; a style that
 // the choices leave as it is changes nothing), each as one step of the history. A table style the document lacks that is built in is added with the step. Returns the id (empty,
 // with `problem` told, when it can't be made), or whether it was done.

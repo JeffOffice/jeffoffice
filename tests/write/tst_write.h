@@ -1909,6 +1909,13 @@ private Q_SLOTS:
     void aStyleTheDocumentHasIsNotChanged();
     void aBlockGoesInAsItIsInAParagraphOfItsOwnOrOnAPageOfItsOwn();
     void aPictureAndTheWordsOfATableComeAlong();
+    void aTablePastedWithinOneDocumentIsATableWithItsLook();
+    void aTableCopiedToAnotherDocumentIsATableThereWithItsStyle();
+    void aTableInABlockComesBackAsATableBetweenParagraphsAndAsOneStep();
+    void aTableIsNotCarriedPartWayAndTrackedTablesAreAccepted();
+    void aBlockPutInTwiceHasBookmarksOfItsOwnEachTime();
+    void aBlockInAParagraphOfItsOwnLeavesNoEmptyParagraphBeforeIt();
+    void aCaretThatMovesDoesNotMakeALibraryListForTheShortcutKey();
     void aFieldInABlockShowsTheDocumentsOwnValueOnceItIsIn();
     void aTextShortcutBecomesItsBlockWhereTheNameWasTyped();
     void aBlockThatIsNoDocumentIsRefusedAndNothingChanges();

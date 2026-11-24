@@ -1,7 +1,7 @@
 # Save a block and put it in again
 <!-- keywords: saved blocks, boilerplate, signature, letterhead, text shortcut, text shortcuts, reuse text, save selection, insert again, F3, library -->
 
-A **block** is a piece of a document that you saved so that you can put it in again: a signature, a paragraph you use in every letter, a letterhead, or a picture with a caption. A block keeps its text with its fonts, colors, styles, bullets and numbers, pictures, links, and fields. It does not keep comments, footnotes, endnotes, section breaks, or a table as a table (see Good to know).
+A **block** is a piece of a document that you saved so that you can put it in again: a signature, a paragraph you use in every letter, a letterhead, or a picture with a caption. A block keeps its text with its fonts, colors, styles, bullets and numbers, pictures, links, fields, and tables (rows, columns, widths, borders, shading, merged cells, a header row that repeats, and the table's style). It does not keep comments, footnotes, endnotes, or section breaks (see Good to know).
 
 ## Save a block
 
@@ -33,7 +33,8 @@ Choose **Insert > Saved Blocks > Manage Saved Blocks**. You can see each block, 
 
 - Your saved blocks are kept in one file on this computer, for your own account only: they are not in your documents and are not sent anywhere. The file is `library.jblocks`, in the folder `Saved Blocks` inside your data folder: `AppData\Local\JeffOffice` on Windows, `Library/Application Support/JeffOffice` on a Mac, and `.local/share/JeffOffice` on Linux. Every JeffOffice program on your computer shares it, and two windows can add blocks at the same time without losing each other's.
 - A block can be up to 8 megabytes, and the library holds up to 5,000 blocks.
-- A table in the selection is saved as its words, one paragraph for each cell, and not as a table. JeffWrite tells you before it saves.
+- A table is saved as a table when the selection holds all of it. If the selection holds only part of a table, that part is saved as its words, one paragraph for each cell, and JeffWrite tells you before it saves.
+- A bookmark in a block gets a name of its own when you put the block in: if your document already has a bookmark of that name, the new one is named with "_2", "_3", and so on after it.
 - Comments are left out. Footnotes and endnotes are left out. Section breaks are not kept.
 - Tracked changes are accepted when the block is saved: the words that were inserted stay, and the words that were deleted are not in the block, so a block never holds another person's tracked words.
 - A document never adds blocks to your library. Only you do.

@@ -1641,9 +1641,9 @@ static void settlePastedNoteReferences(WriteDoc &doc, QTextDocument *d, int from
 }
 
 // Pastes, and says where what was pasted is (from, to) when the paste is done.
-static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fragment, int *pastedFrom, int *pastedTo, bool sameDocument);
+static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fragment, int *pastedFrom, int *pastedTo, bool sameDocument, const QHash<int, int> *tableKeys = nullptr);
 
-static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fragment, int *pastedFrom, int *pastedTo, bool sameDocument)
+static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fragment, int *pastedFrom, int *pastedTo, bool sameDocument, const QHash<int, int> *tableKeys)
 {
     NumberGuard numbers(doc, c.document());
     c.beginEditBlock();
@@ -1710,7 +1710,8 @@ static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment
     }
     // What is pasted is in the cell it was pasted into (or in none), and in the frame it was pasted into (or in none: a frame's key is its document's, and a paragraph set apart from
     // the text with the key of another's would be lost to it).
-    giveCellKey(d->findBlock(from), d->findBlock(to), targetCell);
+    if (tableKeys && !targetCell) giveCellKeys(d->findBlock(from), d->findBlock(to), *tableKeys);   // (the tables of a copy are made in this document: their paragraphs are in their cells)
+    else giveCellKey(d->findBlock(from), d->findBlock(to), targetCell);
     const bool targetFramed = tf.boolProperty(tp::OutOfLayout) && tf.intProperty(flow::fp::Frame) > 0 && !targetCell;
     for (QTextBlock b = d->findBlock(from); b.isValid() && b.position() <= to; b = b.next()) {
         QTextBlockFormat nf = b.blockFormat();
@@ -2006,7 +2007,29 @@ QVector<Reference> referencesIn(const QByteArray &xml)
 
 } // namespace
 
-Clip copySelection(const WriteDoc &doc, const QTextCursor &whole)
+// A fragment with an empty paragraph before it, or after it, or both: a copy that begins or ends in a table is pasted between paragraphs, so that no words of the paragraph pasted into are joined to a cell.
+static QTextDocumentFragment bracketed(const QTextDocumentFragment &fragment, bool before, bool after, const QTextBlockFormat &firstFormat)
+{
+    QTextDocument scratch;
+    QTextCursor t(&scratch);
+    t.insertFragment(fragment);
+    if (before) QTextCursor(scratch.begin()).setBlockFormat(firstFormat);   // (a fragment does not keep the look of its first paragraph when the selection began at its start)
+    // (A paragraph is cut off at the start, or made at the end, and takes the plain look: it has no cell.)
+    if (before) {
+        QTextCursor at(&scratch);
+        at.insertBlock();
+        QTextCursor(scratch.begin()).setBlockFormat(QTextBlockFormat());
+    }
+    if (after) {
+        QTextCursor at(&scratch);
+        at.movePosition(QTextCursor::End);
+        at.insertBlock();
+        QTextCursor(scratch.lastBlock()).setBlockFormat(QTextBlockFormat());
+    }
+    return QTextDocumentFragment(&scratch);
+}
+
+Clip copySelection(const WriteDoc &doc, const QTextCursor &whole, bool keepChangedTables)
 {
     Clip clip;
     QTextCursor c(whole);   // (what is copied is the person's text: the endnotes the pages set are not)
@@ -2019,6 +2042,26 @@ Clip copySelection(const WriteDoc &doc, const QTextCursor &whole)
     clip.source = doc.id();
     clip.generation = byteStoreGeneration();
     if (!c.hasSelection()) return clip;
+    {
+        // The tables the selection holds whole are kept as tables, with the styles they use: the paragraphs of the fragment carry their cells' keys, which `tables` says how to make again.
+        const CopiedTables found = copyTables(doc, c, keepChangedTables);
+        clip.tablesAsWords = found.asWords;
+        if (!found.tables.isEmpty() && !splitsContentControl(c.document(), c.selectionStart(), c.selectionEnd())) {
+            clip.tables = found.tables;
+            QSet<QString> have;
+            std::function<void(const QString &, int)> addStyle = [&](const QString &id, int depth) {
+                const office::wml::Style *s = id.isEmpty() || depth > 8 || have.contains(id) ? nullptr : doc.styleSheet().find(id);
+                if (!s || s->type != QLatin1String("table")) return;
+                have.insert(id);
+                addStyle(s->basedOn, depth + 1);
+                clip.tableStyles.push_back(*s);
+            };
+            for (const CopiedTable &t : std::as_const(clip.tables)) addStyle(t.style, 0);
+            clip.bracketedBefore = found.startsInTable;
+            clip.bracketedAfter = found.endsInTable;
+            if (found.startsInTable || found.endsInTable) clip.fragment = bracketed(clip.fragment, found.startsInTable, found.endsInTable, c.document()->findBlock(c.selectionStart()).blockFormat());
+        }
+    }
     QSet<QString> ids;
     auto collect = [&](const QByteArray &raw) {
         for (const Reference &r : referencesIn(raw)) ids.insert(r.id);
@@ -2068,8 +2111,26 @@ void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
     }
     if (!contentControlsAllow(doc, c.document(), c.selectionStart(), c.selectionEnd(), true)) return;
     c.beginEditBlock();
+    // The tables of the copy are made here first (outside a table, in the text): their styles, then their cells' records, which the pasted paragraphs are given.
+    std::optional<TableRecordScope> records;
+    QHash<int, int> tableKeys;
+    if (!clip.tables.isEmpty() && c.document() == doc.story() && !inEndnoteWords(c) && !cellKeyOf(c.document()->findBlock(c.selectionStart()))) {
+        records.emplace(doc);
+        QStringList used;
+        for (const CopiedTable &t : clip.tables)
+            if (!t.style.isEmpty() && !used.contains(t.style)) used.push_back(t.style);
+        importTableStyles(doc, clip.tableStyles, used);
+        tableKeys = makeCopiedTables(doc, clip.tables);
+    }
+    // (Where the copy goes at the start of a paragraph, or the end of one, the empty paragraph made beside its table is a paragraph of its own: it goes when the paste is done.)
+    bool dropBefore = false, dropAfter = false;
+    if (!tableKeys.isEmpty()) {
+        const QTextBlock first = c.document()->findBlock(c.selectionStart()), last = c.document()->findBlock(c.selectionEnd());
+        dropBefore = clip.bracketedBefore && c.selectionStart() == first.position();
+        dropAfter = clip.bracketedAfter && c.selectionEnd() == last.position() + last.length() - 1;
+    }
     int from = 0, to = 0;
-    pasteInto(doc, c, clip.fragment, &from, &to, same);
+    pasteInto(doc, c, clip.fragment, &from, &to, same, tableKeys.isEmpty() ? nullptr : &tableKeys);
     // (The places the pasted text begins and ends at, which follow the edits made to it below.)
     QTextCursor pastedFrom(c.document()), pastedTo(c.document());
     pastedFrom.setPosition(from);
@@ -2106,6 +2167,7 @@ void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
             t.setCharFormat(redo[i].format);
         }
         renumberPastedTextBoxChains(doc, pastedFrom.position(), pastedTo.position());
+        if (dropBefore || dropAfter) dropBracketParagraphs(doc, pastedFrom.position(), pastedTo.position(), dropBefore, dropAfter);
         c.endEditBlock();
         doc.keepObjectsForTheHistory();
         return;
@@ -2242,6 +2304,7 @@ void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
         t.setPosition(b.position() + b.length() - 1, QTextCursor::KeepAnchor);
         removeSelection(doc, t);
     }
+    if (dropBefore || dropAfter) dropBracketParagraphs(doc, pastedFrom.position(), pastedTo.position(), dropBefore, dropAfter);
     c.endEditBlock();
     doc.keepObjectsForTheHistory();
 }

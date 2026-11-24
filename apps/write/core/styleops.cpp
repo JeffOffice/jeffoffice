@@ -737,6 +737,29 @@ int importStyles(WriteDoc &doc, const WriteDoc &from, const QStringList &ids, bo
     return int(put.size());
 }
 
+int importTableStyles(WriteDoc &doc, const QVector<Style> &styles, const QStringList &used)
+{
+    int put = 0;
+    QTextCursor edit(doc.story());
+    edit.beginEditBlock();
+    // (Bases first. A style the document has under that id is not changed, and one whose name another style has is not taken twice.)
+    for (const Style &s : styles) {
+        if (doc.styleSheet().find(s.id) || doc.styleSheet().styles.size() >= kMostStylesMade) continue;
+        if (!styleNameProblem(doc, s.name.isEmpty() ? s.id : s.name, QString()).isEmpty()) continue;
+        Style t = s;
+        t.isDefault = false;
+        t.link.clear();
+        if (!t.basedOn.isEmpty() && !doc.styleSheet().find(t.basedOn) && !doc.ensureTableStyle(t.basedOn)) t.basedOn.clear();
+        doc.putStyle(t);
+        ++put;
+    }
+    for (const QString &id : used) doc.ensureTableStyle(id);   // (a built-in table style the document lacks is made as a table made there would)
+    if (put > 0) touchStyles(doc);
+    edit.endEditBlock();
+    if (put > 0 && !doc.settleStyleEdit()) return 0;
+    return put;
+}
+
 namespace {
 
 void addBuiltinTableStyleInStep(WriteDoc &doc, const QString &id, int depth = 0)

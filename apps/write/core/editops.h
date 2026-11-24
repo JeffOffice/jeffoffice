@@ -4,6 +4,7 @@
 // page view call these; they know nothing of pages.
 
 #include "core/writedoc.h"
+#include "core/tableops.h"
 #include "core/writeprops.h"
 #include "text/textengine.h"
 
@@ -174,9 +175,15 @@ struct Clip {
     quint64 source = 0;             // the document it was copied from
     quint64 generation = 0;         // the store of kept bytes its formats refer to (when the last document is closed, those are gone)
     QVector<Link> links;
+    // The tables the copy holds whole, kept as tables (see core/tableops.h), with the table styles they use (bases first). A paragraph of the fragment in one has the key of its cell there.
+    QVector<CopiedTable> tables;
+    QVector<office::wml::Style> tableStyles;
+    bool bracketedBefore = false, bracketedAfter = false;   // the fragment has an empty paragraph made before it, or after it (a copy that begins or ends in a table)
+    int tablesAsWords = 0;          // tables the copy holds a part of, or too many of: their words only
     bool isEmpty() const { return fragment.isEmpty(); }
 };
-Clip copySelection(const WriteDoc &doc, const QTextCursor &c);
+// `keepChangedTables`: a table with a tracked change of its own is kept as a table too (the caller settles the change), not made its words.
+Clip copySelection(const WriteDoc &doc, const QTextCursor &c, bool keepChangedTables = false);
 void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip);
 
 // ---- moving text

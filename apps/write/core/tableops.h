@@ -12,6 +12,7 @@
 #include <QTextBlock>
 #include <QDate>
 #include <QDateTime>
+#include <QHash>
 #include <QSet>
 #include <QTextCursor>
 #include <QVector>
@@ -51,6 +52,53 @@ void deleteTableColumns(WriteDoc &doc, QTextCursor &c);
 // space instead of a cell. One step. False, with nothing done, where a cell is joined with others down or across rows, or where no cell of a row would be left (Delete Rows is that).
 bool deleteTableCellsShiftLeft(WriteDoc &doc, QTextCursor &c, bool apply = true);   // (not `apply`: only whether it could be)
 void deleteTable(WriteDoc &doc, QTextCursor &c);
+
+// ---- Tables in a copy (a copy or a saved block that holds a whole table keeps it as a table, in this document or another)
+// A table as the file says its start, its rows', and its cells' (the pieces a table is made again from), with the cells' keys in the document it was copied from.
+struct CopiedTable {
+    struct Cell {
+        QByteArray open;
+        int key = 0;
+    };
+    struct Row {
+        QByteArray open;
+        QVector<Cell> cells;
+    };
+    QByteArray open;
+    QVector<double> columns;
+    QVector<Row> rows;
+    int parent = 0;     // the key of the cell it is in (a table in a cell), else 0
+    QString style;      // its table style's id, if it has one
+};
+constexpr int kMostCopiedTables = 100;      // tables kept as tables in one copy; the rest are their words
+constexpr int kMostCopiedCells = 20000;     // cells of all of them together
+struct CopiedTables {
+    QVector<CopiedTable> tables;            // outer tables before the ones in their cells
+    int asWords = 0;                        // tables the selection held a part of, or held more of than a copy keeps: copied as their words
+    bool startsInTable = false, endsInTable = false;   // the copy begins at the first paragraph of a table, or ends inside one's last
+};
+// The tables a selection in the text holds whole. A table with a tracked change of its own is words unless `keepChanged`.
+CopiedTables copyTables(const WriteDoc &doc, const QTextCursor &selection, bool keepChanged = false);
+// The id of the table style a table's start names ("" for none).
+QString tableStyleIdOf(const QByteArray &open);
+// Makes the records of copied tables in this document (its table styles must be here already): the key of each cell that now holds the paragraphs of the cell of that key in the copy.
+QHash<int, int> makeCopiedTables(WriteDoc &doc, const QVector<CopiedTable> &tables);
+// The paragraphs from `first` to `last` take the keys `keys` says (a key it has no entry for: no cell).
+void giveCellKeys(QTextBlock first, QTextBlock last, const QHash<int, int> &keys);
+// The empty paragraphs a copy that began or ended in a table came to leave beside it (where it was pasted at the start of a paragraph, or at the end of one) go: `head` before the table, `tail` after it
+// (not the last paragraph of the story, nor one that is followed by another table).
+void dropBracketParagraphs(WriteDoc &doc, int from, int to, bool head, bool tail);
+// The records made while it lives go with the step of the edit that uses them, as a table command's do.
+class TableRecordScope {
+public:
+    explicit TableRecordScope(WriteDoc &doc);
+    ~TableRecordScope();
+    TableRecordScope(const TableRecordScope &) = delete;
+    TableRecordScope &operator=(const TableRecordScope &) = delete;
+
+private:
+    void *m_command;
+};
 
 // ---- Tracked changes of tables
 // The story has the address of the document's records of cells as this property, for the code that looks through a story alone (the list of its changes).

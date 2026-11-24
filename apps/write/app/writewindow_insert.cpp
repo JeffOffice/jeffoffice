@@ -339,7 +339,7 @@ void WriteWindow::refreshInsertUi()
     // (F3 is on only where a Text Shortcut could be: the library file is there, and once it is read, it holds one. The file is not read just to show a command.)
     {
         const jp::BlockLibrary &lib = jp::BlockLibrary::shared();
-        const bool any = lib.loaded() ? !lib.list(jp::kShortcutsGallery).isEmpty() : QFileInfo::exists(lib.path());
+        const bool any = lib.loaded() ? lib.count(jp::kShortcutsGallery) > 0 : QFileInfo::exists(lib.path());
         act("insert.expandShortcut")->setEnabled(m_doc && !m_view->inHeaderFooter() && !m_view->inNote() && any);
     }
     act("insert.hyperlink")->setEnabled(m_doc && !m_view->inHeaderFooter() && !m_view->inNote());

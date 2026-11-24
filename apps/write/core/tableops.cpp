@@ -3905,4 +3905,164 @@ int resolveTableChanges(WriteDoc &doc, QTextDocument *story, const QVector<Table
     return done;
 }
 
+// ---- Tables in a copy
+
+namespace {
+
+// Whether kept bytes of a table, a row, or a cell say it has a tracked change.
+bool saysTracked(const QByteArray &xml)
+{
+    static const QRegularExpression pattern(QStringLiteral("PrChange|GridChange|<w:cell(Ins|Del|Merge)|<w:(ins|del)[\\s/>]"));
+    return QString::fromUtf8(xml).contains(pattern);
+}
+
+} // namespace
+
+TableRecordScope::TableRecordScope(WriteDoc &doc) : m_command(new TableCommand(doc)) {}
+
+TableRecordScope::~TableRecordScope() { delete static_cast<TableCommand *>(m_command); }
+
+QString tableStyleIdOf(const QByteArray &open)
+{
+    static const QRegularExpression pattern(QStringLiteral("<w:tblStyle\\s+w:val=\"([^\"]*)\""));
+    QString id = pattern.match(QString::fromUtf8(open)).captured(1);
+    id.replace(QLatin1String("&quot;"), QLatin1String("\"")).replace(QLatin1String("&apos;"), QLatin1String("'")).replace(QLatin1String("&lt;"), QLatin1String("<")).replace(QLatin1String("&gt;"), QLatin1String(">"))
+        .replace(QLatin1String("&amp;"), QLatin1String("&"));
+    return id;
+}
+
+CopiedTables copyTables(const WriteDoc &doc, const QTextCursor &selection, bool keepChanged)
+{
+    CopiedTables out;
+    const flow::TableStore &store = doc.flow().tables;
+    QTextDocument *d = selection.document();
+    if (!selection.hasSelection() || store.isEmpty() || d != doc.story()) return out;
+    const int a = selection.selectionStart(), b = selection.selectionEnd();
+    bool any = false;
+    for (QTextBlock blk = d->findBlock(a); blk.isValid() && blk.position() < b && !any; blk = blk.next()) any = cellKeyOf(blk) != 0;
+    if (!any) return out;
+    flow::TableIndex index;
+    index.rebuild(d, store);
+    qint64 cells = 0;
+    for (const flow::TableIndex::Span &span : index.spans()) {
+        if (span.to <= a) continue;
+        if (span.from >= b) break;
+        // (A table is carried when the selection holds all of it; part of one is its words, as ever, and the person is told.)
+        const bool whole = a <= span.from && b >= span.to - 1;
+        bool carry = whole && out.tables.size() < kMostCopiedTables;
+        QVector<CopiedTable> made;
+        QHash<const void *, int> tableAt;
+        QHash<QPair<int, const void *>, int> rowAt;
+        QSet<int> seen;
+        qint64 here = 0;
+        for (QTextBlock blk = d->findBlock(span.from); carry && blk.isValid() && blk.position() < span.to; blk = blk.next()) {
+            const QVector<const flow::CellRecord *> &chain = index.chain(cellKeyOf(blk));
+            for (int i = 0; i < chain.size(); ++i) {
+                const flow::CellRecord *rec = chain[i];
+                int ti = tableAt.value(rec->table.get(), -1);
+                if (ti < 0) {
+                    const auto part = std::static_pointer_cast<const TablePart>(rec->table->app);
+                    CopiedTable t;
+                    t.open = part ? part->open : QByteArray("<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr>");
+                    if (!t.open.contains("<w:tblGrid") && !rec->table->columns.isEmpty()) t.open += gridXml(rec->table->columns);
+                    t.columns = rec->table->columns;
+                    t.parent = i > 0 ? chain[i - 1]->key : 0;
+                    t.style = tableStyleIdOf(t.open);
+                    ti = int(made.size());
+                    tableAt.insert(rec->table.get(), ti);
+                    made.push_back(t);
+                }
+                CopiedTable &t = made[ti];
+                const QPair<int, const void *> rowKey(ti, rec->row.get());
+                int ri = rowAt.value(rowKey, -1);
+                if (ri < 0) {
+                    const auto part = std::static_pointer_cast<const RowPart>(rec->row->app);
+                    CopiedTable::Row row;
+                    row.open = part ? part->open : QByteArray("<w:tr>");
+                    ri = int(t.rows.size());
+                    rowAt.insert(rowKey, ri);
+                    t.rows.push_back(row);
+                }
+                if (seen.contains(rec->key)) continue;
+                seen.insert(rec->key);
+                const auto part = std::static_pointer_cast<const CellPart>(rec->cell.app);
+                CopiedTable::Cell cell;
+                cell.open = part ? part->open : QByteArray("<w:tc>");
+                cell.key = rec->key;
+                t.rows[ri].cells.push_back(cell);
+                if (++here + cells > kMostCopiedCells) carry = false;
+            }
+        }
+        if (carry && !keepChanged)
+            for (const CopiedTable &t : std::as_const(made)) {
+                bool tracked = saysTracked(t.open);
+                for (const CopiedTable::Row &r : t.rows) {
+                    tracked = tracked || saysTracked(r.open);
+                    for (const CopiedTable::Cell &c : r.cells) tracked = tracked || saysTracked(c.open);
+                }
+                if (tracked) carry = false;
+            }
+        if (!carry) {
+            ++out.asWords;
+            continue;
+        }
+        cells += here;
+        for (const CopiedTable &t : std::as_const(made)) out.tables.push_back(t);
+        out.startsInTable = out.startsInTable || a == span.from;
+        out.endsInTable = out.endsInTable || b < span.to;
+    }
+    return out;
+}
+
+QHash<int, int> makeCopiedTables(WriteDoc &doc, const QVector<CopiedTable> &tables)
+{
+    QHash<int, int> keys;
+    for (const CopiedTable &t : tables) {
+        XTable x;
+        x.open = t.open;
+        x.columns = t.columns;
+        x.parent = t.parent ? keys.value(t.parent, 0) : 0;
+        for (const CopiedTable::Row &row : t.rows) {
+            XRow r;
+            r.open = row.open;
+            for (const CopiedTable::Cell &cell : row.cells) {
+                XCell c;
+                c.open = cell.open;
+                r.cells.push_back(c);
+            }
+            x.rows.push_back(r);
+        }
+        const QVector<QVector<int>> made = remake(doc, x);
+        for (int r = 0; r < t.rows.size(); ++r)
+            for (int i = 0; i < t.rows[r].cells.size(); ++i) keys.insert(t.rows[r].cells[i].key, made[r][i]);
+    }
+    return keys;
+}
+
+void dropBracketParagraphs(WriteDoc &doc, int from, int to, bool head, bool tail)
+{
+    QTextDocument *d = doc.story();
+    QTextCursor end(d);
+    end.setPosition(std::min(to, d->characterCount() - 1));
+    const QTextBlock a = d->findBlock(std::min(from, d->characterCount() - 1));
+    if (head && a.isValid() && a.length() == 1 && !cellKeyOf(a) && a.next().isValid() && cellKeyOf(a.next())) removeParagraphs(d, a, a);
+    const QTextBlock z = end.block();
+    if (tail && z.isValid() && z.length() == 1 && !cellKeyOf(z) && z.previous().isValid() && cellKeyOf(z.previous()) && z.next().isValid() && !cellKeyOf(z.next())) removeParagraphs(d, z, z);
+}
+
+void giveCellKeys(QTextBlock first, QTextBlock last, const QHash<int, int> &keys)
+{
+    for (QTextBlock b = first; b.isValid(); b = b.next()) {
+        const int key = keys.value(cellKeyOf(b), 0);
+        if (cellKeyOf(b) != key) {
+            QTextBlockFormat bf = b.blockFormat();
+            if (key) bf.setProperty(flow::fp::Cell, key);
+            else bf.clearProperty(flow::fp::Cell);
+            QTextCursor(b).setBlockFormat(bf);
+        }
+        if (b == last) break;
+    }
+}
+
+
 } // namespace jp::write
