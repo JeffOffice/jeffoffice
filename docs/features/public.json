@@ -4571,7 +4571,7 @@
         },
         {
          "status": "partly",
-         "text": "56c298c02886589c53adeb13c6b39f7e3e86f930b1264043b1464700bb34e41a"
+         "text": "f8999e0ddea9dee9d6d9fc317fa712ff9fed2e810d56e32f8b4c77673ba0d53b"
         },
         {
          "hide_soon": true,
@@ -14656,18 +14656,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "56c298c02886589c53adeb13c6b39f7e3e86f930b1264043b1464700bb34e41a": {
-   "drop": false,
-   "en": "Opens `.pub` files from 1998 on, including linked text boxes, tables, pictures, and master pages.",
-   "es": "Abre archivos `.pub` desde 1998, incluidos cuadros de texto vinculados, tablas, imágenes y páginas maestras.",
-   "fr": "Ouvre les fichiers `.pub` depuis 1998, y compris les zones de texte liées, les tableaux, les images et les pages maîtresses.",
-   "soon": {
-    "drop": false,
-    "en": "Fonts stored inside `.pub` files, and page numbering of sections after the first",
-    "es": "Fuentes almacenadas dentro de archivos `.pub` y numeración de páginas de las secciones posteriores a la primera",
-    "fr": "Polices stockées dans les fichiers `.pub` et numérotation des pages des sections après la première"
    }
   },
   "56ce6ae88dea6594e09db596253eb03b1a917a1e935add3e08fb058e9d581628": {
@@ -26380,6 +26368,18 @@
     "en": "Symbol galleries beyond the five groups, ink equations, and the professional or linear form saved in `.pptx` files",
     "es": "Galerías de símbolos más allá de los cinco grupos, ecuaciones a tinta y forma profesional o lineal guardada en archivos `.pptx`",
     "fr": "Galeries de symboles au-delà des cinq groupes, équations manuscrites et forme professionnelle ou linéaire enregistrée dans les fichiers `.pptx`"
+   }
+  },
+  "f8999e0ddea9dee9d6d9fc317fa712ff9fed2e810d56e32f8b4c77673ba0d53b": {
+   "drop": false,
+   "en": "Opens `.pub` files from 1998 on, including linked text boxes, tables, pictures, and master pages.",
+   "es": "Abre archivos `.pub` desde 1998, incluidos cuadros de texto vinculados, tablas, imágenes y páginas maestras.",
+   "fr": "Ouvre les fichiers `.pub` à partir de 1998, y compris les zones de texte liées, les tableaux, les images et les pages maîtresses.",
+   "soon": {
+    "drop": false,
+    "en": "Fonts stored inside `.pub` files, and page numbering of sections after the first",
+    "es": "Fuentes almacenadas dentro de los archivos `.pub` y numeración de páginas de las secciones posteriores a la primera",
+    "fr": "Polices stockées dans les fichiers `.pub` et numérotation des pages des sections après la première"
    }
   },
   "f8a61b65ce4588c93321d7d0cb91745b7d668d6fc7d0d4295bd9a68e6c6c4378": {
