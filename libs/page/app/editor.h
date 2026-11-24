@@ -276,6 +276,11 @@ public:
     // The person gave up waiting (Cancel on the progress box): the work asked for last is dropped, the picture keeps the removal it had. A picture that has none yet is left
     // as it was, and the mode ends as Esc ends it.
     void cancelRemoveBackgroundWork();
+    // Ends the mode, taking its changes back, when `ids` holds the picture in it, and drops the work still going on for it (what Change Picture and Reset Picture do first,
+    // so that an answer coming late is never put on the picture that is there then).
+    void cancelRemoveBackgroundFor(const QStringList &ids);
+    // For the tests: called on the worker's own thread as a job begins, with its cancel flag, so that a test holds the work while it changes the picture.
+    static inline std::function<void(const std::atomic<bool> &)> removeBgWorkerHook;
     // The pixels of the picture in the mode (what the progress box goes by).
     qint64 removeBgPixels = 0;
     void setPointsItem(const QString &id) { pointsItem = id; Q_EMIT viewChanged(); }
@@ -564,11 +569,14 @@ private:
         std::atomic<bool> cancel{false};
         std::atomic<int> told{-1};
         QImage picture;
+        QString imageId;                   // the picture the job started on, and the number of the job: the answer is taken only for both as they still are
+        quint64 seq = 0;
         QVector<BackgroundMark> marks;
         BackgroundRemoval result;
         bool done = false;                 // set on the window's thread, when the result has come
         std::unique_ptr<WorkThread> thread;
     };
+    quint64 m_rbSeq = 0;                                  // the number of the last job asked for; dropping the work moves it on
     std::vector<std::shared_ptr<RemoveBgJob>> m_rbJobs;   // the work asked for, the last of them the one that counts
     bool m_rbOpen = false;                                // a Remove Background session holds a change open
     int m_rbPage = 0;

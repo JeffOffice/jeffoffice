@@ -914,7 +914,7 @@ static bool pngHasProfile(const QByteArray &png)
     return false;
 }
 
-QImage Renderer::processedImage(const Document &doc, const PictureItem &pic, const QSizeF &deviceSize, const QSizeF &exactSize)
+QImage Renderer::processedImage(const Document &doc, const PictureItem &pic, const QSizeF &deviceSize, const QSizeF &exactSize, const QColor &removalTint)
 {
     jp::threadcheck::guiOnlyCache();
     static QCache<QString, QImage> cache(256 * 1024);   // KB
@@ -922,7 +922,7 @@ QImage Renderer::processedImage(const Document &doc, const PictureItem &pic, con
     if (src.isNull()) return src;
     // (A removal made for a picture of another size is not used.)
     const bool removed = pic.removal.isValid() && pic.removal.source == src.size();
-    const bool tinted = removed && pic.removalTint.isValid();
+    const bool tinted = removed && removalTint.isValid();
     // A slide's picture is changed as the presentation program changes it (PictureItem::colorEffects), all at once and in the pixels of the
     // picture itself, before it is made smaller (a color picked out is picked out where it is exact), and once for the picture and its changes,
     // however many sizes it is shown at. A publication's, and the Sepia, Washout,
@@ -946,7 +946,7 @@ QImage Renderer::processedImage(const Document &doc, const PictureItem &pic, con
     }
     const QString key = QStringLiteral("%1|%2|%3|%4|%5|%6|%7|%8|%9x%10").arg(pic.imageId).arg(pic.brightness).arg(pic.contrast).arg(int(pic.recolor))
                             .arg(pic.recolorColor.resolve(doc.colors).name()).arg(pic.hasTransparentColor ? pic.transparentColor.name() : QString())
-                            .arg(level).arg(doc.colors.c[0].name()).arg(shown.width()).arg(shown.height()) + (removed ? QLatin1Char('|') + pic.removal.key() + (tinted ? pic.removalTint.name(QColor::HexArgb) : QString()) : QString());
+                            .arg(level).arg(doc.colors.c[0].name()).arg(shown.width()).arg(shown.height()) + (removed ? QLatin1Char('|') + pic.removal.key() + (tinted ? removalTint.name(QColor::HexArgb) : QString()) : QString());
     const QString effectsKey = effects.isEmpty() ? QString() : (slide ? QStringLiteral("s") : QStringLiteral("p")) + blipEffectsKey(effects);
     if (QImage *c = cache.object(key + QLatin1Char('|') + effectsKey)) return *c;
     // The background taken off the picture is clear before anything else changes the picture.
@@ -993,7 +993,7 @@ QImage Renderer::processedImage(const Document &doc, const PictureItem &pic, con
         }
     }
     if (!slide && !effects.isEmpty()) img = applyBlipEffects(img, effects);
-    if (tinted) img = tintBackgroundRemoval(img, pic.removal, pic.removalTint);
+    if (tinted) img = tintBackgroundRemoval(img, pic.removal, removalTint);
     cache.insert(key + QLatin1Char('|') + effectsKey, new QImage(img), std::max<qsizetype>(1, img.sizeInBytes() / 1024));
     return img;
 }
@@ -1348,6 +1348,8 @@ static void paintPicture(QPainter *p, const PaintContext &ctx, const PictureItem
         } else {
             // Into pixels (a screen or an image, not a PDF, which keeps the picture whole): the size it covers.
             const bool pixels = p->paintEngine() && p->paintEngine()->type() == QPaintEngine::Raster;
+            // (the part that goes is tinted for the window's drawing of the picture being marked, and for nothing that is output)
+            const QColor goneTint = !ctx.opt.output && !ctx.opt.removalTintItem.isEmpty() && ctx.opt.removalTintItem == pic.id ? ctx.opt.removalTint : QColor();
             const auto place = wholeEdges ? wholePixelRectBox(p, pic.imgRect) : std::nullopt;
             const auto visible = wholeEdges ? wholePixelRectBox(p, maskRect) : std::nullopt;
             if (place && visible) {
@@ -1356,9 +1358,9 @@ static void paintPicture(QPainter *p, const PaintContext &ctx, const PictureItem
                 p->save();
                 p->setWorldTransform(toDevice.inverted());
                 p->setClipRect(*visible, Qt::IntersectClip);
-                p->drawImage(*place, Renderer::processedImage(*ctx.doc, pic, dev, pixels ? QSizeF(place->size()) : exact));
+                p->drawImage(*place, Renderer::processedImage(*ctx.doc, pic, dev, pixels ? QSizeF(place->size()) : exact, goneTint));
                 p->restore();
-            } else p->drawImage(pic.imgRect, Renderer::processedImage(*ctx.doc, pic, dev, pixels ? QSizeF(pic.imgRect.width() * ds, pic.imgRect.height() * ds) : exact));
+            } else p->drawImage(pic.imgRect, Renderer::processedImage(*ctx.doc, pic, dev, pixels ? QSizeF(pic.imgRect.width() * ds, pic.imgRect.height() * ds) : exact, goneTint));
             if (ctx.opt.textOutput == TextOutput::Pdf && !ctx.opt.flattenTransparency) paintDrawnWords(p, src, pic.imgRect, r);
         }
         p->restore();

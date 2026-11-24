@@ -12,13 +12,6 @@
 
 namespace jp {
 
-namespace {
-
-// The color the part that goes is shown in.
-const QColor kRemoveTint(230, 40, 150, 170);
-
-} // namespace
-
 bool Editor::beginRemoveBackground(const QString &id, QString *why)
 {
     auto refuse = [why](const QString &text) {
@@ -52,10 +45,8 @@ bool Editor::beginRemoveBackground(const QString &id, QString *why)
         pic->removal = BackgroundRemoval();
         startRemoveBackground({});
     } else {
-        pic->removalTint = kRemoveTint;
-        Q_EMIT removeBackgroundProgress(100);
+            Q_EMIT removeBackgroundProgress(100);
     }
-    pic->removalTint = kRemoveTint;
     Q_EMIT viewChanged();
     return true;
 }
@@ -70,10 +61,13 @@ void Editor::startRemoveBackground(const QVector<BackgroundMark> &marks)
     auto job = std::make_shared<RemoveBgJob>();
     job->picture = m_doc->image(pic->imageId);
     job->marks = marks;
+    job->imageId = pic->imageId;
+    job->seq = ++m_rbSeq;
     RemoveBgJob *raw = job.get();
     QPointer<Editor> self(this);
     const std::weak_ptr<RemoveBgJob> weak = job;
     job->thread = std::make_unique<WorkThread>([raw, self, weak] {
+        if (removeBgWorkerHook) removeBgWorkerHook(raw->cancel);
         raw->result = findBackground(raw->picture, raw->marks, [raw, self](int percent) {
             if (raw->cancel) return false;
             if (percent != raw->told.exchange(percent) && self) QMetaObject::invokeMethod(self.data(), [self, percent] { if (self) Q_EMIT self->removeBackgroundProgress(percent == 100 ? 99 : percent); }, Qt::QueuedConnection);
@@ -103,8 +97,9 @@ void Editor::takeRemoveBackgroundResult(const std::shared_ptr<RemoveBgJob> &job)
     if (job != m_rbJobs.back() || !m_rbOpen || job->cancel) return;
     auto *pic = dynamic_cast<PictureItem *>(m_doc->item(removeBgItem));
     if (!pic || !job->result.isValid()) return;
+    // (the picture is the one the job started on, and no later work or dropped work has come since)
+    if (pic->imageId != job->imageId || job->seq != m_rbSeq) return;
     pic->removal = job->result;
-    pic->removalTint = kRemoveTint;
     Q_EMIT removeBackgroundProgress(100);
     Q_EMIT changed();
     Q_EMIT viewChanged();
@@ -136,22 +131,39 @@ void Editor::addRemoveBackgroundMark(const BackgroundMark &mark)
     if (!pic || !m_rbOpen || mark.points.isEmpty()) return;
     // A stroke asked for while an earlier one is still being worked on is added to it: the picture's marks are those of the last one asked for.
     QVector<BackgroundMark> marks = m_rbMarks;
-    if (marks.size() < kRemoveBgMaxMarks) marks << mark;
+    qint64 points = mark.points.size();
+    for (const BackgroundMark &m : std::as_const(marks)) points += m.points.size();
+    if (marks.size() >= kRemoveBgMaxMarks) {
+        Q_EMIT status(tr("This picture has all the strokes it can hold, so that one was not added. Discard All Changes starts it again."));
+        return;
+    }
+    if (points > kRemoveBgMaxMarkPoints) {
+        Q_EMIT status(tr("That stroke is too long to be kept, so it was not added. Try shorter strokes."));
+        return;
+    }
+    marks << mark;
     m_rbMarks = marks;
     startRemoveBackground(marks);
+}
+
+void Editor::cancelRemoveBackgroundFor(const QStringList &ids)
+{
+    if (m_rbOpen && ids.contains(removeBgItem)) endRemoveBackground(false);
 }
 
 void Editor::endRemoveBackground(bool keep)
 {
     if (!m_rbOpen) return;
     if (keep) finishRemoveBackgroundWork();
-    else for (auto &j : m_rbJobs) j->cancel = true;
+    else {
+        for (auto &j : m_rbJobs) j->cancel = true;
+        ++m_rbSeq;   // (an answer that comes is not taken)
+    }
     for (auto &j : m_rbJobs)
         if (j->thread) j->thread->join();
     m_rbJobs.clear();
     m_rbOpen = false;
     m_rbMarks.clear();
-    if (auto *pic = dynamic_cast<PictureItem *>(m_doc->item(removeBgItem))) pic->removalTint = QColor();
     removeBgItem.clear();
     if (keep) finishChange(m_rbPage, m_rbSel);
     else cancelChange();

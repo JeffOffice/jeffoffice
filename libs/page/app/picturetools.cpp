@@ -117,15 +117,19 @@ bool resetSelectedPictures(Editor *ed, bool andSize)
     bool any = false;
     for (const Item *it : ed->selectedItems()) any = any || holdsPicture(it);
     if (!any) return false;
+    ed->cancelRemoveBackgroundFor(ed->selection());   // (work still going on for the picture would put its answer back after the reset)
     ed->forEachSelected(andSize ? QCoreApplication::translate("jp::PictureTools", "Reset Picture & Size") : QCoreApplication::translate("jp::PictureTools", "Reset Picture"), [ed, andSize](Item *it) {
         if (holdsPicture(it)) resetPictureLook(static_cast<PictureItem *>(it), ed->doc()->imageSize(static_cast<PictureItem *>(it)->imageId), andSize);
     });
     return true;
 }
 
-bool changePictureTo(Editor *ed, const QString &pictureId, const QString &imageId)
+bool changePictureTo(Editor *ed, const QString &pictureIdIn, const QString &imageId)
 {
-    auto *pic = dynamic_cast<PictureItem *>(ed ? ed->doc()->item(pictureId) : nullptr);
+    if (!ed) return false;
+    const QString pictureId = pictureIdIn;   // (a copy: the caller may hold the id of the picture itself, which the mode's end replaces)
+    ed->cancelRemoveBackgroundFor({pictureId});   // (work still going on for the old picture would put its mask on the new one; first, as it takes the document's items back)
+    auto *pic = dynamic_cast<PictureItem *>(ed->doc()->item(pictureId));
     if (!pic || imageId.isEmpty()) return false;
     const QSize px = ed->doc()->imageSize(imageId);
     ed->change(QCoreApplication::translate("jp::PictureTools", "Change Picture"), [&] { changePictureImage(pic, imageId, px); });

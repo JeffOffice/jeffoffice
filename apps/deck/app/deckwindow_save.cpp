@@ -178,6 +178,7 @@ bool DeckWindow::saveAsTemplate()
     m_notes->commit();
     if (m_outline) m_outline->commit();
     m_ed->endTextEdit();
+    m_ed->endRemoveBackground(true);
     QString err;
     QStringList skipped, namesProblems;
     // (a template of a presentation that asks for a password asks for it too)
@@ -245,6 +246,7 @@ bool DeckWindow::saveTo(const QString &path, bool asCopy)
     if (m_outline) m_outline->commit();
     m_ed->endTextEdit();
     m_ed->endCrop(true);   // what is written is a step, and a crop still going on is not yet
+    m_ed->endRemoveBackground(true);   // (so is Remove Background, with its last stroke in)
     // What an .odp file can't hold is said before anything is written, with the choice of a .pptx beside it (the list is what the writer itself leaves out).
     if (odf && (lossyStandInSet() || !m_notifier)) {
         const QStringList lost = lossyAskedNotAgain(path) ? QStringList() : odpLosses(path);

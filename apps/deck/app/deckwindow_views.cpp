@@ -121,6 +121,7 @@ static const char *viewAction(DeckWindow::View view)
 void DeckWindow::setView(View view)
 {
     if (m_reading) leaveReadingView();
+    m_ed->endRemoveBackground(true);   // (another view ends the mode, keeping what it did)
     m_notes->commit();
     if (m_outline) m_outline->commit();
     if (m_notesPage) m_notesPage->commit();
@@ -196,6 +197,7 @@ void DeckWindow::setView(View view)
 void DeckWindow::startReadingView()
 {
     if (m_reading) return;
+    m_ed->endRemoveBackground(true);
     const bool masters = m_view == View::Master || m_view == View::NotesMaster || m_view == View::HandoutMaster;
     if (masters || m_show) {
         // Nothing to read in a master, and one show at a time.

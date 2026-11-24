@@ -1131,6 +1131,7 @@ void MainWindow::refreshUi()
     const QTextBlockFormat bf = textish ? ed->currentBlockFormat() : QTextBlockFormat();
 
     for (const char *id : {"pic.markKeep", "pic.markRemove", "pic.discardRemoval", "pic.keepRemoval"}) act(id)->setEnabled(!ed->removeBgItem.isEmpty());   // (only while Remove Background is open)
+    if (!ed->removeBgItem.isEmpty()) act("pic.change")->setEnabled(false);   // (the picture in the mode is not changed for another, as in JeffDeck)
     act("edit.undo")->setEnabled(ed->undoStack()->canUndo() || editing);
     act("edit.redo")->setEnabled(ed->undoStack()->canRedo());
     if (m_pageNumbersDoc != d || m_pageNumbersStep != ed->undoStack()->index() || m_pageNumbersStep < 0) {

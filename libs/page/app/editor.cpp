@@ -173,6 +173,7 @@ void Editor::setCurrentPage(int i, bool keepTextEdit)
     i = std::clamp(i, 0, int(m_doc->pages.size()) - 1);
     if (i == m_page && m_master.isEmpty()) return;
     leaveCrop();
+    if (m_rbOpen) endRemoveBackground(true);   // (the page it was made on, not the one gone to)
     if (!keepTextEdit) endTextEdit();
     m_page = i;
     m_master.clear();
@@ -187,6 +188,7 @@ void Editor::setMasterView(const QString &id)
     endTextEdit();
     if (!id.isEmpty() && !m_doc->master(id)) return;
     leaveCrop();
+    if (m_rbOpen) endRemoveBackground(true);
     m_master = id;
     m_sel.clear();
     Q_EMIT pageChanged();
@@ -754,6 +756,8 @@ void Editor::beginChange(const QString &label)
     m_doc->dropChainIndex();
     // A crop in progress is one step of its own: any other change ends it first (its own drags begin theirs with beginCropChange).
     if (m_cropOpen && m_changeDepth == 1) endCrop(true);
+    // Remove Background is one step of its own too (a delete, a paste, or any other change ends it, keeping what it did, and is a step after it).
+    if (m_rbOpen && m_changeDepth == 1) endRemoveBackground(true);
     beginCropChange(label);
 }
 

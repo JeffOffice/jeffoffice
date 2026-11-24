@@ -568,6 +568,7 @@ void DeckWindow::rehearseTimings() { playShow(0, deck::ShowPlan(), true); }
 // beside it: the set up applies to it, except that it is a window for a speaker, never a kiosk.
 void DeckWindow::playShow(int slide, const deck::ShowPlan &plan, bool recording, bool rehearsal)
 {
+    m_ed->endRemoveBackground(true);   // (the show draws the slides as they are, with the mode's last stroke in)
     m_notes->commit();
     if (m_outline) m_outline->commit();
     m_ed->stopHighlighter();   // (a slide show ends the highlighter)

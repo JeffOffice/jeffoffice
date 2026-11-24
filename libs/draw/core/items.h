@@ -202,9 +202,6 @@ public:
     // The background taken off the picture (core/removebg.h): a mask beside the picture, which stays as it was, drawn wherever the picture is.
     // Empty (nothing removed) when the picture has none, or has one that is not for a picture of its size.
     BackgroundRemoval removal;
-    // Not kept in a file: while the person is marking the background, the part to go is shown in this color (a color of its own, set only for the
-    // time of the marking) instead of being clear.
-    QColor removalTint;
     // An extension of the picture's blip that another program wrote and that points at parts of its own (its own record of a background it took off, for
     // one): kept as it was read and written back untouched, while the picture is not changed in a way it would no longer fit. `xml` is the element with
     // each relationship id turned into a mark (@@rel0@@, @@rel1@@), `parts` the parts those ids named.

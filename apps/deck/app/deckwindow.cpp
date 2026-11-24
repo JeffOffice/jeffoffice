@@ -683,6 +683,7 @@ bool DeckWindow::maybeSave()
 {
     m_ed->flushTyping();
     m_ed->endCrop(true);   // a crop in progress is a change to ask about, and to save
+    m_ed->endRemoveBackground(true);   // (and so is Remove Background)
     if (!m_ed->isModified()) return true;
     const QMessageBox::StandardButton answer = jp::askSaveChanges(this, m_ed->displayName());
     if (answer == QMessageBox::Save) return save();

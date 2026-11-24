@@ -58,6 +58,9 @@ struct RenderOptions {
     bool exactImageDpi = false;
     bool noMaster = false;        // the master pages' objects are left out (printing a selection alone)
     bool skipPictures = false;    // spot color plates: pictures print on the process plates
+    // Remove Background: the picture with this id shows the part that goes in this color. Set only by the window's own drawing (the canvas), never by output of any kind.
+    QString removalTintItem;
+    QColor removalTint;
 };
 
 class LayoutCache {
@@ -195,7 +198,7 @@ public:
     static qint64 linearFormsMadeForTest();
     static qint64 textArtPicturesMadeForTest();
     // shown: a picture drawn into pixels smaller than it is comes back at that size, each pixel the average of those it covers.
-    static QImage processedImage(const Document &doc, const PictureItem &pic, const QSizeF &deviceSize, const QSizeF &shown = QSizeF());
+    static QImage processedImage(const Document &doc, const PictureItem &pic, const QSizeF &deviceSize, const QSizeF &shown = QSizeF(), const QColor &removalTint = QColor());
     static QImage renderToImage(const PaintContext &ctx, int pageIndex, double scale, bool transparent = false);
     static QImage renderItemsToImage(const PaintContext &ctx, const ItemList &items, double scale, double pad = 4);
 

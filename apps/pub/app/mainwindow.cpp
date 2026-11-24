@@ -742,6 +742,7 @@ bool MainWindow::saveTo(const QString &pathIn, bool asCopy)
     const bool toPub = path.endsWith(QLatin1String(".pub"), Qt::CaseInsensitive);
     // A .pub file can't keep a password, a hidden object, every list, or the mark that it is final, and more: what would be lost (the writer's own list) is named in one box, and the person chooses
     // to save anyway, to save as a .jpub instead, or to cancel. (With neither a stand-in nor a window that says things itself, as a test has, nothing is asked.)
+    m_ed->endRemoveBackground(true);   // (what is written has the last stroke in, and the mode's step is made first)
     QStringList lostNow;
     if (toPub) {
         m_ed->endTextEdit();
@@ -877,6 +878,7 @@ bool MainWindow::saveAs(const QString &format)
 bool MainWindow::maybeSave()
 {
     m_ed->flushTyping();
+    m_ed->endRemoveBackground(true);   // (Remove Background is a change to ask about, and to save)
     if (!m_ed->isModified()) return true;
     const auto r = jp::askSaveChanges(this, m_ed->displayName());
     if (r == QMessageBox::Cancel) return false;
