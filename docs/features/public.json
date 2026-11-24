@@ -1863,7 +1863,7 @@
       },
       {
        "status": "partly",
-       "text": "a0e2b34213cc428fbfa481a5347c4ec691d9e2452ee1e7e42c4cd29c3fe683ef"
+       "text": "e9556b610e9fa2acee51d90b5e467be574c3c3fb34538de977575a1010afdcd3"
       }
      ]
     },
@@ -2335,6 +2335,11 @@
      ],
      "heading": "6347f4cde2903f3dd77fc53214b8abd86d2296123e6054003870a8cfc75d9a9e",
      "items": []
+    },
+    {
+     "groups": [],
+     "heading": "d55ec41ac175131380c2a959b1c6c6cc043d3e27c8b016600461711fba0c36b8",
+     "items": []
     }
    ],
    "version": "0.50.0"
@@ -2420,6 +2425,11 @@
       {
        "status": "partly",
        "text": "26f6db7ddad8d94ac901873cc4661eaf2b1ae1c7523c9d74a8b9b4786665e8ff"
+      },
+      {
+       "hide_soon": true,
+       "status": "done",
+       "text": "64c134688cb9474d71351aa9040d6fa9fc56612efce819ae2fdff71d844f0267"
       },
       {
        "hide_soon": true,
@@ -2794,6 +2804,10 @@
          "hide_soon": true,
          "status": "done",
          "text": "81126b14d499353b942cc05c0b54289df161a922eb500ed9fb131660a71d4e41"
+        },
+        {
+         "status": "partly",
+         "text": "cd066a4523f9d1275a413c47c0d2881516377e1af3280b5fa6260e8a22e5fe6a"
         }
        ]
       },
@@ -3706,6 +3720,11 @@
         {
          "hide_soon": true,
          "status": "done",
+         "text": "105cec96665e890c402fb8854a541dcf39111c807aa0f2fdb7d215ae9d619111"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
          "text": "32d63ac3523db07941c8032c1df2334143ac7b7b50e4175362685b5f9da901d2"
         }
        ]
@@ -4335,6 +4354,11 @@
       }
      ],
      "heading": "afec318fe73a98f377661aaf59c64ded830126561f21a3c45610b89f408ce360",
+     "items": []
+    },
+    {
+     "groups": [],
+     "heading": "c162e65b7b16e297f437ed97f2f538dee06abc74f1868254dae62029cae0598b",
      "items": []
     }
    ],
@@ -5277,6 +5301,11 @@
         {
          "hide_soon": true,
          "status": "done",
+         "text": "95fd7080ebce01f505877e0faf64b471d4db21592ecc5ee7612a35a50d0d4a94"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
          "text": "55810b2788ed7ddb45688314a8ce67c929b9ff852496b1ed58a365140513e237"
         },
         {
@@ -5806,6 +5835,11 @@
      ],
      "heading": "909c91fb614e43e06c262b372c3cd81d268e0dd620b2c361fb2d671b12bf4d1c",
      "items": []
+    },
+    {
+     "groups": [],
+     "heading": "103fb62c063e033a3513e8070659907f5a467b5991f2c8b65c98d04baf6200f0",
+     "items": []
     }
    ],
    "version": "0.50.0"
@@ -6162,7 +6196,7 @@
         },
         {
          "status": "partly",
-         "text": "48471083c8db105831c52dd3d249773f99132b064a978c5303b0effedbf1f163"
+         "text": "0456e8ee4c18141a97cc500c1fcda73d028b8dc40bbc17b7231ade71bb460246"
         },
         {
          "status": "partly",
@@ -6538,8 +6572,8 @@
          "text": "83c5ea97ca2c06ab309c5b727e157f864f42ec677e302746267c366078b1f866"
         },
         {
-         "status": "todo",
-         "text": "4e126046696dafa2b4ff116a323466fa29ced5abfc4f75ce2a38c53e1abbd94a"
+         "status": "partly",
+         "text": "ce1bf8e16ecc735b18c4c6f7269edc353fc9442ea5ba8cff79a32b57166175c6"
         },
         {
          "status": "partly",
@@ -8072,6 +8106,18 @@
     "fr": ""
    }
   },
+  "0456e8ee4c18141a97cc500c1fcda73d028b8dc40bbc17b7231ade71bb460246": {
+   "drop": false,
+   "en": "Set the default paste for content from the same document, from other documents, and from other programs: Keep Source Formatting, Merge Formatting, or Keep Text Only. A table copied whole is pasted as a table, with its rows, columns, borders, shading, and style.",
+   "es": "Defina el pegado predeterminado para el contenido del mismo documento, de otros documentos y de otros programas: Mantener formato de origen, Combinar formato o Mantener solo texto. Una tabla copiada completa se pega como tabla, con sus filas, columnas, bordes, sombreado y estilo.",
+   "fr": "Définissez le collage par défaut pour le contenu du même document, d’autres documents et d’autres programmes : Conserver la mise en forme source, Fusionner la mise en forme ou Conserver le texte uniquement. Un tableau copié en entier est collé comme tableau, avec ses lignes, colonnes, bordures, ombrage et style.",
+   "soon": {
+    "drop": false,
+    "en": "Default paste for lists and pictures",
+    "es": "Pegado predeterminado para listas e imágenes",
+    "fr": "Collage par défaut pour les listes et les images"
+   }
+  },
   "0462f6269d11f2c5ae6b1ba91b1d3f04f7765090b7fa2ec0b3f9e98d606dcd8e": {
    "drop": false,
    "en": "Behind the scenes: the rendering engine",
@@ -9025,6 +9071,30 @@
    "en": "A backup copy is kept on every save. Turn it on in Options > General.",
    "es": "Se conserva una copia de seguridad en cada guardado. Actívela en Opciones > General.",
    "fr": "Une copie de sauvegarde est conservée à chaque enregistrement. Activez-la dans Options > Général.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "103fb62c063e033a3513e8070659907f5a467b5991f2c8b65c98d04baf6200f0": {
+   "drop": false,
+   "en": "Saved blocks (shared store)",
+   "es": "Bloques guardados (almacén compartido)",
+   "fr": "Blocs enregistrés (stockage partagé)",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "105cec96665e890c402fb8854a541dcf39111c807aa0f2fdb7d215ae9d619111": {
+   "drop": false,
+   "en": "Remove a picture’s background by marking areas to keep and areas to remove. The removed area is tinted, the last stroke wins, `Esc` discards the changes, and Reset Picture brings the background back.",
+   "es": "Elimine el fondo de una imagen marcando las áreas que desea conservar y las que desea quitar. El área eliminada se tiñe, prevalece el último trazo, `Esc` descarta los cambios y Restablecer imagen recupera el fondo.",
+   "fr": "Supprimez l’arrière-plan d’une image en marquant les zones à conserver et celles à supprimer. La zone supprimée est teintée, le dernier trait l’emporte, `Échap` annule les modifications et Réinitialiser l’image rétablit l’arrière-plan.",
    "soon": {
     "drop": true,
     "en": "",
@@ -13544,18 +13614,6 @@
     "fr": ""
    }
   },
-  "48471083c8db105831c52dd3d249773f99132b064a978c5303b0effedbf1f163": {
-   "drop": false,
-   "en": "Set the default paste for pasting within the same document, between documents, and from other programs: Keep Source Formatting, Merge Formatting, or Keep Text Only.",
-   "es": "Defina el pegado predeterminado dentro del mismo documento, entre documentos y desde otros programas: Mantener formato de origen, Combinar formato o Mantener solo texto.",
-   "fr": "Définissez le collage par défaut dans le même document, entre documents et depuis d’autres programmes : Conserver la mise en forme source, Fusionner la mise en forme ou Conserver le texte uniquement.",
-   "soon": {
-    "drop": false,
-    "en": "Default paste for lists, tables, and pictures",
-    "es": "Pegado predeterminado para listas, tablas e imágenes",
-    "fr": "Collage par défaut pour les listes, les tableaux et les images"
-   }
-  },
   "485e21b8deb1bcf163ae1e92b0afd0d8f95b93a3b15fbfc520259343eaaff14b": {
    "drop": false,
    "en": "Merge to PDF: a mail merge saves one PDF with every recipient's pages (Mailings > Finish).",
@@ -13902,18 +13960,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "4e126046696dafa2b4ff116a323466fa29ced5abfc4f75ce2a38c53e1abbd94a": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Building blocks: AutoText, document properties, fields, and saving a selection to a gallery",
-    "es": "Bloques de creación: autotexto, propiedades del documento, campos y guardado de una selección en una galería",
-    "fr": "Blocs de construction : texte automatique, propriétés du document, champs et enregistrement d’une sélection dans une galerie"
    }
   },
   "4e49a0ca839e4b8312a46f0ab2f1ffb3c5f716f2d5787a6d5089fe8bc87c88de": {
@@ -15721,6 +15767,18 @@
    "en": "Draw text boxes and add tables, pictures, and shapes.",
    "es": "Dibuje cuadros de texto y agregue tablas, imágenes y formas.",
    "fr": "Dessinez des zones de texte et ajoutez des tableaux, des images et des formes.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "64c134688cb9474d71351aa9040d6fa9fc56612efce819ae2fdff71d844f0267": {
+   "drop": false,
+   "en": "Create slides from a plain-text or Markdown outline, and save an outline as a Markdown copy. Outlines can be `.txt`, `.md`, `.rtf`, or `.docx` files, and the Markdown copy keeps titles and text only.",
+   "es": "Cree diapositivas a partir de un esquema en texto sin formato o Markdown, y guarde un esquema como copia en Markdown. Los esquemas pueden ser archivos `.txt`, `.md`, `.rtf` o `.docx`, y la copia en Markdown conserva solo los títulos y el texto.",
+   "fr": "Créez des diapositives à partir d’un plan en texte brut ou en Markdown, et enregistrez un plan sous forme de copie Markdown. Les plans peuvent être des fichiers `.txt`, `.md`, `.rtf` ou `.docx`, et la copie Markdown ne conserve que les titres et le texte.",
    "soon": {
     "drop": true,
     "en": "",
@@ -19148,6 +19206,18 @@
     "fr": ""
    }
   },
+  "95fd7080ebce01f505877e0faf64b471d4db21592ecc5ee7612a35a50d0d4a94": {
+   "drop": false,
+   "en": "Remove the background from a picture by marking the areas to keep and the areas to remove. `.pub` files and exports keep the finished picture.",
+   "es": "Elimine el fondo de una imagen marcando las áreas que se conservan y las que se quitan. Los archivos `.pub` y las exportaciones conservan la imagen terminada.",
+   "fr": "Supprimez l’arrière-plan d’une image en marquant les zones à conserver et les zones à supprimer. Les fichiers `.pub` et les exportations conservent l’image terminée.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "96041298fcc7269ce1790a86e4734e9b9f00c993014c93c3f70c642c0857e561": {
    "drop": false,
    "en": "Add a new slide from the layout gallery, and reuse slides from another presentation.",
@@ -19926,18 +19996,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "a0e2b34213cc428fbfa481a5347c4ec691d9e2452ee1e7e42c4cd29c3fe683ef": {
-   "drop": false,
-   "en": "Select text in a cell being edited to get a small floating bar with font, size, bold, italic, underline, grow, shrink, and font color; only the selected characters change. Right-click cells to find the same buttons at the top of the shortcut menu, plus fill color, borders, currency, percent, comma, more and fewer decimals, merge, and copy formatting. Each button does a single Undo step, and the bar can be turned off in the options.",
-   "es": "Seleccione texto en una celda que está editando para ver una pequeña barra flotante con fuente, tamaño, negrita, cursiva, subrayado, aumentar, reducir y color de fuente; solo cambian los caracteres seleccionados. Haga clic con el botón derecho en las celdas para encontrar los mismos botones en la parte superior del menú contextual, además de color de relleno, bordes, moneda, porcentaje, millares, más y menos decimales, combinar y copiar formato. Cada botón cuenta como un solo paso de deshacer, y la barra se puede desactivar en las opciones.",
-   "fr": "Sélectionnez du texte dans une cellule en cours de modification pour afficher une petite barre flottante avec police, taille, gras, italique, souligné, agrandir, réduire et couleur de police ; seuls les caractères sélectionnés changent. Faites un clic droit sur des cellules pour retrouver les mêmes boutons en haut du menu contextuel, ainsi que couleur de remplissage, bordures, devise, pourcentage, séparateur de milliers, plus et moins de décimales, fusionner et reproduire la mise en forme. Chaque bouton correspond à une seule étape d’annulation, et la barre peut être désactivée dans les options.",
-   "soon": {
-    "drop": false,
-    "en": "Quick Analysis button under a selected range",
-    "es": "Botón de análisis rápido bajo un rango seleccionado",
-    "fr": "Bouton d’analyse rapide sous une plage sélectionnée"
    }
   },
   "a1467c2cd971bac5144e2cb03003b63b58b96707d07c16eda8038797ad26f1a2": {
@@ -21944,6 +22002,18 @@
     "fr": ""
    }
   },
+  "c162e65b7b16e297f437ed97f2f538dee06abc74f1868254dae62029cae0598b": {
+   "drop": false,
+   "en": "Saved blocks (shared store)",
+   "es": "Bloques guardados (almacén compartido)",
+   "fr": "Blocs enregistrés (stockage partagé)",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "c199d95bbf2c81eefcf3bb1959802080862372dc0409fe8436855ddbba56234e": {
    "drop": false,
    "en": "Set effect options: the direction (From Left, Clockwise, and the rest), the amount (Grow/Shrink from Tiny to Huge, and Both, Horizontal, or Vertical; Spin from a quarter to two spins), and the sequence (As One Object or By Paragraph, with an indented paragraph going with the one above it).",
@@ -22868,6 +22938,18 @@
     "fr": ""
    }
   },
+  "cd066a4523f9d1275a413c47c0d2881516377e1af3280b5fa6260e8a22e5fe6a": {
+   "drop": false,
+   "en": "Slides from Outline: add slides from a text, Markdown, `.rtf`, or `.docx` outline file.",
+   "es": "Diapositivas desde esquema: agregue diapositivas desde un archivo de esquema de texto, Markdown, `.rtf` o `.docx`.",
+   "fr": "Diapositives depuis un plan : ajoutez des diapositives à partir d’un fichier de plan texte, Markdown, `.rtf` ou `.docx`.",
+   "soon": {
+    "drop": false,
+    "en": "Slides from Outline: `.odt` files",
+    "es": "Diapositivas desde esquema: archivos `.odt`",
+    "fr": "Diapositives depuis un plan : fichiers `.odt`"
+   }
+  },
   "cd7254e44c15e8bb8a48d6699bace2eeafbd19a76431a21d4ea5977cb2f2ec54": {
    "drop": false,
    "en": "Set the grid spacing, show the grid, snap objects to the grid and to other objects, show guides, and add or remove guides. Drag guides out of the ruler, move them by dragging, and drag them back to remove them. A `.pptx` file keeps these settings.",
@@ -22914,6 +22996,18 @@
     "en": "Print options for document properties, field codes, drawings, a list of the markup, updated fields, and background pictures",
     "es": "Opciones de impresión para propiedades del documento, códigos de campo, dibujos, lista de marcas de revisión, campos actualizados e imágenes de fondo",
     "fr": "Options d’impression pour les propriétés du document, les codes de champ, les dessins, la liste des marques de révision, les champs mis à jour et les images d’arrière-plan"
+   }
+  },
+  "ce1bf8e16ecc735b18c4c6f7269edc353fc9442ea5ba8cff79a32b57166175c6": {
+   "drop": false,
+   "en": "Save a selection as a Saved Block or Text Shortcut with a name, category, and description. Insert it from a gallery with live previews and search, expand a Text Shortcut with `F3`, and rename, edit, delete, export, or import blocks.",
+   "es": "Guarde una selección como Bloque guardado o Acceso directo de texto con nombre, categoría y descripción. Insértela desde una galería con vistas previas y búsqueda, expanda un acceso directo de texto con `F3`, y cambie el nombre, edite, elimine, exporte o importe bloques.",
+   "fr": "Enregistrez une sélection comme bloc enregistré ou raccourci de texte avec un nom, une catégorie et une description. Insérez-la depuis une galerie avec aperçus en direct et recherche, développez un raccourci de texte avec `F3`, et renommez, modifiez, supprimez, exportez ou importez des blocs.",
+   "soon": {
+    "drop": false,
+    "en": "Glossary entries: list a file’s own entries, copy between the library and the open template, keep lists as their own lists, and add entries to the built-in galleries",
+    "es": "Entradas del glosario: listar las entradas propias de un archivo, copiar entre la biblioteca y la plantilla abierta, mantener las listas como listas propias y agregar entradas a las galerías integradas",
+    "fr": "Entrées du glossaire : lister les entrées propres à un fichier, copier entre la bibliothèque et le modèle ouvert, conserver les listes comme listes distinctes et ajouter des entrées aux galeries intégrées"
    }
   },
   "ce30db5db371901c1dbbcd571377340dd7bd78a0e16307ee20e97fbdaaa9d7f7": {
@@ -23545,6 +23639,18 @@
    "en": "Use `SQRT`, `ABS`, `LN`, `EXP`, `MOD`, `POWER`, `LOG`, `PI`, and the trigonometry functions, with errors such as `#NUM!` for the square root of a negative and `#DIV/0!` for a division by zero.",
    "es": "Utilice `SQRT`, `ABS`, `LN`, `EXP`, `MOD`, `POWER`, `LOG`, `PI` y las funciones trigonométricas, con errores como `#NUM!` para la raíz cuadrada de un negativo y `#DIV/0!` para una división entre cero.",
    "fr": "Utilisez `SQRT`, `ABS`, `LN`, `EXP`, `MOD`, `POWER`, `LOG`, `PI` et les fonctions trigonométriques, avec des erreurs comme `#NUM!` pour la racine carrée d’un négatif et `#DIV/0!` pour une division par zéro.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "d55ec41ac175131380c2a959b1c6c6cc043d3e27c8b016600461711fba0c36b8": {
+   "drop": false,
+   "en": "Saved blocks (shared store)",
+   "es": "Bloques guardados (almacén compartido)",
+   "fr": "Blocs enregistrés (stockage partagé)",
    "soon": {
     "drop": true,
     "en": "",
@@ -25134,6 +25240,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "e9556b610e9fa2acee51d90b5e467be574c3c3fb34538de977575a1010afdcd3": {
+   "drop": false,
+   "en": "A mini toolbar appears beside selected text in a cell being edited and at the top of the right-click menu on cells, with font, fill, borders, number format, merge, and copy formatting buttons. Quick Analysis opens from a button under a selected range, `Ctrl+Q`, or Home > Editing, with formatting, charts, totals, tables, and sparklines.",
+   "es": "Una minibarra de herramientas aparece junto al texto seleccionado en una celda en edición y en la parte superior del menú contextual de las celdas, con botones de fuente, relleno, bordes, formato de número, combinar y copiar formato. Análisis rápido se abre desde un botón bajo el rango seleccionado, con `Ctrl+Q` o desde Inicio > Edición, con formato, gráficos, totales, tablas y minigráficos.",
+   "fr": "Une mini barre d’outils apparaît à côté du texte sélectionné dans une cellule en cours de modification et en haut du menu contextuel des cellules, avec des boutons de police, remplissage, bordures, format de nombre, fusion et reproduction de la mise en forme. L’analyse rapide s’ouvre depuis un bouton sous la plage sélectionnée, avec `Ctrl+Q` ou depuis Accueil > Édition, avec mise en forme, graphiques, totaux, tableaux et graphiques sparkline.",
+   "soon": {
+    "drop": false,
+    "en": "Mini toolbar in the formula bar text",
+    "es": "Minibarra de herramientas en el texto de la barra de fórmulas",
+    "fr": "Mini barre d’outils dans le texte de la barre de formule"
    }
   },
   "e96f6935fe242408a2589780dfbc35d46b81625c407bbe5bede4be6e5d08feba": {
