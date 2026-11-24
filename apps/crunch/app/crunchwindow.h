@@ -23,6 +23,7 @@
 #include <tuple>
 #include "app/anchordialogs.h"
 #include "app/condrulesdialog.h"
+#include "app/quickanalysis.h"
 #include "app/threadspane.h"
 #include "app/celleditor.h"
 #include "app/filterpopup.h"
@@ -279,6 +280,8 @@ public:
     // The look of a rule is asked for in the Format Cells box limited to what a rule carries (a test answers in place of it): the look it starts from, and the look made.
     void setCondLookAsker(const std::function<bool(const jp::office::sheet::DifferentialFormat &, jp::office::sheet::DifferentialFormat *)> &asker) { m_condLookAsker = asker; }
     void setCondSpecAsker(const std::function<bool(CondSpec *, bool editing)> &asker) { m_condSpecAsker = asker; }
+    // Quick Analysis (crunchwindow_quick.cpp): the button and its box, for tests.
+    QuickAnalysis *quickAnalysis() const { return m_quick; }
     // Manage Rules asks for the list as it is to be (a test answers in place of the window): the rules as they are, and the editor that New Rule and Edit Rule use.
     using CondEditor = CondManageDialog::Editor;
     void setCondManageAsker(const std::function<bool(const QVector<CondManageDialog::Item> &, const CondEditor &, QVector<crunch::EditSession::CondManaged> *)> &asker) { m_manageAsker = asker; }
@@ -1096,6 +1099,7 @@ private:
     void sparklineRibbonParts(RibbonParts &parts);
     void updateSparklineTab();
     void insertSparklinesCommand(jp::office::sheet::SparklineGroup::Type type);
+    void putSparklines(jp::office::sheet::SparklineGroup::Type type, const QVector<jp::office::sheet::Sparkline> &made);
     void editSparklineData(bool wholeGroup);
     void groupSparklines(bool together);
     void clearSparklines(bool wholeGroups);
@@ -1350,6 +1354,7 @@ private:
     CondLookContext condLookContext() const;
     std::function<bool(const QVector<CondManageDialog::Item> &, const CondEditor &, QVector<crunch::EditSession::CondManaged> *)> m_manageAsker;
     void addCondRuleFromSpec(const CondSpec &spec);
+    bool condRuleOf(const CondSpec &spec, jp::office::sheet::CondRule *rule, jp::office::sheet::DifferentialFormat *look, QString *why);
     void newCondRule();
     bool askCondSpec(CondSpec *spec, bool editing);
     void manageCondRules();
@@ -1380,6 +1385,20 @@ private:
     bool repasteWith(const crunch::EditSession::PasteOptions &options);
     QVector<PasteChoice> pasteOfferChoices();
     PasteOffer *m_pasteOffer = nullptr;
+    // Quick Analysis (crunchwindow_quick.cpp)
+    void createQuickActions();
+    void updateQuickAnalysis();
+    void quickAnalysisCommand();
+    bool quickEligible(jp::office::sheet::CellRange *range = nullptr) const;
+    QVector<QuickTab> quickTabs();
+    void quickPreview(const QString &id);
+    void quickPreviewEnd();
+    void quickApply(const QString &id);
+    bool quickCondSpec(const QString &id, CondSpec *spec, QString *why);
+    QuickAnalysis *m_quick = nullptr;
+    QuickPreviewLayer *m_quickLayer = nullptr;
+    bool m_quickCharts = false;
+    jp::office::sheet::CellRange m_quickRange;   // the cells the box was opened for
     struct PasteNote {
         bool live = false;
         QUndoStack *stack = nullptr;

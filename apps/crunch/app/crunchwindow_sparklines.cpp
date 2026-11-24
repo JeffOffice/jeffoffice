@@ -209,6 +209,12 @@ void CrunchWindow::insertSparklinesCommand(jp::office::sheet::SparklineGroup::Ty
         notice(tr("Sparklines"), why);
         return;
     }
+    putSparklines(type, made);
+}
+
+// The sparklines made are put on the sheet as a group of their own: one step of Undo.
+void CrunchWindow::putSparklines(jp::office::sheet::SparklineGroup::Type type, const QVector<jp::office::sheet::Sparkline> &made)
+{
     QVector<SparklineGroup> groups = m_session->sparklinesOf(m_sheet);
     // a cell has one sparkline: those in these cells are replaced
     dropAt(&groups, made, -1);

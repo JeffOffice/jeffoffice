@@ -416,6 +416,17 @@ void CrunchWindow::addCondRuleFromSpec(const CondSpec &spec)
     if (!o.ok) notice(tr("Conditional Formatting"), o.problem);
 }
 
+// The rule a choice makes for the selected cells, and the look it gives them (what addCondRuleFromSpec puts in): Quick Analysis shows it and makes it.
+bool CrunchWindow::condRuleOf(const CondSpec &spec, CondRule *rule, DifferentialFormat *look, QString *why)
+{
+    const jp::office::sheet::CellRange range = selectedRange();
+    const grid::Selection &sel = m_view->selection();
+    const int dRow = int(range.row1) - int(std::max<qint64>(0, sel.activeRow)), dCol = int(range.col1) - int(std::max<qint64>(0, sel.activeCol));
+    if (!buildCondRule(spec, range, dRow, dCol, m_session->calculation(), rule, why)) return false;
+    *look = spec.hasLook() ? (spec.useCustom ? spec.custom : condpresets::lookOf(spec.look)) : DifferentialFormat();
+    return true;
+}
+
 void CrunchWindow::newCondRule()
 {
     if (m_edit.active && !commitEdit(CellEditor::Way::Stay)) return;

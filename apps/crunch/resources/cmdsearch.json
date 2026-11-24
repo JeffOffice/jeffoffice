@@ -1,5 +1,10 @@
 {
  "commands": {
+  "edit.quickAnalysis": [
+   "analyze data",
+   "instant chart",
+   "quick totals"
+  ],
   "cells.delete.rows": [
    "delete row",
    "remove row"

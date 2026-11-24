@@ -96,6 +96,11 @@ void CrunchWindow::createEditing()
         updateCondActions();
     });
     connect(m_session.get(), &crunch::EditSession::tablesChanged, this, &CrunchWindow::onTablesChanged);
+    // (the Quick Analysis button is for cells that hold data, on a sheet that lets the choices be made)
+    connect(m_session.get(), &crunch::EditSession::protectionChanged, this, [this](int) { updateQuickAnalysis(); });
+    connect(m_session.get(), &crunch::EditSession::cellsChanged, this, [this](int sheet, const std::vector<jp::grid::ValueStore::Item> &) {
+        if (sheet == m_sheet) updateQuickAnalysis();
+    });
     // (every step that changes the workbook sends the worker to work it out: the window is calculating from then until the worker says it is done, whichever command made the step; the
     // pivot table commands, among others, don't say so themselves, and the window was then taken for ready while the worker still had a pass to make)
     m_changesNoted = m_loader.changesMade();
