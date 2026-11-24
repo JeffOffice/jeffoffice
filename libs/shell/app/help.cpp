@@ -511,15 +511,20 @@ void HelpView::go(const QString &id, bool)
         bf.setTopMargin(level == 1 ? 0 : base);
         bf.setBottomMargin(base * 0.4);
         c.setBlockFormat(bf);
+        struct Run { int from, to; QTextCharFormat cf; };
+        QVector<Run> runs;   // (collected first: a changed format can merge neighboring fragments)
         for (auto it = b.begin(); !it.atEnd(); ++it) {
             const QTextFragment f = it.fragment();
             QTextCharFormat cf = f.charFormat();
             cf.clearProperty(QTextFormat::FontSizeAdjustment);   // the importer's relative step
             cf.setFontPointSize(base * (level == 1 ? 1.5 : level == 2 ? 1.2 : 1.05));
             cf.setFontWeight(level == 1 ? QFont::Bold : QFont::DemiBold);
-            c.setPosition(f.position());
-            c.setPosition(f.position() + f.length(), QTextCursor::KeepAnchor);
-            c.setCharFormat(cf);
+            runs.append({f.position(), f.position() + f.length(), cf});
+        }
+        for (const Run &r : runs) {
+            c.setPosition(r.from);
+            c.setPosition(r.to, QTextCursor::KeepAnchor);
+            c.setCharFormat(r.cf);
         }
     }
     m_browser->setAccessibleDescription(t.title);

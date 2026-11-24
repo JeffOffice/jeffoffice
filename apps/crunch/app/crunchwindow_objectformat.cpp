@@ -383,17 +383,21 @@ bool setTextStory(QDomElement &sp, QTextDocument *story, const jp::office::Theme
     if (childNamed(body, QStringLiteral("lstStyle")).isNull()) body.insertAfter(newA(doc, "lstStyle"), props);
     // (a size every run says: the sheet draws the words as it reads them, at the size they say)
     const double base = story->defaultFont().pointSizeF() > 0 ? story->defaultFont().pointSizeF() : 11;
+    QVector<std::pair<int, int>> unsized;   // (collected first: a changed format can merge neighboring fragments)
     for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
         for (auto it = b.begin(); !it.atEnd(); ++it) {
             const QTextFragment fr = it.fragment();
             if (fr.charFormat().hasProperty(QTextFormat::FontPointSize)) continue;
-            QTextCursor c(story);
-            c.setPosition(fr.position());
-            c.setPosition(fr.position() + fr.length(), QTextCursor::KeepAnchor);
-            QTextCharFormat f;
-            f.setFontPointSize(base);
-            c.mergeCharFormat(f);
+            unsized.append({fr.position(), fr.position() + fr.length()});
         }
+    for (const auto &r : std::as_const(unsized)) {
+        QTextCursor c(story);
+        c.setPosition(r.first);
+        c.setPosition(r.second, QTextCursor::KeepAnchor);
+        QTextCharFormat f;
+        f.setFontPointSize(base);
+        c.mergeCharFormat(f);
+    }
     QByteArray xml;
     {
         QXmlStreamWriter w(&xml);

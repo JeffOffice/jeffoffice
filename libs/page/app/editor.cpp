@@ -1799,15 +1799,20 @@ void Editor::applyTableFormat(TableItem *t, const QString &format, bool headerRo
         if (!head) {
             // Body cells go back to the default text color.
             for (QTextBlock b = d->begin(); b.isValid(); b = b.next()) {
+                struct Run { int from, to; QTextCharFormat cf; };
+                QVector<Run> runs;   // (collected first: a changed format can merge neighboring fragments)
                 for (auto it = b.begin(); !it.atEnd(); ++it) {
                     const QTextFragment fr = it.fragment();
                     if (fr.charFormat().stringProperty(tp::ColorRefP) != QLatin1String("#FFFFFF")) continue;
-                    QTextCursor fc(d);
-                    fc.setPosition(fr.position());
-                    fc.setPosition(fr.position() + fr.length(), QTextCursor::KeepAnchor);
                     QTextCharFormat f = fr.charFormat();
                     f.clearProperty(tp::ColorRefP);
-                    fc.setCharFormat(f);
+                    runs.append({fr.position(), fr.position() + fr.length(), f});
+                }
+                for (const Run &r : runs) {
+                    QTextCursor fc(d);
+                    fc.setPosition(r.from);
+                    fc.setPosition(r.to, QTextCursor::KeepAnchor);
+                    fc.setCharFormat(r.cf);
                 }
                 QTextCharFormat bcf = b.charFormat();
                 if (bcf.stringProperty(tp::ColorRefP) == QLatin1String("#FFFFFF")) {

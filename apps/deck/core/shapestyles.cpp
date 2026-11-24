@@ -70,13 +70,18 @@ void retintText(Document &d, const QString &storyId, const QColor &automatic, co
         return cf;
     };
     for (QTextBlock b = doc->begin(); b.isValid(); b = b.next()) {
+        struct Run { int from, to; QTextCharFormat cf; };
+        QVector<Run> runs;   // (collected first: a changed format can merge neighboring fragments)
         for (auto it = b.begin(); !it.atEnd(); ++it) {
             const QTextFragment f = it.fragment();
             if (!f.isValid() || !isAutomatic(f.charFormat())) continue;
+            runs.append({f.position(), f.position() + f.length(), tinted(f.charFormat())});
+        }
+        for (const Run &r : runs) {
             QTextCursor c(doc);
-            c.setPosition(f.position());
-            c.setPosition(f.position() + f.length(), QTextCursor::KeepAnchor);
-            c.setCharFormat(tinted(f.charFormat()));
+            c.setPosition(r.from);
+            c.setPosition(r.to, QTextCursor::KeepAnchor);
+            c.setCharFormat(r.cf);
         }
         // (What is typed at the end of a paragraph takes the paragraph's own format.)
         if (isAutomatic(b.charFormat())) {

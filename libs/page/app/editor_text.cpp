@@ -215,17 +215,22 @@ void Editor::clearCharProperty(int prop, const QString &label)
         const int s = c.selectionStart(), e = c.selectionEnd();
         QTextDocument *d = c.document();
         for (QTextBlock b = d->findBlock(s); b.isValid() && b.position() <= e; b = b.next()) {
+            struct Run { int from, to; QTextCharFormat cf; };
+            QVector<Run> runs;   // (collected first: a changed format can merge neighboring fragments)
             for (auto it = b.begin(); !it.atEnd(); ++it) {
                 const QTextFragment fr = it.fragment();
                 const int fs = std::max(s, fr.position()), fe = std::min(e, fr.position() + fr.length());
                 if (fs >= fe) continue;
-                QTextCursor fc(d);
-                fc.setPosition(fs);
-                fc.setPosition(fe, QTextCursor::KeepAnchor);
                 QTextCharFormat cf = fr.charFormat();
                 cf.clearProperty(prop);
                 tp::removeDirect(cf, {prop});
-                fc.setCharFormat(cf);
+                runs.append({fs, fe, cf});
+            }
+            for (const Run &r : runs) {
+                QTextCursor fc(d);
+                fc.setPosition(r.from);
+                fc.setPosition(r.to, QTextCursor::KeepAnchor);
+                fc.setCharFormat(r.cf);
             }
             QTextCursor bc(b);
             QTextCharFormat bcf = b.charFormat();
@@ -253,18 +258,23 @@ void Editor::editCharFormats(const std::function<void(QTextCharFormat &)> &chang
         const int s = c.selectionStart(), e = c.selectionEnd();
         QTextDocument *d = c.document();
         for (QTextBlock b = d->findBlock(s); b.isValid() && b.position() <= e; b = b.next()) {
+            struct Run { int from, to; QTextCharFormat cf; };
+            QVector<Run> runs;   // (collected first: a changed format can merge neighboring fragments)
             for (auto it = b.begin(); !it.atEnd(); ++it) {
                 const QTextFragment fr = it.fragment();
                 const int fs = std::max(s, fr.position()), fe = std::min(e, fr.position() + fr.length());
                 if (fs >= fe) continue;
-                QTextCursor fc(d);
-                fc.setPosition(fs);
-                fc.setPosition(fe, QTextCursor::KeepAnchor);
                 QTextCharFormat cf = fr.charFormat();
                 const QTextCharFormat before = cf;
                 change(cf);
                 tp::addDirectDiff(cf, before);
-                fc.setCharFormat(cf);
+                runs.append({fs, fe, cf});
+            }
+            for (const Run &r : runs) {
+                QTextCursor fc(d);
+                fc.setPosition(r.from);
+                fc.setPosition(r.to, QTextCursor::KeepAnchor);
+                fc.setCharFormat(r.cf);
             }
             QTextCursor bc(b);
             QTextCharFormat bcf = b.charFormat();
@@ -422,17 +432,22 @@ void Editor::clearFormatting()
             bc.setPosition(std::min(e, b.position() + b.length() - 1), QTextCursor::KeepAnchor);
             QTextCharFormat keepFields;
             // Keep fields working.
+            struct Run { int from, to; QTextCharFormat cf; };
+            QVector<Run> runs;   // (collected first: a changed format can merge neighboring fragments)
             for (auto it = b.begin(); !it.atEnd(); ++it) {
                 const QTextFragment fr = it.fragment();
                 const int fs = std::max(bc.selectionStart(), fr.position()), fe = std::min(bc.selectionEnd(), fr.position() + fr.length());
                 if (fs >= fe) continue;
-                QTextCursor fc(d);
-                fc.setPosition(fs);
-                fc.setPosition(fe, QTextCursor::KeepAnchor);
                 QTextCharFormat nf = base;
                 const QString field = fr.charFormat().stringProperty(tp::Field);
                 if (!field.isEmpty()) nf.setProperty(tp::Field, field);
-                fc.setCharFormat(nf);
+                runs.append({fs, fe, nf});
+            }
+            for (const Run &r : runs) {
+                QTextCursor fc(d);
+                fc.setPosition(r.from);
+                fc.setPosition(r.to, QTextCursor::KeepAnchor);
+                fc.setCharFormat(r.cf);
             }
         }
     }
@@ -752,17 +767,22 @@ void Editor::applyStyle(const QString &name)
             c.mergeCharFormat(cf);
             // (each run keeps what it was given by hand, less what the style sets)
             QTextDocument *d = c.document();
+            struct Run { int from, to; QTextCharFormat cf; };
+            QVector<Run> runs;   // (collected first: a changed format can merge neighboring fragments)
             for (QTextBlock b = d->findBlock(c.selectionStart()); b.isValid() && b.position() <= c.selectionEnd(); b = b.next())
                 for (auto it = b.begin(); !it.atEnd(); ++it) {
                     const QTextFragment fr = it.fragment();
                     const int fs = std::max(c.selectionStart(), fr.position()), fe = std::min(c.selectionEnd(), fr.position() + fr.length());
                     QTextCharFormat ff = fr.charFormat();
                     if (fs >= fe || !tp::removeDirect(ff, gives)) continue;
-                    QTextCursor fc(d);
-                    fc.setPosition(fs);
-                    fc.setPosition(fe, QTextCursor::KeepAnchor);
-                    fc.setCharFormat(ff);
+                    runs.append({fs, fe, ff});
                 }
+            for (const Run &r : runs) {
+                QTextCursor fc(d);
+                fc.setPosition(r.from);
+                fc.setPosition(r.to, QTextCursor::KeepAnchor);
+                fc.setCharFormat(r.cf);
+            }
             continue;
         }
         QTextDocument *d = c.document();
@@ -783,15 +803,20 @@ void Editor::applyStyle(const QString &name)
             takeOver(bcf);
             QTextCursor(b).setBlockCharFormat(bcf);
             // The runs: the style's look over theirs, the properties it sets no longer hand-set, and the scheme font where the style names none.
+            struct Run { int from, to; QTextCharFormat cf; };
+            QVector<Run> runs;   // (collected first: a changed format can merge neighboring fragments)
             for (auto it = b.begin(); !it.atEnd(); ++it) {
                 const QTextFragment fr = it.fragment();
-                QTextCursor fc(d);
-                fc.setPosition(fr.position());
-                fc.setPosition(fr.position() + fr.length(), QTextCursor::KeepAnchor);
                 QTextCharFormat ff = fr.charFormat();
                 if (!s->chr.hasProperty(QTextFormat::FontFamilies)) ff.clearProperty(QTextFormat::FontFamilies);
                 takeOver(ff);
-                fc.setCharFormat(ff);
+                runs.append({fr.position(), fr.position() + fr.length(), ff});
+            }
+            for (const Run &r : runs) {
+                QTextCursor fc(d);
+                fc.setPosition(r.from);
+                fc.setPosition(r.to, QTextCursor::KeepAnchor);
+                fc.setCharFormat(r.cf);
             }
         }
     }

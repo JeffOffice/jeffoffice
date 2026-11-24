@@ -343,19 +343,24 @@ void ShapeTextEdit::growFont(int direction)
     }
     const int from = c.selectionStart(), to = c.selectionEnd();
     c.beginEditBlock();
+    struct Run { int from, to; QTextCharFormat cf; };
+    QVector<Run> runs;   // (collected first: a changed format can merge neighboring fragments)
     for (QTextBlock b = document()->findBlock(from); b.isValid() && b.position() < to; b = b.next())
         for (auto it = b.begin(); !it.atEnd(); ++it) {
             const QTextFragment fr = it.fragment();
             const int fs = std::max(from, fr.position()), fe = std::min(to, fr.position() + fr.length());
             if (fs >= fe) continue;
             const double cur = fr.charFormat().hasProperty(QTextFormat::FontPointSize) ? unscaled(fr.charFormat().fontPointSize()) : 11;
-            QTextCursor fc(document());
-            fc.setPosition(fs);
-            fc.setPosition(fe, QTextCursor::KeepAnchor);
             QTextCharFormat f;
             f.setFontPointSize(scaled(nextFontSize(cur, direction)));
-            fc.mergeCharFormat(f);
+            runs.append({fs, fe, f});
         }
+    for (const Run &r : runs) {
+        QTextCursor fc(document());
+        fc.setPosition(r.from);
+        fc.setPosition(r.to, QTextCursor::KeepAnchor);
+        fc.mergeCharFormat(r.cf);
+    }
     c.endEditBlock();
 }
 
