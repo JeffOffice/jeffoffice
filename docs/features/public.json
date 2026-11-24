@@ -2493,8 +2493,8 @@
          "text": "912e1e6bf4677089f670f815b341fdf75dcfe831427d729e8edeece812086bb9"
         },
         {
-         "status": "todo",
-         "text": "c635d0b9ae457533bfbf401bbe22dc038576d95172a784cc8cb3828fc0748d9c"
+         "status": "partly",
+         "text": "b0ca06f0e0cbfe415dacf9fcd31093e882596c49ae470d932b682313d325807a"
         },
         {
          "hide_soon": true,
@@ -5961,7 +5961,7 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "77acbf99c00ece3405487d054daf07a4b91aa16fcfa8c3411bd36f9677e03eb2"
+         "text": "86d40c77eaae4d6396ae1a838f2dd8f2afdfd634e962568c6d768df5dfa8a2bb"
         },
         {
          "status": "todo",
@@ -17125,18 +17125,6 @@
     "fr": "Lecteurs d’écran : chaque contrôle nommé et décrit, et document lu par paragraphe et par ligne"
    }
   },
-  "77acbf99c00ece3405487d054daf07a4b91aa16fcfa8c3411bd36f9677e03eb2": {
-   "drop": false,
-   "en": "File > New offers a blank document and five templates (letter, report, brief, manuscript, and newsletter). Each tile shows a preview of the first page it makes, and My Templates stays below.",
-   "es": "Archivo > Nuevo ofrece un documento en blanco y cinco plantillas (carta, informe, resumen, manuscrito y boletín). Cada icono muestra una vista previa de la primera página que crea, y Mis plantillas permanece debajo.",
-   "fr": "Fichier > Nouveau propose un document vierge et cinq modèles (lettre, rapport, note, manuscrit et bulletin). Chaque vignette montre un aperçu de la première page produite, et Mes modèles reste en dessous.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "77bdd17125770ccb126ddd4d1d8cee1131785992650ab6eb317345800cfb8508": {
    "drop": false,
    "en": "Set the proofing language for the selected cells, or mark them as not to be spell-checked. The Spelling command and the cell editor follow the setting. It is saved in `.ods` and `.xlsx` files.",
@@ -18071,6 +18059,18 @@
     "en": "Text styles of chart elements",
     "es": "Estilos de texto de los elementos del gráfico",
     "fr": "Styles de texte des éléments du graphique"
+   }
+  },
+  "86d40c77eaae4d6396ae1a838f2dd8f2afdfd634e962568c6d768df5dfa8a2bb": {
+   "drop": false,
+   "en": "Start a new document from Blank Document or one of five built-in templates. Each template is an ordinary document with its own styles, and each tile shows the first page it makes, grouped under the heading of its kind.",
+   "es": "Inicie un documento nuevo desde Documento en blanco o desde una de las cinco plantillas integradas. Cada plantilla es un documento común con sus propios estilos, y cada mosaico muestra la primera página que crea, agrupado bajo el encabezado de su tipo.",
+   "fr": "Créez un document à partir de Document vierge ou de l’un des cinq modèles intégrés. Chaque modèle est un document ordinaire avec ses propres styles, et chaque vignette affiche la première page qu’il crée, regroupée sous le titre de son type.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "86d4fd2ebc486f01f2f4cfbc972259f19ec4329da39f67f7bb1bca4b5971681d": {
@@ -20869,6 +20869,18 @@
     "fr": ""
    }
   },
+  "b0ca06f0e0cbfe415dacf9fcd31093e882596c49ae470d932b682313d325807a": {
+   "drop": false,
+   "en": "Start from built-in templates on the New page: pitch, status update, lesson, photo album, minimal light, and minimal dark. Each has its own theme and three to five sample slides.",
+   "es": "Comience con las plantillas integradas de la página Nuevo: presentación de propuesta, informe de estado, lección, álbum de fotos, minimalista claro y minimalista oscuro. Cada una tiene su propio tema y de tres a cinco diapositivas de ejemplo.",
+   "fr": "Commencez avec les modèles intégrés de la page Nouveau : présentation de projet, point d’avancement, leçon, album photo, minimaliste clair et minimaliste sombre. Chacun a son propre thème et de trois à cinq diapositives d’exemple.",
+   "soon": {
+    "drop": false,
+    "en": "Report and training deck templates",
+    "es": "Plantillas de informe y de presentación de formación",
+    "fr": "Modèles de rapport et de présentation de formation"
+   }
+  },
   "b119fd1b0dbe3d3fe36c2c3e0cad8916735b29a23802ffcc59312c1a48ee5e88": {
    "drop": false,
    "en": "Apply a ready-made combination of fill, outline, and effects to letters from a gallery of 12 text styles.",
@@ -22211,18 +22223,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "c635d0b9ae457533bfbf401bbe22dc038576d95172a784cc8cb3828fc0748d9c": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "More built-in open-licensed templates: lesson, report, pitch, photo album, and training deck",
-    "es": "Más plantillas incluidas con licencia abierta: lección, informe, propuesta, álbum de fotos y curso de formación",
-    "fr": "Plus de modèles inclus sous licence ouverte : cours, rapport, présentation commerciale, album photo et formation"
    }
   },
   "c65bd5950db6c1212f881caf2abfeb1713d45489da3f484dc69e3f81ed109100": {
