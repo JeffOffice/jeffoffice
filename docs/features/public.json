@@ -540,7 +540,7 @@
         },
         {
          "status": "partly",
-         "text": "b9e158e64433da9e1b961fd5382a1047a4864f1adf651a90b73f0bf24608dcc9"
+         "text": "8ea58c23f4c2b735a382856963cd42afffeea76b83eb29da3d98c3a2408cdfea"
         },
         {
          "hide_soon": true,
@@ -18553,6 +18553,18 @@
     "fr": ""
    }
   },
+  "8ea58c23f4c2b735a382856963cd42afffeea76b83eb29da3d98c3a2408cdfea": {
+   "drop": false,
+   "en": "Apply conditional formatting rules to cells: Greater Than, Less Than, Between, Equal To, Text That Contains, A Date Occurring, Duplicate Values, and formula-based rules, plus data bars, color scales, and icon sets. Choose the look of a rule with a custom format (font, border, fill, and number format), manage rules (order, `Stop If True`, the cells each rule applies to, edit, and delete), and clear rules from the selected cells or the sheet.",
+   "es": "Aplique reglas de formato condicional a las celdas: Mayor que, Menor que, Entre, Igual a, Texto que contiene, Una fecha que ocurre, Valores duplicados y reglas basadas en fórmulas, además de barras de datos, escalas de color y conjuntos de iconos. Elija el aspecto de una regla con un formato personalizado (fuente, borde, relleno y formato de número), administre las reglas (orden, `Stop If True`, las celdas a las que se aplica cada regla, edición y eliminación) y borre las reglas de las celdas seleccionadas o de la hoja.",
+   "fr": "Appliquez des règles de mise en forme conditionnelle aux cellules : Supérieur à, Inférieur à, Entre, Égal à, Texte contenant, Une date se produisant, Valeurs en double et règles basées sur une formule, ainsi que des barres de données, des jeux de couleurs et des jeux d’icônes. Choisissez l’apparence d’une règle avec un format personnalisé (police, bordure, remplissage et format de nombre), gérez les règles (ordre, `Stop If True`, cellules concernées par chaque règle, modification et suppression) et effacez les règles des cellules sélectionnées ou de la feuille.",
+   "soon": {
+    "drop": false,
+    "en": "Clear conditional formatting rules from a table or pivot table",
+    "es": "Borrar reglas de formato condicional de una tabla o tabla dinámica",
+    "fr": "Effacement des règles de mise en forme conditionnelle d’un tableau ou d’un tableau croisé dynamique"
+   }
+  },
   "8ee4fd000fb6d2e4b1770bffa6575cd8dd58f6a29f459072bd9f560b19179ee9": {
    "drop": false,
    "en": "Make labels: a full page of one label or a single label, on one of twelve sheet sizes (letter and A4) or your own. A merge fills each label with the next recipient.",
@@ -21395,18 +21407,6 @@
     "en": "Second view that shows edits from the first as they are made",
     "es": "Segunda vista que muestra las ediciones de la primera a medida que se realizan",
     "fr": "Deuxième vue qui affiche les modifications de la première au fur et à mesure"
-   }
-  },
-  "b9e158e64433da9e1b961fd5382a1047a4864f1adf651a90b73f0bf24608dcc9": {
-   "drop": false,
-   "en": "Apply conditional formatting from the Conditional Formatting menu: Greater Than, Less Than, Between, Equal To, Text That Contains, A Date Occurring, and Duplicate Values, plus data bars, color scales, and icon sets. New Rule makes any kind of rule, including one with a formula. Manage Rules lists, edits, reorders, and deletes rules, changes the cells they apply to, and sets Stop If True. Clear Rules works on the selected cells or the sheet.",
-   "es": "Aplique formato condicional desde el menú Formato condicional: Mayor que, Menor que, Entre, Igual a, Texto que contiene, Una fecha que ocurre y Valores duplicados, además de barras de datos, escalas de color y conjuntos de iconos. Nueva regla crea cualquier tipo de regla, incluida una con fórmula. Administrar reglas enumera, edita, reordena y elimina reglas, cambia las celdas a las que se aplican y establece Detener si es verdadero. Borrar reglas funciona en las celdas seleccionadas o en la hoja.",
-   "fr": "Appliquez une mise en forme conditionnelle depuis le menu Mise en forme conditionnelle : Supérieur à, Inférieur à, Entre, Égal à, Texte contenant, Une date se produisant et Valeurs en double, ainsi que des barres de données, des nuances de couleurs et des jeux d’icônes. Nouvelle règle crée tout type de règle, y compris avec une formule. Gérer les règles liste, modifie, réordonne et supprime les règles, change les cellules concernées et définit Arrêter si vrai. Effacer les règles agit sur les cellules sélectionnées ou sur la feuille.",
-   "soon": {
-    "drop": false,
-    "en": "Clear Rules from a table or pivot table",
-    "es": "Borrar reglas de una tabla o de una tabla dinámica",
-    "fr": "Effacer les règles d’un tableau ou d’un tableau croisé dynamique"
    }
   },
   "ba1383384150b67b4377b0fe91a1cf0ecbf5c93ada5c2bd2354d5f6205d46880": {
