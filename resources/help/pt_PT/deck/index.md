@@ -1,12 +1,12 @@
 # Ajuda do JeffDeck
-<!-- keywords: conteúdo, ajuda, tópicos, início, índice -->
+<!-- keywords: conteúdo, ajuda, tópicos, início -->
 
-Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Prima **F1** a qualquer momento para obter ajuda sobre o que está a fazer: o separador do friso em que se encontra, o painel em que está ou o objeto que selecionou.
+Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Prima **F1** em qualquer altura para obter ajuda sobre o que está a fazer: o separador do friso em que se encontra, o painel em que está ou o objeto que tem selecionado.
 
 ## Primeiros passos
 
 - [Bem-vindo ao JeffDeck](start)
-- [Orientar-se na janela](window)
+- [Conheça a janela](window)
 - [Abrir e guardar apresentações](open-save)
 - [Recuperar trabalho não guardado](recover)
 
@@ -14,8 +14,9 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 
 - [Adicionar, alterar e eliminar diapositivos](slides)
 - [Reutilizar diapositivos de outra apresentação](reuse)
-- [Vista de estrutura de tópicos, Organização de Diapositivos e vista do Modelo Global de Diapositivos](views)
-- [Tamanho, fundo e rodapés do diapositivo](design)
+- [Criar diapositivos a partir de uma estrutura de tópicos](outline-import)
+- [Vista de Estrutura de Tópicos, Organização de Diapositivos e Vista do Modelo Global de Diapositivos](views)
+- [Tamanho, fundo e rodapés dos diapositivos](design)
 
 ## Num diapositivo
 
@@ -33,9 +34,9 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 - [Transições entre diapositivos](transitions)
 - [Animações](animations)
 
-## Apresentar
+## Apresentação
 
-- [Iniciar a apresentação de diapositivos e usar a Vista de Apresentador](show)
+- [Reproduzir a apresentação de diapositivos e utilizar a Vista de Apresentador](show)
 
 ## Imprimir e partilhar
 
@@ -53,4 +54,4 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 ## Separadores do friso
 
 - [Base](tab-home), [Inserir](tab-insert), [Estrutura](tab-design), [Transições](tab-transitions), [Animações](tab-animations), [Apresentação de Diapositivos](tab-slide-show), [Rever](tab-review) e [Ver](tab-view)
-- [Reprodução](tab-playback) aparece enquanto um filme ou um som estiver selecionado
+- [Reprodução](tab-playback) aparece enquanto um filme ou som está selecionado

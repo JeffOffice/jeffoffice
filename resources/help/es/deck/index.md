@@ -1,5 +1,5 @@
 # Ayuda de JeffDeck
-<!-- keywords: contenido, ayuda, temas, empezar -->
+<!-- keywords: contenido, ayuda, temas, inicio, buscar, empezar -->
 
 Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando que ejecutar. Pulse **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que se encuentra, el panel en el que está o el objeto que ha seleccionado.
 
@@ -14,6 +14,7 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 
 - [Agregar, cambiar y eliminar diapositivas](slides)
 - [Reutilizar diapositivas de otra presentación](reuse)
+- [Crear diapositivas a partir de un esquema](outline-import)
 - [Vista Esquema, Clasificador de diapositivas y Vista Patrón de diapositivas](views)
 - [Tamaño, fondo y pies de página de las diapositivas](design)
 
@@ -28,14 +29,14 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 - [Comentarios](comments)
 - [Comparar presentaciones](compare)
 
-## Movimiento
+## Animación
 
 - [Transiciones entre diapositivas](transitions)
 - [Animaciones](animations)
 
 ## Presentar
 
-- [Iniciar la presentación con diapositivas y usar la Vista Moderador](show)
+- [Reproducir la presentación con diapositivas y usar la Vista Moderador](show)
 
 ## Imprimir y compartir
 
@@ -46,11 +47,11 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 
 - [Usar JeffDeck con el teclado](keyboard)
 - [Cambiar la configuración de JeffDeck](options)
-- [Seguridad: a qué puede acceder un archivo](security)
+- [Seguridad: a qué puede conectarse un archivo](security)
 - [Elegir un idioma](language)
 - [La pantalla Archivo](file-screen)
 
 ## Pestañas de la cinta de opciones
 
 - [Inicio](tab-home), [Insertar](tab-insert), [Diseño](tab-design), [Transiciones](tab-transitions), [Animaciones](tab-animations), [Presentación con diapositivas](tab-slide-show), [Revisar](tab-review) y [Vista](tab-view)
-- [Reproducción](tab-playback) aparece mientras hay seleccionado un vídeo o un sonido
+- [Reproducción](tab-playback) se muestra cuando se selecciona una película o un sonido

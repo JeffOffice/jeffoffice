@@ -2521,7 +2521,7 @@ Article de dernière page	4</translation>
     <message>
         <location filename="../apps/deck/io/outlineimport.cpp" line="+985"/>
         <source>Code</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Code</translation>
     </message>
 </context>
 <context>
@@ -6540,7 +6540,7 @@ Article de dernière page	4</translation>
     <message>
         <location line="+28"/>
         <source>&quot;%1&quot;: the background removal another program made on this picture was replaced by the one made here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">« %1 » : la suppression de l&apos;arrière-plan réalisée sur cette image par un autre programme a été remplacée par celle réalisée ici.</translation>
     </message>
     <message>
         <location line="+168"/>
@@ -7100,7 +7100,7 @@ Article de dernière page	4</translation>
     <message>
         <location line="+1"/>
         <source>pictures whose background was removed were saved as the finished pictures, so the background can&apos;t be brought back or marked again in a .pub file</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">les images dont l&apos;arrière-plan a été supprimé ont été enregistrées sous forme d&apos;images finales, si bien que l&apos;arrière-plan ne peut pas être rétabli ni marqué à nouveau dans un fichier .pub</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -9647,12 +9647,12 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
     <message>
         <location line="+56"/>
         <source>A picture whose background was removed is kept as the finished picture, and its background can&apos;t be brought back or marked again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Une image dont l&apos;arrière-plan a été supprimé est conservée sous forme d&apos;image finale, et son arrière-plan ne peut pas être rétabli ni marqué à nouveau.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A picture that carries another program&apos;s own background removal is kept as the finished picture, and that removal can&apos;t be edited again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Une image qui comporte une suppression d&apos;arrière-plan propre à un autre programme est conservée sous forme d&apos;image finale, et cette suppression ne peut plus être modifiée.</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -9958,101 +9958,101 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
     <message>
         <location filename="../apps/deck/io/outlineimport.cpp" line="-222"/>
         <source>Only the first %1 slides were made. The rest of the file was left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Seules les %1 premières diapositives ont été créées. Le reste du fichier a été omis.</translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n line(s) of text were cut or left out, because a line, a slide, or the file had more than it can hold.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n ligne de texte a été coupée ou omise, car une ligne, une diapositive ou le fichier en contenait plus que ce qu&apos;il peut accueillir.</numerusform>
+            <numerusform>%n lignes de texte ont été coupées ou omises, car une ligne, une diapositive ou le fichier en contenait plus que ce qu&apos;il peut accueillir.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n line(s) were indented deeper than a slide&apos;s text goes, and were put at its deepest level.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n ligne a été retirée plus profondément que ne le permet le texte d&apos;une diapositive et a été placée au niveau le plus profond.</numerusform>
+            <numerusform>%n lignes ont été retirées plus profondément que ne le permet le texte d&apos;une diapositive et ont été placées au niveau le plus profond.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n picture(s) were left out. A picture has to be a PNG, JPEG, GIF, BMP, WebP, or TIFF file in the outline&apos;s own folder, or a folder in it.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n image a été omise. Une image doit être un fichier PNG, JPEG, GIF, BMP, WebP ou TIFF situé dans le dossier du plan ou dans un de ses sous-dossiers.</numerusform>
+            <numerusform>%n images ont été omises. Une image doit être un fichier PNG, JPEG, GIF, BMP, WebP ou TIFF situé dans le dossier du plan ou dans un de ses sous-dossiers.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n picture(s) or other object(s) in the file were left out.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n image ou autre objet du fichier a été omis.</numerusform>
+            <numerusform>%n images ou autres objets du fichier ont été omis.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n line(s) of code past the limit for a slide were left out.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n ligne de code au-delà de la limite d&apos;une diapositive a été omise.</numerusform>
+            <numerusform>%n lignes de code au-delà de la limite d&apos;une diapositive ont été omises.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The text of tables in the file became lines of text.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Le texte des tableaux du fichier est devenu des lignes de texte.</translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n link(s) to other kinds of address were kept as plain text.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n lien vers d&apos;autres types d&apos;adresses a été conservé en texte brut.</numerusform>
+            <numerusform>%n liens vers d&apos;autres types d&apos;adresses ont été conservés en texte brut.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+19"/>
         <source>The file is larger than 10 MB, the most an outline can be.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Le fichier dépasse 10 Mo, taille maximale d&apos;un plan.</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>The file is not text.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Le fichier n&apos;est pas un texte.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>The file is not text in UTF-8 or UTF-16.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Le fichier n&apos;est pas un texte en UTF-8 ou UTF-16.</translation>
     </message>
     <message>
         <location line="+18"/>
         <source>The file can&apos;t be read as rich text.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Le fichier ne peut pas être lu comme texte enrichi.</translation>
     </message>
     <message>
         <location line="+2"/>
         <location line="+6"/>
         <source>The file has no headings to make slides from. Give the slides&apos; titles a heading style.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Le fichier ne contient aucun titre à partir duquel créer des diapositives. Appliquez un style de titre aux titres des diapositives.</translation>
     </message>
     <message>
         <location line="-2"/>
         <source>The file can&apos;t be read as a document.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Le fichier ne peut pas être lu comme un document.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The file is not a valid %1 file.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Le fichier n&apos;est pas un fichier %1 valide.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>The file has no text to make slides from.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Le fichier ne contient aucun texte à partir duquel créer des diapositives.</translation>
     </message>
     <message>
         <location line="+16"/>
@@ -10062,27 +10062,27 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
     <message>
         <location line="+6"/>
         <source>The file is too large to be an outline.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Le fichier est trop volumineux pour être un plan.</translation>
     </message>
     <message>
         <location line="+286"/>
         <source>pictures, shapes, tables, charts, and other objects on the slides</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">images, formes, tableaux, graphiques et autres objets des diapositives</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>the text of text boxes other than the title and the first body place</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">le texte des zones de texte autres que le titre et le premier espace réservé au corps de texte</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>speaker notes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">commentaires du présentateur</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>the look of the slides (layouts, themes, colors, fonts, and backgrounds), animations, and transitions</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">l&apos;apparence des diapositives (dispositions, thèmes, couleurs, polices et arrière-plans), les animations et les transitions</translation>
     </message>
 </context>
 <context>
@@ -13678,7 +13678,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <location line="-25"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="-8"/>
         <source>Background Removal</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Suppression de l&apos;arrière-plan</translation>
     </message>
     <message>
         <location line="+26"/>
@@ -14125,7 +14125,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <location line="+1"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+1"/>
         <source>Refine</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Affiner</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -15158,7 +15158,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
     <message>
         <location line="+3"/>
         <source>Saved Blocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Blocs enregistrés</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -22672,91 +22672,91 @@ Publication assistée par ordinateur</translation>
         <location filename="../libs/base/io/blocklibrary.cpp" line="+104"/>
         <location line="+436"/>
         <source>This is not a library of saved blocks.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ceci n&apos;est pas une bibliothèque de blocs enregistrés.</translation>
     </message>
     <message>
         <location line="-407"/>
         <source>The list of saved blocks is too large to read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La liste des blocs enregistrés est trop volumineuse pour être lue.</translation>
     </message>
     <message>
         <location line="+60"/>
         <source>The library of saved blocks is too large to read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La bibliothèque de blocs enregistrés est trop volumineuse pour être lue.</translation>
     </message>
     <message>
         <location line="+4"/>
         <location line="+6"/>
         <source>The library of saved blocks could not be read: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La bibliothèque de blocs enregistrés n&apos;a pas pu être lue : %1</translation>
     </message>
     <message>
         <location line="+12"/>
         <location line="+260"/>
         <source>There are as many saved blocks as the library holds. Delete some to save this one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La bibliothèque contient autant de blocs enregistrés qu&apos;elle peut en contenir. Supprimez-en quelques-uns pour enregistrer celui-ci.</translation>
     </message>
     <message>
         <location line="-239"/>
         <source>The names and descriptions of the saved blocks have used up the room kept for them. Delete some blocks to save this one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Les noms et descriptions des blocs enregistrés ont épuisé l&apos;espace qui leur est réservé. Supprimez quelques blocs pour enregistrer celui-ci.</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>There is no room on the disk to save the blocks.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Il n&apos;y a pas assez d&apos;espace sur le disque pour enregistrer les blocs.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The library of saved blocks could not be saved: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La bibliothèque de blocs enregistrés n&apos;a pas pu être enregistrée : %1</translation>
     </message>
     <message>
         <location line="+140"/>
         <source>The saved blocks cannot be changed: this computer does not let the program write in their folder.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Les blocs enregistrés ne peuvent pas être modifiés : cet ordinateur ne permet pas au programme d&apos;écrire dans leur dossier.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Another window is changing the saved blocks. Try again in a moment.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Une autre fenêtre modifie les blocs enregistrés. Réessayez dans un instant.</translation>
     </message>
     <message>
         <location line="+18"/>
         <source>The saved blocks file is damaged, and the folder already holds earlier damaged copies of it. Remove some of the files that end in .damaged from the folder %1 to go on.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Le fichier des blocs enregistrés est endommagé, et le dossier contient déjà d&apos;anciennes copies endommagées. Supprimez certains fichiers se terminant par .damaged du dossier %1 pour continuer.</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>These saved blocks were made by a newer version of JeffOffice. Update the program to change them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ces blocs enregistrés ont été créés par une version plus récente de JeffOffice. Mettez le programme à jour pour les modifier.</translation>
     </message>
     <message>
         <location line="+16"/>
         <location line="+45"/>
         <source>A saved block needs a name.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Un bloc enregistré doit avoir un nom.</translation>
     </message>
     <message>
         <location line="-41"/>
         <source>This is too large to save as a block.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ceci est trop volumineux pour être enregistré comme bloc.</translation>
     </message>
     <message>
         <location line="+16"/>
         <location line="+33"/>
         <source>A block with this name is already saved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Un bloc portant ce nom est déjà enregistré.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>This block is no longer in the library.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ce bloc ne figure plus dans la bibliothèque.</translation>
     </message>
     <message>
         <location line="+55"/>
         <source>There is no room in the library for the rest of these blocks.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La bibliothèque n&apos;a plus de place pour le reste de ces blocs.</translation>
     </message>
 </context>
 <context>
@@ -22764,44 +22764,44 @@ Publication assistée par ordinateur</translation>
     <message>
         <location filename="../libs/shell/app/blockgallery.cpp" line="+30"/>
         <source>Text Shortcuts</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Raccourcis de texte</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Saved Blocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Blocs enregistrés</translation>
     </message>
     <message>
         <location line="+42"/>
         <source>Search by name</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rechercher par nom</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Search saved blocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rechercher dans les blocs enregistrés</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>Saved blocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Blocs enregistrés</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Nothing is saved here yet. Select some text, then choose Save Selection as a Block.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rien n&apos;est encore enregistré ici. Sélectionnez du texte, puis choisissez Enregistrer la sélection comme bloc.</translation>
     </message>
     <message>
         <location line="+104"/>
         <source>Block Properties</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Propriétés du bloc</translation>
     </message>
     <message>
         <location line="+0"/>
         <location line="+59"/>
         <location line="+4"/>
         <source>Save as a Block</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Enregistrer comme bloc</translation>
     </message>
     <message>
         <location line="-58"/>
@@ -22832,22 +22832,22 @@ Publication assistée par ordinateur</translation>
         <location line="+3"/>
         <location line="+5"/>
         <source>Put it in</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Insérer dans</translation>
     </message>
     <message>
         <location line="-4"/>
         <source>As it is, at the cursor</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tel quel, au curseur</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>In a paragraph of its own</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dans un paragraphe distinct</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>On a page of its own</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sur une page distincte</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -22857,17 +22857,17 @@ Publication assistée par ordinateur</translation>
     <message>
         <location line="+26"/>
         <source>A block with this name is already saved. Replace it?</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Un bloc portant ce nom est déjà enregistré. Le remplacer ?</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>Manage Saved Blocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gérer les blocs enregistrés</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>Edit Properties…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Modifier les propriétés…</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -22877,7 +22877,7 @@ Publication assistée par ordinateur</translation>
     <message>
         <location line="+1"/>
         <source>Undo Delete</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Annuler la suppression</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -22887,53 +22887,53 @@ Publication assistée par ordinateur</translation>
     <message>
         <location line="+1"/>
         <source>Import…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Importer…</translation>
     </message>
     <message>
         <location line="+47"/>
         <source>Deleted &quot;%1&quot;. Undo Delete puts it back until you close this box.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">« %1 » supprimé. Annuler la suppression le restaure tant que vous ne fermez pas cette boîte.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>Export Saved Blocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Exporter les blocs enregistrés</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Saved Blocks.jblocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Blocs enregistrés.jblocks</translation>
     </message>
     <message>
         <location line="+0"/>
         <location line="+6"/>
         <source>Saved blocks (*.jblocks)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Blocs enregistrés (*.jblocks)</translation>
     </message>
     <message>
         <location line="-3"/>
         <source>The saved blocks were exported.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Les blocs enregistrés ont été exportés.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Import Saved Blocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Importer des blocs enregistrés</translation>
     </message>
     <message numerus="yes">
         <location line="+6"/>
         <source>%n block was added.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n bloc a été ajouté.</numerusform>
+            <numerusform>%n blocs ont été ajoutés.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+0"/>
         <source>%n block was left out because its name is already saved.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n bloc a été omis, car son nom est déjà enregistré.</numerusform>
+            <numerusform>%n blocs ont été omis, car leur nom est déjà enregistré.</numerusform>
         </translation>
     </message>
 </context>
@@ -38419,7 +38419,7 @@ Le fichier est illisible.</translation>
         <location filename="../apps/deck/app/deckwindow_file.cpp" line="+0"/>
         <location filename="../apps/deck/app/deckwindow_outline.cpp" line="+0"/>
         <source>Outlines (*.txt *.text *.md *.markdown *.rtf *.docx)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Plans (*.txt *.text *.md *.markdown *.rtf *.docx)</translation>
     </message>
     <message>
         <location line="+121"/>
@@ -39258,32 +39258,32 @@ Le fichier est illisible.</translation>
     <message>
         <location line="+7"/>
         <source>Remove Background</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Supprimer l&apos;arrière-plan</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Select a picture to remove its background.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sélectionnez une image pour supprimer son arrière-plan.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Mark Areas to Keep</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Marquer les zones à conserver</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Mark Areas to Remove</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Marquer les zones à supprimer</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Discard All Changes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Abandonner toutes les modifications</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Keep Changes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Conserver les modifications</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -39814,7 +39814,7 @@ Le fichier est illisible.</translation>
     <message>
         <location filename="../apps/deck/app/deckwindow_outline.cpp" line="-84"/>
         <source>Slides from Outline…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Diapositives à partir du plan…</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -39822,27 +39822,30 @@ Le fichier est illisible.</translation>
         <location line="+10"/>
         <location line="+5"/>
         <source>Slides from Outline</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Diapositives à partir du plan</translation>
     </message>
     <message>
         <location line="-15"/>
         <source>&quot;%1&quot; can&apos;t make slides.
 %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">« %1 » ne peut pas créer de diapositives.
+%2</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Some of &quot;%1&quot; was left out.
 
 %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Une partie de « %1 » a été omise.
+
+%2</translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>Added %n slide(s) from &quot;%1&quot;.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n diapositive a été ajoutée à partir de « %1 ».</numerusform>
+            <numerusform>%n diapositives ont été ajoutées à partir de « %1 ».</numerusform>
         </translation>
     </message>
     <message>
@@ -39855,14 +39858,16 @@ Le fichier est illisible.</translation>
     <message>
         <location line="-3"/>
         <source>%1 couldn&apos;t save &quot;%2&quot;.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 n&apos;a pas pu enregistrer « %2 ».</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Saved the titles and text of the slides in &quot;%1&quot;. It does not hold:
 
 %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Les titres et le texte des diapositives de « %1 » ont été enregistrés. Ce format ne conserve pas :
+
+%2</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_save.cpp" line="+16"/>
@@ -39905,7 +39910,7 @@ Le fichier est illisible.</translation>
     <message>
         <location filename="../apps/deck/app/deckwindow_save.cpp" line="-167"/>
         <source>Markdown Outline (*.md)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Plan Markdown (*.md)</translation>
     </message>
     <message>
         <location line="+74"/>
@@ -41839,7 +41844,7 @@ Le fichier est illisible.</translation>
     <message>
         <location line="+1"/>
         <source>Markdown outline (.md)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Plan Markdown (.md)</translation>
     </message>
     <message>
         <location line="-3"/>
@@ -43320,42 +43325,42 @@ Le fichier est illisible.</translation>
     <message>
         <location filename="../libs/page/app/editor_removebg.cpp" line="+22"/>
         <source>Select a picture to remove its background.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sélectionnez une image pour supprimer son arrière-plan.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>The background of a drawing made of lines and shapes can&apos;t be removed. Only pictures made of dots, such as photographs, can.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">L&apos;arrière-plan d&apos;un dessin composé de traits et de formes ne peut pas être supprimé. Seules les images composées de points, comme les photographies, le peuvent.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>The background of an animated picture can&apos;t be removed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">L&apos;arrière-plan d&apos;une image animée ne peut pas être supprimé.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>This picture can&apos;t be read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cette image ne peut pas être lue.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This picture is too large for its background to be removed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cette image est trop grande pour que son arrière-plan soit supprimé.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Remove Background</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Supprimer l&apos;arrière-plan</translation>
     </message>
     <message>
         <location line="+100"/>
         <source>This picture has all the strokes it can hold, so that one was not added. Discard All Changes starts it again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cette image contient déjà le nombre maximal de tracés, donc celui-ci n&apos;a pas été ajouté. Abandonner toutes les modifications le recommence.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>That stroke is too long to be kept, so it was not added. Try shorter strokes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ce tracé est trop long pour être conservé, il n&apos;a donc pas été ajouté. Essayez des tracés plus courts.</translation>
     </message>
 </context>
 <context>
@@ -51949,32 +51954,32 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     <message>
         <location line="+7"/>
         <source>Remove Background</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Supprimer l&apos;arrière-plan</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Select a picture to remove its background.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sélectionnez une image pour supprimer son arrière-plan.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Mark Areas to Keep</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Marquer les zones à conserver</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Mark Areas to Remove</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Marquer les zones à supprimer</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Discard All Changes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Abandonner toutes les modifications</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Keep Changes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Conserver les modifications</translation>
     </message>
     <message>
         <location line="+18"/>
@@ -56915,7 +56920,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     <message>
         <location filename="../libs/page/app/removebgprogress.cpp" line="+26"/>
         <source>Finding the background…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Recherche de l&apos;arrière-plan…</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -66828,27 +66833,27 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     <message>
         <location filename="../apps/write/app/writewindow_insert.cpp" line="-119"/>
         <source>A saved block can be put in the text of the document, not in a header, a footer, or a note.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Un bloc enregistré peut être inséré dans le texte du document, mais pas dans un en-tête, un pied de page ou une note.</translation>
     </message>
     <message>
         <location line="+25"/>
         <source>Save as a Block</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Enregistrer comme bloc</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Save the block anyway?</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Enregistrer quand même le bloc ?</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Saved &quot;%1&quot; to %2.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">« %1 » enregistré dans %2.</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>No Text Shortcut ends just before the cursor.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Aucun raccourci de texte ne se termine juste avant le curseur.</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -66984,17 +66989,17 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     <message>
         <location line="+7"/>
         <source>Save Selection as a Block…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Enregistrer la sélection comme bloc…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Manage Saved Blocks…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gérer les blocs enregistrés…</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Expand Text Shortcut</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Développer le raccourci de texte</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -79294,59 +79299,59 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     <message>
         <location filename="../apps/write/core/blockops.cpp" line="+138"/>
         <source>Select what you want to save first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sélectionnez d&apos;abord ce que vous voulez enregistrer.</translation>
     </message>
     <message>
         <location line="+2"/>
         <location line="+16"/>
         <source>There is nothing in the selection that can be saved as a block.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La sélection ne contient rien qui puisse être enregistré comme bloc.</translation>
     </message>
     <message>
         <location line="-5"/>
         <source>Part of a table, or a table that is too large, is saved as its words, one paragraph for each cell, and not as a table.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Une partie de tableau, ou un tableau trop grand, est enregistré sous forme de mots, un paragraphe par cellule, et non sous forme de tableau.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Footnotes and endnotes are left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Les notes de bas de page et de fin sont omises.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Comments are left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Les commentaires sont omis.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Tracked changes are accepted: the words that were inserted are kept, and the words that were deleted are not.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Les modifications suivies sont acceptées : les mots insérés sont conservés, et les mots supprimés ne le sont pas.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The selection could not be saved as a block.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La sélection n&apos;a pas pu être enregistrée comme bloc.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The selection is too large to save as a block.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">La sélection est trop grande pour être enregistrée comme bloc.</translation>
     </message>
     <message>
         <location line="+23"/>
         <location line="+3"/>
         <source>This block cannot be read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ce bloc ne peut pas être lu.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>This block is empty.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ce bloc est vide.</translation>
     </message>
     <message>
         <location line="+22"/>
         <source>The block could not be put in here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Le bloc n&apos;a pas pu être inséré ici.</translation>
     </message>
 </context>
 <context>
@@ -83586,17 +83591,17 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     <message>
         <location line="-544"/>
         <source>A table with changes tracked in it is copied as its words, not as a table. Accept or reject the changes to copy it as a table.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Un tableau contenant des modifications suivies est copié sous forme de mots, et non de tableau. Acceptez ou refusez les modifications pour le copier sous forme de tableau.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A table in a selection that holds only a part of a content control is copied as its words, not as a table.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Un tableau dans une sélection qui ne contient qu&apos;une partie d&apos;un contrôle de contenu est copié sous forme de mots, et non de tableau.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This selection has more tables, or more cells, than a copy keeps as tables, so they are copied as their words.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cette sélection contient plus de tableaux, ou plus de cellules, qu&apos;une copie n&apos;en conserve sous forme de tableaux ; ils sont donc copiés sous forme de mots.</translation>
     </message>
     <message>
         <location line="+40"/>

@@ -2522,7 +2522,7 @@ Back page story	4</source>
     <message>
         <location filename="../apps/deck/io/outlineimport.cpp" line="+985"/>
         <source>Code</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Код</translation>
     </message>
 </context>
 <context>
@@ -6542,7 +6542,7 @@ Back page story	4</source>
     <message>
         <location line="+28"/>
         <source>&quot;%1&quot;: the background removal another program made on this picture was replaced by the one made here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">&quot;%1&quot;: удаление фона, выполненное другой программой на этом рисунке, заменено удалением фона, выполненным здесь.</translation>
     </message>
     <message>
         <location line="+168"/>
@@ -7103,7 +7103,7 @@ Back page story	4</source>
     <message>
         <location line="+1"/>
         <source>pictures whose background was removed were saved as the finished pictures, so the background can&apos;t be brought back or marked again in a .pub file</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Рисунки, у которых удалили фон, сохранены как готовые рисунки, поэтому фон нельзя вернуть или снова пометить в файле .pub.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -9649,12 +9649,12 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+56"/>
         <source>A picture whose background was removed is kept as the finished picture, and its background can&apos;t be brought back or marked again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Рисунок, у которого удалён фон, сохраняется как готовый рисунок, и его фон нельзя вернуть или снова отметить.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A picture that carries another program&apos;s own background removal is kept as the finished picture, and that removal can&apos;t be edited again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Рисунок с удалением фона, выполненным другой программой, сохраняется как готовый рисунок, и это удаление нельзя изменить.</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -9966,137 +9966,137 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location filename="../apps/deck/io/outlineimport.cpp" line="-222"/>
         <source>Only the first %1 slides were made. The rest of the file was left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Создано только первых %1 слайдов. Остальная часть файла пропущена.</translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n line(s) of text were cut or left out, because a line, a slide, or the file had more than it can hold.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n строка текста была обрезана или пропущена, так как строка, слайд или файл содержали больше, чем могут вместить.</numerusform>
+            <numerusform>%n строки текста были обрезаны или пропущены, так как строка, слайд или файл содержали больше, чем могут вместить.</numerusform>
+            <numerusform>%n строк текста были обрезаны или пропущены, так как строка, слайд или файл содержали больше, чем могут вместить.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n line(s) were indented deeper than a slide&apos;s text goes, and were put at its deepest level.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n строка была с отступом глубже, чем допускает текст слайда, и помещена на его самый глубокий уровень.</numerusform>
+            <numerusform>%n строки были с отступом глубже, чем допускает текст слайда, и помещены на его самый глубокий уровень.</numerusform>
+            <numerusform>%n строк были с отступом глубже, чем допускает текст слайда, и помещены на его самый глубокий уровень.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n picture(s) were left out. A picture has to be a PNG, JPEG, GIF, BMP, WebP, or TIFF file in the outline&apos;s own folder, or a folder in it.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n рисунок пропущен. Рисунок должен быть файлом PNG, JPEG, GIF, BMP, WebP или TIFF в папке структуры или во вложенной папке.</numerusform>
+            <numerusform>%n рисунка пропущены. Рисунок должен быть файлом PNG, JPEG, GIF, BMP, WebP или TIFF в папке структуры или во вложенной папке.</numerusform>
+            <numerusform>%n рисунков пропущено. Рисунок должен быть файлом PNG, JPEG, GIF, BMP, WebP или TIFF в папке структуры или во вложенной папке.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n picture(s) or other object(s) in the file were left out.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n рисунок или другой объект в файле пропущен.</numerusform>
+            <numerusform>%n рисунка или другого объекта в файле пропущены.</numerusform>
+            <numerusform>%n рисунков или других объектов в файле пропущено.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n line(s) of code past the limit for a slide were left out.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n строка кода сверх лимита для слайда пропущена.</numerusform>
+            <numerusform>%n строки кода сверх лимита для слайда пропущены.</numerusform>
+            <numerusform>%n строк кода сверх лимита для слайда пропущено.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The text of tables in the file became lines of text.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Текст таблиц в файле стал строками текста.</translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n link(s) to other kinds of address were kept as plain text.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n ссылка на другой тип адреса сохранена как обычный текст.</numerusform>
+            <numerusform>%n ссылки на адреса другого типа сохранены как обычный текст.</numerusform>
+            <numerusform>%n ссылок на другие типы адресов сохранено как обычный текст.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+19"/>
         <source>The file is larger than 10 MB, the most an outline can be.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл больше 10 МБ — максимального размера структуры.</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>The file is not text.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл не является текстовым.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>The file is not text in UTF-8 or UTF-16.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл не является текстом в кодировке UTF-8 или UTF-16.</translation>
     </message>
     <message>
         <location line="+18"/>
         <source>The file can&apos;t be read as rich text.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл невозможно прочитать как форматированный текст.</translation>
     </message>
     <message>
         <location line="+2"/>
         <location line="+6"/>
         <source>The file has no headings to make slides from. Give the slides&apos; titles a heading style.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">В файле нет заголовков, из которых можно создать слайды. Назначьте заголовкам слайдов стиль заголовка.</translation>
     </message>
     <message>
         <location line="-2"/>
         <source>The file can&apos;t be read as a document.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл невозможно прочитать как документ.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The file is not a valid %1 file.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл не является допустимым файлом %1.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>The file has no text to make slides from.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">В файле нет текста, из которого можно создать слайды.</translation>
     </message>
     <message>
         <location line="+16"/>
         <source>The file can&apos;t be opened.</source>
-        <translation type="unfinished">Файл не удалось открыть.</translation>
+        <translation type="unfinished">Файл не удаётся открыть.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>The file is too large to be an outline.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл слишком велик для структуры.</translation>
     </message>
     <message>
         <location line="+286"/>
         <source>pictures, shapes, tables, charts, and other objects on the slides</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">рисунки, фигуры, таблицы, диаграммы и другие объекты на слайдах</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>the text of text boxes other than the title and the first body place</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">текст текстовых полей, кроме заголовка и первого заполнителя текста</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>speaker notes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">заметки докладчика</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>the look of the slides (layouts, themes, colors, fonts, and backgrounds), animations, and transitions</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">оформление слайдов (макеты, темы, цвета, шрифты и фоны), анимация и переходы</translation>
     </message>
 </context>
 <context>
@@ -13694,7 +13694,7 @@ Download it from %2 now? (%3, once.)</source>
         <location line="-25"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="-8"/>
         <source>Background Removal</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Удаление фона</translation>
     </message>
     <message>
         <location line="+26"/>
@@ -14141,7 +14141,7 @@ Download it from %2 now? (%3, once.)</source>
         <location line="+1"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+1"/>
         <source>Refine</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Уточнить</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -15256,7 +15256,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+34"/>
         <source>Saved Blocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сохранённые блоки</translation>
     </message>
     <message>
         <location line="+16"/>
@@ -22700,91 +22700,91 @@ Desktop publishing</source>
         <location filename="../libs/base/io/blocklibrary.cpp" line="+104"/>
         <location line="+436"/>
         <source>This is not a library of saved blocks.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Это не библиотека сохранённых блоков.</translation>
     </message>
     <message>
         <location line="-407"/>
         <source>The list of saved blocks is too large to read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Список сохранённых блоков слишком велик для чтения.</translation>
     </message>
     <message>
         <location line="+60"/>
         <source>The library of saved blocks is too large to read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Библиотека сохранённых блоков слишком велика для чтения.</translation>
     </message>
     <message>
         <location line="+4"/>
         <location line="+6"/>
         <source>The library of saved blocks could not be read: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Не удалось прочитать библиотеку сохранённых блоков: %1</translation>
     </message>
     <message>
         <location line="+12"/>
         <location line="+260"/>
         <source>There are as many saved blocks as the library holds. Delete some to save this one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сохранено столько блоков, сколько может вместить библиотека. Удалите некоторые, чтобы сохранить этот.</translation>
     </message>
     <message>
         <location line="-239"/>
         <source>The names and descriptions of the saved blocks have used up the room kept for them. Delete some blocks to save this one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Названия и описания сохранённых блоков заняли всё отведённое для них место. Удалите некоторые блоки, чтобы сохранить этот.</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>There is no room on the disk to save the blocks.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">На диске нет места для сохранения блоков.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The library of saved blocks could not be saved: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Не удалось сохранить библиотеку сохранённых блоков: %1</translation>
     </message>
     <message>
         <location line="+140"/>
         <source>The saved blocks cannot be changed: this computer does not let the program write in their folder.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сохранённые блоки нельзя изменить: этот компьютер не позволяет программе писать в их папку.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Another window is changing the saved blocks. Try again in a moment.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Библиотеку сохранённых блоков меняет другое окно. Повторите попытку через некоторое время.</translation>
     </message>
     <message>
         <location line="+18"/>
         <source>The saved blocks file is damaged, and the folder already holds earlier damaged copies of it. Remove some of the files that end in .damaged from the folder %1 to go on.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл сохранённых блоков повреждён, и в папке уже есть более ранние повреждённые копии. Удалите некоторые файлы с расширением .damaged из папки %1, чтобы продолжить.</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>These saved blocks were made by a newer version of JeffOffice. Update the program to change them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Эти сохранённые блоки созданы более новой версией JeffOffice. Обновите программу, чтобы изменить их.</translation>
     </message>
     <message>
         <location line="+16"/>
         <location line="+45"/>
         <source>A saved block needs a name.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сохраняемому блоку нужно имя.</translation>
     </message>
     <message>
         <location line="-41"/>
         <source>This is too large to save as a block.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Это слишком большое, чтобы сохранить как блок.</translation>
     </message>
     <message>
         <location line="+16"/>
         <location line="+33"/>
         <source>A block with this name is already saved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Блок с таким именем уже сохранён.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>This block is no longer in the library.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Этого блока больше нет в библиотеке.</translation>
     </message>
     <message>
         <location line="+55"/>
         <source>There is no room in the library for the rest of these blocks.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">В библиотеке нет места для остальных блоков.</translation>
     </message>
 </context>
 <context>
@@ -22792,44 +22792,44 @@ Desktop publishing</source>
     <message>
         <location filename="../libs/shell/app/blockgallery.cpp" line="+30"/>
         <source>Text Shortcuts</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Текстовые сокращения</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Saved Blocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сохранённые блоки</translation>
     </message>
     <message>
         <location line="+42"/>
         <source>Search by name</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Поиск по имени</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Search saved blocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Поиск сохранённых блоков</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>Saved blocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сохранённые блоки</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Nothing is saved here yet. Select some text, then choose Save Selection as a Block.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Здесь пока ничего не сохранено. Выделите текст и выберите «Сохранить выделенное как блок».</translation>
     </message>
     <message>
         <location line="+104"/>
         <source>Block Properties</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Свойства блока</translation>
     </message>
     <message>
         <location line="+0"/>
         <location line="+59"/>
         <location line="+4"/>
         <source>Save as a Block</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сохранить как блок</translation>
     </message>
     <message>
         <location line="-58"/>
@@ -22842,7 +22842,7 @@ Desktop publishing</source>
         <location line="+5"/>
         <location line="+61"/>
         <source>Gallery</source>
-        <translation type="unfinished">Галерея</translation>
+        <translation type="unfinished">Коллекция</translation>
     </message>
     <message>
         <location line="-58"/>
@@ -22860,22 +22860,22 @@ Desktop publishing</source>
         <location line="+3"/>
         <location line="+5"/>
         <source>Put it in</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Куда вставить</translation>
     </message>
     <message>
         <location line="-4"/>
         <source>As it is, at the cursor</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Как есть, в позицию курсора</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>In a paragraph of its own</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">В отдельном абзаце</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>On a page of its own</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">На отдельной странице</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -22885,17 +22885,17 @@ Desktop publishing</source>
     <message>
         <location line="+26"/>
         <source>A block with this name is already saved. Replace it?</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Блок с таким именем уже сохранён. Заменить его?</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>Manage Saved Blocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Управление сохранёнными блоками</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>Edit Properties…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Изменить свойства…</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -22905,7 +22905,7 @@ Desktop publishing</source>
     <message>
         <location line="+1"/>
         <source>Undo Delete</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Отменить удаление</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -22915,55 +22915,55 @@ Desktop publishing</source>
     <message>
         <location line="+1"/>
         <source>Import…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Импорт…</translation>
     </message>
     <message>
         <location line="+47"/>
         <source>Deleted &quot;%1&quot;. Undo Delete puts it back until you close this box.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Удалено «%1». Команда «Отменить удаление» возвращает его, пока вы не закроете это окно.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>Export Saved Blocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Экспорт сохранённых блоков</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Saved Blocks.jblocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сохранённые блоки.jblocks</translation>
     </message>
     <message>
         <location line="+0"/>
         <location line="+6"/>
         <source>Saved blocks (*.jblocks)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сохранённые блоки (*.jblocks)</translation>
     </message>
     <message>
         <location line="-3"/>
         <source>The saved blocks were exported.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сохранённые блоки были экспортированы.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Import Saved Blocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Импорт сохранённых блоков</translation>
     </message>
     <message numerus="yes">
         <location line="+6"/>
         <source>%n block was added.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n блок добавлен.</numerusform>
+            <numerusform>%n блока добавлено.</numerusform>
+            <numerusform>%n блоков добавлено.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+0"/>
         <source>%n block was left out because its name is already saved.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n блок пропущен, так как его имя уже сохранено.</numerusform>
+            <numerusform>%n блока пропущено, так как их имена уже сохранены.</numerusform>
+            <numerusform>%n блоков пропущено, так как их имена уже сохранены.</numerusform>
         </translation>
     </message>
 </context>
@@ -38471,7 +38471,7 @@ The file can&apos;t be read.</source>
         <location filename="../apps/deck/app/deckwindow_file.cpp" line="+0"/>
         <location filename="../apps/deck/app/deckwindow_outline.cpp" line="+0"/>
         <source>Outlines (*.txt *.text *.md *.markdown *.rtf *.docx)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Структуры (*.txt *.text *.md *.markdown *.rtf *.docx)</translation>
     </message>
     <message>
         <location line="+121"/>
@@ -39319,32 +39319,32 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+7"/>
         <source>Remove Background</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Удаление фона</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Select a picture to remove its background.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Выберите рисунок, чтобы удалить его фон.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Mark Areas to Keep</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Отметить области для сохранения</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Mark Areas to Remove</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Отметить области для удаления</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Discard All Changes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Отменить все изменения</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Keep Changes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сохранить изменения</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -39875,7 +39875,7 @@ The file can&apos;t be read.</source>
     <message>
         <location filename="../apps/deck/app/deckwindow_outline.cpp" line="-84"/>
         <source>Slides from Outline…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Слайды из структуры…</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -39883,28 +39883,31 @@ The file can&apos;t be read.</source>
         <location line="+10"/>
         <location line="+5"/>
         <source>Slides from Outline</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Слайды из структуры</translation>
     </message>
     <message>
         <location line="-15"/>
         <source>&quot;%1&quot; can&apos;t make slides.
 %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Не удалось создать слайды из «%1».
+%2</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Some of &quot;%1&quot; was left out.
 
 %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Часть «%1» пропущена.
+
+%2</translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>Added %n slide(s) from &quot;%1&quot;.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>Добавлен %n слайд из «%1».</numerusform>
+            <numerusform>Добавлено %n слайда из «%1».</numerusform>
+            <numerusform>Добавлено %n слайдов из «%1».</numerusform>
         </translation>
     </message>
     <message>
@@ -39917,14 +39920,16 @@ The file can&apos;t be read.</source>
     <message>
         <location line="-3"/>
         <source>%1 couldn&apos;t save &quot;%2&quot;.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 не удалось сохранить «%2».</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Saved the titles and text of the slides in &quot;%1&quot;. It does not hold:
 
 %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Заголовки и текст слайдов сохранены в «%1». Не сохранено:
+
+%2</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_save.cpp" line="+16"/>
@@ -39967,7 +39972,7 @@ The file can&apos;t be read.</source>
     <message>
         <location filename="../apps/deck/app/deckwindow_save.cpp" line="-167"/>
         <source>Markdown Outline (*.md)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Структура Markdown (*.md)</translation>
     </message>
     <message>
         <location line="+74"/>
@@ -41896,7 +41901,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+1"/>
         <source>Markdown outline (.md)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Структура Markdown (.md)</translation>
     </message>
     <message>
         <location line="-3"/>
@@ -43377,42 +43382,42 @@ The file can&apos;t be read.</source>
     <message>
         <location filename="../libs/page/app/editor_removebg.cpp" line="+22"/>
         <source>Select a picture to remove its background.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Выберите рисунок, чтобы удалить его фон.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>The background of a drawing made of lines and shapes can&apos;t be removed. Only pictures made of dots, such as photographs, can.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Фон рисунка, состоящего из линий и фигур, удалить нельзя. Можно удалить фон только у рисунков из точек, например фотографий.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>The background of an animated picture can&apos;t be removed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Фон анимированного рисунка удалить нельзя.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>This picture can&apos;t be read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Не удаётся прочитать этот рисунок.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This picture is too large for its background to be removed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Этот рисунок слишком большой, чтобы удалить его фон.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Remove Background</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Удаление фона</translation>
     </message>
     <message>
         <location line="+100"/>
         <source>This picture has all the strokes it can hold, so that one was not added. Discard All Changes starts it again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">В этом рисунке уже максимальное число штрихов, поэтому этот штрих не добавлен. Отменить все изменения, чтобы начать заново.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>That stroke is too long to be kept, so it was not added. Try shorter strokes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Этот штрих слишком длинный, чтобы его сохранить, поэтому он не добавлен. Попробуйте более короткие штрихи.</translation>
     </message>
 </context>
 <context>
@@ -52107,32 +52112,32 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+7"/>
         <source>Remove Background</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Удаление фона</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Select a picture to remove its background.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Выберите рисунок, чтобы удалить его фон.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Mark Areas to Keep</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Отметить области для сохранения</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Mark Areas to Remove</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Отметить области для удаления</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Discard All Changes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Отменить все изменения</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Keep Changes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сохранить изменения</translation>
     </message>
     <message>
         <location line="+18"/>
@@ -56982,7 +56987,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location filename="../libs/page/app/removebgprogress.cpp" line="+26"/>
         <source>Finding the background…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Поиск фона…</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -64080,27 +64085,27 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../apps/write/app/writewindow_insert.cpp" line="-149"/>
         <source>A saved block can be put in the text of the document, not in a header, a footer, or a note.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сохранённый блок можно вставить в текст документа, но не в верхний или нижний колонтитул и не в сноску.</translation>
     </message>
     <message>
         <location line="+25"/>
         <source>Save as a Block</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сохранить как блок</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Save the block anyway?</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Всё равно сохранить блок?</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Saved &quot;%1&quot; to %2.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">«%1» сохранён в %2.</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>No Text Shortcut ends just before the cursor.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Нет текстового сокращения, заканчивающегося непосредственно перед курсором.</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -64236,17 +64241,17 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+7"/>
         <source>Save Selection as a Block…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сохранить выделенное как блок…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Manage Saved Blocks…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Управление сохранёнными блоками…</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Expand Text Shortcut</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Развернуть текстовое сокращение</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -79399,59 +79404,59 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../apps/write/core/blockops.cpp" line="+138"/>
         <source>Select what you want to save first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сначала выберите, что нужно сохранить.</translation>
     </message>
     <message>
         <location line="+2"/>
         <location line="+16"/>
         <source>There is nothing in the selection that can be saved as a block.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">В выделенном фрагменте нет ничего, что можно сохранить как блок.</translation>
     </message>
     <message>
         <location line="-5"/>
         <source>Part of a table, or a table that is too large, is saved as its words, one paragraph for each cell, and not as a table.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Часть таблицы или слишком большая таблица сохраняется как текст: по одному абзацу на каждую ячейку, а не как таблица.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Footnotes and endnotes are left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сноски и концевые сноски пропущены.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Comments are left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Примечания пропущены.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Tracked changes are accepted: the words that were inserted are kept, and the words that were deleted are not.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Исправления приняты: вставленные слова сохраняются, удалённые — нет.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The selection could not be saved as a block.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Не удалось сохранить выделенное как блок.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The selection is too large to save as a block.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Выделенный фрагмент слишком большой, чтобы сохранить его как блок.</translation>
     </message>
     <message>
         <location line="+23"/>
         <location line="+3"/>
         <source>This block cannot be read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Не удаётся прочитать этот блок.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>This block is empty.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Этот блок пуст.</translation>
     </message>
     <message>
         <location line="+22"/>
         <source>The block could not be put in here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Не удалось вставить блок сюда.</translation>
     </message>
 </context>
 <context>
@@ -83692,17 +83697,17 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="-544"/>
         <source>A table with changes tracked in it is copied as its words, not as a table. Accept or reject the changes to copy it as a table.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Таблица с отслеживаемыми исправлениями копируется как текст, а не как таблица. Примите или отклоните исправления, чтобы скопировать её как таблицу.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A table in a selection that holds only a part of a content control is copied as its words, not as a table.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Таблица в выделении, которое содержит только часть элемента управления содержимым, копируется как текст, а не как таблица.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This selection has more tables, or more cells, than a copy keeps as tables, so they are copied as their words.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">В этом выделении больше таблиц или ячеек, чем можно скопировать как таблицы, поэтому они копируются как текст.</translation>
     </message>
     <message>
         <location line="+40"/>

@@ -2521,7 +2521,7 @@ Artikel achterpagina	4</translation>
     <message>
         <location filename="../apps/deck/io/outlineimport.cpp" line="+985"/>
         <source>Code</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Code</translation>
     </message>
 </context>
 <context>
@@ -6540,7 +6540,7 @@ Artikel achterpagina	4</translation>
     <message>
         <location line="+28"/>
         <source>&quot;%1&quot;: the background removal another program made on this picture was replaced by the one made here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">&quot;%1&quot;: de achtergrond verwijderen die een ander programma op deze afbeelding had uitgevoerd, is vervangen door die hier uitgevoerd.</translation>
     </message>
     <message>
         <location line="+168"/>
@@ -7100,7 +7100,7 @@ Artikel achterpagina	4</translation>
     <message>
         <location line="+1"/>
         <source>pictures whose background was removed were saved as the finished pictures, so the background can&apos;t be brought back or marked again in a .pub file</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Afbeeldingen waarvan de achtergrond was verwijderd, zijn opgeslagen als de voltooide afbeeldingen. De achtergrond kan daardoor niet meer worden hersteld of opnieuw aangeduid in een .pub-bestand.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -9647,12 +9647,12 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location line="+56"/>
         <source>A picture whose background was removed is kept as the finished picture, and its background can&apos;t be brought back or marked again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een afbeelding waarvan de achtergrond is verwijderd, wordt bewaard als de voltooide afbeelding, en de achtergrond kan niet meer worden hersteld of opnieuw aangeduid.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A picture that carries another program&apos;s own background removal is kept as the finished picture, and that removal can&apos;t be edited again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een afbeelding met de achtergrondverwijdering van een ander programma wordt bewaard als de voltooide afbeelding, en die verwijdering kan niet meer worden bewerkt.</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -9958,101 +9958,101 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location filename="../apps/deck/io/outlineimport.cpp" line="-222"/>
         <source>Only the first %1 slides were made. The rest of the file was left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Alleen de eerste %1 dia&apos;s zijn gemaakt. De rest van het bestand is weggelaten.</translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n line(s) of text were cut or left out, because a line, a slide, or the file had more than it can hold.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n regel tekst is ingekort of weggelaten, omdat een regel, een dia of het bestand meer bevatte dan het kan opslaan.</numerusform>
+            <numerusform>%n regels tekst zijn ingekort of weggelaten, omdat een regel, een dia of het bestand meer bevatte dan het kan opslaan.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n line(s) were indented deeper than a slide&apos;s text goes, and were put at its deepest level.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n regel was dieper ingesprongen dan de tekst van een dia gaat, en is op het diepste niveau geplaatst.</numerusform>
+            <numerusform>%n regels waren dieper ingesprongen dan de tekst van een dia gaat, en zijn op het diepste niveau geplaatst.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n picture(s) were left out. A picture has to be a PNG, JPEG, GIF, BMP, WebP, or TIFF file in the outline&apos;s own folder, or a folder in it.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n afbeelding is weggelaten. Een afbeelding moet een PNG-, JPEG-, GIF-, BMP-, WebP- of TIFF-bestand zijn in de map van het overzicht of in een submap daarvan.</numerusform>
+            <numerusform>%n afbeeldingen zijn weggelaten. Een afbeelding moet een PNG-, JPEG-, GIF-, BMP-, WebP- of TIFF-bestand zijn in de map van het overzicht of in een submap daarvan.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n picture(s) or other object(s) in the file were left out.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n afbeelding of ander object in het bestand is weggelaten.</numerusform>
+            <numerusform>%n afbeeldingen of andere objecten in het bestand zijn weggelaten.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n line(s) of code past the limit for a slide were left out.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n regel code boven de limiet voor een dia is weggelaten.</numerusform>
+            <numerusform>%n regels code boven de limiet voor een dia zijn weggelaten.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The text of tables in the file became lines of text.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De tekst van tabellen in het bestand is omgezet in regels tekst.</translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n link(s) to other kinds of address were kept as plain text.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n link naar een ander soort adres is als gewone tekst bewaard.</numerusform>
+            <numerusform>%n links naar andere soorten adressen zijn als gewone tekst bewaard.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+19"/>
         <source>The file is larger than 10 MB, the most an outline can be.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het bestand is groter dan 10 MB, het maximum voor een overzicht.</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>The file is not text.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het bestand is geen tekst.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>The file is not text in UTF-8 or UTF-16.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het bestand is geen tekst in UTF-8 of UTF-16.</translation>
     </message>
     <message>
         <location line="+18"/>
         <source>The file can&apos;t be read as rich text.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het bestand kan niet als opgemaakte tekst worden gelezen.</translation>
     </message>
     <message>
         <location line="+2"/>
         <location line="+6"/>
         <source>The file has no headings to make slides from. Give the slides&apos; titles a heading style.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het bestand heeft geen koppen waaruit dia&apos;s kunnen worden gemaakt. Geef de titels van de dia&apos;s een kopstijl.</translation>
     </message>
     <message>
         <location line="-2"/>
         <source>The file can&apos;t be read as a document.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het bestand kan niet als document worden gelezen.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The file is not a valid %1 file.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het bestand is geen geldig %1-bestand.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>The file has no text to make slides from.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het bestand bevat geen tekst om dia&apos;s van te maken.</translation>
     </message>
     <message>
         <location line="+16"/>
@@ -10062,27 +10062,27 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location line="+6"/>
         <source>The file is too large to be an outline.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het bestand is te groot voor een overzicht.</translation>
     </message>
     <message>
         <location line="+286"/>
         <source>pictures, shapes, tables, charts, and other objects on the slides</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">afbeeldingen, vormen, tabellen, grafieken en andere objecten op de dia&apos;s</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>the text of text boxes other than the title and the first body place</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">de tekst van tekstvakken behalve de titel en de eerste tijdelijke aanduiding voor tekst</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>speaker notes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">sprekersnotities</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>the look of the slides (layouts, themes, colors, fonts, and backgrounds), animations, and transitions</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">de vormgeving van de dia&apos;s (indelingen, thema&apos;s, kleuren, lettertypen en achtergronden), animaties en overgangen</translation>
     </message>
 </context>
 <context>
@@ -13678,7 +13678,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <location line="-25"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="-8"/>
         <source>Background Removal</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Achtergrond verwijderen</translation>
     </message>
     <message>
         <location line="+26"/>
@@ -14125,7 +14125,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <location line="+1"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+1"/>
         <source>Refine</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Verfijnen</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -15158,7 +15158,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location line="+3"/>
         <source>Saved Blocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Opgeslagen blokken</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -22672,91 +22672,91 @@ Desktop publishing</translation>
         <location filename="../libs/base/io/blocklibrary.cpp" line="+104"/>
         <location line="+436"/>
         <source>This is not a library of saved blocks.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dit is geen bibliotheek met opgeslagen blokken.</translation>
     </message>
     <message>
         <location line="-407"/>
         <source>The list of saved blocks is too large to read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De lijst met opgeslagen blokken is te groot om te lezen.</translation>
     </message>
     <message>
         <location line="+60"/>
         <source>The library of saved blocks is too large to read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De bibliotheek met opgeslagen blokken is te groot om te lezen.</translation>
     </message>
     <message>
         <location line="+4"/>
         <location line="+6"/>
         <source>The library of saved blocks could not be read: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De bibliotheek met opgeslagen blokken kon niet worden gelezen: %1</translation>
     </message>
     <message>
         <location line="+12"/>
         <location line="+260"/>
         <source>There are as many saved blocks as the library holds. Delete some to save this one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Er zijn evenveel opgeslagen blokken als de bibliotheek kan bevatten. Verwijder er een paar om dit blok op te slaan.</translation>
     </message>
     <message>
         <location line="-239"/>
         <source>The names and descriptions of the saved blocks have used up the room kept for them. Delete some blocks to save this one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De namen en beschrijvingen van de opgeslagen blokken nemen de ruimte op die ervoor is gereserveerd. Verwijder enkele blokken om dit blok op te slaan.</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>There is no room on the disk to save the blocks.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Er is geen ruimte meer op de schijf om de blokken op te slaan.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The library of saved blocks could not be saved: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De bibliotheek met opgeslagen blokken kon niet worden opgeslagen: %1</translation>
     </message>
     <message>
         <location line="+140"/>
         <source>The saved blocks cannot be changed: this computer does not let the program write in their folder.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De opgeslagen blokken kunnen niet worden gewijzigd: deze computer staat het programma niet toe in hun map te schrijven.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Another window is changing the saved blocks. Try again in a moment.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een ander venster wijzigt de opgeslagen blokken. Probeer het over even opnieuw.</translation>
     </message>
     <message>
         <location line="+18"/>
         <source>The saved blocks file is damaged, and the folder already holds earlier damaged copies of it. Remove some of the files that end in .damaged from the folder %1 to go on.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het bestand met opgeslagen blokken is beschadigd, en de map bevat al eerdere beschadigde kopieën ervan. Verwijder enkele bestanden die eindigen op .damaged uit de map %1 om door te gaan.</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>These saved blocks were made by a newer version of JeffOffice. Update the program to change them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze opgeslagen blokken zijn gemaakt door een nieuwere versie van JeffOffice. Werk het programma bij om ze te wijzigen.</translation>
     </message>
     <message>
         <location line="+16"/>
         <location line="+45"/>
         <source>A saved block needs a name.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een opgeslagen blok heeft een naam nodig.</translation>
     </message>
     <message>
         <location line="-41"/>
         <source>This is too large to save as a block.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dit is te groot om als blok op te slaan.</translation>
     </message>
     <message>
         <location line="+16"/>
         <location line="+33"/>
         <source>A block with this name is already saved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Er is al een opgeslagen blok met deze naam.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>This block is no longer in the library.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dit blok staat niet meer in de bibliotheek.</translation>
     </message>
     <message>
         <location line="+55"/>
         <source>There is no room in the library for the rest of these blocks.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Er is geen ruimte meer in de bibliotheek voor de rest van deze blokken.</translation>
     </message>
 </context>
 <context>
@@ -22764,44 +22764,44 @@ Desktop publishing</translation>
     <message>
         <location filename="../libs/shell/app/blockgallery.cpp" line="+30"/>
         <source>Text Shortcuts</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tekstsneltoetsen</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Saved Blocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Opgeslagen blokken</translation>
     </message>
     <message>
         <location line="+42"/>
         <source>Search by name</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Zoeken op naam</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Search saved blocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Opgeslagen blokken zoeken</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>Saved blocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Opgeslagen blokken</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Nothing is saved here yet. Select some text, then choose Save Selection as a Block.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hier is nog niets opgeslagen. Selecteer tekst en kies Selectie opslaan als blok.</translation>
     </message>
     <message>
         <location line="+104"/>
         <source>Block Properties</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Eigenschappen van blok</translation>
     </message>
     <message>
         <location line="+0"/>
         <location line="+59"/>
         <location line="+4"/>
         <source>Save as a Block</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Opslaan als blok</translation>
     </message>
     <message>
         <location line="-58"/>
@@ -22814,7 +22814,7 @@ Desktop publishing</translation>
         <location line="+5"/>
         <location line="+61"/>
         <source>Gallery</source>
-        <translation type="unfinished">Galerie</translation>
+        <translation type="unfinished">Galerij</translation>
     </message>
     <message>
         <location line="-58"/>
@@ -22832,22 +22832,22 @@ Desktop publishing</translation>
         <location line="+3"/>
         <location line="+5"/>
         <source>Put it in</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Plaatsen in</translation>
     </message>
     <message>
         <location line="-4"/>
         <source>As it is, at the cursor</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Zoals het is, bij de cursor</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>In a paragraph of its own</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">In een eigen alinea</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>On a page of its own</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Op een eigen pagina</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -22857,17 +22857,17 @@ Desktop publishing</translation>
     <message>
         <location line="+26"/>
         <source>A block with this name is already saved. Replace it?</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Er is al een opgeslagen blok met deze naam. Vervangen?</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>Manage Saved Blocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Opgeslagen blokken beheren</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>Edit Properties…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Eigenschappen bewerken…</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -22877,7 +22877,7 @@ Desktop publishing</translation>
     <message>
         <location line="+1"/>
         <source>Undo Delete</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Verwijderen ongedaan maken</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -22887,53 +22887,53 @@ Desktop publishing</translation>
     <message>
         <location line="+1"/>
         <source>Import…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Importeren…</translation>
     </message>
     <message>
         <location line="+47"/>
         <source>Deleted &quot;%1&quot;. Undo Delete puts it back until you close this box.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">&quot;%1&quot; verwijderd. Verwijderen ongedaan maken herstelt het tot u dit venster sluit.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>Export Saved Blocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Opgeslagen blokken exporteren</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Saved Blocks.jblocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Opgeslagen blokken.jblocks</translation>
     </message>
     <message>
         <location line="+0"/>
         <location line="+6"/>
         <source>Saved blocks (*.jblocks)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Opgeslagen blokken (*.jblocks)</translation>
     </message>
     <message>
         <location line="-3"/>
         <source>The saved blocks were exported.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De opgeslagen blokken zijn geëxporteerd.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Import Saved Blocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Opgeslagen blokken importeren</translation>
     </message>
     <message numerus="yes">
         <location line="+6"/>
         <source>%n block was added.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n blok is toegevoegd.</numerusform>
+            <numerusform>%n blokken zijn toegevoegd.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+0"/>
         <source>%n block was left out because its name is already saved.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n blok is overgeslagen omdat de naam al is opgeslagen.</numerusform>
+            <numerusform>%n blokken zijn overgeslagen omdat hun naam al is opgeslagen.</numerusform>
         </translation>
     </message>
 </context>
@@ -38419,7 +38419,7 @@ Het bestand kan niet worden gelezen.</translation>
         <location filename="../apps/deck/app/deckwindow_file.cpp" line="+0"/>
         <location filename="../apps/deck/app/deckwindow_outline.cpp" line="+0"/>
         <source>Outlines (*.txt *.text *.md *.markdown *.rtf *.docx)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Overzichten (*.txt *.text *.md *.markdown *.rtf *.docx)</translation>
     </message>
     <message>
         <location line="+121"/>
@@ -39258,32 +39258,32 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+7"/>
         <source>Remove Background</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Achtergrond verwijderen</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Select a picture to remove its background.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Selecteer een afbeelding om de achtergrond te verwijderen.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Mark Areas to Keep</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gebieden om te behouden markeren</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Mark Areas to Remove</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gebieden om te verwijderen markeren</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Discard All Changes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Alle wijzigingen weggooien</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Keep Changes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Wijzigingen behouden</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -39814,7 +39814,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location filename="../apps/deck/app/deckwindow_outline.cpp" line="-84"/>
         <source>Slides from Outline…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dia&apos;s uit overzicht…</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -39822,27 +39822,30 @@ Het bestand kan niet worden gelezen.</translation>
         <location line="+10"/>
         <location line="+5"/>
         <source>Slides from Outline</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dia&apos;s uit overzicht</translation>
     </message>
     <message>
         <location line="-15"/>
         <source>&quot;%1&quot; can&apos;t make slides.
 %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">&quot;%1&quot; kan geen dia&apos;s maken.
+%2</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Some of &quot;%1&quot; was left out.
 
 %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een deel van &quot;%1&quot; is overgeslagen.
+
+%2</translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>Added %n slide(s) from &quot;%1&quot;.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n dia uit &quot;%1&quot; is toegevoegd.</numerusform>
+            <numerusform>%n dia&apos;s uit &quot;%1&quot; zijn toegevoegd.</numerusform>
         </translation>
     </message>
     <message>
@@ -39855,14 +39858,16 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="-3"/>
         <source>%1 couldn&apos;t save &quot;%2&quot;.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 kon &quot;%2&quot; niet opslaan.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Saved the titles and text of the slides in &quot;%1&quot;. It does not hold:
 
 %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De titels en tekst van de dia&apos;s in &quot;%1&quot; zijn opgeslagen. De volgende onderdelen zijn niet opgeslagen:
+
+%2</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_save.cpp" line="+16"/>
@@ -39905,7 +39910,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location filename="../apps/deck/app/deckwindow_save.cpp" line="-167"/>
         <source>Markdown Outline (*.md)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Markdown-overzicht (*.md)</translation>
     </message>
     <message>
         <location line="+74"/>
@@ -41839,7 +41844,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+1"/>
         <source>Markdown outline (.md)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Markdown-overzicht (.md)</translation>
     </message>
     <message>
         <location line="-3"/>
@@ -43320,42 +43325,42 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location filename="../libs/page/app/editor_removebg.cpp" line="+22"/>
         <source>Select a picture to remove its background.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Selecteer een afbeelding om de achtergrond te verwijderen.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>The background of a drawing made of lines and shapes can&apos;t be removed. Only pictures made of dots, such as photographs, can.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De achtergrond van een tekening die uit lijnen en vormen bestaat, kan niet worden verwijderd. Alleen afbeeldingen die uit punten bestaan, zoals foto&apos;s, kunnen dat.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>The background of an animated picture can&apos;t be removed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De achtergrond van een geanimeerde afbeelding kan niet worden verwijderd.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>This picture can&apos;t be read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze afbeelding kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This picture is too large for its background to be removed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze afbeelding is te groot om de achtergrond te verwijderen.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Remove Background</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Achtergrond verwijderen</translation>
     </message>
     <message>
         <location line="+100"/>
         <source>This picture has all the strokes it can hold, so that one was not added. Discard All Changes starts it again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze afbeelding heeft al het maximale aantal streken, dus die streek is niet toegevoegd. Met Alle wijzigingen weggooien begint het opnieuw.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>That stroke is too long to be kept, so it was not added. Try shorter strokes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Die streek is te lang om te worden behouden, dus is hij niet toegevoegd. Probeer kortere streken.</translation>
     </message>
 </context>
 <context>
@@ -51949,32 +51954,32 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+7"/>
         <source>Remove Background</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Achtergrond verwijderen</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Select a picture to remove its background.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Selecteer een afbeelding om de achtergrond te verwijderen.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Mark Areas to Keep</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gebieden om te behouden markeren</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Mark Areas to Remove</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gebieden om te verwijderen markeren</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Discard All Changes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Alle wijzigingen weggooien</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Keep Changes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Wijzigingen behouden</translation>
     </message>
     <message>
         <location line="+18"/>
@@ -56915,7 +56920,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location filename="../libs/page/app/removebgprogress.cpp" line="+26"/>
         <source>Finding the background…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De achtergrond zoeken…</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -66828,27 +66833,27 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location filename="../apps/write/app/writewindow_insert.cpp" line="-119"/>
         <source>A saved block can be put in the text of the document, not in a header, a footer, or a note.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een opgeslagen blok kan in de tekst van het document worden geplaatst, niet in een koptekst, voettekst of noot.</translation>
     </message>
     <message>
         <location line="+25"/>
         <source>Save as a Block</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Opslaan als blok</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Save the block anyway?</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het blok toch opslaan?</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Saved &quot;%1&quot; to %2.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">&quot;%1&quot; opgeslagen naar %2.</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>No Text Shortcut ends just before the cursor.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Er eindigt geen tekstsnelkoppeling direct voor de cursor.</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -66984,17 +66989,17 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+7"/>
         <source>Save Selection as a Block…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Selectie opslaan als blok…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Manage Saved Blocks…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Opgeslagen blokken beheren…</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Expand Text Shortcut</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tekstsnelkoppeling uitvouwen</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -79294,59 +79299,59 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location filename="../apps/write/core/blockops.cpp" line="+138"/>
         <source>Select what you want to save first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Selecteer eerst wat u wilt opslaan.</translation>
     </message>
     <message>
         <location line="+2"/>
         <location line="+16"/>
         <source>There is nothing in the selection that can be saved as a block.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Er staat niets in de selectie dat als blok kan worden opgeslagen.</translation>
     </message>
     <message>
         <location line="-5"/>
         <source>Part of a table, or a table that is too large, is saved as its words, one paragraph for each cell, and not as a table.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een deel van een tabel, of een tabel die te groot is, wordt opgeslagen als de woorden, met één alinea per cel, en niet als tabel.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Footnotes and endnotes are left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Voetnoten en eindnoten worden overgeslagen.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Comments are left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Opmerkingen worden overgeslagen.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Tracked changes are accepted: the words that were inserted are kept, and the words that were deleted are not.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bijgehouden wijzigingen worden geaccepteerd: de ingevoegde woorden blijven behouden en de verwijderde woorden niet.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The selection could not be saved as a block.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De selectie kon niet als blok worden opgeslagen.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The selection is too large to save as a block.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De selectie is te groot om als blok op te slaan.</translation>
     </message>
     <message>
         <location line="+23"/>
         <location line="+3"/>
         <source>This block cannot be read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dit blok kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>This block is empty.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dit blok is leeg.</translation>
     </message>
     <message>
         <location line="+22"/>
         <source>The block could not be put in here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het blok kon hier niet worden geplaatst.</translation>
     </message>
 </context>
 <context>
@@ -83586,17 +83591,17 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="-544"/>
         <source>A table with changes tracked in it is copied as its words, not as a table. Accept or reject the changes to copy it as a table.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een tabel met bijgehouden wijzigingen wordt gekopieerd als de woorden, niet als tabel. Accepteer of weiger de wijzigingen om de tabel als tabel te kopiëren.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A table in a selection that holds only a part of a content control is copied as its words, not as a table.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een tabel in een selectie die slechts een deel van een inhoudsbeheerelement bevat, wordt gekopieerd als de woorden, niet als tabel.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This selection has more tables, or more cells, than a copy keeps as tables, so they are copied as their words.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze selectie bevat meer tabellen, of meer cellen, dan een kopie als tabellen behoudt, dus worden ze als hun woorden gekopieerd.</translation>
     </message>
     <message>
         <location line="+40"/>

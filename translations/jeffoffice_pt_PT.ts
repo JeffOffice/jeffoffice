@@ -2521,7 +2521,7 @@ Artigo da contracapa	4</translation>
     <message>
         <location filename="../apps/deck/io/outlineimport.cpp" line="+985"/>
         <source>Code</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Código</translation>
     </message>
 </context>
 <context>
@@ -6540,7 +6540,7 @@ Artigo da contracapa	4</translation>
     <message>
         <location line="+28"/>
         <source>&quot;%1&quot;: the background removal another program made on this picture was replaced by the one made here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">&quot;%1&quot;: a remoção de fundo que outro programa fez nesta imagem foi substituída pela feita aqui.</translation>
     </message>
     <message>
         <location line="+168"/>
@@ -7100,7 +7100,7 @@ Artigo da contracapa	4</translation>
     <message>
         <location line="+1"/>
         <source>pictures whose background was removed were saved as the finished pictures, so the background can&apos;t be brought back or marked again in a .pub file</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">As imagens cujo fundo foi removido foram guardadas como imagens finais, pelo que o fundo não pode ser recuperado nem voltar a ser marcado num ficheiro .pub</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -9647,12 +9647,12 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
     <message>
         <location line="+56"/>
         <source>A picture whose background was removed is kept as the finished picture, and its background can&apos;t be brought back or marked again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Uma imagem cujo fundo foi removido é mantida como imagem final, e o seu fundo não pode ser recuperado nem voltar a ser marcado.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A picture that carries another program&apos;s own background removal is kept as the finished picture, and that removal can&apos;t be edited again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Uma imagem que tem a remoção de fundo de outro programa é mantida como imagem final, e essa remoção não pode voltar a ser editada.</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -9958,101 +9958,101 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
     <message>
         <location filename="../apps/deck/io/outlineimport.cpp" line="-222"/>
         <source>Only the first %1 slides were made. The rest of the file was left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Só foram criados os primeiros %1 diapositivos. O restante do ficheiro foi deixado de fora.</translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n line(s) of text were cut or left out, because a line, a slide, or the file had more than it can hold.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n linha de texto foi cortada ou deixada de fora, porque uma linha, um diapositivo ou o ficheiro continha mais do que o permitido.</numerusform>
+            <numerusform>%n linhas de texto foram cortadas ou deixadas de fora, porque uma linha, um diapositivo ou o ficheiro continha mais do que o permitido.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n line(s) were indented deeper than a slide&apos;s text goes, and were put at its deepest level.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n linha tinha um avanço maior do que o texto de um diapositivo permite e foi colocada no nível mais profundo.</numerusform>
+            <numerusform>%n linhas tinham um avanço maior do que o texto de um diapositivo permite e foram colocadas no nível mais profundo.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n picture(s) were left out. A picture has to be a PNG, JPEG, GIF, BMP, WebP, or TIFF file in the outline&apos;s own folder, or a folder in it.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n imagem foi deixada de fora. Uma imagem tem de ser um ficheiro PNG, JPEG, GIF, BMP, WebP ou TIFF na pasta do próprio ficheiro de estrutura de tópicos, ou numa pasta dentro dela.</numerusform>
+            <numerusform>%n imagens foram deixadas de fora. Uma imagem tem de ser um ficheiro PNG, JPEG, GIF, BMP, WebP ou TIFF na pasta do próprio ficheiro de estrutura de tópicos, ou numa pasta dentro dela.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n picture(s) or other object(s) in the file were left out.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n imagem ou outro objeto no ficheiro foi deixado de fora.</numerusform>
+            <numerusform>%n imagens ou outros objetos no ficheiro foram deixados de fora.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n line(s) of code past the limit for a slide were left out.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n linha de código para além do limite de um diapositivo foi deixada de fora.</numerusform>
+            <numerusform>%n linhas de código para além do limite de um diapositivo foram deixadas de fora.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The text of tables in the file became lines of text.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O texto das tabelas do ficheiro passou a linhas de texto.</translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n link(s) to other kinds of address were kept as plain text.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n ligação para outros tipos de endereço foi mantida como texto simples.</numerusform>
+            <numerusform>%n ligações para outros tipos de endereço foram mantidas como texto simples.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+19"/>
         <source>The file is larger than 10 MB, the most an outline can be.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O ficheiro é maior do que 10 MB, o máximo para uma estrutura de tópicos.</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>The file is not text.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O ficheiro não é texto.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>The file is not text in UTF-8 or UTF-16.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O ficheiro não é texto em UTF-8 ou UTF-16.</translation>
     </message>
     <message>
         <location line="+18"/>
         <source>The file can&apos;t be read as rich text.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O ficheiro não pode ser lido como texto formatado.</translation>
     </message>
     <message>
         <location line="+2"/>
         <location line="+6"/>
         <source>The file has no headings to make slides from. Give the slides&apos; titles a heading style.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O ficheiro não tem títulos para criar diapositivos. Atribua aos títulos dos diapositivos um estilo de título.</translation>
     </message>
     <message>
         <location line="-2"/>
         <source>The file can&apos;t be read as a document.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O ficheiro não pode ser lido como documento.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The file is not a valid %1 file.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O ficheiro não é um ficheiro %1 válido.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>The file has no text to make slides from.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O ficheiro não tem texto para criar diapositivos.</translation>
     </message>
     <message>
         <location line="+16"/>
@@ -10062,27 +10062,27 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
     <message>
         <location line="+6"/>
         <source>The file is too large to be an outline.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O ficheiro é demasiado grande para ser uma estrutura de tópicos.</translation>
     </message>
     <message>
         <location line="+286"/>
         <source>pictures, shapes, tables, charts, and other objects on the slides</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">imagens, formas, tabelas, gráficos e outros objetos nos diapositivos</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>the text of text boxes other than the title and the first body place</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">o texto de caixas de texto que não sejam o título nem o primeiro marcador de posição de corpo</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>speaker notes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">notas do orador</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>the look of the slides (layouts, themes, colors, fonts, and backgrounds), animations, and transitions</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">o aspeto dos diapositivos (esquemas, temas, cores, tipos de letra e fundos), animações e transições</translation>
     </message>
 </context>
 <context>
@@ -13678,7 +13678,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
         <location line="-25"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="-8"/>
         <source>Background Removal</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Remoção de Fundo</translation>
     </message>
     <message>
         <location line="+26"/>
@@ -14125,7 +14125,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
         <location line="+1"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+1"/>
         <source>Refine</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Refinar</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -15158,7 +15158,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
     <message>
         <location line="+3"/>
         <source>Saved Blocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Blocos Guardados</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -22672,91 +22672,91 @@ Paginação eletrónica</translation>
         <location filename="../libs/base/io/blocklibrary.cpp" line="+104"/>
         <location line="+436"/>
         <source>This is not a library of saved blocks.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Isto não é uma biblioteca de blocos guardados.</translation>
     </message>
     <message>
         <location line="-407"/>
         <source>The list of saved blocks is too large to read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">A lista de blocos guardados é demasiado grande para ser lida.</translation>
     </message>
     <message>
         <location line="+60"/>
         <source>The library of saved blocks is too large to read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">A biblioteca de blocos guardados é demasiado grande para ser lida.</translation>
     </message>
     <message>
         <location line="+4"/>
         <location line="+6"/>
         <source>The library of saved blocks could not be read: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">A biblioteca de blocos guardados não pôde ser lida: %1</translation>
     </message>
     <message>
         <location line="+12"/>
         <location line="+260"/>
         <source>There are as many saved blocks as the library holds. Delete some to save this one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Há tantos blocos guardados quantos a biblioteca comporta. Elimine alguns para guardar este.</translation>
     </message>
     <message>
         <location line="-239"/>
         <source>The names and descriptions of the saved blocks have used up the room kept for them. Delete some blocks to save this one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Os nomes e descrições dos blocos guardados já ocuparam o espaço reservado para eles. Elimine alguns blocos para guardar este.</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>There is no room on the disk to save the blocks.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Não há espaço no disco para guardar os blocos.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The library of saved blocks could not be saved: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">A biblioteca de blocos guardados não pôde ser guardada: %1</translation>
     </message>
     <message>
         <location line="+140"/>
         <source>The saved blocks cannot be changed: this computer does not let the program write in their folder.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Os blocos guardados não podem ser alterados: este computador não permite ao programa escrever na respetiva pasta.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Another window is changing the saved blocks. Try again in a moment.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Outra janela está a alterar os blocos guardados. Tente novamente dentro de momentos.</translation>
     </message>
     <message>
         <location line="+18"/>
         <source>The saved blocks file is damaged, and the folder already holds earlier damaged copies of it. Remove some of the files that end in .damaged from the folder %1 to go on.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O ficheiro de blocos guardados está danificado, e a pasta já contém cópias danificadas anteriores. Remova alguns dos ficheiros que terminam em .damaged da pasta %1 para continuar.</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>These saved blocks were made by a newer version of JeffOffice. Update the program to change them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Estes blocos guardados foram criados por uma versão mais recente do JeffOffice. Atualize o programa para os alterar.</translation>
     </message>
     <message>
         <location line="+16"/>
         <location line="+45"/>
         <source>A saved block needs a name.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Um bloco guardado precisa de um nome.</translation>
     </message>
     <message>
         <location line="-41"/>
         <source>This is too large to save as a block.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Isto é demasiado grande para guardar como bloco.</translation>
     </message>
     <message>
         <location line="+16"/>
         <location line="+33"/>
         <source>A block with this name is already saved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Já está guardado um bloco com este nome.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>This block is no longer in the library.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Este bloco já não está na biblioteca.</translation>
     </message>
     <message>
         <location line="+55"/>
         <source>There is no room in the library for the rest of these blocks.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Não há espaço na biblioteca para o resto destes blocos.</translation>
     </message>
 </context>
 <context>
@@ -22764,44 +22764,44 @@ Paginação eletrónica</translation>
     <message>
         <location filename="../libs/shell/app/blockgallery.cpp" line="+30"/>
         <source>Text Shortcuts</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Atalhos de Texto</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Saved Blocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Blocos Guardados</translation>
     </message>
     <message>
         <location line="+42"/>
         <source>Search by name</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pesquisar por nome</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Search saved blocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pesquisar blocos guardados</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>Saved blocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Blocos guardados</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Nothing is saved here yet. Select some text, then choose Save Selection as a Block.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ainda não há nada guardado aqui. Selecione algum texto e, em seguida, escolha Guardar Seleção como Bloco.</translation>
     </message>
     <message>
         <location line="+104"/>
         <source>Block Properties</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Propriedades do Bloco</translation>
     </message>
     <message>
         <location line="+0"/>
         <location line="+59"/>
         <location line="+4"/>
         <source>Save as a Block</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Guardar como Bloco</translation>
     </message>
     <message>
         <location line="-58"/>
@@ -22832,22 +22832,22 @@ Paginação eletrónica</translation>
         <location line="+3"/>
         <location line="+5"/>
         <source>Put it in</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Inserir em</translation>
     </message>
     <message>
         <location line="-4"/>
         <source>As it is, at the cursor</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tal como está, no cursor</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>In a paragraph of its own</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Num parágrafo próprio</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>On a page of its own</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Numa página própria</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -22857,17 +22857,17 @@ Paginação eletrónica</translation>
     <message>
         <location line="+26"/>
         <source>A block with this name is already saved. Replace it?</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Já está guardado um bloco com este nome. Substituí-lo?</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>Manage Saved Blocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gerir Blocos Guardados</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>Edit Properties…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Editar Propriedades…</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -22877,7 +22877,7 @@ Paginação eletrónica</translation>
     <message>
         <location line="+1"/>
         <source>Undo Delete</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Anular Eliminação</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -22887,53 +22887,53 @@ Paginação eletrónica</translation>
     <message>
         <location line="+1"/>
         <source>Import…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Importar…</translation>
     </message>
     <message>
         <location line="+47"/>
         <source>Deleted &quot;%1&quot;. Undo Delete puts it back until you close this box.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Eliminado &quot;%1&quot;. Anular Eliminação repõe-no até fechar esta caixa.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>Export Saved Blocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Exportar Blocos Guardados</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Saved Blocks.jblocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Blocos Guardados.jblocks</translation>
     </message>
     <message>
         <location line="+0"/>
         <location line="+6"/>
         <source>Saved blocks (*.jblocks)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Blocos guardados (*.jblocks)</translation>
     </message>
     <message>
         <location line="-3"/>
         <source>The saved blocks were exported.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Os blocos guardados foram exportados.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Import Saved Blocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Importar Blocos Guardados</translation>
     </message>
     <message numerus="yes">
         <location line="+6"/>
         <source>%n block was added.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n bloco foi adicionado.</numerusform>
+            <numerusform>%n blocos foram adicionados.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+0"/>
         <source>%n block was left out because its name is already saved.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n bloco foi omitido porque o seu nome já está guardado.</numerusform>
+            <numerusform>%n blocos foram omitidos porque o seu nome já está guardado.</numerusform>
         </translation>
     </message>
 </context>
@@ -38419,7 +38419,7 @@ Não é possível ler o ficheiro.</translation>
         <location filename="../apps/deck/app/deckwindow_file.cpp" line="+0"/>
         <location filename="../apps/deck/app/deckwindow_outline.cpp" line="+0"/>
         <source>Outlines (*.txt *.text *.md *.markdown *.rtf *.docx)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Estruturas de tópicos (*.txt *.text *.md *.markdown *.rtf *.docx)</translation>
     </message>
     <message>
         <location line="+121"/>
@@ -39258,32 +39258,32 @@ Não é possível ler o ficheiro.</translation>
     <message>
         <location line="+7"/>
         <source>Remove Background</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Remover Fundo</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Select a picture to remove its background.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Selecione uma imagem para remover o fundo.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Mark Areas to Keep</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Marcar Áreas a Manter</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Mark Areas to Remove</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Marcar Áreas a Remover</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Discard All Changes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Descartar Todas as Alterações</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Keep Changes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Manter Alterações</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -39814,7 +39814,7 @@ Não é possível ler o ficheiro.</translation>
     <message>
         <location filename="../apps/deck/app/deckwindow_outline.cpp" line="-84"/>
         <source>Slides from Outline…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Diapositivos a partir de Estrutura de Tópicos…</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -39822,27 +39822,30 @@ Não é possível ler o ficheiro.</translation>
         <location line="+10"/>
         <location line="+5"/>
         <source>Slides from Outline</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Diapositivos a partir de Estrutura de Tópicos</translation>
     </message>
     <message>
         <location line="-15"/>
         <source>&quot;%1&quot; can&apos;t make slides.
 %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">&quot;%1&quot; não consegue criar diapositivos.
+%2</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Some of &quot;%1&quot; was left out.
 
 %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Parte de &quot;%1&quot; foi omitida.
+
+%2</translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>Added %n slide(s) from &quot;%1&quot;.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>Foi adicionado %n diapositivo de &quot;%1&quot;.</numerusform>
+            <numerusform>Foram adicionados %n diapositivos de &quot;%1&quot;.</numerusform>
         </translation>
     </message>
     <message>
@@ -39855,14 +39858,16 @@ Não é possível ler o ficheiro.</translation>
     <message>
         <location line="-3"/>
         <source>%1 couldn&apos;t save &quot;%2&quot;.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 não conseguiu guardar &quot;%2&quot;.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Saved the titles and text of the slides in &quot;%1&quot;. It does not hold:
 
 %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Os títulos e o texto dos diapositivos em &quot;%1&quot; foram guardados. Não contém:
+
+%2</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_save.cpp" line="+16"/>
@@ -39905,7 +39910,7 @@ Não é possível ler o ficheiro.</translation>
     <message>
         <location filename="../apps/deck/app/deckwindow_save.cpp" line="-167"/>
         <source>Markdown Outline (*.md)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Estrutura de Tópicos Markdown (*.md)</translation>
     </message>
     <message>
         <location line="+74"/>
@@ -41839,7 +41844,7 @@ Não é possível ler o ficheiro.</translation>
     <message>
         <location line="+1"/>
         <source>Markdown outline (.md)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Estrutura de tópicos Markdown (.md)</translation>
     </message>
     <message>
         <location line="-3"/>
@@ -43320,42 +43325,42 @@ Não é possível ler o ficheiro.</translation>
     <message>
         <location filename="../libs/page/app/editor_removebg.cpp" line="+22"/>
         <source>Select a picture to remove its background.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Selecione uma imagem para remover o fundo.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>The background of a drawing made of lines and shapes can&apos;t be removed. Only pictures made of dots, such as photographs, can.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Não é possível remover o fundo de um desenho feito de linhas e formas. Só podem ser removidos fundos de imagens feitas de pontos, como fotografias.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>The background of an animated picture can&apos;t be removed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Não é possível remover o fundo de uma imagem animada.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>This picture can&apos;t be read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Não é possível ler esta imagem.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This picture is too large for its background to be removed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Esta imagem é demasiado grande para remover o fundo.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Remove Background</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Remover Fundo</translation>
     </message>
     <message>
         <location line="+100"/>
         <source>This picture has all the strokes it can hold, so that one was not added. Discard All Changes starts it again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Esta imagem já tem todos os traços que pode conter, pelo que este não foi adicionado. Descartar Todas as Alterações recomeça a operação.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>That stroke is too long to be kept, so it was not added. Try shorter strokes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Este traço é demasiado longo para ser mantido, pelo que não foi adicionado. Experimente traços mais curtos.</translation>
     </message>
 </context>
 <context>
@@ -51949,32 +51954,32 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
     <message>
         <location line="+7"/>
         <source>Remove Background</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Remover Fundo</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Select a picture to remove its background.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Selecione uma imagem para remover o fundo.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Mark Areas to Keep</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Marcar Áreas a Manter</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Mark Areas to Remove</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Marcar Áreas a Remover</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Discard All Changes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Descartar Todas as Alterações</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Keep Changes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Manter Alterações</translation>
     </message>
     <message>
         <location line="+18"/>
@@ -56915,7 +56920,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
     <message>
         <location filename="../libs/page/app/removebgprogress.cpp" line="+26"/>
         <source>Finding the background…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">A encontrar o fundo…</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -66828,27 +66833,27 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     <message>
         <location filename="../apps/write/app/writewindow_insert.cpp" line="-119"/>
         <source>A saved block can be put in the text of the document, not in a header, a footer, or a note.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Um bloco guardado pode ser colocado no texto do documento, mas não num cabeçalho, num rodapé ou numa nota.</translation>
     </message>
     <message>
         <location line="+25"/>
         <source>Save as a Block</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Guardar como Bloco</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Save the block anyway?</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Guardar o bloco mesmo assim?</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Saved &quot;%1&quot; to %2.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">&quot;%1&quot; guardado em %2.</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>No Text Shortcut ends just before the cursor.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nenhum Atalho de Texto termina imediatamente antes do cursor.</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -66984,17 +66989,17 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     <message>
         <location line="+7"/>
         <source>Save Selection as a Block…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Guardar Seleção como Bloco…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Manage Saved Blocks…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gerir Blocos Guardados…</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Expand Text Shortcut</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Expandir Atalho de Texto</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -79294,59 +79299,59 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     <message>
         <location filename="../apps/write/core/blockops.cpp" line="+138"/>
         <source>Select what you want to save first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Selecione primeiro o que pretende guardar.</translation>
     </message>
     <message>
         <location line="+2"/>
         <location line="+16"/>
         <source>There is nothing in the selection that can be saved as a block.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Não há nada na seleção que possa ser guardado como bloco.</translation>
     </message>
     <message>
         <location line="-5"/>
         <source>Part of a table, or a table that is too large, is saved as its words, one paragraph for each cell, and not as a table.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Parte de uma tabela, ou uma tabela demasiado grande, é guardada como as suas palavras, com um parágrafo por cada célula, e não como tabela.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Footnotes and endnotes are left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">As notas de rodapé e as notas de fim são omitidas.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Comments are left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Os comentários são omitidos.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Tracked changes are accepted: the words that were inserted are kept, and the words that were deleted are not.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">As alterações registadas são aceites: as palavras inseridas são mantidas, e as palavras eliminadas não.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The selection could not be saved as a block.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Não foi possível guardar a seleção como bloco.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The selection is too large to save as a block.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">A seleção é demasiado grande para ser guardada como bloco.</translation>
     </message>
     <message>
         <location line="+23"/>
         <location line="+3"/>
         <source>This block cannot be read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Não é possível ler este bloco.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>This block is empty.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Este bloco está vazio.</translation>
     </message>
     <message>
         <location line="+22"/>
         <source>The block could not be put in here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Não foi possível colocar o bloco aqui.</translation>
     </message>
 </context>
 <context>
@@ -83586,17 +83591,17 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     <message>
         <location line="-544"/>
         <source>A table with changes tracked in it is copied as its words, not as a table. Accept or reject the changes to copy it as a table.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Uma tabela com alterações registadas é copiada como as suas palavras, não como tabela. Aceite ou rejeite as alterações para copiar como tabela.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A table in a selection that holds only a part of a content control is copied as its words, not as a table.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Uma tabela numa seleção que contém apenas parte de um controlo de conteúdo é copiada como as suas palavras, não como tabela.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This selection has more tables, or more cells, than a copy keeps as tables, so they are copied as their words.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Esta seleção tem mais tabelas, ou mais células, do que uma cópia mantém como tabelas, pelo que são copiadas como as suas palavras.</translation>
     </message>
     <message>
         <location line="+40"/>

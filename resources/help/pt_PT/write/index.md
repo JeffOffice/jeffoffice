@@ -1,7 +1,7 @@
 # Ajuda do JeffWrite
-<!-- keywords: conteúdo, ajuda, tópicos, início -->
+<!-- keywords: conteúdo, ajuda, tópicos, início, índice remissivo, procurar -->
 
-Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Prima **F1** em qualquer altura para obter ajuda sobre o que está a fazer: o separador do friso em que se encontra ou a página do ecrã Ficheiro em que está.
+Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a executar. Prima **F1** em qualquer altura para obter ajuda sobre o que está a fazer: o separador do friso em que está ou a página do ecrã Ficheiro em que se encontra.
 
 ## Primeiros passos
 
@@ -25,9 +25,9 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 ## Escrever e alterar texto
 
 - [Alterar o aspeto do texto](font)
-- [Alterar maiúsculas e minúsculas, ordenar e colar de outras formas](home-tools)
+- [Alterar maiúsculas, ordenar e colar de outras formas](home-tools)
 - [Utilizar estilos](styles)
-- [Copiar um aspeto com Copiar formatação](format-painter)
+- [Copiar um aspeto com Copiar Formatação](format-painter)
 - [Adicionar cabeçalhos, rodapés e números de página](headers-footers)
 - [Criar e alterar tabelas](tables)
 - [Adicionar notas de rodapé e notas de fim](footnotes-endnotes)
@@ -48,6 +48,7 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 - [Quebras, colunas, hifenização e números de linha](breaks-columns)
 - [Inserir símbolos e carateres especiais](symbols-special-characters)
 - [Adicionar ligações e texto de outros ficheiros](links)
+- [Guardar um bloco e voltar a inseri-lo](saved-blocks)
 - [Criar formulários com controlos de conteúdo](content-controls)
 - [Alterar a cor e os limites das páginas](page-look)
 - [Orientar-se com o painel de Navegação](navigation-pane)
@@ -59,5 +60,5 @@ Escreva na caixa de pesquisa acima para encontrar um tópico ou um comando a exe
 
 - [Utilizar o JeffWrite com o teclado](keyboard)
 - [Alterar as definições do JeffWrite](options)
-- [Segurança: o que um ficheiro pode aceder](security)
+- [Segurança: a que o que um ficheiro pode aceder](security)
 - [Escolher um idioma](language)

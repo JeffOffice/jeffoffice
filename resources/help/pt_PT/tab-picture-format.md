@@ -1,14 +1,14 @@
 # Separador Formato da Imagem
 <!-- keywords: separador formato da imagem, ferramentas de imagem, recortar, recolorir, correções, luminosidade, legenda, estilos de imagem, friso, separador contextual -->
 
-O separador **Formato da Imagem** aparece quando seleciona uma imagem. Use-o para alterar a imagem, corrigir as cores, recortá-la e atribuir-lhe um estilo.
+O separador **Formato da Imagem** aparece quando seleciona uma imagem. Use-o para alterar a imagem, corrigir as suas cores, recortá-la e dar-lhe um estilo.
 
-- **Inserir**: altere uma imagem, troque duas imagens ou organize as imagens colocadas ao lado da página. Consulte [Adicionar e ajustar imagens](pictures).
-- **Ajustar**: altere a luminosidade, o contraste e a cor, defina a transparência, comprima a imagem ou reponha-a (**Repor Imagem** ou **Repor Imagem e Tamanho**), e converta uma imagem SVG em formas. Consulte [Adicionar e ajustar imagens](pictures).
-- **Estilos de Imagem**: escolha um aspeto pronto a usar na galeria, adicione um limite, adicione efeitos (sombra, reflexo, brilho, limites suaves, bisel e rotação 3D), uma legenda ou uma forma. Consulte [Adicionar e ajustar imagens](pictures).
-- **Organizar**: envolva o texto, altere a ordem de sobreposição, agrupe, alinhe e rode. Consulte [Mover, alinhar, agrupar e sobrepor objetos](arrange) e [Envolver texto à volta de objetos](wrap).
-- **Recortar**: recorte a imagem, corte-a para uma proporção, ajuste-a dentro da moldura, preencha a moldura com a imagem ou limpe o recorte. Consulte [Adicionar e ajustar imagens](pictures).
-- **Tamanho**: escreva uma altura e uma largura exatas. Consulte [Mover, alinhar, agrupar e sobrepor objetos](arrange).
+- **Inserir**: alterar uma imagem, trocar duas imagens ou arrumar as imagens colocadas ao lado da página. Veja [Adicionar e ajustar imagens](pictures).
+- **Ajustar**: remover o fundo de uma imagem (**Remover Fundo**, que abre o seu próprio separador **Remoção de Fundo**), alterar a luminosidade, o contraste e a cor, definir a transparência, comprimir a imagem ou repô-la (**Repor Imagem** ou **Repor Imagem e Tamanho**), e converter uma imagem SVG em formas. Veja [Adicionar e ajustar imagens](pictures).
+- **Estilos de Imagem**: escolher um aspeto pronto a usar na galeria, adicionar um limite, adicionar efeitos (sombra, reflexo, brilho, limites suaves, bisel e rotação 3D), uma legenda ou uma forma. Veja [Adicionar e ajustar imagens](pictures).
+- **Organizar**: moldar o texto, alterar a ordem de sobreposição, agrupar, alinhar e rodar. Veja [Mover, alinhar, agrupar e sobrepor objetos](arrange) e [Moldar texto em redor de objetos](wrap).
+- **Recortar**: recortar a imagem, cortá-la para uma proporção, ajustá-la dentro da sua moldura, preencher a moldura com ela ou limpar o recorte. Veja [Adicionar e ajustar imagens](pictures).
+- **Tamanho**: escrever uma altura e uma largura exatas. Veja [Mover, alinhar, agrupar e sobrepor objetos](arrange).
 
 ## Relacionados
 

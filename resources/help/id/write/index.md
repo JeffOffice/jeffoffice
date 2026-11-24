@@ -1,7 +1,7 @@
-# JeffWrite Help
-<!-- keywords: contents, help, topics, start -->
+# Bantuan JeffWrite
+<!-- keywords: isi, bantuan, topik, mulai -->
 
-Ketik di kotak pencarian di atas untuk mencari topik, atau perintah yang akan dijalankan. Tekan **F1** kapan saja untuk mendapatkan bantuan tentang yang sedang Anda kerjakan: tab pita yang sedang Anda buka, atau halaman layar Berkas yang sedang Anda buka.
+Ketik di kotak pencarian di atas untuk mencari topik, atau perintah yang ingin dijalankan. Tekan **F1** kapan saja untuk mendapatkan bantuan tentang yang sedang Anda kerjakan: tab pita yang sedang Anda gunakan, atau halaman layar Berkas yang sedang Anda buka.
 
 ## Memulai
 
@@ -18,7 +18,7 @@ Ketik di kotak pencarian di atas untuk mencari topik, atau perintah yang akan di
 - [Periksa ejaan Anda](spelling)
 - [Hitung kata, atur bahasa, periksa aksesibilitas, dan cari arti kata](proofing-tools)
 - [Terjemahkan teks](translate)
-- [Lacak perubahan, dan terima atau tolak perubahan tersebut](track-changes)
+- [Lacak perubahan, dan terima atau tolak perubahan](track-changes)
 - [Tambahkan dan balas komentar](comments)
 - [Lindungi dokumen dan kunci pelacakan](protect)
 
@@ -37,7 +37,7 @@ Ketik di kotak pencarian di atas untuk mencari topik, atau perintah yang akan di
 - [Buat indeks](making-an-index)
 - [Buat daftar rujukan](table-of-authorities)
 - [Gunakan bidang](fields)
-- [Tunjuk tempat lain dengan referensi silang](cross-references)
+- [Arahkan ke tempat lain dengan referensi silang](cross-references)
 - [Tandai tempat dengan penanda](bookmarks)
 - [Cetak surat massal, amplop, dan label](mail-merge)
 - [Tambahkan dan ubah gambar](pictures)
@@ -48,6 +48,7 @@ Ketik di kotak pencarian di atas untuk mencari topik, atau perintah yang akan di
 - [Pemisah, kolom, penyambungan kata, dan nomor baris](breaks-columns)
 - [Sisipkan simbol dan karakter khusus](symbols-special-characters)
 - [Tambahkan tautan dan teks dari berkas lain](links)
+- [Simpan blok dan sisipkan kembali](saved-blocks)
 - [Buat formulir dengan kontrol konten](content-controls)
 - [Ubah warna dan bingkai halaman](page-look)
 - [Temukan jalan Anda dengan panel Navigasi](navigation-pane)
@@ -59,5 +60,5 @@ Ketik di kotak pencarian di atas untuk mencari topik, atau perintah yang akan di
 
 - [Gunakan JeffWrite dengan papan ketik](keyboard)
 - [Ubah pengaturan JeffWrite](options)
-- [Keamanan: apa yang boleh dijangkau sebuah berkas](security)
+- [Keamanan: ke mana sebuah berkas boleh terhubung](security)
 - [Pilih bahasa](language)

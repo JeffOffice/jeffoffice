@@ -85,6 +85,10 @@
         <translation type="unfinished">la descarga no es el fichero esperado</translation>
     </message>
     <message>
+        <source>pictures whose background was removed were saved as the finished pictures, so the background can't be brought back or marked again in a .pub file</source>
+        <translation type="unfinished">las imágenes cuyo fondo se quitó se guardaron como imágenes terminadas, así que su fondo no puede recuperarse ni volver a marcarse en un fichero .pub</translation>
+    </message>
+    <message>
         <source>charts were saved as pictures, so their data can't be edited in a .pub file</source>
         <translation type="unfinished">los gráficos se guardaron como imágenes, por lo que sus datos no se pueden editar en un fichero .pub</translation>
     </message>
@@ -405,8 +409,73 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>OutlineImport</name>
     <message>
+        <source>Only the first %1 slides were made. The rest of the file was left out.</source>
+        <translation type="unfinished">Solo se crearon las primeras %1 diapositivas. El resto del fichero se omitió.</translation>
+    </message>
+    <message numerus="yes">
+        <source>%n line(s) of text were cut or left out, because a line, a slide, or the file had more than it can hold.</source>
+        <translation type="unfinished">
+            <numerusform>%n línea de texto se cortó o se omitió, porque una línea, una diapositiva o el fichero tenía más de lo que puede contener.</numerusform>
+            <numerusform>%n líneas de texto se cortaron o se omitieron, porque una línea, una diapositiva o el fichero tenía más de lo que puede contener.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n picture(s) were left out. A picture has to be a PNG, JPEG, GIF, BMP, WebP, or TIFF file in the outline's own folder, or a folder in it.</source>
+        <translation type="unfinished">
+            <numerusform>%n imagen no se incluyó. Una imagen debe ser un fichero PNG, JPEG, GIF, BMP, WebP o TIFF que esté en la carpeta del esquema o en una subcarpeta suya.</numerusform>
+            <numerusform>%n imágenes no se incluyeron. Una imagen debe ser un fichero PNG, JPEG, GIF, BMP, WebP o TIFF que esté en la carpeta del esquema o en una subcarpeta suya.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <source>%n picture(s) or other object(s) in the file were left out.</source>
+        <translation type="unfinished">
+            <numerusform>%n imagen u otro objeto del fichero no se incluyó.</numerusform>
+            <numerusform>%n imágenes u otros objetos del fichero no se incluyeron.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <source>The text of tables in the file became lines of text.</source>
+        <translation type="unfinished">El texto de las tablas del fichero se convirtió en líneas de texto.</translation>
+    </message>
+    <message>
+        <source>The file is larger than 10 MB, the most an outline can be.</source>
+        <translation type="unfinished">El fichero tiene más de 10 MB, el máximo para un esquema.</translation>
+    </message>
+    <message>
+        <source>The file is not text.</source>
+        <translation type="unfinished">El fichero no es texto.</translation>
+    </message>
+    <message>
+        <source>The file is not text in UTF-8 or UTF-16.</source>
+        <translation type="unfinished">El fichero no es texto en UTF-8 ni UTF-16.</translation>
+    </message>
+    <message>
+        <source>The file can't be read as rich text.</source>
+        <translation type="unfinished">El fichero no se puede leer como texto con formato.</translation>
+    </message>
+    <message>
+        <source>The file has no headings to make slides from. Give the slides' titles a heading style.</source>
+        <translation type="unfinished">El fichero no tiene encabezados para crear diapositivas. Asigne un estilo de encabezado a los títulos de las diapositivas.</translation>
+    </message>
+    <message>
+        <source>The file can't be read as a document.</source>
+        <translation type="unfinished">El fichero no se puede leer como documento.</translation>
+    </message>
+    <message>
+        <source>The file is not a valid %1 file.</source>
+        <translation type="unfinished">El fichero no es un fichero %1 válido.</translation>
+    </message>
+    <message>
+        <source>The file has no text to make slides from.</source>
+        <translation type="unfinished">El fichero no tiene texto para crear diapositivas.</translation>
+    </message>
+    <message>
         <source>The file can't be opened.</source>
         <translation type="unfinished">No se puede abrir el fichero.</translation>
+    </message>
+    <message>
+        <source>The file is too large to be an outline.</source>
+        <translation type="unfinished">El fichero es demasiado grande para ser un esquema.</translation>
     </message>
 </context>
 <context>
@@ -1243,6 +1312,13 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <source>JPEG pictures in PDF files</source>
         <translation type="unfinished">Imágenes JPEG en ficheros PDF</translation>
+    </message>
+</context>
+<context>
+    <name>jp::BlockLibrary</name>
+    <message>
+        <source>The saved blocks file is damaged, and the folder already holds earlier damaged copies of it. Remove some of the files that end in .damaged from the folder %1 to go on.</source>
+        <translation type="unfinished">El fichero de bloques guardados está dañado, y la carpeta ya contiene copias dañadas anteriores. Elimine algunos de los ficheros que terminan en .damaged de la carpeta %1 para continuar.</translation>
     </message>
 </context>
 <context>

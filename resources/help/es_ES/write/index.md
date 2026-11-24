@@ -1,11 +1,11 @@
-# JeffWrite: ayuda
-<!-- keywords: contenido, ayuda, temas, inicio -->
+# Ayuda de JeffWrite
+<!-- keywords: contenido, ayuda, temas, inicio, índice -->
 
 Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando que ejecutar. Pulse **F1** en cualquier momento para obtener ayuda sobre lo que está haciendo: la pestaña de la cinta de opciones en la que se encuentra o la página de la pantalla Archivo en la que está.
 
 ## Primeros pasos
 
-- [Bienvenida a JeffWrite](start)
+- [Bienvenido a JeffWrite](start)
 - [Abrir, guardar, imprimir y exportar](open-save)
 - [Empaquetar y llevar: enviar un documento con lo que necesita](pack-and-go)
 - [Información: propiedades, contraseñas e Inspeccionar](info)
@@ -29,7 +29,7 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 - [Usar estilos](styles)
 - [Copiar un aspecto con Copiar formato](format-painter)
 - [Agregar encabezados, pies de página y números de página](headers-footers)
-- [Crear y modificar tablas](tables)
+- [Crear y cambiar tablas](tables)
 - [Agregar notas al pie y notas al final](footnotes-endnotes)
 - [Crear una tabla de contenido](table-of-contents)
 - [Agregar títulos y una tabla de ilustraciones](captions)
@@ -48,6 +48,7 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 - [Saltos, columnas, división de palabras y numeración de líneas](breaks-columns)
 - [Insertar símbolos y caracteres especiales](symbols-special-characters)
 - [Agregar vínculos y texto de otros ficheros](links)
+- [Guardar un bloque y volver a insertarlo](saved-blocks)
 - [Crear formularios con controles de contenido](content-controls)
 - [Cambiar el color y los bordes de las páginas](page-look)
 - [Orientarse con el panel de navegación](navigation-pane)
@@ -59,5 +60,5 @@ Escriba en el cuadro de búsqueda de arriba para encontrar un tema o un comando 
 
 - [Usar JeffWrite con el teclado](keyboard)
 - [Cambiar la configuración de JeffWrite](options)
-- [Seguridad: a qué puede conectarse un fichero](security)
+- [Seguridad: a qué puede acceder un fichero](security)
 - [Elegir un idioma](language)

@@ -1,63 +1,64 @@
-# JeffWrite Guida
-<!-- keywords: sommario, guida, argomenti, inizio, indice, aiuto -->
+# Guida di JeffWrite
+<!-- keywords: sommario, guida, argomenti, inizio, aiuto, contenuti -->
 
-Digita nella casella di ricerca qui sopra per trovare un argomento o un comando da eseguire. Premi **F1** in qualsiasi momento per ricevere aiuto su ciò che stai facendo: la scheda della barra multifunzione in cui ti trovi, oppure la pagina della schermata File in cui ti trovi.
+Digita nella casella di ricerca qui sopra per trovare un argomento o un comando da eseguire. Premi **F1** in qualsiasi momento per ottenere aiuto su ciò che stai facendo: la scheda della barra multifunzione in uso o la pagina della schermata File in uso.
 
 ## Per iniziare
 
 - [Benvenuto in JeffWrite](start)
-- [Apertura, salvataggio, stampa ed esportazione](open-save)
+- [Apri, salva, stampa ed esporta](open-save)
 - [Pack and Go: invia un documento con tutto ciò che gli serve](pack-and-go)
-- [Info: proprietà, password e verifica documento](info)
-- [Apertura e salvataggio di file OpenDocument](open-odt)
-- [Apertura di file RTF](open-rtf)
+- [Info: proprietà, password e Ispeziona](info)
+- [Apri e salva file OpenDocument](open-odt)
+- [Apri file RTF](open-rtf)
 - [Stampa](print)
 
-## Lavorare sul testo
+## Lavora sul testo
 
-- [Controllo ortografia](spelling)
-- [Conteggio parole, impostazione della lingua, verifica dell'accessibilità e ricerca di parole](proofing-tools)
-- [Traduzione del testo](translate)
-- [Revisioni, con accettazione o rifiuto delle modifiche](track-changes)
-- [Aggiunta e risposta ai commenti](comments)
-- [Protezione di un documento e blocco delle revisioni](protect)
+- [Controlla l'ortografia](spelling)
+- [Conta le parole, imposta la lingua, verifica l'accessibilità e cerca le parole](proofing-tools)
+- [Traduci testo](translate)
+- [Tieni traccia delle modifiche e accettale o rifiutale](track-changes)
+- [Aggiungi e rispondi ai commenti](comments)
+- [Proteggi un documento e blocca il rilevamento delle modifiche](protect)
 
-## Scrivere e modificare il testo
+## Scrivi e modifica il testo
 
-- [Modifica dell'aspetto del testo](font)
-- [Maiuscole/minuscole, ordinamento e altri modi di incollare](home-tools)
-- [Uso degli stili](styles)
-- [Copia del formato con Copia formato](format-painter)
-- [Aggiunta di intestazioni, piè di pagina e numeri di pagina](headers-footers)
-- [Creazione e modifica delle tabelle](tables)
-- [Aggiunta di note a piè di pagina e note di chiusura](footnotes-endnotes)
-- [Creazione di un sommario](table-of-contents)
-- [Aggiunta di didascalie e di un indice delle figure](captions)
-- [Citazione delle fonti e creazione di una bibliografia](citations)
-- [Creazione di un indice analitico](making-an-index)
-- [Creazione di un indice delle fonti giuridiche](table-of-authorities)
-- [Uso dei campi](fields)
-- [Collegamenti a un'altra posizione con riferimenti incrociati](cross-references)
-- [Segnalibri per contrassegnare le posizioni](bookmarks)
+- [Cambia l'aspetto del testo](font)
+- [Cambia maiuscole/minuscole, ordina e incolla in altri modi](home-tools)
+- [Usa gli stili](styles)
+- [Copia un aspetto con Copia formato](format-painter)
+- [Aggiungi intestazioni, piè di pagina e numeri di pagina](headers-footers)
+- [Crea e modifica le tabelle](tables)
+- [Aggiungi note a piè di pagina e note di chiusura](footnotes-endnotes)
+- [Crea un sommario](table-of-contents)
+- [Aggiungi didascalie e un elenco delle figure](captions)
+- [Cita fonti e crea una bibliografia](citations)
+- [Crea un indice analitico](making-an-index)
+- [Crea un indice delle fonti giuridiche](table-of-authorities)
+- [Usa i campi](fields)
+- [Punta a un altro punto con i riferimenti incrociati](cross-references)
+- [Segna i punti con i segnalibri](bookmarks)
 - [Stampa unione, buste ed etichette](mail-merge)
-- [Aggiunta e modifica di immagini](pictures)
+- [Aggiungi e modifica le immagini](pictures)
 - [Forme e caselle di testo](shapes-text-boxes)
 - [Grafici](charts)
 - [Equazioni](equations)
-- [Impostazione della pagina](page-setup)
+- [Imposta la pagina](page-setup)
 - [Interruzioni, colonne, sillabazione e numerazione di riga](breaks-columns)
-- [Inserimento di simboli e caratteri speciali](symbols-special-characters)
-- [Collegamenti e testo da altri file](links)
-- [Moduli con controlli del contenuto](content-controls)
-- [Modifica del colore e dei bordi delle pagine](page-look)
-- [Orientarsi con il riquadro di navigazione](navigation-pane)
-- [Uso del righello](ruler)
+- [Inserisci simboli e caratteri speciali](symbols-special-characters)
+- [Aggiungi collegamenti e testo da altri file](links)
+- [Salva un blocco e inseriscilo di nuovo](saved-blocks)
+- [Crea moduli con controlli del contenuto](content-controls)
+- [Cambia colore e bordi delle pagine](page-look)
+- [Orientati con il riquadro di navigazione](navigation-pane)
+- [Usa il righello](ruler)
 - [Trova e sostituisci parole](find-replace)
-- [Vai a una posizione e sposta il testo](go-to-and-move-text)
+- [Vai a un punto e sposta il testo](go-to-and-move-text)
 
-## Lavorare più velocemente
+## Lavora più velocemente
 
-- [Uso di JeffWrite con la tastiera](keyboard)
-- [Modifica delle impostazioni di JeffWrite](options)
-- [Sicurezza: a cosa può collegarsi un file](security)
-- [Scelta della lingua](language)
+- [Usa JeffWrite con la tastiera](keyboard)
+- [Modifica le impostazioni di JeffWrite](options)
+- [Sicurezza: a cosa può accedere un file](security)
+- [Scegli una lingua](language)

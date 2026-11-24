@@ -2522,7 +2522,7 @@ Back page story	4</source>
     <message>
         <location filename="../apps/deck/io/outlineimport.cpp" line="+985"/>
         <source>Code</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Код</translation>
     </message>
 </context>
 <context>
@@ -6542,7 +6542,7 @@ Back page story	4</source>
     <message>
         <location line="+28"/>
         <source>&quot;%1&quot;: the background removal another program made on this picture was replaced by the one made here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">«%1»: видалення фону, яке зробила інша програма для цього малюнка, замінено на те, що зроблено тут.</translation>
     </message>
     <message>
         <location line="+168"/>
@@ -7103,7 +7103,7 @@ Back page story	4</source>
     <message>
         <location line="+1"/>
         <source>pictures whose background was removed were saved as the finished pictures, so the background can&apos;t be brought back or marked again in a .pub file</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">малюнки, з яких було видалено фон, зберігалися як готові малюнки, тому фон не можна відновити або позначити знову у файлі .pub</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -9649,12 +9649,12 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+56"/>
         <source>A picture whose background was removed is kept as the finished picture, and its background can&apos;t be brought back or marked again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Малюнок, з якого видалено фон, зберігається як готовий малюнок, і його фон не можна відновити або позначити знову.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A picture that carries another program&apos;s own background removal is kept as the finished picture, and that removal can&apos;t be edited again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Малюнок, що містить власне видалення фону іншої програми, зберігається як готовий малюнок, і це видалення не можна редагувати знову.</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -9966,107 +9966,107 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location filename="../apps/deck/io/outlineimport.cpp" line="-222"/>
         <source>Only the first %1 slides were made. The rest of the file was left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Створено лише перші %1 слайдів. Решту файлу пропущено.</translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n line(s) of text were cut or left out, because a line, a slide, or the file had more than it can hold.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n рядок тексту було обрізано або пропущено, оскільки рядок, слайд або файл містив більше, ніж може вмістити.</numerusform>
+            <numerusform>%n рядки тексту було обрізано або пропущено, оскільки рядок, слайд або файл містив більше, ніж може вмістити.</numerusform>
+            <numerusform>%n рядків тексту було обрізано або пропущено, оскільки рядок, слайд або файл містив більше, ніж може вмістити.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n line(s) were indented deeper than a slide&apos;s text goes, and were put at its deepest level.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n рядок було зсунуто глибше, ніж може поміститися текст слайда, і його поставлено на найглибший рівень.</numerusform>
+            <numerusform>%n рядки було зсунуто глибше, ніж може поміститися текст слайда, і їх поставлено на найглибший рівень.</numerusform>
+            <numerusform>%n рядків було зсунуто глибше, ніж може поміститися текст слайда, і їх поставлено на найглибший рівень.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n picture(s) were left out. A picture has to be a PNG, JPEG, GIF, BMP, WebP, or TIFF file in the outline&apos;s own folder, or a folder in it.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n малюнок пропущено. Малюнок має бути файлом PNG, JPEG, GIF, BMP, WebP або TIFF у тій самій папці, що й структура, або в її підпапці.</numerusform>
+            <numerusform>%n малюнки пропущено. Малюнок має бути файлом PNG, JPEG, GIF, BMP, WebP або TIFF у тій самій папці, що й структура, або в її підпапці.</numerusform>
+            <numerusform>%n малюнків пропущено. Малюнок має бути файлом PNG, JPEG, GIF, BMP, WebP або TIFF у тій самій папці, що й структура, або в її підпапці.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n picture(s) or other object(s) in the file were left out.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n малюнок або інший об&apos;єкт у файлі пропущено.</numerusform>
+            <numerusform>%n малюнки або інші об&apos;єкти у файлі пропущено.</numerusform>
+            <numerusform>%n малюнків або інших об&apos;єктів у файлі пропущено.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n line(s) of code past the limit for a slide were left out.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n рядок коду за межами ліміту для слайда пропущено.</numerusform>
+            <numerusform>%n рядки коду за межами ліміту для слайда пропущено.</numerusform>
+            <numerusform>%n рядків коду за межами ліміту для слайда пропущено.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The text of tables in the file became lines of text.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Текст таблиць у файлі перетворено на рядки тексту.</translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>%n link(s) to other kinds of address were kept as plain text.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n посилання на інші типи адрес збережено як звичайний текст.</numerusform>
+            <numerusform>%n посилання на інші типи адрес збережено як звичайний текст.</numerusform>
+            <numerusform>%n посилань на інші типи адрес збережено як звичайний текст.</numerusform>
         </translation>
     </message>
     <message>
         <location line="+19"/>
         <source>The file is larger than 10 MB, the most an outline can be.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл більший за 10 МБ, що є максимумом для структури.</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>The file is not text.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл не є текстовим.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>The file is not text in UTF-8 or UTF-16.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл не є текстом у кодуванні UTF-8 або UTF-16.</translation>
     </message>
     <message>
         <location line="+18"/>
         <source>The file can&apos;t be read as rich text.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл не можна прочитати як форматований текст.</translation>
     </message>
     <message>
         <location line="+2"/>
         <location line="+6"/>
         <source>The file has no headings to make slides from. Give the slides&apos; titles a heading style.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">У файлі немає заголовків, з яких можна створити слайди. Надайте заголовкам слайдів стиль заголовка.</translation>
     </message>
     <message>
         <location line="-2"/>
         <source>The file can&apos;t be read as a document.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл не можна прочитати як документ.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The file is not a valid %1 file.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл не є дійсним файлом формату %1.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>The file has no text to make slides from.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">У файлі немає тексту, з якого можна створити слайди.</translation>
     </message>
     <message>
         <location line="+16"/>
@@ -10076,27 +10076,27 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+6"/>
         <source>The file is too large to be an outline.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл завеликий для структури.</translation>
     </message>
     <message>
         <location line="+286"/>
         <source>pictures, shapes, tables, charts, and other objects on the slides</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">малюнки, фігури, таблиці, діаграми та інші об&apos;єкти на слайдах</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>the text of text boxes other than the title and the first body place</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">текст текстових полів, крім заголовка і першого місця для основного тексту</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>speaker notes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">виступ доповідача</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>the look of the slides (layouts, themes, colors, fonts, and backgrounds), animations, and transitions</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">вигляд слайдів (макети, теми, кольори, шрифти й фони), анімації та переходи</translation>
     </message>
 </context>
 <context>
@@ -13854,7 +13854,7 @@ Download it from %2 now? (%3, once.)</source>
         <location line="-21"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="-11"/>
         <source>Background Removal</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Видалення фону</translation>
     </message>
     <message>
         <location line="+23"/>
@@ -14350,7 +14350,7 @@ Download it from %2 now? (%3, once.)</source>
         <location line="+1"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+1"/>
         <source>Refine</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Уточнити</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -15208,7 +15208,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+3"/>
         <source>Saved Blocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Збережені блоки</translation>
     </message>
     <message>
         <location line="+7"/>
@@ -22700,91 +22700,91 @@ Desktop publishing</source>
         <location filename="../libs/base/io/blocklibrary.cpp" line="+104"/>
         <location line="+436"/>
         <source>This is not a library of saved blocks.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Це не бібліотека збережених блоків.</translation>
     </message>
     <message>
         <location line="-407"/>
         <source>The list of saved blocks is too large to read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Список збережених блоків занадто великий для читання.</translation>
     </message>
     <message>
         <location line="+60"/>
         <source>The library of saved blocks is too large to read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Бібліотека збережених блоків занадто велика для читання.</translation>
     </message>
     <message>
         <location line="+4"/>
         <location line="+6"/>
         <source>The library of saved blocks could not be read: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Не вдалося прочитати бібліотеку збережених блоків: %1</translation>
     </message>
     <message>
         <location line="+12"/>
         <location line="+260"/>
         <source>There are as many saved blocks as the library holds. Delete some to save this one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Кількість збережених блоків досягла місткості бібліотеки. Видаліть деякі, щоб зберегти цей.</translation>
     </message>
     <message>
         <location line="-239"/>
         <source>The names and descriptions of the saved blocks have used up the room kept for them. Delete some blocks to save this one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Назви й описи збережених блоків вичерпали відведене для них місце. Видаліть деякі блоки, щоб зберегти цей.</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>There is no room on the disk to save the blocks.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">На диску немає місця для збереження блоків.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>The library of saved blocks could not be saved: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Не вдалося зберегти бібліотеку збережених блоків: %1</translation>
     </message>
     <message>
         <location line="+140"/>
         <source>The saved blocks cannot be changed: this computer does not let the program write in their folder.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Збережені блоки не можна змінити: цей комп&apos;ютер не дозволяє програмі записувати в їхню папку.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Another window is changing the saved blocks. Try again in a moment.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Інше вікно змінює збережені блоки. Спробуйте ще раз трохи пізніше.</translation>
     </message>
     <message>
         <location line="+18"/>
         <source>The saved blocks file is damaged, and the folder already holds earlier damaged copies of it. Remove some of the files that end in .damaged from the folder %1 to go on.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Файл збережених блоків пошкоджено, а в папці вже є попередні пошкоджені копії. Щоб продовжити, видаліть деякі файли з розширенням .damaged із папки %1.</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>These saved blocks were made by a newer version of JeffOffice. Update the program to change them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ці збережені блоки створено новішою версією JeffOffice. Щоб змінити їх, оновіть програму.</translation>
     </message>
     <message>
         <location line="+16"/>
         <location line="+45"/>
         <source>A saved block needs a name.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Збережений блок потребує назви.</translation>
     </message>
     <message>
         <location line="-41"/>
         <source>This is too large to save as a block.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Це занадто великий фрагмент, щоб зберегти його як блок.</translation>
     </message>
     <message>
         <location line="+16"/>
         <location line="+33"/>
         <source>A block with this name is already saved.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Блок із такою назвою вже збережено.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>This block is no longer in the library.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цього блоку більше немає в бібліотеці.</translation>
     </message>
     <message>
         <location line="+55"/>
         <source>There is no room in the library for the rest of these blocks.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">У бібліотеці немає місця для решти цих блоків.</translation>
     </message>
 </context>
 <context>
@@ -22792,44 +22792,44 @@ Desktop publishing</source>
     <message>
         <location filename="../libs/shell/app/blockgallery.cpp" line="+30"/>
         <source>Text Shortcuts</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Текстові скорочення</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Saved Blocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Збережені блоки</translation>
     </message>
     <message>
         <location line="+42"/>
         <source>Search by name</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Пошук за назвою</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Search saved blocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Пошук збережених блоків</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>Saved blocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Збережені блоки</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Nothing is saved here yet. Select some text, then choose Save Selection as a Block.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Тут ще нічого не збережено. Виділіть текст, а потім виберіть «Зберегти виділене як блок».</translation>
     </message>
     <message>
         <location line="+104"/>
         <source>Block Properties</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Властивості блоку</translation>
     </message>
     <message>
         <location line="+0"/>
         <location line="+59"/>
         <location line="+4"/>
         <source>Save as a Block</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Зберегти як блок</translation>
     </message>
     <message>
         <location line="-58"/>
@@ -22860,22 +22860,22 @@ Desktop publishing</source>
         <location line="+3"/>
         <location line="+5"/>
         <source>Put it in</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Розмістити</translation>
     </message>
     <message>
         <location line="-4"/>
         <source>As it is, at the cursor</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Як є, у місці курсора</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>In a paragraph of its own</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">В окремому абзаці</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>On a page of its own</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">На окремій сторінці</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -22885,17 +22885,17 @@ Desktop publishing</source>
     <message>
         <location line="+26"/>
         <source>A block with this name is already saved. Replace it?</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Блок із такою назвою вже збережено. Замінити його?</translation>
     </message>
     <message>
         <location line="+12"/>
         <source>Manage Saved Blocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Керування збереженими блоками</translation>
     </message>
     <message>
         <location line="+23"/>
         <source>Edit Properties…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Редагувати властивості…</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -22905,65 +22905,65 @@ Desktop publishing</source>
     <message>
         <location line="+1"/>
         <source>Undo Delete</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Скасувати видалення</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Export…</source>
-        <translation type="unfinished">Експорт…</translation>
+        <translation type="unfinished">Експортувати…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Import…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Імпортувати…</translation>
     </message>
     <message>
         <location line="+47"/>
         <source>Deleted &quot;%1&quot;. Undo Delete puts it back until you close this box.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Видалено «%1». Команда «Скасувати видалення» повертає його, доки ви не закриєте це вікно.</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>Export Saved Blocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Експорт збережених блоків</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Saved Blocks.jblocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Збережені блоки.jblocks</translation>
     </message>
     <message>
         <location line="+0"/>
         <location line="+6"/>
         <source>Saved blocks (*.jblocks)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Збережені блоки (*.jblocks)</translation>
     </message>
     <message>
         <location line="-3"/>
         <source>The saved blocks were exported.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Збережені блоки експортовано.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Import Saved Blocks</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Імпорт збережених блоків</translation>
     </message>
     <message numerus="yes">
         <location line="+6"/>
         <source>%n block was added.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>Додано %n блок.</numerusform>
+            <numerusform>Додано %n блоки.</numerusform>
+            <numerusform>Додано %n блоків.</numerusform>
         </translation>
     </message>
     <message numerus="yes">
         <location line="+0"/>
         <source>%n block was left out because its name is already saved.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>%n блок пропущено, оскільки його назву вже збережено.</numerusform>
+            <numerusform>%n блоки пропущено, оскільки їх назву вже збережено.</numerusform>
+            <numerusform>%n блоків пропущено, оскільки їх назви вже збережено.</numerusform>
         </translation>
     </message>
 </context>
@@ -38917,7 +38917,7 @@ The file can&apos;t be read.</source>
         <location filename="../apps/deck/app/deckwindow_file.cpp" line="+0"/>
         <location filename="../apps/deck/app/deckwindow_outline.cpp" line="-77"/>
         <source>Outlines (*.txt *.text *.md *.markdown *.rtf *.docx)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Структури (*.txt *.text *.md *.markdown *.rtf *.docx)</translation>
     </message>
     <message>
         <location line="+121"/>
@@ -39568,7 +39568,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+1"/>
         <source>Markdown outline (.md)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Структура Markdown (.md)</translation>
     </message>
     <message>
         <location line="-3"/>
@@ -40516,32 +40516,32 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+7"/>
         <source>Remove Background</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Видалити фон</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Select a picture to remove its background.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Виберіть малюнок, щоб видалити його фон.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Mark Areas to Keep</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Позначити ділянки для збереження</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Mark Areas to Remove</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Позначити ділянки для видалення</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Discard All Changes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Скасувати всі зміни</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Keep Changes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Зберегти зміни</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -40942,7 +40942,7 @@ The file can&apos;t be read.</source>
     <message>
         <location filename="../apps/deck/app/deckwindow_outline.cpp" line="-75"/>
         <source>Slides from Outline…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Слайди зі структури…</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -40950,28 +40950,31 @@ The file can&apos;t be read.</source>
         <location line="+10"/>
         <location line="+5"/>
         <source>Slides from Outline</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Слайди зі структури</translation>
     </message>
     <message>
         <location line="-15"/>
         <source>&quot;%1&quot; can&apos;t make slides.
 %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Не вдалося створити слайди з «%1».
+%2</translation>
     </message>
     <message>
         <location line="+15"/>
         <source>Some of &quot;%1&quot; was left out.
 
 %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Частину «%1» пропущено.
+
+%2</translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
         <source>Added %n slide(s) from &quot;%1&quot;.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>Додано %n слайд з «%1».</numerusform>
+            <numerusform>Додано %n слайди з «%1».</numerusform>
+            <numerusform>Додано %n слайдів з «%1».</numerusform>
         </translation>
     </message>
     <message>
@@ -40984,14 +40987,16 @@ The file can&apos;t be read.</source>
     <message>
         <location line="-3"/>
         <source>%1 couldn&apos;t save &quot;%2&quot;.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1 не вдалося зберегти «%2».</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Saved the titles and text of the slides in &quot;%1&quot;. It does not hold:
 
 %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Заголовки й текст слайдів у «%1» збережено. Він не містить:
+
+%2</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_save.cpp" line="+16"/>
@@ -41023,7 +41028,7 @@ The file can&apos;t be read.</source>
     <message>
         <location filename="../apps/deck/app/deckwindow_save.cpp" line="-93"/>
         <source>Markdown Outline (*.md)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Структура Markdown (*.md)</translation>
     </message>
     <message>
         <location line="+93"/>
@@ -43377,42 +43382,42 @@ The file can&apos;t be read.</source>
     <message>
         <location filename="../libs/page/app/editor_removebg.cpp" line="+22"/>
         <source>Select a picture to remove its background.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Виберіть малюнок, щоб видалити його фон.</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>The background of a drawing made of lines and shapes can&apos;t be removed. Only pictures made of dots, such as photographs, can.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Фон малюнка з лініями й фігурами видалити не можна. Можна лише з малюнків із точок, наприклад фотографій.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>The background of an animated picture can&apos;t be removed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Фон анімованого малюнка видалити не можна.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>This picture can&apos;t be read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цей малюнок не вдається прочитати.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This picture is too large for its background to be removed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цей малюнок занадто великий, щоб видалити його фон.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Remove Background</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Видалити фон</translation>
     </message>
     <message>
         <location line="+100"/>
         <source>This picture has all the strokes it can hold, so that one was not added. Discard All Changes starts it again.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цей малюнок уже містить максимальну кількість штрихів, тому цей штрих не додано. Скасувати всі зміни дозволяє почати знову.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>That stroke is too long to be kept, so it was not added. Try shorter strokes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цей штрих занадто довгий, тому його не додано. Спробуйте коротші штрихи.</translation>
     </message>
 </context>
 <context>
@@ -52110,32 +52115,32 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+7"/>
         <source>Remove Background</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Видалити фон</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Select a picture to remove its background.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Виберіть малюнок, щоб видалити його фон.</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Mark Areas to Keep</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Позначити ділянки для збереження</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Mark Areas to Remove</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Позначити ділянки для видалення</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Discard All Changes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Скасувати всі зміни</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Keep Changes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Зберегти зміни</translation>
     </message>
     <message>
         <location line="+18"/>
@@ -56982,7 +56987,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location filename="../libs/page/app/removebgprogress.cpp" line="+26"/>
         <source>Finding the background…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Пошук фону…</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -64117,27 +64122,27 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../apps/write/app/writewindow_insert.cpp" line="-149"/>
         <source>A saved block can be put in the text of the document, not in a header, a footer, or a note.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Збережений блок можна вставити в текст документа, але не в верхній чи нижній колонтитул або виноску.</translation>
     </message>
     <message>
         <location line="+25"/>
         <source>Save as a Block</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Зберегти як блок</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Save the block anyway?</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Зберегти блок усе одно?</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Saved &quot;%1&quot; to %2.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">«%1» збережено в %2.</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>No Text Shortcut ends just before the cursor.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Текстове скорочення «Немає» завершується прямо перед курсором.</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -64282,17 +64287,17 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+7"/>
         <source>Save Selection as a Block…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Зберегти виділення як блок…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Manage Saved Blocks…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Керувати збереженими блоками…</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Expand Text Shortcut</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Розгорнути текстове скорочення</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -79399,59 +79404,59 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../apps/write/core/blockops.cpp" line="+138"/>
         <source>Select what you want to save first.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Спочатку виберіть, що потрібно зберегти.</translation>
     </message>
     <message>
         <location line="+2"/>
         <location line="+16"/>
         <source>There is nothing in the selection that can be saved as a block.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">У виділенні немає нічого, що можна зберегти як блок.</translation>
     </message>
     <message>
         <location line="-5"/>
         <source>Part of a table, or a table that is too large, is saved as its words, one paragraph for each cell, and not as a table.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Частину таблиці або таблицю, яка занадто велика, збережено як її слова, по одному абзацу для кожної комірки, а не як таблицю.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Footnotes and endnotes are left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Виноски та кінцеві виноски пропущено.</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Comments are left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Коментарі пропущено.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Tracked changes are accepted: the words that were inserted are kept, and the words that were deleted are not.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Відстежувані зміни прийнято: вставлені слова збережено, а видалені — ні.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>The selection could not be saved as a block.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Виділення не вдалося зберегти як блок.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The selection is too large to save as a block.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Виділення занадто велике, щоб зберегти його як блок.</translation>
     </message>
     <message>
         <location line="+23"/>
         <location line="+3"/>
         <source>This block cannot be read.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цей блок не вдається прочитати.</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>This block is empty.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цей блок порожній.</translation>
     </message>
     <message>
         <location line="+22"/>
         <source>The block could not be put in here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Блок не вдалося вставити сюди.</translation>
     </message>
 </context>
 <context>
@@ -83692,17 +83697,17 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="-544"/>
         <source>A table with changes tracked in it is copied as its words, not as a table. Accept or reject the changes to copy it as a table.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Таблицю з відстежуваними змінами скопійовано як її слова, а не як таблицю. Прийміть або відхиліть зміни, щоб скопіювати її як таблицю.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A table in a selection that holds only a part of a content control is copied as its words, not as a table.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Таблицю у виділенні, яке містить лише частину елемента керування вмістом, скопійовано як її слова, а не як таблицю.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This selection has more tables, or more cells, than a copy keeps as tables, so they are copied as their words.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Це виділення містить більше таблиць або комірок, ніж можна скопіювати як таблиці, тому їх скопійовано як слова.</translation>
     </message>
     <message>
         <location line="+40"/>
