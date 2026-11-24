@@ -106,6 +106,8 @@
 #include <QTextCursor>
 #include <QTextDocument>
 #include <QCheckBox>
+#include <QDoubleSpinBox>
+#include <QScopeGuard>
 #include <QComboBox>
 #include <QPushButton>
 
@@ -903,6 +905,69 @@ QVector<StandardNumbers> standardNumbers()
 }
 
 } // namespace
+
+// ---- the drawing grid and the alignment guides: the mouse's own events through the view
+void sendMouse(PageView &view, QEvent::Type type, const QPoint &at, Qt::MouseButtons held, Qt::KeyboardModifiers modifiers)
+{
+    const Qt::MouseButton button = type == QEvent::MouseMove ? Qt::NoButton : Qt::LeftButton;
+    QMouseEvent e(type, QPointF(at), QPointF(view.viewport()->mapToGlobal(at)), button, held, modifiers);
+    QApplication::sendEvent(view.viewport(), &e);
+}
+
+// Where a page's point is in the view's window.
+QPoint viewAt(PageView &view, int page, double x, double y)
+{
+    const QRect r = view.pageRect(page);
+    const double s = 96.0 / 72.0 * view.zoom();
+    return QPoint(r.left() + qRound(x * s), r.top() + qRound(y * s));
+}
+
+// A press at `from`, `steps` moves of equal length, and a release at `to`; the number of guide lines shown at the last move is kept.
+struct Drag {
+    int linesShown = -1;
+    void run(PageView &view, const QPoint &from, const QPoint &to, Qt::KeyboardModifiers modifiers = Qt::NoModifier, int steps = 4)
+    {
+        sendMouse(view, QEvent::MouseButtonPress, from, Qt::LeftButton, modifiers);
+        for (int i = 1; i <= steps; ++i) sendMouse(view, QEvent::MouseMove, from + (to - from) * i / steps, Qt::LeftButton, modifiers);
+        linesShown = view.snapLineCountForTest();
+        sendMouse(view, QEvent::MouseButtonRelease, to, Qt::NoButton, modifiers);
+    }
+};
+
+// A window of a page of text with a rectangle at each of `places` (left, top, width, height in points), the first at position 0.
+struct SnapPage {
+    Win win;
+    PageView *view = nullptr;
+    explicit SnapPage(const QVector<QRectF> &places)
+    {
+        view = win.w.view();
+        WriteDoc *doc = win.w.document();
+        for (int i = 0; i < places.size(); ++i) {
+            QTextCursor c(doc->story());
+            c.setPosition(i);
+            if (insertShape(*doc, c, QStringLiteral("rect"), places[i].size()) != PictureResult::Ok || !setPicturePlace(*doc, i, places[i].left(), places[i].top())) qFatal("the fixture is not made");
+        }
+        view->refresh();
+        win.w.refreshNow();
+    }
+    QRectF box(int position) const
+    {
+        const PictureInfo info = pictureAt(*win.w.document(), win.w.document()->story(), position);
+        return QRectF(info.left, info.top, info.width, info.height);
+    }
+    // The shape at `position`, picked and carried by `dx` and `dy` pixels from the middle of it.
+    Drag carry(int position, int dx, int dy, Qt::KeyboardModifiers modifiers = Qt::NoModifier)
+    {
+        view->selectPicture(position);
+        const QRectF b = box(position);
+        const QPoint from = viewAt(*view, 0, b.center().x(), b.center().y());
+        Drag d;
+        d.run(*view, from, from + QPoint(dx, dy), modifiers);
+        return d;
+    }
+    double pixels() const { return 96.0 / 72.0 * view->zoom(); }
+};
+
 
 class DrawTests : public QObject {
     Q_OBJECT
@@ -1752,6 +1817,206 @@ private Q_SLOTS:
         // Not a shape of the gallery: nothing is put in.
         QTextCursor e(doc->story());
         QCOMPARE(insertShapeAt(*doc, e, QStringLiteral("nonsense"), QPointF(1, 1), QPointF(50, 50)), PictureResult::Unreadable);
+    }
+
+    // ---------------------------------------------------------------- the drawing grid and the alignment guides
+    // Snap to Grid takes a carried shape to the grid by whichever of its edges is nearer; with it off the shape goes exactly where the mouse took it.
+    void aCarriedShapeGoesToTheGridWhenSnapToGridIsOn()
+    {
+        SnapPage page({QRectF(101, 103, 40, 40)});
+        SnapOptions o;
+        o.snapGrid = true;
+        o.spacing = 10;
+        page.view->setObjectSnap(o);
+        page.carry(0, 23, 17);
+        const QRectF now = page.box(0);
+        QVERIFY2(std::abs(std::remainder(now.left(), 10)) < 0.01 && std::abs(std::remainder(now.top(), 10)) < 0.01, qPrintable(QStringLiteral("%1,%2").arg(now.left()).arg(now.top())));
+        QVERIFY(now.left() > 101 && now.top() > 103);
+        // off: where the mouse took it
+        page.view->setObjectSnap(SnapOptions());
+        page.carry(0, 23, 17);
+        const QRectF free = page.box(0);
+        QVERIFY(std::abs((free.left() - now.left()) - 23 / page.pixels()) < 0.01 && std::abs((free.top() - now.top()) - 17 / page.pixels()) < 0.01);
+    }
+
+    // Alignment Guides: an edge that comes within a few pixels of another object's edge goes to it, with a line shown while it is so, and none after the button is up; Alt keeps a drag free.
+    void aCarriedShapeGoesToAnotherObjectsEdgeWithALineAndAltLeavesItFree()
+    {
+        SnapPage page({QRectF(100, 100, 50, 50), QRectF(300, 200, 40, 40)});
+        SnapOptions o;
+        o.snapObjects = true;
+        page.view->setObjectSnap(o);
+        const int toLeft = qRound((100 - 300) * page.pixels()) + 3, down = qRound(50 * page.pixels());
+        const Drag snapped = page.carry(1, toLeft, down);
+        QCOMPARE(page.box(1).left(), 100.0);
+        QCOMPARE(snapped.linesShown, 1);
+        QCOMPARE(page.view->snapLineCountForTest(), 0);
+        // Alt held: free, and nothing is worked out
+        const int stepsBefore = page.view->snapStepsForTest();
+        const double leftBefore = page.box(1).left();
+        const Drag freeDrag = page.carry(1, 3, 0, Qt::AltModifier);
+        QCOMPARE(freeDrag.linesShown, 0);
+        QCOMPARE(page.view->snapStepsForTest(), stepsBefore);
+        QVERIFY(std::abs(page.box(1).left() - (leftBefore + 3 / page.pixels())) < 0.01);
+        // off: a drag that would snap does not
+        page.view->setObjectSnap(SnapOptions());
+        const double afterAlt = page.box(1).left();
+        page.carry(1, -4, 0);   // (4 pixels: 3 begin a drag)
+        QVERIFY(std::abs(page.box(1).left() - (afterAlt - 4 / page.pixels())) < 0.01 && page.box(1).left() != 100.0);
+        QCOMPARE(page.view->snapLineCountForTest(), 0);
+    }
+
+    // The page's edges and center and the margins are guides too.
+    void aCarriedShapeGoesToTheMarginAndTheCenterOfThePage()
+    {
+        SnapPage page({QRectF(300, 300, 40, 40)});
+        const auto pg = page.win.w.document()->pager().materialize(0);
+        QVERIFY(pg);
+        const double margin = pg->doc->setup.margins.left(), middle = pg->size.width() / 2;
+        SnapOptions o;
+        o.snapObjects = true;
+        page.view->setObjectSnap(o);
+        page.carry(0, qRound((margin - 300) * page.pixels()) + 3, 0);
+        QCOMPARE(page.box(0).left(), margin);
+        const QRectF at = page.box(0);
+        page.carry(0, qRound((middle - 20 - at.left()) * page.pixels()) - 3, 0);
+        QCOMPARE(page.box(0).center().x(), middle);
+    }
+
+    // A side that is sized goes to a guide too, and a corner that keeps the proportions (Shift) takes the other side with it.
+    void aSizedShapeGoesToAnotherObjectsEdgeAndKeepsItsProportionsWithShift()
+    {
+        SnapPage page({QRectF(400, 100, 50, 50), QRectF(300, 200, 40, 40)});
+        SnapOptions o;
+        o.snapObjects = true;
+        page.view->setObjectSnap(o);
+        page.view->selectPicture(1);
+        const int toEdge = qRound((450 - 340) * page.pixels()) - 3;
+        Drag d;
+        d.run(*page.view, viewAt(*page.view, 0, 340, 240), viewAt(*page.view, 0, 340, 240) + QPoint(toEdge, 12));
+        QCOMPARE(d.linesShown, 1);
+        QCOMPARE(page.box(1).left(), 300.0);
+        QCOMPARE(page.box(1).right(), 450.0);
+        QVERIFY(std::abs(page.box(1).height() - (40 + 12 / page.pixels())) < 0.01);
+        // Shift: square stays square, and the right side is at the edge
+        QVERIFY(setPictureBox(*page.win.w.document(), 1, 40, 40, QPointF(300, 200)));
+        page.view->refresh();
+        page.view->selectPicture(1);
+        const QPoint from = viewAt(*page.view, 0, 340, 240);
+        d.run(*page.view, from, from + QPoint(toEdge, 1), Qt::ShiftModifier);
+        QCOMPARE(page.box(1).right(), 450.0);
+        QVERIFY(std::abs(page.box(1).width() - page.box(1).height()) < 0.01);
+    }
+
+    // "Near" is a few pixels on the screen, so the same distance in points snaps at 100% and not at 200%.
+    void snappingIsNearInPixelsAtEveryZoom()
+    {
+        SnapPage page({QRectF(100, 100, 200, 50), QRectF(300, 200, 20, 20)});   // (the box beside is wide, so only its left edge is near)
+        SnapOptions o;
+        o.snapObjects = true;
+        page.view->setObjectSnap(o);
+        for (const double zoom : {1.0, 2.0}) {
+            QVERIFY(setPicturePlace(*page.win.w.document(), 1, 300, 200));
+            page.view->setZoom(zoom);
+            page.view->refresh();
+            page.win.w.refreshNow();
+            const int toLeft = qRound((100 + 4 - 300) * page.pixels()), down = qRound(50 * page.pixels());
+            page.carry(1, toLeft, down);
+            if (zoom == 1.0) QCOMPARE(page.box(1).left(), 100.0);   // (about 5 pixels away)
+            else QVERIFY(std::abs(page.box(1).left() - (300 + toLeft / page.pixels())) < 0.01 && page.box(1).left() > 103);   // (about 11 pixels away)
+        }
+    }
+
+    // A turned object goes by its bounding box.
+    void aTurnedShapeGoesByItsBoundingBox()
+    {
+        SnapPage page({QRectF(100, 100, 200, 50), QRectF(300, 200, 80, 40)});
+        QVERIFY(setShapeRotation(*page.win.w.document(), 1, 90));
+        page.view->refresh();
+        SnapOptions o;
+        o.snapObjects = true;
+        page.view->setObjectSnap(o);
+        page.carry(1, qRound((100 - 320) * page.pixels()) + 3, 0);   // (turned a quarter, its box is 40 wide about the center, 20 in from the left of the frame)
+        QCOMPARE(page.box(1).left() + 20, 100.0);
+    }
+
+    // With both off a drag looks at nothing; with one on, the places are gathered once for the drag and snapped once for each move and the release.
+    void nothingIsWorkedOutWhileADragRunsWithSnappingOff()
+    {
+        SnapPage page({QRectF(100, 100, 50, 50), QRectF(300, 200, 40, 40)});
+        page.carry(1, 40, 40);
+        page.carry(1, -40, -40);
+        QCOMPARE(page.view->snapGathersForTest(), 0);
+        QCOMPARE(page.view->snapStepsForTest(), 0);
+        SnapOptions o;
+        o.snapObjects = true;
+        page.view->setObjectSnap(o);
+        page.carry(1, 40, 40);
+        QCOMPARE(page.view->snapGathersForTest(), 1);
+        QCOMPARE(page.view->snapStepsForTest(), 5);
+    }
+
+    // Only the objects on the page of the drag are guides, and no more than 256 of them.
+    void onlyTheObjectsOfThePageOfTheDragAreGuidesAndTheirNumberIsBounded()
+    {
+        const QByteArray shape = plainShape(40, 40, "rect");
+        Win two("<w:p>" + anchoredGraphic(1, kShapeUri, shape, 100, 100, 40, 40) + "<w:r><w:t>one</w:t></w:r></w:p><w:p><w:r><w:br w:type=\"page\"/></w:r></w:p><w:p>"
+                + anchoredGraphic(2, kShapeUri, shape, 200, 100, 40, 40) + "<w:r><w:t>two</w:t></w:r></w:p>");
+        SnapOptions o;
+        o.snapObjects = true;
+        two.w.view()->setObjectSnap(o);
+        two.w.view()->refresh();
+        QCOMPARE(two.w.view()->snapTargetsForTest(0, {}).xs.size(), 5 + 3);
+        QCOMPARE(two.w.view()->snapTargetsForTest(1, {}).xs.size(), 5 + 3);
+        QByteArray many = "<w:p>";
+        for (int i = 1; i <= 400; ++i) many += anchoredGraphic(i, kShapeUri, shape, 10 + (i % 50) * 10, 20 + (i / 50) * 5, 40, 40);
+        Win crowd(many + "</w:p>");
+        crowd.w.view()->setObjectSnap(o);
+        crowd.w.view()->refresh();
+        QCOMPARE(crowd.w.view()->snapTargetsForTest(0, {}).xs.size(), 5 + 3 * 256);
+    }
+
+    // View > Grid: the commands keep the person's choices for every window, the dialog sets them, and a saved file is the same with them on or off.
+    void theGridCommandsAreThePersonsChoiceForEveryWindowAndNeverSaved()
+    {
+        auto reset = qScopeGuard([] {
+            for (const char *key : {"write/drawingGrid", "write/snapToGrid", "write/alignmentGuides"}) Settings::get().setValue(QString::fromLatin1(key), false);
+            Settings::get().setValue(QStringLiteral("write/gridSpacing"), 6.0);
+        });
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        Win a;
+        WriteWindow b;
+        auto saved = [&](const QString &name) {
+            const QString path = dir.filePath(name);
+            a.w.setSavePathChooser([&](const QString &, const QString &) { return path; });
+            if (!a.w.saveAs()) return QByteArray();
+            QFile f(path);
+            if (!f.open(QIODevice::ReadOnly)) return QByteArray();
+            const QByteArray all = f.readAll();
+            return partOf(all, QStringLiteral("/word/document.xml")) + partOf(all, QStringLiteral("/word/settings.xml")) + partOf(all, QStringLiteral("/word/styles.xml"));
+        };
+        const QByteArray before = saved(QStringLiteral("off.docx"));
+        QVERIFY(!before.isEmpty());
+        QVERIFY(!a.w.view()->objectSnap().snapGrid && !b.view()->objectSnap().snapGrid);
+        a.w.act(QStringLiteral("view.drawingGrid"))->trigger();
+        a.w.act(QStringLiteral("view.snapGrid"))->trigger();
+        a.w.act(QStringLiteral("view.alignmentGuides"))->trigger();
+        for (PageView *v : {a.w.view(), b.view()}) QVERIFY(v->objectSnap().showGrid && v->objectSnap().snapGrid && v->objectSnap().snapObjects);
+        QVERIFY(b.act(QStringLiteral("view.snapGrid"))->isChecked());
+        withDialog([&] { a.w.act(QStringLiteral("view.gridGuides"))->trigger(); }, QStringLiteral("gridGuidesDialog"), [&](QDialog *d) {
+            QVERIFY(d->findChild<QCheckBox *>(QStringLiteral("snapGrid"))->isChecked());
+            QVERIFY(!d->findChild<QPushButton *>(QStringLiteral("addVertical")));   // (a page has no ruler guides)
+            d->findChild<QCheckBox *>(QStringLiteral("snapGrid"))->setChecked(false);
+            d->findChild<QDoubleSpinBox *>(QStringLiteral("gridSpacing"))->setValue(18);
+        });
+        QVERIFY(!b.view()->objectSnap().snapGrid && b.view()->objectSnap().showGrid);
+        QCOMPARE(b.view()->objectSnap().spacing, 18.0);
+        QCOMPARE(saved(QStringLiteral("on.docx")), before);
+        // a window made now has them as they are kept
+        WriteWindow c;
+        QCOMPARE(c.view()->objectSnap().spacing, 18.0);
+        QVERIFY(c.view()->objectSnap().snapObjects);
     }
 
     void aLineDrawnUpAndToTheLeftIsFlippedAndSavedSo()
@@ -2630,6 +2895,41 @@ private Q_SLOTS:
             QVERIFY2(moved, textBox ? "text box" : "shape");
             QCOMPARE(steps(), before + 1);
         }
+    }
+
+    // Pictures for a person to look at: a drag with a guide showing, the grid on, the View tab, and the dialog (JW_SHOT_DIR names the folder; nothing is made without it).
+    void picturesOfTheGridAndTheGuides()
+    {
+        const QString dir = qEnvironmentVariable("JW_SHOT_DIR");
+        if (dir.isEmpty()) QSKIP("JW_SHOT_DIR is not set");
+        jp::applyUiTheme(1);
+        QDir().mkpath(dir);
+        auto reset = qScopeGuard([] { for (const char *key : {"write/drawingGrid", "write/snapToGrid", "write/alignmentGuides"}) Settings::get().setValue(QString::fromLatin1(key), false); });
+        SnapPage page({QRectF(100, 100, 150, 90), QRectF(330, 260, 120, 70)});
+        page.win.w.resize(1100, 800);
+        SnapOptions o;
+        o.showGrid = true;
+        o.snapObjects = true;
+        o.snapGrid = true;
+        o.spacing = 12;
+        page.view->setObjectSnap(o);
+        page.view->selectPicture(1);
+        const QRectF b = page.box(1);
+        const QPoint from = viewAt(*page.view, 0, b.center().x(), b.center().y());
+        const QPoint to = from + QPoint(qRound((100 + 150 - 330) * page.pixels()) + 2, qRound(-20 * page.pixels()));
+        sendMouse(*page.view, QEvent::MouseButtonPress, from, Qt::LeftButton, Qt::NoModifier);
+        for (int i = 1; i <= 4; ++i) sendMouse(*page.view, QEvent::MouseMove, from + (to - from) * i / 4, Qt::LeftButton, Qt::NoModifier);
+        page.view->viewport()->repaint();
+        QVERIFY(page.win.w.grab().save(dir + QStringLiteral("/drag-with-guide.png")));
+        sendMouse(*page.view, QEvent::MouseButtonRelease, to, Qt::NoButton, Qt::NoModifier);
+        QCOMPARE(page.view->snapLineCountForTest(), 0);
+        page.view->selectPicture(-1);
+        page.view->viewport()->repaint();
+        QVERIFY(page.win.w.grab().save(dir + QStringLiteral("/grid-on.png")));
+        page.win.w.ribbon()->showTab(page.win.w.ribbon()->tab(QStringLiteral("View")));
+        QApplication::processEvents();
+        QVERIFY(page.win.w.grab().save(dir + QStringLiteral("/view-tab-grid.png")));
+        withDialog([&] { page.win.w.act(QStringLiteral("view.gridGuides"))->trigger(); }, QStringLiteral("gridGuidesDialog"), [&](QDialog *d) { shotOf(d, QStringLiteral("grid-and-guides-dialog")); });
     }
 
     // A picture of text round an edited outline, for a person to look at (JW_SHOT_DIR names the folder; nothing is made without it).
