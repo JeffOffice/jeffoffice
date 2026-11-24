@@ -1234,7 +1234,10 @@ private Q_SLOTS:
                 for (const ItemPtr &it : back.items) numbers.insert(it->name, it->sourceId);
                 QSet<int> mainShapes;
                 for (const deck::Anim &an : deck::readAnimations(back, again.editor()->doc()).effects) mainShapes.insert(an.shape);
-                QVERIFY2(mainShapes == QSet<int>({numbers.value(QStringLiteral("M")), numbers.value(QStringLiteral("C"))}), qPrintable(label + QLatin1String(": main sequence")));
+                // The rule of a deleted or merged-away trigger object: its effects move to the end of the main sequence; an effect aimed at the missing shape itself is taken out.
+                QSet<int> wantMain{numbers.value(QStringLiteral("M")), numbers.value(QStringLiteral("C"))};
+                if (object) wantMain.insert(numbers.value(QStringLiteral("D")));
+                QVERIFY2(mainShapes == wantMain, qPrintable(label + QLatin1String(": main sequence")));
                 QHash<int, QSet<int>> triggers;
                 for (const deck::Trigger &t : deck::timelineOf(back).triggers)
                     for (const deck::Effect &ef : t.effects)
@@ -1242,8 +1245,9 @@ private Q_SLOTS:
                 const int nc = numbers.value(QStringLiteral("C")), nd = numbers.value(QStringLiteral("D")), ne = numbers.value(QStringLiteral("E"));
                 const QHash<int, QSet<int>> want = object ? QHash<int, QSet<int>>{{ne, {nd}}} : QHash<int, QSet<int>>{{ne, {nd}}, {nd, {nc}}};
                 QVERIFY2(triggers == want, qPrintable(label + QLatin1String(": triggers")));
-                // The window's own document still has the timing as it was, and one Undo puts the shapes back.
-                QCOMPARE(w.editor()->doc()->pages[0]->props.value(QStringLiteral("timingXml")).toString(), timingBefore);
+                // The window's own document keeps what is aimed at the missing shape until the save (the effects of an object that went moved at once), and one Undo puts everything back.
+                if (!object) QCOMPARE(w.editor()->doc()->pages[0]->props.value(QStringLiteral("timingXml")).toString(), timingBefore);
+                else QVERIFY(w.editor()->doc()->pages[0]->props.value(QStringLiteral("timingXml")).toString() != timingBefore);
                 w.editor()->undo();
                 QCOMPARE(shapeJson(w), shapesBefore);
                 QCOMPARE(w.editor()->doc()->pages[0]->props.value(QStringLiteral("timingXml")).toString(), timingBefore);

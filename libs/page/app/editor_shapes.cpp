@@ -163,6 +163,12 @@ bool Editor::mergeShapes(pathops::Op op, QString *why, int *made, int *textRemov
         if (gone.contains((*list)[i]->id)) at = std::min(at, i);
     beginChange(op == pathops::Op::Union ? tr("Union") : op == pathops::Op::Combine ? tr("Combine") : op == pathops::Op::Subtract ? tr("Subtract")
                 : op == pathops::Op::Intersect ? tr("Intersect") : tr("Fragment"));
+    // (what waited for a click on a shape that goes is let go, as for a delete: the first shape stays, with its number)
+    if (itemsDeleting) {
+        QStringList leaving = gone;
+        leaving.removeAll(first.id);
+        itemsDeleting(leaving);
+    }
     list->erase(std::remove_if(list->begin(), list->end(), [&](const ItemPtr &it) { return gone.contains(it->id); }), list->end());
     at = std::min(at, int(list->size()));
     QStringList ids;
