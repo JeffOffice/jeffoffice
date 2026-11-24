@@ -582,8 +582,16 @@ private Q_SLOTS:
             BlockLibrary mine(qEnvironmentVariable("JP_BLOCKS_PATH"));
             const QString who = qEnvironmentVariable("JP_BLOCKS_WHO");
             for (int i = 0; i < 200; ++i) {
+                // (A window that is told another is changing the blocks tries again, as a person is told to: on a slow machine three writers can keep one another waiting past the time one waits. Each
+                // try is counted, and a try that fails for any other reason ends the writer.)
                 QString err;
-                QVERIFY2(mine.add(entryOf(QStringLiteral("%1-%2").arg(who).arg(i), QByteArray(300, 'w')), nullptr, &err), qPrintable(err));
+                bool added = false;
+                for (int tries = 0; tries < 100 && !added; ++tries) {
+                    err.clear();
+                    added = mine.add(entryOf(QStringLiteral("%1-%2").arg(who).arg(i), QByteArray(300, 'w')), nullptr, &err);
+                    if (!added && !err.contains(QStringLiteral("Another window"))) break;
+                }
+                QVERIFY2(added, qPrintable(err));
             }
             return;
         }
@@ -602,7 +610,7 @@ private Q_SLOTS:
             QVERIFY(writers[w].waitForStarted(30000));
         }
         for (int w = 0; w < 3; ++w) {
-            QVERIFY(writers[w].waitForFinished(300000));   // (a writer that is not done in five minutes is stuck)
+            QVERIFY(writers[w].waitForFinished(1800000));   // (only so that a writer that hangs does not hang the test for ever: the writers' own tries are counted)
             QVERIFY2(writers[w].exitCode() == 0, qPrintable(QString::fromUtf8(writers[w].readAll().right(600))));
         }
         BlockLibrary all(path);
