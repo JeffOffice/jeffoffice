@@ -1117,7 +1117,7 @@ void Reader::inlineContent(const Odf &o, int parent, ParaCtx *pc, const RunFmt &
     int prev = -1;
     for (int c = t.firstChild(parent);; c = t.next(c)) {
         addText(pc, t.textAfter(parent, prev), fmt);
-        if (c < 0) break;
+        if (c < 0 || !budget()) break;
         inlineElement(o, c, pc, fmt, depth);
         prev = c;
     }
@@ -1540,11 +1540,12 @@ void Reader::convertBlocks(const Odf &o, int parent, QVector<Block> *out, int de
         left(QCoreApplication::translate("odt", "content nested too deeply"));
         return;
     }
-    for (int c = t.firstChild(parent); c >= 0; c = t.next(c)) convertBlock(o, c, out, depth, listLevel, listStyle, listNum);
+    for (int c = t.firstChild(parent); c >= 0 && !m_cutShort; c = t.next(c)) convertBlock(o, c, out, depth, listLevel, listStyle, listNum);
 }
 
 void Reader::convertBlock(const Odf &o, int n, QVector<Block> *out, int depth, int listLevel, const QString &listStyle, int listNum)
 {
+    if (!o.is(n, "text:p") && !o.is(n, "text:h") && !budget()) return;
     if (o.is(n, "text:p") || o.is(n, "text:h")) convertParagraph(o, n, out, listLevel, listStyle, listNum, false, depth);
     else if (o.is(n, "text:list")) convertList(o, n, out, depth, listLevel, listStyle, listNum);
     else if (o.is(n, "table:table")) convertTable(o, n, out, depth);
@@ -1698,6 +1699,7 @@ void Reader::endSection(QVector<Block> *out, const SectionState &next)
 
 void Reader::convertParagraph(const Odf &o, int n, QVector<Block> *out, int listLevel, const QString &listStyle, int listNum, bool numbered, int depth)
 {
+    if (!budget()) return;
     const QString styleName = o.at(n, "text:style-name");
     QString named, listFromStyle, master;
     QByteArray tabs;
@@ -2007,6 +2009,7 @@ void Reader::convertTable(const Odf &o, int n, QVector<Block> *out, int depth)
         for (int c = t.firstChild(rr.node); c >= 0; c = t.next(c)) {
             const bool covered = o.is(c, "table:covered-table-cell");
             if (!covered && !o.is(c, "table:table-cell")) continue;
+            if (!budget()) break;
             int rep = std::max(1, std::min(o.at(c, "table:number-columns-repeated").isEmpty() ? 1 : o.at(c, "table:number-columns-repeated").toInt(), kMaxColumns));
             const bool hasContent = t.firstChild(c) >= 0;
             // A place the row has no cell for (marked by the file's writer; only a cell with nothing in it is one): it is a place in the grid, not a cell.

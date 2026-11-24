@@ -1368,6 +1368,43 @@ private Q_SLOTS:
         QVERIFY(numbering.count(QLatin1String("<w:num ")) <= kMaxMadeParts + 1);
     }
 
+    void aFileThatAsksForMillionsOfElementsIsCutAtTheLimit()
+    {
+        // Paragraphs, spans in one paragraph, and table cells: each is counted as it is read, and what is past the limit is not made.
+        const qint64 over = kMaxElements + 100000;
+        struct Case {
+            const char *name;
+            QByteArray body;
+            const char *tag;
+        };
+        QByteArray paragraphs, spans = "<text:p>", cells = "<table:table><table:table-column/><table:table-row>";
+        for (qint64 i = 0; i < over; ++i) paragraphs += "<text:p/>";
+        for (qint64 i = 0; i < over; ++i) spans += "<text:span>x</text:span>";
+        spans += "</text:p>";
+        for (qint64 i = 0; i < over; ++i) cells += "<table:table-cell><text:p/></table:table-cell>";
+        cells += "</table:table-row></table:table>";
+        const QVector<Case> cases = {{"paragraphs", paragraphs, "<w:p>"}, {"spans", spans, "<w:r>"}, {"cells", cells, "<w:tc>"}};
+        for (const Case &c : cases) {
+            Made m;
+            m.body = c.body;
+            QStringList notes;
+            QString error;
+            const QByteArray docx = docxOf(m.build(), &notes, &error);
+            QVERIFY2(!docx.isEmpty(), c.name);
+            QVERIFY2(notes.size() == 1 && notes.first().contains(QStringLiteral("longer than")), c.name);
+            const QString body = part(docx, QStringLiteral("/word/document.xml"));
+            const qint64 made = body.count(QLatin1String(c.tag));
+            QVERIFY2(made > 0 && made <= kMaxElements, qPrintable(QStringLiteral("%1: %2 made").arg(QLatin1String(c.name)).arg(made)));
+        }
+        // A document of a few thousand elements is read whole, and says nothing.
+        Made small;
+        for (int i = 0; i < 5000; ++i) small.body += "<text:p>a<text:span>b</text:span></text:p>";
+        QStringList notes;
+        const QString body = part(docxOf(small.build(), &notes), QStringLiteral("/word/document.xml"));
+        QVERIFY(notes.isEmpty());
+        QCOMPARE(body.count(QLatin1String("<w:p>")), 5000);
+    }
+
     void mutatedFilesDoNotCrash()
     {
         Made m;

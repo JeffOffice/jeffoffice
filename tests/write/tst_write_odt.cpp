@@ -18,6 +18,7 @@
 #include "core/writeprops.h"
 #include "core/tableops.h"
 #include "core/writedoc.h"
+#include "odt/odt.h"
 #include "odt/odtread.h"
 #include "io/zip.h"
 #include "odt/odt.h"
@@ -222,6 +223,21 @@ private Q_SLOTS:
         for (const char *w : {"A heading", "Plain bold words and more.", "first item", "second item", "cell a", "cell b", "Last paragraph."}) QVERIFY2(text.contains(QLatin1String(w)), w);
         QVERIFY(hasBold(*doc, QStringLiteral("bold words")));
         QVERIFY(!hasBold(*doc, QStringLiteral("Plain")));
+    }
+
+    // A file of a few hundred kilobytes that holds more paragraphs than the reader makes opens cut at the limit, and the notes say the end was left out (the window lists them).
+    void anOdtWithMoreParagraphsThanTheReaderMakesOpensCutAndSaysSo()
+    {
+        QByteArray body;
+        for (qint64 i = 0; i < jp::office::odt::kMaxElements + 5000; ++i) body += "<text:p>a</text:p>";
+        QString err;
+        QStringList notes;
+        auto doc = WriteDoc::fromFile(makeOdt(body), &err, &notes);
+        QVERIFY2(doc, qPrintable(err));
+        QVERIFY2(!notes.filter(QStringLiteral("longer than")).isEmpty(), qPrintable(notes.join(QLatin1Char('|'))));
+        QCOMPARE(doc->readNotes, notes);
+        QVERIFY(doc->story()->blockCount() <= jp::office::odt::kMaxElements + 2);
+        QVERIFY(doc->story()->blockCount() > 1000);
     }
 
     // The distance of the default tab stops, character scaling, suppressed line numbers, and bar stops come in from an .odt, are drawn (the first two) or kept as the document's, and go out again.

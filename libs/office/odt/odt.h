@@ -41,5 +41,8 @@ constexpr int kMaxStyleChain = 32;
 constexpr int kMaxColumns = 1000;
 constexpr int kMaxRepeat = 1000;
 constexpr qint64 kMaxTableCells = 200000;
+// The most elements of the text (paragraphs, headings, list items, table cells, spans, and the like) one document is read to, counted as they are read: what is past it is left out,
+// and the reader says so. A file of a few kilobytes can ask for millions of them; as many as the old-format reader makes (600,000) cost about a second and 250 MB.
+constexpr qint64 kMaxElements = 600000;
 
 } // namespace jp::office::odt

@@ -74,6 +74,15 @@ void Reader::left(const QString &what)
     m_notes->push_back(what);
 }
 
+bool Reader::budget()
+{
+    if (m_cutShort) return false;
+    if (++m_elements <= kMaxElements) return true;
+    m_cutShort = true;
+    left(QCoreApplication::translate("odt", "The document is longer than this program can open: the end of it was left out."));
+    return false;
+}
+
 bool Reader::openParts(const QByteArray &file, QString *error)
 {
     auto fail = [&](const QString &m) {

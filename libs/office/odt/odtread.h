@@ -188,6 +188,8 @@ private:
     void endSection(QVector<Block> *out, const SectionState &next);
     int nextDocPrId() { return ++m_docPrId; }
     void left(const QString &what);
+    // Counts one element read; false (and the end of the text left out, said once) when the document is past kMaxElements.
+    bool budget();
     int m_lastSpan = 1, m_lastRowSpan = 1;
 
     // The parts
@@ -199,6 +201,8 @@ private:
     Package m_pkg;
     QStringList *m_notes = nullptr;
     QSet<QString> m_leftKeys;
+    qint64 m_elements = 0;
+    bool m_cutShort = false;
 
     QHash<QString, QString> m_fonts;
     QMap<QString, QPair<QString, QString>> m_fontKinds;   // font name -> its generic family and pitch, for the .docx font table
