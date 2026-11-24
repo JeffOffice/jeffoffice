@@ -13,6 +13,7 @@
 #include <QByteArray>
 #include <QDateTime>
 #include <QJsonObject>
+#include <QHash>
 #include <QString>
 #include <QStringList>
 #include <QVector>
@@ -82,11 +83,17 @@ public:
     bool loaded() const { return m_loaded; }
     bool loading() const { return m_thread != nullptr && !(m_state && m_state->abandoned.load()); }
     // For tests: `hook` runs on the loading thread after it has read the file, before the answer is handed over. And `step` runs in a write after each chunk of bytes (its argument counts from 1).
+    // For tests: the limits are these (0: the usual one), so that a limit is reached with a few small blocks; call it with none to put them back.
+    static void setLimitsForTest(int entries = 0, qint64 entryBytes = 0, qint64 totalBytes = 0, qint64 manifestBytes = 0);
     static void setLoaderHook(const std::function<void()> &hook);
     static void setWriteStepHook(const std::function<void(int)> &step);
 
     const QVector<BlockInfo> &list() const { return m_infos; }
     QVector<BlockInfo> list(const QString &gallery) const;
+    // How many blocks a gallery has, at a cost that does not grow with the library (no list is made): what a caret that moves asks.
+    int count(const QString &gallery) const { return m_galleryCounts.value(gallery); }
+    // For tests: how many lists of one gallery were made since the program began.
+    static qint64 galleryListsMadeForTest();
     std::optional<BlockInfo> find(const QString &id) const;
     std::optional<BlockInfo> findByName(const QString &gallery, const QString &name) const;   // the name without regard to case
     QByteArray data(const QString &id) const;
@@ -124,6 +131,7 @@ private:
     QString m_path;
     QVector<BlockEntry> m_entries;
     QVector<BlockInfo> m_infos;
+    QHash<QString, int> m_galleryCounts;
     bool m_loaded = false;
     std::unique_ptr<WorkThread> m_thread;
     std::shared_ptr<std::atomic<bool>> m_alive;

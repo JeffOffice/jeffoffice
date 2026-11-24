@@ -1,5 +1,7 @@
 #include "io/blocklibrary.h"
 
+#include <atomic>
+
 #include "core/workthread.h"
 #include "io/zip.h"
 
@@ -26,6 +28,17 @@ namespace jp {
 namespace {
 
 QString g_sharedPath;
+// The limits the library holds to (the constants in the header), and what a test sets them to so that a limit can be reached with a few small blocks.
+struct Limits {
+    std::atomic<int> entries{BlockLibrary::kMostEntries};
+    std::atomic<qint64> entryBytes{BlockLibrary::kMostEntryBytes}, totalBytes{BlockLibrary::kMostTotalBytes}, manifestBytes{BlockLibrary::kMostManifestBytes};
+};
+Limits &limits()
+{
+    static Limits l;
+    return l;
+}
+
 std::function<void()> g_loaderHook;
 std::function<void(int)> g_writeStep;
 
@@ -98,7 +111,7 @@ bool BlockLibrary::readBytes(const QByteArray &zip, Content *out, QString *error
     // it does not list are not kept; an older file has it last, and keeps them all until the manifest comes.)
     scanZipEach(zip, [&](ZipScanEntry &e) {
         if (e.name == QLatin1String("library.json")) {
-            if (e.whole && e.data.size() <= kMostManifestBytes) {
+            if (e.whole && e.data.size() <= limits().manifestBytes) {
                 sawManifest = true;
                 QJsonParseError parse;
                 const QJsonDocument doc = QJsonDocument::fromJson(e.data, &parse);
@@ -111,10 +124,10 @@ bool BlockLibrary::readBytes(const QByteArray &zip, Content *out, QString *error
             } else if (e.whole || e.problem.contains(QLatin1String("too large"))) {
                 manifestTooLarge = true;
             }
-        } else if (e.name.startsWith(QLatin1String("e/")) && e.name.endsWith(QLatin1String(".bin")) && e.whole && !e.data.isEmpty() && e.data.size() <= kMostEntryBytes) {
+        } else if (e.name.startsWith(QLatin1String("e/")) && e.name.endsWith(QLatin1String(".bin")) && e.whole && !e.data.isEmpty() && e.data.size() <= limits().entryBytes) {
             if (!sawManifest || wanted.contains(e.name)) files.insert(e.name, e.data);
         }
-    }, kMostEntries * 2 + 8, kMostEntryBytes, kMostTotalBytes + kMostManifestBytes, &stats);
+    }, limits().entries * 2 + 8, limits().entryBytes, limits().totalBytes + limits().manifestBytes, &stats);
     if (manifestTooLarge) {
         out->problem = Problem::Unreadable;
         if (error) *error = QCoreApplication::translate("jp::BlockLibrary", "The list of saved blocks is too large to read.");
@@ -139,14 +152,14 @@ bool BlockLibrary::readBytes(const QByteArray &zip, Content *out, QString *error
     qint64 total = 0;
     const QJsonArray list = root.value(QStringLiteral("entries")).toArray();
     for (const QJsonValue &v : list) {
-        if (out->entries.size() >= kMostEntries) break;
+        if (out->entries.size() >= limits().entries) break;
         if (!v.isObject()) continue;
         const QJsonObject o = v.toObject();
         BlockEntry e;
         e.info.id = o.value(QStringLiteral("id")).toString();
         if (!validId(e.info.id) || seen.contains(e.info.id)) continue;
         e.data = files.value(entryFile(e.info.id));
-        if (e.data.isEmpty() || total + e.data.size() > kMostTotalBytes) continue;
+        if (e.data.isEmpty() || total + e.data.size() > limits().totalBytes) continue;
         e.info.name = cleanName(o.value(QStringLiteral("name")).toString());
         if (e.info.name.isEmpty()) continue;
         e.info.gallery = clipped(o.value(QStringLiteral("gallery")).toString(), 40);
@@ -176,7 +189,7 @@ bool BlockLibrary::readFile(const QString &path, Content *out, QString *error)
     if (!f.exists()) return true;
     // (A file that cannot be read whole is no proof that it is no library: it is left as it is.)
     out->problem = Problem::Unreadable;
-    if (f.size() > kMostFileBytes) {
+    if (f.size() > (limits().totalBytes + limits().manifestBytes + (qint64(4) << 20))) {
         if (error) *error = QCoreApplication::translate("jp::BlockLibrary", "The library of saved blocks is too large to read.");
         return false;
     }
@@ -198,7 +211,7 @@ bool BlockLibrary::writeFile(const QString &path, const QVector<BlockEntry> &ent
     // (Nothing is written that the reader would refuse.)
     qint64 total = 0;
     for (const BlockEntry &e : entries) total += e.data.size();
-    if (entries.size() > kMostEntries || total > kMostTotalBytes) {
+    if (entries.size() > limits().entries || total > limits().totalBytes) {
         if (error) *error = QCoreApplication::translate("jp::BlockLibrary", "There are as many saved blocks as the library holds. Delete some to save this one.");
         return false;
     }
@@ -219,7 +232,7 @@ bool BlockLibrary::writeFile(const QString &path, const QVector<BlockEntry> &ent
     root.insert(QStringLiteral("version"), kVersion);
     root.insert(QStringLiteral("entries"), list);
     const QByteArray manifest = QJsonDocument(root).toJson(QJsonDocument::Compact);
-    if (manifest.size() > kMostManifestBytes) {
+    if (manifest.size() > limits().manifestBytes) {
         if (error) *error = QCoreApplication::translate("jp::BlockLibrary", "The names and descriptions of the saved blocks have used up the room kept for them. Delete some blocks to save this one.");
         return false;
     }
@@ -257,8 +270,20 @@ void BlockLibrary::adopt(Content &&content)
     m_entries = std::move(content.entries);
     m_infos.clear();
     m_infos.reserve(m_entries.size());
-    for (const BlockEntry &e : std::as_const(m_entries)) m_infos.push_back(e.info);
+    m_galleryCounts.clear();
+    for (const BlockEntry &e : std::as_const(m_entries)) {
+        m_infos.push_back(e.info);
+        ++m_galleryCounts[e.info.gallery];
+    }
     m_loaded = true;
+}
+
+void BlockLibrary::setLimitsForTest(int entries, qint64 entryBytes, qint64 totalBytes, qint64 manifestBytes)
+{
+    limits().entries = entries > 0 ? entries : kMostEntries;
+    limits().entryBytes = entryBytes > 0 ? entryBytes : kMostEntryBytes;
+    limits().totalBytes = totalBytes > 0 ? totalBytes : kMostTotalBytes;
+    limits().manifestBytes = manifestBytes > 0 ? manifestBytes : kMostManifestBytes;
 }
 
 void BlockLibrary::setLoaderHook(const std::function<void()> &hook) { g_loaderHook = hook; }
@@ -328,8 +353,13 @@ void BlockLibrary::loadInBackground(QObject *context, const std::function<void(b
     });
 }
 
+std::atomic<qint64> g_galleryLists{0};
+
+qint64 BlockLibrary::galleryListsMadeForTest() { return g_galleryLists; }
+
 QVector<BlockInfo> BlockLibrary::list(const QString &gallery) const
 {
+    ++g_galleryLists;
     QVector<BlockInfo> out;
     for (const BlockInfo &i : m_infos)
         if (i.gallery == gallery) out.push_back(i);
@@ -417,7 +447,7 @@ bool BlockLibrary::add(const BlockEntry &entry, QString *newIdOut, QString *erro
         if (error) *error = QCoreApplication::translate("jp::BlockLibrary", "A saved block needs a name.");
         return false;
     }
-    if (e.data.isEmpty() || e.data.size() > kMostEntryBytes) {
+    if (e.data.isEmpty() || e.data.size() > limits().entryBytes) {
         if (error) *error = QCoreApplication::translate("jp::BlockLibrary", "This is too large to save as a block.");
         return false;
     }
@@ -441,7 +471,7 @@ bool BlockLibrary::add(const BlockEntry &entry, QString *newIdOut, QString *erro
             ids.remove(all[same].info.id);
             all.remove(same);
         }
-        if (all.size() >= kMostEntries || total + e.data.size() > kMostTotalBytes) {
+        if (all.size() >= limits().entries || total + e.data.size() > limits().totalBytes) {
             if (err) *err = QCoreApplication::translate("jp::BlockLibrary", "There are as many saved blocks as the library holds. Delete some to save this one.");
             return false;
         }
@@ -526,7 +556,7 @@ int BlockLibrary::importFrom(const QString &file, QString *error, int *skipped)
                 ++taken;
                 continue;
             }
-            if (all.size() >= kMostEntries || total + e.data.size() > kMostTotalBytes) {
+            if (all.size() >= limits().entries || total + e.data.size() > limits().totalBytes) {
                 if (err) *err = QCoreApplication::translate("jp::BlockLibrary", "There is no room in the library for the rest of these blocks.");
                 return added > 0;
             }

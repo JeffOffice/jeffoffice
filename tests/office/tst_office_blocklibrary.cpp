@@ -502,13 +502,18 @@ private Q_SLOTS:
         QCOMPARE(b.list().first().size, BlockLibrary::kMostEntryBytes);
     }
 
-    // The limit on all the bytes: a library filled to exactly the most reads back whole (the manifest does not count against it), and one more byte is refused.
+    // The limit on all the bytes: a library filled to exactly the most reads back whole (the manifest does not count against it), and one more byte is refused. (The limits are small for the test:
+    // the same code, 4 blocks of 1,000 bytes, not 32 of 8 MB.)
     void theTotalLimitIsKept()
     {
+        struct Small {
+            Small() { BlockLibrary::setLimitsForTest(100, 1000, 4000); }
+            ~Small() { BlockLibrary::setLimitsForTest(); }
+        } small;
         QTemporaryDir dir;
         const QString path = dir.filePath(QStringLiteral("l.jblocks"));
-        const int each = int(BlockLibrary::kMostEntryBytes);
-        const int count = int(BlockLibrary::kMostTotalBytes / each);
+        const int each = 1000;
+        const int count = 4;
         {
             const QByteArray block(each, 'x');
             QJsonArray list;
@@ -537,8 +542,13 @@ private Q_SLOTS:
     }
 
     // The limit on the manifest: names and descriptions that escape to many bytes fill it long before the entry count does; the add that would pass it is refused, and every earlier one reads back.
+    // (A manifest of 64 KB, and at most 40 blocks: with the check off the 40th is added and the test fails at once.)
     void theManifestLimitIsKept()
     {
+        struct Small {
+            Small() { BlockLibrary::setLimitsForTest(40, 0, 0, qint64(64) << 10); }
+            ~Small() { BlockLibrary::setLimitsForTest(); }
+        } small;
         QTemporaryDir dir;
         const QString path = dir.filePath(QStringLiteral("l.jblocks"));
         BlockLibrary a(path);
@@ -546,7 +556,7 @@ private Q_SLOTS:
         const QString heavy(BlockLibrary::kMostTextChars, QChar(1));   // (each is written as \u0001: six bytes)
         int added = 0;
         bool refused = false;
-        for (int i = 0; i < BlockLibrary::kMostEntries; ++i) {
+        for (int i = 0; i < 40; ++i) {
             BlockEntry e = entryOf(QStringLiteral("Block %1").arg(i), "x");
             e.info.category = heavy;
             e.info.description = heavy;
@@ -558,7 +568,7 @@ private Q_SLOTS:
         }
         QVERIFY(refused);
         QVERIFY(!err.isEmpty());
-        QVERIFY(added > 100 && added < BlockLibrary::kMostEntries);
+        QVERIFY(added >= 2 && added < 40);
         BlockLibrary b(path);
         QVERIFY2(b.load(&err), qPrintable(err));
         QCOMPARE(b.list().size(), added);
