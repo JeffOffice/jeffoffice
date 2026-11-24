@@ -5062,7 +5062,19 @@ private Q_SLOTS:
             settle();
             QVERIFY(!w.view()->readOnly() && !w.isReadOnly() && !w.searchBlocked() && !w.view()->searchBlocked());
         }
-        // (2) A document opened for reading during a search stays read-only when the search would have ended.
+        // (2) Read Mode switched on, and off, during a search.
+        {
+            HeldSearch h;
+            h.start(pane, QStringLiteral("^odd.*"));
+            w.setReadMode(true);
+            QVERIFY(!pane->searchRunning());
+            settle();
+            QVERIFY(w.view()->readOnly());
+            QVERIFY(!w.searchBlocked() && !w.view()->searchBlocked());
+        }
+        w.setReadMode(false);
+        QVERIFY(!w.view()->readOnly());
+        // (3) A document opened for reading during a search stays read-only when the search would have ended.
         {
             HeldSearch h;
             h.start(pane, QStringLiteral("^odd\\b"));
@@ -5076,21 +5088,6 @@ private Q_SLOTS:
             QTest::keyClicks(w.view(), QStringLiteral("typed"));
             QVERIFY(w.document()->story()->toPlainText().contains(QStringLiteral("typed")));
         }
-        // (3) Read Mode switched on, and off, during a search.
-        w.setDocument(open(makeDocx(evenOddBody(3000))), QString());
-        pane->findBox()->setText(QStringLiteral("^even"));
-        QTRY_COMPARE(pane->matchCount(), 1500);
-        {
-            HeldSearch h;
-            h.start(pane, QStringLiteral("^odd.*"));
-            w.setReadMode(true);
-            QVERIFY(!pane->searchRunning());
-            settle();
-            QVERIFY(w.view()->readOnly());
-            QVERIFY(!w.searchBlocked() && !w.view()->searchBlocked());
-        }
-        w.setReadMode(false);
-        QVERIFY(!w.view()->readOnly());
     }
 
     void everyFindPaneIsLiveOnlyWhileItLivesAndTheProgramsEndIsOneStepForAllOfThem()
