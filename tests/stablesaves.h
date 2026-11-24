@@ -94,6 +94,34 @@ inline QString differenceBetweenProcesses(const QString &slot, int runs = 4)
     return firstDifference(files);
 }
 
+
+// Two saves of the same file, with no edit between them, compared part by part and byte by byte. Only the fields a real save sets anew by design may differ, and they are named here:
+// the "modified" time of the properties (<dcterms:modified> in a package, <dc:date> in an open document file). Nothing else is masked. Returns one line "part at byte: [here] against [there]" for each part that differs, or "" if none.
+inline QByteArray withoutModifiedTime(QByteArray bytes)
+{
+    static const QRegularExpression field(QStringLiteral("(<(?:dcterms:modified|dc:date)\\b[^>]*>)[^<]*(</)"));
+    QString text = QString::fromLatin1(bytes);
+    text.replace(field, QStringLiteral("\\1T\\2"));
+    return text.toLatin1();
+}
+
+inline QString differenceBetweenFiles(const QByteArray &a, const QByteArray &b)
+{
+    QMap<QString, QByteArray> pa, pb;
+    if (!jp::readZip(a, pa) || !jp::readZip(b, pb)) return a == b ? QString() : QStringLiteral("(the file, not a package)");
+    if (pa.keys() != pb.keys()) return QStringLiteral("(the list of parts: %1 against %2)").arg(pa.keys().join(QLatin1Char(' ')), pb.keys().join(QLatin1Char(' ')));
+    QStringList all;
+    for (auto it = pa.cbegin(); it != pa.cend(); ++it) {
+        const QByteArray x = withoutModifiedTime(it.value()), y = withoutModifiedTime(pb.value(it.key()));
+        if (x == y) continue;
+        int i = 0;
+        while (i < x.size() && i < y.size() && x[i] == y[i]) ++i;
+        const int from = qMax(0, i - 60);
+        all << QStringLiteral("%1 at %2: [%3] against [%4]").arg(it.key()).arg(i).arg(QString::fromLatin1(x.mid(from, 140)), QString::fromLatin1(y.mid(from, 140)));
+    }
+    return all.join(QLatin1Char('\n'));
+}
+
 } // namespace stable
 
 // In a test function: the saves of `slot` in separate processes are the same bytes.

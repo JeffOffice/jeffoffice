@@ -89,7 +89,7 @@ void writeRunProperties(QXmlStreamWriter &w, const char *tag, const QTextCharFor
     attribute(w, "i", cf.fontItalic() ? QStringLiteral("1") : QStringLiteral("0"));
     if (const QString u = underlineName(cf); !u.isEmpty()) attribute(w, "u", u);
     if (cf.fontStrikeOut()) attribute(w, "strike", QStringLiteral("sngStrike"));
-    if (cf.hasProperty(tp::KernAbove)) attribute(w, "kern", std::clamp<qint64>(rounded(cf.property(tp::KernAbove).toDouble() * 100), 0, 400000));
+    if (cf.hasProperty(tp::KernAbove) && !(ctx.inheritedKern > 0 && cf.property(tp::KernAbove).toDouble() == ctx.inheritedKern)) attribute(w, "kern", std::clamp<qint64>(rounded(cf.property(tp::KernAbove).toDouble() * 100), 0, 400000));
     if (cf.fontCapitalization() == QFont::AllUppercase) attribute(w, "cap", QStringLiteral("all"));
     else if (cf.fontCapitalization() == QFont::SmallCaps) attribute(w, "cap", QStringLiteral("small"));
     if (const double spacing = tp::kerningOf(cf); spacing != 0 && std::isfinite(spacing)) attribute(w, "spc", std::clamp<qint64>(rounded(spacing * 100), -400000, 400000));
@@ -194,6 +194,13 @@ const DateField kDateFields[] = {
     {"datetime9", "datetime:M/d/yyyy h:mm:ss AP"}, {"datetime10", "time:HH:mm"}, {"datetime11", "time:HH:mm:ss"}, {"datetime12", "time:h:mm AP"},
     {"datetime13", "time:h:mm:ss AP"}};
 
+// The id of a field: the same for the same field in the same place of the same part (not a new one each save).
+QString fieldId(const QString &code, DrawingWriteContext &ctx)
+{
+    static const QUuid space(QStringLiteral("{6d1a4c52-3b7e-4f0a-9c1d-5a2e8b7f4d10}"));
+    return QUuid::createUuidV5(space, QStringLiteral("%1|%2|%3").arg(ctx.part, code).arg(ctx.nextFieldId++)).toString(QUuid::WithBraces).toUpper();
+}
+
 // A field as a:fld: its type and the text it shows now; false for a field the standard has no type for.
 bool writeField(QXmlStreamWriter &w, const QString &code, const QTextCharFormat &cfIn, DrawingWriteContext &ctx)
 {
@@ -202,7 +209,7 @@ bool writeField(QXmlStreamWriter &w, const QString &code, const QTextCharFormat 
         const QString type = engineFieldType(code);
         if (type.isEmpty()) return false;
         begin(w, "a:fld");
-        attribute(w, "id", QUuid::createUuid().toString(QUuid::WithBraces).toUpper());
+        attribute(w, "id", fieldId(code, ctx));
         attribute(w, "type", type);
         writeRunProperties(w, "a:rPr", cfIn, ctx, false);
         begin(w, "a:t");
@@ -241,7 +248,7 @@ bool writeField(QXmlStreamWriter &w, const QString &code, const QTextCharFormat 
                               dc.language, fieldNow());
     }
     begin(w, "a:fld");
-    attribute(w, "id", QUuid::createUuid().toString(QUuid::WithBraces).toUpper());
+    attribute(w, "id", fieldId(code, ctx));
     attribute(w, "type", type);
     writeRunProperties(w, "a:rPr", cf, ctx, false);
     begin(w, "a:t");

@@ -46,6 +46,10 @@ struct DrawingWriteContext {
     std::function<QByteArray(const QString &mediaId, QString *contentType, QString *extension)> mediaBytes;
     // The next shape id in the part (p:cNvPr id): unique within the part.
     int nextShapeId = 2;
+    // The next field in the part: its id is made from the part, the field's code, and this number, so a part saved again with no change is the same bytes.
+    int nextFieldId = 1;
+    // The kerning (in points) every style of the package already gives its text: a run that has exactly it says nothing, so it is the same file whether it was read from one or not. 0: none.
+    double inheritedKern = 0;
     // How many slides the presentation has: a link to a slide is written as one only when this is set and the slide is among them.
     int slideCount = 0;
     // Counts the links to a slide the presentation no longer has, which are not written (the caller says so when it has saved).

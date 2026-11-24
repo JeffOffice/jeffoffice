@@ -301,6 +301,8 @@ QString levelXml(int level, const Level &l, const office::Theme &theme, bool dar
     const double indent = l.marL >= 0 || !body ? l.indent : inList ? 0 : -18;
     QString out = QStringLiteral("<a:lvl%1pPr marL=\"%2\" indent=\"%3\" algn=\"%4\" defTabSz=\"914400\" rtl=\"0\" eaLnBrk=\"1\" latinLnBrk=\"0\" hangingPunct=\"1\">")
                       .arg(level + 1).arg(emu(std::clamp(marL, 0.0, 4000.0))).arg(emu(std::clamp(indent, -4000.0, 4000.0)), l.align);
+    // (a level that said none is written as 100%, which is what it means and what the placeholders' own paragraphs say: read again it is the same, so a second save is the same bytes)
+    if (l.lineHeight <= 0) out += QStringLiteral("<a:lnSpc><a:spcPct val=\"100000\"/></a:lnSpc>");
     if (l.lineHeight > 0)
         out += l.fixedHeight ? QStringLiteral("<a:lnSpc><a:spcPts val=\"%1\"/></a:lnSpc>").arg(std::clamp(int(std::lround(l.lineHeight * 100)), 0, 158400))
                              : QStringLiteral("<a:lnSpc><a:spcPct val=\"%1\"/></a:lnSpc>").arg(std::clamp(int(std::lround(l.lineHeight * 1000)), 0, 13200000));
@@ -772,6 +774,7 @@ office::DrawingWriteContext Exporter::context(const QString &part)
     office::DrawingWriteContext ctx;
     ctx.package = &m_pkg;
     ctx.part = part;
+    ctx.inheritedKern = 12;   // (the presentation's and the masters' text styles all say kern="1200")
     ctx.theme = m_theme;
     // The master the part follows: its theme, and its color map (the one colorMapXml writes: a dark master has the background as dark 1).
     if (const auto at = m_partMaster.constFind(part); at != m_partMaster.cend() && *at < int(m_masters.size())) {
