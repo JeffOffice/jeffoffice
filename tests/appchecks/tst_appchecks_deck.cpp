@@ -398,6 +398,9 @@ private Q_SLOTS:
             {QStringLiteral("win.cascade"), QStringLiteral("it sets the open windows in a stack, and with one window the window keeps its place on the screen the checks run on; the window tests cascade two windows")},
         };
         m_app.neverRun = {{QStringLiteral("pic.discardRemoval"), QStringLiteral("it works only while Remove Background is open on a picture, which no place here has; DeckRemoveBgTests run it")},
+                          {QStringLiteral("pic.keepRemoval"), QStringLiteral("it works only while Remove Background is open on a picture, which no place here has; DeckRemoveBgTests run it")},
+                          {QStringLiteral("pic.markKeep"), QStringLiteral("it works only while Remove Background is open on a picture, which no place here has; DeckRemoveBgTests run it")},
+                          {QStringLiteral("pic.markRemove"), QStringLiteral("it works only while Remove Background is open on a picture, which no place here has; DeckRemoveBgTests run it")},
                           {QStringLiteral("pagemaster.close"), QStringLiteral("it closes the Notes Master or Handout Master view, and waits until one is open (the window tests open them)")}};
         // The commands of Compare act on the change chosen in the Reviewing Pane, which has one only when another presentation has been chosen; DeckReviewTests::compare* run each of them on a comparison.
         for (const char *id : {"review.accept", "review.reject", "review.acceptAll", "review.rejectAll", "review.prev", "review.next"})

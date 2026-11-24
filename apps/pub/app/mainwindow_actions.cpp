@@ -1386,8 +1386,11 @@ void MainWindow::createActions()
         connect(ed, &Editor::viewChanged, this, [this, ed, marking] {
             const bool on = !ed->removeBgItem.isEmpty();
             for (const char *id : {"pic.markKeep", "pic.markRemove", "pic.discardRemoval", "pic.keepRemoval"}) act(QString::fromLatin1(id))->setEnabled(on);
-            act("pic.markKeep")->setChecked(on && ed->removeBgTool == Editor::RemoveBgTool::Keep);
-            act("pic.markRemove")->setChecked(on && ed->removeBgTool == Editor::RemoveBgTool::Remove);
+            // (the check marks are set while the mode is open and cleared when it ends, and left alone otherwise)
+            if (on || *marking) {
+                act("pic.markKeep")->setChecked(on && ed->removeBgTool == Editor::RemoveBgTool::Keep);
+                act("pic.markRemove")->setChecked(on && ed->removeBgTool == Editor::RemoveBgTool::Remove);
+            }
             if (on != *marking) {
                 *marking = on;
                 updateContextTabs();
