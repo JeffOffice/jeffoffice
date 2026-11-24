@@ -2830,6 +2830,11 @@
          "hide_soon": true,
          "status": "done",
          "text": "6e2e7e41f2893a785171dc99621767e0e49e72ae2732402faba5c108ab16a4ec"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
+         "text": "4975adf8e8500bdf6870d8661e868148ca51d0858b8d07fd6900833909fbc0a5"
         }
        ]
       },
@@ -5480,7 +5485,7 @@
       {
        "hide_soon": true,
        "status": "done",
-       "text": "d6a3c505701e165480969d92d2837f5c0f1dc5434cdca7d8fc5f626c94cba496"
+       "text": "d81d0a9e145a58bf29249190c3eb29791f43e369ba368528e2ffc171f10a93cf"
       },
       {
        "hide_soon": true,
@@ -13590,6 +13595,18 @@
    "en": "Save pages as pictures in PNG, JPEG, GIF, TIFF, or BMP format at a chosen resolution.",
    "es": "Guarde las páginas como imágenes en formato PNG, JPEG, GIF, TIFF o BMP con la resolución que elija.",
    "fr": "Enregistrez les pages sous forme d’images aux formats PNG, JPEG, GIF, TIFF ou BMP à la résolution de votre choix.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "4975adf8e8500bdf6870d8661e868148ca51d0858b8d07fd6900833909fbc0a5": {
+   "drop": false,
+   "en": "Mark the selected words, or all the words of the selected objects, with the Text Highlight Color button and its sixteen colors on the Home tab. The button remembers the last color, and with nothing selected it turns on a highlighter that marks what the mouse selects until you press `Esc`. Copy Formatting carries the highlight and Clear All Formatting removes it. Highlights show in the slide show, thumbnails, print, and PDF, and are kept in `.pptx` and `.odp` files as the file has them.",
+   "es": "Marque las palabras seleccionadas, o todas las palabras de los objetos seleccionados, con el botón Color de resaltado del texto y sus dieciséis colores en la pestaña Inicio. El botón recuerda el último color y, sin nada seleccionado, activa un resaltador que marca lo que seleccione con el ratón hasta que pulse `Esc`. Copiar formato lleva el resaltado y Borrar todo el formato lo quita. Los resaltados se ven en la presentación, las miniaturas, la impresión y el PDF, y se conservan en los archivos `.pptx` y `.odp` tal como los tiene el archivo.",
+   "fr": "Marquez les mots sélectionnés, ou tous les mots des objets sélectionnés, avec le bouton Couleur de surlignage du texte et ses seize couleurs dans l’onglet Accueil. Le bouton mémorise la dernière couleur et, sans sélection, active un surligneur qui marque ce que vous sélectionnez à la souris jusqu’à ce que vous appuyiez sur `Échap`. Reproduire la mise en forme transmet le surlignage et Effacer toute la mise en forme le supprime. Les surlignages apparaissent dans le diaporama, les miniatures, l’impression et le PDF, et sont conservés dans les fichiers `.pptx` et `.odp` tels que le fichier les contient.",
    "soon": {
     "drop": true,
     "en": "",
@@ -23569,18 +23586,6 @@
     "fr": ""
    }
   },
-  "d6a3c505701e165480969d92d2837f5c0f1dc5434cdca7d8fc5f626c94cba496": {
-   "drop": false,
-   "en": "Format text with fonts, sizes, theme-aware color, highlight, underline styles, strikethrough, subscript and superscript, all caps, small caps, tracking (a percentage, with presets from Very Tight to Very Loose), kerning (in points), automatic pair kerning (for fonts 14 pt and above unless set otherwise), and scaling.",
-   "es": "Dé formato al texto con fuentes, tamaños, color adaptado al tema, resaltado, estilos de subrayado, tachado, subíndice y superíndice, mayúsculas, versalitas, espaciado entre caracteres (un porcentaje, con ajustes preestablecidos de Muy junto a Muy separado), kerning (en puntos), kerning automático de pares (para fuentes de 14 pt o más, salvo que se indique otra cosa) y escalado.",
-   "fr": "Mettez le texte en forme avec polices, tailles, couleur liée au thème, surlignage, styles de soulignement, barré, indice et exposant, majuscules, petites majuscules, approche (un pourcentage, avec des préréglages de Très serré à Très large), crénage (en points), crénage automatique des paires (pour les polices de 14 pt et plus, sauf réglage contraire) et mise à l’échelle.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
   "d737e3f3ff949ecab50bfc13baf6da985744a4e77ecea381037be2ecece9756d": {
    "drop": false,
    "en": "Choose the printer or Save as PDF, set the number of copies and collation, and print on one side or both sides, flipped on the long or short edge or by hand.",
@@ -23658,6 +23663,18 @@
    "en": "Drawing objects on a sheet (lines, rectangles, text boxes, arrows, and other shapes) are shown, kept, and written back, in front of or behind the cells.",
    "es": "Los objetos de dibujo de una hoja (líneas, rectángulos, cuadros de texto, flechas y otras formas) se muestran, se conservan y se escriben de nuevo, delante o detrás de las celdas.",
    "fr": "Les objets de dessin d’une feuille (lignes, rectangles, zones de texte, flèches et autres formes) sont affichés, conservés et réécrits, devant ou derrière les cellules.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "d81d0a9e145a58bf29249190c3eb29791f43e369ba368528e2ffc171f10a93cf": {
+   "drop": false,
+   "en": "Format text with fonts, sizes, theme-aware colors, highlight, underline styles, strikethrough, subscript, superscript, all caps, and small caps. Adjust tracking as a percentage with presets from Very Tight to Very Loose, set kerning in points, use automatic pair kerning for fonts 14 pt and above unless set otherwise, and scale text.",
+   "es": "Dé formato al texto con fuentes, tamaños, colores que siguen el tema, resaltado, estilos de subrayado, tachado, subíndice, superíndice, todo en mayúsculas y versalitas. Ajuste el espaciado entre caracteres como porcentaje con ajustes preestablecidos de Muy ajustado a Muy amplio, defina el kerning en puntos, use el kerning automático por pares en fuentes de 14 pt o más salvo que se indique otra cosa, y escale el texto.",
+   "fr": "Mettez en forme le texte avec des polices, des tailles, des couleurs liées au thème, le surlignage, des styles de soulignement, le barré, l’indice, l’exposant, les majuscules et les petites majuscules. Réglez l’espacement des caractères en pourcentage avec des préréglages de Très serré à Très large, définissez le crénage en points, utilisez le crénage automatique par paires pour les polices de 14 pt et plus sauf indication contraire, et mettez le texte à l’échelle.",
    "soon": {
     "drop": true,
     "en": "",
