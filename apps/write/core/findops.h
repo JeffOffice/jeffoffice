@@ -21,8 +21,9 @@ constexpr int kMostPatternLength = 500;   // a longer pattern is refused
 // A regular expression is given to the engine in windows of at most this many characters (a longer paragraph, or the story for a pattern across paragraphs), each starting this many before the first place it
 // is to find a match in. A match longer than the overlap that starts near a window's end can be missed in such a text.
 constexpr int kRegexWindow = 10000, kRegexOverlap = 2000;
-// A repeat inside a look-ahead or a look-behind has an upper limit of at most this many (the work of the look grows with it at every step of the pattern), or the pattern is refused.
-constexpr int kMostLookaroundRepeat = 8;
+// The most work the engine does in one call for one place it tries a match at (its own count of steps, set in front of every pattern). A call that goes past it is stopped and the scan says so (`limited`): measured on
+// 10,000 characters, every call of the worst patterns known ends in well under a tenth of a second, and ordinary patterns never get near it.
+constexpr int kRegexMatchLimit = 10000;
 // What the search's text has in the place of a section break (a paragraph mark that ends a section), the start of a field, and a footnote's or an endnote's mark: one character each, from the
 // private use area, so that the codes ^b, ^d, ^f, and ^e find them and nothing else does.
 constexpr char16_t kFindSectionBreak = 0xE0B0, kFindField = 0xE0D0, kFindEndnoteMark = 0xE0E0, kFindFootnoteMark = 0xE0F0;
@@ -41,7 +42,7 @@ QString expandReplacement(const QString &with, const QRegularExpressionMatch &ma
 
 // "Use regular expressions": the pattern as typed, in the common syntax (classes, anchors, groups, alternation, counted and lazy repeats, \b, \d, \w, \s, \n for a paragraph mark), with letters read as
 // Unicode letters and the case of letters following `matchCase`. Anchors are those of a paragraph. Refused, with a sentence naming the place: a pattern that is not valid, longer than kMostPatternLength,
-// with more than nine groups that are kept, with a repeat in a look-ahead or a look-behind that has no upper limit or one above kMostLookaroundRepeat, or that calls itself, runs code, or changes the engine's limits ((?R), (?1), (?C), (*VERB), \g<1>, \K, conditions). A pattern that takes too long on a text is
+// with more than nine groups that are kept, that looks ahead or behind ((?=, (?!, (?<=, (?<!), or that calls itself, runs code, or changes the engine's limits ((?R), (?1), (?C), (*VERB), \g<1>, \K, conditions). A pattern that takes too long on a text is
 // stopped by the engine's limit of work, and scanRegex says so (`limited`).
 FindPattern regexPattern(const QString &pattern, bool matchCase);
 

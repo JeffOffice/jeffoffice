@@ -3927,29 +3927,61 @@ private Q_SLOTS:
         QCOMPARE(count("b\\b", one), 1);
         QCOMPARE(count("^b", one + QLatin1Char('\n') + one), 2);
         QCOMPARE(count("(?:^b|\\n)", one + QLatin1Char('\n') + one), 3);   // (across paragraphs: ^ is still the start of a line only)
-        // The pattern of the review: a look-ahead that reads to the end of a text, over 200,000 characters, is only ever given a window.
-        QString huge(200000, QLatin1Char('a'));
-        const RegexScan h = scanRegex(huge, regexPattern(QStringLiteral("Q(?=.{0,8}z)a"), false), 0, 10);
+        // The 200,000-character text of the review is only ever given a window, even for a pattern that names a paragraph mark.
+        const QString huge(200000, QLatin1Char('a'));
+        const RegexScan h = scanRegex(huge, regexPattern(QStringLiteral("Q\\d{0,8}z"), false), 0, 10);
         QVERIFY(h.done && h.hits.isEmpty() && h.widest <= kRegexWindow);
     }
 
-    void aLookAheadOrLookBehindWithARepeatThatHasNoLimitIsRefusedAtItsPlace()
+    void everyLookAheadAndLookBehindIsRefusedAtItsPlaceAndWhatOnlyLooksLikeOneIsNot()
     {
-        // The three patterns of the review (a look that reads to the end of the text at every step of the pattern is cubic, and no window bounds it): refused, with the place of the look.
-        const struct { const char *pattern; int at; } bad[] = {{"(?=.*z)a", 1}, {"(?:a|b)*?(?=.*z)", 10}, {"(?<=(?=a.*z)a)", 1}, {"x(?!a+)", 2}, {"(?=(?:ab)*+)", 1}, {"(?=\\d{2,})", 1}, {"(?=a{0,9})", 1}, {"(?=a{9})", 1}, {"(?=a{,300})", 1}, {"(?:x|(?=.+))", 6}};
+        const struct { const char *pattern; int at; } bad[] = {{"(?=.*z)a", 1}, {"(a*)(?:a|b)*?(?=\\1z)", 14}, {"x(?!a)", 2}, {"(?<=a)b", 1}, {"b(?<!a)", 2}, {"(?:x|(?=a))", 6}, {"[a](?=b)", 4}, {"\\((?=b)", 3}};
         for (const auto &b : bad) {
             const FindPattern p = regexPattern(QString::fromLatin1(b.pattern), false);
-            QVERIFY2(p.error.contains(QStringLiteral("look-ahead or look-behind at character %1 ").arg(b.at)), qPrintable(QString::fromLatin1(b.pattern) + QStringLiteral(": ") + p.error));
+            QVERIFY2(p.error.contains(QStringLiteral("look-ahead or look-behind patterns, at character %1.").arg(b.at)), qPrintable(QString::fromLatin1(b.pattern) + QStringLiteral(": ") + p.error));
             QVERIFY2(!p.regex.isValid() || p.regex.pattern().isEmpty(), b.pattern);
+            QVERIFY2(scanRegex(QStringLiteral("abcabc"), p, 0, 10).hits.isEmpty(), b.pattern);
         }
-        // A repeat with a limit that is small stays, and so does everything that only looks like a look or a repeat (a set, an escape, a quoted run, a comment, a repeat outside the look).
-        for (const char *good : {"(?=\\d{1,3})x", "x(?=\\d{1,3})", "(?<=\\d{1,3})x", "(?=a{0,8})", "(?=a{8})", "(?=a?+b)", "(?=a{1,3}+)", "(?=a??b)", "(?=[*+])", "[(?=.*]x", "\\(\\?=.*", "\\Q(?=.*z)\\Ea", "(?=(?#a*)b)x", "a*(?=b)", "(?=\\*)", "(?=\\+)a+", "(?:a*)(?=b)+", "(?=x{)", "(?=a\\{2,})", "(?=[[:alpha:]*]b)", "(?:a+)(?<=b)c*", "(?=\\\\)a*"})
+        // A set, an escape, a quoted run, a comment, a named group, and a group that is only a group are no look; and a group read again with \1 stays.
+        for (const char *good : {"[(?=]x", "\\(\\?=a", "\\Q(?=a)\\Ea", "(?#(?=a)b", "(?<n>a)b", "(?:a)(?<m>b)", "(?i:a)", "(\\w+) \\1", "(?>a+)b", "a(?#)b"})
             QVERIFY2(regexPattern(QString::fromLatin1(good), false).error.isEmpty(), good);
         auto found = [](const char *pattern, const QString &text) { return scanRegex(text, regexPattern(QString::fromLatin1(pattern), false), 0, 100).hits.size(); };
-        QCOMPARE(found("(?=\\d{1,3})x", QStringLiteral("x12 x")), 0);
-        QCOMPARE(found("x(?=\\d{1,3})", QStringLiteral("x12 x")), 1);
-        QCOMPARE(found("(?<=\\d{1,3})x", QStringLiteral("12x 3x x")), 2);
-        QCOMPARE(found("[(?=.*]x", QStringLiteral("(x .x z")), 2);
+        QCOMPARE(found("(\\w+) \\1", QStringLiteral("the the cat sat sat")), 2);
+        QCOMPARE(found("[(?=]x", QStringLiteral("(x ?x =x")), 3);
+    }
+
+    void everyCallOfTheEngineIsStoppedByTheLimitWeSetAndOrdinaryPatternsNeverReachIt()
+    {
+        // `(a|aa)+c` takes about two million steps on 30 a's: far under the engine's own default (ten million), far over ours, so this fails when our limit is not set.
+        const QString text = QString(30, QLatin1Char('a')) + QStringLiteral("bc");
+        const FindPattern slow = regexPattern(QStringLiteral("(a|aa)+c"), false);
+        QVERIFY(slow.error.isEmpty());
+        const RegexScan s = scanRegex(text, slow, 0, 10);
+        QVERIFY(s.limited && !s.done && s.hits.isEmpty());
+        QCOMPARE(s.calls, 1);   // (the scan stops at the call that was stopped)
+        // The limit is the engine's own count, so it holds for a call given a whole window: the nested repeats of the patterns that were slow, each ended on its first call.
+        const QString ab = QString(kRegexWindow / 2, QLatin1Char('a')) + QString(kRegexWindow / 2, QLatin1Char('b'));
+        for (const char *pattern : {"(a+)+c", "(a|aa)+$", "(a*)*\\1c", "((a|b)*)*\\1c", "(\\w+\\s?)*$", "(.*a){12}\\1x", "(a?){30}a{30}c"}) {
+            const RegexScan r = scanRegex(ab, regexPattern(QString::fromLatin1(pattern), false), 0, 10);
+            QVERIFY2(r.limited || r.done, pattern);
+            QVERIFY2(r.calls <= 2, pattern);
+        }
+        // A pattern cannot raise the limit: one that starts with a setting is refused.
+        QVERIFY(!regexPattern(QStringLiteral("(*LIMIT_MATCH=900000000)(a|aa)+c"), false).error.isEmpty());
+        // Thirty ordinary patterns, on 10,000 characters of prose and on one repeated letter: none stops, and each finishes the text.
+        QString prose;
+        for (int i = 0; prose.size() < 10000; ++i) prose += QStringLiteral("The quick brown fox, %1 jumps over the lazy dog on 2024-03-%2. It's fine, said Bob Bob; Hello world.  ").arg(i * 7).arg(10 + i % 20);
+        prose.truncate(10000);
+        const QString letters(10000, QLatin1Char('a'));
+        const char *ordinary[] = {"\\bthe\\b", "\\d+", "\\d{4}-\\d{2}-\\d{2}", "\\b(\\w+)\\s+\\1\\b", "fox|dog|lazy", "[aeiou]+", "^The", "world\\.$", "\\w+@\\w+", "\\bQ\\w*", "[A-Z][a-z]+", "(?:quick|brown)\\s+\\w+",
+                                  "\\s{2,}", "\\b\\w{5}\\b", "(\\w+) (\\w+)", "\\.\\s", "[^ ]+ing\\b", "\\b[Bb]ob\\b", "\\bfi\\w*", "(\\d+)-(\\d+)-(\\d+)", "(\\w+)\\s\\1", "a.*z", "fox.*dog", "\\bt\\w*\\b.*\\bd\\w*\\b",
+                                  "x+", "\\w*e\\b", "[0-9]+(?:,[0-9]{3})*", "\\bthe\\s+\\w+\\s+\\w+\\b", "a+b", "(a|b)+c"};
+        QCOMPARE(int(std::size(ordinary)), 30);
+        for (const char *pattern : ordinary)
+            for (const QString &t : {prose, letters}) {
+                const RegexScan r = scanRegex(t, regexPattern(QString::fromLatin1(pattern), false), 0, 100000);
+                QVERIFY2(!r.limited && r.done, pattern);
+            }
     }
 
     void theScanAsksBetweenWindowsWhetherToGoOnAndStopsAtOnce()

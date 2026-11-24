@@ -157,7 +157,8 @@ int skipSet(const QString &p, int i)
 }
 
 // What is wrong with the shape of a regular expression (as far as it can be told from its text), or an empty string: one that reaches outside the pattern (it calls itself, runs code, or
-// changes the engine's limits). `at` is the place (a character count from 1) of the thing. How long a pattern may run is not judged here: the engine's own limit on work ends it, and the scan says so.
+// changes the engine's limits), or looks ahead or behind of what it finds. `at` is the place (a character count from 1) of the thing. How long a pattern may run is not judged here: the engine's own limit
+// on work (kRegexMatchLimit) ends it, and the scan says so.
 QString regexShapeProblem(const QString &p)
 {
     auto unsupported = [](int at) { return problem(QT_TRANSLATE_NOOP("jp::write::Find", "That pattern uses something JeffWrite does not search with, at character %1.")).arg(at); };
@@ -178,85 +179,18 @@ QString regexShapeProblem(const QString &p)
             i = skipSet(p, i);
         } else if (c == QLatin1Char('(')) {
             if (next == QLatin1Char('*')) return unsupported(i + 1);
-            if (next == QLatin1Char('?')) {
-                if (QStringLiteral("RC(&+").contains(after) || after.isDigit() || (after == QLatin1Char('-') && i + 3 < n && p[i + 3].isDigit()) || (after == QLatin1Char('P') && i + 3 < n && p[i + 3] == QLatin1Char('>')))
-                    return unsupported(i + 1);
-            }
-        }
-    }
-    return QString();
-}
-
-// What is wrong with a look-ahead or a look-behind (as far as it can be told from the pattern's text), or an empty string: a repeat inside it that has no upper limit, or a limit above kMostLookaroundRepeat.
-// The engine does the look round again at every step of the pattern's own repeat, and a look that reads to the end of the text makes that work grow with the square or the cube of the text's length, which
-// the windows do not bound and the engine's limit of work ends too late. The walk is that of the pattern's own syntax: escapes, \Q...\E, sets, and (?#...) comments hold nothing. `at` is the place (a
-// character count from 1) of the outermost look the repeat is in.
-QString regexLookaroundProblem(const QString &p)
-{
-    struct Group {
-        bool look;
-        int at;
-    };
-    QVector<Group> stack;
-    int looks = 0;   // (how many of the groups open now are looks)
-    const int n = int(p.size());
-    auto outermost = [&] {
-        for (const Group &g : stack)
-            if (g.look) return g.at;
-        return 0;
-    };
-    auto tooLong = [&](const QString &max) {
-        return max.isEmpty() ? problem(QT_TRANSLATE_NOOP("jp::write::Find", "A look-ahead or look-behind at character %1 has a repeat in it with no limit, which could take far too long. Give that repeat a limit, such as {0,%2}.")).arg(outermost()).arg(kMostLookaroundRepeat)
-                             : problem(QT_TRANSLATE_NOOP("jp::write::Find", "A look-ahead or look-behind at character %1 has a repeat in it that goes past %2, which could take far too long. Use a smaller limit, such as {0,%2}.")).arg(outermost()).arg(kMostLookaroundRepeat);
-    };
-    bool quantified = false;   // (the character before was a repeat: a + or ? after it makes it possessive or lazy and is no repeat of its own)
-    for (int i = 0; i < n; ++i) {
-        const QChar c = p[i];
-        const QChar next = i + 1 < n ? p[i + 1] : QChar();
-        const bool wasQuantified = std::exchange(quantified, false);
-        if (c == QLatin1Char('\\')) {
-            if (next == QLatin1Char('Q')) {
-                const int e = int(p.indexOf(QStringLiteral("\\E"), i + 2));
-                if (e < 0) break;
-                i = e + 1;
-            } else {
-                ++i;
-            }
-        } else if (c == QLatin1Char('[')) {
-            i = skipSet(p, i);
-        } else if (c == QLatin1Char('(')) {
-            if (next == QLatin1Char('?') && i + 2 < n && p[i + 2] == QLatin1Char('#')) {   // (a comment)
+            if (next == QLatin1Char('?') && after == QLatin1Char('#')) {   // (a comment holds nothing)
                 const int e = int(p.indexOf(QLatin1Char(')'), i + 3));
                 if (e < 0) break;
                 i = e;
                 continue;
             }
-            const QChar after = i + 2 < n ? p[i + 2] : QChar(), third = i + 3 < n ? p[i + 3] : QChar();
-            const bool look = next == QLatin1Char('?') && (after == QLatin1Char('=') || after == QLatin1Char('!') || (after == QLatin1Char('<') && (third == QLatin1Char('=') || third == QLatin1Char('!'))));
-            stack.push_back({look, i + 1});
-            if (look) ++looks;
-        } else if (c == QLatin1Char(')')) {
-            if (!stack.isEmpty()) {
-                if (stack.last().look) --looks;
-                stack.pop_back();
+            if (next == QLatin1Char('?') && (after == QLatin1Char('=') || after == QLatin1Char('!') || (after == QLatin1Char('<') && i + 3 < n && (p[i + 3] == QLatin1Char('=') || p[i + 3] == QLatin1Char('!')))))
+                return problem(QT_TRANSLATE_NOOP("jp::write::Find", "JeffWrite does not search with look-ahead or look-behind patterns, at character %1.")).arg(i + 1);
+            if (next == QLatin1Char('?')) {
+                if (QStringLiteral("RC(&+").contains(after) || after.isDigit() || (after == QLatin1Char('-') && i + 3 < n && p[i + 3].isDigit()) || (after == QLatin1Char('P') && i + 3 < n && p[i + 3] == QLatin1Char('>')))
+                    return unsupported(i + 1);
             }
-        } else if (looks > 0 && (c == QLatin1Char('*') || (c == QLatin1Char('+') && !wasQuantified))) {
-            return tooLong(QString());
-        } else if (looks > 0 && c == QLatin1Char('{')) {
-            // {n}, {n,}, {n,m}, and {,m} are repeats; a { that is none of them is itself.
-            const int e = int(p.indexOf(QLatin1Char('}'), i + 1));
-            if (e < 0) continue;
-            const QString body = p.mid(i + 1, e - i - 1);
-            const int comma = int(body.indexOf(QLatin1Char(',')));
-            const QString low = comma < 0 ? body : body.left(comma), high = comma < 0 ? body : body.mid(comma + 1);
-            auto digits = [](const QString &t) { return !t.isEmpty() && std::all_of(t.cbegin(), t.cend(), [](QChar d) { return d.unicode() >= '0' && d.unicode() <= '9'; }); };
-            if (!(digits(low) || (comma >= 0 && low.isEmpty() && digits(high))) || (comma >= 0 && !high.isEmpty() && !digits(high))) continue;
-            if (comma >= 0 && high.isEmpty()) return tooLong(QString());
-            if (high.size() > 6 || high.toInt() > kMostLookaroundRepeat) return tooLong(high);
-            i = e;
-            quantified = true;
-        } else if (c == QLatin1Char('?') && !wasQuantified) {
-            quantified = true;   // (a ? is a repeat of at most one: nothing to refuse, but a + after it is possessive)
         }
     }
     return QString();
@@ -290,17 +224,16 @@ FindPattern regexPattern(const QString &pattern, bool matchCase)
     QRegularExpression::PatternOptions options = QRegularExpression::UseUnicodePropertiesOption;
     if (!matchCase) options |= QRegularExpression::CaseInsensitiveOption;
     if (across) options |= QRegularExpression::MultilineOption;
-    QRegularExpression regex(pattern, options);
+    // The engine counts its own work, from the start of each place it tries a match at, and stops a call at kRegexMatchLimit of it. A setting at the start of the pattern is the only way to lower the
+    // limit (the pattern as typed cannot start with one: it is refused below), and it is the same with the engine's compiled code on or off.
+    const QString limit = QStringLiteral("(*LIMIT_MATCH=%1)").arg(kRegexMatchLimit);
+    QRegularExpression regex(limit + pattern, options);
     if (!regex.isValid()) {
-        out.error = problem(QT_TRANSLATE_NOOP("jp::write::Find", "That pattern has a mistake near character %1: %2.")).arg(std::clamp(int(regex.patternErrorOffset()), 1, int(pattern.size()))).arg(regex.errorString());
+        out.error = problem(QT_TRANSLATE_NOOP("jp::write::Find", "That pattern has a mistake near character %1: %2.")).arg(std::clamp(int(regex.patternErrorOffset()) - int(limit.size()), 1, int(pattern.size()))).arg(regex.errorString());
         return out;
     }
     if (const QString shape = regexShapeProblem(pattern); !shape.isEmpty()) {
         out.error = shape;
-        return out;
-    }
-    if (const QString look = regexLookaroundProblem(pattern); !look.isEmpty()) {
-        out.error = look;
         return out;
     }
     if (regex.captureCount() > 9) {
