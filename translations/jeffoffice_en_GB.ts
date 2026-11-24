@@ -517,6 +517,14 @@ Download it from %2 now? (%3, once.)</translation>
         <source>Origami fortune teller with colors and numbers.</source>
         <translation>Origami fortune teller with colours and numbers.</translation>
     </message>
+    <message>
+        <source>[Company or Organization]</source>
+        <translation>[Company or Organisation]</translation>
+    </message>
+    <message>
+        <source>[Team or Organization]</source>
+        <translation>[Team or Organisation]</translation>
+    </message>
 </context>
 <context>
     <name>TextStyle</name>

@@ -1,5 +1,5 @@
 # Open, save, print, and export
-<!-- keywords: fonts in the file, embedded fonts, missing font, e-book, ebook, epub, e-reader, chapters, contents, web page, html, save as web page, filtered web page, email, eml, bookmarks, pdf bookmarks, shift+f5, last edit, where you stopped, built-in templates, gallery, letter, report, brief, manuscript, newsletter, open, save, save as, docx, doc, dot, odt, opendocument, rtf, older files, template, dotx, recent, pin, new, close, print, pdf, export, recover, automatic recovery, unsaved, crash, file screen, file formats, save a copy, read-only, read only, open as copy, new window, backup copy, my templates, save as template, ott, repair, open and repair, damaged, password, encrypt, protect with a password -->
+<!-- keywords: fonts in the file, embedded fonts, missing font, e-book, ebook, epub, e-reader, chapters, contents, web page, html, save as web page, filtered web page, email, eml, bookmarks, pdf bookmarks, shift+f5, last edit, where you stopped, built-in templates, gallery, letter, cover letter, business letter, resume, invoice, meeting agenda, meeting notes, flyer, report, brief, manuscript, newsletter, open, save, save as, docx, doc, dot, odt, opendocument, rtf, older files, template, dotx, recent, pin, new, close, print, pdf, export, recover, automatic recovery, unsaved, crash, file screen, file formats, save a copy, read-only, read only, open as copy, new window, backup copy, my templates, save as template, ott, repair, open and repair, damaged, password, encrypt, protect with a password -->
 
 Click **File** at the top left to see the File screen. It has pages for New, Open, Print, and Export, and commands for Save and Save As. Press **Esc** to go back to your document.
 
@@ -65,7 +65,7 @@ JeffWrite saves a spare copy of unsaved work every few minutes, as a file in its
 
 ## Start from a template
 
-**File > New** shows the **Blank Document** and a set of templates that come with JeffWrite, grouped by kind: a letter, a report, a brief, a manuscript, and a newsletter. Each picture is the first page of the document you get. A **template** is a document that is already set up, with its styles, margins, and sample words. Click one, and replace the sample words with your own. Templates you saved yourself are listed under **My Templates**.
+**File > New** shows the **Blank Document** and a set of templates that come with JeffWrite, grouped by kind: letters (a personal letter, a cover letter, and a business letter), reports (a report, a report with a cover page and a table of contents, and a brief), a manuscript, publications (a newsletter and a flyer), resumes (a classic one and one with a side column), and business papers (an invoice, a meeting agenda, and meeting notes). Point to a picture to see what the template is for. Each picture is the first page of the document you get. A **template** is a document that is already set up, with its styles, margins, and sample words. Click one, and replace the sample words with your own. Templates you saved yourself are listed under **My Templates**.
 
 ## Pick up where you stopped
 

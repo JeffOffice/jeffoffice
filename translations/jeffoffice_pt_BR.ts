@@ -2403,12 +2403,13 @@ Matéria da última página	4</translation>
         <translation type="unfinished">Seção padrão</translation>
     </message>
     <message>
+        <location filename="../apps/deck/core/decktemplates.cpp" line="+61"/>
         <location filename="../apps/deck/core/themes.cpp" line="+532"/>
         <source>Decoration</source>
         <translation type="unfinished">Decoração</translation>
     </message>
     <message>
-        <location line="+28"/>
+        <location filename="../apps/deck/core/themes.cpp" line="+28"/>
         <source>%1 Slide Master</source>
         <translation type="unfinished">Slide mestre %1</translation>
     </message>
@@ -2418,7 +2419,7 @@ Matéria da última página	4</translation>
         <translation type="unfinished">Estilo %1</translation>
     </message>
     <message>
-        <location line="+107"/>
+        <location line="+114"/>
         <source>Subtitle</source>
         <translation type="unfinished">Subtítulo</translation>
     </message>
@@ -2682,6 +2683,405 @@ Matéria da última página	4</translation>
         <location line="+83"/>
         <source>%1: %2</source>
         <translation type="unfinished">%1: %2</translation>
+    </message>
+</context>
+<context>
+    <name>DeckTemplates</name>
+    <message>
+        <location filename="../apps/deck/core/decktemplates.cpp" line="+40"/>
+        <source>One Picture</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Two Pictures</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Three Pictures</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+148"/>
+        <source>[Company name]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[One sentence that says what you do and for whom]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The problem</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Who has the problem, and what it costs them]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>[How they cope today]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>[Why now is the time to fix it]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Our solution</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[What you built, in one line]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>[How it works, in three steps]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>[What makes it better than the options]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+8"/>
+        <source>Where we are</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-7"/>
+        <source>[Customers or users]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>[Revenue or growth]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Team: who you are]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>[Milestones so far]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The ask</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[What you need, how much, and what it will do]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>[Project name] status update</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Date]  |  [Your name]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Status: [on track, at risk, or late]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>[One sentence on how the work is going]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>[The date the work will be done]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Done and next</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+0"/>
+        <location line="+0"/>
+        <source>Done: [finished item]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+0"/>
+        <location line="+0"/>
+        <source>Next: [planned item]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Risks and help needed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[A risk, and what you are doing about it]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>[A decision you need, and from whom]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>[Help you are asking for]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>[Lesson title]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Course or grade]  |  [Teacher]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Today&apos;s goals</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[What students will be able to do by the end]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>[A second goal]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>[A third goal]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Key ideas</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[First idea]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <location line="+1"/>
+        <source>[An example that shows it]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>[Second idea]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Try it</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Describe the activity, and how long students have]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Check your understanding</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[A question for students to answer]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>[A second question]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>[A question that asks them to explain why]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>[Album title]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Place or occasion]  |  [Dates]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Caption for this photo]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Caption for these photos]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Caption for this moment]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>[Presentation title]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Your name]  |  [Date]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[A heading that says the point]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[A first point, in a short line]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>[A second point]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>[A third point]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Two things side by side]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Left: a point]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>[Left: another point]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Right: a point]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>[Right: another point]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Thank you]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Email address or website]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>Pitch</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Five slides that tell investors or partners what you do and what you need.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Status Update</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>A short report on where a project stands, what is next, and what could go wrong.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Lesson</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Goals, key ideas, an activity, and questions for a class.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Photo Album</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Pages with room for one, two, or three pictures, and a caption for each.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Minimal Light</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>A plain white design with lots of room for your words.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Minimal Dark</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>A plain dark design that is easy on the eyes in a dim room.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -17089,6 +17489,7 @@ Agenda	2</translation>
     </message>
     <message>
         <location line="+10"/>
+        <location filename="../apps/write/core/templates.cpp" line="+680"/>
         <source>Date</source>
         <translation type="unfinished">Data</translation>
     </message>
@@ -17099,6 +17500,7 @@ Agenda	2</translation>
     </message>
     <message>
         <location line="+0"/>
+        <location filename="../apps/write/core/templates.cpp" line="+140"/>
         <source>Where</source>
         <translation>Em</translation>
     </message>
@@ -17202,7 +17604,7 @@ Agenda	2</translation>
     <message>
         <location line="+1"/>
         <location line="+383"/>
-        <location filename="../apps/write/core/templates.cpp" line="+150"/>
+        <location filename="../apps/write/core/templates.cpp" line="-650"/>
         <source>Recipient Name</source>
         <translation type="unfinished">Nome do Homenageado</translation>
     </message>
@@ -17386,6 +17788,8 @@ aqui</translation>
     <message>
         <location line="-366"/>
         <location filename="../apps/write/core/templates.cpp" line="+8"/>
+        <location line="+372"/>
+        <location line="+36"/>
         <source>Sincerely,</source>
         <translation type="unfinished">Atenciosamente,</translation>
     </message>
@@ -17410,6 +17814,8 @@ aqui</translation>
     </message>
     <message>
         <location line="-373"/>
+        <location filename="../apps/write/core/templates.cpp" line="-141"/>
+        <location line="+59"/>
         <source>Experience</source>
         <translation type="unfinished">Experiência</translation>
     </message>
@@ -17439,6 +17845,8 @@ aqui</translation>
     </message>
     <message>
         <location line="-374"/>
+        <location filename="../apps/write/core/templates.cpp" line="-52"/>
+        <location line="+45"/>
         <source>Education</source>
         <translation type="unfinished">Formação</translation>
     </message>
@@ -17450,6 +17858,8 @@ aqui</translation>
     </message>
     <message>
         <location line="-375"/>
+        <location filename="../apps/write/core/templates.cpp" line="-42"/>
+        <location line="+37"/>
         <source>Skills</source>
         <translation type="unfinished">Habilidades</translation>
     </message>
@@ -17560,21 +17970,25 @@ Cidade – UF, 00000-000</translation>
     </message>
     <message>
         <location line="+8"/>
+        <location filename="../apps/write/core/templates.cpp" line="+145"/>
         <source>Qty</source>
         <translation type="unfinished">Qtd.</translation>
     </message>
     <message>
         <location line="+0"/>
+        <location filename="../apps/write/core/templates.cpp" line="+0"/>
         <source>Description</source>
         <translation>Descrição</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location filename="../apps/write/core/templates.cpp" line="+1"/>
         <source>Unit price</source>
         <translation type="unfinished">Preço unitário</translation>
     </message>
     <message>
         <location line="+0"/>
+        <location filename="../apps/write/core/templates.cpp" line="+0"/>
         <source>Amount</source>
         <translation>Quantidade</translation>
     </message>
@@ -18403,6 +18817,8 @@ Editoração eletrônica</translation>
     <message>
         <location line="+1"/>
         <location line="+36"/>
+        <location filename="../apps/write/core/templates.cpp" line="+207"/>
+        <location line="+1"/>
         <source>Resumes</source>
         <translation type="unfinished">Currículos</translation>
     </message>
@@ -18488,6 +18904,8 @@ Editoração eletrônica</translation>
     </message>
     <message>
         <location line="-2"/>
+        <location filename="../apps/write/core/templates.cpp" line="-220"/>
+        <location line="+221"/>
         <source>Invoice</source>
         <translation type="unfinished">Fatura</translation>
     </message>
@@ -18756,28 +19174,28 @@ Editoração eletrônica</translation>
         <translation type="unfinished">Sáb</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/templates.cpp" line="-13"/>
+        <location filename="../apps/write/core/templates.cpp" line="-682"/>
         <location line="+14"/>
-        <location line="+77"/>
+        <location line="+78"/>
         <source>Your Name</source>
         <translation type="unfinished">Seu Nome</translation>
     </message>
     <message>
-        <location line="-90"/>
+        <location line="-91"/>
         <location line="+6"/>
-        <location line="+85"/>
+        <location line="+86"/>
         <source>Street Address</source>
         <translation type="unfinished">Endereço da Rua</translation>
     </message>
     <message>
-        <location line="-90"/>
+        <location line="-91"/>
         <location line="+6"/>
-        <location line="+85"/>
+        <location line="+86"/>
         <source>City, State ZIP</source>
         <translation type="unfinished">Cidade, Estado CEP</translation>
     </message>
     <message>
-        <location line="-90"/>
+        <location line="-91"/>
         <source>Email address  |  Phone number</source>
         <translation type="unfinished">Endereço de email  |  Número de telefone</translation>
     </message>
@@ -18829,11 +19247,12 @@ Editoração eletrônica</translation>
     </message>
     <message>
         <location line="+2"/>
+        <location line="+573"/>
         <source>Summary</source>
         <translation type="unfinished">Resumo</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-572"/>
         <source>Give the main points in a few sentences. A reader who stops here should still know what you found and what you suggest.</source>
         <translation type="unfinished">Apresente os principais pontos em algumas frases. Um leitor que parar aqui ainda deve saber o que você descobriu e o que sugere.</translation>
     </message>
@@ -18850,11 +19269,12 @@ Editoração eletrônica</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location line="+573"/>
         <source>Findings</source>
         <translation type="unfinished">Conclusões</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-572"/>
         <source>First finding</source>
         <translation type="unfinished">Primeira conclusão</translation>
     </message>
@@ -18875,22 +19295,23 @@ Editoração eletrônica</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location line="+573"/>
         <source>Recommendations</source>
         <translation type="unfinished">Recomendações</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-572"/>
         <source>List what should be done, who should do it, and by when.</source>
         <translation type="unfinished">Liste o que deve ser feito, quem deve fazer e até quando.</translation>
     </message>
     <message>
-        <location line="+19"/>
-        <location line="+82"/>
+        <location line="+20"/>
+        <location line="+612"/>
         <source>Brief</source>
         <translation type="unfinished">Resumo Breve</translation>
     </message>
     <message>
-        <location line="-80"/>
+        <location line="-610"/>
         <source>To:	Name or team</source>
         <translation type="unfinished">Para:	Nome ou equipe</translation>
     </message>
@@ -18910,7 +19331,7 @@ Editoração eletrônica</translation>
         <translation type="unfinished">Assunto:	Sobre o que trata este resumo</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+1"/>
         <source>Purpose</source>
         <translation type="unfinished">Finalidade</translation>
     </message>
@@ -18935,7 +19356,7 @@ Editoração eletrônica</translation>
         <translation type="unfinished">Diga quem faz o quê e até quando.</translation>
     </message>
     <message>
-        <location line="+19"/>
+        <location line="+20"/>
         <source>Email address</source>
         <translation type="unfinished">Endereço de email</translation>
     </message>
@@ -18965,7 +19386,7 @@ Editoração eletrônica</translation>
         <translation type="unfinished">Sobrenome / TÍTULO / </translation>
     </message>
     <message>
-        <location line="+20"/>
+        <location line="+21"/>
         <source>The Newsletter Name</source>
         <translation type="unfinished">O Nome do Boletim</translation>
     </message>
@@ -19030,14 +19451,705 @@ Editoração eletrônica</translation>
         <translation type="unfinished">Termine com uma nota aos leitores e uma forma de entrar em contato com você.</translation>
     </message>
     <message>
+        <location line="+141"/>
+        <location line="+59"/>
+        <location line="+37"/>
+        <location line="+14"/>
+        <location line="+36"/>
+        <source>[Your Name]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-145"/>
+        <source>[Street Address, City, State ZIP]  |  [Phone number]  |  [Email address]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+59"/>
+        <source>Profile</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-58"/>
+        <location line="+59"/>
+        <source>[Two or three sentences: who you are, what you do best, and the kind of work you want next.]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-56"/>
+        <location line="+59"/>
+        <source>[Job Title], [Company]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-59"/>
+        <location line="+59"/>
+        <source>[Start year] - [End year]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-58"/>
+        <location line="+6"/>
+        <location line="+53"/>
+        <source>[City, State]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-58"/>
+        <location line="+59"/>
+        <source>[Start with a verb and say what you did and what came of it. Use a number where you can.]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-58"/>
+        <location line="+59"/>
+        <source>[Name a project you led, a problem you solved, or a goal you met.]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-56"/>
+        <source>[Degree], [School]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>[Year]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>[Skill], [Skill], [Skill], [Skill], [Skill]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+31"/>
+        <source>Contact</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+91"/>
+        <location line="+44"/>
+        <source>[Street Address]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-134"/>
+        <location line="+91"/>
+        <location line="+44"/>
+        <source>[City, State ZIP]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-134"/>
+        <source>[Phone number]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Email address]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>[Skill]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Languages</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+1"/>
+        <source>[Language and level]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>[Degree]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[School, year]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>[The job title you want, or the one you have]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+37"/>
+        <source>[Phone number]  |  [Email address]  |  [City, State]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+36"/>
+        <location line="+58"/>
+        <location line="+1"/>
+        <location line="+46"/>
+        <location line="+59"/>
+        <location line="+29"/>
+        <source>[Date]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-228"/>
+        <source>[Hiring Manager&apos;s Name]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+36"/>
+        <source>[Title]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-35"/>
+        <location line="+36"/>
+        <source>[Company or Organization]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-35"/>
+        <location line="+91"/>
+        <source>[Street Address, City, State ZIP]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-90"/>
+        <source>Re: [The job you are applying for]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Dear [Hiring Manager&apos;s Name],</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Open with the job you want and one reason you are a strong fit. Say how you heard about it.]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Say what you bring: two or three things you have done that match what the job asks for. Give a number or a result for each.]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Say why this company. Show that you know what it does and why the work matters to you.]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Close by asking for a conversation, and thank the reader for the time.]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <source>[Recipient Name]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Re: [What the letter is about]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Dear [Recipient Name]:</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[State your purpose in the first sentence. A business reader wants to know at once why you are writing.]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Give the details: what you are offering or asking, the dates and amounts that matter, and anything the reader must do.]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Close with the next step, who will take it, and how to reach you.]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>[Your Title]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Enclosure: [what is enclosed]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>[Company Name]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Street Address]  |  [City, State ZIP]  |  [Phone number]  |  [Website]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+30"/>
+        <source>[Your Company Name]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>[Phone number]  |  [Email address]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Bill to</source>
+        <translation>Cobrar de</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>[Client Name]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Invoice number</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>[0001]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Client Company]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Invoice date</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Due date</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>[Describe the item or service]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>[1]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+0"/>
+        <source>[0.00]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Subtotal	[0.00]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Tax	[0.00]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Total due	[0.00]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Payment terms</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Say when payment is due and how to pay: a bank transfer, a check address, or a payment link.]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Thank you for your business.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <location line="+173"/>
+        <source>Meeting Agenda</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-172"/>
+        <location line="+44"/>
+        <source>[Meeting name or topic]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-40"/>
+        <source>Location</source>
+        <translation type="unfinished">Local</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>[Room, address, or meeting link]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+6"/>
+        <source>Time</source>
+        <translation type="unfinished">Hora</translation>
+    </message>
+    <message>
+        <location line="-6"/>
+        <source>[Start time] to [End time]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Facilitator</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
         <location line="+10"/>
+        <location line="+48"/>
+        <source>[Name]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-57"/>
+        <source>Attendees</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Names of the people who are invited]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Agenda</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Topic</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Led by</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>[5 min]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>[What will be covered, and what you need from the group]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Before the meeting</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[A document to read, or something to prepare]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Something to bring]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <location line="+130"/>
+        <source>Meeting Notes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-128"/>
+        <source>Date:	[Date], [Start time] to [End time]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Location:	[Room, address, or meeting link]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Present:	[Names of the people who came]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Absent:	[Names of the people who did not]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Notes by:	[Name]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Discussion</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[First topic]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[What was said, in a few lines. Write down reasons and numbers, not every word.]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Second topic]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[What was said, in a few lines.]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Decisions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+1"/>
+        <source>[What was decided, and why]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Action items</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Action</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Owner</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Due</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>[What needs to be done]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Next meeting</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Date, time, and place, and what the group will cover]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>[Report Title]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[A line about what the report covers]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Prepared by [Your Name]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Team or Organization]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Contents</source>
+        <translation>Conteúdo</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>[Give the main points in a few sentences. A reader who stops here should know what you found and what you suggest.]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Introduction</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Say why the report was written, who it is for, and what the reader needs to know first.]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>[First finding]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Describe what you found. Add numbers, a table, or a picture where they help.]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Second finding]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Describe the next point in the same way.]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>[List what should be done, who should do it, and by when.]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Appendix</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Put long tables, sources, and other detail here.]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+31"/>
+        <source>[Event or Offer Name]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>[One line that says what it is]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>[A short, bold line that gives people a reason to come]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>When</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cost</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Day, date, and time]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>[Place and address]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>[Price, or Free]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>[Two or three sentences about what people will see, learn, or get. Keep it short: a flyer is read in seconds.]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>[Phone number]   |   [Email address]   |   [Website]</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
         <source>Letter</source>
         <translation type="unfinished">Carta</translation>
     </message>
     <message>
         <location line="+0"/>
+        <location line="+1"/>
+        <location line="+1"/>
         <source>Letters</source>
         <translation>Letras</translation>
+    </message>
+    <message>
+        <location line="-2"/>
+        <source>A personal letter with your address at the top.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cover Letter</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>A letter that goes with a resume when you apply for a job.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Business Letter</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>A formal letter with your company name at the top and its address at the bottom.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
@@ -19047,8 +20159,29 @@ Editoração eletrônica</translation>
     <message>
         <location line="+0"/>
         <location line="+1"/>
+        <location line="+1"/>
         <source>Reports and briefs</source>
         <translation type="unfinished">Relatórios e resumos</translation>
+    </message>
+    <message>
+        <location line="-2"/>
+        <source>A short report with a title and numbered pages.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Report with Cover Page</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>A longer report with a cover page and a table of contents that fills in from your headings.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A one-page brief with To, From, Date, and Subject lines.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
@@ -19057,18 +20190,77 @@ Editoração eletrônica</translation>
     </message>
     <message>
         <location line="+0"/>
-        <source>Writing</source>
-        <translation type="unfinished">Escrita</translation>
+        <location line="+1"/>
+        <location line="+1"/>
+        <source>Writing and publications</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-2"/>
+        <source>Double-spaced pages for a story or a book.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
-        <source>Newsletter</source>
-        <translation type="unfinished">Boletim</translation>
+        <source>A masthead and two columns of stories.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Flyer</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+0"/>
-        <source>Publications</source>
-        <translation type="unfinished">Publicações</translation>
+        <source>A one-page flyer for an event, a sale, or a service.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Resume</source>
+        <translation type="unfinished">Continuar</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>A classic one-page resume.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Resume with Side Column</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>A resume with your contact details and skills in a column at the side.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+1"/>
+        <location line="+1"/>
+        <source>Business</source>
+        <translation type="unfinished">Empresa</translation>
+    </message>
+    <message>
+        <location line="-2"/>
+        <source>A bill for your work, with a table for the items and the total.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The time, place, and topics of a meeting, with who leads each one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A place to write down what was said, what was decided, and who does what next.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-6"/>
+        <source>Newsletter</source>
+        <translation type="unfinished">Boletim</translation>
     </message>
 </context>
 <context>
@@ -21150,7 +22342,7 @@ Editoração eletrônica</translation>
     </message>
     <message>
         <location filename="../apps/pub/app/backstage.cpp" line="+2"/>
-        <location filename="../apps/write/app/writefilescreen.cpp" line="+755"/>
+        <location filename="../apps/write/app/writefilescreen.cpp" line="+756"/>
         <source>Translate (opens in your browser)</source>
         <translation type="unfinished">Traduzir (abre no navegador)</translation>
     </message>
@@ -34504,7 +35696,7 @@ Não é possível ler o arquivo.</translation>
 <context>
     <name>jp::DeckFileScreen</name>
     <message>
-        <location filename="../apps/deck/app/deckfilescreen.cpp" line="+128"/>
+        <location filename="../apps/deck/app/deckfilescreen.cpp" line="+130"/>
         <source>Back to presentation</source>
         <translation type="unfinished">Voltar à apresentação</translation>
     </message>
@@ -34525,12 +35717,12 @@ Não é possível ler o arquivo.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+131"/>
+        <location line="+153"/>
         <source>Open</source>
         <translation type="unfinished">Abrir</translation>
     </message>
     <message>
-        <location line="-130"/>
+        <location line="-152"/>
         <source>This presentation</source>
         <translation type="unfinished">Esta apresentação</translation>
     </message>
@@ -34561,19 +35753,19 @@ Não é possível ler o arquivo.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+218"/>
+        <location line="+240"/>
         <location line="+1"/>
         <source>Print</source>
         <translation>Imprimir</translation>
     </message>
     <message>
-        <location line="-218"/>
-        <location line="+545"/>
+        <location line="-240"/>
+        <location line="+567"/>
         <source>Export</source>
         <translation type="unfinished">Exportar</translation>
     </message>
     <message>
-        <location line="-544"/>
+        <location line="-566"/>
         <source>Close</source>
         <translation type="unfinished">Fechar</translation>
     </message>
@@ -34598,12 +35790,17 @@ Não é possível ler o arquivo.</translation>
         <translation type="unfinished">Apresentação em Branco</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location line="+7"/>
+        <source>Templates</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+24"/>
         <source>Themes</source>
         <translation type="unfinished">Temas</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+15"/>
         <source>%1, variant %2</source>
         <translation type="unfinished">%1, variante %2</translation>
     </message>
@@ -58610,7 +59807,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
 <context>
     <name>jp::WriteFileScreen</name>
     <message>
-        <location filename="../apps/write/app/writefilescreen.cpp" line="-644"/>
+        <location filename="../apps/write/app/writefilescreen.cpp" line="-645"/>
         <source>Back to document</source>
         <translation type="unfinished">Voltar ao documento</translation>
     </message>
@@ -58632,12 +59829,12 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     </message>
     <message>
         <location line="+1"/>
-        <location line="+125"/>
+        <location line="+126"/>
         <source>Open</source>
         <translation type="unfinished">Abrir</translation>
     </message>
     <message>
-        <location line="-124"/>
+        <location line="-125"/>
         <source>This document</source>
         <translation type="unfinished">Este documento</translation>
     </message>
@@ -58668,19 +59865,19 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
     </message>
     <message>
         <location line="+1"/>
-        <location line="+208"/>
+        <location line="+209"/>
         <location line="+1"/>
         <source>Print</source>
         <translation>Imprimir</translation>
     </message>
     <message>
-        <location line="-208"/>
-        <location line="+578"/>
+        <location line="-209"/>
+        <location line="+579"/>
         <source>Export</source>
         <translation type="unfinished">Exportar</translation>
     </message>
     <message>
-        <location line="-577"/>
+        <location line="-578"/>
         <source>Close</source>
         <translation type="unfinished">Fechar</translation>
     </message>
@@ -58705,7 +59902,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
         <translation type="unfinished">Documento em Branco</translation>
     </message>
     <message>
-        <location line="+48"/>
+        <location line="+49"/>
         <source>Browse</source>
         <translation type="unfinished">Procurar</translation>
     </message>
