@@ -13,6 +13,7 @@ namespace jp { class ShapeTextEdit; }
 #include "app/pasteoffer.h"
 #include "app/stylearea.h"
 #include "core/autoops.h"
+#include "core/snapguides.h"
 #include "core/contentcontrolops.h"
 #include "core/editops.h"
 #include "core/pictureops.h"
@@ -168,6 +169,15 @@ public:
     int shapeEditorAt() const { return m_shapeEditorAt; }
     // The faint edges of the cells of tables that have no lines (View Gridlines).
     void setShowGridlines(bool on);
+    // The drawing grid and the alignment guides for objects set at a place on the page (a person's choice, not part of the document): what shows, and what an object dragged or sized by the
+    // mouse snaps to. Nothing is looked at while a drag runs when neither snaps. Alt held keeps one drag free.
+    void setObjectSnap(const SnapOptions &options);
+    const SnapOptions &objectSnap() const { return m_snap; }
+    // How many sets of targets were gathered and how many snaps worked out since the view was made (a drag with both off adds none).
+    int snapGathersForTest() const { return m_snapGathers; }
+    int snapStepsForTest() const { return m_snapSteps; }
+    int snapLineCountForTest() const { return m_pictureDrag.lines.size(); }
+    SnapTargets snapTargetsForTest(int page, const QVector<int> &except) { return snapTargetsOnPage(page, except); }
     bool showGridlines() const { return m_gridlines; }
     // Spelling as you type: misspelled words get a red wave on the screen. The checking is the document's own, found a paragraph at a time for the pages in view.
     // (The check of what is being edited: the header's or footer's while one is, else the text's.)
@@ -589,6 +599,9 @@ private:
         bool floating = false;
         PictureInfo info;
         int adjust = 0;     // the yellow handle being pulled
+        bool snapTargets = false;   // the places the box may snap to are gathered (for the page of the drag), in `targets`
+        SnapTargets targets;
+        QVector<QLineF> lines;      // the alignment guides to show now, in the window
         QPointF at;         // where the pointer is, for a yellow handle or the turning handle
     };
     int m_adjustHandleHit = 0;
@@ -737,6 +750,13 @@ private:
     } m_reviewCache;
     const ReviewCache::PageMarks &reviewMarksOf(int storyFrom, int lo, int hi);
     int m_pictureDragPage = -1;
+    SnapOptions m_snap;
+    int m_snapGathers = 0, m_snapSteps = 0;
+    // The targets of the page of a drag (its edges, margins, and the other objects on it, in points on the page), and the snap of a box in the window as the drag carries or sizes it.
+    SnapTargets snapTargetsOnPage(int page, const QVector<int> &except);
+    void snapDragBox(PictureDrag &d, QRectF *r, bool carried, bool left, bool right, bool top, bool bottom, Qt::KeyboardModifiers modifiers);
+    void paintDrawingGrid(QPainter &p, int page);
+    void paintSnapLines(QPainter &p);
     // After a drag or a resize: every connector glued to the objects moved runs between its sites again (one step with the change).
     void rerouteGluedConnectors(const QVector<std::pair<int, QRectF>> &moved);
     int m_linkFrom = -1;          // the text box a Create Link waits for the next box of (its place in the text), or -1

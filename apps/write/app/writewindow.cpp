@@ -184,6 +184,7 @@ WriteWindow::WriteWindow(QWidget *parent) : AppWindow(parent)
     QString templateNote;
     setDocument(write::newBlankDocument(&templateNote), QString());
     applyDisplayDefaults();
+    applyGridView();
     applyEditingDefaults();
     resize(1280, 800);
     updateTitle();
@@ -357,6 +358,7 @@ void WriteWindow::createActions()
     createTableActions();
     createPictureActions();
     createShapeActions();
+    createGridActions();
     createPictureAdjustActions();
     createInsertActions();
     createObjectActions();

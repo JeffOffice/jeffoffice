@@ -14,6 +14,7 @@
 #include "app/packandgo.h"
 #include "app/readaloud.h"
 #include <QStatusBar>
+#include "core/snapguides.h"
 #include "core/textexport.h"
 #include "app/filetasks.h"
 #include "io/pdfbookmarks.h"
@@ -504,6 +505,9 @@ private:
     void createTableActions();
     void createPictureActions();
     void createShapeActions();
+    void createGridActions();   // writewindow_grid.cpp: the drawing grid and the alignment guides
+    void applyGridView();
+    void keepGridChoices(const SnapOptions &options);
     void createPictureAdjustActions();
     void insertEquationDialog();
     void equationDialog(const QString &pick);   // Insert or Edit Equation, with what a button of the Equation tab puts in the line

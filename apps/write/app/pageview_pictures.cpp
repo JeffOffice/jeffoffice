@@ -755,8 +755,10 @@ void PageView::updatePictureDrag(const QPoint &pos, Qt::KeyboardModifiers modifi
         viewport()->update();
         return;
     }
+    d.lines.clear();
     if (d.handle == PictureHandle::Body) {
         r.translate(delta);
+        snapDragBox(d, &r, true, false, false, false, false, modifiers);
     } else {
         const bool left = d.handle == PictureHandle::Left || d.handle == PictureHandle::TopLeft || d.handle == PictureHandle::BottomLeft;
         const bool right = d.handle == PictureHandle::Right || d.handle == PictureHandle::TopRight || d.handle == PictureHandle::BottomRight;
@@ -767,17 +769,34 @@ void PageView::updatePictureDrag(const QPoint &pos, Qt::KeyboardModifiers modifi
             const double kx = (d.start.width() + (right ? delta.x() : -delta.x())) / d.start.width();
             const double ky = (d.start.height() + (bottom ? delta.y() : -delta.y())) / d.start.height();
             double k = std::abs(kx - 1) > std::abs(ky - 1) ? kx : ky;
-            k = std::max(k, std::max(least / d.start.width(), least / d.start.height()));
-            k = std::min(k, kMostPictureSize * s / std::max(d.start.width(), d.start.height()));   // (and no larger than a picture may be)
-            const QSizeF size(d.start.width() * k, d.start.height() * k);
             const QPointF fixed(left ? d.start.right() : d.start.left(), top ? d.start.bottom() : d.start.top());
-            r = QRectF(QPointF(left ? fixed.x() - size.width() : fixed.x(), top ? fixed.y() - size.height() : fixed.y()), size);
+            auto grown = [&](double factor) {
+                factor = std::max(factor, std::max(least / d.start.width(), least / d.start.height()));
+                factor = std::min(factor, kMostPictureSize * s / std::max(d.start.width(), d.start.height()));   // (and no larger than a picture may be)
+                const QSizeF size(d.start.width() * factor, d.start.height() * factor);
+                return QRectF(QPointF(left ? fixed.x() - size.width() : fixed.x(), top ? fixed.y() - size.height() : fixed.y()), size);
+            };
+            r = grown(k);
+            // The sides that move may go to the grid or a guide; the proportions stay, so the side that went takes the other with it.
+            QRectF snapped = r;
+            snapDragBox(d, &snapped, false, left, right, top, bottom, modifiers);
+            if (snapped != r) {
+                const double kw = snapped.width() / d.start.width(), kh = snapped.height() / d.start.height();
+                const bool xChanged = std::abs(snapped.width() - r.width()) > 0.001, yChanged = std::abs(snapped.height() - r.height()) > 0.001;   // (points turned to pixels and back are not exact)
+                const bool byX = xChanged && (!yChanged || std::abs(kw - k) <= std::abs(kh - k));
+                r = grown(byX ? kw : kh);
+                QVector<QLineF> kept;   // (only the line of the side that decided)
+                for (const QLineF &l : d.lines)
+                    if ((l.x1() == l.x2()) == byX) kept << l;
+                d.lines = kept;
+            }
         } else {
             // (A shape or text box is free to take any proportions at a corner too.)
             if (left) r.setLeft(std::max(std::min(d.start.left() + delta.x(), d.start.right() - least), d.start.right() - kMostPictureSize * s));
             if (right) r.setRight(std::min(std::max(d.start.right() + delta.x(), d.start.left() + least), d.start.left() + kMostPictureSize * s));
             if (top) r.setTop(std::max(std::min(d.start.top() + delta.y(), d.start.bottom() - least), d.start.bottom() - kMostPictureSize * s));
             if (bottom) r.setBottom(std::min(std::max(d.start.bottom() + delta.y(), d.start.top() + least), d.start.top() + kMostPictureSize * s));
+            snapDragBox(d, &r, false, left, right, top, bottom, modifiers);
         }
     }
     d.now = r;

@@ -1479,6 +1479,28 @@
           ]
         },
         {
+          "name": "Grid",
+          "keytip": "ZG",
+          "items": [
+            {
+              "large": "view.drawingGrid",
+              "keytip": "GD"
+            },
+            {
+              "large": "view.snapGrid",
+              "keytip": "GS"
+            },
+            {
+              "large": "view.alignmentGuides",
+              "keytip": "GA"
+            },
+            {
+              "large": "view.gridGuides",
+              "keytip": "GG"
+            }
+          ]
+        },
+        {
           "name": "Window",
           "keytip": "ZW",
           "items": [

@@ -787,6 +787,7 @@ void PageView::paintEvent(QPaintEvent *e)
             if (m_reviewMarks.changeBars || m_reviewMarks.formatBars || m_reviewMarks.comments || m_reviewMarks.deletions || m_reviewMarks.carets) paintReviewMarks(p, *page);
             paintBarcodeFields(p, i);
             p.restore();
+            if (!m_draft && !m_web) paintDrawingGrid(p, i);
         }
         if (m_web) continue;   // (no end of a page is shown)
         if (m_draft) {
@@ -812,6 +813,7 @@ void PageView::paintEvent(QPaintEvent *e)
         p.drawRect(dev.adjusted(0.5, 0.5, -0.5, -0.5));
     }
     paintPictureHandles(p);
+    paintSnapLines(p);
     if (m_columnDrag.active && m_columnDrag.page >= 0 && m_columnDrag.page < m_rects.size()) {
         // The line where the border would be.
         const QRectF &pr = m_rects[m_columnDrag.page];
@@ -2280,6 +2282,119 @@ bool PageView::floatingPictureRect(int position, QRectF *onPage, int *pageOut)
             }
     }
     return false;
+}
+
+// ---- the drawing grid and the alignment guides
+
+namespace {
+constexpr int kMostSnapObjects = 256;   // (the other objects of one page that are looked at, the first in the page's order)
+constexpr double kSnapPixels = 6;        // how near, in the window, an edge must come to be taken
+}
+
+void PageView::setObjectSnap(const SnapOptions &options)
+{
+    if (m_snap == options) return;
+    m_snap = options;
+    m_snap.spacing = std::clamp(std::isfinite(m_snap.spacing) ? m_snap.spacing : kDefaultSnapSpacing, kLeastSnapSpacing, kMostSnapSpacing);
+    viewport()->update();
+}
+
+SnapTargets PageView::snapTargetsOnPage(int page, const QVector<int> &except)
+{
+    ++m_snapGathers;
+    SnapTargets t;
+    const auto r = rendered(page);
+    if (!r || !r->page || !m_doc) return t;
+    addPageTargets(t, r->page->size, r->page->doc->setup.margins);
+    if (!m_snap.snapObjects) return t;
+    QStringList skip;
+    for (const int position : except) {
+        const int id = charFormatAt(m_doc->story(), position).intProperty(flow::fp::AnchorId);
+        if (id > 0) skip << QStringLiteral("flow-object-%1-%2-").arg(r->page->doc->pages[0]->id).arg(id);
+    }
+    int seen = 0;
+    for (const auto &it : r->page->doc->pages[0]->items) {
+        if (!it->id.startsWith(QLatin1String("flow-object-")) || it->hidden) continue;
+        bool excluded = false;
+        for (const QString &prefix : skip) excluded = excluded || it->id.startsWith(prefix);
+        if (excluded) continue;
+        if (++seen > kMostSnapObjects) break;
+        addBoxTargets(t, it->bounds());
+    }
+    return t;
+}
+
+// `r` is the box in the window that the drag works out; it is moved (carried) or its moving sides are taken to the grid and the guides. The lines to show are kept in the drag.
+void PageView::snapDragBox(PictureDrag &d, QRectF *r, bool carried, bool left, bool right, bool top, bool bottom, Qt::KeyboardModifiers modifiers)
+{
+    d.lines.clear();
+    if (!m_snap.snapping() || (modifiers & Qt::AltModifier) || !d.floating || m_pictureDragPage < 0 || m_pictureDragPage >= m_rects.size()) return;
+    if (!carried && d.info.rotation != 0) return;   // (the sides of a turned object are not the box's)
+    const double s = scale();
+    const QRectF pr = m_rects[m_pictureDragPage].translated(-d.scrollAtStart.x(), -d.scrollAtStart.y());
+    if (!d.snapTargets) {
+        d.snapTargets = true;
+        QVector<int> except = selectedObjects();
+        except << d.position;
+        d.targets = snapTargetsOnPage(m_pictureDragPage, except);
+    }
+    ++m_snapSteps;
+    QRectF onPage((r->left() - pr.left()) / s, (r->top() - pr.top()) / s, r->width() / s, r->height() / s);
+    QPointF center = onPage.center();
+    QRectF bounds = onPage;
+    if (d.info.rotation != 0) {
+        QTransform turn;
+        turn.translate(center.x(), center.y());
+        turn.rotate(d.info.rotation);
+        turn.translate(-center.x(), -center.y());
+        bounds = turn.mapRect(onPage);
+    }
+    const SnapTargets *targets = m_snap.snapObjects ? &d.targets : nullptr;
+    const double within = kSnapPixels / s, grid = m_snap.snapGrid ? m_snap.spacing : 0;
+    const SnapResult out = carried ? snapMovedBox(bounds, targets, grid, within) : snapSizedBox(bounds, left, right, top, bottom, targets, grid, within, kLeastPictureSize);
+    if (carried) {
+        onPage.translate(out.box.topLeft() - bounds.topLeft());
+    } else {
+        onPage = out.box;
+    }
+    *r = QRectF(pr.left() + onPage.left() * s, pr.top() + onPage.top() * s, onPage.width() * s, onPage.height() * s);
+    const QRectF page = m_rects[m_pictureDragPage].translated(-d.scrollAtStart.x(), -d.scrollAtStart.y());
+    if (out.lineX) d.lines << QLineF(page.left() + *out.lineX * s, page.top(), page.left() + *out.lineX * s, page.bottom());
+    if (out.lineY) d.lines << QLineF(page.left(), page.top() + *out.lineY * s, page.right(), page.top() + *out.lineY * s);
+}
+
+// The grid's dots over a page (the painter is at the page's corner, in points): every dot at the spacing, or at a multiple of it where that would crowd.
+void PageView::paintDrawingGrid(QPainter &p, int page)
+{
+    if (!m_snap.showGrid || page < 0 || page >= m_rects.size()) return;
+    const QSizeF size = m_rects[page].size() / scale();
+    double step = std::max(kLeastSnapSpacing, m_snap.spacing);
+    while (step * scale() < 7) step *= 2;
+    p.save();
+    p.setRenderHint(QPainter::Antialiasing, false);
+    p.resetTransform();   // (dots one pixel wide, wherever they are)
+    p.setPen(QColor(0x80, 0x84, 0x8C, 150));
+    const QRectF dev = m_rects[page].translated(-horizontalScrollBar()->value(), -verticalScrollBar()->value());
+    const QRectF area = viewport()->rect();
+    for (double y = step; y < size.height(); y += step) {
+        const double vy = dev.top() + y * scale();
+        if (vy < area.top() - 1 || vy > area.bottom() + 1) continue;
+        for (double x = step; x < size.width(); x += step) {
+            const double vx = dev.left() + x * scale();
+            if (vx >= area.left() - 1 && vx <= area.right() + 1) p.drawPoint(QPointF(std::round(vx), std::round(vy)));
+        }
+    }
+    p.restore();
+}
+
+void PageView::paintSnapLines(QPainter &p)
+{
+    if (!m_pictureDrag.active || m_pictureDrag.lines.isEmpty()) return;
+    p.save();
+    p.setRenderHint(QPainter::Antialiasing, false);
+    p.setPen(QPen(QColor(230, 40, 60), 1));
+    for (const QLineF &l : m_pictureDrag.lines) p.drawLine(l);
+    p.restore();
 }
 
 int PageView::floatingPictureAt(const Hit &hit)
