@@ -15,6 +15,8 @@
 #include <QTextDocument>
 #include <QVector>
 #include <QWidget>
+#include <atomic>
+#include <functional>
 #include <memory>
 
 class QCheckBox;
@@ -56,6 +58,10 @@ public:
     QCheckBox *matchCase() const { return m_case; }
     QCheckBox *wholeWords() const { return m_whole; }
     QCheckBox *useWildcards() const { return m_wild; }
+    // Find by regular expression (core/findops.h regexPattern); it and wildcards are two ways to read the box, so one is on at a time.
+    QCheckBox *useRegex() const { return m_regex; }
+    // For tests: told how many paragraphs a regular-expression search has searched (on the search's own thread); false stops it there.
+    void setScanHook(std::function<bool(int)> hook) { m_scanHook = std::move(hook); }
     // Advanced Find: words that sound like the one typed, every form of it, and letters found with punctuation or spaces between them that the box leaves out.
     QCheckBox *soundsLike() const { return m_sounds; }
     QCheckBox *wordForms() const { return m_forms; }
@@ -83,6 +89,11 @@ private:
     void syncChoices();
     void updateFormatLabel();
     QRegularExpressionMatch groupsOf(const QTextCursor &match, StoryWords *text);
+    // Regular expressions: the first match at or after a place (its groups are in m_lastGroups); searches are made in batches that the next ask for the place after the last match is answered from, and run on a
+    // thread of their own, with a box that can cancel them, when the text is not short.
+    QTextCursor regexMatchIn(StoryWords *text, int from, QString *error);
+    QStringList regexGroupsOf(const QTextCursor &match, StoryWords *text);
+    write::RegexScan runScan(const QString &plain, const write::FindPattern &pattern, int from, int most);
     void hideEvent(QHideEvent *e) override;
     void showEvent(QShowEvent *e) override;
     // The story's words as they are now (made again when the story has changed), and the search's way to them.
@@ -106,7 +117,7 @@ private:
     std::unique_ptr<StoryWords> m_text;
     QLineEdit *m_find, *m_replace;
     QComboBox *m_direction = nullptr;
-    QCheckBox *m_case, *m_whole, *m_wild, *m_sounds, *m_forms, *m_ignorePunct, *m_ignoreSpace;
+    QCheckBox *m_case, *m_whole, *m_wild, *m_regex, *m_sounds, *m_forms, *m_ignorePunct, *m_ignoreSpace;
     QToolButton *m_special = nullptr, *m_formatButton = nullptr;
     QLabel *m_formatLabel = nullptr;
     write::FormatFilter m_format;
@@ -121,6 +132,15 @@ private:
     QVector<QPair<int, int>> m_matches;
     QTimer *m_refresh = nullptr;
     QPointer<QTextDocument> m_watched;
+    struct RegexMemo {
+        QString held, query;
+        bool matchCase = false, done = false;
+        int from = 0;
+        QVector<write::RegexHit> hits;
+    } m_memo;
+    QStringList m_lastGroups;
+    std::function<bool(int)> m_scanHook;
+    bool m_scanning = false, m_inlineScans = false, m_cancellable = true;
 };
 
 } // namespace jp

@@ -7,12 +7,14 @@
 #include "core/findops.h"
 #include "core/pictureops.h"
 #include "core/styleops.h"
+#include "core/workthread.h"
 #include "core/writeprops.h"
 #include "flow/flowdocument.h"
 #include "text/textprops.h"
 
 #include <QAction>
 #include <QCheckBox>
+#include <QEventLoop>
 #include <QFontDatabase>
 #include <QInputDialog>
 #include <QMenu>
@@ -23,10 +25,12 @@
 #include <QLineEdit>
 #include <QPair>
 #include <QPointer>
+#include <QProgressDialog>
 #include <QPushButton>
 #include <QTextBlock>
 #include <QTextCursor>
 #include <QTextFragment>
+#include <QScopeGuard>
 #include <QTimer>
 #include <QVBoxLayout>
 #include <algorithm>
@@ -190,6 +194,10 @@ WriteFindPane::WriteFindPane(WriteWindow *win, QWidget *parent) : QWidget(parent
     m_wild->setObjectName(QStringLiteral("useWildcards"));
     m_wild->setToolTip(tr("? is any letter, * is any run of letters, < and > are the start and end of a word, [a-c] is a range, @ is one or more, and ( ) make groups to use as \\1 in Replace with."));
     v->addWidget(m_wild);
+    m_regex = new QCheckBox(tr("Use regular expressions"), this);
+    m_regex->setObjectName(QStringLiteral("useRegex"));
+    m_regex->setToolTip(tr("Finds by a pattern: [a-c] and \\d are one character of a kind, ^ and $ are the start and end of a paragraph, ( ) make groups, | means or, + * ? and {2,5} repeat, and \\b is the edge of a word. $1 or \\1 in Replace with is the first group."));
+    v->addWidget(m_regex);
     m_sounds = new QCheckBox(tr("Sounds like"), this);
     m_sounds->setObjectName(QStringLiteral("soundsLike"));
     m_sounds->setToolTip(tr("Finds words that are said like the one in Find what, such as Smith and Smyth."));
@@ -321,8 +329,11 @@ WriteFindPane::WriteFindPane(WriteWindow *win, QWidget *parent) : QWidget(parent
     connect(m_case, &QCheckBox::toggled, m_refresh, qOverload<>(&QTimer::start));
     connect(m_whole, &QCheckBox::toggled, m_refresh, qOverload<>(&QTimer::start));
     connect(m_wild, &QCheckBox::toggled, m_refresh, qOverload<>(&QTimer::start));
+    connect(m_regex, &QCheckBox::toggled, m_refresh, qOverload<>(&QTimer::start));
+    connect(m_wild, &QCheckBox::toggled, this, [this](bool on) { if (on) m_regex->setChecked(false); });
+    connect(m_regex, &QCheckBox::toggled, this, [this](bool on) { if (on) m_wild->setChecked(false); });
     for (QCheckBox *c : {m_sounds, m_forms, m_ignorePunct, m_ignoreSpace}) connect(c, &QCheckBox::toggled, m_refresh, qOverload<>(&QTimer::start));
-    for (QCheckBox *c : {m_wild, m_sounds, m_forms}) connect(c, &QCheckBox::toggled, this, [this] { syncChoices(); });
+    for (QCheckBox *c : {m_wild, m_regex, m_sounds, m_forms}) connect(c, &QCheckBox::toggled, this, [this] { syncChoices(); });
     // The pages ask for the words found in a header, a footer, or a note when they draw it.
     m_win->view()->setFindSideMatcher([this](const QTextDocument *story) { return matchesInSideStory(story); });
 }
@@ -330,11 +341,12 @@ WriteFindPane::WriteFindPane(WriteWindow *win, QWidget *parent) : QWidget(parent
 // Some choices do not go with others (a pattern has its own way of saying these things; a word read by its sound or its forms is a whole word, in any case).
 void WriteFindPane::syncChoices()
 {
-    const bool wild = m_wild->isChecked(), words = m_sounds->isChecked() || m_forms->isChecked();
+    const bool wild = m_wild->isChecked() || m_regex->isChecked(), words = m_sounds->isChecked() || m_forms->isChecked();
     m_whole->setDisabled(wild || words);
     m_sounds->setDisabled(wild || m_forms->isChecked());
     m_forms->setDisabled(wild || m_sounds->isChecked());
     m_wild->setDisabled(words);
+    m_regex->setDisabled(words);
     m_ignorePunct->setDisabled(wild || words);
     m_ignoreSpace->setDisabled(wild || words);
     m_case->setDisabled(words);
@@ -380,7 +392,7 @@ write::AdvancedFind WriteFindPane::advancedOptions() const
 // Special codes typed in the box (^p, ^t, ^#, ^$, ^w, ^b, ^d, ^f, ^e, ^^) work without "Use wildcards": the other characters then are themselves.
 bool WriteFindPane::codesTyped() const
 {
-    if (m_wild->isChecked() || advancedOptions().active()) return false;
+    if (m_wild->isChecked() || m_regex->isChecked() || advancedOptions().active()) return false;
     const QString q = m_find->text();
     for (int i = 0; i + 1 < q.size(); ++i)
         if (q[i] == QLatin1Char('^') && QStringLiteral("pt#$w^bdfe").contains(q[i + 1])) return true;
@@ -391,7 +403,7 @@ bool WriteFindPane::codesTyped() const
 QString WriteFindPane::patternText() const
 {
     const QString q = m_find->text();
-    if (m_wild->isChecked()) return q;
+    if (m_wild->isChecked() || m_regex->isChecked()) return q;
     QString out;
     for (int i = 0; i < q.size(); ++i) {
         if (q[i] == QLatin1Char('^') && i + 1 < q.size()) {
@@ -415,7 +427,7 @@ StoryWords *WriteFindPane::sideWords(const QTextDocument *story)
         side.words = std::make_shared<StoryWords>(const_cast<QTextDocument *>(story));
         side.revision = -1;
     }
-    side.words->wantFields(m_find->text().contains(QLatin1String("^d")));
+    side.words->wantFields(!m_regex->isChecked() && m_find->text().contains(QLatin1String("^d")));
     if (side.words->dirty) {
         side.words->rebuild();
         side.revision = -1;   // (the places found were of the words as they were)
@@ -426,6 +438,7 @@ StoryWords *WriteFindPane::sideWords(const QTextDocument *story)
 QVector<QPair<int, int>> WriteFindPane::matchesInSideStory(const QTextDocument *story)
 {
     if (!story || !isVisible() || !searching() || m_find->text().isEmpty()) return {};
+    const struct Inline { bool &flag; bool was; Inline(bool &f) : flag(f), was(f) { flag = true; } ~Inline() { flag = was; } } inlineScans(m_inlineScans);   // (the pages are drawing: no box over them)
     Side &side = m_side[story];
     StoryWords *words = sideWords(story);
     if (side.revision == story->revision() && side.generation == m_generation) return side.ranges;
@@ -506,6 +519,7 @@ QTextCursor WriteFindPane::matchIn(StoryWords *text, int from, QString *error)
 
 QTextCursor WriteFindPane::rawMatchIn(StoryWords *text, int from, QString *error)
 {
+    if (m_regex->isChecked()) return regexMatchIn(text, from, error);
     const write::AdvancedFind advanced = advancedOptions();
     if (advanced.active()) {
         const QPair<int, int> r = write::advancedMatch(text->plain(), from, advanced);
@@ -537,6 +551,103 @@ QTextCursor WriteFindPane::rawMatchIn(StoryWords *text, int from, QString *error
     return QTextCursor();
 }
 
+QTextCursor WriteFindPane::regexMatchIn(StoryWords *text, int from, QString *error)
+{
+    m_lastGroups.clear();
+    const write::FindPattern pattern = write::regexPattern(m_find->text(), m_case->isChecked());
+    if (!pattern.error.isEmpty()) {
+        if (error) *error = pattern.error;
+        return QTextCursor();
+    }
+    const QString plain = text->plain();   // (a copy that shares the text: a search on a thread of its own reads it while the window goes on)
+    RegexMemo &m = m_memo;
+    // A batch of matches answers the asks that follow it in order (the place after the last match asked for, as the loops that count and swap go); any other place is searched afresh.
+    int next = -1;
+    if (m.held.constData() == plain.constData() && m.held.size() == plain.size() && m.query == m_find->text() && m.matchCase == m_case->isChecked()) {
+        if (from == m.from) {
+            next = 0;
+        } else {
+            const auto it = std::lower_bound(m.hits.cbegin(), m.hits.cend(), from, [](const write::RegexHit &h, int at) { return h.second < at; });
+            if (it != m.hits.cend() && it->second == from) next = int(it - m.hits.cbegin()) + 1;
+        }
+    }
+    if (next < 0 || (next >= m.hits.size() && !m.done)) {
+        const write::RegexScan scan = runScan(plain, pattern, from, 1024);
+        if (scan.cancelled) {
+            m = RegexMemo();
+            if (error) *error = tr("Cancelled. Nothing was changed.");
+            return QTextCursor();
+        }
+        m.held = plain;
+        m.query = m_find->text();
+        m.matchCase = m_case->isChecked();
+        m.from = from;
+        m.hits = scan.hits;
+        m.done = scan.done;
+        next = 0;
+    }
+    ++m_scans;
+    if (next >= m.hits.size()) return QTextCursor();
+    const write::RegexHit &h = m.hits[next];
+    QTextCursor c(text->words());
+    c.setPosition(h.first);
+    c.setPosition(h.second, QTextCursor::KeepAnchor);
+    m_lastGroups = h.groups;
+    return c;
+}
+
+// The groups of a regular-expression match that is shown, found again.
+QStringList WriteFindPane::regexGroupsOf(const QTextCursor &match, StoryWords *text)
+{
+    QString error;
+    const QTextCursor c = regexMatchIn(text, match.selectionStart(), &error);
+    return !c.isNull() && c.selectionStart() == match.selectionStart() ? m_lastGroups : QStringList();
+}
+
+// The scan of a text for a pattern: on the window's thread when the text is short (or the window is drawing), else on a thread of its own while the window stays alive, with a box that offers Cancel
+// when it takes more than a moment. A search stops at the end of the paragraph it is in when cancelled (each paragraph is a call of the engine, which ends by its own limit).
+write::RegexScan WriteFindPane::runScan(const QString &plain, const write::FindPattern &pattern, int from, int most)
+{
+    constexpr int kShort = 2000;
+    std::atomic<bool> cancel{false};
+    const std::function<bool(int)> hook = m_scanHook;
+    auto keepGoing = [&](int done) { return (!hook || hook(done)) && !cancel.load(); };
+    if (m_inlineScans || m_scanning || plain.size() - from <= kShort) return write::scanRegex(plain, pattern, from, most, hook ? std::function<bool(int)>(keepGoing) : std::function<bool(int)>());
+    write::RegexScan result;
+    QEventLoop loop;
+    m_scanning = true;
+    {
+        jp::WorkThread worker([&] {
+            result = write::scanRegex(plain, pattern, from, most, keepGoing);
+            QMetaObject::invokeMethod(&loop, &QEventLoop::quit, Qt::QueuedConnection);
+        });
+        if (worker.started()) {
+            std::unique_ptr<QProgressDialog> box;
+            QTimer later;
+            later.setSingleShot(true);
+            connect(&later, &QTimer::timeout, &loop, [&] {
+                box = std::make_unique<QProgressDialog>(tr("Searching…"), m_cancellable ? tr("Cancel") : QString(), 0, 0, m_win);
+                box->setObjectName(QStringLiteral("findBusyBox"));
+                box->setWindowModality(Qt::WindowModal);
+                box->setAutoClose(false);
+                box->setAutoReset(false);
+                if (!m_cancellable) box->setCancelButton(nullptr);
+                else connect(box.get(), &QProgressDialog::canceled, box.get(), [&] { cancel = true; });
+                box->show();
+            });
+            later.start(400);
+            loop.exec();
+            cancel = true;   // (a loop that was left early ends the search at its next paragraph)
+            worker.join();
+            box.reset();
+        } else {
+            result = write::scanRegex(plain, pattern, from, most);
+        }
+    }
+    m_scanning = false;
+    return result;
+}
+
 // The groups of the pattern for a match of it, found again in the words with what is round it (so that the starts and ends of words are right).
 QRegularExpressionMatch WriteFindPane::groupsOf(const QTextCursor &match, StoryWords *text)
 {
@@ -548,6 +659,10 @@ QRegularExpressionMatch WriteFindPane::groupsOf(const QTextCursor &match, StoryW
 // Finds every place the text of the box is (as findNext sees it), counts them, says so, and shows each on the pages.
 void WriteFindPane::refreshMatches()
 {
+    if (m_scanning) {   // (asked while a search is under way: after it)
+        m_refresh->start();
+        return;
+    }
     m_matches.clear();
     ++m_generation;
     QString patternError;
@@ -601,7 +716,7 @@ StoryWords *WriteFindPane::storyWords()
 {
     QTextDocument *story = m_win->document() ? m_win->document()->story() : nullptr;
     if (!story) return nullptr;
-    const bool fields = m_find->text().contains(QLatin1String("^d"));
+    const bool fields = !m_regex->isChecked() && m_find->text().contains(QLatin1String("^d"));
     if (!m_text || m_text->story() != story) {
         m_text = std::make_unique<StoryWords>(story);
         m_text->wantFields(fields);
@@ -840,7 +955,8 @@ void WriteFindPane::replaceOne()
         match.setPosition(text->toWords(sel.selectionStart()));
         match.setPosition(text->toWords(sel.selectionEnd()), QTextCursor::KeepAnchor);
         const int at = text->pieces(match.selectionStart(), match.selectionEnd()).first().first;
-        const QString with = m_wild->isChecked() ? write::expandReplacement(m_replace->text(), groupsOf(match, text)) : m_replace->text();
+        const QString with = m_regex->isChecked() ? write::expandRegexReplacement(m_replace->text(), regexGroupsOf(match, text))
+                             : m_wild->isChecked() ? write::expandReplacement(m_replace->text(), groupsOf(match, text)) : m_replace->text();
         wordsOf(text).put(match, with);
         // The caret is after the new words, where the next search down goes on from; for a search up, before them (the words put in may hold what is searched for).
         QTextCursor after(story);
@@ -865,8 +981,8 @@ int WriteFindPane::replaceInStory(QTextDocument *story, QString *problem, StoryW
 {
     StoryWords *text = given ? given : wordsOfStory(story);
     if (!text) return 0;
-    const bool wild = m_wild->isChecked();
-    const write::FindPattern pattern = wild || codesTyped() ? write::wildcardPattern(patternText(), m_case->isChecked()) : write::FindPattern();
+    const bool wild = m_wild->isChecked(), regex = m_regex->isChecked();
+    const write::FindPattern pattern = regex ? write::regexPattern(m_find->text(), m_case->isChecked()) : wild || codesTyped() ? write::wildcardPattern(patternText(), m_case->isChecked()) : write::FindPattern();
     if (!pattern.error.isEmpty()) {
         *problem = pattern.error;
         return 0;
@@ -875,18 +991,23 @@ int WriteFindPane::replaceInStory(QTextDocument *story, QString *problem, StoryW
     const FindWords w = wordsOf(text);
     const QString plain = text->plain();
     QVector<QTextCursor> found;
+    QVector<QStringList> groups;
     for (int at = 0; found.size() < kMostMatches;) {
         const QTextCursor m = matchIn(text, at, problem);
         if (m.isNull()) break;
         at = std::max(m.selectionEnd(), at + 1);
-        if (!(w.skip && w.skip(m)) && !holdsMark(plain, m)) found.push_back(m);   // (a section break, a field's start, or a note's mark is found, not swapped: it would lose what it stands for)
+        if (!(w.skip && w.skip(m)) && !holdsMark(plain, m)) {   // (a section break, a field's start, or a note's mark is found, not swapped: it would lose what it stands for)
+            found.push_back(m);
+            if (regex) groups.push_back(m_lastGroups);
+        }
     }
+    if (!problem->isEmpty()) return 0;   // (a search that was cancelled: nothing of this story is swapped)
     QTextCursor block(story);
     block.beginEditBlock();
     int n = 0;
     for (int i = int(found.size()) - 1; i >= 0; --i) {
         QTextCursor m = found[i];
-        w.put(m, wild ? write::expandReplacement(m_replace->text(), pattern.regex.match(plain, m.selectionStart())) : m_replace->text());
+        w.put(m, regex ? write::expandRegexReplacement(m_replace->text(), groups[i]) : wild ? write::expandReplacement(m_replace->text(), pattern.regex.match(plain, m.selectionStart())) : m_replace->text());
         ++n;
     }
     block.endEditBlock();
@@ -953,11 +1074,16 @@ void WriteFindPane::replaceAll()
     if (!m_win->document() || !searching()) return;
     // The text, then the headers, footers, and notes; the swaps in all of them are one step that undoes.
     const write::WriteDoc::StepGroup group(*m_win->document());
+    // (A search for a pattern can be cancelled until the first swap is made; after it the box has no Cancel, so that the step is all of the swaps or none.)
+    m_cancellable = true;
+    const auto cancellable = qScopeGuard([this] { m_cancellable = true; });
     QString problem;
     int n = replaceInStory(m_win->document()->story(), &problem);
+    if (n > 0) m_cancellable = false;
     if (problem.isEmpty())
         for (QTextDocument *d : sideStories()) {
             n += replaceInStory(d, &problem);
+            if (n > 0) m_cancellable = false;
             if (!problem.isEmpty()) break;
         }
     int tooLarge = 0;

@@ -4324,6 +4324,53 @@ private Q_SLOTS:
         }
     }
 
+    // Replace All by regular expression goes the same way as a plain one: tracked with Track Changes on (in the text and in the words of text boxes), and in the headers, footers, and notes.
+    void regexReplaceAllRecordsTrackedChangesAndReachesHeadersAndNotes()
+    {
+        for (const bool track : {true, false}) {
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.resize(900, 700);
+            w.show();
+            auto doc = open(makeDocx(para(run("a cat") + boxOf(para(run("the cat sat"))))));
+            doc->setTrackChanges(track);
+            w.setDocument(std::move(doc), QString());
+            w.showFindPane();
+            w.findPane()->useRegex()->setChecked(true);
+            w.findPane()->findBox()->setText(QStringLiteral("c(a)t"));
+            w.findPane()->replaceBox()->setText(QStringLiteral("d$1g"));
+            w.findPane()->replaceAll();
+            const QByteArray x = documentXml(savedByWindow(w));
+            const qsizetype boxAt = x.indexOf("<w:txbxContent");
+            QVERIFY(boxAt > 0);
+            if (track) {
+                QVERIFY2(x.left(boxAt).contains("<w:del ") && x.left(boxAt).contains("<w:ins ") && x.mid(boxAt).contains("<w:del ") && x.mid(boxAt).contains("<w:ins "), x.constData());
+                QVERIFY2(x.contains("<w:delText") && x.contains("cat") && x.contains("dag"), x.constData());
+            } else {
+                QVERIFY2(!x.contains("<w:del ") && !x.contains("<w:ins ") && !x.contains("cat") && x.count("dag") == 2, x.constData());
+            }
+        }
+        StoryParts p;
+        p.body = para(run("cat one"));
+        p.header = para(run("cat head"));
+        p.footnote = para(run("cat note"));
+        WriteWindow v;
+        v.setNotifier([](const QString &, const QString &) {});
+        v.resize(900, 700);
+        v.show();
+        v.setDocument(open(makeDocxWithStories(p)), QString());
+        v.showFindPane();
+        v.findPane()->useRegex()->setChecked(true);
+        v.findPane()->findBox()->setText(QStringLiteral("^cat (\\w+)"));
+        v.findPane()->replaceBox()->setText(QStringLiteral("dog $1"));
+        v.findPane()->replaceAll();
+        QVERIFY2(v.findPane()->status().contains(QStringLiteral("3")), qPrintable(v.findPane()->status()));
+        const QByteArray x = documentXml(savedByWindow(v));
+        QVERIFY2(x.contains("dog one") && !x.contains("cat one"), x.constData());
+        QVERIFY(v.document()->undo());
+        QVERIFY2(documentXml(savedByWindow(v)).contains("cat one"), "one undo takes back every story");
+    }
+
     void aChangeInATextBoxInAnEndnoteIsCountedAndDoneAndEveryKindOfChangeInABoxIsFound()
     {
         {

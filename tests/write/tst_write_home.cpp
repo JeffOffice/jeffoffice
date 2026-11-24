@@ -3789,6 +3789,99 @@ private Q_SLOTS:
         QVERIFY(!wildcardPattern(QString(), false).error.isEmpty());
     }
 
+    void regularExpressionsFindByTheCommonSyntaxPerParagraphUnlessThePatternHasANewline()
+    {
+        auto all = [](const QString &pattern, const QString &text, bool matchCase = false) {
+            const FindPattern p = regexPattern(pattern, matchCase);
+            if (!p.error.isEmpty()) return QStringList{QStringLiteral("!") + p.error};
+            QStringList out;
+            for (const RegexHit &h : scanRegex(text, p, 0, 100).hits) out << text.mid(h.first, h.second - h.first);
+            return out;
+        };
+        QCOMPARE(all(QStringLiteral("c[aeiou]t"), QStringLiteral("cat cot cxt")), (QStringList{"cat", "cot"}));
+        QCOMPARE(all(QStringLiteral("c[^aeiou]t"), QStringLiteral("cat cot cxt")), (QStringList{"cxt"}));
+        QCOMPARE(all(QStringLiteral("\\d{2,3}"), QStringLiteral("1 22 3333 456")), (QStringList{"22", "333", "456"}));
+        QCOMPARE(all(QStringLiteral("(?:cat|dog)s?"), QStringLiteral("cats dog bird")), (QStringList{"cats", "dog"}));
+        QCOMPARE(all(QStringLiteral("<.+?>"), QStringLiteral("<a><b>")), (QStringList{"<a>", "<b>"}));
+        QCOMPARE(all(QStringLiteral("<.+>"), QStringLiteral("<a><b>")), (QStringList{"<a><b>"}));
+        QCOMPARE(all(QStringLiteral("\\bthe\\b"), QStringLiteral("the other then the")), (QStringList{"the", "the"}));
+        // Letters outside ASCII are letters, and the case option follows Match case.
+        QCOMPARE(all(QStringLiteral("\\w+"), QStringLiteral("café naïve")), (QStringList{"café", "naïve"}));
+        QCOMPARE(all(QStringLiteral("é"), QStringLiteral("É é"), false), (QStringList{"É", "é"}));
+        QCOMPARE(all(QStringLiteral("é"), QStringLiteral("É é"), true), (QStringList{"é"}));
+        QCOMPARE(all(QStringLiteral("CAT"), QStringLiteral("cat CAT"), true), (QStringList{"CAT"}));
+        QCOMPARE(all(QStringLiteral("CAT"), QStringLiteral("cat CAT"), false), (QStringList{"cat", "CAT"}));
+        // Anchors are those of a paragraph; a pattern runs over a paragraph mark only when it names one.
+        QCOMPARE(all(QStringLiteral("^\\w+"), QStringLiteral("one two\nthree four")), (QStringList{"one", "three"}));
+        QCOMPARE(all(QStringLiteral("\\w+$"), QStringLiteral("one two\nthree four")), (QStringList{"two", "four"}));
+        QCOMPARE(all(QStringLiteral("two\\s+three"), QStringLiteral("one two\nthree four")), QStringList());
+        QCOMPARE(all(QStringLiteral("two\\nthree"), QStringLiteral("one two\nthree four")), (QStringList{"two\nthree"}));
+        QCOMPARE(all(QStringLiteral("^three"), QStringLiteral("one two\nthree four")), (QStringList{"three"}));
+        QVERIFY(regexPattern(QStringLiteral("a\\nb"), false).acrossParagraphs);
+        QVERIFY(!regexPattern(QStringLiteral("a\\\\nb"), false).acrossParagraphs);
+        QVERIFY(!regexPattern(QStringLiteral("ab"), false).acrossParagraphs);
+        // Groups are kept with each match.
+        const FindPattern names = regexPattern(QStringLiteral("(\\w+), (\\w+)"), false);
+        const RegexScan s = scanRegex(QStringLiteral("Smith, John"), names, 0, 10);
+        QCOMPARE(s.hits.size(), 1);
+        QCOMPARE(s.hits[0].groups, (QStringList{"Smith, John", "Smith", "John"}));
+        QCOMPARE(expandRegexReplacement(QStringLiteral("\\2 \\1"), s.hits[0].groups), QStringLiteral("John Smith"));
+        QCOMPARE(expandRegexReplacement(QStringLiteral("$2 $1 [$0] $$5 \\\\ \\t."), s.hits[0].groups), QStringLiteral("John Smith [Smith, John] $5 \\ \t."));
+        QCOMPARE(expandRegexReplacement(QStringLiteral("$7\\9x"), s.hits[0].groups), QStringLiteral("x"));
+        // A bad pattern says where; nothing is thrown.
+        for (const char *bad : {"(ab", "[abc", "a{2,1}", "*a", "(?<n"}) {
+            const FindPattern p = regexPattern(QString::fromLatin1(bad), false);
+            QVERIFY2(!p.error.isEmpty() && p.error.contains(QStringLiteral("character")), bad);
+            QVERIFY(scanRegex(QStringLiteral("abc"), p, 0, 10).hits.isEmpty());
+        }
+        QVERIFY(regexPattern(QStringLiteral("a)"), false).error.contains(QStringLiteral("character 2")));
+        QVERIFY(!regexPattern(QString(), false).error.isEmpty());
+        QVERIFY(!regexPattern(QString(kMostPatternLength + 1, QLatin1Char('a')), false).error.isEmpty());
+        QVERIFY(regexPattern(QString(kMostPatternLength, QLatin1Char('a')), false).error.isEmpty());
+        QVERIFY(!regexPattern(QStringLiteral("(a)(b)(c)(d)(e)(f)(g)(h)(i)(j)"), false).error.isEmpty());
+        QVERIFY(regexPattern(QStringLiteral("(a)(b)(c)(d)(e)(f)(g)(h)(?:i)(?:j)"), false).error.isEmpty());
+    }
+
+    void regularExpressionsThatCanRunWithoutEndAreRefusedAndTheScanCountsItsWork()
+    {
+        // Constructs that run without bound, or that reach outside the pattern, are refused before any text is searched.
+        for (const char *bad : {"(a+)+b", "(a*)*", "(\\w+\\s?)+$", "(x(y+)z)*", "(a|b+)+", "(?R)", "(a)(?1)", "(?&n)", "(?(1)a|b)", "(*LIMIT_MATCH=9999999)a", "(?C)a", "\\g<1>", "(a)\\K"}) {
+            const FindPattern p = regexPattern(QString::fromLatin1(bad), false);
+            QVERIFY2(!p.error.isEmpty(), bad);
+            QVERIFY2(!p.regex.isValid() || p.regex.pattern().isEmpty(), bad);
+        }
+        // What has an end, or no way to back out, is allowed.
+        for (const char *good : {"(a+){1,5}", "(?:ab)+", "(a|b)+", "(?>a+)+b", "(a++)+", "([^,]+,){3}", "\\bx+\\b"}) QVERIFY2(regexPattern(QString::fromLatin1(good), false).error.isEmpty(), good);
+        // The scan: from, most, and where it reached.
+        const QString text = QStringLiteral("a1\na2\na3\na4\na5");
+        const FindPattern p = regexPattern(QStringLiteral("a\\d"), false);
+        RegexScan s = scanRegex(text, p, 0, 100);
+        QCOMPARE(s.hits.size(), 5);
+        QVERIFY(s.done && !s.cancelled);
+        QCOMPARE(s.paragraphs, 5);
+        s = scanRegex(text, p, 0, 2);
+        QCOMPARE(s.hits.size(), 2);
+        QVERIFY(!s.done);
+        s = scanRegex(text, p, 4, 100);
+        QCOMPARE(s.hits.size(), 3);   // (a2 starts at 3: from 4 is inside it, so the first found is a3)
+        QCOMPARE(s.hits[0].first, 6);
+        QCOMPARE(scanRegex(text, p, 100, 100).hits.size(), 0);
+        // A match of no characters is none.
+        QCOMPARE(scanRegex(QStringLiteral("abc"), regexPattern(QStringLiteral("x*"), false), 0, 10).hits.size(), 0);
+        // The scan asks after each paragraph whether to go on, and stops at once when told not to: exactly three paragraphs are searched.
+        QString many;
+        for (int i = 0; i < 1000; ++i) many += QStringLiteral("a1\n");
+        int asked = 0;
+        s = scanRegex(many, p, 0, 5000, [&](int done) {
+            ++asked;
+            return done < 3;
+        });
+        QVERIFY(s.cancelled && !s.done);
+        QCOMPARE(s.paragraphs, 3);
+        QCOMPARE(asked, 3);
+        QCOMPARE(s.hits.size(), 3);
+    }
+
     void advancedFindReadsSoundsFormsAndLettersWithPunctuationBetween()
     {
         QCOMPARE(soundexOf(QStringLiteral("Smith")), QStringLiteral("S530"));
@@ -4396,6 +4489,109 @@ private Q_SLOTS:
         QTRY_COMPARE(pane->matchCount(), 1);
     }
 
+    void theFindPaneCanSearchByRegularExpressionAndReplaceWithGroups()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(makeDocx(para(run("Smith, John and Jones, Mary went home.")) + para(run("Lee, Ann stayed.")) + para(run("shown cat ") + run("hidden cat ", "<w:vanish/>") + run("end")))), QString());
+        w.act(QStringLiteral("edit.replace"))->trigger();
+        WriteFindPane *pane = w.findPane();
+        QVERIFY(pane);
+        QCheckBox *regex = pane->useRegex();
+        QVERIFY(regex);
+        QCOMPARE(regex->text(), QStringLiteral("Use regular expressions"));
+        pane->useWildcards()->setChecked(true);
+        regex->setChecked(true);
+        QVERIFY(!pane->useWildcards()->isChecked());   // (a box is read one way: wildcards or expressions)
+        QVERIFY(!pane->wholeWords()->isEnabled() && !pane->soundsLike()->isEnabled());
+        pane->findBox()->setText(QStringLiteral("(\\b[A-Z]\\w+), (\\w+)"));
+        QTRY_COMPARE(pane->matchCount(), 3);
+        QVERIFY(pane->findNext());
+        QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("Smith, John"));
+        pane->replaceBox()->setText(QStringLiteral("$2 $1"));
+        pane->replaceOne();
+        QVERIFY(w.document()->story()->toPlainText().startsWith(QStringLiteral("John Smith and Jones, Mary went home.\nLee")));
+        QCOMPARE(w.view()->cursor().selectedText(), QStringLiteral("Jones, Mary"));
+        pane->replaceBox()->setText(QStringLiteral("\\2 \\1"));
+        pane->replaceAll();
+        QCOMPARE(w.document()->story()->toPlainText().section(QLatin1Char('\n'), 0, 1), QStringLiteral("John Smith and Mary Jones went home.\nAnn Lee stayed."));
+        QVERIFY2(pane->status().contains(QStringLiteral("2")), qPrintable(pane->status()));
+        QVERIFY(w.document()->undo());   // (Replace All is one step)
+        QCOMPARE(w.document()->story()->toPlainText().section(QLatin1Char('\n'), 0, 1), QStringLiteral("John Smith and Jones, Mary went home.\nLee, Ann stayed."));
+        // Anchors are a paragraph's; a pattern crosses a paragraph mark only when it says \n.
+        pane->findBox()->setText(QStringLiteral("^\\w+"));
+        QTRY_COMPARE(pane->matchCount(), 3);
+        pane->findBox()->setText(QStringLiteral("home\\.\\s+Lee"));
+        QTRY_COMPARE(pane->matchCount(), 0);
+        pane->findBox()->setText(QStringLiteral("home\\.\\nLee"));
+        QTRY_COMPARE(pane->matchCount(), 1);
+        pane->replaceBox()->setText(QStringLiteral("home. Lee"));
+        pane->replaceAll();
+        QVERIFY2(w.document()->story()->toPlainText().contains(QStringLiteral("went home. Lee, Ann stayed.")), qPrintable(w.document()->story()->toPlainText()));
+        QVERIFY(w.document()->undo());
+        // Hidden text is not found, and Match case is the case of the pattern.
+        pane->findBox()->setText(QStringLiteral("c[a]t"));
+        QTRY_COMPARE(pane->matchCount(), 1);
+        pane->findBox()->setText(QStringLiteral("LEE"));
+        QTRY_COMPARE(pane->matchCount(), 1);
+        pane->matchCase()->setChecked(true);
+        QTRY_COMPARE(pane->matchCount(), 0);
+        pane->matchCase()->setChecked(false);
+        // A pattern that is not one says where, and finds nothing.
+        pane->findBox()->setText(QStringLiteral("a(b"));
+        QTRY_VERIFY(pane->status().contains(QStringLiteral("character")));
+        QCOMPARE(pane->matchCount(), 0);
+        QVERIFY(!pane->findNext());
+        // One that could run without end is refused, and says why.
+        pane->findBox()->setText(QStringLiteral("(a+)+b"));
+        QTRY_VERIFY(!pane->status().isEmpty() && pane->status() != QStringLiteral("No matches"));
+        QCOMPARE(pane->matchCount(), 0);
+        // Off, the same text is plain words.
+        regex->setChecked(false);
+        pane->findBox()->setText(QStringLiteral("Lee, A"));
+        QTRY_COMPARE(pane->matchCount(), 1);
+    }
+
+    void aRegularExpressionSearchOfALargeStoryRunsOffTheWindowThreadAndStopsWhenCancelled()
+    {
+        QByteArray body;
+        for (int i = 0; i < 3000; ++i) body += para(run(i % 2 ? "odd line" : "even line"));
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        w.setDocument(open(makeDocx(body)), QString());
+        w.showFindPane();
+        WriteFindPane *pane = w.findPane();
+        pane->useRegex()->setChecked(true);
+        pane->findBox()->setText(QStringLiteral("^even"));
+        QTRY_COMPARE(pane->matchCount(), 1500);
+        // The search asks after each paragraph whether to go on: the answer no stops it after exactly that many, and nothing is found or replaced.
+        std::atomic<int> asked{0};
+        pane->setScanHook([&](int) {
+            ++asked;
+            return asked.load() < 5;
+        });
+        pane->findBox()->setText(QStringLiteral("^odd"));
+        QTRY_COMPARE(pane->matchCount(), 0);
+        QVERIFY2(pane->status().contains(QStringLiteral("cancel"), Qt::CaseInsensitive), qPrintable(pane->status()));
+        QCOMPARE(asked.load(), 5);
+        const QString before = w.document()->story()->toPlainText();
+        asked = 0;
+        pane->replaceBox()->setText(QStringLiteral("x"));
+        pane->replaceAll();
+        QVERIFY2(pane->status().contains(QStringLiteral("cancel"), Qt::CaseInsensitive), qPrintable(pane->status()));
+        QCOMPARE(asked.load(), 5);
+        QCOMPARE(w.document()->story()->toPlainText(), before);
+        pane->setScanHook({});
+        pane->replaceAll();
+        QVERIFY(w.document()->story()->toPlainText().contains(QStringLiteral("even line\nx line")));
+        QVERIFY(w.document()->undo());
+        QCOMPARE(w.document()->story()->toPlainText(), before);
+    }
+
     // A picture of the Home ribbon (with JW_SHOT_DIR set), for looking at the Bold button's weight. It sets the light look for the picture and puts the look it found back.
     void grabTheHomeRibbon()
     {
@@ -4422,6 +4618,47 @@ private Q_SLOTS:
             jp::applyUiTheme(theme);
         }
         QCOMPARE(qApp->styleSheet(), sheet);   // (the program's look is as it was: a later window test is not drawn in this one's)
+    }
+
+    // A picture of the Find pane with regular expressions on (with JW_SHOT_DIR set); it sets the light look for the picture and puts the look it found back.
+    void grabTheRegexFindPane()
+    {
+        const QString dir = qEnvironmentVariable("JW_SHOT_DIR");
+        if (dir.isEmpty()) QSKIP("JW_SHOT_DIR is not set");
+        const int theme = jp::Settings::get().value(QStringLiteral("ui/theme"), 0).toInt();
+        const QString sheet = qApp->styleSheet();
+        const QPalette palette = qApp->palette();
+        jp::applyUiTheme(1);
+        QDir().mkpath(dir);
+        {
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.resize(1100, 800);
+            w.show();
+            w.setDocument(open(makeDocx(para(run("Smith, John and Jones, Mary went home.")) + para(run("Lee, Ann stayed.")))), QString());
+            w.act(QStringLiteral("edit.replace"))->trigger();
+            WriteFindPane *pane = w.findPane();
+            QVERIFY(pane);
+            pane->useRegex()->setChecked(true);
+            pane->findBox()->setText(QStringLiteral("(\\b[A-Z]\\w+), (\\w+)"));
+            pane->replaceBox()->setText(QStringLiteral("$2 $1"));
+            QTRY_COMPARE(pane->matchCount(), 3);
+            QVERIFY(QTest::qWaitForWindowExposed(&w));
+            QVERIFY(w.grab().save(dir + QStringLiteral("/write-find-regex.png")));
+            pane->findBox()->setText(QStringLiteral("(a+)+b"));
+            QTRY_VERIFY(pane->status().contains(QStringLiteral("repeat")));
+            QVERIFY(w.grab().save(dir + QStringLiteral("/write-find-regex-refused.png")));
+            pane->findBox()->setText(QStringLiteral("a(b"));
+            QTRY_VERIFY(pane->status().contains(QStringLiteral("character")));
+            QVERIFY(w.grab().save(dir + QStringLiteral("/write-find-regex-error.png")));
+        }
+        if (sheet.isEmpty()) {
+            qApp->setStyleSheet(QString());
+            QGuiApplication::setPalette(palette);
+        } else {
+            jp::applyUiTheme(theme);
+        }
+        QCOMPARE(qApp->styleSheet(), sheet);
     }
 
     // The option "Show Mini Toolbar on selection" turned off takes a bar that is showing away at once.

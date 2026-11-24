@@ -8,6 +8,9 @@
 // In a replacement: \1 to \9 are the groups, ^& is all of what was found, ^t is a tab, ^p is a paragraph mark's place (a line break is not made: it is left as it is), and \\ is a backslash.
 
 #include <QPair>
+#include <QStringList>
+#include <QVector>
+#include <functional>
 #include <QRegularExpression>
 #include <QString>
 #include <QTextCharFormat>
@@ -23,12 +26,37 @@ inline bool isFindMark(QChar c) { return c == QChar(kFindSectionBreak) || c == Q
 struct FindPattern {
     QRegularExpression regex;
     QString error;   // empty when the pattern is good; else a sentence saying what is wrong with it
+    bool acrossParagraphs = false;   // a regular expression that names a paragraph mark (\n) is searched in the whole story; any other, one paragraph at a time
 };
 
 FindPattern wildcardPattern(const QString &pattern, bool matchCase);
 
 // The replacement with its groups and codes worked out for one match.
 QString expandReplacement(const QString &with, const QRegularExpressionMatch &match);
+
+// "Use regular expressions": the pattern as typed, in the common syntax (classes, anchors, groups, alternation, counted and lazy repeats, \b, \d, \w, \s, \n for a paragraph mark), with letters read as
+// Unicode letters and the case of letters following `matchCase`. Anchors are those of a paragraph. Refused, with a sentence naming the place: a pattern that is not valid, longer than kMostPatternLength,
+// with more than nine groups that are kept, that repeats a group that has a repeat without end in it (such as (a+)+, which can take longer than the age of the universe), or that calls itself, runs code,
+// or changes the engine's limits ((?R), (?1), (?C), (*VERB), \g<1>, \K, conditions).
+FindPattern regexPattern(const QString &pattern, bool matchCase);
+
+// One match of a regular expression: the characters [first, second) of the text, and the groups (0 is all of it; a group that took no part is empty).
+struct RegexHit {
+    int first = 0, second = 0;
+    QStringList groups;
+};
+struct RegexScan {
+    QVector<RegexHit> hits;
+    bool done = false;        // the end of the text was reached (and so no more matches are there)
+    bool cancelled = false;   // `keepGoing` said stop
+    int paragraphs = 0;       // how many paragraphs were searched (a count of the work done)
+};
+// The matches at or after `from`, at most `most`, none of no characters. Each paragraph is a call of the engine, which ends by its own limit on work; after each one `keepGoing` is told how many have been
+// searched and says whether to go on. (Nothing here touches a document, so it may run on a thread.)
+RegexScan scanRegex(const QString &text, const FindPattern &pattern, int from, int most, const std::function<bool(int)> &keepGoing = {});
+
+// The replacement of a regular-expression find: \1 to \9 or $1 to $9 are the groups (0 is all of the match), $$ is a dollar sign, \\ a backslash, \t a tab; anything else is itself.
+QString expandRegexReplacement(const QString &with, const QStringList &groups);
 
 // The choices of Advanced Find that read the words in other ways than the letters typed: words that sound like the one typed (the American Soundex code), every form of the word (runs, running, ran),
 // and letters found with punctuation or spaces between them that the box leaves out. The search is of one place at a time: the characters [first, second) of the text, or {-1, -1}.

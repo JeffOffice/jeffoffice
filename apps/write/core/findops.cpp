@@ -136,6 +136,237 @@ QString expandReplacement(const QString &with, const QRegularExpressionMatch &ma
     return out;
 }
 
+namespace {
+
+// What is wrong with the shape of a regular expression (as far as it can be told from its text), or an empty string: one that the engine could not leave in reasonable time, or that reaches
+// outside the pattern. `at` is the place (a character count from 1) of the thing. A group that is repeated without end must not have a repeat without end in it ((a+)+ and the like back out
+// in more ways than there are atoms in the world); a repeat that cannot back out (a++, an atomic group) is not one.
+QString regexShapeProblem(const QString &p)
+{
+    struct Open { bool inner = false, atomic = false; };
+    QVector<Open> stack;
+    auto unsupported = [](int at) { return problem(QT_TRANSLATE_NOOP("jp::write::Find", "That pattern uses something JeffWrite does not search with, at character %1.")).arg(at); };
+    bool havePrev = false, prevGroup = false, prevInner = false;
+    const int n = int(p.size());
+    for (int i = 0; i < n; ++i) {
+        const QChar c = p[i];
+        const QChar next = i + 1 < n ? p[i + 1] : QChar(), after = i + 2 < n ? p[i + 2] : QChar();
+        if (c == QLatin1Char('\\')) {
+            if (next == QLatin1Char('K') || next == QLatin1Char('g')) return unsupported(i + 1);
+            if (next == QLatin1Char('Q')) {   // (up to \E, everything is itself)
+                const int e = int(p.indexOf(QStringLiteral("\\E"), i + 2));
+                if (e < 0) break;
+                i = e + 1;
+            } else {
+                ++i;
+            }
+            havePrev = true;
+            prevGroup = false;
+        } else if (c == QLatin1Char('[')) {
+            int j = i + 1;
+            if (j < n && p[j] == QLatin1Char('^')) ++j;
+            if (j < n && p[j] == QLatin1Char(']')) ++j;   // (a ] first in the set is itself)
+            for (; j < n && p[j] != QLatin1Char(']'); ++j) {
+                if (p[j] == QLatin1Char('\\')) ++j;
+                else if (p[j] == QLatin1Char('[') && j + 1 < n && p[j + 1] == QLatin1Char(':')) {
+                    const int e = int(p.indexOf(QStringLiteral(":]"), j + 2));
+                    if (e > 0) j = e + 1;
+                }
+            }
+            i = j;
+            havePrev = true;
+            prevGroup = false;
+        } else if (c == QLatin1Char('(')) {
+            if (next == QLatin1Char('*')) return unsupported(i + 1);
+            if (next == QLatin1Char('?')) {
+                if (QStringLiteral("RC(&+").contains(after) || after.isDigit() || (after == QLatin1Char('-') && i + 3 < n && p[i + 3].isDigit()) || (after == QLatin1Char('P') && i + 3 < n && p[i + 3] == QLatin1Char('>')))
+                    return unsupported(i + 1);
+            }
+            Open o;
+            o.atomic = next == QLatin1Char('?') && after == QLatin1Char('>');
+            stack.push_back(o);
+            havePrev = false;
+            prevGroup = false;
+        } else if (c == QLatin1Char(')')) {
+            if (stack.isEmpty()) break;   // (the engine says where)
+            const Open o = stack.takeLast();
+            if (o.inner && !o.atomic && !stack.isEmpty()) stack.last().inner = true;
+            havePrev = true;
+            prevGroup = true;
+            prevInner = o.inner && !o.atomic;
+        } else if (c == QLatin1Char('|')) {
+            havePrev = false;
+            prevGroup = false;
+        } else if (havePrev && (c == QLatin1Char('*') || c == QLatin1Char('+') || c == QLatin1Char('?') || c == QLatin1Char('{'))) {
+            bool isQuantifier = c != QLatin1Char('{'), unbounded = c == QLatin1Char('*') || c == QLatin1Char('+');
+            int end = i;
+            if (c == QLatin1Char('{')) {
+                static const QRegularExpression counts(QStringLiteral("^\\{\\d{1,5}(,\\d{0,5})?\\}"));
+                const QRegularExpressionMatch m = counts.match(p.mid(i, 14));
+                if (m.hasMatch()) {
+                    isQuantifier = true;
+                    end = i + int(m.capturedLength()) - 1;
+                    unbounded = m.captured().endsWith(QLatin1String(",}"));
+                }
+            }
+            if (isQuantifier) {
+                i = end;
+                const bool possessive = i + 1 < n && p[i + 1] == QLatin1Char('+');
+                if (possessive || (i + 1 < n && p[i + 1] == QLatin1Char('?'))) ++i;
+                if (unbounded && !possessive) {
+                    if (prevGroup && prevInner)
+                        return problem(QT_TRANSLATE_NOOP("jp::write::Find", "The repeat at character %1 repeats a group that has a repeat without end in it, which could take far too long. Give the repeat inside the group a limit, such as {1,20}.")).arg(end + 1);
+                    if (!stack.isEmpty()) stack.last().inner = true;
+                }
+            }
+            havePrev = true;
+            prevGroup = false;
+        } else {
+            havePrev = true;
+            prevGroup = false;
+        }
+    }
+    return QString();
+}
+
+// Whether the pattern names a paragraph mark: a \n that is not itself the end of an escaped backslash.
+bool namesParagraphMark(const QString &p)
+{
+    for (int i = 0; i + 1 < p.size(); ++i)
+        if (p[i] == QLatin1Char('\\')) {
+            if (p[i + 1] == QLatin1Char('n') || p[i + 1] == QLatin1Char('R')) return true;
+            ++i;
+        }
+    return false;
+}
+
+}
+
+FindPattern regexPattern(const QString &pattern, bool matchCase)
+{
+    FindPattern out;
+    if (pattern.isEmpty()) {
+        out.error = problem(QT_TRANSLATE_NOOP("jp::write::Find", "Type what to find."));
+        return out;
+    }
+    if (pattern.size() > kMostPatternLength) {
+        out.error = problem(QT_TRANSLATE_NOOP("jp::write::Find", "The pattern is too long."));
+        return out;
+    }
+    const bool across = namesParagraphMark(pattern);
+    QRegularExpression::PatternOptions options = QRegularExpression::UseUnicodePropertiesOption;
+    if (!matchCase) options |= QRegularExpression::CaseInsensitiveOption;
+    if (across) options |= QRegularExpression::MultilineOption;
+    QRegularExpression regex(pattern, options);
+    if (!regex.isValid()) {
+        out.error = problem(QT_TRANSLATE_NOOP("jp::write::Find", "That pattern has a mistake near character %1: %2.")).arg(std::clamp(int(regex.patternErrorOffset()), 1, int(pattern.size()))).arg(regex.errorString());
+        return out;
+    }
+    if (const QString shape = regexShapeProblem(pattern); !shape.isEmpty()) {
+        out.error = shape;
+        return out;
+    }
+    if (regex.captureCount() > 9) {
+        out.error = problem(QT_TRANSLATE_NOOP("jp::write::Find", "A pattern can keep at most nine groups; write (?: ) for a group that is not used in Replace with."));
+        return out;
+    }
+    out.regex = regex;
+    out.acrossParagraphs = across;
+    return out;
+}
+
+RegexScan scanRegex(const QString &text, const FindPattern &pattern, int from, int most, const std::function<bool(int)> &keepGoing)
+{
+    RegexScan out;
+    if (!pattern.error.isEmpty() || pattern.regex.pattern().isEmpty() || !pattern.regex.isValid() || from > text.size()) {
+        out.done = true;
+        return out;
+    }
+    from = std::max(0, from);
+    const QStringView all(text);
+    auto add = [&](qsizetype base, const QRegularExpressionMatch &m) {
+        RegexHit h;
+        h.first = int(base + m.capturedStart());
+        h.second = int(base + m.capturedEnd());
+        for (int g = 0; g <= pattern.regex.captureCount(); ++g) h.groups << m.captured(g);
+        out.hits.push_back(h);
+    };
+    if (pattern.acrossParagraphs) {
+        for (qsizetype at = from; at <= text.size();) {
+            if (out.hits.size() >= most) return out;
+            const QRegularExpressionMatch m = pattern.regex.matchView(all, at);
+            ++out.paragraphs;
+            if (!m.hasMatch()) break;
+            if (m.capturedEnd() > m.capturedStart()) {
+                add(0, m);
+                at = m.capturedEnd();
+            } else {
+                at = m.capturedEnd() + 1;
+            }
+            if (keepGoing && !keepGoing(out.paragraphs)) {
+                out.cancelled = true;
+                return out;
+            }
+        }
+        out.done = true;
+        return out;
+    }
+    qsizetype start = from > 0 ? text.lastIndexOf(QLatin1Char('\n'), from - 1) + 1 : 0;
+    for (bool first = true;; first = false) {
+        qsizetype end = text.indexOf(QLatin1Char('\n'), start);
+        if (end < 0) end = text.size();
+        const QStringView paragraph = all.mid(start, end - start);
+        for (qsizetype at = first ? from - start : 0; at <= paragraph.size();) {
+            if (out.hits.size() >= most) break;
+            const QRegularExpressionMatch m = pattern.regex.matchView(paragraph, at);
+            if (!m.hasMatch()) break;
+            if (m.capturedEnd() > m.capturedStart()) {
+                add(start, m);
+                at = m.capturedEnd();
+            } else {
+                at = m.capturedEnd() + 1;
+            }
+        }
+        ++out.paragraphs;
+        if (out.hits.size() >= most) return out;
+        if (end >= text.size()) {
+            out.done = true;
+            return out;
+        }
+        start = end + 1;
+        if (keepGoing && !keepGoing(out.paragraphs)) {
+            out.cancelled = true;
+            return out;
+        }
+    }
+}
+
+QString expandRegexReplacement(const QString &with, const QStringList &groups)
+{
+    auto group = [&](int g) { return g < groups.size() ? groups[g] : QString(); };
+    QString out;
+    for (int i = 0; i < with.size(); ++i) {
+        const QChar c = with[i];
+        const QChar next = i + 1 < with.size() ? with[i + 1] : QChar();
+        if ((c == QLatin1Char('\\') || c == QLatin1Char('$')) && next.isDigit() && next.unicode() < 128) {
+            out += group(next.digitValue());
+            ++i;
+        } else if (c == QLatin1Char('\\') && next == QLatin1Char('\\')) {
+            out += QLatin1Char('\\');
+            ++i;
+        } else if (c == QLatin1Char('\\') && next == QLatin1Char('t')) {
+            out += QLatin1Char('\t');
+            ++i;
+        } else if (c == QLatin1Char('$') && next == QLatin1Char('$')) {
+            out += QLatin1Char('$');
+            ++i;
+        } else {
+            out += c;
+        }
+    }
+    return out;
+}
+
 } // namespace jp::write
 
 namespace jp::write {
