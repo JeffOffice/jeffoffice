@@ -1413,6 +1413,55 @@ private Q_SLOTS:
         }
     }
 
+    // A table set in text stays in the box where its line starts when its rows are taller than the room left there: they run on below the
+    // box (the reference shows no more of them, and the text goes on in the next box after them). Any other object that does not fit goes
+    // to the next box.
+    void tableSetInTextStaysInItsBox()
+    {
+        using namespace jp;
+        for (const bool table : {true, false}) {
+            auto doc = Document::blank(QSizeF(612, 792));
+            auto a = std::make_shared<TextItem>();
+            a->rect = QRectF(72, 72, 200, 100);
+            a->insets = QMarginsF(0, 0, 0, 0);
+            auto b = std::make_shared<TextItem>();
+            b->rect = QRectF(72, 300, 200, 200);
+            b->insets = QMarginsF(0, 0, 0, 0);
+            a->storyId = b->storyId = doc->createStory(QStringLiteral("Intro\nBefore\nAfter"));
+            a->nextId = b->id;
+            ItemPtr object;
+            if (table) {
+                auto t = std::make_shared<TableItem>();
+                t->rows = 3;
+                t->cols = 1;
+                t->colW = {100};
+                t->rowH = {40, 40, 40};
+                t->rect = QRectF(0, 0, 0, 0);
+                t->syncRect();
+                t->cells.resize(3);
+                for (auto &c : t->cells) c.storyId = doc->createStory(QStringLiteral("Cell"));
+                object = t;
+            } else {
+                auto s = std::make_shared<ShapeItem>();
+                s->rect = QRectF(0, 0, 100, 120);
+                object = s;
+            }
+            QTextCursor c(doc->storyDoc(a->storyId));
+            c.setPosition(12);
+            QTextCharFormat of = c.charFormat();
+            of.setProperty(tp::InlineObject, QString::fromUtf8(QJsonDocument(object->toJson()).toJson(QJsonDocument::Compact)));
+            c.insertText(QString(QChar::ObjectReplacementCharacter), of);
+            doc->pages[0]->items = {a, b};
+            LayoutCache cache;
+            const auto fl = cache.textFrame(*doc, *a, 1, RenderOptions());
+            QVERIFY(fl.layout);
+            const auto objects = fl.layout->inlineObjects();
+            QCOMPARE(int(objects.size()), 1);
+            QCOMPARE(objects[0].frame, table ? 0 : 1);
+            if (table) QVERIFY(objects[0].rect.bottom() > a->rect.height());
+        }
+    }
+
     // An object set in text, saved as Publisher saves one: its U+FFFC's run
     // has 00 = 2, the story's EOBJ section gives its position and number,
     // the object sits on the last special page with that number (0f), and

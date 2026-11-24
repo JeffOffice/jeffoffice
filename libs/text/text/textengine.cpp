@@ -3923,6 +3923,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     box.docPos = head.position() + rel + i;
                     box.json = object;
                     if (item) {
+                        box.table = item->type() == ItemType::Table;
                         // Sizes from a file: finite and within a page or so.
                         auto sane = [](double v, double most) { return std::isfinite(v) ? std::clamp(v, 0.0, most) : 0.0; };
                         box.size = QSizeF(sane(item->rect.width(), 20000), sane(item->rect.height(), 20000));
@@ -5188,7 +5189,11 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                             roomUnder = 0;
                         }
                     }
-                    const double fitH = std::max(0.0, textH - roomUnder);   // (what of the line has to fit where the column ends)
+                    // (A table set in the text stays in the column where its line starts and runs on below it, as the reference shows it, when its rows do not fit.)
+                    bool tableLine = false;
+                    for (const auto &ob : B->objects)
+                        if (ob.table && ob.disp >= line.textStart() && ob.disp < line.textStart() + line.textLength()) tableLine = true;
+                    const double fitH = tableLine ? 0.0 : std::max(0.0, textH - roomUnder);   // (what of the line has to fit where the column ends)
                     // The first line of a column goes there however tall it
                     // is, unless notes going on from the column before fill it.
                     // (The room of the paragraph's top border above its first line is not a line before it.)
