@@ -334,7 +334,12 @@ void WriteWindow::refreshInsertUi()
     act("insert.dateTime")->setEnabled(m_doc && !m_view->inHeaderFooter() && !m_view->inNote());
     act("insert.textFromFile")->setEnabled(m_doc && !m_view->inHeaderFooter() && !m_view->inNote());
     act("insert.saveBlock")->setEnabled(m_doc && m_view->cursor().hasSelection());
-    act("insert.expandShortcut")->setEnabled(m_doc && !m_view->inHeaderFooter() && !m_view->inNote());
+    // (F3 is on only where a Text Shortcut could be: the library file is there, and once it is read, it holds one. The file is not read just to show a command.)
+    {
+        const jp::BlockLibrary &lib = jp::BlockLibrary::shared();
+        const bool any = lib.loaded() ? !lib.list(jp::kShortcutsGallery).isEmpty() : QFileInfo::exists(lib.path());
+        act("insert.expandShortcut")->setEnabled(m_doc && !m_view->inHeaderFooter() && !m_view->inNote() && any);
+    }
     act("insert.hyperlink")->setEnabled(m_doc && !m_view->inHeaderFooter() && !m_view->inNote());
     act("insert.removeHyperlink")->setEnabled(m_doc && !m_view->inHeaderFooter() && !m_view->inNote() && write::hyperlinkAt(*m_doc, m_view->cursor().position()).valid());
     for (const char *id : {"insert.blankPage", "layout.columnBreak", "layout.sectionBreak.continuous", "layout.sectionBreak.evenPage", "layout.sectionBreak.oddPage"})

@@ -58,6 +58,7 @@
     QT_TRANSLATE_NOOP("Ribbon", "Draw"),
     QT_TRANSLATE_NOOP("Ribbon", "Draw Borders"),
     QT_TRANSLATE_NOOP("Ribbon", "Drop Cap"),
+    QT_TRANSLATE_NOOP("Ribbon", "Saved Blocks"),
     QT_TRANSLATE_NOOP("Ribbon", "Editing"),
     QT_TRANSLATE_NOOP("Ribbon", "Effects"),
     QT_TRANSLATE_NOOP("Ribbon", "Equation"),

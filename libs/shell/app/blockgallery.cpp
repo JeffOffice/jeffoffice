@@ -359,7 +359,7 @@ void manageBlocksBox(QWidget *parent, const QString &format, const BlockPreview 
         int skipped = 0;
         const int n = BlockLibrary::shared().importFrom(path, &err, &skipped);
         if (n < 0) tell(err);
-        else tell(QCoreApplication::translate("jp::Blocks", "%n block(s) were added.", nullptr, n) + QLatin1Char(' ') + QCoreApplication::translate("jp::Blocks", "%n block(s) were left out because that name is already saved.", nullptr, skipped));
+        else tell(QCoreApplication::translate("jp::Blocks", "Added: %1. Left out because the name is already saved: %2.").arg(n).arg(skipped));
         refresh();
     });
     BlockLibrary::shared().load();
