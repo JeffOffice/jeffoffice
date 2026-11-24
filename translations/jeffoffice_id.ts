@@ -25763,12 +25763,12 @@ Sumber: %3</translation>
     <name>jp::CrunchWindow</name>
     <message>
         <location filename="../apps/crunch/app/crunchwindow.cpp" line="+195"/>
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+207"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+212"/>
         <source>The new workbook is getting ready. It can be changed in a moment.</source>
         <translation type="unfinished">Buku kerja baru sedang disiapkan. Dapat diubah sebentar lagi.</translation>
     </message>
     <message>
-        <location line="+138"/>
+        <location line="+142"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+888"/>
         <location filename="../apps/crunch/app/crunchwindow_windows.cpp" line="+108"/>
         <source>%1 (%2)</source>
@@ -25823,12 +25823,14 @@ Sumber: %3</translation>
     <message>
         <location line="+21"/>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+39"/>
+        <location filename="../apps/crunch/app/crunchwindow_quick.cpp" line="+57"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="+543"/>
         <source>Average</source>
         <translation type="unfinished">Rata-rata</translation>
     </message>
     <message>
         <location line="+0"/>
+        <location filename="../apps/crunch/app/crunchwindow_quick.cpp" line="+1"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="+0"/>
         <source>Count</source>
         <translation type="unfinished">Hitung</translation>
@@ -25853,13 +25855,14 @@ Sumber: %3</translation>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-2"/>
         <location line="+1"/>
         <location line="+43"/>
+        <location filename="../apps/crunch/app/crunchwindow_quick.cpp" line="-2"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="+1"/>
         <source>Sum</source>
         <translation type="unfinished">Jumlah</translation>
     </message>
     <message>
-        <location line="-265"/>
-        <location line="+284"/>
+        <location line="-269"/>
+        <location line="+288"/>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="+190"/>
         <location filename="../apps/crunch/app/crunchwindow_cells.cpp" line="+117"/>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="+187"/>
@@ -25870,8 +25873,8 @@ Sumber: %3</translation>
         <location line="+28"/>
         <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="+99"/>
         <location filename="../apps/crunch/app/crunchwindow_drawborder.cpp" line="+40"/>
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+353"/>
-        <location line="+56"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+354"/>
+        <location line="+57"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+138"/>
         <location line="+223"/>
         <location line="+74"/>
@@ -25951,7 +25954,7 @@ Sumber: %3</translation>
     </message>
     <message>
         <location line="+7"/>
-        <location line="+605"/>
+        <location line="+606"/>
         <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-216"/>
         <location line="+6"/>
         <location line="+14"/>
@@ -25983,7 +25986,7 @@ Sumber: %3</translation>
         <translation type="unfinished">Simpan</translation>
     </message>
     <message>
-        <location line="-604"/>
+        <location line="-605"/>
         <source>Save As…</source>
         <translation type="unfinished">Simpan Sebagai…</translation>
     </message>
@@ -26012,7 +26015,7 @@ Sumber: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="-500"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="-502"/>
         <location line="+56"/>
         <source>Undo</source>
         <translation type="unfinished">Urungkan</translation>
@@ -26035,12 +26038,12 @@ Sumber: %3</translation>
     </message>
     <message>
         <location line="+99"/>
-        <location line="+467"/>
+        <location line="+468"/>
         <source>Editing</source>
         <translation type="unfinished">Pengeditan</translation>
     </message>
     <message>
-        <location line="-462"/>
+        <location line="-463"/>
         <location line="+4"/>
         <source>After pressing Enter, move the selection</source>
         <translation>Setelah menekan Enter, pindahkan pilihan</translation>
@@ -26102,12 +26105,12 @@ Sumber: %3</translation>
         <translation type="unfinished">Tawarkan untuk melengkapi teks dari sel di atas dan di bawah (Pelengkapan Otomatis)</translation>
     </message>
     <message>
-        <location line="-509"/>
+        <location line="-513"/>
         <source>End</source>
         <translation type="unfinished">Akhir</translation>
     </message>
     <message>
-        <location line="+384"/>
+        <location line="+388"/>
         <location line="+2"/>
         <source>Repeat</source>
         <translation type="unfinished">Ulangi</translation>
@@ -26169,12 +26172,12 @@ Sumber: %3</translation>
     </message>
     <message>
         <location line="+19"/>
-        <location line="+409"/>
+        <location line="+410"/>
         <source>New Workbooks</source>
         <translation type="unfinished">Buku Kerja Baru</translation>
     </message>
     <message>
-        <location line="-403"/>
+        <location line="-404"/>
         <location line="+2"/>
         <source>Font of a new workbook</source>
         <translation>Font untuk buku kerja baru</translation>
@@ -26191,12 +26194,12 @@ Sumber: %3</translation>
     </message>
     <message>
         <location line="+14"/>
-        <location line="+377"/>
+        <location line="+378"/>
         <source>Display</source>
         <translation type="unfinished">Tampilan</translation>
     </message>
     <message>
-        <location line="-372"/>
+        <location line="-373"/>
         <location line="+8"/>
         <location line="+3"/>
         <source>Gridline color</source>
@@ -26215,18 +26218,18 @@ Sumber: %3</translation>
     </message>
     <message>
         <location line="+21"/>
-        <location line="+330"/>
+        <location line="+331"/>
         <source>Privacy</source>
         <translation type="unfinished">Privasi</translation>
     </message>
     <message>
-        <location line="-315"/>
-        <location line="+315"/>
+        <location line="-316"/>
+        <location line="+316"/>
         <source>Custom Lists</source>
         <translation type="unfinished">Daftar Kustom</translation>
     </message>
     <message>
-        <location line="-312"/>
+        <location line="-313"/>
         <source>A custom list is a row of words that Fill goes through, like the days of the week. Type one list on each line, with commas between the words. Type the first word in a cell and drag the fill handle to get the rest.</source>
         <translation type="unfinished">Daftar kustom adalah deretan kata yang dilewati oleh Isian, seperti hari-hari dalam seminggu. Ketik satu daftar di setiap baris, dengan koma di antara kata-katanya. Ketik kata pertama di sebuah sel, lalu seret pegangan isian untuk mendapatkan sisanya.</translation>
     </message>
@@ -26349,7 +26352,7 @@ Sumber: %3</translation>
         <translation type="unfinished">Masukan</translation>
     </message>
     <message>
-        <location line="+161"/>
+        <location line="+162"/>
         <source>An object&apos;s name is one to 255 characters.</source>
         <translation type="unfinished">Nama objek terdiri atas satu hingga 255 karakter.</translation>
     </message>
@@ -26514,7 +26517,7 @@ Sumber: %3</translation>
         <translation type="unfinished"> atau lebih</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-714"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-715"/>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="-160"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+128"/>
         <location filename="../apps/crunch/app/crunchwindow_page.cpp" line="+196"/>
@@ -26917,7 +26920,7 @@ Sumber: %3</translation>
         <location line="+26"/>
         <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+47"/>
         <location line="+31"/>
-        <location line="+268"/>
+        <location line="+269"/>
         <location filename="../apps/crunch/app/crunchwindow_function.cpp" line="+109"/>
         <location filename="../apps/crunch/app/crunchwindow_point.cpp" line="+239"/>
         <source>Edit</source>
@@ -27585,7 +27588,7 @@ Sumber: %3</translation>
         <translation type="unfinished">%1 disalin</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+670"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+671"/>
         <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+30"/>
         <location line="+17"/>
         <location line="+12"/>
@@ -27651,7 +27654,7 @@ Sumber: %3</translation>
         <translation type="unfinished">Nilai</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-693"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-694"/>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="-344"/>
         <location line="+300"/>
         <location line="+44"/>
@@ -27666,6 +27669,7 @@ Sumber: %3</translation>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="-339"/>
         <location line="+339"/>
         <location filename="../apps/crunch/app/crunchwindow_pasteoffer.cpp" line="+1"/>
+        <location filename="../apps/crunch/app/crunchwindow_quick.cpp" line="+183"/>
         <source>Formatting</source>
         <translation>Pemformatan</translation>
     </message>
@@ -28444,7 +28448,7 @@ Sumber: %3</translation>
         <location line="+23"/>
         <location line="+229"/>
         <location line="+4"/>
-        <location line="+37"/>
+        <location line="+48"/>
         <location line="+23"/>
         <location line="+30"/>
         <location line="+33"/>
@@ -28452,7 +28456,7 @@ Sumber: %3</translation>
         <translation type="unfinished">Pemformatan Bersyarat</translation>
     </message>
     <message>
-        <location line="-346"/>
+        <location line="-357"/>
         <source>From</source>
         <translation>Dari</translation>
     </message>
@@ -28787,7 +28791,7 @@ File yang ada sebelumnya tidak berubah.</translation>
         <translation type="unfinished">Hapus Objek</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="-206"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="-207"/>
         <source>Undo %1 (%2)</source>
         <translation type="unfinished">Urungkan %1 (%2)</translation>
     </message>
@@ -28818,18 +28822,18 @@ File yang ada sebelumnya tidak berubah.</translation>
     </message>
     <message>
         <location line="+4"/>
-        <location line="+456"/>
+        <location line="+459"/>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="+166"/>
         <source>A large change is still being made. It can be changed again when that is done.</source>
         <translation type="unfinished">Perubahan besar masih dilakukan. Perubahan dapat dilakukan lagi setelah selesai.</translation>
     </message>
     <message>
-        <location line="-452"/>
+        <location line="-455"/>
         <source>Finish the Function Arguments dialog first.</source>
         <translation type="unfinished">Selesaikan kotak dialog Argumen Fungsi terlebih dahulu.</translation>
     </message>
     <message>
-        <location line="+266"/>
+        <location line="+267"/>
         <location line="+2"/>
         <source>Format Text</source>
         <translation type="unfinished">Format Teks</translation>
@@ -28845,7 +28849,7 @@ File yang ada sebelumnya tidak berubah.</translation>
         <translation>Rumus</translation>
     </message>
     <message>
-        <location line="+137"/>
+        <location line="+139"/>
         <location filename="../apps/crunch/app/crunchwindow_filter.cpp" line="-363"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="-984"/>
         <location line="+607"/>
@@ -29250,7 +29254,7 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation>Buka</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+481"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+482"/>
         <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="-74"/>
         <location line="+8"/>
         <location line="+4"/>
@@ -30462,12 +30466,240 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation type="unfinished">Sel berisi data</translation>
     </message>
     <message>
+        <location filename="../apps/crunch/app/crunchwindow_quick.cpp" line="-183"/>
+        <source>Row Sum</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Row Average</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Row Count</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>% of Total</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Row % of Total</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Running Total</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Row Running Total</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Adds up each column of numbers, in the row under the cells.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Adds up each row of numbers, in the column to the right of the cells.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Finds the average of each column, in the row under the cells.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Finds the average of each row, in the column to the right of the cells.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Counts the numbers in each column, in the row under the cells.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Counts the numbers in each row, in the column to the right of the cells.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Shows each column&apos;s share of all the numbers, as a percent, in the row under the cells.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Shows each row&apos;s share of all the numbers, as a percent, in the column to the right of the cells.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Adds up each column as it goes down, in new cells to the right of the cells.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Adds up each row as it goes across, in new cells under the cells.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+36"/>
+        <location line="+376"/>
+        <source>Quick Analysis</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-372"/>
+        <source>Quick Analysis (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+51"/>
+        <source>Select two or more cells that have data to use Quick Analysis.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>There is nothing Quick Analysis can do with these cells.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <location line="+55"/>
+        <source>There are too many cells to find their average.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-43"/>
+        <source>There are no numbers here to compare.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+40"/>
+        <source>Data Bars</source>
+        <translation type="unfinished">Batang Data</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Draws a bar in each cell that is as long as its number.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Color Scale</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Colors the cells from the lowest number to the highest.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Icon Set</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Puts a small picture in each cell that says whether its number is low, middle, or high.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Greater Than</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Highlights the cells with a number greater than the average of the numbers.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Top 10%</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Highlights the cells with the highest tenth of the numbers.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location line="+2"/>
+        <source>Clear Format</source>
+        <translation type="unfinished">Hapus Format</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Takes the conditional formatting off the selected cells.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="+2"/>
         <source>Charts</source>
         <translation type="unfinished">Bagan</translation>
     </message>
     <message>
+        <location line="+4"/>
+        <source>Makes a chart of the selected cells: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Totals</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Tables</source>
+        <translation type="unfinished">Tabel</translation>
+    </message>
+    <message>
         <location line="+1"/>
+        <source>Makes the selected cells a table, with buttons to sort and filter.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Makes a pivot table that totals the data, on a new sheet. The first row should hold the names of the columns.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Draws a small chart of each row in the cell to the right of it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+46"/>
+        <source>There are too many cells to show a preview.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+50"/>
+        <source>A pivot table that totals this data will be made on a new sheet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+111"/>
+        <source>Some of the cells where the totals go are not empty. Replace what is in them?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+34"/>
+        <source>A sparkline needs at least two numbers in a row.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="+1"/>
         <source>Pivot tables</source>
         <translation type="unfinished">Tabel pivot</translation>
     </message>
@@ -31083,7 +31315,7 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation type="unfinished">Ubah Tautan</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="-227"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="-229"/>
         <location filename="../apps/crunch/app/crunchwindow_notes.cpp" line="-1"/>
         <location line="+1"/>
         <location line="+6"/>
@@ -32001,6 +32233,7 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <location line="+7"/>
         <location line="+316"/>
         <location line="+307"/>
+        <location filename="../apps/crunch/app/crunchwindow_quick.cpp" line="-252"/>
         <source>Pivot Table</source>
         <translation type="unfinished">Tabel Pivot</translation>
     </message>
@@ -32289,7 +32522,7 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-33"/>
         <location line="+6"/>
         <location line="+3"/>
-        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+425"/>
+        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+431"/>
         <source>Ungroup</source>
         <translation type="unfinished">Pisahkan Kelompok</translation>
     </message>
@@ -33169,9 +33402,10 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation type="unfinished">Sel berisi terlalu banyak teks untuk diurutkan sekaligus. Pilih lebih sedikit.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="-306"/>
+        <location filename="../apps/crunch/app/crunchwindow_quick.cpp" line="+9"/>
+        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="-312"/>
         <location line="+90"/>
-        <location line="+23"/>
+        <location line="+29"/>
         <location line="+83"/>
         <location line="+11"/>
         <location line="+19"/>
@@ -33181,7 +33415,7 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation type="unfinished">Sparkline</translation>
     </message>
     <message>
-        <location line="-249"/>
+        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="-255"/>
         <source>The data range is not cells. Write it as A1:F3.</source>
         <translation type="unfinished">Rentang data bukan sel. Tulis sebagai A1:F3.</translation>
     </message>
@@ -33207,22 +33441,22 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
     </message>
     <message>
         <location line="+32"/>
-        <location line="+42"/>
+        <location line="+48"/>
         <source>Create Sparklines</source>
         <translation type="unfinished">Buat Sparkline</translation>
     </message>
     <message>
-        <location line="-38"/>
+        <location line="-44"/>
         <location line="+4"/>
-        <location line="+101"/>
+        <location line="+107"/>
         <location line="+5"/>
         <source>Data range</source>
         <translation>Rentang data</translation>
     </message>
     <message>
-        <location line="-107"/>
+        <location line="-113"/>
         <location line="+2"/>
-        <location line="+103"/>
+        <location line="+109"/>
         <location line="+3"/>
         <source>Location range</source>
         <translation>Rentang lokasi</translation>
@@ -33263,19 +33497,21 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-1085"/>
         <location line="+21"/>
         <location filename="../apps/crunch/app/crunchwindow_insertobjects.cpp" line="-753"/>
+        <location filename="../apps/crunch/app/crunchwindow_quick.cpp" line="+3"/>
         <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+13"/>
         <source>Line</source>
         <translation type="unfinished">Garis</translation>
     </message>
     <message>
         <location line="-1"/>
+        <location filename="../apps/crunch/app/crunchwindow_quick.cpp" line="+1"/>
         <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+1"/>
         <source>Column</source>
         <translation>Kolom</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/condpresets.cpp" line="-149"/>
-        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="-322"/>
+        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="-328"/>
         <source>Blue</source>
         <translation>Biru</translation>
     </message>
@@ -33339,12 +33575,13 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation>Merah</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+321"/>
+        <location filename="../apps/crunch/app/crunchwindow_quick.cpp" line="+1"/>
+        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+327"/>
         <source>Win/Loss</source>
         <translation type="unfinished">Menang/Kalah</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+6"/>
         <source>Sparkline Type</source>
         <translation type="unfinished">Jenis Sparkline</translation>
     </message>
@@ -34027,7 +34264,8 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation type="unfinished">Gaya Tabel Baru…</translation>
     </message>
     <message>
-        <location line="+124"/>
+        <location filename="../apps/crunch/app/crunchwindow_quick.cpp" line="-15"/>
+        <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="+124"/>
         <location line="+8"/>
         <location line="+18"/>
         <location line="+16"/>
@@ -34054,7 +34292,7 @@ Berkas ini dilindungi kata sandi. Kata sandi:</translation>
         <translation type="unfinished">Tabel</translation>
     </message>
     <message>
-        <location line="-471"/>
+        <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="-471"/>
         <source>Change Table Size…</source>
         <translation type="unfinished">Ubah Ukuran Tabel…</translation>
     </message>
@@ -56339,6 +56577,14 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     </message>
 </context>
 <context>
+    <name>jp::QuickAnalysis</name>
+    <message>
+        <location filename="../apps/crunch/app/quickanalysis.cpp" line="+31"/>
+        <source>Quick Analysis</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>jp::QuickToolbarPage</name>
     <message>
         <location filename="../libs/shell/app/quicktoolbarpage.cpp" line="+42"/>
@@ -68312,7 +68558,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">JeffCrunch belum dapat menghitung ini (rumus ini menggunakan buku kerja lain, kolom tabel, atau fungsi yang tidak dimiliki JeffCrunch), sehingga tidak ada nilai yang ditampilkan.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editsession.cpp" line="+450"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="+453"/>
         <source>&quot;%1&quot; could not be done again, so Undo and Redo are not available any more for what came before it.</source>
         <translation type="unfinished">&quot;%1&quot; tidak dapat dilakukan ulang, sehingga Urungkan dan Ulangi tidak lagi tersedia untuk tindakan sebelumnya.</translation>
     </message>
@@ -68451,7 +68697,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">buku kerja</translation>
     </message>
     <message>
-        <location line="+159"/>
+        <location line="+160"/>
         <source>There is no workbook to save.</source>
         <translation type="unfinished">Tidak ada buku kerja untuk disimpan.</translation>
     </message>
@@ -68498,7 +68744,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Filter menurut Slicer</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editcond.cpp" line="+307"/>
+        <location filename="../apps/crunch/core/editcond.cpp" line="+309"/>
         <source>Conditional formatting of a workbook opened from this kind of file is kept when it is saved as an .xlsx workbook. Save it as one, and then change rules.</source>
         <translation type="unfinished">Pemformatan bersyarat pada buku kerja yang dibuka dari jenis berkas ini akan dipertahankan saat disimpan sebagai buku kerja .xlsx. Simpan sebagai .xlsx terlebih dahulu, lalu ubah aturan.</translation>
     </message>
@@ -68516,6 +68762,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="-47"/>
         <location line="+73"/>
+        <location filename="../apps/crunch/core/editquick.cpp" line="+280"/>
         <source>Select the cells the rule is for.</source>
         <translation type="unfinished">Pilih sel yang menjadi tujuan aturan.</translation>
     </message>
@@ -68535,7 +68782,9 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+81"/>
         <location line="+65"/>
         <location filename="../apps/crunch/core/editpaste.cpp" line="+621"/>
-        <location filename="../apps/crunch/core/editsession.cpp" line="-740"/>
+        <location filename="../apps/crunch/core/editquick.cpp" line="+6"/>
+        <location line="+1"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="-741"/>
         <location filename="../apps/crunch/core/editsheets.cpp" line="+94"/>
         <location line="+279"/>
         <location filename="../apps/crunch/core/editsize.cpp" line="+294"/>
@@ -68549,6 +68798,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location line="-43"/>
         <location line="+56"/>
+        <location filename="../apps/crunch/core/editquick.cpp" line="+4"/>
         <source>This workbook has no place to keep the look of a rule.</source>
         <translation type="unfinished">Buku kerja ini tidak memiliki tempat untuk menyimpan tampilan aturan.</translation>
     </message>
@@ -69212,6 +69462,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+174"/>
         <location line="+352"/>
         <location line="+114"/>
+        <location filename="../apps/crunch/core/editquick.cpp" line="-146"/>
         <location filename="../apps/crunch/core/editsession.cpp" line="+388"/>
         <location line="+206"/>
         <source>That is more cells than JeffCrunch changes at once (%1). Select fewer cells.</source>
@@ -71018,6 +71269,43 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location filename="../apps/crunch/core/editslice.cpp" line="+197"/>
         <source>A workbook opened from a text or web page file has no notes to search.</source>
         <translation type="unfinished">Buku kerja yang dibuka dari berkas teks atau halaman web tidak memiliki catatan untuk dicari.</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editquick.cpp" line="-85"/>
+        <location line="+24"/>
+        <location line="+57"/>
+        <source>There are no numbers here to total.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-75"/>
+        <source>That is more cells than Quick Analysis looks at (%1). Select fewer cells.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+48"/>
+        <source>There is no room next to the cells for the running totals.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>There is no room under the cells for the totals.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>There is no room beside the cells for the totals.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>The totals would block a spilled result next to the cells. Move the spilled result, or select other cells.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>Some of the cells where the totals go are part of merged cells. Unmerge them, or select other cells.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>

@@ -25793,20 +25793,20 @@ Bron: %3</translation>
 <context>
     <name>jp::CrunchWindow</name>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+333"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+337"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+888"/>
         <location filename="../apps/crunch/app/crunchwindow_windows.cpp" line="+108"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
     <message>
-        <location line="-138"/>
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+207"/>
+        <location line="-142"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+212"/>
         <source>The new workbook is getting ready. It can be changed in a moment.</source>
         <translation type="unfinished">De nieuwe werkmap wordt voorbereid. U kunt deze zo dadelijk wijzigen.</translation>
     </message>
     <message>
-        <location line="+194"/>
+        <location line="+198"/>
         <source>Name box</source>
         <translation type="unfinished">Naamvak</translation>
     </message>
@@ -25867,8 +25867,8 @@ Bron: %3</translation>
         <translation>Maximum</translation>
     </message>
     <message>
-        <location line="-265"/>
-        <location line="+284"/>
+        <location line="-269"/>
+        <location line="+288"/>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="+190"/>
         <location filename="../apps/crunch/app/crunchwindow_cells.cpp" line="+117"/>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="+187"/>
@@ -25879,8 +25879,8 @@ Bron: %3</translation>
         <location line="+28"/>
         <location filename="../apps/crunch/app/crunchwindow_csv.cpp" line="+99"/>
         <location filename="../apps/crunch/app/crunchwindow_drawborder.cpp" line="+40"/>
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+353"/>
-        <location line="+56"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+354"/>
+        <location line="+57"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+138"/>
         <location line="+223"/>
         <location line="+74"/>
@@ -25903,12 +25903,12 @@ Bron: %3</translation>
         <translation type="unfinished">Gereed</translation>
     </message>
     <message>
-        <location line="-284"/>
+        <location line="-288"/>
         <source>End</source>
         <translation type="unfinished">Einde</translation>
     </message>
     <message>
-        <location line="+321"/>
+        <location line="+325"/>
         <source>Zoom</source>
         <translation>Zoomen</translation>
     </message>
@@ -25992,12 +25992,12 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="-64"/>
-        <location line="+409"/>
+        <location line="+410"/>
         <source>New Workbooks</source>
         <translation type="unfinished">Nieuwe werkmappen</translation>
     </message>
     <message>
-        <location line="-403"/>
+        <location line="-404"/>
         <location line="+2"/>
         <source>Font of a new workbook</source>
         <translation>Lettertype van een nieuwe werkmap</translation>
@@ -26014,12 +26014,12 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+14"/>
-        <location line="+377"/>
+        <location line="+378"/>
         <source>Display</source>
         <translation type="unfinished">Weergave</translation>
     </message>
     <message>
-        <location line="-372"/>
+        <location line="-373"/>
         <location line="+8"/>
         <location line="+3"/>
         <source>Gridline color</source>
@@ -26038,12 +26038,12 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+21"/>
-        <location line="+330"/>
+        <location line="+331"/>
         <source>Privacy</source>
         <translation type="unfinished">Privacy</translation>
     </message>
     <message>
-        <location line="-267"/>
+        <location line="-268"/>
         <source>Split</source>
         <translation type="unfinished">Splitsen</translation>
     </message>
@@ -26063,7 +26063,7 @@ Bron: %3</translation>
         <translation type="unfinished">Feedback</translation>
     </message>
     <message>
-        <location line="+222"/>
+        <location line="+223"/>
         <source>The name %1 now stands for the cells selected.</source>
         <translation type="unfinished">De naam %1 verwijst nu naar de geselecteerde cellen.</translation>
     </message>
@@ -26078,7 +26078,7 @@ Bron: %3</translation>
         <translation type="unfinished">Sluit het venster wanneer Doelzoeken of Scenariosamenvatting klaar is.</translation>
     </message>
     <message>
-        <location line="-793"/>
+        <location line="-794"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-287"/>
         <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+1302"/>
         <location filename="../apps/crunch/app/crunchwindow_themes.cpp" line="+39"/>
@@ -26102,7 +26102,7 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+7"/>
-        <location line="+605"/>
+        <location line="+606"/>
         <location filename="../apps/crunch/app/crunchwindow_copy.cpp" line="-216"/>
         <location line="+6"/>
         <location line="+14"/>
@@ -26134,7 +26134,7 @@ Bron: %3</translation>
         <translation type="unfinished">Opslaan</translation>
     </message>
     <message>
-        <location line="-604"/>
+        <location line="-605"/>
         <source>Save As…</source>
         <translation type="unfinished">Opslaan als…</translation>
     </message>
@@ -26162,7 +26162,7 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="-500"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="-502"/>
         <location line="+56"/>
         <source>Undo</source>
         <translation type="unfinished">Ongedaan maken</translation>
@@ -26216,12 +26216,12 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+62"/>
-        <location line="+467"/>
+        <location line="+468"/>
         <source>Editing</source>
         <translation type="unfinished">Bewerken</translation>
     </message>
     <message>
-        <location line="-462"/>
+        <location line="-463"/>
         <location line="+4"/>
         <source>After pressing Enter, move the selection</source>
         <translation>Selectie verplaatsen na drukken op Enter</translation>
@@ -26238,12 +26238,12 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+113"/>
-        <location line="+315"/>
+        <location line="+316"/>
         <source>Custom Lists</source>
         <translation type="unfinished">Aangepaste lijsten</translation>
     </message>
     <message>
-        <location line="-312"/>
+        <location line="-313"/>
         <source>A custom list is a row of words that Fill goes through, like the days of the week. Type one list on each line, with commas between the words. Type the first word in a cell and drag the fill handle to get the rest.</source>
         <translation type="unfinished">Een aangepaste lijst is een reeks woorden die Opvulling doorloopt, zoals de dagen van de week. Typ elke lijst op een aparte regel, met komma&apos;s tussen de woorden. Typ het eerste woord in een cel en sleep de vulgreep om de rest te krijgen.</translation>
     </message>
@@ -26273,7 +26273,7 @@ Bron: %3</translation>
         <translation type="unfinished">Alles opnieuw berekenen</translation>
     </message>
     <message>
-        <location line="+166"/>
+        <location line="+167"/>
         <source>An object&apos;s name is one to 255 characters.</source>
         <translation type="unfinished">De naam van een object bestaat uit 1 tot 255 tekens.</translation>
     </message>
@@ -26701,7 +26701,7 @@ Bron: %3</translation>
         <translation type="unfinished">Grafiek geplakt met de getallen die erin stonden: de grafiek leest de cellen van deze werkmap niet.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-208"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-209"/>
         <source>Select All</source>
         <translation type="unfinished">Alles selecteren</translation>
     </message>
@@ -26809,7 +26809,7 @@ Bron: %3</translation>
         <translation type="unfinished">Knippen</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+400"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+401"/>
         <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-34"/>
         <location line="+17"/>
         <location line="+12"/>
@@ -26822,10 +26822,11 @@ Bron: %3</translation>
         <translation type="unfinished">Plakken</translation>
     </message>
     <message>
-        <location line="-837"/>
+        <location line="-838"/>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-201"/>
         <location line="+1"/>
         <location line="+43"/>
+        <location filename="../apps/crunch/app/crunchwindow_quick.cpp" line="+56"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="+544"/>
         <source>Sum</source>
         <translation type="unfinished">Som</translation>
@@ -26833,6 +26834,7 @@ Bron: %3</translation>
     <message>
         <location line="-1"/>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-42"/>
+        <location filename="../apps/crunch/app/crunchwindow_quick.cpp" line="+1"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="-1"/>
         <source>Average</source>
         <translation type="unfinished">Gemiddelde</translation>
@@ -26903,7 +26905,7 @@ Bron: %3</translation>
         <translation type="unfinished">Flitsvulling</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+321"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+322"/>
         <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-395"/>
         <location line="+543"/>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-505"/>
@@ -27074,7 +27076,7 @@ Bron: %3</translation>
         <translation type="unfinished">Deze werkmap heeft maar één werkblad, dus er is geen ander werkblad om te vullen.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+162"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+164"/>
         <location filename="../apps/crunch/app/crunchwindow_filter.cpp" line="-214"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="-843"/>
         <location line="+607"/>
@@ -28089,7 +28091,7 @@ Bron: %3</translation>
         <translation>Ga naar</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+458"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+459"/>
         <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="-74"/>
         <location line="+8"/>
         <location line="+4"/>
@@ -28665,7 +28667,7 @@ Bron: %3</translation>
         <location line="+20"/>
         <location line="+3"/>
         <location line="+2"/>
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="-279"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="-281"/>
         <location line="+1"/>
         <source>Default Width</source>
         <translation type="unfinished">Standaardbreedte</translation>
@@ -28753,7 +28755,200 @@ Bron: %3</translation>
         <translation type="unfinished">Nieuwe tabelstijl…</translation>
     </message>
     <message>
-        <location line="+124"/>
+        <location filename="../apps/crunch/app/crunchwindow_quick.cpp" line="-1"/>
+        <source>Row Sum</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Row Average</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Row Count</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>% of Total</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Row % of Total</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Running Total</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Row Running Total</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>Adds up each column of numbers, in the row under the cells.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Adds up each row of numbers, in the column to the right of the cells.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Finds the average of each column, in the row under the cells.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Finds the average of each row, in the column to the right of the cells.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Counts the numbers in each column, in the row under the cells.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Counts the numbers in each row, in the column to the right of the cells.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Shows each column&apos;s share of all the numbers, as a percent, in the row under the cells.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Shows each row&apos;s share of all the numbers, as a percent, in the column to the right of the cells.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Adds up each column as it goes down, in new cells to the right of the cells.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Adds up each row as it goes across, in new cells under the cells.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+36"/>
+        <location line="+376"/>
+        <source>Quick Analysis</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-372"/>
+        <source>Quick Analysis (%1)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+51"/>
+        <source>Select two or more cells that have data to use Quick Analysis.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>There is nothing Quick Analysis can do with these cells.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <location line="+55"/>
+        <source>There are too many cells to find their average.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-43"/>
+        <source>There are no numbers here to compare.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+40"/>
+        <source>Data Bars</source>
+        <translation type="unfinished">Gegevensbalken</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Draws a bar in each cell that is as long as its number.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Color Scale</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Colors the cells from the lowest number to the highest.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Icon Set</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Puts a small picture in each cell that says whether its number is low, middle, or high.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Greater Than</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Highlights the cells with a number greater than the average of the numbers.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Top 10%</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Highlights the cells with the highest tenth of the numbers.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Clear Format</source>
+        <translation type="unfinished">Opmaak wissen</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Takes the conditional formatting off the selected cells.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>Makes a chart of the selected cells: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Totals</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Tables</source>
+        <translation type="unfinished">Tabellen</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="+124"/>
         <location line="+8"/>
         <location line="+18"/>
         <location line="+16"/>
@@ -28780,7 +28975,42 @@ Bron: %3</translation>
         <translation type="unfinished">Tabel</translation>
     </message>
     <message>
-        <location line="-471"/>
+        <location line="+0"/>
+        <source>Makes the selected cells a table, with buttons to sort and filter.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Makes a pivot table that totals the data, on a new sheet. The first row should hold the names of the columns.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Draws a small chart of each row in the cell to the right of it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+46"/>
+        <source>There are too many cells to show a preview.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+50"/>
+        <source>A pivot table that totals this data will be made on a new sheet.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+111"/>
+        <source>Some of the cells where the totals go are not empty. Replace what is in them?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+34"/>
+        <source>A sparkline needs at least two numbers in a row.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="-471"/>
         <source>Change Table Size…</source>
         <translation type="unfinished">Tabelgrootte wijzigen…</translation>
     </message>
@@ -28901,7 +29131,8 @@ Bron: %3</translation>
         <translation type="unfinished">De cellen die de tabel moet beslaan (de eerste cel blijft behouden):</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-626"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-627"/>
+        <location filename="../apps/crunch/app/crunchwindow_quick.cpp" line="-484"/>
         <location filename="../apps/crunch/app/crunchwindow_tables.cpp" line="+59"/>
         <source>Count</source>
         <translation type="unfinished">Aantal</translation>
@@ -29309,6 +29540,7 @@ Bron: %3</translation>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="-339"/>
         <location line="+339"/>
         <location filename="../apps/crunch/app/crunchwindow_pasteoffer.cpp" line="+1"/>
+        <location filename="../apps/crunch/app/crunchwindow_quick.cpp" line="+181"/>
         <source>Formatting</source>
         <translation>Opmaak</translation>
     </message>
@@ -29582,7 +29814,7 @@ Bron: %3</translation>
         <translation type="unfinished">Lege cellen overslaan</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+523"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+524"/>
         <source>&quot;%1&quot; is not an address JeffCrunch can go to.</source>
         <translation type="unfinished">&quot;%1&quot; is geen adres waar JeffCrunch naartoe kan gaan.</translation>
     </message>
@@ -29602,7 +29834,7 @@ Bron: %3</translation>
         <translation type="unfinished">Berekening gestopt</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="-375"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="-376"/>
         <source>Undo %1 (%2)</source>
         <translation type="unfinished">%1 ongedaan maken (%2)</translation>
     </message>
@@ -29633,18 +29865,18 @@ Bron: %3</translation>
     </message>
     <message>
         <location line="+4"/>
-        <location line="+456"/>
+        <location line="+459"/>
         <location filename="../apps/crunch/app/crunchwindow_ops.cpp" line="-48"/>
         <source>A large change is still being made. It can be changed again when that is done.</source>
         <translation type="unfinished">Er wordt nog een grote wijziging uitgevoerd. U kunt weer wijzigen zodra die klaar is.</translation>
     </message>
     <message>
-        <location line="-452"/>
+        <location line="-455"/>
         <source>Finish the Function Arguments dialog first.</source>
         <translation type="unfinished">Voltooi eerst het dialoogvenster Functieargumenten.</translation>
     </message>
     <message>
-        <location line="+266"/>
+        <location line="+267"/>
         <location line="+2"/>
         <source>Format Text</source>
         <translation type="unfinished">Tekst opmaken</translation>
@@ -29655,7 +29887,7 @@ Bron: %3</translation>
         <translation type="unfinished">Matrixformule</translation>
     </message>
     <message numerus="yes">
-        <location line="+234"/>
+        <location line="+236"/>
         <source>Redid %1 of %n action(s)</source>
         <translation type="unfinished">
             <numerusform>Opnieuw %1 van %n actie uitgevoerd</numerusform>
@@ -29679,9 +29911,9 @@ Bron: %3</translation>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_cells.cpp" line="-262"/>
         <location line="+26"/>
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="-554"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="-557"/>
         <location line="+31"/>
-        <location line="+268"/>
+        <location line="+269"/>
         <location filename="../apps/crunch/app/crunchwindow_function.cpp" line="+109"/>
         <location filename="../apps/crunch/app/crunchwindow_point.cpp" line="+239"/>
         <source>Edit</source>
@@ -29693,7 +29925,7 @@ Bron: %3</translation>
         <translation>Formule</translation>
     </message>
     <message>
-        <location line="+224"/>
+        <location line="+226"/>
         <source>Redone: %1</source>
         <translation type="unfinished">Opnieuw uitgevoerd: %1</translation>
     </message>
@@ -29964,7 +30196,7 @@ Het bestand bestaat niet.</translation>
         <translation type="unfinished">U kunt uw werk als kopie opslaan en beide behouden, of het bestand overschrijven.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-753"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="-754"/>
         <location filename="../apps/crunch/app/crunchwindow_save.cpp" line="+1"/>
         <source>Save a Copy…</source>
         <translation type="unfinished">Kopie opslaan…</translation>
@@ -31679,6 +31911,7 @@ Het bestand kan niet worden gelezen.</translation>
         <location line="+7"/>
         <location line="+316"/>
         <location line="+307"/>
+        <location filename="../apps/crunch/app/crunchwindow_quick.cpp" line="+51"/>
         <source>Pivot Table</source>
         <translation type="unfinished">Draaitabel</translation>
     </message>
@@ -31945,7 +32178,7 @@ Het bestand kan niet worden gelezen.</translation>
         <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="-52"/>
         <location line="+6"/>
         <location line="+3"/>
-        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+425"/>
+        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+431"/>
         <source>Ungroup</source>
         <translation type="unfinished">Groep opheffen</translation>
     </message>
@@ -32378,7 +32611,7 @@ Het bestand kan niet worden gelezen.</translation>
         <location line="+23"/>
         <location line="+229"/>
         <location line="+4"/>
-        <location line="+37"/>
+        <location line="+48"/>
         <location line="+23"/>
         <location line="+30"/>
         <location line="+33"/>
@@ -32386,7 +32619,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Voorwaardelijke opmaak</translation>
     </message>
     <message>
-        <location line="-346"/>
+        <location line="-357"/>
         <source>From</source>
         <translation>Van</translation>
     </message>
@@ -32553,12 +32786,13 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Cellen met gegevens</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location filename="../apps/crunch/app/crunchwindow_quick.cpp" line="-27"/>
+        <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="+2"/>
         <source>Charts</source>
         <translation type="unfinished">Grafieken</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location filename="../apps/crunch/app/crunchwindow_tabs2.cpp" line="+1"/>
         <source>Pivot tables</source>
         <translation type="unfinished">Draaitabellen</translation>
     </message>
@@ -33035,9 +33269,10 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Kopie wordt opgeslagen als %1…</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="-306"/>
+        <location filename="../apps/crunch/app/crunchwindow_quick.cpp" line="+36"/>
+        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="-312"/>
         <location line="+90"/>
-        <location line="+23"/>
+        <location line="+29"/>
         <location line="+83"/>
         <location line="+11"/>
         <location line="+19"/>
@@ -33047,7 +33282,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Sparklines</translation>
     </message>
     <message>
-        <location line="-249"/>
+        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="-255"/>
         <source>The data range is not cells. Write it as A1:F3.</source>
         <translation type="unfinished">Het gegevensbereik bestaat niet uit cellen. Schrijf het als A1:F3.</translation>
     </message>
@@ -33073,22 +33308,22 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+32"/>
-        <location line="+42"/>
+        <location line="+48"/>
         <source>Create Sparklines</source>
         <translation type="unfinished">Sparklines maken</translation>
     </message>
     <message>
-        <location line="-38"/>
+        <location line="-44"/>
         <location line="+4"/>
-        <location line="+101"/>
+        <location line="+107"/>
         <location line="+5"/>
         <source>Data range</source>
         <translation>Gegevensbereik</translation>
     </message>
     <message>
-        <location line="-107"/>
+        <location line="-113"/>
         <location line="+2"/>
-        <location line="+103"/>
+        <location line="+109"/>
         <location line="+3"/>
         <source>Location range</source>
         <translation>Locatiebereik</translation>
@@ -33129,23 +33364,26 @@ Het bestand kan niet worden gelezen.</translation>
         <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="-1020"/>
         <location line="+21"/>
         <location filename="../apps/crunch/app/crunchwindow_insertobjects.cpp" line="-753"/>
+        <location filename="../apps/crunch/app/crunchwindow_quick.cpp" line="+3"/>
         <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+13"/>
         <source>Line</source>
         <translation type="unfinished">Lijn</translation>
     </message>
     <message>
         <location line="-1"/>
+        <location filename="../apps/crunch/app/crunchwindow_quick.cpp" line="+1"/>
         <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+1"/>
         <source>Column</source>
         <translation>Kolom</translation>
     </message>
     <message>
+        <location filename="../apps/crunch/app/crunchwindow_quick.cpp" line="+1"/>
         <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+1"/>
         <source>Win/Loss</source>
         <translation type="unfinished">Win/verlies</translation>
     </message>
     <message>
-        <location line="+6"/>
+        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="+6"/>
         <source>Sparkline Type</source>
         <translation type="unfinished">Sparklinetype</translation>
     </message>
@@ -34307,7 +34545,7 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="-216"/>
-        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="-604"/>
+        <location filename="../apps/crunch/app/crunchwindow_sparklines.cpp" line="-610"/>
         <source>Blue</source>
         <translation>Blauw</translation>
     </message>
@@ -56406,6 +56644,14 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     </message>
 </context>
 <context>
+    <name>jp::QuickAnalysis</name>
+    <message>
+        <location filename="../apps/crunch/app/quickanalysis.cpp" line="+31"/>
+        <source>Quick Analysis</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>jp::QuickToolbarPage</name>
     <message>
         <location filename="../libs/shell/app/quicktoolbarpage.cpp" line="+42"/>
@@ -68228,7 +68474,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
 <context>
     <name>jp::crunch::EditSession</name>
     <message numerus="yes">
-        <location filename="../apps/crunch/core/editsession.cpp" line="+1298"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="+1301"/>
         <source>Clearing %n cell(s)</source>
         <translation type="unfinished">
             <numerusform>%n cel wissen</numerusform>
@@ -68357,7 +68603,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Dit blad is beveiligd. Daarom kan niet worden gewijzigd of de cellen vergrendeld zijn en of de formules verborgen zijn. Hef eerst de beveiliging van het blad op (Controleren, Beveiliging blad opheffen).</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editcond.cpp" line="+307"/>
+        <location filename="../apps/crunch/core/editcond.cpp" line="+309"/>
         <source>Conditional formatting of a workbook opened from this kind of file is kept when it is saved as an .xlsx workbook. Save it as one, and then change rules.</source>
         <translation type="unfinished">Voorwaardelijke opmaak van een werkmap die uit dit type bestand is geopend, blijft behouden wanneer deze wordt opgeslagen als werkmap (.xlsx). Sla hem zo op en wijzig daarna de regels.</translation>
     </message>
@@ -68375,6 +68621,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+16"/>
         <location line="+73"/>
+        <location filename="../apps/crunch/core/editquick.cpp" line="+280"/>
         <source>Select the cells the rule is for.</source>
         <translation type="unfinished">Selecteer de cellen waarvoor de regel geldt.</translation>
     </message>
@@ -68394,6 +68641,8 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location line="+81"/>
         <location line="+65"/>
         <location filename="../apps/crunch/core/editpaste.cpp" line="+621"/>
+        <location filename="../apps/crunch/core/editquick.cpp" line="+6"/>
+        <location line="+1"/>
         <location filename="../apps/crunch/core/editsession.cpp" line="-266"/>
         <location filename="../apps/crunch/core/editsheets.cpp" line="+94"/>
         <location line="+279"/>
@@ -68408,6 +68657,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="-43"/>
         <location line="+56"/>
+        <location filename="../apps/crunch/core/editquick.cpp" line="+4"/>
         <source>This workbook has no place to keep the look of a rule.</source>
         <translation type="unfinished">Deze werkmap heeft geen plek om de opmaak van een regel te bewaren.</translation>
     </message>
@@ -68712,6 +68962,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location line="+174"/>
         <location line="+352"/>
         <location line="+114"/>
+        <location filename="../apps/crunch/core/editquick.cpp" line="-146"/>
         <location filename="../apps/crunch/core/editsession.cpp" line="-375"/>
         <location line="+206"/>
         <source>That is more cells than JeffCrunch changes at once (%1). Select fewer cells.</source>
@@ -69262,7 +69513,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">de werkmap</translation>
     </message>
     <message>
-        <location line="+159"/>
+        <location line="+160"/>
         <source>There is no workbook to save.</source>
         <translation type="unfinished">Er is geen werkmap om op te slaan.</translation>
     </message>
@@ -71102,6 +71353,43 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location filename="../apps/crunch/core/editslice.cpp" line="+197"/>
         <source>A workbook opened from a text or web page file has no notes to search.</source>
         <translation type="unfinished">Een werkmap die is geopend uit een tekst- of webpaginabestand heeft geen notities om in te zoeken.</translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/editquick.cpp" line="-85"/>
+        <location line="+24"/>
+        <location line="+57"/>
+        <source>There are no numbers here to total.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-75"/>
+        <source>That is more cells than Quick Analysis looks at (%1). Select fewer cells.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+48"/>
+        <source>There is no room next to the cells for the running totals.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>There is no room under the cells for the totals.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>There is no room beside the cells for the totals.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <source>The totals would block a spilled result next to the cells. Move the spilled result, or select other cells.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>Some of the cells where the totals go are part of merged cells. Unmerge them, or select other cells.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>

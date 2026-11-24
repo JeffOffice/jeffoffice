@@ -747,6 +747,14 @@ Download it from %2 now? (%3, once.)</translation>
         <translation>Line Colour</translation>
     </message>
     <message>
+        <source>Color Scale</source>
+        <translation>Colour Scale</translation>
+    </message>
+    <message>
+        <source>Colors the cells from the lowest number to the highest.</source>
+        <translation>Colours the cells from the lowest number to the highest.</translation>
+    </message>
+    <message>
         <source>Tab Color</source>
         <translation>Tab Colour</translation>
     </message>

@@ -427,7 +427,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+728"/>
+        <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+736"/>
         <source>Redid %1 of %n action(s)</source>
         <translation>
             <numerusform>Redid %1 of %n action</numerusform>
@@ -750,7 +750,7 @@
 <context>
     <name>jp::crunch::EditSession</name>
     <message numerus="yes">
-        <location filename="../apps/crunch/core/editsession.cpp" line="+1298"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="+1301"/>
         <source>Clearing %n cell(s)</source>
         <translation>
             <numerusform>Clearing %n cell</numerusform>
