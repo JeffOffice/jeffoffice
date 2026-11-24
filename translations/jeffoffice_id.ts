@@ -3268,7 +3268,7 @@ Berita halaman belakang	4</translation>
     <message>
         <location filename="../libs/page/app/textdialogs.cpp" line="-1"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="-68"/>
-        <location filename="../apps/pub/main.cpp" line="+175"/>
+        <location filename="../apps/pub/main.cpp" line="+177"/>
         <source>Add</source>
         <translation type="unfinished">Tambah</translation>
     </message>
@@ -9020,9 +9020,9 @@ Buka dengan program email Anda untuk mengirimnya.</translation>
     </message>
     <message>
         <location line="+3"/>
-        <location filename="../apps/deck/main.cpp" line="+92"/>
-        <location filename="../apps/write/main.cpp" line="+94"/>
-        <location filename="../apps/crunch/main.cpp" line="+109"/>
+        <location filename="../apps/deck/main.cpp" line="+94"/>
+        <location filename="../apps/write/main.cpp" line="+96"/>
+        <location filename="../apps/crunch/main.cpp" line="+111"/>
         <source>Save a screenshot of the window and quit.</source>
         <translation type="unfinished">Simpan tangkapan layar jendela lalu keluar.</translation>
     </message>
@@ -11126,7 +11126,12 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">%1: bagan, objek tersemat, atau bingkai lain yang merujuk ke bagian berkas yang tidak disimpan dilewati.</translation>
     </message>
     <message>
-        <location line="+32"/>
+        <location line="+34"/>
+        <source>%1: parts of the %2 that name shapes that are gone were left out.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <source>%1: the %2 can&apos;t be read and was left out.</source>
         <translation type="unfinished">%1: %2 tidak dapat dibaca dan dilewati.</translation>
     </message>
@@ -12000,8 +12005,8 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">(Tidak ada saran ejaan)</translation>
     </message>
     <message>
-        <location filename="../libs/shell/app/spelling.cpp" line="+185"/>
-        <location line="+147"/>
+        <location filename="../libs/shell/app/spelling.cpp" line="+187"/>
+        <location line="+153"/>
         <source>The file is read-only.</source>
         <translation type="unfinished">Berkas hanya dapat dibaca.</translation>
     </message>
@@ -13804,6 +13809,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location filename="../apps/deck/app/ribbon_strings.cpp" line="+1"/>
         <source>Merge Shapes</source>
         <translation type="unfinished">Gabungkan Bentuk</translation>
     </message>
@@ -14284,7 +14290,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location line="+5"/>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="-96"/>
-        <location filename="../apps/deck/app/ribbon_strings.cpp" line="-94"/>
+        <location filename="../apps/deck/app/ribbon_strings.cpp" line="-95"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="-103"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-87"/>
         <source>Help</source>
@@ -14589,7 +14595,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Alat Media</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+3"/>
         <source>Monitors</source>
         <translation type="unfinished">Monitor</translation>
     </message>
@@ -14797,7 +14803,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Lebar:</translation>
     </message>
     <message>
-        <location line="-159"/>
+        <location line="-160"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="-178"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-143"/>
         <source>About</source>
@@ -15495,7 +15501,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Angka</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/ribbon_strings.cpp" line="+10"/>
+        <location filename="../apps/deck/app/ribbon_strings.cpp" line="+11"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+6"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+1"/>
         <source>Object</source>
@@ -17100,7 +17106,7 @@ Buka di program email Anda, tambahkan penerima, lalu kirim.</translation>
 <context>
     <name>Splash</name>
     <message>
-        <location filename="../libs/shell/app/firstwindow.cpp" line="+47"/>
+        <location filename="../libs/shell/app/firstwindow.cpp" line="+51"/>
         <source>Opening %1…</source>
         <translation type="unfinished">Membuka %1…</translation>
     </message>
@@ -20533,7 +20539,7 @@ Penerbitan desktop</translation>
         <translation type="unfinished">Ukraina</translation>
     </message>
     <message>
-        <location filename="../libs/text/text/textengine.cpp" line="+287"/>
+        <location filename="../libs/text/text/textengine.cpp" line="+288"/>
         <source>«Greeting Line»</source>
         <translation type="unfinished">«Baris Salam»</translation>
     </message>
@@ -20563,7 +20569,7 @@ Penerbitan desktop</translation>
         <translation type="unfinished">(Lanjutan dari halaman %1)</translation>
     </message>
     <message>
-        <location line="+6857"/>
+        <location line="+6882"/>
         <source>Notes</source>
         <translation>Catatan</translation>
     </message>
@@ -36683,7 +36689,7 @@ Berkas tidak dapat dibaca.</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../apps/deck/app/deckwindow_show.cpp" line="+386"/>
+        <location filename="../apps/deck/app/deckwindow_show.cpp" line="+387"/>
         <source>Notes</source>
         <translation>Catatan</translation>
     </message>
@@ -36694,7 +36700,7 @@ Berkas tidak dapat dibaca.</translation>
     </message>
     <message>
         <location line="+26"/>
-        <location filename="../apps/deck/app/deckwindow_views.cpp" line="+263"/>
+        <location filename="../apps/deck/app/deckwindow_views.cpp" line="+264"/>
         <source>Slide %1 of %2</source>
         <translation type="unfinished">Slaid %1 dari %2</translation>
     </message>
@@ -36759,8 +36765,8 @@ Berkas tidak dapat dibaca.</translation>
     </message>
     <message>
         <location line="+11"/>
-        <location filename="../apps/deck/app/deckwindow_format.cpp" line="+271"/>
-        <location line="+212"/>
+        <location filename="../apps/deck/app/deckwindow_format.cpp" line="+277"/>
+        <location line="+213"/>
         <source>Shadow</source>
         <translation type="unfinished">Bayangan</translation>
     </message>
@@ -36837,7 +36843,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+0"/>
         <location filename="../apps/deck/app/deckwindow_table.cpp" line="+114"/>
-        <location filename="../apps/deck/app/deckwindow_views.cpp" line="-197"/>
+        <location filename="../apps/deck/app/deckwindow_views.cpp" line="-198"/>
         <source>Normal</source>
         <translation type="unfinished">Normal</translation>
     </message>
@@ -36869,7 +36875,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location filename="../apps/deck/app/deckwindow_animations.cpp" line="-485"/>
         <location line="+316"/>
-        <location filename="../apps/deck/app/deckwindow_show.cpp" line="-387"/>
+        <location filename="../apps/deck/app/deckwindow_show.cpp" line="-388"/>
         <location filename="../apps/deck/app/deckwindow_table.cpp" line="+0"/>
         <source>None</source>
         <translation type="unfinished">Tidak Ada</translation>
@@ -37336,7 +37342,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/deckwindow_compare.cpp" line="+13"/>
-        <location filename="../apps/deck/app/deckwindow_views.cpp" line="+183"/>
+        <location filename="../apps/deck/app/deckwindow_views.cpp" line="+184"/>
         <source>Previous</source>
         <translation type="unfinished">Sebelumnya</translation>
     </message>
@@ -37836,7 +37842,7 @@ Berkas tidak dapat dibaca.</translation>
         <translation type="unfinished">(tidak diberi tag untuk pembaca layar: %1)</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_format.cpp" line="-127"/>
+        <location filename="../apps/deck/app/deckwindow_format.cpp" line="-128"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+16"/>
         <source>PNG Picture (*.png)</source>
         <translation type="unfinished">Gambar PNG (*.png)</translation>
@@ -38216,7 +38222,7 @@ Berkas tidak dapat dibaca.</translation>
         <translation type="unfinished">Otomatis</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_format.cpp" line="-296"/>
+        <location filename="../apps/deck/app/deckwindow_format.cpp" line="-300"/>
         <source>Format Shape</source>
         <translation type="unfinished">Format Bentuk</translation>
     </message>
@@ -38247,14 +38253,14 @@ Berkas tidak dapat dibaca.</translation>
         <translation type="unfinished">Simpan sebagai Gambar…</translation>
     </message>
     <message>
-        <location line="+16"/>
-        <location line="+426"/>
+        <location line="+20"/>
+        <location line="+427"/>
         <location line="+2"/>
         <source>Change Shape</source>
         <translation type="unfinished">Ubah Bentuk</translation>
     </message>
     <message>
-        <location line="-357"/>
+        <location line="-358"/>
         <source>Shape Style</source>
         <translation type="unfinished">Gaya Bentuk</translation>
     </message>
@@ -38268,18 +38274,18 @@ Berkas tidak dapat dibaca.</translation>
     </message>
     <message>
         <location line="-10"/>
-        <location line="+193"/>
+        <location line="+194"/>
         <source>More Fill Colors…</source>
         <translation type="unfinished">Lebih Banyak Warna Isian…</translation>
     </message>
     <message>
-        <location line="-186"/>
-        <location line="+192"/>
+        <location line="-187"/>
+        <location line="+193"/>
         <source>Gradient</source>
         <translation type="unfinished">Gradasi</translation>
     </message>
     <message>
-        <location line="-178"/>
+        <location line="-179"/>
         <location line="+4"/>
         <location line="+6"/>
         <location line="+6"/>
@@ -38288,61 +38294,61 @@ Berkas tidak dapat dibaca.</translation>
     </message>
     <message>
         <location line="-10"/>
-        <location line="+196"/>
+        <location line="+197"/>
         <source>More Outline Colors…</source>
         <translation type="unfinished">Lebih Banyak Warna Garis Tepi…</translation>
     </message>
     <message>
-        <location line="-189"/>
-        <location line="+202"/>
+        <location line="-190"/>
+        <location line="+203"/>
         <source>Weight</source>
         <translation>Ketebalan</translation>
     </message>
     <message>
-        <location line="-200"/>
-        <location line="+202"/>
+        <location line="-201"/>
+        <location line="+203"/>
         <location filename="../apps/deck/app/deckwindow_table.cpp" line="+185"/>
         <source>%1 pt</source>
         <translation type="unfinished">%1 pt</translation>
     </message>
     <message>
-        <location line="-190"/>
+        <location line="-191"/>
         <location line="+30"/>
         <source>Text Effects</source>
         <translation type="unfinished">Efek Teks</translation>
     </message>
     <message>
         <location line="-27"/>
-        <location line="+212"/>
+        <location line="+213"/>
         <source>No Shadow</source>
         <translation type="unfinished">Tanpa Bayangan</translation>
     </message>
     <message>
-        <location line="-208"/>
-        <location line="+212"/>
+        <location line="-209"/>
+        <location line="+213"/>
         <source>Reflection</source>
         <translation type="unfinished">Pantulan</translation>
     </message>
     <message>
-        <location line="-211"/>
-        <location line="+212"/>
+        <location line="-212"/>
+        <location line="+213"/>
         <source>No Reflection</source>
         <translation type="unfinished">Tanpa Pantulan</translation>
     </message>
     <message>
-        <location line="-208"/>
-        <location line="+212"/>
+        <location line="-209"/>
+        <location line="+213"/>
         <source>Glow</source>
         <translation type="unfinished">Cahaya</translation>
     </message>
     <message>
-        <location line="-211"/>
-        <location line="+212"/>
+        <location line="-212"/>
+        <location line="+213"/>
         <source>No Glow</source>
         <translation type="unfinished">Tanpa Cahaya</translation>
     </message>
     <message>
-        <location line="-201"/>
+        <location line="-202"/>
         <source>Transform</source>
         <translation type="unfinished">Transformasi</translation>
     </message>
@@ -38377,7 +38383,7 @@ Berkas tidak dapat dibaca.</translation>
         <translation type="unfinished">Gambar lebih besar dari %1 piksel pada salah satu sisinya, sehingga disimpan dengan ukuran lebih kecil.</translation>
     </message>
     <message>
-        <location line="+47"/>
+        <location line="+48"/>
         <location line="+3"/>
         <location line="+3"/>
         <location line="+6"/>
@@ -38464,8 +38470,8 @@ Berkas tidak dapat dibaca.</translation>
         <translation>Ukuran</translation>
     </message>
     <message>
-        <location line="-384"/>
-        <location line="+195"/>
+        <location line="-385"/>
+        <location line="+196"/>
         <location filename="../apps/deck/app/deckwindow_ribbon.cpp" line="-3"/>
         <location filename="../apps/deck/app/deckwindow_table.cpp" line="-24"/>
         <source>No Fill</source>
@@ -38724,8 +38730,8 @@ Berkas tidak dapat dibaca.</translation>
         <translation type="unfinished">Garis Tepi Bentuk</translation>
     </message>
     <message>
-        <location line="-226"/>
-        <location line="+198"/>
+        <location line="-227"/>
+        <location line="+199"/>
         <location filename="../apps/deck/app/deckwindow_ribbon.cpp" line="-6"/>
         <source>No Outline</source>
         <translation type="unfinished">Tanpa Garis Tepi</translation>
@@ -39213,23 +39219,23 @@ Berkas tidak dapat dibaca.</translation>
     </message>
     <message>
         <location line="+6"/>
-        <location line="+490"/>
+        <location line="+491"/>
         <source>Set Up Slide Show</source>
         <translation type="unfinished">Atur Presentasi Slaid</translation>
     </message>
     <message>
-        <location line="-489"/>
+        <location line="-490"/>
         <source>Custom Shows…</source>
         <translation type="unfinished">Presentasi Kustom…</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+444"/>
+        <location line="+445"/>
         <source>Rehearse Timings</source>
         <translation type="unfinished">Latih Pengaturan Waktu</translation>
     </message>
     <message>
-        <location line="-443"/>
+        <location line="-444"/>
         <location line="+2"/>
         <source>Use Timings</source>
         <translation type="unfinished">Gunakan Pengaturan Waktu</translation>
@@ -39477,7 +39483,7 @@ Berkas tidak dapat dibaca.</translation>
         <translation type="unfinished">Presentasi slaid diatur untuk memutar slaid %1 hingga %2, dan presentasi hanya memiliki %3. Ubah ini di Atur Presentasi Slaid.</translation>
     </message>
     <message>
-        <location line="+111"/>
+        <location line="+112"/>
         <source>Do you want to keep your ink annotations?</source>
         <translation type="unfinished">Apakah Anda ingin menyimpan anotasi tinta Anda?</translation>
     </message>
@@ -39518,7 +39524,7 @@ Berkas tidak dapat dibaca.</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_animations.cpp" line="-277"/>
-        <location filename="../apps/deck/app/deckwindow_show.cpp" line="-441"/>
+        <location filename="../apps/deck/app/deckwindow_show.cpp" line="-442"/>
         <source>Preview</source>
         <translation>Pratinjau</translation>
     </message>
@@ -39822,7 +39828,7 @@ Berkas tidak dapat dibaca.</translation>
         <translation type="unfinished">Gunakan Tampilan Presenter: dengan dua layar, presentasi slaid ditampilkan di satu layar dan catatan, pengatur waktu, serta slaid berikutnya di layar lainnya.</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_views.cpp" line="-184"/>
+        <location filename="../apps/deck/app/deckwindow_views.cpp" line="-185"/>
         <source>Outline View</source>
         <translation type="unfinished">Tampilan Garis Besar</translation>
     </message>
@@ -39857,7 +39863,7 @@ Berkas tidak dapat dibaca.</translation>
         <translation type="unfinished">Master Selebaran</translation>
     </message>
     <message>
-        <location line="+173"/>
+        <location line="+174"/>
         <source>Go back one step or slide</source>
         <translation type="unfinished"></translation>
     </message>
@@ -42385,7 +42391,7 @@ Berkas tidak dapat dibaca.</translation>
         <translation type="unfinished">Fragmen</translation>
     </message>
     <message>
-        <location line="+43"/>
+        <location line="+50"/>
         <source>The shapes are curves already.</source>
         <translation type="unfinished">Bentuk-bentuk sudah berupa kurva.</translation>
     </message>
@@ -57153,6 +57159,78 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     </message>
 </context>
 <context>
+    <name>jp::ShapeTools</name>
+    <message>
+        <location filename="../libs/page/app/shapetools.cpp" line="+20"/>
+        <location line="+6"/>
+        <source>Edit Points</source>
+        <translation type="unfinished">Edit Titik</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Drag a point to reshape. Ctrl+click a point to delete it, or an edge to add one. Shift+click puts a glue point for connectors on the shape, or takes it away. Press Esc when done.</source>
+        <translation type="unfinished">Seret titik untuk membentuk ulang. Ctrl+klik titik untuk menghapusnya, atau tepi untuk menambahkannya. Shift+klik menempatkan titik lem untuk konektor pada bentuk, atau menghapusnya. Tekan Esc jika sudah selesai.</translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <location line="+31"/>
+        <source>Merge Shapes</source>
+        <translation type="unfinished">Gabungkan Bentuk</translation>
+    </message>
+    <message>
+        <location line="-19"/>
+        <source>Cancelling…</source>
+        <translation type="unfinished">Membatalkan…</translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>Union</source>
+        <translation type="unfinished">Gabungan</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Combine</source>
+        <translation>Gabungkan</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Subtract</source>
+        <translation>Kurangi</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Intersect</source>
+        <translation type="unfinished">Irisan</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Fragment</source>
+        <translation type="unfinished">Fragmen</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>More than one of the shapes has text. Merging removes the text of all of them. Merge anyway?</source>
+        <translation type="unfinished">Lebih dari satu bentuk memiliki teks. Penggabungan akan menghapus teks dari semua bentuk tersebut. Tetap gabungkan?</translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Merge</source>
+        <translation type="unfinished">Gabungkan</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+7"/>
+        <source>Made %n shapes.</source>
+        <translation type="unfinished">
+            <numerusform>Membuat %n bentuk.</numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The text in the merged shapes was removed.</source>
+        <translation type="unfinished">Teks dalam bentuk yang digabungkan telah dihapus.</translation>
+    </message>
+</context>
+<context>
     <name>jp::ShowMedia</name>
     <message>
         <location filename="../apps/deck/app/showmedia.cpp" line="+94"/>
@@ -67526,7 +67604,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">JeffCrunch belum dapat menghitung ini (rumus ini menggunakan buku kerja lain, kolom tabel, atau fungsi yang tidak dimiliki JeffCrunch), sehingga tidak ada nilai yang ditampilkan.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editsession.cpp" line="+449"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="+450"/>
         <source>&quot;%1&quot; could not be done again, so Undo and Redo are not available any more for what came before it.</source>
         <translation type="unfinished">&quot;%1&quot; tidak dapat dilakukan ulang, sehingga Urungkan dan Ulangi tidak lagi tersedia untuk tindakan sebelumnya.</translation>
     </message>
@@ -74195,7 +74273,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
 <context>
     <name>jp::crunch::Loader</name>
     <message>
-        <location filename="../apps/crunch/core/loader.cpp" line="+304"/>
+        <location filename="../apps/crunch/core/loader.cpp" line="+322"/>
         <source>The workbook has no sheets.</source>
         <translation type="unfinished">Buku kerja tidak memiliki lembar.</translation>
     </message>

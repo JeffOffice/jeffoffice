@@ -94,7 +94,7 @@
 <context>
     <name>Proofing</name>
     <message numerus="yes">
-        <location filename="../libs/shell/app/spelling.cpp" line="+322"/>
+        <location filename="../libs/shell/app/spelling.cpp" line="+330"/>
         <source>A word can&apos;t be empty, have a space or a control character in it, or be longer than %n letters.</source>
         <translation>
             <numerusform>A word can&apos;t be empty, have a space or a control character in it, or be longer than %n letter.</numerusform>
@@ -548,6 +548,17 @@
     </message>
 </context>
 <context>
+    <name>jp::ShapeTools</name>
+    <message numerus="yes">
+        <location filename="../libs/page/app/shapetools.cpp" line="+78"/>
+        <source>Made %n shapes.</source>
+        <translation>
+            <numerusform>Made %n shape.</numerusform>
+            <numerusform>Made %n shapes.</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>jp::WriteFindPane</name>
     <message numerus="yes">
         <location filename="../apps/write/app/writefindpane.cpp" line="+973"/>
@@ -660,7 +671,7 @@
 <context>
     <name>jp::crunch::EditSession</name>
     <message numerus="yes">
-        <location filename="../apps/crunch/core/editsession.cpp" line="+1280"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="+1281"/>
         <source>Clearing %n cell(s)</source>
         <translation>
             <numerusform>Clearing %n cell</numerusform>

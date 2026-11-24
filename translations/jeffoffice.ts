@@ -3262,7 +3262,7 @@ Back page story	4</source>
     <message>
         <location filename="../libs/page/app/textdialogs.cpp" line="-1"/>
         <location filename="../apps/pub/app/dialogs.cpp" line="-68"/>
-        <location filename="../apps/pub/main.cpp" line="+175"/>
+        <location filename="../apps/pub/main.cpp" line="+177"/>
         <source>Add</source>
         <translation type="unfinished"></translation>
     </message>
@@ -9003,9 +9003,9 @@ Open them with your email program to send.</source>
     </message>
     <message>
         <location line="+3"/>
-        <location filename="../apps/deck/main.cpp" line="+92"/>
-        <location filename="../apps/write/main.cpp" line="+94"/>
-        <location filename="../apps/crunch/main.cpp" line="+109"/>
+        <location filename="../apps/deck/main.cpp" line="+94"/>
+        <location filename="../apps/write/main.cpp" line="+96"/>
+        <location filename="../apps/crunch/main.cpp" line="+111"/>
         <source>Save a screenshot of the window and quit.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -11106,7 +11106,12 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+32"/>
+        <location line="+34"/>
+        <source>%1: parts of the %2 that name shapes that are gone were left out.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <source>%1: the %2 can&apos;t be read and was left out.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -11992,8 +11997,8 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../libs/shell/app/spelling.cpp" line="+185"/>
-        <location line="+147"/>
+        <location filename="../libs/shell/app/spelling.cpp" line="+187"/>
+        <location line="+153"/>
         <source>The file is read-only.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -13783,6 +13788,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="+1"/>
+        <location filename="../apps/deck/app/ribbon_strings.cpp" line="+1"/>
         <source>Merge Shapes</source>
         <translation type="unfinished"></translation>
     </message>
@@ -14263,7 +14269,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+5"/>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="-96"/>
-        <location filename="../apps/deck/app/ribbon_strings.cpp" line="-94"/>
+        <location filename="../apps/deck/app/ribbon_strings.cpp" line="-95"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="-103"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-87"/>
         <source>Help</source>
@@ -14568,7 +14574,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="+3"/>
         <source>Monitors</source>
         <translation type="unfinished"></translation>
     </message>
@@ -14776,7 +14782,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-159"/>
+        <location line="-160"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="-178"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-143"/>
         <source>About</source>
@@ -15474,7 +15480,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/ribbon_strings.cpp" line="+10"/>
+        <location filename="../apps/deck/app/ribbon_strings.cpp" line="+11"/>
         <location filename="../apps/write/app/ribbon_strings.cpp" line="+6"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+1"/>
         <source>Object</source>
@@ -17076,7 +17082,7 @@ Open it in your email program, add recipients and send.</source>
 <context>
     <name>Splash</name>
     <message>
-        <location filename="../libs/shell/app/firstwindow.cpp" line="+47"/>
+        <location filename="../libs/shell/app/firstwindow.cpp" line="+51"/>
         <source>Opening %1…</source>
         <translation type="unfinished"></translation>
     </message>
@@ -20480,7 +20486,7 @@ Desktop publishing</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../libs/text/text/textengine.cpp" line="+287"/>
+        <location filename="../libs/text/text/textengine.cpp" line="+288"/>
         <source>«Greeting Line»</source>
         <translation type="unfinished"></translation>
     </message>
@@ -20510,7 +20516,7 @@ Desktop publishing</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+6857"/>
+        <location line="+6882"/>
         <source>Notes</source>
         <translation type="unfinished"></translation>
     </message>
@@ -36607,7 +36613,7 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../apps/deck/app/deckwindow_show.cpp" line="+386"/>
+        <location filename="../apps/deck/app/deckwindow_show.cpp" line="+387"/>
         <source>Notes</source>
         <translation type="unfinished"></translation>
     </message>
@@ -36618,7 +36624,7 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+26"/>
-        <location filename="../apps/deck/app/deckwindow_views.cpp" line="+263"/>
+        <location filename="../apps/deck/app/deckwindow_views.cpp" line="+264"/>
         <source>Slide %1 of %2</source>
         <translation type="unfinished"></translation>
     </message>
@@ -36683,8 +36689,8 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+11"/>
-        <location filename="../apps/deck/app/deckwindow_format.cpp" line="+271"/>
-        <location line="+212"/>
+        <location filename="../apps/deck/app/deckwindow_format.cpp" line="+277"/>
+        <location line="+213"/>
         <source>Shadow</source>
         <translation type="unfinished"></translation>
     </message>
@@ -36761,7 +36767,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+0"/>
         <location filename="../apps/deck/app/deckwindow_table.cpp" line="+114"/>
-        <location filename="../apps/deck/app/deckwindow_views.cpp" line="-197"/>
+        <location filename="../apps/deck/app/deckwindow_views.cpp" line="-198"/>
         <source>Normal</source>
         <translation type="unfinished"></translation>
     </message>
@@ -36793,7 +36799,7 @@ The file can&apos;t be read.</source>
     <message>
         <location filename="../apps/deck/app/deckwindow_animations.cpp" line="-485"/>
         <location line="+316"/>
-        <location filename="../apps/deck/app/deckwindow_show.cpp" line="-387"/>
+        <location filename="../apps/deck/app/deckwindow_show.cpp" line="-388"/>
         <location filename="../apps/deck/app/deckwindow_table.cpp" line="+0"/>
         <source>None</source>
         <translation type="unfinished"></translation>
@@ -37260,7 +37266,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/deckwindow_compare.cpp" line="+13"/>
-        <location filename="../apps/deck/app/deckwindow_views.cpp" line="+183"/>
+        <location filename="../apps/deck/app/deckwindow_views.cpp" line="+184"/>
         <source>Previous</source>
         <translation type="unfinished"></translation>
     </message>
@@ -37754,7 +37760,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_format.cpp" line="-127"/>
+        <location filename="../apps/deck/app/deckwindow_format.cpp" line="-128"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+16"/>
         <source>PNG Picture (*.png)</source>
         <translation type="unfinished"></translation>
@@ -38130,7 +38136,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_format.cpp" line="-296"/>
+        <location filename="../apps/deck/app/deckwindow_format.cpp" line="-300"/>
         <source>Format Shape</source>
         <translation type="unfinished"></translation>
     </message>
@@ -38161,14 +38167,14 @@ The file can&apos;t be read.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+16"/>
-        <location line="+426"/>
+        <location line="+20"/>
+        <location line="+427"/>
         <location line="+2"/>
         <source>Change Shape</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-357"/>
+        <location line="-358"/>
         <source>Shape Style</source>
         <translation type="unfinished"></translation>
     </message>
@@ -38182,18 +38188,18 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="-10"/>
-        <location line="+193"/>
+        <location line="+194"/>
         <source>More Fill Colors…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-186"/>
-        <location line="+192"/>
+        <location line="-187"/>
+        <location line="+193"/>
         <source>Gradient</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-178"/>
+        <location line="-179"/>
         <location line="+4"/>
         <location line="+6"/>
         <location line="+6"/>
@@ -38202,61 +38208,61 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="-10"/>
-        <location line="+196"/>
+        <location line="+197"/>
         <source>More Outline Colors…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-189"/>
-        <location line="+202"/>
+        <location line="-190"/>
+        <location line="+203"/>
         <source>Weight</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-200"/>
-        <location line="+202"/>
+        <location line="-201"/>
+        <location line="+203"/>
         <location filename="../apps/deck/app/deckwindow_table.cpp" line="+185"/>
         <source>%1 pt</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-190"/>
+        <location line="-191"/>
         <location line="+30"/>
         <source>Text Effects</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="-27"/>
-        <location line="+212"/>
+        <location line="+213"/>
         <source>No Shadow</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-208"/>
-        <location line="+212"/>
+        <location line="-209"/>
+        <location line="+213"/>
         <source>Reflection</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-211"/>
-        <location line="+212"/>
+        <location line="-212"/>
+        <location line="+213"/>
         <source>No Reflection</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-208"/>
-        <location line="+212"/>
+        <location line="-209"/>
+        <location line="+213"/>
         <source>Glow</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-211"/>
-        <location line="+212"/>
+        <location line="-212"/>
+        <location line="+213"/>
         <source>No Glow</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-201"/>
+        <location line="-202"/>
         <source>Transform</source>
         <translation type="unfinished"></translation>
     </message>
@@ -38291,7 +38297,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+47"/>
+        <location line="+48"/>
         <location line="+3"/>
         <location line="+3"/>
         <location line="+6"/>
@@ -38378,8 +38384,8 @@ The file can&apos;t be read.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-384"/>
-        <location line="+195"/>
+        <location line="-385"/>
+        <location line="+196"/>
         <location filename="../apps/deck/app/deckwindow_ribbon.cpp" line="-3"/>
         <location filename="../apps/deck/app/deckwindow_table.cpp" line="-24"/>
         <source>No Fill</source>
@@ -38638,8 +38644,8 @@ The file can&apos;t be read.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-226"/>
-        <location line="+198"/>
+        <location line="-227"/>
+        <location line="+199"/>
         <location filename="../apps/deck/app/deckwindow_ribbon.cpp" line="-6"/>
         <source>No Outline</source>
         <translation type="unfinished"></translation>
@@ -39125,23 +39131,23 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+6"/>
-        <location line="+490"/>
+        <location line="+491"/>
         <source>Set Up Slide Show</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-489"/>
+        <location line="-490"/>
         <source>Custom Shows…</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+444"/>
+        <location line="+445"/>
         <source>Rehearse Timings</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-443"/>
+        <location line="-444"/>
         <location line="+2"/>
         <source>Use Timings</source>
         <translation type="unfinished"></translation>
@@ -39389,7 +39395,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+111"/>
+        <location line="+112"/>
         <source>Do you want to keep your ink annotations?</source>
         <translation type="unfinished"></translation>
     </message>
@@ -39430,7 +39436,7 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_animations.cpp" line="-277"/>
-        <location filename="../apps/deck/app/deckwindow_show.cpp" line="-441"/>
+        <location filename="../apps/deck/app/deckwindow_show.cpp" line="-442"/>
         <source>Preview</source>
         <translation type="unfinished"></translation>
     </message>
@@ -39734,7 +39740,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_views.cpp" line="-184"/>
+        <location filename="../apps/deck/app/deckwindow_views.cpp" line="-185"/>
         <source>Outline View</source>
         <translation type="unfinished"></translation>
     </message>
@@ -39769,7 +39775,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+173"/>
+        <location line="+174"/>
         <source>Go back one step or slide</source>
         <translation type="unfinished"></translation>
     </message>
@@ -42294,7 +42300,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+43"/>
+        <location line="+50"/>
         <source>The shapes are curves already.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -57033,6 +57039,78 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
 </context>
 <context>
+    <name>jp::ShapeTools</name>
+    <message>
+        <location filename="../libs/page/app/shapetools.cpp" line="+20"/>
+        <location line="+6"/>
+        <source>Edit Points</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Drag a point to reshape. Ctrl+click a point to delete it, or an edge to add one. Shift+click puts a glue point for connectors on the shape, or takes it away. Press Esc when done.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <location line="+31"/>
+        <source>Merge Shapes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-19"/>
+        <source>Cancelling…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>Union</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Combine</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Subtract</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Intersect</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Fragment</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>More than one of the shapes has text. Merging removes the text of all of them. Merge anyway?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Merge</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+7"/>
+        <source>Made %n shapes.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The text in the merged shapes was removed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>jp::ShowMedia</name>
     <message>
         <location filename="../apps/deck/app/showmedia.cpp" line="+94"/>
@@ -67381,7 +67459,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/crunch/core/editsession.cpp" line="+449"/>
+        <location filename="../apps/crunch/core/editsession.cpp" line="+450"/>
         <source>&quot;%1&quot; could not be done again, so Undo and Redo are not available any more for what came before it.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -74049,7 +74127,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::crunch::Loader</name>
     <message>
-        <location filename="../apps/crunch/core/loader.cpp" line="+304"/>
+        <location filename="../apps/crunch/core/loader.cpp" line="+322"/>
         <source>The workbook has no sheets.</source>
         <translation type="unfinished"></translation>
     </message>

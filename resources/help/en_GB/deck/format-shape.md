@@ -1,5 +1,5 @@
 # The Format Shape pane and the Shape Format tab
-<!-- keywords: format shape, format picture, format pane, pane, shape format, ctrl+1, fill, solid fill, gradient, gradient stops, stop, picture fill, texture, tile, pattern, line, outline, width, compound type, dash type, cap type, join type, arrows, begin arrow, end arrow, effects, shadow, reflection, glow, soft edges, size, height, rotation, scale, lock aspect ratio, position, text box, margins, vertical alignment, text direction, fit, shrink text on overflow, resize shape to fit text, wrap text, columns, alt text, title, description, decorative, picture corrections, brightness, contrast, recolor, black and white, transparency, crop, shape fill, shape outline, shape effects, drawing tools, change shape, shape styles, quick styles, style, theme colors, accent, text art styles, text fill, text outline, text effects, transform, letters, theme colours -->
+<!-- keywords: format shape, format picture, format pane, pane, shape format, ctrl+1, fill, solid fill, gradient, gradient stops, stop, picture fill, texture, tile, pattern, line, outline, width, compound type, dash type, cap type, join type, arrows, begin arrow, end arrow, effects, shadow, reflection, glow, soft edges, size, height, rotation, scale, lock aspect ratio, position, text box, margins, vertical alignment, text direction, fit, shrink text on overflow, resize shape to fit text, wrap text, columns, alt text, title, description, decorative, picture corrections, brightness, contrast, recolor, black and white, transparency, crop, shape fill, shape outline, shape effects, drawing tools, change shape, edit points, merge shapes, union, combine, subtract, intersect, fragment, shape styles, quick styles, style, theme colors, accent, text art styles, text fill, text outline, text effects, transform, letters, theme colours -->
 
 The **Format Shape pane** is a panel on the right of the window. It shows how the objects you selected look, and it lets you change that. A **shape**, a **text box**, a **line**, and a **picture** all use it. It has a page for the fill and the line, one for effects, one for size and place, and, for pictures, one for the picture's colours.
 
@@ -113,6 +113,13 @@ The **Shape Format** tab shows while a shape, a text box, a line, or a group of 
 - **Format** has **Format Pane**, which opens and closes the pane.
 
 Each choice in a menu is one step, like a change in the pane.
+
+## Reshape a shape and merge shapes
+
+- **Edit Points** (in **Shapes**) shows a white square on each point of the selected shape's outline. Drag a point to move it. **Ctrl**+click a point to delete it, or **Ctrl**+click an edge to add one. **Shift**+click puts a point of your own on the shape for connectors to attach to, or takes it away. Press **Esc**, or click away from the shape, when you are done; starting a slide show or Reading View ends it too. The first change makes the shape a freeform shape. Each change is one step of Undo, and a hole in the shape stays a hole.
+- **Merge Shapes** (in **Shapes**) turns two or more shapes on the slide into new ones. **Union** makes one shape of everything they cover. **Combine** keeps what only one of them covers and cuts out where they overlap. **Subtract** takes the others away from the shape you selected first. **Intersect** keeps only what all of them cover. **Fragment** cuts them into every piece they make.
+
+The new shape has the fill, line, effects, link, and animations of the shape you selected first, and sits where the old shapes were. The old shapes go, and so do their animations. The text in the shapes is removed, and if more than one has text, you are asked first. You can merge up to 64 shapes at once, and the commands stay off for shapes inside a group (select the whole group) and for more than 64 shapes. A merge that would make more than 256 pieces, or take too long, is refused with a message. A merge that takes a while runs in the background, with a box where you can click **Cancel**. A merged shape is a freeform shape, so Edit Points reshapes it, and it is saved in `.pptx` and `.odp` files like any other shape.
 
 ## Use it with the keyboard
 

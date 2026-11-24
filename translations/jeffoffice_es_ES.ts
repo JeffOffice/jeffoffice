@@ -2135,6 +2135,13 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
     </message>
 </context>
 <context>
+    <name>jp::ShapeTools</name>
+    <message>
+        <source>Drag a point to reshape. Ctrl+click a point to delete it, or an edge to add one. Shift+click puts a glue point for connectors on the shape, or takes it away. Press Esc when done.</source>
+        <translation type="unfinished">Arrastre un punto para dar nueva forma. Ctrl+clic en un punto para eliminarlo, o en un borde para agregar uno. Mayús+clic coloca un punto de unión para conectores en la forma, o lo quita. Pulse Esc al terminar.</translation>
+    </message>
+</context>
+<context>
     <name>jp::SlideShow</name>
     <message>
         <source>This link goes to a file that is not opened from a link, so it was not opened.</source>
