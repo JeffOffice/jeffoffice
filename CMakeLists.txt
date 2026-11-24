@@ -645,6 +645,7 @@ qt_add_executable(jdtests
   tests/deck/tst_deck_pptximport.cpp
   tests/deck/tst_deck_pixelsnap.cpp
   tests/deck/tst_deck_pptxobjects.cpp
+  tests/deck/tst_deck_removebg.cpp
   tests/deck/tst_deck_review.cpp
   tests/deck/tst_deck_speech.cpp
   tests/deck/tst_deck_textbox.cpp
