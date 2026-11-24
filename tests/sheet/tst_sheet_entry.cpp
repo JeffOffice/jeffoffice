@@ -509,13 +509,13 @@ private Q_SLOTS:
                 QCOMPARE(englishFormulaName(local, language), row);
             }
         }
-        // (what each language has: the languages whose names were not confirmed keep the English ones)
+        // (what each language has)
         QVERIFY(localFormulaNameCount(QStringLiteral("de")) >= 200);
         QVERIFY(localFormulaNameCount(QStringLiteral("ru")) >= 200);
-        QCOMPARE(localFormulaNameCount(QStringLiteral("uk")), 0);
-        QCOMPARE(localFormulaNameCount(QStringLiteral("id")), 0);
+        QVERIFY(localFormulaNameCount(QStringLiteral("uk")) >= 1);   // (the lists give Ukrainian and Indonesian few names of their own)
+        QVERIFY(localFormulaNameCount(QStringLiteral("id")) >= 1);
         QVERIFY(formulaNameKeptEnglish(QStringLiteral("UNICODE")));
-        QVERIFY(formulaNameKeptEnglish(QStringLiteral("YIELD")));
+        QVERIFY(formulaNameKeptEnglish(QStringLiteral("FORECAST.ETS")));
         QVERIFY(!formulaNameKeptEnglish(QStringLiteral("SUM")));
         QCOMPARE(formulaLanguageOf(QStringLiteral("es_ES")), QStringLiteral("es"));
         QCOMPARE(formulaLanguageOf(QStringLiteral("pt_PT")), QStringLiteral("pt_PT"));
@@ -523,20 +523,30 @@ private Q_SLOTS:
         QCOMPARE(formulaLanguageOf(QString()), QString());
     }
 
-    // Twenty well-known functions in each language that has a checked list, with the names written here.
+    // Twenty well-known functions in each language, with the names written here; each is the name two published lists agree on.
     void wellKnownFunctionsHaveTheirLocalNames()
     {
-        const QStringList english = {"SUM", "IF", "VLOOKUP", "COUNTIF", "AVERAGE", "ROUND", "LEFT", "DATE", "TODAY", "INDEX", "MATCH", "CONCATENATE", "AND", "OR", "NOT", "MAX", "MIN", "LEN", "TRIM", "SUMIF"};
-        const QHash<QString, QStringList> expected = {
-            {"de", {"SUMME", "WENN", "SVERWEIS", "ZÄHLENWENN", "MITTELWERT", "RUNDEN", "LINKS", "DATUM", "HEUTE", "INDEX", "VERGLEICH", "VERKETTEN", "UND", "ODER", "NICHT", "MAX", "MIN", "LÄNGE", "GLÄTTEN", "SUMMEWENN"}},
-            {"fr", {"SOMME", "SI", "RECHERCHEV", "NB.SI", "MOYENNE", "ARRONDI", "GAUCHE", "DATE", "AUJOURDHUI", "INDEX", "EQUIV", "CONCATENER", "ET", "OU", "NON", "MAX", "MIN", "NBCAR", "SUPPRESPACE", "SOMME.SI"}},
-            {"es", {"SUMA", "SI", "BUSCARV", "CONTAR.SI", "PROMEDIO", "REDONDEAR", "IZQUIERDA", "FECHA", "HOY", "INDICE", "COINCIDIR", "CONCATENAR", "Y", "O", "NO", "MAX", "MIN", "LARGO", "ESPACIOS", "SUMAR.SI"}}};
-        for (auto it = expected.constBegin(); it != expected.constEnd(); ++it)
-            for (int i = 0; i < english.size(); ++i) {
-                const QString what = it.key() + QLatin1Char(' ') + english[i];
-                QVERIFY2(localFormulaName(english[i], it.key()).compare(it.value()[i], Qt::CaseInsensitive) == 0, qPrintable(what));
-                QCOMPARE(englishFormulaName(it.value()[i], it.key()), english[i]);
+        using Names = QList<std::pair<QString, QString>>;
+        const QHash<QString, Names> expected = {
+            {"de", {{"SUM", "SUMME"}, {"IF", "WENN"}, {"VLOOKUP", "SVERWEIS"}, {"COUNTIF", "ZÄHLENWENN"}, {"AVERAGE", "MITTELWERT"}, {"ROUND", "RUNDEN"}, {"LEFT", "LINKS"}, {"DATE", "DATUM"}, {"TODAY", "HEUTE"}, {"INDEX", "INDEX"}, {"MATCH", "VERGLEICH"}, {"CONCATENATE", "VERKETTEN"}, {"AND", "UND"}, {"OR", "ODER"}, {"NOT", "NICHT"}, {"MAX", "MAX"}, {"MIN", "MIN"}, {"LEN", "LÄNGE"}, {"TRIM", "GLÄTTEN"}, {"SUMIF", "SUMMEWENN"}}},
+            {"fr", {{"SUM", "SOMME"}, {"IF", "SI"}, {"VLOOKUP", "RECHERCHEV"}, {"COUNTIF", "NB.SI"}, {"AVERAGE", "MOYENNE"}, {"ROUND", "ARRONDI"}, {"LEFT", "GAUCHE"}, {"DATE", "DATE"}, {"TODAY", "AUJOURDHUI"}, {"INDEX", "INDEX"}, {"MATCH", "EQUIV"}, {"CONCATENATE", "CONCATENER"}, {"AND", "ET"}, {"OR", "OU"}, {"NOT", "NON"}, {"MAX", "MAX"}, {"MIN", "MIN"}, {"LEN", "NBCAR"}, {"TRIM", "SUPPRESPACE"}, {"SUMIF", "SOMME.SI"}}},
+            {"es", {{"SUM", "SUMA"}, {"IF", "SI"}, {"VLOOKUP", "BUSCARV"}, {"COUNTIF", "CONTAR.SI"}, {"AVERAGE", "PROMEDIO"}, {"ROUND", "REDONDEAR"}, {"LEFT", "IZQUIERDA"}, {"DATE", "FECHA"}, {"TODAY", "HOY"}, {"INDEX", "INDICE"}, {"MATCH", "COINCIDIR"}, {"CONCATENATE", "CONCATENAR"}, {"AND", "Y"}, {"OR", "O"}, {"NOT", "NO"}, {"MAX", "MAX"}, {"MIN", "MIN"}, {"LEN", "LARGO"}, {"TRIM", "ESPACIOS"}, {"SUMIF", "SUMAR.SI"}}},
+            {"it", {{"SUM", "SOMMA"}, {"IF", "SE"}, {"VLOOKUP", "CERCA.VERT"}, {"COUNTIF", "CONTA.SE"}, {"AVERAGE", "MEDIA"}, {"ROUND", "ARROTONDA"}, {"LEFT", "SINISTRA"}, {"DATE", "DATA"}, {"TODAY", "OGGI"}, {"INDEX", "INDICE"}, {"MATCH", "CONFRONTA"}, {"CONCATENATE", "CONCATENA"}, {"AND", "E"}, {"OR", "O"}, {"NOT", "NON"}, {"MAX", "MAX"}, {"MIN", "MIN"}, {"LEN", "LUNGHEZZA"}, {"TRIM", "ANNULLA.SPAZI"}, {"SUMIF", "SOMMA.SE"}}},
+            {"nl", {{"SUM", "SOM"}, {"IF", "ALS"}, {"VLOOKUP", "VERT.ZOEKEN"}, {"COUNTIF", "AANTAL.ALS"}, {"AVERAGE", "GEMIDDELDE"}, {"ROUND", "AFRONDEN"}, {"LEFT", "LINKS"}, {"DATE", "DATUM"}, {"TODAY", "VANDAAG"}, {"INDEX", "INDEX"}, {"MATCH", "VERGELIJKEN"}, {"CONCATENATE", "TEKST.SAMENVOEGEN"}, {"AND", "EN"}, {"OR", "OF"}, {"NOT", "NIET"}, {"MAX", "MAX"}, {"MIN", "MIN"}, {"LEN", "LENGTE"}, {"TRIM", "SPATIES.WISSEN"}, {"SUMIF", "SOM.ALS"}}},
+            {"pt_BR", {{"SUM", "SOMA"}, {"IF", "SE"}, {"VLOOKUP", "PROCV"}, {"COUNTIF", "CONT.SE"}, {"AVERAGE", "MÉDIA"}, {"ROUND", "ARRED"}, {"LEFT", "ESQUERDA"}, {"DATE", "DATA"}, {"TODAY", "HOJE"}, {"INDEX", "ÍNDICE"}, {"MATCH", "CORRESP"}, {"CONCATENATE", "CONCATENAR"}, {"AND", "E"}, {"OR", "OU"}, {"NOT", "NÃO"}, {"MAX", "MÁXIMO"}, {"MIN", "MÍNIMO"}, {"LEN", "NÚM.CARACT"}, {"TRIM", "ARRUMAR"}, {"SUMIF", "SOMASE"}}},
+            {"pt_PT", {{"SUM", "SOMA"}, {"IF", "SE"}, {"VLOOKUP", "PROCV"}, {"AVERAGE", "MÉDIA"}, {"ROUND", "ARRED"}, {"LEFT", "ESQUERDA"}, {"DATE", "DATA"}, {"TODAY", "HOJE"}, {"INDEX", "ÍNDICE"}, {"CONCATENATE", "CONCATENAR"}, {"AND", "E"}, {"NOT", "NÃO"}, {"SUMIF", "SOMA.SE"}, {"NOW", "AGORA"}, {"YEAR", "ANO"}, {"MONTH", "MÊS"}, {"DAY", "DIA"}, {"RIGHT", "DIREITA"}, {"SUBSTITUTE", "SUBST"}, {"IFERROR", "SE.ERRO"}}},
+            {"ru", {{"SUM", "СУММ"}, {"IF", "ЕСЛИ"}, {"VLOOKUP", "ВПР"}, {"COUNTIF", "СЧЁТЕСЛИ"}, {"AVERAGE", "СРЗНАЧ"}, {"ROUND", "ОКРУГЛ"}, {"LEFT", "ЛЕВСИМВ"}, {"DATE", "ДАТА"}, {"TODAY", "СЕГОДНЯ"}, {"INDEX", "ИНДЕКС"}, {"MATCH", "ПОИСКПОЗ"}, {"CONCATENATE", "СЦЕПИТЬ"}, {"AND", "И"}, {"OR", "ИЛИ"}, {"NOT", "НЕ"}, {"MAX", "МАКС"}, {"MIN", "МИН"}, {"LEN", "ДЛСТР"}, {"TRIM", "СЖПРОБЕЛЫ"}, {"SUMIF", "СУММЕСЛИ"}}},
+            {"uk", {{"SUM", "SUM"}, {"IF", "IF"}, {"VLOOKUP", "VLOOKUP"}, {"COUNTIF", "COUNTIF"}, {"AVERAGE", "AVERAGE"}, {"ROUND", "ROUND"}, {"LEFT", "LEFT"}, {"DATE", "DATE"}, {"TODAY", "TODAY"}, {"INDEX", "INDEX"}, {"MATCH", "MATCH"}, {"CONCATENATE", "CONCATENATE"}, {"AND", "AND"}, {"OR", "OR"}, {"NOT", "NOT"}, {"MAX", "MAX"}, {"MIN", "MIN"}, {"LEN", "LEN"}, {"TRIM", "TRIM"}, {"SUMIF", "SUMIF"}}},
+            {"id", {{"SUM", "SUM"}, {"IF", "IF"}, {"VLOOKUP", "VLOOKUP"}, {"COUNTIF", "COUNTIF"}, {"AVERAGE", "AVERAGE"}, {"ROUND", "ROUND"}, {"LEFT", "LEFT"}, {"DATE", "DATE"}, {"TODAY", "TODAY"}, {"INDEX", "INDEX"}, {"MATCH", "MATCH"}, {"CONCATENATE", "CONCATENATE"}, {"AND", "AND"}, {"OR", "OR"}, {"NOT", "NOT"}, {"MIN", "MIN"}, {"LEN", "LEN"}, {"TRIM", "TRIM"}, {"SUMIF", "SUMIF"}, {"ABS", "ABS"}}}};
+        QCOMPARE(expected.size(), formulaNameLanguages().size());
+        for (auto it = expected.constBegin(); it != expected.constEnd(); ++it) {
+            QCOMPARE(it.value().size(), 20);
+            for (const auto &pair : it.value()) {
+                const QString what = it.key() + QLatin1Char(' ') + pair.first;
+                QVERIFY2(localFormulaName(pair.first, it.key()).compare(pair.second, Qt::CaseInsensitive) == 0, qPrintable(what));
+                if (pair.second.compare(pair.first, Qt::CaseInsensitive) != 0) QCOMPARE(englishFormulaName(pair.second, it.key()), pair.first);
             }
+        }
     }
 
     // A function with two names in a language shows the first and reads both.
