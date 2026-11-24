@@ -1,6 +1,7 @@
 // JeffPub's tests of text layout: lines, tabs, bullets, and page-number fields.
 #include "pubhelpers.h"
 #include "app/listmenus.h"
+#include "../runformatchecks.h"
 #include <QDir>
 #include <QFileInfo>
 #include <QRawFont>
@@ -4588,6 +4589,32 @@ private Q_SLOTS:
         QVERIFY(w.editor()->overtype());
         QTRY_VERIFY(w.statusBar()->findChild<QLabel *>(QStringLiteral("overtypeMode"))->isVisible());
         shotOf(w.statusBar(), QStringLiteral("overtype-pub-statusbar"));
+    }
+
+    // A change that makes neighboring runs alike lets the document merge them while the change is still walking the runs (Nov 24: Font Color
+    // Automatic over two colors crashed). Each way to change the runs of a selection: two runs, a paragraph of 14, and two paragraphs.
+    void changingRunsThatBecomeAlikeIsSafe_data()
+    {
+        QTest::addColumn<int>("which");
+        QTest::addColumn<int>("paragraphs");
+        QTest::addColumn<int>("runs");
+        const auto all = runchecks::cases();
+        for (int i = 0; i < all.size(); ++i) {
+            QTest::addRow("%s, two runs", qPrintable(all[i].name)) << i << 1 << 2;
+            QTest::addRow("%s, 14 runs", qPrintable(all[i].name)) << i << 1 << 14;
+            QTest::addRow("%s, two paragraphs", qPrintable(all[i].name)) << i << 2 << 2;
+        }
+    }
+    void changingRunsThatBecomeAlikeIsSafe()
+    {
+        QFETCH(int, which);
+        QFETCH(int, paragraphs);
+        QFETCH(int, runs);
+        jp::MainWindow w;
+        jp::Editor *ed = w.editor();
+        auto box = std::static_pointer_cast<jp::TextItem>(ed->newTextBox(QRectF(72, 72, 400, 200), QStringLiteral("x")));
+        ed->addItem(box);
+        runchecks::check(ed, box->id, box->storyId, runchecks::cases()[which], paragraphs, runs);
     }
 
 };

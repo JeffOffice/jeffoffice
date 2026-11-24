@@ -11,6 +11,7 @@
 #include <QToolButton>
 #include "../shell/shapetexttest.h"
 #include "text/textengine.h"
+#include "../runformatchecks.h"
 
 #include <QStandardItemModel>
 
@@ -2548,6 +2549,32 @@ private Q_SLOTS:
         for (int k = 0; k < 3; ++k) QCOMPARE(R(k).center().x(), ed->doc()->pageSize().width() / 2);
         ed->undo();
     }
+    // A change that makes neighboring runs alike lets the document merge them while the change is still walking the runs (Nov 24: Font Color
+    // Automatic over two colors crashed). Each way to change the runs of a selection: two runs, a paragraph of 14, and two paragraphs.
+    void changingRunsThatBecomeAlikeIsSafe_data()
+    {
+        QTest::addColumn<int>("which");
+        QTest::addColumn<int>("paragraphs");
+        QTest::addColumn<int>("runs");
+        const auto all = runchecks::cases();
+        for (int i = 0; i < all.size(); ++i) {
+            QTest::addRow("%s, two runs", qPrintable(all[i].name)) << i << 1 << 2;
+            QTest::addRow("%s, 14 runs", qPrintable(all[i].name)) << i << 1 << 14;
+            QTest::addRow("%s, two paragraphs", qPrintable(all[i].name)) << i << 2 << 2;
+        }
+    }
+    void changingRunsThatBecomeAlikeIsSafe()
+    {
+        QFETCH(int, which);
+        QFETCH(int, paragraphs);
+        QFETCH(int, runs);
+        DeckWindow w;
+        Editor *ed = w.editor();
+        auto box = std::static_pointer_cast<TextItem>(ed->newTextBox(QRectF(72, 72, 400, 200), QStringLiteral("x")));
+        ed->addItem(box);
+        runchecks::check(ed, box->id, box->storyId, runchecks::cases()[which], paragraphs, runs);
+    }
+
 };
 
 JP_TEST_CLASS(DeckFormatTests)
