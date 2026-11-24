@@ -70,6 +70,17 @@
     </message>
 </context>
 <context>
+    <name>OdpImport</name>
+    <message numerus="yes">
+        <location filename="../apps/deck/io/odpimport.cpp" line="+891"/>
+        <source>The animations of %n slide(s) were left out.</source>
+        <translation>
+            <numerusform>The animations of %n slide were left out.</numerusform>
+            <numerusform>The animations of %n slides were left out.</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>PptxFonts</name>
     <message numerus="yes">
         <location filename="../apps/deck/io/pptxfonts.cpp" line="+334"/>

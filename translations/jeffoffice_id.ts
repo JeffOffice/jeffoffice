@@ -5,11 +5,14 @@
     <name>Animation</name>
     <message>
         <location filename="../apps/deck/app/animationpane.cpp" line="+82"/>
+        <location line="+530"/>
+        <location line="+42"/>
+        <location filename="../apps/deck/app/deckwindow_animations.cpp" line="+385"/>
         <source>Shape %1</source>
         <translation type="unfinished">Bentuk %1</translation>
     </message>
     <message>
-        <location line="+147"/>
+        <location line="-375"/>
         <source>Entrance</source>
         <translation type="unfinished">Masuk</translation>
     </message>
@@ -59,17 +62,17 @@
         <translation type="unfinished">Tidak Ada</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_animations.cpp" line="+107"/>
+        <location filename="../apps/deck/app/deckwindow_animations.cpp" line="-265"/>
         <source>The animations on this slide can&apos;t be changed here.</source>
         <translation type="unfinished">Animasi pada slaid ini tidak dapat diubah di sini.</translation>
     </message>
     <message>
-        <location line="+80"/>
+        <location line="+91"/>
         <source>Animation</source>
         <translation type="unfinished">Animasi</translation>
     </message>
     <message>
-        <location line="+31"/>
+        <location line="+39"/>
         <source>Add Animation</source>
         <translation type="unfinished">Tambahkan Animasi</translation>
     </message>
@@ -80,30 +83,80 @@
         <translation type="unfinished">Hapus Animasi</translation>
     </message>
     <message>
-        <location line="+12"/>
+        <location line="+13"/>
         <source>Start</source>
         <translation>Mulai</translation>
     </message>
     <message>
-        <location line="+17"/>
-        <location line="+178"/>
+        <location line="+28"/>
+        <source>A slide can have effects that wait for a click on up to %1 objects.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>An object can start up to %1 effects when it is clicked.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A slide can have up to %1 effects that wait for a click on an object.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The effects that wait for a click on this object can&apos;t be changed here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Start When Clicked</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+61"/>
+        <source>There is no object on this slide to click.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>When an Object Is Clicked</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The effects start when this object is clicked during the slide show.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>An object that an effect makes appear is not listed for that effect, because it can&apos;t be clicked before it appears.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Object</source>
+        <translation type="unfinished">Objek</translation>
+    </message>
+    <message>
+        <location line="+20"/>
+        <location line="+206"/>
         <source>Reorder Animation</source>
         <translation type="unfinished">Atur Ulang Urutan Animasi</translation>
     </message>
     <message>
-        <location line="+51"/>
+        <location line="+59"/>
         <source>Animation Painter</source>
         <translation type="unfinished">Kuas Animasi</translation>
     </message>
     <message>
-        <location line="+169"/>
+        <location line="+198"/>
         <location line="+14"/>
         <location line="+11"/>
         <source>Effect Options</source>
         <translation type="unfinished">Opsi Efek</translation>
     </message>
     <message>
-        <location line="+52"/>
+        <location line="+57"/>
         <source>Duration</source>
         <translation>Durasi</translation>
     </message>
@@ -9211,10 +9264,12 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <source>The presentation has no slides.</source>
         <translation type="unfinished">Presentasi tidak memiliki slaid.</translation>
     </message>
-    <message>
+    <message numerus="yes">
         <location line="+60"/>
-        <source>The animations of %1 slides were left out.</source>
-        <translation type="unfinished">Animasi dari %1 slaid tidak disertakan.</translation>
+        <source>The animations of %n slide(s) were left out.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+        </translation>
     </message>
     <message>
         <location line="+1"/>
@@ -20129,9 +20184,19 @@ Penerbitan desktop</translation>
         <translation type="unfinished">Pindahkan ke Akhir</translation>
     </message>
     <message>
-        <location line="+131"/>
-        <source>Shape %1</source>
-        <translation type="unfinished">Bentuk %1</translation>
+        <location line="+195"/>
+        <source>When %1 is clicked</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>When the pointer is over %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Effects that start from %1</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -35475,8 +35540,8 @@ Berkas tidak dapat dibaca.</translation>
         <translation>Penomoran</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_animations.cpp" line="-420"/>
-        <location line="+256"/>
+        <location filename="../apps/deck/app/deckwindow_animations.cpp" line="-485"/>
+        <location line="+316"/>
         <location filename="../apps/deck/app/deckwindow_show.cpp" line="-386"/>
         <location filename="../apps/deck/app/deckwindow_table.cpp" line="+0"/>
         <source>None</source>
@@ -38125,7 +38190,7 @@ Berkas tidak dapat dibaca.</translation>
         <translation type="unfinished">Presentasi Kustom</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_animations.cpp" line="-229"/>
+        <location filename="../apps/deck/app/deckwindow_animations.cpp" line="-277"/>
         <location filename="../apps/deck/app/deckwindow_show.cpp" line="-440"/>
         <source>Preview</source>
         <translation>Pratinjau</translation>
@@ -38141,18 +38206,19 @@ Berkas tidak dapat dibaca.</translation>
         <translation type="unfinished">Transisi ke Slaid Ini</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_animations.cpp" line="-40"/>
-        <location line="+43"/>
+        <location filename="../apps/deck/app/deckwindow_animations.cpp" line="-52"/>
+        <location line="+62"/>
         <source>Animation Pane</source>
         <translation type="unfinished">Panel Animasi</translation>
     </message>
     <message>
-        <location line="-6"/>
+        <location line="-31"/>
+        <location line="+18"/>
         <source>This slide has no animation to play.</source>
         <translation type="unfinished">Slaid ini tidak memiliki animasi untuk diputar.</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+20"/>
         <source>Animation Painter</source>
         <translation type="unfinished">Penyalin Animasi</translation>
     </message>
@@ -38208,11 +38274,22 @@ Berkas tidak dapat dibaca.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location line="+314"/>
+        <source>When an Object Is Clicked</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-313"/>
         <source>Remove</source>
         <translation type="unfinished">Hapus</translation>
     </message>
     <message>
-        <location line="+165"/>
+        <location line="+171"/>
+        <source>Effects that waited for a click on the deleted object now play in the main sequence.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+34"/>
         <source>Entrance</source>
         <translation type="unfinished">Masuk</translation>
     </message>
@@ -38360,7 +38437,7 @@ Berkas tidak dapat dibaca.</translation>
         <translation type="unfinished">Mulai: saat efek dimulai, saat diklik, bersamaan dengan efek sebelumnya, atau setelah efek itu berakhir.</translation>
     </message>
     <message>
-        <location line="+27"/>
+        <location line="+32"/>
         <location filename="../apps/deck/app/deckwindow_show.cpp" line="+13"/>
         <location line="+55"/>
         <source> s</source>
@@ -40281,7 +40358,7 @@ Berkas tidak dapat dibaca.</translation>
         <translation type="unfinished">Hapus</translation>
     </message>
     <message>
-        <location line="+82"/>
+        <location line="+83"/>
         <source>In Line with Text</source>
         <translation type="unfinished">Sejajar dengan Teks</translation>
     </message>

@@ -59,7 +59,19 @@ While the **Animations** tab or the pane is showing, a small number sits at the 
 
 A presentation made in another program can have effects that do not wait for the next click. They wait for a click on one shape instead. In a slide show or in Reading View, clicking that shape plays those effects at once. A click anywhere else still plays the next effect of the slide, as before. Click the shape again and its effects play again. The pointer turns into a hand over such a shape, and the Tab key reaches it in the same order as a link: press Tab until its ring shows, then press Enter. Going back one step takes back what the shape's click played. If a shape has several of these sets of effects, one click plays all of them. If the shape cannot be clicked in the show (it is hidden, off the slide, or has a link of its own), what waits for it is simply shown.
 
-JeffDeck keeps these effects when you save a .pptx or .odp file. The **Animation Pane** does not list them yet, and you cannot make them in JeffDeck yet.
+JeffDeck keeps these effects when you save a .pptx or .odp file.
+
+The **Animation Pane** lists them after the effects of the slide. Each set has a heading, such as "When Box 2 is clicked", over its effects.
+
+To make one, pick an effect in the pane, open the **Start** box on the **Animations** tab, and choose **When an Object Is Clicked**. Pick the object from the list. The effect is then in that object's set, at the end. An object that the effect makes appear is not in the list for that effect, because nobody can click it before it appears.
+
+To change a set, work in the pane as you do for other effects. Drag an effect onto another row to put it there, even in another set or in the slide's own effects. The arrows put an effect earlier or later inside its set. **Delete** removes it. Each change is one step that **Undo** takes back. Choosing **On Click**, **With Previous**, or **After Previous** for an effect in a set moves it to the end of the slide's own effects.
+
+A slide can have effects that wait for a click on up to 64 objects, up to 200 effects for each object, and up to 1,000 in all. JeffDeck tells you when a change would go past these.
+
+If you delete or cut an object that effects wait for, those effects move to the end of the slide's own effects, and the status bar says so. **Undo** brings the object and its effects back.
+
+To see a set play, pick one of its effects in the pane and click **Play From**. Only that object's effects play.
 
 ## Copy an animation
 
