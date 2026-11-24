@@ -8593,7 +8593,7 @@ Simpan tanpa cadangan?</translation>
         <translation type="unfinished">Putih</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+22"/>
         <source>No Color</source>
         <translation type="unfinished">Tanpa Warna</translation>
     </message>
@@ -12094,6 +12094,14 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     </message>
 </context>
 <context>
+    <name>QCoreApplication</name>
+    <message>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+1211"/>
+        <source>Some of the shapes have text. Merging removes the text of every shape but the first one you selected. Merge anyway?</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>QObject</name>
     <message>
         <location filename="../apps/crunch/app/linkprogress.cpp" line="+25"/>
@@ -13810,6 +13818,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+1"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+1"/>
         <source>Merge Shapes</source>
         <translation type="unfinished">Gabungkan Bentuk</translation>
     </message>
@@ -14291,7 +14300,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <location line="+5"/>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="-96"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="-95"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-103"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-104"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-87"/>
         <source>Help</source>
         <translation type="unfinished">Bantuan</translation>
@@ -14714,7 +14723,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="+20"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+3"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+75"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+76"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+15"/>
         <source>Symbols</source>
         <translation type="unfinished">Simbol</translation>
@@ -14804,7 +14813,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     </message>
     <message>
         <location line="-160"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-178"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-179"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-143"/>
         <source>About</source>
         <translation type="unfinished">Tentang</translation>
@@ -15033,7 +15042,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Spasi Baris dan Paragraf</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+8"/>
         <source>Navigation</source>
         <translation type="unfinished">Navigasi</translation>
     </message>
@@ -15045,7 +15054,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">Opsi</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-84"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-85"/>
         <source>Change Graphic</source>
         <translation type="unfinished">Ganti Grafis</translation>
     </message>
@@ -15075,7 +15084,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+32"/>
+        <location line="+33"/>
         <source>Outline Tools</source>
         <translation type="unfinished">Alat Garis Besar</translation>
     </message>
@@ -15260,7 +15269,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="-52"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="-53"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-153"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-154"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+1"/>
         <source>Chart</source>
         <translation type="unfinished">Bagan</translation>
@@ -15502,7 +15511,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+11"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+6"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+7"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+1"/>
         <source>Object</source>
         <translation type="unfinished">Objek</translation>
@@ -42312,6 +42321,7 @@ Berkas tidak dapat dibaca.</translation>
     </message>
     <message>
         <location filename="../libs/page/app/editor_shapes.cpp" line="+92"/>
+        <location filename="../apps/write/app/pageview_merge.cpp" line="+60"/>
         <source>Select two or more shapes first.</source>
         <translation type="unfinished">Pilih dua bentuk atau lebih terlebih dahulu.</translation>
     </message>
@@ -42322,16 +42332,19 @@ Berkas tidak dapat dibaca.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location filename="../apps/write/app/pageview_merge.cpp" line="+1"/>
         <source>Select no more than 64 shapes.</source>
         <translation type="unfinished">Pilih paling banyak 64 bentuk.</translation>
     </message>
     <message>
         <location line="+5"/>
+        <location filename="../apps/write/app/pageview_merge.cpp" line="+9"/>
         <source>Only shapes can be changed this way. Artwork and other objects stay as they are.</source>
         <translation type="unfinished">Hanya bentuk yang dapat diubah dengan cara ini. Karya seni dan objek lain tetap seperti semula.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location filename="../apps/write/app/pageview_merge.cpp" line="-12"/>
         <source>An object that is locked stays as it is.</source>
         <translation type="unfinished">Objek yang terkunci tetap seperti semula.</translation>
     </message>
@@ -42342,36 +42355,46 @@ Berkas tidak dapat dibaca.</translation>
     </message>
     <message>
         <location line="+2"/>
+        <location filename="../apps/write/app/pageview_merge.cpp" line="+13"/>
         <source>Select shapes that are on the same page.</source>
         <translation type="unfinished">Pilih bentuk yang berada di halaman yang sama.</translation>
     </message>
     <message>
         <location line="+31"/>
+        <location filename="../libs/page/app/shapetools.cpp" line="+90"/>
         <source>Merging shapes…</source>
         <translation type="unfinished">Menggabungkan bentuk…</translation>
     </message>
     <message>
         <location line="+16"/>
+        <location filename="../libs/page/app/shapetools.cpp" line="-13"/>
         <source>The shapes leave nothing.</source>
         <translation type="unfinished">Bentuk-bentuk tidak menyisakan apa pun.</translation>
     </message>
     <message>
         <location line="+0"/>
+        <location filename="../libs/page/app/shapetools.cpp" line="+0"/>
         <source>That would cut the shapes into too many pieces.</source>
         <translation type="unfinished">Tindakan itu akan memotong bentuk menjadi terlalu banyak bagian.</translation>
     </message>
     <message>
         <location line="+0"/>
+        <location filename="../libs/page/app/shapetools.cpp" line="+1"/>
         <source>The shapes are too complex to merge in a reasonable time.</source>
         <translation type="unfinished">Bentuk terlalu kompleks untuk digabungkan dalam waktu yang wajar.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location filename="../libs/page/app/shapetools.cpp" line="+0"/>
+        <location filename="../apps/write/app/pageview_merge.cpp" line="+23"/>
         <source>Cancelled. The shapes are as they were.</source>
         <translation type="unfinished">Dibatalkan. Bentuk-bentuk tetap seperti semula.</translation>
     </message>
     <message>
         <location line="+0"/>
+        <location filename="../libs/page/app/shapetools.cpp" line="+1"/>
+        <location filename="../apps/write/app/pageview_merge.cpp" line="-32"/>
+        <location line="+37"/>
         <source>The shapes are too complex to merge.</source>
         <translation type="unfinished">Bentuk terlalu kompleks untuk digabungkan.</translation>
     </message>
@@ -57171,7 +57194,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
 <context>
     <name>jp::ShapeTools</name>
     <message>
-        <location filename="../libs/page/app/shapetools.cpp" line="+20"/>
+        <location filename="../libs/page/app/shapetools.cpp" line="+32"/>
         <location line="+6"/>
         <source>Edit Points</source>
         <translation type="unfinished">Edit Titik</translation>
@@ -57182,38 +57205,44 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
         <translation type="unfinished">Seret titik untuk membentuk ulang. Ctrl+klik titik untuk menghapusnya, atau tepi untuk menambahkannya. Shift+klik menempatkan titik lem untuk konektor pada bentuk, atau menghapusnya. Tekan Esc jika sudah selesai.</translation>
     </message>
     <message>
-        <location line="+8"/>
-        <location line="+31"/>
+        <location line="-93"/>
+        <location line="+105"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-1"/>
         <source>Merge Shapes</source>
         <translation type="unfinished">Gabungkan Bentuk</translation>
     </message>
     <message>
-        <location line="-19"/>
+        <location line="-93"/>
         <source>Cancelling…</source>
         <translation type="unfinished">Membatalkan…</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+88"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-989"/>
         <source>Union</source>
         <translation type="unfinished">Gabungan</translation>
     </message>
     <message>
         <location line="+0"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+0"/>
         <source>Combine</source>
         <translation>Gabungkan</translation>
     </message>
     <message>
         <location line="+0"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+0"/>
         <source>Subtract</source>
         <translation>Kurangi</translation>
     </message>
     <message>
         <location line="+0"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+1"/>
         <source>Intersect</source>
         <translation type="unfinished">Irisan</translation>
     </message>
     <message>
         <location line="+0"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+0"/>
         <source>Fragment</source>
         <translation type="unfinished">Fragmen</translation>
     </message>
@@ -57224,11 +57253,13 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     </message>
     <message>
         <location line="+4"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+993"/>
         <source>Merge</source>
         <translation type="unfinished">Gabungkan</translation>
     </message>
     <message numerus="yes">
         <location line="+7"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+7"/>
         <source>Made %n shapes.</source>
         <translation type="unfinished">
             <numerusform>Membuat %n bentuk.</numerusform>
@@ -61416,7 +61447,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+239"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-968"/>
         <source>Align Left</source>
         <translation type="unfinished">Rata Kiri</translation>
     </message>
@@ -63109,7 +63140,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-766"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-779"/>
         <source>Plain</source>
         <translation type="unfinished">Polos</translation>
     </message>
@@ -63181,7 +63212,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+206"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+219"/>
         <source>Column</source>
         <translation>Kolom</translation>
     </message>
@@ -63249,7 +63280,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_layout.cpp" line="-22"/>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+154"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+144"/>
         <source>Automatic</source>
         <translation type="unfinished">Otomatis</translation>
     </message>
@@ -63282,7 +63313,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location line="+6"/>
         <location line="+47"/>
         <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+15"/>
-        <location line="+26"/>
+        <location line="+23"/>
         <location filename="../apps/write/app/writewindow_tables.cpp" line="+87"/>
         <source>No Color</source>
         <translation type="unfinished">Tanpa Warna</translation>
@@ -64489,7 +64520,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+13"/>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+141"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+138"/>
         <source>Track Changes</source>
         <translation type="unfinished">Lacak Perubahan</translation>
     </message>
@@ -64746,12 +64777,12 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Tidak ada komentar lagi.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="-180"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="-174"/>
         <source>Font Color</source>
         <translation type="unfinished">Warna Font</translation>
     </message>
     <message>
-        <location line="+60"/>
+        <location line="+54"/>
         <source>No Shading</source>
         <translation type="unfinished">Tanpa Pewarnaan</translation>
     </message>
@@ -65233,13 +65264,13 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Pindahkan Tabel</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-847"/>
-        <location line="+282"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-860"/>
+        <location line="+295"/>
         <source>Line</source>
         <translation type="unfinished">Garis</translation>
     </message>
     <message>
-        <location line="-281"/>
+        <location line="-294"/>
         <source>Arrow</source>
         <translation type="unfinished">Panah</translation>
     </message>
@@ -65396,17 +65427,17 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+10"/>
-        <location line="+1059"/>
+        <location line="+1100"/>
         <source>Edit Points</source>
         <translation type="unfinished">Edit Titik</translation>
     </message>
     <message>
-        <location line="-1056"/>
+        <location line="-1097"/>
         <source>Drag a point to reshape. Ctrl+click a point to delete it, or the outline to add one. Press Esc when done.</source>
         <translation type="unfinished">Seret titik untuk mengubah bentuk. Ctrl+klik titik untuk menghapusnya, atau garis tepi untuk menambahkan titik. Tekan Esc jika sudah selesai.</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+16"/>
         <source>Edit Text…</source>
         <translation type="unfinished">Edit Teks…</translation>
     </message>
@@ -65819,6 +65850,11 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Seret pada halaman untuk menggambar bentuk; klik untuk memasukkan satu dengan ukuran biasanya. Shift menjaga proporsinya, dan Esc menghentikan.</translation>
     </message>
     <message>
+        <location line="+102"/>
+        <source>The text of the other shapes was removed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../apps/write/app/writewindow_objects.cpp" line="+25"/>
         <source>From JeffCrunch Range…</source>
         <translation type="unfinished">Dari Rentang JeffCrunch…</translation>
@@ -65880,13 +65916,13 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location line="+12"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+263"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+189"/>
         <location line="+13"/>
         <source>Object %1</source>
         <translation type="unfinished">Objek %1</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-672"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-700"/>
         <source>Edit Equation</source>
         <translation type="unfinished">Edit Persamaan</translation>
     </message>
@@ -66393,7 +66429,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Tabel Siap Pakai</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="-196"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="-190"/>
         <location filename="../apps/write/app/writewindow_tables.cpp" line="+32"/>
         <source>Shading</source>
         <translation type="unfinished">Pewarnaan</translation>
@@ -66526,7 +66562,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_outline.cpp" line="+24"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-1023"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-1036"/>
         <source>Outline</source>
         <translation type="unfinished">Garis Besar</translation>
     </message>
@@ -82379,7 +82415,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation>Header</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview.cpp" line="+264"/>
+        <location filename="../apps/write/app/pageview.cpp" line="+265"/>
         <source>Place in this document: %1</source>
         <translation type="unfinished">Tempatkan di dokumen ini: %1</translation>
     </message>
@@ -82714,7 +82750,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
     <message>
         <location filename="../apps/write/app/pageview_input.cpp" line="-353"/>
         <location filename="../apps/write/app/pageview_pictures.cpp" line="+18"/>
-        <location filename="../apps/write/core/pictureops.cpp" line="+2227"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="+2228"/>
         <source>That shape can&apos;t be put here.</source>
         <translation type="unfinished">Bentuk itu tidak dapat disisipkan di sini.</translation>
     </message>
@@ -82760,31 +82796,31 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <location filename="../apps/write/core/pictureops.cpp" line="-1548"/>
         <location line="+351"/>
         <location line="+2051"/>
-        <location line="+1580"/>
+        <location line="+1797"/>
         <location line="+722"/>
         <source>The pictures in this document are as large together as JeffWrite puts in one, so this one is not added.</source>
         <translation type="unfinished">Gambar dalam dokumen ini jika digabungkan sudah sebesar yang dapat ditampung JeffWrite dalam satu gambar, sehingga gambar ini tidak ditambahkan.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/pictureops.cpp" line="-4716"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="-4933"/>
         <location line="+377"/>
         <location line="+825"/>
-        <location line="+3077"/>
+        <location line="+3294"/>
         <location line="+200"/>
         <source>A picture can&apos;t be put in a header, a footer, or a note yet.</source>
         <translation type="unfinished">Gambar belum dapat disisipkan di header, footer, atau catatan.</translation>
     </message>
     <message>
-        <location line="-4427"/>
+        <location line="-4644"/>
         <location line="+350"/>
         <location line="+823"/>
-        <location line="+3079"/>
+        <location line="+3296"/>
         <location line="+198"/>
         <source>A picture can&apos;t be put here, or this document holds as many pictures and drawn objects as JeffWrite can show.</source>
         <translation type="unfinished">Gambar tidak dapat disisipkan di sini, atau dokumen ini sudah memuat gambar dan objek gambar sebanyak yang dapat ditampilkan JeffWrite.</translation>
     </message>
     <message>
-        <location line="-4414"/>
+        <location line="-4631"/>
         <source>This document holds as many pictures and drawn objects as JeffWrite can show. Save it, and open it again, to change more.</source>
         <translation type="unfinished">Dokumen ini memuat gambar dan objek gambar sebanyak yang dapat ditampilkan JeffWrite. Simpan, lalu buka kembali, untuk mengubah lebih banyak.</translation>
     </message>
@@ -82812,7 +82848,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
         <translation type="unfinished">Kotak teks ini berisi lebih dari sekadar kata-kata (tabel, gambar, bidang, atau daftar), sehingga kata-katanya tidak dapat diedit di sini.</translation>
     </message>
     <message>
-        <location line="+2680"/>
+        <location line="+2897"/>
         <source>That graphic has too much to draw, so it is left as it was.</source>
         <translation type="unfinished">Gambar itu terlalu rumit untuk digambar, sehingga tetap seperti semula.</translation>
     </message>

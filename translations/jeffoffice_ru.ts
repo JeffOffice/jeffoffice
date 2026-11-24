@@ -8605,7 +8605,7 @@ Save without a backup?</source>
         <translation type="unfinished">Белый</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+22"/>
         <source>No Color</source>
         <translation>Без цвета</translation>
     </message>
@@ -12114,6 +12114,14 @@ Download it from %2 now? (%3, once.)</source>
     </message>
 </context>
 <context>
+    <name>QCoreApplication</name>
+    <message>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+1211"/>
+        <source>Some of the shapes have text. Merging removes the text of every shape but the first one you selected. Merge anyway?</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>QObject</name>
     <message>
         <location filename="../apps/crunch/app/linkprogress.cpp" line="+25"/>
@@ -13830,6 +13838,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+1"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+1"/>
         <source>Merge Shapes</source>
         <translation type="unfinished">Объединить фигуры</translation>
     </message>
@@ -14311,7 +14320,7 @@ Download it from %2 now? (%3, once.)</source>
         <location line="+5"/>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="-96"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="-95"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-103"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-104"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-87"/>
         <source>Help</source>
         <translation type="unfinished">Справка</translation>
@@ -14734,7 +14743,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="+20"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+3"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+75"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+76"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+15"/>
         <source>Symbols</source>
         <translation type="unfinished">Символы</translation>
@@ -14824,7 +14833,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location line="-160"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-178"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-179"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-143"/>
         <source>About</source>
         <translation type="unfinished">О программе</translation>
@@ -15053,7 +15062,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Междустрочный и межабзацный интервал</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+8"/>
         <source>Navigation</source>
         <translation type="unfinished">Навигация</translation>
     </message>
@@ -15065,7 +15074,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished">Параметры</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-84"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-85"/>
         <source>Change Graphic</source>
         <translation type="unfinished">Заменить рисунок</translation>
     </message>
@@ -15095,7 +15104,7 @@ Download it from %2 now? (%3, once.)</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+32"/>
+        <location line="+33"/>
         <source>Outline Tools</source>
         <translation type="unfinished">Инструменты структуры</translation>
     </message>
@@ -15280,7 +15289,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="-52"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="-53"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-153"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-154"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+1"/>
         <source>Chart</source>
         <translation type="unfinished">Диаграмма</translation>
@@ -15522,7 +15531,7 @@ Download it from %2 now? (%3, once.)</source>
     </message>
     <message>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+11"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+6"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+7"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+1"/>
         <source>Object</source>
         <translation type="unfinished">Объект</translation>
@@ -42408,6 +42417,7 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location filename="../libs/page/app/editor_shapes.cpp" line="+92"/>
+        <location filename="../apps/write/app/pageview_merge.cpp" line="+60"/>
         <source>Select two or more shapes first.</source>
         <translation type="unfinished">Сначала выделите две или более фигуры.</translation>
     </message>
@@ -42418,16 +42428,19 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+1"/>
+        <location filename="../apps/write/app/pageview_merge.cpp" line="+1"/>
         <source>Select no more than 64 shapes.</source>
         <translation type="unfinished">Выделите не более 64 фигуры.</translation>
     </message>
     <message>
         <location line="+5"/>
+        <location filename="../apps/write/app/pageview_merge.cpp" line="+9"/>
         <source>Only shapes can be changed this way. Artwork and other objects stay as they are.</source>
         <translation type="unfinished">Так можно изменить только фигуры. Рисунки и другие объекты остаются без изменений.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location filename="../apps/write/app/pageview_merge.cpp" line="-12"/>
         <source>An object that is locked stays as it is.</source>
         <translation type="unfinished">Заблокированный объект остаётся без изменений.</translation>
     </message>
@@ -42438,36 +42451,46 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+2"/>
+        <location filename="../apps/write/app/pageview_merge.cpp" line="+13"/>
         <source>Select shapes that are on the same page.</source>
         <translation type="unfinished">Выделите фигуры, расположенные на одной странице.</translation>
     </message>
     <message>
         <location line="+31"/>
+        <location filename="../libs/page/app/shapetools.cpp" line="+90"/>
         <source>Merging shapes…</source>
         <translation type="unfinished">Объединение фигур…</translation>
     </message>
     <message>
         <location line="+16"/>
+        <location filename="../libs/page/app/shapetools.cpp" line="-13"/>
         <source>The shapes leave nothing.</source>
         <translation type="unfinished">После операции фигуры не останется.</translation>
     </message>
     <message>
         <location line="+0"/>
+        <location filename="../libs/page/app/shapetools.cpp" line="+0"/>
         <source>That would cut the shapes into too many pieces.</source>
         <translation type="unfinished">Это разрезало бы фигуры на слишком много частей.</translation>
     </message>
     <message>
         <location line="+0"/>
+        <location filename="../libs/page/app/shapetools.cpp" line="+1"/>
         <source>The shapes are too complex to merge in a reasonable time.</source>
         <translation type="unfinished">Фигуры слишком сложны для объединения за разумное время.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location filename="../libs/page/app/shapetools.cpp" line="+0"/>
+        <location filename="../apps/write/app/pageview_merge.cpp" line="+23"/>
         <source>Cancelled. The shapes are as they were.</source>
         <translation type="unfinished">Отменено. Фигуры остались без изменений.</translation>
     </message>
     <message>
         <location line="+0"/>
+        <location filename="../libs/page/app/shapetools.cpp" line="+1"/>
+        <location filename="../apps/write/app/pageview_merge.cpp" line="-32"/>
+        <location line="+37"/>
         <source>The shapes are too complex to merge.</source>
         <translation type="unfinished">Фигуры слишком сложны для объединения.</translation>
     </message>
@@ -57289,7 +57312,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::ShapeTools</name>
     <message>
-        <location filename="../libs/page/app/shapetools.cpp" line="+20"/>
+        <location filename="../libs/page/app/shapetools.cpp" line="+32"/>
         <location line="+6"/>
         <source>Edit Points</source>
         <translation type="unfinished">Изменить узлы</translation>
@@ -57300,38 +57323,44 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Перетащите точку, чтобы изменить форму. Ctrl+щелчок по точке удаляет её, а по ребру — добавляет новую. Shift+щелчок ставит или убирает точку соединения для соединителей на фигуре. Нажмите Esc по окончании.</translation>
     </message>
     <message>
-        <location line="+8"/>
-        <location line="+31"/>
+        <location line="-93"/>
+        <location line="+105"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-1"/>
         <source>Merge Shapes</source>
         <translation type="unfinished">Объединить фигуры</translation>
     </message>
     <message>
-        <location line="-19"/>
+        <location line="-93"/>
         <source>Cancelling…</source>
         <translation type="unfinished">Отмена…</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+88"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-989"/>
         <source>Union</source>
         <translation type="unfinished">Объединение</translation>
     </message>
     <message>
         <location line="+0"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+0"/>
         <source>Combine</source>
         <translation>Комбинирование</translation>
     </message>
     <message>
         <location line="+0"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+0"/>
         <source>Subtract</source>
         <translation type="unfinished">Вычитание</translation>
     </message>
     <message>
         <location line="+0"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+1"/>
         <source>Intersect</source>
         <translation type="unfinished">Пересечение</translation>
     </message>
     <message>
         <location line="+0"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+0"/>
         <source>Fragment</source>
         <translation type="unfinished">Фрагментация</translation>
     </message>
@@ -57342,11 +57371,13 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+4"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+993"/>
         <source>Merge</source>
         <translation>Слияние</translation>
     </message>
     <message numerus="yes">
         <location line="+7"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+7"/>
         <source>Made %n shapes.</source>
         <translation type="unfinished">
             <numerusform>Создана %n фигура</numerusform>
@@ -61538,7 +61569,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+239"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-968"/>
         <source>Align Left</source>
         <translation type="unfinished">По левому краю</translation>
     </message>
@@ -63247,7 +63278,7 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-766"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-779"/>
         <source>Plain</source>
         <translation type="unfinished">Простая</translation>
     </message>
@@ -63319,7 +63350,7 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+206"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+219"/>
         <source>Column</source>
         <translation>Столбец</translation>
     </message>
@@ -63387,7 +63418,7 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_layout.cpp" line="-22"/>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+154"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+144"/>
         <source>Automatic</source>
         <translation type="unfinished">Автоматически</translation>
     </message>
@@ -63420,7 +63451,7 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+6"/>
         <location line="+47"/>
         <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+15"/>
-        <location line="+26"/>
+        <location line="+23"/>
         <location filename="../apps/write/app/writewindow_tables.cpp" line="+87"/>
         <source>No Color</source>
         <translation type="unfinished">Нет цвета</translation>
@@ -64627,7 +64658,7 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+13"/>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+141"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+138"/>
         <source>Track Changes</source>
         <translation type="unfinished">Отслеживание исправлений</translation>
     </message>
@@ -64886,12 +64917,12 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Больше примечаний нет.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="-180"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="-174"/>
         <source>Font Color</source>
         <translation type="unfinished">Цвет шрифта</translation>
     </message>
     <message>
-        <location line="+60"/>
+        <location line="+54"/>
         <source>No Shading</source>
         <translation type="unfinished">Без заливки</translation>
     </message>
@@ -65373,13 +65404,13 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Переместить таблицу</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-847"/>
-        <location line="+282"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-860"/>
+        <location line="+295"/>
         <source>Line</source>
         <translation type="unfinished">Линия</translation>
     </message>
     <message>
-        <location line="-281"/>
+        <location line="-294"/>
         <source>Arrow</source>
         <translation type="unfinished">Стрелка</translation>
     </message>
@@ -65536,17 +65567,17 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+10"/>
-        <location line="+1059"/>
+        <location line="+1100"/>
         <source>Edit Points</source>
         <translation type="unfinished">Изменить узлы</translation>
     </message>
     <message>
-        <location line="-1056"/>
+        <location line="-1097"/>
         <source>Drag a point to reshape. Ctrl+click a point to delete it, or the outline to add one. Press Esc when done.</source>
         <translation type="unfinished">Перетащите узел, чтобы изменить форму. Ctrl+щелчок по узлу удаляет его, а щелчок по контуру добавляет новый. Нажмите Esc, когда закончите.</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+16"/>
         <source>Edit Text…</source>
         <translation type="unfinished">Изменить текст…</translation>
     </message>
@@ -65959,6 +65990,11 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Перетащите по странице, чтобы нарисовать фигуру; щелчок создаёт фигуру стандартного размера. Shift сохраняет пропорции, Esc отменяет рисование.</translation>
     </message>
     <message>
+        <location line="+102"/>
+        <source>The text of the other shapes was removed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../apps/write/app/writewindow_objects.cpp" line="+25"/>
         <source>From JeffCrunch Range…</source>
         <translation type="unfinished">Из диапазона JeffCrunch…</translation>
@@ -66020,13 +66056,13 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+12"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+263"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+189"/>
         <location line="+13"/>
         <source>Object %1</source>
         <translation type="unfinished">Объект %1</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-672"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-700"/>
         <source>Edit Equation</source>
         <translation type="unfinished">Изменить формулу</translation>
     </message>
@@ -66533,7 +66569,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Готовые таблицы</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="-196"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="-190"/>
         <location filename="../apps/write/app/writewindow_tables.cpp" line="+32"/>
         <source>Shading</source>
         <translation type="unfinished">Заливка</translation>
@@ -66666,7 +66702,7 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_outline.cpp" line="+24"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-1023"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-1036"/>
         <source>Outline</source>
         <translation type="unfinished">Структура</translation>
     </message>
@@ -82573,7 +82609,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation>Верхний колонтитул</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview.cpp" line="+264"/>
+        <location filename="../apps/write/app/pageview.cpp" line="+265"/>
         <source>Place in this document: %1</source>
         <translation type="unfinished">Место в этом документе: %1</translation>
     </message>
@@ -82908,7 +82944,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../apps/write/app/pageview_input.cpp" line="-353"/>
         <location filename="../apps/write/app/pageview_pictures.cpp" line="+18"/>
-        <location filename="../apps/write/core/pictureops.cpp" line="+2227"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="+2228"/>
         <source>That shape can&apos;t be put here.</source>
         <translation type="unfinished">Эту фигуру нельзя вставить сюда.</translation>
     </message>
@@ -82954,31 +82990,31 @@ The password couldn&apos;t be put on the file.</source>
         <location filename="../apps/write/core/pictureops.cpp" line="-1548"/>
         <location line="+351"/>
         <location line="+2051"/>
-        <location line="+1580"/>
+        <location line="+1797"/>
         <location line="+722"/>
         <source>The pictures in this document are as large together as JeffWrite puts in one, so this one is not added.</source>
         <translation type="unfinished">Рисунки в этом документе вместе занимают столько же места, сколько JeffWrite может вставить за раз, поэтому этот рисунок не добавлен.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/pictureops.cpp" line="-4716"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="-4933"/>
         <location line="+377"/>
         <location line="+825"/>
-        <location line="+3077"/>
+        <location line="+3294"/>
         <location line="+200"/>
         <source>A picture can&apos;t be put in a header, a footer, or a note yet.</source>
         <translation type="unfinished">Пока нельзя вставить рисунок в верхний или нижний колонтитул либо в примечание.</translation>
     </message>
     <message>
-        <location line="-4427"/>
+        <location line="-4644"/>
         <location line="+350"/>
         <location line="+823"/>
-        <location line="+3079"/>
+        <location line="+3296"/>
         <location line="+198"/>
         <source>A picture can&apos;t be put here, or this document holds as many pictures and drawn objects as JeffWrite can show.</source>
         <translation type="unfinished">Рисунок нельзя вставить сюда, или в этом документе уже столько рисунков и рисованных объектов, сколько JeffWrite может показать.</translation>
     </message>
     <message>
-        <location line="-4414"/>
+        <location line="-4631"/>
         <source>This document holds as many pictures and drawn objects as JeffWrite can show. Save it, and open it again, to change more.</source>
         <translation type="unfinished">В этом документе уже столько рисунков и рисованных объектов, сколько JeffWrite может показать. Сохраните его и откройте снова, чтобы изменить больше.</translation>
     </message>
@@ -83006,7 +83042,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Это текстовое поле содержит больше, чем текст (таблицу, рисунок, поле или список), поэтому его текст нельзя изменить здесь.</translation>
     </message>
     <message>
-        <location line="+2680"/>
+        <location line="+2897"/>
         <source>That graphic has too much to draw, so it is left as it was.</source>
         <translation type="unfinished">Этот рисунок слишком сложен для отрисовки, поэтому он оставлен без изменений.</translation>
     </message>

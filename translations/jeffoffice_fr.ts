@@ -8599,7 +8599,7 @@ Enregistrer sans sauvegarde ?</translation>
         <translation type="unfinished">Blanc</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="+22"/>
         <source>No Color</source>
         <translation type="unfinished">Aucune couleur</translation>
     </message>
@@ -12104,6 +12104,14 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
     </message>
 </context>
 <context>
+    <name>QCoreApplication</name>
+    <message>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+1211"/>
+        <source>Some of the shapes have text. Merging removes the text of every shape but the first one you selected. Merge anyway?</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>QObject</name>
     <message>
         <location filename="../apps/crunch/app/linkprogress.cpp" line="+25"/>
@@ -13820,6 +13828,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+1"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+1"/>
         <source>Merge Shapes</source>
         <translation type="unfinished">Fusionner les formes</translation>
     </message>
@@ -14301,7 +14310,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <location line="+5"/>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="-96"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="-95"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-103"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-104"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-87"/>
         <source>Help</source>
         <translation type="unfinished">Aide</translation>
@@ -14724,7 +14733,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="+20"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+3"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+75"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+76"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+15"/>
         <source>Symbols</source>
         <translation type="unfinished">Symboles</translation>
@@ -14813,7 +14822,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <translation type="unfinished">Largeur :</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-177"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-178"/>
         <source>Accept</source>
         <translation type="unfinished">Accepter</translation>
     </message>
@@ -15065,7 +15074,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
         <translation type="unfinished">Interligne et espacement des paragraphes</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+8"/>
         <source>Navigation</source>
         <translation type="unfinished">Navigation</translation>
     </message>
@@ -15241,7 +15250,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="-52"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="-53"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-153"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-154"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+16"/>
         <source>Chart</source>
         <translation type="unfinished">Graphique</translation>
@@ -15353,7 +15362,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+11"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+6"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+7"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+1"/>
         <source>Object</source>
         <translation type="unfinished">Objet</translation>
@@ -15412,7 +15421,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="-20"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="-28"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-49"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-50"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="-52"/>
         <source>Gridlines</source>
         <translation type="unfinished">Quadrillage</translation>
@@ -15654,7 +15663,7 @@ Le télécharger depuis %2 maintenant ? (%3, une seule fois.)</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+92"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+98"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+99"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+1"/>
         <source>Type</source>
         <translation>Type</translation>
@@ -42360,6 +42369,7 @@ Le fichier est illisible.</translation>
     </message>
     <message>
         <location filename="../libs/page/app/editor_shapes.cpp" line="+92"/>
+        <location filename="../apps/write/app/pageview_merge.cpp" line="+60"/>
         <source>Select two or more shapes first.</source>
         <translation type="unfinished">Sélectionnez d&apos;abord deux formes ou plus.</translation>
     </message>
@@ -42370,16 +42380,19 @@ Le fichier est illisible.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location filename="../apps/write/app/pageview_merge.cpp" line="+1"/>
         <source>Select no more than 64 shapes.</source>
         <translation type="unfinished">Sélectionnez au maximum 64 formes.</translation>
     </message>
     <message>
         <location line="+5"/>
+        <location filename="../apps/write/app/pageview_merge.cpp" line="+9"/>
         <source>Only shapes can be changed this way. Artwork and other objects stay as they are.</source>
         <translation type="unfinished">Seules les formes peuvent être modifiées de cette façon. Les illustrations et autres objets restent inchangés.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location filename="../apps/write/app/pageview_merge.cpp" line="-12"/>
         <source>An object that is locked stays as it is.</source>
         <translation type="unfinished">Un objet verrouillé reste inchangé.</translation>
     </message>
@@ -42390,36 +42403,46 @@ Le fichier est illisible.</translation>
     </message>
     <message>
         <location line="+2"/>
+        <location filename="../apps/write/app/pageview_merge.cpp" line="+13"/>
         <source>Select shapes that are on the same page.</source>
         <translation type="unfinished">Sélectionnez des formes situées sur la même page.</translation>
     </message>
     <message>
         <location line="+31"/>
+        <location filename="../libs/page/app/shapetools.cpp" line="+90"/>
         <source>Merging shapes…</source>
         <translation type="unfinished">Fusion des formes…</translation>
     </message>
     <message>
         <location line="+16"/>
+        <location filename="../libs/page/app/shapetools.cpp" line="-13"/>
         <source>The shapes leave nothing.</source>
         <translation type="unfinished">Les formes ne laissent rien.</translation>
     </message>
     <message>
         <location line="+0"/>
+        <location filename="../libs/page/app/shapetools.cpp" line="+0"/>
         <source>That would cut the shapes into too many pieces.</source>
         <translation type="unfinished">Cela découperait les formes en trop de morceaux.</translation>
     </message>
     <message>
         <location line="+0"/>
+        <location filename="../libs/page/app/shapetools.cpp" line="+1"/>
         <source>The shapes are too complex to merge in a reasonable time.</source>
         <translation type="unfinished">Les formes sont trop complexes pour être fusionnées dans un délai raisonnable.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location filename="../libs/page/app/shapetools.cpp" line="+0"/>
+        <location filename="../apps/write/app/pageview_merge.cpp" line="+23"/>
         <source>Cancelled. The shapes are as they were.</source>
         <translation type="unfinished">Annulé. Les formes sont restées telles quelles.</translation>
     </message>
     <message>
         <location line="+0"/>
+        <location filename="../libs/page/app/shapetools.cpp" line="+1"/>
+        <location filename="../apps/write/app/pageview_merge.cpp" line="-32"/>
+        <location line="+37"/>
         <source>The shapes are too complex to merge.</source>
         <translation type="unfinished">Les formes sont trop complexes pour être fusionnées.</translation>
     </message>
@@ -57230,7 +57253,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
 <context>
     <name>jp::ShapeTools</name>
     <message>
-        <location filename="../libs/page/app/shapetools.cpp" line="+20"/>
+        <location filename="../libs/page/app/shapetools.cpp" line="+32"/>
         <location line="+6"/>
         <source>Edit Points</source>
         <translation type="unfinished">Modifier les points</translation>
@@ -57241,38 +57264,44 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
         <translation type="unfinished">Faites glisser un point pour remodeler. Ctrl+clic sur un point pour le supprimer, ou sur un bord pour en ajouter un. Maj+clic place un point de collage pour les connecteurs sur la forme, ou le retire. Appuyez sur Échap une fois terminé.</translation>
     </message>
     <message>
-        <location line="+8"/>
-        <location line="+31"/>
+        <location line="-93"/>
+        <location line="+105"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-1"/>
         <source>Merge Shapes</source>
         <translation type="unfinished">Fusionner les formes</translation>
     </message>
     <message>
-        <location line="-19"/>
+        <location line="-93"/>
         <source>Cancelling…</source>
         <translation type="unfinished">Annulation en cours…</translation>
     </message>
     <message>
-        <location line="+14"/>
+        <location line="+88"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-989"/>
         <source>Union</source>
         <translation type="unfinished">Union</translation>
     </message>
     <message>
         <location line="+0"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+0"/>
         <source>Combine</source>
         <translation type="unfinished">Combiner</translation>
     </message>
     <message>
         <location line="+0"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+0"/>
         <source>Subtract</source>
         <translation>Soustraction</translation>
     </message>
     <message>
         <location line="+0"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+1"/>
         <source>Intersect</source>
         <translation type="unfinished">Intersection</translation>
     </message>
     <message>
         <location line="+0"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+0"/>
         <source>Fragment</source>
         <translation type="unfinished">Fragmenter</translation>
     </message>
@@ -57283,11 +57312,13 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     </message>
     <message>
         <location line="+4"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+993"/>
         <source>Merge</source>
         <translation type="unfinished">Fusionner</translation>
     </message>
     <message numerus="yes">
         <location line="+7"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+7"/>
         <source>Made %n shapes.</source>
         <translation type="unfinished">
             <numerusform>%n forme créée.</numerusform>
@@ -61477,7 +61508,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+239"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-968"/>
         <source>Align Left</source>
         <translation type="unfinished">Aligner à gauche</translation>
     </message>
@@ -62001,13 +62032,13 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
         <translation type="unfinished">Bordure droite</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-163"/>
-        <location line="+282"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-176"/>
+        <location line="+295"/>
         <source>Line</source>
         <translation type="unfinished">Trait</translation>
     </message>
     <message>
-        <location line="-281"/>
+        <location line="-294"/>
         <source>Arrow</source>
         <translation type="unfinished">Flèche</translation>
     </message>
@@ -62171,17 +62202,17 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     </message>
     <message>
         <location line="+10"/>
-        <location line="+1059"/>
+        <location line="+1100"/>
         <source>Edit Points</source>
         <translation type="unfinished">Modifier les points</translation>
     </message>
     <message>
-        <location line="-1056"/>
+        <location line="-1097"/>
         <source>Drag a point to reshape. Ctrl+click a point to delete it, or the outline to add one. Press Esc when done.</source>
         <translation type="unfinished">Faites glisser un point pour le remodeler. Ctrl+clic sur un point pour le supprimer, ou sur le contour pour en ajouter un. Appuyez sur Échap une fois terminé.</translation>
     </message>
     <message>
-        <location line="+3"/>
+        <location line="+16"/>
         <source>Edit Text…</source>
         <translation type="unfinished">Modifier le texte…</translation>
     </message>
@@ -62588,6 +62619,11 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
         <translation type="unfinished">Faites glisser sur la page pour dessiner la forme ; cliquez pour insérer une forme de sa taille habituelle. Maj conserve les proportions, et Échap interrompt.</translation>
     </message>
     <message>
+        <location line="+102"/>
+        <source>The text of the other shapes was removed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
         <location filename="../apps/write/app/writewindow_objects.cpp" line="+25"/>
         <source>From JeffCrunch Range…</source>
         <translation type="unfinished">Depuis une plage de JeffCrunch…</translation>
@@ -62649,13 +62685,13 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
     </message>
     <message>
         <location line="+12"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+263"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+189"/>
         <location line="+13"/>
         <source>Object %1</source>
         <translation type="unfinished">Objet %1</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-672"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-700"/>
         <source>Insert Equation</source>
         <translation type="unfinished">Insérer une équation</translation>
     </message>
@@ -63081,7 +63117,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
         <translation type="unfinished">Tableaux prédéfinis</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+169"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+159"/>
         <location filename="../apps/write/app/writewindow_tables.cpp" line="+32"/>
         <source>Shading</source>
         <translation type="unfinished">Trame de fond</translation>
@@ -64134,7 +64170,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <location line="+6"/>
         <location line="+47"/>
         <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+15"/>
-        <location line="+26"/>
+        <location line="+23"/>
         <location filename="../apps/write/app/writewindow_tables.cpp" line="-191"/>
         <source>No Color</source>
         <translation type="unfinished">Aucune couleur</translation>
@@ -64160,7 +64196,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation>Couleur de page</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+19"/>
+        <location filename="../apps/write/app/writewindow_ribbon.cpp" line="+16"/>
         <source>No Shading</source>
         <translation type="unfinished">Aucune trame</translation>
     </message>
@@ -65999,7 +66035,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-776"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-789"/>
         <source>Plain</source>
         <translation type="unfinished">Simple</translation>
     </message>
@@ -66071,7 +66107,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+206"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="+219"/>
         <source>Column</source>
         <translation>Colonne</translation>
     </message>
@@ -66591,7 +66627,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_outline.cpp" line="+24"/>
-        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-204"/>
+        <location filename="../apps/write/app/writewindow_shapes.cpp" line="-217"/>
         <source>Outline</source>
         <translation type="unfinished">Plan</translation>
     </message>
@@ -82476,7 +82512,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation>En-tête</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview.cpp" line="+264"/>
+        <location filename="../apps/write/app/pageview.cpp" line="+265"/>
         <source>Place in this document: %1</source>
         <translation type="unfinished">Emplacement dans ce document : %1</translation>
     </message>
@@ -82811,7 +82847,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
     <message>
         <location filename="../apps/write/app/pageview_input.cpp" line="-353"/>
         <location filename="../apps/write/app/pageview_pictures.cpp" line="+18"/>
-        <location filename="../apps/write/core/pictureops.cpp" line="+2227"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="+2228"/>
         <source>That shape can&apos;t be put here.</source>
         <translation type="unfinished">Cette forme ne peut pas être placée ici.</translation>
     </message>
@@ -82857,31 +82893,31 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <location filename="../apps/write/core/pictureops.cpp" line="-1548"/>
         <location line="+351"/>
         <location line="+2051"/>
-        <location line="+1580"/>
+        <location line="+1797"/>
         <location line="+722"/>
         <source>The pictures in this document are as large together as JeffWrite puts in one, so this one is not added.</source>
         <translation type="unfinished">Les images de ce document atteignent déjà la taille totale maximale que JeffWrite accepte dans un document ; celle-ci n&apos;est donc pas ajoutée.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/pictureops.cpp" line="-4716"/>
+        <location filename="../apps/write/core/pictureops.cpp" line="-4933"/>
         <location line="+377"/>
         <location line="+825"/>
-        <location line="+3077"/>
+        <location line="+3294"/>
         <location line="+200"/>
         <source>A picture can&apos;t be put in a header, a footer, or a note yet.</source>
         <translation type="unfinished">Il n&apos;est pas encore possible d&apos;insérer une image dans un en-tête, un pied de page ou une note.</translation>
     </message>
     <message>
-        <location line="-4427"/>
+        <location line="-4644"/>
         <location line="+350"/>
         <location line="+823"/>
-        <location line="+3079"/>
+        <location line="+3296"/>
         <location line="+198"/>
         <source>A picture can&apos;t be put here, or this document holds as many pictures and drawn objects as JeffWrite can show.</source>
         <translation type="unfinished">Impossible d&apos;insérer une image ici, ou ce document contient déjà autant d&apos;images et d&apos;objets dessinés que JeffWrite peut en afficher.</translation>
     </message>
     <message>
-        <location line="-4414"/>
+        <location line="-4631"/>
         <source>This document holds as many pictures and drawn objects as JeffWrite can show. Save it, and open it again, to change more.</source>
         <translation type="unfinished">Ce document contient autant d&apos;images et d&apos;objets dessinés que JeffWrite peut en afficher. Enregistrez-le, puis rouvrez-le pour effectuer d&apos;autres modifications.</translation>
     </message>
@@ -82909,7 +82945,7 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">Cette zone de texte contient autre chose que du texte (un tableau, une image, un champ ou une liste), son texte ne peut donc pas être modifié ici.</translation>
     </message>
     <message>
-        <location line="+2680"/>
+        <location line="+2897"/>
         <source>That graphic has too much to draw, so it is left as it was.</source>
         <translation type="unfinished">Ce graphique contient trop d&apos;éléments à dessiner ; il est donc laissé tel quel.</translation>
     </message>
