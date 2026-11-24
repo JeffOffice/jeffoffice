@@ -12,6 +12,7 @@
 
 #include <QByteArray>
 #include <QDateTime>
+#include <QJsonObject>
 #include <QString>
 #include <QStringList>
 #include <QVector>
@@ -43,6 +44,7 @@ struct BlockInfo {
 struct BlockEntry {
     BlockInfo info;
     QByteArray data;
+    QJsonObject extra;   // fields of the entry this version does not know: kept when the file is written again
 };
 
 static const QString kBlocksGallery = QStringLiteral("saved");
@@ -55,6 +57,8 @@ public:
     static constexpr qint64 kMostEntryBytes = qint64(8) << 20;       // as much as a paste takes
     static constexpr qint64 kMostTotalBytes = qint64(256) << 20;     // of all the entries' bytes
     static constexpr qint64 kMostManifestBytes = qint64(4) << 20;
+    static constexpr qint64 kMostFileBytes = kMostTotalBytes + kMostManifestBytes + (qint64(4) << 20);   // all the entries, the manifest, and the zip's own headers
+    static constexpr int kMostAsideFiles = 9;                         // ".damaged", ".damaged-2", ... ".damaged-9": none is ever deleted
     static constexpr int kMostNameChars = 120;
     static constexpr int kMostTextChars = 1000;                      // a category or a description
     static constexpr qint64 kBackgroundBytes = qint64(2) << 20;      // a file this large is read on a thread of its own
@@ -76,7 +80,10 @@ public:
     // As load, on a thread of its own when the file is large; `done(ok)` runs on the thread of `context` (at once, when the file is small). Only one at a time.
     void loadInBackground(QObject *context, const std::function<void(bool)> &done);
     bool loaded() const { return m_loaded; }
-    bool loading() const { return m_thread != nullptr; }
+    bool loading() const { return m_thread != nullptr && !(m_state && m_state->abandoned.load()); }
+    // For tests: `hook` runs on the loading thread after it has read the file, before the answer is handed over. And `step` runs in a write after each chunk of bytes (its argument counts from 1).
+    static void setLoaderHook(const std::function<void()> &hook);
+    static void setWriteStepHook(const std::function<void(int)> &step);
 
     const QVector<BlockInfo> &list() const { return m_infos; }
     QVector<BlockInfo> list(const QString &gallery) const;
@@ -97,13 +104,20 @@ public:
     static QString cleanName(const QString &name);
 
 private:
+    // What a read found: a file that was read completely and is no library (`NotALibrary`) is the only one that may be put aside; one that could not be read, or is too large to read, is left as it is.
+    enum class Problem { None, NotALibrary, Unreadable };
     struct Content {
         QVector<BlockEntry> entries;
+        QJsonObject extra;    // fields of the manifest this version does not know
         bool newer = false;   // made by a later version: read for what it is, never written over
+        Problem problem = Problem::None;
+    };
+    struct LoadState {
+        std::atomic<bool> abandoned{false};   // the answer can never be delivered (the one who asked is gone)
     };
     static bool readFile(const QString &path, Content *out, QString *error);
     static bool readBytes(const QByteArray &zip, Content *out, QString *error);
-    static bool writeFile(const QString &path, const QVector<BlockEntry> &entries, QString *error);
+    static bool writeFile(const QString &path, const QVector<BlockEntry> &entries, const QJsonObject &extra, QString *error);
     bool change(const std::function<bool(QVector<BlockEntry> &, QString *)> &apply, QString *error);
     void adopt(Content &&content);
 
@@ -113,6 +127,8 @@ private:
     bool m_loaded = false;
     std::unique_ptr<WorkThread> m_thread;
     std::shared_ptr<std::atomic<bool>> m_alive;
+    std::shared_ptr<LoadState> m_state;
+    quint64 m_generation = 0;   // a load that was started before the last change or load is out of date
 };
 
 } // namespace jp

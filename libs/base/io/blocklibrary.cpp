@@ -16,6 +16,7 @@
 #include <QRegularExpression>
 #include <QSaveFile>
 #include <QSet>
+#include <QStorageInfo>
 #include <QStandardPaths>
 #include <QCoreApplication>
 #include <algorithm>
@@ -25,6 +26,8 @@ namespace jp {
 namespace {
 
 QString g_sharedPath;
+std::function<void()> g_loaderHook;
+std::function<void(int)> g_writeStep;
 
 bool validId(const QString &id)
 {
@@ -45,11 +48,11 @@ QString entryFile(const QString &id) { return QStringLiteral("e/") + id + QStrin
 
 } // namespace
 
-BlockLibrary::BlockLibrary(const QString &path) : m_path(path) {}
+BlockLibrary::BlockLibrary(const QString &path) : m_path(path), m_alive(std::make_shared<std::atomic<bool>>(true)) {}
 
 BlockLibrary::~BlockLibrary()
 {
-    if (m_alive) m_alive->store(false);
+    m_alive->store(false);
     if (m_thread) m_thread->join();
 }
 
@@ -82,39 +85,56 @@ QString BlockLibrary::cleanName(const QString &name)
 bool BlockLibrary::readBytes(const QByteArray &zip, Content *out, QString *error)
 {
     out->entries.clear();
-    QByteArray manifest;
+    out->extra = QJsonObject();
+    out->newer = false;
+    out->problem = Problem::NotALibrary;
+    const QString notLibrary = QCoreApplication::translate("jp::BlockLibrary", "This is not a library of saved blocks.");
     QHash<QString, QByteArray> files;
-    bool sawManifest = false;
+    bool sawManifest = false, manifestTooLarge = false, parsed = false;
+    QJsonObject root;
     QSet<QString> wanted;
     ZipScanStats stats;
-    // (Only the manifest and the entry files are kept; the scan holds one entry's bytes at a time and stops at the limits.)
+    // (Only the manifest and the entry files are kept; the scan holds one entry's bytes at a time and stops at the limits. This version writes the manifest first, so the entries
+    // it does not list are not kept; an older file has it last, and keeps them all until the manifest comes.)
     scanZipEach(zip, [&](ZipScanEntry &e) {
         if (e.name == QLatin1String("library.json")) {
             if (e.whole && e.data.size() <= kMostManifestBytes) {
-                manifest = e.data;
                 sawManifest = true;
+                QJsonParseError parse;
+                const QJsonDocument doc = QJsonDocument::fromJson(e.data, &parse);
+                if (parse.error == QJsonParseError::NoError && doc.isObject()) {
+                    parsed = true;
+                    root = doc.object();
+                    for (const QJsonValue &v : root.value(QStringLiteral("entries")).toArray())
+                        if (v.isObject()) wanted.insert(entryFile(v.toObject().value(QStringLiteral("id")).toString()));
+                }
+            } else if (e.whole || e.problem.contains(QLatin1String("too large"))) {
+                manifestTooLarge = true;
             }
         } else if (e.name.startsWith(QLatin1String("e/")) && e.name.endsWith(QLatin1String(".bin")) && e.whole && !e.data.isEmpty() && e.data.size() <= kMostEntryBytes) {
-            files.insert(e.name, e.data);
+            if (!sawManifest || wanted.contains(e.name)) files.insert(e.name, e.data);
         }
-    }, kMostEntries * 2 + 8, kMostEntryBytes, kMostTotalBytes, &stats);
-    if (!sawManifest) {
-        if (error) *error = QCoreApplication::translate("jp::BlockLibrary", "This is not a library of saved blocks.");
+    }, kMostEntries * 2 + 8, kMostEntryBytes, kMostTotalBytes + kMostManifestBytes, &stats);
+    if (manifestTooLarge) {
+        out->problem = Problem::Unreadable;
+        if (error) *error = QCoreApplication::translate("jp::BlockLibrary", "The list of saved blocks is too large to read.");
         return false;
     }
-    QJsonParseError parse;
-    const QJsonDocument doc = QJsonDocument::fromJson(manifest, &parse);
-    if (parse.error != QJsonParseError::NoError || !doc.isObject()) {
-        if (error) *error = QCoreApplication::translate("jp::BlockLibrary", "This is not a library of saved blocks.");
+    if (!sawManifest || !parsed) {
+        if (error) *error = notLibrary;
         return false;
     }
-    const QJsonObject root = doc.object();
     const int version = root.value(QStringLiteral("version")).toInt(0);
     if (version < 1) {
-        if (error) *error = QCoreApplication::translate("jp::BlockLibrary", "This is not a library of saved blocks.");
+        if (error) *error = notLibrary;
         return false;
     }
+    out->problem = Problem::None;
     out->newer = version > kVersion;
+    for (auto it = root.begin(); it != root.end(); ++it)
+        if (it.key() != QLatin1String("version") && it.key() != QLatin1String("entries")) out->extra.insert(it.key(), it.value());
+    static const QSet<QString> known = {QStringLiteral("id"), QStringLiteral("name"), QStringLiteral("gallery"), QStringLiteral("category"), QStringLiteral("description"),
+                                        QStringLiteral("format"), QStringLiteral("insertAs"), QStringLiteral("created")};
     QSet<QString> seen;
     qint64 total = 0;
     const QJsonArray list = root.value(QStringLiteral("entries")).toArray();
@@ -137,6 +157,8 @@ bool BlockLibrary::readBytes(const QByteArray &zip, Content *out, QString *error
         e.info.insertAs = how == 1 ? BlockInsert::Paragraph : how == 2 ? BlockInsert::Page : BlockInsert::Content;
         e.info.created = qint64(o.value(QStringLiteral("created")).toDouble(0));
         e.info.size = e.data.size();
+        for (auto it = o.begin(); it != o.end(); ++it)
+            if (!known.contains(it.key())) e.extra.insert(it.key(), it.value());
         total += e.data.size();
         seen.insert(e.info.id);
         out->entries.push_back(std::move(e));
@@ -147,22 +169,42 @@ bool BlockLibrary::readBytes(const QByteArray &zip, Content *out, QString *error
 bool BlockLibrary::readFile(const QString &path, Content *out, QString *error)
 {
     out->entries.clear();
+    out->extra = QJsonObject();
     out->newer = false;
+    out->problem = Problem::None;
     QFile f(path);
     if (!f.exists()) return true;
-    if (f.size() > kMostTotalBytes + kMostManifestBytes || !f.open(QIODevice::ReadOnly)) {
-        if (error) *error = QCoreApplication::translate("jp::BlockLibrary", "The library of saved blocks could not be read.");
+    // (A file that cannot be read whole is no proof that it is no library: it is left as it is.)
+    out->problem = Problem::Unreadable;
+    if (f.size() > kMostFileBytes) {
+        if (error) *error = QCoreApplication::translate("jp::BlockLibrary", "The library of saved blocks is too large to read.");
         return false;
     }
-    return readBytes(f.readAll(), out, error);
+    if (!f.open(QIODevice::ReadOnly)) {
+        if (error) *error = QCoreApplication::translate("jp::BlockLibrary", "The library of saved blocks could not be read: %1").arg(f.errorString());
+        return false;
+    }
+    const qint64 expected = f.size();
+    const QByteArray bytes = f.readAll();
+    if (f.error() != QFileDevice::NoError || bytes.size() != expected) {
+        if (error) *error = QCoreApplication::translate("jp::BlockLibrary", "The library of saved blocks could not be read: %1").arg(f.errorString());
+        return false;
+    }
+    return readBytes(bytes, out, error);
 }
 
-bool BlockLibrary::writeFile(const QString &path, const QVector<BlockEntry> &entries, QString *error)
+bool BlockLibrary::writeFile(const QString &path, const QVector<BlockEntry> &entries, const QJsonObject &extra, QString *error)
 {
+    // (Nothing is written that the reader would refuse.)
+    qint64 total = 0;
+    for (const BlockEntry &e : entries) total += e.data.size();
+    if (entries.size() > kMostEntries || total > kMostTotalBytes) {
+        if (error) *error = QCoreApplication::translate("jp::BlockLibrary", "There are as many saved blocks as the library holds. Delete some to save this one.");
+        return false;
+    }
     QJsonArray list;
-    ZipWriter zip;
     for (const BlockEntry &e : entries) {
-        QJsonObject o;
+        QJsonObject o = e.extra;
         o.insert(QStringLiteral("id"), e.info.id);
         o.insert(QStringLiteral("name"), e.info.name);
         o.insert(QStringLiteral("gallery"), e.info.gallery);
@@ -172,17 +214,39 @@ bool BlockLibrary::writeFile(const QString &path, const QVector<BlockEntry> &ent
         o.insert(QStringLiteral("insertAs"), int(e.info.insertAs));
         o.insert(QStringLiteral("created"), double(e.info.created));
         list.append(o);
-        zip.add(entryFile(e.info.id), e.data, false);
     }
-    QJsonObject root;
+    QJsonObject root = extra;
     root.insert(QStringLiteral("version"), kVersion);
     root.insert(QStringLiteral("entries"), list);
-    zip.add(QStringLiteral("library.json"), QJsonDocument(root).toJson(QJsonDocument::Compact), true);
+    const QByteArray manifest = QJsonDocument(root).toJson(QJsonDocument::Compact);
+    if (manifest.size() > kMostManifestBytes) {
+        if (error) *error = QCoreApplication::translate("jp::BlockLibrary", "The names and descriptions of the saved blocks have used up the room kept for them. Delete some blocks to save this one.");
+        return false;
+    }
+    ZipWriter zip;
+    zip.add(QStringLiteral("library.json"), manifest, true);   // (first: a reader knows which entries to keep)
+    for (const BlockEntry &e : entries) zip.add(entryFile(e.info.id), e.data, false);
     const QByteArray bytes = zip.finish();
-    QDir().mkpath(QFileInfo(path).absolutePath());
+    const QString folder = QFileInfo(path).absolutePath();
+    QDir().mkpath(folder);
     QSaveFile out(path);
-    if (!out.open(QIODevice::WriteOnly) || out.write(bytes) != bytes.size() || !out.commit()) {
-        if (error) *error = QCoreApplication::translate("jp::BlockLibrary", "The library of saved blocks could not be saved: %1").arg(out.errorString());
+    bool ok = out.open(QIODevice::WriteOnly);
+    if (ok) {
+        const qint64 chunk = qint64(1) << 20;
+        int step = 0;
+        for (qint64 at = 0; ok && at < bytes.size(); at += chunk) {
+            const qint64 n = std::min(chunk, bytes.size() - at);
+            ok = out.write(bytes.constData() + at, n) == n;
+            if (ok && g_writeStep) g_writeStep(++step);
+        }
+    }
+    if (!ok || !out.commit()) {
+        if (error) {
+            if (QStorageInfo(folder).bytesAvailable() < bytes.size())
+                *error = QCoreApplication::translate("jp::BlockLibrary", "There is no room on the disk to save the blocks.");
+            else
+                *error = QCoreApplication::translate("jp::BlockLibrary", "The library of saved blocks could not be saved: %1").arg(out.errorString());
+        }
         return false;
     }
     return true;
@@ -197,34 +261,68 @@ void BlockLibrary::adopt(Content &&content)
     m_loaded = true;
 }
 
+void BlockLibrary::setLoaderHook(const std::function<void()> &hook) { g_loaderHook = hook; }
+void BlockLibrary::setWriteStepHook(const std::function<void(int)> &step) { g_writeStep = step; }
+
 bool BlockLibrary::load(QString *error)
 {
+    ++m_generation;
     Content c;
     const bool ok = readFile(m_path, &c, error);
     adopt(std::move(c));
     return ok;
 }
 
+namespace {
+
+// Held by the event that hands a finished load over: when the event is run, the load was delivered; when it is thrown away unrun (the one who asked is gone), the load is abandoned.
+struct Delivery {
+    explicit Delivery(std::shared_ptr<std::atomic<bool>> flag) : abandoned(std::move(flag)) {}
+    ~Delivery()
+    {
+        if (!delivered) abandoned->store(true);
+    }
+    std::shared_ptr<std::atomic<bool>> abandoned;
+    bool delivered = false;
+};
+
+} // namespace
+
 void BlockLibrary::loadInBackground(QObject *context, const std::function<void(bool)> &done)
 {
-    if (m_thread) return;
+    if (m_thread) {
+        if (!(m_state && m_state->abandoned.load())) return;   // (still on its way)
+        m_thread->join();
+        m_thread.reset();
+    }
     if (QFileInfo(m_path).size() < kBackgroundBytes) {
         const bool ok = load();
         if (done) done(ok);
         return;
     }
-    auto alive = std::make_shared<std::atomic<bool>>(true);
-    m_alive = alive;
+    const quint64 generation = ++m_generation;
+    auto state = std::make_shared<LoadState>();
+    m_state = state;
+    auto alive = m_alive;
     QPointer<QObject> where(context);
     const QString path = m_path;
-    m_thread = std::make_unique<WorkThread>([this, alive, where, path, done] {
+    m_thread = std::make_unique<WorkThread>([this, alive, state, generation, where, path, done] {
         auto content = std::make_shared<Content>();
         const bool ok = readFile(path, content.get(), nullptr);
-        if (!where) return;
-        QMetaObject::invokeMethod(where.data(), [this, alive, content, ok, done] {
+        if (g_loaderHook) g_loaderHook();
+        if (!where) {
+            state->abandoned.store(true);
+            return;
+        }
+        auto flag = std::shared_ptr<std::atomic<bool>>(state, &state->abandoned);
+        auto delivery = std::make_shared<Delivery>(flag);
+        QMetaObject::invokeMethod(where.data(), [this, alive, generation, content, ok, done, delivery] {
+            delivery->delivered = true;
             if (!alive->load()) return;
-            adopt(std::move(*content));
-            m_thread.reset();
+            if (generation == m_generation) {   // (a change made since the load started has put newer content in place)
+                adopt(std::move(*content));
+                m_thread.reset();
+            }
             if (done) done(ok);
         }, Qt::QueuedConnection);
     });
@@ -263,31 +361,48 @@ QByteArray BlockLibrary::data(const QString &id) const
 bool BlockLibrary::change(const std::function<bool(QVector<BlockEntry> &, QString *)> &apply, QString *error)
 {
     if (m_thread) m_thread->join(), m_thread.reset();
+    ++m_generation;   // (a load that is still on its way is out of date)
     QDir().mkpath(QFileInfo(m_path).absolutePath());
     QLockFile lock(m_path + QStringLiteral(".lock"));
     lock.setStaleLockTime(30000);
     if (!lock.tryLock(10000)) {
-        if (error) *error = QCoreApplication::translate("jp::BlockLibrary", "Another window is changing the saved blocks. Try again in a moment.");
+        if (error) {
+            if (lock.error() == QLockFile::PermissionError)
+                *error = QCoreApplication::translate("jp::BlockLibrary", "The saved blocks cannot be changed: this computer does not let the program write in their folder.");
+            else
+                *error = QCoreApplication::translate("jp::BlockLibrary", "Another window is changing the saved blocks. Try again in a moment.");
+        }
         return false;
     }
     Content c;
     QString problem;
     if (!readFile(m_path, &c, &problem)) {
-        // (A file that is no library is put aside, not written over.)
-        QFile::remove(m_path + QStringLiteral(".damaged"));
-        if (!QFile::rename(m_path, m_path + QStringLiteral(".damaged"))) {
+        // (Only a file that was read completely and is no library is put aside, never written over; one that could not be read is left as it is, and the change is refused.)
+        if (c.problem != Problem::NotALibrary) {
             if (error) *error = problem;
             return false;
         }
-        c.entries.clear();
-        c.newer = false;
+        QString aside;
+        for (int n = 1; n <= kMostAsideFiles && aside.isEmpty(); ++n) {
+            const QString candidate = m_path + QStringLiteral(".damaged") + (n > 1 ? QStringLiteral("-%1").arg(n) : QString());
+            if (!QFileInfo::exists(candidate) && !QFileInfo(candidate).isSymLink()) aside = candidate;
+        }
+        if (aside.isEmpty()) {
+            if (error) *error = QCoreApplication::translate("jp::BlockLibrary", "The saved blocks file is damaged, and the folder already holds earlier damaged copies of it. Remove some of the files that end in .damaged from the folder %1 to go on.").arg(QDir::toNativeSeparators(QFileInfo(m_path).absolutePath()));
+            return false;
+        }
+        if (!QFile::rename(m_path, aside)) {
+            if (error) *error = problem;
+            return false;
+        }
+        c = Content();
     }
     if (c.newer) {
         if (error) *error = QCoreApplication::translate("jp::BlockLibrary", "These saved blocks were made by a newer version of JeffOffice. Update the program to change them.");
         return false;
     }
     if (!apply(c.entries, error)) return false;
-    if (!writeFile(m_path, c.entries, error)) return false;
+    if (!writeFile(m_path, c.entries, c.extra, error)) return false;
     adopt(std::move(c));
     return true;
 }
@@ -384,7 +499,7 @@ bool BlockLibrary::exportTo(const QString &file, const QStringList &ids, QString
     const QSet<QString> want(ids.begin(), ids.end());
     for (const BlockEntry &e : m_entries)
         if (want.isEmpty() || want.contains(e.info.id)) out.push_back(e);
-    return writeFile(file, out, error);
+    return writeFile(file, out, QJsonObject(), error);
 }
 
 int BlockLibrary::importFrom(const QString &file, QString *error, int *skipped)
@@ -412,7 +527,7 @@ int BlockLibrary::importFrom(const QString &file, QString *error, int *skipped)
                 continue;
             }
             if (all.size() >= kMostEntries || total + e.data.size() > kMostTotalBytes) {
-                if (err) *err = QCoreApplication::translate("jp::BlockLibrary", "There are as many saved blocks as the library holds. Delete some to save this one.");
+                if (err) *err = QCoreApplication::translate("jp::BlockLibrary", "There is no room in the library for the rest of these blocks.");
                 return added > 0;
             }
             if (ids.contains(e.info.id))
