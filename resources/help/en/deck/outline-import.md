@@ -23,7 +23,18 @@ Choose **File > Open** and pick the outline file. JeffDeck makes a new presentat
 
 ## Limits
 
-An outline can make up to 5,000 slides. A slide's text has up to 9 levels, and a line indented deeper is shown at the deepest one. A text file can be up to 10 MB, in UTF-8 or UTF-16. A file that is not text is refused. When something is left out, such as a picture that could not be used or text past a limit, JeffDeck tells you what.
+These limits apply to every kind of outline file, text, Markdown, rich text, and .docx alike:
+
+- Up to 5,000 slides. Anything after that is left out.
+- Up to 4,000 characters in a line. A longer line is cut, and so is a Markdown paragraph whose lines join into one longer than that.
+- Up to 500 lines of text on a slide, and 100,000 lines in all.
+- A slide's text has up to 9 levels, and a line indented deeper is shown at the deepest one.
+- Up to 200 lines of code on a slide.
+- Up to 100 pictures in all and 4 on a slide. A picture file can be up to 32 MB, and all the picture files together up to 64 MB. A picture has to be a PNG, JPEG, GIF, BMP, WebP, or TIFF file, whatever its name says, with up to 16 million pixels (4,000 by 4,000), and all the pictures together up to 64 million.
+
+The size of the file itself is limited too. A text or Markdown file can be up to 10 MB, in UTF-8 or UTF-16. A rich text or .docx file can be up to 96 MB. A file that is not text is refused. Pictures in a rich text or .docx file are not put on the slides, and JeffDeck tells you how many were left out.
+
+When something is left out, such as a picture that could not be used or text past a limit, JeffDeck tells you what. While a big file is read, JeffDeck keeps working, and closing the window stops the reading.
 
 ## Save a copy as an outline
 
