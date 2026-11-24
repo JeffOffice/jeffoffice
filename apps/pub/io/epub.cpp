@@ -220,6 +220,10 @@ QString Book::inlines(const QTextBlock &b, bool inNote)
         }
         if (cf.fontCapitalization() == QFont::SmallCaps) text = QStringLiteral("<span style=\"font-variant: small-caps\">%1</span>").arg(text);
         else if (cf.fontCapitalization() == QFont::AllUppercase) text = QStringLiteral("<span style=\"text-transform: uppercase\">%1</span>").arg(text);
+        if (cf.hasProperty(tp::HighlightRefP)) {
+            const QColor hl = ColorRef::fromString(cf.stringProperty(tp::HighlightRefP)).resolve(m_doc.colors);
+            if (hl.isValid()) text = QStringLiteral("<span style=\"background-color: %1\">%2</span>").arg(hl.name(), text);
+        }
         if (cf.verticalAlignment() == QTextCharFormat::AlignSuperScript) text = QStringLiteral("<sup>%1</sup>").arg(text);
         else if (cf.verticalAlignment() == QTextCharFormat::AlignSubScript) text = QStringLiteral("<sub>%1</sub>").arg(text);
         if (cf.fontStrikeOut()) text = QStringLiteral("<s>%1</s>").arg(text);

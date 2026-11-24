@@ -866,6 +866,7 @@ private:
     // Text: stream bytes from offset 512, runs, story lengths and ids.
     QByteArray m_text;
     QVector<Run> m_charRuns, m_paraRuns;
+    bool m_droppedHighlight = false;   // some text has a highlight color, which .pub has no place for
     QVector<quint32> m_storyLengths;
     QVector<int> m_textIds;
     // Text boxes: text id, place in its chain of linked boxes, sequence number.
@@ -956,6 +957,7 @@ QVector<B> PubWriter::charBlocks(const QTextCharFormat &f, const QTextCharFormat
     else if (f.verticalAlignment() == QTextCharFormat::AlignSubScript) p << u16(0x0f, 2, 0x12);
     if (size > 0) p << u32(0x39, quint32(emu(size)), 0x22);
     p << u32(0x3e, language, 0x22);
+    if (f.hasProperty(tp::HighlightRefP)) m_droppedHighlight = true;
     const QString cref = f.stringProperty(tp::ColorRefP);
     QColor color;
     if (!cref.isEmpty()) color = ColorRef::fromString(cref).resolve(m_doc.colors);
@@ -2412,6 +2414,7 @@ QByteArray PubWriter::write(QStringList *skipped)
     if (skipped && skippedCount) *skipped << QCoreApplication::translate("Export", "%n object(s) couldn't be saved to .pub", nullptr, skippedCount);
     if (skipped && chartPictures) *skipped << QCoreApplication::translate("Export", "charts were saved as pictures, so their data can't be edited in a .pub file");
     if (skipped && equationsAsPictures) *skipped << QCoreApplication::translate("Export", "equations were saved to .pub as pictures, because .pub has no equations");
+    if (skipped && m_droppedHighlight) *skipped << QCoreApplication::translate("Export", "text highlight colors couldn't be saved to .pub");
     if (skipped && droppedCells) *skipped << QCoreApplication::translate("Export", "%n table cell(s) couldn't be saved to .pub", nullptr, droppedCells);
     if (skipped && droppedHalves)
         *skipped << QCoreApplication::translate("Export", "the second half of %n divided table cell(s) couldn't be saved to .pub", nullptr, droppedHalves);
