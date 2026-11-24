@@ -1,0 +1,2 @@
+# One line for each file with a static object of a thread-owning type: path | number of uses | reason. tools/check_static_threads.py reads it; the number must match exactly.
+# (none: libs/shell/app/shutdown.h says how every such object is made)
