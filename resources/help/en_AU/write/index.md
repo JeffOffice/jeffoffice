@@ -48,6 +48,7 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 - [Breaks, columns, hyphenation, and line numbers](breaks-columns)
 - [Put in symbols and special characters](symbols-special-characters)
 - [Add links and text from other files](links)
+- [Save a block and put it in again](saved-blocks)
 - [Make forms with content controls](content-controls)
 - [Change the colour and borders of the pages](page-look)
 - [Find your way with the Navigation pane](navigation-pane)

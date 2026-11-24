@@ -262,6 +262,25 @@
     </message>
 </context>
 <context>
+    <name>jp::Blocks</name>
+    <message numerus="yes">
+        <location filename="../libs/shell/app/blockgallery.cpp" line="+362"/>
+        <source>%n block was added.</source>
+        <translation>
+            <numerusform>%n block was added.</numerusform>
+            <numerusform>%n blocks were added.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+0"/>
+        <source>%n block was left out because its name is already saved.</source>
+        <translation>
+            <numerusform>%n block was left out because its name is already saved.</numerusform>
+            <numerusform>%n blocks were left out because their names are already saved.</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>jp::CompatibilityDialog</name>
     <message numerus="yes">
         <location filename="../libs/base/core/lossnotes.h" line="+32"/>

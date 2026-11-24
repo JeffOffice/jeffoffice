@@ -13765,7 +13765,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+4"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+1"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+2"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+6"/>
         <source>Editing</source>
         <translation type="unfinished">Modifica</translation>
@@ -14611,7 +14611,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="-61"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+3"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-71"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-72"/>
         <source>Aspect Ratio</source>
         <translation type="unfinished">Proporzioni</translation>
     </message>
@@ -14716,7 +14716,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
     </message>
     <message>
         <location line="+3"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+15"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+16"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+23"/>
         <source>Format</source>
         <translation>Formato</translation>
@@ -14991,7 +14991,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <translation type="unfinished">Larghezza:</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-178"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-179"/>
         <source>Accept</source>
         <translation type="unfinished">Accetta</translation>
     </message>
@@ -15016,12 +15016,12 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <translation type="unfinished">Cambia grafica</translation>
     </message>
     <message>
-        <location line="+40"/>
+        <location line="+41"/>
         <source>Fit</source>
         <translation type="unfinished">Adatta</translation>
     </message>
     <message>
-        <location line="-48"/>
+        <location line="-49"/>
         <source>Borders and Shading</source>
         <translation type="unfinished">Bordi e sfondo</translation>
     </message>
@@ -15156,7 +15156,12 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
         <translation type="unfinished">Disegna</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+3"/>
+        <source>Saved Blocks</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
         <source>Focus</source>
         <translation type="unfinished">Focus</translation>
     </message>
@@ -15419,7 +15424,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="-52"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="-53"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="-154"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="-155"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+16"/>
         <source>Chart</source>
         <translation type="unfinished">Grafico</translation>
@@ -15491,7 +15496,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
     <message>
         <location filename="../apps/pub/app/ribbon_strings.cpp" line="+32"/>
         <location filename="../apps/deck/app/ribbon_strings.cpp" line="+34"/>
-        <location filename="../apps/write/app/ribbon_strings.cpp" line="+47"/>
+        <location filename="../apps/write/app/ribbon_strings.cpp" line="+48"/>
         <location filename="../apps/crunch/app/ribbon_strings.cpp" line="+10"/>
         <source>Layouts</source>
         <translation type="unfinished">Layout</translation>
@@ -22659,6 +22664,277 @@ Desktop publishing</translation>
         <location filename="../libs/shell/app/filescreenparts.cpp" line="+9"/>
         <source>Third-party software</source>
         <translation type="unfinished">Software di terze parti</translation>
+    </message>
+</context>
+<context>
+    <name>jp::BlockLibrary</name>
+    <message>
+        <location filename="../libs/base/io/blocklibrary.cpp" line="+104"/>
+        <location line="+436"/>
+        <source>This is not a library of saved blocks.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-407"/>
+        <source>The list of saved blocks is too large to read.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+60"/>
+        <source>The library of saved blocks is too large to read.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+6"/>
+        <source>The library of saved blocks could not be read: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <location line="+260"/>
+        <source>There are as many saved blocks as the library holds. Delete some to save this one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-239"/>
+        <source>The names and descriptions of the saved blocks have used up the room kept for them. Delete some blocks to save this one.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>There is no room on the disk to save the blocks.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>The library of saved blocks could not be saved: %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+140"/>
+        <source>The saved blocks cannot be changed: this computer does not let the program write in their folder.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Another window is changing the saved blocks. Try again in a moment.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>The saved blocks file is damaged, and the folder already holds earlier damaged copies of it. Remove some of the files that end in .damaged from the folder %1 to go on.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>These saved blocks were made by a newer version of JeffOffice. Update the program to change them.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <location line="+45"/>
+        <source>A saved block needs a name.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-41"/>
+        <source>This is too large to save as a block.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <location line="+33"/>
+        <source>A block with this name is already saved.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>This block is no longer in the library.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+55"/>
+        <source>There is no room in the library for the rest of these blocks.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>jp::Blocks</name>
+    <message>
+        <location filename="../libs/shell/app/blockgallery.cpp" line="+30"/>
+        <source>Text Shortcuts</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Saved Blocks</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+42"/>
+        <source>Search by name</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Search saved blocks</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Saved blocks</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Nothing is saved here yet. Select some text, then choose Save Selection as a Block.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+104"/>
+        <source>Block Properties</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <location line="+59"/>
+        <location line="+4"/>
+        <source>Save as a Block</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-58"/>
+        <location line="+1"/>
+        <source>Name</source>
+        <translation>Nome</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <location line="+5"/>
+        <location line="+61"/>
+        <source>Gallery</source>
+        <translation type="unfinished">Raccolta</translation>
+    </message>
+    <message>
+        <location line="-58"/>
+        <location line="+1"/>
+        <source>Category</source>
+        <translation type="unfinished">Categoria</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <location line="+2"/>
+        <source>Description</source>
+        <translation>Descrizione</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <location line="+5"/>
+        <source>Put it in</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-4"/>
+        <source>As it is, at the cursor</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>In a paragraph of its own</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>On a page of its own</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Save</source>
+        <translation>Salva</translation>
+    </message>
+    <message>
+        <location line="+26"/>
+        <source>A block with this name is already saved. Replace it?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>Manage Saved Blocks</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <source>Edit Properties…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Delete</source>
+        <translation type="unfinished">Elimina</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Undo Delete</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Export…</source>
+        <translation type="unfinished">Esporta…</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Import…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+47"/>
+        <source>Deleted &quot;%1&quot;. Undo Delete puts it back until you close this box.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>Export Saved Blocks</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Saved Blocks.jblocks</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <location line="+6"/>
+        <source>Saved blocks (*.jblocks)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-3"/>
+        <source>The saved blocks were exported.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Import Saved Blocks</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+6"/>
+        <source>%n block was added.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+0"/>
+        <source>%n block was left out because its name is already saved.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
     </message>
 </context>
 <context>
@@ -63566,7 +63842,7 @@ Il browser web aprirà LibreTranslate, un servizio di traduzione gratuito e open
     <message>
         <location line="-597"/>
         <location filename="../apps/write/app/writewindow_graphics.cpp" line="+88"/>
-        <location filename="../apps/write/app/writewindow_insert.cpp" line="+138"/>
+        <location filename="../apps/write/app/writewindow_insert.cpp" line="+216"/>
         <location filename="../apps/write/app/writewindow_pictures.cpp" line="+163"/>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="-319"/>
         <location line="+60"/>
@@ -66304,7 +66580,32 @@ Impossibile applicare la password al file.</translation>
         </translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_insert.cpp" line="-64"/>
+        <location filename="../apps/write/app/writewindow_insert.cpp" line="-119"/>
+        <source>A saved block can be put in the text of the document, not in a header, a footer, or a note.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+25"/>
+        <source>Save as a Block</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Save the block anyway?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Saved &quot;%1&quot; to %2.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>No Text Shortcut ends just before the cursor.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
         <source>Symbol…</source>
         <translation type="unfinished">Simbolo…</translation>
     </message>
@@ -66436,6 +66737,21 @@ Impossibile applicare la password al file.</translation>
     </message>
     <message>
         <location line="+7"/>
+        <source>Save Selection as a Block…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Manage Saved Blocks…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Expand Text Shortcut</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Link…</source>
         <translation type="unfinished">Collegamento…</translation>
     </message>
@@ -78686,6 +79002,66 @@ Impossibile applicare la password al file.</translation>
     </message>
 </context>
 <context>
+    <name>jp::write::Blocks</name>
+    <message>
+        <location filename="../apps/write/core/blockops.cpp" line="+138"/>
+        <source>Select what you want to save first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <location line="+16"/>
+        <source>There is nothing in the selection that can be saved as a block.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-5"/>
+        <source>Part of a table, or a table that is too large, is saved as its words, one paragraph for each cell, and not as a table.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Footnotes and endnotes are left out.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Comments are left out.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Tracked changes are accepted: the words that were inserted are kept, and the words that were deleted are not.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>The selection could not be saved as a block.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The selection is too large to save as a block.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+23"/>
+        <location line="+3"/>
+        <source>This block cannot be read.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>This block is empty.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+22"/>
+        <source>The block could not be put in here.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>jp::write::Bookmarks</name>
     <message>
         <location filename="../apps/write/core/refops.cpp" line="+111"/>
@@ -82903,8 +83279,8 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">+%1 altri</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="+123"/>
-        <location line="+491"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="+135"/>
+        <location line="+503"/>
         <source>Keep Source Formatting</source>
         <translation type="unfinished">Mantieni formattazione originale</translation>
     </message>
@@ -82914,19 +83290,34 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Lo Spike è pieno. Incollalo per svuotarlo.</translation>
     </message>
     <message>
-        <location line="-63"/>
-        <location line="+491"/>
+        <location line="-75"/>
+        <location line="+503"/>
         <source>Merge Formatting</source>
         <translation type="unfinished">Unisci formattazione</translation>
     </message>
     <message>
-        <location line="-490"/>
-        <location line="+492"/>
+        <location line="-544"/>
+        <source>A table with changes tracked in it is copied as its words, not as a table. Accept or reject the changes to copy it as a table.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A table in a selection that holds only a part of a content control is copied as its words, not as a table.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This selection has more tables, or more cells, than a copy keeps as tables, so they are copied as their words.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+40"/>
+        <location line="+504"/>
         <source>Keep Text Only</source>
         <translation type="unfinished">Mantieni solo testo</translation>
     </message>
     <message>
-        <location line="-491"/>
+        <location line="-503"/>
         <source>Pasting within the same document</source>
         <translation type="unfinished">Incollamento all&apos;interno dello stesso documento</translation>
     </message>
@@ -82941,7 +83332,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Incollamento da altri programmi</translation>
     </message>
     <message>
-        <location line="+491"/>
+        <location line="+503"/>
         <source>Continue List</source>
         <translation type="unfinished">Continua elenco</translation>
     </message>
@@ -83244,7 +83635,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Impossibile aprire %1 come immagine.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/editops.cpp" line="+2135"/>
+        <location filename="../apps/write/core/editops.cpp" line="+2239"/>
         <location filename="../apps/write/core/pictureops.cpp" line="-1548"/>
         <location line="+351"/>
         <location line="+2051"/>
@@ -83400,7 +83791,7 @@ Impossibile applicare la password al file.</translation>
 <context>
     <name>jp::write::ReadyTables</name>
     <message>
-        <location filename="../apps/write/core/tableops.cpp" line="+2228"/>
+        <location filename="../apps/write/core/tableops.cpp" line="+2229"/>
         <source>Column 1</source>
         <translation type="unfinished">Colonna 1</translation>
     </message>
@@ -84016,29 +84407,29 @@ Impossibile applicare la password al file.</translation>
     </message>
     <message>
         <location line="+32"/>
-        <location line="+334"/>
+        <location line="+402"/>
         <source>The document has the most styles it can hold.</source>
         <translation type="unfinished">Il documento contiene il numero massimo di stili consentito.</translation>
     </message>
     <message>
-        <location line="-293"/>
-        <location line="+306"/>
+        <location line="-361"/>
+        <location line="+374"/>
         <source>The document keeps no history, so the style was not made.</source>
         <translation type="unfinished">Il documento non conserva la cronologia, quindi lo stile non è stato creato.</translation>
     </message>
     <message>
-        <location line="-466"/>
+        <location line="-534"/>
         <location line="+22"/>
         <location line="+160"/>
         <location line="+56"/>
         <location line="+40"/>
-        <location line="+201"/>
+        <location line="+269"/>
         <location line="+41"/>
         <source>The document has no such style.</source>
         <translation type="unfinished">Lo stile non esiste nel documento.</translation>
     </message>
     <message>
-        <location line="-477"/>
+        <location line="-545"/>
         <source>The styles can&apos;t be written to a file.</source>
         <translation type="unfinished">Impossibile scrivere gli stili in un file.</translation>
     </message>
@@ -84049,12 +84440,12 @@ Impossibile applicare la password al file.</translation>
     </message>
     <message>
         <location line="+186"/>
-        <location line="+274"/>
+        <location line="+342"/>
         <source>The document keeps no history, so the style was not changed.</source>
         <translation type="unfinished">Il documento non conserva la cronologia, quindi lo stile non è stato modificato.</translation>
     </message>
     <message>
-        <location line="-225"/>
+        <location line="-293"/>
         <source>Only a style you made can be deleted.</source>
         <translation type="unfinished">È possibile eliminare solo uno stile creato dall&apos;utente.</translation>
     </message>
@@ -84069,12 +84460,12 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Il documento non conserva la cronologia, quindi gli stili non sono stati importati.</translation>
     </message>
     <message>
-        <location line="+90"/>
+        <location line="+158"/>
         <source>There is no style to update here.</source>
         <translation type="unfinished">Non ci sono stili da aggiornare qui.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/editops.cpp" line="+1049"/>
+        <location filename="../apps/write/core/editops.cpp" line="+1050"/>
         <source>The document has too many list styles.</source>
         <translation type="unfinished">Il documento contiene troppi stili elenco.</translation>
     </message>

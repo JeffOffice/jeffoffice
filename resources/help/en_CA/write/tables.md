@@ -123,6 +123,16 @@ A move is one step. The words, shading, and borders of the cells go with the tab
 
 A table can't be put right against another table, so keep a paragraph between them. The move commands are grey where the table can't go: above the first paragraph, below the last one, or past a paragraph that would leave two tables together. A table inside another table's cell can't be moved this way. The handle is not shown in a document that is read-only or protected. Every paragraph around the table keeps its own formatting.
 
+## Copy and paste a table
+
+Select a whole table, with the paragraph before it or after it, or from its first cell to its last, and copy it. Paste puts in a table: the rows, columns, widths, borders, shading, merged cells, header row, tables inside cells, and the table style. Paste it in the same document or in another one. If the other document has no table style of that name, JeffWrite adds it. If it has one of that name that looks different, its own style and its own tables stay as they are, and the pasted table gets the style that came with it, added under the same name with a number after it ("Grid 2"). Pasting the same table again uses that style again. A paste is one step, so **Undo** takes the whole table out.
+
+- With **Track Changes** on, a pasted table is a tracked insertion: its rows and words are marked as inserted, so **Reject All** takes the whole table out, and **Accept All** keeps it.
+- If you select only a part of a table, only its words are copied, one paragraph for each cell.
+- A table with tracked changes of its own is copied as its words, and a table is copied as its words when it is inside a selection that holds only a part of a content control, or when the selection holds more than 100 tables or 20,000 cells. In each case JeffWrite says so after you copy.
+- Pasted into a cell, a header, a footer, or a note, a table comes in as its words.
+- Tables in text pasted from a file with **Insert > Text from File**, and in RTF pasted from another program, are kept as tables in the same way, with the same limits.
+
 ## Draw a table
 
 Click **Insert > Table > Draw Table**, or **Table Layout > Draw Table**. The pointer becomes a cross, and it stays one until you press **Esc** or click the button again.
