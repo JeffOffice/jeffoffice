@@ -2517,6 +2517,11 @@ Berita halaman belakang	4</translation>
         <source>Subtitle</source>
         <translation type="unfinished">Subjudul</translation>
     </message>
+    <message>
+        <location filename="../apps/deck/io/outlineimport.cpp" line="+985"/>
+        <source>Code</source>
+        <translation type="unfinished"></translation>
+    </message>
 </context>
 <context>
     <name>DeckCanvas</name>
@@ -9938,6 +9943,132 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <location line="+1"/>
         <source>%1 by %2</source>
         <translation type="unfinished">%1 x %2</translation>
+    </message>
+</context>
+<context>
+    <name>OutlineImport</name>
+    <message>
+        <location filename="../apps/deck/io/outlineimport.cpp" line="-222"/>
+        <source>Only the first %1 slides were made. The rest of the file was left out.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n line(s) of text were cut or left out, because a line, a slide, or the file had more than it can hold.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n line(s) were indented deeper than a slide&apos;s text goes, and were put at its deepest level.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n picture(s) were left out. A picture has to be a PNG, JPEG, GIF, BMP, WebP, or TIFF file in the outline&apos;s own folder, or a folder in it.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n picture(s) or other object(s) in the file were left out.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n line(s) of code past the limit for a slide were left out.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The text of tables in the file became lines of text.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n link(s) to other kinds of address were kept as plain text.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <source>The file is larger than 10 MB, the most an outline can be.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+12"/>
+        <source>The file is not text.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>The file is not text in UTF-8 or UTF-16.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+18"/>
+        <source>The file can&apos;t be read as rich text.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <location line="+6"/>
+        <source>The file has no headings to make slides from. Give the slides&apos; titles a heading style.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-2"/>
+        <source>The file can&apos;t be read as a document.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>The file is not a valid %1 file.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>The file has no text to make slides from.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>The file can&apos;t be opened.</source>
+        <translation type="unfinished">Berkas tidak dapat dibuka.</translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>The file is too large to be an outline.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+286"/>
+        <source>pictures, shapes, tables, charts, and other objects on the slides</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>the text of text boxes other than the title and the first body place</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>speaker notes</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>the look of the slides (layouts, themes, colors, fonts, and backgrounds), animations, and transitions</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -36416,7 +36547,7 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location line="+1"/>
         <location line="+22"/>
-        <location filename="../apps/deck/app/deckwindow_info.cpp" line="+136"/>
+        <location filename="../apps/deck/app/deckwindow_info.cpp" line="+137"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+1"/>
         <location line="+22"/>
         <source>Slides</source>
@@ -36555,11 +36686,15 @@ Berkas tidak dapat dibaca.</translation>
     </message>
     <message>
         <location line="+5"/>
-        <location filename="../apps/deck/app/deckwindow_file.cpp" line="+162"/>
+        <location filename="../apps/deck/app/deckwindow_file.cpp" line="+170"/>
         <location line="+1"/>
         <location line="+59"/>
         <location line="+1"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+407"/>
+        <location filename="../apps/deck/app/deckwindow_outline.cpp" line="+152"/>
+        <location line="+1"/>
+        <location line="+25"/>
+        <location line="+1"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+409"/>
         <source>Open</source>
         <translation type="unfinished">Buka</translation>
     </message>
@@ -36568,9 +36703,10 @@ Berkas tidak dapat dibaca.</translation>
         <location line="+181"/>
         <location filename="../apps/deck/app/deckwindow_compare.cpp" line="+41"/>
         <location filename="../apps/deck/app/deckwindow_design.cpp" line="+164"/>
-        <location filename="../apps/deck/app/deckwindow_file.cpp" line="-176"/>
+        <location filename="../apps/deck/app/deckwindow_file.cpp" line="-183"/>
         <location filename="../apps/deck/app/deckwindow_media.cpp" line="+104"/>
         <location line="+102"/>
+        <location filename="../apps/deck/app/deckwindow_outline.cpp" line="-70"/>
         <location filename="../apps/deck/app/deckwindow_picture.cpp" line="+231"/>
         <source>All Files (*)</source>
         <translation type="unfinished">Semua Berkas (*)</translation>
@@ -37716,9 +37852,16 @@ Berkas tidak dapat dibaca.</translation>
         <translation type="unfinished">Tolak Semua Perubahan</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_file.cpp" line="+114"/>
+        <location filename="../apps/deck/app/deckwindow_file.cpp" line="+0"/>
+        <location filename="../apps/deck/app/deckwindow_outline.cpp" line="+0"/>
+        <source>Outlines (*.txt *.text *.md *.markdown *.rtf *.docx)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+121"/>
         <location filename="../apps/deck/app/deckwindow_media.cpp" line="-72"/>
         <location line="+97"/>
+        <location filename="../apps/deck/app/deckwindow_outline.cpp" line="+42"/>
         <source>%1 can&apos;t open &quot;%2&quot;.
 %3</source>
         <translation type="unfinished">%1 tidak dapat membuka &quot;%2&quot;.
@@ -37761,6 +37904,7 @@ Berkas tidak dapat dibaca.</translation>
     </message>
     <message>
         <location line="+3"/>
+        <location filename="../apps/deck/app/deckwindow_outline.cpp" line="+26"/>
         <source>Some of &quot;%1&quot; couldn&apos;t be read and was left out.
 
 %2</source>
@@ -39018,7 +39162,7 @@ Berkas tidak dapat dibaca.</translation>
         <translation type="unfinished">melengkung</translation>
     </message>
     <message>
-        <location line="+117"/>
+        <location line="+118"/>
         <location filename="../apps/deck/app/deckwindow_show.cpp" line="+1"/>
         <source>Zoom</source>
         <translation>Zoom</translation>
@@ -39030,8 +39174,9 @@ Berkas tidak dapat dibaca.</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow.cpp" line="+0"/>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-230"/>
-        <location line="+111"/>
+        <location filename="../apps/deck/app/deckwindow_outline.cpp" line="+9"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-232"/>
+        <location line="+113"/>
         <location line="+69"/>
         <location line="+1"/>
         <location line="+49"/>
@@ -39040,7 +39185,7 @@ Berkas tidak dapat dibaca.</translation>
         <translation type="unfinished">Simpan</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-232"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-234"/>
         <location line="+73"/>
         <source>Save As</source>
         <translation type="unfinished">Simpan Sebagai</translation>
@@ -39091,29 +39236,76 @@ Berkas tidak dapat dibaca.</translation>
     </message>
     <message>
         <location line="-30"/>
-        <location line="+31"/>
+        <location line="+32"/>
         <source>Macro-Enabled Presentation (*.pptm)</source>
         <translation type="unfinished">Presentasi Mendukung Makro (*.pptm)</translation>
     </message>
     <message>
-        <location line="-31"/>
-        <location line="+31"/>
+        <location line="-32"/>
+        <location line="+32"/>
         <source>Macro-Enabled Template (*.potm)</source>
         <translation type="unfinished">Templat Mendukung Makro (*.potm)</translation>
     </message>
     <message>
-        <location line="-31"/>
-        <location line="+31"/>
+        <location line="-32"/>
+        <location line="+32"/>
         <source>Macro-Enabled Show (*.ppsm)</source>
         <translation type="unfinished">Tayangan Mendukung Makro (*.ppsm)</translation>
     </message>
     <message>
-        <location line="+8"/>
+        <location filename="../apps/deck/app/deckwindow_outline.cpp" line="-84"/>
+        <source>Slides from Outline…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <location line="+16"/>
+        <location line="+10"/>
+        <location line="+5"/>
+        <source>Slides from Outline</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-15"/>
+        <source>&quot;%1&quot; can&apos;t make slides.
+%2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>Some of &quot;%1&quot; was left out.
+
+%2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>Added %n slide(s) from &quot;%1&quot;.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+56"/>
+        <location line="+3"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+8"/>
         <source>Save a Copy</source>
         <translation type="unfinished">Simpan Salinan</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="-3"/>
+        <source>%1 couldn&apos;t save &quot;%2&quot;.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Saved the titles and text of the slides in &quot;%1&quot;. It does not hold:
+
+%2</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+16"/>
         <source>The macros in this presentation aren&apos;t saved, because a .%1 file can&apos;t hold them.</source>
         <translation type="unfinished">Makro dalam presentasi ini tidak disimpan, karena berkas .%1 tidak dapat menyimpannya.</translation>
     </message>
@@ -39129,12 +39321,13 @@ Berkas tidak dapat dibaca.</translation>
         <translation type="unfinished">Disimpan &quot;%1&quot; di Templat Saya.</translation>
     </message>
     <message>
-        <location line="+46"/>
+        <location filename="../apps/deck/app/deckwindow_outline.cpp" line="-13"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+46"/>
         <source>A copy can&apos;t be saved over &quot;%1&quot;. Choose another name.</source>
         <translation type="unfinished">Salinan tidak dapat disimpan menimpa &quot;%1&quot;. Pilih nama lain.</translation>
     </message>
     <message>
-        <location line="+0"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+0"/>
         <source>This presentation is open for reading only. Choose another name for it.</source>
         <translation type="unfinished">Presentasi ini dibuka hanya untuk dibaca. Pilih nama lain untuknya.</translation>
     </message>
@@ -39150,7 +39343,12 @@ Berkas tidak dapat dibaca.</translation>
         <translation type="unfinished">Disimpan %1</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-93"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="-167"/>
+        <source>Markdown Outline (*.md)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+74"/>
         <source>animations (the file has them, but they are lost when it is opened here again)</source>
         <translation type="unfinished">animasi (berkas memilikinya, tetapi hilang saat dibuka lagi di sini)</translation>
     </message>
@@ -39225,35 +39423,35 @@ Berkas tidak dapat dibaca.</translation>
     <message>
         <location filename="../apps/deck/app/deckwindow_sections.cpp" line="+32"/>
         <location line="+27"/>
-        <location line="+51"/>
+        <location line="+52"/>
         <source>Rename Section</source>
         <translation type="unfinished">Ganti Nama Bagian</translation>
     </message>
     <message>
-        <location line="-76"/>
+        <location line="-77"/>
         <source>Section &amp;name</source>
         <translation>&amp;Nama bagian</translation>
     </message>
     <message>
         <location line="+24"/>
-        <location line="+38"/>
+        <location line="+39"/>
         <source>Add Section</source>
         <translation type="unfinished">Tambahkan Bagian</translation>
     </message>
     <message>
-        <location line="-36"/>
-        <location line="+61"/>
+        <location line="-37"/>
+        <location line="+62"/>
         <source>Remove Section</source>
         <translation type="unfinished">Hapus Bagian</translation>
     </message>
     <message>
-        <location line="-60"/>
-        <location line="+100"/>
+        <location line="-61"/>
+        <location line="+101"/>
         <source>Remove All Sections</source>
         <translation type="unfinished">Hapus Semua Bagian</translation>
     </message>
     <message>
-        <location line="-99"/>
+        <location line="-100"/>
         <source>Collapse All</source>
         <translation type="unfinished">Ciutkan Semua</translation>
     </message>
@@ -39263,7 +39461,7 @@ Berkas tidak dapat dibaca.</translation>
         <translation type="unfinished">Perluas Semua</translation>
     </message>
     <message>
-        <location line="+73"/>
+        <location line="+74"/>
         <source>Remove Section and Slides</source>
         <translation type="unfinished">Hapus Bagian dan Slaid</translation>
     </message>
@@ -41070,7 +41268,12 @@ Berkas tidak dapat dibaca.</translation>
         <translation type="unfinished">Templat OpenDocument (.otp)</translation>
     </message>
     <message>
-        <location line="-2"/>
+        <location line="+1"/>
+        <source>Markdown outline (.md)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-3"/>
         <location filename="../apps/deck/app/deckwindow_save.cpp" line="-74"/>
         <location line="+23"/>
         <source>presentation</source>

@@ -318,6 +318,13 @@ Download it from %2 now? (%3, once.)</translation>
     </message>
 </context>
 <context>
+    <name>OutlineImport</name>
+    <message>
+        <source>the look of the slides (layouts, themes, colors, fonts, and backgrounds), animations, and transitions</source>
+        <translation>the look of the slides (layouts, themes, colours, fonts, and backgrounds), animations, and transitions</translation>
+    </message>
+</context>
+<context>
     <name>PackAndGo</name>
     <message>
         <source>These fonts were not packed, because their licenses do not allow it: %1.</source>

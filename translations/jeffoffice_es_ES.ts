@@ -403,6 +403,13 @@ Download it from %2 now? (%3, once.)</source>
     </message>
 </context>
 <context>
+    <name>OutlineImport</name>
+    <message>
+        <source>The file can't be opened.</source>
+        <translation type="unfinished">No se puede abrir el fichero.</translation>
+    </message>
+</context>
+<context>
     <name>PackAndGo</name>
     <message>
         <source>Pack and Go could not read the part "%1" of the file (%2), so nothing was saved.</source>

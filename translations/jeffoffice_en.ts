@@ -81,6 +81,57 @@
     </message>
 </context>
 <context>
+    <name>OutlineImport</name>
+    <message numerus="yes">
+        <location filename="../apps/deck/io/outlineimport.cpp" line="+764"/>
+        <source>%n line(s) of text were cut or left out, because a line, a slide, or the file had more than it can hold.</source>
+        <translation>
+            <numerusform>%n line of text was cut or left out, because a line, a slide, or the file had more than it can hold.</numerusform>
+            <numerusform>%n lines of text were cut or left out, because a line, a slide, or the file had more than it can hold.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n line(s) were indented deeper than a slide&apos;s text goes, and were put at its deepest level.</source>
+        <translation>
+            <numerusform>%n line was indented deeper than a slide&apos;s text goes, and was put at its deepest level.</numerusform>
+            <numerusform>%n lines were indented deeper than a slide&apos;s text goes, and were put at its deepest level.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n picture(s) were left out. A picture has to be a PNG, JPEG, GIF, BMP, WebP, or TIFF file in the outline&apos;s own folder, or a folder in it.</source>
+        <translation>
+            <numerusform>%n picture was left out. A picture has to be a PNG, JPEG, GIF, BMP, WebP, or TIFF file in the outline&apos;s own folder, or a folder in it.</numerusform>
+            <numerusform>%n pictures were left out. A picture has to be a PNG, JPEG, GIF, BMP, WebP, or TIFF file in the outline&apos;s own folder, or a folder in it.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n picture(s) or other object(s) in the file were left out.</source>
+        <translation>
+            <numerusform>%n picture or other object in the file was left out.</numerusform>
+            <numerusform>%n pictures or other objects in the file were left out.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n line(s) of code past the limit for a slide were left out.</source>
+        <translation>
+            <numerusform>%n line of code past the limit for a slide was left out.</numerusform>
+            <numerusform>%n lines of code past the limit for a slide were left out.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+2"/>
+        <source>%n link(s) to other kinds of address were kept as plain text.</source>
+        <translation>
+            <numerusform>%n link to another kind of address was kept as plain text.</numerusform>
+            <numerusform>%n links to other kinds of address were kept as plain text.</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
     <name>PptxFonts</name>
     <message numerus="yes">
         <location filename="../apps/deck/io/pptxfonts.cpp" line="+334"/>
@@ -416,7 +467,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+314"/>
+        <location filename="../apps/deck/app/deckwindow_save.cpp" line="+316"/>
         <source>Saved %1, but %n object(s) can&apos;t be saved in this kind of file yet.</source>
         <translation>
             <numerusform>Saved %1, but %n object can&apos;t be saved in this kind of file yet.</numerusform>
@@ -424,11 +475,19 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/deck/app/deckwindow_info.cpp" line="+314"/>
+        <location filename="../apps/deck/app/deckwindow_info.cpp" line="+315"/>
         <source>Author field on %n slide(s)</source>
         <translation>
             <numerusform>Author field on %n slide</numerusform>
             <numerusform>Author field on %n slides</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location filename="../apps/deck/app/deckwindow_outline.cpp" line="+140"/>
+        <source>Added %n slide(s) from &quot;%1&quot;.</source>
+        <translation>
+            <numerusform>Added %n slide from &quot;%1&quot;.</numerusform>
+            <numerusform>Added %n slides from &quot;%1&quot;.</numerusform>
         </translation>
     </message>
 </context>
