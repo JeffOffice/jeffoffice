@@ -20,6 +20,7 @@
 #include "app/compresspictures.h"
 #include "app/help.h"
 #include "app/iconpicker.h"
+#include "core/wordformat.h"
 #include "core/barcode.h"
 #include "core/svg.h"
 #include "core/connsites.h"
@@ -3225,6 +3226,153 @@ private Q_SLOTS:
         QVERIFY(redAt(page, scale, 190, 250));
         QVERIFY(doc->undo());
         QCOMPARE(documentXml(doc->toDocx()), before);
+    }
+
+    // A connector glued to a shape that is merged away lets go of that end, which stays where it was; the end glued to a shape that stays is still glued.
+    void mergeShapesLetsGoOfTheEndOfAConnectorGluedToAShapeThatIsMergedAway()
+    {
+        Win win(mergeBody({mergePart(1, "rect", 100, 200, 100, 60), mergePart(2, "rect", 150, 240, 100, 60, kMergeBlue), gluedConnector(3, 2, 2, 1, 0)}));
+        write::WriteDoc *doc = win.w.document();
+        win.w.view()->refresh();
+        const PictureInfo wasAt = pictureAt(*doc, doc->story(), 2);
+        QVERIFY(isConnectorGlued(*doc, 2));
+        win.w.view()->selectObjects({0, 1});
+        win.w.refreshNow();
+        win.w.act("shape.union")->trigger();
+        const QVector<int> places = drawnPlaces(*doc);
+        QCOMPARE(places.size(), 2);
+        const QByteArray xml = documentXml(doc->toDocx());
+        QVERIFY(!xml.contains("<a:stCxn"));
+        QCOMPARE(xml.count("<a:endCxn id=\"1\""), 1);
+        QVERIFY(isConnectorGlued(*doc, places.last()));
+        const PictureInfo now = pictureAt(*doc, doc->story(), places.last());
+        QCOMPARE(now.width, wasAt.width);
+        QCOMPARE(now.height, wasAt.height);
+        QCOMPARE(now.left, wasAt.left);
+        QCOMPARE(now.top, wasAt.top);
+        // One step undoes the merge and the glue comes back.
+        QVERIFY(doc->undo());
+        QVERIFY(documentXml(doc->toDocx()).contains("<a:stCxn id=\"2\""));
+        // Merged away at both ends, it is free at both.
+        Win both(mergeBody({mergePart(1, "rect", 100, 200, 100, 60), mergePart(2, "rect", 150, 240, 100, 60, kMergeBlue), mergePart(4, "rect", 120, 220, 50, 50, kMergeBlue), gluedConnector(3, 2, 2, 4, 0)}));
+        both.w.view()->refresh();
+        both.w.view()->selectObjects({0, 1, 2});
+        both.w.refreshNow();
+        both.w.act("shape.union")->trigger();
+        const QByteArray freed = documentXml(both.w.document()->toDocx());
+        QVERIFY(!freed.contains("<a:stCxn") && !freed.contains("<a:endCxn"));
+        QVERIFY(!isConnectorGlued(*both.w.document(), drawnPlaces(*both.w.document()).last()));
+    }
+
+    // The merged shape keeps the first shape's place in the layers: behind what was in front of the first, and with its height and its side of the text.
+    void mergeShapesKeepsTheFirstShapesPlaceInTheLayers()
+    {
+        auto layer = [](QByteArray part, const char *height, const char *behind) {
+            part.replace("relativeHeight=\"251659264\" behindDoc=\"0\"", QByteArray("relativeHeight=\"") + height + "\" behindDoc=\"" + behind + "\"");
+            return part;
+        };
+        const QByteArray green = "<a:solidFill><a:srgbClr val=\"00FF00\"/></a:solidFill><a:ln><a:noFill/></a:ln>";
+        {
+            // A, B (green, over A's corner), C: A and C merge; the result is where A was, so B is over it.
+            Win win(mergeBody({mergePart(1, "rect", 100, 200, 100, 60), mergePart(2, "rect", 130, 215, 40, 30, green), mergePart(3, "rect", 180, 230, 80, 60, kMergeBlue)}));
+            write::WriteDoc *doc = win.w.document();
+            win.w.view()->refresh();
+            win.w.view()->selectObjects({0, 2});
+            win.w.refreshNow();
+            win.w.act("shape.union")->trigger();
+            QCOMPARE(drawnPlaces(*doc).size(), 2);
+            QVERIFY(win.w.view()->selectedObjects().size() == 1);
+            double scale = 1;
+            const QImage page = renderFirstPage(*doc, &scale);
+            QVERIFY(hasColorAt(page, scale, 150, 225, QColor(0, 255, 0)));   // B still over the merged shape
+            QVERIFY(redAt(page, scale, 240, 280));                           // the part that was C, in the color of A
+            QVERIFY(redAt(page, scale, 110, 210));
+        }
+        {
+            // The result has A's height and side of the text; B and the others keep theirs.
+            Win win(mergeBody({layer(mergePart(1, "rect", 100, 200, 100, 60), "260000001", "1"), layer(mergePart(2, "rect", 150, 240, 100, 60, kMergeBlue), "270000002", "0"), layer(mergePart(3, "rect", 10, 10, 20, 20, green), "280000003", "0")}));
+            write::WriteDoc *doc = win.w.document();
+            win.w.view()->refresh();
+            win.w.view()->selectObjects({0, 1});
+            win.w.refreshNow();
+            win.w.act("shape.union")->trigger();
+            const QByteArray xml = documentXml(doc->toDocx());
+            QCOMPARE(xml.count("relativeHeight=\"260000001\" behindDoc=\"1\""), 1);
+            QCOMPARE(xml.count("relativeHeight=\"270000002\""), 0);
+            QCOMPARE(xml.count("relativeHeight=\"280000003\" behindDoc=\"0\""), 1);
+        }
+    }
+
+    // The Text Highlight Color and Character Shading menus show the colors' names (the shared ones), never the keys the file keeps; a color picked from them saves exactly as the same color set by the commands.
+    void theHighlightAndShadingMenusShowNamesAndSaveTheSameBytes()
+    {
+        auto menuOf = [](Win &win, const char *tip) -> QMenu * {
+            win.w.ribbon()->buildAllTabs();
+            win.w.ribbon()->showTab(win.w.ribbon()->tab(QStringLiteral("Home")));
+            QToolButton *button = nullptr;
+            for (QToolButton *b : win.w.ribbon()->findChildren<QToolButton *>())
+                if (b->toolTip().contains(QLatin1String(tip)) && b->menu()) button = b;
+            return button ? button->menu() : nullptr;
+        };
+        auto select = [](Win &win, int from, int to) {
+            QTextCursor c(win.w.document()->story());
+            c.setPosition(from);
+            c.setPosition(to, QTextCursor::KeepAnchor);
+            win.w.view()->setCursor(c);
+        };
+        const QStringList keys = write::highlightNames();
+        QCOMPARE(keys.size(), 16);
+        Win viaMenus(QByteArray("<w:p><w:r><w:t>Hello world and more words to color</w:t></w:r></w:p>"));
+        Win viaCommands(QByteArray("<w:p><w:r><w:t>Hello world and more words to color</w:t></w:r></w:p>"));
+        QMenu *highlight = menuOf(viaMenus, "Text Highlight Color"), *shading = menuOf(viaMenus, "Character Shading");
+        QVERIFY(highlight && shading);
+        for (QMenu *menu : {highlight, shading}) {
+            Q_EMIT menu->aboutToShow();
+            QStringList names;
+            for (int i = 0; i < keys.size(); ++i) {
+                const QAction *a = menu->actions().at(i);
+                QVERIFY(!a->icon().isNull());
+                QVERIFY2(!keys.contains(a->text()) && !a->text().isEmpty() && a->text().at(0).isUpper(), qPrintable(a->text()));
+                names << a->text();
+            }
+            QCOMPARE(names.first(), QStringLiteral("Yellow"));
+            QVERIFY(names.contains(QStringLiteral("Dark Green")) && names.contains(QStringLiteral("Light Gray")));
+            QCOMPARE(QSet<QString>(names.begin(), names.end()).size(), 16);
+        }
+        QCOMPARE(highlight->actions().at(17)->text(), QStringLiteral("No Color"));
+        // Every color in turn on its own few letters, by the menus and by the commands: the same file.
+        for (int i = 0; i < keys.size(); ++i) {
+            const int from = i, to = i + 1;
+            select(viaMenus, from, to);
+            highlight->actions().at(i)->trigger();
+            select(viaCommands, from, to);
+            write::setHighlight(*viaCommands.w.document(), viaCommands.w.view()->cursor(), keys.at(i));
+        }
+        for (int i = 0; i < 4; ++i) {
+            select(viaMenus, 20 + i * 2, 21 + i * 2);
+            shading->actions().at(i * 3)->trigger();
+            select(viaCommands, 20 + i * 2, 21 + i * 2);
+            write::setCharShading(*viaCommands.w.document(), viaCommands.w.view()->cursor(), write::highlightColor(keys.at(i * 3)));
+        }
+        const QByteArray saved = viaMenus.w.document()->toDocx();
+        QVERIFY(saved == viaCommands.w.document()->toDocx());
+        const QByteArray xml = documentXml(saved);
+        for (const QString &key : keys) QVERIFY2(xml.contains("w:highlight w:val=\"" + key.toUtf8() + "\""), qPrintable(key));
+        QCOMPARE(xml.count("<w:shd "), 4);
+        // A photograph of both menus for a person to look at (JO_SHOT_DIR names the folder; nothing is made without it).
+        const QString dir = qEnvironmentVariable("JO_SHOT_DIR");
+        if (!dir.isEmpty()) {
+            jp::applyUiTheme(1);
+            Win shot;
+            shot.w.resize(1300, 900);
+            for (const auto &one : {std::make_pair("Text Highlight Color", "write-highlight-menu-after.png"), std::make_pair("Character Shading", "write-shading-menu-after.png")}) {
+                QMenu *menu = menuOf(shot, one.first);
+                QVERIFY(menu);
+                Q_EMIT menu->aboutToShow();
+                menu->resize(menu->sizeHint());
+                QVERIFY(menu->grab().save(dir + QLatin1Char('/') + QLatin1String(one.second)));
+            }
+        }
     }
 
     // The commands are on only where the merge can be made: two or more shapes or text boxes set at a place on one page; never a picture, a group, a shape in line with the text, a single shape, or more than 64.
