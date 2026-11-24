@@ -2072,6 +2072,8 @@ void Exporter::writeProperties()
 
     const DocProps &props = m_doc.props;
     auto element = [](const char *name, const QString &text) { return text.isEmpty() ? QString() : QStringLiteral("<%1>%2</%1>").arg(QLatin1String(name), esc(text)); };
+    const QDateTime modified = props.modified.isValid() ? props.modified : QDateTime::currentDateTime();
+    const QDateTime created = props.created.isValid() ? props.created : modified;
     auto date = [](const char *name, const QDateTime &t) {
         return QStringLiteral("<%1 xsi:type=\"dcterms:W3CDTF\">%2</%1>").arg(QLatin1String(name), jp::fixedText(t.toUTC(), QStringLiteral("yyyy-MM-dd'T'HH:mm:ss'Z'")));
     };
@@ -2079,8 +2081,8 @@ void Exporter::writeProperties()
                                   "xmlns:dcterms=\"http://purl.org/dc/terms/\" xmlns:dcmitype=\"http://purl.org/dc/dcmitype/\" xmlns:xsi=\"http://www.w3.org/2001/XMLSchema-instance\">");
     core += element("dc:title", props.title) + element("dc:subject", props.subject) + element("dc:creator", props.author) + element("cp:keywords", props.keywords)
             + element("dc:description", props.comments) + element("cp:lastModifiedBy", props.lastModifiedBy.isEmpty() ? props.author : props.lastModifiedBy) + QStringLiteral("<cp:revision>1</cp:revision>")
-            + date("dcterms:created", props.created.isValid() ? props.created : QDateTime::currentDateTime())
-            + date("dcterms:modified", props.modified.isValid() ? props.modified : QDateTime::currentDateTime()) + element("cp:category", props.category)
+            + date("dcterms:created", created)
+            + date("dcterms:modified", modified) + element("cp:category", props.category)
             + (props.printed.isValid() ? date("cp:lastPrinted", props.printed) : QString()) + QStringLiteral("</cp:coreProperties>");
     add(QStringLiteral("/docProps/core.xml"), QStringLiteral("application/vnd.openxmlformats-package.core-properties+xml"), core);
 

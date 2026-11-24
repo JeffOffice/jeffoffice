@@ -86,6 +86,82 @@ private Q_SLOTS:
     void aPpsxSavedTwiceIsTheSameBytes() { const QString d = differenceOfTwoSaves(QStringLiteral(".ppsx")); QVERIFY2(d.isEmpty(), qPrintable(d)); }
     void anOdpSavedTwiceIsTheSameBytes() { const QString d = differenceOfTwoSaves(QStringLiteral(".odp"), false); QVERIFY2(d.isEmpty(), qPrintable(d)); }
 
+    // The clock a save reads moves a minute with each reading, so two saves are a minute apart (the day stays the same: a slide date shown from the modified time is not what is tested): a created date taken from the clock anew at each save shows.
+    static QString createdDateIn(const QString &file)
+    {
+        QFile f(file);
+        QMap<QString, QByteArray> parts;
+        if (!f.open(QIODevice::ReadOnly) || !jp::readZip(f.readAll(), parts)) return QStringLiteral("(unreadable)");
+        const bool odf = file.endsWith(QLatin1String(".odp"));
+        const QString xml = QString::fromUtf8(parts.value(odf ? QStringLiteral("meta.xml") : QStringLiteral("docProps/core.xml")));
+        static const QRegularExpression pptx(QStringLiteral("<dcterms:created\\b[^>]*>([^<]*)<")), open(QStringLiteral("<meta:creation-date>([^<]*)<"));
+        const QRegularExpressionMatch m = (odf ? open : pptx).match(xml);
+        return m.hasMatch() ? m.captured(1) : QStringLiteral("(none)");
+    }
+    static void stepTheClockADayAtATime()
+    {
+        auto at = std::make_shared<QDateTime>(QDate(2026, 3, 1), QTime(12, 0), QTimeZone::UTC);
+        DeckWindow::setClockForTests([at] {
+            const QDateTime now = *at;
+            *at = at->addSecs(60);
+            return now.toLocalTime();
+        });
+    }
+    void aPresentationWithNoCreatedDateGetsOneAtItsFirstSaveAndKeepsIt_data()
+    {
+        QTest::addColumn<QString>("ending");
+        for (const char *e : {".pptx", ".potx", ".ppsx", ".odp"}) QTest::newRow(e) << QString::fromLatin1(e);
+    }
+    void aPresentationWithNoCreatedDateGetsOneAtItsFirstSaveAndKeepsIt()
+    {
+        QFETCH(QString, ending);
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString src = dir.filePath(QStringLiteral("src.pptx"));
+        QFile f(src);
+        QVERIFY(f.open(QIODevice::WriteOnly) && f.write(pack(samplePptx())) > 0);
+        f.close();
+        setLossyStandIn([](const LossyAsk &, bool *) { return LossyChoice::SaveAnyway; });
+        stepTheClockADayAtATime();
+        const auto reset = qScopeGuard([] { setLossyStandIn(nullptr); DeckWindow::setClockForTests(nullptr); });
+        DeckWindow w;
+        QVERIFY(w.openFile(src));
+        const QString one = dir.filePath(QStringLiteral("one") + ending), two = dir.filePath(QStringLiteral("two") + ending);
+        QVERIFY(w.saveTo(one));
+        QVERIFY(w.saveTo(two));
+        const QString first = createdDateIn(one);
+        QVERIFY2(first.startsWith(QLatin1String("2026-03-01T")), qPrintable(first));
+        QCOMPARE(createdDateIn(two), first);
+        QFile a(one), b(two);
+        QVERIFY(a.open(QIODevice::ReadOnly) && b.open(QIODevice::ReadOnly));
+        const QString d = stable::differenceBetweenFiles(a.readAll(), b.readAll());
+        QVERIFY2(d.isEmpty(), qPrintable(d));
+    }
+    void aPresentationWithACreatedDateKeepsItThroughReopenAndSave()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString src = dir.filePath(QStringLiteral("src.pptx"));
+        QFile f(src);
+        QVERIFY(f.open(QIODevice::WriteOnly) && f.write(pack(samplePptx())) > 0);
+        f.close();
+        setLossyStandIn([](const LossyAsk &, bool *) { return LossyChoice::SaveAnyway; });
+        stepTheClockADayAtATime();
+        const auto reset = qScopeGuard([] { setLossyStandIn(nullptr); DeckWindow::setClockForTests(nullptr); });
+        const QString one = dir.filePath(QStringLiteral("one.pptx")), two = dir.filePath(QStringLiteral("two.pptx"));
+        {
+            DeckWindow w;
+            QVERIFY(w.openFile(src));
+            QVERIFY(w.saveTo(one));
+        }
+        const QString given = createdDateIn(one);
+        QVERIFY(given != QLatin1String("(none)"));
+        DeckWindow again;
+        QVERIFY(again.openFile(one));
+        QVERIFY(again.saveTo(two));
+        QCOMPARE(createdDateIn(two), given);
+    }
+
     // An open document presentation keeps the length of a transition as it is (not the speed word nearest to it) and the format of the date its slides show.
     void anOpenDocumentPresentationKeepsATransitionLengthAndADateFormat()
     {

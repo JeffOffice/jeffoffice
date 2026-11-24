@@ -233,6 +233,13 @@ QStringList DeckWindow::odpLosses(const QString &path)
     return odpFound(tmpl).found + compatFileChoices(tr("presentation"), markedAsFinal(), alwaysOpensReadOnly());
 }
 
+namespace {
+std::function<QDateTime()> g_saveClock;
+QDateTime saveNow() { return g_saveClock ? g_saveClock() : QDateTime::currentDateTime(); }
+} // namespace
+
+void DeckWindow::setClockForTests(const std::function<QDateTime()> &clock) { g_saveClock = clock; }
+
 bool DeckWindow::saveTo(const QString &path, bool asCopy)
 {
     // A presentation open for reading only is never written over its own file, and a copy is never saved over the file this window has open (it would be the same as saving).
@@ -266,14 +273,18 @@ bool DeckWindow::saveTo(const QString &path, bool asCopy)
     if (odf && alwaysOpensReadOnly() && !asCopy) doc->props.custom = office::withAlwaysOpenReadOnly(doc->props.custom, false);
     // (a copy has the time and the author a save gives, and the presentation open here keeps its own)
     const QDateTime modifiedBefore = doc->props.modified;
+    const QDateTime createdBefore = doc->props.created;
     const QString authorBefore = doc->props.author;
     const auto restoreProperties = qScopeGuard([&] {
         if (asCopy) {
+            doc->props.created = createdBefore;
             doc->props.modified = modifiedBefore;
             doc->props.author = authorBefore;
         }
     });
-    doc->props.modified = QDateTime::currentDateTime();
+    doc->props.modified = saveNow();
+    // (a presentation with no created date is given one at its first save, and every later save writes that one)
+    if (!doc->props.created.isValid()) doc->props.created = doc->props.modified;
     if (doc->props.author.isEmpty() && !m_personalInfoRemoved) doc->props.author = Settings::get().userName();
     // A field that shows the file's name is written, as the words it shows, with the name this save gives; the open presentation keeps its own unless the save succeeds as itself.
     const QString fileBefore = doc->fieldFilePath;

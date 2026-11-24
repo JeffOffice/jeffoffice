@@ -998,7 +998,7 @@ void Exporter::writeMeta()
     for (const QString &k : p.keywords.split(QLatin1Char(','), Qt::SkipEmptyParts))
         if (!k.trimmed().isEmpty()) x.open("meta:keyword").text(k.trimmed()).close();
     if (!p.author.isEmpty()) x.open("meta:initial-creator").text(p.author).close();
-    x.open("meta:creation-date").text(dateText(p.created)).close();
+    x.open("meta:creation-date").text(dateText(p.created.isValid() ? p.created : p.modified)).close();
     if (!p.author.isEmpty()) x.open("dc:creator").text(p.author).close();
     x.open("dc:date").text(dateText(p.modified)).close();
     x.open("meta:editing-cycles").text(QStringLiteral("1")).close();

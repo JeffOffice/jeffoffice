@@ -402,6 +402,8 @@ public:
     // Writes the file, and the presentation is saved and takes the file's name (not for a copy, which is only written).
     // On failure, says why and leaves the presentation unsaved.
     bool saveTo(const QString &path, bool asCopy = false);
+    // A stand-in for the clock a save reads (tests only); an empty function puts the real clock back.
+    static void setClockForTests(const std::function<QDateTime()> &clock);
     QStringList odpLosses(const QString &path);   // what an .odp file would leave out, worked out by writing it to memory
     jp::CompatAnswer odpFound(bool tmpl);            // what the writer itself leaves out (a template or not), without the file's own choices
     jp::CompatHost compatHost();
