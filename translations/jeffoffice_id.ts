@@ -25768,7 +25768,7 @@ Sumber: %3</translation>
         <translation type="unfinished">Buku kerja baru sedang disiapkan. Dapat diubah sebentar lagi.</translation>
     </message>
     <message>
-        <location line="+137"/>
+        <location line="+138"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+888"/>
         <location filename="../apps/crunch/app/crunchwindow_windows.cpp" line="+108"/>
         <source>%1 (%2)</source>
@@ -25858,8 +25858,8 @@ Sumber: %3</translation>
         <translation type="unfinished">Jumlah</translation>
     </message>
     <message>
-        <location line="-264"/>
-        <location line="+283"/>
+        <location line="-265"/>
+        <location line="+284"/>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="+190"/>
         <location filename="../apps/crunch/app/crunchwindow_cells.cpp" line="+117"/>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="+187"/>
@@ -25872,8 +25872,8 @@ Sumber: %3</translation>
         <location filename="../apps/crunch/app/crunchwindow_drawborder.cpp" line="+40"/>
         <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+353"/>
         <location line="+56"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+123"/>
-        <location line="+222"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+138"/>
+        <location line="+223"/>
         <location line="+74"/>
         <location line="+170"/>
         <location line="+15"/>
@@ -25911,8 +25911,8 @@ Sumber: %3</translation>
     <message>
         <location line="+9"/>
         <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+987"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-493"/>
-        <location line="+111"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-494"/>
+        <location line="+112"/>
         <location line="+77"/>
         <location line="+73"/>
         <location line="+3"/>
@@ -25943,7 +25943,7 @@ Sumber: %3</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-286"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-287"/>
         <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+1302"/>
         <location filename="../apps/crunch/app/crunchwindow_themes.cpp" line="+39"/>
         <source>All Files (*)</source>
@@ -26102,12 +26102,12 @@ Sumber: %3</translation>
         <translation type="unfinished">Tawarkan untuk melengkapi teks dari sel di atas dan di bawah (Pelengkapan Otomatis)</translation>
     </message>
     <message>
-        <location line="-508"/>
+        <location line="-509"/>
         <source>End</source>
         <translation type="unfinished">Akhir</translation>
     </message>
     <message>
-        <location line="+383"/>
+        <location line="+384"/>
         <location line="+2"/>
         <source>Repeat</source>
         <translation type="unfinished">Ulangi</translation>
@@ -26323,7 +26323,7 @@ Sumber: %3</translation>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="-85"/>
         <location line="+95"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+282"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+283"/>
         <source>Calculating…</source>
         <translation type="unfinished">Menghitung…</translation>
     </message>
@@ -28887,7 +28887,7 @@ File yang ada sebelumnya tidak berubah.</translation>
         <translation type="unfinished">Itu tidak bisa dilakukan pada beberapa rentang sekaligus. Pilih satu rentang, lalu coba lagi.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-112"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-113"/>
         <source>%1 can&apos;t open &quot;%2&quot;.
 The file isn&apos;t there.</source>
         <translation type="unfinished">%1 tidak dapat membuka &quot;%2&quot;.
@@ -28895,19 +28895,19 @@ Berkas tidak ditemukan.</translation>
     </message>
     <message>
         <location line="+64"/>
-        <location line="+201"/>
+        <location line="+202"/>
         <source>Open and Repair</source>
         <translation type="unfinished">Buka dan Perbaiki</translation>
     </message>
     <message>
-        <location line="-201"/>
+        <location line="-202"/>
         <source>%1 can&apos;t repair &quot;%2&quot;.
 %3</source>
         <translation type="unfinished">%1 tidak dapat memperbaiki &quot;%2&quot;.
 %3</translation>
     </message>
     <message>
-        <location line="+27"/>
+        <location line="+28"/>
         <source>Opening %1…</source>
         <translation type="unfinished">Membuka %1…</translation>
     </message>
@@ -74981,7 +74981,7 @@ Kata sandi tidak dapat diterapkan pada berkas.</translation>
 <context>
     <name>jp::crunch::Loader</name>
     <message>
-        <location filename="../apps/crunch/core/loader.cpp" line="+322"/>
+        <location filename="../apps/crunch/core/loader.cpp" line="+347"/>
         <source>The workbook has no sheets.</source>
         <translation type="unfinished">Buku kerja tidak memiliki lembar.</translation>
     </message>

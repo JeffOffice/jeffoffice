@@ -25793,20 +25793,20 @@ Origine: %3</translation>
 <context>
     <name>jp::CrunchWindow</name>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+332"/>
+        <location filename="../apps/crunch/app/crunchwindow.cpp" line="+333"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+888"/>
         <location filename="../apps/crunch/app/crunchwindow_windows.cpp" line="+108"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
     <message>
-        <location line="-137"/>
+        <location line="-138"/>
         <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+207"/>
         <source>The new workbook is getting ready. It can be changed in a moment.</source>
         <translation type="unfinished">La nuova cartella di lavoro è in preparazione. Sarà possibile modificarla tra un istante.</translation>
     </message>
     <message>
-        <location line="+193"/>
+        <location line="+194"/>
         <source>Name box</source>
         <translation type="unfinished">Casella Nome</translation>
     </message>
@@ -25867,8 +25867,8 @@ Origine: %3</translation>
         <translation>Massimo</translation>
     </message>
     <message>
-        <location line="-264"/>
-        <location line="+283"/>
+        <location line="-265"/>
+        <location line="+284"/>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="+190"/>
         <location filename="../apps/crunch/app/crunchwindow_cells.cpp" line="+117"/>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="+187"/>
@@ -25881,8 +25881,8 @@ Origine: %3</translation>
         <location filename="../apps/crunch/app/crunchwindow_drawborder.cpp" line="+40"/>
         <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+353"/>
         <location line="+56"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+123"/>
-        <location line="+222"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+138"/>
+        <location line="+223"/>
         <location line="+74"/>
         <location line="+170"/>
         <location line="+15"/>
@@ -25903,12 +25903,12 @@ Origine: %3</translation>
         <translation type="unfinished">Pronto</translation>
     </message>
     <message>
-        <location line="-283"/>
+        <location line="-284"/>
         <source>End</source>
         <translation type="unfinished">Fine</translation>
     </message>
     <message>
-        <location line="+320"/>
+        <location line="+321"/>
         <source>Zoom</source>
         <translation>Zoom</translation>
     </message>
@@ -25925,8 +25925,8 @@ Origine: %3</translation>
     <message>
         <location line="+9"/>
         <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+987"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-493"/>
-        <location line="+111"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-494"/>
+        <location line="+112"/>
         <location line="+77"/>
         <location line="+73"/>
         <location line="+3"/>
@@ -26079,7 +26079,7 @@ Origine: %3</translation>
     </message>
     <message>
         <location line="-793"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-286"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-287"/>
         <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+1302"/>
         <location filename="../apps/crunch/app/crunchwindow_themes.cpp" line="+39"/>
         <source>All Files (*)</source>
@@ -26793,7 +26793,7 @@ Origine: %3</translation>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="-85"/>
         <location line="+95"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+282"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+283"/>
         <source>Calculating…</source>
         <translation type="unfinished">Calcolo in corso…</translation>
     </message>
@@ -29703,7 +29703,7 @@ Origine: %3</translation>
         <translation type="unfinished">Annullato: %1</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-485"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-486"/>
         <source>%1 can&apos;t open &quot;%2&quot;.
 The file isn&apos;t there.</source>
         <translation type="unfinished">%1 non può aprire &quot;%2&quot;.
@@ -29711,19 +29711,19 @@ Il file non esiste.</translation>
     </message>
     <message>
         <location line="+64"/>
-        <location line="+201"/>
+        <location line="+202"/>
         <source>Open and Repair</source>
         <translation type="unfinished">Apri e ripara</translation>
     </message>
     <message>
-        <location line="-201"/>
+        <location line="-202"/>
         <source>%1 can&apos;t repair &quot;%2&quot;.
 %3</source>
         <translation type="unfinished">%1 non può riparare &quot;%2&quot;.
 %3</translation>
     </message>
     <message>
-        <location line="+27"/>
+        <location line="+28"/>
         <source>Opening %1…</source>
         <translation type="unfinished">Apertura di %1…</translation>
     </message>
@@ -75065,7 +75065,7 @@ Impossibile applicare la password al file.</translation>
 <context>
     <name>jp::crunch::Loader</name>
     <message>
-        <location filename="../apps/crunch/core/loader.cpp" line="+322"/>
+        <location filename="../apps/crunch/core/loader.cpp" line="+347"/>
         <source>The workbook has no sheets.</source>
         <translation type="unfinished">La cartella di lavoro non contiene fogli.</translation>
     </message>

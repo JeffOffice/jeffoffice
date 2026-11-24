@@ -25830,7 +25830,7 @@ Source: %3</source>
         <translation type="unfinished">Новая книга готовится. Её можно будет изменить через мгновение.</translation>
     </message>
     <message>
-        <location line="+137"/>
+        <location line="+138"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+888"/>
         <location filename="../apps/crunch/app/crunchwindow_windows.cpp" line="+108"/>
         <source>%1 (%2)</source>
@@ -25920,8 +25920,8 @@ Source: %3</source>
         <translation type="unfinished">Сумма</translation>
     </message>
     <message>
-        <location line="-264"/>
-        <location line="+283"/>
+        <location line="-265"/>
+        <location line="+284"/>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="+190"/>
         <location filename="../apps/crunch/app/crunchwindow_cells.cpp" line="+117"/>
         <location filename="../apps/crunch/app/crunchwindow_clip.cpp" line="+187"/>
@@ -25934,8 +25934,8 @@ Source: %3</source>
         <location filename="../apps/crunch/app/crunchwindow_drawborder.cpp" line="+40"/>
         <location filename="../apps/crunch/app/crunchwindow_edit.cpp" line="+353"/>
         <location line="+56"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+123"/>
-        <location line="+222"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+138"/>
+        <location line="+223"/>
         <location line="+74"/>
         <location line="+170"/>
         <location line="+15"/>
@@ -25973,8 +25973,8 @@ Source: %3</source>
     <message>
         <location line="+9"/>
         <location filename="../apps/crunch/app/crunchwindow_charts.cpp" line="+987"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-493"/>
-        <location line="+111"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-494"/>
+        <location line="+112"/>
         <location line="+77"/>
         <location line="+73"/>
         <location line="+3"/>
@@ -26005,7 +26005,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="+0"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-286"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-287"/>
         <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+1302"/>
         <location filename="../apps/crunch/app/crunchwindow_themes.cpp" line="+39"/>
         <source>All Files (*)</source>
@@ -26164,12 +26164,12 @@ Source: %3</source>
         <translation type="unfinished">Предлагать завершить текст по значениям ячеек выше и ниже (автозавершение)</translation>
     </message>
     <message>
-        <location line="-508"/>
+        <location line="-509"/>
         <source>End</source>
         <translation type="unfinished">Конец</translation>
     </message>
     <message>
-        <location line="+383"/>
+        <location line="+384"/>
         <location line="+2"/>
         <source>Repeat</source>
         <translation type="unfinished">Повторить</translation>
@@ -26385,7 +26385,7 @@ Source: %3</source>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_calc.cpp" line="-85"/>
         <location line="+95"/>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+282"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="+283"/>
         <source>Calculating…</source>
         <translation type="unfinished">Вычисление…</translation>
     </message>
@@ -28965,7 +28965,7 @@ The file that was there is as it was.</source>
         <translation type="unfinished">Это нельзя сделать сразу для нескольких диапазонов. Выберите один диапазон и повторите попытку.</translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-112"/>
+        <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-113"/>
         <source>%1 can&apos;t open &quot;%2&quot;.
 The file isn&apos;t there.</source>
         <translation type="unfinished">%1 не может открыть «%2».
@@ -28973,19 +28973,19 @@ The file isn&apos;t there.</source>
     </message>
     <message>
         <location line="+64"/>
-        <location line="+201"/>
+        <location line="+202"/>
         <source>Open and Repair</source>
         <translation type="unfinished">Открыть и восстановить</translation>
     </message>
     <message>
-        <location line="-201"/>
+        <location line="-202"/>
         <source>%1 can&apos;t repair &quot;%2&quot;.
 %3</source>
         <translation type="unfinished">%1 не может восстановить «%2».
 %3</translation>
     </message>
     <message>
-        <location line="+27"/>
+        <location line="+28"/>
         <source>Opening %1…</source>
         <translation type="unfinished">Открытие %1…</translation>
     </message>
@@ -75149,7 +75149,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::crunch::Loader</name>
     <message>
-        <location filename="../apps/crunch/core/loader.cpp" line="+322"/>
+        <location filename="../apps/crunch/core/loader.cpp" line="+347"/>
         <source>The workbook has no sheets.</source>
         <translation type="unfinished">В книге нет листов.</translation>
     </message>
