@@ -2140,6 +2140,58 @@ private Q_SLOTS:
             QCOMPARE(qAlpha(img.pixel(200, 50)), 0);                      // nothing between them
             QVERIFY(ink(img, QRect(0, 110, 400, 70)) > 150);              // the words
         }
+        // A metafile whose only drawing is an enhanced metafile carried in comment records (the way a program that writes the older format
+        // keeps what it cannot say in it): the carried drawing plays, however many pieces it came in, and a comment that claims more than
+        // the file holds is left alone.
+        {
+            auto standardHead = [&](const QByteArray &body) {
+                QByteArray standard;
+                for (int v : {1, 9, 0x300}) le16(standard, v);
+                le32(standard, quint32((18 + body.size()) / 2));
+                le16(standard, 4);
+                le32(standard, 60);
+                le16(standard, 0);
+                return standard + body;
+            };
+            // One piece: the escape for a comment, its byte count, "WMFC", the kind (enhanced metafile), version, checksum, flags, how many pieces,
+            // this piece's size, what is left after it, and the whole drawing's size.
+            auto piece = [&](const QByteArray &part, int pieces, int left, quint32 whole) {
+                QByteArray params;
+                le16(params, 0x000F);
+                QByteArray inner = QByteArray("WMFC");
+                le32(inner, 1);
+                le32(inner, 0x10000);
+                le16(inner, 0);
+                le32(inner, 0);
+                le32(inner, quint32(pieces));
+                le32(inner, quint32(part.size()));
+                le32(inner, quint32(left));
+                le32(inner, whole);
+                inner += part;
+                le16(params, inner.size());
+                params += inner;
+                return wmfRecord(0x0626, params);
+            };
+            const QByteArray carried = emf(QStringLiteral("Arial"), 0, QStringLiteral("Arial Hello"), 20, 120, 28);
+            const int cut = carried.size() / 2 & ~3;
+            const QByteArray end = wmfRecord(0x0000, QByteArray());
+            const QByteArray inTwo = standardHead(piece(carried.left(cut), 2, carried.size() - cut, quint32(carried.size())) + piece(carried.mid(cut), 2, 0, quint32(carried.size())) + end);
+            const QImage img = picture(inTwo);
+            QCOMPARE(img.size(), QSize(400, 300));
+            QCOMPARE(QColor(img.pixel(70, 50)), QColor(0, 0, 255));       // the carried box
+            QCOMPARE(QColor(img.pixel(330, 50)), QColor(255, 0, 0));      // the carried oval
+            // A comment that names a drawing larger than the whole file, and one with a piece that runs past the file's end: nothing carried plays,
+            // and the file is still a valid (empty) picture, not a crash.
+            const QByteArray huge = standardHead(piece(carried.left(cut), 1, 0, 0x7FFFFFF0u) + end);
+            Metafile hugeFile;
+            QVERIFY(hugeFile.load(huge));
+            QVERIFY(!hugeFile.isEmf());
+            QByteArray runsPast = standardHead(piece(carried, 1, 0, quint32(carried.size())) + end);
+            runsPast.chop(40 + 6);
+            Metafile cutFile;
+            cutFile.load(runsPast);
+            QVERIFY(!cutFile.isEmf());
+        }
         // Wingdings' round bullet is a solid disc, with the font or without
         // it: not an empty box for a missing letter, nor a thin "l".
         for (const QImage &img : {picture(wmf(QStringLiteral("Wingdings"), 2, "l", 120, 150, 120)), picture(emf(QStringLiteral("Wingdings"), 2, QString(QChar(0xF06C)), 120, 150, 120))}) {

@@ -1082,6 +1082,40 @@ bool Metafile::looksLikeMetafile(const QByteArray &d)
     return (t == 1 || t == 2) && hs == 9;                                // plain WMF
 }
 
+// The enhanced metafile a metafile carries in comment records (an escape of 0x000F whose text starts "WMFC", of kind 1): its pieces joined in
+// order. Empty when it carries none, or when the pieces do not add up to the size they name. What is named can be no larger than the file
+// that holds it, and the records read are those the file has, so nothing here grows past the input.
+static QByteArray carriedEmf(const QByteArray &data)
+{
+    const qint64 n = data.size();
+    const uchar *d = reinterpret_cast<const uchar *>(data.constData());
+    qint64 p = qFromLittleEndian<quint32>(d) == 0x9AC6CDD7u ? 22 : 0;
+    p += 18;   // the standard header
+    QByteArray out;
+    quint32 whole = 0;
+    while (p + 6 <= n) {
+        const qint64 len = qint64(qFromLittleEndian<quint32>(d + p)) * 2;
+        const quint16 fn = qFromLittleEndian<quint16>(d + p + 4);
+        if (len < 6 || p + len > n) break;
+        // The escape and its byte count (4), then "WMFC", the kind, the version (4 each), the checksum (2), the flags, the piece count, this piece's
+        // size, what remains, and the whole size (4 each): 34 bytes before the piece itself.
+        constexpr qint64 kHead = 6 + 4 + 34;
+        if (fn == 0x0626 && len >= kHead && qFromLittleEndian<quint16>(d + p + 6) == 0x000F && qFromLittleEndian<quint32>(d + p + 10) == 0x43464D57u
+            && qFromLittleEndian<quint32>(d + p + 14) == 1) {
+            const quint32 piece = qFromLittleEndian<quint32>(d + p + 6 + 4 + 4 + 4 + 4 + 2 + 4 + 4);
+            const quint32 total = qFromLittleEndian<quint32>(d + p + 6 + 4 + 4 + 4 + 4 + 2 + 4 + 4 + 4 + 4);
+            if (piece > len - kHead || total > n) return QByteArray();
+            if (out.isEmpty()) whole = total;
+            else if (total != whole) return QByteArray();
+            out.append(data.constData() + p + kHead, qsizetype(piece));
+            if (quint32(out.size()) > whole) return QByteArray();
+        }
+        if (fn == 0) break;
+        p += len;
+    }
+    return whole >= 88 && quint32(out.size()) == whole ? out : QByteArray();
+}
+
 bool Metafile::load(const QByteArray &data)
 {
     m_valid = false;
@@ -1089,6 +1123,11 @@ bool Metafile::load(const QByteArray &data)
     if (!looksLikeMetafile(data)) return false;
     const uchar *d = reinterpret_cast<const uchar *>(data.constData());
     const quint32 m = qFromLittleEndian<quint32>(d);
+    if (m != 1) {
+        // A metafile that carries an enhanced one is that picture: the older format's own records are what a reader that cannot read the other shows.
+        const QByteArray inner = carriedEmf(data);
+        if (!inner.isEmpty() && qFromLittleEndian<quint32>(inner.constData()) == 1 && looksLikeMetafile(inner)) return load(inner);
+    }
     if (m == 1) {
         if (data.size() < 88) return false;   // the header is 88 bytes
         m_emf = true;
