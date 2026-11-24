@@ -13,6 +13,7 @@
 #include "io/pptxfonts.h"
 #include "office/drawingml_style.h"
 #include "office/theme.h"
+#include "text/textengine.h"
 #include "text/textprops.h"
 
 #include <QCoreApplication>
@@ -642,6 +643,8 @@ void Reader::readTransition(const Bag &style, Page &page)
     // How fast, and when it moves on.
     const QString speed = style.get(Graphic, "presentation:transition-speed");
     t.duration = speed == QLatin1String("slow") ? 1.0 : speed == QLatin1String("fast") ? 0.4 : 0.7;
+    // (the length the file gives is the length: the speed word is only a rounding of it)
+    if (double given = 0; parseDuration(style.get(Graphic, "smil:dur"), &given) && given >= 0.05 && given <= 60) t.duration = given;
     const QString mode = style.get(Graphic, "presentation:transition-type");
     double after = 0;
     if ((mode == QLatin1String("automatic") || mode == QLatin1String("semi-automatic")) && parseDuration(style.get(Graphic, "presentation:duration"), &after) && after > 0.001) {
@@ -678,7 +681,14 @@ void Reader::readSlides(const QDomElement &presentation)
     for (const QDomElement &d : kids(presentation, "presentation:date-time-decl")) {
         m_dateDecls.insert(at(d, "presentation:name"), d.text().trimmed());
         // (A date is fixed unless it says it is the current one.)
-        if (at(d, "presentation:source") != QLatin1String("current-date")) m_fixedDates.insert(at(d, "presentation:name"));
+        if (at(d, "presentation:source") != QLatin1String("current-date")) {
+            m_fixedDates.insert(at(d, "presentation:name"));
+        } else if (const QDomElement style = m_contentSheet->dataStyle(at(d, "style:data-style-name")); !style.isNull()) {
+            // (the format the date is shown in is the declaration's, as the file is written)
+            QString format, language;
+            dateFormatOfStyle(style, &format, &language);
+            if (!format.isEmpty()) m_dateCodes.insert(at(d, "presentation:name"), makeDateFieldCode(dateFieldKindOf(format), format, language.compare(QLatin1String("en-US"), Qt::CaseInsensitive) == 0 ? QString() : language));
+        }
     }
     int number = 0;
     for (const QDomElement &p : kids(presentation, "draw:page")) {
@@ -769,6 +779,8 @@ void Reader::readFooters(const QDomElement &pageElement, const Bag &style, Page 
     if (o.date && m_fixedDates.contains(dateName)) {
         o.dateText = m_dateDecls.value(dateName);
         o.date = !o.dateText.isEmpty();
+    } else if (o.date) {
+        o.dateCode = m_dateCodes.value(dateName);
     }
     if (!o.any()) return;
     m_pendingFooters.append({&page, o});

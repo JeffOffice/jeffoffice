@@ -30,6 +30,9 @@
 
 namespace jp::deck::odp {
 
+// A date or time style's format (the letters of Qt) and language ("de-DE", or empty).
+void dateFormatOfStyle(const QDomElement &style, QString *format, QString *language);
+
 // ---- the elements and attributes
 
 // The prefix the standard uses for a namespace, for any prefix a file chose:
@@ -318,7 +321,7 @@ private:
     QDomElement m_presentation;
     int m_layoutCount = 0;
     bool m_footers = false;
-    QHash<QString, QString> m_footerDecls, m_dateDecls;
+    QHash<QString, QString> m_footerDecls, m_dateDecls, m_dateCodes;   // (m_dateCodes: the field code of a current date, from the style it names)
     QSet<QString> m_fixedDates;   // the names of the date declarations that are a fixed date (their text is the date)
     int m_transitionsLost = 0, m_animations = 0;
     QSizeF m_slideSize;
