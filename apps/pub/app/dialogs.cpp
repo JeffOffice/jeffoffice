@@ -1982,7 +1982,7 @@ int autoflowText(Editor *ed, const QString &boxId)
         LayoutCache cache;
         RenderOptions opt;
         const auto fl = cache.textFrame(*d, *last, pg + 1, opt);
-        return fl.layout && fl.layout->overflow();
+        return fl.layout && fl.layout->textLeftOver();
     };
     int added = 0;
     ed->beginChange(QCoreApplication::translate("Dialogs", "Autoflow"));
@@ -2018,7 +2018,7 @@ static void offerAutoflow(QWidget *p, Editor *ed, const QString &boxId)
     TextItem *last = chain.last();
     RenderOptions opt;
     const auto fl = ed->cache().textFrame(*d, *last, d->find(last->id).page + 1, opt);
-    if (!fl.layout || !fl.layout->overflow()) return;
+    if (!fl.layout || !fl.layout->textLeftOver()) return;
     if (jp::plainQuestion(p, QCoreApplication::translate("Dialogs", "Autoflow"),
                               QCoreApplication::translate("Dialogs", "The inserted text doesn't fit in the text box. Do you want to continue it on new pages, in text boxes like this one?"))
         != QMessageBox::Yes)

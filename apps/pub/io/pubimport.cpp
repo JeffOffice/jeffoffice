@@ -968,10 +968,18 @@ public:
                     c.removeSelectedText();
                     continue;
                 }
-                QTextCharFormat of;
-                of.setProperty(tp::InlineObject, QString::fromUtf8(QJsonDocument(it->second->toJson()).toJson(QJsonDocument::Compact)));
-                c.mergeCharFormat(of);
-                ++m_rep.inlineObjects;
+                // (Objects that claim one number are all kept, in the order read, each after the one before.)
+                for (size_t k = 0; k < it->second.size(); ++k) {
+                    QTextCharFormat of;
+                    of.setProperty(tp::InlineObject, QString::fromUtf8(QJsonDocument(it->second[k]->toJson()).toJson(QJsonDocument::Compact)));
+                    if (k == 0) {
+                        c.mergeCharFormat(of);
+                    } else {
+                        c.setPosition(marks[i].first + int(k));
+                        c.insertText(QString(QChar::ObjectReplacementCharacter), of);
+                    }
+                    ++m_rep.inlineObjects;
+                }
             }
         }
         if (m_doc.pages.isEmpty()) m_doc.addPage();
@@ -1014,7 +1022,7 @@ private:
         if (m_master && m_masterShift != 0 && m_stack.empty() && inlineNum < 0) it->moveBy(m_masterShift, 0);
         if (inlineNum >= 0) {
             m_inlineList.push_back(it);
-            m_inlineItems[inlineNum] = it;
+            m_inlineItems[inlineNum].push_back(it);
             m_lastList = &m_inlineList;
         } else {
             currentList().push_back(it);
@@ -1598,7 +1606,7 @@ private:
     QHash<QString, QString> m_masterHalves;   // a two-page master's name in the file -> JeffPub's master
     double m_masterShift = 0;                 // how far the open master part's objects move
     ItemList m_inlineList;                   // objects set in text, as read
-    std::map<int, ItemPtr> m_inlineItems;    // and by Publisher's number
+    std::map<int, std::vector<ItemPtr>> m_inlineItems;    // and by Publisher's number
     std::map<const GroupItem *, int> m_inlineGroups;   // open groups that are such objects
     QString m_link;
     bool m_firstPara = true;

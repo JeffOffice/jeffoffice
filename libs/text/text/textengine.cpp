@@ -3419,6 +3419,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
     m_frames = frames;
     m_env = env;
     m_overflow = false;
+    m_tableCut.clear();
     m_blankPast = false;
     m_windowShort = false;
     m_used = QVector<double>(frames.size(), 0.0);
@@ -5194,6 +5195,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     for (const auto &ob : B->objects)
                         if (ob.table && ob.disp >= line.textStart() && ob.disp < line.textStart() + line.textLength()) tableLine = true;
                     const double fitH = tableLine ? 0.0 : std::max(0.0, textH - roomUnder);   // (what of the line has to fit where the column ends)
+                    if (tableLine && col.top() + y + std::max(0.0, textH - roomUnder) > col.bottom() - reserve.value(rkey(f, c)) + fitTol) m_tableCut.insert(f);   // (its rows run past the box: the box shows it as it does text left over)
                     // The first line of a column goes there however tall it
                     // is, unless notes going on from the column before fill it.
                     // (The room of the paragraph's top border above its first line is not a line before it.)

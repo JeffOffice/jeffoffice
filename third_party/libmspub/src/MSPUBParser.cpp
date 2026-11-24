@@ -920,7 +920,9 @@ bool MSPUBParser::parseShape(librevenge::RVNGInputStream *input,
       // other object set in text does.
       if (info.id == 0x0f && info.type == 0x20)
       {
-        m_collector->setShapeInlineNum(chunk.seqNum, info.data);
+        // (A number no story lists, as a huge one is, leaves the table where it is drawn.)
+        if (info.data <= 0x7fffffffu)
+          m_collector->setShapeInlineNum(chunk.seqNum, info.data);
       }
       else if (info.id == TABLE_CELLS_SEQNUM)
       {

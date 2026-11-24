@@ -1003,7 +1003,13 @@ void Canvas::paintOverlay(QPainter &p)
             p.drawText(r, Qt::AlignCenter, label);
         };
         if (d->prevFrame(t->id)) box(pageToView(tr.map(QPointF(0, 0))) + QPointF(4, -12), QStringLiteral("◀"), Qt::white);
-        if (!t->nextId.isEmpty()) box(pageToView(tr.map(QPointF(t->rect.width(), t->rect.height()))) + QPointF(-4, 12), QStringLiteral("▶"), Qt::white);
+        if (!t->nextId.isEmpty()) {
+            box(pageToView(tr.map(QPointF(t->rect.width(), t->rect.height()))) + QPointF(-4, 12), QStringLiteral("▶"), Qt::white);
+            // (A box that cuts off a table set in its text shows the overflow mark too, though the story goes on in the next box.)
+            const auto fl = m_ed->cache().textFrame(*d, *t, m_ed->surfacePageNumber(), m_ed->renderOptions());
+            if (fl.layout && fl.layout->tableCutOff(int(chain.indexOf(t))))
+                box(pageToView(tr.map(QPointF(t->rect.width(), t->rect.height()))) + QPointF(-28, 12), QStringLiteral("A…"), QColor(210, 60, 40));
+        }
         else if (chain.size() > 0 && chain.last() == t) {
             const auto fl = m_ed->cache().textFrame(*d, *t, m_ed->surfacePageNumber(), m_ed->renderOptions());
             if (fl.layout && fl.layout->overflow())

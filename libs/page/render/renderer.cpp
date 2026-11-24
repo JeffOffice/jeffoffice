@@ -529,7 +529,7 @@ QString LayoutCache::fieldsKey(const Document &doc, const Story &story, const Fi
 // fill its width) doesn't fit, though the layout still places it. The line spacing under the last line doesn't count.
 static bool framesOverflow(const StoryLayout &lay, const QVector<FrameSpec> &specs)
 {
-    if (lay.overflow()) return true;
+    if (lay.textLeftOver()) return true;
     for (int f = 0; f < specs.size(); ++f) {
         const auto lines = lay.lineInfo(f);
         if (lines.isEmpty()) continue;

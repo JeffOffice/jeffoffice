@@ -17,6 +17,7 @@
 #include <QHash>
 #include <QLocale>
 #include <QMutex>
+#include <QSet>
 #include <QLineF>
 #include <QPolygonF>
 #include <QSizeF>
@@ -343,7 +344,9 @@ public:
     void build(const QTextDocument *doc, const QVector<FrameSpec> &frames, const LayoutEnv &env, const Span &span);
 
     int frameCount() const { return int(m_frames.size()); }
-    bool overflow() const { return m_overflow; }
+    bool overflow() const { return m_overflow || !m_tableCut.isEmpty(); }   // text is left over, or a box cuts off a table set in it
+    bool textLeftOver() const { return m_overflow; }                       // (text is left over: more room, not another table size, would show it)
+    bool tableCutOff(int frame) const { return m_tableCut.contains(frame); }
     double usedHeight(int frame) const;      // content height used, including insets
     // A word processor's space after the story's last paragraph (LayoutEnv::wordLines; 0 otherwise): a note takes it as part of its height.
     double trailingSpace() const { return m_trailingAfter; }
@@ -556,6 +559,7 @@ private:
     QVector<double> m_frameY;
     QVector<double> m_used;
     bool m_overflow = false;
+    QSet<int> m_tableCut;   // frames whose bottom cuts off the rows of a table set in their text
     bool m_blankPast = false;   // blank paragraphs ran past the end of a frame that lets text run over (they move centered text, but are no overflow)
     LayoutEnv m_env;
     double m_trailingAfter = 0;

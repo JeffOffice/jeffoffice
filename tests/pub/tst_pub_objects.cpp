@@ -1462,6 +1462,48 @@ private Q_SLOTS:
         }
     }
 
+    // A box that cuts off the rows of a table set in its text shows the overflow mark, as for text left over, whether the story goes on in a
+    // linked box or ends with the table. A table that fits shows none.
+    void tableCutOffByItsBoxIsFlagged()
+    {
+        using namespace jp;
+        for (int c = 0; c < 3; ++c) {
+            const bool linked = c == 0, fits = c == 2;
+            auto doc = Document::blank(QSizeF(612, 792));
+            auto a = std::make_shared<TextItem>();
+            a->rect = QRectF(72, 72, 200, 100);
+            a->insets = QMarginsF(0, 0, 0, 0);
+            auto b = std::make_shared<TextItem>();
+            b->rect = QRectF(72, 300, 200, 200);
+            b->insets = QMarginsF(0, 0, 0, 0);
+            a->storyId = b->storyId = doc->createStory(linked ? QStringLiteral("Intro\nBefore\nAfter") : QStringLiteral("Intro\nBefore"));
+            if (linked) a->nextId = b->id;
+            auto t = std::make_shared<TableItem>();
+            t->rows = 3;
+            t->cols = 1;
+            t->colW = {100};
+            const double rowH = fits ? 12 : 40;
+            t->rowH = {rowH, rowH, rowH};
+            t->rect = QRectF(0, 0, 0, 0);
+            t->syncRect();
+            t->cells.resize(3);
+            for (auto &cell : t->cells) cell.storyId = doc->createStory(QStringLiteral("Cell"));
+            QTextCursor cur(doc->storyDoc(a->storyId));
+            cur.setPosition(12);
+            QTextCharFormat of = cur.charFormat();
+            of.setProperty(tp::InlineObject, QString::fromUtf8(QJsonDocument(t->toJson()).toJson(QJsonDocument::Compact)));
+            cur.insertText(QString(QChar::ObjectReplacementCharacter), of);
+            doc->pages[0]->items = linked ? ItemList{a, b} : ItemList{a};
+            LayoutCache cache;
+            const auto fl = cache.textFrame(*doc, *a, 1, RenderOptions());
+            QVERIFY(fl.layout);
+            QCOMPARE(fl.layout->overflow(), !fits);
+            QCOMPARE(fl.layout->tableCutOff(0), !fits);
+            QCOMPARE(fl.layout->tableCutOff(1), false);
+            QCOMPARE(fl.layout->textLeftOver(), false);
+        }
+    }
+
     // An object set in text, saved as Publisher saves one: its U+FFFC's run
     // has 00 = 2, the story's EOBJ section gives its position and number,
     // the object sits on the last special page with that number (0f), and

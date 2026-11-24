@@ -152,9 +152,10 @@ public:
                         const auto chain = d->chainOf(t->id);
                         QTextDocument *sd = d->storyDoc(t->storyId);
                         if (chain.size() == 1 && sd && sd->toPlainText().trimmed().isEmpty()) add(tr("Text box is empty"), t->id, p, "square-dashed");
-                        if (!chain.isEmpty() && chain.last() == t) {
+                        if (!chain.isEmpty()) {
                             const auto fl = ed->cache().textFrame(*d, *t, p + 1, RenderOptions());
-                            if (fl.layout && fl.layout->overflow()) add(tr("Story with text in overflow area"), t->id, p, "circle-alert");
+                            if (chain.last() == t && fl.layout && fl.layout->textLeftOver()) add(tr("Story with text in overflow area"), t->id, p, "circle-alert");
+                            else if (fl.layout && fl.layout->tableCutOff(int(chain.indexOf(t)))) add(tr("Table cut off by its text box"), t->id, p, "circle-alert");
                         }
                         if (t->autofit == TextItem::BestFit || t->autofit == TextItem::ShrinkOnOverflow) {
                             const auto fl = ed->cache().textFrame(*d, *t, p + 1, RenderOptions());
