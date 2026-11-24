@@ -1,3 +1,4 @@
+#include <climits>
 #include <set>
 #include <cstdio>
 #include <cstdlib>
@@ -1399,7 +1400,9 @@ std::function<void(void)> MSPUBCollector::paintShape(const ShapeInfo &info, cons
       m_painter->startTableObject(props);
 
       const std::map<unsigned, std::vector<unsigned> >::const_iterator it = m_tableCellTextEndsByTextId.find(get(info.m_textId));
-      const std::vector<unsigned> &tableCellTextEnds = (it != m_tableCellTextEndsByTextId.end()) ? it->second : std::vector<unsigned>();
+      // JeffPub: a table of one cell has no list of cell ends in a file Publisher made; all of the text is that cell's.
+      const bool oneCellNoEnds = it == m_tableCellTextEndsByTextId.end() && get(info.m_tableInfo).m_numRows == 1 && get(info.m_tableInfo).m_numColumns == 1;
+      const std::vector<unsigned> &tableCellTextEnds = (it != m_tableCellTextEndsByTextId.end()) ? it->second : std::vector<unsigned>(oneCellNoEnds ? 1 : 0, UINT_MAX);
 
       TableLayout tableLayout(boost::extents[get(info.m_tableInfo).m_numRows][get(info.m_tableInfo).m_numColumns]);
       createTableLayout(get(info.m_tableInfo).m_cells, tableLayout);
@@ -1407,6 +1410,8 @@ std::function<void(void)> MSPUBCollector::paintShape(const ShapeInfo &info, cons
       ParagraphToCellMap_t paraToCellMap;
       ParagraphTexts_t paraTexts;
       mapTableTextToCells(text, tableCellTextEnds, getCalculatedEncoding(), paraToCellMap, paraTexts);
+      if (oneCellNoEnds && !text.empty())
+        paraToCellMap.push_back(std::make_pair(0u, unsigned(text.size() - 1)));
 
       // JeffPub: the table's cell fills by cell number, and by place (column 03, row 04: earlier JeffPub files).
       std::map<unsigned, unsigned> fillByNumber;

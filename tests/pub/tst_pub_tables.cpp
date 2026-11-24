@@ -1934,6 +1934,50 @@ private Q_SLOTS:
         QCOMPARE(got->cols, 2);
     }
 
+    // A table of one cell has no list of cell ends in a file Publisher made: all of the table's text is the cell's. (The file here is
+    // saved with the list, then its section's name is changed so the reader does not find it.)
+    void pubOneCellTableWithoutCellEndsKeepsItsText()
+    {
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        auto t = std::make_shared<jp::TableItem>();
+        t->rows = 1;
+        t->cols = 1;
+        t->colW = {200};
+        t->rowH = {80};
+        t->rect = QRectF(72, 144, 0, 0);
+        t->syncRect();
+        t->cells.resize(1);
+        t->cells[0].storyId = doc->createStory(QStringLiteral("Region"));
+        doc->storyDoc(t->cells[0].storyId)->setPlainText(QStringLiteral("First paragraph\nSecond paragraph"));
+        doc->pages[0]->items.push_back(t);
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("one-cell.pub"));
+        QString err;
+        QVERIFY2(jp::exportPublisher(*doc, path, &err), qPrintable(err));
+        QByteArray bytes;
+        {
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            bytes = f.readAll();
+        }
+        QVERIFY(bytes.contains("TCD "));
+        bytes.replace("TCD ", "TCDX");
+        {
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::WriteOnly | QIODevice::Truncate));
+            f.write(bytes);
+        }
+        auto back = jp::importPublisherFile(path, &err);
+        QVERIFY2(back, qPrintable(err));
+        const jp::TableItem *bt = nullptr;
+        jp::walkItems(back->pages[0]->items, [&](const jp::ItemPtr &it) {
+            if (it->type() == jp::ItemType::Table) bt = static_cast<const jp::TableItem *>(it.get());
+        });
+        QVERIFY(bt);
+        QCOMPARE(bt->cells.size(), 1);
+        QCOMPARE(back->storyDoc(bt->cells[0].storyId)->toPlainText(), QStringLiteral("First paragraph\nSecond paragraph"));
+    }
+
     // A cell divided by a diagonal is kept in a .pub file: its direction, the
     // line along it (or none, when Publisher prints no line), and the text.
     void pubTableCellDiagonalsKept()
