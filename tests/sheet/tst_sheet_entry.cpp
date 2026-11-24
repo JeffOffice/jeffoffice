@@ -523,6 +523,54 @@ private Q_SLOTS:
         QCOMPARE(formulaLanguageOf(QString()), QString());
     }
 
+    // Twenty well-known functions in each language that has a checked list, with the names written here.
+    void wellKnownFunctionsHaveTheirLocalNames()
+    {
+        const QStringList english = {"SUM", "IF", "VLOOKUP", "COUNTIF", "AVERAGE", "ROUND", "LEFT", "DATE", "TODAY", "INDEX", "MATCH", "CONCATENATE", "AND", "OR", "NOT", "MAX", "MIN", "LEN", "TRIM", "SUMIF"};
+        const QHash<QString, QStringList> expected = {
+            {"de", {"SUMME", "WENN", "SVERWEIS", "ZÄHLENWENN", "MITTELWERT", "RUNDEN", "LINKS", "DATUM", "HEUTE", "INDEX", "VERGLEICH", "VERKETTEN", "UND", "ODER", "NICHT", "MAX", "MIN", "LÄNGE", "GLÄTTEN", "SUMMEWENN"}},
+            {"fr", {"SOMME", "SI", "RECHERCHEV", "NB.SI", "MOYENNE", "ARRONDI", "GAUCHE", "DATE", "AUJOURDHUI", "INDEX", "EQUIV", "CONCATENER", "ET", "OU", "NON", "MAX", "MIN", "NBCAR", "SUPPRESPACE", "SOMME.SI"}},
+            {"es", {"SUMA", "SI", "BUSCARV", "CONTAR.SI", "PROMEDIO", "REDONDEAR", "IZQUIERDA", "FECHA", "HOY", "INDICE", "COINCIDIR", "CONCATENAR", "Y", "O", "NO", "MAX", "MIN", "LARGO", "ESPACIOS", "SUMAR.SI"}}};
+        for (auto it = expected.constBegin(); it != expected.constEnd(); ++it)
+            for (int i = 0; i < english.size(); ++i) {
+                const QString what = it.key() + QLatin1Char(' ') + english[i];
+                QVERIFY2(localFormulaName(english[i], it.key()).compare(it.value()[i], Qt::CaseInsensitive) == 0, qPrintable(what));
+                QCOMPARE(englishFormulaName(it.value()[i], it.key()), english[i]);
+            }
+    }
+
+    // A function with two names in a language shows the first and reads both.
+    void alsoAcceptedNamesAreRead()
+    {
+        QCOMPARE(localFormulaName(QStringLiteral("DATEVALUE"), QStringLiteral("de")), QStringLiteral("DATWERT"));
+        QCOMPARE(formulaNameAlternatives(QStringLiteral("DATEVALUE"), QStringLiteral("de")), QStringList{QStringLiteral("DATUMWERT")});
+        QCOMPARE(englishFormulaName(QStringLiteral("datumwert"), QStringLiteral("de")), QStringLiteral("DATEVALUE"));
+        QCOMPARE(englishFormulaName(QStringLiteral("DATWERT"), QStringLiteral("de")), QStringLiteral("DATEVALUE"));
+        EntryOptions o = options(de);
+        o.formulaLanguage = QStringLiteral("de");
+        QCOMPARE(read(QStringLiteral("=DATUMWERT(A1)"), o), QStringLiteral("f:DATEVALUE(A1)"));
+        EntryLocale l(de);
+        l.language = QStringLiteral("de");
+        QCOMPARE(formulaToLocale(QStringLiteral("DATEVALUE(A1)"), l), QStringLiteral("DATWERT(A1)"));
+        // every other name of every function is read back as that function, in every language
+        for (const QString &language : formulaNameLanguages())
+            for (const QString &row : formulaNameRows())
+                for (const QString &other : formulaNameAlternatives(row, language))
+                    QCOMPARE(englishFormulaName(other, language), row);
+    }
+
+    // A table where one local name means two functions, or is another function's English name, is refused; the shipped one is sound.
+    void anAmbiguousTableIsRefused()
+    {
+        QVERIFY2(formulaNameProblems().isEmpty(), qPrintable(formulaNameProblems().join(QLatin1Char('\n'))));
+        const QString head = QStringLiteral("#columns de fr\n");
+        QVERIFY(formulaNameProblems(head + QStringLiteral("SUM SUMME SOMME\nSUMIF SUMME SOMME.SI\n")).size() == 1);                // two functions, one name
+        QVERIFY(formulaNameProblems(head + QStringLiteral("SUM SUMME SOMME\nSUMIF SUMME|X SOMME.SI\n")).size() == 1);             // (as the second name of one)
+        QVERIFY(formulaNameProblems(head + QStringLiteral("SUM SUMME SOMME\nSUMIF SUM SOMME.SI\n")).size() == 1);                 // another function's English name
+        QVERIFY(formulaNameProblems(head + QStringLiteral("SUM SUMME SOMME\nSUMIF SUMMEWENN|SUMIF SOMME.SI\n")).isEmpty());       // (its own name is fine)
+        QVERIFY(formulaNameProblems(head + QStringLiteral("SUM SUMME SOMME\nSUMIF SUMMEWENN SOMME.SI\n")).isEmpty());
+    }
+
     // With the program in German, a formula is typed and shown with German names, TRUE and FALSE, and errors; English ones are read too; the file's form is English.
     void formulasAreTypedAndShownWithLocalNames()
     {

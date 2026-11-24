@@ -18,6 +18,12 @@ QString localFormulaName(const QString &english, const QString &language);
 // The English name for a local one (any case), or empty when it is not a local name of that language.
 QString englishFormulaName(const QString &local, const QString &language);
 
+// The other local names a function is read by (a language has two traditions for some names; the first, shown one is localFormulaName).
+QStringList formulaNameAlternatives(const QString &english, const QString &language);
+// The names that mean two things in a table (the shipped one, or the text of one in the same format): empty when it is sound.
+QStringList formulaNameProblems();
+QStringList formulaNameProblems(const QString &tableText);
+
 // For the tests and the lists: the English names the table has a row for, and how many of them have a local name in the language.
 QStringList formulaNameRows();
 int localFormulaNameCount(const QString &language);

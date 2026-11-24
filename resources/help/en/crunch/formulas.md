@@ -39,9 +39,9 @@ Type **=** and the first letters of a function, and a short list shows the funct
 
 When JeffCrunch is shown in German, French, Spanish, Italian, Dutch, Portuguese, or Russian, you can type a formula with the names of functions your language uses, such as `=SUMME(A1;A2)` in German or `=SOMME(A1;A2)` in French. The English names work too, so a formula you copy from the web does not need changing. The formula bar, the cell, the list of functions, and **Pick a Function** show the names of your language.
 
-The workbook does not change when you switch. A file always keeps the English names, so a workbook made in one language opens and reads correctly in another, and in any other program. A function that has no usual name in your language keeps its English one. Words such as TRUE, FALSE, and the error values (`#N/A`) follow your language as well.
+The workbook does not change when you switch. A file always keeps the English names, so a workbook made in one language opens and reads correctly in another, and in any other program. Local names are available in German, French, Spanish, Italian, Dutch, Portuguese, and Russian; the English names always work in every language. Where a language has two common names for a function, both are read and the more common one is shown. A function that has no usual name in your language keeps its English one. Words such as TRUE, FALSE, and the error values (`#N/A`) follow your language as well.
 
-Where the comma is the decimal mark, the arguments of a function are told apart by a semicolon, and the values of an array in braces by a semicolon across a row and a backslash down a column: `{1;2\3;4}`.
+Where your computer's regional settings use the comma as the decimal mark, the arguments of a function are told apart by a semicolon, and the values of an array in braces by a semicolon across a row and a backslash down a column: `{1;2\3;4}`.
 
 To type English names only, click **File > Options > Formulas** and tick **Use English function names**.
 
