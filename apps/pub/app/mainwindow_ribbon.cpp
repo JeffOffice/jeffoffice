@@ -460,6 +460,14 @@ void MainWindow::ribbonGalleryParts(RibbonParts &parts)
         });
         return b;
     };
+    parts.widgets[QStringLiteral("artisticEffectsButton")] = [this]() -> QWidget * {
+        return artisticEffectsButton(
+            [this] {
+                const auto *pic = dynamic_cast<const PictureItem *>(m_ed->single());
+                return pic && !pic->imageId.isEmpty() ? m_ed->doc()->image(pic->imageId) : QImage();
+            },
+            [this](int style) { applyArtisticEffect(m_ed, this, style); }, QStringLiteral("artisticEffectsButton"));
+    };
     parts.widgets[QStringLiteral("pictureShapeButton")] = [maskShapeButton]() -> QWidget * { return maskShapeButton("shapes", tr("Picture Shape")); };
     parts.widgets[QStringLiteral("cropToShapeButton")] = [maskShapeButton]() -> QWidget * { return maskShapeButton("crop", tr("Crop to Shape")); };
     parts.widgets[QStringLiteral("changeShapeButton")] = [this]() -> QWidget * {

@@ -11,6 +11,7 @@
 #include <QJsonObject>
 #include <QString>
 #include <QVector>
+#include <atomic>
 
 namespace jp {
 
@@ -54,9 +55,10 @@ QVector<uchar> luminanceTable(double brightness, double factor);
 bool blipEffectsClear(const QVector<BlipEffect> &effects);
 
 // `image` with the effects applied in order, as an image of 32 bits (it as it is if none of them changes a color, or it is too big).
-QImage applyBlipEffects(const QImage &image, const QVector<BlipEffect> &all);
+QImage applyBlipEffects(const QImage &image, const QVector<BlipEffect> &all, const std::atomic<bool> *stop = nullptr);
 // The same, kept: the image of the same pixels asked for again, with the same effects, is not made again (to a budget of its own, as the
 // copies of the pictures drawn are).
-QImage blipAdjusted(const QImage &image, const QVector<BlipEffect> &effects);
+// With `stop` set to true the work ends early; what comes back then is not finished, and is not kept.
+QImage blipAdjusted(const QImage &image, const QVector<BlipEffect> &effects, const std::atomic<bool> *stop = nullptr);
 
 } // namespace jp

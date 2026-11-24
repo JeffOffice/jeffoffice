@@ -8,6 +8,8 @@
 #include "core/style.h"
 
 #include <QMenu>
+#include <QImage>
+#include <atomic>
 #include <functional>
 
 namespace jp {
@@ -33,6 +35,30 @@ void fillPictureEffectsMenu(QMenu *menu, Editor *ed, const std::function<void()>
 // The same menu for an app that keeps its pictures its own way: each entry calls `apply` with the command's name and what it does to the picture's effects.
 using EffectChange = std::function<void(Effects &)>;
 void fillPictureEffectsMenu(QMenu *menu, const std::function<void(const QString &label, const EffectChange &change)> &apply, const std::function<void()> &options = {});
+
+// Sharpen and soften, color temperature, and the artistic effects (core/picturefx.h): the same commands, names, and steps in every app that edits pictures as objects.
+// Each command changes the selected pictures through `apply`, as one step called `step`.
+struct PictureFxCommand {
+    QString id;      // "pic.sharpen.-50", "pic.temperature.50"
+    QString text;    // the menu's entry
+    QString step;    // the Undo step
+    std::function<void(PictureItem &)> apply;
+};
+QVector<PictureFxCommand> pictureSharpenCommands();
+QVector<PictureFxCommand> pictureTemperatureCommands();
+// The artistic effects of the gallery, each with a thumbnail of `sample` (a gray sample picture when it is null) in that effect; the first is "none", whose id is "-1" (the others' ids are the style's number).
+QVector<GalleryItem> artisticEffectItems(const QImage &sample, const QSize &tile = QSize(48, 36));
+// The Artistic Effects button for a Picture Format tab: a gallery of the effects, shown on the picture selected (`sample` gives it, as it is now), and `chosen` called with the effect's id.
+GalleryButton *artisticEffectsButton(const std::function<QImage()> &sample, const std::function<void(int style)> &chosen, const QString &objectName = QString());
+// The effect of `style` (-1 for none) on the selected pictures, as one step.
+void applyArtisticEffect(Editor *ed, QWidget *window, int style);
+// Changes the selected pictures that hold a picture (not a movie or a chart) with `change` as one step `step`. A filter that would take longer than half a second is worked out first on a
+// thread of its own, with a box that can cancel it (nothing changes then), so the window is not held; the picture is drawn from what was worked out, never worked out again.
+void changePicturesWithFilter(Editor *ed, QWidget *window, const QString &step, const std::function<void(PictureItem &)> &change);
+// How many times changePicturesWithFilter worked on a thread of its own (for tests).
+int pictureFxThreadedRuns();
+// Called at the start of the work on its thread, with the flag the Cancel button sets (for tests, as Editor::removeBgWorkerHook is).
+extern std::function<void(const std::atomic<bool> &)> pictureFxWorkerHook;
 
 // Crop to Shape's gallery: the closed shapes of the Shapes gallery that a file keeps by a preset name (the id is the shape's id: office::presetForShape gives its preset).
 QVector<GalleryItem> cropShapeItems();

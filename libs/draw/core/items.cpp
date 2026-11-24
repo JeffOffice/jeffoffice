@@ -365,6 +365,75 @@ void PictureItem::setSaturationMove(double percent)
     blipEffects.append(e);
 }
 
+namespace {
+// The one effect of the kind (and, for an artistic one, any style), or nullptr.
+BlipEffect *filterOf(QVector<BlipEffect> &effects, BlipEffect::Kind kind)
+{
+    for (BlipEffect &e : effects)
+        if (e.kind == kind) return &e;
+    return nullptr;
+}
+
+void putFilter(QVector<BlipEffect> &effects, BlipEffect::Kind kind, bool none, const BlipEffect &made)
+{
+    for (qsizetype i = 0; i < effects.size(); ++i) {
+        if (effects[i].kind != kind) continue;
+        if (none) effects.removeAt(i);
+        else effects[i] = made;
+        return;
+    }
+    if (!none) effects.append(made);
+}
+} // namespace
+
+double PictureItem::sharpenMove() const
+{
+    QVector<BlipEffect> all = blipEffects;
+    const BlipEffect *e = filterOf(all, BlipEffect::Sharpen);
+    return e && std::isfinite(e->amount) ? std::clamp(e->amount, -1.0, 1.0) * 100 : 0;
+}
+
+void PictureItem::setSharpenMove(double percent)
+{
+    if (!std::isfinite(percent)) return;
+    BlipEffect e;
+    e.kind = BlipEffect::Sharpen;
+    e.amount = std::clamp(percent, -100.0, 100.0) / 100;
+    putFilter(blipEffects, e.kind, e.amount == 0, e);
+}
+
+double PictureItem::temperatureMove() const
+{
+    QVector<BlipEffect> all = blipEffects;
+    const BlipEffect *e = filterOf(all, BlipEffect::Temperature);
+    return e && std::isfinite(e->amount) ? std::clamp(e->amount, -1.0, 1.0) * 100 : 0;
+}
+
+void PictureItem::setTemperatureMove(double percent)
+{
+    if (!std::isfinite(percent)) return;
+    BlipEffect e;
+    e.kind = BlipEffect::Temperature;
+    e.amount = std::clamp(percent, -100.0, 100.0) / 100;
+    putFilter(blipEffects, e.kind, e.amount == 0, e);
+}
+
+int PictureItem::artisticStyle() const
+{
+    QVector<BlipEffect> all = blipEffects;
+    const BlipEffect *e = filterOf(all, BlipEffect::Artistic);
+    return e ? e->style : -1;
+}
+
+void PictureItem::setArtistic(int style, double strength)
+{
+    BlipEffect e;
+    e.kind = BlipEffect::Artistic;
+    e.style = std::clamp(style, 0, 3);
+    e.amount = std::isfinite(strength) ? std::clamp(strength, 0.0, 1.0) : 0.5;
+    putFilter(blipEffects, e.kind, style < 0, e);
+}
+
 QVector<BlipEffect> PictureItem::colorEffects() const
 {
     QVector<BlipEffect> out;

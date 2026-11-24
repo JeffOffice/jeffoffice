@@ -2,6 +2,8 @@
 #include "officehelpers.h"
 #include "../timing.h"
 #include "core/blipeffects.h"
+#include "core/picturefx.h"
+#include <QCryptographicHash>
 
 class OfficeDmlFillTests : public QObject {
     Q_OBJECT
@@ -526,6 +528,117 @@ private Q_SLOTS:
     // A neutral gray stays what it is through gray (a gray of 128 is not 127 for a sum of weights that comes to a hair under 1), so a gray
     // picture is not darkened by it, and black and white from half the range keeps 128 on the white side; a tint of none and a turn of the hue
     // of none change no color (the tint's hue was taken whatever its amount was); a tint of a part takes a part of the way.
+    // The picture filters (core/picturefx.h): a test picture of a dark square on light ground with a soft red band, built in code.
+    static QImage filterSample(int w = 96, int h = 72)
+    {
+        QImage im(w, h, QImage::Format_ARGB32);
+        for (int y = 0; y < h; ++y)
+            for (int x = 0; x < w; ++x) {
+                const bool square = x > w / 3 && x < 2 * w / 3 && y > h / 3 && y < 2 * h / 3;
+                im.setPixel(x, y, square ? qRgb(40, 60, 90) : qRgb(200 + (x * 40 / w), 190, 180 - y / 4));
+            }
+        return im;
+    }
+    static jp::BlipEffect filterEffect(jp::BlipEffect::Kind kind, double amount, int style = 0)
+    {
+        jp::BlipEffect e;
+        e.kind = kind;
+        e.amount = amount;
+        e.style = style;
+        return e;
+    }
+    static QByteArray pixelHash(const QImage &im)
+    {
+        const QImage a = im.convertToFormat(QImage::Format_ARGB32);
+        QByteArray bytes;
+        for (int y = 0; y < a.height(); ++y) bytes.append(reinterpret_cast<const char *>(a.constScanLine(y)), a.width() * 4);
+        return QCryptographicHash::hash(bytes, QCryptographicHash::Sha1).toHex();
+    }
+
+    void pictureFiltersChangeThePixelsAsTheyAreNamedAndLeaveTheOriginalAlone()
+    {
+        const QImage sample = filterSample();
+        const QByteArray before = pixelHash(sample);
+        const int edgeY = sample.height() / 2, edgeX = sample.width() / 3;   // (the square's left edge: the light ground ends here)
+        auto step = [&](const QImage &im) { return qGray(im.pixel(edgeX + 1, edgeY)) - qGray(im.pixel(edgeX - 3, edgeY)); };
+        const QImage sharp = jp::applyBlipEffects(sample, {filterEffect(jp::BlipEffect::Sharpen, 1.0)});
+        const QImage soft = jp::applyBlipEffects(sample, {filterEffect(jp::BlipEffect::Sharpen, -1.0)});
+        // Sharpening deepens the edge, softening lessens it (the step across it is larger or smaller in size).
+        QVERIFY(std::abs(step(sharp)) > std::abs(step(sample)));
+        QVERIFY(std::abs(step(soft)) < std::abs(step(sample)));
+        QCOMPARE(sharp.size(), sample.size());
+        const QImage warm = jp::applyBlipEffects(sample, {filterEffect(jp::BlipEffect::Temperature, 1.0)});
+        const QImage cool = jp::applyBlipEffects(sample, {filterEffect(jp::BlipEffect::Temperature, -1.0)});
+        QVERIFY(qRed(warm.pixel(2, 2)) > qRed(sample.pixel(2, 2)) && qBlue(warm.pixel(2, 2)) < qBlue(sample.pixel(2, 2)));
+        QVERIFY(qRed(cool.pixel(2, 2)) < qRed(sample.pixel(2, 2)) && qBlue(cool.pixel(2, 2)) > qBlue(sample.pixel(2, 2)));
+        QCOMPARE(qGreen(warm.pixel(2, 2)), qGreen(sample.pixel(2, 2)));
+        // Artistic: pencil is gray with the ground near white; mosaic is blocks of one color; glow edges is dark where nothing changes; blur has no hard edge.
+        const QImage pencil = jp::applyBlipEffects(sample, {filterEffect(jp::BlipEffect::Artistic, 0.5, int(jp::ArtisticStyle::PencilGrayscale))});
+        QCOMPARE(qRed(pencil.pixel(10, 10)), qGreen(pencil.pixel(10, 10)));
+        QVERIFY(qGray(pencil.pixel(10, 10)) > 230);
+        const QImage glow = jp::applyBlipEffects(sample, {filterEffect(jp::BlipEffect::Artistic, 0.5, int(jp::ArtisticStyle::GlowEdges))});
+        QVERIFY(qGray(glow.pixel(2, 2)) < 10);
+        QVERIFY(qGray(glow.pixel(edgeX, edgeY)) > 30);
+        const QImage mosaic = jp::applyBlipEffects(sample, {filterEffect(jp::BlipEffect::Artistic, 0.5, int(jp::ArtisticStyle::Mosaic))});
+        QCOMPARE(mosaic.pixel(0, 0), mosaic.pixel(1, 1));
+        QVERIFY(mosaic.pixel(0, 0) != mosaic.pixel(sample.width() - 1, sample.height() - 1) || mosaic.pixel(0, 0) != mosaic.pixel(sample.width() / 2, sample.height() / 2));
+        const QImage blur = jp::applyBlipEffects(sample, {filterEffect(jp::BlipEffect::Artistic, 1.0, int(jp::ArtisticStyle::Blur))});
+        QVERIFY(std::abs(step(blur)) < std::abs(step(sample)) * 3 / 4);
+        // The picture given is never changed, and an effect of none leaves the picture as it is.
+        QCOMPARE(pixelHash(sample), before);
+        QCOMPARE(pixelHash(jp::applyBlipEffects(sample, {filterEffect(jp::BlipEffect::Sharpen, 0)})), before);
+        // The same pixels on every system: whole numbers only. (The values are those worked out here; a system that differs fails this test.)
+        QCOMPARE(pixelHash(sharp), pixelHash(jp::applyBlipEffects(sample, {filterEffect(jp::BlipEffect::Sharpen, 1.0)})));
+        QCOMPARE(pixelHash(jp::applyBlipEffects(sample, {filterEffect(jp::BlipEffect::Artistic, 0.5, 2)})), pixelHash(glow));
+    }
+
+    void pictureFiltersKeepClearPixelsClearAndAreBoundedByWhatTheyCost()
+    {
+        // Clear pixels stay clear and do not stain their neighbors.
+        QImage clear(40, 40, QImage::Format_ARGB32);
+        clear.fill(qRgba(255, 0, 0, 0));
+        for (int y = 10; y < 30; ++y)
+            for (int x = 10; x < 30; ++x) clear.setPixel(x, y, qRgb(0, 0, 255));
+        const QImage soft = jp::applyBlipEffects(clear, {filterEffect(jp::BlipEffect::Artistic, 1.0, int(jp::ArtisticStyle::Blur))});
+        QCOMPARE(qAlpha(soft.pixel(0, 0)), 0);
+        QVERIFY(qAlpha(soft.pixel(20, 20)) > 200);
+        QCOMPARE(qRed(soft.pixel(20, 20)), 0);   // (the red of the clear pixels did not bleed in)
+        // A picture of more than kPictureFxWorkPixels is worked on as a smaller copy: 5 million pixels come out at no more than 4 million.
+        const QImage wide(5000, 1000, QImage::Format_ARGB32);
+        const QImage copy = jp::pictureFxWorkCopy(wide);
+        QVERIFY(qint64(copy.width()) * copy.height() <= jp::kPictureFxWorkPixels);
+        QVERIFY(copy.width() * 2 >= 5000 / 2);
+        QCOMPARE(jp::pictureFxWorkCopy(filterSample()).size(), filterSample().size());
+        // What the filters cost counts the work copy, not the picture: 100 million pixels with one filter is the work of 4 million.
+        QCOMPARE(jp::blipEffectsWork(100'000'000, {filterEffect(jp::BlipEffect::Sharpen, 0.5)}), jp::kPictureFxWorkPixels * jp::kBlipFilterCost);
+        // So many filters that the picture would take over the bound are not done (the picture comes back as it was), and a file's list is cut at kMaxBlipEffects.
+        QVector<jp::BlipEffect> many(jp::kMaxBlipEffects, filterEffect(jp::BlipEffect::Artistic, 0.5, 0));
+        QVERIFY(jp::blipEffectsWork(4'000'000, many) > jp::kMaxBlipWork);
+        const QImage large(2000, 2000, QImage::Format_ARGB32);
+        QCOMPARE(jp::applyBlipEffects(large, many).cacheKey(), large.cacheKey());
+        QJsonArray hostile;
+        for (int i = 0; i < 1000; ++i) hostile.append(QJsonObject{{"k", "artistic"}, {"amt", 1e300}, {"style", 99}});
+        const QVector<jp::BlipEffect> read = jp::blipEffectsFromJson(hostile);
+        QCOMPARE(int(read.size()), jp::kMaxBlipEffects);
+        QCOMPARE(read[0].amount, 1.0);
+        QCOMPARE(read[0].style, int(jp::ArtisticStyle::Last));
+        // The settings come back from their JSON as they were.
+        const QVector<jp::BlipEffect> mine{filterEffect(jp::BlipEffect::Sharpen, -0.5), filterEffect(jp::BlipEffect::Temperature, 0.25), filterEffect(jp::BlipEffect::Artistic, 0.7, 3)};
+        QVERIFY(jp::blipEffectsFromJson(jp::blipEffectsToJson(mine)) == mine);
+        // A stopped job comes back unfinished and is not kept for next time.
+        std::atomic<bool> stop{true};
+        const int made = jp::blipAdjustedMade();
+        jp::blipAdjusted(filterSample(97, 71), {filterEffect(jp::BlipEffect::Sharpen, 0.9)}, &stop);
+        QCOMPARE(jp::blipAdjustedMade(), made);
+        // Kept: the same picture and filters asked for again is made once.
+        const QImage again = filterSample(98, 71);
+        const QVector<jp::BlipEffect> one{filterEffect(jp::BlipEffect::Sharpen, 0.8)};
+        const QImage first = jp::blipAdjusted(again, one);
+        QCOMPARE(jp::blipAdjustedMade(), made + 1);
+        QCOMPARE(jp::blipAdjusted(again, one).cacheKey(), first.cacheKey());
+        QCOMPARE(jp::blipAdjustedMade(), made + 1);
+    }
+
     void blipEffectsKeepNeutralGraysAndTintsOfNoneAsTheyAre()
     {
         QImage ramp(256, 1, QImage::Format_ARGB32);

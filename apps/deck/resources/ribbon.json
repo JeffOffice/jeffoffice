@@ -1755,7 +1755,13 @@
                 "pic.contrast.-20",
                 "pic.contrast.0",
                 "pic.contrast.20",
-                "pic.contrast.40"
+                "pic.contrast.40",
+                "-",
+                "pic.sharpen.-50",
+                "pic.sharpen.-25",
+                "pic.sharpen.0",
+                "pic.sharpen.25",
+                "pic.sharpen.50"
               ]
             },
             {
@@ -1776,9 +1782,19 @@
                 "pic.saturation.50",
                 "pic.saturation.100",
                 "-",
+                "pic.temperature.-100",
+                "pic.temperature.-50",
+                "pic.temperature.0",
+                "pic.temperature.50",
+                "pic.temperature.100",
+                "-",
                 "pic.transparent",
                 "pic.transparentNone"
               ]
+            },
+            {
+              "widget": "artisticEffectsButton",
+              "keytip": "AE"
             },
             {
               "small": {

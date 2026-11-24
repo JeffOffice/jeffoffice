@@ -17,6 +17,9 @@
 #include <QTemporaryDir>
 #include "app/lossywarning.h"
 #include "core/removebg.h"
+#include "app/picturetools.h"
+#include "core/blipeffects.h"
+#include "core/picturefx.h"
 #include "app/theme.h"
 #include <QMessageBox>
 #include <QThread>
@@ -627,6 +630,61 @@ private Q_SLOTS:
             QVERIFY(!pic->removal.isValid());
             QCOMPARE(qAlpha(w.editor()->doc()->image(pic->imageId).pixel(2, 2)), 0);   // the finished picture
         }
+    }
+
+    // Sharpen and soften, color temperature, and the artistic effects in JeffPub: one step each, kept exactly in .jpub, saved as the finished picture in .pub (and said so), and taken off by Reset Picture.
+    void pictureFiltersAreOneStepSavedExactlyAndToldForOtherFormats()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QByteArray original;
+        QVector<jp::BlipEffect> mine;
+        {
+            jp::MainWindow w;
+            w.resize(1400, 900);
+            w.show();
+            jp::PictureItem *p = addDisc(w);
+            jp::Editor *ed = w.editor();
+            original = ed->doc()->images.value(p->imageId).bytes;
+            for (const char *id : {"pic.sharpen.-25", "pic.sharpen.50", "pic.temperature.-50", "pic.temperature.100"})
+                QVERIFY2(w.act(QString::fromLatin1(id))->isEnabled(), id);
+            const int steps = ed->undoStack()->index();
+            w.act(QStringLiteral("pic.sharpen.50"))->trigger();
+            QCOMPARE(ed->undoStack()->index(), steps + 1);
+            QCOMPARE(thePicture(ed)->sharpenMove(), 50.0);
+            w.act(QStringLiteral("pic.temperature.-50"))->trigger();
+            jp::applyArtisticEffect(ed, &w, int(jp::ArtisticStyle::Mosaic));
+            QCOMPARE(ed->undoStack()->index(), steps + 3);
+            ed->undoStack()->undo();
+            QCOMPARE(thePicture(ed)->artisticStyle(), -1);
+            ed->undoStack()->redo();
+            mine = thePicture(ed)->blipEffects;
+            QCOMPARE(int(mine.size()), 3);
+            QCOMPARE(ed->doc()->images.value(thePicture(ed)->imageId).bytes, original);   // the picture's own bytes are never changed
+            QVERIFY(w.saveTo(dir.filePath(QStringLiteral("a.jpub"))));
+            QString said;
+            jp::setLossyStandIn([&](const jp::LossyAsk &a, bool *) {
+                said = a.lost.join(QLatin1Char('|'));
+                return jp::LossyChoice::SaveAnyway;
+            });
+            const auto reset = qScopeGuard([] { jp::setLossyStandIn(nullptr); });
+            QVERIFY(w.saveTo(dir.filePath(QStringLiteral("a.pub"))));
+            QVERIFY2(said.contains(QStringLiteral("artistic effect")), qPrintable(said));
+        }
+        {
+            jp::MainWindow w;
+            QVERIFY(w.openFile(dir.filePath(QStringLiteral("a.jpub"))));
+            jp::PictureItem *pic = thePicture(w.editor());
+            QVERIFY(pic);
+            QVERIFY(pic->blipEffects == mine);   // the settings, exactly
+            QCOMPARE(w.editor()->doc()->images.value(pic->imageId).bytes, original);
+            w.editor()->select(pic->id);
+            w.act(QStringLiteral("pic.reset"))->trigger();
+            QVERIFY(thePicture(w.editor())->blipEffects.isEmpty());
+        }
+        jp::MainWindow w;
+        QVERIFY(w.openFile(dir.filePath(QStringLiteral("a.pub"))));
+        QVERIFY(jp::blipFilters(thePicture(w.editor())->blipEffects).isEmpty());
     }
 
     // The Background Removal tab, for the docs, when JO_SHOT_DIR names a folder.

@@ -8,7 +8,7 @@
 namespace jp {
 
 struct BlipEffect {
-    enum Kind { Luminance, Grayscale, BiLevel, ColorChange, ColorReplace, Duotone, Hsl, Tint };
+    enum Kind { Luminance, Grayscale, BiLevel, ColorChange, ColorReplace, Duotone, Hsl, Tint, Sharpen, Temperature, Artistic };
     Kind kind = Luminance;
     // Luminance: the brightness and contrast, each from -1 to 1 (a:lum's bright and contrast).
     double brightness = 0, contrast = 0;
@@ -22,6 +22,9 @@ struct BlipEffect {
     // (color). Duotone: the colors black and white become (color, color2).
     QColor color, color2;
     bool useAlpha = true;
+    // The picture filters (core/picturefx.h), which DrawingML has no element for: Sharpen: amount from -1 (soften) to 1 (sharpen). Temperature: amount from -1 (cooler) to 1
+    // (warmer). Artistic: the effect (style, an ArtisticStyle) and how strong it is (amount, 0 to 1).
+    int style = 0;
 
     bool operator==(const BlipEffect &o) const;
     QJsonObject toJson() const;

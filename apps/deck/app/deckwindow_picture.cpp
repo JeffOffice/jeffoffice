@@ -132,6 +132,12 @@ void DeckWindow::createCropActions()
         mk(QStringLiteral("pic.saturation.%1").arg(v), v == 0 ? tr("Saturation: 0% (Normal)") : v == -100 ? tr("Saturation: -100% (Gray)") : tr("Saturation: %1").arg(signedPercent(v)), QString(),
            QKeySequence(), [onPictures, v] { onPictures(tr("Saturation"), [v](PictureItem &p) { p.setSaturationMove(v); }); });
     }
+    // Sharpen and soften, and color temperature: the shared picture filters (libs/page/app/picturetools).
+    for (const PictureFxCommand &c : pictureSharpenCommands() + pictureTemperatureCommands())
+        mk(c.id, c.text, QString(), QKeySequence(), [this, ed, c] {
+            leaveCrop(ed);
+            changePicturesWithFilter(ed, this, c.step, c.apply);
+        });
     const struct { const char *id; PictureItem::Recolor how; QString name; } recolors[] = {{"none", PictureItem::NoRecolor, tr("No Recolor")},
                                                                                            {"gray", PictureItem::Grayscale, tr("Grayscale")},
                                                                                            {"blackwhite", PictureItem::BlackWhite, tr("Black and White")}};
@@ -285,6 +291,18 @@ void DeckWindow::addCropParts(RibbonParts &parts)
             m_canvas->setFocus();
         });
         return gal;
+    };
+    parts.widgets[QStringLiteral("artisticEffectsButton")] = [this]() -> QWidget * {
+        return artisticEffectsButton(
+            [this] {
+                const auto *p = dynamic_cast<const PictureItem *>(m_ed->single());
+                return p && !p->imageId.isEmpty() ? m_ed->doc()->image(p->imageId) : QImage();
+            },
+            [this](int style) {
+                leaveCrop(m_ed);
+                applyArtisticEffect(m_ed, this, style);
+            },
+            QStringLiteral("artisticEffectsButton"));
     };
     parts.menus[QStringLiteral("pictureBorderMenu")] = [this](QWidget *owner) {
         auto *m = new QMenu(owner);

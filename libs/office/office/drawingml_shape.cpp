@@ -4,6 +4,8 @@
 
 #include "office/drawingml.h"
 #include "core/items.h"
+#include "core/blipeffects.h"
+#include "core/picturefx.h"
 #include "core/connsites.h"
 #include "office/connectionsites.h"
 #include "core/textdirection.h"
@@ -1009,7 +1011,7 @@ static void readKeptBlipExtensions(const QDomElement &blip, const DrawingContext
     int seen = 0;
     for (QDomElement ext = childNamed(childNamed(blip, "extLst"), "ext"); !ext.isNull() && seen++ < 16 && p.keptBlip.size() < kMaxKeptBlipExtensions; ext = ext.nextSiblingElement()) {
         const QString uri = attr(ext, QStringLiteral("uri"));
-        if (uri == QLatin1String("{96DAC541-7B7A-43D3-8B79-37D633B846F1}") || uri == QLatin1String(dmlwrite::kRemovalExtension)) continue;
+        if (uri == QLatin1String("{96DAC541-7B7A-43D3-8B79-37D633B846F1}") || uri == QLatin1String(dmlwrite::kRemovalExtension) || uri == QLatin1String(dmlwrite::kPictureFxExtension)) continue;
         PictureItem::KeptBlipExtension kept;
         QMap<QString, QString> declared;
         QString body;
@@ -1052,8 +1054,23 @@ ItemPtr Reader::pic(const QDomElement &e, const QVector<QDomElement> &inheritsFr
         p->imageId = original;
         p->removal = removal;
     }
+    // The picture filters: the settings and the original are in an extension of ours (the blip is the picture they made, for the programs that don't read it).
+    QVector<BlipEffect> filters;
+    for (QDomElement ext = childNamed(childNamed(blip, "extLst"), "ext"); !ext.isNull() && filters.isEmpty(); ext = ext.nextSiblingElement()) {
+        const QDomElement kept = childNamed(ext, "filters");
+        const QString data = attr(kept, QStringLiteral("data"));
+        if (kept.isNull() || data.isEmpty() || data.size() > 1024 * 1024) continue;
+        const QVector<BlipEffect> listed = blipFilters(blipEffectsFromJson(QJsonDocument::fromJson(QByteArray::fromBase64(data.toLatin1())).object()["effects"].toArray()));
+        if (listed.isEmpty()) continue;
+        if (p->imageId.isEmpty()) {
+            const QString original = loadImage(attrNs(kept, ns::R, QStringLiteral("embed")), styleContext());
+            if (original.isEmpty()) continue;
+            p->imageId = original;
+        }
+        filters = listed;
+    }
     if (p->imageId.isEmpty()) p->imageId = loadImage(attrNs(blip, ns::R, QStringLiteral("embed")), styleContext());
-    if (!p->removal.isValid()) {
+    if (!p->removal.isValid() && filters.isEmpty()) {
         qint64 &used = m_ctx.budget ? m_ctx.budget->keptBlipBytes : m_keptBlipBytes;
         qint64 left = std::min(kMaxKeptBlipBytes, kMaxKeptBlipFileBytes - used);
         const qint64 had = left;
@@ -1078,6 +1095,7 @@ ItemPtr Reader::pic(const QDomElement &e, const QVector<QDomElement> &inheritsFr
     const QDomElement alpha = childNamed(blip, "alphaModFix");
     if (!alpha.isNull()) p->transparency = std::clamp(1.0 - parsePercent(attr(alpha, QStringLiteral("amt")), 1), 0.0, 1.0);
     p->takeEffects(readBlipEffects(blip, styleContext()));
+    p->blipEffects += filters;
     // A barcode of ours: the picture others show, and the marker that holds its settings and the fingerprints of the pictures. It is the barcode again, in the frame the file gave it,
     // when the pictures in the file are the ones the marker was written with (not a picture put in their place), and the document has not as many barcodes as are honored.
     if (const BarcodeMarker marker = readBarcodeMarker(cNvPr); !marker.isEmpty() && !frame.rect.isEmpty() && m_ctx.package) {

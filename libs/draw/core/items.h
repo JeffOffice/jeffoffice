@@ -217,6 +217,14 @@ public:
     // none); set, it changes that one's saturation only, and takes the change out when nothing is left in it, or puts one in at the end when there was none.
     double saturationMove() const;
     void setSaturationMove(double percent);
+    // The picture filters of blipEffects (core/picturefx.h), each held once: how far the picture is sharpened (-100, soft, to 100) or warmed (-100, cool, to 100), and which artistic effect it has
+    // (an ArtisticStyle, or -1 for none) and how strong. A setting of none takes the filter out; none of them touch the picture's bytes.
+    double sharpenMove() const;
+    void setSharpenMove(double percent);
+    double temperatureMove() const;
+    void setTemperatureMove(double percent);
+    int artisticStyle() const;
+    void setArtistic(int style, double strength = 0.5);
     // Takes the changes a blip lists, in the order it lists them. The settings hold those that come first, if they come in the order the
     // settings are drawn (a clear color, the brightness and contrast, gray or black and white) and each only once; blipEffects holds the rest,
     // so that what is drawn and what is written follows the file whatever its order.

@@ -1309,6 +1309,8 @@ void MainWindow::createActions()
                });
         }
     }
+    for (const PictureFxCommand &c : pictureSharpenCommands() + pictureTemperatureCommands())
+        mk(c.id, c.text, "", QKeySequence(), [this, c] { changePicturesWithFilter(m_ed, this, c.step, c.apply); });
     const QString recolorNames[] = {tr("No Recolor"), tr("Grayscale"), tr("Sepia"), tr("Washout"), tr("Black and White")};
     for (int r = 0; r < 5; ++r) {
         mk(QStringLiteral("recolor.%1").arg(r), recolorNames[r], "", QKeySequence(), [ed, r] {

@@ -4,6 +4,7 @@
 
 #include "io/odpexport_p.h"
 #include "core/blipeffects.h"
+#include "core/picturefx.h"
 #include "core/items.h"
 #include "office/connectionsites.h"
 
@@ -518,6 +519,7 @@ void Exporter::writePicture(X &x, Scope &sc, const PictureItem &p)
     const bool baked = masked || p.recolor == PictureItem::Sepia || p.recolor == PictureItem::ColorTint || (p.hasTransparentColor && p.transparentColor.isValid()) ||
                        blipEffectsChange(p.blipEffects);
     if (p.removal.isValid()) sayOnce(QStringLiteral("removebackground"), QCoreApplication::translate("OdpExport", "A picture whose background was removed is kept as the finished picture, and its background can't be brought back or marked again."));
+    if (blipEffectsChange(blipFilters(p.blipEffects))) sayOnce(QStringLiteral("picturefilters"), QCoreApplication::translate("OdpExport", "A picture with sharpen, soften, color temperature, or an artistic effect is kept as the finished picture, and the effect can't be changed or taken off again."));
     if (!p.keptBlip.isEmpty()) sayOnce(QStringLiteral("keptblip"), QCoreApplication::translate("OdpExport", "A picture that carries another program's own background removal is kept as the finished picture, and that removal can't be edited again."));
     if (baked) {
         writeAsPicture(x, sc, p);

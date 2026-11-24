@@ -1,5 +1,7 @@
 #include "core/blipeffects.h"
 
+#include "core/picturefx.h"
+
 #include <QCache>
 #include <QJsonArray>
 #include <QJsonDocument>
@@ -13,7 +15,7 @@ namespace jp {
 
 namespace {
 
-const char *kindNames[] = {"lum", "gray", "bilevel", "clrchange", "clrrepl", "duotone", "hsl", "tint"};
+const char *kindNames[] = {"lum", "gray", "bilevel", "clrchange", "clrrepl", "duotone", "hsl", "tint", "sharpen", "temp", "artistic"};
 
 QJsonObject colorJson(const QColor &c) { return QJsonObject{{"rgb", c.name()}, {"a", c.alphaF()}}; }
 
@@ -70,6 +72,7 @@ bool changesNothing(const BlipEffect &e)
     case BlipEffect::Luminance: return e.brightness == 0 && e.contrast == 0;
     case BlipEffect::Hsl: return std::fmod(e.hue, 360.0) == 0 && e.saturation == 0 && e.lightness == 0;
     case BlipEffect::Tint: return e.amount == 0;
+    case BlipEffect::Sharpen: case BlipEffect::Temperature: return std::lround(std::clamp(e.amount, -1.0, 1.0) * 100) == 0;
     default: return false;
     }
 }
@@ -92,7 +95,7 @@ std::atomic<int> made{0};
 bool BlipEffect::operator==(const BlipEffect &o) const
 {
     return kind == o.kind && brightness == o.brightness && contrast == o.contrast && threshold == o.threshold && hue == o.hue && saturation == o.saturation &&
-           lightness == o.lightness && amount == o.amount && color == o.color && color2 == o.color2 && useAlpha == o.useAlpha;
+           lightness == o.lightness && amount == o.amount && style == o.style && color == o.color && color2 == o.color2 && useAlpha == o.useAlpha;
 }
 
 QJsonObject BlipEffect::toJson() const
@@ -111,6 +114,8 @@ QJsonObject BlipEffect::toJson() const
     case Duotone: o["dark"] = colorJson(color); o["light"] = colorJson(color2); break;
     case Hsl: o["hue"] = hue; o["sat"] = saturation; o["lum"] = lightness; break;
     case Tint: o["hue"] = hue; o["amt"] = amount; break;
+    case Sharpen: case Temperature: o["amt"] = amount; break;
+    case Artistic: o["amt"] = amount; o["style"] = style; break;
     }
     return o;
 }
@@ -124,7 +129,7 @@ BlipEffect BlipEffect::fromJson(const QJsonObject &o)
 {
     BlipEffect e;
     const QString name = o["k"].toString();
-    for (int i = 0; i <= Tint; ++i)
+    for (int i = 0; i <= Artistic; ++i)
         if (name == QLatin1String(kindNames[i])) e.kind = Kind(i);
     switch (e.kind) {
     case Luminance: e.brightness = o["bright"].toDouble(); e.contrast = o["contrast"].toDouble(); break;
@@ -139,6 +144,11 @@ BlipEffect BlipEffect::fromJson(const QJsonObject &o)
     case Duotone: e.color = colorFrom(o["dark"].toObject()); e.color2 = colorFrom(o["light"].toObject()); break;
     case Hsl: e.hue = sane(o["hue"].toDouble(), 360); e.saturation = sane(o["sat"].toDouble(), 1); e.lightness = sane(o["lum"].toDouble(), 1); break;
     case Tint: e.hue = o["hue"].toDouble(); e.amount = o["amt"].toDouble(); break;
+    case Sharpen: case Temperature: e.amount = sane(o["amt"].toDouble(), 1); break;
+    case Artistic:
+        e.amount = sane(o["amt"].toDouble(), 1);
+        e.style = std::clamp(o["style"].toInt(), 0, int(ArtisticStyle::Last));
+        break;
     }
     return e;
 }
@@ -176,12 +186,14 @@ bool blipEffectsChange(const QVector<BlipEffect> &effects) { return !changing(ef
 
 qint64 blipEffectsWork(qint64 pixels, const QVector<BlipEffect> &effects)
 {
-    qint64 each = 0;
+    qint64 each = 0, filtered = 0;
     for (const BlipEffect &e : effects) {
         if (changesNothing(e)) continue;
-        each += e.kind == BlipEffect::Hsl || e.kind == BlipEffect::Tint ? kBlipHslCost : kBlipPixelCost;
+        if (isBlipFilter(e)) filtered += kBlipFilterCost;
+        else each += e.kind == BlipEffect::Hsl || e.kind == BlipEffect::Tint ? kBlipHslCost : kBlipPixelCost;
     }
-    return pixels * each;
+    // (the filters work on a copy of at most kPictureFxWorkPixels)
+    return pixels * each + std::min(pixels, kPictureFxWorkPixels) * filtered;
 }
 
 int blipAdjustedMade() { return made; }
@@ -206,14 +218,19 @@ QVector<uchar> luminanceTable(double brightness, double factor)
     return table;
 }
 
-QImage applyBlipEffects(const QImage &image, const QVector<BlipEffect> &all)
+QImage applyBlipEffects(const QImage &image, const QVector<BlipEffect> &all, const std::atomic<bool> *stop)
 {
     if (image.isNull() || all.isEmpty()) return image;
     const qint64 pixels = qint64(image.width()) * image.height();
     const QVector<BlipEffect> effects = changing(all);
     if (effects.isEmpty() || pixels > kMaxBlipPixels || blipEffectsWork(pixels, effects) > kMaxBlipWork) return image;
     QImage img = image.convertToFormat(QImage::Format_ARGB32);
-    for (const BlipEffect &e : effects) {
+    // The filters come first, on a copy made smaller when it is large; the color effects follow.
+    if (const QVector<BlipEffect> filters = blipFilters(effects); !filters.isEmpty()) {
+        img = pictureFxWorkCopy(img);
+        for (const BlipEffect &f : filters) img = applyBlipFilter(img, f, stop);
+    }
+    for (const BlipEffect &e : blipColorEffects(effects)) {
         const QColor from = e.color, to = e.color2;
         switch (e.kind) {
         case BlipEffect::Luminance: {
@@ -295,12 +312,13 @@ QImage applyBlipEffects(const QImage &image, const QVector<BlipEffect> &all)
             });
             break;
         }
+        case BlipEffect::Sharpen: case BlipEffect::Temperature: case BlipEffect::Artistic: break;   // (done above)
         }
     }
     return img;
 }
 
-QImage blipAdjusted(const QImage &image, const QVector<BlipEffect> &effects)
+QImage blipAdjusted(const QImage &image, const QVector<BlipEffect> &effects, const std::atomic<bool> *stop)
 {
     if (image.isNull() || changing(effects).isEmpty()) return image;
     static QMutex lock;
@@ -310,7 +328,8 @@ QImage blipAdjusted(const QImage &image, const QVector<BlipEffect> &effects)
         QMutexLocker locked(&lock);
         if (const QImage *kept = cache.object(key)) return *kept;
     }
-    const QImage result = applyBlipEffects(image, effects);
+    const QImage result = applyBlipEffects(image, effects, stop);
+    if (stop && stop->load()) return result;
     // A picture left as it is (too big, or too much to do) has nothing to keep.
     if (result.cacheKey() == image.cacheKey()) return result;
     ++made;

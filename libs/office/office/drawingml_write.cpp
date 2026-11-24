@@ -4,6 +4,8 @@
 
 #include "office/drawingml_write.h"
 #include "core/items.h"
+#include "core/blipeffects.h"
+#include "core/picturefx.h"
 #include "core/connsites.h"
 #include "office/connectionsites.h"
 #include "core/textdirection.h"
@@ -155,6 +157,7 @@ void writeBlipEffects(QXmlStreamWriter &w, const QVector<BlipEffect> &effects)
             attribute(w, "lum", percent(std::clamp(e.lightness, -1.0, 1.0)));
             w.writeEndElement();
             break;
+        case BlipEffect::Sharpen: case BlipEffect::Temperature: case BlipEffect::Artistic: break;   // (kept in an extension of ours: see writePicture)
         case BlipEffect::Tint:
             begin(w, "a:tint");
             attribute(w, "hue", angle(e.hue));
@@ -992,16 +995,27 @@ void writePicture(QXmlStreamWriter &w, const PictureItem &p, DrawingWriteContext
     }
     // The background taken off the picture: the blip is the picture with it clear (what any program draws), at the size it is shown at (not the photograph's whole
     // size: a lossless picture of twelve megapixels is five times the file), and the original and the mask are kept in an extension of ours.
+    // The picture filters (sharpen, temperature, artistic effects) are done the same way: the blip is the finished picture, and the settings are in an extension of ours.
     QString shownId = rId;
-    if (p.removal.isValid() && ctx.imageBytes) {
+    bool removed = false, filtered = false;
+    const QVector<BlipEffect> filters = blipFilters(p.blipEffects);
+    const bool hasFilters = blipEffectsChange(filters);
+    if ((p.removal.isValid() || hasFilters) && ctx.imageBytes) {
         QString format;
         const QImage whole = QImage::fromData(ctx.imageBytes(p.imageId, &format));
-        if (!whole.isNull() && whole.size() == p.removal.source) {
+        const bool takesRemoval = p.removal.isValid() && !whole.isNull() && whole.size() == p.removal.source;
+        if (!whole.isNull() && (takesRemoval || hasFilters)) {
+            QImage finished = takesRemoval ? finishedBackgroundRemoval(whole, p.removal, p.imgRect.size(), kRemovalFinishedDpi) : whole;
+            if (hasFilters) finished = applyBlipEffects(finished, filters);
             QByteArray png;
             QBuffer buffer(&png);
             buffer.open(QIODevice::WriteOnly);
-            if (finishedBackgroundRemoval(whole, p.removal, p.imgRect.size(), kRemovalFinishedDpi).save(&buffer, "PNG"))
-                if (const QString made = relatePictureBytes(ctx, png); !made.isEmpty()) shownId = made;
+            if (finished.save(&buffer, "PNG"))
+                if (const QString made = relatePictureBytes(ctx, png); !made.isEmpty()) {
+                    shownId = made;
+                    removed = takesRemoval;
+                    filtered = hasFilters;
+                }
         }
     }
     const int id = takeId(ctx, p);
@@ -1027,17 +1041,17 @@ void writePicture(QXmlStreamWriter &w, const PictureItem &p, DrawingWriteContext
         w.writeEndElement();
     }
     // The settings in the order they are drawn, then what is beside them (colorEffects), so that the file lists them as they are drawn.
-    writeBlipEffects(w, p.colorEffects());
+    writeBlipEffects(w, blipColorEffects(p.colorEffects()));
     // An SVG picture: the PNG above is for programs that don't draw SVG, and the SVG itself is linked here, as the presentation
     // program links it, last in the blip.
     const QString svgId = relateSvg(ctx, p.imageId);
-    const bool removed = shownId != rId;
+    const bool changedHere = removed || filtered;
     // What another program kept on the picture for itself (its own removal of the background, for one) goes back as it was; the removal made here
     // replaces it, and the save says so.
-    const bool keepsTheirs = !p.keptBlip.isEmpty() && !removed;
-    if (!p.keptBlip.isEmpty() && removed && skipped)
+    const bool keepsTheirs = !p.keptBlip.isEmpty() && !changedHere;
+    if (!p.keptBlip.isEmpty() && changedHere && skipped)
         skipped->append(QCoreApplication::translate("DrawingWriter", "\"%1\": the background removal another program made on this picture was replaced by the one made here.").arg(p.name.isEmpty() ? p.id : p.name));
-    if (!svgId.isEmpty() || removed || keepsTheirs) {
+    if (!svgId.isEmpty() || changedHere || keepsTheirs) {
         begin(w, "a:extLst");
         if (!svgId.isEmpty()) {
             begin(w, "a:ext");
@@ -1050,6 +1064,16 @@ void writePicture(QXmlStreamWriter &w, const PictureItem &p, DrawingWriteContext
         }
         if (keepsTheirs)
             for (const PictureItem::KeptBlipExtension &kept : p.keptBlip) writeKeptBlipExtension(w, ctx, kept);
+        if (filtered) {
+            begin(w, "a:ext");
+            attribute(w, "uri", QString::fromLatin1(kPictureFxExtension));
+            begin(w, "jdr:filters");
+            w.writeAttribute(QStringLiteral("xmlns:jdr"), QString::fromLatin1(kRemovalNamespace));
+            attribute(w, "r:embed", rId);
+            attribute(w, "data", QString::fromLatin1(QJsonDocument(QJsonObject{{"effects", blipEffectsToJson(filters)}}).toJson(QJsonDocument::Compact).toBase64()));
+            w.writeEndElement();
+            w.writeEndElement();
+        }
         if (removed) {
             begin(w, "a:ext");
             attribute(w, "uri", QString::fromLatin1(kRemovalExtension));

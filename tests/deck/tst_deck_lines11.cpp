@@ -9,6 +9,9 @@
 #include "core/themes.h"
 #include "core/printheaderfooter.h"
 #include "app/deckdialogs.h"
+#include "app/picturetools.h"
+#include "core/blipeffects.h"
+#include "core/picturefx.h"
 #include <QCheckBox>
 #include <QJsonDocument>
 #include "core/pathops.h"
@@ -850,6 +853,166 @@ private Q_SLOTS:
         QCOMPARE(int(plain.blipEffects.size()), 1);
         plain.setSaturationMove(0);
         QVERIFY(plain.blipEffects.isEmpty());
+    }
+
+    // Sharpen and soften, color temperature, and the artistic effects: each choice is one step of Undo, the picture's own bytes never change, Reset Picture takes the effects
+    // off, a presentation file keeps the settings (and the original) while the picture in it is the finished one, and another kind of file says what it keeps.
+    void pictureFiltersAreOneStepKeptInTheFileAndResetTakesThemOff()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString path = dir.filePath(QStringLiteral("filters.pptx")), odp = dir.filePath(QStringLiteral("filters.odp"));
+        QByteArray original, finished;
+        QSize pixels;
+        {
+            DeckWindow w;
+            w.resize(1200, 800);
+            w.show();
+            const QString id = addPicture(w, QStringLiteral("Flag"))->id;
+            auto pic = [&] { return static_cast<PictureItem *>(w.editor()->doc()->item(id)); };
+            original = w.editor()->doc()->images.value(pic()->imageId).bytes;
+            pixels = w.editor()->doc()->imageSize(pic()->imageId);
+            for (const char *name : {"pic.sharpen.-50", "pic.sharpen.50", "pic.temperature.-100", "pic.temperature.100"})
+                QVERIFY2(w.act(QString::fromLatin1(name))->isEnabled(), name);
+            const int steps = w.editor()->undoStack()->count();
+            w.act(QStringLiteral("pic.sharpen.50"))->trigger();
+            QCOMPARE(pic()->sharpenMove(), 50.0);
+            QCOMPARE(w.editor()->undoStack()->count(), steps + 1);
+            w.editor()->undo();
+            QCOMPARE(pic()->sharpenMove(), 0.0);
+            QVERIFY(pic()->blipEffects.isEmpty());
+            w.editor()->redo();
+            w.act(QStringLiteral("pic.temperature.50"))->trigger();
+            jp::applyArtisticEffect(w.editor(), &w, int(jp::ArtisticStyle::GlowEdges));
+            QCOMPARE(pic()->artisticStyle(), int(jp::ArtisticStyle::GlowEdges));
+            w.editor()->undo();
+            QCOMPARE(pic()->artisticStyle(), -1);
+            w.editor()->redo();
+            // (the gallery's thumbnails are made from the picture itself, one for each effect and one for none)
+            const QVector<GalleryItem> items = jp::artisticEffectItems(w.editor()->doc()->image(pic()->imageId));
+            QCOMPARE(int(items.size()), int(jp::ArtisticStyle::Last) + 2);
+            QCOMPARE(items[0].id, QStringLiteral("-1"));
+            // (for the docs, when JO_SHOT_DIR names a folder: the gallery's thumbnails side by side, the picture and each effect)
+            if (const QString shots = qEnvironmentVariable("JO_SHOT_DIR"); !shots.isEmpty()) {
+                QImage sheet(items.size() * 100, 80, QImage::Format_ARGB32);
+                sheet.fill(Qt::white);
+                QPainter pp(&sheet);
+                QImage photo(96, 72, QImage::Format_ARGB32);
+                photo.fill(QColor(120, 180, 230));
+                QPainter pq(&photo);
+                pq.setPen(Qt::NoPen);
+                pq.setBrush(QColor(90, 160, 80));
+                pq.drawEllipse(QRect(-20, 40, 140, 70));
+                pq.setBrush(QColor(250, 210, 60));
+                pq.drawEllipse(QRect(64, 8, 20, 20));
+                pq.setBrush(QColor(200, 60, 50));
+                pq.drawRect(30, 30, 28, 22);
+                pq.end();
+                const QVector<GalleryItem> shown = jp::artisticEffectItems(photo);
+                for (int i = 0; i < shown.size(); ++i) pp.drawPixmap(i * 100 + 2, 4, shown[i].icon.pixmap(QSize(48, 36)).scaled(96, 72));
+                pp.end();
+                QDir().mkpath(shots);
+                sheet.save(QDir(shots).filePath(QStringLiteral("picfx-gallery.png")));
+            }
+            QCOMPARE(w.editor()->doc()->images.value(pic()->imageId).bytes, original);   // the original is never changed
+            finished = pixelBytes(jp::applyBlipEffects(w.editor()->doc()->image(pic()->imageId), jp::blipFilters(pic()->blipEffects)));
+            QVERIFY(finished != pixelBytes(w.editor()->doc()->image(pic()->imageId)));
+            QVERIFY(w.saveTo(path));
+            QString said;
+            jp::setLossyStandIn([&](const jp::LossyAsk &a, bool *) {
+                said = a.lost.join(QLatin1Char('|'));
+                return jp::LossyChoice::SaveAnyway;
+            });
+            const bool saved = w.saveTo(odp, true);
+            jp::setLossyStandIn(nullptr);
+            QVERIFY(saved);
+            QVERIFY2(said.contains(QStringLiteral("artistic effect")), qPrintable(said));
+        }
+        {
+            DeckWindow b;
+            QVERIFY(b.openFile(path));
+            PictureItem *back = pictureNamed(b, QStringLiteral("Flag"));
+            QVERIFY(back);
+            QCOMPARE(back->sharpenMove(), 50.0);
+            QCOMPARE(back->temperatureMove(), 50.0);
+            QCOMPARE(back->artisticStyle(), int(jp::ArtisticStyle::GlowEdges));
+            // The original comes back (not the finished picture in the blip), and gives the same pixels, with no tolerance.
+            QCOMPARE(b.editor()->doc()->imageSize(back->imageId), pixels);
+            QCOMPARE(pixelBytes(jp::applyBlipEffects(b.editor()->doc()->image(back->imageId), jp::blipFilters(back->blipEffects))), finished);
+            // Reset Picture takes the effects off, as one step that Undo takes back.
+            b.editor()->select(back->id);
+            b.act(QStringLiteral("pic.reset"))->trigger();
+            QVERIFY(pictureNamed(b, QStringLiteral("Flag"))->blipEffects.isEmpty());
+            b.editor()->undo();
+            QCOMPARE(pictureNamed(b, QStringLiteral("Flag"))->sharpenMove(), 50.0);
+        }
+        // The other kind of file holds the finished picture.
+        DeckWindow o;
+        QVERIFY(o.openFile(odp));
+        const PictureItem *flat = pictureNamed(o, QStringLiteral("Flag"));
+        QVERIFY(flat);
+        QVERIFY(jp::blipFilters(flat->blipEffects).isEmpty());
+    }
+
+    // A big picture is filtered on a thread of its own (its work is counted, not timed): Cancel leaves the picture untouched, and without it the one step is made.
+    void aBigPictureIsFilteredOnAThreadAndCancelLeavesItAlone()
+    {
+        DeckWindow w;
+        w.resize(1200, 800);
+        w.show();
+        PictureItem *added = addPicture(w, QStringLiteral("Big"));
+        const QString id = added->id;
+        QImage big(2000, 2000, QImage::Format_ARGB32);
+        big.fill(QColor(120, 80, 40));
+        QByteArray png;
+        QBuffer buffer(&png);
+        buffer.open(QIODevice::WriteOnly);
+        big.save(&buffer, "PNG");
+        added->imageId = w.editor()->doc()->addImage(png, QStringLiteral("png"));
+        auto pic = [&] { return static_cast<PictureItem *>(w.editor()->doc()->item(id)); };
+        const int ran = jp::pictureFxThreadedRuns();
+        // A small picture is not worked on a thread.
+        {
+            QImage small(40, 40, QImage::Format_ARGB32);
+            small.fill(Qt::red);
+            QByteArray p2;
+            QBuffer b2(&p2);
+            b2.open(QIODevice::WriteOnly);
+            small.save(&b2, "PNG");
+            PictureItem *other = addPicture(w, QStringLiteral("Small"));
+            other->imageId = w.editor()->doc()->addImage(p2, QStringLiteral("png"));
+            jp::applyArtisticEffect(w.editor(), &w, 0);
+            QCOMPARE(jp::pictureFxThreadedRuns(), ran);
+            w.editor()->undo();
+            w.editor()->select(id);
+        }
+        // Cancel: the work stops, nothing is changed, and no step is made.
+        const int steps = w.editor()->undoStack()->index();
+        jp::pictureFxWorkerHook = [](const std::atomic<bool> &stop) {
+            for (int i = 0; i < 20'000'000 && !stop; ++i) QThread::yieldCurrentThread();
+        };
+        const auto off = qScopeGuard([] { jp::pictureFxWorkerHook = nullptr; });
+        QTimer::singleShot(0, &w, [&w] {
+            if (auto *box = w.findChild<QProgressDialog *>(QStringLiteral("pictureEffectBusy"))) if (auto *cancel = box->findChild<QPushButton *>()) cancel->click();   // (the box's own Cancel button)
+        });
+        jp::applyArtisticEffect(w.editor(), &w, int(jp::ArtisticStyle::Blur));
+        QCOMPARE(jp::pictureFxThreadedRuns(), ran + 1);
+        QCOMPARE(pic()->artisticStyle(), -1);
+        QCOMPARE(w.editor()->undoStack()->index(), steps);
+        // Without it: worked out on the thread, then one step.
+        jp::pictureFxWorkerHook = nullptr;
+        jp::applyArtisticEffect(w.editor(), &w, int(jp::ArtisticStyle::Blur));
+        QCOMPARE(jp::pictureFxThreadedRuns(), ran + 2);
+        QCOMPARE(pic()->artisticStyle(), int(jp::ArtisticStyle::Blur));
+        QCOMPARE(w.editor()->undoStack()->index(), steps + 1);
+    }
+
+    static QByteArray pixelBytes(const QImage &im)
+    {
+        const QImage a = im.convertToFormat(QImage::Format_ARGB32);
+        QByteArray bytes;
+        for (int y = 0; y < a.height(); ++y) bytes.append(reinterpret_cast<const char *>(a.constScanLine(y)), a.width() * 4);
+        return bytes;
     }
 
     // Set Transparent Color takes the color of the picture's own pixel where it is clicked (the picture as it was put in), not what the window shows there: on a

@@ -2,7 +2,10 @@
 
 #include "app/formatpresets.h"
 #include "app/icons.h"
+#include "core/blipeffects.h"
+#include "core/picturefx.h"
 #include "core/picturestyles.h"
+#include "core/workthread.h"
 #include "office/drawingml_write.h"
 #include "render/shapes.h"
 #include "render/renderer.h"
@@ -12,7 +15,10 @@
 #include <QHash>
 #include <QLinearGradient>
 #include <QPainter>
+#include <QEventLoop>
+#include <QProgressDialog>
 #include <QWidgetAction>
+#include <atomic>
 #include <cmath>
 
 namespace jp {
@@ -259,6 +265,140 @@ GalleryButton *cropToShapeButton(const std::function<void(const QString &shapeId
     b->setItemsProvider([] { return cropShapeItems(); });
     QObject::connect(b, &GalleryButton::activated, b, [chosen](const QString &id) { chosen(id); });
     return b;
+}
+
+namespace {
+std::atomic<int> threadedRuns{0};
+
+QString signedPercent(int v) { return v > 0 ? QStringLiteral("+%1%").arg(v) : QStringLiteral("%1%").arg(v); }
+
+bool plainPicture(const Item *it)
+{
+    const auto *p = dynamic_cast<const PictureItem *>(it);
+    return p && p->mediaKind.isEmpty() && p->chartXml.isEmpty() && !p->imageId.isEmpty();
+}
+} // namespace
+
+QVector<PictureFxCommand> pictureSharpenCommands()
+{
+    QVector<PictureFxCommand> v;
+    const QString step = QCoreApplication::translate("jp::PictureTools", "Sharpen and Soften");
+    for (int amount : {-50, -25, 0, 25, 50}) {
+        const QString text = amount == 0 ? QCoreApplication::translate("jp::PictureTools", "Sharpen: 0% (Normal)")
+                           : amount < 0 ? QCoreApplication::translate("jp::PictureTools", "Soften: %1%").arg(-amount)
+                                        : QCoreApplication::translate("jp::PictureTools", "Sharpen: %1%").arg(amount);
+        v.append({QStringLiteral("pic.sharpen.%1").arg(amount), text, step, [amount](PictureItem &p) { p.setSharpenMove(amount); }});
+    }
+    return v;
+}
+
+QVector<PictureFxCommand> pictureTemperatureCommands()
+{
+    QVector<PictureFxCommand> v;
+    const QString step = QCoreApplication::translate("jp::PictureTools", "Color Temperature");
+    for (int amount : {-100, -50, 0, 50, 100}) {
+        const QString text = amount == 0 ? QCoreApplication::translate("jp::PictureTools", "Temperature: 0% (Normal)")
+                           : amount < 0 ? QCoreApplication::translate("jp::PictureTools", "Temperature: %1 (Cooler)").arg(signedPercent(amount))
+                                        : QCoreApplication::translate("jp::PictureTools", "Temperature: %1 (Warmer)").arg(signedPercent(amount));
+        v.append({QStringLiteral("pic.temperature.%1").arg(amount), text, step, [amount](PictureItem &p) { p.setTemperatureMove(amount); }});
+    }
+    return v;
+}
+
+QVector<GalleryItem> artisticEffectItems(const QImage &sample, const QSize &tile)
+{
+    QImage base = sample;
+    if (base.isNull()) {
+        // A sample with a sun, a hill, and sky, so that every effect has something to show.
+        base = QImage(96, 72, QImage::Format_ARGB32);
+        base.fill(QColor(120, 180, 230));
+        QPainter p(&base);
+        p.setRenderHint(QPainter::Antialiasing, false);
+        p.setPen(Qt::NoPen);
+        p.setBrush(QColor(90, 160, 80));
+        p.drawEllipse(QRect(-20, 40, 140, 70));
+        p.setBrush(QColor(250, 210, 60));
+        p.drawEllipse(QRect(64, 8, 20, 20));
+    }
+    // The thumbnails are worked out on a small copy (a few thousand pixels), in the same filters the picture gets.
+    const QImage small = base.scaled(tile * 2, Qt::KeepAspectRatio, Qt::SmoothTransformation).convertToFormat(QImage::Format_ARGB32);
+    QVector<GalleryItem> v;
+    const QString none = QCoreApplication::translate("jp::PictureTools", "No Artistic Effect");
+    BlipEffect e;
+    e.kind = BlipEffect::Artistic;
+    e.amount = 0.5;
+    for (int style = -1; style <= int(ArtisticStyle::Last); ++style) {
+        QImage shown = small;
+        QString name = none;
+        if (style >= 0) {
+            e.style = style;
+            shown = applyBlipEffects(small, {e});
+            name = blipFilterName(e);
+        }
+        QPixmap pm = QPixmap::fromImage(shown.scaled(tile, Qt::KeepAspectRatio, Qt::SmoothTransformation));
+        v.append(GalleryItem{QString::number(style), name, QIcon(pm), QString()});
+    }
+    return v;
+}
+
+GalleryButton *artisticEffectsButton(const std::function<QImage()> &sample, const std::function<void(int)> &chosen, const QString &objectName)
+{
+    auto *b = new GalleryButton(icon("wand-sparkles"), QCoreApplication::translate("jp::PictureTools", "Artistic Effects"), QSize(48, 36), 5, true);
+    if (!objectName.isEmpty()) b->setObjectName(objectName);
+    b->setItemsProvider([sample] { return artisticEffectItems(sample ? sample() : QImage()); });
+    QObject::connect(b, &GalleryButton::activated, b, [chosen](const QString &id) { chosen(id.toInt()); });
+    return b;
+}
+
+void applyArtisticEffect(Editor *ed, QWidget *window, int style)
+{
+    changePicturesWithFilter(ed, window, QCoreApplication::translate("jp::PictureTools", "Artistic Effects"), [style](PictureItem &p) { p.setArtistic(style); });
+}
+
+int pictureFxThreadedRuns() { return threadedRuns; }
+
+std::function<void(const std::atomic<bool> &)> pictureFxWorkerHook;
+
+void changePicturesWithFilter(Editor *ed, QWidget *window, const QString &step, const std::function<void(PictureItem &)> &change)
+{
+    // What the pictures would have for filters after the change, and what that costs: worked out beside the document, which is not touched until the work is done.
+    struct Job { QImage image; QVector<BlipEffect> filters; };
+    std::vector<Job> jobs;
+    qint64 work = 0;
+    for (Item *it : ed->selectedItems()) {
+        if (!plainPicture(it)) continue;
+        PictureItem probe(*static_cast<PictureItem *>(it));
+        change(probe);
+        Job job{ed->doc()->image(probe.imageId), blipFilters(probe.blipEffects)};
+        if (job.image.isNull() || !blipEffectsChange(job.filters) || probe.removal.isValid()) continue;   // (a removal changes the picture first: drawn, not prepared)
+        work += blipEffectsWork(qint64(job.image.width()) * job.image.height(), job.filters);
+        jobs.push_back(std::move(job));
+    }
+    if (work > kPictureFxBusyWork && window) {
+        std::atomic<bool> stop{false};
+        QEventLoop loop;
+        QProgressDialog box(QCoreApplication::translate("jp::PictureTools", "Changing the picture…"), QCoreApplication::translate("jp::PictureTools", "Cancel"), 0, 0, window);
+        box.setObjectName(QStringLiteral("pictureEffectBusy"));
+        box.setWindowModality(Qt::WindowModal);
+        box.setMinimumDuration(400);
+        QObject::connect(&box, &QProgressDialog::canceled, &box, [&stop] { stop = true; });
+        ++threadedRuns;
+        bool finished = false;
+        WorkThread thread([&jobs, &stop, &loop, &finished] {
+            if (pictureFxWorkerHook) pictureFxWorkerHook(stop);
+            for (const Job &j : jobs) blipAdjusted(j.image, j.filters, &stop);
+            QMetaObject::invokeMethod(&loop, [&loop, &finished] { finished = true; loop.quit(); }, Qt::QueuedConnection);
+        });
+        if (!thread.started()) stop = true;
+        else loop.exec();
+        thread.join();
+        if (stop || !finished) return;   // (cancelled: nothing changes)
+    } else {
+        for (const Job &j : jobs) blipAdjusted(j.image, j.filters);
+    }
+    ed->forEachSelected(step, [&change](Item *it) {
+        if (plainPicture(it)) change(*static_cast<PictureItem *>(it));
+    });
 }
 
 } // namespace jp
