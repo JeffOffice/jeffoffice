@@ -71,6 +71,11 @@ public:
     std::shared_ptr<std::atomic<bool>> searchCancelFlag() const;
     // Stops a search that is under way, waits for its thread to end, and drops what it found. Nothing is changed.
     void cancelSearch(bool restoreInput = true);
+    // The panes that are alive, and the one step the program's end runs for all of them (added when the first pane is made, never again): it stops each pane's search. For tests: how many panes are
+    // alive, how many steps were added, and the stop itself.
+    static int livePaneCount();
+    static int shutdownStepsAdded();
+    static void cancelAllSearches();
     // Advanced Find: words that sound like the one typed, every form of it, and letters found with punctuation or spaces between them that the box leaves out.
     QCheckBox *soundsLike() const { return m_sounds; }
     QCheckBox *wordForms() const { return m_forms; }
@@ -114,7 +119,7 @@ private:
     void jobDone(quint64 id);
     void endJob(Job &job, bool restoreInput);
     QString searchSignature() const;
-    void waitThen(const std::function<void()> &again, bool againWhenStale = false);
+    void waitThen(const std::function<void()> &again, bool againWhenStale = false, bool replaces = false);
     static int nextPlace(const QTextCursor &match, int at);
     void hideEvent(QHideEvent *e) override;
     void showEvent(QShowEvent *e) override;
@@ -174,7 +179,7 @@ private:
     std::function<void()> m_startedHook;
     std::unique_ptr<Job> m_job;
     std::function<void()> m_retry;
-    bool m_retryWhenStale = false;
+    bool m_retryWhenStale = false, m_retryReplaces = false;
     bool m_wait = false, m_inlineScans = false;
     int m_retries = 0;
     quint64 m_jobIds = 0;

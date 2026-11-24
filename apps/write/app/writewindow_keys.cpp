@@ -112,6 +112,10 @@ QAction *WriteWindow::makeKeyCommand(const QString &id)
             refuseReadOnlyChange();
             return;
         }
+        if (searchBlocked() && !commandAllowedReadOnly(id)) {
+            refuseSearchBlockedChange();
+            return;
+        }
         fn();
     });
     m_actions.insert(id, a);

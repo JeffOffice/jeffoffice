@@ -1,5 +1,6 @@
 // JeffWrite's View tab, the parts beyond the zoom: the Navigation pane and Focus mode.
 
+#include "app/writefindpane.h"
 #include "app/writewindow.h"
 
 #include "app/navpane.h"
@@ -195,6 +196,7 @@ void WriteWindow::setReadMode(bool on)
         act("view.readMode")->setChecked(false);
         return;
     }
+    if (m_find) m_find->cancelSearch();   // (a search ends before the way the document may be changed does)
     if (on) {
         setOutlineMode(false);
         m_readWas.readOnly = m_view->readOnly();

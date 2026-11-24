@@ -51,3 +51,18 @@ void WriteWindow::replaceFonts()
 }
 
 } // namespace jp
+
+namespace jp {
+
+void WriteWindow::blockEditsForSearch(bool on)
+{
+    if (on) {
+        beginSearchBlock();
+        m_view->beginSearchBlock();
+    } else {
+        endSearchBlock();
+        m_view->endSearchBlock();
+    }
+}
+
+} // namespace jp

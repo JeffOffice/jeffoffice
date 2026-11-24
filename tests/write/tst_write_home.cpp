@@ -58,6 +58,8 @@
 
 #include <QAction>
 #include <QClipboard>
+#include <QDropEvent>
+#include <QInputMethodEvent>
 #include <QMimeData>
 #include <QTextList>
 #include <QLockFile>
@@ -238,6 +240,35 @@ protected:
     {
         ++reads;
         return QMimeData::retrieveData(format, type);
+    }
+};
+
+
+// Holds the search of `^odd` at its third paragraph until it is told to stop (a counted wait: no clock). Returns the flag that stops it once it holds.
+struct HeldSearch {
+    std::atomic<bool> held{false};
+    std::atomic<int> asked{0};
+    std::atomic<std::atomic<bool> *> flagAt{nullptr};
+    std::shared_ptr<std::atomic<bool>> flag;
+    void start(WriteFindPane *pane, const QString &pattern = QStringLiteral("^odd"))
+    {
+        pane->setScanHook([this](int done) {
+            ++asked;
+            if (done == 3) {
+                held = true;
+                for (int i = 0; i < 20000000; ++i) {
+                    const std::atomic<bool> *f = flagAt.load();
+                    if (f && f->load()) break;
+                    QThread::yieldCurrentThread();
+                }
+            }
+            return true;
+        });
+        pane->findBox()->setText(pattern);
+        QTRY_VERIFY(pane->searchRunning());
+        flag = pane->searchCancelFlag();
+        flagAt = flag.get();
+        QTRY_VERIFY(held.load());
     }
 };
 
@@ -3933,6 +3964,69 @@ private Q_SLOTS:
         QVERIFY(h.done && h.hits.isEmpty() && h.widest <= kRegexWindow);
     }
 
+    void aMatchThatReachesTheEndOfAWindowIsFoundWholeOnceOrTheSearchStopsAndNeverAWrongHit()
+    {
+        auto scan = [](const char *pattern, const QString &text) { return scanRegex(text, regexPattern(QString::fromLatin1(pattern), false), 0, 100000); };
+        // A run longer than a window is one match, and `$` is the end of the paragraph and not of a window.
+        const QString a(50000, QLatin1Char('a'));
+        for (const char *pattern : {"a+", "a+$", "\\ba+\\b", "a+(?:b|$)"}) {
+            const RegexScan r = scan(pattern, a);
+            QVERIFY2(r.done && !r.limited && !r.tooLong, pattern);
+            QCOMPARE(r.hits.size(), 1);
+            QCOMPARE(r.hits[0].first, 0);
+            QCOMPARE(r.hits[0].second, 50000);
+            QVERIFY2(r.calls <= 8, pattern);   // (the call is made again with twice the text, a few times: not once for every window)
+        }
+        const QString edge = QString(30000, QLatin1Char('a')) + QLatin1Char('b') + QString(19999, QLatin1Char('a'));
+        const RegexScan e = scan("a+$", edge);
+        QVERIFY(e.done);
+        QCOMPARE(e.hits.size(), 1);
+        QCOMPARE(e.hits[0].first, 30001);
+        QCOMPARE(e.hits[0].second, 50000);
+        // A match that goes past the most the engine is shown at once stops the search, with the places it had found before it.
+        const QString huge = QStringLiteral("a bb a ") + QString(kRegexContextMost + 5000, QLatin1Char('a'));
+        const RegexScan t = scan("a+", huge);
+        QVERIFY(t.tooLong && !t.done && !t.limited && !t.cancelled);
+        QCOMPARE(t.hits.size(), 2);   // ("a" at the start, and the one after "bb")
+        QVERIFY(t.widest <= kRegexContextMost && t.calls <= 12);
+        QVERIFY(scan("a+", QString(kRegexContextMost, QLatin1Char('a'))).done);   // (a match as long as that is still found: it ends at the end of the text)
+        // The reply of the review: 22 patterns on 50,000 characters, each the same as an engine that is given the whole text, or the search is stopped.
+        QString text;
+        quint32 seed = 12345;
+        auto next = [&](int n) { seed = seed * 1664525u + 1013904223u; return int((seed >> 8) % unsigned(n)); };
+        static const char *const pieces[] = {"a", "aa", "b", "ab", "abc", " ", "xz", "z", "\\x", "ba ", "aaab", "c", "x"};
+        while (text.size() < 50000) {
+            const int k = next(100);
+            if (k == 0) text += QString(2500 + next(9000), QLatin1Char('a'));
+            else if (k == 1) text += QString(900 + next(4000), QLatin1Char('b'));
+            else text += QString::fromLatin1(pieces[next(int(std::size(pieces)))]);
+        }
+        text.truncate(50000);
+        text.replace(QLatin1Char('\\'), QLatin1Char(' '));
+        const char *patterns[] = {"a+", "a+$", "\\ba+\\b", "b{4,}", "xz?z", "a{200,}", "(ab)+", "\\w+", "[ab]+c", "a{50}b|a{60}", "(a|b)+$", "^a+", "a*?$", "\\b", "$", "(a+)b?\\1", ".+?x", "a.*z|a", "(?:ab|a)+c?", "\\Ba{9}", "a+(?:b|$)", "\\w+\\s+\\w+"};
+        QCOMPARE(int(std::size(patterns)), 22);
+        int compared = 0;
+        for (const char *pattern : patterns) {
+            const FindPattern p = regexPattern(QString::fromLatin1(pattern), false);
+            QVERIFY2(p.error.isEmpty(), pattern);
+            const RegexScan r = scanRegex(text, p, 0, 1000000);
+            if (r.limited || r.tooLong) continue;   // (stopped, said so: no wrong hit)
+            QVERIFY2(r.done, pattern);
+            QList<QPair<int, int>> want, got;
+            for (int at = 0; at <= text.size();) {
+                const QRegularExpressionMatch m = p.regex.matchView(text, at);
+                QVERIFY2(m.isValid(), pattern);
+                if (!m.hasMatch()) break;
+                want << qMakePair(int(m.capturedStart()), int(m.capturedEnd()));
+                at = int(m.capturedEnd()) + (m.capturedEnd() > m.capturedStart() ? 0 : 1);
+            }
+            for (const RegexHit &h : r.hits) got << qMakePair(h.first, h.second);
+            QVERIFY2(got == want, pattern);
+            ++compared;
+        }
+        QVERIFY2(compared >= 18, qPrintable(QString::number(compared)));
+    }
+
     void everyLookAheadAndLookBehindIsRefusedAtItsPlaceAndWhatOnlyLooksLikeOneIsNot()
     {
         const struct { const char *pattern; int at; } bad[] = {{"(?=.*z)a", 1}, {"(a*)(?:a|b)*?(?=\\1z)", 14}, {"x(?!a)", 2}, {"(?<=a)b", 1}, {"b(?<!a)", 2}, {"(?:x|(?=a))", 6}, {"[a](?=b)", 4}, {"\\((?=b)", 3}};
@@ -4849,14 +4943,14 @@ private Q_SLOTS:
         pane->replaceBox()->setText(QStringLiteral("ZZ"));
         bool blocked = false;
         pane->setSearchStartedHook([&] {
-            blocked = w.view()->readOnly() && pane->searchRunning();
+            blocked = w.view()->searchBlocked() && !w.view()->readOnly() && pane->searchRunning();
             QTest::keyClicks(w.view(), QStringLiteral("typed"));
         });
         pane->findBox()->setText(QStringLiteral("^odd"));
         pane->replaceAll();
         QVERIFY(blocked);
         QTRY_VERIFY(!pane->searchRunning());
-        QVERIFY(!w.view()->readOnly());
+        QVERIFY(!w.view()->readOnly() && !w.view()->searchBlocked() && !w.searchBlocked());
         QVERIFY2(!w.document()->story()->toPlainText().contains(QStringLiteral("typed")), "typing was blocked");
         QTRY_VERIFY(w.document()->story()->toPlainText().contains(QStringLiteral("ZZ line")));
         QVERIFY(w.document()->undo());
@@ -4872,8 +4966,186 @@ private Q_SLOTS:
         pane->replaceAll();
         QTRY_VERIFY(!pane->searchRunning());
         pane->setSearchStartedHook({});
+        // The pane says that nothing was replaced, and the count of matches that follows the change of the text does not take its place.
+        const QString said = QStringLiteral("The document changed during the search, so nothing was replaced.");
+        QCOMPARE(pane->status(), said);
+        const int refreshes = pane->refreshesRun();
+        pane->setFormatFilter(write::FormatFilter());   // (a count asked for again without an act of the person)
+        QTRY_VERIFY(pane->refreshesRun() > refreshes);
+        QCOMPARE(pane->status(), said);
         QVERIFY2(!w.document()->story()->toPlainText().contains(QStringLiteral("ZZ")), qPrintable(w.document()->story()->toPlainText().left(80)));
         QVERIFY(w.document()->story()->toPlainText().startsWith(QStringLiteral("YYYYYYYYYYeven line\nodd line")));
+    }
+
+    void aSearchStopsEveryChangeUntilItEndsByTheWindowsCommandsAndTheViewsEntriesAndNeverTouchesTheReadOnlyState()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        w.setDocument(open(makeDocx(evenOddBody(3000))), QString());
+        w.showFindPane();
+        WriteFindPane *pane = w.findPane();
+        pane->useRegex()->setChecked(true);
+        pane->findBox()->setText(QStringLiteral("^even"));
+        QTRY_COMPARE(pane->matchCount(), 1500);
+        const QString before = w.document()->story()->toPlainText();
+        QApplication::clipboard()->setText(QStringLiteral("PASTED"));
+        // What each try does when it is allowed; the same tries are made with no search under way, and each changes the text (so that the blocked tries below are real tries).
+        auto tries = [&] {
+            w.view()->setFocus();
+            QTest::keyClicks(w.view(), QStringLiteral("typed"));
+            w.view()->paste();
+            w.act(QStringLiteral("edit.paste"))->trigger();
+            w.act(QStringLiteral("edit.pasteText"))->trigger();
+            QTest::keySequence(w.view(), QKeySequence::Paste);
+            w.act(QStringLiteral("insert.pageBreak"))->trigger();
+            w.view()->insertText(QStringLiteral("direct"));
+            auto *mime = new QMimeData;
+            mime->setText(QStringLiteral("dropped"));
+            QRect caret;
+            w.view()->caretRect(&caret);
+            QDragEnterEvent enter(caret.center(), Qt::CopyAction, mime, Qt::LeftButton, Qt::NoModifier);
+            QApplication::sendEvent(w.view()->viewport(), &enter);
+            QDropEvent drop(QPointF(caret.center()), Qt::CopyAction, mime, Qt::LeftButton, Qt::NoModifier);
+            drop.setAccepted(false);
+            QApplication::sendEvent(w.view()->viewport(), &drop);
+            delete mime;
+            QInputMethodEvent ime;
+            ime.setCommitString(QStringLiteral("IME"));
+            QApplication::sendEvent(w.view(), &ime);
+        };
+        QString during;
+        bool readOnlyDuring = true, ran = false;
+        pane->setSearchStartedHook([&] {
+            tries();
+            during = w.document()->story()->toPlainText();
+            readOnlyDuring = w.view()->readOnly() || w.isReadOnly();
+            ran = true;
+        });
+        pane->findBox()->setText(QStringLiteral("^odd"));
+        QTRY_VERIFY(ran);
+        QTRY_VERIFY(!pane->searchRunning());
+        pane->setSearchStartedHook({});
+        QCOMPARE(during, before);   // (nothing got in while the search ran)
+        QVERIFY(!readOnlyDuring);   // (and the document was not made read-only for it)
+        QVERIFY(!w.view()->readOnly() && !w.isReadOnly() && !w.view()->searchBlocked() && !w.searchBlocked());
+        // The same tries, with the search done, all change the text.
+        const QString afterWords = w.document()->story()->toPlainText();
+        tries();
+        const QString now = w.document()->story()->toPlainText();
+        for (const char *word : {"typed", "PASTED", "direct", "dropped", "IME"}) QVERIFY2(now.contains(QString::fromLatin1(word)), word);
+        QVERIFY(now.size() > afterWords.size() + 30);
+    }
+
+    void aDocumentOpenedOrReadModeSwitchedDuringASearchEndsItFirstAndTheReadOnlyStateIsWhatTheOpenerMadeIt()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        w.setDocument(open(makeDocx(evenOddBody(3000))), QString());
+        w.showFindPane();
+        WriteFindPane *pane = w.findPane();
+        pane->useRegex()->setChecked(true);
+        pane->findBox()->setText(QStringLiteral("^even"));
+        QTRY_COMPARE(pane->matchCount(), 1500);
+        auto settle = [] { for (int i = 0; i < 20; ++i) QCoreApplication::processEvents(); };
+        // (1) The window is made editable during a search: it is editable when the search is over (it was made read-only again by the end of the search before).
+        w.setReadOnly(true);
+        {
+            HeldSearch h;
+            h.start(pane);
+            w.setReadOnly(false);
+            QVERIFY(!pane->searchRunning());
+            QVERIFY(h.flag->load());
+            settle();
+            QVERIFY(!w.view()->readOnly() && !w.isReadOnly() && !w.searchBlocked() && !w.view()->searchBlocked());
+        }
+        // (2) A document opened for reading during a search stays read-only when the search would have ended.
+        {
+            HeldSearch h;
+            h.start(pane, QStringLiteral("^odd\\b"));
+            w.setDocument(open(makeDocx(evenOddBody(5))), QString());
+            QVERIFY(!pane->searchRunning());
+            w.setReadOnly(true);
+            settle();
+            QVERIFY(w.view()->readOnly() && w.isReadOnly());
+            QVERIFY(!w.searchBlocked() && !w.view()->searchBlocked());
+            w.setReadOnly(false);
+            QTest::keyClicks(w.view(), QStringLiteral("typed"));
+            QVERIFY(w.document()->story()->toPlainText().contains(QStringLiteral("typed")));
+        }
+        // (3) Read Mode switched on, and off, during a search.
+        w.setDocument(open(makeDocx(evenOddBody(3000))), QString());
+        pane->findBox()->setText(QStringLiteral("^even"));
+        QTRY_COMPARE(pane->matchCount(), 1500);
+        {
+            HeldSearch h;
+            h.start(pane, QStringLiteral("^odd.*"));
+            w.setReadMode(true);
+            QVERIFY(!pane->searchRunning());
+            settle();
+            QVERIFY(w.view()->readOnly());
+            QVERIFY(!w.searchBlocked() && !w.view()->searchBlocked());
+        }
+        w.setReadMode(false);
+        QVERIFY(!w.view()->readOnly());
+    }
+
+    void everyFindPaneIsLiveOnlyWhileItLivesAndTheProgramsEndIsOneStepForAllOfThem()
+    {
+        const int before = WriteFindPane::livePaneCount();
+        for (int i = 0; i < 3; ++i) {
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.showFindPane();
+            QCOMPARE(WriteFindPane::livePaneCount(), before + 1);
+        }
+        QCOMPARE(WriteFindPane::livePaneCount(), before);
+        QCOMPARE(WriteFindPane::shutdownStepsAdded(), 1);   // (one step for every pane there has been in this program, added by the first)
+        // That step stops the search of every pane that is alive.
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        w.setDocument(open(makeDocx(evenOddBody(3000))), QString());
+        w.showFindPane();
+        WriteFindPane *pane = w.findPane();
+        pane->useRegex()->setChecked(true);
+        pane->findBox()->setText(QStringLiteral("^even"));
+        QTRY_COMPARE(pane->matchCount(), 1500);
+        HeldSearch h;
+        h.start(pane);
+        WriteFindPane::cancelAllSearches();
+        QVERIFY(!pane->searchRunning());
+        QVERIFY(h.flag->load());
+        QCOMPARE(h.asked.load(), 3);
+    }
+
+    void aMatchTooLongToBeShownWholeStopsTheCountAndReplaceAllWithAMessageAndChangesNothing()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        w.setDocument(open(makeDocx(para(run("one two")) + para(run(QByteArray(write::kRegexContextMost + 5000, 'a').constData())))), QString());
+        w.showFindPane();
+        WriteFindPane *pane = w.findPane();
+        pane->useRegex()->setChecked(true);
+        const QString before = w.document()->story()->toPlainText();
+        const QString said = QStringLiteral("A match longer than %1 characters").arg(QLocale().toString(write::kRegexContextMost));
+        pane->findBox()->setText(QStringLiteral("a+"));
+        QTRY_VERIFY2(pane->status().contains(said), qPrintable(pane->status()));
+        QCOMPARE(pane->matchCount(), 0);
+        pane->replaceBox()->setText(QStringLiteral("X"));
+        pane->replaceAll();
+        QTRY_VERIFY2(pane->status().contains(said) && !pane->searchRunning(), qPrintable(pane->status()));
+        QVERIFY(pane->status().contains(QStringLiteral("Nothing was changed.")));
+        QCOMPARE(w.document()->story()->toPlainText(), before);
+        // A pattern whose matches are short, in the same text, is searched as ever.
+        pane->findBox()->setText(QStringLiteral("t[wh]o"));
+        QTRY_COMPARE(pane->matchCount(), 1);
     }
 
     void closingTheWindowWhileASearchRunsStopsItAtTheNextCheckAndEndsItsThread()

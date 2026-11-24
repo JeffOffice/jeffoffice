@@ -1258,7 +1258,7 @@ bool PageView::tableHandle(QRectF *box, int *page, int *cellPosition, QRectF *ta
 void PageView::finishBorderPaint(const ToolDrag &drag)
 {
     const auto r = rendered(drag.page);
-    if (!m_doc || m_readOnly || !r || !r->page || drag.path.empty()) return;
+    if (!m_doc || editsBlocked() || !r || !r->page || drag.path.empty()) return;
     const double reach = 4.0 / std::max(0.1, scale());
     // The table under the start of the drag; of tables inside tables (which the page does not list: each is among the cells of the table it is in), the innermost (the smallest).
     std::vector<flow::PaintCell> cells;
@@ -1292,7 +1292,7 @@ void PageView::finishBorderPaint(const ToolDrag &drag)
 bool PageView::moveHandle(QRectF *box, int *page, int *cellPosition, QRectF *table)
 {
     QRectF resize;
-    if (m_readOnly || !tableHandle(&resize, page, cellPosition, table)) return false;   // (a document held for reading, or protected, has none)
+    if (editsBlocked() || !tableHandle(&resize, page, cellPosition, table)) return false;   // (a document held for reading, or protected, has none)
     const double side = 8.0 / std::max(0.1, scale());
     *box = QRectF(table->left() - side - 1.0 / std::max(0.1, scale()), table->top() - side - 1.0 / std::max(0.1, scale()), side, side);
     return true;

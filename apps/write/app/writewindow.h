@@ -463,6 +463,8 @@ public:
     // Replace Fonts: the box that swaps one font the document uses for another everywhere (text, styles, tables, shapes, headers, footers, and notes); one step of Undo.
     void replaceFonts();
     WriteFindPane *findPane() const { return m_find; }
+    // A search on a thread of its own is under way (or is done): no change of the document, by the window's commands or by the page, until the end. Counted, and the read-only state is not touched.
+    void blockEditsForSearch(bool on);
 
 protected:
     void closeEvent(QCloseEvent *e) override;

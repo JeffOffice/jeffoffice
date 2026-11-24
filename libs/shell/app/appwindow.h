@@ -87,11 +87,20 @@ public:
     void noteSaved(const QString &path);
     // Says, in the status bar, why a change was refused.
     void refuseReadOnlyChange();
-    // True, after saying why, when a change is asked for in a read-only document: for a control that changes the document without being a command (a box, a gallery, a menu made in code).
+    // A counted block on every change while a search that reads a copy of the document is under way (its places are those of the text it was given). It is not the read-only state, which it never
+    // touches: the window can be opened for reading, or put in Read Mode, or opened onto another document, and the block ends with the search.
+    void beginSearchBlock() { ++m_searchBlocks; }
+    void endSearchBlock() { if (m_searchBlocks > 0) --m_searchBlocks; }
+    bool searchBlocked() const { return m_searchBlocks > 0; }
+    // Says, in the status bar, why a change was refused while a search is under way.
+    void refuseSearchBlockedChange();
+    // True, after saying why, when a change is asked for in a read-only document or while a search is under way: for a control that changes the document without being a command (a box, a gallery,
+    // a menu made in code).
     bool refuseIfReadOnly()
     {
-        if (!m_readOnly) return false;
-        refuseReadOnlyChange();
+        if (!m_readOnly && m_searchBlocks == 0) return false;
+        if (m_readOnly) refuseReadOnlyChange();
+        else refuseSearchBlockedChange();
         return true;
     }
 
@@ -111,6 +120,7 @@ protected:
     // After the window brought the controls of tabs made late up to date (which can turn a control on that read-only turned off): turned off again.
     void keepRibbonReadOnly();
     bool m_readOnly = false;
+    int m_searchBlocks = 0;
     QWidget *m_heldBar = nullptr;
     QString m_heldPath, m_enabledPath;
     OptionsStart m_optionsStart = OptionsStart::Default;

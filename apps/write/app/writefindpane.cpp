@@ -1,4 +1,5 @@
 #include "app/writefindpane.h"
+#include "core/syslocale.h"
 
 #include "app/pageview.h"
 #include "app/writewindow.h"
@@ -194,6 +195,18 @@ QPair<int, int> storyRangeOf(StoryWords *text, const QTextCursor &m)
 
 }
 
+namespace {
+
+// (Made with new and never deleted, so that no destructor of a static ever runs; used on the window's thread only.)
+QVector<WriteFindPane *> &livePanes()
+{
+    static auto *panes = new QVector<WriteFindPane *>;
+    return *panes;
+}
+int s_stepsAdded = 0;
+
+}
+
 WriteFindPane::WriteFindPane(WriteWindow *win, QWidget *parent) : QWidget(parent), m_win(win)
 {
     setObjectName(QStringLiteral("findPane"));
@@ -366,11 +379,24 @@ WriteFindPane::WriteFindPane(WriteWindow *win, QWidget *parent) : QWidget(parent
     for (QCheckBox *c : {m_wild, m_regex, m_sounds, m_forms}) connect(c, &QCheckBox::toggled, this, [this] { syncChoices(); });
     // The pages ask for the words found in a header, a footer, or a note when they draw it.
     m_win->view()->setFindSideMatcher([this](const QTextDocument *story) { return matchesInSideStory(story); });
-    // The program's end stops a search that is under way (the thread is waited for, within the time the step is given).
-    addShutdownStep([pane = QPointer<WriteFindPane>(this)](int) {
-        if (pane) pane->cancelSearch();
-        return 0;
-    });
+    // The program's end stops a search that is under way (the thread is waited for, within the time the step is given): one step for every pane there is, added by the first.
+    livePanes().push_back(this);
+    if (s_stepsAdded == 0) {
+        ++s_stepsAdded;
+        addShutdownStep([](int) {
+            cancelAllSearches();
+            return 0;
+        });
+    }
+}
+
+int WriteFindPane::livePaneCount() { return int(livePanes().size()); }
+int WriteFindPane::shutdownStepsAdded() { return s_stepsAdded; }
+
+void WriteFindPane::cancelAllSearches()
+{
+    const QVector<WriteFindPane *> panes = livePanes();
+    for (WriteFindPane *pane : panes) pane->cancelSearch();
 }
 
 // Some choices do not go with others (a pattern has its own way of saying these things; a word read by its sound or its forms is a whole word, in any case).
@@ -593,6 +619,14 @@ constexpr int kShortText = 2000;   // a text of no more characters than this is 
 
 int hitNextPlace(const write::RegexHit &h) { return h.second + (h.second > h.first ? 0 : 1); }
 
+// What is said when a scan ended before the end of the text, and why (for a scan that was cancelled, hit the engine's limit of work, or met a match that is too long to be shown whole).
+QString stoppedMessage(const write::RegexScan &scan)
+{
+    if (scan.tooLong) return QCoreApplication::translate("WriteFindPane", "A match longer than %1 characters was found, which is more than JeffWrite can work with at once. Nothing was changed.").arg(jp::workerLocale().toString(write::kRegexContextMost));
+    if (scan.limited) return QCoreApplication::translate("WriteFindPane", "That pattern needed too much work on this text, so the search stopped. Nothing was changed.");
+    return QCoreApplication::translate("WriteFindPane", "Cancelled. Nothing was changed.");
+}
+
 }
 
 // One search on a thread of its own: what it reads is its own (a copy of the text, which the window's own copy is shared with, and the pattern), and what it says is read after it has ended.
@@ -601,7 +635,7 @@ struct WriteFindPane::Job {
     QString plain, query, signature;
     write::FindPattern pattern;
     int from = 0, most = 0, revision = 0;
-    bool fresh = true, matchCase = false, viewWasReadOnly = false;
+    bool fresh = true, matchCase = false;
     std::shared_ptr<std::atomic<bool>> cancel = std::make_shared<std::atomic<bool>>(false);
     std::function<bool(int)> hook;
     QPointer<QTextDocument> story;
@@ -648,10 +682,10 @@ QTextCursor WriteFindPane::regexMatchIn(StoryWords *text, int from, QString *err
         }
         const std::function<bool(int)> hook = m_scanHook;
         const write::RegexScan scan = write::scanRegex(plain, pattern, scanFrom, 1024, hook);
-        if (scan.cancelled || scan.limited) {
+        if (scan.cancelled || scan.limited || scan.tooLong) {
             m_keepNotice = true;
             m = RegexMemo();
-            if (error) *error = scan.limited ? tr("That pattern needed too much work on this text, so the search stopped. Nothing was changed.") : tr("Cancelled. Nothing was changed.");
+            if (error) *error = stoppedMessage(scan);
             return QTextCursor();
         }
         if (fresh) {
@@ -720,12 +754,9 @@ bool WriteFindPane::startScan(StoryWords *text, const QString &plain, const writ
         QMetaObject::invokeMethod(this, [this, id] { jobDone(id); }, Qt::QueuedConnection);
     });
     if (!job->thread->started()) return false;
-    // Nothing may be typed into the document from now until the search is done (its places are those of this text).
-    write::PageView *view = m_win->view();
-    job->viewWasReadOnly = view->readOnly();
+    // Nothing may be changed in the document from now until the search is done (its places are those of this text): a block of its own, which the document's read-only state has no part in.
     job->focus = QApplication::focusWidget();
-    view->setReadOnly(true);
-    connect(text->story(), &QObject::destroyed, this, [cancel] { cancel->store(true); });
+    m_win->blockEditsForSearch(true);
     m_status->setText(tr("Searching…"));
     m_job = std::move(job);
     if (!m_busyTimer) {
@@ -760,7 +791,7 @@ void WriteFindPane::endJob(Job &job, bool restoreInput)
     if (job.thread) job.thread->join();
     delete job.box.data();
     if (!restoreInput) return;   // (the window is going: it is not touched)
-    m_win->view()->setReadOnly(job.viewWasReadOnly);
+    m_win->blockEditsForSearch(false);
     if (job.focus) job.focus->setFocus(Qt::OtherFocusReason);
 }
 
@@ -775,10 +806,11 @@ void WriteFindPane::cancelSearch(bool restoreInput)
 }
 
 // Registers what to do again when the search that was started is done (the ask is then answered from what it found).
-void WriteFindPane::waitThen(const std::function<void()> &again, bool againWhenStale)
+void WriteFindPane::waitThen(const std::function<void()> &again, bool againWhenStale, bool replaces)
 {
     m_retry = again;
     m_retryWhenStale = againWhenStale;
+    m_retryReplaces = replaces;
     m_wait = false;
     if (!m_inRetry) m_retries = 0;
 }
@@ -790,8 +822,9 @@ void WriteFindPane::jobDone(quint64 id)
     const std::unique_ptr<Job> job = std::move(m_job);
     endJob(*job, true);
     const std::function<void()> again = std::move(m_retry);
-    const bool whenStale = m_retryWhenStale;
+    const bool whenStale = m_retryWhenStale, replaces = m_retryReplaces;
     m_retry = nullptr;
+    m_retryReplaces = false;
     QTextDocument *story = job->story.data();
     bool stale = !story || job->signature != searchSignature();
     if (!stale && story->revision() != job->revision) {
@@ -810,15 +843,16 @@ void WriteFindPane::jobDone(quint64 id)
             again();
             m_inRetry = false;
         } else {
-            m_status->setText(tr("The document changed during the search, so the search was stopped. Nothing was changed."));
+            m_keepNotice = true;   // (the message stays until the person does something: a count of matches must not take its place)
+            m_status->setText(replaces ? tr("The document changed during the search, so nothing was replaced.") : tr("The document changed during the search, so the search was stopped. Nothing was changed."));
         }
         return;
     }
-    if (job->result.cancelled || job->result.limited) {
+    if (job->result.cancelled || job->result.limited || job->result.tooLong) {
         m_memos.remove(story);
         m_smallMemo = RegexMemo();
         m_keepNotice = true;
-        m_status->setText(job->result.limited ? tr("That pattern needed too much work on this text, so the search stopped. Nothing was changed.") : tr("Cancelled. Nothing was changed."));
+        m_status->setText(stoppedMessage(job->result));
         return;
     }
     // (The asks of one operation that are not answered go on, one search after another: a count that is never reached is no reason to wait for ever.)
@@ -899,7 +933,11 @@ void WriteFindPane::refreshMatches()
     else m_status->setText(tr("%1 matches").arg(m_matches.size()));
 }
 
-WriteFindPane::~WriteFindPane() { cancelSearch(false); }   // (the search's thread is waited for before anything it reads is gone)
+WriteFindPane::~WriteFindPane()
+{
+    livePanes().removeAll(this);
+    cancelSearch(false);
+}   // (the search's thread is waited for before anything it reads is gone)
 
 void WriteFindPane::focusBox(bool replace)
 {
@@ -1174,7 +1212,7 @@ void WriteFindPane::replaceOne()
     m_wait = false;
     const bool isMatch = selectionIsMatch();
     if (m_wait) {   // (the search goes on on a thread of its own: this is asked again when it is done)
-        waitThen([this] { replaceOne(); });
+        waitThen([this] { replaceOne(); }, false, true);
         return;
     }
     if (isMatch) {
@@ -1324,7 +1362,7 @@ void WriteFindPane::replaceAll()
     const QString q = m_find->text();
     if (!m_win->document() || !searching() || m_win->refuseIfReadOnly()) return;
     if (m_job) {   // (a search is under way: this is done when it is)
-        waitThen([this] { replaceAll(); });
+        waitThen([this] { replaceAll(); }, false, true);
         return;
     }
     m_wait = false;
@@ -1342,7 +1380,7 @@ void WriteFindPane::replaceAll()
             }
         }
     if (m_wait) {   // (this is asked again, from the start, when the search is done)
-        waitThen([this] { replaceAll(); });
+        waitThen([this] { replaceAll(); }, false, true);
         return;
     }
     int none = 0;

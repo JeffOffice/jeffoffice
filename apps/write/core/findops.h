@@ -21,6 +21,8 @@ constexpr int kMostPatternLength = 500;   // a longer pattern is refused
 // A regular expression is given to the engine in windows of at most this many characters (a longer paragraph, or the story for a pattern across paragraphs), each starting this many before the first place it
 // is to find a match in. A match longer than the overlap that starts near a window's end can be missed in such a text.
 constexpr int kRegexWindow = 10000, kRegexOverlap = 2000;
+// A match that may go on past the end of what the engine was shown (it reached that end) is looked for again with twice the text, up to this many characters, and the search stops if it still does.
+constexpr int kRegexContextMost = 200000;
 // The most work the engine does in one call for one place it tries a match at (its own count of steps, set in front of every pattern). A call that goes past it is stopped and the scan says so (`limited`): measured on
 // 10,000 characters, every call of the worst patterns known ends in well under a tenth of a second, and ordinary patterns never get near it.
 constexpr int kRegexMatchLimit = 10000;
@@ -55,6 +57,7 @@ struct RegexScan {
     QVector<RegexHit> hits;
     bool done = false;        // the end of the text was reached (and so no more matches are there)
     bool cancelled = false;   // `keepGoing` said stop
+    bool tooLong = false;     // a match may be longer than kRegexContextMost characters (it reached the end of all the text the engine was shown): the search stopped (`hits` are those before it)
     bool limited = false;     // the engine ended a call on its limit of work: the pattern needs too much on this text, and nothing can be said of the matches (`hits` are those before it)
     int paragraphs = 0;       // how many paragraphs were searched (a count of the work done)
     int calls = 0;            // how many calls of the engine were made

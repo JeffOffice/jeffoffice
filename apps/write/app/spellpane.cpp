@@ -54,7 +54,7 @@ bool addSpellingSuggestions(QMenu &menu, PageView *view)
     // (Of what is being edited: the text, or the header or footer.)
     SpellCheck *spelling = view ? view->editedSpelling() : nullptr;
     // (a document open for reading only is not changed by a correction: none is offered)
-    if (!view || !view->document() || view->readOnly() || !spelling || !spelling->enabled() || !spelling->story()) return false;
+    if (!view || !view->document() || view->editsBlocked() || !spelling || !spelling->enabled() || !spelling->story()) return false;
     const QPair<int, int> word = spelling->misspellingAt(view->contextPosition());
     if (word.first < 0) return false;
     QTextDocument *story = spelling->story();
@@ -622,7 +622,7 @@ bool SpellPane::stillThere()
 
 void SpellPane::change(bool all)
 {
-    if (m_complete || m_searching || !m_list->currentItem() || m_view->readOnly() || !stillThere()) return;   // (a document open for reading only is not changed by a correction)
+    if (m_complete || m_searching || !m_list->currentItem() || m_view->editsBlocked() || !stillThere()) return;   // (a document open for reading only is not changed by a correction)
     m_result->clear();
     m_result->hide();
     QTextDocument *story = liveStory();

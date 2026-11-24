@@ -15,7 +15,7 @@ void PageView::cancelMerge()
 
 bool PageView::canMergeSelectedShapes()
 {
-    if (!m_doc || m_readOnly) return false;
+    if (!m_doc || editsBlocked()) return false;
     const QVector<int> positions = selectedObjects();
     if (positions.size() < 2 || positions.size() > pathops::kMostShapes) return false;
     // (The sizes of the drawings are read first: a selection that is too big is off at once. The answer is kept for the same selection of the same document.)
@@ -55,7 +55,7 @@ bool PageView::mergeSelectedShapes(pathops::Op op, QString *why, int *made, int 
         if (why) *why = reason;
         return false;
     };
-    if (!m_doc || m_readOnly) return refuse(QCoreApplication::translate("jp::Editor", "An object that is locked stays as it is."));
+    if (!m_doc || editsBlocked()) return refuse(QCoreApplication::translate("jp::Editor", "An object that is locked stays as it is."));
     const QVector<int> positions = selectedObjects();
     if (positions.size() < 2) return refuse(QCoreApplication::translate("jp::Editor", "Select two or more shapes first."));
     if (positions.size() > pathops::kMostShapes) return refuse(QCoreApplication::translate("jp::Editor", "Select no more than 64 shapes."));

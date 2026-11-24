@@ -69,6 +69,12 @@ public:
     // A document opened read-only: the keys that move the caret work, and nothing is typed, dropped, or dragged.
     void setReadOnly(bool on) { m_readOnly = on; }
     bool readOnly() const { return m_readOnly; }
+    // A counted block on every change of the text while a search that reads a copy of it is under way: it is not the read-only state, which it never touches. Typing, pasting, dropping, an input method,
+    // Undo, Redo, and the commands of the window all stop at editsBlocked().
+    void beginSearchBlock() { ++m_searchBlocks; }
+    void endSearchBlock() { if (m_searchBlocks > 0) --m_searchBlocks; }
+    bool searchBlocked() const { return m_searchBlocks > 0; }
+    bool editsBlocked() const { return m_readOnly || m_searchBlocks > 0; }
 
     explicit PageView(QWidget *parent = nullptr);
     ~PageView() override;
@@ -513,6 +519,7 @@ protected:
     void dropEvent(QDropEvent *e) override;
     bool m_documentDrag = false;   // what is being dragged over is a document file, which the window opens
     bool m_readOnly = false;
+    int m_searchBlocks = 0;
     void contextMenuEvent(QContextMenuEvent *e) override;
     void focusInEvent(QFocusEvent *e) override;
     void focusOutEvent(QFocusEvent *e) override;

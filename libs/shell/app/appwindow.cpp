@@ -374,4 +374,9 @@ void AppWindow::refuseReadOnlyChange()
     statusBar()->showMessage(QCoreApplication::translate("AppWindow", "This file is open for reading only. Use Save a Copy, or Save As, to make a copy you can change."), 6000);
 }
 
+void AppWindow::refuseSearchBlockedChange()
+{
+    statusBar()->showMessage(QCoreApplication::translate("AppWindow", "A search is under way, so nothing can be changed yet. Wait for it to end, or cancel it."), 6000);
+}
+
 } // namespace jp

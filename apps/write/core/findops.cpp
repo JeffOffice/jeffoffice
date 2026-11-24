@@ -247,12 +247,14 @@ FindPattern regexPattern(const QString &pattern, bool matchCase)
 
 namespace {
 
-enum class Stretch { Ended, Full, Cancelled, Limited };
+enum class Stretch { Ended, Full, Cancelled, Limited, TooLong };
 
 // The matches of a stretch of the text [lo, hi) (a paragraph, or all of the text for a pattern that names a paragraph mark), from `at` on; ^ and $ are those of the stretch. A stretch longer than
 // kRegexWindow is given to the engine in windows of that many characters at most, each starting kRegexOverlap before the first place it is to find a match in, so that no call sees more than a window
-// and the look round a match (\b, a look-behind) is the text's own. A window finds the matches that start before its last kRegexOverlap characters, and no more; one that reaches the window's end is
-// found again by the window that starts at it, with room to go on. `each` says that the caller is told after every call of the engine, not only at the end of a paragraph.
+// and the look round a match (\b) is the text's own. A window finds the matches that start before its last kRegexOverlap characters, and no more. A window that ends before the stretch does is searched
+// as a "partial" match: the engine says when any try at a place reached the end of what it was shown, and what it would find with more text is not known, so such a call is made again with twice the text
+// (up to kRegexContextMost characters, or the stretch's end, where $ and \b are the real ones) and the search stops when that is still not enough. Every match given is therefore what a search of the
+// whole stretch gives. `each` says that the caller is told after every call of the engine, not only at the end of a paragraph.
 Stretch searchStretch(QStringView all, qsizetype lo, qsizetype hi, qsizetype at, const FindPattern &pattern, int most, bool each, RegexScan &out, const std::function<bool(int)> &keepGoing)
 {
     const bool windowed = hi - lo > kRegexWindow;
@@ -267,29 +269,41 @@ Stretch searchStretch(QStringView all, qsizetype lo, qsizetype hi, qsizetype at,
             s = std::max(lo, at - kRegexOverlap);
             e = std::min(hi, s + kRegexWindow);
         }
-        const bool last = e == hi;
-        const qsizetype ownedEnd = last ? hi + 1 : e - kRegexOverlap, firstOwned = at;
-        const QStringView subject = all.mid(s, e - s);
+        const qsizetype ownedEnd = e == hi ? hi + 1 : e - kRegexOverlap;
         while (at < ownedEnd) {
             if (out.hits.size() >= most) return Stretch::Full;
-            const QRegularExpressionMatch m = pattern.regex.matchView(subject, at - s);
-            ++out.calls;
-            out.widest = std::max(out.widest, int(e - s));
-            if (!m.isValid()) {   // (the engine ended the call on its limit of work: that is no answer)
-                out.limited = true;
-                return Stretch::Limited;
+            qsizetype reach = e;   // (the end of the text the engine is shown)
+            QRegularExpressionMatch m;
+            bool cancelled = false, unknown = false;
+            for (;;) {
+                const bool whole = reach == hi;
+                m = pattern.regex.matchView(all.mid(s, reach - s), at - s, whole ? QRegularExpression::NormalMatch : QRegularExpression::PartialPreferFirstMatch);
+                ++out.calls;
+                out.widest = std::max(out.widest, int(reach - s));
+                if (!m.isValid()) {   // (the engine ended the call on its limit of work: that is no answer)
+                    out.limited = true;
+                    return Stretch::Limited;
+                }
+                cancelled = stop() || cancelled;
+                if (!m.hasPartialMatch()) break;
+                if (s + m.capturedStart() >= ownedEnd) {   // (a place that is for the next window)
+                    unknown = true;
+                    break;
+                }
+                const qsizetype width = std::min<qsizetype>((reach - s) * 2, kRegexContextMost);
+                if (width <= reach - s) {
+                    out.tooLong = true;
+                    return Stretch::TooLong;
+                }
+                reach = std::min(hi, s + width);
+                if (cancelled) return Stretch::Cancelled;
             }
-            const bool cancelled = stop();
-            if (!m.hasMatch()) {
+            if (unknown || !m.hasMatch()) {
                 at = ownedEnd;
             } else {
                 const qsizetype start = s + m.capturedStart(), end = s + m.capturedEnd();
                 if (start >= ownedEnd) {
                     at = ownedEnd;
-                } else if (!last && end == e && start > firstOwned) {   // (it may go on past the window: the next window, starting at it, sees more)
-                    at = start;
-                    if (cancelled) return Stretch::Cancelled;
-                    break;
                 } else {
                     RegexHit h;
                     h.first = int(start);

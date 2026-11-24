@@ -51,6 +51,7 @@ bool s_copiedWhole = true;   // the words last copied from here were whole words
 
 void PageView::undo()
 {
+    if (editsBlocked()) return;   // (a search that is under way holds the text as it is)
     if (m_shapeEditor) {
         m_shapeEditor->undo();
         return;
@@ -70,6 +71,7 @@ void PageView::undo()
 
 void PageView::redo()
 {
+    if (editsBlocked()) return;
     if (m_shapeEditor) {
         m_shapeEditor->redo();
         return;
@@ -155,6 +157,7 @@ bool PageView::smartCutPaste() { return Settings::get().value(QStringLiteral("ed
 
 void PageView::cut()
 {
+    if (editsBlocked()) return;
     if (m_shapeEditor) {
         m_shapeEditor->cut();
         return;
@@ -200,7 +203,7 @@ static qint64 sizeOfClip(const Clip &clip)
 
 void PageView::cutToSpike()
 {
-    if (!m_doc || m_readOnly || m_shapeEditor || !m_cursor.hasSelection()) return;
+    if (!m_doc || editsBlocked() || m_shapeEditor || !m_cursor.hasSelection()) return;
     const Clip clip = copySelection(*m_doc, m_cursor);
     if (clip.isEmpty()) return;
     sayTablesAreWords(clip);
@@ -223,7 +226,7 @@ void PageView::cutToSpike()
 
 void PageView::pasteSpike()
 {
-    if (!m_doc || m_readOnly || m_shapeEditor || spike().isEmpty()) return;
+    if (!m_doc || editsBlocked() || m_shapeEditor || spike().isEmpty()) return;
     const QVector<Clip> clips = spike();
     m_cursor.beginEditBlock();
     if (m_cursor.hasSelection()) removeSelection(*m_doc, m_cursor);
@@ -374,6 +377,7 @@ bool PageView::pasteSource(const PasteSource &src)
 
 void PageView::paste()
 {
+    if (editsBlocked()) return;
     if (m_shapeEditor) {
         m_shapeEditor->paste();
         return;
@@ -499,6 +503,7 @@ bool PageView::canPasteFrom(const PasteSource &from, PasteKind kind) const
 
 void PageView::pasteAs(PasteKind kind)
 {
+    if (editsBlocked()) return;
     const PasteSource src = source();
     if (!m_doc || !canPasteFrom(src, kind)) return;
     const int pasteFrom = m_cursor.selectionStart(), pasteSelectionEnd = m_cursor.selectionEnd();
@@ -563,7 +568,7 @@ void PageView::notePaste(int from, int selectionEnd, const PasteSource &made, bo
 
 bool PageView::pasteOptionsAvailable() const
 {
-    return m_doc && !m_readOnly && m_lastPaste.story == m_doc->story() && m_cursor.document() == m_doc->story() && !m_cursor.hasSelection() && m_cursor.position() == m_lastPaste.to &&
+    return m_doc && !editsBlocked() && m_lastPaste.story == m_doc->story() && m_cursor.document() == m_doc->story() && !m_cursor.hasSelection() && m_cursor.position() == m_lastPaste.to &&
            m_doc->story()->revision() == m_lastPaste.revision && m_lastPaste.to > m_lastPaste.from;
 }
 
@@ -686,6 +691,7 @@ void PageView::selectAll()
 
 void PageView::insertText(const QString &text)
 {
+    if (editsBlocked()) return;
     if (!m_doc) return;
     if (m_cursor.hasSelection() && !m_typingReplaces) {
         m_cursor.setPosition(m_cursor.selectionEnd());
@@ -713,6 +719,12 @@ void PageView::insertText(const QString &text)
 
 void PageView::typeKey(int key, Qt::KeyboardModifiers m)
 {
+    if (editsBlocked()) {   // (only the keys that move the caret)
+        switch (key) {
+        case Qt::Key_Left: case Qt::Key_Right: case Qt::Key_Up: case Qt::Key_Down: case Qt::Key_Home: case Qt::Key_End: case Qt::Key_PageUp: case Qt::Key_PageDown: break;
+        default: return;
+        }
+    }
     if (!m_doc) return;
     m_movedFrom = m_cursor.position();
     const bool shift = m & Qt::ShiftModifier, ctrl = m & Qt::ControlModifier;
@@ -946,7 +958,7 @@ void PageView::keyPressEvent(QKeyEvent *e)
         e->accept();
         return;
     }
-    if (m_readOnly) {
+    if (editsBlocked()) {
         // (only the keys that move the caret)
         switch (e->key()) {
         case Qt::Key_Left: case Qt::Key_Right: case Qt::Key_Up: case Qt::Key_Down: case Qt::Key_Home: case Qt::Key_End: case Qt::Key_PageUp: case Qt::Key_PageDown:
@@ -1007,7 +1019,7 @@ void PageView::keyPressEvent(QKeyEvent *e)
 void PageView::inputMethodEvent(QInputMethodEvent *e)
 {
     m_pasteOffer->cancelTap();
-    if (!m_doc || m_readOnly) return;
+    if (!m_doc || editsBlocked()) return;
     if (!e->commitString().isEmpty()) insertText(e->commitString());
     e->accept();
 }
@@ -1053,7 +1065,7 @@ void PageView::mousePressEvent(QMouseEvent *e)
             return;
         }
     }
-    if (!m_shapeDraw.isEmpty() && e->button() == Qt::LeftButton && !m_hf.active && !m_note.active && !m_readOnly) {
+    if (!m_shapeDraw.isEmpty() && e->button() == Qt::LeftButton && !m_hf.active && !m_note.active && !editsBlocked()) {
         // Insert > Shapes is waiting for a drag: it begins here, on the page, at a place of the text.
         const Hit hit = hitAt(e->position().toPoint());
         const int at = positionAt(hit);
@@ -1069,7 +1081,7 @@ void PageView::mousePressEvent(QMouseEvent *e)
         return;
     }
     m_columnDrag.pending = false;
-    if (m_tableTool != TableTool::None && e->button() == Qt::LeftButton && !m_hf.active && !m_note.active && !m_readOnly) {
+    if (m_tableTool != TableTool::None && e->button() == Qt::LeftButton && !m_hf.active && !m_note.active && !editsBlocked()) {
         const Hit hit = hitAt(e->position().toPoint());
         const int at = positionAt(hit);
         if (hit.page >= 0 && at >= 0) {
@@ -1086,7 +1098,7 @@ void PageView::mousePressEvent(QMouseEvent *e)
             e->accept();
             return;
         }
-        if (QRect mh; !m_readOnly && moveHandleInView(&mh) && mh.adjusted(-2, -2, 2, 2).contains(e->position().toPoint())) {
+        if (QRect mh; !editsBlocked() && moveHandleInView(&mh) && mh.adjusted(-2, -2, 2, 2).contains(e->position().toPoint())) {
             QRectF box, table;
             int page = 0, position = 0;
             if (moveHandle(&box, &page, &position, &table)) {
@@ -1158,7 +1170,7 @@ void PageView::mousePressEvent(QMouseEvent *e)
     m_lastPos = e->position().toPoint();
     if (m_clicks <= 2 && !(e->modifiers() & (Qt::ShiftModifier | Qt::ControlModifier)) && clickInControl(at, e->position().toPoint(), e->globalPosition().toPoint(), m_clicks)) return;
     // A press inside the selection may begin a drag of its text: the selection stays until the pointer has moved (or the button is let go, which puts the caret there).
-    if (m_clicks == 1 && m_textDragAllowed && m_dragTextOption && !m_readOnly && !(e->modifiers() & Qt::ShiftModifier) && m_cursor.hasSelection() && !m_hf.active && !m_note.active && m_cursor.document() == m_doc->story() &&
+    if (m_clicks == 1 && m_textDragAllowed && m_dragTextOption && !editsBlocked() && !(e->modifiers() & Qt::ShiftModifier) && m_cursor.hasSelection() && !m_hf.active && !m_note.active && m_cursor.document() == m_doc->story() &&
         at >= m_cursor.selectionStart() && at < m_cursor.selectionEnd() && !isLocked(m_cursor.block())) {
         m_textDrag.pending = true;
         m_textDrag.start = e->position().toPoint();
@@ -1291,7 +1303,7 @@ void PageView::setTableTool(TableTool tool)
 
 void PageView::beginShapeDraw(const QString &preset)
 {
-    if (!m_doc || m_readOnly) return;
+    if (!m_doc || editsBlocked()) return;
     setTableTool(TableTool::None);
     m_shapeDraw = preset;
     m_toolDrag = ToolDrag();
@@ -1475,7 +1487,7 @@ void PageView::mouseReleaseEvent(QMouseEvent *e)
 void PageView::mouseDoubleClickEvent(QMouseEvent *e)
 {
     // A barcode picture: a double click selects it and asks for its data again.
-    if (m_doc && !m_readOnly && e->button() == Qt::LeftButton && !m_hf.active && !m_note.active) {
+    if (m_doc && !editsBlocked() && e->button() == Qt::LeftButton && !m_hf.active && !m_note.active) {
         // A barcode field (shown as its bars): the same, on the field.
         if (const int field = barcodeFieldAtPoint(e->position().toPoint()); field >= 0) {
             QTextCursor c = m_cursor;
@@ -1501,7 +1513,7 @@ void PageView::mouseDoubleClickEvent(QMouseEvent *e)
             return;
         }
     }
-    if (m_doc && e->button() == Qt::LeftButton && !m_readOnly) {
+    if (m_doc && e->button() == Qt::LeftButton && !editsBlocked()) {
         // A double click on a shape or a text box edits its words, in place.
         if (const int object = pictureAtPoint(e->position().toPoint()); object >= 0) {
             const PictureInfo info = pictureAt(*m_doc, m_doc->story(), object);
@@ -1632,7 +1644,7 @@ write::ContentControl PageView::controlUnder(int at, const QPoint &viewportPos)
 
 bool PageView::clickInControl(int at, const QPoint &viewportPos, const QPoint &globalPos, int clicks)
 {
-    if (!m_doc || m_readOnly || m_hf.active || m_note.active || m_cursor.document() != m_doc->story() || at < 0) return false;
+    if (!m_doc || editsBlocked() || m_hf.active || m_note.active || m_cursor.document() != m_doc->story() || at < 0) return false;
     const write::ContentControl c = controlUnder(at, viewportPos);
     if (!c.valid() || !c.editable || (clicks > 1 && c.props.kind != write::ControlKind::CheckBox)) return false;   // (a check box flips at each click, however quick; the others are a double click's word)
     switch (c.props.kind) {
@@ -1660,7 +1672,7 @@ bool PageView::clickInControl(int at, const QPoint &viewportPos, const QPoint &g
 
 bool PageView::activateControlAtCaret(int key, const QPoint &globalPos)
 {
-    if (!m_doc || m_readOnly || m_hf.active || m_note.active || m_cursor.document() != m_doc->story() || m_cursor.hasSelection()) return false;
+    if (!m_doc || editsBlocked() || m_hf.active || m_note.active || m_cursor.document() != m_doc->story() || m_cursor.hasSelection()) return false;
     const write::ContentControl c = write::contentControlAt(*m_doc, m_cursor.position());
     if (!c.valid() || !c.editable || c.props.lockContents) return false;
     if (c.props.kind == write::ControlKind::CheckBox && key == Qt::Key_Space) {
@@ -1771,7 +1783,7 @@ void PageView::startTextDrag()
 
 bool PageView::wantsTextDrop(const QMimeData *mime) const
 {
-    return m_doc && !m_readOnly && !m_hf.active && !m_note.active && mime && (mime->hasFormat(QString::fromLatin1(kTextDragMime)) || ((mime->hasText() || mime->hasHtml() || hasRtfFormat(mime)) && !mime->hasUrls()));
+    return m_doc && !editsBlocked() && !m_hf.active && !m_note.active && mime && (mime->hasFormat(QString::fromLatin1(kTextDragMime)) || ((mime->hasText() || mime->hasHtml() || hasRtfFormat(mime)) && !mime->hasUrls()));
 }
 
 bool PageView::dropText(QDropEvent *e)

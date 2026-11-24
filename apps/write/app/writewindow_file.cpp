@@ -1,5 +1,6 @@
 // Opening, saving, and recovering documents in JeffWrite's window.
 
+#include "app/writefindpane.h"
 #include "app/writewindow.h"
 
 #include "app/editor.h"
@@ -150,6 +151,7 @@ bool WriteWindow::newFromBuiltInTemplate(const QString &id)
 
 void WriteWindow::setReadOnly(bool on)
 {
+    if (m_find) m_find->cancelSearch();   // (a search ends before the way the document may be changed does)
     AppWindow::setReadOnly(on);
     m_view->setReadOnly(on);
     m_ruler->setEnabled(!on);
