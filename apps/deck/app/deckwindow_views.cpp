@@ -206,6 +206,7 @@ void DeckWindow::startReadingView()
     if (m_outline) m_outline->commit();
     if (m_notesPage) m_notesPage->commit();
     m_ed->endTextEdit();
+    m_ed->setPointsItem(QString());
     m_readingFocus = focusWidget();
     m_ed->setReadOnly(true);   // (a change from anywhere is taken back, as in a window open for reading only)
     deck::ShowSettings settings = deck::showSettingsOf(*m_ed->doc());

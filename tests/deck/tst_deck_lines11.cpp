@@ -12,6 +12,8 @@
 #include <QCheckBox>
 #include <QJsonDocument>
 #include "core/pathops.h"
+#include "core/pathpoints.h"
+#include "app/shapetools.h"
 #include "app/lossywarning.h"
 #include <QScopeGuard>
 #include <QTimer>
@@ -1171,6 +1173,183 @@ private Q_SLOTS:
             if (QLatin1String(name).endsWith(QLatin1String("odp"))) QVERIFY2(!lostInOdp.join(QLatin1Char(' ')).contains(QLatin1String("shape"), Qt::CaseInsensitive), qPrintable(lostInOdp.join(QLatin1Char('|'))));
             if (QLatin1String(name).endsWith(QLatin1String("pptx")))
                 QCOMPARE(int(deck::readAnimations(*again.editor()->doc()->pages[0], again.editor()->doc()).effects.size()), 1);
+        }
+    }
+
+    // A shape taken away (merged into another, or deleted) that a trigger names takes only what names it: through the window's own save and open, the main
+    // sequence and the other triggers are there, and one Undo puts the shapes and the timing back as they were.
+    void aShapeATriggerNamesCanBeMergedOrDeletedAwayWithoutLosingTheRestOfTheTiming()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        setLossyStandIn([&](const LossyAsk &, bool *) { return LossyChoice::SaveAnyway; });
+        auto reset = qScopeGuard([] { setLossyStandIn(nullptr); });
+        for (const bool merge : {true, false})
+            for (const char *which : {"object", "target"}) {
+                const QString label = QString::fromLatin1(merge ? "merge " : "delete ") + QLatin1String(which);
+                DeckWindow w;
+                w.resize(1200, 800);
+                w.show();
+                w.editor()->setDocument(Document::blank(QSizeF(960, 540)));
+                ShapeItem *m = square(w, QStringLiteral("M"), 100, 100, Qt::red, 4);
+                ShapeItem *b = square(w, QStringLiteral("B"), 200, 200, Qt::blue, 5);
+                for (const auto &spec : {std::make_pair("C", 6), std::make_pair("D", 7), std::make_pair("E", 8)}) {
+                    ShapeItem *x = addShape(w, QString::fromLatin1(spec.first), QRectF(600 + 80 * spec.second, 50, 60, 60));
+                    x->sourceId = spec.second;
+                }
+                Page &page = *w.editor()->doc()->pages[0];
+                const bool object = QLatin1String(which) == QLatin1String("object");
+                // Main effects on M and C; a trigger on B (or on E) that shows D; another, on E, that shows C and, in the "target" case, B.
+                page.props[QStringLiteral("timingXml")] = animTriggerTiming(animSteps({animFadeIn(4, 500), animFadeIn(6, 500)}),
+                    object ? QVector<QPair<int, QString>>{{5, animFadeIn(7, 500)}, {8, animFadeIn(7, 500)}}
+                           : QVector<QPair<int, QString>>{{8, animFadeIn(5, 500)}, {8, animFadeIn(7, 500)}, {7, animFadeIn(5, 500) + animFadeIn(6, 500, "withEffect")}});
+                QCOMPARE(int(deck::readAnimations(page, w.editor()->doc()).effects.size()), 2);
+                const QStringList shapesBefore = shapeJson(w);
+                const QString timingBefore = page.props.value(QStringLiteral("timingXml")).toString();
+                if (merge) {
+                    w.editor()->select(QStringList{m->id, b->id});
+                    QTRY_VERIFY2(w.act(QStringLiteral("shape.union"))->isEnabled(), qPrintable(label));
+                    w.act(QStringLiteral("shape.union"))->trigger();
+                } else {
+                    w.editor()->select(QStringList{b->id});
+                    w.editor()->deleteSelection();
+                }
+                for (const ItemPtr &it : w.editor()->doc()->pages[0]->items) QVERIFY2(it->sourceId != 5, qPrintable(label));
+                const QString file = dir.filePath(QStringLiteral("trigger.pptx"));
+                QVERIFY2(w.saveTo(file), qPrintable(label));
+                DeckWindow again;
+                QTimer looker;   // (a box the open brings up is closed, so that a failure does not hang)
+                looker.setInterval(20);
+                connect(&looker, &QTimer::timeout, &looker, [] {
+                    for (QWidget *top : QApplication::topLevelWidgets())
+                        if (auto *box = qobject_cast<QMessageBox *>(top); box && box->isVisible()) box->accept();
+                });
+                looker.start();
+                const bool opened = again.openFile(file);
+                looker.stop();
+                QVERIFY2(opened, qPrintable(label));
+                again.editor()->setCurrentPage(0);
+                const Page &back = *again.editor()->doc()->pages[0];
+                QHash<QString, int> numbers;
+                for (const ItemPtr &it : back.items) numbers.insert(it->name, it->sourceId);
+                QSet<int> mainShapes;
+                for (const deck::Anim &an : deck::readAnimations(back, again.editor()->doc()).effects) mainShapes.insert(an.shape);
+                QVERIFY2(mainShapes == QSet<int>({numbers.value(QStringLiteral("M")), numbers.value(QStringLiteral("C"))}), qPrintable(label + QLatin1String(": main sequence")));
+                QHash<int, QSet<int>> triggers;
+                for (const deck::Trigger &t : deck::timelineOf(back).triggers)
+                    for (const deck::Effect &ef : t.effects)
+                        for (const deck::Behavior &bh : ef.behaviors) triggers[t.shape].insert(bh.target.shape);
+                const int nc = numbers.value(QStringLiteral("C")), nd = numbers.value(QStringLiteral("D")), ne = numbers.value(QStringLiteral("E"));
+                const QHash<int, QSet<int>> want = object ? QHash<int, QSet<int>>{{ne, {nd}}} : QHash<int, QSet<int>>{{ne, {nd}}, {nd, {nc}}};
+                QVERIFY2(triggers == want, qPrintable(label + QLatin1String(": triggers")));
+                // The window's own document still has the timing as it was, and one Undo puts the shapes back.
+                QCOMPARE(w.editor()->doc()->pages[0]->props.value(QStringLiteral("timingXml")).toString(), timingBefore);
+                w.editor()->undo();
+                QCOMPARE(shapeJson(w), shapesBefore);
+                QCOMPARE(w.editor()->doc()->pages[0]->props.value(QStringLiteral("timingXml")).toString(), timingBefore);
+            }
+    }
+
+    // The commands are off where Merge Shapes would only refuse: two shapes of a group (the whole group is what it takes), and more shapes than it merges at once.
+    void mergeShapesCommandsAreOffWhereTheyWouldRefuse()
+    {
+        DeckWindow w;
+        w.resize(1200, 800);
+        w.show();
+        w.editor()->setDocument(Document::blank(QSizeF(960, 540)));
+        QStringList ids;
+        for (int i = 0; i < pathops::kMostShapes + 1; ++i) {
+            ShapeItem *s = addShape(w, QStringLiteral("S%1").arg(i), QRectF(10 + 5 * i, 10 + 3 * i, 40, 40));
+            s->shape = QStringLiteral("rect");
+            ids << s->id;
+        }
+        auto allCommands = [&](bool on) {
+            for (const char *id : jp::kMergeShapeIds) QCOMPARE(w.act(QString::fromLatin1(id))->isEnabled(), on);
+        };
+        w.editor()->select(ids.mid(0, pathops::kMostShapes));
+        QTRY_VERIFY(w.act(QStringLiteral("shape.union"))->isEnabled());
+        allCommands(true);   // (the most there is room for)
+        w.editor()->select(ids);
+        QTRY_VERIFY(!w.act(QStringLiteral("shape.union"))->isEnabled());
+        allCommands(false);
+        // Two shapes inside a group.
+        w.editor()->select(ids.mid(0, 2));
+        QTRY_VERIFY(w.act(QStringLiteral("shape.union"))->isEnabled());
+        w.editor()->groupSelection();
+        const GroupItem *group = nullptr;
+        for (const ItemPtr &it : w.editor()->doc()->pages[0]->items)
+            if (!group) group = dynamic_cast<const GroupItem *>(it.get());
+        QVERIFY(group && group->children.size() == 2);
+        w.editor()->select(QStringList{group->children[0]->id, group->children[1]->id});
+        QCOMPARE(w.editor()->selection().size(), 2);
+        QTRY_VERIFY(!w.act(QStringLiteral("shape.union"))->isEnabled());
+        allCommands(false);
+        // One shape inside the group and one outside it.
+        w.editor()->select(QStringList{group->children[0]->id, ids.last()});
+        QTRY_VERIFY(!w.act(QStringLiteral("shape.union"))->isEnabled());
+        allCommands(false);
+    }
+
+    // Edit Points on one shape of a rotated group: a point dragged with the mouse lands where the pointer is let go.
+    void editPointsOnAShapeInARotatedGroupFollowsTheMouse()
+    {
+        DeckWindow w;
+        w.resize(1200, 800);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        w.editor()->setDocument(Document::blank(QSizeF(960, 540)));
+        ShapeItem *a = square(w, QStringLiteral("A"), 100, 100, Qt::red, 4);
+        ShapeItem *b = square(w, QStringLiteral("B"), 400, 200, Qt::blue, 5);
+        w.editor()->select(QStringList{a->id, b->id});
+        w.editor()->groupSelection();
+        GroupItem *group = nullptr;
+        for (const ItemPtr &it : w.editor()->doc()->pages[0]->items)
+            if (!group) group = dynamic_cast<GroupItem *>(it.get());
+        QVERIFY(group);
+        group->rotateAround(30, group->bounds().center());
+        a = static_cast<ShapeItem *>(group->children[0].get());
+        w.editor()->select(QStringList{a->id});
+        QTRY_VERIFY(w.act(QStringLiteral("shape.editPoints"))->isEnabled());
+        w.act(QStringLiteral("shape.editPoints"))->trigger();
+        QCOMPARE(w.editor()->pointsItem, a->id);
+        Canvas *c = w.canvas();
+        QWidget *vp = c->viewport();
+        auto view = [&](QPointF page) { return c->pageToView(page).toPoint(); };
+        const int idx = pts::vertices(a->customPath).first();
+        auto vertex = [&] { const auto e = a->customPath.elementAt(idx); return a->transform().map(QPointF(e.x, e.y)); };
+        const QPointF before = vertex();
+        QTest::mousePress(vp, Qt::LeftButton, Qt::NoModifier, view(before));
+        QTest::mouseMove(vp, view(before + QPointF(20, 15)));
+        QTest::mouseMove(vp, view(before + QPointF(40, 30)));
+        QTest::mouseRelease(vp, Qt::LeftButton, Qt::NoModifier, view(before + QPointF(40, 30)));
+        const QPointF after = vertex();
+        QVERIFY2(std::abs(after.x() - before.x() - 40) < 2 && std::abs(after.y() - before.y() - 30) < 2, qPrintable(QStringLiteral("moved by %1, %2").arg(after.x() - before.x()).arg(after.y() - before.y())));
+        QTest::keyClick(vp, Qt::Key_Escape);
+    }
+
+    // A show (from the start, from this slide, or Presenter View) and Reading View end Edit Points first: the points are not left on a shape that is not on the screen.
+    void startingAShowOrReadingViewEndsEditPoints()
+    {
+        DeckWindow w;
+        w.resize(1200, 800);
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        w.editor()->setDocument(Document::blank(QSizeF(960, 540)));
+        ShapeItem *s = square(w, QStringLiteral("S"), 100, 100, Qt::red, 4);
+        for (const char *route : {"show.fromStart", "show.fromCurrent", "show.presenterView", "view.reading"}) {
+            w.editor()->select(QStringList{s->id});
+            QTRY_VERIFY2(w.act(QStringLiteral("shape.editPoints"))->isEnabled(), route);
+            if (w.editor()->pointsItem.isEmpty()) w.act(QStringLiteral("shape.editPoints"))->trigger();
+            QCOMPARE(w.editor()->pointsItem, s->id);
+            w.act(QString::fromLatin1(route))->trigger();
+            QVERIFY2(w.editor()->pointsItem.isEmpty(), route);
+            if (w.inReadingView()) {
+                w.act(QStringLiteral("view.normal"))->trigger();
+                QTRY_VERIFY2(!w.inReadingView(), route);
+            } else if (SlideShow *show = w.slideShow()) {
+                show->close();
+                QTRY_VERIFY2(!w.slideShow(), route);
+            }
         }
     }
 

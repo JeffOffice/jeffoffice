@@ -84,10 +84,19 @@ void makeShapeCommands(QWidget *window, Editor *ed, const std::function<QAction 
 void enableShapeCommands(Editor *ed, const std::function<QAction *(const QString &)> &find)
 {
     const QStringList picked = ed->selection();
+    // (what Editor::mergeShapes would refuse at once stays off: shapes inside a group, on more than one list, or more than the most)
     int shapes = 0;
-    for (const QString &id : picked)
-        if (const auto *s = dynamic_cast<const ShapeItem *>(ed->doc()->item(id)); s && !s->isArt() && !s->locked) ++shapes;
-    for (const char *id : kMergeShapeIds) find(QLatin1String(id))->setEnabled(shapes >= 2 && shapes == picked.size());
+    const ItemList *list = nullptr;
+    bool together = picked.size() <= pathops::kMostShapes;
+    for (qsizetype i = 0; i < picked.size() && together; ++i) {
+        const Document::Loc at = ed->doc()->find(picked[i]);
+        const auto *s = dynamic_cast<const ShapeItem *>(at.item);
+        if (!s || s->isArt() || s->locked) continue;
+        ++shapes;
+        if (at.parent || (list && list != at.list)) together = false;
+        list = at.list;
+    }
+    for (const char *id : kMergeShapeIds) find(QLatin1String(id))->setEnabled(together && shapes >= 2 && shapes == picked.size());
     const auto *one = picked.size() == 1 ? dynamic_cast<const ShapeItem *>(ed->doc()->item(picked.first())) : nullptr;
     find(QStringLiteral("shape.editPoints"))->setEnabled(one && !one->isArt() && !one->locked);
 }
