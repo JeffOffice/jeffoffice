@@ -2,10 +2,12 @@
 
 #include "app/editor.h"
 #include "app/uistyle.h"
+#include "core/workthread.h"
 #include "render/shapes.h"
 
 #include <QCoreApplication>
 #include <QDialog>
+#include <QEventLoop>
 #include <QLabel>
 #include <QProgressBar>
 #include <QPushButton>
@@ -14,6 +16,92 @@
 namespace jp {
 
 const char *const kMergeShapeIds[5] = {"shape.union", "shape.combine", "shape.subtract", "shape.intersect", "shape.fragment"};
+
+void showMergeBox(QWidget *window, const QString &text, std::atomic<bool> *cancel)
+{
+    auto *box = new QDialog(window);
+    box->setObjectName(QStringLiteral("busyBox"));
+    box->setAttribute(Qt::WA_DeleteOnClose);
+    box->setWindowModality(Qt::WindowModal);
+    box->setWindowTitle(QCoreApplication::translate("jp::ShapeTools", "Merge Shapes"));
+    auto *lay = new QVBoxLayout(box);
+    auto *label = new QLabel(text, box);
+    label->setTextFormat(Qt::PlainText);
+    auto *bar = new QProgressBar(box);
+    bar->setRange(0, 0);
+    auto *buttons = new jp::ButtonBox(QDialogButtonBox::Cancel, box);
+    lay->addWidget(label);
+    lay->addWidget(bar);
+    lay->addWidget(buttons);
+    QObject::connect(buttons, &QDialogButtonBox::rejected, box, [cancel, label, buttons] {
+        cancel->store(true);
+        label->setText(QCoreApplication::translate("jp::ShapeTools", "Cancelling…"));
+        buttons->setEnabled(false);
+    });
+    QObject::connect(box, &QDialog::rejected, box, [cancel] { cancel->store(true); });
+    box->show();
+}
+
+void closeMergeBox(QWidget *window)
+{
+    for (QDialog *d : window->findChildren<QDialog *>(QStringLiteral("busyBox"), Qt::FindDirectChildrenOnly)) {
+        d->disconnect(d);   // (only its own connections: a wildcard disconnect also cuts the style sheet's hold on the destroyed signal)
+        d->close();
+    }
+}
+
+bool shapeOutlineOnPage(const Item &item, QPainterPath *out)
+{
+    QString shape;
+    QVector<double> adj;
+    QPainterPath own;
+    if (const auto *s = dynamic_cast<const ShapeItem *>(&item)) {
+        if (s->isArt()) return false;
+        shape = s->shape;
+        adj = s->adj;
+        own = s->customPath;
+    } else if (const auto *t = dynamic_cast<const TextItem *>(&item)) {
+        shape = t->shape.isEmpty() ? QStringLiteral("rect") : t->shape;
+        adj = t->adj;
+        own = t->customPath;
+    } else {
+        return false;
+    }
+    if (own.isEmpty()) own = shapePath(shape, item.rect.size(), adj);
+    *out = item.transform().map(own);
+    return !out->isEmpty();
+}
+
+QString mergeRefusal(int refused)
+{
+    return refused == 0 ? QCoreApplication::translate("jp::Editor", "The shapes leave nothing.") : refused == 2 ? QCoreApplication::translate("jp::Editor", "That would cut the shapes into too many pieces.")
+         : refused == 3 ? QCoreApplication::translate("jp::Editor", "The shapes are too complex to merge in a reasonable time.") : refused == 4 ? QCoreApplication::translate("jp::Editor", "Cancelled. The shapes are as they were.")
+         : QCoreApplication::translate("jp::Editor", "The shapes are too complex to merge.");
+}
+
+QVector<QPainterPath> mergeBounded(pathops::Op op, const QVector<QPainterPath> &outlines, int *refused, const std::function<void(const QString &, std::atomic<bool> *)> &started, const std::function<void()> &ended,
+                                   const std::function<void(int, std::atomic<bool> &)> &stepHook)
+{
+    QVector<QPainterPath> result;
+    if (const qint64 work = pathops::estimateWork(op, outlines); work <= pathops::kQuickWork || work > pathops::kMostWork) return pathops::merge(op, outlines, refused);   // (one past the most is refused at once)
+    // (the work is counted before it starts and refused past pathops::kMostWork; what is left runs on a thread of its own, and the window stays alive and can cancel it)
+    std::atomic<bool> cancel{false};
+    QEventLoop loop;
+    if (started) started(QCoreApplication::translate("jp::Editor", "Merging shapes…"), &cancel);
+    {
+        WorkThread worker([&] {
+            result = pathops::merge(op, outlines, refused, [&](int step, int) {
+                if (stepHook) stepHook(step, cancel);
+                return !cancel.load();
+            });
+            QMetaObject::invokeMethod(&loop, &QEventLoop::quit, Qt::QueuedConnection);
+        });
+        if (worker.started()) loop.exec();
+        else result = pathops::merge(op, outlines, refused);
+    }
+    if (ended) ended();
+    return result;
+}
 
 void makeShapeCommands(QWidget *window, Editor *ed, const std::function<QAction *(const QString &, const QString &, const char *, const std::function<void()> &)> &make)
 {
@@ -28,35 +116,8 @@ void makeShapeCommands(QWidget *window, Editor *ed, const std::function<QAction 
         Q_EMIT ed->status(QCoreApplication::translate("jp::ShapeTools", "Drag a point to reshape. Ctrl+click a point to delete it, or an edge to add one. Shift+click puts a glue point for connectors on the shape, or takes it away. Press Esc when done."));
     });
     // The box over a merge that runs on a worker thread (libs/page/app/editor_shapes.cpp): Cancel stops it at its next step, and the shapes stay as they were.
-    QObject::connect(ed, &Editor::busyStarted, window, [window](const QString &text, std::atomic<bool> *cancel) {
-        auto *box = new QDialog(window);
-        box->setObjectName(QStringLiteral("busyBox"));
-        box->setAttribute(Qt::WA_DeleteOnClose);
-        box->setWindowModality(Qt::WindowModal);
-        box->setWindowTitle(QCoreApplication::translate("jp::ShapeTools", "Merge Shapes"));
-        auto *lay = new QVBoxLayout(box);
-        auto *label = new QLabel(text, box);
-        label->setTextFormat(Qt::PlainText);
-        auto *bar = new QProgressBar(box);
-        bar->setRange(0, 0);
-        auto *buttons = new jp::ButtonBox(QDialogButtonBox::Cancel, box);
-        lay->addWidget(label);
-        lay->addWidget(bar);
-        lay->addWidget(buttons);
-        QObject::connect(buttons, &QDialogButtonBox::rejected, box, [cancel, label, buttons] {
-            cancel->store(true);
-            label->setText(QCoreApplication::translate("jp::ShapeTools", "Cancelling…"));
-            buttons->setEnabled(false);
-        });
-        QObject::connect(box, &QDialog::rejected, box, [cancel] { cancel->store(true); });
-        box->show();
-    });
-    QObject::connect(ed, &Editor::busyEnded, window, [window] {
-        for (QDialog *d : window->findChildren<QDialog *>(QStringLiteral("busyBox"), Qt::FindDirectChildrenOnly)) {
-            d->disconnect(d);   // (only its own connections: a wildcard disconnect also cuts the style sheet's hold on the destroyed signal)
-            d->close();
-        }
-    });
+    QObject::connect(ed, &Editor::busyStarted, window, [window](const QString &text, std::atomic<bool> *cancel) { showMergeBox(window, text, cancel); });
+    QObject::connect(ed, &Editor::busyEnded, window, [window] { closeMergeBox(window); });
     const pathops::Op ops[5] = {pathops::Op::Union, pathops::Op::Combine, pathops::Op::Subtract, pathops::Op::Intersect, pathops::Op::Fragment};
     const char *icons[5] = {"combine", "merge", "square-minus", "blend", "slice"};
     const QString names[5] = {QCoreApplication::translate("jp::ShapeTools", "Union"), QCoreApplication::translate("jp::ShapeTools", "Combine"), QCoreApplication::translate("jp::ShapeTools", "Subtract"), QCoreApplication::translate("jp::ShapeTools", "Intersect"), QCoreApplication::translate("jp::ShapeTools", "Fragment")};
