@@ -3105,6 +3105,17 @@ static QVector<QTextLayout::FormatRange> applyLetterWidthsTo(const QVector<QText
             return table->contains(u) && !c.isSurrogate() && !c.isMark() && u != 0x200C && u != 0x200D && !(u >= 0xFE00 && u <= 0xFE0F) &&
                    c.joiningType() == QChar::Joining_None;
         };
+        // A letter of a script that sets each letter alone (Greek, Cyrillic, the Latin extensions, kana, ideographs) the table doesn't measure may also start
+        // or end a piece: it keeps the stand-in's width with no spacing of its own. Left in the piece of the space before it, it took that space's spacing,
+        // and the piece after it took back what the letters had been given, more each time (letters of 300 points, one to a line).
+        auto setsAlone = [](char16_t u) {
+            return (u >= 0x00C0 && u <= 0x024F) || (u >= 0x0370 && u <= 0x052F) || (u >= 0x1E00 && u <= 0x1FFF) || (u >= 0x3040 && u <= 0x30FF) || (u >= 0x3400 && u <= 0x9FFF) ||
+                   (u >= 0xFF21 && u <= 0xFF5A);
+        };
+        auto pieceCuttable = [&](QChar c) {
+            const char16_t u = c.unicode();
+            return cuttable(c) || (setsAlone(u) && !c.isSurrogate() && !c.isMark() && c.joiningType() == QChar::Joining_None);
+        };
         // A word processor's words (the letters between two spaces, or a run's
         // ends) keep their places: the stretches of a word between the places a
         // line may break in it each start where the original's does and end
@@ -3261,7 +3272,7 @@ static QVector<QTextLayout::FormatRange> applyLetterWidthsTo(const QVector<QText
             // takes up the drift.
             // (A space ends what a stretch's last letter can't carry alone, an unmeasured letter or an accent, so that what is left of the stretch doesn't go over the space.)
             const bool spaceAfterStretch = before >= 0 && byWord[before - r.start] && disp[i].isSpace();
-            if (started && (std::abs(drift + pieceDelta - w) <= 0.001 * em || (!cuttable(disp[before]) && !spaceAfterStretch) || !cuttable(disp[i]))) {
+            if (started && (std::abs(drift + pieceDelta - w) <= 0.001 * em || (!pieceCuttable(disp[before]) && !spaceAfterStretch) || !pieceCuttable(disp[i]))) {
                 drift += pieceDelta - w;
                 continue;
             }

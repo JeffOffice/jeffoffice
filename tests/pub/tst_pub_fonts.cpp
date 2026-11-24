@@ -372,6 +372,33 @@ private Q_SLOTS:
             QVERIFY2(cuts(s).isEmpty(), qPrintable(cuts(s).join(',')));
     }
 
+    // Letters the original's table doesn't measure (Cyrillic, in a font measured for Latin) keep the stand-in's widths with no spacing of their own: the space
+    // before them once gave its spacing to the whole word, and each piece after took back what the letters before it had been given, so the spacing grew from
+    // a fraction of a point to hundreds, and the word broke one letter to a line.
+    void unmeasuredLettersTakeNoSpacingFromTheSpaceBefore()
+    {
+        const QString fam = QStringLiteral("Gill Sans MT");
+        if (QFontDatabase::hasFamily(fam)) QSKIP("Gill Sans MT is installed here");
+        QTextCharFormat cf;
+        cf.setFontFamilies(QStringList{fam});
+        cf.setFontPointSize(11);
+        const QTextCharFormat rf = jp::resolveCharFormat(cf, jp::LayoutEnv());
+        const QString text = QString::fromUtf8("Any one, can be split into triangles. \xD0\x9D\xD0\xB0\xD0\xB9\xD1\x82\xD0\xB8 \xD0\xBF\xD0\xBB\xD0\xBE\xD1\x89\xD0\xB0\xD0\xB4\xD1\x8C \xD0\xBB\xD1\x8E\xD0\xB1\xD0\xBE\xD0\xB3\xD0\xBE \xD0\xBC\xD0\xBD\xD0\xBE\xD0\xB3\xD0\xBE\xD1\x83\xD0\xB3\xD0\xBE\xD0\xBB\xD1\x8C\xD0\xBD\xD0\xB8\xD0\xBA\xD0\xB0 \xD0\xBC\xD0\xBE\xD0\xB6\xD0\xBD\xD0\xBE.");
+        const auto pieces = jp::applyLetterWidths({QTextLayout::FormatRange{0, int(text.size()), rf}}, text);
+        QVERIFY(pieces.size() > 3);
+        int cyrillic = 0;
+        for (const auto &r : pieces) {
+            // A letter of the stand-in's own width is spaced by a fraction of a point, a gap by a letter's width at most.
+            QVERIFY2(std::abs(r.format.fontLetterSpacing()) < 3.0, qPrintable(QStringLiteral("%1 points at %2").arg(r.format.fontLetterSpacing()).arg(r.start)));
+            for (int i = r.start; i < r.start + r.length; ++i)
+                if (text[i].unicode() >= 0x0400 && text[i].unicode() < 0x0500 && text[i - 1].unicode() >= 0x0400) {
+                    ++cyrillic;
+                    QVERIFY2(std::abs(r.format.fontLetterSpacing()) < 0.5, qPrintable(QString::number(r.format.fontLetterSpacing())));
+                }
+        }
+        QVERIFY(cyrillic > 30);
+    }
+
     // One run of true small capitals in a font mustn't change how that font's
     // other runs are measured: the stand-in's advances were remembered by font
     // alone, so every normal run after it was set by the small capitals'
