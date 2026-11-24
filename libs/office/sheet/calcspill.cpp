@@ -463,6 +463,11 @@ void Calculation::releaseStrays()
     }
 }
 
+std::vector<std::array<quint32, 3>> Calculation::resizedSpills() const
+{
+    return std::vector<std::array<quint32, 3>>(m_resizedSpills.begin(), m_resizedSpills.end());
+}
+
 void Calculation::letGoOfSpill(int sheet, qint32 formula)
 {
     Sheet &s = m_sheets[size_t(sheet)];
@@ -513,6 +518,10 @@ Value Calculation::applySpill(Node &n, quint32 id, const Value &v)
         rows = v.rows();
         cols = v.cols();
     }
+    // (a file saved by the releases that kept a spill's old range over a grown block has the cells the block grew into as plain numbers: the first time the formula is worked out after the load, plain numbers that
+    // are exactly what it fills there are its own; a cell with anything else is in the way, as ever)
+    const bool loaded = m_loadedSpills.erase({sheet, formula}) > 0;
+    std::vector<std::pair<quint32, quint32>> adopt;
     bool wanted = true;   // the block asked for is the one told to the graph (too large a one is not)
     std::vector<CellArea> told;   // what the formula reads, besides its references: what it touched, and the block it asked for
     bool toldSet = false;
@@ -528,6 +537,13 @@ Value Calculation::applySpill(Node &n, quint32 id, const Value &v)
         s.cells.forEachInRangeReal(row0, col0, row0 + quint32(rows) - 1, col0 + quint32(cols) - 1, [&](quint32 row, quint32 col, const Cell &c) {
             if (row == row0 && col == col0) return true;
             if (!heldByOther(c, formula)) return true;
+            if (loaded && c.type == CellType::Number && !(c.flags & (HasFormula | ArrayMember | ArrayFormula | DataTable | SpillFormula | SpillMember)) && v.isArray()) {
+                const Value &want = v.at(int(row - row0), int(col - col0));
+                if (want.isNumber() && (want.number() == c.number)) {
+                    adopt.emplace_back(row, col);
+                    return true;
+                }
+            }
             if (m_strayCount.load(std::memory_order_relaxed) > 0) {
                 // (a cell of a loaded spill that its block let go of is no longer anyone's, though it waits to be taken from the store)
                 const quint32 rowId = s.cells.rowIdAt(row), colId = s.cells.colIdAt(col);
@@ -536,6 +552,14 @@ Value Calculation::applySpill(Node &n, quint32 id, const Value &v)
             blocked = true;
             return false;
         });
+        if (!blocked) {
+            for (const auto &[row, col] : adopt) {
+                Cell member = *s.cells.find(row, col);
+                member.flags |= ArrayMember | SpillMember;
+                member.formula = formula;
+                s.cells.set(row, col, member);
+            }
+        }
         if (blocked) {
             out = Value::error(jp::calc::ErrorKind::Spill);
             // (the block that was asked for is what the formula reads, so that what is in the way being cleared works it out again)
@@ -567,6 +591,7 @@ Value Calculation::applySpill(Node &n, quint32 id, const Value &v)
     was.col1 = was.col2 = col0;
     if (slot >= 0 && slot < s.ranges.size() && s.ranges[slot].valid) was = s.ranges[slot];
     if (!(was == now)) {
+        m_resizedSpills.insert({quint32(sheet), s.cells.rowIdAt(row0), s.cells.colIdAt(col0)});
         const auto gone = membersOutside(s.cells, was, now, formula);
         std::vector<CellArea> changed;
         // (with the index and a worker that serves, the window reads the store beside this thread: the cells of a loaded spill that its block no longer holds are told empty, and let go of by a thread that has the worker held back)

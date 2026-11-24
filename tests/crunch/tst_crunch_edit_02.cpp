@@ -740,6 +740,182 @@ void CrunchEditTests::aLoadedSpillThatGrewIsSavedWithTheBlockItHasNow()
     }
 }
 
+namespace {
+
+// A book whose B1 is the formula, with A1 = n (saved by the window).
+QByteArray spillBookOf(const QString &formula, int n)
+{
+    EditWindow w;
+    if (!w.openBlank()) return QByteArray();
+    w.select(QStringLiteral("A1"));
+    w.enter(QString::number(n));
+    w.select(QStringLiteral("B1"));
+    w.enter(formula);
+    if (!w.settle()) return QByteArray();
+    return savedBytes(w, QStringLiteral("spilling.xlsx"));
+}
+
+// The range the file says the array formula of B1 has.
+QString savedRef(const QByteArray &bytes)
+{
+    QMap<QString, QByteArray> parts;
+    if (!jp::readZip(bytes, parts)) return QString();
+    const QString x = QString::fromUtf8(parts.value(QStringLiteral("xl/worksheets/sheet1.xml")));
+    const int at = x.indexOf(QStringLiteral("t=\"array\" ref=\""));
+    return at < 0 ? QString() : x.mid(at + 15, x.indexOf(QLatin1Char('"'), at + 15) - at - 15);
+}
+
+// The book opened, A1 typed, and saved: the second file.
+QByteArray resavedWith(const QByteArray &book, const QString &a1)
+{
+    EditWindow e;
+    if (!e.open(book, QStringLiteral("spilling.xlsx")) || !e.settle()) return QByteArray();
+    e.select(QStringLiteral("A1"));
+    e.enter(a1);
+    if (!e.settle()) return QByteArray();
+    return savedBytes(e, QStringLiteral("resized.xlsx"));
+}
+
+struct SpillShape {
+    const char *formula;
+    int from, to;
+    const char *was, *now;
+};
+
+} // namespace
+
+// A loaded spill that shrank, in a column, a row, and a grid, is saved with the block it has now (the file kept the old range over fewer cells: it was written whole only when a cell of its block was, and the
+// cells a block lets go of are not its members). Fails when the formulas that were worked out with another size are not written whole (the old range comes back), with the index on and off.
+void CrunchEditTests::aLoadedSpillThatShrankIsSavedWithTheBlockItHasNow()
+{
+    const SpillShape shapes[] = {{"=SEQUENCE(A1)", 8, 3, "B1:B8", "B1:B3"}, {"=SEQUENCE(1,A1)", 8, 3, "B1:I1", "B1:D1"}, {"=SEQUENCE(A1,A1)", 3, 2, "B1:D3", "B1:C2"}, {"=SEQUENCE(A1)", 5, 1, "B1:B5", "B1"}};
+    for (const bool index : {false, true})
+        for (const SpillShape &sh : shapes) {
+            SpillIndexSwitch sw(index);
+            const QByteArray first = spillBookOf(QString::fromLatin1(sh.formula), sh.from);
+            QVERIFY(!first.isEmpty());
+            QCOMPARE(savedRef(first), QString::fromLatin1(sh.was));
+            const QByteArray again = resavedWith(first, QString::number(sh.to));
+            QVERIFY(!again.isEmpty());
+            QCOMPARE(savedRef(again), QString::fromLatin1(sh.now));
+            EditWindow f;
+            QVERIFY(f.open(again, QStringLiteral("shrunk.xlsx")));
+            QVERIFY(f.settle());
+            QCOMPARE(f.valueAt(QStringLiteral("B1")), QStringLiteral("n:1"));
+        }
+}
+
+// The same for a row and a grid that grew, saved and opened again through the window (the formula's cell had the old range, and the file opened as #SPILL!). Fails when the block is not written again.
+void CrunchEditTests::aLoadedRowAndGridSpillThatGrewIsSavedWithTheBlockItHasNow()
+{
+    const SpillShape shapes[] = {{"=SEQUENCE(A1)", 5, 8, "B1:B5", "B1:B8"}, {"=SEQUENCE(1,A1)", 5, 8, "B1:F1", "B1:I1"}, {"=SEQUENCE(A1,A1)", 2, 3, "B1:C2", "B1:D3"}};
+    for (const bool index : {false, true})
+        for (const SpillShape &sh : shapes) {
+            SpillIndexSwitch sw(index);
+            const QByteArray first = spillBookOf(QString::fromLatin1(sh.formula), sh.from);
+            QVERIFY(!first.isEmpty());
+            QCOMPARE(savedRef(first), QString::fromLatin1(sh.was));
+            const QByteArray again = resavedWith(first, QString::number(sh.to));
+            QVERIFY(!again.isEmpty());
+            QCOMPARE(savedRef(again), QString::fromLatin1(sh.now));
+            EditWindow f;
+            QVERIFY(f.open(again, QStringLiteral("grown.xlsx")));
+            QVERIFY(f.settle());
+            QCOMPARE(blockOf(f, QStringLiteral("B1")), QString::fromLatin1(sh.now));
+            QCOMPARE(f.valueAt(QStringLiteral("B1")), QStringLiteral("n:1"));
+        }
+}
+
+// An .ods copy of a loaded spill that was resized says the block it has now (it said the file's old range). Fails when the formula's cell is kept as the file had it.
+void CrunchEditTests::anOdsCopyOfAResizedLoadedSpillHasItsBlock()
+{
+    for (const int to : {8, 3}) {
+        const QByteArray first = spillBookOf(QStringLiteral("=SEQUENCE(A1)"), to == 8 ? 5 : 8);
+        QVERIFY(!first.isEmpty());
+        EditWindow e;
+        QVERIFY(e.open(first, QStringLiteral("spilling.xlsx")));
+        QVERIFY(e.settle());
+        e.select(QStringLiteral("A1"));
+        e.enter(QString::number(to));
+        QVERIFY(e.settle());
+        const QString copy = e.folder.dir.filePath(QStringLiteral("copy%1.ods").arg(to));
+        e.win.w.setSavePicker([&](const QString &, const QString &) { return copy; });
+        QSignalSpy made(&e.win.w, &CrunchWindow::copyExported);
+        QVERIFY(e.win.w.saveCopy());
+        QTRY_COMPARE_WITH_TIMEOUT(made.count(), 1, 20000);
+        QFile f(copy);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(f.readAll(), parts));
+        const QString content = QString::fromUtf8(parts.value(QStringLiteral("content.xml")));
+        QVERIFY2(content.contains(QStringLiteral("number-matrix-rows-spanned=\"%1\"").arg(to)), qPrintable(content.mid(content.indexOf(QStringLiteral("matrix")) - 40, 200)));
+    }
+}
+
+namespace {
+
+// The file the releases before this one made when a spill grew: the formula's cell says B1:B5, and B1 to B8 are stored (A1 is 8).
+QByteArray oldBlockFile(const QString &changeB7 = QString())
+{
+    const QByteArray good = spillBookOf(QStringLiteral("=SEQUENCE(A1)"), 8);
+    QMap<QString, QByteArray> parts;
+    if (good.isEmpty() || !jp::readZip(good, parts)) return QByteArray();
+    QByteArray &x = parts[QStringLiteral("xl/worksheets/sheet1.xml")];
+    if (!x.contains("ref=\"B1:B8\"")) return QByteArray();
+    x.replace("ref=\"B1:B8\"", "ref=\"B1:B5\"");
+    if (!changeB7.isEmpty()) {
+        const QByteArray was = "<c r=\"B7\"><v>7</v></c>";
+        if (!x.contains(was)) return QByteArray();
+        x.replace(was, changeB7.toUtf8());
+    }
+    jp::ZipWriter z;
+    for (auto it = parts.begin(); it != parts.end(); ++it) z.add(it.key(), it.value(), true);
+    return z.finish();
+}
+
+} // namespace
+
+// A file the releases before this one saved with the old block (B1:B5 over 1 to 8 stored) opens with the spill whole, and a save of it says the block it has: the person is not left with #SPILL! that F9 and
+// retyping cannot clear. Fails when the plain numbers the spill fills beyond its range are in its way.
+void CrunchEditTests::aFileSavedWithTheOldBlockOpensWithTheSpillWhole()
+{
+    for (const bool index : {false, true}) {
+        SpillIndexSwitch sw(index);
+        const QByteArray bad = oldBlockFile();
+        QVERIFY(!bad.isEmpty());
+        QCOMPARE(savedRef(bad), QStringLiteral("B1:B5"));
+        EditWindow e;
+        QVERIFY(e.open(bad, QStringLiteral("old.xlsx")));
+        QVERIFY(e.settle());
+        QCOMPARE(blockOf(e, QStringLiteral("B1")), QStringLiteral("B1:B8"));
+        for (int row = 1; row <= 8; ++row) QCOMPARE(e.valueAt(QStringLiteral("B%1").arg(row)), QStringLiteral("n:%1").arg(row));
+        e.win.w.act("formulas.calculate")->trigger();
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("B1")), QStringLiteral("n:1"));
+        const QByteArray saved = savedBytes(e, QStringLiteral("healed.xlsx"));
+        QVERIFY(!saved.isEmpty());
+        QCOMPARE(savedRef(saved), QStringLiteral("B1:B8"));
+        EditWindow f;
+        QVERIFY(f.open(saved, QStringLiteral("healed.xlsx")));
+        QVERIFY(f.settle());
+        QCOMPARE(blockOf(f, QStringLiteral("B1")), QStringLiteral("B1:B8"));
+    }
+}
+
+// A cell in the way that is not what the spill would put there (a number the person typed, or text) still blocks it: #SPILL!, as before. Fails when any plain number in the way is taken as the spill's own.
+void CrunchEditTests::aTypedCellInTheWayOfAFileSpillStillBlocksIt()
+{
+    for (const QString &other : {QStringLiteral("<c r=\"B7\"><v>77</v></c>"), QStringLiteral("<c r=\"B7\" t=\"inlineStr\"><is><t>typed</t></is></c>")}) {
+        const QByteArray bad = oldBlockFile(other);
+        QVERIFY(!bad.isEmpty());
+        EditWindow e;
+        QVERIFY(e.open(bad, QStringLiteral("typed.xlsx")));
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("B1")), QStringLiteral("e:#SPILL!"));
+        QVERIFY(e.valueAt(QStringLiteral("B7")) != QStringLiteral("n:7"));
+    }
+}
+
 // The window reads the blocks that were published before the values it has: a block the worker grows is the block the window reads once the batch that has the values of the slice is taken (not before,
 // and not never). Fails when the batch does not adopt the blocks (the window goes on reading the first), or when the copy of a slice is the one read at once.
 void CrunchEditTests::theWindowReadsTheBlocksOfTheBatchItTook()

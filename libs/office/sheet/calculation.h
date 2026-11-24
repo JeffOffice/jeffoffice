@@ -28,6 +28,7 @@
 #include <memory>
 #include <mutex>
 #include <unordered_map>
+#include <array>
 #include <set>
 #include <tuple>
 #include <unordered_set>
@@ -286,6 +287,8 @@ public:
     CellRange spillBlock(int sheet, quint32 row, quint32 col) const;
     bool isSpillAnchor(int sheet, quint32 row, quint32 col) const;
     bool isSpillMember(int sheet, quint32 row, quint32 col, CellRange *anchor = nullptr) const;
+    // The places (by row and column ids: sheet, row id, column id) of the formulas whose spill had another size when it was worked out than the one it had before (a save writes their cells whole, with the range they have now).
+    std::vector<std::array<quint32, 3>> resizedSpills() const;
     static bool formulaCanSpill(const QString &formula);
     // The formula of a cell that is not a dynamic array with the mark @ where the old rule of one value of a block applies (the same text when there is none): what the formula bar shows.
     static QString withImplicitMarks(const QString &formula);
@@ -1124,6 +1127,8 @@ private:
         quint32 rowId, colId;
         qint32 formula;
     };
+    std::set<std::array<quint32, 3>> m_resizedSpills;   // (the worker adds; read with the worker held)
+    std::set<std::pair<int, qint32>> m_loadedSpills;   // (the spills a file stored with a range: the first time one is worked out, plain numbers that are exactly what it fills beyond that range are its own)
     std::vector<Stray> m_strays;               // (the worker adds, a thread with the worker held back takes)
     std::atomic<qint64> m_strayCount{0};
     qint64 m_straysReleased = 0;

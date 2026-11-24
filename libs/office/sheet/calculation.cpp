@@ -1350,6 +1350,7 @@ bool Calculation::load()
         if (range < 0 || range >= s.ranges.size() || !s.ranges[range].valid) continue;
         const CellRange r = s.ranges[range];
         if (r.cellCount() <= 1 || r.cellCount() > kMaxArrayCellsMarked) continue;
+        if (const std::optional<Cell> first = cellOf(n); first && (first->flags & SpillFormula) && !(n.flags & Kept)) m_loadedSpills.insert({n.sheet, n.formula});
         if (s.cells.spills()) {
             const std::optional<Cell> head = cellOf(n);
             if (head && (head->flags & SpillFormula) && !(n.flags & Kept)) {

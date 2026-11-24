@@ -161,6 +161,11 @@ private Q_SLOTS:
     void aSpillFormulaTakenOutOfASheetLeavesNoBlock();
     void cellsOfALoadedSpillThatItsBlockLetsGoOfAreTakenWithTheWorkerHeld();
     void aLoadedSpillThatGrewIsSavedWithTheBlockItHasNow();
+    void aLoadedSpillThatShrankIsSavedWithTheBlockItHasNow();
+    void aLoadedRowAndGridSpillThatGrewIsSavedWithTheBlockItHasNow();
+    void anOdsCopyOfAResizedLoadedSpillHasItsBlock();
+    void aFileSavedWithTheOldBlockOpensWithTheSpillWhole();
+    void aTypedCellInTheWayOfAFileSpillStillBlocksIt();
     void theWindowReadsTheBlocksOfTheBatchItTook();
     void aBlockOfASliceIsNotReadUntilItsBatchIsTaken();
     void aTableMadeAgainUnderAHoldIsPublishedOnce();

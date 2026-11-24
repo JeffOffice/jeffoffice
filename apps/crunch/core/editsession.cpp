@@ -15,6 +15,7 @@
 #include <QUndoCommand>
 
 #include <algorithm>
+#include <array>
 #include <atomic>
 
 namespace jp::crunch {
@@ -1818,6 +1819,17 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts, con
             const quint64 key = markOf(sheet, block.row1, block.col1);
             if (key == kNoKey || !have.insert(key).second) continue;
             anchors.push_back({keyOf(sheet, block.row1, block.col1), key});
+        }
+        // (a spill that was cut down leaves no member among the cells: the formulas that were worked out with another size are written whole, as are those whose block grew)
+        for (const std::array<quint32, 3> &r : calc->resizedSpills()) {
+            const int sheet = int(r[0]);
+            if (sheet < 0 || sheet >= calc->sheetCount()) continue;
+            const CellStore &cells = calc->sheet(sheet).cells;
+            const quint32 row = cells.rowPlaceOf(r[1]), col = cells.colPlaceOf(r[2]);
+            if (row == CellStore::kNoLine || col == CellStore::kNoLine) continue;
+            const quint64 key = markOf(sheet, row, col);
+            if (key == kNoKey || !have.insert(key).second) continue;
+            anchors.push_back({keyOf(sheet, row, col), key});
         }
         touchedInOrder.insert(touchedInOrder.end(), anchors.begin(), anchors.end());
     }
