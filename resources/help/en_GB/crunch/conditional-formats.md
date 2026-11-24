@@ -26,7 +26,9 @@ When two rules say something about the same cell, the one that comes first in th
 2. Click **Home > Conditional Formatting**.
 3. Under **Highlight Cells Rules**, choose **Greater Than**, **Less Than**, **Between**, **Equal To**, **Text That Contains**, **A Date Occurring**, or **Duplicate Values**. Under **Top/Bottom Rules**, choose **Top 10 Items**, **Bottom 10 Items**, **Top 10 %**, **Bottom 10 %**, **Above Average**, or **Below Average**.
 4. Type the value (or the two values for **Between**, the text for **Text That Contains**, or how many for the Top and Bottom rules), or pick the dates. For **Top 10 Items**, "10" is how many cells get the look. You can change it to any number.
-5. Pick how the cells should look, for example **Light Red Fill with Dark Red Text**, and click **OK**.
+5. Pick how the cells should look, for example **Light Red Fill with Dark Red Text**, and click **OK**. The sample beside the list shows the look.
+
+To make a look of your own, choose **Custom Format...** at the end of the list. A box opens with four tabs: **Number**, **Font** (the style, underline, strikethrough, and colour), **Border** (thin kinds of line only), and **Fill** (a colour, or a pattern with two colours). The box starts from the look you had picked, and a part you do not change stays as it was. Click **OK** and the sample shows your look.
 
 The rule is drawn at once. Each new rule goes first, so when two rules want to change the same thing, the newer one wins. Making a rule is one step you can undo.
 
@@ -47,7 +49,7 @@ Click **Home > Conditional Formatting**, then **Data Bars**, **Colour Scales**, 
 - for a **data bar**: what the shortest and longest bars stand for (lowest or highest value, a number, a percent, a percentile, or a formula), gradient or solid fill, the colours, a border, the colour of negative bars, where the axis is, which way the bars run, and **Show bar only**;
 - for a **colour scale**: two or three colours, and what each colour stands for;
 - for an **icon set**: the icon style, the value each icon starts at, **Reverse icon order**, and **Show icon only**;
-- for the other rules: the value, text, dates, or formula, and the look.
+- for the other rules: the value, text, dates, or formula, and the look. A rule that a file brought with a look of its own is listed with the look **Custom Format**, and the sample shows how it really looks. If you change something else about the rule, its look stays exactly as the file had it. Choose **Custom Format...** to change the look.
 
 Pressing **OK** applies all of your changes as one step you can undo. A rule you did not change keeps exactly what the file had, whatever its place in the list; a rule you change is written again. A rule's formula is read from the top-left cell of its range, and a formula you type for a new rule is read as if it were written in the cell with the cursor. A protected sheet that does not let cells be formatted does not take rules.
 
@@ -63,4 +65,4 @@ Only an .xlsx workbook keeps conditional formats. Saving as an older kind of fil
 
 - A sheet that has data bars in the form of a newer file keeps them as they are, and JeffCrunch does not make, change, or clear rules on that sheet. Make those changes in the program that made the workbook.
 - A workbook opened from an older kind of file keeps its rules when you save it as an .xlsx workbook, and you can add rules after that.
-- The look of a rule is one of the ready-made looks; a look of your own (borders, number formats) is not offered yet.
+- A look of your own cannot have a medium, thick, double, or slanted line, a diagonal line, a gradient fill, or a font face or size: those are not part of what a rule can change.

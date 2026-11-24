@@ -15490,7 +15490,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <translation type="unfinished">Twee bladen van de werkmap delen één onderdeel, wat in geen enkel echt bestand voorkomt.</translation>
     </message>
     <message>
-        <location line="+213"/>
+        <location line="+214"/>
         <source>This file is a web page that was saved with an .xls name. This program can&apos;t open that kind of file yet.</source>
         <translation type="unfinished">Dit bestand is een webpagina die is opgeslagen met een .xls-naam. Dit programma kan dit soort bestanden nog niet openen.</translation>
     </message>
@@ -15593,7 +15593,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <translation type="unfinished">Het bestand bevat geen werkmap.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="+1225"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="+1296"/>
         <location filename="../libs/office/sheet/xls.cpp" line="+2251"/>
         <source>There is no such sheet.</source>
         <translation type="unfinished">Dit blad bestaat niet.</translation>
@@ -22889,9 +22889,36 @@ Bron: %3</translation>
     </message>
 </context>
 <context>
+    <name>jp::CondLookBox</name>
+    <message>
+        <location filename="../apps/crunch/app/condlook.cpp" line="+131"/>
+        <source>Keep the current look</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Custom Format</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Custom Format...</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>jp::CondLookSample</name>
+    <message>
+        <location line="+73"/>
+        <location line="+10"/>
+        <source>AaBbCcYyZz</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>jp::CondManageDialog</name>
     <message>
-        <location line="+387"/>
+        <location filename="../apps/crunch/app/condrulesdialog.cpp" line="+393"/>
         <source>Manage Rules</source>
         <translation type="unfinished"></translation>
     </message>
@@ -22949,7 +22976,7 @@ Bron: %3</translation>
 <context>
     <name>jp::CondRuleDialog</name>
     <message>
-        <location line="-592"/>
+        <location line="-598"/>
         <location line="+175"/>
         <source>Cell value</source>
         <translation type="unfinished"></translation>
@@ -23132,12 +23159,12 @@ Bron: %3</translation>
     <message>
         <location line="+1"/>
         <location line="+1"/>
-        <location line="+292"/>
+        <location line="+295"/>
         <source>Automatic</source>
         <translation type="unfinished">Automatisch</translation>
     </message>
     <message>
-        <location line="-220"/>
+        <location line="-223"/>
         <source>Edit Rule</source>
         <translation type="unfinished"></translation>
     </message>
@@ -23187,12 +23214,7 @@ Bron: %3</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+9"/>
-        <source>Keep the current look</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+2"/>
+        <location line="+8"/>
         <source>Cells look like this</source>
         <translation type="unfinished">Cellen zien er zo uit</translation>
     </message>
@@ -23202,7 +23224,7 @@ Bron: %3</translation>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+53"/>
+        <location line="+59"/>
         <source>Use three colors</source>
         <translation type="unfinished"></translation>
     </message>
@@ -30393,19 +30415,19 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_cond.cpp" line="-135"/>
-        <location line="+253"/>
+        <location line="+255"/>
         <location line="+23"/>
         <source>&quot;%1&quot; is not a formula JeffCrunch can read.</source>
         <translation type="unfinished">&quot;%1&quot; is geen formule die JeffCrunch kan lezen.</translation>
     </message>
     <message>
-        <location line="-267"/>
-        <location line="+275"/>
+        <location line="-269"/>
+        <location line="+277"/>
         <source>&quot;%1&quot; is not a number the rule can use.</source>
         <translation type="unfinished">&quot;%1&quot; is geen getal dat de regel kan gebruiken.</translation>
     </message>
     <message>
-        <location line="-244"/>
+        <location line="-246"/>
         <source>Greater Than…</source>
         <translation type="unfinished">Groter dan…</translation>
     </message>
@@ -30511,17 +30533,17 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+23"/>
-        <location line="+225"/>
+        <location line="+229"/>
         <location line="+4"/>
-        <location line="+26"/>
-        <location line="+22"/>
-        <location line="+27"/>
+        <location line="+37"/>
+        <location line="+23"/>
+        <location line="+30"/>
         <location line="+33"/>
         <source>Conditional Formatting</source>
         <translation type="unfinished">Voorwaardelijke opmaak</translation>
     </message>
     <message>
-        <location line="-327"/>
+        <location line="-346"/>
         <source>From</source>
         <translation>Van</translation>
     </message>
@@ -30536,12 +30558,12 @@ Het bestand kan niet worden gelezen.</translation>
         <translation>Tot</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+12"/>
         <source>Cells look like this</source>
         <translation>Cellen zien er zo uit</translation>
     </message>
     <message>
-        <location line="+32"/>
+        <location line="+35"/>
         <location line="+23"/>
         <source>Type a value for the rule.</source>
         <translation type="unfinished">Typ een waarde voor de regel.</translation>
@@ -32396,7 +32418,7 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/crunch/app/crunchwindow_cond.cpp" line="-41"/>
+        <location filename="../apps/crunch/app/crunchwindow_cond.cpp" line="-43"/>
         <source>Dates</source>
         <translation type="unfinished"></translation>
     </message>
@@ -42638,14 +42660,14 @@ Het bestand kan niet worden gelezen.</translation>
     <name>jp::FormatCellsDialog</name>
     <message>
         <location filename="../apps/crunch/app/formatdialog.cpp" line="+62"/>
-        <location line="+239"/>
+        <location line="+243"/>
         <location line="+347"/>
-        <location line="+120"/>
+        <location line="+130"/>
         <source>None</source>
         <translation type="unfinished">Geen</translation>
     </message>
     <message>
-        <location line="-705"/>
+        <location line="-719"/>
         <source>Hairline</source>
         <translation type="unfinished">Haarlijn</translation>
     </message>
@@ -42701,12 +42723,12 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+574"/>
+        <location line="+578"/>
         <source>Double</source>
         <translation type="unfinished">Dubbel</translation>
     </message>
     <message>
-        <location line="-573"/>
+        <location line="-577"/>
         <source>Thick</source>
         <translation type="unfinished">Dik</translation>
     </message>
@@ -42732,12 +42754,12 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+584"/>
+        <location line="+601"/>
         <source>Border</source>
         <translation type="unfinished">Rand</translation>
     </message>
     <message>
-        <location line="-583"/>
+        <location line="-600"/>
         <source>Fill</source>
         <translation type="unfinished">Opvulling</translation>
     </message>
@@ -42747,7 +42769,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Bescherming</translation>
     </message>
     <message>
-        <location line="+46"/>
+        <location line="+50"/>
         <source>&amp;Category</source>
         <translation>&amp;Categorie</translation>
     </message>
@@ -42819,17 +42841,17 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+5"/>
-        <location line="+100"/>
+        <location line="+110"/>
         <source>&amp;Color</source>
         <translation>&amp;Kleur</translation>
     </message>
     <message>
-        <location line="-16"/>
+        <location line="-20"/>
         <source>St&amp;yle</source>
         <translation>St&amp;ijl</translation>
     </message>
     <message>
-        <location line="+140"/>
+        <location line="+150"/>
         <source>&amp;Background Color</source>
         <translation>&amp;Achtergrondkleur</translation>
     </message>
@@ -42854,13 +42876,18 @@ Het bestand kan niet worden gelezen.</translation>
         <translation>&amp;Richting</translation>
     </message>
     <message>
-        <location line="-670"/>
-        <location line="+691"/>
+        <location line="-686"/>
+        <location line="+708"/>
         <source>Sample</source>
         <translation type="unfinished">Voorbeeld</translation>
     </message>
     <message>
-        <location line="-637"/>
+        <location line="-776"/>
+        <source>Custom Format</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+122"/>
         <source>Use 1000 &amp;Separator</source>
         <translation type="unfinished">&amp;Scheidingsteken voor duizendtallen gebruiken</translation>
     </message>
@@ -42876,24 +42903,24 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+250"/>
+        <location line="+263"/>
         <source>Left</source>
         <translation>Links</translation>
     </message>
     <message>
-        <location line="-250"/>
+        <location line="-263"/>
         <location line="+11"/>
         <source>Center</source>
         <translation type="unfinished">Centreren</translation>
     </message>
     <message>
         <location line="-11"/>
-        <location line="+252"/>
+        <location line="+265"/>
         <source>Right</source>
         <translation>Rechts</translation>
     </message>
     <message>
-        <location line="-252"/>
+        <location line="-265"/>
         <source>Repeat to fill</source>
         <translation type="unfinished">Herhalen tot gevuld</translation>
     </message>
@@ -42915,18 +42942,18 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+11"/>
-        <location line="+236"/>
+        <location line="+249"/>
         <source>Top</source>
         <translation>Boven</translation>
     </message>
     <message>
-        <location line="-236"/>
-        <location line="+238"/>
+        <location line="-249"/>
+        <location line="+251"/>
         <source>Bottom</source>
         <translation>Onder</translation>
     </message>
     <message>
-        <location line="-238"/>
+        <location line="-251"/>
         <source>Distributed</source>
         <translation type="unfinished">Verdeeld</translation>
     </message>
@@ -43022,13 +43049,13 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+100"/>
-        <location line="+129"/>
+        <location line="+110"/>
+        <location line="+135"/>
         <source>Automatic</source>
         <translation type="unfinished">Automatisch</translation>
     </message>
     <message>
-        <location line="-223"/>
+        <location line="-235"/>
         <source>Effects</source>
         <translation type="unfinished">Effecten</translation>
     </message>
@@ -43048,7 +43075,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Su&amp;bscript</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+9"/>
         <source>Preview</source>
         <translation>Voorbeeld</translation>
     </message>
@@ -43063,7 +43090,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Lijn</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+19"/>
         <source>Line Color</source>
         <translation type="unfinished">Lijnkleur</translation>
     </message>
@@ -43083,7 +43110,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation>Binnen</translation>
     </message>
     <message>
-        <location line="+27"/>
+        <location line="+30"/>
         <source>Inside horizontal</source>
         <translation type="unfinished">Binnen horizontaal</translation>
     </message>
@@ -43103,7 +43130,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Diagonaal omlaag</translation>
     </message>
     <message>
-        <location line="+24"/>
+        <location line="+27"/>
         <source>Click a button to put the line in the style and color chosen on the edge it names, or to take away the line that is there.</source>
         <translation type="unfinished">Klik op een knop om een lijn in de gekozen stijl en kleur aan te brengen op de genoemde rand, of om de bestaande lijn te verwijderen.</translation>
     </message>
@@ -43263,7 +43290,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Van het midden naar buiten</translation>
     </message>
     <message>
-        <location line="+115"/>
+        <location line="+116"/>
         <source>&amp;Locked</source>
         <translation type="unfinished">&amp;Vergrendeld</translation>
     </message>
@@ -66065,24 +66092,24 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     </message>
     <message>
         <location line="+5"/>
-        <location line="+57"/>
+        <location line="+61"/>
         <source>This sheet has more rules than JeffCrunch changes (%1).</source>
         <translation type="unfinished">Dit blad heeft meer regels dan JeffCrunch kan wijzigen (%1).</translation>
     </message>
     <message>
-        <location line="-59"/>
+        <location line="-63"/>
         <source>This sheet has rules of conditional formatting in a form JeffCrunch keeps as they are (more than it reads, or with a priority another rule has). It doesn&apos;t change the rules of the sheet.</source>
         <translation type="unfinished">Dit blad bevat voorwaardelijke opmaakregels in een vorm die JeffCrunch ongewijzigd bewaart (meer dan het programma leest, of met een prioriteit die al door een andere regel wordt gebruikt). De regels van het blad worden niet gewijzigd.</translation>
     </message>
     <message>
         <location line="+16"/>
-        <location line="+69"/>
+        <location line="+73"/>
         <source>Select the cells the rule is for.</source>
         <translation type="unfinished">Selecteer de cellen waarvoor de regel geldt.</translation>
     </message>
     <message>
-        <location line="-60"/>
-        <location line="+44"/>
+        <location line="-64"/>
+        <location line="+48"/>
         <location filename="../apps/crunch/core/editformat.cpp" line="-1231"/>
         <location line="+454"/>
         <location line="+141"/>
@@ -66108,14 +66135,14 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">De werkmap is bezet. Probeer het zo meteen opnieuw.</translation>
     </message>
     <message>
-        <location line="-39"/>
-        <location line="+52"/>
+        <location line="-43"/>
+        <location line="+56"/>
         <source>This workbook has no place to keep the look of a rule.</source>
         <translation type="unfinished">Deze werkmap heeft geen plek om de opmaak van een regel te bewaren.</translation>
     </message>
     <message>
-        <location line="-45"/>
-        <location line="+55"/>
+        <location line="-49"/>
+        <location line="+59"/>
         <source>Conditional Formatting</source>
         <translation type="unfinished">Voorwaardelijke opmaak</translation>
     </message>
@@ -74631,7 +74658,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location filename="../libs/office/office/package.cpp" line="+4"/>
         <location line="+7"/>
         <location filename="../libs/office/sheet/sheetcrypt.cpp" line="-1"/>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="-1454"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="-1525"/>
         <location filename="../apps/deck/io/presentationfile.cpp" line="-23"/>
         <location line="+28"/>
         <source>The file is larger than this program can open.</source>
@@ -75612,7 +75639,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location filename="../libs/office/sheet/xlsxbase.cpp" line="+1070"/>
         <location line="+96"/>
         <location line="+25"/>
-        <location filename="../libs/office/sheet/xlsxsave.cpp" line="+2509"/>
+        <location filename="../libs/office/sheet/xlsxsave.cpp" line="+2753"/>
         <location line="+1675"/>
         <location line="+61"/>
         <source>The save was stopped.</source>
@@ -75647,13 +75674,13 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <translation type="unfinished">Het blad kan niet worden opgeslagen.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-4022"/>
+        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-4266"/>
         <location line="+21"/>
         <source>The shared strings part is not in the form this program changes.</source>
         <translation type="unfinished">Het onderdeel met gedeelde tekenreeksen heeft niet de vorm die dit programma kan wijzigen.</translation>
     </message>
     <message>
-        <location line="+209"/>
+        <location line="+453"/>
         <source>The styles part is not in the form this program changes.</source>
         <translation type="unfinished">Het onderdeel met stijlen heeft niet de vorm die dit programma kan wijzigen.</translation>
     </message>
@@ -76098,7 +76125,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
 <context>
     <name>jp::office::sheet::Workbook</name>
     <message>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="+616"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="+682"/>
         <source>Give the table style a name.</source>
         <translation type="unfinished">Geef de tabelstijl een naam.</translation>
     </message>

@@ -15730,7 +15730,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+213"/>
+        <location line="+214"/>
         <source>This file is a web page that was saved with an .xls name. This program can&apos;t open that kind of file yet.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -15825,7 +15825,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+1225"/>
+        <location line="+1296"/>
         <location filename="../libs/office/sheet/xls.cpp" line="+761"/>
         <source>There is no such sheet.</source>
         <translation type="unfinished"></translation>
@@ -22812,9 +22812,36 @@ Source: %3</source>
     </message>
 </context>
 <context>
+    <name>jp::CondLookBox</name>
+    <message>
+        <location filename="../apps/crunch/app/condlook.cpp" line="+131"/>
+        <source>Keep the current look</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Custom Format</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>Custom Format...</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
+    <name>jp::CondLookSample</name>
+    <message>
+        <location line="+73"/>
+        <location line="+10"/>
+        <source>AaBbCcYyZz</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>jp::CondManageDialog</name>
     <message>
-        <location line="+387"/>
+        <location filename="../apps/crunch/app/condrulesdialog.cpp" line="+393"/>
         <source>Manage Rules</source>
         <translation type="unfinished"></translation>
     </message>
@@ -22872,7 +22899,7 @@ Source: %3</source>
 <context>
     <name>jp::CondRuleDialog</name>
     <message>
-        <location line="-592"/>
+        <location line="-598"/>
         <location line="+175"/>
         <source>Cell value</source>
         <translation type="unfinished"></translation>
@@ -23055,12 +23082,12 @@ Source: %3</source>
     <message>
         <location line="+1"/>
         <location line="+1"/>
-        <location line="+292"/>
+        <location line="+295"/>
         <source>Automatic</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-220"/>
+        <location line="-223"/>
         <source>Edit Rule</source>
         <translation type="unfinished"></translation>
     </message>
@@ -23110,12 +23137,7 @@ Source: %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+9"/>
-        <source>Keep the current look</source>
-        <translation type="unfinished"></translation>
-    </message>
-    <message>
-        <location line="+2"/>
+        <location line="+8"/>
         <source>Cells look like this</source>
         <translation type="unfinished"></translation>
     </message>
@@ -23125,7 +23147,7 @@ Source: %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+53"/>
+        <location line="+59"/>
         <source>Use three colors</source>
         <translation type="unfinished"></translation>
     </message>
@@ -26413,19 +26435,19 @@ Source: %3</source>
     </message>
     <message>
         <location filename="../apps/crunch/app/crunchwindow_cond.cpp" line="-148"/>
-        <location line="+253"/>
+        <location line="+255"/>
         <location line="+23"/>
         <source>&quot;%1&quot; is not a formula JeffCrunch can read.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-267"/>
-        <location line="+275"/>
+        <location line="-269"/>
+        <location line="+277"/>
         <source>&quot;%1&quot; is not a number the rule can use.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-244"/>
+        <location line="-246"/>
         <source>Greater Than…</source>
         <translation type="unfinished"></translation>
     </message>
@@ -26531,17 +26553,17 @@ Source: %3</source>
     </message>
     <message>
         <location line="+23"/>
-        <location line="+225"/>
+        <location line="+229"/>
         <location line="+4"/>
-        <location line="+26"/>
-        <location line="+22"/>
-        <location line="+27"/>
+        <location line="+37"/>
+        <location line="+23"/>
+        <location line="+30"/>
         <location line="+33"/>
         <source>Conditional Formatting</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-327"/>
+        <location line="-346"/>
         <source>From</source>
         <translation type="unfinished"></translation>
     </message>
@@ -26556,12 +26578,12 @@ Source: %3</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+12"/>
         <source>Cells look like this</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+32"/>
+        <location line="+35"/>
         <location line="+23"/>
         <source>Type a value for the rule.</source>
         <translation type="unfinished"></translation>
@@ -27451,7 +27473,7 @@ This file is protected with a password. Password:</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/crunch/app/crunchwindow_cond.cpp" line="-54"/>
+        <location filename="../apps/crunch/app/crunchwindow_cond.cpp" line="-56"/>
         <location filename="../apps/crunch/app/crunchwindow_find.cpp" line="+1"/>
         <location filename="../apps/crunch/app/crunchwindow_format.cpp" line="+377"/>
         <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="-29"/>
@@ -42497,14 +42519,14 @@ The file can&apos;t be read.</source>
     <name>jp::FormatCellsDialog</name>
     <message>
         <location filename="../apps/crunch/app/formatdialog.cpp" line="+62"/>
-        <location line="+239"/>
+        <location line="+243"/>
         <location line="+347"/>
-        <location line="+120"/>
+        <location line="+130"/>
         <source>None</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-705"/>
+        <location line="-719"/>
         <source>Hairline</source>
         <translation type="unfinished"></translation>
     </message>
@@ -42560,12 +42582,12 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+574"/>
+        <location line="+578"/>
         <source>Double</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-573"/>
+        <location line="-577"/>
         <source>Thick</source>
         <translation type="unfinished"></translation>
     </message>
@@ -42591,12 +42613,12 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+584"/>
+        <location line="+601"/>
         <source>Border</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-583"/>
+        <location line="-600"/>
         <source>Fill</source>
         <translation type="unfinished"></translation>
     </message>
@@ -42606,7 +42628,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+46"/>
+        <location line="+50"/>
         <source>&amp;Category</source>
         <translation type="unfinished"></translation>
     </message>
@@ -42678,17 +42700,17 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+5"/>
-        <location line="+100"/>
+        <location line="+110"/>
         <source>&amp;Color</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-16"/>
+        <location line="-20"/>
         <source>St&amp;yle</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+140"/>
+        <location line="+150"/>
         <source>&amp;Background Color</source>
         <translation type="unfinished"></translation>
     </message>
@@ -42713,13 +42735,18 @@ The file can&apos;t be read.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-670"/>
-        <location line="+691"/>
+        <location line="-686"/>
+        <location line="+708"/>
         <source>Sample</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-637"/>
+        <location line="-776"/>
+        <source>Custom Format</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+122"/>
         <source>Use 1000 &amp;Separator</source>
         <translation type="unfinished"></translation>
     </message>
@@ -42735,24 +42762,24 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+250"/>
+        <location line="+263"/>
         <source>Left</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-250"/>
+        <location line="-263"/>
         <location line="+11"/>
         <source>Center</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="-11"/>
-        <location line="+252"/>
+        <location line="+265"/>
         <source>Right</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-252"/>
+        <location line="-265"/>
         <source>Repeat to fill</source>
         <translation type="unfinished"></translation>
     </message>
@@ -42774,18 +42801,18 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+11"/>
-        <location line="+236"/>
+        <location line="+249"/>
         <source>Top</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-236"/>
-        <location line="+238"/>
+        <location line="-249"/>
+        <location line="+251"/>
         <source>Bottom</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-238"/>
+        <location line="-251"/>
         <source>Distributed</source>
         <translation type="unfinished"></translation>
     </message>
@@ -42881,13 +42908,13 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+100"/>
-        <location line="+129"/>
+        <location line="+110"/>
+        <location line="+135"/>
         <source>Automatic</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-223"/>
+        <location line="-235"/>
         <source>Effects</source>
         <translation type="unfinished"></translation>
     </message>
@@ -42907,7 +42934,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+9"/>
         <source>Preview</source>
         <translation type="unfinished"></translation>
     </message>
@@ -42922,7 +42949,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+19"/>
         <source>Line Color</source>
         <translation type="unfinished"></translation>
     </message>
@@ -42942,7 +42969,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+27"/>
+        <location line="+30"/>
         <source>Inside horizontal</source>
         <translation type="unfinished"></translation>
     </message>
@@ -42962,7 +42989,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+24"/>
+        <location line="+27"/>
         <source>Click a button to put the line in the style and color chosen on the edge it names, or to take away the line that is there.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -43122,7 +43149,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+115"/>
+        <location line="+116"/>
         <source>&amp;Locked</source>
         <translation type="unfinished"></translation>
     </message>
@@ -66077,19 +66104,19 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+57"/>
+        <location line="+61"/>
         <source>This sheet has more rules than JeffCrunch changes (%1).</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-43"/>
-        <location line="+69"/>
+        <location line="-47"/>
+        <location line="+73"/>
         <source>Select the cells the rule is for.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-60"/>
-        <location line="+44"/>
+        <location line="-64"/>
+        <location line="+48"/>
         <location filename="../apps/crunch/core/editformat.cpp" line="+81"/>
         <location line="+454"/>
         <location line="+141"/>
@@ -66115,14 +66142,14 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-39"/>
-        <location line="+52"/>
+        <location line="-43"/>
+        <location line="+56"/>
         <source>This workbook has no place to keep the look of a rule.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-45"/>
-        <location line="+55"/>
+        <location line="-49"/>
+        <location line="+59"/>
         <source>Conditional Formatting</source>
         <translation type="unfinished"></translation>
     </message>
@@ -74407,7 +74434,7 @@ The password couldn&apos;t be put on the file.</source>
         <location filename="../libs/office/office/package.cpp" line="+4"/>
         <location line="+7"/>
         <location filename="../libs/office/sheet/sheetcrypt.cpp" line="-1"/>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="-1454"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="-1525"/>
         <location filename="../apps/deck/io/presentationfile.cpp" line="-23"/>
         <location line="+28"/>
         <source>The file is larger than this program can open.</source>
@@ -75415,7 +75442,7 @@ The password couldn&apos;t be put on the file.</source>
         <location filename="../libs/office/sheet/xlsxbase.cpp" line="+1070"/>
         <location line="+96"/>
         <location line="+25"/>
-        <location filename="../libs/office/sheet/xlsxsave.cpp" line="+2509"/>
+        <location filename="../libs/office/sheet/xlsxsave.cpp" line="+2753"/>
         <location line="+1675"/>
         <location line="+61"/>
         <source>The save was stopped.</source>
@@ -75470,13 +75497,13 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-4022"/>
+        <location filename="../libs/office/sheet/xlsxsave.cpp" line="-4266"/>
         <location line="+21"/>
         <source>The shared strings part is not in the form this program changes.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+209"/>
+        <location line="+453"/>
         <source>The styles part is not in the form this program changes.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -75863,7 +75890,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::office::sheet::Workbook</name>
     <message>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="+616"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="+682"/>
         <source>Give the table style a name.</source>
         <translation type="unfinished"></translation>
     </message>
