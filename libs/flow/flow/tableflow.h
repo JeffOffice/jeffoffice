@@ -238,7 +238,8 @@ public:
     // How far down the cell's text area the line of the position is (the top of the line; -1 when the cell has no line with it).
     double lineTopIn(int cell, int position) const;
     // Whether row `r` can go over a page break: not one that says it can't, one of an exact height, or one with cells joined down in it (or covered by those).
-    bool splittable(int r) const;
+    // With `fitsNowhere`, a row that says it can't be split is not refused for that: it has been tried on a page by itself and does not fit one, so it is cut between lines.
+    bool splittable(int r, bool fitsNowhere = false) const;
     // Whether row `r` is kept with the one after it: a paragraph in one of its cells asks to be kept with the next. Such a row is not cut at a page's foot, and goes with the first lines
     // of the next row, to a page that has room for both.
     bool keepsWithNext(int r) const;

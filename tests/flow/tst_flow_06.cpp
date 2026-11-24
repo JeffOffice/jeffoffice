@@ -784,9 +784,80 @@ void FlowTests::aPageBreakBeforeATableStartsItOnANewPage()
 }
 
 
-// A row that says it can't be split, and is taller than a page, is placed at the top of a page by itself and the layout goes on after it; it makes no
-// endless pages.
+// A row that says it can't be split moves to the next page when it does not fit where it is; only where it fits no page whole is it cut, between lines, and
+// then every line of its cells is shown once, on pages that follow each other, none of them taller than the room.
 void FlowTests::aRowThatCantBeSplitAndIsTallerThanAPageStillLaysOut()
+{
+    struct Case { int lines0, lines1; bool header; };
+    for (const Case &k : {Case{120, 2, false}, Case{120, 40, false}, Case{200, 70, true}, Case{3000, 5, false}}) {
+        FlowDocument fd;
+        fd.sections[0].paper = QSizeF(300, 300);
+        fd.sections[0].margins = QMarginsF(40, 40, 40, 40);
+        fillStory(fd.story(), 2, 5, {}, 6, 8);
+        TestTable spec;
+        spec.rows = 3;
+        spec.cols = 2;
+        spec.columnWidth = 90;
+        spec.setRow = [&](int r, RowData &row) {
+            row.cantSplit = r == 1;
+            row.header = k.header && r == 0;
+        };
+        spec.text = [&](int r, int c) {
+            QString t = QStringLiteral("r%1c%2").arg(r).arg(c);
+            const int lines = r != 1 ? 0 : c == 0 ? k.lines0 : k.lines1;
+            for (int i = 0; i < lines; ++i) t += QStringLiteral("\nline %1").arg(i);
+            return t;
+        };
+        const TestTable table = addTable(fd, spec);
+        QTextCursor c(fd.story());
+        c.movePosition(QTextCursor::End);
+        c.insertBlock(QTextBlockFormat());
+        c.insertText(QStringLiteral("zebra after"));
+        Paginator pg(&fd);
+        const int pages = pg.pageCount();
+        QVERIFY2(pages >= 3 && pages < k.lines0 / 4 + 12, qPrintable(QString::number(pages)));
+        QVector<int> seen;
+        std::vector<int> shown(2, 0);
+        const double room = fd.section(0).content().height();
+        QVector<int> pagesWithRow;
+        for (int p = 0; p < pages; ++p) {
+            const auto rows = rowLines(pg, fd, p);
+            for (const auto &r : rows) {
+                if (r.pos == table.rowStarts[1]) pagesWithRow << p;
+                QVERIFY2(r.rect.height() <= room + 0.1, qPrintable(QStringLiteral("page %1: a row %2 high in %3").arg(p).arg(r.rect.height()).arg(room)));
+            }
+            if (std::none_of(rows.begin(), rows.end(), [&](const auto &r) { return r.pos == table.rowStarts[1]; })) continue;
+            const auto page = pg.materialize(p);
+            QVERIFY(page && !page->tables.isEmpty());
+            for (const auto &fragment : page->tables) {
+                const auto *part = fragment->partOf(1);
+                if (!part && !(fragment->firstRow <= 1 && fragment->endRow > 1)) continue;
+                for (const auto &item : fragment->items) {
+                    const auto &cell = fragment->layout->cell(item.cell);
+                    if (cell.row != 1) continue;
+                    const int at = item.cell - fragment->layout->row(1).cell0;
+                    const double offset = part ? part->piece.offsets[at] : 0;
+                    const double height = part ? part->piece.height : fragment->layout->rowHeight(1);
+                    for (const auto &l : item.content->parts[0].text->lineBriefs())
+                        if (l.rect.top() >= offset - 0.01 && l.rect.bottom() - offset <= height - cell.margins.top() - cell.margins.bottom() + 0.01) ++shown[size_t(at)];
+                }
+                QVERIFY2(fragment->height <= room + 0.1, qPrintable(QStringLiteral("page %1: %2 of %3").arg(p).arg(fragment->height).arg(room)));
+            }
+        }
+        // (Words in, words laid out.)
+        QCOMPARE(shown[0], k.lines0 + 1);
+        QCOMPARE(shown[1], k.lines1 + 1);
+        QVERIFY(pagesWithRow.size() >= 2);
+        for (int i = 1; i < pagesWithRow.size(); ++i) QCOMPARE(pagesWithRow[i], pagesWithRow[i - 1] + 1);
+        const int zebra = fd.story()->toPlainText().indexOf(QLatin1String("zebra"));
+        QVERIFY(pg.pageOfPosition(zebra) >= pagesWithRow.last());
+        QVERIFY(pg.page(pages - 1).start.pos < fd.story()->characterCount());
+    }
+}
+
+
+// A row that can't be split and fits a page is not cut: it goes to the top of the next page whole, even where the page it was to begin on has room for part of it.
+void FlowTests::aRowThatCantBeSplitAndFitsAPageMovesWhole()
 {
     FlowDocument fd;
     fd.sections[0].paper = QSizeF(300, 300);
@@ -794,37 +865,24 @@ void FlowTests::aRowThatCantBeSplitAndIsTallerThanAPageStillLaysOut()
     fillStory(fd.story(), 2, 5, {}, 6, 8);
     TestTable spec;
     spec.rows = 3;
-    spec.cols = 2;
+    spec.cols = 1;
     spec.columnWidth = 90;
     spec.setRow = [](int r, RowData &row) { row.cantSplit = r == 1; };
-    spec.text = [](int r, int c) {
-        QString t = QStringLiteral("r%1c%2").arg(r).arg(c);
-        if (r == 1 && c == 0)
-            for (int i = 0; i < 90; ++i) t += QStringLiteral("\nline %1").arg(i);
+    spec.text = [](int r, int) {
+        QString t = QStringLiteral("r%1").arg(r);
+        for (int i = 0; r == 1 && i < 9; ++i) t += QStringLiteral("\nline %1").arg(i);
         return t;
     };
     const TestTable table = addTable(fd, spec);
-    QTextCursor c(fd.story());
-    c.movePosition(QTextCursor::End);
-    c.insertBlock(QTextBlockFormat());
-    c.insertText(QStringLiteral("after"));
     Paginator pg(&fd);
-    const int pages = pg.pageCount();
-    QVERIFY(pages >= 3 && pages < 12);
-    QVector<int> seen;
-    for (int k = 0; k < pages; ++k)
-        for (const auto &r : rowLines(pg, fd, k)) seen << r.pos;
-    QCOMPARE(seen, table.rowStarts);
-    // The tall row is the first thing on its page, and the row after it is not on that page.
-    int tallPage = -1;
-    for (int k = 0; k < pages; ++k)
-        for (const auto &r : rowLines(pg, fd, k))
-            if (r.pos == table.rowStarts[1]) tallPage = k;
-    QVERIFY(tallPage >= 0);
-    QCOMPARE(pg.lines(tallPage).first().pos, table.rowStarts[1]);
-    QVERIFY(rowLines(pg, fd, tallPage).first().rect.height() > fd.section(0).content().height());
-    QCOMPARE(rowLines(pg, fd, tallPage).size(), 1);
-    QVERIFY(pg.page(pages - 1).start.pos < fd.story()->characterCount());
+    int rowPages = 0;
+    for (int p = 0; p < pg.pageCount(); ++p)
+        for (const auto &r : rowLines(pg, fd, p))
+            if (r.pos == table.rowStarts[1]) {
+                ++rowPages;
+                QCOMPARE(pg.page(p).start.piece, 0);
+            }
+    QCOMPARE(rowPages, 1);
 }
 
 

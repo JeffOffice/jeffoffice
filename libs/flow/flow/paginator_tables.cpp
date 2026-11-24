@@ -374,7 +374,7 @@ QVector<StoryLayout::LineBrief> Paginator::tableLines(const QVector<FrameSpec> &
                     }
                     if (state == 0) {
                         const double nh = heightOfNotes(rowNotes, f, colW);
-                        if (height + topExtra + footRoom + nh + keptWith <= avail + 0.05 || (atTop && !table->splittable(r))) {
+                        if (height + topExtra + footRoom + nh + keptWith <= avail + 0.05 || (atTop && !table->splittable(r, true))) {
                             ln.frame = f;
                             ln.line = 0;
                             ln.lines = 1;
@@ -387,7 +387,7 @@ QVector<StoryLayout::LineBrief> Paginator::tableLines(const QVector<FrameSpec> &
                             continue;
                         }
                     }
-                    if (state != 0 || (table->splittable(r) && !keeps)) {
+                    if (state != 0 || (table->splittable(r, atTop) && !keeps)) {
                         // The row, or what is left of it, over the foot of the column: the lines of its cells that fit, and the rest on the next.
                         if (cites) knowGaps();
                         TableLayout::Piece part = table->pieceOf(r, state, offs, avail - footRoom, led->reserve[f] <= 0, led->ruleGap > 0 ? led->ruleGap : 0, atTop, topExtra);

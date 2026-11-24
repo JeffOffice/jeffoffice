@@ -727,10 +727,10 @@ double TableLayout::lineTopIn(int cell, int position) const
     return lineTopInContent(*contentOf(m_cells[size_t(cell)]), position);
 }
 
-bool TableLayout::splittable(int r) const
+bool TableLayout::splittable(int r, bool fitsNowhere) const
 {
     const Row &row = m_rows[size_t(r)];
-    if (row.data->cantSplit || row.data->header || (row.data->exact && row.data->height > 0)) return false;
+    if ((row.data->cantSplit && !fitsNowhere) || row.data->header || (row.data->exact && row.data->height > 0)) return false;
     // A row as tall as it was set to be (its cells need less) has no lines to cut it between: it goes whole, as tall as it was set.
     if (row.data->height > 0 && row.height <= row.least + 0.01) return false;
     for (int i = row.cell0; i < row.cell0 + row.cells; ++i)

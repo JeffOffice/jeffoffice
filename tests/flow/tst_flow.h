@@ -1475,6 +1475,7 @@ private Q_SLOTS:
     void paragraphBordersTakeRoom();
     void theFirstLineOfABorderedParagraphGoesInAFrameThatIsTooShort();
     void paragraphBordersAndShadingAreDrawn();
+    void aThinParagraphBorderIsCrispAtEveryScale();
     void anUnderscoreLeaderIsOneLineFromTheTabToItsStop();
     void anAbsolutePositionTabGoesToItsPlaceWhateverTheParagraphsStops();
     void anAbsolutePositionTabLeavesTheParagraphsStopsToItsOrdinaryTabs();
@@ -1695,6 +1696,7 @@ private Q_SLOTS:
     void headerRowsRepeatOnTheNextPages();
     void aPageBreakBeforeATableStartsItOnANewPage();
     void aRowThatCantBeSplitAndIsTallerThanAPageStillLaysOut();
+    void aRowThatCantBeSplitAndFitsAPageMovesWhole();
     void aRowThatDoesNotFitIsSplitBetweenTheLinesOfItsCells();
     void aRowSetToAHeightWithContentNotAtItsTopIsNotBegunInLessRoom();
     void aRowOfATableInACellSetToAHeightIsNotBegunInLessRoomEither();
