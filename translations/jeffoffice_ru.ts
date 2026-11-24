@@ -16659,7 +16659,7 @@ Open it in your email program, add recipients and send.</source>
         <translation type="unfinished">Этот файл является составным файлом, но книги в нём нет.</translation>
     </message>
     <message>
-        <location line="+1296"/>
+        <location line="+1312"/>
         <location filename="../libs/office/sheet/xls.cpp" line="+761"/>
         <source>There is no such sheet.</source>
         <translation type="unfinished">Такого листа нет.</translation>
@@ -77339,7 +77339,7 @@ The password couldn&apos;t be put on the file.</source>
         <location filename="../libs/office/office/package.cpp" line="+4"/>
         <location line="+7"/>
         <location filename="../libs/office/sheet/sheetcrypt.cpp" line="-1"/>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="-1525"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="-1541"/>
         <location filename="../apps/deck/io/presentationfile.cpp" line="-23"/>
         <location line="+28"/>
         <source>The file is larger than this program can open.</source>
@@ -78817,7 +78817,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::office::sheet::Workbook</name>
     <message>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="+682"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="+688"/>
         <source>Give the table style a name.</source>
         <translation type="unfinished">Укажите имя стиля таблицы.</translation>
     </message>

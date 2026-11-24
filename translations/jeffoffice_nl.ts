@@ -16373,7 +16373,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
         <translation type="unfinished">Het bestand bevat geen werkmap.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="+1296"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="+1312"/>
         <location filename="../libs/office/sheet/xls.cpp" line="+2251"/>
         <source>There is no such sheet.</source>
         <translation type="unfinished">Dit blad bestaat niet.</translation>
@@ -77249,7 +77249,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location filename="../libs/office/office/package.cpp" line="+4"/>
         <location line="+7"/>
         <location filename="../libs/office/sheet/sheetcrypt.cpp" line="-1"/>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="-1525"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="-1541"/>
         <location filename="../apps/deck/io/presentationfile.cpp" line="-23"/>
         <location line="+28"/>
         <source>The file is larger than this program can open.</source>
@@ -78716,7 +78716,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
 <context>
     <name>jp::office::sheet::Workbook</name>
     <message>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="+682"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="+688"/>
         <source>Give the table style a name.</source>
         <translation type="unfinished">Geef de tabelstijl een naam.</translation>
     </message>

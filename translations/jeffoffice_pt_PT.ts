@@ -16373,7 +16373,7 @@ Abra-o no seu programa de correio eletrónico, adicione os destinatários e envi
         <translation type="unfinished">O ficheiro não contém nenhum livro.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="+1296"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="+1312"/>
         <location filename="../libs/office/sheet/xls.cpp" line="+2251"/>
         <source>There is no such sheet.</source>
         <translation type="unfinished">Essa folha não existe.</translation>
@@ -77249,7 +77249,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <location filename="../libs/office/office/package.cpp" line="+4"/>
         <location line="+7"/>
         <location filename="../libs/office/sheet/sheetcrypt.cpp" line="-1"/>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="-1525"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="-1541"/>
         <location filename="../apps/deck/io/presentationfile.cpp" line="-23"/>
         <location line="+28"/>
         <source>The file is larger than this program can open.</source>
@@ -78716,7 +78716,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
 <context>
     <name>jp::office::sheet::Workbook</name>
     <message>
-        <location filename="../libs/office/sheet/sheetreader.cpp" line="+682"/>
+        <location filename="../libs/office/sheet/sheetreader.cpp" line="+688"/>
         <source>Give the table style a name.</source>
         <translation type="unfinished">Dê um nome ao estilo de tabela.</translation>
     </message>
