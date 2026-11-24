@@ -18,9 +18,10 @@
 namespace jp::write {
 
 constexpr int kMostPatternLength = 500;   // a longer pattern is refused
-// A regular expression is given to the engine in windows of at most this many characters (a longer paragraph, or the story for a pattern across paragraphs), each starting this many before the first place it
-// is to find a match in. A match longer than the overlap that starts near a window's end can be missed in such a text.
-constexpr int kRegexWindow = 10000, kRegexOverlap = 2000;
+constexpr int kMostRepeatCount = 200;     // a counted repeat ({n}, {n,}, {n,m}) with a number over this is refused
+// A regular expression is given to the engine in calls that each own this many places to find a match at (a longer paragraph, or the story for a pattern across paragraphs), are shown kRegexAhead
+// characters more, and start kRegexOverlap characters before the first place. The engine tries every place up to the end of what it is shown, so this bounds the work of one call (and so the wait for Cancel).
+constexpr int kRegexOwned = 2000, kRegexAhead = 256, kRegexOverlap = 2000, kRegexWindow = kRegexOverlap + kRegexOwned + kRegexAhead;
 // A match that may go on past the end of what the engine was shown (it reached that end) is looked for again with twice the text, up to this many characters, and the search stops if it still does.
 constexpr int kRegexContextMost = 200000;
 // The most work the engine does in one call for one place it tries a match at (its own count of steps, set in front of every pattern). A call that goes past it is stopped and the scan says so (`limited`): measured on
@@ -44,7 +45,7 @@ QString expandReplacement(const QString &with, const QRegularExpressionMatch &ma
 
 // "Use regular expressions": the pattern as typed, in the common syntax (classes, anchors, groups, alternation, counted and lazy repeats, \b, \d, \w, \s, \n for a paragraph mark), with letters read as
 // Unicode letters and the case of letters following `matchCase`. Anchors are those of a paragraph. Refused, with a sentence naming the place: a pattern that is not valid, longer than kMostPatternLength,
-// with more than nine groups that are kept, that looks ahead or behind ((?=, (?!, (?<=, (?<!), or that calls itself, runs code, or changes the engine's limits ((?R), (?1), (?C), (*VERB), \g<1>, \K, conditions). A pattern that takes too long on a text is
+// with more than nine groups that are kept, that looks ahead or behind ((?=, (?!, (?<=, (?<!), with a counted repeat over kMostRepeatCount, in extended mode ((?x)), or that calls itself, runs code, or changes the engine's limits ((?R), (?1), (?C), (*VERB), \g<1>, \K, conditions). A pattern that takes too long on a text is
 // stopped by the engine's limit of work, and scanRegex says so (`limited`).
 FindPattern regexPattern(const QString &pattern, bool matchCase);
 
@@ -61,10 +62,12 @@ struct RegexScan {
     bool limited = false;     // the engine ended a call on its limit of work: the pattern needs too much on this text, and nothing can be said of the matches (`hits` are those before it)
     int paragraphs = 0;       // how many paragraphs were searched (a count of the work done)
     int calls = 0;            // how many calls of the engine were made
-    int widest = 0;           // the most characters any one call was given to look at (never more than kRegexWindow)
+    int widest = 0;           // the most characters any one call was given to look at (kRegexWindow, or more for a match that is tried again with more text)
+    int startsMost = 0;       // the most places any one call could try a match at (never more than kRegexOwned + kRegexAhead + 1; a match tried again is one place)
+    int starts = 0;           // how many places all the calls could try a match at, together
     int units = 0;            // the count `keepGoing` was last told: paragraphs ended, and calls of the engine in a long paragraph or a pattern across paragraphs
 };
-// The matches at or after `from`, at most `most`, one after the other (after a match of no characters the next search starts one character on). A paragraph longer than kRegexWindow is searched in windows, and
+// The matches at or after `from`, at most `most`, one after the other (after a match of no characters the next search starts one character on). A paragraph longer than kRegexOwned is searched in several calls, and
 // ^ and $ are still those of the paragraph. `keepGoing` is told the count of units of work done (`units`) and says whether to go on. A call of the engine that ends on its limit of work stops the scan (`limited`).
 // (Nothing here touches a document, so it may run on a thread.)
 RegexScan scanRegex(const QString &text, const FindPattern &pattern, int from, int most, const std::function<bool(int)> &keepGoing = {});

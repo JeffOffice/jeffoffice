@@ -9,6 +9,7 @@
 #include "app/pastedefaults.h"
 #include "app/theme.h"
 #include <QTabWidget>
+#include <QTreeWidget>
 #include "app/settings.h"
 #include "core/fontfiles.h"
 #include "app/writedialogs.h"
@@ -26,6 +27,8 @@
 #include <QScopeGuard>
 #include <QPdfWriter>
 #include "app/ruler.h"
+#include "app/reviewpane.h"
+#include "app/writeoutlineview.h"
 #include "app/writefindpane.h"
 #include "core/appinfo.h"
 #include "core/accessops.h"
@@ -3922,7 +3925,7 @@ private Q_SLOTS:
         // 70,000 characters in one paragraph, with a marker at every place that matters for the windows (each window starts one overlap before the first place it finds matches in).
         QString text(70000, QLatin1Char('b'));
         QList<int> at{0, 100, kRegexWindow - 10, 69990};
-        for (int b = kRegexWindow - kRegexOverlap; b < 69000; b += kRegexWindow - 2 * kRegexOverlap) at << b - 25 << b - 1 << b + 13 << b + 25;
+        for (int b = kRegexOwned; b < 69000; b += kRegexOwned) at << b - 25 << b - 1 << b + 13 << b + 25;
         std::sort(at.begin(), at.end());
         at.erase(std::unique(at.begin(), at.end()), at.end());
         QList<int> kept;
@@ -3939,7 +3942,7 @@ private Q_SLOTS:
         QVERIFY(s.done && s.widest <= kRegexWindow && s.widest > 0);
         QVERIFY(s.calls >= 3);
         // A match that reaches past the end of a place's own part of a window, or past the end of the window, is found whole, once.
-        for (const int start : {kRegexWindow - kRegexOverlap - 500, kRegexWindow - 500}) {
+        for (const int start : {kRegexOwned - 500, kRegexWindow - 500}) {
             QString run(70000, QLatin1Char('b'));
             run.replace(start, 1400, QString(1400, QLatin1Char('Q')));
             const RegexScan r = scanRegex(run, p, 0, 1000);
@@ -4012,9 +4015,11 @@ private Q_SLOTS:
             const RegexScan r = scanRegex(text, p, 0, 1000000);
             if (r.limited || r.tooLong) continue;   // (stopped, said so: no wrong hit)
             QVERIFY2(r.done, pattern);
+            // (the engine given the whole text, with a limit of work that its patterns do not reach)
+            QRegularExpression whole(p.regex.pattern().replace(QStringLiteral("LIMIT_MATCH=10000)"), QStringLiteral("LIMIT_MATCH=1000000000)")), p.regex.patternOptions());
             QList<QPair<int, int>> want, got;
             for (int at = 0; at <= text.size();) {
-                const QRegularExpressionMatch m = p.regex.matchView(text, at);
+                const QRegularExpressionMatch m = whole.matchView(text, at);
                 QVERIFY2(m.isValid(), pattern);
                 if (!m.hasMatch()) break;
                 want << qMakePair(int(m.capturedStart()), int(m.capturedEnd()));
@@ -4058,7 +4063,7 @@ private Q_SLOTS:
         for (const char *pattern : {"(a+)+c", "(a|aa)+$", "(a*)*\\1c", "((a|b)*)*\\1c", "(\\w+\\s?)*$", "(.*a){12}\\1x", "(a?){30}a{30}c"}) {
             const RegexScan r = scanRegex(ab, regexPattern(QString::fromLatin1(pattern), false), 0, 10);
             QVERIFY2(r.limited || r.done, pattern);
-            QVERIFY2(r.calls <= 2, pattern);
+            QVERIFY2(r.calls <= 4, pattern);   // (a few calls: the first that is shown the whole text, and the one at its end)
         }
         // A pattern cannot raise the limit: one that starts with a setting is refused.
         QVERIFY(!regexPattern(QStringLiteral("(*LIMIT_MATCH=900000000)(a|aa)+c"), false).error.isEmpty());
@@ -4066,7 +4071,7 @@ private Q_SLOTS:
         QString prose;
         for (int i = 0; prose.size() < 10000; ++i) prose += QStringLiteral("The quick brown fox, %1 jumps over the lazy dog on 2024-03-%2. It's fine, said Bob Bob; Hello world.  ").arg(i * 7).arg(10 + i % 20);
         prose.truncate(10000);
-        const QString letters(10000, QLatin1Char('a'));
+        const QString letters(3000, QLatin1Char('a'));   // (one word of 3,000 letters: a call that may be given more text cannot skip a text that lacks the pattern's last letter, so a word of 4,000 or more can end `(a|b)+c` on the limit)
         const char *ordinary[] = {"\\bthe\\b", "\\d+", "\\d{4}-\\d{2}-\\d{2}", "\\b(\\w+)\\s+\\1\\b", "fox|dog|lazy", "[aeiou]+", "^The", "world\\.$", "\\w+@\\w+", "\\bQ\\w*", "[A-Z][a-z]+", "(?:quick|brown)\\s+\\w+",
                                   "\\s{2,}", "\\b\\w{5}\\b", "(\\w+) (\\w+)", "\\.\\s", "[^ ]+ing\\b", "\\b[Bb]ob\\b", "\\bfi\\w*", "(\\d+)-(\\d+)-(\\d+)", "(\\w+)\\s\\1", "a.*z", "fox.*dog", "\\bt\\w*\\b.*\\bd\\w*\\b",
                                   "x+", "\\w*e\\b", "[0-9]+(?:,[0-9]{3})*", "\\bthe\\s+\\w+\\s+\\w+\\b", "a+b", "(a|b)+c"};
@@ -4076,6 +4081,52 @@ private Q_SLOTS:
                 const RegexScan r = scanRegex(t, regexPattern(QString::fromLatin1(pattern), false), 0, 100000);
                 QVERIFY2(!r.limited && r.done, pattern);
             }
+    }
+
+    void oneCallOfTheEngineTriesAtMostTheOwnedPlacesAndWhatItIsShownAndAMatchTriedAgainIsOnePlace()
+    {
+        // 200,000 characters on which `(?:a|b){200}y` has to be tried at every place: no call may try more than the places it owns and the characters it is shown after them.
+        QString text;
+        while (text.size() < 200000) text += QStringLiteral("ab");
+        const RegexScan r = scanRegex(text, regexPattern(QStringLiteral("(?:a|b){200}y"), false), 0, 10);
+        QVERIFY(r.done && !r.limited && r.hits.isEmpty());
+        QVERIFY(r.startsMost > 0 && r.startsMost <= kRegexOwned + kRegexAhead + 1);
+        QVERIFY(r.calls >= 200000 / kRegexOwned);
+        QVERIFY(r.starts <= 200000 + r.calls * (kRegexAhead + 1));
+        // A match that reaches the end of what the engine was shown is tried again at its own place only, with more text each time: growing the text to 200,000 characters does not multiply the places.
+        const RegexScan a = scanRegex(QString(kRegexContextMost, QLatin1Char('a')), regexPattern(QStringLiteral("a+"), false), 0, 10);
+        QVERIFY(a.done && a.hits.size() == 1 && a.hits[0].second == kRegexContextMost);
+        QVERIFY(a.widest > kRegexWindow);   // (the text did grow)
+        QVERIFY(a.startsMost <= kRegexOwned + kRegexAhead + 1);
+        QVERIFY(a.starts <= kRegexOwned + kRegexAhead + 1 + a.calls);
+        // The same on several matches, each of them reaching past what the first call is shown.
+        QString runs;
+        for (int i = 0; i < 30; ++i) runs += QString(600, QLatin1Char('a')) + QLatin1Char('b');
+        const RegexScan b = scanRegex(runs, regexPattern(QStringLiteral("a+"), false), 0, 100);
+        QVERIFY(b.done && b.hits.size() == 30);
+        QVERIFY(b.startsMost <= kRegexOwned + kRegexAhead + 1 && b.starts <= b.calls * (kRegexOwned + kRegexAhead + 1));
+    }
+
+    void aRepeatCountOver200IsRefusedAtItsPlaceAndNothingElseIs()
+    {
+        const struct { const char *pattern; int at; } bad[] = {{"a{201}", 2}, {"x{5,3000}", 2}, {"ab{300,}", 3}, {"(?i)(?:k|K|a){3000}y", 14}, {"(a|b){4500}z", 6}, {"[a]\\{9}c{999}", 9}, {"\\Q{9}\\Ea{201}", 9}, {"a{0,201}", 2}, {"a{,999}", 2}, {"(?#{999})a{250}", 11}};
+        for (const auto &b : bad) {
+            const FindPattern p = regexPattern(QString::fromLatin1(b.pattern), false);
+            QVERIFY2(p.error.contains(QStringLiteral("A repeat count over 200 at character %1 ").arg(b.at)), qPrintable(QString::fromLatin1(b.pattern) + QStringLiteral(": ") + p.error));
+            QVERIFY2(scanRegex(QStringLiteral("abcabc"), p, 0, 10).hits.isEmpty(), b.pattern);
+        }
+        for (const char *good : {"a{200}", "a{0,200}", "a{200,}", "a{2}", "a{,5}", "a{1,2", "a{x}", "[{999}]", "\\{999\\}", "\\Q{999}\\E", "(?#{999})", "\\x{263}", "\\p{Lu}{3}", "a{999"})
+            QVERIFY2(regexPattern(QString::fromLatin1(good), false).error.isEmpty(), good);
+        QCOMPARE(scanRegex(QString(300, QLatin1Char('a')), regexPattern(QStringLiteral("a{200}"), false), 0, 10).hits.size(), 1);
+    }
+
+    void extendedModeIsRefusedInEveryFormAndTheOtherFlagsAreNot()
+    {
+        for (const char *bad : {"(?x)a b", "(?xx)a b", "(?ix)a b", "(?x:a b)", "a(?s-i)b(?xi:c)", "(?x)a # [\n(?=b)b", "(?^x)a"})
+            QVERIFY2(regexPattern(QString::fromLatin1(bad), false).error.contains(QStringLiteral("extended")), bad);
+        QVERIFY(regexPattern(QStringLiteral("(?x)a"), false).error.contains(QStringLiteral("at character 1.")));
+        for (const char *good : {"(?i)a", "(?s)a", "(?i:a)", "(?-x)a", "(?i-x:a)", "(?<xx>a)", "(?P<x>a)", "[(?x)]", "\\(?x\\)", "\\Q(?x)\\E", "(?:x)"})
+            QVERIFY2(regexPattern(QString::fromLatin1(good), false).error.isEmpty(), good);
     }
 
     void theScanAsksBetweenWindowsWhetherToGoOnAndStopsAtOnce()
@@ -4093,7 +4144,8 @@ private Q_SLOTS:
             QCOMPARE(s.calls, 3);   // (a miss over the whole text is not one call)
         }
         const RegexScan all = scanRegex(text, regexPattern(QStringLiteral("z"), false), 0, 10);
-        QVERIFY(all.done && all.calls >= 6 && all.calls < 20);
+        QVERIFY(all.done);
+        QVERIFY(all.calls >= 100000 / kRegexOwned - 1 && all.calls <= 100000 / kRegexOwned + 1);   // (one call for every kRegexOwned places)
     }
 
     void aMatchOfNoCharactersIsFoundOnceAndTheSearchGoesOneCharacterOn()
@@ -5036,6 +5088,76 @@ private Q_SLOTS:
         const QString now = w.document()->story()->toPlainText();
         for (const char *word : {"typed", "PASTED", "direct", "dropped", "IME"}) QVERIFY2(now.contains(QString::fromLatin1(word)), word);
         QVERIFY(now.size() > afterWords.size() + 30);
+    }
+
+    void theOutlineAndTheReviewingPaneDoNotEditWhileASearchRunsAndAnEditThatGetsInAnywayThrowsTheResultAway()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        w.setDocument(open(makeDocx(para(run("Alpha"), "<w:outlineLvl w:val=\"0\"/>") + evenOddBody(3000))), QString());
+        write::WriteDoc *doc = w.document();
+        QTextCursor on(doc->story());
+        on.setPosition(write::outlineRows(*doc).at(1).position);
+        on.setPosition(on.position() + 4, QTextCursor::KeepAnchor);
+        QVERIFY(write::addComment(*doc, on, QStringLiteral("A question")) >= 0);
+        w.act(QStringLiteral("review.reviewingPane"))->trigger();
+        ReviewPane *review = w.reviewPane();
+        QVERIFY(review);
+        QTRY_COMPARE(review->commentList()->topLevelItemCount(), 1);
+        review->commentList()->topLevelItem(0)->setSelected(true);
+        w.setOutlineMode(true);
+        const int row = write::outlineRows(*doc).at(0).position;
+        QVERIFY(write::outlineRows(*doc).at(0).editable);
+        w.showFindPane();
+        WriteFindPane *pane = w.findPane();
+        pane->useRegex()->setChecked(true);
+        pane->findBox()->setText(QStringLiteral("^even"));
+        QTRY_COMPARE(pane->matchCount(), 1500);
+        const QString before = doc->story()->toPlainText();
+        const int comments = int(write::comments(*doc).size());
+        // (a) While a search runs, the rows of the outline and the reply field of the reviewing pane change nothing.
+        QString during;
+        int commentsDuring = -1;
+        bool posted = true, ran = false;
+        pane->setSearchStartedHook([&] {
+            w.outlineView()->textTyped(row, QStringLiteral("OUTLINED"));
+            w.outlineView()->newParagraphWanted();
+            review->replyField()->setText(QStringLiteral("An answer"));
+            posted = review->postReply();
+            during = doc->story()->toPlainText();
+            commentsDuring = int(write::comments(*doc).size());
+            ran = true;
+        });
+        pane->findBox()->setText(QStringLiteral("^odd"));
+        QTRY_VERIFY(ran);
+        QTRY_VERIFY(!pane->searchRunning());
+        pane->setSearchStartedHook({});
+        QVERIFY(!posted);
+        QCOMPARE(during, before);
+        QCOMPARE(commentsDuring, comments);
+        // The same tries with the search done change the text and the comments (so the blocked tries were real tries).
+        w.outlineView()->textTyped(row, QStringLiteral("OUTLINED"));
+        QVERIFY(review->postReply());
+        QVERIFY(doc->story()->toPlainText().contains(QStringLiteral("OUTLINED")));
+        QCOMPARE(int(write::comments(*doc).size()), comments + 1);
+        // (b) An edit that gets in by some way that is not blocked (here the text itself, as the first search of the window does) ends the search with nothing replaced and the text as the edit left it.
+        const QString edited = doc->story()->toPlainText();
+        bool done = false;
+        pane->setSearchStartedHook([&] {
+            if (std::exchange(done, true)) return;
+            QTextCursor c(doc->story());
+            c.setPosition(c.document()->characterCount() - 1);
+            c.insertText(QStringLiteral("TAILEDIT"));
+        });
+        pane->replaceBox()->setText(QStringLiteral("ZZ"));
+        pane->findBox()->setText(QStringLiteral("^even"));
+        pane->replaceAll();
+        QTRY_VERIFY(!pane->searchRunning());
+        pane->setSearchStartedHook({});
+        QCOMPARE(pane->status(), QStringLiteral("The document changed during the search, so nothing was replaced."));
+        QCOMPARE(doc->story()->toPlainText(), edited + QStringLiteral("TAILEDIT"));
     }
 
     void aDocumentOpenedOrReadModeSwitchedDuringASearchEndsItFirstAndTheReadOnlyStateIsWhatTheOpenerMadeIt()
