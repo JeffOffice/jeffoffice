@@ -986,7 +986,7 @@ static bool keptBlipXml(const QDomElement &e, const DrawingContext &ctx, QXmlStr
             const QString type = ctx.package->contentType(rel.target);
             if (bytes.isEmpty() || type.isEmpty() || bytes.size() > *room) return false;
             *room -= bytes.size();
-            out->parts.append({bytes, type, rel.type, QFileInfo(rel.target).suffix()});
+            out->parts.append({bytes, type, rel.type, QFileInfo(rel.target).suffix().left(16)});
             value = QStringLiteral("@@rel%1@@").arg(out->parts.size() - 1);
         }
         w.writeAttribute(a.nodeName(), value);

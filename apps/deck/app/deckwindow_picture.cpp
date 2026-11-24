@@ -261,7 +261,7 @@ void DeckWindow::refreshCrop()
     bool plain = false;
     for (const PictureItem *p : pictures) plain = plain || (p->mediaKind.isEmpty() && p->chartXml.isEmpty());
     act("pic.change")->setEnabled(shows);
-    act("pic.removeBackground")->setEnabled(shows && plain && m_ed->removeBgItem.isEmpty());
+    act("pic.removeBackground")->setEnabled(shows && plain && m_ed->removeBgItem.isEmpty() && !m_ed->readOnly());   // (not in a presentation open for reading only)
     act("pic.reset")->setEnabled(plain);
     act("pic.resetSize")->setEnabled(plain);
     act("pic.crop")->setEnabled(shows);

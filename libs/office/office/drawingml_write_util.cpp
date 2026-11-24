@@ -327,7 +327,10 @@ bool writeKeptBlipExtension(QXmlStreamWriter &w, DrawingWriteContext &ctx, const
                 name = QStringLiteral("/ppt/media/image%1.%2").arg(n++).arg(extension);
             } while (taken.contains(name));
             // (an Override for this one part when its extension means another type for other parts: never a default others would be read by)
+            // (a name the package can't hold, or one it would read as relationships, leaves the picture as if it had no kept part)
+            if (extension.compare(QLatin1String("rels"), Qt::CaseInsensitive) == 0) return false;
             ctx.package->addPart(name, part.bytes, part.contentType);
+            if (!ctx.package->hasPart(name)) return false;
             ctx.mediaParts->insert(key, name);
         }
         const QString id = relate(ctx, part.relationType, name);

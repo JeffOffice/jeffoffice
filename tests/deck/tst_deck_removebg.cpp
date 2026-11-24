@@ -1332,6 +1332,47 @@ private Q_SLOTS:
         QVERIFY2(!types.contains(QStringLiteral("Extension=\"bin\"")), qPrintable(types));
         QVERIFY2(!types.contains(QStringLiteral("Extension=\"wdp\"")), qPrintable(types));
     }
+    // A kept part whose extension makes a part name the package refuses is left out whole: no relationship points at it, and the file reopens.
+    void aKeptPartWithAnUnusableExtensionLeavesNoDanglingRelationship()
+    {
+        for (const QString &extension : {QStringLiteral("rels"), QString(300, QLatin1Char('x'))}) {
+            QTemporaryDir dir;
+            QVERIFY(dir.isValid());
+            DeckWindow target;
+            target.show();
+            PictureItem *pic = addDiscPicture(target);
+            PictureItem::KeptBlipExtension k;
+            k.xml = QStringLiteral("<a:ext uri=\"{11111111-2222-3333-4444-555555555555}\"><x:data xmlns:x=\"urn:test:object\" r:id=\"@@rel0@@\"/></a:ext>");
+            k.parts.append({QByteArray("KEPT-BYTES"), QStringLiteral("application/octet-stream"), QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/oleObject"), extension});
+            pic->keptBlip.append(k);
+            const QString path = dir.filePath(QStringLiteral("out.pptx"));
+            QVERIFY(target.saveTo(path));
+            Exported e;
+            QString why;
+            QVERIFY2(unpack(fileBytes(path), &e, &why), qPrintable(why));
+            QVERIFY2(packageProblem(e).isEmpty(), qPrintable(extension.left(8) + QLatin1Char(' ') + packageProblem(e)));
+            DeckWindow again;
+            QVERIFY(again.openFile(path));
+            QVERIFY(firstPicture(again));
+        }
+    }
+    // A presentation open for reading only does not offer Remove Background, whatever is selected.
+    void removeBackgroundIsOffInAPresentationOpenForReadingOnly()
+    {
+        DeckWindow w;
+        w.resize(1200, 800);
+        w.show();
+        PictureItem *pic = addDiscPicture(w);
+        QVERIFY(w.act(QStringLiteral("pic.removeBackground"))->isEnabled());
+        w.setReadOnly(true);
+        QVERIFY(!w.act(QStringLiteral("pic.removeBackground"))->isEnabled());
+        w.editor()->select(QString());
+        w.editor()->select(pic->id);   // a new selection refreshes the picture commands
+        QVERIFY(!w.act(QStringLiteral("pic.removeBackground"))->isEnabled());
+        w.act(QStringLiteral("pic.removeBackground"))->trigger();
+        QVERIFY(w.editor()->removeBgItem.isEmpty());
+        w.setReadOnly(false);
+    }
     // Where a stroke lands is where the pointer is, at every zoom (400% among them), on a flipped and turned picture, and on one whose whole picture is larger than its frame.
     void aStrokeLandsWhereItIsDrawnAtEveryZoomAndOnTurnedPictures()
     {
