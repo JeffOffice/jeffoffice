@@ -24,6 +24,7 @@ struct Table {
     QHash<QString, bool> kept;
     QHash<QString, QStringList> also;    // "language english" to the other names accepted on input
     QStringList problems;                // names that mean two things
+    QSet<QString> badLanguages;          // the languages those names are in
     int index(const QString &language) const { return languages.indexOf(language); }
 };
 
@@ -60,8 +61,10 @@ Table parseTable(const QString &text)
                 if (k == 0) c.toLocal.insert(english, names[k]);
                 else out.also[out.languages[i] + QLatin1Char(' ') + english] << names[k];
                 const auto have = c.toEnglish.constFind(upper);
-                if (have != c.toEnglish.constEnd() && *have != english)
+                if (have != c.toEnglish.constEnd() && *have != english) {
                     out.problems << out.languages[i] + QLatin1Char(' ') + upper + QStringLiteral(" is both ") + *have + QStringLiteral(" and ") + english;
+                    out.badLanguages.insert(out.languages[i]);
+                }
                 c.toEnglish.insert(upper, english);
             }
         }
@@ -71,10 +74,27 @@ Table parseTable(const QString &text)
     const QSet<QString> have(out.rows.begin(), out.rows.end());
     for (const Column &c : out.columns)
         for (auto it = c.toEnglish.constBegin(); it != c.toEnglish.constEnd(); ++it)
-            if (it.key() != it.value() && have.contains(it.key()))
+            if (it.key() != it.value() && have.contains(it.key())) {
                 out.problems << c.language + QLatin1Char(' ') + it.key() + QStringLiteral(" is ") + it.value() + QStringLiteral(" here and a function's English name");
+                out.badLanguages.insert(c.language);
+            }
     out.problems.sort();
     return out;
+}
+
+// A language whose names mean two things has none at all (its English names are used, never one of two meanings picked by the order of the rows).
+Table loadTable(const QString &text)
+{
+    Table t = parseTable(text);
+    for (Column &c : t.columns) {
+        if (!t.badLanguages.contains(c.language)) continue;
+        c.toLocal.clear();
+        c.toEnglish.clear();
+        const QString prefix = c.language + QLatin1Char(' ');
+        for (const QString &key : t.also.keys())
+            if (key.startsWith(prefix)) t.also.remove(key);
+    }
+    return t;
 }
 
 const Table &table()
@@ -82,9 +102,25 @@ const Table &table()
     static const Table t = [] {
         QFile f(QStringLiteral(":/functionnames.txt"));
         if (!f.open(QIODevice::ReadOnly)) return Table();
-        return parseTable(QString::fromUtf8(f.readAll()));
+        return loadTable(QString::fromUtf8(f.readAll()));
     }();
     return t;
+}
+
+QString localNameIn(const Table &t, const QString &english, const QString &language)
+{
+    const int i = t.index(language);
+    if (i < 0) return english;
+    const auto at = t.columns[size_t(i)].toLocal.constFind(english.toUpper());
+    return at == t.columns[size_t(i)].toLocal.constEnd() ? english : *at;
+}
+
+QString englishNameIn(const Table &t, const QString &local, const QString &language)
+{
+    const int i = t.index(language);
+    if (i < 0 || local.size() > kMaxFormulaNameChars) return QString();
+    const auto at = t.columns[size_t(i)].toEnglish.constFind(local.toUpper());
+    return at == t.columns[size_t(i)].toEnglish.constEnd() ? QString() : *at;
 }
 
 }
@@ -104,23 +140,13 @@ QString formulaLanguageOf(const QString &uiLanguage)
 
 QStringList formulaNameLanguages() { return table().languages; }
 
-QString localFormulaName(const QString &english, const QString &language)
-{
-    const Table &t = table();
-    const int i = t.index(language);
-    if (i < 0) return english;
-    const auto at = t.columns[size_t(i)].toLocal.constFind(english.toUpper());
-    return at == t.columns[size_t(i)].toLocal.constEnd() ? english : *at;
-}
+QString localFormulaName(const QString &english, const QString &language) { return localNameIn(table(), english, language); }
 
-QString englishFormulaName(const QString &local, const QString &language)
-{
-    const Table &t = table();
-    const int i = t.index(language);
-    if (i < 0 || local.size() > kMaxFormulaNameChars) return QString();
-    const auto at = t.columns[size_t(i)].toEnglish.constFind(local.toUpper());
-    return at == t.columns[size_t(i)].toEnglish.constEnd() ? QString() : *at;
-}
+QString englishFormulaName(const QString &local, const QString &language) { return englishNameIn(table(), local, language); }
+
+QString localFormulaNameIn(const QString &tableText, const QString &english, const QString &language) { return localNameIn(loadTable(tableText), english, language); }
+
+QString englishFormulaNameIn(const QString &tableText, const QString &local, const QString &language) { return englishNameIn(loadTable(tableText), local, language); }
 
 QStringList formulaNameRows() { return table().rows; }
 
