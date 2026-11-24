@@ -128,6 +128,9 @@ public:
     ReusePane *reusePane() const { return m_reuse; }
     void showReusePane();
     void reuseSlide(int slide, bool keepFormatting);
+    // Slides from Outline (deckwindow_outline.cpp): the slides a text, Markdown, rich text, or .docx outline makes, after the current slide, as one step that undoes.
+    // False, with the reason said to the person, when the file gives none.
+    bool insertOutlineFile(const QString &path);
     // Review > Compare (deckwindow_compare.cpp): another presentation is compared with this one, the changes it has are listed in the Reviewing Pane and marked on
     // the slides, and each is accepted into this presentation or rejected (this one kept) as one undo step. The changes not decided are kept in the file.
     // The Compare command asks for the file with compareFileChooser when that is set (a test sets it), else a file dialog.
@@ -544,6 +547,9 @@ private:
     void followChange(int index);
     void createSectionActions();  // deckwindow_sections.cpp
     void createReuseActions();    // deckwindow_reuse.cpp, from createSectionActions()
+    void createOutlineActions();  // deckwindow_outline.cpp, from createSectionActions()
+    bool saveOutlineCopy(const QString &path);   // Save a Copy as a Markdown outline
+    std::unique_ptr<Document> openedOutline(const QString &path, QString *notes);   // File > Open of an outline file: a new presentation
     void createAnimationActions();   // deckwindow_animations.cpp
     void addAnimationParts(struct RibbonParts &parts);
     void createOutputActions();   // deckwindow_output.cpp

@@ -10,6 +10,7 @@
 #include "app/notespane.h"
 #include "app/outlineview.h"
 #include "io/odpexport.h"
+#include "io/outlineimport.h"
 #include "app/passworddialogs.h"
 #include "app/plaintext.h"
 #include "app/settings.h"
@@ -510,6 +511,11 @@ jp::CompatHost DeckWindow::compatHost()
     const QString what = tr("presentation");
     host.formats.push_back({tr("OpenDocument presentation (.odp)"), QStringLiteral(".odp"), QStringLiteral(".pptx"), what, [this](const CompatDone &done) { done(odpFound(false)); }});
     host.formats.push_back({tr("OpenDocument template (.otp)"), QStringLiteral(".otp"), QStringLiteral(".potx"), what, [this](const CompatDone &done) { done(odpFound(true)); }});
+    host.formats.push_back({tr("Markdown outline (.md)"), QStringLiteral(".md"), QStringLiteral(".pptx"), what, [this](const CompatDone &done) {
+        QStringList left;
+        deck::outlineMarkdown(*m_ed->doc(), &left);
+        done(left);
+    }});
     return host;
 }
 

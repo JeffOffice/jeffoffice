@@ -923,7 +923,7 @@ private Q_SLOTS:
             QVERIFY2(quiet.said.last().contains(QLatin1String("always open the presentation for reading only")), qPrintable(quiet.said.last()));
             kinds << quiet.said.last().section(QLatin1Char('\n'), 0, 0);
         }
-        QCOMPARE(a.compatHost().formats.size(), 2);
+        QCOMPARE(a.compatHost().formats.size(), 3);
         QVERIFY2(kinds[0].contains(QLatin1String(".odp")) && kinds[1].contains(QLatin1String(".otp")), qPrintable(kinds.join(QLatin1Char('|'))));
     }
 
@@ -935,7 +935,7 @@ private Q_SLOTS:
         a.editor()->setDocument(sample());
         const jp::CompatHost host = a.compatHost();
         jp::CompatibilityDialog box(host, 0, nullptr);
-        QCOMPARE(box.formatCount(), 2);
+        QCOMPARE(box.formatCount(), 3);
         for (int kind = 0; kind < box.formatCount(); ++kind) {
             box.choose(kind);
             QVERIFY(!box.working());

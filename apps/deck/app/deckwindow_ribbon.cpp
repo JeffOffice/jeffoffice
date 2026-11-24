@@ -230,6 +230,7 @@ QMenu *DeckWindow::layoutMenu(QWidget *owner, bool change)
     if (!change) {
         menu->addSeparator();
         menu->addAction(act("slide.reuse"));
+        menu->addAction(act("slide.fromOutline"));
     }
     connect(menu, &QMenu::aboutToShow, gallery, &LayoutGallery::reload);
     connect(gallery, &LayoutGallery::chosen, this, [this, menu, change](const QString &type) {

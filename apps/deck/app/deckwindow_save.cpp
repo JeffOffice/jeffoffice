@@ -144,17 +144,19 @@ bool DeckWindow::saveCopy()
     const QString name = tr("%1 copy").arg(from.isEmpty() ? m_ed->displayName() : QFileInfo(from).completeBaseName());
     const QString pptxFilter = tr("Presentation (*.pptx)"), potxFilter = tr("Template (*.potx)"), ppsxFilter = tr("Show (*.ppsx)");
     const QString odpFilter = tr("OpenDocument Presentation (*.odp)"), otpFilter = tr("OpenDocument Presentation Template (*.otp)");
+    const QString outlineFilter = tr("Markdown Outline (*.md)");
     const QString pptmFilter = tr("Macro-Enabled Presentation (*.pptm)"), potmFilter = tr("Macro-Enabled Template (*.potm)"), ppsmFilter = tr("Macro-Enabled Show (*.ppsm)");
     const bool odf = deck::formatOfFileName(from) == deck::FileFormat::Odp;
     QString selected = odf ? odpFilter : deck::isMacroEnabledFileName(from) ? pptmFilter : pptxFilter;
     auto endingOf = [&](const QString &filter) {
-        return filter == pptmFilter ? QStringLiteral(".pptm") : filter == potmFilter ? QStringLiteral(".potm") : filter == ppsmFilter ? QStringLiteral(".ppsm") : filter == ppsxFilter ? QStringLiteral(".ppsx") : filter == potxFilter ? QStringLiteral(".potx") : filter == odpFilter ? QStringLiteral(".odp") : filter == otpFilter ? QStringLiteral(".otp") : QStringLiteral(".pptx");
+        return filter == pptmFilter ? QStringLiteral(".pptm") : filter == potmFilter ? QStringLiteral(".potm") : filter == ppsmFilter ? QStringLiteral(".ppsm") : filter == ppsxFilter ? QStringLiteral(".ppsx") : filter == potxFilter ? QStringLiteral(".potx") : filter == outlineFilter ? QStringLiteral(".md") : filter == odpFilter ? QStringLiteral(".odp") : filter == otpFilter ? QStringLiteral(".otp") : QStringLiteral(".pptx");
     };
     const QString suggested = dir + QLatin1Char('/') + name + endingOf(selected);
     QString path = m_pathChooser ? m_pathChooser(suggested, selected)
                                  : askSavePath(this, tr("Save a Copy"), suggested,
-                                               pptxFilter + QStringLiteral(";;") + potxFilter + QStringLiteral(";;") + ppsxFilter + QStringLiteral(";;") + pptmFilter + QStringLiteral(";;") + potmFilter + QStringLiteral(";;") + ppsmFilter + QStringLiteral(";;") + odpFilter + QStringLiteral(";;") + otpFilter, &selected);
+                                               pptxFilter + QStringLiteral(";;") + potxFilter + QStringLiteral(";;") + ppsxFilter + QStringLiteral(";;") + pptmFilter + QStringLiteral(";;") + potmFilter + QStringLiteral(";;") + ppsmFilter + QStringLiteral(";;") + odpFilter + QStringLiteral(";;") + otpFilter + QStringLiteral(";;") + outlineFilter, &selected);
     if (path.isEmpty()) return false;
+    if (selected == outlineFilter || path.endsWith(QLatin1String(".md"), Qt::CaseInsensitive)) return saveOutlineCopy(path.endsWith(QLatin1String(".md"), Qt::CaseInsensitive) ? path : path + QStringLiteral(".md"));
     if (!isKnownEnding(path)) path += endingOf(selected);
     return saveTo(path, true);
 }

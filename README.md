@@ -48,7 +48,7 @@ JeffDeck makes presentations and plays them as slide shows.
 
 ### What it does
 
-- **Slides** with layouts and slide masters, themes and their color variants (nine built in, or the theme of another presentation), backgrounds, slide size, headers and footers, sections, and speaker notes. Work in Normal view, the Outline, or the Slide Sorter, and reuse slides from another presentation.
+- **Slides** with layouts and slide masters, themes and their color variants (nine built in, or the theme of another presentation), backgrounds, slide size, headers and footers, sections, and speaker notes. Work in Normal view, the Outline, or the Slide Sorter, reuse slides from another presentation, and make slides from a text or Markdown outline.
 - **On a slide:** text, shapes, pictures (from your computer or the open Online Pictures libraries), icons, tables, Text Art, charts (put in from a gallery of kinds, or drawn from the numbers a file saved with them), connectors that stay attached to the shapes they join, equations typed and changed in an equation box, and diagrams (shown as the presentation program drew them, and saved back whole).
 - **Animations** made and changed on the Animations tab and in the Animation Pane: entrance, emphasis, and exit effects and motion paths, with their directions, timing, and order, saved so the presentation program lists each by name.
 - **Slide shows** full screen or with Presenter View on a second screen (your notes, the next slide, and a timer), with transitions between slides (Morph among them) and animations that play click by click. Draw on slides with a pen or highlighter, point with a laser pointer, make custom shows, run a show at a kiosk that loops by itself, and rehearse to record how long each slide stays up.

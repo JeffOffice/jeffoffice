@@ -231,7 +231,7 @@ void DeckWindow::refreshMasterActions()
     act("master.hideBackground")->setChecked(layout && !page->showMasterItems);
     // What works on a slide waits while a master or layout is open (the ones that were available come back with the view).
     // (A command of the ribbon alone, such as Layout and Section, has no entry of the window's: it is found by its name.)
-    static const char *const kSlideOnly[] = {"slide.new", "slide.duplicate", "slide.hide", "slide.reset", "slide.reuse", "view.notes", "insert.headerFooter", "insert.video",
+    static const char *const kSlideOnly[] = {"slide.new", "slide.duplicate", "slide.hide", "slide.reset", "slide.reuse", "slide.fromOutline", "view.notes", "insert.headerFooter", "insert.video",
                                              "insert.audio", "ribbon.layout", "ribbon.section", "ribbon.video", "ribbon.audio", "comment.new", "section.add", "section.rename",
                                              "section.remove", "section.removeAll"};
     auto command = [this](const QString &id) { return act(id) ? act(id) : findChild<QAction *>(id); };

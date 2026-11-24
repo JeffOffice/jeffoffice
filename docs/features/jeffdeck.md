@@ -42,7 +42,7 @@ What JeffDeck offers that the original doesn't, then the plans that go past Powe
 - [x] **1.0** `jdecktool`, a command-line tool that draws each slide to a picture, lists a file's masters, layouts, and slides, reads and saves a file again while listing what was left out, prints to PDF, lists a slide's animation steps, and draws a morph at five points along the way, as `jpubtool` does for JeffPub
 - [x] **1.0** Spelling works offline in the bundled dictionaries, with no cloud service *(shared: the dictionaries in resources/dict; JeffDeck has the dialog and spelling as you type, and, done November 10, 2026, Review > Set Proofing Language for the selected words or the whole presentation; tests: setProofingLanguageMarksTheSelectedWordsAndSpellingFollowsIt)*
 - [~] **1.0** PDF with real text and embedded fonts *(shared: JeffPub's PDF export)*
-- [ ] **later** Slides from a plain-text or Markdown outline (paste or open one, get slides), and an outline written back as Markdown, beside the Outline view that already exists
+- [x] **1.0** Slides from a plain-text or Markdown outline, and an outline written back as Markdown (Save a Copy, Markdown Outline) *(Home > New Slide > Slides from Outline, and File > Open, take .txt, .md, .rtf, and .docx; the top heading level makes the slides, deeper headings and list levels become the text's levels, a line of three dashes breaks a slide, bold, italic, code, and web or mail links stay as formatting, a fenced block is a typewriter-font text box, a picture comes only from the outline's own folder; real Title and Content placeholders, one undo step; 5,000 slides, 10 MB, and every cap says what it left out; the Markdown copy keeps titles and text only, and Check Compatibility lists the rest)*
 - [ ] **later** A self-contained web page of the slides, with the transitions and click steps, that plays in any browser
 - [ ] **later** **(alt)** Present on the local network: the audience opens a link in a browser on the same network and follows the show, with no account, in place of Present Online and Broadcast (see the open questions)
 - [ ] **later** **(alt)** Live captions in the show from speech recognition that runs on your own computer, in place of the original's online subtitles (model size and license to check)
@@ -145,7 +145,7 @@ JeffDeck's File screen has New, Open, Save, Save As, Print, Export, Close, Optio
 - [x] **1.0** Delete Slide, Duplicate Slide (with its notes, transition, and animations), and Hide Slide (skipped in the show, not printed unless asked; struck through in the pane) *(hidden slides: ours 0 of 54)*
 - [x] **1.0** Sections: add, rename, remove (the heading only), remove with its slides, move up and down, collapse and expand all, and remove all; shown in the slides pane and the Slide Sorter, and saved in the file *(sections: ours 0 of 19)*
 - [x] **1.0** Reuse Slides: a pane that shows another presentation's slides, one click adds a copy after the current slide, with or without the source's formatting
-- [ ] **later** Slides from Outline: add slides from a text, `.rtf`, `.docx`, or `.odt` outline file
+- [~] **1.0** Slides from Outline: add slides from a text, Markdown, `.rtf`, or `.docx` outline file *(not `.odt`)*
 
 ### Font
 - [x] **1.0** Font and size boxes, Increase and Decrease Font Size, and Clear All Formatting

@@ -14,6 +14,7 @@ Type in the search box above to find a topic, or a command to run. Press **F1** 
 
 - [Add, change, and delete slides](slides)
 - [Reuse slides from another presentation](reuse)
+- [Make slides from an outline](outline-import)
 - [Outline view, the Slide Sorter, and Slide Master view](views)
 - [Slide size, background, and footers](design)
 

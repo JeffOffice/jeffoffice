@@ -30,6 +30,7 @@
 #include <QMessageBox>
 #include "app/plaintext.h"
 #include "app/trust.h"
+#include "io/outlineimport.h"
 
 namespace jp {
 
@@ -44,7 +45,7 @@ QString DeckWindow::fileKind(const QString &path)
 void DeckWindow::browseAndOpen(OpenHow how)
 {
     const QString p = QFileDialog::getOpenFileName(this, openHowText(how), openFolder(),
-                                                   tr("Presentations (*.pptx *.pptm *.potx *.potm *.ppsx *.ppsm *.ppt *.pps *.pot *.odp *.otp)") + QStringLiteral(";;") + tr("All Files (*)"));
+                                                   tr("Presentations (*.pptx *.pptm *.potx *.potm *.ppsx *.ppsm *.ppt *.pps *.pot *.odp *.otp)") + QStringLiteral(";;") + tr("Outlines (*.txt *.text *.md *.markdown *.rtf *.docx)") + QStringLiteral(";;") + tr("All Files (*)"));
     if (p.isEmpty()) return;
     Settings::get().setValue("dirs/open", QFileInfo(p).absolutePath());
     openFile(p, how);
@@ -76,7 +77,11 @@ bool DeckWindow::openFile(const QString &path, OpenHow how)
     std::unique_ptr<Document> doc;
     QString openedWith;   // the password a protected presentation was opened with
     bool wasProtected = false, cancelledAsking = false;
-    if (repairing) {
+    // A text, Markdown, rich text, or .docx outline opens as a new presentation of its slides (never written over: Save asks for a name).
+    const bool outlineFile = !repairing && deck::isOutlineFileName(path);
+    if (outlineFile) {
+        doc = openedOutline(path, &notes);
+    } else if (repairing) {
         // Open and Repair: what can be read of a damaged package is made into a package that opens, and what was left out is said.
         QByteArray bytes;
         if (office::readWholeFile(path, &bytes, &notes)) {
@@ -173,12 +178,12 @@ bool DeckWindow::openFile(const QString &path, OpenHow how)
         target->show();
     }
     target->m_ed->endTextEdit();
-    const bool copy = how == OpenHow::Copy || repairing;   // (a repaired presentation is not the file it was repaired from: Save asks for a name)
+    const bool copy = how == OpenHow::Copy || repairing || outlineFile;   // (a repaired presentation is not the file it was repaired from: Save asks for a name)
     target->setReadOnly(false);
     if (copy) {
         // The file's contents as a new presentation that has no file yet (Save asks where); the file is never written.
         target->m_ed->setDocument(std::move(doc));
-        target->m_ed->setUntitledName((repairing ? tr("Repaired %1") : tr("Copy of %1")).arg(QFileInfo(path).completeBaseName()));
+        target->m_ed->setUntitledName(outlineFile ? QFileInfo(path).completeBaseName() : (repairing ? tr("Repaired %1") : tr("Copy of %1")).arg(QFileInfo(path).completeBaseName()));
         target->m_ed->markUnsaved();
         // (a copy of a protected presentation is protected too)
         target->m_fileProtected = wasProtected;
@@ -209,7 +214,7 @@ bool DeckWindow::openFile(const QString &path, OpenHow how)
     crypto::wipe(openedWith);
     // The panes follow the new presentation (documentReplaced); its slides may be another size.
     target->m_canvas->zoomToFit(Canvas::Fit::WholePage);
-    Settings::get().addRecentFile(path);
+    if (!outlineFile) Settings::get().addRecentFile(path);
     telemetry::count(QStringLiteral("file.open.") + fileKind(path));
     hideFileScreen();
     if (repairing) {

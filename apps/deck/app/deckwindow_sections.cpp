@@ -85,6 +85,7 @@ void DeckWindow::createSectionActions()
     connect(m_ed, &Editor::documentReplaced, this, update);
     update();
     createReuseActions();
+    createOutlineActions();
 }
 
 void DeckWindow::addSection(int before)

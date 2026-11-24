@@ -74,6 +74,7 @@ Every one of these changes is one step that Ctrl+Z takes back.
 ## Related
 
 - [Reuse slides from another presentation](reuse)
+- [Make slides from an outline](outline-import)
 - [Outline view and the Slide Sorter](views)
 - [Home tab](tab-home)
 - [Play the slide show and use Presenter View](show)
