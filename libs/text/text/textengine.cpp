@@ -3273,7 +3273,9 @@ static QVector<QTextLayout::FormatRange> applyLetterWidthsTo(const QVector<QText
             // (A space ends what a stretch's last letter can't carry alone, an unmeasured letter or an accent, so that what is left of the stretch doesn't go over the space.)
             const bool spaceAfterStretch = before >= 0 && byWord[before - r.start] && disp[i].isSpace();
             if (started && (std::abs(drift + pieceDelta - w) <= 0.001 * em || (!pieceCuttable(disp[before]) && !spaceAfterStretch) || !pieceCuttable(disp[i]))) {
-                drift += pieceDelta - w;
+                // (Only a letter the table measures has a place to keep: an unmeasured one's width is the stand-in's, and what the piece's spacing adds to it is not
+                // a debt the next piece takes back, which grew without end across the words of a script the table lacks.)
+                if (table->contains(disp[i].unicode())) drift += pieceDelta - w;
                 continue;
             }
             if (started) {

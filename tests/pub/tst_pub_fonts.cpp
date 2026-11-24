@@ -399,6 +399,37 @@ private Q_SLOTS:
         QVERIFY(cyrillic > 30);
     }
 
+    // The same for every kind of letter the table doesn't measure: only a character the table measures carries a spacing correction, so no piece is spaced by
+    // more than a fraction of a point, whatever script or symbol follows a space (Hebrew and Thai once went to -169 points).
+    void unmeasuredCharactersPassNoDebtOn_data()
+    {
+        QTest::addColumn<QString>("word");
+        QTest::newRow("hebrew") << QString::fromUtf8("\xD7\xA9\xD7\x9C\xD7\x95\xD7\x9D\xD7\xA2\xD7\x95\xD7\x9C\xD7\x9D");
+        QTest::newRow("thai") << QString::fromUtf8("\xE0\xB8\xAA\xE0\xB8\xA7\xE0\xB8\xB1\xE0\xB8\xAA\xE0\xB8\x94\xE0\xB8\xB5\xE0\xB8\x8A\xE0\xB8\xB2\xE0\xB8\xA7\xE0\xB9\x82\xE0\xB8\xA5\xE0\xB8\x81");
+        QTest::newRow("hangul") << QString::fromUtf8("\xED\x95\x9C\xEA\xB5\xAD\xEC\x96\xB4\xED\x85\x8D\xEC\x8A\xA4\xED\x8A\xB8");
+        QTest::newRow("cjk punctuation") << QString::fromUtf8("\xE3\x80\x81\xE3\x80\x82\xE3\x80\x8C\xE3\x80\x8D\xE3\x80\x81\xE3\x80\x82");
+        QTest::newRow("emoji") << QString::fromUtf8("\xF0\x9F\x98\x80\xF0\x9F\x98\x81\xF0\x9F\x98\x82\xF0\x9F\x98\x83");
+        QTest::newRow("symbol") << QString::fromUtf8("\xE2\x98\x85\xE2\x98\x86\xE2\x98\x85\xE2\x98\x86\xE2\x98\x85\xE2\x98\x86");
+        QTest::newRow("cyrillic extended") << QString::fromUtf8("\xD1\xA0\xD1\xA1\xD1\xA2\xD1\xA3\xD1\xA4\xD1\xA5\xD2\x80\xD2\x81\xD2\x8A\xD2\x8B");
+    }
+    void unmeasuredCharactersPassNoDebtOn()
+    {
+        QFETCH(QString, word);
+        const QString fam = QStringLiteral("Gill Sans MT");
+        if (QFontDatabase::hasFamily(fam)) QSKIP("Gill Sans MT is installed here");
+        QTextCharFormat cf;
+        cf.setFontFamilies(QStringList{fam});
+        cf.setFontPointSize(11);
+        const QTextCharFormat rf = jp::resolveCharFormat(cf, jp::LayoutEnv());
+        QString text;
+        for (int i = 0; i < 20; ++i) text += QStringLiteral("Any one, can ") + word + QLatin1Char(' ');
+        const auto pieces = jp::applyLetterWidths({QTextLayout::FormatRange{0, int(text.size()), rf}}, text);
+        QVERIFY(pieces.size() > 3);
+        double worst = 0;
+        for (const auto &r : pieces) worst = std::max(worst, std::abs(r.format.fontLetterSpacing()));
+        QVERIFY2(worst < 1.5, qPrintable(QStringLiteral("worst spacing %1 points").arg(worst)));
+    }
+
     // One run of true small capitals in a font mustn't change how that font's
     // other runs are measured: the stand-in's advances were remembered by font
     // alone, so every normal run after it was set by the small capitals'
