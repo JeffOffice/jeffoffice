@@ -1,6 +1,7 @@
 // Tests of JeffWrite's File screen: where editing stopped, the warning before a save to a format that holds less, and the Options pages. Every file is made here in code.
 
 #include "../isolatesettings.h"
+#include "../stablesaves.h"
 #include "../withdialog.h"
 #include "app/appliedformatpane.h"
 #include "app/theme.h"
@@ -10,6 +11,7 @@
 #include "../localepin.h"
 #include "../pdfmarkcheck.h"
 #include "app/filescreen.h"
+#include "app/missingfonts.h"
 #include "app/optionsdialog.h"
 #include "app/settings.h"
 #include "app/filedialogs.h"
@@ -35,6 +37,7 @@
 #include "core/reviewops.h"
 #include "core/shrinkops.h"
 #include "core/fonts.h"
+#include "core/fontops.h"
 #include "app/emailops.h"
 #include "core/pdfbookmarks.h"
 #include "core/linkops.h"
@@ -4016,8 +4019,151 @@ private Q_SLOTS:
             QVERIFY2(again, qPrintable(err));
             QCOMPARE(again->story()->toPlainText(), doc->story()->toPlainText());
         }
-        for (const char *id : {"letter", "report", "brief", "manuscript", "newsletter"}) QVERIFY2(ids.contains(QLatin1String(id)), id);
+        for (const char *id : {"letter", "report", "brief", "manuscript", "newsletter", "resume", "resumeside", "coverletter", "businessletter", "invoice", "agenda", "meetingnotes", "reportcover", "flyer"})
+            QVERIFY2(ids.contains(QLatin1String(id)), id);
         QVERIFY(!builtInTemplateDocument(QStringLiteral("no such template")));
+    }
+
+    // What is wrong with a template's document, or nothing: a font the program does not bundle, a note a save to another format would give, a save that is not the same
+    // when saved again, or a name of another maker in what is stored. (Looped over every template, so a template added later is checked too.)
+    static QString templateProblem(WriteDoc &doc)
+    {
+        const QStringList bundled = bundledFamilies();
+        FontUsage usage;
+        usage.addDocument(doc.story(), QStringLiteral("Text"));
+        for (QTextDocument *d : doc.storiesWithChanges(true)) usage.addDocument(d, QStringLiteral("Headers"));
+        const QList<MissingFont> gone = missingFonts(usage, [&](const QString &family) { return bundled.contains(family, Qt::CaseInsensitive); });
+        if (!gone.isEmpty()) return QStringLiteral("missing font ") + gone.first().family;
+        QString err;
+        QStringList notKept;
+        if (doc.toOdt(&err, &notKept).isEmpty() || !notKept.isEmpty()) return QStringLiteral("odt notes: ") + notKept.join(QLatin1Char('|')) + err;
+        notKept.clear();
+        if (doc.toRtf(&err, &notKept).isEmpty() || !notKept.isEmpty()) return QStringLiteral("rtf notes: ") + notKept.join(QLatin1Char('|')) + err;
+        const QByteArray first = doc.toDocx(&err);
+        if (first.isEmpty()) return QStringLiteral("no docx: ") + err;
+        auto again = WriteDoc::fromDocx(first, &err, nullptr);
+        if (!again) return QStringLiteral("does not open: ") + err;
+        const QByteArray second = again->toDocx(&err);
+        if (const QString part = stable::firstDifference({first, second}); !part.isEmpty()) return QStringLiteral("saved again differently: ") + part;
+        QMap<QString, QByteArray> parts;
+        if (!readZip(first, parts)) return QStringLiteral("not a package");
+        for (auto it = parts.cbegin(); it != parts.cend(); ++it)
+            for (const char *name : {"Microsoft", "LibreOffice", "OpenOffice", "Google", "Apple", "Canva"})
+                if (it.value().contains(name)) return QStringLiteral("names ") + QLatin1String(name) + QStringLiteral(" in ") + it.key();
+        return {};
+    }
+
+    void everyBuiltInTemplateOpensCleanAndSavesBackTheSame()
+    {
+        const QVector<BuiltInTemplate> all = builtInTemplates();
+        QVERIFY(all.size() >= 14);
+        QStringList seen;
+        for (const BuiltInTemplate &t : all) {
+            QVERIFY2(!t.description.isEmpty() && !seen.contains(t.id) && !seen.contains(t.name), qPrintable(t.id));
+            seen << t.id << t.name;
+            auto doc = builtInTemplateDocument(t.id);
+            QVERIFY2(doc, qPrintable(t.id));
+            const QString problem = templateProblem(*doc);
+            QVERIFY2(problem.isEmpty(), qPrintable(t.id + QLatin1String(": ") + problem));
+        }
+        // (a category's templates are listed together, as the New page makes one column of each run)
+        QStringList runs;
+        for (const BuiltInTemplate &t : all)
+            if (runs.isEmpty() || runs.last() != t.category) runs << t.category;
+        QCOMPARE(runs.size(), QSet<QString>(runs.begin(), runs.end()).size());
+    }
+
+    void theCheckOfATemplateFailsForAFontTheProgramDoesNotBundle()
+    {
+        auto doc = builtInTemplateDocument(QStringLiteral("resume"));
+        QVERIFY(doc);
+        QVERIFY(templateProblem(*doc).isEmpty());
+        QVERIFY(replaceFont(*doc, QStringLiteral("Carlito"), QStringLiteral("Zzyzx Gothic Display")) > 0);
+        QVERIFY2(templateProblem(*doc).startsWith(QLatin1String("missing font")), qPrintable(templateProblem(*doc)));
+    }
+
+    void theReportWithACoverPageHasItsContentsMadeFromItsHeadings()
+    {
+        auto doc = builtInTemplateDocument(QStringLiteral("reportcover"));
+        QVERIFY(doc);
+        const QString text = doc->story()->toPlainText();
+        QVERIFY(!text.contains(QLatin1String("@@")));
+        // each heading is in the contents and again where it stands
+        for (const char *heading : {"Summary", "Introduction", "Findings", "Recommendations", "Appendix"}) QVERIFY2(text.count(QLatin1String(heading)) >= 2, heading);
+        flow::Paginator &pg = doc->pager();
+        while (!pg.complete()) {
+            const int known = pg.pagesKnown();
+            pg.paginate(known);
+            if (pg.pagesKnown() == known) break;
+        }
+        QVERIFY(pg.pagesKnown() >= 3);
+    }
+
+    void theNewPageShowsEveryTemplateWithItsDescriptionAndMakesADocumentFromOne()
+    {
+        WriteWindow w;
+        w.resize(1500, 900);
+        w.show();
+        w.showFileScreen(QStringLiteral("new"));
+        auto *screen = w.findChild<FileScreen *>();
+        QVERIFY(screen);
+        for (const BuiltInTemplate &t : builtInTemplates()) {
+            auto *tile = screen->findChild<QAbstractButton *>(QStringLiteral("template_") + t.id);
+            QVERIFY2(tile, qPrintable(t.id));
+            QCOMPARE(tile->toolTip(), t.description);
+        }
+        auto *resume = screen->findChild<QAbstractButton *>(QStringLiteral("template_resume"));
+        QVERIFY(resume);
+        resume->click();
+        QVERIFY(w.document()->story()->toPlainText().contains(QStringLiteral("[Your Name]")));
+        w.document()->setModified(false);
+    }
+
+    // Pictures of every template's first page and of the New page (only with JO_TEMPLATE_SHOT_DIR set; the folder is made).
+    void picturesOfTheTemplates()
+    {
+        const QString shots = qEnvironmentVariable("JO_TEMPLATE_SHOT_DIR");
+        if (shots.isEmpty()) QSKIP("JO_TEMPLATE_SHOT_DIR is not set");
+        QDir().mkpath(shots);
+        applyUiTheme(1);
+        for (const BuiltInTemplate &t : builtInTemplates()) {
+            auto doc = builtInTemplateDocument(t.id);
+            QVERIFY(doc);
+            for (int page = 0; page < (t.id == QLatin1String("reportcover") ? 3 : 1); ++page) {
+                doc->pager().paginate(page);
+                const auto laid = doc->pager().materialize(page);
+                QVERIFY(laid);
+                QImage img(QSize(850, qRound(850 * laid->size.height() / laid->size.width())), QImage::Format_RGB32);
+                img.fill(Qt::white);
+                QPainter p(&img);
+                p.scale(850 / laid->size.width(), 850 / laid->size.width());
+                LayoutCache cache;
+                paintPage(&p, *laid, &cache, PageDrawing());
+                p.end();
+                QVERIFY(img.save(QDir(shots).filePath(QStringLiteral("write-%1-%2.png").arg(t.id).arg(page + 1))));
+            }
+        }
+        WriteWindow w;
+        w.resize(1300, 1500);
+        w.show();
+        w.showFileScreen(QStringLiteral("new"));
+        QVERIFY(w.grab().save(QDir(shots).filePath(QStringLiteral("write-new.png"))));
+        w.document()->setModified(false);
+    }
+
+    void aTemplateThatIsOnePageOfPromptsIsOnePage()
+    {
+        for (const char *id : {"resume", "resumeside", "coverletter", "businessletter", "invoice", "agenda", "meetingnotes", "flyer"}) {
+            auto doc = builtInTemplateDocument(QString::fromLatin1(id));
+            QVERIFY2(doc, id);
+            flow::Paginator &pg = doc->pager();
+            while (!pg.complete()) {
+                const int known = pg.pagesKnown();
+                pg.paginate(known);
+                if (pg.pagesKnown() == known) break;
+            }
+            QVERIFY2(pg.pagesKnown() == 1, id);
+        }
     }
 
     void eachBuiltInTemplateFitsItsFirstPage()

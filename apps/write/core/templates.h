@@ -1,5 +1,5 @@
 #pragma once
-// The templates JeffWrite comes with: documents to start from (a letter, a report, a brief, a manuscript, a newsletter). They are made here, in code, as .docx files, so each is an
+// The templates JeffWrite comes with: documents to start from (letters, reports, a manuscript, a newsletter, a flyer, resumes, an invoice, and meeting papers). They are made here, in code, as .docx files, so each is an
 // ordinary document with styles of its own; nothing is read from outside the program.
 
 #include <QString>
@@ -14,7 +14,8 @@ class WriteDoc;
 struct BuiltInTemplate {
     QString id;         // never shown, never translated: how the template is asked for
     QString name;       // as shown
-    QString category;   // the heading it is listed under
+    QString category;   // the heading it is listed under (templates of one category are listed together)
+    QString description;   // one sentence, as the tile's tooltip
 };
 
 // Every template, in the order the New page shows them.

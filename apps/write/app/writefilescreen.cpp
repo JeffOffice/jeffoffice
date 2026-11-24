@@ -171,8 +171,8 @@ QWidget *WriteFileScreen::buildNew()
         LayoutCache cache;
         write::paintPage(&p, *page, &cache, write::PageDrawing());
     }
-    // One row of columns: the blank document, then each kind of template under its heading; each tile shows the first page of the document it makes.
-    auto *row = new QHBoxLayout();
+    // The blank document, then each kind of template under its heading, one kind below the other; each tile shows the first page of the document it makes.
+    auto *row = new QVBoxLayout();
     row->setSpacing(10);
     auto addColumn = [&](const QString &headingText, QHBoxLayout **tiles) {
         auto *column = new QVBoxLayout();
@@ -186,7 +186,7 @@ QWidget *WriteFileScreen::buildNew()
         *tiles = new QHBoxLayout();
         (*tiles)->setSpacing(4);
         column->addLayout(*tiles);
-        column->addStretch(1);
+        column->setAlignment(*tiles, Qt::AlignLeft);
         row->addLayout(column);
     };
     QHBoxLayout *tiles = nullptr;
@@ -213,6 +213,7 @@ QWidget *WriteFileScreen::buildNew()
         }
         auto *card = new StartTile(tmpl.name, paperPixmap(page, box, dpr), w);
         card->setObjectName(QStringLiteral("template_") + tmpl.id);
+        card->setToolTip(plainToolTip(tmpl.description));
         const QString id = tmpl.id;
         connect(card, &QAbstractButton::clicked, this, [this, id] {
             m_win->newFromBuiltInTemplate(id);
