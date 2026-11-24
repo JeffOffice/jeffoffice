@@ -756,6 +756,7 @@ void PageView::updatePictureDrag(const QPoint &pos, Qt::KeyboardModifiers modifi
         return;
     }
     d.lines.clear();
+    d.altHeld = modifiers & Qt::AltModifier;
     if (d.handle == PictureHandle::Body) {
         r.translate(delta);
         snapDragBox(d, &r, true, false, false, false, false, modifiers);
@@ -806,7 +807,7 @@ void PageView::updatePictureDrag(const QPoint &pos, Qt::KeyboardModifiers modifi
 void PageView::endPictureDrag(const QPoint &pos, Qt::KeyboardModifiers modifiers)
 {
     if (!m_pictureDrag.active) return;
-    updatePictureDrag(pos, modifiers);
+    updatePictureDrag(pos, m_pictureDrag.altHeld ? (modifiers | Qt::AltModifier) : (modifiers & ~Qt::AltModifier));
     const PictureDrag d = m_pictureDrag;
     m_pictureDrag = PictureDrag();
     viewport()->update();

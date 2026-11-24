@@ -2287,7 +2287,7 @@ bool PageView::floatingPictureRect(int position, QRectF *onPage, int *pageOut)
 // ---- the drawing grid and the alignment guides
 
 namespace {
-constexpr int kMostSnapObjects = 256;   // (the other objects of one page that are looked at, the first in the page's order)
+constexpr int kMostSnapObjects = 256;   // (the other objects of one page that are looked at, the nearest to the dragged object's start)
 constexpr double kSnapPixels = 6;        // how near, in the window, an edge must come to be taken
 }
 
@@ -2299,7 +2299,7 @@ void PageView::setObjectSnap(const SnapOptions &options)
     viewport()->update();
 }
 
-SnapTargets PageView::snapTargetsOnPage(int page, const QVector<int> &except)
+SnapTargets PageView::snapTargetsOnPage(int page, const QVector<int> &except, const QRectF &near)
 {
     ++m_snapGathers;
     SnapTargets t;
@@ -2312,15 +2312,21 @@ SnapTargets PageView::snapTargetsOnPage(int page, const QVector<int> &except)
         const int id = charFormatAt(m_doc->story(), position).intProperty(flow::fp::AnchorId);
         if (id > 0) skip << QStringLiteral("flow-object-%1-%2-").arg(r->page->doc->pages[0]->id).arg(id);
     }
-    int seen = 0;
+    std::vector<std::pair<double, QRectF>> found;
     for (const auto &it : r->page->doc->pages[0]->items) {
         if (!it->id.startsWith(QLatin1String("flow-object-")) || it->hidden) continue;
         bool excluded = false;
         for (const QString &prefix : skip) excluded = excluded || it->id.startsWith(prefix);
         if (excluded) continue;
-        if (++seen > kMostSnapObjects) break;
-        addBoxTargets(t, it->bounds());
+        const QRectF box = it->bounds();
+        const double gapX = std::max({0.0, box.left() - near.right(), near.left() - box.right()}), gapY = std::max({0.0, box.top() - near.bottom(), near.top() - box.bottom()});
+        found.emplace_back(gapX * gapX + gapY * gapY, box);
     }
+    if (found.size() > size_t(kMostSnapObjects)) {
+        std::nth_element(found.begin(), found.begin() + kMostSnapObjects, found.end(), [](const auto &a, const auto &b) { return a.first < b.first; });
+        found.resize(kMostSnapObjects);
+    }
+    for (const auto &f : found) addBoxTargets(t, f.second);
     return t;
 }
 
@@ -2336,7 +2342,7 @@ void PageView::snapDragBox(PictureDrag &d, QRectF *r, bool carried, bool left, b
         d.snapTargets = true;
         QVector<int> except = selectedObjects();
         except << d.position;
-        d.targets = snapTargetsOnPage(m_pictureDragPage, except);
+        d.targets = snapTargetsOnPage(m_pictureDragPage, except, QRectF((d.start.left() - pr.left()) / s, (d.start.top() - pr.top()) / s, d.start.width() / s, d.start.height() / s));
     }
     ++m_snapSteps;
     QRectF onPage((r->left() - pr.left()) / s, (r->top() - pr.top()) / s, r->width() / s, r->height() / s);

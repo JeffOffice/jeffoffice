@@ -901,6 +901,13 @@ void PageView::keyPressEvent(QKeyEvent *e)
         e->accept();
         return;
     }
+    if (e->key() == Qt::Key_Escape && m_pictureDrag.active) {
+        // (a pull of an object, or a size of it, is let go: it stays where it was, with no step to undo)
+        m_pictureDrag = PictureDrag();
+        viewport()->update();
+        e->accept();
+        return;
+    }
     if (e->key() == Qt::Key_Escape && m_tableMove.active) {
         // (a pull of the table by its move handle is let go: nothing is changed)
         m_tableMove = TableMove();

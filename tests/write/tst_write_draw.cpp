@@ -97,6 +97,7 @@
 #include <QMenu>
 #include <QLabel>
 #include <QTableWidget>
+#include <QPrinter>
 #include <QRegularExpression>
 #include <QTest>
 #include <QPlainTextEdit>
@@ -938,14 +939,15 @@ struct Drag {
 struct SnapPage {
     Win win;
     PageView *view = nullptr;
-    explicit SnapPage(const QVector<QRectF> &places)
+    explicit SnapPage(const QVector<QRectF> &places, int textBoxAt = -1, const QByteArray &body = "<w:p><w:r><w:t>Hello world</w:t></w:r></w:p>") : win(body)
     {
         view = win.w.view();
         WriteDoc *doc = win.w.document();
         for (int i = 0; i < places.size(); ++i) {
             QTextCursor c(doc->story());
             c.setPosition(i);
-            if (insertShape(*doc, c, QStringLiteral("rect"), places[i].size()) != PictureResult::Ok || !setPicturePlace(*doc, i, places[i].left(), places[i].top())) qFatal("the fixture is not made");
+            const PictureResult made = i == textBoxAt ? insertTextBox(*doc, c, textBoxDesigns().first()) : insertShape(*doc, c, QStringLiteral("rect"), places[i].size());
+            if (made != PictureResult::Ok || !setPicturePlace(*doc, i, places[i].left(), places[i].top())) qFatal("the fixture is not made");
         }
         view->refresh();
         win.w.refreshNow();
@@ -1974,6 +1976,230 @@ private Q_SLOTS:
         crowd.w.view()->setObjectSnap(o);
         crowd.w.view()->refresh();
         QCOMPARE(crowd.w.view()->snapTargetsForTest(0, {}).xs.size(), 5 + 3 * 256);
+    }
+
+    // The guides of a page that holds more than the limit are the nearest objects to where the drag began, not the first in the page's order.
+    void theNearestObjectsAreTheGuidesWhenThePageHoldsMoreThanTheLimit()
+    {
+        QVector<QRectF> places = {QRectF(100, 300, 40, 40)};
+        for (int i = 1; i < 299; ++i) places << QRectF(450, 20 + (i % 10) * 60, 40, 40);
+        places << QRectF(200, 100, 40, 40);   // (the last in the page's order, and the nearest of all but the first)
+        SnapPage page(places);
+        SnapOptions o;
+        o.snapObjects = true;
+        page.view->setObjectSnap(o);
+        const SnapTargets near = page.view->snapTargetsForTest(0, {0}, places[0]);
+        QCOMPARE(near.xs.size(), 5 + 3 * 256);
+        QVERIFY(near.xs.contains(200.0) && near.xs.contains(240.0));
+        const int toLeft = qRound((200 - 100) * page.pixels()) + 3, down = qRound(-150 * page.pixels());
+        page.carry(0, toLeft, down);
+        QCOMPARE(page.box(0).left(), 200.0);
+    }
+
+    // Alt is the state of the last move: pressed just before the button goes up, it does not take the object off the line that was shown; let go just before, it does not put it on one.
+    void altPressedOrLetGoAtTheReleaseDoesNotMoveTheObjectOffWhatWasShown()
+    {
+        SnapPage page({QRectF(100, 100, 50, 50), QRectF(300, 200, 40, 40)});
+        SnapOptions o;
+        o.snapObjects = true;
+        page.view->setObjectSnap(o);
+        const int toLeft = qRound((100 - 300) * page.pixels()) + 3, down = qRound(50 * page.pixels());
+        auto run = [&](Qt::KeyboardModifiers moving, Qt::KeyboardModifiers atRelease) {
+            QVERIFY(setPicturePlace(*page.win.w.document(), 1, 300, 200));
+            page.view->refresh();
+            page.view->selectPicture(1);
+            const QRectF b = page.box(1);
+            const QPoint from = viewAt(*page.view, 0, b.center().x(), b.center().y()), to = from + QPoint(toLeft, down);
+            sendMouse(*page.view, QEvent::MouseButtonPress, from, Qt::LeftButton, moving);
+            for (int i = 1; i <= 4; ++i) sendMouse(*page.view, QEvent::MouseMove, from + (to - from) * i / 4, Qt::LeftButton, moving);
+            const int lines = page.view->snapLineCountForTest();
+            sendMouse(*page.view, QEvent::MouseButtonRelease, to, Qt::NoButton, atRelease);
+            QCOMPARE(lines, moving & Qt::AltModifier ? 0 : 1);
+        };
+        run(Qt::NoModifier, Qt::AltModifier);
+        QCOMPARE(page.box(1).left(), 100.0);
+        run(Qt::AltModifier, Qt::NoModifier);
+        QVERIFY(page.box(1).left() != 100.0 && std::abs(page.box(1).left() - (300 + toLeft / page.pixels())) < 0.01);
+    }
+
+    // Esc lets a drag go: moving or sizing, with snapping on or off, the object stays where it was, no step is made, and no line is left.
+    void escapeCancelsAMoveAndASizeWithAndWithoutSnapping()
+    {
+        for (const bool snapping : {false, true})
+            for (const bool sizing : {false, true}) {
+                const QString why = QStringLiteral("%1 %2").arg(sizing ? "sizing" : "moving", snapping ? "snapping" : "free");
+                SnapPage page({QRectF(100, 100, 50, 50), QRectF(300, 200, 40, 40)});
+                SnapOptions o;
+                o.snapObjects = snapping;
+                page.view->setObjectSnap(o);
+                page.view->selectPicture(1);
+                const QRectF before = page.box(1);
+                const quint64 serial = page.win.w.document()->lastStepSerial();
+                const QPoint from = sizing ? viewAt(*page.view, 0, 340, 240) : viewAt(*page.view, 0, 320, 220);
+                const int toLeft = qRound((100 - 300) * page.pixels()) + 3;
+                const QPoint to = from + QPoint(sizing ? toLeft / 2 : toLeft, qRound(40 * page.pixels()));
+                sendMouse(*page.view, QEvent::MouseButtonPress, from, Qt::LeftButton, Qt::NoModifier);
+                for (int i = 1; i <= 4; ++i) sendMouse(*page.view, QEvent::MouseMove, from + (to - from) * i / 4, Qt::LeftButton, Qt::NoModifier);
+                if (snapping && !sizing) QVERIFY2(page.view->snapLineCountForTest() > 0, qPrintable(why));
+                QTest::keyClick(page.view, Qt::Key_Escape);
+                QCOMPARE(page.view->snapLineCountForTest(), 0);
+                sendMouse(*page.view, QEvent::MouseMove, to + QPoint(2, 0), Qt::LeftButton, Qt::NoModifier);
+                sendMouse(*page.view, QEvent::MouseButtonRelease, to, Qt::NoButton, Qt::NoModifier);
+                QVERIFY2(page.box(1) == before, qPrintable(why));
+                QVERIFY2(page.win.w.document()->lastStepSerial() == serial, qPrintable(why));
+                // (and the next drag works as ever)
+                page.carry(1, 30, 0);
+                QVERIFY2(page.box(1).left() > before.left() && page.win.w.document()->lastStepSerial() != serial, qPrintable(why));
+            }
+    }
+
+    // What is printed or made into a PDF, or drawn as a page image, is the same with the grid and the guides on or off, and while a drag shows lines.
+    void theGridAndTheGuideLinesAreNeverPrintedOrInAPdfOrInAPageImage()
+    {
+        SnapPage page({QRectF(100, 100, 50, 50), QRectF(300, 200, 40, 40)});
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        int printed = 0;
+        page.win.w.setPrinterPreparer([&](QPrinter &p) {
+            p.setOutputFormat(QPrinter::PdfFormat);
+            p.setOutputFileName(dir.filePath(QStringLiteral("p%1.pdf").arg(++printed)));
+        });
+        auto pdfText = [&](const QByteArray &pdf) {   // (the page's content without the dates and the file's id)
+            QString text = QString::fromLatin1(pdf);
+            text.remove(QRegularExpression(QStringLiteral("/(CreationDate|ModDate) ?\\([^)]*\\)")));
+            text.remove(QRegularExpression(QStringLiteral("/ID ?\\[[^\\]]*\\]")));
+            text.remove(QRegularExpression(QStringLiteral("D:\\d{14}[^)]*|\\d{4}-\\d\\d-\\d\\dT[0-9:.+Z-]*|[0-9a-fA-F]{8}-[0-9a-fA-F-]{27}")));
+            return text;
+        };
+        auto outputs = [&](QString *printedPdf) {
+            QString error;
+            const QByteArray pdf = page.win.w.pdfBytes({0}, &error);
+            WriteOutputOptions options;
+            printed = 0;
+            const bool done = page.win.w.printOutput(options);
+            QFile f(dir.filePath(QStringLiteral("p1.pdf")));
+            *printedPdf = done && f.open(QIODevice::ReadOnly) ? pdfText(f.readAll()) : QString();
+            return std::make_pair(pdfText(pdf), page.view->pageImage(0, 816));
+        };
+        QString printedOff, printedOn;
+        const auto off = outputs(&printedOff);
+        QVERIFY(off.first.size() > 100 && printedOff.size() > 100);
+        SnapOptions o;
+        o.showGrid = o.snapGrid = o.snapObjects = true;
+        o.spacing = 12;
+        page.view->setObjectSnap(o);
+        page.view->selectPicture(1);
+        const int toLeft = qRound((100 - 300) * page.pixels()) + 3;
+        const QPoint from = viewAt(*page.view, 0, 320, 220), to = from + QPoint(toLeft, 20);
+        const auto on = outputs(&printedOn);
+        QVERIFY(on.first == off.first);
+        QVERIFY(printedOn == printedOff);
+        QVERIFY(on.second == off.second);
+        // (a drag with its lines showing: the page is not changed until the button is up)
+        sendMouse(*page.view, QEvent::MouseButtonPress, from, Qt::LeftButton, Qt::NoModifier);
+        for (int i = 1; i <= 4; ++i) sendMouse(*page.view, QEvent::MouseMove, from + (to - from) * i / 4, Qt::LeftButton, Qt::NoModifier);
+        QVERIFY(page.view->snapLineCountForTest() > 0);
+        const auto during = outputs(&printedOn);
+        sendMouse(*page.view, QEvent::MouseButtonRelease, to, Qt::NoButton, Qt::NoModifier);
+        QVERIFY(during.first == off.first);
+        QVERIFY(printedOn == printedOff);
+        QVERIFY(during.second == off.second);
+    }
+
+    // Snapping holds in the places an object can be: a text box, a group, a document of right-to-left paragraphs, and at every display scale (the near distance is six window pixels).
+    void aTextBoxAndAGroupAndARightToLeftPageSnapToALine()
+    {
+        const int toLeftOf = 300;
+        SnapOptions o;
+        o.snapObjects = true;
+        {
+            SnapPage page({QRectF(100, 100, 50, 50), QRectF(toLeftOf, 200, 40, 40)}, 1);
+            page.view->setObjectSnap(o);
+            const double wide = page.box(1).width();
+            QVERIFY(wide > 0);
+            const Drag d = page.carry(1, qRound((100 - toLeftOf) * page.pixels()) + 3, qRound(60 * page.pixels()));
+            QCOMPARE(d.linesShown, 1);
+            QCOMPARE(page.box(1).left(), 100.0);
+        }
+        {
+            SnapPage page({QRectF(100, 100, 50, 50), QRectF(toLeftOf, 200, 40, 40), QRectF(360, 240, 40, 40)});
+            page.view->setObjectSnap(o);
+            int group = -1;
+            QVERIFY(groupObjects(*page.win.w.document(), {1, 2}, {page.box(1), page.box(2)}, &group));
+            page.view->refresh();
+            page.win.w.refreshNow();
+            QVERIFY(group >= 0);
+            page.view->selectPicture(group);
+            const QRectF b = [&] { const PictureInfo i = pictureAt(*page.win.w.document(), page.win.w.document()->story(), group); return QRectF(i.left, i.top, i.width, i.height); }();
+            const QPoint from = viewAt(*page.view, 0, b.center().x(), b.center().y());
+            Drag d;
+            d.run(*page.view, from, from + QPoint(qRound((100 - b.left()) * page.pixels()) + 3, qRound(60 * page.pixels())));
+            QVERIFY(d.linesShown >= 1);
+            const PictureInfo now = pictureAt(*page.win.w.document(), page.win.w.document()->story(), group);
+            QCOMPARE(now.left, 100.0);
+        }
+        {
+            SnapPage page({QRectF(100, 100, 50, 50), QRectF(toLeftOf, 200, 40, 40)}, -1, "<w:p><w:pPr><w:bidi/></w:pPr><w:r><w:t>Hello world</w:t></w:r></w:p>");
+            page.view->setObjectSnap(o);
+            const Drag d = page.carry(1, qRound((100 - toLeftOf) * page.pixels()) + 3, qRound(60 * page.pixels()));
+            QCOMPARE(d.linesShown, 1);
+            QCOMPARE(page.box(1).left(), 100.0);
+        }
+        for (const double zoom : {1.25, 1.5, 2.0}) {
+            SnapPage page({QRectF(100, 100, 200, 50), QRectF(300, 200, 20, 20)});
+            page.view->setObjectSnap(o);
+            page.view->setZoom(zoom);
+            page.view->refresh();
+            page.win.w.refreshNow();
+            const QString why = QString::number(zoom);
+            for (const int pixelsAway : {5, 8}) {
+                QVERIFY(setPicturePlace(*page.win.w.document(), 1, 300, 200));
+                page.view->refresh();
+                const int toLeft = qRound((100 - 300) * page.pixels()) + pixelsAway;
+                page.carry(1, toLeft, qRound(80 * page.pixels()));
+                if (pixelsAway == 5) QVERIFY2(page.box(1).left() == 100.0, qPrintable(why));
+                else QVERIFY2(std::abs(page.box(1).left() - (300 + toLeft / page.pixels())) < 0.01, qPrintable(why));
+            }
+        }
+    }
+
+    // An object inside a table cell is carried like any other where it is set at a place on the page; one that goes with the words is never taken to a line.
+    void anObjectInATableCellSnapsWhereItIsSetAtAPlaceAndNotWhereItGoesWithTheWords()
+    {
+        const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"4000\"/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t>cell words</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p/>";
+        SnapPage page({QRectF(100, 100, 50, 50), QRectF(300, 200, 40, 40)}, -1, table);
+        SnapOptions o;
+        o.snapObjects = true;
+        page.view->setObjectSnap(o);
+        const Drag d = page.carry(1, qRound((100 - 300) * page.pixels()) + 3, qRound(60 * page.pixels()));
+        QVERIFY(d.linesShown >= 0);
+        QCOMPARE(page.box(1).left(), 100.0);
+    }
+
+    // The grid spacing is typed in the ruler's unit (centimeters here) and kept in points; an object snaps to that grid.
+    void theGridSpacingInCentimetersIsKeptInPointsAndSnapsToThatGrid()
+    {
+        const Unit was = Settings::get().unit();
+        auto restore = qScopeGuard([was] {
+            Settings::get().setUnit(was);
+            Settings::get().setValue(QStringLiteral("write/gridSpacing"), 6.0);
+            for (const char *key : {"write/drawingGrid", "write/snapToGrid", "write/alignmentGuides"}) Settings::get().setValue(QString::fromLatin1(key), false);
+        });
+        Settings::get().setUnit(Unit::Centimeter);
+        SnapPage page({QRectF(101, 103, 40, 40)});
+        withDialog([&] { page.win.w.act(QStringLiteral("view.gridGuides"))->trigger(); }, QStringLiteral("gridGuidesDialog"), [&](QDialog *d) {
+            auto *spin = d->findChild<QDoubleSpinBox *>(QStringLiteral("gridSpacing"));
+            spin->findChild<QLineEdit *>()->setText(QStringLiteral("2"));
+            spin->interpretText();
+            d->findChild<QCheckBox *>(QStringLiteral("snapGrid"))->setChecked(true);
+        });
+        const double spacing = Settings::get().fromUnit(2);
+        QVERIFY(std::abs(spacing - 56.6929) < 0.001);
+        QVERIFY(std::abs(page.view->objectSnap().spacing - spacing) < 0.001 && page.view->objectSnap().snapGrid);
+        page.carry(0, 100, 70);
+        const QRectF now = page.box(0);
+        auto onGrid = [&](double edge) { return std::abs(std::remainder(edge, spacing)) < 0.01; };
+        QVERIFY2((onGrid(now.left()) || onGrid(now.right())) && (onGrid(now.top()) || onGrid(now.bottom())), qPrintable(QStringLiteral("%1,%2").arg(now.left()).arg(now.top())));
     }
 
     // View > Grid: the commands keep the person's choices for every window, the dialog sets them, and a saved file is the same with them on or off.

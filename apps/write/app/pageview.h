@@ -177,7 +177,7 @@ public:
     int snapGathersForTest() const { return m_snapGathers; }
     int snapStepsForTest() const { return m_snapSteps; }
     int snapLineCountForTest() const { return m_pictureDrag.lines.size(); }
-    SnapTargets snapTargetsForTest(int page, const QVector<int> &except) { return snapTargetsOnPage(page, except); }
+    SnapTargets snapTargetsForTest(int page, const QVector<int> &except, const QRectF &near = QRectF()) { return snapTargetsOnPage(page, except, near); }
     bool showGridlines() const { return m_gridlines; }
     // Spelling as you type: misspelled words get a red wave on the screen. The checking is the document's own, found a paragraph at a time for the pages in view.
     // (The check of what is being edited: the header's or footer's while one is, else the text's.)
@@ -602,6 +602,7 @@ private:
         bool snapTargets = false;   // the places the box may snap to are gathered (for the page of the drag), in `targets`
         SnapTargets targets;
         QVector<QLineF> lines;      // the alignment guides to show now, in the window
+        bool altHeld = false;       // Alt was held at the last move (a release keeps that, so the object lands where the lines show)
         QPointF at;         // where the pointer is, for a yellow handle or the turning handle
     };
     int m_adjustHandleHit = 0;
@@ -753,7 +754,7 @@ private:
     SnapOptions m_snap;
     int m_snapGathers = 0, m_snapSteps = 0;
     // The targets of the page of a drag (its edges, margins, and the other objects on it, in points on the page), and the snap of a box in the window as the drag carries or sizes it.
-    SnapTargets snapTargetsOnPage(int page, const QVector<int> &except);
+    SnapTargets snapTargetsOnPage(int page, const QVector<int> &except, const QRectF &near);
     void snapDragBox(PictureDrag &d, QRectF *r, bool carried, bool left, bool right, bool top, bool bottom, Qt::KeyboardModifiers modifiers);
     void paintDrawingGrid(QPainter &p, int page);
     void paintSnapLines(QPainter &p);
