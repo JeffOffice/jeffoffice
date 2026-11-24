@@ -51,6 +51,8 @@ public:
     int matchCount() const { return m_matches.size(); }
     // How many times a story has been searched for a match (a count for tests of the work a search up does).
     int scansMade() const { return m_scans; }
+    // How many times the count has been made again (for tests that wait for a refresh to have come).
+    int refreshesRun() const { return m_refreshesRun; }
     static constexpr int kMostMatches = 20000;
     static constexpr int kMostBoxesChanged = 500;   // (the text boxes one Replace All changes: past that the person is told to run it again)
     QLineEdit *findBox() const { return m_find; }
@@ -145,7 +147,8 @@ private:
     static bool holdsMark(const QString &plain, int from, int to);
     static bool holdsMark(const QString &plain, const QTextCursor &match);
     WriteWindow *m_win;
-    int m_scans = 0;
+    int m_scans = 0, m_refreshesRun = 0;
+    bool m_keepNotice = false;   // the status says a search was cancelled or stopped: a count made again for no act of the person leaves it
     std::unique_ptr<StoryWords> m_text;
     QLineEdit *m_find, *m_replace;
     QComboBox *m_direction = nullptr;

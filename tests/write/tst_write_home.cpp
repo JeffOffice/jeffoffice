@@ -3888,9 +3888,10 @@ private Q_SLOTS:
 
     void aLongParagraphIsSearchedInWindowsThatNeverShowTheEngineMoreThanAWindowAndFindEachMatchOnce()
     {
-        // 70,000 characters in one paragraph, with a marker at every place that matters for the windows of 20,000 with 4,000 of overlap.
+        // 70,000 characters in one paragraph, with a marker at every place that matters for the windows (each window starts one overlap before the first place it finds matches in).
         QString text(70000, QLatin1Char('b'));
-        QList<int> at{0, 100, 15999, 16000, 16001, 15980, 19990, 27999, 28000, 28001, 40000, 47999, 48000, 60000, 69990};
+        QList<int> at{0, 100, kRegexWindow - 10, 69990};
+        for (int b = kRegexWindow - kRegexOverlap; b < 69000; b += kRegexWindow - 2 * kRegexOverlap) at << b - 25 << b - 1 << b + 13 << b + 25;
         std::sort(at.begin(), at.end());
         at.erase(std::unique(at.begin(), at.end()), at.end());
         QList<int> kept;
@@ -3906,15 +3907,17 @@ private Q_SLOTS:
         }
         QVERIFY(s.done && s.widest <= kRegexWindow && s.widest > 0);
         QVERIFY(s.calls >= 3);
-        // A match that reaches past the end of a window is found whole, once: a run of 3,000 that starts inside the overlap.
-        QString run(70000, QLatin1Char('b'));
-        run.replace(14500, 3000, QString(3000, QLatin1Char('Q')));
-        const RegexScan r = scanRegex(run, p, 0, 1000);
-        QCOMPARE(r.hits.size(), 1);
-        QCOMPARE(r.hits[0].first, 14500);
-        QCOMPARE(r.hits[0].second, 17500);
+        // A match that reaches past the end of a place's own part of a window, or past the end of the window, is found whole, once.
+        for (const int start : {kRegexWindow - kRegexOverlap - 500, kRegexWindow - 500}) {
+            QString run(70000, QLatin1Char('b'));
+            run.replace(start, 1400, QString(1400, QLatin1Char('Q')));
+            const RegexScan r = scanRegex(run, p, 0, 1000);
+            QCOMPARE(r.hits.size(), 1);
+            QCOMPARE(r.hits[0].first, start);
+            QCOMPARE(r.hits[0].second, start + 1400);
+        }
         // From a place in the middle: the same matches at or after it.
-        QCOMPARE(scanRegex(text, p, 16001, 1000).hits.first().first, 16001);
+        QCOMPARE(scanRegex(text, p, kept[2] + 2, 1000).hits.first().first, kept[2] + 2);
         // ^ and $ are those of the paragraph, never of a window; so are the edges of words.
         const QString one(50000, QLatin1Char('b'));
         auto count = [&](const char *pattern, const QString &t) { return scanRegex(t, regexPattern(QString::fromLatin1(pattern), false), 0, 100).hits.size(); };
@@ -3926,8 +3929,27 @@ private Q_SLOTS:
         QCOMPARE(count("(?:^b|\\n)", one + QLatin1Char('\n') + one), 3);   // (across paragraphs: ^ is still the start of a line only)
         // The pattern of the review: a look-ahead that reads to the end of a text, over 200,000 characters, is only ever given a window.
         QString huge(200000, QLatin1Char('a'));
-        const RegexScan h = scanRegex(huge, regexPattern(QStringLiteral("Q(?=.*z)a"), false), 0, 10);
+        const RegexScan h = scanRegex(huge, regexPattern(QStringLiteral("Q(?=.{0,8}z)a"), false), 0, 10);
         QVERIFY(h.done && h.hits.isEmpty() && h.widest <= kRegexWindow);
+    }
+
+    void aLookAheadOrLookBehindWithARepeatThatHasNoLimitIsRefusedAtItsPlace()
+    {
+        // The three patterns of the review (a look that reads to the end of the text at every step of the pattern is cubic, and no window bounds it): refused, with the place of the look.
+        const struct { const char *pattern; int at; } bad[] = {{"(?=.*z)a", 1}, {"(?:a|b)*?(?=.*z)", 10}, {"(?<=(?=a.*z)a)", 1}, {"x(?!a+)", 2}, {"(?=(?:ab)*+)", 1}, {"(?=\\d{2,})", 1}, {"(?=a{0,9})", 1}, {"(?=a{9})", 1}, {"(?=a{,300})", 1}, {"(?:x|(?=.+))", 6}};
+        for (const auto &b : bad) {
+            const FindPattern p = regexPattern(QString::fromLatin1(b.pattern), false);
+            QVERIFY2(p.error.contains(QStringLiteral("look-ahead or look-behind at character %1 ").arg(b.at)), qPrintable(QString::fromLatin1(b.pattern) + QStringLiteral(": ") + p.error));
+            QVERIFY2(!p.regex.isValid() || p.regex.pattern().isEmpty(), b.pattern);
+        }
+        // A repeat with a limit that is small stays, and so does everything that only looks like a look or a repeat (a set, an escape, a quoted run, a comment, a repeat outside the look).
+        for (const char *good : {"(?=\\d{1,3})x", "x(?=\\d{1,3})", "(?<=\\d{1,3})x", "(?=a{0,8})", "(?=a{8})", "(?=a?+b)", "(?=a{1,3}+)", "(?=a??b)", "(?=[*+])", "[(?=.*]x", "\\(\\?=.*", "\\Q(?=.*z)\\Ea", "(?=(?#a*)b)x", "a*(?=b)", "(?=\\*)", "(?=\\+)a+", "(?:a*)(?=b)+", "(?=x{)", "(?=a\\{2,})", "(?=[[:alpha:]*]b)", "(?:a+)(?<=b)c*", "(?=\\\\)a*"})
+            QVERIFY2(regexPattern(QString::fromLatin1(good), false).error.isEmpty(), good);
+        auto found = [](const char *pattern, const QString &text) { return scanRegex(text, regexPattern(QString::fromLatin1(pattern), false), 0, 100).hits.size(); };
+        QCOMPARE(found("(?=\\d{1,3})x", QStringLiteral("x12 x")), 0);
+        QCOMPARE(found("x(?=\\d{1,3})", QStringLiteral("x12 x")), 1);
+        QCOMPARE(found("(?<=\\d{1,3})x", QStringLiteral("12x 3x x")), 2);
+        QCOMPARE(found("[(?=.*]x", QStringLiteral("(x .x z")), 2);
     }
 
     void theScanAsksBetweenWindowsWhetherToGoOnAndStopsAtOnce()
@@ -4822,7 +4844,7 @@ private Q_SLOTS:
         QVERIFY(w.document()->story()->toPlainText().startsWith(QStringLiteral("YYYYYYYYYYeven line\nodd line")));
     }
 
-    void closingTheWindowWhileASearchRunsStopsItAndEndsItsThread()
+    void closingTheWindowWhileASearchRunsStopsItAtTheNextCheckAndEndsItsThread()
     {
         auto *w = new WriteWindow;
         w->setNotifier([](const QString &, const QString &) {});
@@ -4834,23 +4856,117 @@ private Q_SLOTS:
         pane->useRegex()->setChecked(true);
         pane->findBox()->setText(QStringLiteral("^even"));
         QTRY_COMPARE(pane->matchCount(), 1500);
-        // The search holds at its third paragraph until it is told to stop (a counted wait: no clock).
+        // The search holds at its third paragraph until it is told to stop (a counted wait: no clock), and counts every check it is asked.
         std::atomic<bool> held{false};
-        std::shared_ptr<std::atomic<bool>> flag;
+        std::atomic<int> asked{0};
+        std::atomic<std::atomic<bool> *> flagAt{nullptr};
         pane->setScanHook([&](int done) {
+            ++asked;
             if (done == 3) {
                 held = true;
-                for (int i = 0; i < 200000000 && !(flag && flag->load()); ++i) QThread::yieldCurrentThread();
+                for (int i = 0; i < 20000000; ++i) {
+                    const std::atomic<bool> *f = flagAt.load();
+                    if (f && f->load()) break;
+                    QThread::yieldCurrentThread();
+                }
             }
             return true;
         });
         pane->findBox()->setText(QStringLiteral("^odd"));
         QTRY_VERIFY(pane->searchRunning());
-        flag = pane->searchCancelFlag();
+        const std::shared_ptr<std::atomic<bool>> flag = pane->searchCancelFlag();
         QVERIFY(flag);
+        flagAt = flag.get();
         QTRY_VERIFY(held.load());
         delete w;   // (its destructor stops the search and waits for the thread: nothing the thread reads is gone before it ends)
         QVERIFY(flag->load());
+        QCOMPARE(asked.load(), 3);   // (the thread stopped at the first check after the close: it was not left to run to the end of the text)
+    }
+
+    void aCancelledSearchKeepsItsMessageWhenTheCountIsMadeAgainWithoutAnActOfThePerson()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        w.setDocument(open(makeDocx(evenOddBody(3000))), QString());
+        w.showFindPane();
+        WriteFindPane *pane = w.findPane();
+        pane->useRegex()->setChecked(true);
+        pane->findBox()->setText(QStringLiteral("^even"));
+        QTRY_COMPARE(pane->matchCount(), 1500);
+        std::atomic<bool> held{false};
+        std::atomic<int> asked{0};
+        std::atomic<std::atomic<bool> *> flagAt{nullptr};
+        pane->setScanHook([&](int done) {
+            ++asked;
+            if (done == 3) {
+                held = true;
+                for (int i = 0; i < 20000000; ++i) {
+                    const std::atomic<bool> *f = flagAt.load();
+                    if (f && f->load()) break;
+                    QThread::yieldCurrentThread();
+                }
+            }
+            return true;
+        });
+        pane->findBox()->setText(QStringLiteral("^odd"));
+        QTRY_VERIFY(pane->searchRunning());
+        const std::shared_ptr<std::atomic<bool>> flag = pane->searchCancelFlag();
+        flagAt = flag.get();
+        QTRY_VERIFY(held.load());
+        // While it runs the count is asked for again (a change that is not of the words: no act of the person), and then the person presses Cancel.
+        const int refreshes = pane->refreshesRun();
+        pane->setFormatFilter(write::FormatFilter());
+        flag->store(true);
+        QTRY_VERIFY2(!pane->searchRunning() && pane->status().contains(QStringLiteral("cancel"), Qt::CaseInsensitive), qPrintable(pane->status()));
+        QTRY_VERIFY(pane->refreshesRun() > refreshes);   // (the count that was waiting has come)
+        QVERIFY2(pane->status().contains(QStringLiteral("cancel"), Qt::CaseInsensitive), qPrintable(pane->status()));
+        QVERIFY(!pane->searchRunning());
+        QCOMPARE(asked.load(), 3);   // (and it did not search again)
+        // The next thing the person does ends the notice.
+        pane->setScanHook({});
+        pane->findBox()->setText(QStringLiteral("^even"));
+        QTRY_COMPARE(pane->matchCount(), 1500);
+        QVERIFY2(pane->status().contains(QStringLiteral("1500")), qPrintable(pane->status()));
+    }
+
+    void aChangeThatLeavesTheWordsAsTheSearchReadThemDoesNotThrowItsResultAway()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        w.setDocument(open(makeDocx(evenOddBody(3000))), QString());
+        w.showFindPane();
+        WriteFindPane *pane = w.findPane();
+        pane->useRegex()->setChecked(true);
+        pane->findBox()->setText(QStringLiteral("^even"));
+        QTRY_COMPARE(pane->matchCount(), 1500);
+        const QString before = w.document()->story()->toPlainText();
+        // A field that puts its own result in again while the search runs: the document's revision moves, its words do not.
+        int revisions = 0;
+        bool edited = false;
+        pane->setSearchStartedHook([&] {
+            if (std::exchange(edited, true)) return;
+            const int was = w.document()->story()->revision();
+            QTextCursor c(w.document()->story());
+            c.setPosition(0);
+            c.setPosition(4, QTextCursor::KeepAnchor);
+            c.insertText(c.selectedText());
+            revisions = w.document()->story()->revision() - was;
+        });
+        pane->findBox()->setText(QStringLiteral("^odd"));
+        pane->replaceBox()->setText(QStringLiteral("ZZ"));
+        pane->replaceAll();
+        QTRY_VERIFY(!pane->searchRunning());
+        pane->setSearchStartedHook({});
+        QVERIFY(revisions > 0);
+        QTRY_VERIFY2(w.document()->story()->toPlainText().contains(QStringLiteral("ZZ line")), qPrintable(pane->status()));
+        QVERIFY2(!pane->status().contains(QStringLiteral("changed during")), qPrintable(pane->status()));
+        QCOMPARE(w.document()->story()->toPlainText().count(QStringLiteral("ZZ line")), 1500);
+        QVERIFY(w.document()->undo());
+        QCOMPARE(w.document()->story()->toPlainText(), before);
     }
 
     void aPatternThatNeedsTooMuchWorkIsAnErrorThatStopsEverythingAndChangesNothing()

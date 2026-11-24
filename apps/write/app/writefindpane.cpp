@@ -351,6 +351,10 @@ WriteFindPane::WriteFindPane(WriteWindow *win, QWidget *parent) : QWidget(parent
     m_refresh->setSingleShot(true);
     m_refresh->setInterval(30);
     connect(m_refresh, &QTimer::timeout, this, [this] { refreshMatches(); });
+    // What the person does (types in the box, ticks a choice, edits the text, or presses Find Next, Replace, or Replace All) ends the notice of a search that was cancelled or needed too much work; a count that is
+    // made again for any other reason leaves it.
+    connect(m_find, &QLineEdit::textChanged, this, [this] { m_keepNotice = false; });
+    for (QCheckBox *c : {m_case, m_whole, m_wild, m_regex, m_sounds, m_forms, m_ignorePunct, m_ignoreSpace}) connect(c, &QCheckBox::toggled, this, [this] { m_keepNotice = false; });
     connect(m_find, &QLineEdit::textChanged, m_refresh, qOverload<>(&QTimer::start));
     connect(m_case, &QCheckBox::toggled, m_refresh, qOverload<>(&QTimer::start));
     connect(m_whole, &QCheckBox::toggled, m_refresh, qOverload<>(&QTimer::start));
@@ -645,6 +649,7 @@ QTextCursor WriteFindPane::regexMatchIn(StoryWords *text, int from, QString *err
         const std::function<bool(int)> hook = m_scanHook;
         const write::RegexScan scan = write::scanRegex(plain, pattern, scanFrom, 1024, hook);
         if (scan.cancelled || scan.limited) {
+            m_keepNotice = true;
             m = RegexMemo();
             if (error) *error = scan.limited ? tr("That pattern needed too much work on this text, so the search stopped. Nothing was changed.") : tr("Cancelled. Nothing was changed.");
             return QTextCursor();
@@ -788,7 +793,17 @@ void WriteFindPane::jobDone(quint64 id)
     const bool whenStale = m_retryWhenStale;
     m_retry = nullptr;
     QTextDocument *story = job->story.data();
-    const bool stale = !story || story->revision() != job->revision || job->signature != searchSignature();
+    bool stale = !story || job->signature != searchSignature();
+    if (!stale && story->revision() != job->revision) {
+        // The text has been touched (a field that updates its own result, a mark that is drawn, a change of look): what counts is what the search read. When the words are the same, the places it found are right.
+        StoryWords *now = storyWords();
+        if (now && now->story() == story && now->plain() == job->plain) {
+            job->plain = now->plain();   // (shares the words that asks from now on are given)
+            job->revision = story->revision();
+        } else {
+            stale = true;
+        }
+    }
     if (stale) {
         if (again && whenStale && ++m_retries <= 100) {   // (a text that goes on changing is not searched for ever)
             m_inRetry = true;
@@ -802,11 +817,13 @@ void WriteFindPane::jobDone(quint64 id)
     if (job->result.cancelled || job->result.limited) {
         m_memos.remove(story);
         m_smallMemo = RegexMemo();
+        m_keepNotice = true;
         m_status->setText(job->result.limited ? tr("That pattern needed too much work on this text, so the search stopped. Nothing was changed.") : tr("Cancelled. Nothing was changed."));
         return;
     }
     // (The asks of one operation that are not answered go on, one search after another: a count that is never reached is no reason to wait for ever.)
     if (again && ++m_retries > 100000) {
+        m_keepNotice = true;
         m_status->setText(tr("That pattern needed too much work on this text, so the search stopped. Nothing was changed."));
         return;
     }
@@ -844,6 +861,8 @@ void WriteFindPane::refreshMatches()
         m_refresh->start();
         return;
     }
+    ++m_refreshesRun;
+    if (m_keepNotice) return;   // (the message of a search that was cancelled or stopped stays until the person does something)
     m_wait = false;
     m_matches.clear();
     ++m_generation;
@@ -866,6 +885,7 @@ void WriteFindPane::refreshMatches()
         }
         if (text->story() != m_watched) {
             m_watched = text->story();
+            connect(text->story(), &QTextDocument::contentsChanged, this, [this] { m_keepNotice = false; });
             connect(text->story(), &QTextDocument::contentsChanged, m_refresh, qOverload<>(&QTimer::start));
         }
     }
@@ -1039,6 +1059,7 @@ QString WriteFindPane::whereIs(QTextDocument *story, int page)
 
 bool WriteFindPane::findNext()
 {
+    m_keepNotice = false;
     if (!m_win->document() || !searching()) return false;
     if (m_job) {   // (a search is under way: this is done when it is)
         waitThen([this] { findNext(); });
@@ -1148,6 +1169,7 @@ bool WriteFindPane::lastMatchBefore(QTextDocument *story, int before, QTextCurso
 
 void WriteFindPane::replaceOne()
 {
+    m_keepNotice = false;
     if (!m_win->document() || !searching() || m_job || m_win->refuseIfReadOnly()) return;
     m_wait = false;
     const bool isMatch = selectionIsMatch();
@@ -1298,6 +1320,7 @@ int WriteFindPane::replaceInTextBoxes(QString *problem, int *tooLarge, bool only
 
 void WriteFindPane::replaceAll()
 {
+    m_keepNotice = false;
     const QString q = m_find->text();
     if (!m_win->document() || !searching() || m_win->refuseIfReadOnly()) return;
     if (m_job) {   // (a search is under way: this is done when it is)
