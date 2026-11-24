@@ -235,7 +235,7 @@ QMap<QString, QByteArray> readOfficeZip(const QByteArray &zip, const QStringList
 }
 } // namespace
 
-QString docxToHtml(const QByteArray &docx, int *left)
+QString docxToHtml(const QByteArray &docx, int *left, bool *cut)
 {
     const auto files = readOfficeZip(docx, {QStringLiteral("word/document.xml")});
     const QByteArray xml = files.value("word/document.xml");
@@ -244,19 +244,28 @@ QString docxToHtml(const QByteArray &docx, int *left)
     QString html = "<html><body>";
     bool inPara = false, bold = false, italic = false, underline = false;
     QString align;
-    // What the text alone leaves out, counted: pictures (one inside another, or beside its stand-in, once), tables, lists (a run of numbered paragraphs once), and notes.
+    // What the text alone leaves out, counted: pictures (one inside another, or beside its stand-in, once), tables, lists (each list once, however many paragraphs it has), comments, and notes.
     int picture = 0, fallback = 0, leftOut = 0;
-    bool numbered = false, wasNumbered = false;
+    QSet<QString> lists;
+    int paragraphs = 0;
+    if (cut) *cut = false;
     while (!r.atEnd()) {
         r.readNext();
         const QStringView n = r.name();
         if (r.isStartElement()) {
             if (n == u"Fallback") ++fallback;
             else if ((n == u"drawing" || n == u"pict" || n == u"object") && ++picture == 1 && fallback == 0) ++leftOut;
-            else if (n == u"tbl" || n == u"footnoteReference" || n == u"endnoteReference") ++leftOut;
-            else if (n == u"numId" && inPara && r.attributes().value("w:val") != u"0") numbered = true;
-            if (n == u"p") { inPara = true; align.clear(); numbered = false; html += "<p>"; }
-            else if (n == u"jc") align = r.attributes().value("w:val").toString();
+            else if (n == u"tbl" || n == u"footnoteReference" || n == u"endnoteReference" || n == u"commentReference") ++leftOut;
+            else if (n == u"numId" && inPara && r.attributes().value("w:val") != u"0") lists.insert(r.attributes().value("w:val").toString());
+            if (n == u"p") {
+                if (++paragraphs > kMaxInsertParagraphs) {
+                    if (cut) *cut = true;
+                    break;
+                }
+                inPara = true;
+                align.clear();
+                html += "<p>";
+            } else if (n == u"jc") align = r.attributes().value("w:val").toString();
             else if (n == u"r") { bold = italic = underline = false; }
             else if (n == u"b") bold = r.attributes().value("w:val") != u"0";
             else if (n == u"i") italic = r.attributes().value("w:val") != u"0";
@@ -274,8 +283,6 @@ QString docxToHtml(const QByteArray &docx, int *left)
         } else if (r.isEndElement() && n == u"Fallback") {
             if (fallback > 0) --fallback;
         } else if (r.isEndElement() && n == u"p" && inPara) {
-            if (numbered && !wasNumbered) ++leftOut;
-            wasNumbered = numbered;
             if (!align.isEmpty()) {
                 const QString a = align == u"center" ? "center" : align == u"right" || align == u"end" ? "right" : align == u"both" ? "justify" : "left";
                 const int at = html.lastIndexOf("<p>");
@@ -285,7 +292,7 @@ QString docxToHtml(const QByteArray &docx, int *left)
             inPara = false;
         }
     }
-    if (left) *left = leftOut;
+    if (left) *left = leftOut + int(lists.size());
     return html + "</body></html>";
 }
 
@@ -346,6 +353,7 @@ bool loadTextFileInto(QTextDocument *doc, const QString &path, QString *problem,
     bool unreadable = false;
     int left = 0;
     bool readerLeftOut = false;
+    QTextDocumentFragment fragment;
     // (a .doc or .odt is made into the package of a .docx by the repository's own readers, and goes on as a .docx does)
     const bool packaged = suffix == "docx" || suffix == "doc" || suffix == "odt";
     if (packaged) {
@@ -363,8 +371,15 @@ bool loadTextFileInto(QTextDocument *doc, const QString &path, QString *problem,
             if (problem) *problem = QCoreApplication::translate("Importers", "\"%1\" couldn't be read, so nothing was inserted.\n%2").arg(name, why);
             return false;
         }
-        docxHtml = docxToHtml(package, &left);
+        bool cut = false;
+        docxHtml = docxToHtml(package, &left, &cut);
+        readerLeftOut = readerLeftOut || cut;
         unreadable = docxHtml.isEmpty();
+        fragment = QTextDocumentFragment::fromHtml(docxHtml);
+        if (!unreadable && fragment.toPlainText().trimmed().isEmpty()) {
+            if (problem) *problem = QCoreApplication::translate("Importers", "No text was found in \"%1\", so nothing was inserted.").arg(name);
+            return false;
+        }
     } else if (suffix == "rtf") {
         unreadable = !data.trimmed().startsWith("{\\rtf");
     }
@@ -375,7 +390,7 @@ bool loadTextFileInto(QTextDocument *doc, const QString &path, QString *problem,
     QTextCursor c(doc);
     c.movePosition(QTextCursor::End);
     if (packaged) {
-        c.insertFragment(QTextDocumentFragment::fromHtml(docxHtml));
+        c.insertFragment(fragment);
     } else if (suffix == "html" || suffix == "htm") {
         c.insertFragment(QTextDocumentFragment::fromHtml(QString::fromUtf8(data)));
     } else if (suffix == "md") {
@@ -393,7 +408,7 @@ bool loadTextFileInto(QTextDocument *doc, const QString &path, QString *problem,
     if (note) {
         note->clear();
         if (left > 0)
-            *note = QCoreApplication::translate("Importers", "%n picture, table, list, or note in \"%1\" was left out or came in as plain text.",
+            *note = QCoreApplication::translate("Importers", "%n picture, table, list, comment, or note in \"%1\" was left out or came in as plain text.",
                                                 "", left).arg(name);
         if (readerLeftOut) {
             if (!note->isEmpty()) *note += QLatin1Char(' ');

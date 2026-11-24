@@ -94,6 +94,13 @@ private Q_SLOTS:
     void insertFileTakesAnOpenDocumentText();
     void insertFileSaysWhatItLeftOut();
     void insertFileRefusesAProtectedOrDamagedDocumentOfEitherKind();
+    void aHostileOdtAndDocThroughTheWindowAreCutAndSaid();
+    void aFileWithNoTextInsertsNothingAndSaysSo();
+    void insertFileAtTheCursorTakesBothNewKinds();
+    void undoAfterInsertFileRestoresTheSavedBytes();
+    void cancelAtTheAutoflowQuestionLeavesTheSavedBytes();
+    void theOlderTextKindsSaveWhatTheyAlwaysDid();
+    void aDroppedFilesNoteIsNotShownAsAnError();
     void aHugeOldDocumentIsCutAtTheReadersLimitAndSaid();
     void aDroppedTextFileThatCantBeReadIsToldAboutAndTheOthersComeIn();
     void aPublicationFileOverTheLimitIsRefusedBeforeItIsRead();

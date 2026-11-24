@@ -28,6 +28,8 @@ class Editor;
 
 // The most a text file may be for Insert File and a dropped file (a .txt, .rtf, .html, .md, .docx, .doc, or .odt); a larger one is refused before it is read.
 constexpr qint64 kMaxTextFileBytes = qint64(64) << 20;
+// The most paragraphs a .docx, .doc, or .odt puts into the text (600,000 of them take the window about ten seconds to lay out); the rest is left out, and said.
+constexpr int kMaxInsertParagraphs = 100000;
 // Whether Insert File and a dropped file take a file of this suffix (lower case, no dot) as text.
 bool isInsertableTextSuffix(const QString &suffix);
 // Puts the file's text at the end of `doc`. False, with `problem` set to a sentence for the person (when given), and `doc` unchanged,
@@ -36,7 +38,8 @@ bool isInsertableTextSuffix(const QString &suffix);
 // as plain text or was left out (the pictures, tables, lists, and notes of a document, and what the reader could not read), or is empty.
 bool loadTextFileInto(QTextDocument *doc, const QString &path, QString *problem = nullptr, QString *note = nullptr);
 // The text of the document part of a .docx package as simple HTML; `left`, when given, is how many pictures, tables, lists, and notes it has that the text alone leaves out.
-QString docxToHtml(const QByteArray &docx, int *left = nullptr);
+// ...and `cut`, when given, is set when it has more than kMaxInsertParagraphs paragraphs and the rest was not read.
+QString docxToHtml(const QByteArray &docx, int *left = nullptr, bool *cut = nullptr);
 
 std::unique_ptr<Document> mergeToNewPublication(const Document &src);
 void mergeToEmailFiles(QWidget *parent, Editor *ed);

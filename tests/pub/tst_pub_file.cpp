@@ -1005,6 +1005,242 @@ void PubFileTests::insertFileRefusesAProtectedOrDamagedDocumentOfEitherKind()
     }
 }
 
+namespace {
+// Answers the Autoflow question (looking for it every 20 ms, up to 2000 times) by closing it, as Escape does; `asked` counts the questions.
+struct AutoflowCancel {
+    explicit AutoflowCancel(int *asked)
+    {
+        m_timer = new QTimer(qApp);
+        QObject::connect(m_timer, &QTimer::timeout, m_timer, [this, asked] {
+            if (++m_ticks > 2000) m_timer->stop();
+            if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+                ++*asked;
+                box->reject();
+            }
+        });
+        m_timer->start(20);
+    }
+    ~AutoflowCancel() { delete m_timer; }
+    QPointer<QTimer> m_timer;
+    int m_ticks = 0;
+};
+// The bytes the publication saves as now.
+QByteArray savedBytes(jp::MainWindow &w, const QString &path)
+{
+    QString err;
+    if (!jp::savePublication(*w.editor()->doc(), path, QImage(), &err)) return QByteArray("save failed: ").append(err.toUtf8());
+    QFile f(path);
+    return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
+}
+QByteArray oldDoc(int paragraphs)
+{
+    dochelp::DocWriter w;
+    w.text = QStringLiteral("a\r");
+    w.repeatText = paragraphs;
+    return w.build();
+}
+QString manyParagraphs(int n)
+{
+    QString body;
+    for (int i = 0; i < n; ++i) body += QStringLiteral("<text:p>a</text:p>");
+    return body;
+}
+}
+
+// The window path (not loadTextFileInto alone): a few kilobytes of file that ask for more than the readers allow come in cut, the cut is said once, and the Autoflow
+// question the long text raises is answered by the test's own hook (asked at most once).
+void PubFileTests::aHostileOdtAndDocThroughTheWindowAreCutAndSaid()
+{
+    struct Case {
+        QString name;
+        QByteArray bytes;
+        int most;   // the most paragraphs that go in
+    };
+    const QVector<Case> cases = {
+        {QStringLiteral("hostile.odt"), odtOf(manyParagraphs(int(jp::office::odt::kMaxElements) + 20000)), jp::kMaxInsertParagraphs},
+        {QStringLiteral("hostile.doc"), oldDoc(jp::office::doc::kMaxParagraphs + 20000), jp::kMaxInsertParagraphs},
+    };
+    for (const Case &c : cases) {
+        InsertFileRig r;
+        QVERIFY(r.dir.isValid());
+        QVERIFY2(c.bytes.size() < (8 << 20), qPrintable(c.name));
+        int asked = 0;
+        AutoflowCancel hook(&asked);
+        const int items = r.items(), steps = r.steps();
+        r.w.insertTextFile(r.write(c.name, c.bytes));
+        QCOMPARE(r.told.size(), 1);
+        QVERIFY2(r.told.first().contains(c.name) && r.told.first().contains(QStringLiteral("left out")), qPrintable(r.told.first()));
+        QCOMPARE(r.items(), items + 1);
+        QCOMPARE(r.steps(), steps + 1);
+        QVERIFY(asked <= 1);
+        const int blocks = r.w.editor()->doc()->storyDocs().last()->blockCount();
+        QVERIFY2(blocks > 1000 && blocks <= c.most + 2, qPrintable(QString::number(blocks)));
+    }
+}
+
+// A read that finds no text inserts nothing, adds no step, and says so.
+void PubFileTests::aFileWithNoTextInsertsNothingAndSaysSo()
+{
+    InsertFileRig r;
+    QVERIFY(r.dir.isValid());
+    const QByteArray none = docxOf(QByteArray("<w:p/>"));
+    const QVector<QPair<QString, QByteArray>> cases = {
+        {QStringLiteral("blank.docx"), none},
+        {QStringLiteral("blank.odt"), odtOf(QStringLiteral("<text:p/><text:p>  </text:p>"))},
+        {QStringLiteral("blank.doc"), [] { dochelp::DocWriter w; w.text = QStringLiteral("\r"); return w.build(); }()},
+    };
+    const int items = r.items(), steps = r.steps(), stories = r.stories();
+    for (const auto &c : cases) {
+        r.told.clear();
+        r.w.insertTextFile(r.write(c.first, c.second));
+        QCOMPARE(r.told.size(), 1);
+        QVERIFY2(r.told.first().contains(QStringLiteral("No text was found")) && r.told.first().contains(c.first), qPrintable(r.told.first()));
+        QCOMPARE(r.items(), items);
+        QCOMPARE(r.steps(), steps);
+        QCOMPARE(r.stories(), stories);
+    }
+}
+
+// With the cursor in a text box, the text goes in at the cursor as one step, for both new kinds.
+void PubFileTests::insertFileAtTheCursorTakesBothNewKinds()
+{
+    const QVector<QPair<QString, QByteArray>> cases = {
+        {QStringLiteral("in.odt"), odtOf(QStringLiteral("<text:p>Tulips bloom</text:p>"))},
+        {QStringLiteral("in.doc"), [] { dochelp::DocWriter w; w.text = QStringLiteral("Tulips bloom\r"); return w.build(); }()},
+    };
+    for (const auto &c : cases) {
+        InsertFileRig r;
+        QVERIFY(r.dir.isValid());
+        auto box = std::static_pointer_cast<jp::TextItem>(r.w.editor()->newTextBox(QRectF(72, 72, 400, 200), QStringLiteral("Before After")));
+        r.w.editor()->addItem(box);
+        r.w.editor()->beginTextEdit(box->id, 0);
+        QTextCursor cur = r.w.editor()->cursor();
+        cur.setPosition(7);
+        r.w.editor()->setCursor(cur);
+        const int items = r.items(), steps = r.steps();
+        r.w.insertTextFile(r.write(c.first, c.second));
+        QVERIFY2(r.told.isEmpty(), qPrintable(r.told.join(QLatin1Char('|'))));
+        QCOMPARE(r.items(), items);
+        QCOMPARE(r.steps(), steps + 1);
+        const QString text = r.w.editor()->doc()->storyDoc(box->storyId)->toPlainText();
+        QVERIFY2(text.startsWith(QStringLiteral("Before ")) && text.contains(QStringLiteral("Tulips bloom")) && text.endsWith(QStringLiteral("After")), qPrintable(text));
+        r.w.editor()->undoStack()->undo();
+        QCOMPARE(r.w.editor()->doc()->storyDoc(box->storyId)->toPlainText(), QStringLiteral("Before After"));
+    }
+}
+
+void PubFileTests::undoAfterInsertFileRestoresTheSavedBytes()
+{
+    const QVector<QPair<QString, QByteArray>> cases = {
+        {QStringLiteral("u.odt"), odtOf(QStringLiteral("<text:p>Tulips bloom</text:p>"))},
+        {QStringLiteral("u.doc"), [] { dochelp::DocWriter w; w.text = QStringLiteral("Tulips bloom\r"); return w.build(); }()},
+    };
+    for (const auto &c : cases) {
+        InsertFileRig r;
+        QVERIFY(r.dir.isValid());
+        const QByteArray before = savedBytes(r.w, r.dir.filePath(QStringLiteral("before.jpub")));
+        QVERIFY(!before.startsWith("save failed"));
+        r.w.insertTextFile(r.write(c.first, c.second));
+        const QByteArray after = savedBytes(r.w, r.dir.filePath(QStringLiteral("after.jpub")));
+        QVERIFY(after != before);
+        r.w.editor()->undoStack()->undo();
+        const QByteArray undone = savedBytes(r.w, r.dir.filePath(QStringLiteral("undone.jpub")));
+        if (undone != before) {
+            QMap<QString, QByteArray> a, b;
+            jp::readZip(before, a);
+            jp::readZip(undone, b);
+            for (const QString &k : a.keys() + b.keys())
+                if (a.value(k) != b.value(k)) {
+                    const QByteArray x = a.value(k), y = b.value(k);
+                    int i = 0;
+                    while (i < x.size() && i < y.size() && x[i] == y[i]) ++i;
+                    qInfo("DIFF %s at %d: %s | %s", qPrintable(k), i, x.mid(std::max(0, i - 60), 200).constData(), y.mid(std::max(0, i - 60), 200).constData());
+                }
+        }
+        QCOMPARE(undone, before);
+    }
+}
+
+// Closing the Autoflow question (as Escape does) adds no pages and no boxes: undoing the one insert leaves exactly the bytes that were saved before.
+void PubFileTests::cancelAtTheAutoflowQuestionLeavesTheSavedBytes()
+{
+    InsertFileRig r;
+    QVERIFY(r.dir.isValid());
+    const QByteArray before = savedBytes(r.w, r.dir.filePath(QStringLiteral("before.jpub")));
+    const int pages = int(r.w.editor()->doc()->pages.size());
+    int asked = 0;
+    {
+        AutoflowCancel hook(&asked);
+        r.w.insertTextFile(r.write(QStringLiteral("long.odt"), odtOf(manyParagraphs(400))));
+    }
+    QCOMPARE(asked, 1);
+    QCOMPARE(int(r.w.editor()->doc()->pages.size()), pages);
+    QCOMPARE(r.items(), 1);
+    r.w.editor()->undoStack()->undo();
+    QCOMPARE(savedBytes(r.w, r.dir.filePath(QStringLiteral("undone.jpub"))), before);
+}
+
+// The kinds that were taken before this change make the same publication as before it: the hash of each one's saved stories (ids left out) was made by running this test on origin/main (84520145e) before the change.
+void PubFileTests::theOlderTextKindsSaveWhatTheyAlwaysDid()
+{
+    struct Case {
+        QString name;
+        QByteArray bytes;
+        QString hash;
+    };
+    const QVector<Case> cases = {
+        {QStringLiteral("s.txt"), QByteArray("Tulips bloom\nalong the river walk\n"), QStringLiteral("7d61d9724d6fec87")},
+        {QStringLiteral("s.rtf"), QByteArray("{\\rtf1\\ansi{\\fonttbl{\\f0 Arial;}}\\f0 Hello \\b world\\b0\\par Second\\par}"), QStringLiteral("d77e80dc6f2b4bef")},
+        {QStringLiteral("s.html"), QByteArray("<html><body><p>Hello <b>world</b></p><ul><li>one</li></ul></body></html>"), QStringLiteral("9691b2d4edede376")},
+        {QStringLiteral("s.md"), QByteArray("# Title\n\nHello **world**\n\n- one\n- two\n"), QStringLiteral("015a246deafd6e80")},
+        {QStringLiteral("s.docx"), docxOf(QByteArray("<w:p><w:r><w:t>Tulips</w:t></w:r></w:p>")), QStringLiteral("7b3dc804994bc61a")},
+    };
+    for (const Case &c : cases) {
+        InsertFileRig r;
+        QVERIFY(r.dir.isValid());
+        r.w.insertTextFile(r.write(c.name, c.bytes));
+        QVERIFY(r.told.isEmpty());
+        // (the saved stories as the file keeps them, without the ids made fresh on each run)
+        QMap<QString, QByteArray> parts;
+        QVERIFY(jp::readZip(savedBytes(r.w, r.dir.filePath(QStringLiteral("saved.jpub"))), parts));
+        QJsonArray stories = QJsonDocument::fromJson(parts.value(QStringLiteral("document.json"))).object().value(QStringLiteral("stories")).toArray();
+        for (int i = 0; i < stories.size(); ++i) {
+            QJsonObject o = stories[i].toObject();
+            o.remove(QStringLiteral("id"));
+            stories[i] = o;
+        }
+        const QByteArray all = QJsonDocument(stories).toJson(QJsonDocument::Compact);
+        QCOMPARE(QString::fromLatin1(QCryptographicHash::hash(all, QCryptographicHash::Sha256).toHex().left(16)), c.hash);
+    }
+}
+
+// A drop's note about what a file left out is shown as information, not as an error (the box is looked for every 20 ms, up to 2000 times).
+void PubFileTests::aDroppedFilesNoteIsNotShownAsAnError()
+{
+    InsertFileRig r;
+    QVERIFY(r.dir.isValid());
+    r.w.setNotifier(nullptr);
+    QVector<int> icons;
+    QStringList texts;
+    int ticks = 0;
+    QTimer timer;
+    QObject::connect(&timer, &QTimer::timeout, &timer, [&] {
+        if (++ticks > 2000) timer.stop();
+        if (auto *box = qobject_cast<QMessageBox *>(QApplication::activeModalWidget())) {
+            icons << int(box->icon());
+            texts << box->text();
+            box->accept();
+        }
+    });
+    timer.start(20);
+    const QString path = r.write(QStringLiteral("t.odt"), odtOf(QStringLiteral("<table:table><table:table-row><table:table-cell><text:p>cell</text:p></table:table-cell></table:table-row></table:table>")));
+    r.w.insertFiles({path}, QPointF(-1, -1));
+    timer.stop();
+    QCOMPARE(icons.size(), 1);
+    QVERIFY2(texts.first().contains(QStringLiteral("t.odt")), qPrintable(texts.first()));
+    QCOMPARE(icons.first(), int(QMessageBox::Information));
+}
+
 // The reader's own limit holds on this path: 450,000 runs from a few kilobytes of file make at most the XML the reader allows, and the box gets whole
 // paragraphs of what came before the cut, with the cut said.
 void PubFileTests::aHugeOldDocumentIsCutAtTheReadersLimitAndSaid()

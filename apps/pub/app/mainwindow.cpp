@@ -2063,7 +2063,7 @@ void MainWindow::insertFiles(const QStringList &paths, const QPointF &atIn, Pict
     const QSizeF ps = d->pageSize();
     QPointF at = atIn;
     m_ed->beginChange(tr("Insert Picture"));
-    QStringList made, problems;
+    QStringList made, problems, notes;
     // Several pictures at once go to the picture tray on the scratch area.
     int pictures = 0;
     for (const QString &path : paths) {
@@ -2082,7 +2082,7 @@ void MainWindow::insertFiles(const QStringList &paths, const QPointF &atIn, Pict
                 problems << problem;
                 continue;
             }
-            if (!note.isEmpty()) problems << note;
+            if (!note.isEmpty()) notes << note;
             m_ed->surfaceItems().push_back(t);
             made << t->id;
             continue;
@@ -2121,6 +2121,7 @@ void MainWindow::insertFiles(const QStringList &paths, const QPointF &atIn, Pict
     }
     m_ed->select(made);
     if (!problems.isEmpty()) notice(tr("Insert File"), problems.join(QStringLiteral("\n\n")), true);
+    if (!notes.isEmpty()) notice(tr("Insert File"), notes.join(QStringLiteral("\n\n")), false);
 }
 
 void MainWindow::insertTextFile(const QString &path)

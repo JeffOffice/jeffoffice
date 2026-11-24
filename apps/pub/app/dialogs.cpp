@@ -2054,12 +2054,16 @@ QString insertTextFile(QWidget *p, Editor *ed, const QString &f, QString *note)
     }
     const QSizeF ps = ed->doc()->pageSize();
     const QRectF content = QRectF(QPointF(0, 0), ps).marginsRemoved(ed->doc()->setup.margins);
+    // (the story is made inside the step, so that undoing it takes the story away with the box)
+    ed->beginChange(QCoreApplication::translate("Dialogs", "Insert File"));
     auto t = std::static_pointer_cast<TextItem>(ed->newTextBox(content));
     if (!loadTextFileInto(ed->doc()->storyDoc(t->storyId), f, &problem, note)) {
         ed->doc()->removeStory(t->storyId);
+        ed->endChange();
         return problem;
     }
     ed->addItem(t);
+    ed->endChange();
     offerAutoflow(p, ed, t->id);
     return {};
 }
