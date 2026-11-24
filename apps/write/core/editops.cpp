@@ -1641,9 +1641,9 @@ static void settlePastedNoteReferences(WriteDoc &doc, QTextDocument *d, int from
 }
 
 // Pastes, and says where what was pasted is (from, to) when the paste is done.
-static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fragment, int *pastedFrom, int *pastedTo, bool sameDocument, const QHash<int, int> *tableKeys = nullptr);
+static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fragment, int *pastedFrom, int *pastedTo, bool sameDocument, const QHash<int, int> *tableKeys = nullptr, const QVector<QTextCharFormat> *cellMarks = nullptr);
 
-static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fragment, int *pastedFrom, int *pastedTo, bool sameDocument, const QHash<int, int> *tableKeys)
+static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment &fragment, int *pastedFrom, int *pastedTo, bool sameDocument, const QHash<int, int> *tableKeys, const QVector<QTextCharFormat> *cellMarks)
 {
     NumberGuard numbers(doc, c.document());
     c.beginEditBlock();
@@ -1693,6 +1693,7 @@ static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment
                 copyHead(tf, &nf);
                 if (nf.hasProperty(prop::RawBlock) && b.length() != 2) nf.clearProperty(prop::RawBlock);
                 if (nf != b.blockFormat()) setBlockFormatKeepingList(b, nf);
+                if (tableKeys && markFormat(b) != tmark) setMarkFormat(b, tmark);   // (the paragraph pasted into keeps its mark: the empty paragraph made before a table is not one that is seen)
             } else if (b == last) {
                 QTextBlockFormat rest = tf;
                 clearHead(&rest);
@@ -1710,8 +1711,21 @@ static void pasteInto(WriteDoc &doc, QTextCursor &c, const QTextDocumentFragment
     }
     // What is pasted is in the cell it was pasted into (or in none), and in the frame it was pasted into (or in none: a frame's key is its document's, and a paragraph set apart from
     // the text with the key of another's would be lost to it).
-    if (tableKeys && !targetCell) giveCellKeys(d->findBlock(from), d->findBlock(to), *tableKeys);   // (the tables of a copy are made in this document: their paragraphs are in their cells)
-    else giveCellKey(d->findBlock(from), d->findBlock(to), targetCell);
+    if (tableKeys && !targetCell) {
+        giveCellKeys(d->findBlock(from), d->findBlock(to), *tableKeys);   // (the tables of a copy are made in this document: their paragraphs are in their cells)
+        if (cellMarks) {
+            // The marks of the paragraphs of the cells are those the copy had (the engine's own way of pasting gives a paragraph the look of its first words).
+            const QSet<int> made(tableKeys->cbegin(), tableKeys->cend());
+            QVector<QTextBlock> cellBlocks;
+            for (QTextBlock b = d->findBlock(from); b.isValid() && b.position() <= to; b = b.next())
+                if (made.contains(cellKeyOf(b))) cellBlocks.push_back(b);
+            if (cellBlocks.size() == cellMarks->size())
+                for (qsizetype i = 0; i < cellBlocks.size(); ++i)
+                    if (markFormat(cellBlocks[i]) != cellMarks->at(i)) setMarkFormat(cellBlocks[i], cellMarks->at(i));
+        }
+    } else {
+        giveCellKey(d->findBlock(from), d->findBlock(to), targetCell);
+    }
     const bool targetFramed = tf.boolProperty(tp::OutOfLayout) && tf.intProperty(flow::fp::Frame) > 0 && !targetCell;
     for (QTextBlock b = d->findBlock(from); b.isValid() && b.position() <= to; b = b.next()) {
         QTextBlockFormat nf = b.blockFormat();
@@ -2046,7 +2060,11 @@ Clip copySelection(const WriteDoc &doc, const QTextCursor &whole, bool keepChang
         // The tables the selection holds whole are kept as tables, with the styles they use: the paragraphs of the fragment carry their cells' keys, which `tables` says how to make again.
         const CopiedTables found = copyTables(doc, c, keepChangedTables);
         clip.tablesAsWords = found.asWords;
-        if (!found.tables.isEmpty() && !splitsContentControl(c.document(), c.selectionStart(), c.selectionEnd())) {
+        if (found.wholeAsWords > 0) clip.wholeAsWords = found.changedAsWords ? Clip::WholeAsWords::Changes : Clip::WholeAsWords::Many;
+        if (!found.tables.isEmpty() && splitsContentControl(c.document(), c.selectionStart(), c.selectionEnd())) {
+            clip.tablesAsWords += int(found.tables.size());
+            clip.wholeAsWords = Clip::WholeAsWords::Control;
+        } else if (!found.tables.isEmpty()) {
             clip.tables = found.tables;
             QSet<QString> have;
             std::function<void(const QString &, int)> addStyle = [&](const QString &id, int depth) {
@@ -2057,9 +2075,16 @@ Clip copySelection(const WriteDoc &doc, const QTextCursor &whole, bool keepChang
                 clip.tableStyles.push_back(*s);
             };
             for (const CopiedTable &t : std::as_const(clip.tables)) addStyle(t.style, 0);
+            QSet<int> carried;
+            for (const CopiedTable &t : std::as_const(clip.tables))
+                for (const CopiedTable::Row &r : t.rows)
+                    for (const CopiedTable::Cell &cell : r.cells) carried.insert(cell.key);
+            for (QTextBlock b = c.document()->findBlock(c.selectionStart()); b.isValid() && b.position() < c.selectionEnd(); b = b.next())
+                if (carried.contains(cellKeyOf(b))) clip.cellMarks.push_back(markFormat(b));
             clip.bracketedBefore = found.startsInTable;
             clip.bracketedAfter = found.endsInTable;
-            if (found.startsInTable || found.endsInTable) clip.fragment = bracketed(clip.fragment, found.startsInTable, found.endsInTable, c.document()->findBlock(c.selectionStart()).blockFormat());
+            // (Only the private paste has the empty paragraphs: the fragment itself, and so the clipboard's words, are what was selected.)
+            if (found.startsInTable || found.endsInTable) clip.fragmentForTables = bracketed(clip.fragment, found.startsInTable, found.endsInTable, c.document()->findBlock(c.selectionStart()).blockFormat());
         }
     }
     QSet<QString> ids;
@@ -2119,8 +2144,24 @@ void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
         QStringList used;
         for (const CopiedTable &t : clip.tables)
             if (!t.style.isEmpty() && !used.contains(t.style)) used.push_back(t.style);
-        importTableStyles(doc, clip.tableStyles, used);
-        tableKeys = makeCopiedTables(doc, clip.tables);
+        QHash<QString, QString> renamed;
+        importTableStyles(doc, clip.tableStyles, used, &renamed);
+        QVector<CopiedTable> tables = clip.tables;
+        if (!renamed.isEmpty()) {
+            // (A style of the copy that is not the document's style of that name is in under another: the table of the copy uses that one, and the document's own tables are as they were.)
+            static const QRegularExpression tableStyleAttribute(QStringLiteral("<w:tblStyle\\s+w:val=\"[^\"]*\""));
+            for (CopiedTable &t : tables) {
+                const QString now = renamed.value(t.style);
+                if (now.isEmpty()) continue;
+                QString escaped = now;
+                escaped.replace(QLatin1Char('&'), QLatin1String("&amp;")).replace(QLatin1Char('<'), QLatin1String("&lt;")).replace(QLatin1Char('>'), QLatin1String("&gt;")).replace(QLatin1Char('"'), QLatin1String("&quot;"));
+                QString open = QString::fromUtf8(t.open);
+                open.replace(tableStyleAttribute, QStringLiteral("<w:tblStyle w:val=\"") + escaped + QLatin1Char('"'));
+                t.open = open.toUtf8();
+                t.style = now;
+            }
+        }
+        tableKeys = makeCopiedTables(doc, tables, tracking(doc, c));
     }
     // (Where the copy goes at the start of a paragraph, or the end of one, the empty paragraph made beside its table is a paragraph of its own: it goes when the paste is done.)
     bool dropBefore = false, dropAfter = false;
@@ -2130,7 +2171,8 @@ void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
         dropAfter = clip.bracketedAfter && c.selectionEnd() == last.position() + last.length() - 1;
     }
     int from = 0, to = 0;
-    pasteInto(doc, c, clip.fragment, &from, &to, same, tableKeys.isEmpty() ? nullptr : &tableKeys);
+    const bool madeTables = !tableKeys.isEmpty();
+    pasteInto(doc, c, madeTables && !clip.fragmentForTables.isEmpty() ? clip.fragmentForTables : clip.fragment, &from, &to, same, madeTables ? &tableKeys : nullptr, madeTables ? &clip.cellMarks : nullptr);
     // (The places the pasted text begins and ends at, which follow the edits made to it below.)
     QTextCursor pastedFrom(c.document()), pastedTo(c.document());
     pastedFrom.setPosition(from);
@@ -2255,7 +2297,7 @@ void pasteClip(WriteDoc &doc, QTextCursor &c, const Clip &clip)
                 nf.clearProperty(flow::fp::AnchorId);
                 changed = true;
             }
-            if (atom && !referencesIn(a.raw).isEmpty()) {
+            if (atom && (a.tag == QLatin1String("drawing") || !referencesIn(a.raw).isEmpty())) {   // (a shape or a text box has no picture to find, and is made in this document as well)
                 bool ok = true;
                 const QByteArray raw = remap(a.raw, &ok);
                 if (!ok) {

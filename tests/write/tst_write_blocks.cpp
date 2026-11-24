@@ -3,6 +3,7 @@
 
 #include "tst_write.h"
 #include "core/blockops.h"
+#include "core/insertops.h"
 #include "core/pictureops.h"
 #include "io/blocklibrary.h"
 #include "io/zip.h"
@@ -18,6 +19,8 @@
 #include <QPainter>
 #include <QTimer>
 #include <QRegularExpression>
+#include <QSignalSpy>
+#include <QScopeGuard>
 #include <QTemporaryDir>
 #include <QTextFrame>
 #include <QTextTable>
@@ -310,16 +313,32 @@ void WriteTests::aTableCopiedToAnotherDocumentIsATableThereWithItsStyle()
     QCOMPARE(allText(*target), before);
     QCOMPARE(tablesIn(*target), 0);
     QVERIFY(!partText(*target, QStringLiteral("word/styles.xml")).contains(QStringLiteral("w:styleId=\"Fancy\"")));
-    // A document that has a style of that name that is another style: its own is not changed, and the table uses it.
-    auto other = tableSource("<w:style w:type=\"table\" w:customStyle=\"1\" w:styleId=\"Fancy\"><w:name w:val=\"Fancy Grid\"/><w:basedOn w:val=\"TableNormal\"/><w:tblPr><w:tblBorders><w:top w:val=\"single\" w:sz=\"8\" w:color=\"00AA00\"/></w:tblBorders></w:tblPr></w:style>");
-    auto sink = open(makeDocx("<w:p><w:r><w:t>Top</w:t></w:r></w:p>", kPlainStyles + "<w:style w:type=\"table\" w:customStyle=\"1\" w:styleId=\"Fancy\"><w:name w:val=\"Fancy Grid\"/><w:basedOn w:val=\"TableNormal\"/><w:tblPr><w:tblBorders><w:top w:val=\"single\" w:sz=\"8\" w:color=\"00AA00\"/></w:tblBorders></w:tblPr></w:style>"));
-    QTextCursor d(sink->story());
-    d.setPosition(3);
-    pasteClip(*sink, d, copySelection(*src, selecting(*src, 0, positionAfter(*src, QStringLiteral("After")))));
-    const QString styles = partText(*sink, QStringLiteral("word/styles.xml"));
-    QVERIFY2(styles.contains(QStringLiteral("00AA00")) && !styles.contains(QStringLiteral("0000FF")), qPrintable(styles));
+    // A document that has a style of that name that is another style: its own is not changed, and the table of the copy uses the style of the copy, which comes in under a new name.
+    const QByteArray greenFancy = "<w:style w:type=\"table\" w:customStyle=\"1\" w:styleId=\"Fancy\"><w:name w:val=\"Fancy Grid\"/><w:basedOn w:val=\"TableNormal\"/><w:tblPr><w:tblBorders><w:top w:val=\"single\" w:sz=\"8\" w:color=\"00AA00\"/></w:tblBorders></w:tblPr></w:style>";
+    auto sink = open(makeDocx("<w:p><w:r><w:t>Top</w:t></w:r></w:p><w:tbl><w:tblPr><w:tblStyle w:val=\"Fancy\"/><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"2000\"/></w:tblGrid>"
+                              "<w:tr><w:tc><w:p><w:r><w:t>Mine</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p><w:r><w:t>End</w:t></w:r></w:p>", kPlainStyles + greenFancy));
+    const auto stylesOf = [](WriteDoc &doc) { return partText(doc, QStringLiteral("word/styles.xml")); };
+    const int whereTop = 3;
+    for (int times = 0; times < 2; ++times) {
+        QTextCursor d(sink->story());
+        d.setPosition(whereTop);
+        pasteClip(*sink, d, copySelection(*src, selecting(*src, 0, positionAfter(*src, QStringLiteral("After")))));
+    }
+    const QString styles = stylesOf(*sink), xml = partText(*sink, QStringLiteral("word/document.xml"));
+    const auto styleElement = [&](const char *id) {
+        const int at = styles.indexOf(QStringLiteral("w:styleId=\"%1\"").arg(QLatin1String(id)));
+        return at < 0 ? QString() : styles.mid(at, styles.indexOf(QStringLiteral("</w:style>"), at) - at);
+    };
+    // (its own style is as it was; the copy's is there once, though it was pasted twice, with the look of the source's)
+    QVERIFY2(styleElement("Fancy").contains(QStringLiteral("00AA00")) && !styleElement("Fancy").contains(QStringLiteral("0000FF")), qPrintable(styles));
+    QVERIFY2(styleElement("Fancy2").contains(QStringLiteral("0000FF")) && !styleElement("Fancy2").contains(QStringLiteral("00AA00")), qPrintable(styles));
     QCOMPARE(int(styles.count(QStringLiteral("w:styleId=\"Fancy\""))), 1);
-    verifyTableIn(*sink, 2, "a document with a style of the same name");
+    QCOMPARE(int(styles.count(QStringLiteral("w:styleId=\"Fancy2\""))), 1);
+    QCOMPARE(int(styles.count(QStringLiteral("w:styleId=\"Fancy3\""))), 0);
+    QVERIFY2(styles.contains(QStringLiteral("<w:name w:val=\"Fancy Grid 2\"/>")), qPrintable(styles));
+    QCOMPARE(int(xml.count(QStringLiteral("<w:tblStyle w:val=\"Fancy\"/>"))), 1);    // (the document's own table)
+    QCOMPARE(int(xml.count(QStringLiteral("<w:tblStyle w:val=\"Fancy2\"/>"))), 2);   // (the two copies of the table, the same style)
+    QCOMPARE(int(xml.count(QStringLiteral("<w:tbl>"))), 5);                           // (its own, and an outer and an inner table in each copy)
 }
 
 void WriteTests::aTableInABlockComesBackAsATableBetweenParagraphsAndAsOneStep()
@@ -408,6 +427,347 @@ void WriteTests::aTableIsNotCarriedPartWayAndTrackedTablesAreAccepted()
     QCOMPARE(tablesIn(*back), 1);
     const QString xml = partText(*back, QStringLiteral("word/document.xml"));
     QVERIFY2(xml.contains(QStringLiteral("Added row")) && !xml.contains(QStringLiteral("<w:ins ")), qPrintable(xml));
+}
+
+// Track Changes on: a pasted table is an inserted table (its rows and its words), so Reject All takes the whole table out and Accept All keeps it with no marks.
+void WriteTests::aTablePastedWithChangesTrackedIsAnInsertedTable()
+{
+    // The words and the table (pasted at the end of the last paragraph), the table alone (at the end of the last paragraph, and in the middle of the first), and a whole table in a paragraph of its own.
+    for (int how = 0; how < 3; ++how) {
+        for (const bool accept : {false, true}) {
+            auto doc = tableSource();
+            QVERIFY(doc);
+            const int cellStart = positionAfter(*doc, QStringLiteral("Intro")) + 1, tableEnd = positionAfter(*doc, QStringLiteral("Low C"));
+            const Clip clip = how == 0 ? copySelection(*doc, selecting(*doc, positionAfter(*doc, QStringLiteral("Intro")) - 5, positionAfter(*doc, QStringLiteral("After"))))
+                                       : copySelection(*doc, selecting(*doc, cellStart, tableEnd));
+            QVERIFY(!clip.tables.isEmpty());
+            QTextCursor c(doc->story());
+            c.setPosition(how == 2 ? positionAfter(*doc, QStringLiteral("Intro")) - 2 : positionAfter(*doc, QStringLiteral("After")));
+            const QString wasXml = partText(*doc, QStringLiteral("word/document.xml"));
+            doc->setReviewer(QStringLiteral("Pat"), QStringLiteral("P"));
+            doc->setTrackChanges(true);
+            pasteClip(*doc, c, clip);
+            QString xml = partText(*doc, QStringLiteral("word/document.xml"));
+            const QByteArray where = QByteArray("case ") + QByteArray::number(how) + (accept ? ", accepted" : ", rejected");
+            QVERIFY2(xml.count(QStringLiteral("<w:tbl>")) == 4, where.constData());
+            // Every row made is a tracked insertion (the table has 3 rows, the one in its cell 1).
+            QVERIFY2(xml.count(QRegularExpression(QStringLiteral("<w:trPr>(<w:tblHeader/>)?<w:ins w:id="))) == 4, where.constData());
+            if (accept) {
+                QVERIFY(acceptAll(*doc) > 0);
+                xml = partText(*doc, QStringLiteral("word/document.xml"));
+                QVERIFY2(!xml.contains(QStringLiteral("<w:ins ")) && !xml.contains(QStringLiteral("<w:del ")), where.constData());
+                verifyTableIn(*doc, 4, where.constData());
+            } else {
+                QVERIFY(rejectAll(*doc) > 0);
+                doc->setTrackChanges(false);
+                xml = partText(*doc, QStringLiteral("word/document.xml"));
+                QVERIFY2(xml.count(QStringLiteral("<w:tbl>")) == 2, where.constData());
+                QVERIFY2(xml == wasXml, where.constData());
+            }
+        }
+    }
+}
+
+// What the clipboard and Keep Text Only get of a table selection is what was selected: the empty paragraphs that the paste of a table uses stay in the copy's private form.
+void WriteTests::theClipboardHoldsWhatWasSelectedOfATable()
+{
+    auto doc = tableSource();
+    QVERIFY(doc);
+    PageView view;
+    view.setDocument(doc.get());
+    const int cellStart = positionAfter(*doc, QStringLiteral("Intro")) + 1, tableEnd = positionAfter(*doc, QStringLiteral("Low C"));
+    struct Case { int from, to; };
+    // Begins in the first cell, ends at the end of the last (the same table), begins in the first and ends after it, and begins before it and ends in it.
+    for (const Case &k : {Case{cellStart, tableEnd}, Case{cellStart, positionAfter(*doc, QStringLiteral("After"))}, Case{positionAfter(*doc, QStringLiteral("Intro")) - 5, tableEnd}}) {
+        const QTextCursor sel = selecting(*doc, k.from, k.to);
+        view.cursor() = sel;
+        view.copy();
+        const QMimeData *mime = QApplication::clipboard()->mimeData();
+        QVERIFY(mime);
+        // (what the selection holds, as Qt makes of it: the clipboard of the program before tables were kept had exactly this)
+        const QTextDocumentFragment plain(sel);
+        QCOMPARE(mime->html(), plain.toHtml());
+        QVERIFY2(!mime->text().startsWith(QLatin1Char('\n')) && !mime->text().endsWith(QLatin1Char('\n')), qPrintable(mime->text()));
+        const Clip clip = copySelection(*doc, sel);
+        QCOMPARE(clip.fragment.toHtml(), plain.toHtml());
+        QCOMPARE(plainTextOf(clip.fragment), mime->text());
+        // The words Keep Text Only pastes are those words.
+        view.cursor().setPosition(doc->story()->characterCount() - 1);
+        const int before = doc->story()->blockCount();
+        view.pasteAs(PageView::PasteKind::TextOnly);
+        QCOMPARE(doc->story()->blockCount() - before, int(mime->text().count(QLatin1Char('\n'))));
+        QVERIFY(doc->undo());
+    }
+    // The text of the first case, as it reads.
+    view.cursor() = selecting(*doc, cellStart, tableEnd);
+    view.copy();
+    QCOMPARE(QApplication::clipboard()->mimeData()->text(), QStringLiteral("Head A\nHead BC\nTall\nOuter\nInner\n\nRight\n\nLow B\nLow C"));
+}
+
+// A table selection pasted into a cell or a header makes no paragraph of its own (the words go in as they did before tables were kept).
+void WriteTests::aTableSelectionPastedIntoACellOrAHeaderStartsNoParagraph()
+{
+    auto src = tableSource();
+    const Clip clip = copySelection(*src, selecting(*src, positionAfter(*src, QStringLiteral("Intro")) + 1, positionAfter(*src, QStringLiteral("Low C"))));
+    QVERIFY(!clip.tables.isEmpty());
+    const int added = int(plainTextOf(clip.fragment).count(QLatin1Char('\n')));
+    {
+        auto doc = open(makeDocx("<w:p><w:r><w:t>Top</w:t></w:r></w:p><w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"3000\"/></w:tblGrid>"
+                                 "<w:tr><w:tc><w:p><w:r><w:t>Cell ab</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p><w:r><w:t>End</w:t></w:r></w:p>", kPlainStyles));
+        QTextCursor c(doc->story());
+        c.setPosition(positionAfter(*doc, QStringLiteral("Cell a")));
+        const int before = paragraphsOf(*doc);
+        pasteClip(*doc, c, clip);
+        QCOMPARE(paragraphsOf(*doc) - before, added);
+        QCOMPARE(tablesIn(*doc), 1);
+    }
+    {
+        auto doc = open(makeDocx("<w:p><w:r><w:t>Body</w:t></w:r></w:p>", kPlainStyles));
+        QVERIFY(doc->createHeaderFooter(0, false, WriteDoc::kDefaultSlot));
+        QTextDocument *header = doc->editableHeaderFooter(0, false, WriteDoc::kDefaultSlot);
+        QVERIFY(header);
+        QTextCursor c(header);
+        c.insertText(QStringLiteral("Head ab"));
+        c.setPosition(6);
+        const int before = header->blockCount();
+        pasteClip(*doc, c, clip);
+        QCOMPARE(header->blockCount() - before, added);
+    }
+}
+
+// A table pasted (in this document, and in another) is saved as its source was, apart from ids: no paragraph-mark properties are made up for a bold cell.
+void WriteTests::aPastedTableIsSavedAsItsSourceWas()
+{
+    auto src = tableSource();
+    // The outer table of a saved document, from its start to the end of its last row.
+    const auto tableOf = [](const QString &xml, int which) {
+        // (the which-th table that is not inside another: from its start to the end tag that closes it)
+        int depth = 0, start = -1, seen = 0;
+        for (int i = 0; i < xml.size();) {
+            const int open = xml.indexOf(QStringLiteral("<w:tbl>"), i), close = xml.indexOf(QStringLiteral("</w:tbl>"), i);
+            if (close < 0) break;
+            if (open >= 0 && open < close) {
+                if (depth++ == 0) start = open;
+                i = open + 1;
+            } else {
+                if (--depth == 0 && seen++ == which) return xml.mid(start, close + 8 - start);
+                i = close + 1;
+            }
+        }
+        return QString();
+    };
+    // (the writer says xml:space on words with a space in them, and writes an empty paragraph in full, as a file that was never changed may not)
+    const auto normalized = [](QString x) { return x.remove(QStringLiteral(" xml:space=\"preserve\"")).replace(QStringLiteral("<w:p/>"), QStringLiteral("<w:p></w:p>")); };
+    const QString sourceTable = tableOf(partText(*src, QStringLiteral("word/document.xml")), 0);
+    QVERIFY(sourceTable.contains(QStringLiteral("Head A")));
+    for (const bool another : {false, true}) {
+        const Clip clip = copySelection(*src, selecting(*src, positionAfter(*src, QStringLiteral("Intro")) + 1, positionAfter(*src, QStringLiteral("Low C"))));
+        auto target = another ? open(makeDocx("<w:p><w:r><w:t>Top</w:t></w:r></w:p>", kPlainStyles)) : tableSource();
+        QTextCursor c(target->story());
+        c.setPosition(another ? 3 : positionAfter(*target, QStringLiteral("After")));
+        pasteClip(*target, c, clip);
+        const QString xml = partText(*target, QStringLiteral("word/document.xml"));
+        const QString pasted = tableOf(xml, another ? 0 : 1);
+        QVERIFY(!pasted.isEmpty());
+        const QString a = normalized(pasted), b = normalized(sourceTable);
+        int differs = 0;
+        while (differs < a.size() && differs < b.size() && a[differs] == b[differs]) ++differs;
+        const QByteArray said = (QByteArray(another ? "another document: " : "the same document: ") + "pasted ..." + a.mid(std::max(0, differs - 60), 160).toUtf8() + "... source ..." + b.mid(std::max(0, differs - 60), 160).toUtf8());
+        QVERIFY2(a == b, said.constData());
+        // (and no paragraph around it gains a property: the saved paragraphs outside the table are the plain ones)
+        QVERIFY2(!xml.contains(QStringLiteral("<w:pPr><w:rPr>")), another ? "another document" : "the same document");
+    }
+}
+
+// A table the selection holds whole that goes as its words says so, and why; a copy of a few words says nothing.
+void WriteTests::aTableThatGoesAsItsWordsIsSaid()
+{
+    const QByteArray row = "<w:tc><w:tcPr><w:tcW w:w=\"2000\" w:type=\"dxa\"/></w:tcPr><w:p><w:r><w:t>Kept</w:t></w:r></w:p></w:tc>";
+    const QByteArray table = "<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"2000\"/></w:tblGrid><w:tr>" + row + "</w:tr>"
+                             "<w:tr><w:trPr><w:ins w:id=\"7\" w:author=\"Pat\" w:date=\"2026-01-01T00:00:00Z\"/></w:trPr><w:tc><w:tcPr><w:tcW w:w=\"2000\" w:type=\"dxa\"/></w:tcPr><w:p><w:ins w:id=\"8\" w:author=\"Pat\" w:date=\"2026-01-01T00:00:00Z\"><w:r><w:t>Added row</w:t></w:r></w:ins></w:p></w:tc></w:tr></w:tbl>";
+    // A tracked change in it.
+    {
+        auto doc = open(makeDocx("<w:p><w:r><w:t>Before</w:t></w:r></w:p>" + table + "<w:p><w:r><w:t>Tail</w:t></w:r></w:p>", kPlainStyles));
+        QVERIFY(doc);
+        PageView view;
+        view.setDocument(doc.get());
+        QStringList said;
+        connect(&view, &PageView::notice, this, [&](const QString &t) { said << t; });
+        view.cursor() = selecting(*doc, 0, positionAfter(*doc, QStringLiteral("Tail")));
+        view.copy();
+        QCOMPARE(said.size(), 1);
+        QVERIFY2(said[0].contains(QStringLiteral("tracked")) && said[0].contains(QStringLiteral("not as a table")), qPrintable(said[0]));
+        QVERIFY(copySelection(*doc, view.cursor()).tables.isEmpty());
+        // A few words of the table say nothing (no table was held whole).
+        said.clear();
+        view.cursor() = selecting(*doc, positionAfter(*doc, QStringLiteral("Kep")) - 2, positionAfter(*doc, QStringLiteral("Kep")));
+        view.copy();
+        QVERIFY2(said.isEmpty(), qPrintable(said.join(QLatin1Char('|'))));
+    }
+    // A selection that holds only a part of a content control, and a table whole.
+    {
+        auto doc = open(makeDocx("<w:p><w:r><w:t>a</w:t></w:r><w:sdt><w:sdtPr><w:id w:val=\"5\"/></w:sdtPr><w:sdtContent><w:r><w:t>Ctl</w:t></w:r></w:sdtContent></w:sdt></w:p>"
+                                 "<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"2000\"/></w:tblGrid><w:tr>" + row + "</w:tr></w:tbl><w:p><w:r><w:t>Tail</w:t></w:r></w:p>", kPlainStyles));
+        QVERIFY(doc);
+        PageView view;
+        view.setDocument(doc.get());
+        QStringList said;
+        connect(&view, &PageView::notice, this, [&](const QString &t) { said << t; });
+        view.cursor() = selecting(*doc, positionAfter(*doc, QStringLiteral("Ct")), positionAfter(*doc, QStringLiteral("Tail")));
+        view.copy();
+        QCOMPARE(said.size(), 1);
+        QVERIFY2(said[0].contains(QStringLiteral("content control")), qPrintable(said[0]));
+    }
+    // Plain tables say nothing.
+    {
+        auto doc = tableSource();
+        PageView view;
+        view.setDocument(doc.get());
+        QStringList said;
+        connect(&view, &PageView::notice, this, [&](const QString &t) { said << t; });
+        view.cursor() = selecting(*doc, 0, positionAfter(*doc, QStringLiteral("After")));
+        view.copy();
+        QVERIFY2(said.isEmpty(), qPrintable(said.join(QLatin1Char('|'))));
+    }
+}
+
+// A few words of a table cost no more than the words (the places of the document's tables are made only for a selection that can hold a whole table), and the Spike counts the tables it holds.
+void WriteTests::aCopyInsideATableReadsNoTablesAndTheSpikeCountsTheTablesItHolds()
+{
+    QByteArray rows;
+    for (int i = 0; i < 40; ++i) rows += "<w:tr><w:tc><w:p><w:r><w:t>c" + QByteArray::number(i) + "</w:t></w:r></w:p></w:tc></w:tr>";
+    auto doc = open(makeDocx("<w:p><w:r><w:t>Top</w:t></w:r></w:p><w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"2000\"/></w:tblGrid>" + rows + "</w:tbl><w:p><w:r><w:t>Tail</w:t></w:r></w:p>", kPlainStyles));
+    QVERIFY(doc);
+    const int inCell = positionAfter(*doc, QStringLiteral("c20"));
+    const qint64 builds = copyTableIndexBuildsForTest();
+    // A few characters of a cell; a whole cell's words (they begin the paragraph, which is not a table's first); rows from the middle to the end of the table.
+    for (const auto &range : {std::pair<int, int>{inCell - 2, inCell}, std::pair<int, int>{inCell - 3, inCell}, std::pair<int, int>{inCell - 3, positionAfter(*doc, QStringLiteral("c30"))}}) {
+        const Clip clip = copySelection(*doc, selecting(*doc, range.first, range.second));
+        QVERIFY(clip.tables.isEmpty());
+        QVERIFY(clip.tablesAsWords > 0);
+    }
+    QCOMPARE(copyTableIndexBuildsForTest(), builds);
+    // A selection that begins at a table's first paragraph can hold the whole table: the places are made, once.
+    const Clip whole = copySelection(*doc, selecting(*doc, positionAfter(*doc, QStringLiteral("Top")) + 1, positionAfter(*doc, QStringLiteral("c39"))));
+    QCOMPARE(copyTableIndexBuildsForTest(), builds + 1);
+    QCOMPARE(int(whole.tables.size()), 1);
+    QCOMPARE(int(whole.tables[0].rows.size()), 40);
+    // The Spike counts what holds the table: with room for the words and not for the table, the cut is refused and the table stays.
+    PageView::emptySpike();
+    const auto restore = qScopeGuard([] { PageView::emptySpike(); PageView::setSpikeByteLimit(64 * 1024 * 1024); });
+    PageView view;
+    view.setDocument(doc.get());
+    QStringList said;
+    connect(&view, &PageView::notice, this, [&](const QString &t) { said << t; });
+    PageView::setSpikeByteLimit(qint64(plainTextOf(whole.fragment).size()) * 2 * 3);   // (three times the words: the table's own bytes are more than the rest)
+    view.cursor() = selecting(*doc, positionAfter(*doc, QStringLiteral("Top")) + 1, positionAfter(*doc, QStringLiteral("c39")));
+    view.cutToSpike();
+    QCOMPARE(PageView::spikeCount(), 0);
+    QCOMPARE(tablesIn(*doc), 1);
+    QVERIFY2(said.size() == 1 && said[0].contains(QStringLiteral("Spike is full")), qPrintable(said.join(QLatin1Char('|'))));
+    // (and with room, the same cut goes)
+    PageView::setSpikeByteLimit(64 * 1024 * 1024);
+    view.cursor() = selecting(*doc, positionAfter(*doc, QStringLiteral("Top")) + 1, positionAfter(*doc, QStringLiteral("c39")));
+    view.cutToSpike();
+    QCOMPARE(PageView::spikeCount(), 1);
+    QCOMPARE(tablesIn(*doc), 0);
+}
+
+// RTF on the clipboard and Insert Text from File keep a table as a table, within the same limits of a copy.
+void WriteTests::aTableInRtfOrATextFileIsATableWithinTheLimitsOfACopy()
+{
+    const auto restore = qScopeGuard([] { setCopyLimitsForTest(0, 0); });
+    QByteArray rtf = "{\\rtf1\\ansi\\deff0 Before\\par ";
+    QByteArray body = "<w:p><w:r><w:t>Before</w:t></w:r></w:p>";
+    for (int i = 0; i < 5; ++i) {
+        rtf += "\\trowd\\cellx2000\\cellx4000\\intbl T" + QByteArray::number(i) + "a\\cell T" + QByteArray::number(i) + "b\\cell\\row\\pard between\\par ";
+        body += "<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"2000\"/><w:gridCol w:w=\"2000\"/></w:tblGrid><w:tr><w:tc><w:p><w:r><w:t>T" + QByteArray::number(i) + "a</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>T" + QByteArray::number(i) +
+                "b</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p><w:r><w:t>between</w:t></w:r></w:p>";
+    }
+    rtf += "}";
+    const QByteArray file = makeDocx(body, kPlainStyles);
+    const auto emptyTarget = [] { return open(makeDocx("<w:p><w:r><w:t>Top</w:t></w:r></w:p>", kPlainStyles)); };
+    const auto fromRtf = [&](WriteDoc &target) {
+        Clip clip;
+        if (!clipFromRtf(rtf, &clip)) return false;
+        QTextCursor c(target.story());
+        c.setPosition(3);
+        pasteClip(target, c, clip);
+        return true;
+    };
+    const auto fromFile = [&](WriteDoc &target) {
+        QTextCursor c(target.story());
+        c.setPosition(3);
+        QString problem;
+        return insertTextFromFile(target, c, file, &problem);
+    };
+    // Without limits: five tables each way (saved as tables in the file the document saves, which says each is one with two cells).
+    for (const bool rtfPath : {true, false}) {
+        auto target = emptyTarget();
+        QVERIFY(rtfPath ? fromRtf(*target) : fromFile(*target));
+        QCOMPARE(tablesIn(*target), 5);
+        QVERIFY(allText(*target).contains(QStringLiteral("T4b")));
+        QVERIFY(target->undo());
+        QCOMPARE(tablesIn(*target), 0);
+    }
+    // The most tables: the rest of them are their words (and the words are all there).
+    setCopyLimitsForTest(3, 0);
+    for (const bool rtfPath : {true, false}) {
+        auto target = emptyTarget();
+        QVERIFY(rtfPath ? fromRtf(*target) : fromFile(*target));
+        QCOMPARE(tablesIn(*target), 3);
+        QVERIFY(allText(*target).contains(QStringLiteral("T4b")) && allText(*target).contains(QStringLiteral("T3a")));
+    }
+    // The most cells (all the tables together): each table has two, so 5 hold the first two tables only.
+    setCopyLimitsForTest(0, 5);
+    for (const bool rtfPath : {true, false}) {
+        auto target = emptyTarget();
+        QVERIFY(rtfPath ? fromRtf(*target) : fromFile(*target));
+        QCOMPARE(tablesIn(*target), 2);
+        QVERIFY(allText(*target).contains(QStringLiteral("T4b")));
+    }
+}
+
+// A shape and a text box in a block come in again, in this document and in another (they were lost without a word: a pasted shape had no picture to find, so it was not made again).
+void WriteTests::aShapeAndATextBoxInABlockComeBackAsObjects()
+{
+    auto src = open(makeDocx("<w:p><w:r><w:t>Words</w:t></w:r></w:p><w:p><w:r><w:t>More</w:t></w:r></w:p>", kPlainStyles));
+    QTextCursor at(src->story());
+    at.setPosition(2);
+    QCOMPARE(insertTextBox(*src, at, textBoxDesigns().first()), PictureResult::Ok);
+    QTextCursor at2(src->story());
+    at2.setPosition(allText(*src).size() - 1);
+    QCOMPARE(insertShape(*src, at2, QStringLiteral("rect")), PictureResult::Ok);
+    const auto boxes = [](WriteDoc &doc) {
+        int withStory = 0;
+        for (const flow::FloatingObject &o : doc.flow().objects)
+            if (o.story) ++withStory;
+        return withStory;
+    };
+    QCOMPARE(int(src->flow().objects.size()), 2);
+    QCOMPARE(boxes(*src), 1);
+    QTextCursor all(src->story());
+    all.select(QTextCursor::Document);
+    QString problem;
+    QStringList said;
+    const QByteArray block = jp::write::blockFromSelection(*src, all, &problem, &said);
+    QVERIFY2(!block.isEmpty(), qPrintable(problem));
+    QVERIFY2(said.isEmpty(), qPrintable(said.join(QLatin1Char('|'))));
+    // Put in another document, a second time, and Undo takes both out.
+    auto target = open(makeDocx("<w:p><w:r><w:t>Top</w:t></w:r></w:p>", kPlainStyles));
+    for (int times = 1; times <= 2; ++times) {
+        QTextCursor c(target->story());
+        c.setPosition(3);
+        QVERIFY2(jp::write::insertBlock(*target, c, block, jp::BlockInsert::Paragraph, &problem), qPrintable(problem));
+        QCOMPARE(int(target->flow().objects.size()), 2 * times);
+        QCOMPARE(boxes(*target), times);
+    }
+    QVERIFY(target->undo());
+    // And they are in the file the document saves (the objects of the second putting in went with Undo; the records of them are kept for Redo).
+    auto again = open(target->toDocx());
+    QVERIFY(again);
+    QCOMPARE(int(again->flow().objects.size()), 2);
+    QCOMPARE(boxes(*again), 1);
 }
 
 void WriteTests::aBlockPutInTwiceHasBookmarksOfItsOwnEachTime()

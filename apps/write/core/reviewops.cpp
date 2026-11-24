@@ -382,9 +382,17 @@ QTextCharFormat withRevisionLook(QTextCharFormat f, bool deleted, int kind, int 
 
 QString revisionAuthorOf(const QByteArray &startTag) { return attributeOf(startTag, "author"); }
 
+namespace {
+std::atomic<qint64> g_revisionTimeForTest{-1};   // (seconds since the epoch the marks of changes say it is, or -1 for the time now)
+}
+
+void setRevisionTimeForTest(qint64 secondsSinceEpoch) { g_revisionTimeForTest = secondsSinceEpoch; }
+
 QByteArray revisionStartTag(WriteDoc &doc, const QString &tag)
 {
-    const QString date = jp::fixedText(QDateTime::currentDateTimeUtc(), QStringLiteral("yyyy-MM-ddTHH:mm:ssZ"));
+    const qint64 fixed = g_revisionTimeForTest.load();
+    const QDateTime now = fixed >= 0 ? QDateTime::fromSecsSinceEpoch(fixed, QTimeZone::UTC) : QDateTime::currentDateTimeUtc();
+    const QString date = jp::fixedText(now, QStringLiteral("yyyy-MM-ddTHH:mm:ssZ"));
     return "<w:" + tag.toLatin1() + " w:id=\"" + QByteArray::number(doc.nextRevisionId()) + "\" w:author=\"" + escapeAttribute(doc.reviewer()) + "\" w:date=\"" + date.toLatin1() + "\">";
 }
 
@@ -1310,6 +1318,7 @@ int resolveRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision
     }
     QMap<int, QVector<Revision>> byBlock;
     for (const Revision &r : which) byBlock[r.block].push_back(r);
+    QVector<QTextCursor> marksBeforeTables;   // (a mark taken out joins its paragraph to the next, which a table is not: that waits for the tables the changes take out)
     for (auto bi = byBlock.end(); bi != byBlock.begin();) {
         --bi;
         const int blockNumber = bi.key();
@@ -1387,7 +1396,9 @@ int resolveRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision
         // The paragraph's mark, last: taking it away joins the paragraph to the one after it.
         if (markDeleted || markInserted) {
             const bool removes = markDeleted ? accept : !accept;
-            if (removes) removeMark(doc, story, blockNumber);
+            const QTextBlock here = story->findBlockByNumber(blockNumber);
+            if (removes && !tablePlaces.isEmpty() && here.isValid() && here.next().isValid() && inTable(here.next()) && !inTable(here)) marksBeforeTables.push_back(QTextCursor(here));
+            else if (removes) removeMark(doc, story, blockNumber);
             else clearMarkRecord(story->findBlockByNumber(blockNumber));
             ++done;
             if (partners && markSecond) ++*partners;
@@ -1395,6 +1406,7 @@ int resolveRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision
     }
     edit.endEditBlock();
     if (!tablePlaces.isEmpty()) done += resolveTableRevisions(doc, story, tablePlaces, accept, kept);
+    for (const QTextCursor &at : std::as_const(marksBeforeTables)) removeMark(doc, story, at.blockNumber());
     return done;
 }
 

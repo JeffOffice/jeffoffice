@@ -521,6 +521,7 @@ protected:
     bool focusNextPrevChild(bool next) override;
 
 private:
+    void sayTablesAreWords(const Clip &clip);
     struct Rendered;
     struct Hit {
         int page = -1;

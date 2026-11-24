@@ -178,8 +178,13 @@ struct Clip {
     // The tables the copy holds whole, kept as tables (see core/tableops.h), with the table styles they use (bases first). A paragraph of the fragment in one has the key of its cell there.
     QVector<CopiedTable> tables;
     QVector<office::wml::Style> tableStyles;
-    bool bracketedBefore = false, bracketedAfter = false;   // the fragment has an empty paragraph made before it, or after it (a copy that begins or ends in a table)
+    QVector<QTextCharFormat> cellMarks;   // the mark of each paragraph that is in a cell of those tables, in order
+    QTextDocumentFragment fragmentForTables;   // the fragment with an empty paragraph made before it, or after it (a copy that begins or ends in a table), for the paste that makes the tables again; empty: the fragment is used
+    bool bracketedBefore = false, bracketedAfter = false;   // the fragmentForTables has an empty paragraph before it, or after it
     int tablesAsWords = 0;          // tables the copy holds a part of, or too many of: their words only
+    // Of those, the ones the selection held whole and could not keep as tables: a table with a tracked change, one in a selection that holds a part of a content control, or one past the most a copy keeps.
+    enum class WholeAsWords { None, Changes, Control, Many };
+    WholeAsWords wholeAsWords = WholeAsWords::None;
     bool isEmpty() const { return fragment.isEmpty(); }
 };
 // `keepChangedTables`: a table with a tracked change of its own is kept as a table too (the caller settles the change), not made its words.

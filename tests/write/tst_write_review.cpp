@@ -1,6 +1,7 @@
 // Tests of JeffWrite's review features (apps/write/core/reviewops.*, commentops.*): tracked changes (finding, accepting, rejecting, making), the way they are shown, and comments.
 // Each document is built here from a few lines of XML.
 
+#include <QScopeGuard>
 #include "../isolatesettings.h"
 #include "../withdialog.h"
 #include "../pub/threadscript.h"
@@ -977,12 +978,14 @@ private Q_SLOTS:
         QVERIFY(doc);
         doc->setReviewer(QStringLiteral("Zed \"Z\" <&>"), QStringLiteral("Z"));
         doc->setTrackChanges(true);
-        const qint64 before = QDateTime::currentSecsSinceEpoch();
+        // (The time the mark says is the time of the change: set here, so that no turn of a second can matter; the real clock is read once below, for a mark made with none set.)
+        constexpr qint64 kNow = 1767225600;   // 2026-01-01T00:00:00Z
+        setRevisionTimeForTest(kNow);
+        const auto clockBack = qScopeGuard([] { setRevisionTimeForTest(-1); });
         QTextCursor c(doc->story());
         c.setPosition(5);
         for (const QChar ch : QStringLiteral("abc")) insertText(*doc, c, QString(ch));
         QCOMPARE(finalText(*doc), QStringLiteral("helloabc"));
-        const qint64 after = QDateTime::currentSecsSinceEpoch();
         const QByteArray x = documentXml(doc->toDocx());
         QCOMPARE(x.count("<w:ins "), 1);
         QCOMPARE(x.count("</w:ins>"), 1);
@@ -990,9 +993,15 @@ private Q_SLOTS:
         const QRegularExpressionMatch m = tag.match(QString::fromUtf8(x));
         QVERIFY2(m.hasMatch(), x.constData());
         QCOMPARE(m.captured(2), QStringLiteral("Zed &quot;Z&quot; &lt;&amp;&gt;"));
-        QDateTime when = QDateTime::fromString(m.captured(3), Qt::ISODate);
-        when.setTimeZone(QTimeZone::UTC);
-        QVERIFY2(when.toSecsSinceEpoch() >= before && when.toSecsSinceEpoch() <= after, qPrintable(m.captured(3)));
+        QCOMPARE(m.captured(3), QStringLiteral("2026-01-01T00:00:00Z"));
+        // Without a time set, the mark has the time of the day it was made (a day's margin on either side: the second it falls in is not what is asked).
+        setRevisionTimeForTest(-1);
+        const qint64 before = QDateTime::currentSecsSinceEpoch();
+        const QByteArray tagNow = revisionStartTag(*doc, QStringLiteral("ins"));
+        const qint64 after = QDateTime::currentSecsSinceEpoch();
+        QVERIFY2(tagNow.contains("w:date=\""), tagNow.constData());
+        QDateTime stamp = QDateTime::fromString(QString::fromUtf8(tagNow.mid(tagNow.indexOf("w:date=\"") + 8, 20)), Qt::ISODate);
+        QVERIFY2(stamp.isValid() && stamp.toSecsSinceEpoch() >= before - 86400 && stamp.toSecsSinceEpoch() <= after + 86400, tagNow.constData());
         QVERIFY2(x.contains("</w:ins>") && x.indexOf("abc") > x.indexOf("<w:ins ") && x.indexOf("abc") < x.indexOf("</w:ins>"), x.constData());
         // The document says it tracks, and the one who opens it again finds the change with its author.
         QVERIFY2(settingsXml(doc->toDocx()).contains("<w:trackRevisions/>"), settingsXml(doc->toDocx()).constData());

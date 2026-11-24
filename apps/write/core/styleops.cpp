@@ -737,26 +737,71 @@ int importStyles(WriteDoc &doc, const WriteDoc &from, const QStringList &ids, bo
     return int(put.size());
 }
 
-int importTableStyles(WriteDoc &doc, const QVector<Style> &styles, const QStringList &used)
+int importTableStyles(WriteDoc &doc, const QVector<Style> &styles, const QStringList &used, QHash<QString, QString> *renamed)
 {
     int put = 0;
     QTextCursor edit(doc.story());
     edit.beginEditBlock();
-    // (Bases first. A style the document has under that id is not changed, and one whose name another style has is not taken twice.)
+    // What a style is, as its definition says (not as the file it came from spelled it).
+    auto definition = [](Style s) {
+        s.isDefault = false;
+        s.link.clear();
+        s.raw.clear();
+        s.attrs.clear();
+        return styleXml(s);
+    };
+    auto same = [&](Style a, const Style &b) {
+        a.id = b.id;
+        a.name = b.name;
+        a.customStyle = b.customStyle;
+        return definition(a) == definition(b);
+    };
+    QHash<QString, QString> into;   // a style of the copy whose id here is another style's: the id it was put in under
+    // (Bases first. A style the document has under that id is not changed: when it is the same style the table uses it, and when it is another it is brought in under a new name.
+    // One whose name another style has is not taken twice.)
     for (const Style &s : styles) {
-        if (doc.styleSheet().find(s.id) || doc.styleSheet().styles.size() >= kMostStylesMade) continue;
-        if (!styleNameProblem(doc, s.name.isEmpty() ? s.id : s.name, QString()).isEmpty()) continue;
+        if (doc.styleSheet().styles.size() >= kMostStylesMade) continue;
         Style t = s;
         t.isDefault = false;
         t.link.clear();
+        if (into.contains(t.basedOn)) t.basedOn = into.value(t.basedOn);
+        if (const Style *have = doc.styleSheet().find(s.id)) {
+            if (same(t, *have)) continue;
+            // (One put in under a new name by an earlier copy, of the same definition, is the one to use again.)
+            QString id, name;
+            bool reused = false;
+            const QString base = s.name.isEmpty() ? s.id : s.name;
+            for (int n = 2; n < 1000 && id.isEmpty() && !reused; ++n) {
+                const QString tryId = s.id + QString::number(n), tryName = base + QLatin1Char(' ') + QString::number(n);
+                if (const Style *other = doc.styleSheet().find(tryId)) {
+                    if (same(t, *other)) {
+                        into.insert(s.id, tryId);
+                        reused = true;
+                    }
+                } else if (styleNameProblem(doc, tryName, QString()).isEmpty()) {
+                    id = tryId;
+                    name = tryName;
+                }
+            }
+            if (reused || id.isEmpty()) continue;
+            t.id = id;
+            t.name = name;
+            t.raw.clear();
+            t.customStyle = true;
+            into.insert(s.id, id);
+        } else if (!styleNameProblem(doc, s.name.isEmpty() ? s.id : s.name, QString()).isEmpty()) {
+            continue;
+        }
         if (!t.basedOn.isEmpty() && !doc.styleSheet().find(t.basedOn) && !doc.ensureTableStyle(t.basedOn)) t.basedOn.clear();
         doc.putStyle(t);
         ++put;
     }
-    for (const QString &id : used) doc.ensureTableStyle(id);   // (a built-in table style the document lacks is made as a table made there would)
+    for (const QString &id : used)
+        if (!into.contains(id)) doc.ensureTableStyle(id);   // (a built-in table style the document lacks is made as a table made there would)
     if (put > 0) touchStyles(doc);
     edit.endEditBlock();
     if (put > 0 && !doc.settleStyleEdit()) return 0;
+    if (renamed) *renamed = into;
     return put;
 }
 

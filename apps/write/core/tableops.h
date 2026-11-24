@@ -75,14 +75,21 @@ constexpr int kMostCopiedCells = 20000;     // cells of all of them together
 struct CopiedTables {
     QVector<CopiedTable> tables;            // outer tables before the ones in their cells
     int asWords = 0;                        // tables the selection held a part of, or held more of than a copy keeps: copied as their words
+    int wholeAsWords = 0;                   // of those, the ones it held whole (with a tracked change of their own, or more than a copy keeps)
+    bool changedAsWords = false;            // one of them is one with a tracked change
     bool startsInTable = false, endsInTable = false;   // the copy begins at the first paragraph of a table, or ends inside one's last
 };
 // The tables a selection in the text holds whole. A table with a tracked change of its own is words unless `keepChanged`.
 CopiedTables copyTables(const WriteDoc &doc, const QTextCursor &selection, bool keepChanged = false);
+// For tests: the most tables and the most cells a copy keeps as tables (0 for each: the constants above).
+void setCopyLimitsForTest(int tables, qint64 cells);
+// For tests of cost: how many times a copy made the places of the document's tables, since the program began.
+qint64 copyTableIndexBuildsForTest();
 // The id of the table style a table's start names ("" for none).
 QString tableStyleIdOf(const QByteArray &open);
 // Makes the records of copied tables in this document (its table styles must be here already): the key of each cell that now holds the paragraphs of the cell of that key in the copy.
-QHash<int, int> makeCopiedTables(WriteDoc &doc, const QVector<CopiedTable> &tables);
+// `tracked`: each row made is a tracked insertion of the reviewer's.
+QHash<int, int> makeCopiedTables(WriteDoc &doc, const QVector<CopiedTable> &tables, bool tracked = false);
 // The paragraphs from `first` to `last` take the keys `keys` says (a key it has no entry for: no cell).
 void giveCellKeys(QTextBlock first, QTextBlock last, const QHash<int, int> &keys);
 // The empty paragraphs a copy that began or ended in a table came to leave beside it (where it was pasted at the start of a paragraph, or at the end of one) go: `head` before the table, `tail` after it

@@ -87,6 +87,17 @@ void PageView::redo()
     }
 }
 
+// A table the selection held whole that goes as its words (and not as a table) is said, with why.
+void PageView::sayTablesAreWords(const Clip &clip)
+{
+    switch (clip.wholeAsWords) {
+    case Clip::WholeAsWords::None: break;
+    case Clip::WholeAsWords::Changes: Q_EMIT notice(tr("A table with changes tracked in it is copied as its words, not as a table. Accept or reject the changes to copy it as a table.")); break;
+    case Clip::WholeAsWords::Control: Q_EMIT notice(tr("A table in a selection that holds only a part of a content control is copied as its words, not as a table.")); break;
+    case Clip::WholeAsWords::Many: Q_EMIT notice(tr("This selection has more tables, or more cells, than a copy keeps as tables, so they are copied as their words.")); break;
+    }
+}
+
 void PageView::copy()
 {
     if (m_shapeEditor) {
@@ -95,6 +106,7 @@ void PageView::copy()
     }
     if (!m_doc || !m_cursor.hasSelection()) return;
     const Clip clip = copySelection(*m_doc, m_cursor);
+    sayTablesAreWords(clip);
     const QTextDocumentFragment &f = clip.fragment;
     auto *mime = new QMimeData;
     // (A field is the text it shows on the page being edited, or the one the caret is on.)
@@ -172,6 +184,17 @@ static qint64 sizeOfClip(const Clip &clip)
 {
     qint64 n = qint64(clip.fragment.toPlainText().size()) * 2;
     for (const Clip::Link &l : clip.links) n += l.data.size();
+    // The tables kept with it: what makes each again, a style's definition, and a mark for each paragraph in a cell.
+    for (const CopiedTable &t : clip.tables) {
+        n += t.open.size() + qint64(t.columns.size()) * qint64(sizeof(double));
+        for (const CopiedTable::Row &r : t.rows) {
+            n += r.open.size();
+            for (const CopiedTable::Cell &cell : r.cells) n += cell.open.size() + qint64(sizeof(CopiedTable::Cell));
+        }
+    }
+    for (const office::wml::Style &s : clip.tableStyles) n += s.raw.size() + s.tail.size() + s.id.size() * 2 + s.name.size() * 2;
+    n += qint64(clip.cellMarks.size()) * qint64(sizeof(QTextCharFormat));
+    if (!clip.fragmentForTables.isEmpty()) n += qint64(clip.fragmentForTables.toPlainText().size()) * 2;
     return n;
 }
 
@@ -180,6 +203,7 @@ void PageView::cutToSpike()
     if (!m_doc || m_readOnly || m_shapeEditor || !m_cursor.hasSelection()) return;
     const Clip clip = copySelection(*m_doc, m_cursor);
     if (clip.isEmpty()) return;
+    sayTablesAreWords(clip);
     // (A spike of at most 1000 cuts, and a limit of bytes: the cut after that is let be, rather than lost.)
     qint64 held = sizeOfClip(clip);
     for (const Clip &c : spike()) held += sizeOfClip(c);

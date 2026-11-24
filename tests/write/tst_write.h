@@ -1913,6 +1913,14 @@ private Q_SLOTS:
     void aTableCopiedToAnotherDocumentIsATableThereWithItsStyle();
     void aTableInABlockComesBackAsATableBetweenParagraphsAndAsOneStep();
     void aTableIsNotCarriedPartWayAndTrackedTablesAreAccepted();
+    void aTablePastedWithChangesTrackedIsAnInsertedTable();
+    void theClipboardHoldsWhatWasSelectedOfATable();
+    void aTableSelectionPastedIntoACellOrAHeaderStartsNoParagraph();
+    void aPastedTableIsSavedAsItsSourceWas();
+    void aTableThatGoesAsItsWordsIsSaid();
+    void aCopyInsideATableReadsNoTablesAndTheSpikeCountsTheTablesItHolds();
+    void aTableInRtfOrATextFileIsATableWithinTheLimitsOfACopy();
+    void aShapeAndATextBoxInABlockComeBackAsObjects();
     void aBlockPutInTwiceHasBookmarksOfItsOwnEachTime();
     void aBlockInAParagraphOfItsOwnLeavesNoEmptyParagraphBeforeIt();
     void aCaretThatMovesDoesNotMakeALibraryListForTheShortcutKey();

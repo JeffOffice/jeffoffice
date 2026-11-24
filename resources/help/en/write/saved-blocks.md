@@ -35,6 +35,6 @@ Choose **Insert > Saved Blocks > Manage Saved Blocks**. You can see each block, 
 - A block can be up to 8 megabytes, and the library holds up to 5,000 blocks.
 - A table is saved as a table when the selection holds all of it. If the selection holds only part of a table, that part is saved as its words, one paragraph for each cell, and JeffWrite tells you before it saves.
 - A bookmark in a block gets a name of its own when you put the block in: if your document already has a bookmark of that name, the new one is named with "_2", "_3", and so on after it.
-- Comments are left out. Footnotes and endnotes are left out. Section breaks are not kept.
+- Comments are left out. Footnotes and endnotes are left out. Section breaks are not kept. Shapes and text boxes are kept and come in again with the block.
 - Tracked changes are accepted when the block is saved: the words that were inserted stay, and the words that were deleted are not in the block, so a block never holds another person's tracked words.
 - A document never adds blocks to your library. Only you do.

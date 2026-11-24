@@ -1,6 +1,7 @@
 #include "core/tableops.h"
 
 #include "core/editops.h"
+#include "core/reviewops.h"
 #include "core/tablemodel.h"
 #include "core/writeprops.h"
 #include "flow/tableflow.h"
@@ -3931,6 +3932,20 @@ QString tableStyleIdOf(const QByteArray &open)
     return id;
 }
 
+namespace {
+std::atomic<qint64> g_copyIndexBuilds{0};
+std::atomic<int> g_mostTables{kMostCopiedTables};
+std::atomic<qint64> g_mostCells{kMostCopiedCells};
+}
+
+void setCopyLimitsForTest(int tables, qint64 cells)
+{
+    g_mostTables = tables > 0 ? tables : kMostCopiedTables;
+    g_mostCells = cells > 0 ? cells : kMostCopiedCells;
+}
+
+qint64 copyTableIndexBuildsForTest() { return g_copyIndexBuilds.load(); }
+
 CopiedTables copyTables(const WriteDoc &doc, const QTextCursor &selection, bool keepChanged)
 {
     CopiedTables out;
@@ -3941,15 +3956,37 @@ CopiedTables copyTables(const WriteDoc &doc, const QTextCursor &selection, bool 
     bool any = false;
     for (QTextBlock blk = d->findBlock(a); blk.isValid() && blk.position() < b && !any; blk = blk.next()) any = cellKeyOf(blk) != 0;
     if (!any) return out;
+    {
+        // A table is held whole only when the selection begins at the start of its first paragraph. Where no paragraph of the selection is a table's first, there is none to find: a few words of a
+        // table with a great many cells cost no more than the words (the places of all the document's tables are not made for them).
+        QSet<const void *> touched;
+        bool startsOne = false;
+        for (QTextBlock blk = d->findBlock(a); blk.isValid() && blk.position() < b; blk = blk.next()) {
+            const int key = cellKeyOf(blk);
+            if (!key) continue;
+            const int before = blk.previous().isValid() ? cellKeyOf(blk.previous()) : 0;
+            for (const flow::CellRecord *r = store.get(key); r; r = store.get(r->parent)) {
+                touched.insert(r->table.get());
+                bool joined = false;
+                for (const flow::CellRecord *p = store.get(before); p && !joined; p = store.get(p->parent)) joined = p->table == r->table;
+                if (blk.position() >= a && !joined) startsOne = true;
+            }
+        }
+        if (!startsOne) {
+            out.asWords = int(touched.size());
+            return out;
+        }
+    }
     flow::TableIndex index;
     index.rebuild(d, store);
+    ++g_copyIndexBuilds;
     qint64 cells = 0;
     for (const flow::TableIndex::Span &span : index.spans()) {
         if (span.to <= a) continue;
         if (span.from >= b) break;
         // (A table is carried when the selection holds all of it; part of one is its words, as ever, and the person is told.)
         const bool whole = a <= span.from && b >= span.to - 1;
-        bool carry = whole && out.tables.size() < kMostCopiedTables;
+        bool carry = whole && out.tables.size() < g_mostTables.load();
         QVector<CopiedTable> made;
         QHash<const void *, int> tableAt;
         QHash<QPair<int, const void *>, int> rowAt;
@@ -3990,9 +4027,10 @@ CopiedTables copyTables(const WriteDoc &doc, const QTextCursor &selection, bool 
                 cell.open = part ? part->open : QByteArray("<w:tc>");
                 cell.key = rec->key;
                 t.rows[ri].cells.push_back(cell);
-                if (++here + cells > kMostCopiedCells) carry = false;
+                if (++here + cells > g_mostCells.load()) carry = false;
             }
         }
+        bool changed = false;
         if (carry && !keepChanged)
             for (const CopiedTable &t : std::as_const(made)) {
                 bool tracked = saysTracked(t.open);
@@ -4000,10 +4038,14 @@ CopiedTables copyTables(const WriteDoc &doc, const QTextCursor &selection, bool 
                     tracked = tracked || saysTracked(r.open);
                     for (const CopiedTable::Cell &c : r.cells) tracked = tracked || saysTracked(c.open);
                 }
-                if (tracked) carry = false;
+                if (tracked) carry = false, changed = true;
             }
         if (!carry) {
             ++out.asWords;
+            if (whole) {
+                ++out.wholeAsWords;
+                out.changedAsWords = out.changedAsWords || changed;
+            }
             continue;
         }
         cells += here;
@@ -4014,7 +4056,7 @@ CopiedTables copyTables(const WriteDoc &doc, const QTextCursor &selection, bool 
     return out;
 }
 
-QHash<int, int> makeCopiedTables(WriteDoc &doc, const QVector<CopiedTable> &tables)
+QHash<int, int> makeCopiedTables(WriteDoc &doc, const QVector<CopiedTable> &tables, bool tracked)
 {
     QHash<int, int> keys;
     for (const CopiedTable &t : tables) {
@@ -4025,6 +4067,12 @@ QHash<int, int> makeCopiedTables(WriteDoc &doc, const QVector<CopiedTable> &tabl
         for (const CopiedTable::Row &row : t.rows) {
             XRow r;
             r.open = row.open;
+            if (tracked) {
+                // (A row made while changes are tracked is an inserted row, as one that is read from a file: Reject All takes it out.)
+                QByteArray mark = revisionStartTag(doc, QStringLiteral("ins"));
+                mark.chop(1);
+                r.open = patchPr(r.open, kRow, {{"ins", mark + "/>"}});
+            }
             for (const CopiedTable::Cell &cell : row.cells) {
                 XCell c;
                 c.open = cell.open;

@@ -116,6 +116,8 @@ int resolveDocumentRevisions(WriteDoc &doc, const QVector<StoryRevision> &which,
 QTextCharFormat withRevisionLook(QTextCharFormat format, bool deleted, int kind, int author, bool alsoInserted = false);
 // The start tag of a w:ins, w:del, w:moveFrom, or w:moveTo, with an Id of its own, the person, and the time now.
 QByteArray revisionStartTag(WriteDoc &doc, const QString &tag);
+// For tests: the time the marks of changes say (seconds since the epoch; -1 for the time now).
+void setRevisionTimeForTest(qint64 secondsSinceEpoch);
 // A piece for the story that begins or ends a change (the format is the invisible piece kept as XML, in the look of `like`).
 QTextCharFormat revisionPiece(const QByteArray &startTag, const QString &tag, bool open, const QTextCharFormat &like);
 // The start tags of the changes that a paragraph's text is inside at `position` (outermost first), as a list of (tag, start tag).
