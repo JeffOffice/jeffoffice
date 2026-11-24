@@ -287,6 +287,21 @@ private Q_SLOTS:
         for (const auto &form : tableForms(shipped)) QVERIFY2(jp::parseFontFaceStyles(form.second) == all, qPrintable(form.first));
     }
 
+    void everyMeasuredFaceHasAWidthForEveryListedCharacter()
+    {
+        const jp::FontWidthText all = jp::parseFontWidthText(shippedLf(":/fontwidths.txt"));
+        QVERIFY(all.chars.size() > 100);
+        for (auto it = all.widths.constBegin(); it != all.widths.constEnd(); ++it) {
+            const QList<QByteArray> ws = it.value().split(',');
+            QVERIFY2(ws.size() == all.chars.size(), qPrintable(it.key()));
+            for (const QByteArray &w : ws) {
+                bool ok = false;
+                const int n = w.toInt(&ok);
+                QVERIFY2(ok && n >= -1 && n < 8192, qPrintable(it.key()));
+            }
+        }
+    }
+
     void iconCatalogReadsAnyLineEnding()
     {
         const QByteArray lf = "# icons\nheart\tlove,Like\nstar\t\nplus\tadd,more\n";

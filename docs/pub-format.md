@@ -1088,3 +1088,14 @@ bold. The widths below are of an "I" stem, which grows by the stroke's width
   textOutput`: a PDF export is `Pdf`, the printer `Print`, the rest `Picture`).
   The printed 0.01 em is one printer driver's reading of the
   simulation; another driver may embolden by its own amount.
+
+## Measuring fonts for resources/fontwidths.txt
+
+`resources/fontwidths.txt` holds the width of every letter of stock fonts that most people do not have installed, so a line breaks where it breaks when the font is there. It holds numbers only (1/2048 of the font size), never font data. To add a family, use a computer that has the fonts installed:
+
+1. Copy `tools/measure_font_widths.ps1` and `resources/fontwidths.txt` to that computer.
+2. Run `powershell -File measure_font_widths.ps1 -Families "Name One,Name Two" -CharsFrom fontwidths.txt -OutDir out`. It writes `out/widths.txt` (lines in the file's own format) and `out/metrics.tsv` (units per em, ascent, descent, and line gap, as numbers). A family that is not installed is listed in `metrics.tsv` as such, and a style the family does not have is left out.
+3. Copy only those two small text files back. Never copy a font file.
+4. Insert the new `widths.txt` lines into `resources/fontwidths.txt` in the file's order, leave the existing lines as they are, and run the font tests.
+
+Before relying on a new run, measure three families already in the file and check that the numbers are the same.
