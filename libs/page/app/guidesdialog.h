@@ -22,6 +22,7 @@ struct GridSettings {
     bool snapGrid = false;
     bool snapObjects = true;
     bool showGuides = false;
+    bool forPage = false;   // a page of a document of words: its own wording, and no ruler guides to add
     RulerGuides guides;
     bool operator==(const GridSettings &o) const
     {

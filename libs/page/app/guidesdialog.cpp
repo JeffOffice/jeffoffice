@@ -129,10 +129,41 @@ void gridGuidesDialog(QWidget *p, Editor *ed, int startTab)
 }
 
 // ---------------- Grid and Guides (a presentation's) ----------------
+// A document of words has the grid and the alignment guides only: no ruler guides, and the words say page.
+static bool pageGridDialog(Dlg &dlg, GridSettings &s)
+{
+    auto *form = new QFormLayout();
+    auto *spacing = measure(std::max(kMinGridSpacing, s.spacing), &dlg.d, kMinGridSpacing, 72 * 10);
+    spacing->setObjectName(QStringLiteral("gridSpacing"));
+    form->addRow(QCoreApplication::translate("GuidesDialog", "Grid spacing"), spacing);
+    auto check = [&](const QString &name, const QString &text, bool on) {
+        auto *c = new QCheckBox(text, &dlg.d);
+        c->setObjectName(name);
+        c->setChecked(on);
+        form->addRow(c);
+        return c;
+    };
+    auto *showGrid = check(QStringLiteral("showGrid"), QCoreApplication::translate("GuidesDialog", "Show the drawing grid on the page"), s.showGrid);
+    auto *snapGrid = check(QStringLiteral("snapGrid"), QCoreApplication::translate("GuidesDialog", "Snap objects to the grid"), s.snapGrid);
+    auto *snapObjects = check(QStringLiteral("snapObjects"), QCoreApplication::translate("GuidesDialog", "Show alignment guides and snap objects to them"), s.snapObjects);
+    dlg.v->addLayout(form);
+    auto *hint = plainLabel(new QLabel(QCoreApplication::translate("GuidesDialog", "Hold Alt while dragging to leave snapping off."), &dlg.d));
+    hint->setWordWrap(true);
+    hint->setEnabled(false);
+    dlg.v->addWidget(hint);
+    if (!dlg.exec()) return false;
+    s.spacing = std::max(kMinGridSpacing, spacing->value());
+    s.showGrid = showGrid->isChecked();
+    s.snapGrid = snapGrid->isChecked();
+    s.snapObjects = snapObjects->isChecked();
+    return true;
+}
+
 bool gridSettingsDialog(QWidget *p, GridSettings &s, const QSizeF &page)
 {
     Dlg dlg(p, QCoreApplication::translate("GuidesDialog", "Grid and Guides"));
     dlg.d.setObjectName(QStringLiteral("gridGuidesDialog"));
+    if (s.forPage) return pageGridDialog(dlg, s);
     auto *form = new QFormLayout();
     auto *spacing = measure(std::max(kMinGridSpacing, s.spacing), &dlg.d, kMinGridSpacing, 72 * 10);
     spacing->setObjectName(QStringLiteral("gridSpacing"));
