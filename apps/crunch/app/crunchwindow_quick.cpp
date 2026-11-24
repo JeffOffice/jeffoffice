@@ -7,7 +7,6 @@
 #include "app/chartdialogs.h"
 #include "app/condpresets.h"
 #include "app/icons.h"
-#include "app/plaintext.h"
 #include "app/quickanalysis.h"
 #include "core/editsession.h"
 #include "core/gotospecial.h"
@@ -109,7 +108,7 @@ void CrunchWindow::createQuickActions()
     m_opsActions << QStringLiteral("edit.quickAnalysis");
     m_quick = new QuickAnalysis(m_view->viewport(), m_view, [this] { return quickTabs(); });
     m_quick->setButtonIcon(icon(QStringLiteral("wand-sparkles")));
-    m_quick->setButtonToolTip(jp::plainToolTip(tr("Quick Analysis (%1)").arg(key.toString(QKeySequence::NativeText))));
+    m_quick->setButtonToolTip(tr("Quick Analysis (%1)").arg(key.toString(QKeySequence::NativeText)));
     m_quickLayer = new QuickPreviewLayer(m_view->viewport());
     connect(m_quick, &QuickAnalysis::previewed, this, [this](const QString &id) { quickPreview(id); });
     connect(m_quick, &QuickAnalysis::previewEnded, this, [this] { quickPreviewEnd(); });

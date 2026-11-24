@@ -25,4 +25,4 @@ Point at a choice, or press the **Left** and **Right** arrow keys to move over t
 
 ## Limits
 
-Quick Analysis looks at up to 1,000,000 cells for totals and sparklines. If you select more, it says so and changes nothing. A choice that would not fit (no room under the cells, for example) says so too.
+Quick Analysis looks at up to 250,000 cells for totals and sparklines. If you select more, it says so and changes nothing. A choice that would not fit (no room under the cells, for example) says so too.

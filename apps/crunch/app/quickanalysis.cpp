@@ -1,5 +1,7 @@
 #include "app/quickanalysis.h"
 
+#include "app/plaintext.h"
+
 #include <QApplication>
 #include <QButtonGroup>
 #include <QCoreApplication>
@@ -55,7 +57,7 @@ void QuickAnalysis::setButtonIcon(const QIcon &icon)
 
 void QuickAnalysis::setButtonToolTip(const QString &text)
 {
-    if (m_button) m_button->setToolTip(text);
+    if (m_button) m_button->setToolTip(plainToolTip(text));
 }
 
 bool QuickAnalysis::isShown() const { return m_button && m_button->isVisible(); }
@@ -150,7 +152,7 @@ void QuickAnalysis::build()
             tile->setIconSize(QSize(kIconSize, kIconSize));
             tile->setToolButtonStyle(Qt::ToolButtonTextUnderIcon);
             tile->setFixedSize(kTileWidth, kTileHeight);
-            tile->setToolTip(c.tip);
+            tile->setToolTip(plainToolTip(c.tip));
             tile->setAccessibleName(c.text);
             tile->setAccessibleDescription(c.tip);
             tile->setAutoRaise(true);

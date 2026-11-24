@@ -416,7 +416,7 @@ private Q_SLOTS:
     void hostileSelectionsAreRefusedBeforeTheyAreScanned()
     {
         EditWindow e;
-        // a sheet whose cells reach AAA2000: more cells than Quick Analysis looks at (1,000,000) when they are all selected
+        // a sheet whose cells reach AAA2000: more cells than Quick Analysis looks at (250,000) when they are all selected
         QVERIFY(e.open(sheetOf({QStringLiteral("A1=1"), QStringLiteral("B1=2"), QStringLiteral("AAA2000=3")})));
         QVERIFY(e.settle());
         crunch::EditSession *s = e.win.w.session();

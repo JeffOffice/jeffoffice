@@ -536,7 +536,7 @@ public:
     QuickTotalsPlan planQuickTotals(int sheet, const jp::office::sheet::CellRange &selection, QuickTotal kind, bool down) const;
     Outcome applyQuickTotals(int sheet, const QuickTotalsPlan &plan, const QString &text);
     // The most cells a plan looks at, and the fewest with data the button needs to be offered; whether the cells of the block hold at least two things (looking at no more than kQuickProbe).
-    static constexpr qint64 kQuickScan = 1000000;
+    static constexpr qint64 kQuickScan = 250000;
     static constexpr qint64 kQuickProbe = 4096;
     bool quickHasData(int sheet, const jp::office::sheet::CellRange &selection) const;
     // The rule shown on the sheet while a choice is looked at: put in the sheet's rules without a step of Undo, and taken out again by `endCondPreview` (nothing else is changed, and the file

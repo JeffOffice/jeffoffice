@@ -98,7 +98,7 @@ EditSession::QuickTotalsPlan EditSession::planQuickTotals(int sheet, const CellR
     const quint32 lastRow = jp::calc::kGridRows - 1, lastCol = jp::calc::kGridCols - 1;
     if (kind == QuickTotal::RunningTotal) {
         if (down ? c1 + 1 + (c1 - c0) > lastCol : r1 + 1 + (r1 - r0) > lastRow) {
-            plan.problem = tr("There is no room beside the cells for the running totals.");
+            plan.problem = tr("There is no room next to the cells for the running totals.");
             return plan;
         }
         for (quint32 c = c0; c <= c1; ++c) {
