@@ -510,7 +510,8 @@ void WriteTests::aTableSelectionPastedIntoACellOrAHeaderStartsNoParagraph()
     auto src = tableSource();
     const Clip clip = copySelection(*src, selecting(*src, positionAfter(*src, QStringLiteral("Intro")) + 1, positionAfter(*src, QStringLiteral("Low C"))));
     QVERIFY(!clip.tables.isEmpty());
-    const int added = int(plainTextOf(clip.fragment).count(QLatin1Char('\n')));
+    // (the words of the selection as the engine copies them: one new paragraph for each paragraph mark in them)
+    const int added = int(QTextDocumentFragment(selecting(*src, positionAfter(*src, QStringLiteral("Intro")) + 1, positionAfter(*src, QStringLiteral("Low C")))).toPlainText().count(QLatin1Char('\n')));
     {
         auto doc = open(makeDocx("<w:p><w:r><w:t>Top</w:t></w:r></w:p><w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"3000\"/></w:tblGrid>"
                                  "<w:tr><w:tc><w:p><w:r><w:t>Cell ab</w:t></w:r></w:p></w:tc></w:tr></w:tbl><w:p><w:r><w:t>End</w:t></w:r></w:p>", kPlainStyles));
@@ -635,7 +636,7 @@ void WriteTests::aTableThatGoesAsItsWordsIsSaid()
 void WriteTests::aCopyInsideATableReadsNoTablesAndTheSpikeCountsTheTablesItHolds()
 {
     QByteArray rows;
-    for (int i = 0; i < 40; ++i) rows += "<w:tr><w:tc><w:p><w:r><w:t>c" + QByteArray::number(i) + "</w:t></w:r></w:p></w:tc></w:tr>";
+    for (int i = 0; i < 40; ++i) rows += "<w:tr><w:tc><w:tcPr><w:tcW w:w=\"2000\" w:type=\"dxa\"/><w:shd w:val=\"clear\" w:color=\"auto\" w:fill=\"FFFF00\"/></w:tcPr><w:p><w:r><w:t>c" + QByteArray::number(i) + "</w:t></w:r></w:p></w:tc></w:tr>";
     auto doc = open(makeDocx("<w:p><w:r><w:t>Top</w:t></w:r></w:p><w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"2000\"/></w:tblGrid>" + rows + "</w:tbl><w:p><w:r><w:t>Tail</w:t></w:r></w:p>", kPlainStyles));
     QVERIFY(doc);
     const int inCell = positionAfter(*doc, QStringLiteral("c20"));
@@ -659,7 +660,7 @@ void WriteTests::aCopyInsideATableReadsNoTablesAndTheSpikeCountsTheTablesItHolds
     view.setDocument(doc.get());
     QStringList said;
     connect(&view, &PageView::notice, this, [&](const QString &t) { said << t; });
-    PageView::setSpikeByteLimit(qint64(plainTextOf(whole.fragment).size()) * 2 * 3);   // (three times the words: the table's own bytes are more than the rest)
+    PageView::setSpikeByteLimit(qint64(plainTextOf(whole.fragment).size()) * 2 * 6);   // (six times the words: the words, the marks, and the second form of the words fit, and the table's own bytes do not)
     view.cursor() = selecting(*doc, positionAfter(*doc, QStringLiteral("Top")) + 1, positionAfter(*doc, QStringLiteral("c39")));
     view.cutToSpike();
     QCOMPARE(PageView::spikeCount(), 0);
