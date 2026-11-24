@@ -69,7 +69,7 @@ EditSession::Preview EditSession::previewFormula(const QString &typed, int sheet
 {
     Preview out;
     if (!m_book || !m_book->calc || typed.trimmed().isEmpty()) return out;
-    const QString text = jp::office::sheet::formulaFromLocale(typed, m_locale);
+    const QString text = jp::office::sheet::formulaFromLocale(typed, formulaLocale());
     jp::calc::ParseOptions po;
     po.arrayFormula = true;   // (a block of cells is shown whole, as {1,2,3})
     po.row = row;

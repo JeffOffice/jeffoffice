@@ -1,3 +1,4 @@
+#include "sheet/fnnames.h"
 #include "core/formulaspot.h"
 
 #include "core/nametable.h"
@@ -180,8 +181,14 @@ std::vector<Completion> CompletionIndex::matches(const QString &word, int cap) c
     int count = 0;
     const FunctionDoc *docs = functionDocs(&count);
     std::vector<Completion> found;
-    for (int i = 0; i < count; ++i)
-        if (QLatin1String(docs[i].name).startsWith(upper)) found.push_back({Completion::Kind::Function, QString::fromLatin1(docs[i].name), -1});
+    for (int i = 0; i < count; ++i) {
+        if (m_language.isEmpty()) {
+            if (QLatin1String(docs[i].name).startsWith(upper)) found.push_back({Completion::Kind::Function, QString::fromLatin1(docs[i].name), -1});
+            continue;
+        }
+        const QString local = jp::office::sheet::localFormulaName(QString::fromLatin1(docs[i].name), m_language);
+        if (local.toUpper().startsWith(upper) || QLatin1String(docs[i].name).startsWith(upper)) found.push_back({Completion::Kind::Function, local, -1});
+    }
     // the names that begin with the word: a place found by halving, then those that follow it (a name that belongs to another sheet is not in the index)
     auto at = std::lower_bound(m_names.begin(), m_names.end(), upper, [](const Entry &e, const QString &w) { return e.upper < w; });
     for (int taken = 0; at != m_names.end() && at->upper.startsWith(upper) && taken < cap; ++at, ++taken) found.push_back({at->table ? Completion::Kind::Table : Completion::Kind::Name, at->shown, at->id});
@@ -215,19 +222,19 @@ QStringList pieces(const FunctionDoc &doc, int argument, int *marked)
 
 }
 
-QString hintPlain(const FunctionDoc &doc, int argument, QChar separator, int *marked)
+QString hintPlain(const FunctionDoc &doc, int argument, QChar separator, int *marked, const QString &shownName)
 {
     int m = -1;
     const QStringList args = pieces(doc, argument, &m);
     if (marked) *marked = m;
-    return QString::fromLatin1(doc.name) + QLatin1Char('(') + args.join(QString(separator) + QLatin1Char(' ')) + QLatin1Char(')');
+    return (shownName.isEmpty() ? QString::fromLatin1(doc.name) : shownName) + QLatin1Char('(') + args.join(QString(separator) + QLatin1Char(' ')) + QLatin1Char(')');
 }
 
-QString hintHtml(const FunctionDoc &doc, int argument, QChar separator)
+QString hintHtml(const FunctionDoc &doc, int argument, QChar separator, const QString &shownName)
 {
     int m = -1;
     const QStringList args = pieces(doc, argument, &m);
-    QString html = QString::fromLatin1(doc.name).toHtmlEscaped() + QStringLiteral("(");
+    QString html = (shownName.isEmpty() ? QString::fromLatin1(doc.name) : shownName).toHtmlEscaped() + QStringLiteral("(");
     for (int i = 0; i < args.size(); ++i) {
         if (i > 0) html += QString(separator).toHtmlEscaped() + QLatin1Char(' ');
         html += i == m ? QStringLiteral("<b>") + args[i].toHtmlEscaped() + QStringLiteral("</b>") : args[i].toHtmlEscaped();

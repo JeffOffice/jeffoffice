@@ -61,6 +61,8 @@ public:
     void setTableColumns(const std::vector<std::pair<QString, QStringList>> &tables);
     // The table a name-less reference ([@Amount]) is of: the table the formula's cell is in (empty for none).
     void setCellTable(const QString &table) { m_cellTable = table.toUpper(); }
+    // The language the functions are offered in (a column of the table of local names; empty: English): a function is found by its local name or its English one, and offered by the local one.
+    void setLanguage(const QString &language) { m_language = language; }
     // The columns of `table` (the cell's, when empty) that begin with the word, then the special items (#All, #Data, #Headers, #Totals, #This Row) that do, at most `cap`.
     std::vector<Completion> columnMatches(const QString &table, const QString &word, int cap = kMaxOffered) const;
 
@@ -73,12 +75,13 @@ private:
     std::vector<Entry> m_names;   // sorted by `upper`
     std::vector<std::pair<QString, QStringList>> m_tableColumns;   // by the table's name in capitals, sorted
     QString m_cellTable;
+    QString m_language;
 };
 
 // "SUM(number1, [number2], ...)" with the argument the cursor is at in bold (html, texts escaped); the separator is the one the person types. The last argument is the one for every
 // argument after it when the list ends in "...".
-QString hintHtml(const FunctionDoc &doc, int argument, QChar separator);
+QString hintHtml(const FunctionDoc &doc, int argument, QChar separator, const QString &shownName = QString());
 // The same without the marks, and the number of the argument that is marked (-1 for none).
-QString hintPlain(const FunctionDoc &doc, int argument, QChar separator, int *marked = nullptr);
+QString hintPlain(const FunctionDoc &doc, int argument, QChar separator, int *marked = nullptr, const QString &shownName = QString());
 
 } // namespace jp::crunch

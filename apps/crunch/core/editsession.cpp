@@ -586,10 +586,27 @@ QString EditSession::formatCodeOf(int sheet, quint32 row, quint32 col) const
     return m_book->book->styles().formatCode(c.style, m_locale);
 }
 
+EntryLocale EditSession::formulaLocale() const
+{
+    EntryLocale l(m_locale);
+    if (m_formulaLanguage.isEmpty() || m_entryInFileForm) return l;
+    l.language = m_formulaLanguage;
+    l.definedName = [this](const QString &word) {
+        for (int i = 0; i < m_nameTable.slots(); ++i)
+            if (m_nameTable.at(i).alive && m_nameTable.at(i).name.compare(word, Qt::CaseInsensitive) == 0) return true;
+        return false;
+    };
+    return l;
+}
+
 EntryOptions EditSession::entryOptions(int, bool textFormat) const
 {
     EntryOptions o;
     o.locale = m_entryInFileForm ? QLocale::c() : m_locale;
+    if (!m_entryInFileForm) {
+        o.formulaLanguage = m_formulaLanguage;
+        if (!m_formulaLanguage.isEmpty()) o.definedName = formulaLocale().definedName;
+    }
     o.dateSystem = m_book->book->info().dateSystem;
     o.today = m_today;
     o.textFormat = textFormat;
@@ -627,7 +644,7 @@ QString EditSession::editText(int sheet, quint32 row, quint32 col) const
         quint32 anchorStyle = 0;
         const QString head = spillingFormulaOf(*m_book->calc, sheet, row, col, &anchorStyle);
         if (formulaHidden(sheet, anchorStyle) || formulaHidden(sheet, c.style)) return {};   // (the formula shown is the anchor's: its format, and the cell's own, may hide it)
-        return head.isEmpty() ? QString() : QLatin1Char('=') + formulaToLocale(jp::grid::displayFormula(head), m_locale);
+        return head.isEmpty() ? QString() : QLatin1Char('=') + formulaToLocale(jp::grid::displayFormula(head), formulaLocale());
     }
     if (!c.isFormula && !c.dataTable) {
         // (a cell of an array that is not its first is edited as the array's formula, as the formula bar shows it)
@@ -636,12 +653,12 @@ QString EditSession::editText(int sheet, quint32 row, quint32 col) const
             const Calculation::CellContent head = m_book->calc->content(sheet, whole.row1, whole.col1);
             if (head.isFormula) {
                 if (formulaHidden(sheet, head.style) || formulaHidden(sheet, c.style)) return {};
-                return QLatin1Char('=') + formulaToLocale(jp::grid::displayFormula(shownFormula(head)), m_locale);
+                return QLatin1Char('=') + formulaToLocale(jp::grid::displayFormula(shownFormula(head)), formulaLocale());
             }
         }
     }
     if (c.isFormula && formulaHidden(sheet, c.style)) return {};
-    if (c.isFormula) return QLatin1Char('=') + formulaToLocale(jp::grid::displayFormula(shownFormula(c)), m_locale);
+    if (c.isFormula) return QLatin1Char('=') + formulaToLocale(jp::grid::displayFormula(shownFormula(c)), formulaLocale());
     const QString code = m_book->book->styles().formatCode(c.style, m_locale);
     return editTextOfValue(c.value, code, entryOptions(sheet, code == QLatin1String("@")));
 }
@@ -669,7 +686,7 @@ QString EditSession::barText(int sheet, quint32 row, quint32 col, const QString 
         quint32 anchorStyle = 0;
         const QString head = spillingFormulaOf(*m_book->calc, sheet, row, col, &anchorStyle);
         if (!head.isEmpty() && (formulaHidden(sheet, anchorStyle) || formulaHidden(sheet, m_book->calc->content(sheet, row, col).style))) return QString();
-        if (!head.isEmpty()) return QLatin1Char('=') + formulaToLocale(jp::grid::displayFormula(head), m_locale);
+        if (!head.isEmpty()) return QLatin1Char('=') + formulaToLocale(jp::grid::displayFormula(head), formulaLocale());
     }
     if (m_book && m_book->calc && m_book->calc->sheetCount() > sheet && sheet >= 0 && m_book->calc->sheet(sheet).isProtected) {
         const Calculation::CellContent hidden = m_book->calc->content(sheet, row, col);
@@ -680,7 +697,7 @@ QString EditSession::barText(int sheet, quint32 row, quint32 col, const QString 
         const Calculation::CellContent plain = m_book->calc->content(sheet, row, col);
         if (plain.isFormula) {
             const QString marked = shownFormula(plain);
-            if (marked != plain.formula) return QLatin1Char('=') + formulaToLocale(jp::grid::displayFormula(marked), m_locale);
+            if (marked != plain.formula) return QLatin1Char('=') + formulaToLocale(jp::grid::displayFormula(marked), formulaLocale());
         }
     }
     // (a locale that writes the decimal point as a point has nothing to change: what the grid gives is what is typed)
@@ -692,7 +709,7 @@ QString EditSession::barText(int sheet, quint32 row, quint32 col, const QString 
         if (at < 0 || at > 1) return gridText;
         const bool braces = at == 1 && gridText.endsWith(QLatin1Char('}'));
         const QString formula = gridText.mid(at + 1, gridText.size() - at - 1 - (braces ? 1 : 0));
-        return gridText.left(at + 1) + formulaToLocale(formula, m_locale) + (braces ? QStringLiteral("}") : QString());
+        return gridText.left(at + 1) + formulaToLocale(formula, formulaLocale()) + (braces ? QStringLiteral("}") : QString());
     }
     // a number the grid gave as it is stored (a date and a percent are given as their format shows them) is written with the locale's decimal mark
     if (c.value.isNumber() && gridText == jp::calc::numberToText(c.value.number())) return editTextOfValue(c.value, QStringLiteral("General"), entryOptions(sheet, false));

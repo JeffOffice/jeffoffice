@@ -161,15 +161,16 @@ void FormulaHelper::markChanged()
 void FormulaHelper::showHint(QLineEdit *line, const FormulaSpot &spot)
 {
     Q_UNUSED(line);
-    const FunctionDoc *doc = spot.function.isEmpty() ? nullptr : docOf(spot.function);
+    const QString language = m_language ? m_language() : QString();
+    const FunctionDoc *doc = spot.function.isEmpty() ? nullptr : docOfTyped(spot.function, language);
     if (!doc) {
         m_hint->hide();
         return;
     }
     const QChar separator = m_separator ? m_separator() : QLatin1Char(',');
     // plain: reviewed: a built-in function's own text, no file text
-    QString html = hintHtml(*doc, spot.argument, separator);
-    const QString name = QString::fromLatin1(doc->name);
+    const QString name = typedNameOf(*doc, language);
+    QString html = hintHtml(*doc, spot.argument, separator, name);
     if (html.startsWith(name)) html = QStringLiteral("<a href=\"%1\">%1</a>").arg(name) + html.mid(name.size());
     // plain: reviewed: a built-in function's own text (its name is a link), no file text
     m_hint->setText(html);
@@ -180,7 +181,7 @@ void FormulaHelper::showHint(QLineEdit *line, const FormulaSpot &spot)
 void FormulaHelper::place(QLineEdit *line)
 {
     QPoint below = line->mapToGlobal(QPoint(0, line->height()));
-    if (m_hint->text().isEmpty() || !docOf(m_spot.function)) m_hint->hide();
+    if (m_hint->text().isEmpty() || !docOfTyped(m_spot.function, m_language ? m_language() : QString())) m_hint->hide();
     else {
         m_hint->move(below);
         m_hint->show();

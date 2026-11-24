@@ -20,7 +20,7 @@ struct FunctionCall {
 
 // The call the cursor is in, between its brackets (just after the opening one up to just before the closing one); `separator` stands between arguments. Quotes, names of sheets in quotes, braces,
 // and square brackets are not looked into, and a bracket of a name that is no function (a group in "(1+2)*3") is passed over.
-FunctionCall functionCallAt(const QString &text, int cursor, QChar separator);
+FunctionCall functionCallAt(const QString &text, int cursor, QChar separator, const QString &language = QString());   // (`language`: the one the names in the text are typed in)
 // "NAME(a,b)": the arguments joined by the separator; empty ones at the end are left off, but the first `keep` are kept (the ones the call had: VLOOKUP(A1,B:C,2,) keeps its last comma).
 QString callText(const QString &name, const QStringList &arguments, QChar separator, int keep = 0);
 

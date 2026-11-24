@@ -61,6 +61,7 @@ void CrunchWindow::createFormulaHelper()
         if (doc) showHelp(crunch::helpTopicOf(*doc));
     });
     m_helper->setSeparator([this] { return crunch::argumentSeparator(m_session ? m_session->locale() : QLocale()); });
+    m_helper->setLanguage([this] { return formulaLanguage(); });
 }
 
 // The index the lists are made from: made again when a name was made, changed, or taken away, or another sheet is open.
@@ -86,6 +87,7 @@ const crunch::CompletionIndex &CrunchWindow::completionIndex()
         m_completionsUndo = undoIndex;
         m_completionsSheet = m_sheet;
     }
+    m_completions.setLanguage(formulaLanguage());
     {
         // (a reference with no table's name, as in [@Amount], is of the table the cell being written is in)
         const int t = selectedTable();
@@ -98,7 +100,7 @@ QString CrunchWindow::completionDetail(const crunch::Completion &c) const
 {
     switch (c.kind) {
     case crunch::Completion::Kind::Function: {
-        const crunch::FunctionDoc *doc = crunch::docOf(c.text);
+        const crunch::FunctionDoc *doc = crunch::docOfTyped(c.text, formulaLanguage());
         return doc ? crunch::summaryOf(*doc) : QString();
     }
     case crunch::Completion::Kind::Name: return m_session ? m_session->nameTextOf(c.id) : QString();

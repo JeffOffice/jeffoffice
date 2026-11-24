@@ -14,7 +14,8 @@ namespace jp {
 class InsertFunctionDialog : public QDialog {
     Q_OBJECT
 public:
-    explicit InsertFunctionDialog(QWidget *parent = nullptr, const QString &search = QString());
+    // `language`: the one the names of functions are shown in (a column of the table of local names; empty: English). chosen() is the English name whatever is shown.
+    explicit InsertFunctionDialog(QWidget *parent = nullptr, const QString &search = QString(), const QString &language = QString());
     // The name of the function picked, or empty.
     QString chosen() const;
     QLineEdit *searchBox() const { return m_search; }
@@ -32,6 +33,7 @@ private:
     QListWidget *m_list = nullptr, *m_arguments = nullptr;
     QLabel *m_signature = nullptr, *m_summary = nullptr, *m_count = nullptr;
     QPushButton *m_ok = nullptr;
+    QString m_language;
 };
 
 } // namespace jp

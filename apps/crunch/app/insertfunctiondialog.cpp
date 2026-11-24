@@ -12,13 +12,14 @@
 #include <QVBoxLayout>
 
 #include <algorithm>
+#include <cstring>
 #include "app/plaintext.h"
 
 namespace jp {
 
 using namespace jp::crunch;
 
-InsertFunctionDialog::InsertFunctionDialog(QWidget *parent, const QString &search) : QDialog(parent)
+InsertFunctionDialog::InsertFunctionDialog(QWidget *parent, const QString &search, const QString &language) : QDialog(parent), m_language(language)
 {
     setObjectName(QStringLiteral("insertFunctionDialog"));
     setWindowTitle(tr("Pick a Function"));
@@ -94,7 +95,7 @@ void InsertFunctionDialog::refill()
         const FunctionDoc &d = docs[i];
         if (category >= 0 && int(d.category) != category) continue;
         const QString name = QString::fromLatin1(d.name).toCaseFolded();
-        const QString about = name + QLatin1Char(' ') + summaryOf(d).toCaseFolded();
+        const QString about = name + QLatin1Char(' ') + typedNameOf(d, m_language).toCaseFolded() + QLatin1Char(' ') + summaryOf(d).toCaseFolded();
         bool all = true;
         for (const QString &w : words)
             if (!about.contains(w)) {
@@ -106,15 +107,16 @@ void InsertFunctionDialog::refill()
     // the names that begin with what was typed first, then the rest, each by name
     const QString first = words.isEmpty() ? QString() : words.first();
     std::stable_sort(found.begin(), found.end(), [&](const FunctionDoc *a, const FunctionDoc *b) {
-        const bool pa = !first.isEmpty() && QString::fromLatin1(a->name).toCaseFolded().startsWith(first), pb = !first.isEmpty() && QString::fromLatin1(b->name).toCaseFolded().startsWith(first);
+        const QString la = typedNameOf(*a, m_language), lb = typedNameOf(*b, m_language);
+        const bool pa = !first.isEmpty() && (la.toCaseFolded().startsWith(first) || QString::fromLatin1(a->name).toCaseFolded().startsWith(first)), pb = !first.isEmpty() && (lb.toCaseFolded().startsWith(first) || QString::fromLatin1(b->name).toCaseFolded().startsWith(first));
         if (pa != pb) return pa;
-        return QLatin1String(a->name) < QLatin1String(b->name);
+        return la < lb;
     });
     const QSignalBlocker block(m_list);
     m_list->clear();
     int keep = -1;
     for (const FunctionDoc *d : found) {
-        auto *item = new QListWidgetItem(QString::fromLatin1(d->name));
+        auto *item = new QListWidgetItem(typedNameOf(*d, m_language));
         item->setData(Qt::UserRole, QString::fromLatin1(d->name));
         item->setToolTip(jp::plainToolTip(summaryOf(*d)));
         m_list->addItem(item);
@@ -136,7 +138,9 @@ void InsertFunctionDialog::showPicked()
         m_summary->clear();
         return;
     }
-    m_signature->setText(signatureOf(*d));
+    QString signature = signatureOf(*d);
+    if (!m_language.isEmpty() && signature.startsWith(QString::fromLatin1(d->name))) signature = typedNameOf(*d, m_language) + signature.mid(int(std::strlen(d->name)));
+    m_signature->setText(signature);
     m_summary->setText(summaryOf(*d));
     const QStringList args = argumentsOf(*d);
     if (args.isEmpty()) {

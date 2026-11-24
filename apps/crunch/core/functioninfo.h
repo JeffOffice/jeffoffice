@@ -20,6 +20,10 @@ struct FunctionDoc {
 const FunctionDoc *functionDocs(int *count);
 // The one of a name (any case), or null.
 const FunctionDoc *docOf(const QString &name);
+// The function a word typed in a formula names when the program is shown in `language` (a column of the table of local names; empty: English): the language's name or the English one.
+const FunctionDoc *docOfTyped(const QString &word, const QString &language);
+// The name of the function as it is typed in that language.
+QString typedNameOf(const FunctionDoc &doc, const QString &language);
 QString categoryName(FunctionCategory category);
 // The Help topic that has the entries of the functions of a kind ("functions-math-trig"), and the topic of one function with its heading ("functions-math-trig#SUM": the page, then "#", then the name the entry's heading has).
 QString helpPageOf(FunctionCategory category);

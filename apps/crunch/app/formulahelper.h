@@ -27,6 +27,8 @@ public:
     void setSources(const std::function<const crunch::CompletionIndex &()> &index, const std::function<QString(const crunch::Completion &)> &detail);
     // The separator between arguments the person types (as the locale writes it).
     void setSeparator(const std::function<QChar()> &separator) { m_separator = separator; }
+    // The language the names of functions are typed in (a column of the table of local names; empty: English).
+    void setLanguage(const std::function<QString()> &language) { m_language = language; }
     void close();
     bool isListOpen() const;
     bool isHintOpen() const;
@@ -58,6 +60,7 @@ private:
     std::function<const crunch::CompletionIndex &()> m_index;
     std::function<QString(const crunch::Completion &)> m_detailOf;
     std::function<QChar()> m_separator;
+    std::function<QString()> m_language;
     std::vector<crunch::Completion> m_found;
     crunch::FormulaSpot m_spot;
     bool m_arrowed = false;

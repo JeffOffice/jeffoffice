@@ -15,6 +15,7 @@
 #include "app/formulahelper.h"
 #include "app/privacy.h"
 #include "app/settings.h"
+#include "app/i18n.h"
 
 #include "app/sheettabs.h"
 #include "core/sheetobjects.h"
@@ -46,6 +47,7 @@ void CrunchWindow::createEditing()
     m_repeat->setDocument(++m_documentCounter);   // (what was repeatable in the workbook before is not for this one)
     m_session = std::make_unique<crunch::EditSession>(&m_loader, m_loaded, &m_values, nullptr);
     applyCustomListLines();
+    applyFormulaLanguage();
     // (a formula typed with the name of another open workbook reads it: the files of the workbooks open in the other windows)
     m_session->setOpenBookFinder([this](const QString &name) {
         for (QWidget *top : QApplication::topLevelWidgets())
@@ -139,6 +141,13 @@ void CrunchWindow::createEditing()
     setWindowModified(false);
     setLocale(QLocale());
     updateEditActions();
+}
+
+void CrunchWindow::applyFormulaLanguage()
+{
+    if (!m_session) return;
+    const bool english = Settings::get().value(QStringLiteral("crunch/englishFunctionNames"), false).toBool();
+    m_session->setFormulaLanguage(english ? QString() : currentUiLanguage());
 }
 
 void CrunchWindow::setLocale(const QLocale &locale)

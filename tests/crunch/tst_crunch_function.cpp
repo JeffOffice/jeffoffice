@@ -2,6 +2,7 @@
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
 #include "app/functionargumentsdialog.h"
+#include "app/formulahelper.h"
 #include "app/help.h"
 #include "app/theme.h"
 #include "app/insertfunctiondialog.h"
@@ -9,6 +10,10 @@
 #include "core/appinfo.h"
 #include "core/fonts.h"
 #include "core/functioncall.h"
+#include "core/formulaspot.h"
+#include "core/nametable.h"
+#include "office/package.h"
+#include "savedok.h"
 #include "core/functioninfo.h"
 #include "grid/gridview.h"
 #include "crunchbooks.h"
@@ -176,6 +181,133 @@ private Q_SLOTS:
         QTest::keyClick(w.cellEditor(), Qt::Key_Return);
         QVERIFY(e.settle());
         QCOMPARE(w.session()->editText(0, 2, 2), QStringLiteral("=SUM(A1:A2)"));
+    }
+
+    // With the program shown in German, a formula is typed and shown with German names (English ones are read too) and every format the app saves holds the English ones; the same file
+    // shown in Spanish has Spanish names, and with "Use English function names" it has English ones.
+    void formulasAreTypedAndShownInTheDisplayLanguageAndSavedInEnglish()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=2"})));
+        CrunchWindow &w = e.win.w;
+        w.setLocale(QLocale(QLocale::German, QLocale::Germany));
+        w.session()->setFormulaLanguage(QStringLiteral("de"));
+        e.select(QStringLiteral("C3"));
+        e.enter(QStringLiteral("=WENN(SUMME(A1:A2)>2;WAHR;FALSCH)"));
+        QVERIFY(e.settle());
+        e.select(QStringLiteral("C4"));
+        e.enter(QStringLiteral("=SUM(A1:A2)*0,5"));
+        QVERIFY(e.settle());
+        QCOMPARE(w.session()->editText(0, 2, 2), QStringLiteral("=WENN(SUMME(A1:A2)>2;WAHR;FALSCH)"));
+        QCOMPARE(w.session()->editText(0, 3, 2), QStringLiteral("=SUMME(A1:A2)*0,5"));
+        QCOMPARE(e.valueAt(QStringLiteral("C4")), QStringLiteral("n:1.5"));
+        // what the formula bar and the cell show is that text
+        e.select(QStringLiteral("C3"));
+        QCOMPARE(w.formulaBar()->text(), QStringLiteral("=WENN(SUMME(A1:A2)>2;WAHR;FALSCH)"));
+        if (!qEnvironmentVariableIsEmpty("JC_SHOT_DIR")) {
+            applyUiTheme(1);
+            w.show();
+            saveShot(&w, QStringLiteral("local-names-formula-bar"));
+        }
+        // saved in every format, as the file's own language
+        w.setLossAsker([](const QString &, const QString &) { return CrunchWindow::LossAnswer::Continue; });
+        for (const QString &name : {QStringLiteral("book.xlsx"), QStringLiteral("book.xls"), QStringLiteral("book.ods")}) {
+            QByteArray bytes;
+            if (name.endsWith(QLatin1String(".xlsx"))) {
+                QSignalSpy saved(&w, &CrunchWindow::saved);
+                QVERIFY(w.save());
+                QVERIFY2(savedOk(saved), "the save failed");
+                QFile f(e.copyOfFile());
+                QVERIFY(f.open(QIODevice::ReadOnly));
+                bytes = f.readAll();
+            } else {
+                const QString path = e.folder.dir.filePath(name);
+                QSignalSpy exported(&w, &CrunchWindow::copyExported);
+                QVERIFY(w.saveAs(path, true));
+                QVERIFY(exported.count() > 0 || exported.wait(20000));
+                QVERIFY2(exported.first().at(1).toBool(), qPrintable(name));
+                QFile f(path);
+                QVERIFY(f.open(QIODevice::ReadOnly));
+                bytes = f.readAll();
+            }
+            if (name.endsWith(QLatin1String(".xlsx"))) {
+                QMap<QString, QByteArray> parts;
+                jp::readZip(bytes, parts);
+                const QByteArray xml = parts.value(QStringLiteral("xl/worksheets/sheet1.xml"));
+                QVERIFY2(xml.contains("<f>IF(SUM(A1:A2)&gt;2,TRUE,FALSE)</f>"), xml.constData());
+                QVERIFY(!xml.contains("SUMME") && !xml.contains("WENN") && !xml.contains("WAHR"));
+            }
+            for (const QString &language : {QStringLiteral("es"), QStringLiteral("de"), QString()}) {
+                EditWindow second;
+                QVERIFY2(second.open(bytes, name), qPrintable(name));
+                second.win.w.setLocale(QLocale(QLocale::Spanish, QLocale::Spain));
+                second.win.w.session()->setFormulaLanguage(language);
+                const QString want = language == QLatin1String("es") ? QStringLiteral("=SI(SUMA(A1:A2)>2;VERDADERO;FALSO)")
+                                     : language == QLatin1String("de") ? QStringLiteral("=WENN(SUMME(A1:A2)>2;WAHR;FALSCH)") : QStringLiteral("=IF(SUM(A1:A2)>2;TRUE;FALSE)");
+                // (the older formats write TRUE and FALSE as calls with no arguments, and show them so)
+                QCOMPARE(second.win.w.session()->editText(0, 2, 2).remove(QStringLiteral("()")), want);
+            }
+        }
+    }
+
+    // The lists a person picks a function from, and the arguments shown under the cell, use the local names; what is picked is the function, and what is put in the formula is its local name.
+    void theListsOfFunctionsOfferTheLocalNames()
+    {
+        crunch::NameTable table;
+        crunch::CompletionIndex index;
+        index.build(table, 0, QStringList());
+        index.setLanguage(QStringLiteral("de"));
+        QStringList offered;
+        for (const crunch::Completion &c : index.matches(QStringLiteral("summ"), 50)) offered << c.text;
+        QVERIFY(offered.contains(QStringLiteral("SUMME")) && offered.contains(QStringLiteral("SUMMEWENN")) && offered.contains(QStringLiteral("SUMMENPRODUKT")));
+        QVERIFY(!offered.contains(QStringLiteral("SUM")));
+        offered.clear();
+        for (const crunch::Completion &c : index.matches(QStringLiteral("sumif"), 50)) offered << c.text;   // (an English word finds the local name)
+        QVERIFY(offered.contains(QStringLiteral("SUMMEWENN")));
+        index.setLanguage(QString());
+        offered.clear();
+        for (const crunch::Completion &c : index.matches(QStringLiteral("sumif"), 50)) offered << c.text;
+        QVERIFY(offered.contains(QStringLiteral("SUMIF")) && !offered.contains(QStringLiteral("SUMMEWENN")));
+        // the dialog lists local names, searches by either, and picks the English one
+        InsertFunctionDialog d(nullptr, QStringLiteral("sverw"), QStringLiteral("de"));
+        QVERIFY(d.list()->count() >= 1);
+        QCOMPARE(d.list()->item(0)->text(), QStringLiteral("SVERWEIS"));
+        QCOMPARE(d.chosen(), QStringLiteral("VLOOKUP"));
+        QVERIFY(d.signatureLabel()->text().startsWith(QStringLiteral("SVERWEIS(")));
+        InsertFunctionDialog byEnglish(nullptr, QStringLiteral("vlookup"), QStringLiteral("de"));
+        QCOMPARE(byEnglish.list()->item(0)->text(), QStringLiteral("SVERWEIS"));
+        // arguments of a call written with a local name
+        const crunch::FunctionCall call = crunch::functionCallAt(QStringLiteral("=SVERWEIS(A1;B1:C9;2;FALSCH)"), 12, QLatin1Char(';'), QStringLiteral("de"));
+        QVERIFY(call.found);
+        QCOMPARE(call.name, QStringLiteral("SVERWEIS"));
+        QCOMPARE(int(call.raw.size()), 4);
+        QVERIFY(!crunch::functionCallAt(QStringLiteral("=SVERWEIS(A1;B1:C9;2;FALSCH)"), 12, QLatin1Char(';')).found);   // (not the English language: not a function)
+        QCOMPARE(crunch::hintPlain(*crunch::docOf(QStringLiteral("SUM")), 0, QLatin1Char(';'), nullptr, QStringLiteral("SUMME")).left(6), QStringLiteral("SUMME("));
+        // a function picked goes in the formula with its local name
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1"})));
+        CrunchWindow &w = e.win.w;
+        w.session()->setFormulaLanguage(QStringLiteral("de"));
+        e.select(QStringLiteral("C3"));
+        w.setFunctionAsker([](QString *name) {
+            *name = QStringLiteral("SUM");
+            return true;
+        });
+        w.act(QStringLiteral("formulas.insertFunction"))->trigger();
+        QCOMPARE(w.cellEditor()->text(), QStringLiteral("=SUMME()"));
+        w.cancelEdit();
+        // typing the first letters offers the local names, and the arguments are shown under them
+        e.select(QStringLiteral("C4"));
+        e.type(QStringLiteral("=SVER"));
+        QTRY_VERIFY(w.formulaHelper()->isListOpen());
+        QCOMPARE(w.formulaHelper()->offered().value(0), QStringLiteral("SVERWEIS"));
+        saveShot(w.formulaHelper()->list(), QStringLiteral("local-names-autocomplete"));
+        QTest::keyClicks(w.cellEditor(), QStringLiteral("WEIS("));
+        QTRY_VERIFY(w.formulaHelper()->isHintOpen());
+        QVERIFY(w.formulaHelper()->hint()->text().contains(QStringLiteral("SVERWEIS")));
+        saveShot(w.formulaHelper()->hint(), QStringLiteral("local-names-hint"));
+        d.show();
+        saveShot(&d, QStringLiteral("local-names-pick-a-function"));
     }
 
     void aFunctionIsPutAtTheCursorOfAFormulaBeingTyped()

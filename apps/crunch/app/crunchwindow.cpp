@@ -31,6 +31,8 @@
 #include "app/ribbonbuilder.h"
 #include "app/privacy.h"
 #include "app/settings.h"
+#include "app/i18n.h"
+#include "sheet/fnnames.h"
 #include "app/sheettabs.h"
 #include "app/telemetry.h"
 #include "app/widgets.h"
@@ -579,6 +581,7 @@ void CrunchWindow::createActions()
             std::array<QPointer<QWidget>, 5> fields;
             crunch::CalcSettings shown;   // what the fields held when the page was made
             int roundsShown = 0;
+            QPointer<QCheckBox> englishNames;   // (this program's own, not the workbook's)
         };
         auto calc = std::make_shared<CalcPage>();
         pages << OptionsPage{tr("Formulas"), [this, calc] {
@@ -587,6 +590,16 @@ void CrunchWindow::createActions()
             const bool open = m_session && m_loaded;
             const crunch::CalcSettings now = open ? m_session->calcSettings() : crunch::CalcSettings();
             calc->shown = now;
+            // (only where the display language has names of its own for functions)
+            calc->englishNames.clear();
+            if (!jp::office::sheet::formulaLanguageOf(currentUiLanguage()).isEmpty()) {
+                auto *english = new QCheckBox(tr("Use English function names"), page);
+                english->setObjectName(QStringLiteral("optionEnglishFunctionNames"));
+                english->setToolTip(jp::plainToolTip(tr("Type and read formulas with English names such as SUM and IF, not the names of the display language. Workbooks are saved the same either way.")));
+                english->setChecked(Settings::get().value(QStringLiteral("crunch/englishFunctionNames"), false).toBool());
+                layout->addRow(english);
+                calc->englishNames = english;
+            }
             auto *about = new QLabel(open ? tr("These settings belong to this workbook. They are saved in its file and are not kept for other workbooks.") : tr("These settings belong to a workbook. Open one to change them."), page);
             about->setWordWrap(true);
             about->setTextFormat(Qt::PlainText);
@@ -636,6 +649,14 @@ void CrunchWindow::createActions()
             auto *iterate = qobject_cast<QCheckBox *>(calc->fields[2].data());
             auto *rounds = qobject_cast<QSpinBox *>(calc->fields[3].data());
             auto *change = qobject_cast<QLineEdit *>(calc->fields[4].data());
+            if (calc->englishNames && calc->englishNames->isChecked() != Settings::get().value(QStringLiteral("crunch/englishFunctionNames"), false).toBool()) {
+                Settings::get().setValue(QStringLiteral("crunch/englishFunctionNames"), calc->englishNames->isChecked());
+                for (QWidget *top : QApplication::topLevelWidgets())
+                    if (auto *w = qobject_cast<CrunchWindow *>(top)) {
+                        w->applyFormulaLanguage();
+                        w->updateBars();
+                    }
+            }
             if (!mode || !beforeSave || !iterate || !rounds || !change || !m_session || !m_loaded) return;
             // (only a field the person changed is written: a value the fields could not show as it is stays as the workbook has it)
             crunch::CalcSettings s = m_session->calcSettings();

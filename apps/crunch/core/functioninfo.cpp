@@ -1,3 +1,4 @@
+#include "sheet/fnnames.h"
 #include "core/functioninfo.h"
 
 #include "calc/functions.h"
@@ -784,6 +785,20 @@ const FunctionDoc *docOf(const QString &name)
     for (const FunctionDoc &d : kDocs)
         if (upper == QLatin1String(d.name)) return &d;
     return nullptr;
+}
+
+const FunctionDoc *docOfTyped(const QString &word, const QString &language)
+{
+    if (!language.isEmpty()) {
+        const QString english = jp::office::sheet::englishFormulaName(word, language);
+        if (!english.isEmpty()) return docOf(english);
+    }
+    return docOf(word);
+}
+
+QString typedNameOf(const FunctionDoc &doc, const QString &language)
+{
+    return language.isEmpty() ? QString::fromLatin1(doc.name) : jp::office::sheet::localFormulaName(QString::fromLatin1(doc.name), language);
 }
 
 QString categoryName(FunctionCategory category)

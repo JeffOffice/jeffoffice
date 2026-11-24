@@ -91,7 +91,7 @@ EditSession::AutoSumResult EditSession::autoSum(int sheet, const CellRange &sel,
         out.kind = AutoSumResult::Kind::Edit;
         out.row = row;
         out.col = col;
-        out.text = QLatin1Char('=') + formulaToLocale(text, m_locale);
+        out.text = QLatin1Char('=') + formulaToLocale(text, formulaLocale());
         out.cursorBack = back ? back : 0;
         return out;
     }
@@ -106,7 +106,7 @@ EditSession::AutoSumResult EditSession::autoSum(int sheet, const CellRange &sel,
         }
         CellChange ch;
         bool none = false;
-        if (!typedChange(sheet, r, c, QLatin1Char('=') + formulaToLocale(text, m_locale), &ch, &none, &out.outcome)) return false;
+        if (!typedChange(sheet, r, c, QLatin1Char('=') + formulaToLocale(text, formulaLocale()), &ch, &none, &out.outcome)) return false;
         if (!none) step.cells.push_back(std::move(ch));
         return true;
     };

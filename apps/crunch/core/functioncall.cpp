@@ -112,7 +112,7 @@ QStringList splitArguments(const QString &inner, QChar separator, QChar *unclose
 
 } // namespace
 
-FunctionCall functionCallAt(const QString &text, int cursor, QChar separator)
+FunctionCall functionCallAt(const QString &text, int cursor, QChar separator, const QString &language)
 {
     FunctionCall call;
     if (!text.startsWith(QLatin1Char('='))) return call;
@@ -122,7 +122,7 @@ FunctionCall functionCallAt(const QString &text, int cursor, QChar separator)
         const Pair &p = pairs[i];
         const int close = p.close < 0 ? int(text.size()) : p.close;
         if (cursor <= p.open || cursor > close) continue;
-        if (p.nameStart < 0 || !docOf(text.mid(p.nameStart, p.open - p.nameStart))) continue;
+        if (p.nameStart < 0 || !docOfTyped(text.mid(p.nameStart, p.open - p.nameStart), language)) continue;
         best = int(i);   // (a later pair that holds the cursor is inside the earlier ones)
     }
     if (best < 0) return call;

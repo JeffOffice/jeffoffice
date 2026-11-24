@@ -19,7 +19,7 @@ using jp::calc::Value;
 namespace {
 
 // What a name stands for as a file writes it, from what a person typed ("=" in front is not part of it).
-QString fileText(const QString &typed, const QLocale &locale)
+QString fileText(const QString &typed, const EntryLocale &locale)
 {
     QString t = typed.trimmed();
     if (t.startsWith(QLatin1Char('='))) t.remove(0, 1);
@@ -44,7 +44,7 @@ QString EditSession::nameTextOf(int id) const
     const NameEntry &e = m_nameTable.at(id);
     QString text;
     if (!m_book->calc->nameText(e.scope, e.name, &text)) return QString();
-    return QLatin1Char('=') + formulaToLocale(text, m_locale);
+    return QLatin1Char('=') + formulaToLocale(text, formulaLocale());
 }
 
 QString EditSession::nameValueOf(int id) const
@@ -96,7 +96,7 @@ QString EditSession::nameProblem(const NameDraft &draft, int id) const
     if (tableNamed(name)) return QCoreApplication::translate("jp::crunch::EditSession", "A table in this workbook is called that. Choose another name.");
     if (id < 0 && m_nameTable.aliveCount() >= int(jp::office::sheet::kMaxDefinedNames)) return QCoreApplication::translate("jp::crunch::EditSession", "This workbook has as many names as it can have.");
     if (draft.comment.size() > 255) return QCoreApplication::translate("jp::crunch::EditSession", "A comment can have at most 255 characters.");
-    const QString text = fileText(draft.text, m_locale);
+    const QString text = fileText(draft.text, formulaLocale());
     if (text.isEmpty())
         return QCoreApplication::translate("jp::crunch::EditSession", "Say what the name stands for: a cell or block of cells such as Sheet1!$A$1:$A$9, a number, or a formula.");
     jp::calc::ParseOptions po;
@@ -138,7 +138,7 @@ EditSession::Outcome EditSession::defineName(const NameDraft &draft, int *made)
     e.after.hidden = draft.hidden;
     e.before = e.after;
     e.before.alive = false;
-    e.textAfter = fileText(draft.text, m_locale);
+    e.textAfter = fileText(draft.text, formulaLocale());
     Step step;
     step.names.push_back(std::move(e));
     if (made) *made = m_nameTable.slots();
@@ -190,7 +190,7 @@ EditSession::Outcome EditSession::changeName(int id, const NameDraft &draft)
     e.after.hidden = d.hidden;
     m_book->calc->nameText(was.scope, was.name, &e.textBefore);
     { bool has = false; e.taggedBefore = m_book->calc->nameTagged(was.scope, was.name, &has); }
-    e.textAfter = fileText(d.text, m_locale);
+    e.textAfter = fileText(d.text, formulaLocale());
     if (e.before == e.after && e.textBefore == e.textAfter) return out;   // (nothing to change)
     Step step;
     step.names.push_back(std::move(e));

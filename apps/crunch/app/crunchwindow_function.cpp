@@ -34,6 +34,7 @@ void CrunchWindow::insertFunctionCommand(const QString &preset)
 {
     if (!m_session || !m_loaded || m_argsDialog) return;
     const QChar separator = crunch::argumentSeparator(m_session->locale());
+    const QString language = formulaLanguage();
     QLineEdit *line = nullptr;
     // With no entry going and a formula in the cell with the cursor, the formula is what the dialog is for: it is opened for editing with the cursor inside its first call (or at its end, when
     // it has none), and what the dialog makes is put in the cell as OK is pressed; given up, the cell is as it was.
@@ -49,7 +50,7 @@ void CrunchWindow::insertFunctionCommand(const QString &preset)
             fromCell = true;
             int at = int(text.size());
             for (int p = 1; p <= text.size(); ++p)
-                if (crunch::functionCallAt(text, p, separator).found) {
+                if (crunch::functionCallAt(text, p, separator, language).found) {
                     at = p;
                     break;
                 }
@@ -70,10 +71,10 @@ void CrunchWindow::insertFunctionCommand(const QString &preset)
     } settle{this, held, fromCell};
     if (m_edit.active) {
         line = m_formulaBar->hasFocus() ? m_formulaBar : m_cellEditor;
-        const crunch::FunctionCall call = crunch::functionCallAt(line->text(), line->cursorPosition(), separator);
+        const crunch::FunctionCall call = crunch::functionCallAt(line->text(), line->cursorPosition(), separator, language);
         if (call.found && preset.isEmpty()) {
             // the cursor is in the brackets of a function: that call is what the dialog changes
-            functionArguments(*crunch::docOf(call.name), call.arguments, call.start, call.end, call.name, call.raw);
+            functionArguments(*crunch::docOfTyped(call.name, language), call.arguments, call.start, call.end, call.name, call.raw);
             return;
         }
     }
@@ -87,7 +88,7 @@ void CrunchWindow::insertFunctionCommand(const QString &preset)
             return;
         }
     } else {
-        InsertFunctionDialog dialog(this);
+        InsertFunctionDialog dialog(this, QString(), language);
         if (dialog.exec() != QDialog::Accepted) return;
         name = dialog.chosen();
     }
@@ -144,6 +145,7 @@ void CrunchWindow::functionArguments(const crunch::FunctionDoc &doc, const QStri
     if (text.isEmpty()) text = QStringLiteral("=");
     FunctionArgumentsDialog dialog(this, doc, arguments, separator);
     if (!writtenName.isEmpty()) dialog.setCallName(writtenName);
+    else if (!formulaLanguage().isEmpty()) dialog.setCallName(crunch::typedNameOf(doc, formulaLanguage()));
     dialog.setRawArguments(raw);
     crunch::EditSession *session = m_session.get();
     // (the session is looked for each time: a workbook that is closed while the dialog is open leaves nothing to read)
@@ -228,7 +230,7 @@ bool CrunchWindow::insertFunction(const QString &name)
 {
     const crunch::FunctionDoc *doc = crunch::docOf(name);
     if (!doc) return false;
-    const QString call = QString::fromLatin1(doc->name) + QStringLiteral("()");
+    const QString call = crunch::typedNameOf(*doc, formulaLanguage()) + QStringLiteral("()");
     if (m_edit.active) {
         QLineEdit *line = m_formulaBar->hasFocus() ? m_formulaBar : m_cellEditor;
         const QString text = line->text();

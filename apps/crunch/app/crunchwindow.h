@@ -1014,6 +1014,9 @@ private:
     void createCalcActions();
     void createAuditActions();
     void createFormulaHelper();
+    // The names in formulas are typed and shown in the display language, unless Options > Formulas says to use the English ones.
+    QString formulaLanguage() const { return m_session ? m_session->formulaLanguage() : QString(); }
+    void applyFormulaLanguage();
     const crunch::CompletionIndex &completionIndex();
     QString completionDetail(const crunch::Completion &c) const;
     bool insertTextInFormula(const QString &text, bool asFunction);

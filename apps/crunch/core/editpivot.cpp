@@ -743,7 +743,7 @@ QString EditSession::pivotDataFormula(int sheet, quint32 row, quint32 col, int f
         }
     }
     // (as typed in the person's locale: a semicolon between the arguments and a comma in a number where it writes them so)
-    return formulaToLocale(text + QLatin1Char(')'), locale());
+    return formulaToLocale(text + QLatin1Char(')'), formulaLocale());
 }
 
 bool EditSession::cellsHoldAnything(int sheet, quint32 row, quint32 col) const

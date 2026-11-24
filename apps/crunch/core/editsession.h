@@ -18,6 +18,7 @@
 #include "core/sortspec.h"
 #include "core/objectstate.h"
 #include "sheet/entry.h"
+#include "sheet/fnnames.h"
 #include "sheet/namerefs.h"
 #include "sheet/pivotexternal.h"
 #include "sheet/textmatch.h"
@@ -331,6 +332,11 @@ public:
     }
     void setToday(const QDate &today) { m_today = today; }
     QLocale locale() const { return m_locale; }
+    // The display language the names in a formula are typed and shown in ("de"; empty for English, and for "Use English function names"), and the locale and language together the way
+    // the entry code takes them. A formula is kept with the English names whatever is chosen.
+    void setFormulaLanguage(const QString &language) { m_formulaLanguage = jp::office::sheet::formulaLanguageOf(language); }
+    QString formulaLanguage() const { return m_formulaLanguage; }
+    jp::office::sheet::EntryLocale formulaLocale() const;
     // The lists a fill goes through besides the weekdays and the months (Options > Custom Lists): a cell that holds an item of one is followed by the next, round to the first.
     // (at most kMaxCustomLists lists of kMaxCustomListItems items of kMaxCustomItemChars characters are kept: what a file of settings could otherwise multiply)
     static constexpr int kMaxCustomLists = 50, kMaxCustomListItems = 1000, kMaxCustomItemChars = 255;
@@ -1513,6 +1519,7 @@ private:
     std::shared_ptr<qint64> m_undoBytes = std::make_shared<qint64>(0);   // (shared with the steps, which count themselves off as they go, whenever that is)
     qint64 m_undoByteLimit = kUndoBytes;
     QLocale m_locale;
+    QString m_formulaLanguage;
     bool m_entryInFileForm = false;   // what is typed is read in the form a file has it (pasteText with fileForm), not as the person's locale writes it
     QList<QStringList> m_customLists;
     quint32 m_condUid = 0, m_condUidMark = 0;   // (the uid the last rule made had, and the one it had when the file was last saved)

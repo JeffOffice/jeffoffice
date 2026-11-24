@@ -35,6 +35,16 @@ To change a formula, select its cell, press **F2**, edit it, and press **Enter**
 
 Type **=** and the first letters of a function, and a short list shows the functions and [names](names) that begin that way, with a sentence about each. Press **Tab** to take the one that is marked. Use the **Down** and **Up** arrows to mark another, and then **Tab** or **Enter**. **Esc** closes the list. Once you are inside the brackets of a function, its arguments show under the cell, with the one you are typing in bold. The list and the arguments are the same ones **Pick a Function** shows. Arguments are separated by commas, or by semicolons where your language writes a comma for the decimal mark.
 
+## Function names in your language
+
+When JeffCrunch is shown in German, French, Spanish, Italian, Dutch, Portuguese, or Russian, you can type a formula with the names of functions your language uses, such as `=SUMME(A1;A2)` in German or `=SOMME(A1;A2)` in French. The English names work too, so a formula you copy from the web does not need changing. The formula bar, the cell, the list of functions, and **Pick a Function** show the names of your language.
+
+The workbook does not change when you switch. A file always keeps the English names, so a workbook made in one language opens and reads correctly in another, and in any other program. A function that has no usual name in your language keeps its English one. Words such as TRUE, FALSE, and the error values (`#N/A`) follow your language as well.
+
+Where the comma is the decimal mark, the arguments of a function are told apart by a semicolon, and the values of an array in braces by a semicolon across a row and a backslash down a column: `{1;2\3;4}`.
+
+To type English names only, click **File > Options > Formulas** and tick **Use English function names**.
+
 ## Pointing at cells
 
 Instead of typing a cell's address, you can point at it. While you type a formula, put the cursor where a cell can go (right after **=**, an operator such as **+**, an opening bracket, or a comma) and click the cell. Its address is written for you. Drag over cells to write a block such as B2:D5. Click again before you type anything else, and the new cell replaces the one just written. Hold **Ctrl** and click to add another address after a comma. Click a column letter to write a whole column such as A:A, or a row number to write a whole row such as 3:3, and drag along the letters or numbers for B:D or 2:5.
