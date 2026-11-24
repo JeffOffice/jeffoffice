@@ -147,6 +147,7 @@ private Q_SLOTS:
     void pubLineCornersRoundTrip();
     void pubOutlineKeepsFrame();
     void pubGradientAnglesAsPublisher();
+    void pubPictureOpacityFromTertiaryProperty();
     void pubStraightLineIsALine();
     void pubTextWithoutSizeIs12();
     void pubSuperscriptHighByte();

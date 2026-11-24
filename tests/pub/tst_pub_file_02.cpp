@@ -1313,6 +1313,78 @@ void PubFileTests::pubGradientAnglesAsPublisher()
 }
 
 
+// A picture's Transparency setting is the tertiary property 0x0120, the share of the picture that shows (16.16: 0x3333 is 20%). A file
+// with it reads as a see-through picture, and saves and reopens with the same opacity. The test takes a saved picture with a tinted
+// recolor (one tertiary property, 6 bytes) and writes 0x0120 in its place.
+void PubFileTests::pubPictureOpacityFromTertiaryProperty()
+{
+    auto doc = Document::blank(QSizeF(612, 792));
+    QImage img(8, 8, QImage::Format_RGB32);
+    img.fill(QColor(30, 90, 200));
+    QByteArray png;
+    {
+        QBuffer buf(&png);
+        buf.open(QIODevice::WriteOnly);
+        img.save(&buf, "PNG");
+    }
+    auto pic = std::make_shared<PictureItem>();
+    pic->imageId = doc->addImage(png, QStringLiteral("png"));
+    pic->rect = QRectF(72, 72, 120, 90);
+    pic->recolor = PictureItem::ColorTint;
+    pic->recolorColor = ColorRef::rgb(QColor(10, 20, 30));
+    doc->pages[0]->items.push_back(pic);
+    QTemporaryDir dir;
+    const QString path = dir.filePath(QStringLiteral("opacity.pub"));
+    QString err;
+    QVERIFY2(exportPublisher(*doc, path, &err), qPrintable(err));
+    auto prop = [](quint16 id, quint32 value) {
+        QByteArray b(6, 0);
+        qToLittleEndian<quint16>(id, b.data());
+        qToLittleEndian<quint32>(value, b.data() + 2);
+        return b;
+    };
+    // The transparency of the document's one picture, or -1 when it has none.
+    auto transparencyOf = [](const std::unique_ptr<Document> &d) {
+        double found = -1;
+        if (d)
+            for (const auto &it : d->pages[0]->items)
+                if (auto *p = dynamic_cast<const PictureItem *>(it.get())) found = p->transparency;
+        return found;
+    };
+    QByteArray escher = cfb::readStream(path, QStringLiteral("Escher/EscherStm"));
+    const QByteArray tint = prop(0x011a, 0x001e140a);
+    QCOMPARE(int(escher.count(tint)), 1);
+    {
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::ReadOnly));
+        QCOMPARE(transparencyOf(importPublisher(f.readAll(), nullptr)), 0.0);
+    }
+    QFile f(path);
+    QVERIFY(f.open(QIODevice::ReadOnly));
+    const QByteArray bytes = f.readAll();
+    cfb::File file;
+    QVERIFY(cfb::read(bytes, &file, &err));
+    escher.replace(tint, prop(0x0120, 0x3333));
+    QVERIFY(file.setStream(QStringLiteral("Escher/EscherStm"), escher));
+    auto opened = importPublisher(cfb::write(file), nullptr);
+    const double got = transparencyOf(opened);
+    QVERIFY2(std::abs(got - 0.8) < 0.001, qPrintable(QString::number(got)));
+    // Saved and reopened (through the app's own writer), it keeps its opacity.
+    const QString again = dir.filePath(QStringLiteral("again.pub"));
+    QVERIFY2(exportPublisher(*opened, again, &err), qPrintable(err));
+    QFile g(again);
+    QVERIFY(g.open(QIODevice::ReadOnly));
+    const double kept = transparencyOf(importPublisher(g.readAll(), nullptr));
+    QVERIFY2(std::abs(kept - 0.8) < 0.01, qPrintable(QString::number(kept)));
+    // A property that says the picture is fully shown, or names more than that, changes nothing.
+    for (quint32 v : {0x10000u, 0x20000u}) {
+        QByteArray e2 = escher;
+        e2.replace(prop(0x0120, 0x3333), prop(0x0120, v));
+        QVERIFY(file.setStream(QStringLiteral("Escher/EscherStm"), e2));
+        QCOMPARE(transparencyOf(importPublisher(cfb::write(file), nullptr)), 0.0);
+    }
+}
+
 // A straight line from Publisher's line tool (shape 20, two points) comes
 // back as a line with flat ends. It came in as a closed outline of two
 // points, and the join where that outline turns back on itself pushed a

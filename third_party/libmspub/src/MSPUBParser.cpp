@@ -2476,6 +2476,13 @@ void MSPUBParser::parseEscherShape(librevenge::RVNGInputStream *input, const Esc
             {
               m_collector->setShapePictureContrast(*shapeSeqNum, (int)(*ptr_pictureContrast));
             }
+            // JeffPub patch: a picture's opacity (Publisher's Transparency
+            // setting) is the tertiary property 0x0120, a 16.16 share:
+            // 0x3333 shows the picture at 20%.
+            if (bool(maybe_tertiaryFoptValues))
+              if (unsigned *ptr_opacity = getIfExists(maybe_tertiaryFoptValues.get(), 0x0120))
+                if (*ptr_opacity < 0x10000)
+                  m_collector->setShapePictureFillOpacity(*shapeSeqNum, double(*ptr_opacity) / 0x10000);
           }
           unsigned *ptr_lineBackColor =
             getIfExists(foptValues.m_scalarValues, FIELDID_LINE_BACK_COLOR);
