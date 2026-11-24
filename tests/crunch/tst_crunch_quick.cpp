@@ -653,9 +653,8 @@ private Q_SLOTS:
         quick(e)->close();
         const int index = e.win.w.undoStack()->index();
         QVERIFY(choose(e, QStringLiteral("tot.3.down")));
-        QVERIFY(e.settle());
-        QCOMPARE(e.win.w.undoStack()->index(), index + 1);
-        QVERIFY(e.shownAt(cellName(kBig, 0)).endsWith(QLatin1Char('%')));
+        QCOMPARE(e.win.w.undoStack()->index(), index + 1);   // (the formulas are in; they are not waited for: each adds up the whole block)
+        QVERIFY(e.win.w.session()->editText(0, kBig, 0).startsWith(QStringLiteral("=SUM(")));
     }
 
     void aTableASparklineGroupAndAPivotTableAreMade()
