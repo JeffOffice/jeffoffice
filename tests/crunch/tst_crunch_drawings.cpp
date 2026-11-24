@@ -2042,6 +2042,65 @@ private Q_SLOTS:
     // The workbook is the same bytes each time it is saved, in whatever process: nothing written follows the order of a hash that Qt seeds anew for each process.
     void aSavedWorkbookIsTheSameBytesInEachProcess() { JP_VERIFY_SAME_SAVES("savesTheWorkbookWithObjects"); }
 
+    // Whether the window is the active one is nothing a saved workbook may show: the same workbook, saved with its window active and then with another window in front, is the same bytes in every part
+    // (nothing is masked: a snapshot has no time in it), and so is one saved after being opened from the saved file.
+    void aWorkbookSavedToItsFileWithItsWindowActiveOrNotIsTheSameBytes()
+    {
+        EditWindow e;
+        QVERIFY(e.open(editBook()));
+        QVERIFY(e.settle());
+        e.select(QStringLiteral("A2"));
+        e.enter(QStringLiteral("55"));
+        QVERIFY(e.settle());
+        e.win.w.activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(&e.win.w));
+        int copies = 0;
+        auto save = [&] {
+            // (a copy: the workbook itself stays as it is, so the second save has the same to write)
+            const QString to = e.folder.dir.filePath(QStringLiteral("copy%1.xlsx").arg(++copies));
+            if (!e.win.w.saveAs(to, true) || !QTest::qWaitFor([&] { return QFileInfo::exists(to) && !e.win.w.isSaving(); }, 60000)) return QByteArray();   // (a copy has no signal: its file is made whole in one step)
+            QFile in(to);
+            return in.open(QIODevice::ReadOnly) ? in.readAll() : QByteArray();
+        };
+        const QByteArray active = save();
+        QVERIFY(!active.isEmpty());
+        Window other;
+        other.w.activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(&other.w));
+        QVERIFY(QTest::qWaitFor([&] { return !e.win.w.isActiveWindow(); }, 10000));
+        const QByteArray inactive = save();
+        QVERIFY(!inactive.isEmpty());
+        const QString difference = stable::differenceBetweenFiles(active, inactive);
+        QVERIFY2(difference.isEmpty(), qPrintable(difference));
+        // and a window of another size shows other rows and columns, which a stored view does not follow
+        e.win.w.resize(520, 300);
+        QTRY_COMPARE(e.win.w.width(), 520);
+        const QByteArray smaller = save();
+        QVERIFY(!smaller.isEmpty());
+        const QString sizeDifference = stable::differenceBetweenFiles(active, smaller);
+        QVERIFY2(sizeDifference.isEmpty(), qPrintable(sizeDifference));
+    }
+
+    void aWorkbookSavedWithItsWindowActiveOrNotIsTheSameBytes()
+    {
+        EditWindow e;
+        QVERIFY(e.open(diagramBook()));
+        QTRY_VERIFY(shown(e, 1));
+        QVERIFY(e.settle());
+        e.win.w.activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(&e.win.w));
+        QByteArray active, inactive;
+        QString text;
+        QVERIFY2(e.win.w.snapshotBytesForTest(&active, &text), qPrintable(text));
+        Window other;
+        other.w.activateWindow();
+        QVERIFY(QTest::qWaitForWindowActive(&other.w));
+        QVERIFY(QTest::qWaitFor([&] { return !e.win.w.isActiveWindow(); }, 10000));
+        QVERIFY2(e.win.w.snapshotBytesForTest(&inactive, &text), qPrintable(text));
+        QString difference = stable::differenceBetweenFiles(active, inactive);
+        QVERIFY2(difference.isEmpty(), qPrintable(difference));
+    }
+
     // A diagram of a sheet is drawn from the drawing its file keeps (the frame's own size is 0, so the anchor gives the size), is picked as one object, and is saved with every part as it was.
     void aDiagramIsShownFromItsSavedDrawingPickedAndKeptWhole()
     {
