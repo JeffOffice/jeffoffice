@@ -3654,6 +3654,11 @@
          "hide_soon": true,
          "status": "done",
          "text": "12b299278d6aa23bfde76b0cf413a795cc306878353bf9570981da9284fa816e"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
+         "text": "6053d660074c5b2b80cb435b8c4a91f26ffaed9d686ff39ec723c5651a50ba7d"
         }
        ]
       },
@@ -15275,6 +15280,18 @@
    "en": "Apply bold, italic, underline, strikethrough, and shadow. The shadow button adds the effect to a run of text, and a second click removes it.",
    "es": "Aplique negrita, cursiva, subrayado, tachado y sombra. El botón de sombra agrega el efecto a un fragmento de texto, y un segundo clic lo quita.",
    "fr": "Appliquez gras, italique, souligné, barré et ombre. Le bouton d’ombre ajoute l’effet à une portion de texte, et un second clic le retire.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "6053d660074c5b2b80cb435b8c4a91f26ffaed9d686ff39ec723c5651a50ba7d": {
+   "drop": false,
+   "en": "Edit the points of a freeform shape, and merge shapes with union, combine, fragment, intersect, and subtract. The new shape keeps the look, link, and animations of the first selected shape; merging works on up to 64 shapes at a time, and a fragment makes up to 256 pieces.",
+   "es": "Edite los puntos de una forma libre y combine formas con unión, combinación, fragmento, intersección y sustracción. La nueva forma conserva el aspecto, el vínculo y las animaciones de la primera forma seleccionada; se pueden combinar hasta 64 formas a la vez y un fragmento genera hasta 256 piezas.",
+   "fr": "Modifiez les points d’une forme libre et fusionnez des formes par union, combinaison, fragmentation, intersection et soustraction. La nouvelle forme conserve l’aspect, le lien et les animations de la première forme sélectionnée ; la fusion accepte jusqu’à 64 formes à la fois et une fragmentation produit jusqu’à 256 morceaux.",
    "soon": {
     "drop": true,
     "en": "",
