@@ -1051,6 +1051,7 @@ private Q_SLOTS:
         const QVector<CompatFormat> formats = a.compatHost().formats;
         for (int k = 0; k < formats.size(); ++k) {
             const QString ending = formats[k].format;
+            if (ending == QLatin1String(".md")) continue;   // (an outline is not a presentation that opens again: its test is DeckOutlineImportTests)
             QStringList lines;
             formats[k].lost([&](const CompatAnswer &answer) { lines = answer.found; });
             const QString listed = lines.join(QLatin1Char('\n'));
