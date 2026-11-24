@@ -518,6 +518,33 @@ public:
     };
     AutoSumResult autoSum(int sheet, const jp::office::sheet::CellRange &selection, const QString &function);
 
+    // ---- Quick Analysis (editquick.cpp). Totals written as formulas for a block of cells: `down` puts them in the row under it (one per column), else in the column right of it (one per row); a
+    // running total fills a block of the same shape beside it instead. A first row or column that holds only words is names, and is left out. The plan changes nothing; `apply` is one step of Undo.
+    enum class QuickTotal { Sum, Average, Count, PercentOfTotal, RunningTotal };
+    struct QuickCell {
+        quint32 row = 0, col = 0;
+        QString formula;   // without the "=", as the file writes it
+        bool percent = false;
+    };
+    struct QuickTotalsPlan {
+        bool ok = false;
+        QString problem;                 // why not, in a sentence
+        std::vector<QuickCell> cells;
+        qint64 overwrites = 0;           // how many of the cells already hold something
+        jp::office::sheet::CellRange data;   // the cells the totals are of
+    };
+    QuickTotalsPlan planQuickTotals(int sheet, const jp::office::sheet::CellRange &selection, QuickTotal kind, bool down) const;
+    Outcome applyQuickTotals(int sheet, const QuickTotalsPlan &plan, const QString &text);
+    // The most cells a plan looks at, and the fewest with data the button needs to be offered; whether the cells of the block hold at least two things (looking at no more than kQuickProbe).
+    static constexpr qint64 kQuickScan = 1000000;
+    static constexpr qint64 kQuickProbe = 4096;
+    bool quickHasData(int sheet, const jp::office::sheet::CellRange &selection) const;
+    // The rule shown on the sheet while a choice is looked at: put in the sheet's rules without a step of Undo, and taken out again by `endCondPreview` (nothing else is changed, and the file
+    // is as it was). Not ok, with the reason, when the sheet's rules can't be changed now.
+    Outcome previewCondRule(int sheet, jp::office::sheet::CondRule rule, const jp::office::sheet::DifferentialFormat &format);
+    void endCondPreview();
+    bool condPreviewShown() const { return m_previewSheet >= 0; }
+
     // Fill: the cells past a block, in a direction, given what the block holds (the fill handle and Fill Series), or a copy of it (Ctrl+D, Ctrl+R). Each line of the block (a column
     // for down and up, a row for right and left) is taken by itself: numbers go on by their step (a trend through them when there are several), dates by days, weekdays, months, or
     // years, the names of weekdays and months (the locale's or English) in turn, and a text that ends in a number counts up; anything else is copied over and over. A formula is
@@ -1522,6 +1549,9 @@ private:
     QString m_formulaLanguage;
     bool m_entryInFileForm = false;   // what is typed is read in the form a file has it (pasteText with fileForm), not as the person's locale writes it
     QList<QStringList> m_customLists;
+    int m_previewSheet = -1;   // the sheet that shows a rule of Quick Analysis (previewCondRule), and what it had to give back
+    QVector<jp::office::sheet::CondRule> m_previewBefore;
+    qint32 m_previewDxf = -1;
     quint32 m_condUid = 0, m_condUidMark = 0;   // (the uid the last rule made had, and the one it had when the file was last saved)
     struct CondSnap {
         std::map<quint32, int> fileOf;   // the priority each rule has in the file the save writes (known when the save is done: the patch numbers them)

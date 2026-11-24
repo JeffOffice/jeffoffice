@@ -88,6 +88,7 @@ QVector<CondRule> EditSession::condRules(int sheet) const
 
 void EditSession::setCondRules(int sheet, const QVector<CondRule> &rules)
 {
+    endCondPreview();   // (a rule shown for a look at a choice of Quick Analysis never stays under a change)
     if (!m_condBase.count(sheet)) {
         // (the rules the file has, as they are before the first change since it was read or saved)
         std::set<int> base;
@@ -153,6 +154,7 @@ qint64 rawBytes(const jp::office::sheet::CondRaw &r) { return qint64(r.open.size
 // and says what each came to (`condFinalOut`); the rules as the save will have them are kept (`m_condSnap`) for when it is done.
 void EditSession::condForSave(int sheet, jp::office::sheet::SheetChanges *sc, bool writtenWhole)
 {
+    endCondPreview();
     CondSnap snap;
     if (writtenWhole) {
         // (a sheet made here is written from its rules as they are, with nothing of the file's to match)

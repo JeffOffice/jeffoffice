@@ -1760,6 +1760,7 @@ void EditSession::noteResults(const std::vector<ValueStore::Item> &items)
 
 bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts, const QString &savePath)
 {
+    endCondPreview();   // (a rule shown for a look at a choice of Quick Analysis is not part of what is saved)
     auto refuse = [&](const QString &text) {
         if (why) *why = text;
         return false;
