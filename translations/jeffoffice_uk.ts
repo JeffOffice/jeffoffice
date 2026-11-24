@@ -11394,7 +11394,7 @@ Download it from %2 now? (%3, once.)</source>
 <context>
     <name>Proofing</name>
     <message>
-        <location filename="../libs/shell/app/spelling.cpp" line="+183"/>
+        <location filename="../libs/shell/app/spelling.cpp" line="+185"/>
         <location line="+147"/>
         <source>The file is read-only.</source>
         <translation type="unfinished">Файл доступний лише для читання.</translation>
@@ -35470,7 +35470,7 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+0"/>
-        <location filename="../apps/deck/app/deckwindow_views.cpp" line="+260"/>
+        <location filename="../apps/deck/app/deckwindow_views.cpp" line="+262"/>
         <source>Slide %1 of %2</source>
         <translation type="unfinished">Слайд %1 з %2</translation>
     </message>

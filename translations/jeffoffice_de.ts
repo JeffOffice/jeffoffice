@@ -11499,7 +11499,7 @@ Jetzt von %2 herunterladen? (%3, einmalig.)</translation>
         <translation type="unfinished">(Keine Rechtschreibvorschläge)</translation>
     </message>
     <message>
-        <location filename="../libs/shell/app/spelling.cpp" line="+183"/>
+        <location filename="../libs/shell/app/spelling.cpp" line="+185"/>
         <location line="+147"/>
         <source>The file is read-only.</source>
         <translation type="unfinished">Die Datei ist schreibgeschützt.</translation>
@@ -35426,7 +35426,7 @@ Die Datei kann nicht gelesen werden.</translation>
     </message>
     <message>
         <location line="+26"/>
-        <location filename="../apps/deck/app/deckwindow_views.cpp" line="+260"/>
+        <location filename="../apps/deck/app/deckwindow_views.cpp" line="+262"/>
         <source>Slide %1 of %2</source>
         <translation type="unfinished">Folie %1 von %2</translation>
     </message>

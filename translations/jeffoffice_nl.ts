@@ -11499,7 +11499,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <translation type="unfinished">(Geen spellingsuggesties)</translation>
     </message>
     <message>
-        <location filename="../libs/shell/app/spelling.cpp" line="+183"/>
+        <location filename="../libs/shell/app/spelling.cpp" line="+185"/>
         <location line="+147"/>
         <source>The file is read-only.</source>
         <translation type="unfinished">Het bestand is alleen-lezen.</translation>
@@ -35426,7 +35426,7 @@ Het bestand kan niet worden gelezen.</translation>
     </message>
     <message>
         <location line="+26"/>
-        <location filename="../apps/deck/app/deckwindow_views.cpp" line="+260"/>
+        <location filename="../apps/deck/app/deckwindow_views.cpp" line="+262"/>
         <source>Slide %1 of %2</source>
         <translation type="unfinished">Dia %1 van %2</translation>
     </message>

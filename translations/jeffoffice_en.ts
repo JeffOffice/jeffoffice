@@ -94,7 +94,7 @@
 <context>
     <name>Proofing</name>
     <message numerus="yes">
-        <location filename="../libs/shell/app/spelling.cpp" line="+320"/>
+        <location filename="../libs/shell/app/spelling.cpp" line="+322"/>
         <source>A word can&apos;t be empty, have a space or a control character in it, or be longer than %n letters.</source>
         <translation>
             <numerusform>A word can&apos;t be empty, have a space or a control character in it, or be longer than %n letter.</numerusform>

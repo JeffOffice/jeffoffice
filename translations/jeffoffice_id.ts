@@ -11490,7 +11490,7 @@ Unduh dari %2 sekarang? (%3, sekali saja.)</translation>
         <translation type="unfinished">(Tidak ada saran ejaan)</translation>
     </message>
     <message>
-        <location filename="../libs/shell/app/spelling.cpp" line="+183"/>
+        <location filename="../libs/shell/app/spelling.cpp" line="+185"/>
         <location line="+147"/>
         <source>The file is read-only.</source>
         <translation type="unfinished">Berkas hanya dapat dibaca.</translation>
@@ -35382,7 +35382,7 @@ Berkas tidak dapat dibaca.</translation>
     </message>
     <message>
         <location line="+26"/>
-        <location filename="../apps/deck/app/deckwindow_views.cpp" line="+260"/>
+        <location filename="../apps/deck/app/deckwindow_views.cpp" line="+262"/>
         <source>Slide %1 of %2</source>
         <translation type="unfinished">Slaid %1 dari %2</translation>
     </message>
