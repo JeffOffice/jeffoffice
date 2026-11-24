@@ -58,6 +58,29 @@ private Q_SLOTS:
 
     // The file's tables carry a tag: made from the text, not at random, so that the same publication is the same bytes. (JeffPub's own file holds the ids that items are given,
     // new in each process, and is compared by tools/check_stable_saves.py after one reading.)
+    // The same publication saved twice in one process, with nothing changed between, is the same bytes (a .pub file is not a ZIP: it is compared whole).
+    void aPubFileSavedTwiceIsTheSameBytes()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const auto restore = qScopeGuard([] { QDir::setCurrent(QDir::rootPath()); });
+        const auto doc = richPublication();
+        QString err;
+        QByteArray files[2];
+        for (int i = 0; i < 2; ++i) {
+            // (the file carries the name it is saved under: the same name, in a folder of its own for each)
+            QVERIFY(QDir().mkpath(dir.filePath(QString::number(i))));
+            QVERIFY(QDir::setCurrent(dir.filePath(QString::number(i))));
+            const QString name = QStringLiteral("saved.pub");
+            QVERIFY2(jp::exportPublisher(*doc, name, &err), qPrintable(err));
+            QFile in(dir.filePath(QString::number(i) + QStringLiteral("/") + name));
+            QVERIFY(in.open(QIODevice::ReadOnly));
+            files[i] = in.readAll();
+        }
+        QCOMPARE(files[1].size(), files[0].size());
+        QVERIFY(files[1] == files[0]);
+    }
+
     void aPubFileIsSavedAsTheSameBytesInEachProcess() { JP_VERIFY_SAME_SAVES("savesThePublicationAsPub"); }
 };
 

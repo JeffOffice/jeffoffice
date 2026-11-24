@@ -2031,6 +2031,33 @@ private Q_SLOTS:
         }
     }
 
+    // A document opened and saved twice through the window, with nothing edited between, is the same bytes in every part (only the modified time may differ), in each format.
+    void aDocumentSavedTwiceIsTheSameBytesInEachFormat()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString src = writeFile(dir.filePath(QStringLiteral("letter.odt")), makeOdt(kBody, kAuto));
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        QVERIFY(w.openFile(src));
+        auto read = [](const QString &path) {
+            QFile f(path);
+            return f.open(QIODevice::ReadOnly) ? f.readAll() : QByteArray();
+        };
+        for (const QString &ending : {QStringLiteral("docx"), QStringLiteral("odt")}) {   // (a .rtf file read again and saved differs: listed in the report, not fixed in this pass)
+            const QString one = dir.filePath(QStringLiteral("one.") + ending), two = dir.filePath(QStringLiteral("two.") + ending), three = dir.filePath(QStringLiteral("three.") + ending);
+            QVERIFY2(w.saveTo(one, true) && w.saveTo(two, true), qPrintable(ending));
+            QString d = stable::differenceBetweenFiles(read(one), read(two));
+            QVERIFY2(d.isEmpty(), qPrintable(ending + QStringLiteral(" first against second: ") + d));
+            WriteWindow again;
+            again.setNotifier([](const QString &, const QString &) {});
+            QVERIFY2(again.openFile(two), qPrintable(ending));
+            QVERIFY2(again.saveTo(three, true), qPrintable(ending));
+            d = stable::differenceBetweenFiles(read(two), read(three));
+            QVERIFY2(d.isEmpty(), qPrintable(ending + QStringLiteral(" second against reopened: ") + d));
+        }
+    }
+
     void savesAnOdtForTheChecks()
     {
         QString out;
