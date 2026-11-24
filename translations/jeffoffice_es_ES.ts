@@ -1533,6 +1533,10 @@ No se puede leer el fichero.</translation>
         <translation type="unfinished">Todos los ficheros (*)</translation>
     </message>
     <message>
+        <source>Highlighting: select the text to highlight. Choose Stop Highlighting or press Esc to stop.</source>
+        <translation type="unfinished">Resaltado: seleccione el texto que desea resaltar. Elija Detener resaltado o pulse Esc para detenerlo.</translation>
+    </message>
+    <message>
         <source>File Name</source>
         <translation>Nombre de fichero</translation>
     </message>
@@ -1924,6 +1928,10 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
     <message>
         <source>Drag a point to change how text wraps. Drag an edge to add a point; Ctrl+click a point to delete it. Press Esc when done.</source>
         <translation type="unfinished">Arrastre un punto para cambiar cómo se ajusta el texto. Arrastre un borde para agregar un punto; pulse Ctrl y haga clic en un punto para eliminarlo. Pulse Esc cuando termine.</translation>
+    </message>
+    <message>
+        <source>Highlighting: select the text to highlight. Choose Stop Highlighting or press Esc to stop.</source>
+        <translation type="unfinished">Resaltado: seleccione el texto que desea resaltar. Elija Detener resaltado o pulse Esc para detenerlo.</translation>
     </message>
     <message>
         <source>Field that holds picture file names:</source>

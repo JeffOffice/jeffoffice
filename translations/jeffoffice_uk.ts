@@ -1659,17 +1659,17 @@ Back page story	4</source>
         <translation type="unfinished">Перемістити текст</translation>
     </message>
     <message>
-        <location line="+23"/>
+        <location line="+24"/>
         <source>Copy Formatting</source>
         <translation type="unfinished">Копіювати формат</translation>
     </message>
     <message>
-        <location line="+445"/>
+        <location line="+448"/>
         <source>Insert Row</source>
         <translation type="unfinished">Вставити рядок</translation>
     </message>
     <message>
-        <location line="+108"/>
+        <location line="+109"/>
         <location line="+1"/>
         <location line="+1"/>
         <location line="+1"/>
@@ -3088,7 +3088,7 @@ Back page story	4</source>
 <context>
     <name>DeckWindow</name>
     <message>
-        <location filename="../apps/deck/app/deckwindow_actions.cpp" line="+94"/>
+        <location filename="../apps/deck/app/deckwindow_actions.cpp" line="+95"/>
         <source>Increase List Level</source>
         <translation type="unfinished">Підвищити рівень списку</translation>
     </message>
@@ -6568,7 +6568,7 @@ Back page story	4</source>
         <translation type="unfinished">Редагувати рівняння</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/editor_text.cpp" line="+1044"/>
+        <location filename="../libs/page/app/editor_text.cpp" line="+1120"/>
         <source>Typing mode</source>
         <translation type="unfinished">Режим введення</translation>
     </message>
@@ -7082,7 +7082,7 @@ Back page story	4</source>
         <translation type="unfinished">колірний простір RGB, який JeffPub не вдалося перетворити</translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/pub/io/pubexport.cpp" line="+2412"/>
+        <location filename="../apps/pub/io/pubexport.cpp" line="+2414"/>
         <source>%n object(s) couldn&apos;t be saved to .pub</source>
         <translation type="unfinished">
             <numerusform>%n об&apos;єкт не вдалося зберегти у форматі .pub</numerusform>
@@ -7099,6 +7099,11 @@ Back page story	4</source>
         <location line="+1"/>
         <source>equations were saved to .pub as pictures, because .pub has no equations</source>
         <translation type="unfinished">рівняння збережено у .pub як малюнки, оскільки формат .pub не підтримує рівнянь</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>text highlight colors couldn&apos;t be saved to .pub</source>
+        <translation type="unfinished"></translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
@@ -8498,6 +8503,94 @@ Save without a backup?</source>
         <location line="+3"/>
         <source>Couldn&apos;t write &quot;%1&quot;: %2</source>
         <translation type="unfinished">Не вдалося записати «%1»: %2</translation>
+    </message>
+</context>
+<context>
+    <name>HighlightMenu</name>
+    <message>
+        <location filename="../libs/page/app/highlightmenu.cpp" line="+31"/>
+        <source>Yellow</source>
+        <translation>Жовтий</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Green</source>
+        <translation>Зелений</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cyan</source>
+        <translation>Блакитний</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Magenta</source>
+        <translation>Пурпуровий</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Blue</source>
+        <translation>Синій</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Red</source>
+        <translation>Червоний</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Dark Blue</source>
+        <translation type="unfinished">Темно-синій</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Dark Cyan</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Dark Green</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Dark Magenta</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Dark Red</source>
+        <translation type="unfinished">Темно-червоний</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Dark Yellow</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Dark Gray</source>
+        <translation type="unfinished">Темно-сірий</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Light Gray</source>
+        <translation type="unfinished">Світло-сірий</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Black</source>
+        <translation>Чорний</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>White</source>
+        <translation type="unfinished">Білий</translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>No Color</source>
+        <translation type="unfinished">Без кольору</translation>
     </message>
 </context>
 <context>
@@ -17031,7 +17124,7 @@ Open it in your email program, add recipients and send.</source>
     <message>
         <location filename="../libs/page/app/tableedit.cpp" line="+221"/>
         <location line="+354"/>
-        <location filename="../libs/page/canvas/canvas.cpp" line="-559"/>
+        <location filename="../libs/page/canvas/canvas.cpp" line="-560"/>
         <source>A table has at most %1 rows.</source>
         <translation type="unfinished">Таблиця може містити не більше %1 рядків.</translation>
     </message>
@@ -36347,7 +36440,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/deckwindow_output.cpp" line="+1"/>
-        <location filename="../apps/deck/app/deckwindow_ribbon.cpp" line="+126"/>
+        <location filename="../apps/deck/app/deckwindow_ribbon.cpp" line="+127"/>
         <source>Outline</source>
         <translation type="unfinished">Структура</translation>
     </message>
@@ -36597,7 +36690,7 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/deck/app/deckwindow_actions.cpp" line="+96"/>
+        <location filename="../apps/deck/app/deckwindow_actions.cpp" line="+115"/>
         <source>Align Left</source>
         <translation type="unfinished">Вирівняти за лівим краєм</translation>
     </message>
@@ -36644,7 +36737,7 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+2"/>
-        <location filename="../apps/deck/app/deckwindow_show.cpp" line="+385"/>
+        <location filename="../apps/deck/app/deckwindow_show.cpp" line="+386"/>
         <source>Notes</source>
         <translation>Примітки</translation>
     </message>
@@ -36667,7 +36760,7 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+0"/>
-        <location filename="../apps/deck/app/deckwindow_views.cpp" line="+262"/>
+        <location filename="../apps/deck/app/deckwindow_views.cpp" line="+263"/>
         <source>Slide %1 of %2</source>
         <translation type="unfinished">Слайд %1 з %2</translation>
     </message>
@@ -36714,7 +36807,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Скинути слайд</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_actions.cpp" line="-88"/>
+        <location filename="../apps/deck/app/deckwindow_actions.cpp" line="-107"/>
         <source>Copy Formatting</source>
         <translation type="unfinished">Копіювати формат</translation>
     </message>
@@ -36732,6 +36825,21 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+2"/>
+        <source>Text Highlight Color</source>
+        <translation type="unfinished">Колір виділення тексту</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Stop Highlighting</source>
+        <translation type="unfinished">Припинити виділення</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Highlighting: select the text to highlight. Choose Stop Highlighting or press Esc to stop.</source>
+        <translation type="unfinished">Виділення маркером: виділіть текст для виділення. Оберіть «Припинити виділення» або натисніть Esc, щоб припинити.</translation>
+    </message>
+    <message>
+        <location line="+4"/>
         <source>Increase Font Size</source>
         <translation type="unfinished">Збільшити розмір шрифту</translation>
     </message>
@@ -36783,7 +36891,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+0"/>
         <location filename="../apps/deck/app/deckwindow_table.cpp" line="+114"/>
-        <location filename="../apps/deck/app/deckwindow_views.cpp" line="-196"/>
+        <location filename="../apps/deck/app/deckwindow_views.cpp" line="-197"/>
         <source>Normal</source>
         <translation type="unfinished">Звичайний</translation>
     </message>
@@ -36815,7 +36923,7 @@ The file can&apos;t be read.</source>
     <message>
         <location filename="../apps/deck/app/deckwindow_animations.cpp" line="-485"/>
         <location line="+316"/>
-        <location filename="../apps/deck/app/deckwindow_show.cpp" line="-386"/>
+        <location filename="../apps/deck/app/deckwindow_show.cpp" line="-387"/>
         <location filename="../apps/deck/app/deckwindow_table.cpp" line="+0"/>
         <source>None</source>
         <translation type="unfinished">Немає</translation>
@@ -37549,7 +37657,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+1"/>
         <location filename="../apps/deck/app/deckwindow_compare.cpp" line="+13"/>
-        <location filename="../apps/deck/app/deckwindow_views.cpp" line="+182"/>
+        <location filename="../apps/deck/app/deckwindow_views.cpp" line="+183"/>
         <source>Previous</source>
         <translation type="unfinished">Попередній</translation>
     </message>
@@ -39966,7 +40074,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">вигнутий</translation>
     </message>
     <message>
-        <location line="+116"/>
+        <location line="+117"/>
         <location filename="../apps/deck/app/deckwindow_show.cpp" line="-143"/>
         <source>Zoom</source>
         <translation>Масштаб</translation>
@@ -40238,23 +40346,23 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+6"/>
-        <location line="+489"/>
+        <location line="+490"/>
         <source>Set Up Slide Show</source>
         <translation type="unfinished">Налаштування показу слайдів</translation>
     </message>
     <message>
-        <location line="-488"/>
+        <location line="-489"/>
         <source>Custom Shows…</source>
         <translation type="unfinished">Довільні покази…</translation>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+443"/>
+        <location line="+444"/>
         <source>Rehearse Timings</source>
         <translation type="unfinished">Репетиція часу</translation>
     </message>
     <message>
-        <location line="-442"/>
+        <location line="-443"/>
         <location line="+2"/>
         <source>Use Timings</source>
         <translation type="unfinished">Використовувати час</translation>
@@ -40552,7 +40660,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Показ слайдів налаштовано відтворювати слайди з %1 до %2, а презентація містить лише %3. Змініть це в Налаштуванні показу слайдів.</translation>
     </message>
     <message>
-        <location line="+110"/>
+        <location line="+111"/>
         <source>Do you want to keep your ink annotations?</source>
         <translation type="unfinished">Зберегти ваші рукописні позначки?</translation>
     </message>
@@ -40896,7 +41004,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Ширина стовпця</translation>
     </message>
     <message>
-        <location filename="../apps/deck/app/deckwindow_views.cpp" line="-183"/>
+        <location filename="../apps/deck/app/deckwindow_views.cpp" line="-184"/>
         <source>Outline View</source>
         <translation type="unfinished">Режим структури</translation>
     </message>
@@ -40931,7 +41039,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Головний зразок роздаткового матеріалу</translation>
     </message>
     <message>
-        <location line="+172"/>
+        <location line="+173"/>
         <source>Go back one step or slide</source>
         <translation type="unfinished"></translation>
     </message>
@@ -41617,7 +41725,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Публікація1</translation>
     </message>
     <message>
-        <location line="+405"/>
+        <location line="+406"/>
         <source>Clear Cells</source>
         <translation type="unfinished">Очистити комірки</translation>
     </message>
@@ -42022,7 +42130,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Видалити головну сторінку</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/editor_text.cpp" line="-734"/>
+        <location filename="../libs/page/app/editor_text.cpp" line="-810"/>
         <source>Bold</source>
         <translation type="unfinished">Жирний</translation>
     </message>
@@ -42086,7 +42194,12 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Колір шрифту</translation>
     </message>
     <message>
-        <location line="+7"/>
+        <location line="+10"/>
+        <source>Text Highlight Color</source>
+        <translation type="unfinished">Колір виділення тексту</translation>
+    </message>
+    <message>
+        <location line="+73"/>
         <source>Change Case</source>
         <translation type="unfinished">Змінити регістр</translation>
     </message>
@@ -47817,7 +47930,7 @@ Source: %3</source>
     <name>jp::MainWindow</name>
     <message>
         <location filename="../apps/pub/app/mainwindow.cpp" line="-1670"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+635"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+654"/>
         <source>%1 (%2)</source>
         <translation type="unfinished">%1 (%2)</translation>
     </message>
@@ -47880,7 +47993,7 @@ Source: %3</source>
         <location line="+4"/>
         <location line="+1"/>
         <location line="+247"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-592"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-611"/>
         <source>Open</source>
         <translation type="unfinished">Відкрити</translation>
     </message>
@@ -48115,7 +48228,7 @@ Source: %3</source>
     <message>
         <location line="+9"/>
         <location line="+7"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+569"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+588"/>
         <location filename="../apps/pub/app/mainwindow_comments.cpp" line="+25"/>
         <source>Delete</source>
         <translation type="unfinished">Видалити</translation>
@@ -48160,7 +48273,7 @@ Source: %3</source>
         <location line="+21"/>
         <location line="+52"/>
         <location line="+15"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-565"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-584"/>
         <source>Create PDF</source>
         <translation type="unfinished">Створити PDF</translation>
     </message>
@@ -48331,7 +48444,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="+37"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+1368"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+1387"/>
         <source>Page %1</source>
         <translation type="unfinished">Сторінка %1</translation>
     </message>
@@ -48398,8 +48511,8 @@ Source: %3</source>
         <location line="+19"/>
         <location line="+8"/>
         <location line="+4"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1367"/>
-        <location line="+1240"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1386"/>
+        <location line="+1259"/>
         <source>Save as Picture</source>
         <translation type="unfinished">Зберегти як зображення</translation>
     </message>
@@ -48517,7 +48630,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="+75"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1239"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-1258"/>
         <source>Save as Web Page</source>
         <translation type="unfinished">Зберегти як веб-сторінку</translation>
     </message>
@@ -48539,7 +48652,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="-47"/>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+1128"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+1147"/>
         <source>Change Picture</source>
         <translation type="unfinished">Змінити малюнок</translation>
     </message>
@@ -48595,14 +48708,14 @@ Source: %3</source>
     </message>
     <message>
         <location line="+36"/>
-        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+348"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+349"/>
         <location line="+1"/>
-        <location line="+717"/>
+        <location line="+718"/>
         <source>Zoom</source>
         <translation>Масштаб</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-419"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="-438"/>
         <source>New</source>
         <translation type="unfinished">Створити</translation>
     </message>
@@ -48669,12 +48782,12 @@ Source: %3</source>
     </message>
     <message>
         <location line="+1"/>
-        <location line="+536"/>
+        <location line="+555"/>
         <source>Duplicate</source>
         <translation type="unfinished">Дублювати</translation>
     </message>
     <message>
-        <location line="-534"/>
+        <location line="-553"/>
         <source>Delete Object</source>
         <translation type="unfinished">Видалити об&apos;єкт</translation>
     </message>
@@ -48721,14 +48834,14 @@ Source: %3</source>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+149"/>
+        <location line="+168"/>
         <location filename="../apps/pub/app/mainwindow_info.cpp" line="-259"/>
         <source>Pictures</source>
         <translation type="unfinished">Малюнки</translation>
     </message>
     <message>
-        <location line="-148"/>
-        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-635"/>
+        <location line="-167"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-636"/>
         <location line="+1"/>
         <source>Shapes</source>
         <translation type="unfinished">Фігури</translation>
@@ -48740,13 +48853,13 @@ Source: %3</source>
     </message>
     <message>
         <location line="+0"/>
-        <location line="+158"/>
+        <location line="+177"/>
         <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+171"/>
         <source>Text Art</source>
         <translation type="unfinished">Художній напис</translation>
     </message>
     <message>
-        <location line="-156"/>
+        <location line="-175"/>
         <source>Select All %1</source>
         <translation type="unfinished">Виділити все: %1</translation>
     </message>
@@ -48812,7 +48925,7 @@ Source: %3</source>
         <translation type="unfinished">Надрядковий</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+20"/>
         <source>Grow Font</source>
         <translation type="unfinished">Збільшити шрифт</translation>
     </message>
@@ -48941,7 +49054,7 @@ Source: %3</source>
         <translation type="unfinished">Маркери й нумерація…</translation>
     </message>
     <message>
-        <location line="-180"/>
+        <location line="-199"/>
         <source>Click in text where the page number goes, then choose the design.</source>
         <translation type="unfinished">Клацніть у тексті там, де має бути номер сторінки, а потім виберіть дизайн.</translation>
     </message>
@@ -48983,7 +49096,22 @@ Source: %3</source>
         <translation type="unfinished">Замінити шрифти…</translation>
     </message>
     <message>
-        <location line="+67"/>
+        <location line="+13"/>
+        <source>Text Highlight Color</source>
+        <translation type="unfinished">Колір виділення тексту</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Stop Highlighting</source>
+        <translation type="unfinished">Припинити виділення</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>Highlighting: select the text to highlight. Choose Stop Highlighting or press Esc to stop.</source>
+        <translation type="unfinished">Виділення маркером: виділіть текст для виділення. Оберіть «Припинити виділення» або натисніть Esc, щоб припинити.</translation>
+    </message>
+    <message>
+        <location line="+58"/>
         <source>Decrease Indent</source>
         <translation type="unfinished">Зменшити відступ</translation>
     </message>
@@ -49449,7 +49577,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+534"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+535"/>
         <source>Group</source>
         <translation type="unfinished">Згрупувати</translation>
     </message>
@@ -49781,7 +49909,7 @@ Source: %3</source>
     </message>
     <message>
         <location line="+4"/>
-        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-491"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-492"/>
         <location line="+0"/>
         <source>No Background</source>
         <translation type="unfinished">Без фону</translation>
@@ -50244,7 +50372,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+266"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+267"/>
         <source>Guides</source>
         <translation>Направляючі</translation>
     </message>
@@ -50431,7 +50559,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     </message>
     <message>
         <location line="+1"/>
-        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-517"/>
+        <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="-518"/>
         <source>Line</source>
         <translation type="unfinished">Лінія</translation>
     </message>
@@ -52034,7 +52162,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Форма художнього напису</translation>
     </message>
     <message>
-        <location line="+71"/>
+        <location line="+72"/>
         <source>More Symbols…</source>
         <translation type="unfinished">Інші символи…</translation>
     </message>

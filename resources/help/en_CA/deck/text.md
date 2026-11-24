@@ -23,6 +23,7 @@ Select the text to change: drag across it, or double-click a word. Select the wh
 - **Bold** (Ctrl+B), **Italic** (Ctrl+I), **Underline** (Ctrl+U), **Strikethrough**, and **Shadow**.
 - **Character Spacing** sets how tight or loose the letters sit, from **Very Tight** to **Very Loose**. **More Spacing…** opens a window for a number of your own.
 - **Change Case** has **Sentence case.**, **lowercase**, **UPPERCASE**, **Capitalize Each Word**, and **tOGGLE cASE**.
+- **Text Highlight Colour** (the marker pen) puts a colour behind the selected words. Click the button to use the last colour, or click its arrow to pick one of the sixteen colours. If an object is selected, all of its words are highlighted. If nothing is selected, the pointer becomes a highlighter: select words with the mouse, and each selection is highlighted. Choose **Stop Highlighting** in the same list, or press **Esc**, to go back to normal selecting. **No Colour** takes the highlight off the selected words. Each highlight is one step that **Undo** takes back, and **Clear All Formatting** removes it. A highlight is saved in both `.pptx` and `.odp` files, in the colour you chose.
 - **Font Colour** opens the colours of the presentation's theme, and more.
 - **Clear All Formatting** (Ctrl+Space) takes off the formatting you added.
 

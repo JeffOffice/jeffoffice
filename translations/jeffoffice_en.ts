@@ -26,7 +26,7 @@
 <context>
     <name>Export</name>
     <message numerus="yes">
-        <location filename="../apps/pub/io/pubexport.cpp" line="+2412"/>
+        <location filename="../apps/pub/io/pubexport.cpp" line="+2414"/>
         <source>%n object(s) couldn&apos;t be saved to .pub</source>
         <translation>
             <numerusform>%n object couldn&apos;t be saved to .pub</numerusform>
@@ -34,7 +34,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location line="+3"/>
+        <location line="+4"/>
         <source>%n table cell(s) couldn&apos;t be saved to .pub</source>
         <translation>
             <numerusform>%n table cell couldn&apos;t be saved to .pub</numerusform>
@@ -495,7 +495,7 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+972"/>
+        <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+991"/>
         <source>Made %n shapes.</source>
         <translation>
             <numerusform>Made %n shape.</numerusform>

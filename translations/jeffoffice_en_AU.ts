@@ -231,6 +231,10 @@
         <source>an RGB color space JeffPub couldn't convert</source>
         <translation>an RGB colour space JeffPub couldn't convert</translation>
     </message>
+    <message>
+        <source>text highlight colors couldn't be saved to .pub</source>
+        <translation>text highlight colours couldn't be saved to .pub</translation>
+    </message>
 </context>
 <context>
     <name>FileDialogs</name>
@@ -262,6 +266,21 @@ Or save to a folder that isn't protected.</translation>
     <message>
         <source>Offset Center</source>
         <translation>Offset Centre</translation>
+    </message>
+</context>
+<context>
+    <name>HighlightMenu</name>
+    <message>
+        <source>Dark Gray</source>
+        <translation>Dark Grey</translation>
+    </message>
+    <message>
+        <source>Light Gray</source>
+        <translation>Light Grey</translation>
+    </message>
+    <message>
+        <source>No Color</source>
+        <translation>No Colour</translation>
     </message>
 </context>
 <context>
@@ -859,6 +878,10 @@ Download it from %2 now? (%3, once.)</translation>
         <translation>Centre</translation>
     </message>
     <message>
+        <source>Text Highlight Color</source>
+        <translation>Text Highlight Colour</translation>
+    </message>
+    <message>
         <source>Capitalize Each Word</source>
         <translation>Capitalise Each Word</translation>
     </message>
@@ -968,6 +991,10 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>Font Color</source>
         <translation>Font Colour</translation>
+    </message>
+    <message>
+        <source>Text Highlight Color</source>
+        <translation>Text Highlight Colour</translation>
     </message>
 </context>
 <context>
@@ -1214,6 +1241,10 @@ Download it from %2 now? (%3, once.)</translation>
     <message>
         <source>Create New Color Scheme…</source>
         <translation>Create New Colour Scheme…</translation>
+    </message>
+    <message>
+        <source>Text Highlight Color</source>
+        <translation>Text Highlight Colour</translation>
     </message>
     <message>
         <source>Equalize Width</source>
