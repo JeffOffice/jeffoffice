@@ -57,7 +57,7 @@ apps/crunch/core/editfind.cpp | edit session: plans and refusals made on the mai
 apps/crunch/core/editflash.cpp | edit session: plans and refusals made on the main thread
 apps/crunch/core/editformat.cpp | edit session: plans and refusals made on the main thread
 apps/crunch/core/editnotes.cpp | edit session: plans and refusals made on the main thread
-apps/crunch/core/editops.cpp | edit session: plans and refusals made on the main thread
+apps/crunch/core/editops.cpp | main thread only, checked: edit session: plans and refusals made on the main thread; the find pane of JeffWrite includes it, but its search thread runs scanRegex only
 apps/crunch/core/editpaste.cpp | edit session: plans and refusals made on the main thread
 apps/crunch/core/editprecision.cpp | edit session: plans and refusals made on the main thread
 apps/crunch/core/editsession.cpp | edit session: plans and refusals made on the main thread
@@ -87,7 +87,7 @@ apps/write/app/writewindow_info.cpp | window and dialog code of an app: main thr
 apps/write/app/writewindow_output.cpp | window and dialog code of an app: main thread
 apps/write/core/citeops.cpp | document edits the window makes: main thread
 apps/write/core/contentcontrolops.cpp | document edits the window makes: main thread
-apps/write/core/fieldops.cpp | document edits the window makes: main thread
+apps/write/core/fieldops.cpp | main thread only, checked: document edits the window makes: main thread; the find pane's search thread runs core/findops.cpp only (scanRegex), which touches no document
 apps/write/core/fieldscan.cpp | fields are updated by the window: main thread
 apps/write/core/homeops.cpp | document edits the window makes: main thread
 apps/write/core/indexops.cpp | document edits the window makes: main thread
