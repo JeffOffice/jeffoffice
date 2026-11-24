@@ -1376,6 +1376,15 @@ void PubFileTests::pubPictureOpacityFromTertiaryProperty()
     QVERIFY(g.open(QIODevice::ReadOnly));
     const double kept = transparencyOf(importPublisher(g.readAll(), nullptr));
     QVERIFY2(std::abs(kept - 0.8) < 0.01, qPrintable(QString::number(kept)));
+    // A picture frame that also has a picture fill with its own opacity (property 0x0182, 50%): the picture's Transparency setting wins.
+    {
+        QByteArray both = escher;
+        both.replace(prop(0x0181, 0x08000001), prop(0x0180, 3));
+        both.replace(prop(0x0183, 0x08000007), prop(0x0182, 0x8000));
+        QVERIFY(file.setStream(QStringLiteral("Escher/EscherStm"), both));
+        const double won = transparencyOf(importPublisher(cfb::write(file), nullptr));
+        QVERIFY2(std::abs(won - 0.8) < 0.001, qPrintable(QString::number(won)));
+    }
     // A property that says the picture is fully shown, or names more than that, changes nothing.
     for (quint32 v : {0x10000u, 0x20000u}) {
         QByteArray e2 = escher;

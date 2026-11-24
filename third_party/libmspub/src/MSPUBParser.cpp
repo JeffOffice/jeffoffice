@@ -2746,7 +2746,10 @@ void MSPUBParser::parseEscherShape(librevenge::RVNGInputStream *input, const Esc
               m_collector->setShapeCrop(*shapeSeqNum, crop);
             unsigned *ptr_fillType = getIfExists(foptValues.m_scalarValues, FIELDID_FILL_TYPE);
             unsigned *ptr_fillOpacity = getIfExists(foptValues.m_scalarValues, FIELDID_FILL_OPACITY);
-            if (ptr_fillType && (*ptr_fillType == 2 || *ptr_fillType == 3) && ptr_fillOpacity && *ptr_fillOpacity < 0x10000)
+            // The picture's own Transparency setting (tertiary 0x0120, read above) is the more specific one, so when a picture frame has it
+            // the fill opacity of the frame is not read over it.
+            const bool ownOpacity = bool(maybe_tertiaryFoptValues) && getIfExists(maybe_tertiaryFoptValues.get(), 0x0120);
+            if (!ownOpacity && ptr_fillType && (*ptr_fillType == 2 || *ptr_fillType == 3) && ptr_fillOpacity && *ptr_fillOpacity < 0x10000)
               m_collector->setShapePictureFillOpacity(*shapeSeqNum, double(*ptr_fillOpacity) / 0x10000);
           }
           unsigned *ptr_beginArrowStyle = getIfExists(foptValues.m_scalarValues,
