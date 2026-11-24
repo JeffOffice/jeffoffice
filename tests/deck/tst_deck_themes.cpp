@@ -426,6 +426,141 @@ private Q_SLOTS:
         w.editor()->markSaved();
     }
 
+    // The shapes that a layout shows on a slide, its master's too when it shows them, and the places for text that are on it (not the footers).
+    static void shownOnALayout(const Document &doc, const MasterPage &layout, QVector<const Item *> *shapes, QVector<const Item *> *places)
+    {
+        using namespace jp::deck;
+        auto take = [&](const PageBase &page) {
+            for (const auto &it : page.items) {
+                if (it->type() == ItemType::Shape) shapes->push_back(it.get());
+                const QString type = placeholderType(*it);
+                if (it->type() == ItemType::Text && !type.isEmpty() && type != QLatin1String("dt") && type != QLatin1String("ftr") && type != QLatin1String("sldNum")) places->push_back(it.get());
+            }
+        };
+        take(layout);
+        if (layout.showMasterItems)
+            if (const MasterPage *master = doc.master(layout.baseId)) take(*master);
+    }
+
+    void noRuleOrShapeOfATemplateCrossesItsTitleOrSubtitleOrBodyOnAnyLayout()
+    {
+        using namespace jp::deck;
+        for (const BuiltInTemplate &t : builtInTemplates()) {
+            auto doc = builtInTemplateDocument(t.id);
+            QVERIFY2(doc, qPrintable(t.id));
+            int layouts = 0, rules = 0;
+            for (const auto &m : doc->masters) {
+                if (!isLayout(*m)) continue;
+                ++layouts;
+                QVector<const Item *> shapes, places;
+                shownOnALayout(*doc, *m, &shapes, &places);
+                for (const Item *shape : shapes) {
+                    rules += shape->rect.height() <= 6 ? 1 : 0;
+                    for (const Item *place : places)
+                        QVERIFY2(!shape->rect.adjusted(0.25, 0.25, -0.25, -0.25).intersects(place->rect), qPrintable(QStringLiteral("%1, layout %2: a %3 by %4 shape at (%5, %6) is over a %7 place").arg(t.id, m->name).arg(shape->rect.width()).arg(shape->rect.height()).arg(shape->rect.x()).arg(shape->rect.y()).arg(placeholderType(*place))));
+                }
+                // (a title or subtitle that is too long for its place shrinks, as the app's layouts do, rather than run on past it)
+                for (const Item *place : places) {
+                    const QString type = placeholderType(*place);
+                    if (type == QLatin1String("title") || type == QLatin1String("ctrTitle") || type == QLatin1String("subTitle"))
+                        QCOMPARE(static_cast<const TextItem *>(place)->autofit, TextItem::ShrinkOnOverflow);
+                }
+            }
+            QVERIFY2(layouts >= 9, qPrintable(t.id));
+            QVERIFY2(rules > 0, qPrintable(t.id));
+            // (the slides' own places stand where their layout's do)
+            for (const auto &page : doc->pages) {
+                const MasterPage *layout = doc->masterFor(*page);
+                QVERIFY(layout);
+                QVector<const Item *> shapes, places;
+                shownOnALayout(*doc, *layout, &shapes, &places);
+                for (const auto &it : page->items) {
+                    if (it->type() != ItemType::Text || placeholderType(*it).isEmpty()) continue;
+                    for (const Item *shape : shapes)
+                        if (placeholderType(*it) != QLatin1String("dt") && placeholderType(*it) != QLatin1String("ftr") && placeholderType(*it) != QLatin1String("sldNum"))
+                            QVERIFY2(!shape->rect.adjusted(0.25, 0.25, -0.25, -0.25).intersects(it->rect), qPrintable(t.id + QLatin1String(": a slide's place is over a shape")));
+                }
+            }
+        }
+    }
+
+    void theShapesOfTheTemplatesAreDecorativeAndTheAlbumHasRealPicturePlaces()
+    {
+        using namespace jp::deck;
+        for (const BuiltInTemplate &t : builtInTemplates()) {
+            auto doc = builtInTemplateDocument(t.id);
+            QVERIFY2(doc, qPrintable(t.id));
+            int shapes = 0;
+            auto check = [&](const PageBase &page) {
+                for (const auto &it : page.items)
+                    if (it->type() == ItemType::Shape) {
+                        ++shapes;
+                        QVERIFY2(it->decorative, qPrintable(t.id + QLatin1String(": a shape that is not marked decorative")));
+                    }
+            };
+            for (const auto &m : doc->masters) check(*m);
+            for (const auto &p : doc->pages) check(*p);
+            // (the marker is in the saved file, and comes back)
+            QString err;
+            const QByteArray bytes = exportPresentation(*doc, &err);
+            auto again = importPresentation(bytes, &err);
+            QVERIFY2(again, qPrintable(err));
+            int kept = 0, before = 0;
+            for (const auto &m : doc->masters)
+                for (const auto &it : m->items) before += it->type() == ItemType::Shape && it->decorative ? 1 : 0;
+            for (const auto &m : again->masters)
+                for (const auto &it : m->items) kept += it->type() == ItemType::Shape && it->decorative ? 1 : 0;
+            QVERIFY2(kept == before, qPrintable(QStringLiteral("%1: %2 of %3 decorative shapes kept").arg(t.id).arg(kept).arg(before)));
+            for (const auto &p : doc->pages)
+                for (const auto &it : p->items) QVERIFY2(it->name != QLatin1String("Sample picture"), qPrintable(t.id));
+        }
+        auto album = builtInTemplateDocument(QStringLiteral("album"));
+        QVERIFY(album);
+        QCOMPARE(int(album->pages.size()), 4);
+        for (int n = 1; n <= 3; ++n) {
+            Page &slide = *album->pages[n];
+            auto pictures = [&] {
+                int count = 0;
+                for (const auto &it : slide.items) count += it->type() == ItemType::Text && placeholderType(*it) == QLatin1String("pic") ? 1 : 0;
+                return count;
+            };
+            QCOMPARE(pictures(), n);
+            // Reset Slide puts them back where the layout has them
+            for (const auto &it : slide.items)
+                if (placeholderType(*it) == QLatin1String("pic")) it->rect = QRectF(1, 1, 10, 10);
+            resetSlide(*album, slide);
+            QCOMPARE(pictures(), n);
+            for (const auto &it : slide.items)
+                if (placeholderType(*it) == QLatin1String("pic")) QVERIFY(it->rect.width() > 100);
+        }
+    }
+
+    void theTemplateTilesAreTheSizeOfTheThemeTilesAndNoTemplatePromptsAFixedDate()
+    {
+        using namespace jp::deck;
+        DeckWindow w;
+        w.resize(1300, 900);
+        w.show();
+        w.showFileScreen(QStringLiteral("new"));
+        auto *screen = w.findChild<FileScreen *>();
+        QVERIFY(screen);
+        auto *theme = screen->findChild<QAbstractButton *>(QStringLiteral("themeTile0_0"));
+        QVERIFY(theme);
+        for (const BuiltInTemplate &t : builtInTemplates()) {
+            auto *tile = screen->findChild<QAbstractButton *>(QStringLiteral("template_") + t.id);
+            QVERIFY2(tile, qPrintable(t.id));
+            QCOMPARE(tile->size(), theme->size());
+            auto doc = builtInTemplateDocument(t.id);
+            for (const auto &p : doc->pages)
+                for (const auto &it : p->items)
+                    if (it->type() == ItemType::Text) {
+                        const QString words = doc->storyDoc(static_cast<TextItem *>(it.get())->storyId)->toPlainText();
+                        QVERIFY2(!words.contains(QLatin1String("2027")) && !words.contains(QLatin1String("Month 1")), qPrintable(t.id + QLatin1Char(' ') + words));
+                    }
+        }
+        w.editor()->markSaved();
+    }
+
     void aTemplateMakesAPresentationWithItsOwnThemeAndSampleText()
     {
         using namespace jp::deck;

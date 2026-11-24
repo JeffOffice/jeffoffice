@@ -202,7 +202,9 @@ QWidget *DeckFileScreen::buildNew()
     v->addLayout(row);
     // The templates: presentations to start from, each with a theme of its own and sample slides to write over, shown as the first slide of what they make.
     v->addWidget(sectionLabel(tr("Templates"), w));
-    const QSize templateBox(224, 140);
+    // (the same size as the themes' tiles below)
+    const QSize small(168, 105);
+    const QSize templateBox = small;
     auto *templates = new QGridLayout();
     int templateAt = 0;
     for (const deck::BuiltInTemplate &tmpl : deck::builtInTemplates()) {
@@ -216,15 +218,14 @@ QWidget *DeckFileScreen::buildNew()
         card->setToolTip(plainToolTip(tmpl.description));
         const QString id = tmpl.id;
         connect(card, &QAbstractButton::clicked, this, [this, id] { startFrom([id] { return deck::builtInTemplateDocument(id); }); });
-        templates->addWidget(card, templateAt / 3, templateAt % 3);
+        templates->addWidget(card, templateAt / 4, templateAt % 4);
         ++templateAt;
     }
-    templates->setColumnStretch(3, 1);
+    templates->setColumnStretch(4, 1);
     v->addLayout(templates);
     // The built-in themes, each in its four variants, shown as the first slide of a presentation made in it. The page comes up at once with plain pictures;
     // they are drawn a few at a time as the page is shown (those in view first), once for the run of the program (themePicture keeps them).
     v->addWidget(sectionLabel(tr("Themes"), w));
-    const QSize small(168, 105);
     struct Pending {
         QPointer<StartTile> tile;
         int theme, variant;

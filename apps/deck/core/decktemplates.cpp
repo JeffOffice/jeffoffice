@@ -2,6 +2,7 @@
 #include "core/themes.h"
 
 #include "core/items.h"
+#include "core/masteredit.h"
 #include "core/themes_p.h"
 #include "text/textprops.h"
 
@@ -60,6 +61,7 @@ ItemPtr decoration(const char *kind, const QRectF &r, const QColor &color, doubl
     it->name = QCoreApplication::translate("Deck", "Decoration");
     it->fill = Fill::solid(ColorRef::rgb(color), transparency);
     it->stroke = Stroke::none();
+    it->decorative = true;   // (a screen reader leaves it out)
     return it;
 }
 
@@ -93,11 +95,40 @@ void alignText(Document &d, TextItem &item, Qt::Alignment align)
     c.mergeBlockFormat(bf);
 }
 
+// The names of the photo album's layouts (one picture, two pictures, three pictures).
+QString photoLayoutName(int pictures)
+{
+    return pictures == 1 ? t(QT_TRANSLATE_NOOP("DeckTemplates", "One Picture")) : pictures == 2 ? t(QT_TRANSLATE_NOOP("DeckTemplates", "Two Pictures")) : t(QT_TRANSLATE_NOOP("DeckTemplates", "Three Pictures"));
+}
+
 // The slide master's and layouts' look: the accent marks, and a Title Slide on a background of its own.
 void dress(Document &d, const Spec &s, const QString &id)
 {
     const DeckTheme theme = themeOf(d);
     const QColor accent = theme.colors[4], second = theme.colors[5], third = theme.colors[6];
+    // The bars along the slide's edges, and the rule under the title (just below the bottom edge of the title's place, so that a title of three lines does not run into it).
+    auto bars = [&]() -> ItemList {
+        if (id == QLatin1String("pitch")) return {decoration("rect", QRectF(0, 0, 14, 540), accent)};
+        if (id == QLatin1String("status")) return {decoration("rect", QRectF(0, 0, 960, 10), accent)};
+        if (id == QLatin1String("lesson")) return {decoration("rect", QRectF(0, 0, 960, 14), accent), decoration("rect", QRectF(0, 14, 960, 5), third)};
+        return {};
+    };
+    auto underTitle = [&](double y) -> ItemList {
+        if (id == QLatin1String("pitch")) return {decoration("rect", QRectF(66, y, 96, 5), accent)};
+        if (id == QLatin1String("status")) return {decoration("rect", QRectF(66, y, 96, 4), second)};
+        if (id == QLatin1String("album")) return {decoration("rect", QRectF(66, y, 828, 1.5), accent)};
+        if (id == QLatin1String("minimallight") || id == QLatin1String("minimaldark")) return {decoration("rect", QRectF(66, y, 40, 3), accent)};
+        return {};
+    };
+    auto titleOf = [](const MasterPage &page) -> const Item * {
+        for (const auto &it : page.items)
+            if (it->type() == ItemType::Text && placeholderType(*it) == QLatin1String("title")) return it.get();
+        return nullptr;
+    };
+    double titleBottom = 133;
+    for (const auto &m : d.masters)
+        if (isSlideMaster(*m))
+            if (const Item *title = titleOf(*m)) titleBottom = title->rect.bottom();
     for (auto &m : d.masters) {
         const bool master = isSlideMaster(*m);
         // (a list of five levels, with bullets in the first accent, in the places that hold the slides' lists)
@@ -105,12 +136,25 @@ void dress(Document &d, const Spec &s, const QString &id)
             if (it->type() == ItemType::Text && (placeholderType(*it) == QLatin1String("obj") || (master && placeholderType(*it) == QLatin1String("body")))) detail::bulletizeBody(d, *static_cast<TextItem *>(it.get()), 26, theme, 4);
         const QString kind = master ? QStringLiteral("master") : layoutType(*m);
         if (master) {
-            if (id == QLatin1String("pitch")) drawFirst(*m, {decoration("rect", QRectF(0, 0, 14, 540), accent), decoration("rect", QRectF(66, 121, 96, 5), accent)});
-            else if (id == QLatin1String("status")) drawFirst(*m, {decoration("rect", QRectF(0, 0, 960, 10), accent), decoration("rect", QRectF(66, 121, 96, 4), second)});
-            else if (id == QLatin1String("lesson")) drawFirst(*m, {decoration("rect", QRectF(0, 0, 960, 14), accent), decoration("rect", QRectF(0, 14, 960, 5), third)});
-            else if (id == QLatin1String("album")) drawFirst(*m, {decoration("rect", QRectF(66, 121, 828, 1.5), accent)});
-            else if (id == QLatin1String("minimallight") || id == QLatin1String("minimaldark")) drawFirst(*m, {decoration("rect", QRectF(66, 121, 40, 3), accent)});
-        } else if (kind == QLatin1String("title")) {
+            ItemList shapes = bars();
+            const ItemList rule = underTitle(titleBottom + 4);
+            shapes.insert(shapes.end(), rule.begin(), rule.end());
+            drawFirst(*m, shapes);
+        } else if (kind != QLatin1String("title")) {
+            // A layout whose title stands somewhere else (a section header's, a caption's), or that has a place where the rule goes (a comparison's headings), has the bars but not the rule, which would cross its words.
+            const Item *title = titleOf(*m);
+            bool crossed = title && std::abs(title->rect.bottom() - titleBottom) > 0.5;
+            for (const auto &it : m->items) {
+                const QString type = placeholderType(*it);
+                if (it->type() != ItemType::Text || type.isEmpty() || type == QLatin1String("title") || type == QLatin1String("dt") || type == QLatin1String("ftr") || type == QLatin1String("sldNum")) continue;
+                for (const auto &line : underTitle(titleBottom + 4)) crossed = crossed || line->rect.intersects(it->rect);
+            }
+            if (crossed) {
+                m->showMasterItems = false;
+                drawFirst(*m, bars());
+            }
+        }
+        if (kind == QLatin1String("title")) {
             m->showMasterItems = false;
             m->background = backgroundStyle(theme, s.titleStyle);
             ItemList shapes;
@@ -143,6 +187,21 @@ void dress(Document &d, const Spec &s, const QString &id)
                     colorText(d, *static_cast<TextItem *>(it.get()), theme.colors[backgroundStyleIsDark(s.style) ? 1 : 0]);
         }
     }
+    // The photo album's own layouts: a caption, and one, two, or three places for pictures.
+    if (id == QLatin1String("album"))
+        for (const auto &m : d.masters) {
+            if (!isSlideMaster(*m)) continue;
+            const QString master = m->id;
+            const QVector<QVector<QRectF>> pictures = {{QRectF(66, 144, 828, 340)}, {QRectF(66, 144, 400, 340), QRectF(494, 144, 400, 340)}, {QRectF(66, 144, 262, 340), QRectF(349, 144, 262, 340), QRectF(632, 144, 262, 340)}};
+            for (int n = 0; n < pictures.size(); ++n) {
+                MasterPage *layout = addLayout(d, master);
+                if (!layout) break;
+                renameMasterPage(d, layout->id, photoLayoutName(n + 1));
+                for (const QRectF &r : pictures[n])
+                    if (Item *place = insertPlaceholder(d, *layout, PlaceholderKind::Picture)) place->rect = r;
+            }
+            break;
+        }
 }
 
 // Says `lines` in the `nth` placeholder of type `type` of a slide, one paragraph each.
@@ -171,26 +230,21 @@ Page &newSlide(Document &d, const char *layout)
     return *d.pages[at];
 }
 
-// A drawing of our own that stands where a picture goes: a sky, a sun, and two hills, in the theme's colors.
-void drawScene(Page &slide, const QRectF &r, const DeckTheme &theme, int shift)
+// A slide with the album's layout that has that many places for pictures.
+Page &newPhotoSlide(Document &d, int pictures)
 {
-    const QColor sky = theme.colors[6], sun = theme.colors[7], far = theme.colors[5], near = theme.colors[4], edge = theme.colors[3];
-    const double d = 0.26 * std::min(r.width(), r.height());
-    const double sunX = shift == 0 ? 0.62 : shift == 1 ? 0.14 : 0.4;
-    auto at = [&](double x, double y, double w, double h) { return QRectF(r.x() + r.width() * x, r.y() + r.height() * y, r.width() * w, r.height() * h); };
-    // (the hills run on below the picture; a strip the color of the slide's background hides what goes past it)
-    ItemList scene = {decoration("rect", r, sky), decoration("ellipse", QRectF(r.x() + r.width() * sunX, r.y() + r.height() * 0.1, d, d), sun), decoration("ellipse", at(0.0 + 0.08 * shift, 0.5, 0.7, 0.9), far),
-                      decoration("ellipse", at(0.34, 0.68, 0.66, 0.9), near), decoration("rect", QRectF(r.left(), r.bottom(), r.width(), 80), edge)};
-    for (const auto &it : scene) {
-        it->name = QCoreApplication::translate("DeckTemplates", "Sample picture");
-        slide.items.push_back(it);
-    }
+    const QString name = photoLayoutName(pictures);
+    for (const auto &m : d.masters)
+        if (isLayout(*m) && m->name == name) {
+            addSlide(d, *m);
+            return *d.pages.back();
+        }
+    return newSlide(d, "titleOnly");
 }
 
 void sampleSlides(Document &d, const QString &id)
 {
     Page &title = *d.pages[0];
-    const DeckTheme theme = themeOf(d);
     if (id == QLatin1String("pitch")) {
         say(d, title, "ctrTitle", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "[Company name]"))});
         say(d, title, "subTitle", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "[One sentence that says what you do and for whom]"))});
@@ -205,7 +259,7 @@ void sampleSlides(Document &d, const QString &id)
         say(d, *d.pages.back(), "body", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "[What you need, how much, and what it will do]"))});
     } else if (id == QLatin1String("status")) {
         say(d, title, "ctrTitle", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "[Project name] status update"))});
-        say(d, title, "subTitle", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "[Month 1, 2027]  |  [Your name]"))});
+        say(d, title, "subTitle", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "[Date]  |  [Your name]"))});
         say(d, newSlide(d, "obj"), "title", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "Where we are"))});
         say(d, *d.pages.back(), "obj", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "Status: [on track, at risk, or late]")), t(QT_TRANSLATE_NOOP("DeckTemplates", "[One sentence on how the work is going]")), t(QT_TRANSLATE_NOOP("DeckTemplates", "[The date the work will be done]"))});
         say(d, newSlide(d, "twoObj"), "title", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "Done and next"))});
@@ -228,19 +282,12 @@ void sampleSlides(Document &d, const QString &id)
     } else if (id == QLatin1String("album")) {
         say(d, title, "ctrTitle", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "[Album title]"))});
         say(d, title, "subTitle", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "[Place or occasion]  |  [Dates]"))});
-        const QRectF wide(66, 144, 828, 340), half1(66, 144, 400, 340), half2(494, 144, 400, 340);
-        say(d, newSlide(d, "titleOnly"), "title", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "[Caption for this photo]"))});
-        drawScene(*d.pages.back(), wide, theme, 0);
-        say(d, newSlide(d, "titleOnly"), "title", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "[Caption for these photos]"))});
-        drawScene(*d.pages.back(), half1, theme, 1);
-        drawScene(*d.pages.back(), half2, theme, 2);
-        say(d, newSlide(d, "titleOnly"), "title", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "[Caption for this moment]"))});
-        drawScene(*d.pages.back(), QRectF(66, 144, 262, 340), theme, 2);
-        drawScene(*d.pages.back(), QRectF(349, 144, 262, 340), theme, 0);
-        drawScene(*d.pages.back(), QRectF(632, 144, 262, 340), theme, 1);
+        say(d, newPhotoSlide(d, 1), "title", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "[Caption for this photo]"))});
+        say(d, newPhotoSlide(d, 2), "title", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "[Caption for these photos]"))});
+        say(d, newPhotoSlide(d, 3), "title", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "[Caption for this moment]"))});
     } else {   // the two minimal looks
         say(d, title, "ctrTitle", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "[Presentation title]"))});
-        say(d, title, "subTitle", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "[Your name]  |  [Month 1, 2027]"))});
+        say(d, title, "subTitle", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "[Your name]  |  [Date]"))});
         say(d, newSlide(d, "obj"), "title", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "[A heading that says the point]"))});
         say(d, *d.pages.back(), "obj", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "[A first point, in a short line]")), t(QT_TRANSLATE_NOOP("DeckTemplates", "[A second point]")), t(QT_TRANSLATE_NOOP("DeckTemplates", "[A third point]"))});
         say(d, newSlide(d, "twoObj"), "title", 0, {t(QT_TRANSLATE_NOOP("DeckTemplates", "[Two things side by side]"))});
