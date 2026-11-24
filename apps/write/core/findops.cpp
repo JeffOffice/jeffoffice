@@ -138,15 +138,11 @@ QString expandReplacement(const QString &with, const QRegularExpressionMatch &ma
 
 namespace {
 
-// What is wrong with the shape of a regular expression (as far as it can be told from its text), or an empty string: one that the engine could not leave in reasonable time, or that reaches
-// outside the pattern. `at` is the place (a character count from 1) of the thing. A group that is repeated without end must not have a repeat without end in it ((a+)+ and the like back out
-// in more ways than there are atoms in the world); a repeat that cannot back out (a++, an atomic group) is not one.
+// What is wrong with the shape of a regular expression (as far as it can be told from its text), or an empty string: one that reaches outside the pattern (it calls itself, runs code, or
+// changes the engine's limits). `at` is the place (a character count from 1) of the thing. How long a pattern may run is not judged here: the engine's own limit on work ends it, and the scan says so.
 QString regexShapeProblem(const QString &p)
 {
-    struct Open { bool inner = false, atomic = false; };
-    QVector<Open> stack;
     auto unsupported = [](int at) { return problem(QT_TRANSLATE_NOOP("jp::write::Find", "That pattern uses something JeffWrite does not search with, at character %1.")).arg(at); };
-    bool havePrev = false, prevGroup = false, prevInner = false;
     const int n = int(p.size());
     for (int i = 0; i < n; ++i) {
         const QChar c = p[i];
@@ -160,8 +156,6 @@ QString regexShapeProblem(const QString &p)
             } else {
                 ++i;
             }
-            havePrev = true;
-            prevGroup = false;
         } else if (c == QLatin1Char('[')) {
             int j = i + 1;
             if (j < n && p[j] == QLatin1Char('^')) ++j;
@@ -174,56 +168,12 @@ QString regexShapeProblem(const QString &p)
                 }
             }
             i = j;
-            havePrev = true;
-            prevGroup = false;
         } else if (c == QLatin1Char('(')) {
             if (next == QLatin1Char('*')) return unsupported(i + 1);
             if (next == QLatin1Char('?')) {
                 if (QStringLiteral("RC(&+").contains(after) || after.isDigit() || (after == QLatin1Char('-') && i + 3 < n && p[i + 3].isDigit()) || (after == QLatin1Char('P') && i + 3 < n && p[i + 3] == QLatin1Char('>')))
                     return unsupported(i + 1);
             }
-            Open o;
-            o.atomic = next == QLatin1Char('?') && after == QLatin1Char('>');
-            stack.push_back(o);
-            havePrev = false;
-            prevGroup = false;
-        } else if (c == QLatin1Char(')')) {
-            if (stack.isEmpty()) break;   // (the engine says where)
-            const Open o = stack.takeLast();
-            if (o.inner && !o.atomic && !stack.isEmpty()) stack.last().inner = true;
-            havePrev = true;
-            prevGroup = true;
-            prevInner = o.inner && !o.atomic;
-        } else if (c == QLatin1Char('|')) {
-            havePrev = false;
-            prevGroup = false;
-        } else if (havePrev && (c == QLatin1Char('*') || c == QLatin1Char('+') || c == QLatin1Char('?') || c == QLatin1Char('{'))) {
-            bool isQuantifier = c != QLatin1Char('{'), unbounded = c == QLatin1Char('*') || c == QLatin1Char('+');
-            int end = i;
-            if (c == QLatin1Char('{')) {
-                static const QRegularExpression counts(QStringLiteral("^\\{\\d{1,5}(,\\d{0,5})?\\}"));
-                const QRegularExpressionMatch m = counts.match(p.mid(i, 14));
-                if (m.hasMatch()) {
-                    isQuantifier = true;
-                    end = i + int(m.capturedLength()) - 1;
-                    unbounded = m.captured().endsWith(QLatin1String(",}"));
-                }
-            }
-            if (isQuantifier) {
-                i = end;
-                const bool possessive = i + 1 < n && p[i + 1] == QLatin1Char('+');
-                if (possessive || (i + 1 < n && p[i + 1] == QLatin1Char('?'))) ++i;
-                if (unbounded && !possessive) {
-                    if (prevGroup && prevInner)
-                        return problem(QT_TRANSLATE_NOOP("jp::write::Find", "The repeat at character %1 repeats a group that has a repeat without end in it, which could take far too long. Give the repeat inside the group a limit, such as {1,20}.")).arg(end + 1);
-                    if (!stack.isEmpty()) stack.last().inner = true;
-                }
-            }
-            havePrev = true;
-            prevGroup = false;
-        } else {
-            havePrev = true;
-            prevGroup = false;
         }
     }
     return QString();
@@ -275,6 +225,68 @@ FindPattern regexPattern(const QString &pattern, bool matchCase)
     return out;
 }
 
+namespace {
+
+enum class Stretch { Ended, Full, Cancelled, Limited };
+
+// The matches of a stretch of the text [lo, hi) (a paragraph, or all of the text for a pattern that names a paragraph mark), from `at` on; ^ and $ are those of the stretch. A stretch longer than
+// kRegexWindow is given to the engine in windows of that many characters at most, each starting kRegexOverlap before the first place it is to find a match in, so that no call sees more than a window
+// and the look round a match (\b, a look-behind) is the text's own. A window finds the matches that start before its last kRegexOverlap characters, and no more; one that reaches the window's end is
+// found again by the window that starts at it, with room to go on. `each` says that the caller is told after every call of the engine, not only at the end of a paragraph.
+Stretch searchStretch(QStringView all, qsizetype lo, qsizetype hi, qsizetype at, const FindPattern &pattern, int most, bool each, RegexScan &out, const std::function<bool(int)> &keepGoing)
+{
+    const bool windowed = hi - lo > kRegexWindow;
+    auto stop = [&] {
+        if (!each || !keepGoing) return false;
+        return !keepGoing(++out.units);
+    };
+    while (at <= hi) {
+        if (out.hits.size() >= most) return Stretch::Full;
+        qsizetype s = lo, e = hi;
+        if (windowed) {
+            s = std::max(lo, at - kRegexOverlap);
+            e = std::min(hi, s + kRegexWindow);
+        }
+        const bool last = e == hi;
+        const qsizetype ownedEnd = last ? hi + 1 : e - kRegexOverlap, firstOwned = at;
+        const QStringView subject = all.mid(s, e - s);
+        while (at < ownedEnd) {
+            if (out.hits.size() >= most) return Stretch::Full;
+            const QRegularExpressionMatch m = pattern.regex.matchView(subject, at - s);
+            ++out.calls;
+            out.widest = std::max(out.widest, int(e - s));
+            if (!m.isValid()) {   // (the engine ended the call on its limit of work: that is no answer)
+                out.limited = true;
+                return Stretch::Limited;
+            }
+            const bool cancelled = stop();
+            if (!m.hasMatch()) {
+                at = ownedEnd;
+            } else {
+                const qsizetype start = s + m.capturedStart(), end = s + m.capturedEnd();
+                if (start >= ownedEnd) {
+                    at = ownedEnd;
+                } else if (!last && end == e && start > firstOwned) {   // (it may go on past the window: the next window, starting at it, sees more)
+                    at = start;
+                    if (cancelled) return Stretch::Cancelled;
+                    break;
+                } else {
+                    RegexHit h;
+                    h.first = int(start);
+                    h.second = int(end);
+                    for (int g = 0; g <= pattern.regex.captureCount(); ++g) h.groups << m.captured(g);
+                    out.hits.push_back(h);
+                    at = end > start ? end : end + 1;   // (after a match of no characters, one character on)
+                }
+            }
+            if (cancelled) return Stretch::Cancelled;
+        }
+    }
+    return Stretch::Ended;
+}
+
+}
+
 RegexScan scanRegex(const QString &text, const FindPattern &pattern, int from, int most, const std::function<bool(int)> &keepGoing)
 {
     RegexScan out;
@@ -284,60 +296,22 @@ RegexScan scanRegex(const QString &text, const FindPattern &pattern, int from, i
     }
     from = std::max(0, from);
     const QStringView all(text);
-    auto add = [&](qsizetype base, const QRegularExpressionMatch &m) {
-        RegexHit h;
-        h.first = int(base + m.capturedStart());
-        h.second = int(base + m.capturedEnd());
-        for (int g = 0; g <= pattern.regex.captureCount(); ++g) h.groups << m.captured(g);
-        out.hits.push_back(h);
-    };
-    if (pattern.acrossParagraphs) {
-        for (qsizetype at = from; at <= text.size();) {
-            if (out.hits.size() >= most) return out;
-            const QRegularExpressionMatch m = pattern.regex.matchView(all, at);
-            ++out.paragraphs;
-            if (!m.hasMatch()) break;
-            if (m.capturedEnd() > m.capturedStart()) {
-                add(0, m);
-                at = m.capturedEnd();
-            } else {
-                at = m.capturedEnd() + 1;
-            }
-            if (keepGoing && !keepGoing(out.paragraphs)) {
-                out.cancelled = true;
-                return out;
-            }
-        }
-        out.done = true;
+    auto finish = [&](Stretch r) {
+        out.cancelled = r == Stretch::Cancelled;
+        out.done = r == Stretch::Ended;
         return out;
-    }
+    };
+    if (pattern.acrossParagraphs) return finish(searchStretch(all, 0, text.size(), from, pattern, most, true, out, keepGoing));
     qsizetype start = from > 0 ? text.lastIndexOf(QLatin1Char('\n'), from - 1) + 1 : 0;
     for (bool first = true;; first = false) {
         qsizetype end = text.indexOf(QLatin1Char('\n'), start);
         if (end < 0) end = text.size();
-        const QStringView paragraph = all.mid(start, end - start);
-        for (qsizetype at = first ? from - start : 0; at <= paragraph.size();) {
-            if (out.hits.size() >= most) break;
-            const QRegularExpressionMatch m = pattern.regex.matchView(paragraph, at);
-            if (!m.hasMatch()) break;
-            if (m.capturedEnd() > m.capturedStart()) {
-                add(start, m);
-                at = m.capturedEnd();
-            } else {
-                at = m.capturedEnd() + 1;
-            }
-        }
+        const Stretch r = searchStretch(all, start, end, first ? qsizetype(from) : start, pattern, most, end - start > kRegexWindow, out, keepGoing);
         ++out.paragraphs;
-        if (out.hits.size() >= most) return out;
-        if (end >= text.size()) {
-            out.done = true;
-            return out;
-        }
+        if (r != Stretch::Ended) return finish(r);
+        if (end >= text.size()) return finish(r);
         start = end + 1;
-        if (keepGoing && !keepGoing(out.paragraphs)) {
-            out.cancelled = true;
-            return out;
-        }
+        if (keepGoing && !keepGoing(++out.units)) return finish(Stretch::Cancelled);
     }
 }
 

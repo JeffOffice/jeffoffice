@@ -3842,16 +3842,16 @@ private Q_SLOTS:
         QVERIFY(regexPattern(QStringLiteral("(a)(b)(c)(d)(e)(f)(g)(h)(?:i)(?:j)"), false).error.isEmpty());
     }
 
-    void regularExpressionsThatCanRunWithoutEndAreRefusedAndTheScanCountsItsWork()
+    void regularExpressionsAreRefusedOnlyWhenTheyReachOutsideThePatternAndTheScanCountsItsWork()
     {
-        // Constructs that run without bound, or that reach outside the pattern, are refused before any text is searched.
-        for (const char *bad : {"(a+)+b", "(a*)*", "(\\w+\\s?)+$", "(x(y+)z)*", "(a|b+)+", "(?R)", "(a)(?1)", "(?&n)", "(?(1)a|b)", "(*LIMIT_MATCH=9999999)a", "(?C)a", "\\g<1>", "(a)\\K"}) {
+        // Constructs that reach outside the pattern are refused before any text is searched.
+        for (const char *bad : {"(?R)", "(a)(?1)", "(?&n)", "(?(1)a|b)", "(*LIMIT_MATCH=9999999)a", "(?C)a", "\\g<1>", "(a)\\K"}) {
             const FindPattern p = regexPattern(QString::fromLatin1(bad), false);
             QVERIFY2(!p.error.isEmpty(), bad);
             QVERIFY2(!p.regex.isValid() || p.regex.pattern().isEmpty(), bad);
         }
-        // What has an end, or no way to back out, is allowed.
-        for (const char *good : {"(a+){1,5}", "(?:ab)+", "(a|b)+", "(?>a+)+b", "(a++)+", "([^,]+,){3}", "\\bx+\\b"}) QVERIFY2(regexPattern(QString::fromLatin1(good), false).error.isEmpty(), good);
+        // Everything else is allowed, including a repeated group with a repeat in it: the engine's limit of work ends one that runs too long.
+        for (const char *good : {"(a+){1,5}", "(?:ab)+", "(a|b)+", "(?>a+)+b", "(a++)+", "([^,]+,){3}", "\\bx+\\b", "(\\d+\\.)+\\d+", "(\\w+,\\s)*\\w+", "^(?:[A-Za-z]+\\s)+$", "(a+)+b", "(a*)*"}) QVERIFY2(regexPattern(QString::fromLatin1(good), false).error.isEmpty(), good);
         // The scan: from, most, and where it reached.
         const QString text = QStringLiteral("a1\na2\na3\na4\na5");
         const FindPattern p = regexPattern(QStringLiteral("a\\d"), false);
@@ -3866,8 +3866,12 @@ private Q_SLOTS:
         QCOMPARE(s.hits.size(), 3);   // (a2 starts at 3: from 4 is inside it, so the first found is a3)
         QCOMPARE(s.hits[0].first, 6);
         QCOMPARE(scanRegex(text, p, 100, 100).hits.size(), 0);
-        // A match of no characters is none.
-        QCOMPARE(scanRegex(QStringLiteral("abc"), regexPattern(QStringLiteral("x*"), false), 0, 10).hits.size(), 0);
+        // The three that the refusal used to turn away work.
+        auto count = [](const char *pattern, const QString &text) { return scanRegex(text, regexPattern(QString::fromLatin1(pattern), false), 0, 100).hits.size(); };
+        QCOMPARE(count("(\\d+\\.)+\\d+", QStringLiteral("version 1.2.3 and 10.20")), 2);
+        QCOMPARE(count("(\\w+,\\s)*\\w+", QStringLiteral("red, green, blue")), 1);
+        QCOMPARE(count("^(?:[A-Za-z]+\\s)+$", QStringLiteral("one two \nthree four ")), 2);
+        QCOMPARE(count("^(?:[A-Za-z]+\\s)+$", QStringLiteral("one two x\nthree four ")), 1);
         // The scan asks after each paragraph whether to go on, and stops at once when told not to: exactly three paragraphs are searched.
         QString many;
         for (int i = 0; i < 1000; ++i) many += QStringLiteral("a1\n");
@@ -3880,6 +3884,97 @@ private Q_SLOTS:
         QCOMPARE(s.paragraphs, 3);
         QCOMPARE(asked, 3);
         QCOMPARE(s.hits.size(), 3);
+    }
+
+    void aLongParagraphIsSearchedInWindowsThatNeverShowTheEngineMoreThanAWindowAndFindEachMatchOnce()
+    {
+        // 70,000 characters in one paragraph, with a marker at every place that matters for the windows of 20,000 with 4,000 of overlap.
+        QString text(70000, QLatin1Char('b'));
+        QList<int> at{0, 100, 15999, 16000, 16001, 15980, 19990, 27999, 28000, 28001, 40000, 47999, 48000, 60000, 69990};
+        std::sort(at.begin(), at.end());
+        at.erase(std::unique(at.begin(), at.end()), at.end());
+        QList<int> kept;
+        for (const int p : at)
+            if (kept.isEmpty() || p >= kept.last() + 12) kept << p;
+        for (const int p : kept) text.replace(p, 10, QStringLiteral("QQQQQQQQQQ"));
+        const FindPattern p = regexPattern(QStringLiteral("Q+"), false);
+        const RegexScan s = scanRegex(text, p, 0, 1000);
+        QCOMPARE(s.hits.size(), int(kept.size()));
+        for (int i = 0; i < kept.size(); ++i) {
+            QCOMPARE(s.hits[i].first, kept[i]);
+            QCOMPARE(s.hits[i].second, kept[i] + 10);
+        }
+        QVERIFY(s.done && s.widest <= kRegexWindow && s.widest > 0);
+        QVERIFY(s.calls >= 3);
+        // A match that reaches past the end of a window is found whole, once: a run of 3,000 that starts inside the overlap.
+        QString run(70000, QLatin1Char('b'));
+        run.replace(14500, 3000, QString(3000, QLatin1Char('Q')));
+        const RegexScan r = scanRegex(run, p, 0, 1000);
+        QCOMPARE(r.hits.size(), 1);
+        QCOMPARE(r.hits[0].first, 14500);
+        QCOMPARE(r.hits[0].second, 17500);
+        // From a place in the middle: the same matches at or after it.
+        QCOMPARE(scanRegex(text, p, 16001, 1000).hits.first().first, 16001);
+        // ^ and $ are those of the paragraph, never of a window; so are the edges of words.
+        const QString one(50000, QLatin1Char('b'));
+        auto count = [&](const char *pattern, const QString &t) { return scanRegex(t, regexPattern(QString::fromLatin1(pattern), false), 0, 100).hits.size(); };
+        QCOMPARE(count("^b", one), 1);
+        QCOMPARE(count("b$", one), 1);
+        QCOMPARE(count("\\bb", one), 1);
+        QCOMPARE(count("b\\b", one), 1);
+        QCOMPARE(count("^b", one + QLatin1Char('\n') + one), 2);
+        QCOMPARE(count("(?:^b|\\n)", one + QLatin1Char('\n') + one), 3);   // (across paragraphs: ^ is still the start of a line only)
+        // The pattern of the review: a look-ahead that reads to the end of a text, over 200,000 characters, is only ever given a window.
+        QString huge(200000, QLatin1Char('a'));
+        const RegexScan h = scanRegex(huge, regexPattern(QStringLiteral("Q(?=.*z)a"), false), 0, 10);
+        QVERIFY(h.done && h.hits.isEmpty() && h.widest <= kRegexWindow);
+    }
+
+    void theScanAsksBetweenWindowsWhetherToGoOnAndStopsAtOnce()
+    {
+        const QString text(100000, QLatin1Char('b'));
+        for (const char *pattern : {"z", "z\\nz"}) {   // (one paragraph; and a pattern across paragraphs, which is searched as one text)
+            const FindPattern p = regexPattern(QString::fromLatin1(pattern), false);
+            int asked = 0;
+            RegexScan s = scanRegex(text, p, 0, 10, [&](int units) {
+                ++asked;
+                return units < 3;
+            });
+            QVERIFY2(s.cancelled && !s.done, pattern);
+            QCOMPARE(asked, 3);
+            QCOMPARE(s.calls, 3);   // (a miss over the whole text is not one call)
+        }
+        const RegexScan all = scanRegex(text, regexPattern(QStringLiteral("z"), false), 0, 10);
+        QVERIFY(all.done && all.calls >= 6 && all.calls < 20);
+    }
+
+    void aMatchOfNoCharactersIsFoundOnceAndTheSearchGoesOneCharacterOn()
+    {
+        auto at = [](const char *pattern, const QString &text) {
+            QList<int> out;
+            for (const RegexHit &h : scanRegex(text, regexPattern(QString::fromLatin1(pattern), false), 0, 100).hits) out << h.first * 100 + h.second;
+            return out;
+        };
+        QCOMPARE(at("x*", QStringLiteral("abc")), (QList<int>{0, 101, 202, 303}));
+        QCOMPARE(at("^", QStringLiteral("ab\ncd")), (QList<int>{0, 303}));
+        QCOMPARE(at("$", QStringLiteral("ab\ncd")), (QList<int>{202, 505}));
+        QCOMPARE(at("\\b", QStringLiteral("ab cd")), (QList<int>{0, 202, 303, 505}));
+        QCOMPARE(at("a*", QStringLiteral("baac")), (QList<int>{0, 103, 303, 404}));
+        const RegexScan s = scanRegex(QStringLiteral("abc"), regexPattern(QStringLiteral("^"), false), 0, 100);
+        QVERIFY(s.done);
+    }
+
+    void theEnginesLimitOfWorkIsAnErrorAndNotNoMatch()
+    {
+        const QString text = QString(40, QLatin1Char('a')) + QLatin1Char('b');
+        const RegexScan s = scanRegex(text, regexPattern(QStringLiteral("(a|aa)+c|b"), false), 0, 10);
+        QVERIFY(s.limited && !s.done && !s.cancelled);
+        const RegexScan t = scanRegex(text, regexPattern(QStringLiteral("^(a+)+$"), false), 0, 10);
+        QVERIFY(t.limited);
+        // A pattern the engine finishes is not one that hit the limit, with a match or without.
+        const RegexScan ok = scanRegex(text, regexPattern(QStringLiteral("b"), false), 0, 10);
+        QVERIFY(!ok.limited && ok.done && ok.hits.size() == 1);
+        QVERIFY(!scanRegex(text, regexPattern(QStringLiteral("z"), false), 0, 10).limited);
     }
 
     void advancedFindReadsSoundsFormsAndLettersWithPunctuationBetween()
@@ -4544,30 +4639,39 @@ private Q_SLOTS:
         QTRY_VERIFY(pane->status().contains(QStringLiteral("character")));
         QCOMPARE(pane->matchCount(), 0);
         QVERIFY(!pane->findNext());
-        // One that could run without end is refused, and says why.
-        pane->findBox()->setText(QStringLiteral("(a+)+b"));
+        // One that reaches outside the pattern is refused, and says why; a repeated group with a repeat in it is not (the engine's limit of work ends one that runs too long).
+        pane->findBox()->setText(QStringLiteral("a\\Kb"));
         QTRY_VERIFY(!pane->status().isEmpty() && pane->status() != QStringLiteral("No matches"));
         QCOMPARE(pane->matchCount(), 0);
+        pane->findBox()->setText(QStringLiteral("(a+)+b"));
+        QTRY_COMPARE(pane->status(), QStringLiteral("No matches"));
         // Off, the same text is plain words.
         regex->setChecked(false);
         pane->findBox()->setText(QStringLiteral("Lee, A"));
         QTRY_COMPARE(pane->matchCount(), 1);
     }
 
-    void aRegularExpressionSearchOfALargeStoryRunsOffTheWindowThreadAndStopsWhenCancelled()
+    // A story that is not short is searched on a thread of its own, and what asked is answered when the search is done (no loop of events is run inside Find Next).
+    static QByteArray evenOddBody(int paragraphs)
     {
         QByteArray body;
-        for (int i = 0; i < 3000; ++i) body += para(run(i % 2 ? "odd line" : "even line"));
+        for (int i = 0; i < paragraphs; ++i) body += para(run(i % 2 ? "odd line" : "even line"));
+        return body;
+    }
+
+    void aRegularExpressionSearchOfALargeStoryRunsOffTheWindowThreadAndStopsWhenCancelled()
+    {
         WriteWindow w;
         w.setNotifier([](const QString &, const QString &) {});
         w.resize(900, 700);
         w.show();
-        w.setDocument(open(makeDocx(body)), QString());
+        w.setDocument(open(makeDocx(evenOddBody(3000))), QString());
         w.showFindPane();
         WriteFindPane *pane = w.findPane();
         pane->useRegex()->setChecked(true);
         pane->findBox()->setText(QStringLiteral("^even"));
         QTRY_COMPARE(pane->matchCount(), 1500);
+        QVERIFY(!pane->searchRunning());
         // The search asks after each paragraph whether to go on: the answer no stops it after exactly that many, and nothing is found or replaced.
         std::atomic<int> asked{0};
         pane->setScanHook([&](int) {
@@ -4576,20 +4680,205 @@ private Q_SLOTS:
         });
         pane->findBox()->setText(QStringLiteral("^odd"));
         QTRY_COMPARE(pane->matchCount(), 0);
-        QVERIFY2(pane->status().contains(QStringLiteral("cancel"), Qt::CaseInsensitive), qPrintable(pane->status()));
+        QTRY_VERIFY2(pane->status().contains(QStringLiteral("cancel"), Qt::CaseInsensitive), qPrintable(pane->status()));
+        QCOMPARE(asked.load(), 5);
+        // Find Next that is cancelled says so, and not that nothing was found (S2).
+        asked = 0;
+        QVERIFY(!pane->findNext());
+        QTRY_VERIFY2(pane->status().contains(QStringLiteral("cancel"), Qt::CaseInsensitive), qPrintable(pane->status()));
+        QVERIFY(!pane->status().contains(QStringLiteral("not found")));
         QCOMPARE(asked.load(), 5);
         const QString before = w.document()->story()->toPlainText();
         asked = 0;
         pane->replaceBox()->setText(QStringLiteral("x"));
         pane->replaceAll();
-        QVERIFY2(pane->status().contains(QStringLiteral("cancel"), Qt::CaseInsensitive), qPrintable(pane->status()));
+        QTRY_VERIFY2(pane->status().contains(QStringLiteral("cancel"), Qt::CaseInsensitive) && !pane->searchRunning(), qPrintable(pane->status()));
         QCOMPARE(asked.load(), 5);
         QCOMPARE(w.document()->story()->toPlainText(), before);
         pane->setScanHook({});
         pane->replaceAll();
-        QVERIFY(w.document()->story()->toPlainText().contains(QStringLiteral("even line\nx line")));
+        QTRY_VERIFY(w.document()->story()->toPlainText().contains(QStringLiteral("even line\nx line")));
         QVERIFY(w.document()->undo());
         QCOMPARE(w.document()->story()->toPlainText(), before);
+    }
+
+    void regularExpressionsOfNoCharactersWorkInTheFindPaneAsOneStepWithTrackedChanges()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        auto doc = open(makeDocx(para(run("one two")) + para(run("three"))));
+        w.setDocument(std::move(doc), QString());
+        w.showFindPane();
+        WriteFindPane *pane = w.findPane();
+        pane->useRegex()->setChecked(true);
+        const QString before = w.document()->story()->toPlainText();
+        auto text = [&] { return w.document()->story()->toPlainText().remove(QChar(0xFFFC)); };   // (the marks of a tracked change are no text)
+        pane->findBox()->setText(QStringLiteral("^"));
+        QTRY_COMPARE(pane->matchCount(), 2);
+        QVERIFY2(!pane->status().contains(QStringLiteral("not found")), qPrintable(pane->status()));
+        pane->replaceBox()->setText(QStringLiteral("> "));
+        pane->replaceAll();
+        QCOMPARE(text(), QStringLiteral("> one two\n> three"));
+        QVERIFY(w.document()->undo());   // (one step)
+        QCOMPARE(text(), before);
+        pane->findBox()->setText(QStringLiteral("$"));
+        pane->replaceBox()->setText(QStringLiteral("."));
+        pane->replaceAll();
+        QCOMPARE(text(), QStringLiteral("one two.\nthree."));
+        QVERIFY(w.document()->undo());
+        pane->findBox()->setText(QStringLiteral("x*"));
+        QTRY_COMPARE(pane->matchCount(), 14);
+        pane->replaceBox()->setText(QStringLiteral("-"));
+        pane->replaceAll();
+        QCOMPARE(text(), QStringLiteral("-o-n-e- -t-w-o-\n-t-h-r-e-e-"));
+        QVERIFY(w.document()->undo());
+        // Find Next puts the caret at the place, and the next press goes on to the next place (never the same place twice).
+        pane->findBox()->setText(QStringLiteral("^"));
+        QCOMPARE(w.view()->cursor().position(), 0);
+        QVERIFY(pane->findNext());
+        QCOMPARE(w.view()->cursor().position(), 0);
+        QVERIFY(!w.view()->cursor().hasSelection());
+        QVERIFY(pane->findNext());
+        QCOMPARE(w.view()->cursor().position(), 8);
+        // Replace puts the words in at the place and goes on to the next one.
+        pane->replaceBox()->setText(QStringLiteral("> "));
+        pane->replaceOne();
+        QVERIFY2(text().startsWith(QStringLiteral("one two\n> three")), qPrintable(text()));
+        QVERIFY(w.document()->undo());
+        QCOMPARE(text(), before);
+        // With Track Changes on the words go in all the same (the review tests read the marks that are kept).
+        w.document()->setTrackChanges(true);
+        pane->findBox()->setText(QStringLiteral("^"));
+        pane->replaceAll();
+        QCOMPARE(text(), QStringLiteral("> one two\n> three"));
+    }
+
+    void replaceAndReplaceAllAreRefusedInAReadOnlyDocumentInEveryMode()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        w.setDocument(open(makeDocx(para(run("one two one")))), QString());
+        w.showFindPane();
+        WriteFindPane *pane = w.findPane();
+        const QString before = w.document()->story()->toPlainText();
+        w.setReadOnly(true);
+        pane->replaceBox()->setText(QStringLiteral("X"));
+        for (int mode = 0; mode < 3; ++mode) {
+            pane->useWildcards()->setChecked(mode == 1);
+            pane->useRegex()->setChecked(mode == 2);
+            pane->findBox()->setText(mode == 2 ? QStringLiteral("o(n)e") : QStringLiteral("one"));
+            QVERIFY(pane->findNext());
+            pane->replaceOne();
+            pane->replaceAll();
+            QCOMPARE(w.document()->story()->toPlainText(), before);
+        }
+    }
+
+    void typingIsBlockedWhileASearchRunsAndTextChangedAnyWayThrowsTheResultAway()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        w.setDocument(open(makeDocx(evenOddBody(3000))), QString());
+        w.showFindPane();
+        WriteFindPane *pane = w.findPane();
+        pane->useRegex()->setChecked(true);
+        pane->findBox()->setText(QStringLiteral("^even"));
+        QTRY_COMPARE(pane->matchCount(), 1500);
+        const QString before = w.document()->story()->toPlainText();
+        // (a) From its first moment the view takes no typing, and takes it again when the search is done.
+        pane->replaceBox()->setText(QStringLiteral("ZZ"));
+        bool blocked = false;
+        pane->setSearchStartedHook([&] {
+            blocked = w.view()->readOnly() && pane->searchRunning();
+            QTest::keyClicks(w.view(), QStringLiteral("typed"));
+        });
+        pane->findBox()->setText(QStringLiteral("^odd"));
+        pane->replaceAll();
+        QVERIFY(blocked);
+        QTRY_VERIFY(!pane->searchRunning());
+        QVERIFY(!w.view()->readOnly());
+        QVERIFY2(!w.document()->story()->toPlainText().contains(QStringLiteral("typed")), "typing was blocked");
+        QTRY_VERIFY(w.document()->story()->toPlainText().contains(QStringLiteral("ZZ line")));
+        QVERIFY(w.document()->undo());
+        QCOMPARE(w.document()->story()->toPlainText(), before);
+        // (b) A change of the text by any other way (the hook edits the document itself) means the result is thrown away, and nothing is replaced.
+        bool edited = false;
+        pane->setSearchStartedHook([&] {
+            if (std::exchange(edited, true)) return;
+            QTextCursor c(w.document()->story());
+            c.insertText(QStringLiteral("YYYYYYYYYY"));
+        });
+        pane->findBox()->setText(QStringLiteral("^even"));
+        pane->replaceAll();
+        QTRY_VERIFY(!pane->searchRunning());
+        pane->setSearchStartedHook({});
+        QVERIFY2(!w.document()->story()->toPlainText().contains(QStringLiteral("ZZ")), qPrintable(w.document()->story()->toPlainText().left(80)));
+        QVERIFY(w.document()->story()->toPlainText().startsWith(QStringLiteral("YYYYYYYYYYeven line\nodd line")));
+    }
+
+    void closingTheWindowWhileASearchRunsStopsItAndEndsItsThread()
+    {
+        auto *w = new WriteWindow;
+        w->setNotifier([](const QString &, const QString &) {});
+        w->resize(900, 700);
+        w->show();
+        w->setDocument(open(makeDocx(evenOddBody(3000))), QString());
+        w->showFindPane();
+        WriteFindPane *pane = w->findPane();
+        pane->useRegex()->setChecked(true);
+        pane->findBox()->setText(QStringLiteral("^even"));
+        QTRY_COMPARE(pane->matchCount(), 1500);
+        // The search holds at its third paragraph until it is told to stop (a counted wait: no clock).
+        std::atomic<bool> held{false};
+        std::shared_ptr<std::atomic<bool>> flag;
+        pane->setScanHook([&](int done) {
+            if (done == 3) {
+                held = true;
+                for (int i = 0; i < 200000000 && !(flag && flag->load()); ++i) QThread::yieldCurrentThread();
+            }
+            return true;
+        });
+        pane->findBox()->setText(QStringLiteral("^odd"));
+        QTRY_VERIFY(pane->searchRunning());
+        flag = pane->searchCancelFlag();
+        QVERIFY(flag);
+        QTRY_VERIFY(held.load());
+        delete w;   // (its destructor stops the search and waits for the thread: nothing the thread reads is gone before it ends)
+        QVERIFY(flag->load());
+    }
+
+    void aPatternThatNeedsTooMuchWorkIsAnErrorThatStopsEverythingAndChangesNothing()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(900, 700);
+        w.show();
+        w.setDocument(open(makeDocx(para(run(QString(40, QLatin1Char('a')).append(QLatin1Char('b')).toLatin1())) + evenOddBody(3000))), QString());
+        w.showFindPane();
+        WriteFindPane *pane = w.findPane();
+        pane->useRegex()->setChecked(true);
+        const QString before = w.document()->story()->toPlainText();
+        pane->findBox()->setText(QStringLiteral("(a|aa)+c|b"));
+        QTRY_VERIFY2(pane->status().contains(QStringLiteral("too much work")), qPrintable(pane->status()));
+        QCOMPARE(pane->matchCount(), 0);
+        QVERIFY(!pane->findNext());
+        QTRY_VERIFY2(pane->status().contains(QStringLiteral("too much work")), qPrintable(pane->status()));
+        pane->replaceBox()->setText(QStringLiteral("x"));
+        pane->replaceAll();
+        QTRY_VERIFY(!pane->searchRunning());
+        QVERIFY2(pane->status().contains(QStringLiteral("too much work")), qPrintable(pane->status()));
+        QCOMPARE(w.document()->story()->toPlainText(), before);
+        // Harmless patterns that the old refusal turned away work; a hopeless one gives the message quickly.
+        pane->findBox()->setText(QStringLiteral("(\\w+\\s)+line"));
+        QTRY_VERIFY(pane->matchCount() > 0);
+        pane->findBox()->setText(QStringLiteral("^(a+)+$"));
+        QTRY_VERIFY2(pane->status().contains(QStringLiteral("too much work")), qPrintable(pane->status()));
     }
 
     // A picture of the Home ribbon (with JW_SHOT_DIR set), for looking at the Bold button's weight. It sets the light look for the picture and puts the look it found back.
@@ -4645,8 +4934,8 @@ private Q_SLOTS:
             QTRY_COMPARE(pane->matchCount(), 3);
             QVERIFY(QTest::qWaitForWindowExposed(&w));
             QVERIFY(w.grab().save(dir + QStringLiteral("/write-find-regex.png")));
-            pane->findBox()->setText(QStringLiteral("(a+)+b"));
-            QTRY_VERIFY(pane->status().contains(QStringLiteral("repeat")));
+            pane->findBox()->setText(QStringLiteral("a\\Kb"));
+            QTRY_VERIFY(pane->status().contains(QStringLiteral("does not search")));
             QVERIFY(w.grab().save(dir + QStringLiteral("/write-find-regex-refused.png")));
             pane->findBox()->setText(QStringLiteral("a(b"));
             QTRY_VERIFY(pane->status().contains(QStringLiteral("character")));

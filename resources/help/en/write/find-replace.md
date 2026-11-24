@@ -52,7 +52,7 @@ In **Replace with**, **$1** or **\1** is the first group, **$2** or **\2** is th
 
 **Replace All** changes every match in the text, headers, footers, notes, and text boxes as one step, so one **Undo** takes all of them back. With Track Changes on, each change is tracked, as it is for words. Hidden text is left alone.
 
-If the pattern has a mistake, the pane says near which character. A pattern that repeats a group with a repeat inside it that has no end, such as **(a+)+**, is not searched, because it can take far too long. Give the inner repeat a limit, such as **(a{1,20})+**. A long search shows a **Searching** box with a **Cancel** button; cancelling leaves your document as it was.
+If the pattern has a mistake, the pane says near which character. A pattern can match no characters at all, such as **^** (the start of a paragraph) or **$** (the end): **Replace with** then puts its words in at that place, so **^** with **> ** adds those marks to the front of every paragraph. A pattern that would take far too long on your text, such as **(a+)+$** on a long line of a's, is stopped by JeffWrite, which says so; nothing is changed. A long search shows a **Searching** box with a **Cancel** button; cancelling leaves your document as it was, and you cannot type in the document until the search is done. In a paragraph longer than 20,000 characters, JeffWrite searches 20,000 characters at a time, so a single match longer than 4,000 characters can be missed there.
 
 ## Advanced Find
 

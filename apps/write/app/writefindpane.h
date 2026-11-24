@@ -60,8 +60,15 @@ public:
     QCheckBox *useWildcards() const { return m_wild; }
     // Find by regular expression (core/findops.h regexPattern); it and wildcards are two ways to read the box, so one is on at a time.
     QCheckBox *useRegex() const { return m_regex; }
-    // For tests: told how many paragraphs a regular-expression search has searched (on the search's own thread); false stops it there.
+    // For tests: told how many units of work a regular-expression search has done (paragraphs ended, and calls of the engine in a long text; on the search's own thread); false stops it there.
     void setScanHook(std::function<bool(int)> hook) { m_scanHook = std::move(hook); }
+    // For tests: called on the window's thread just after a search has been started on a thread of its own (the text is not to be changed by it: that is what the test checks).
+    void setSearchStartedHook(std::function<void()> hook) { m_startedHook = std::move(hook); }
+    // Whether a search is under way on a thread of its own (Find Next, the count, and Replace All wait for it, and the text may not be edited meanwhile), and the flag that stops it (null when none).
+    bool searchRunning() const { return bool(m_job); }
+    std::shared_ptr<std::atomic<bool>> searchCancelFlag() const;
+    // Stops a search that is under way, waits for its thread to end, and drops what it found. Nothing is changed.
+    void cancelSearch();
     // Advanced Find: words that sound like the one typed, every form of it, and letters found with punctuation or spaces between them that the box leaves out.
     QCheckBox *soundsLike() const { return m_sounds; }
     QCheckBox *wordForms() const { return m_forms; }
@@ -89,11 +96,24 @@ private:
     void syncChoices();
     void updateFormatLabel();
     QRegularExpressionMatch groupsOf(const QTextCursor &match, StoryWords *text);
-    // Regular expressions: the first match at or after a place (its groups are in m_lastGroups); searches are made in batches that the next ask for the place after the last match is answered from, and run on a
-    // thread of their own, with a box that can cancel them, when the text is not short.
+    // Regular expressions: the first match at or after a place (its groups are in m_lastGroups); searches are made in batches that the next ask for the place after the last match is answered from. A text that is not
+    // short is searched on a thread of its own, with a box that can cancel it: the ask is then not answered now (m_wait is set), and what asked is made again when the search is done (m_retry).
     QTextCursor regexMatchIn(StoryWords *text, int from, QString *error);
     QStringList regexGroupsOf(const QTextCursor &match, StoryWords *text);
-    write::RegexScan runScan(const QString &plain, const write::FindPattern &pattern, int from, int most);
+    struct Job;
+    struct RegexMemo {
+        QString held, query;
+        bool matchCase = false, done = false;
+        int from = 0, revision = -1;
+        QVector<write::RegexHit> hits;   // one after the other, as a search that goes on from the end of each finds them, starting from `from`
+    };
+    bool startScan(StoryWords *text, const QString &plain, const write::FindPattern &pattern, int from, int most, bool fresh);
+    void showBusyBox();
+    void jobDone(quint64 id);
+    void endJob(Job &job);
+    QString searchSignature() const;
+    void waitThen(const std::function<void()> &again, bool againWhenStale = false);
+    static int nextPlace(const QTextCursor &match, int at);
     void hideEvent(QHideEvent *e) override;
     void showEvent(QShowEvent *e) override;
     // The story's words as they are now (made again when the story has changed), and the search's way to them.
@@ -106,8 +126,8 @@ private:
     QString whereIs(QTextDocument *story, int page);
     QVector<QTextDocument *> sideStories();
     bool lastMatchBefore(QTextDocument *story, int before, QTextCursor *found, QString *problem);
-    int replaceInStory(QTextDocument *story, QString *problem, StoryWords *given = nullptr);
-    int replaceInTextBoxes(QString *problem, int *tooLarge);
+    int replaceInStory(QTextDocument *story, QString *problem, StoryWords *given = nullptr, bool onlyLook = false);
+    int replaceInTextBoxes(QString *problem, int *tooLarge, bool onlyLook = false);
     bool m_boxesStopped = false;
     bool selectionIsMatch();
     static bool holdsMark(const QString &plain, int from, int to);
@@ -132,15 +152,24 @@ private:
     QVector<QPair<int, int>> m_matches;
     QTimer *m_refresh = nullptr;
     QPointer<QTextDocument> m_watched;
-    struct RegexMemo {
-        QString held, query;
-        bool matchCase = false, done = false;
-        int from = 0;
-        QVector<write::RegexHit> hits;
-    } m_memo;
+    QHash<const QTextDocument *, RegexMemo> m_memos;   // the searches of the stories that are long enough to be searched on a thread (kept, so that what asks again is answered)
+    RegexMemo m_smallMemo;                              // the search of any short story
     QStringList m_lastGroups;
     std::function<bool(int)> m_scanHook;
-    bool m_scanning = false, m_inlineScans = false, m_cancellable = true;
+    std::function<void()> m_startedHook;
+    std::unique_ptr<Job> m_job;
+    std::function<void()> m_retry;
+    bool m_retryWhenStale = false;
+    bool m_wait = false, m_inlineScans = false;
+    int m_retries = 0;
+    quint64 m_jobIds = 0;
+    bool m_inRetry = false;
+    QTimer *m_busyTimer = nullptr;
+    // Where an empty match was last shown or put words in (the story, the place, and the story's revision): an ask from that place goes on one character, not to the same place again.
+    struct EmptyAt {
+        const QTextDocument *story = nullptr;
+        int pos = -1, revision = -1;
+    } m_emptyAt;
 };
 
 } // namespace jp

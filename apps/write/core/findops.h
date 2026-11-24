@@ -18,6 +18,9 @@
 namespace jp::write {
 
 constexpr int kMostPatternLength = 500;   // a longer pattern is refused
+// A regular expression is given to the engine in windows of at most this many characters (a longer paragraph, or the story for a pattern across paragraphs), each starting this many before the first place it
+// is to find a match in. A match longer than the overlap that starts near a window's end can be missed in such a text.
+constexpr int kRegexWindow = 20000, kRegexOverlap = 4000;
 // What the search's text has in the place of a section break (a paragraph mark that ends a section), the start of a field, and a footnote's or an endnote's mark: one character each, from the
 // private use area, so that the codes ^b, ^d, ^f, and ^e find them and nothing else does.
 constexpr char16_t kFindSectionBreak = 0xE0B0, kFindField = 0xE0D0, kFindEndnoteMark = 0xE0E0, kFindFootnoteMark = 0xE0F0;
@@ -36,8 +39,8 @@ QString expandReplacement(const QString &with, const QRegularExpressionMatch &ma
 
 // "Use regular expressions": the pattern as typed, in the common syntax (classes, anchors, groups, alternation, counted and lazy repeats, \b, \d, \w, \s, \n for a paragraph mark), with letters read as
 // Unicode letters and the case of letters following `matchCase`. Anchors are those of a paragraph. Refused, with a sentence naming the place: a pattern that is not valid, longer than kMostPatternLength,
-// with more than nine groups that are kept, that repeats a group that has a repeat without end in it (such as (a+)+, which can take longer than the age of the universe), or that calls itself, runs code,
-// or changes the engine's limits ((?R), (?1), (?C), (*VERB), \g<1>, \K, conditions).
+// with more than nine groups that are kept, or that calls itself, runs code, or changes the engine's limits ((?R), (?1), (?C), (*VERB), \g<1>, \K, conditions). A pattern that takes too long on a text is
+// stopped by the engine's limit of work, and scanRegex says so (`limited`).
 FindPattern regexPattern(const QString &pattern, bool matchCase);
 
 // One match of a regular expression: the characters [first, second) of the text, and the groups (0 is all of it; a group that took no part is empty).
@@ -49,10 +52,15 @@ struct RegexScan {
     QVector<RegexHit> hits;
     bool done = false;        // the end of the text was reached (and so no more matches are there)
     bool cancelled = false;   // `keepGoing` said stop
+    bool limited = false;     // the engine ended a call on its limit of work: the pattern needs too much on this text, and nothing can be said of the matches (`hits` are those before it)
     int paragraphs = 0;       // how many paragraphs were searched (a count of the work done)
+    int calls = 0;            // how many calls of the engine were made
+    int widest = 0;           // the most characters any one call was given to look at (never more than kRegexWindow)
+    int units = 0;            // the count `keepGoing` was last told: paragraphs ended, and calls of the engine in a long paragraph or a pattern across paragraphs
 };
-// The matches at or after `from`, at most `most`, none of no characters. Each paragraph is a call of the engine, which ends by its own limit on work; after each one `keepGoing` is told how many have been
-// searched and says whether to go on. (Nothing here touches a document, so it may run on a thread.)
+// The matches at or after `from`, at most `most`, one after the other (after a match of no characters the next search starts one character on). A paragraph longer than kRegexWindow is searched in windows, and
+// ^ and $ are still those of the paragraph. `keepGoing` is told the count of units of work done (`units`) and says whether to go on. A call of the engine that ends on its limit of work stops the scan (`limited`).
+// (Nothing here touches a document, so it may run on a thread.)
 RegexScan scanRegex(const QString &text, const FindPattern &pattern, int from, int most, const std::function<bool(int)> &keepGoing = {});
 
 // The replacement of a regular-expression find: \1 to \9 or $1 to $9 are the groups (0 is all of the match), $$ is a dollar sign, \\ a backslash, \t a tab; anything else is itself.

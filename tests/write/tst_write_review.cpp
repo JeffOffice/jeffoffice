@@ -4371,6 +4371,56 @@ private Q_SLOTS:
         QVERIFY2(documentXml(savedByWindow(v)).contains("cat one"), "one undo takes back every story");
     }
 
+    // A match of no characters ("^") replaced with Track Changes on is kept as an insertion; and a Replace All that is cancelled while it looks through a header changes nothing in the text, though
+    // the text had matches (the search of every story is finished before the first swap).
+    void regexReplaceAllOfAnEmptyMatchIsTrackedAndACancelInALaterStoryChangesNothing()
+    {
+        {
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.resize(900, 700);
+            w.show();
+            auto doc = open(makeDocx(para(run("one"))));
+            doc->setTrackChanges(true);
+            w.setDocument(std::move(doc), QString());
+            w.showFindPane();
+            w.findPane()->useRegex()->setChecked(true);
+            w.findPane()->findBox()->setText(QStringLiteral("^"));
+            w.findPane()->replaceBox()->setText(QStringLiteral("> "));
+            w.findPane()->replaceAll();
+            const QByteArray x = documentXml(savedByWindow(w));
+            QVERIFY2(x.contains("<w:ins ") && x.contains("&gt; "), x.constData());
+        }
+        StoryParts p;
+        QByteArray many;
+        for (int i = 0; i < 1000; ++i) many += para(run("cat one"));
+        p.body = many;
+        p.header = many;
+        WriteWindow v;
+        v.setNotifier([](const QString &, const QString &) {});
+        v.resize(900, 700);
+        v.show();
+        v.setDocument(open(makeDocxWithStories(p)), QString());
+        v.showFindPane();
+        WriteFindPane *pane = v.findPane();
+        pane->useRegex()->setChecked(true);
+        pane->findBox()->setText(QStringLiteral("^cat"));
+        pane->replaceBox()->setText(QStringLiteral("dog"));
+        QTRY_VERIFY(!pane->searchRunning());
+        const QString before = v.document()->story()->toPlainText();
+        // Every paragraph of the text is searched (1,000 asks), and the header's search is cancelled after 500 more: matches exist, and nothing is changed.
+        std::atomic<int> asked{0};
+        pane->setScanHook([&](int) { return ++asked < 1500; });
+        pane->replaceAll();
+        QTRY_VERIFY2(pane->status().contains(QStringLiteral("ancel")) && !pane->searchRunning(), qPrintable(pane->status()));
+        QVERIFY(asked.load() >= 1500);   // (the paragraphs of the text, then the header's, and the search ends where it was told to)
+        QCOMPARE(v.document()->story()->toPlainText(), before);
+        QVERIFY(!v.document()->undo() || v.document()->story()->toPlainText() == before);
+        pane->setScanHook({});
+        pane->replaceAll();
+        QTRY_VERIFY2(pane->status().contains(QStringLiteral("2000")), qPrintable(pane->status()));
+    }
+
     void aChangeInATextBoxInAnEndnoteIsCountedAndDoneAndEveryKindOfChangeInABoxIsFound()
     {
         {
