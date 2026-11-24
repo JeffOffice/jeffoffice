@@ -2,6 +2,8 @@
 // The box that shows while the background of a big picture is being found, with Cancel (Editor::cancelRemoveBackgroundWork). Each window of a program that
 // has Remove Background makes one for its editor.
 
+#include "core/export.h"
+
 #include <QObject>
 #include <QPointer>
 #include <QProgressDialog>
@@ -15,7 +17,7 @@ class Editor;
 // A picture of more pixels than this has the box (a smaller one is found before the box would be seen).
 constexpr qint64 kRemoveBgProgressPixels = 2'000'000;
 
-class RemoveBackgroundProgress : public QObject {
+class JO_COMMON_EXPORT RemoveBackgroundProgress : public QObject {
     Q_OBJECT
 public:
     RemoveBackgroundProgress(Editor *editor, QWidget *window);
