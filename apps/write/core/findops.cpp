@@ -166,19 +166,28 @@ QString regexShapeProblem(const QString &p)
     for (int i = 0; i < n; ++i) {
         const QChar c = p[i];
         const QChar next = i + 1 < n ? p[i + 1] : QChar(), after = i + 2 < n ? p[i + 2] : QChar();
-        if (c == QLatin1Char('{')) {   // (a counted repeat: {n}, {n,}, {n,m}, or {,m}; anything else is the character itself)
+        if (c == QLatin1Char('{')) {   // (a counted repeat: {n}, {n,}, {n,m}, or {,m}, with spaces allowed inside the braces; anything else is the character itself)
             int j = i + 1;
-            qsizetype digits = 0;
+            auto spaces = [&] { while (j < n && p[j] == QLatin1Char(' ')) ++j; };
             bool big = false;
-            for (; j < n && (p[j].isDigit() || p[j] == QLatin1Char(',')); ++j) {
-                if (p[j] == QLatin1Char(',')) {
-                    digits = 0;
-                    continue;
-                }
-                ++digits;
-                big = big || digits > 3 || (digits == 3 && p.mid(j - 2, 3).toInt() > kMostRepeatCount);
+            auto number = [&] {   // (the digits at j: whether there are any)
+                const int first = j;
+                while (j < n && p[j].isDigit()) ++j;
+                big = big || j - first > 3 || (j - first == 3 && p.mid(first, 3).toInt() > kMostRepeatCount);
+                return j > first;
+            };
+            spaces();
+            const bool low = number();
+            spaces();
+            bool comma = false, high = false;
+            if (j < n && p[j] == QLatin1Char(',')) {
+                comma = true;
+                ++j;
+                spaces();
+                high = number();
+                spaces();
             }
-            if (j < n && p[j] == QLatin1Char('}') && j > i + 1 && p.mid(i + 1, j - i - 1) != QLatin1String(",") && big)
+            if (j < n && p[j] == QLatin1Char('}') && (low || (comma && high)) && big)
                 return problem(QT_TRANSLATE_NOOP("jp::write::Find", "A repeat count over %2 at character %1 could take far too long. Use a smaller count, or + or *.")).arg(i + 1).arg(kMostRepeatCount);
         } else if (c == QLatin1Char('\\')) {
             if (next == QLatin1Char('K') || next == QLatin1Char('g')) return unsupported(i + 1);
@@ -286,6 +295,7 @@ Stretch searchStretch(QStringView all, qsizetype lo, qsizetype hi, qsizetype at,
         if (!each || !keepGoing) return false;
         return !keepGoing(++out.units);
     };
+    qint64 rerun = 0;
     while (at <= hi) {
         if (out.hits.size() >= most) return Stretch::Full;
         const qsizetype s = std::max(lo, at - kRegexOverlap), e = std::min(hi, at + kRegexOwned + kRegexAhead);
@@ -296,6 +306,10 @@ Stretch searchStretch(QStringView all, qsizetype lo, qsizetype hi, qsizetype at,
         for (;;) {
             m = pattern.regex.matchView(all.mid(s, reach - s), from - s, reach == hi ? QRegularExpression::NormalMatch : QRegularExpression::PartialPreferFirstMatch, anchored ? QRegularExpression::AnchorAtOffsetMatchOption : QRegularExpression::NoMatchOption);
             ++out.calls;
+            if (anchored) {   // (the text handed over in calls that try a place again is counted for the whole paragraph: a run that ends every try at its far end would otherwise cost the square of its length)
+                rerun += reach - s;
+                out.rerun = std::max(out.rerun, rerun);
+            }
             out.widest = std::max(out.widest, int(reach - s));
             const int places = anchored ? 1 : int(reach - from + 1);
             out.startsMost = std::max(out.startsMost, places);
@@ -305,6 +319,10 @@ Stretch searchStretch(QStringView all, qsizetype lo, qsizetype hi, qsizetype at,
                 return Stretch::Limited;
             }
             cancelled = stop() || cancelled;
+            if (anchored && rerun > kRegexRerunBudget) {
+                out.limited = true;
+                return Stretch::Limited;
+            }
             if (anchored && !m.hasPartialMatch() && !m.hasMatch()) {   // (a place that came to nothing: the next place is tried the same way, as far as this call owns)
                 if (++from >= ownedEnd) {
                     unknown = true;

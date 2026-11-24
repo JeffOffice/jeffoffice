@@ -4110,15 +4110,33 @@ private Q_SLOTS:
 
     void aRepeatCountOver200IsRefusedAtItsPlaceAndNothingElseIs()
     {
-        const struct { const char *pattern; int at; } bad[] = {{"a{201}", 2}, {"x{5,3000}", 2}, {"ab{300,}", 3}, {"(?i)(?:k|K|a){3000}y", 14}, {"(a|b){4500}z", 6}, {"[a]\\{9}c{999}", 9}, {"\\Q{9}\\Ea{201}", 9}, {"a{0,201}", 2}, {"a{,999}", 2}, {"(?#{999})a{250}", 11}};
+        const struct { const char *pattern; int at; } bad[] = {{"a{201}", 2}, {"x{5,3000}", 2}, {"ab{300,}", 3}, {"(?i)(?:k|K|a){3000}y", 14}, {"(a|b){4500}z", 6}, {"[a]\\{9}c{999}", 9}, {"\\Q{9}\\Ea{201}", 9}, {"a{0,201}", 2}, {"a{,999}", 2}, {"(?#{999})a{250}", 11}, {"a{5, 300}", 2}, {"a{ 300 }", 2}, {"a{ 5,300}", 2}, {"a{ , 300}", 2}, {"a{5 ,300 }", 2}, {"a{ 201,}", 2}};
         for (const auto &b : bad) {
             const FindPattern p = regexPattern(QString::fromLatin1(b.pattern), false);
             QVERIFY2(p.error.contains(QStringLiteral("A repeat count over 200 at character %1 ").arg(b.at)), qPrintable(QString::fromLatin1(b.pattern) + QStringLiteral(": ") + p.error));
             QVERIFY2(scanRegex(QStringLiteral("abcabc"), p, 0, 10).hits.isEmpty(), b.pattern);
         }
-        for (const char *good : {"a{200}", "a{0,200}", "a{200,}", "a{2}", "a{,5}", "a{1,2", "a{x}", "[{999}]", "\\{999\\}", "\\Q{999}\\E", "(?#{999})", "\\x{263}", "\\p{Lu}{3}", "a{999"})
+        for (const char *good : {"a{200}", "a{0,200}", "a{200,}", "a{2}", "a{,5}", "a{1,2", "a{x}", "[{999}]", "\\{999\\}", "\\Q{999}\\E", "(?#{999})", "\\x{263}", "\\p{Lu}{3}", "a{999", "a{abc}", "a{ , }", "a{ }", "a{ 1 2 }", "a{ 5, 200 }", "a{ 999 x}"})
             QVERIFY2(regexPattern(QString::fromLatin1(good), false).error.isEmpty(), good);
         QCOMPARE(scanRegex(QString(300, QLatin1Char('a')), regexPattern(QStringLiteral("a{200}"), false), 0, 10).hits.size(), 1);
+    }
+
+    void aLongRunThatEndsEveryRetryStopsOnTheBudgetOfTextHandedToTheEngine()
+    {
+        const QString run = QString(190000, QLatin1Char('a')) + QLatin1Char('x');
+        for (const char *pattern : {"[ab]+c", "a+$"}) {
+            const RegexScan r = scanRegex(run, regexPattern(QString::fromLatin1(pattern), false), 0, 10);
+            QVERIFY2(r.limited && !r.done && r.hits.isEmpty(), pattern);
+            QVERIFY2(r.rerun > kRegexRerunBudget && r.rerun <= kRegexRerunBudget + kRegexContextMost, pattern);
+        }
+        // Ordinary long paragraphs never come near it.
+        QString prose;
+        for (int i = 0; prose.size() < 150000; ++i) prose += QStringLiteral("The quick brown fox, %1 jumps over the lazy dog on 2024-03-%2. ").arg(i * 7).arg(10 + i % 20);
+        for (const char *pattern : {"\\w+", "[a-z]+ing\\b", "\\d+-\\d+", "(\\w+) \\1", "a+$", "[a-z]+\\s"}) {
+            const RegexScan r = scanRegex(prose, regexPattern(QString::fromLatin1(pattern), false), 0, 1000000);
+            QVERIFY2(!r.limited, pattern);
+            QVERIFY2(r.rerun < kRegexRerunBudget / 100, pattern);
+        }
     }
 
     void extendedModeIsRefusedInEveryFormAndTheOtherFlagsAreNot()

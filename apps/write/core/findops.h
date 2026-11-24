@@ -27,6 +27,8 @@ constexpr int kRegexContextMost = 200000;
 // The most work the engine does in one call for one place it tries a match at (its own count of steps, set in front of every pattern). A call that goes past it is stopped and the scan says so (`limited`): measured on
 // 10,000 characters, every call of the worst patterns known ends in well under a tenth of a second, and ordinary patterns never get near it.
 constexpr int kRegexMatchLimit = 10000;
+// The most characters one paragraph's search hands to the engine in calls that try a place again with more text; past it the search stops as if the engine had hit its limit of work (`limited`).
+constexpr qint64 kRegexRerunBudget = 1000000000;   // (measured: the engine takes in about 280 million characters a second here, so a paragraph that ends every retry at its far end stops in about 4 seconds; ordinary paragraphs, even a 200,000-character one, hand over under a million)
 // What the search's text has in the place of a section break (a paragraph mark that ends a section), the start of a field, and a footnote's or an endnote's mark: one character each, from the
 // private use area, so that the codes ^b, ^d, ^f, and ^e find them and nothing else does.
 constexpr char16_t kFindSectionBreak = 0xE0B0, kFindField = 0xE0D0, kFindEndnoteMark = 0xE0E0, kFindFootnoteMark = 0xE0F0;
@@ -64,6 +66,7 @@ struct RegexScan {
     int calls = 0;            // how many calls of the engine were made
     int widest = 0;           // the most characters any one call was given to look at (kRegexWindow, or more for a match that is tried again with more text)
     int startsMost = 0;       // the most places any one call could try a match at (never more than kRegexOwned + kRegexAhead + 1; a match tried again is one place)
+    qint64 rerun = 0;         // the most characters one paragraph's search handed to the engine in calls that try a place again with more text (never more than kRegexRerunBudget plus one call)
     int starts = 0;           // how many places all the calls could try a match at, together
     int units = 0;            // the count `keepGoing` was last told: paragraphs ended, and calls of the engine in a long paragraph or a pattern across paragraphs
 };
