@@ -23,6 +23,9 @@ void installFontSubstitutions();
 QStringList missingSubstituteKeys();
 QStringList standInKeysForTest();   // every name the table has a stand-in for
 QString substituteFor(const QString &family); // empty if none / font available
+// For a family a document names: where the running app has an unknownFontStandIn (core/appinfo.h) and the family is missing here, is in no stand-in
+// table, and has no measured widths, the system is told to draw it in that stand-in. The name itself is never changed. Layout thread only.
+void standInForUnknownFamily(const QString &family);
 // The font the person chose to be drawn in place of a font this computer lacks (the missing-fonts dialog): display and PDF only, the document keeps the name. Empty when none was chosen;
 // a font with a choice is treated by every substitute* function below as an installed one, so the choice is drawn as it is. Setting an empty one takes the choice away.
 QString fontReplacement(const QString &family);

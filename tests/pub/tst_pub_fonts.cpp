@@ -1280,6 +1280,52 @@ private Q_SLOTS:
         }
     }
 
+    // A font the reference program lacks is drawn there in Calibri (108 of 114 such families in the practice files, as its PDFs name the fonts): where the app asks
+    // for it, a missing font that no table names and nothing measured is drawn in Carlito, and a document keeps the name it gave.
+    void unknownMissingFontIsDrawnInCalibrisStandIn()
+    {
+        const QString text = QStringLiteral("Defense Force volunteers serve their state");
+        auto widthIn = [&](const QString &family) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat f;
+            f.setFontFamilies(QStringList{family});
+            f.setFontPointSize(10);
+            c.insertText(text, f);
+            jp::FrameSpec fs;
+            fs.size = QSizeF(10000, 100);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            fs.hyphenate = false;
+            jp::StoryLayout lay;
+            lay.build(&doc, {fs}, jp::LayoutEnv());
+            int frame = -1;
+            QRectF r;
+            lay.caretRect(text.size(), &frame, &r);
+            const double end = r.x();
+            lay.caretRect(0, &frame, &r);
+            return end - r.x();
+        };
+        const jp::AppInfo saved = jp::appInfo();
+        const auto restore = qScopeGuard([&] { jp::setAppInfo(saved); });
+        const QString made = QStringLiteral("Zzyzx Quill Test"), madeToo = QStringLiteral("Zzyzx Nib Test");
+        QVERIFY(!QFontDatabase::hasFamily(made));
+        const double carlito = widthIn(QStringLiteral("Carlito"));
+        QVERIFY(carlito > 100);
+        jp::AppInfo info = saved;
+        info.unknownFontStandIn = QStringLiteral("Carlito");
+        jp::setAppInfo(info);
+        QVERIFY(jp::substituteFor(made).isEmpty());   // (no table names it: the drawing is the system's, told once by the text engine)
+        QCOMPARE(widthIn(made), carlito);
+        QCOMPARE(QFont::substitutes(made).join(QLatin1Char(',')).toLower(), QStringLiteral("carlito"));   // (some systems' own choice already looks like Carlito)
+        QCOMPARE(jp::automaticStandIn(made), QStringLiteral("Carlito"));
+        QCOMPARE(QFontInfo(QFont(made)).family(), QStringLiteral("Carlito"));
+        // An app that asks for nothing leaves the system's choice.
+        info.unknownFontStandIn.clear();
+        jp::setAppInfo(info);
+        widthIn(madeToo);
+        QVERIFY(!QFont::substitutes(madeToo).join(QLatin1Char(',')).toLower().contains(QLatin1String("carlito")));
+    }
+
     // A font's stand-in is looked up once, not on every layout of every run
     // (asking the font database costs 0.2 ms here), and is looked up again
     // when fonts are added or removed.

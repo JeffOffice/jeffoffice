@@ -1587,6 +1587,7 @@ QTextCharFormat resolveCharFormat(const QTextCharFormat &original, const LayoutE
     if (f.hasProperty(QTextFormat::FontFamilies)) {
         const QStringList fams = f.fontFamilies().toStringList();
         if (!fams.isEmpty()) {
+            standInForUnknownFamily(fams.first());
             const int own = f.hasProperty(QTextFormat::FontStretch) ? f.fontStretch() : 100;
             const int st = int(std::lround(own * substituteStretch(fams.first(), f.fontWeight() >= QFont::DemiBold, f.fontItalic()) / 100.0));
             if (st != 100) r.setFontStretch(stretchToAsk(st));

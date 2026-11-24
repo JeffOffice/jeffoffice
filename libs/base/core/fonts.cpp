@@ -125,7 +125,8 @@ QStringList bundledFamilies() { return g_families; }
 static const QHash<QString, QString> &table()
 {
     static const QHash<QString, QString> t{
-        {"Arial", "Arimo"}, {"Helvetica", "Arimo"}, {"Arial Unicode MS", "Arimo"}, {"Liberation Sans", "Arimo"},
+        {"Arial", "Arimo"}, {"Helvetica", appInfo().unknownFontStandIn.isEmpty() ? QStringLiteral("Arimo") : appInfo().unknownFontStandIn},   // (the reference program draws a missing Helvetica as it draws any other font it lacks)
+        {"Arial Unicode MS", "Arimo"}, {"Liberation Sans", "Arimo"},
         {"Times New Roman", "Tinos"}, {"Times", "Tinos"}, {"Liberation Serif", "Tinos"},
         {"Courier New", "Cousine"}, {"Courier", "Cousine"}, {"Liberation Mono", "Cousine"}, {"Lucida Console", "Cousine"},
         {"Calibri", "Carlito"}, {"Calibri Light", "Carlito"}, {"Cambria", "Caladea"}, {"Georgia", "Gelasio"},
@@ -938,6 +939,23 @@ QString substituteFor(const QString &family)
     if (fontReplacement(family).size()) return {};   // (a font the person chose a stand-in for is treated as installed: the stand-in is drawn as it is)
     if (haveFamily(family)) return {};
     return standInOnThisPlatform(table().value(family));
+}
+
+void standInForUnknownFamily(const QString &family)
+{
+    const QString wanted = appInfo().unknownFontStandIn;
+    if (wanted.isEmpty() || family.trimmed().isEmpty()) return;
+    static QSet<QString> done;   // (layout thread only, like haveFamily)
+    const QString key = family.toLower();
+    if (done.contains(key)) return;
+    done.insert(key);
+    if (table().contains(family) || fontReplacement(family).size() || isSymbolFont(family) || haveFamily(family)) return;
+    for (const bool bold : {false, true})
+        for (const bool italic : {false, true})
+            if (originalLetterWidths(family, bold, italic)) return;
+    const QString standIn = standInOnThisPlatform(wanted);
+    if (!haveFamily(standIn)) return;
+    QFont::insertSubstitutions(family, QStringList{standIn});
 }
 
 int stretchToAsk(int percent, bool appliedTwice)
