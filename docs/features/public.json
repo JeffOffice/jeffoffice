@@ -4571,7 +4571,7 @@
         },
         {
          "status": "partly",
-         "text": "f8999e0ddea9dee9d6d9fc317fa712ff9fed2e810d56e32f8b4c77673ba0d53b"
+         "text": "c7ee25dd565843b5f302d1a7a78c45cad5cfad6361265969b6df04a11148dd73"
         },
         {
          "hide_soon": true,
@@ -5609,7 +5609,7 @@
       {
        "hide_soon": true,
        "status": "done",
-       "text": "cbb95cf98c41a825670b3384c5c1737059346c19a976bb4b77384c1752536cf4"
+       "text": "7a0ef3239bfb3f85af2be41eaf608ae38b8629107003771f50d86efb2ad4f8ef"
       }
      ]
     },
@@ -5809,7 +5809,11 @@
         {
          "hide_soon": true,
          "status": "done",
-         "text": "4ff4aaddd091aca3ec496b5852fcbb460c818c8ecb636c725e0815884037bb8e"
+         "text": "18c50ebec41a9fbb8825300317976a23b2a7058609f6d706f682e95946514456"
+        },
+        {
+         "status": "partly",
+         "text": "27dbbbc4dd35538df137d382c7d0258e8291bcc3b344dde90bc8255d600b4445"
         },
         {
          "hide_soon": true,
@@ -9714,6 +9718,18 @@
     "fr": "Galerie d’effets : choisir les effets du thème"
    }
   },
+  "18c50ebec41a9fbb8825300317976a23b2a7058609f6d706f682e95946514456": {
+   "drop": false,
+   "en": "Insert a `.txt`, `.rtf`, `.html`, `.htm`, `.docx`, `.doc`, `.odt`, or `.md` file into a text box. A file that is too large or cannot be opened is refused with a message that names the file, and nothing changes.",
+   "es": "Inserte un archivo `.txt`, `.rtf`, `.html`, `.htm`, `.docx`, `.doc`, `.odt` o `.md` en un cuadro de texto. Si un archivo es demasiado grande o no se puede abrir, se rechaza con un mensaje que indica su nombre y no cambia nada.",
+   "fr": "Insérez un fichier `.txt`, `.rtf`, `.html`, `.htm`, `.docx`, `.doc`, `.odt` ou `.md` dans une zone de texte. Un fichier trop volumineux ou impossible à ouvrir est refusé avec un message qui indique son nom, et rien n’est modifié.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "18d1d5b665ef44829cfec26184694d030700c0a7e9313bbbf7d811618a5108ab": {
    "drop": false,
    "en": "Find and replace text across all stories.",
@@ -11068,6 +11084,18 @@
     "en": "Symbol galleries beyond the five groups, ink equations, and Professional and Linear forms that change the display",
     "es": "Galerías de símbolos más allá de los cinco grupos, ecuaciones a tinta y formas Profesional y Lineal que cambian la visualización",
     "fr": "Galeries de symboles au-delà des cinq groupes, équations manuscrites et formes Professionnel et Linéaire qui modifient l’affichage"
+   }
+  },
+  "27dbbbc4dd35538df137d382c7d0258e8291bcc3b344dde90bc8255d600b4445": {
+   "drop": false,
+   "en": "Insert text from a `.doc` or `.odt` file into a text box in one step. A damaged or password-protected file is refused with the reason, and nothing changes.",
+   "es": "Inserte el texto de un archivo `.doc` o `.odt` en un cuadro de texto en un solo paso. Si el archivo está dañado o protegido con contraseña, se rechaza indicando el motivo y no cambia nada.",
+   "fr": "Insérez le texte d’un fichier `.doc` ou `.odt` dans une zone de texte en une seule étape. Un fichier endommagé ou protégé par mot de passe est refusé avec la raison, et rien n’est modifié.",
+   "soon": {
+    "drop": false,
+    "en": "Headers and footers from `.doc` and `.odt` files",
+    "es": "Encabezados y pies de página de archivos `.doc` y `.odt`",
+    "fr": "En-têtes et pieds de page des fichiers `.doc` et `.odt`"
    }
   },
   "281f21e099fb4481053131c14f72f106124c89caeee686a5ee4cd45859049830": {
@@ -14051,18 +14079,6 @@
    "en": "Text",
    "es": "Texto",
    "fr": "Texte",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "4ff4aaddd091aca3ec496b5852fcbb460c818c8ecb636c725e0815884037bb8e": {
-   "drop": false,
-   "en": "Insert `.txt`, `.rtf`, `.html`, `.htm`, `.docx`, and `.md` files into a text box. A file that is too large or can't be read is refused with a message that names the file, and nothing changes.",
-   "es": "Inserte archivos `.txt`, `.rtf`, `.html`, `.htm`, `.docx` y `.md` en un cuadro de texto. Un archivo demasiado grande o que no se puede leer se rechaza con un mensaje que indica su nombre, y no se cambia nada.",
-   "fr": "Insérez des fichiers `.txt`, `.rtf`, `.html`, `.htm`, `.docx` et `.md` dans une zone de texte. Un fichier trop volumineux ou illisible est refusé avec un message qui indique son nom, et rien n’est modifié.",
    "soon": {
     "drop": true,
     "en": "",
@@ -17411,6 +17427,18 @@
    "en": "Export slides, notes pages, handouts, and the outline to PDF, with real text and fonts inside.",
    "es": "Exporte a PDF las diapositivas, las páginas de notas, los folletos y el esquema, con texto real y fuentes incluidos.",
    "fr": "Exportez en PDF les diapositives, les pages de notes, les documents et le plan, avec du vrai texte et les polices intégrées.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "7a0ef3239bfb3f85af2be41eaf608ae38b8629107003771f50d86efb2ad4f8ef": {
+   "drop": false,
+   "en": "Use pictures in PNG, JPEG, GIF, BMP, TIFF, WebP, SVG, EMF, and WMF formats. EMF and WMF files are drawn by the app itself, so they look the same on every system.",
+   "es": "Use imágenes en los formatos PNG, JPEG, GIF, BMP, TIFF, WebP, SVG, EMF y WMF. Los archivos EMF y WMF los dibuja la propia aplicación, por lo que se ven igual en todos los sistemas.",
+   "fr": "Utilisez des images aux formats PNG, JPEG, GIF, BMP, TIFF, WebP, SVG, EMF et WMF. Les fichiers EMF et WMF sont dessinés par l’application elle-même. Ils s’affichent donc de la même façon sur tous les systèmes.",
    "soon": {
     "drop": true,
     "en": "",
@@ -22446,6 +22474,18 @@
     "fr": ""
    }
   },
+  "c7ee25dd565843b5f302d1a7a78c45cad5cfad6361265969b6df04a11148dd73": {
+   "drop": false,
+   "en": "Opens `.pub` files from 1998 on, including linked text boxes, tables, pictures, and master pages.",
+   "es": "Abre archivos `.pub` desde 1998, incluidos cuadros de texto vinculados, tablas, imágenes y páginas maestras.",
+   "fr": "Ouvre les fichiers `.pub` depuis 1998, y compris les zones de texte liées, les tableaux, les images et les pages maîtresses.",
+   "soon": {
+    "drop": false,
+    "en": "Fonts stored inside `.pub` files, and page numbering of sections after the first",
+    "es": "Fuentes almacenadas dentro de archivos `.pub` y numeración de páginas de las secciones posteriores a la primera",
+    "fr": "Polices stockées dans les fichiers `.pub` et numérotation des pages des sections après la première"
+   }
+  },
   "c7effcf66af8bf7a353d41feefdd18c211371eb52bf5164fce5978a6a09ec9f3": {
    "drop": false,
    "en": "Apply one of 12 shape styles, set a shape's fill and outline color or none, and change outline weight and dashes. Fill a shape with a two-color gradient or with a picture from a file. Fills and outlines in files are drawn.",
@@ -22811,18 +22851,6 @@
    "en": "Open the selected text, or all the text of the selected box, in an open translation service (LibreTranslate) with a server address you can change, up to 5,000 letters. Nothing is sent before you click `OK`.",
    "es": "Abra el texto seleccionado, o todo el texto del cuadro seleccionado, en un servicio de traducción abierto (LibreTranslate) con una dirección de servidor que usted puede cambiar, hasta 5.000 letras. No se envía nada antes de hacer clic en `OK`.",
    "fr": "Ouvrez le texte sélectionné, ou tout le texte de la zone sélectionnée, dans un service de traduction ouvert (LibreTranslate) avec une adresse de serveur modifiable, jusqu’à 5 000 lettres. Rien n’est envoyé avant que vous cliquiez sur `OK`.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "cbb95cf98c41a825670b3384c5c1737059346c19a976bb4b77384c1752536cf4": {
-   "drop": false,
-   "en": "Insert pictures in PNG, JPEG, GIF, BMP, TIFF, WebP, SVG, and EMF/WMF formats. EMF and WMF look the same on every system, except that text in some symbol fonts shows only some of its symbols on a computer without those fonts, and EMF drawing that exists only as EMF+ records, gradient fills, and see-through bitmaps are not drawn.",
-   "es": "Inserte imágenes en formatos PNG, JPEG, GIF, BMP, TIFF, WebP, SVG y EMF/WMF. EMF y WMF se ven igual en todos los sistemas, salvo que el texto en algunas fuentes de símbolos muestra solo parte de sus símbolos en un equipo sin esas fuentes, y no se dibujan los gráficos EMF que existen solo como registros EMF+, los rellenos degradados ni los mapas de bits transparentes.",
-   "fr": "Insérez des images aux formats PNG, JPEG, GIF, BMP, TIFF, WebP, SVG et EMF/WMF. Les fichiers EMF et WMF s’affichent de la même façon sur tous les systèmes, sauf que le texte dans certaines polices de symboles n’affiche qu’une partie de ses symboles sur un ordinateur sans ces polices, et que les dessins EMF qui n’existent qu’en enregistrements EMF+, les remplissages dégradés et les bitmaps transparents ne sont pas dessinés.",
    "soon": {
     "drop": true,
     "en": "",
@@ -26368,18 +26396,6 @@
     "en": "Symbol galleries beyond the five groups, ink equations, and the professional or linear form saved in `.pptx` files",
     "es": "Galerías de símbolos más allá de los cinco grupos, ecuaciones a tinta y forma profesional o lineal guardada en archivos `.pptx`",
     "fr": "Galeries de symboles au-delà des cinq groupes, équations manuscrites et forme professionnelle ou linéaire enregistrée dans les fichiers `.pptx`"
-   }
-  },
-  "f8999e0ddea9dee9d6d9fc317fa712ff9fed2e810d56e32f8b4c77673ba0d53b": {
-   "drop": false,
-   "en": "Opens `.pub` files from 1998 on, including linked text boxes, tables, pictures, and master pages.",
-   "es": "Abre archivos `.pub` desde 1998, incluidos cuadros de texto vinculados, tablas, imágenes y páginas maestras.",
-   "fr": "Ouvre les fichiers `.pub` à partir de 1998, y compris les zones de texte liées, les tableaux, les images et les pages maîtresses.",
-   "soon": {
-    "drop": false,
-    "en": "Fonts stored inside `.pub` files, and page numbering of sections after the first",
-    "es": "Fuentes almacenadas dentro de los archivos `.pub` y numeración de páginas de las secciones posteriores a la primera",
-    "fr": "Polices stockées dans les fichiers `.pub` et numérotation des pages des sections après la première"
    }
   },
   "f8a61b65ce4588c93321d7d0cb91745b7d668d6fc7d0d4295bd9a68e6c6c4378": {
