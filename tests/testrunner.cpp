@@ -117,6 +117,10 @@ jptest::Registrar::Registrar(const char *name, Factory make)
 
 int main(int argc, char *argv[])
 {
+    // (the file tools/ci_tests.sh waits for: taken out of the environment at once, so that a program this one starts, a test's child run of itself, does not write it too: Nov 23 2026 on the Mac the
+    // child of CrunchStructModelTests wrote it in the middle of the run, and the run was taken for one that had ended)
+    const QByteArray doneFile = qgetenv("JP_DONE_FILE");
+    qunsetenv("JP_DONE_FILE");
     // A test function that runs every command of an app takes minutes, and on a loaded machine (a build running beside it) longer than QtTest's five: a slow run is not a hung one.
     if (!qEnvironmentVariableIsSet("QTEST_FUNCTION_TIMEOUT")) qputenv("QTEST_FUNCTION_TIMEOUT", "1500000");
     std::vector<Entry> &classes = registry();
@@ -244,7 +248,6 @@ int main(int argc, char *argv[])
     }
     // (tools/ci_tests.sh waits for this file, and for the program to end after it: a program stuck at exit is not waited for)
     const int code = std::min(failures, 127);
-    const QByteArray doneFile = qgetenv("JP_DONE_FILE");
     if (!doneFile.isEmpty()) {
         QFile done{QString::fromLocal8Bit(doneFile)};
         if (done.open(QIODevice::WriteOnly | QIODevice::Truncate)) done.write(QByteArray::number(code));

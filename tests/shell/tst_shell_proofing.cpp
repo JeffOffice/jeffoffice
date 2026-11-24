@@ -221,6 +221,35 @@ private Q_SLOTS:
         QVERIFY(!QFileInfo::exists(mark));
     }
 
+    // The file that tells tools/ci_tests.sh a run is over (JP_DONE_FILE) is written by the program it was given to, and not by the programs that one starts: a test's child run of the program
+    // wrote it in the middle of the run (Nov 23 2026, the Mac). The outer run starts a child with the variable (the probe), which starts a child of its own (the leaf) and looks for the file.
+    void aChildRunOfTheProgramDoesNotWriteTheFileThatSaysTheRunIsOver()
+    {
+        const QByteArray role = qgetenv("JP_DONE_PROBE");
+        if (role == "2") return;   // (the leaf)
+        auto runChild = [](const QString &mark, const char *roleOfChild, bool withDoneFile) {
+            QProcessEnvironment env = QProcessEnvironment::systemEnvironment();
+            env.insert(QStringLiteral("JP_DONE_PROBE"), QString::fromLatin1(roleOfChild));
+            env.insert(QStringLiteral("JP_DONE_PROBE_FILE"), mark);
+            if (withDoneFile) env.insert(QStringLiteral("JP_DONE_FILE"), mark);
+            QProcess child;
+            child.setProcessEnvironment(env);
+            child.start(QCoreApplication::applicationFilePath(), {QStringLiteral("--class"), QStringLiteral("ShellProofingTests"), QStringLiteral("aChildRunOfTheProgramDoesNotWriteTheFileThatSaysTheRunIsOver")});
+            return child.waitForStarted(30000) && child.waitForFinished(120000) && child.exitStatus() == QProcess::NormalExit && child.exitCode() == 0;
+        };
+        if (role == "1") {   // (the probe: its own end writes the file, its child's must not)
+            const QString mark = qEnvironmentVariable("JP_DONE_PROBE_FILE");
+            QVERIFY(runChild(mark, "2", false));
+            QVERIFY(!QFileInfo::exists(mark));
+            return;
+        }
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QString mark = dir.filePath(QStringLiteral("done"));
+        QVERIFY(runChild(mark, "1", true));
+        QVERIFY(QFileInfo::exists(mark));   // (the probe's own end wrote it)
+    }
+
     void aChangeThatCantBeWrittenLeavesTheFilesAndTheListsAsTheyWere()
     {
         QTemporaryDir dir;
