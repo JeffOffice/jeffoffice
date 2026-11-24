@@ -4090,21 +4090,22 @@ private Q_SLOTS:
         while (text.size() < 200000) text += QStringLiteral("ab");
         const RegexScan r = scanRegex(text, regexPattern(QStringLiteral("(?:a|b){200}y"), false), 0, 10);
         QVERIFY(r.done && !r.limited && r.hits.isEmpty());
-        QVERIFY(r.startsMost > 0 && r.startsMost <= kRegexOwned + kRegexAhead + 1);
+        QVERIFY(r.startsMost > 0 && r.startsMost <= 2500);   // (the number is the budget measured, not the constants: a change of them must change this on purpose)
         QVERIFY(r.calls >= 200000 / kRegexOwned);
         QVERIFY(r.starts <= 200000 + r.calls * (kRegexAhead + 1));
         // A match that reaches the end of what the engine was shown is tried again at its own place only, with more text each time: growing the text to 200,000 characters does not multiply the places.
         const RegexScan a = scanRegex(QString(kRegexContextMost, QLatin1Char('a')), regexPattern(QStringLiteral("a+"), false), 0, 10);
         QVERIFY(a.done && a.hits.size() == 1 && a.hits[0].second == kRegexContextMost);
         QVERIFY(a.widest > kRegexWindow);   // (the text did grow)
-        QVERIFY(a.startsMost <= kRegexOwned + kRegexAhead + 1);
-        QVERIFY(a.starts <= kRegexOwned + kRegexAhead + 1 + a.calls);
+        QVERIFY(a.startsMost <= 2500);
+        QVERIFY(a.starts <= 2500 + a.calls);
         // The same on several matches, each of them reaching past what the first call is shown.
         QString runs;
         for (int i = 0; i < 30; ++i) runs += QString(600, QLatin1Char('a')) + QLatin1Char('b');
         const RegexScan b = scanRegex(runs, regexPattern(QStringLiteral("a+"), false), 0, 100);
         QVERIFY(b.done && b.hits.size() == 30);
-        QVERIFY(b.startsMost <= kRegexOwned + kRegexAhead + 1 && b.starts <= b.calls * (kRegexOwned + kRegexAhead + 1));
+        QVERIFY(b.startsMost <= 2500);
+        QVERIFY(b.starts <= 30 * 2500 + b.calls);   // (each match: one call that finds it, and places of its own for the second)
     }
 
     void aRepeatCountOver200IsRefusedAtItsPlaceAndNothingElseIs()
