@@ -1806,22 +1806,14 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts, con
             }
         }
     }
-    // The file's own cell of a formula that spills keeps the range the file had for its block: when a cell its block fills is written (the block grew), the formula's cell is written whole with the block it has now.
+    // The file's own cell of a formula that spills keeps the range the file had for its block: a formula that was worked out with another block (it grew, shrank, or changed its shape) is written whole with the block it has now.
     {
         std::vector<Marked> anchors;
         std::set<quint64> have;
         for (const Marked &m : touchedInOrder) have.insert(m.key);
-        for (const Marked &m : touchedInOrder) {
-            int sheet;
-            quint32 row, col;
-            CellRange block;
-            if (!placeOfMark(m.key, &sheet, &row, &col) || !calc->isSpillMember(sheet, row, col, &block)) continue;
-            const quint64 key = markOf(sheet, block.row1, block.col1);
-            if (key == kNoKey || !have.insert(key).second) continue;
-            anchors.push_back({keyOf(sheet, block.row1, block.col1), key});
-        }
-        // (a spill that was cut down leaves no member among the cells: the formulas that were worked out with another size are written whole, as are those whose block grew)
-        for (const std::array<quint32, 3> &r : calc->resizedSpills()) {
+        // (a spill that was cut down leaves no member among the cells, and one that grew has its own cells written as values: the formulas that were worked out with another size are written whole)
+        out->resizedSpills = calc->resizedSpills();
+        for (const std::array<quint32, 4> &r : out->resizedSpills) {
             const int sheet = int(r[0]);
             if (sheet < 0 || sheet >= calc->sheetCount()) continue;
             const CellStore &cells = calc->sheet(sheet).cells;
@@ -2329,6 +2321,12 @@ void EditSession::saved(const Snapshot &snapshot, const Package &package)
     m_book->book->savedTo(package, counts);
     for (const auto &[key, v] : snapshot.results) m_fileResults.set(key, v);
     for (const auto &[key, v] : snapshot.touchedResults) m_fileResults.set(key, v);
+    if (!snapshot.resizedSpills.empty() && m_book->calc) {
+        // (the formulas of spills that the file now has the block of are not written whole again, unless they were resized since)
+        std::unique_ptr<WorkbookLoader::Hold> held;
+        if (m_loader->canHold() && !m_loader->holdingHere()) held = m_loader->hold();
+        m_book->calc->forgetResizedSpills(snapshot.resizedSpills);
+    }
     m_touched.clear();
     m_columnsResized.clear();
     m_rowsResized.clear();

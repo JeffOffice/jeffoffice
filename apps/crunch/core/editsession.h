@@ -1297,6 +1297,7 @@ public:
         jp::office::sheet::SaveChanges changes;
         int strings = 0, numberFormats = 0, cellFormats = 0, fonts = 0, fills = 0, borders = 0, styles = 0, dxfs = 0, tableStyles = 0;   // how many of the workbook's additions are in it
         std::map<quint64, jp::calc::Value> results;            // the results it holds (to be the file's, once it is written)
+        std::vector<std::array<quint32, 4>> resizedSpills;      // the formulas of spills it writes whole because their block was resized (see Calculation::resizedSpills)
         std::vector<quint64> touchedFormulas;                  // the formula cells it holds whole, with the results they were given
         std::map<quint64, jp::calc::Value> touchedResults;
         std::map<int, QString> backgroundRels;                 // set by the save: the relationship each sheet names its background picture by now (see SaveReport)

@@ -1278,6 +1278,7 @@ bool Calculation::load()
 {
     static_assert(sizeof(Node) == 32, "a formula's node is 32 bytes");
     const bool whole = loadAll();
+    m_loadedSpills.clear();
     m_spillIndex = spillIndexDefault();
     if (m_spillIndex)
         for (Sheet &s : m_sheets) s.cells.enableSpills(&m_guard);   // (each sheet's store has its blocks table from here on)
@@ -2605,6 +2606,7 @@ bool Calculation::stepAbandon(const std::function<bool()> &timeUp, qint64 *spent
 
 void Calculation::abandonNow()
 {
+    m_loadedSpills.clear();   // (an edit of any kind ends what a loaded spill may take as its own: the file as it was loaded is gone, and the ids of its formulas may be given to others)
     if (m_bulk > 0) return;
     abandon();
     if (m_abandon.active) {

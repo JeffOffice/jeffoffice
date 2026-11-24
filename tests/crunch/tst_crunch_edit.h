@@ -166,6 +166,11 @@ private Q_SLOTS:
     void anOdsCopyOfAResizedLoadedSpillHasItsBlock();
     void aFileSavedWithTheOldBlockOpensWithTheSpillWhole();
     void aTypedCellInTheWayOfAFileSpillStillBlocksIt();
+    void numbersTypedBelowALoadedSpillAreNotItsOwnInManualCalculation();
+    void clearingTheNumberInTheWayOfAnOldFileSpillLetsItFill();
+    void anOldFileSpillOfTextOrBooleansOpensWhole();
+    void aResizedSpillIsRewrittenOnlyUntilASaveHasWrittenIt();
+    void aSpillAnchoredAwayFromColumnBIsOpenedAtItsOwnCell();
     void theWindowReadsTheBlocksOfTheBatchItTook();
     void aBlockOfASliceIsNotReadUntilItsBatchIsTaken();
     void aTableMadeAgainUnderAHoldIsPublishedOnce();
