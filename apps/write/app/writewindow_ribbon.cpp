@@ -4,6 +4,7 @@
 #include "app/shapetextedit.h"
 #include "app/writewindow.h"
 
+#include "app/highlightmenu.h"
 #include "app/icons.h"
 #include "app/pageview.h"
 #include "app/ribbon.h"
@@ -65,17 +66,6 @@ QIcon styleIcon(write::WriteDoc *doc, const write::StyleEntry &e, const QSize &s
     p.setPen(QColor(0x55, 0x55, 0x55));
     p.drawText(QRectF(box.left() + 4, box.top() + box.height() * 0.62, box.width() - 8, box.height() * 0.34), Qt::AlignLeft | Qt::AlignVCenter,
                QFontMetrics(small).elidedText(e.name, Qt::ElideRight, int(box.width()) - 8));
-    return QIcon(pm);
-}
-
-QIcon colorSquare(const QColor &c)
-{
-    QPixmap pm(16, 16);
-    pm.fill(Qt::transparent);
-    QPainter p(&pm);
-    p.setPen(QColor(0, 0, 0, 90));
-    p.setBrush(c);
-    p.drawRect(1, 1, 13, 13);
     return QIcon(pm);
 }
 
@@ -180,17 +170,14 @@ void WriteWindow::ribbonParts(RibbonParts &parts)
     };
     parts.menus[QStringLiteral("highlightColors")] = [this](QWidget *owner) {
         auto *m = new QMenu(owner);
-        for (const QString &name : write::highlightNames()) {
-            QAction *a = m->addAction(colorSquare(write::highlightColor(name)), name);
-            connect(a, &QAction::triggered, this, [this, name] {
-                if (refuseIfReadOnly()) return;
-                if (!m_doc) return;
-                // With text selected the color goes on at once; with none, the pointer highlights what is selected next.
-                if (m_view->cursor().hasSelection()) write::setHighlight(*m_doc, m_view->cursor(), name);
-                else startHighlighting(name);
-                m_view->setFocus();
-            });
-        }
+        addHighlightColors(m, this, [this](const QString &name, const QColor &) {
+            if (refuseIfReadOnly()) return;
+            if (!m_doc) return;
+            // With text selected the color goes on at once; with none, the pointer highlights what is selected next.
+            if (m_view->cursor().hasSelection()) write::setHighlight(*m_doc, m_view->cursor(), name);
+            else startHighlighting(name);
+            m_view->setFocus();
+        });
         m->addSeparator();
         connect(m->addAction(icon(QStringLiteral("circle-slash")), tr("No Color")), &QAction::triggered, this, [this] {
             if (refuseIfReadOnly()) return;
@@ -202,14 +189,11 @@ void WriteWindow::ribbonParts(RibbonParts &parts)
     };
     parts.menus[QStringLiteral("shadingColors")] = [this](QWidget *owner) {
         auto *m = new QMenu(owner);
-        for (const QString &name : write::highlightNames()) {
-            QAction *a = m->addAction(colorSquare(write::highlightColor(name)), name);
-            connect(a, &QAction::triggered, this, [this, name] {
-                if (refuseIfReadOnly()) return;
-                if (m_doc) write::setCharShading(*m_doc, m_view->cursor(), write::highlightColor(name));
-                m_view->setFocus();
-            });
-        }
+        addHighlightColors(m, this, [this](const QString &, const QColor &color) {
+            if (refuseIfReadOnly()) return;
+            if (m_doc) write::setCharShading(*m_doc, m_view->cursor(), color);
+            m_view->setFocus();
+        });
         m->addSeparator();
         connect(m->addAction(icon(QStringLiteral("circle-slash")), tr("No Shading")), &QAction::triggered, this, [this] {
             if (refuseIfReadOnly()) return;

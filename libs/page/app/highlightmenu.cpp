@@ -48,16 +48,22 @@ QString colorName(const QString &key)
 
 }   // namespace
 
-QMenu *highlightMenu(QWidget *owner, Editor *ed, QAction *stop)
+void addHighlightColors(QMenu *menu, QObject *context, const std::function<void(const QString &, const QColor &)> &pick)
 {
-    auto *m = new QMenu(owner);
     int n = 0;
     const tp::HighlightColor *all = tp::highlightColors(&n);
     for (int i = 0; i < n; ++i) {
         const QColor color = QColor::fromRgb(all[i].rgb);
-        QAction *a = m->addAction(colorSquare(color), colorName(QString::fromLatin1(all[i].name)));
-        QObject::connect(a, &QAction::triggered, ed, [ed, color] { ed->chooseHighlight(ColorRef::rgb(color)); });
+        const QString key = QString::fromLatin1(all[i].name);
+        QAction *a = menu->addAction(colorSquare(color), colorName(key));
+        QObject::connect(a, &QAction::triggered, context, [pick, key, color] { pick(key, color); });
     }
+}
+
+QMenu *highlightMenu(QWidget *owner, Editor *ed, QAction *stop)
+{
+    auto *m = new QMenu(owner);
+    addHighlightColors(m, ed, [ed](const QString &, const QColor &color) { ed->chooseHighlight(ColorRef::rgb(color)); });
     m->addSeparator();
     QAction *none = m->addAction(icon(QStringLiteral("circle-slash")), QCoreApplication::translate("HighlightMenu", "No Color"));
     QObject::connect(none, &QAction::triggered, ed, [ed] { ed->chooseHighlight(ColorRef()); });
