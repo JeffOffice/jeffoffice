@@ -2441,7 +2441,7 @@ Back page story	4</source>
         <translation type="unfinished">Виразний ефект</translation>
     </message>
     <message>
-        <location line="+68"/>
+        <location line="+73"/>
         <source>%1 - Accent %2</source>
         <translation type="unfinished">%1 – акцент %2</translation>
     </message>
@@ -6115,7 +6115,7 @@ Back page story	4</source>
         <translation type="unfinished">Редагувати рівняння</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/editor_text.cpp" line="+1019"/>
+        <location filename="../libs/page/app/editor_text.cpp" line="+1044"/>
         <source>Typing mode</source>
         <translation type="unfinished">Режим введення</translation>
     </message>
@@ -24164,7 +24164,7 @@ Source: %3</source>
     <message>
         <location line="+0"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-286"/>
-        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+1298"/>
+        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+1302"/>
         <location filename="../apps/crunch/app/crunchwindow_themes.cpp" line="+39"/>
         <source>All Files (*)</source>
         <translation type="unfinished">Усі файли (*)</translation>
@@ -40605,7 +40605,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Розмір таблиці</translation>
     </message>
     <message>
-        <location line="+202"/>
+        <location line="+207"/>
         <source>Cut</source>
         <translation type="unfinished">Вирізати</translation>
     </message>
@@ -40746,7 +40746,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Видалити головну сторінку</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/editor_text.cpp" line="-719"/>
+        <location filename="../libs/page/app/editor_text.cpp" line="-734"/>
         <source>Bold</source>
         <translation type="unfinished">Жирний</translation>
     </message>
@@ -40804,7 +40804,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Очистити все форматування</translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="+39"/>
         <location line="+5"/>
         <source>Font Color</source>
         <translation type="unfinished">Колір шрифту</translation>
@@ -40877,7 +40877,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished">Застосувати стиль</translation>
     </message>
     <message>
-        <location line="+69"/>
+        <location line="+79"/>
         <location line="+9"/>
         <source>Drop Cap</source>
         <translation type="unfinished">Буквиця</translation>
@@ -44937,7 +44937,7 @@ There is no help topic called &quot;%1&quot;.</source>
 Теми довідки з назвою «%1» немає.</translation>
     </message>
     <message>
-        <location line="+57"/>
+        <location line="+62"/>
         <source>Help topics</source>
         <translation type="unfinished">Теми довідки</translation>
     </message>

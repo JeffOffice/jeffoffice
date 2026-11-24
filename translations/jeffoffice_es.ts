@@ -2460,7 +2460,7 @@ Artículo de contraportada	4</translation>
         <translation type="unfinished">Efecto intenso</translation>
     </message>
     <message>
-        <location line="+68"/>
+        <location line="+73"/>
         <source>%1 - Accent %2</source>
         <translation type="unfinished">%1 - Énfasis %2</translation>
     </message>
@@ -6113,7 +6113,7 @@ Artículo de contraportada	4</translation>
         <translation type="unfinished">Editar ecuación</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/editor_text.cpp" line="+1019"/>
+        <location filename="../libs/page/app/editor_text.cpp" line="+1044"/>
         <source>Typing mode</source>
         <translation type="unfinished">Modo de escritura</translation>
     </message>
@@ -24247,7 +24247,7 @@ Origen: %3</translation>
     <message>
         <location line="-774"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-286"/>
-        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+1298"/>
+        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+1302"/>
         <location filename="../apps/crunch/app/crunchwindow_themes.cpp" line="+39"/>
         <source>All Files (*)</source>
         <translation type="unfinished">Todos los archivos (*)</translation>
@@ -40558,7 +40558,7 @@ No se puede leer el archivo.</translation>
         <translation type="unfinished">Tamaño de tabla</translation>
     </message>
     <message>
-        <location line="+202"/>
+        <location line="+207"/>
         <source>Cut</source>
         <translation type="unfinished">Cortar</translation>
     </message>
@@ -40704,7 +40704,7 @@ No se puede leer el archivo.</translation>
         <translation type="unfinished">Eliminar página maestra</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/editor_text.cpp" line="-719"/>
+        <location filename="../libs/page/app/editor_text.cpp" line="-734"/>
         <source>Bold</source>
         <translation type="unfinished">Negrita</translation>
     </message>
@@ -40762,7 +40762,7 @@ No se puede leer el archivo.</translation>
         <translation type="unfinished">Borrar todo el formato</translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="+39"/>
         <location line="+5"/>
         <source>Font Color</source>
         <translation type="unfinished">Color de fuente</translation>
@@ -40835,7 +40835,7 @@ No se puede leer el archivo.</translation>
         <translation type="unfinished">Aplicar estilo</translation>
     </message>
     <message>
-        <location line="+69"/>
+        <location line="+79"/>
         <location line="+9"/>
         <source>Drop Cap</source>
         <translation type="unfinished">Letra capital</translation>
@@ -44887,7 +44887,7 @@ There is no help topic called &quot;%1&quot;.</source>
 No hay ningún tema de Ayuda llamado &quot;%1&quot;.</translation>
     </message>
     <message>
-        <location line="+57"/>
+        <location line="+62"/>
         <source>Help topics</source>
         <translation type="unfinished">Temas de Ayuda</translation>
     </message>

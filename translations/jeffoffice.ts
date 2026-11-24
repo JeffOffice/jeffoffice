@@ -2433,7 +2433,7 @@ Back page story	4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+68"/>
+        <location line="+73"/>
         <source>%1 - Accent %2</source>
         <translation type="unfinished"></translation>
     </message>
@@ -6105,7 +6105,7 @@ Back page story	4</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../libs/page/app/editor_text.cpp" line="+1019"/>
+        <location filename="../libs/page/app/editor_text.cpp" line="+1044"/>
         <source>Typing mode</source>
         <translation type="unfinished"></translation>
     </message>
@@ -24065,7 +24065,7 @@ Source: %3</source>
     <message>
         <location line="+0"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-286"/>
-        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+1298"/>
+        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+1302"/>
         <location filename="../apps/crunch/app/crunchwindow_themes.cpp" line="+39"/>
         <source>All Files (*)</source>
         <translation type="unfinished"></translation>
@@ -40420,7 +40420,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+202"/>
+        <location line="+207"/>
         <source>Cut</source>
         <translation type="unfinished"></translation>
     </message>
@@ -40566,7 +40566,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../libs/page/app/editor_text.cpp" line="-719"/>
+        <location filename="../libs/page/app/editor_text.cpp" line="-734"/>
         <source>Bold</source>
         <translation type="unfinished"></translation>
     </message>
@@ -40624,7 +40624,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="+39"/>
         <location line="+5"/>
         <source>Font Color</source>
         <translation type="unfinished"></translation>
@@ -40697,7 +40697,7 @@ The file can&apos;t be read.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+69"/>
+        <location line="+79"/>
         <location line="+9"/>
         <source>Drop Cap</source>
         <translation type="unfinished"></translation>
@@ -44734,7 +44734,7 @@ There is no help topic called &quot;%1&quot;.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+57"/>
+        <location line="+62"/>
         <source>Help topics</source>
         <translation type="unfinished"></translation>
     </message>

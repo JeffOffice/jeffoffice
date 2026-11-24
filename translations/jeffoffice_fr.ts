@@ -2460,7 +2460,7 @@ Article de dernière page	4</translation>
         <translation type="unfinished">Effet intense</translation>
     </message>
     <message>
-        <location line="+68"/>
+        <location line="+73"/>
         <source>%1 - Accent %2</source>
         <translation type="unfinished">%1 - Accent %2</translation>
     </message>
@@ -6113,7 +6113,7 @@ Article de dernière page	4</translation>
         <translation type="unfinished">Modifier l&apos;équation</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/editor_text.cpp" line="+1019"/>
+        <location filename="../libs/page/app/editor_text.cpp" line="+1044"/>
         <source>Typing mode</source>
         <translation type="unfinished">Mode de saisie</translation>
     </message>
@@ -24247,7 +24247,7 @@ Source : %3</translation>
     <message>
         <location line="-774"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-286"/>
-        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+1298"/>
+        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+1302"/>
         <location filename="../apps/crunch/app/crunchwindow_themes.cpp" line="+39"/>
         <source>All Files (*)</source>
         <translation type="unfinished">Tous les fichiers (*)</translation>
@@ -40558,7 +40558,7 @@ Le fichier est illisible.</translation>
         <translation type="unfinished">Taille du tableau</translation>
     </message>
     <message>
-        <location line="+202"/>
+        <location line="+207"/>
         <source>Cut</source>
         <translation type="unfinished">Couper</translation>
     </message>
@@ -40704,7 +40704,7 @@ Le fichier est illisible.</translation>
         <translation type="unfinished">Supprimer la page maître</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/editor_text.cpp" line="-719"/>
+        <location filename="../libs/page/app/editor_text.cpp" line="-734"/>
         <source>Bold</source>
         <translation type="unfinished">Gras</translation>
     </message>
@@ -40762,7 +40762,7 @@ Le fichier est illisible.</translation>
         <translation type="unfinished">Effacer toute la mise en forme</translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="+39"/>
         <location line="+5"/>
         <source>Font Color</source>
         <translation type="unfinished">Couleur de police</translation>
@@ -40835,7 +40835,7 @@ Le fichier est illisible.</translation>
         <translation type="unfinished">Appliquer le style</translation>
     </message>
     <message>
-        <location line="+69"/>
+        <location line="+79"/>
         <location line="+9"/>
         <source>Drop Cap</source>
         <translation type="unfinished">Lettrine</translation>
@@ -44887,7 +44887,7 @@ There is no help topic called &quot;%1&quot;.</source>
 Il n&apos;existe aucune rubrique d&apos;aide nommée « %1 ».</translation>
     </message>
     <message>
-        <location line="+57"/>
+        <location line="+62"/>
         <source>Help topics</source>
         <translation type="unfinished">Rubriques d&apos;aide</translation>
     </message>

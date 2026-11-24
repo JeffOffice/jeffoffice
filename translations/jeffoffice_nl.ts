@@ -2460,7 +2460,7 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">Intens effect</translation>
     </message>
     <message>
-        <location line="+68"/>
+        <location line="+73"/>
         <source>%1 - Accent %2</source>
         <translation type="unfinished">%1 - Accent %2</translation>
     </message>
@@ -6113,7 +6113,7 @@ Artikel achterpagina	4</translation>
         <translation type="unfinished">Vergelijking bewerken</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/editor_text.cpp" line="+1019"/>
+        <location filename="../libs/page/app/editor_text.cpp" line="+1044"/>
         <source>Typing mode</source>
         <translation type="unfinished">Invoermodus</translation>
     </message>
@@ -24247,7 +24247,7 @@ Bron: %3</translation>
     <message>
         <location line="-774"/>
         <location filename="../apps/crunch/app/crunchwindow_file.cpp" line="-286"/>
-        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+1298"/>
+        <location filename="../apps/crunch/app/crunchwindow_objectformat.cpp" line="+1302"/>
         <location filename="../apps/crunch/app/crunchwindow_themes.cpp" line="+39"/>
         <source>All Files (*)</source>
         <translation type="unfinished">Alle bestanden (*)</translation>
@@ -40558,7 +40558,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Tabelgrootte</translation>
     </message>
     <message>
-        <location line="+202"/>
+        <location line="+207"/>
         <source>Cut</source>
         <translation type="unfinished">Knippen</translation>
     </message>
@@ -40704,7 +40704,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Basispagina verwijderen</translation>
     </message>
     <message>
-        <location filename="../libs/page/app/editor_text.cpp" line="-719"/>
+        <location filename="../libs/page/app/editor_text.cpp" line="-734"/>
         <source>Bold</source>
         <translation type="unfinished">Vet</translation>
     </message>
@@ -40762,7 +40762,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Alle opmaak wissen</translation>
     </message>
     <message>
-        <location line="+34"/>
+        <location line="+39"/>
         <location line="+5"/>
         <source>Font Color</source>
         <translation type="unfinished">Tekstkleur</translation>
@@ -40835,7 +40835,7 @@ Het bestand kan niet worden gelezen.</translation>
         <translation type="unfinished">Stijl toepassen</translation>
     </message>
     <message>
-        <location line="+69"/>
+        <location line="+79"/>
         <location line="+9"/>
         <source>Drop Cap</source>
         <translation type="unfinished">Initiaal</translation>
@@ -44887,7 +44887,7 @@ There is no help topic called &quot;%1&quot;.</source>
 Er is geen helponderwerp met de naam &quot;%1&quot;.</translation>
     </message>
     <message>
-        <location line="+57"/>
+        <location line="+62"/>
         <source>Help topics</source>
         <translation type="unfinished">Helponderwerpen</translation>
     </message>
