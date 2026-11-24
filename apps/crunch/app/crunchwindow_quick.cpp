@@ -10,6 +10,7 @@
 #include "app/quickanalysis.h"
 #include "core/editsession.h"
 #include "core/gotospecial.h"
+#include "core/syslocale.h"
 #include "core/sheetobjects.h"
 #include "sheet/chartmake.h"
 #include "grid/gridview.h"
@@ -348,8 +349,8 @@ void CrunchWindow::quickPreview(const QString &id)
             QString text = v.ok || v.error ? v.shown : QString();
             if (c.percent && v.ok && !v.error) {
                 bool ok = false;
-                const double d = QLocale().toDouble(v.shown, &ok);
-                if (ok) text = QLocale().toString(d * 100, 'f', 1) + QLatin1Char('%');
+                const double d = jp::systemLocale().locale.toDouble(v.shown, &ok);
+                if (ok) text = jp::systemLocale().toString(d * 100, 'f', 1) + QLatin1Char('%');
             }
             shown.append(text);
             at.append(QPoint(int(c.col), int(c.row)));

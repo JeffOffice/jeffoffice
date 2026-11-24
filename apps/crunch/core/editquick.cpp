@@ -4,8 +4,9 @@
 
 #include "sheet/cellref.h"
 
+#include "core/syslocale.h"
+
 #include <QCoreApplication>
-#include <QLocale>
 
 #include <algorithm>
 
@@ -61,7 +62,7 @@ EditSession::QuickTotalsPlan EditSession::planQuickTotals(int sheet, const CellR
     quint32 r0 = sel.row1, c0 = sel.col1;
     const quint32 r1 = std::min<quint32>(sel.row2, s.extentRows - 1), c1 = std::min<quint32>(sel.col2, s.extentCols - 1);
     if (qint64(r1 - r0 + 1) * qint64(c1 - c0 + 1) > kQuickScan) {
-        plan.problem = tr("That is more cells than Quick Analysis looks at (%1). Select fewer cells.").arg(QLocale().toString(kQuickScan));
+        plan.problem = tr("That is more cells than Quick Analysis looks at (%1). Select fewer cells.").arg(jp::systemLocale().toString(kQuickScan));
         return plan;
     }
     auto isNumber = [&](quint32 r, quint32 c) { return valueAt(sheet, r, c).isNumber(); };
@@ -129,7 +130,7 @@ EditSession::QuickTotalsPlan EditSession::planQuickTotals(int sheet, const CellR
         return plan;
     }
     if (qint64(plan.cells.size()) > kMaxCellsPerEdit) {
-        plan.problem = tr("That is more cells than JeffCrunch changes at once (%1). Select fewer cells.").arg(QLocale().toString(kMaxCellsPerEdit));
+        plan.problem = tr("That is more cells than JeffCrunch changes at once (%1). Select fewer cells.").arg(jp::systemLocale().toString(kMaxCellsPerEdit));
         return plan;
     }
     for (const QuickCell &cell : plan.cells)
