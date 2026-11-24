@@ -419,6 +419,7 @@
         {"large": "pic.arrangeThumbs", "keytip": "AT"}
       ]},
       {"name": "Adjust", "keytip": "ZJ", "items": [
+        {"large": "pic.removeBackground", "keytip": "RB"},
         {"large": {"id": "ribbon.corrections", "text": "Corrections", "icon": "sun-medium"}, "keytip": "CR", "menu": [
           {"section": "Brightness / Contrast"},
           {"submenu": "Brightness -40%", "menu": ["corr.-40.-40", "corr.-40.-20", "corr.-40.0", "corr.-40.20", "corr.-40.40"]},
@@ -459,6 +460,16 @@
         {"small": "pic.clearCrop", "keytip": "CC"}
       ]},
       {"use": "Size"}
+    ]},
+    {"name": "Background Removal", "keytip": "JR", "context": "Background Removal", "color": "pictureFormat", "groups": [
+      {"name": "Refine", "keytip": "ZR", "items": [
+        {"large": "pic.markKeep", "keytip": "MK"},
+        {"large": "pic.markRemove", "keytip": "MR"}
+      ]},
+      {"name": "Close", "keytip": "ZC", "items": [
+        {"large": "pic.discardRemoval", "keytip": "DA"},
+        {"large": "pic.keepRemoval", "keytip": "KC"}
+      ]}
     ]},
     {"name": "Table Design", "keytip": "JT", "context": "Table Tools", "color": "table", "groups": [
       {"name": "Table Formats", "keytip": "ZF", "items": [

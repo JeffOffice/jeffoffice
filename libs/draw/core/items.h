@@ -205,6 +205,15 @@ public:
     // Not kept in a file: while the person is marking the background, the part to go is shown in this color (a color of its own, set only for the
     // time of the marking) instead of being clear.
     QColor removalTint;
+    // An extension of the picture's blip that another program wrote and that points at parts of its own (its own record of a background it took off, for
+    // one): kept as it was read and written back untouched, while the picture is not changed in a way it would no longer fit. `xml` is the element with
+    // each relationship id turned into a mark (@@rel0@@, @@rel1@@), `parts` the parts those ids named.
+    struct KeptBlipExtension {
+        struct Part { QByteArray bytes; QString contentType, relationType, extension; };
+        QString xml;
+        QVector<Part> parts;
+    };
+    QVector<KeptBlipExtension> keptBlip;
     // Every change of the picture's colors, in the order they are drawn: the settings, then blipEffects.
     QVector<BlipEffect> colorEffects() const;
     // How far the picture's colors are moved in saturation, from -100 (gray) to 100 (as strong as they go), as the first hue, saturation, and lightness change of blipEffects says (0 with

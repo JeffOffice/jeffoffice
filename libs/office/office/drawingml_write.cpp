@@ -1031,7 +1031,12 @@ void writePicture(QXmlStreamWriter &w, const PictureItem &p, DrawingWriteContext
     // program links it, last in the blip.
     const QString svgId = relateSvg(ctx, p.imageId);
     const bool removed = shownId != rId;
-    if (!svgId.isEmpty() || removed) {
+    // What another program kept on the picture for itself (its own removal of the background, for one) goes back as it was; the removal made here
+    // replaces it, and the save says so.
+    const bool keepsTheirs = !p.keptBlip.isEmpty() && !removed;
+    if (!p.keptBlip.isEmpty() && removed && skipped)
+        skipped->append(QCoreApplication::translate("DrawingWriter", "\"%1\": the background removal another program made on this picture was replaced by the one made here.").arg(p.name.isEmpty() ? p.id : p.name));
+    if (!svgId.isEmpty() || removed || keepsTheirs) {
         begin(w, "a:extLst");
         if (!svgId.isEmpty()) {
             begin(w, "a:ext");
@@ -1042,6 +1047,8 @@ void writePicture(QXmlStreamWriter &w, const PictureItem &p, DrawingWriteContext
             w.writeEndElement();
             w.writeEndElement();
         }
+        if (keepsTheirs)
+            for (const PictureItem::KeptBlipExtension &kept : p.keptBlip) writeKeptBlipExtension(w, ctx, kept);
         if (removed) {
             begin(w, "a:ext");
             attribute(w, "uri", QString::fromLatin1(kRemovalExtension));

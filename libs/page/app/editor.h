@@ -273,6 +273,11 @@ public:
     bool removeBackgroundBusy() const;
     // Ends the work when it has been asked for and waits for it (what a save or Keep Changes does first).
     void finishRemoveBackgroundWork();
+    // The person gave up waiting (Cancel on the progress box): the work asked for last is dropped, the picture keeps the removal it had. A picture that has none yet is left
+    // as it was, and the mode ends as Esc ends it.
+    void cancelRemoveBackgroundWork();
+    // The pixels of the picture in the mode (what the progress box goes by).
+    qint64 removeBgPixels = 0;
     void setPointsItem(const QString &id) { pointsItem = id; Q_EMIT viewChanged(); }
     void setWrapItem(const QString &id) { wrapItem = id; Q_EMIT viewChanged(); }
 

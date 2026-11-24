@@ -129,28 +129,36 @@ Work makeWork(const QImage &picture)
     return wk;
 }
 
-// The pixels under the strokes of one kind (keep or not), as marks on a bitmap, and the colors found there.
-void paintMarks(const QVector<BackgroundMark> &marks, bool keep, const Work &wk, QVector<uchar> &bitmap, QVector<Rgb> &colors)
+// The pixels under the strokes: 1 where the last stroke over them keeps them, 2 where it takes them away (a later stroke wins where two meet),
+// and the colors found under each kind.
+void paintMarks(const QVector<BackgroundMark> &marks, const Work &wk, QVector<uchar> &state, QVector<Rgb> &keepColors, QVector<Rgb> &dropColors)
 {
     const double side = std::max(wk.w, wk.h);
     int points = 0;
+    bool over = false;
     for (const BackgroundMark &m : marks) {
-        if (m.keep != keep) continue;
+        if (over) break;
+        const uchar kind = m.keep ? 1 : 2;
         const double r = std::clamp(m.radius, 0.001, 0.25) * side;
         const int ri = std::max(1, int(std::ceil(r)));
         for (const QPointF &pt : m.points) {
-            if (++points > kRemoveBgMaxMarkPoints) return;
+            if (++points > kRemoveBgMaxMarkPoints) { over = true; break; }
             const double cx = std::clamp(pt.x(), 0.0, 1.0) * (wk.w - 1), cy = std::clamp(pt.y(), 0.0, 1.0) * (wk.h - 1);
-            for (int y = std::max(0, int(cy) - ri); y <= std::min(wk.h - 1, int(cy) + ri); ++y)
-                for (int x = std::max(0, int(cx) - ri); x <= std::min(wk.w - 1, int(cx) + ri); ++x) {
-                    if ((x - cx) * (x - cx) + (y - cy) * (y - cy) > r * r) continue;
-                    const qsizetype i = qsizetype(y) * wk.w + x;
-                    if (!bitmap[i]) {
-                        bitmap[i] = 1;
-                        if (colors.size() < 2048 || (i % 7) == 0) { if (colors.size() < 8192) colors << wk.blurred[i]; }
-                    }
-                }
+            // (a row of the disc at a time: a stroke may have thousands of points, each the size of a quarter of the picture)
+            for (int y = std::max(0, int(cy) - ri); y <= std::min(wk.h - 1, int(cy) + ri); ++y) {
+                const double rest = r * r - (y - cy) * (y - cy);
+                if (rest < 0) continue;
+                const double reach = std::sqrt(rest);
+                const int from = std::max(0, int(std::ceil(cx - reach))), to = std::min(wk.w - 1, int(std::floor(cx + reach)));
+                if (from <= to) std::fill(state.begin() + qsizetype(y) * wk.w + from, state.begin() + qsizetype(y) * wk.w + to + 1, kind);
+            }
         }
+    }
+    // (the colors are those of the pixels as they end up, so a stroke that was painted over gives none)
+    for (qsizetype i = 0; i < state.size(); ++i) {
+        if (!state[i]) continue;
+        QVector<Rgb> &colors = state[i] == 1 ? keepColors : dropColors;
+        if (colors.size() < 2048 || (i % 7) == 0) { if (colors.size() < 8192) colors << wk.blurred[i]; }
     }
 }
 
@@ -235,8 +243,14 @@ BackgroundRemoval findBackground(const QImage &picture, const QVector<Background
     // that take pixels away; the foreground's: those under the strokes that keep them.
     QVector<uchar> keepFixed(n, 0), dropFixed(n, 0);
     QVector<Rgb> keepColors, dropColors;
-    paintMarks(marks, true, wk, keepFixed, keepColors);
-    paintMarks(marks, false, wk, dropFixed, dropColors);
+    {
+        QVector<uchar> state(n, 0);
+        paintMarks(marks, wk, state, keepColors, dropColors);
+        for (qsizetype i = 0; i < n; ++i) {
+            keepFixed[i] = state[i] == 1;
+            dropFixed[i] = state[i] == 2;
+        }
+    }
     QVector<Rgb> edge;
     const int ring = std::max(2, std::min(w, h) / 100);
     const qsizetype step = std::max<qsizetype>(1, qsizetype(2) * (qsizetype(w) + h) * ring / 4096);

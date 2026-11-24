@@ -39,6 +39,7 @@ bool Editor::beginRemoveBackground(const QString &id, QString *why)
     if (picture.isNull()) return refuse(tr("This picture can't be read."));
     if (qint64(picture.width()) * picture.height() > kRemoveBgMaxSourcePixels) return refuse(tr("This picture is too large for its background to be removed."));
     if (m_rbOpen) endRemoveBackground(true);
+    removeBgPixels = qint64(picture.width()) * picture.height();
     if (!cropItem.isEmpty()) setCropItem(QString());
     beginCropChange(tr("Remove Background"));
     m_rbOpen = true;
@@ -113,6 +114,20 @@ void Editor::finishRemoveBackgroundWork()
 {
     for (size_t i = 0; i < m_rbJobs.size(); ++i)
         if (!m_rbJobs[i]->done) takeRemoveBackgroundResult(m_rbJobs[i]);
+}
+
+void Editor::cancelRemoveBackgroundWork()
+{
+    if (!m_rbOpen || !removeBackgroundBusy()) return;
+    auto *pic = dynamic_cast<PictureItem *>(m_doc->item(removeBgItem));
+    if (!pic || !pic->removal.isValid()) {
+        endRemoveBackground(false);
+        return;
+    }
+    for (auto &j : m_rbJobs) j->cancel = true;
+    // (the strokes are those of the removal the picture has: the ones asked for since are dropped)
+    m_rbMarks = pic->removal.marks;
+    Q_EMIT removeBackgroundProgress(100);
 }
 
 void Editor::addRemoveBackgroundMark(const BackgroundMark &mark)

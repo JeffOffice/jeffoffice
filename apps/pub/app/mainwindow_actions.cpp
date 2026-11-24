@@ -16,6 +16,7 @@
 #include "app/pagespane.h"
 #include "app/pictureedit.h"
 #include "app/picturecompress.h"
+#include "app/removebgprogress.h"
 #include "app/tableedit.h"
 #include "app/notes.h"
 #include "app/iconpicker.h"
@@ -1363,6 +1364,35 @@ void MainWindow::createActions()
         if (!it || it->type() != ItemType::Picture) return;
         ed->setCropItem(ed->cropItem == it->id ? QString() : it->id);
     }, true);
+    // Remove Background: the mode (strokes on the picture, with the tint where the background goes), and its four commands on their own tab.
+    new RemoveBackgroundProgress(ed, this);
+    mk("pic.removeBackground", tr("Remove Background"), "image-minus", QKeySequence(), [this, ed] {
+        if (!ed->cropItem.isEmpty()) ed->setCropItem(QString());
+        const Item *it = ed->single();
+        QString why;
+        if (!it || it->type() != ItemType::Picture || !ed->beginRemoveBackground(it->id, &why)) {
+            statusBar()->showMessage(why.isEmpty() ? tr("Select a picture to remove its background.") : why, 8000);
+            return;
+        }
+        m_ribbon->setContextVisible(QStringLiteral("Background Removal"), true, true);
+        updateContextTabs();
+    });
+    mk("pic.markKeep", tr("Mark Areas to Keep"), "circle-plus", QKeySequence(), [ed] { ed->setRemoveBgTool(Editor::RemoveBgTool::Keep); }, true);
+    mk("pic.markRemove", tr("Mark Areas to Remove"), "circle-minus", QKeySequence(), [ed] { ed->setRemoveBgTool(Editor::RemoveBgTool::Remove); }, true);
+    mk("pic.discardRemoval", tr("Discard All Changes"), "undo-2", QKeySequence(), [ed] { ed->endRemoveBackground(false); });
+    mk("pic.keepRemoval", tr("Keep Changes"), "check", QKeySequence(), [ed] { ed->endRemoveBackground(true); });
+    {
+        const auto marking = std::make_shared<bool>(false);
+        connect(ed, &Editor::viewChanged, this, [this, ed, marking] {
+            const bool on = !ed->removeBgItem.isEmpty();
+            act("pic.markKeep")->setChecked(on && ed->removeBgTool == Editor::RemoveBgTool::Keep);
+            act("pic.markRemove")->setChecked(on && ed->removeBgTool == Editor::RemoveBgTool::Remove);
+            if (on != *marking) {
+                *marking = on;
+                updateContextTabs();
+            }
+        });
+    }
     mk("pic.fit", tr("Fit"), "shrink", QKeySequence(), [ed] {
         ed->forEachSelected(tr("Fit"), [ed](Item *it) { if (auto *p = dynamic_cast<PictureItem *>(it)) p->fitImage(ed->doc()->imageSize(p->imageId), false); });
     });

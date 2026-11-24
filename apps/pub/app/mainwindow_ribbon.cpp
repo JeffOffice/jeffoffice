@@ -1095,7 +1095,9 @@ void MainWindow::updateContextTabs()
     const QString before = m_ribbon->current() ? QString() : QString();
     m_ribbon->setContextVisible(QStringLiteral("Text Box Tools"), text);
     m_ribbon->setContextVisible(QStringLiteral("Drawing Tools"), shape && !text);
-    m_ribbon->setContextVisible(QStringLiteral("Picture Tools"), picture);
+    const bool marking = !m_ed->removeBgItem.isEmpty();
+    m_ribbon->setContextVisible(QStringLiteral("Picture Tools"), picture && !marking);
+    m_ribbon->setContextVisible(QStringLiteral("Background Removal"), marking, false);
     m_ribbon->setContextVisible(QStringLiteral("Table Tools"), table);
     m_ribbon->setContextVisible(QStringLiteral("Text Art Tools"), textart);
     {

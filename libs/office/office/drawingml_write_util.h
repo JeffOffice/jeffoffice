@@ -6,6 +6,7 @@
 
 #include "office/drawingml_write.h"
 
+#include "core/items.h"
 #include "core/texteffects.h"
 
 #include <QColor>
@@ -60,6 +61,8 @@ QString relatePictureBytes(DrawingWriteContext &ctx, const QByteArray &bytes);
 // PNG relatePicture stores for it); empty when the picture is not an SVG, or
 // the context has no package.
 QString relateSvg(DrawingWriteContext &ctx, const QString &imageId);
+// An extension of a picture's blip that another program wrote, with the parts it points at, written as it was read (false, and nothing written, when its parts can't be).
+bool writeKeptBlipExtension(QXmlStreamWriter &w, DrawingWriteContext &ctx, const PictureItem::KeptBlipExtension &kept);
 // The relationship to an address a hyperlink goes to.
 QString relateAddress(DrawingWriteContext &ctx, const QString &address);
 // What an a:hlinkClick for a link says: its relationship (empty for a jump inside the show) and its action. False when the link can't be written: a jump to a slide

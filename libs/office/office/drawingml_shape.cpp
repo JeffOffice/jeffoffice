@@ -15,6 +15,7 @@
 #include "office/barcodemarker.h"
 #include "office/drawingml_geometry.h"
 #include "office/drawingml_style.h"
+#include "office/drawingml_write_util.h"
 #include "office/drawingml_styleref.h"
 #include "office/hyperlink.h"
 #include "office/xml.h"
@@ -22,7 +23,10 @@
 #include "wml/wmlmathedit.h"
 #include "wml/wmlmathpath.h"
 
+#include <QFileInfo>
 #include <QJsonDocument>
+#include <QMap>
+#include <QXmlStreamWriter>
 #include <QRegularExpression>
 #include <QTextDocument>
 #include <QtMath>
@@ -350,6 +354,7 @@ private:
     int m_count = 0;
     int m_depth = 0;
     int m_barcodes = 0;   // barcodes honored when the context has no budget to count them in
+    qint64 m_keptBlipBytes = 0;   // the bytes of parts kept for pictures when the context has no budget to count them in
     QDomElement m_ownStyle;   // the p:style the shape being read has itself (not one it inherits: that is the layout's), for decorate
     bool m_noText = false;   // reading a shape whose text is read apart (diagramShape)
     const Fill *m_groupFill = nullptr;
@@ -957,6 +962,72 @@ ItemPtr Reader::line(const Frame &frame, const QString &prst, const QHash<QStrin
     return l;
 }
 
+// The element and what is in it as text, by the names the file gave (an attribute that names a relationship becomes a mark, @@rel0@@ and on, and the part
+// it named is added to `parts`); the namespaces used are declared on the first element. False for what can't be kept: a relationship that is not to a part
+// inside the package, one that has no bytes, or more than a picture may keep.
+static bool keptBlipXml(const QDomElement &e, const DrawingContext &ctx, QXmlStreamWriter &w, QMap<QString, QString> *declared, PictureItem::KeptBlipExtension *out, qint64 *room, int depth)
+{
+    if (depth > 12 || out->xml.size() > kMaxKeptBlipXml) return false;
+    if (!e.prefix().isEmpty() || !e.namespaceURI().isEmpty()) declared->insert(e.prefix(), e.namespaceURI());
+    w.writeStartElement(e.nodeName());
+    QList<QDomAttr> attributes;
+    const QDomNamedNodeMap map = e.attributes();
+    for (int i = 0; i < map.length(); ++i) attributes.append(map.item(i).toAttr());
+    // (in order of name: the attribute map's own order changes from run to run, and what is written must not)
+    std::sort(attributes.begin(), attributes.end(), [](const QDomAttr &a, const QDomAttr &b) { return a.nodeName() < b.nodeName(); });
+    for (const QDomAttr &a : attributes) {
+        if (a.nodeName() == QLatin1String("xmlns") || a.nodeName().startsWith(QLatin1String("xmlns:"))) continue;
+        QString value = a.value();
+        if (!a.prefix().isEmpty()) declared->insert(a.prefix(), a.namespaceURI());
+        if (sameNamespace(a.namespaceURI(), ns::R)) {
+            const Relationship rel = ctx.package ? ctx.package->relationship(ctx.part, value) : Relationship();
+            if (rel.id.isEmpty() || rel.external || out->parts.size() >= kMaxKeptBlipParts) return false;
+            const QByteArray bytes = ctx.package->part(rel.target);
+            const QString type = ctx.package->contentType(rel.target);
+            if (bytes.isEmpty() || type.isEmpty() || bytes.size() > *room) return false;
+            *room -= bytes.size();
+            out->parts.append({bytes, type, rel.type, QFileInfo(rel.target).suffix()});
+            value = QStringLiteral("@@rel%1@@").arg(out->parts.size() - 1);
+        }
+        w.writeAttribute(a.nodeName(), value);
+    }
+    for (QDomNode c = e.firstChild(); !c.isNull(); c = c.nextSibling()) {
+        if (c.isElement()) {
+            if (!keptBlipXml(c.toElement(), ctx, w, declared, out, room, depth + 1)) return false;
+        } else if (c.isText() || c.isCDATASection()) {
+            w.writeCharacters(c.nodeValue());
+        }
+    }
+    w.writeEndElement();
+    return true;
+}
+
+// The extensions of a picture's blip that point at parts of the package (another program's own record of a background it took off, for one): kept whole,
+// to be written back as they were. Not the picture's vector form, and not ours.
+static void readKeptBlipExtensions(const QDomElement &blip, const DrawingContext &ctx, qint64 *room, PictureItem &p)
+{
+    int seen = 0;
+    for (QDomElement ext = childNamed(childNamed(blip, "extLst"), "ext"); !ext.isNull() && seen++ < 16 && p.keptBlip.size() < kMaxKeptBlipExtensions; ext = ext.nextSiblingElement()) {
+        const QString uri = attr(ext, QStringLiteral("uri"));
+        if (uri == QLatin1String("{96DAC541-7B7A-43D3-8B79-37D633B846F1}") || uri == QLatin1String(dmlwrite::kRemovalExtension)) continue;
+        PictureItem::KeptBlipExtension kept;
+        QMap<QString, QString> declared;
+        QString body;
+        QXmlStreamWriter w(&body);
+        qint64 left = *room;
+        if (!keptBlipXml(ext, ctx, w, &declared, &kept, &left, 0) || kept.parts.isEmpty()) continue;
+        // (the namespaces the element uses are declared on it: the file declared them above it)
+        QString declarations;
+        for (auto it = declared.cbegin(); it != declared.cend(); ++it)
+            declarations += QLatin1Char(' ') + (it.key().isEmpty() ? QStringLiteral("xmlns") : QStringLiteral("xmlns:") + it.key()) + QStringLiteral("=\"") + it.value().toHtmlEscaped().replace(QLatin1Char('"'), QStringLiteral("&quot;")) + QLatin1Char('"');
+        const int nameEnd = body.indexOf(QRegularExpression(QStringLiteral("[\\s/>]")));
+        if (nameEnd < 0 || body.size() + declarations.size() > kMaxKeptBlipXml) continue;
+        kept.xml = body.left(nameEnd) + declarations + body.mid(nameEnd);
+        *room = left;
+        p.keptBlip.append(kept);
+    }
+}
+
 ItemPtr Reader::pic(const QDomElement &e, const QVector<QDomElement> &inheritsFrom)
 {
     const QDomElement cNvPr = childNamed(childNamed(e, "nvPicPr"), "cNvPr");
@@ -982,6 +1053,13 @@ ItemPtr Reader::pic(const QDomElement &e, const QVector<QDomElement> &inheritsFr
         p->removal = removal;
     }
     if (p->imageId.isEmpty()) p->imageId = loadImage(attrNs(blip, ns::R, QStringLiteral("embed")), styleContext());
+    if (!p->removal.isValid()) {
+        qint64 &used = m_ctx.budget ? m_ctx.budget->keptBlipBytes : m_keptBlipBytes;
+        qint64 left = std::min(kMaxKeptBlipBytes, kMaxKeptBlipFileBytes - used);
+        const qint64 had = left;
+        readKeptBlipExtensions(blip, m_ctx, &left, *p);
+        used += had - left;
+    }
     media(childNamed(childNamed(e, "nvPicPr"), "nvPr"), *p);
 
     // The whole picture's place in the frame.

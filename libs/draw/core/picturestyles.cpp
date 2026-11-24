@@ -178,6 +178,7 @@ void changePictureImage(PictureItem *pic, const QString &imageId, const QSize &p
                       std::abs(double(px.width()) / px.height() - whole.width() / whole.height()) < 0.02 * whole.width() / whole.height();
     pic->imageId = imageId;
     pic->removal = BackgroundRemoval();
+    pic->keptBlip.clear();
     // The picture of the same proportions goes where the old one was; any other fills the frame.
     if (!same) pic->fitImage(px, true);
     pic->chartXml.clear();

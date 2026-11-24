@@ -1,10 +1,17 @@
 // Taking the background off a picture: how well the mask follows a known subject, what the strokes change, and how the removal is kept.
 #include "deckhelpers.h"
+#include "core/picturestyles.h"
 #include "core/removebg.h"
 #include "app/lossywarning.h"
+#include "app/removebgprogress.h"
 
 #include <QBuffer>
+#include <QCryptographicHash>
+#include <QDomDocument>
+#include <QImageReader>
 #include <QPainter>
+#include <QPointer>
+#include <QProgressDialog>
 #include <QTemporaryDir>
 #include <QRandomGenerator>
 
@@ -122,6 +129,51 @@ private Q_SLOTS:
         const BackgroundRemoval after = findBackground(im, {stroke});
         QVERIFY(qAlpha(applyBackgroundRemoval(im, after).pixel(150 + 70, 120)) < 60);
         QVERIFY(qAlpha(applyBackgroundRemoval(im, after).pixel(150, 120)) > 200);       // the disc stays
+    }
+    void whereTwoStrokesMeetTheLastOneWins()
+    {
+        const QImage im = disc(300, 240, Qt::red, [](int, int) { return QColor(Qt::white); });
+        auto stroke = [](bool keep, QPointF at) {
+            BackgroundMark m;
+            m.keep = keep;
+            m.radius = 0.04;
+            m.points << at << QPointF(at.x() + 0.01, at.y());
+            return m;
+        };
+        // Over the subject: taken away then kept, and kept then taken away.
+        const QPointF inSubject(0.5, 0.5), inBackground(0.08, 0.1);
+        auto kept = [&](const QVector<BackgroundMark> &marks, QPointF at) {
+            return qAlpha(applyBackgroundRemoval(im, findBackground(im, marks)).pixel(int(at.x() * 300), int(at.y() * 240))) > 127;
+        };
+        QVERIFY(kept({stroke(false, inSubject), stroke(true, inSubject)}, inSubject));
+        QVERIFY(!kept({stroke(true, inSubject), stroke(false, inSubject)}, inSubject));
+        // Over the background, the same.
+        QVERIFY(kept({stroke(false, inBackground), stroke(true, inBackground)}, inBackground));
+        QVERIFY(!kept({stroke(true, inBackground), stroke(false, inBackground)}, inBackground));
+    }
+    void aKeepStrokeDoesNotSpillIntoOtherColors()
+    {
+        // A white background, a red disc, and a blue square that is not joined to the edges. A stroke that keeps the red disc changes nothing but the disc.
+        QImage im = disc(300, 240, Qt::red, [](int, int) { return QColor(Qt::white); }, 0, QPointF(0.3, 0.5), 0.2);
+        for (int y = 150; y < 200; ++y)
+            for (int x = 200; x < 260; ++x) im.setPixelColor(x, y, Qt::blue);
+        const QImage plain = applyBackgroundRemoval(im, findBackground(im, {}));
+        BackgroundMark stroke;
+        stroke.keep = true;
+        stroke.radius = 0.03;
+        stroke.points << QPointF(0.3, 0.5) << QPointF(0.33, 0.5);
+        const QImage marked = applyBackgroundRemoval(im, findBackground(im, {stroke}));
+        qint64 outside = 0, total = 0;
+        for (int y = 0; y < im.height(); ++y)
+            for (int x = 0; x < im.width(); ++x) {
+                if (std::hypot(x - 90.0, y - 120.0) < 0.2 * 240 + 4) continue;
+                ++total;
+                outside += std::abs(qAlpha(plain.pixel(x, y)) - qAlpha(marked.pixel(x, y))) > 64;
+            }
+        QCOMPARE(outside, qint64(0));
+        QVERIFY(total > 50000);
+        QVERIFY(qAlpha(marked.pixel(230, 175)) > 200);   // the blue square is as it was
+        QVERIFY(qAlpha(marked.pixel(150, 20)) < 60);     // the white around is gone
     }
     void theWorkCanBeStopped()
     {
@@ -257,6 +309,83 @@ private Q_SLOTS:
         QVERIFY(!firstPicture(w)->removalTint.isValid());
         QCOMPARE(ed->undoStack()->count(), steps + 1);
     }
+    void anAnimatedPictureIsRefusedWithAPlainMessage()
+    {
+        // A two-frame GIF made by hand.
+        QByteArray gif = QByteArray::fromHex("47494638396101000100800000000000ffffff");
+        const QByteArray frame = QByteArray::fromHex("21f9040100000000" "2c00000000010001000002024401" "00");
+        gif += frame + frame + QByteArray::fromHex("3b");
+        QBuffer probe(&gif);
+        probe.open(QIODevice::ReadOnly);
+        QImageReader reader(&probe);
+        QCOMPARE(reader.imageCount(), 2);
+        DeckWindow w;
+        w.show();
+        PictureItem *pic = addDiscPicture(w);
+        pic->imageId = w.editor()->doc()->addImage(gif, QStringLiteral("gif"));
+        QVERIFY(!pic->imageId.isEmpty());
+        QString why;
+        QVERIFY(!w.editor()->beginRemoveBackground(pic->id, &why));
+        QVERIFY2(why.contains(QStringLiteral("animated")), qPrintable(why));
+        QVERIFY(w.editor()->removeBgItem.isEmpty());
+        QVERIFY(!firstPicture(w)->removal.isValid());
+    }
+    static QByteArray bigDiscPng()
+    {
+        const QImage im = disc(1800, 1200, Qt::red, [](int, int) { return QColor(Qt::white); });   // 2.16 million pixels
+        QByteArray png;
+        QBuffer buffer(&png);
+        buffer.open(QIODevice::WriteOnly);
+        im.save(&buffer, "PNG");
+        return png;
+    }
+    void aBigPictureShowsAProgressBoxAndCancelLeavesThePictureUntouched()
+    {
+        DeckWindow w;
+        w.resize(1200, 800);
+        w.show();
+        PictureItem *pic = addDiscPicture(w);
+        pic->imageId = w.editor()->doc()->addImage(bigDiscPng(), QStringLiteral("png"));
+        Editor *ed = w.editor();
+        const int steps = ed->undoStack()->count();
+        // A small picture has no box.
+        w.act(QStringLiteral("pic.removeBackground"))->trigger();
+        QVERIFY(ed->removeBgPixels >= kRemoveBgProgressPixels);
+        // (the first report of the thread is queued: the window's own signal stands in for it, before the event loop can deliver the answer)
+        Q_EMIT ed->removeBackgroundProgress(10);
+        QPointer<QProgressDialog> box = w.removeBackgroundProgress()->box();
+        QVERIFY(box);
+        QCOMPARE(box->maximum(), 100);
+        Q_EMIT box->canceled();   // (what the Cancel button does)
+        QVERIFY(ed->removeBgItem.isEmpty());          // nothing was found yet: the mode ends as Esc ends it
+        QTRY_VERIFY(!box);
+        QVERIFY(!firstPicture(w)->removal.isValid());
+        QVERIFY(!firstPicture(w)->removalTint.isValid());
+        QCOMPARE(ed->undoStack()->count(), steps);
+        QCOMPARE(firstPicture(w)->imageId, pic->imageId);
+        // The same with a stroke: the removal the picture had stays, and the stroke is not added.
+        w.act(QStringLiteral("pic.removeBackground"))->trigger();
+        QTRY_VERIFY(!ed->removeBackgroundBusy());
+        QVERIFY(firstPicture(w)->removal.isValid());
+        QVERIFY(!w.removeBackgroundProgress()->box());
+        const QByteArray before = firstPicture(w)->removal.mask;
+        BackgroundMark stroke;
+        stroke.keep = false;
+        stroke.points << QPointF(0.5, 0.5);
+        ed->addRemoveBackgroundMark(stroke);
+        Q_EMIT ed->removeBackgroundProgress(10);
+        box = w.removeBackgroundProgress()->box();
+        QVERIFY(box);
+        Q_EMIT box->canceled();   // (what the Cancel button does)
+        QTRY_VERIFY(!ed->removeBackgroundBusy());
+        QVERIFY(!ed->removeBgItem.isEmpty());          // the mode is still open
+        QCOMPARE(firstPicture(w)->removal.mask, before);
+        QCOMPARE(firstPicture(w)->removal.marks.size(), 0);
+        ed->endRemoveBackground(true);
+        QCOMPARE(firstPicture(w)->removal.mask, before);
+        QCOMPARE(firstPicture(w)->removal.marks.size(), 0);
+        QCOMPARE(ed->undoStack()->count(), steps + 1);
+    }
     void resetPictureBringsTheWholePictureBack()
     {
         DeckWindow w;
@@ -366,6 +495,202 @@ private Q_SLOTS:
         DeckWindow v;
         QVERIFY(v.openFile(dir.filePath(QStringLiteral("plain.pptx"))));
         QVERIFY(!firstPicture(v)->removal.isValid());
+    }
+    // ---- a file from another program that carries its own removal of the background on a picture ----
+    static QByteArray foreignRemoval(int extra = 0, bool external = false)
+    {
+        // A second picture the extension points at, with bytes of its own (not a picture this program reads).
+        QByteArray second("OTHER-PROGRAM-LAYER");
+        for (int i = 0; i < 300; ++i) second.append(char(i * 7));
+        Parts p = samplePptx();
+        QString ext = QStringLiteral("<a:extLst><a:ext uri=\"{BEBA8EAE-BF5A-486C-A8C5-ECC9F3942E4B}\"><a14:imgProps xmlns:a14=\"http://schemas.microsoft.com/office/drawing/2010/main\">"
+                                     "<a14:imgLayer r:embed=\"rId4\"><a14:imgEffect><a14:backgroundRemoval t=\"10\" b=\"90\" l=\"10\" r=\"90\"><a14:foregroundMark x1=\"1\" y1=\"2\" x2=\"3\" y2=\"4\"/>"
+                                     "<a14:backgroundMark x1=\"5\" y1=\"6\" x2=\"7\" y2=\"8\"/></a14:backgroundRemoval></a14:imgEffect></a14:imgLayer></a14:imgProps></a:ext>");
+        for (int i = 0; i < extra; ++i) ext += QStringLiteral("<a:ext uri=\"{00000000-0000-0000-0000-00000000000%1}\"><x:more xmlns:x=\"urn:test:more\" r:id=\"rId4\"/></a:ext>").arg(i);
+        ext += QStringLiteral("</a:extLst>");
+        p.data["/ppt/slides/slide1.xml"].xml.replace("<a:blip r:embed=\"rId2\"/>", ("<a:blip r:embed=\"rId2\">" + ext + "</a:blip>").toUtf8());
+        p.data["/ppt/media/layer1.wdp"] = {QStringLiteral("image/vnd.ms-photo"), second};
+        p.rels << Rel{"/ppt/slides/slide1.xml", "image", "/ppt/media/layer1.wdp"};
+        if (external) p.rels.last() = Rel{"/ppt/slides/slide1.xml", "image", "https://example.com/layer.wdp", true};
+        // (the relationship the extension names is the next one the sample's writer hands out: found by its target)
+        return pack(p);
+    }
+    // An element as the file says it: names, attributes in order of name, and what the relationships in it name (the part's bytes, by hash), children, text.
+    static QString canonical(const QDomElement &e, const office::Package &pkg, const QString &source)
+    {
+        QString out = QLatin1Char('<') + e.nodeName();
+        QStringList attrs;
+        const QDomNamedNodeMap map = e.attributes();
+        for (int i = 0; i < map.length(); ++i) {
+            const QDomAttr a = map.item(i).toAttr();
+            if (a.nodeName().startsWith(QLatin1String("xmlns"))) continue;
+            QString v = a.value();
+            if (a.namespaceURI().endsWith(QLatin1String("/relationships"))) {
+                const office::Relationship rel = pkg.relationship(source, v);
+                v = QStringLiteral("part:") + QString::fromLatin1(QCryptographicHash::hash(pkg.part(rel.target), QCryptographicHash::Sha1).toHex()) + rel.type + pkg.contentType(rel.target);
+            }
+            attrs << a.nodeName() + QLatin1Char('=') + v;
+        }
+        attrs.sort();
+        out += QLatin1Char(' ') + attrs.join(QLatin1Char(' ')) + QLatin1Char('>');
+        for (QDomNode c = e.firstChild(); !c.isNull(); c = c.nextSibling())
+            out += c.isElement() ? canonical(c.toElement(), pkg, source) : c.nodeValue();
+        return out + QStringLiteral("</") + e.nodeName() + QLatin1Char('>');
+    }
+    // The extensions of the first slide's picture's blip, as canonical text, in order.
+    static QStringList blipExtensions(const QByteArray &pptx, const QString &slide = QStringLiteral("/ppt/slides/slide1.xml"))
+    {
+        office::Package pkg;
+        QString why;
+        if (!pkg.read(pptx, &why)) return {};
+        QDomDocument dom;
+        if (!dom.setContent(pkg.part(slide), true)) return {};
+        QStringList found;
+        const QDomNodeList blips = dom.elementsByTagNameNS(QStringLiteral("http://schemas.openxmlformats.org/drawingml/2006/main"), QStringLiteral("blip"));
+        for (int i = 0; i < blips.size(); ++i)
+            for (QDomElement x = blips.at(i).firstChildElement(); !x.isNull(); x = x.nextSiblingElement())
+                for (QDomElement ext = x.firstChildElement(); !ext.isNull(); ext = ext.nextSiblingElement()) found << canonical(ext, pkg, slide);
+        return found;
+    }
+    void theOtherProgramsRemovalDataComesBackUntouchedAfterOpenAndSave()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QByteArray original = foreignRemoval();
+        const QStringList before = blipExtensions(original);
+        QCOMPARE(before.size(), 1);
+        QVERIFY(before[0].contains(QStringLiteral("backgroundMark")));
+        QFile in(dir.filePath(QStringLiteral("theirs.pptx")));
+        QVERIFY(in.open(QIODevice::WriteOnly));
+        in.write(original);
+        in.close();
+        DeckWindow w;
+        QVERIFY(w.openFile(dir.filePath(QStringLiteral("theirs.pptx"))));
+        QVERIFY(firstPicture(w));
+        QCOMPARE(firstPicture(w)->keptBlip.size(), 1);
+        QVERIFY(!firstPicture(w)->removal.isValid());
+        QVERIFY(w.saveTo(dir.filePath(QStringLiteral("again.pptx"))));
+        const QByteArray saved = fileBytes(dir.filePath(QStringLiteral("again.pptx")));
+        QCOMPARE(blipExtensions(saved), before);
+        Exported e;
+        QString why;
+        QVERIFY2(unpack(saved, &e, &why), qPrintable(why));
+        QVERIFY2(packageProblem(e).isEmpty(), qPrintable(packageProblem(e)));
+        // The second picture is still a part of the file, with the type it had.
+        bool found = false;
+        for (const QString &name : e.pkg.partNames())
+            if (e.pkg.contentType(name) == QLatin1String("image/vnd.ms-photo")) found = found || e.pkg.part(name).startsWith("OTHER-PROGRAM-LAYER");
+        QVERIFY(found);
+        // Saved again after being opened again: the same.
+        DeckWindow v;
+        QVERIFY(v.openFile(dir.filePath(QStringLiteral("again.pptx"))));
+        QCOMPARE(firstPicture(v)->keptBlip.size(), 1);
+        QVERIFY(v.saveTo(dir.filePath(QStringLiteral("third.pptx"))));
+        QCOMPARE(blipExtensions(fileBytes(dir.filePath(QStringLiteral("third.pptx")))), before);
+        // The native file keeps it too (what a copy or a paste carries).
+        const QJsonObject o = firstPicture(v)->toJson();
+        PictureItem copy;
+        copy.fromJson(o);
+        QCOMPARE(copy.keptBlip.size(), 1);
+        QCOMPARE(copy.keptBlip[0].xml, firstPicture(v)->keptBlip[0].xml);
+        QCOMPARE(copy.keptBlip[0].parts[0].bytes, firstPicture(v)->keptBlip[0].parts[0].bytes);
+    }
+    void ourRemovalReplacesTheirsAndTheSaveSaysSo()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QFile in(dir.filePath(QStringLiteral("theirs.pptx")));
+        QVERIFY(in.open(QIODevice::WriteOnly));
+        in.write(foreignRemoval());
+        in.close();
+        DeckWindow w;
+        w.show();
+        QVERIFY(w.openFile(dir.filePath(QStringLiteral("theirs.pptx"))));
+        // The mode needs a picture it can work on: the sample's is a small one-color square; give the picture a made one.
+        PictureItem *pic = firstPicture(w);
+        QVERIFY(pic);
+        QImage im = disc(200, 160, Qt::red, [](int, int) { return QColor(Qt::white); });
+        QByteArray png;
+        QBuffer buffer(&png);
+        buffer.open(QIODevice::WriteOnly);
+        im.save(&buffer, "PNG");
+        pic->imageId = w.editor()->doc()->addImage(png, QStringLiteral("png"));
+        w.editor()->select(pic->id);
+        w.act(QStringLiteral("pic.removeBackground"))->trigger();
+        QTRY_VERIFY(!w.editor()->removeBackgroundBusy());
+        w.editor()->endRemoveBackground(true);
+        QVERIFY(firstPicture(w)->removal.isValid());
+        QStringList skipped;
+        const QByteArray bytes = deck::exportPresentation(*w.editor()->doc(), nullptr, &skipped, deck::PresentationKind::Presentation, false, false, false);
+        QVERIFY(skipped.join(QLatin1Char('|')).contains(QStringLiteral("another program made")));
+        // Only ours is in the file now.
+        const QStringList exts = blipExtensions(bytes);
+        QCOMPARE(exts.size(), 1);
+        QVERIFY(exts[0].contains(QStringLiteral("removal")));
+        QVERIFY(!exts[0].contains(QStringLiteral("backgroundMark")));
+        // The other kind of file says what it can't keep.
+        QString said;
+        jp::setLossyStandIn([&](const jp::LossyAsk &a, bool *) {
+            said = a.lost.join(QLatin1Char('|'));
+            return jp::LossyChoice::SaveAnyway;
+        });
+        QVERIFY(w.saveTo(dir.filePath(QStringLiteral("out.odp")), true));
+        jp::setLossyStandIn(nullptr);
+        QVERIFY2(said.contains(QStringLiteral("background was removed")), qPrintable(said));
+    }
+    void aChangedPictureDropsTheOtherProgramsData()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QFile in(dir.filePath(QStringLiteral("theirs.pptx")));
+        QVERIFY(in.open(QIODevice::WriteOnly));
+        in.write(foreignRemoval());
+        in.close();
+        DeckWindow w;
+        QVERIFY(w.openFile(dir.filePath(QStringLiteral("theirs.pptx"))));
+        PictureItem *pic = firstPicture(w);
+        QVERIFY(!pic->keptBlip.isEmpty());
+        changePictureImage(pic, pic->imageId + QStringLiteral("x"), QSize(10, 10));
+        QVERIFY(pic->keptBlip.isEmpty());
+    }
+    void hostileExtensionsAreBounded()
+    {
+        // Seven more extensions that name the same part: no more than the limit are kept, and each keeps its part once in the file.
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        QFile in(dir.filePath(QStringLiteral("many.pptx")));
+        QVERIFY(in.open(QIODevice::WriteOnly));
+        in.write(foreignRemoval(7));
+        in.close();
+        DeckWindow w;
+        QVERIFY(w.openFile(dir.filePath(QStringLiteral("many.pptx"))));
+        QCOMPARE(firstPicture(w)->keptBlip.size(), kMaxKeptBlipExtensions);
+        QVERIFY(w.saveTo(dir.filePath(QStringLiteral("many2.pptx"))));
+        const QByteArray saved = fileBytes(dir.filePath(QStringLiteral("many2.pptx")));
+        QCOMPARE(blipExtensions(saved).size(), kMaxKeptBlipExtensions);
+        Exported e;
+        QString why;
+        QVERIFY2(unpack(saved, &e, &why), qPrintable(why));
+        int copies = 0;
+        for (const QString &name : e.pkg.partNames()) copies += e.pkg.contentType(name) == QLatin1String("image/vnd.ms-photo");
+        QCOMPARE(copies, 1);
+        // An extension that names a part outside the file is not kept, and the picture opens as it is.
+        QFile out(dir.filePath(QStringLiteral("outside.pptx")));
+        QVERIFY(out.open(QIODevice::WriteOnly));
+        out.write(foreignRemoval(0, true));
+        out.close();
+        DeckWindow v;
+        QVERIFY(v.openFile(dir.filePath(QStringLiteral("outside.pptx"))));
+        QVERIFY(firstPicture(v));
+        QVERIFY(firstPicture(v)->keptBlip.isEmpty());
+        // A part larger than a picture may keep is not kept.
+        PictureItem big;
+        QJsonObject o = big.toJson();
+        QJsonObject kept{{"xml", QStringLiteral("<a:ext xmlns:a=\"urn:x\"/>")},
+                         {"parts", QJsonArray{QJsonObject{{"data", QString::fromLatin1(QByteArray(int(kMaxKeptBlipBytes) + 4096, 'x').toBase64())}, {"type", "image/x"}, {"rel", "urn:r"}}}}};
+        o["keptBlip"] = QJsonArray{kept};
+        big.fromJson(o);
+        QVERIFY(big.keptBlip.isEmpty());
     }
 };
 

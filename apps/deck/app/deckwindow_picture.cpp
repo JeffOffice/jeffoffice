@@ -7,6 +7,7 @@
 #include "app/editor.h"
 #include "app/icons.h"
 #include "app/pictureedit.h"
+#include "app/removebgprogress.h"
 #include "app/pictureask.h"
 #include "app/filedialogs.h"
 #include "app/picturecompress.h"
@@ -76,6 +77,7 @@ void DeckWindow::createCropActions()
     });
 
     // Remove Background: the mode (strokes on the picture, with the tint where the background goes), and its four commands on their own tab.
+    m_removeProgress = new RemoveBackgroundProgress(ed, this);
     mk("pic.removeBackground", tr("Remove Background"), "image-minus", QKeySequence(), [this, ed] {
         leaveCrop(ed);
         const QVector<PictureItem *> pictures = croppablePictures(ed);

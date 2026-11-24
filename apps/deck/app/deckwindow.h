@@ -59,6 +59,7 @@ class CommentsPane;
 class DeckCanvas;
 class DeckFileScreen;
 class Editor;
+class RemoveBackgroundProgress;
 class DeckFindPane;
 class FontCombo;
 struct GalleryItem;
@@ -104,6 +105,7 @@ public:
     QStringList actionIds() const override;
     Ribbon *ribbon() const override { return m_ribbon; }
     Editor *editor() const { return m_ed; }
+    RemoveBackgroundProgress *removeBackgroundProgress() const { return m_removeProgress; }
     // The fonts of the presentation that this computer lacks (the bar after a presentation opens): where each is used, and how one is replaced in the file.
     jp::MissingFontsHost missingFontsHost();
     DeckCanvas *canvas() const { return m_canvas; }
@@ -626,6 +628,7 @@ private:
     HelpWindow *showHelpOver(const QString &topic);
 
     Editor *m_ed = nullptr;
+    RemoveBackgroundProgress *m_removeProgress = nullptr;   // the box that shows while a big picture's background is found
     QPointer<PageAccessibilityPane> m_accessPane;
     QPointer<SelectionPane> m_selectionPane;
     DeckCanvas *m_canvas = nullptr;

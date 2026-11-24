@@ -308,6 +308,65 @@ QString relateAddress(DrawingWriteContext &ctx, const QString &address)
     return relate(ctx, QStringLiteral("hyperlink"), address, true);
 }
 
+bool writeKeptBlipExtension(QXmlStreamWriter &w, DrawingWriteContext &ctx, const PictureItem::KeptBlipExtension &kept)
+{
+    if (!ctx.package || !ctx.mediaParts || ctx.part.isEmpty() || kept.xml.isEmpty()) return false;
+    // The parts first: nothing is written for an extension whose parts can't be.
+    QStringList ids;
+    for (const PictureItem::KeptBlipExtension::Part &part : kept.parts) {
+        const QString key = QStringLiteral("kept:") + QString::fromLatin1(QCryptographicHash::hash(part.bytes, QCryptographicHash::Sha1).toHex()) + QLatin1Char(' ') + part.contentType;
+        QString name = ctx.mediaParts->value(key);
+        if (name.isEmpty()) {
+            if (part.bytes.isEmpty() || part.contentType.isEmpty() || part.relationType.isEmpty()) return false;
+            QString extension = part.extension;
+            extension.remove(QRegularExpression(QStringLiteral("[^A-Za-z0-9]")));
+            if (extension.isEmpty()) extension = QStringLiteral("bin");
+            int n = ctx.mediaParts->size() + 1;
+            const QStringList taken = ctx.mediaParts->values();
+            do {
+                name = QStringLiteral("/ppt/media/image%1.%2").arg(n++).arg(extension);
+            } while (taken.contains(name));
+            ctx.package->addDefault(extension, part.contentType);
+            ctx.package->addPart(name, part.bytes, part.contentType);
+            ctx.mediaParts->insert(key, name);
+        }
+        const QString id = relate(ctx, part.relationType, name);
+        if (id.isEmpty()) return false;
+        ids << id;
+    }
+    QString xml = kept.xml;
+    for (int i = 0; i < ids.size(); ++i) xml.replace(QStringLiteral("\"@@rel%1@@\"").arg(i), QLatin1Char('"') + ids[i] + QLatin1Char('"'));
+    const QString wrapped = QStringLiteral("<k xmlns:a=\"http://schemas.openxmlformats.org/drawingml/2006/main\" xmlns:r=\"http://schemas.openxmlformats.org/officeDocument/2006/relationships\">") + xml + QStringLiteral("</k>");
+    {
+        // (read through once first: nothing is written for text that is not well formed)
+        QXmlStreamReader check(wrapped);
+        while (!check.atEnd()) check.readNext();
+        if (check.hasError()) return false;
+    }
+    QXmlStreamReader in(wrapped);
+    in.readNext();
+    in.readNext();
+    in.readNext();   // (past the wrapper's start, on the extension)
+    int depth = 0;
+    while (!in.atEnd() && !in.hasError()) {
+        if (in.isStartElement()) {
+            // (by the names as the file wrote them: the writer's own namespace handling would rename the prefixes)
+            w.writeStartElement(in.qualifiedName().toString());
+            for (const QXmlStreamNamespaceDeclaration &d : in.namespaceDeclarations())
+                w.writeAttribute(d.prefix().isEmpty() ? QStringLiteral("xmlns") : QStringLiteral("xmlns:") + d.prefix().toString(), d.namespaceUri().toString());
+            for (const QXmlStreamAttribute &a : in.attributes()) w.writeAttribute(a.qualifiedName().toString(), a.value().toString());
+            ++depth;
+        } else if (in.isEndElement()) {
+            if (--depth < 0) break;
+            w.writeEndElement();
+        } else if (in.isCharacters() && depth > 0) {
+            w.writeCharacters(in.text().toString());
+        }
+        in.readNext();
+    }
+    return true;
+}
+
 void writeKeptClick(QXmlStreamWriter &w, DrawingWriteContext &ctx, const QString &kept)
 {
     if (ctx.slideCount <= 0 || kept.isEmpty()) return;
