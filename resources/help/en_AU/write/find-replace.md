@@ -33,16 +33,37 @@ If your words are not in the document, the pane says so, and nothing moves.
 
 You can keep working in the document while the pane is open. Click the page to type. Click the **X** at the top of the pane to close it.
 
+## Find with regular expressions
+
+Check **Use regular expressions** for patterns that go further than wildcards. A **regular expression** is a short pattern made of letters and marks. It is turned on instead of **Use wildcards**: only one of the two can be on. These are the common marks:
+
+- **.** is any one character, **\d** is a digit, **\w** is a letter, digit, or underscore, and **\s** is a space or tab. **[a-c]** is any letter from a to c, and **[^abc]** is any character but those.
+- **^** is the start of a paragraph, **$** is the end of one, and **\b** is the edge of a word. **\bcat\b** finds "cat" but not "category."
+- **\*** means none or more of what comes before, **+** means one or more, and **?** means none or one. **{2}** means exactly twice, and **{2,5}** means two to five times; a count can be up to 200. Add **?** after a repeat, as in **.+?**, to find the shortest run that fits.
+- **|** means "or": **cat|dog** finds either word.
+- **( )** makes a **group**. Use **(?: )** for a group you do not need in **Replace with**.
+- **\\** in front of a mark finds the mark itself: **\.** finds a period. **\t** is a tab.
+
+**Match case** works as it does for words. Letters with accents and letters in other alphabets count as letters.
+
+A pattern is searched one paragraph at a time, so **^** and **$** mean the start and end of each paragraph. To search over the end of a paragraph, put **\n** (a paragraph mark) in the pattern: **home\.\nLee** finds "home." at the end of one paragraph and "Lee" at the start of the next.
+
+In **Replace with**, **$1** or **\1** is the first group, **$2** or **\2** is the second, and so on up to nine groups. **$0** or **\0** is everything that was found. **$$** is a dollar sign, **\\** is a backslash, and **\t** is a tab. For example, find **(\w+), (\w+)** and replace with **$2 $1** to turn "Smith, John" into "John Smith."
+
+**Replace All** changes every match in the text, headers, footers, notes, and text boxes as one step, so one **Undo** takes all of them back. With Track Changes on, each change is tracked, as it is for words. Hidden text is left alone.
+
+If the pattern has a mistake, the pane says near which character. A pattern can match no characters at all, such as **^** (the start of a paragraph) or **$** (the end): **Replace with** then puts its words in at that place, so **^** with **> ** adds those marks to the front of every paragraph. A pattern that would take far too long on your text, such as **(a+)+$** on a long line of a's, is stopped by JeffWrite, which says so; nothing is changed. A long search shows a **Searching** box with a **Cancel** button; cancelling leaves your document as it was, and you cannot type in the document until the search is done. Patterns that look ahead or behind without using up what they check, such as **x(?=\d)**, and patterns in extended mode, such as **(?x)**, are not supported; JeffWrite says so. A very long paragraph is searched a part at a time, and every match is the one a search of the whole paragraph would find. A pattern that matches a very long stretch of a very long paragraph (tens of thousands of characters) may be stopped with the "needed too much work" message, and a single match of more than 200,000 characters is not replaced: JeffWrite stops, says so, and changes nothing.
+
 ## Advanced Find
 
-These choices are in the pane under **Use wildcards**. Each one changes how JeffWrite reads the words in **Find what**.
+These choices are in the pane under **Use regular expressions**. Each one changes how JeffWrite reads the words in **Find what**.
 
 - **Sounds like** finds words that are said the way your word is said. It gives each word a code from its sounds, and finds the words with the same code. Type **Smith**, and it finds "Smyth" too.
 - **Find all word forms** finds every form of the word. Type **run**, and it finds "runs," "running," and "ran." It works on whole words. If you type two words, such as **big dog**, it finds them side by side, in any of their forms.
 - **Ignore punctuation characters** skips marks such as hyphens and periods between the letters. Type **email**, and it finds "e-mail" too.
 - **Ignore white-space characters** skips spaces and tabs between the letters. Type **e mail**, and it finds "email."
 
-Only one of **Sounds like**, **Find all word forms**, and **Use wildcards** can be on at a time. **Sounds like** and **Find all word forms** always find whole words, so **Find whole words only** and **Match case** are dimmed.
+Only one of **Sounds like**, **Find all word forms**, **Use wildcards**, and **Use regular expressions** can be on at a time. **Sounds like** and **Find all word forms** always find whole words, so **Find whole words only** and **Match case** are dimmed.
 
 ### Special
 

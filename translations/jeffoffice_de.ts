@@ -926,10 +926,15 @@
     </message>
     <message>
         <location line="+22"/>
-        <location filename="../apps/write/app/writewindow_view.cpp" line="+66"/>
+        <location filename="../apps/write/app/writewindow_view.cpp" line="+67"/>
         <location line="+2"/>
         <source>This file is open for reading only. Use Save a Copy, or Save As, to make a copy you can change.</source>
         <translation type="unfinished">Diese Datei ist nur zum Lesen geöffnet. Verwenden Sie „Kopie speichern“ oder „Speichern unter“, um eine Kopie zu erstellen, die Sie ändern können.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>A search is under way, so nothing can be changed yet. Wait for it to end, or cancel it.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -5836,7 +5841,7 @@ Artikel auf der Rückseite	4</translation>
     <message>
         <location filename="../libs/page/app/saveoptions.cpp" line="-15"/>
         <location filename="../apps/pub/app/mainwindow.cpp" line="+462"/>
-        <location filename="../apps/write/app/writewindow.cpp" line="+835"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+840"/>
         <source>Save</source>
         <translation type="unfinished">Speichern</translation>
     </message>
@@ -21272,6 +21277,24 @@ Desktop-Publishing</translation>
         <location line="+56"/>
         <source>New (top) and current (bottom)</source>
         <translation type="unfinished">Neu (oben) und aktuell (unten)</translation>
+    </message>
+</context>
+<context>
+    <name>WriteFindPane</name>
+    <message>
+        <location filename="../apps/write/app/writefindpane.cpp" line="+625"/>
+        <source>A match longer than %1 characters was found, which is more than JeffWrite can work with at once. Nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>That pattern needed too much work on this text, so the search stopped. Nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Cancelled. Nothing was changed.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -61477,7 +61500,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
 <context>
     <name>jp::WriteFindPane</name>
     <message>
-        <location filename="../apps/write/app/writefindpane.cpp" line="+173"/>
+        <location filename="../apps/write/app/writefindpane.cpp" line="-411"/>
         <source>Find what</source>
         <translation>Suchen nach</translation>
     </message>
@@ -61505,6 +61528,16 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
         <location line="+2"/>
         <source>? is any letter, * is any run of letters, &lt; and &gt; are the start and end of a word, [a-c] is a range, @ is one or more, and ( ) make groups to use as \1 in Replace with.</source>
         <translation type="unfinished">? steht für einen beliebigen Buchstaben, * für eine beliebige Zeichenfolge, &lt; und &gt; für Wortanfang und Wortende, [a-c] für einen Bereich, @ für einen oder mehrere Buchstaben, und ( ) bilden Gruppen, die in Ersetzen durch als \1 verwendet werden können.</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Use regular expressions</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Finds text by a pattern, such as \d{3} for three digits. In Replace with, $1 is the first group in ( ).</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+2"/>
@@ -61628,36 +61661,36 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
     </message>
     <message>
         <location line="+3"/>
-        <location line="+112"/>
+        <location line="+138"/>
         <source>Bold</source>
         <translation type="unfinished">Fett</translation>
     </message>
     <message>
-        <location line="-112"/>
-        <location line="+113"/>
+        <location line="-138"/>
+        <location line="+139"/>
         <source>Italic</source>
         <translation type="unfinished">Kursiv</translation>
     </message>
     <message>
-        <location line="-113"/>
-        <location line="+114"/>
+        <location line="-139"/>
+        <location line="+140"/>
         <source>Underline</source>
         <translation>Unterstreichung</translation>
     </message>
     <message>
-        <location line="-113"/>
-        <location line="+114"/>
+        <location line="-139"/>
+        <location line="+140"/>
         <source>Strikethrough</source>
         <translation type="unfinished">Durchgestrichen</translation>
     </message>
     <message>
-        <location line="-114"/>
-        <location line="+115"/>
+        <location line="-140"/>
+        <location line="+141"/>
         <source>Highlighted</source>
         <translation type="unfinished">Hervorgehoben</translation>
     </message>
     <message>
-        <location line="-104"/>
+        <location line="-130"/>
         <source>Font...</source>
         <translation type="unfinished">Schriftart...</translation>
     </message>
@@ -61707,7 +61740,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
         <translation type="unfinished">Alle ersetzen</translation>
     </message>
     <message>
-        <location line="+55"/>
+        <location line="+81"/>
         <source>Not %1</source>
         <translation type="unfinished">Nicht %1</translation>
     </message>
@@ -61727,7 +61760,33 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
         <translation type="unfinished">Format: %1</translation>
     </message>
     <message>
-        <location line="+212"/>
+        <location line="+324"/>
+        <location line="+16"/>
+        <source>Searching…</source>
+        <translation type="unfinished">Suche läuft…</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Cancel</source>
+        <translation type="unfinished">Abbrechen</translation>
+    </message>
+    <message>
+        <location line="+71"/>
+        <source>The document changed during the search, so nothing was replaced.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>The document changed during the search, so the search was stopped. Nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>That pattern needed too much work on this text, so the search stopped. Nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+69"/>
         <source>No matches</source>
         <translation type="unfinished">Keine Treffer</translation>
     </message>
@@ -61747,7 +61806,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
         <translation type="unfinished">%1 Treffer</translation>
     </message>
     <message>
-        <location line="+150"/>
+        <location line="+161"/>
         <source>Found in the footer of page %1.</source>
         <translation type="unfinished">Gefunden in der Fußzeile von Seite %1.</translation>
     </message>
@@ -61762,7 +61821,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
         <translation type="unfinished">Gefunden in einer Notiz auf Seite %1.</translation>
     </message>
     <message>
-        <location line="+65"/>
+        <location line="+80"/>
         <source>Match %1 of %2</source>
         <translation type="unfinished">Treffer %1 von %2</translation>
     </message>
@@ -61782,12 +61841,12 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
         <translation type="unfinished">JeffWrite hat das Dokument durchsucht. &quot;%1&quot; wurde nicht gefunden.</translation>
     </message>
     <message>
-        <location line="+37"/>
+        <location line="+44"/>
         <source>A section break, a field, or a note mark can be found but not replaced.</source>
         <translation type="unfinished">Ein Abschnittswechsel, ein Feld oder eine Notizmarke kann gefunden, aber nicht ersetzt werden.</translation>
     </message>
     <message>
-        <location line="+134"/>
+        <location line="+179"/>
         <source>JeffWrite made no replacements. &quot;%1&quot; was not found.</source>
         <translation type="unfinished">JeffWrite hat nichts ersetzt. &quot;%1&quot; wurde nicht gefunden.</translation>
     </message>
@@ -62290,7 +62349,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
 <context>
     <name>jp::WriteWindow</name>
     <message>
-        <location filename="../apps/write/app/writewindow.cpp" line="-744"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="-749"/>
         <source>Document%1</source>
         <translation type="unfinished">Dokument%1</translation>
     </message>
@@ -62321,7 +62380,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
         <translation type="unfinished">%1 (%2)</translation>
     </message>
     <message>
-        <location line="+119"/>
+        <location line="+124"/>
         <source> (Protected)</source>
         <translation type="unfinished"> (Geschützt)</translation>
     </message>
@@ -64104,13 +64163,13 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
         </translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_file.cpp" line="+95"/>
+        <location filename="../apps/write/app/writewindow_file.cpp" line="+96"/>
         <source>New</source>
         <translation type="unfinished">Neu</translation>
     </message>
     <message>
         <location line="+5"/>
-        <location line="+128"/>
+        <location line="+129"/>
         <location line="+52"/>
         <location line="+447"/>
         <location filename="../apps/write/core/designops.cpp" line="+27"/>
@@ -64118,7 +64177,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
         <translation type="unfinished">Öffnen</translation>
     </message>
     <message>
-        <location line="-597"/>
+        <location line="-598"/>
         <location filename="../apps/write/app/writewindow_graphics.cpp" line="+88"/>
         <location filename="../apps/write/app/writewindow_insert.cpp" line="+216"/>
         <location filename="../apps/write/app/writewindow_pictures.cpp" line="+163"/>
@@ -64130,13 +64189,13 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
     </message>
     <message>
         <location line="+0"/>
-        <location line="+190"/>
+        <location line="+191"/>
         <location line="+23"/>
         <source>Rich Text Format (*.rtf)</source>
         <translation type="unfinished">Rich Text Format (*.rtf)</translation>
     </message>
     <message>
-        <location line="-213"/>
+        <location line="-214"/>
         <source>OpenDocument Text (*.odt *.fodt *.ott)</source>
         <translation type="unfinished">OpenDocument-Text (*.odt *.fodt *.ott)</translation>
     </message>
@@ -64152,7 +64211,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_file.cpp" line="+1"/>
-        <location line="+187"/>
+        <location line="+188"/>
         <location line="+5"/>
         <location line="+3"/>
         <location line="+1"/>
@@ -64175,13 +64234,13 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
         <translation type="unfinished">Speichern</translation>
     </message>
     <message>
-        <location line="-438"/>
-        <location line="+227"/>
+        <location line="-439"/>
+        <location line="+228"/>
         <source>Save As</source>
         <translation type="unfinished">Speichern unter</translation>
     </message>
     <message>
-        <location line="-226"/>
+        <location line="-227"/>
         <source>Print…</source>
         <translation type="unfinished">Drucken…</translation>
     </message>
@@ -64207,7 +64266,7 @@ Ihr Webbrowser öffnet LibreTranslate, einen kostenlosen Open-Source-Übersetzun
         <translation type="unfinished">Optionen</translation>
     </message>
     <message>
-        <location line="+76"/>
+        <location line="+77"/>
         <source>Open Plain Text</source>
         <translation type="unfinished">Reinen Text öffnen</translation>
     </message>
@@ -64372,12 +64431,12 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
 %3%4</translation>
     </message>
     <message>
-        <location line="-366"/>
+        <location line="-367"/>
         <source>Documents (*.docx *.docm *.dotx *.dotm *.doc *.dot *.rtf *.odt *.fodt *.ott *.txt *.html *.htm)</source>
         <translation type="unfinished">Dokumente (*.docx *.docm *.dotx *.dotm *.doc *.dot *.rtf *.odt *.fodt *.ott *.txt *.html *.htm)</translation>
     </message>
     <message>
-        <location line="+168"/>
+        <location line="+169"/>
         <source>This document came from a web page, which %1 doesn&apos;t write over, so it is saved as a new .docx file.</source>
         <translation type="unfinished">Dieses Dokument stammt von einer Webseite, die %1 nicht überschreibt; daher wird es als neue .docx-Datei gespeichert.</translation>
     </message>
@@ -65132,7 +65191,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Symbole</translation>
     </message>
     <message>
-        <location line="+30"/>
+        <location line="+34"/>
         <source>The document has no style named &quot;%1&quot;, and it is not a built-in style, so the key changed nothing.</source>
         <translation type="unfinished">Das Dokument enthält keine Formatvorlage namens &quot;%1&quot;, und es handelt sich nicht um eine integrierte Formatvorlage, daher hat die Tastenkombination nichts geändert.</translation>
     </message>
@@ -67570,7 +67629,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Navigation</translation>
     </message>
     <message>
-        <location line="+158"/>
+        <location line="+159"/>
         <source>Open a second window to view two documents side by side.</source>
         <translation type="unfinished">Öffnen Sie ein zweites Fenster, um zwei Dokumente nebeneinander anzuzeigen.</translation>
     </message>
@@ -79274,7 +79333,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
 <context>
     <name>jp::write::BlockMove</name>
     <message>
-        <location filename="../apps/write/app/writewindow_view.cpp" line="-215"/>
+        <location filename="../apps/write/app/writewindow_view.cpp" line="-216"/>
         <location filename="../apps/write/core/blockmove.cpp" line="+174"/>
         <source>This document is protected, so a section can&apos;t be moved.</source>
         <translation type="unfinished">Dieses Dokument ist geschützt, daher kann ein Abschnitt nicht verschoben werden.</translation>
@@ -81156,17 +81215,19 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
 <context>
     <name>jp::write::Find</name>
     <message>
-        <location filename="../apps/write/core/findops.cpp" line="+23"/>
+        <location filename="../apps/write/core/findops.cpp" line="+24"/>
+        <location line="+226"/>
         <source>Type what to find.</source>
         <translation type="unfinished">Geben Sie ein, wonach gesucht werden soll.</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="-222"/>
+        <location line="+226"/>
         <source>The pattern is too long.</source>
         <translation type="unfinished">Das Muster ist zu lang.</translation>
     </message>
     <message>
-        <location line="+39"/>
+        <location line="-187"/>
         <source>A [ has no ] to close it.</source>
         <translation type="unfinished">Eine [ hat keine ] zum Schließen.</translation>
     </message>
@@ -81189,6 +81250,36 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <location line="+5"/>
         <source>That is not a pattern JeffWrite can use.</source>
         <translation type="unfinished">Dies ist kein Muster, das JeffWrite verwenden kann.</translation>
+    </message>
+    <message>
+        <location line="+58"/>
+        <source>That pattern uses something JeffWrite does not search with, at character %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <source>A repeat count over %2 at character %1 could take far too long. Use a smaller count, or + or *.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <source>JeffWrite does not search with look-ahead or look-behind patterns, at character %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>JeffWrite does not search with patterns in extended mode, at character %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+42"/>
+        <source>That pattern has a mistake near character %1: %2.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
+        <source>A pattern can keep at most nine groups; write (?: ) for a group that is not used in Replace with.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -83599,24 +83690,24 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">+%1 weitere</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="+135"/>
-        <location line="+503"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="+137"/>
+        <location line="+506"/>
         <source>Keep Source Formatting</source>
         <translation type="unfinished">Quellformatierung beibehalten</translation>
     </message>
     <message>
-        <location line="-427"/>
+        <location line="-429"/>
         <source>The Spike is full. Paste it to empty it.</source>
         <translation type="unfinished">Der Spike ist voll. Fügen Sie ihn ein, um ihn zu leeren.</translation>
     </message>
     <message>
-        <location line="-75"/>
-        <location line="+503"/>
+        <location line="-76"/>
+        <location line="+506"/>
         <source>Merge Formatting</source>
         <translation type="unfinished">Formatierung zusammenführen</translation>
     </message>
     <message>
-        <location line="-544"/>
+        <location line="-547"/>
         <source>A table with changes tracked in it is copied as its words, not as a table. Accept or reject the changes to copy it as a table.</source>
         <translation type="unfinished">Eine Tabelle mit nachverfolgten Änderungen wird als ihre Wörter kopiert, nicht als Tabelle. Akzeptieren oder lehnen Sie die Änderungen ab, um sie als Tabelle zu kopieren.</translation>
     </message>
@@ -83632,12 +83723,12 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
     </message>
     <message>
         <location line="+40"/>
-        <location line="+504"/>
+        <location line="+507"/>
         <source>Keep Text Only</source>
         <translation type="unfinished">Nur Text beibehalten</translation>
     </message>
     <message>
-        <location line="-503"/>
+        <location line="-506"/>
         <source>Pasting within the same document</source>
         <translation type="unfinished">Einfügen innerhalb desselben Dokuments</translation>
     </message>
@@ -83652,7 +83743,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Einfügen aus anderen Programmen</translation>
     </message>
     <message>
-        <location line="+503"/>
+        <location line="+506"/>
         <source>Continue List</source>
         <translation type="unfinished">Liste fortsetzen</translation>
     </message>
@@ -83702,7 +83793,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Wie der eingefügte Inhalt beibehalten wird. Drücken Sie nach dem Einfügen die Taste %1, um es zu öffnen.</translation>
     </message>
     <message>
-        <location line="+175"/>
+        <location line="+182"/>
         <source>Control</source>
         <translation type="unfinished">Strg</translation>
     </message>
@@ -85020,7 +85111,7 @@ Das Kennwort konnte nicht in der Datei hinterlegt werden.</translation>
         <translation type="unfinished">Zeilen, deren Zellen nicht in denselben Spalten liegen, können nicht sortiert werden.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="-871"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="-879"/>
         <location filename="../apps/write/core/homeops.cpp" line="-62"/>
         <location line="+35"/>
         <source>To paste cells as new columns, click in a table that has room for them.</source>

@@ -651,7 +651,7 @@
 <context>
     <name>jp::WriteFindPane</name>
     <message numerus="yes">
-        <location filename="../apps/write/app/writefindpane.cpp" line="+973"/>
+        <location filename="../apps/write/app/writefindpane.cpp" line="+1406"/>
         <source>%n text box was too large to change.</source>
         <translation>
             <numerusform>%n text box was too large to change.</numerusform>
@@ -662,7 +662,7 @@
 <context>
     <name>jp::WriteWindow</name>
     <message numerus="yes">
-        <location filename="../apps/write/app/writewindow.cpp" line="+811"/>
+        <location filename="../apps/write/app/writewindow.cpp" line="+816"/>
         <source>%1 of %n word(s)</source>
         <translation>
             <numerusform>%1 of %n word</numerusform>
