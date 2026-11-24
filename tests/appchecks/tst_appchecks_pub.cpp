@@ -563,6 +563,10 @@ private Q_SLOTS:
         };
         m_app.neverRun = {
             {QStringLiteral("mm.formatField"), QStringLiteral("it works only with the caret in a merge field, which no place here has; the Format Merge Field test runs it on one")},
+            {QStringLiteral("pic.markKeep"), QStringLiteral("it works only while Remove Background is open on a picture, which no place here has; the Remove Background tests run it")},
+            {QStringLiteral("pic.markRemove"), QStringLiteral("it works only while Remove Background is open on a picture, which no place here has; the Remove Background tests run it")},
+            {QStringLiteral("pic.discardRemoval"), QStringLiteral("it works only while Remove Background is open on a picture, which no place here has; the Remove Background tests run it")},
+            {QStringLiteral("pic.keepRemoval"), QStringLiteral("it works only while Remove Background is open on a picture, which no place here has; the Remove Background tests run it")},
             {QStringLiteral("ins.pageNumberRemove"), QStringLiteral("it works only where a master page has a page number, which no place here has; the page number tests run it on one")},
         };
     }

@@ -1382,8 +1382,10 @@ void MainWindow::createActions()
     mk("pic.keepRemoval", tr("Keep Changes"), "check", QKeySequence(), [ed] { ed->endRemoveBackground(true); });
     {
         const auto marking = std::make_shared<bool>(false);
+        for (const char *id : {"pic.markKeep", "pic.markRemove", "pic.discardRemoval", "pic.keepRemoval"}) act(QString::fromLatin1(id))->setEnabled(false);
         connect(ed, &Editor::viewChanged, this, [this, ed, marking] {
             const bool on = !ed->removeBgItem.isEmpty();
+            for (const char *id : {"pic.markKeep", "pic.markRemove", "pic.discardRemoval", "pic.keepRemoval"}) act(QString::fromLatin1(id))->setEnabled(on);
             act("pic.markKeep")->setChecked(on && ed->removeBgTool == Editor::RemoveBgTool::Keep);
             act("pic.markRemove")->setChecked(on && ed->removeBgTool == Editor::RemoveBgTool::Remove);
             if (on != *marking) {

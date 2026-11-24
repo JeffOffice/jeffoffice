@@ -2382,9 +2382,6 @@ void Canvas::mouseReleaseEvent(QMouseEvent *e)
     case Drag::Free:
         if (m_ed->toolShape() == QLatin1String("scribble")) finishFreeform(false);
         break;
-    case Drag::WrapPoint:
-    case Drag::Rotate:
-    case Drag::LineBend:
     case Drag::RemoveBg: {
         // The stroke, as shares of the picture, with the brush a few pixels wide as the window shows them.
         const auto *pic = dynamic_cast<const PictureItem *>(m_ed->doc()->item(m_ed->removeBgItem));
@@ -2403,6 +2400,9 @@ void Canvas::mouseReleaseEvent(QMouseEvent *e)
         viewport()->update();
         break;
     }
+    case Drag::WrapPoint:
+    case Drag::Rotate:
+    case Drag::LineBend:
     case Drag::Adjust:
     case Drag::Crop:
     case Drag::CropMove:
