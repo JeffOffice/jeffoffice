@@ -990,7 +990,8 @@ void writePicture(QXmlStreamWriter &w, const PictureItem &p, DrawingWriteContext
         if (skipped) skipped->append(QCoreApplication::translate("DrawingWriter", "\"%1\": a picture that can't be read was left out.").arg(p.name.isEmpty() ? p.id : p.name));
         return;
     }
-    // The background taken off the picture: the blip is the picture with it clear (what any program draws), and the original and the mask are kept in an extension of ours.
+    // The background taken off the picture: the blip is the picture with it clear (what any program draws), at the size it is shown at (not the photograph's whole
+    // size: a lossless picture of twelve megapixels is five times the file), and the original and the mask are kept in an extension of ours.
     QString shownId = rId;
     if (p.removal.isValid() && ctx.imageBytes) {
         QString format;
@@ -999,7 +1000,7 @@ void writePicture(QXmlStreamWriter &w, const PictureItem &p, DrawingWriteContext
             QByteArray png;
             QBuffer buffer(&png);
             buffer.open(QIODevice::WriteOnly);
-            if (applyBackgroundRemoval(whole, p.removal).save(&buffer, "PNG"))
+            if (finishedBackgroundRemoval(whole, p.removal, p.imgRect.size(), kRemovalFinishedDpi).save(&buffer, "PNG"))
                 if (const QString made = relatePictureBytes(ctx, png); !made.isEmpty()) shownId = made;
         }
     }

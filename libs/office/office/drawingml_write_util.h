@@ -16,6 +16,8 @@ namespace jp::office::dmlwrite {
 
 // The extension of a picture's blip that holds the removal of its background (the original picture's part, and the mask with its strokes).
 constexpr const char *kRemovalExtension = "{4A0C4E2B-6D55-4B1E-9C1A-3F6B7A0E5D21}";
+// The finished picture a file carries for other programs (beside the original and the mask) has the pixels it needs at this many to the inch where it is shown, no more.
+constexpr double kRemovalFinishedDpi = 220;
 constexpr const char *kRemovalNamespace = "http://jeffoffice.com/ns/removal/2026";
 
 // A position or size in EMU: the position anywhere in the page's reach, the size
