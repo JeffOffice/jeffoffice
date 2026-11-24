@@ -694,6 +694,7 @@ bool DeckWindow::maybeSave()
 
 void DeckWindow::closeEvent(QCloseEvent *e)
 {
+    stopOutlineReads();   // (an outline being read is stopped and waited for: nothing of this window is touched when it ends)
     m_notes->commit();
     if (m_outline) m_outline->commit();
     if (!maybeSave()) {

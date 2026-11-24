@@ -32,6 +32,7 @@
 #include <QPrinter>
 #include <QSet>
 #include <QTimer>
+#include <atomic>
 #include <functional>
 #include <memory>
 
@@ -90,6 +91,7 @@ struct PicturePresentationOptions;
 struct MasterParts;
 struct MediaPlay;
 struct OutputOptions;
+struct Outline;
 }
 namespace recovery {
 struct Recovered;
@@ -129,8 +131,11 @@ public:
     void showReusePane();
     void reuseSlide(int slide, bool keepFormatting);
     // Slides from Outline (deckwindow_outline.cpp): the slides a text, Markdown, rich text, or .docx outline makes, after the current slide, as one step that undoes.
-    // False, with the reason said to the person, when the file gives none.
+    // The file is read on a thread of its own, with nothing of the window held (the window can be closed meanwhile: the read is stopped); the slides come in
+    // when it ends, and the reason is said to the person if it gives none. False only when this window can't be changed.
     bool insertOutlineFile(const QString &path);
+    // For tests: run on the reading thread before it reads, given the flag that closing the window sets.
+    void setOutlineReadHold(const std::function<void(const std::atomic<bool> &)> &hold) { m_outlineHold = hold; }
     // Review > Compare (deckwindow_compare.cpp): another presentation is compared with this one, the changes it has are listed in the Reviewing Pane and marked on
     // the slides, and each is accepted into this presentation or rejected (this one kept) as one undo step. The changes not decided are kept in the file.
     // The Compare command asks for the file with compareFileChooser when that is set (a test sets it), else a file dialog.
@@ -549,7 +554,10 @@ private:
     void createReuseActions();    // deckwindow_reuse.cpp, from createSectionActions()
     void createOutlineActions();  // deckwindow_outline.cpp, from createSectionActions()
     bool saveOutlineCopy(const QString &path);   // Save a Copy as a Markdown outline
-    std::unique_ptr<Document> openedOutline(const QString &path, QString *notes);   // File > Open of an outline file: a new presentation
+    // Reads an outline file on a thread of its own and then calls `done` on this thread (never when this window is gone first: the read is stopped and joined).
+    void readOutlineAsync(const QString &path, std::function<void(bool ok, deck::Outline &outline, const QString &why)> done);
+    void stopOutlineReads();
+    void finishOutlineOpen(const QString &path, OpenHow how, bool ok, deck::Outline &outline, const QString &why);   // File > Open of an outline file: a new presentation
     void createAnimationActions();   // deckwindow_animations.cpp
     void addAnimationParts(struct RibbonParts &parts);
     void createOutputActions();   // deckwindow_output.cpp
@@ -720,6 +728,8 @@ private:
     recovery::AsyncWriter m_recoveryWriter{this};   // makes the copy on a worker thread
     QString m_recoveredFrom;     // a recovered presentation's original file, for Save As
     std::function<void(const QString &, const QString &)> m_notifier;
+    QList<QPointer<QObject>> m_outlineJobs;   // the outline files being read
+    std::function<void(const std::atomic<bool> &)> m_outlineHold;
     LossyCache m_lossCache;   // what an .odp save would lose, until the presentation changes
     std::function<bool(const QUrl &)> m_urlOpener;
     deck::DeckTheme m_openedTheme;   // the presentation's theme as it was opened or made: what Reset to the template's theme gives back

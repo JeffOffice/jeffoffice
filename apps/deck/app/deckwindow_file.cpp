@@ -80,7 +80,10 @@ bool DeckWindow::openFile(const QString &path, OpenHow how)
     // A text, Markdown, rich text, or .docx outline opens as a new presentation of its slides (never written over: Save asks for a name).
     const bool outlineFile = !repairing && deck::isOutlineFileName(path);
     if (outlineFile) {
-        doc = openedOutline(path, &notes);
+        // (read on a thread of its own, with no loop of this window's running: the new presentation is made when the read ends, and not at all when this window is closed first)
+        QApplication::restoreOverrideCursor();
+        readOutlineAsync(path, [this, path, how](bool ok, deck::Outline &outline, const QString &why) { finishOutlineOpen(path, how, ok, outline, why); });
+        return true;
     } else if (repairing) {
         // Open and Repair: what can be read of a damaged package is made into a package that opens, and what was left out is said.
         QByteArray bytes;
@@ -178,12 +181,12 @@ bool DeckWindow::openFile(const QString &path, OpenHow how)
         target->show();
     }
     target->m_ed->endTextEdit();
-    const bool copy = how == OpenHow::Copy || repairing || outlineFile;   // (a repaired presentation is not the file it was repaired from: Save asks for a name)
+    const bool copy = how == OpenHow::Copy || repairing;   // (a repaired presentation is not the file it was repaired from: Save asks for a name)
     target->setReadOnly(false);
     if (copy) {
         // The file's contents as a new presentation that has no file yet (Save asks where); the file is never written.
         target->m_ed->setDocument(std::move(doc));
-        target->m_ed->setUntitledName(outlineFile ? QFileInfo(path).completeBaseName() : (repairing ? tr("Repaired %1") : tr("Copy of %1")).arg(QFileInfo(path).completeBaseName()));
+        target->m_ed->setUntitledName((repairing ? tr("Repaired %1") : tr("Copy of %1")).arg(QFileInfo(path).completeBaseName()));
         target->m_ed->markUnsaved();
         // (a copy of a protected presentation is protected too)
         target->m_fileProtected = wasProtected;
@@ -214,7 +217,7 @@ bool DeckWindow::openFile(const QString &path, OpenHow how)
     crypto::wipe(openedWith);
     // The panes follow the new presentation (documentReplaced); its slides may be another size.
     target->m_canvas->zoomToFit(Canvas::Fit::WholePage);
-    if (!outlineFile) Settings::get().addRecentFile(path);
+    Settings::get().addRecentFile(path);
     telemetry::count(QStringLiteral("file.open.") + fileKind(path));
     hideFileScreen();
     if (repairing) {
