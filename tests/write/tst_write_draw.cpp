@@ -72,6 +72,10 @@
 #include "flow/paginator.h"
 #include "render/diagramdrawing.h"
 #include "office/drawingml_geometry.h"
+#include "core/pathops.h"
+#include <QDialogButtonBox>
+#include <QThread>
+#include <atomic>
 #include "office/package.h"
 #include "wml/wml.h"
 #include "wml/xmltree.h"
@@ -970,6 +974,61 @@ struct SnapPage {
     double pixels() const { return 96.0 / 72.0 * view->zoom(); }
 };
 
+// ---- Merge Shapes: documents built in code
+namespace {
+
+const QByteArray kMergeRed = "<a:solidFill><a:srgbClr val=\"FF0000\"/></a:solidFill><a:ln><a:noFill/></a:ln>";
+const QByteArray kMergeBlue = "<a:solidFill><a:srgbClr val=\"0000FF\"/></a:solidFill><a:ln><a:noFill/></a:ln>";
+
+// A shape of the file, set at a place on the page (points), with its look, its turn or flip marks on the frame (` rot="5400000"`, ` flipV="1"`), and words when `words` is not empty.
+QByteArray mergePart(int id, const QByteArray &prst, double x, double y, double w, double h, const QByteArray &fill = kMergeRed, const QByteArray &marks = QByteArray(), const QByteArray &words = QByteArray())
+{
+    auto n = [](double v) { return QByteArray::number(qint64(v * 12700)); };
+    const QByteArray frame = "<a:xfrm" + marks + "><a:off x=\"0\" y=\"0\"/><a:ext cx=\"" + n(w) + "\" cy=\"" + n(h) + "\"/></a:xfrm>";
+    QByteArray shape = plainShape(w, h, prst, frame, words.isEmpty() ? QByteArray("<wps:cNvSpPr/>") : QByteArray("<wps:cNvSpPr txBox=\"1\"/>"), fill);
+    if (!words.isEmpty()) shape.replace("<wps:bodyPr/>", "<wps:txbx><w:txbxContent><w:p><w:r><w:t>" + words + "</w:t></w:r></w:p></w:txbxContent></wps:txbx><wps:bodyPr/>");
+    return anchoredGraphic(id, kShapeUri, shape, x, y, w, h);
+}
+
+// The first paragraph holds these drawings (the first at place 0, the next at 1...), then a word.
+QByteArray mergeBody(const QVector<QByteArray> &parts)
+{
+    QByteArray body = "<w:p>";
+    for (const QByteArray &p : parts) body += p;
+    return body + "<w:r><w:t>Text</w:t></w:r></w:p>";
+}
+
+QVector<int> drawnPlaces(WriteDoc &doc)
+{
+    QVector<int> out;
+    for (int i = 0; i < doc.story()->characterCount(); ++i)
+        if (isDrawnObjectAt(doc.story(), i)) out << i;
+    return out;
+}
+
+// A freeform made of lines from a seed: the same crossing scribbles every run (150 corners in a box of 100 points).
+QByteArray scribbleShape(int id, quint32 seed, double x, double y)
+{
+    quint32 s = seed * 2654435761u + 12345u;
+    QPainterPath p;
+    for (int i = 0; i < 150; ++i) {
+        s = s * 1664525u + 1013904223u;
+        const double px = (s >> 8) % 1000 / 10.0;
+        s = s * 1664525u + 1013904223u;
+        const double py = (s >> 8) % 1000 / 10.0;
+        if (i) p.lineTo(px, py);
+        else p.moveTo(px, py);
+    }
+    p.closeSubpath();
+    const QByteArray geometry = office::customGeometryXml(p, QSizeF(100, 100), QRectF(), {});
+    auto n = [](double v) { return QByteArray::number(qint64(v * 12700)); };
+    const QByteArray shape = "<wps:wsp><wps:cNvSpPr/><wps:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"" + n(100) + "\" cy=\"" + n(100) + "\"/></a:xfrm>" + geometry + kMergeRed + "</wps:spPr><wps:bodyPr/></wps:wsp>";
+    return anchoredGraphic(id, kShapeUri, shape, x, y, 100, 100);
+}
+
+bool redAt(const QImage &page, double scale, double x, double y) { return hasColorAt(page, scale, x, y, QColor(255, 0, 0)); }
+
+} // namespace
 
 class DrawTests : public QObject {
     Q_OBJECT
@@ -2958,6 +3017,457 @@ private Q_SLOTS:
         // A line, a picture, and a bad number are refused.
         QVERIFY(!moveShapePoint(*doc, 7, 99, QPointF(1, 1)));
         QVERIFY(shapePoints(*doc, 3).isEmpty());
+    }
+
+    // ---------------------------------------------------------------- Merge Shapes
+    // Union of two overlapping shapes: one freeform with the look of the first, set where the union is, in one step of Undo; the page, a .docx, and an .odt saved and opened through the window show the same shape.
+    void mergeShapesUnionMakesOneFreeformWithTheLookOfTheFirstShapeInOneStep()
+    {
+        Win win(mergeBody({mergePart(1, "rect", 100, 200, 100, 60, kMergeRed), mergePart(2, "rect", 150, 240, 100, 60, kMergeBlue)}));
+        write::WriteDoc *doc = win.w.document();
+        win.w.view()->refresh();
+        win.w.view()->selectObjects({0, 1});
+        win.w.refreshNow();
+        for (const char *id : {"shape.union", "shape.combine", "shape.subtract", "shape.intersect", "shape.fragment"}) QVERIFY(win.w.act(id)->isEnabled());
+        const QByteArray before = documentXml(doc->toDocx());
+        win.w.act("shape.union")->trigger();
+        QCOMPARE(drawnPlaces(*doc).size(), 1);
+        QVERIFY(isFreeformShape(*doc, drawnPlaces(*doc).first()));
+        QCOMPARE(win.w.view()->selectedObjects().size(), 1);
+        auto check = [&](write::WriteDoc &d, const char *what) {
+            double scale = 1;
+            const QImage page = renderFirstPage(d, &scale);
+            QVERIFY2(redAt(page, scale, 110, 210), what);    // the first shape only
+            QVERIFY2(redAt(page, scale, 240, 290), what);    // the second shape only, in the color of the FIRST (red, not blue)
+            QVERIFY2(redAt(page, scale, 170, 250), what);    // where they overlap
+            QVERIFY2(!redAt(page, scale, 240, 210), what);   // the notch above the second shape
+            QVERIFY2(!redAt(page, scale, 110, 290), what);   // the notch below the first
+        };
+        check(*doc, "page");
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        for (const QString &name : {QStringLiteral("merged.docx"), QStringLiteral("merged.odt")}) {
+            const QString path = dir.filePath(name);
+            win.w.setSavePathChooser([&](const QString &, const QString &) { return path; });
+            QVERIFY(win.w.saveAs());
+            WriteWindow v;
+            QVERIFY(v.openFile(path));
+            QCOMPARE(drawnPlaces(*v.document()).size(), 1);
+            check(*v.document(), qPrintable(name));
+        }
+        QVERIFY(documentXml(doc->toDocx()).contains("<a:custGeom"));
+        // One step undoes it, and one does it again.
+        QVERIFY(doc->undo());
+        QCOMPARE(drawnPlaces(*doc).size(), 2);
+        QCOMPARE(documentXml(doc->toDocx()), before);
+        QVERIFY(doc->redo());
+        QCOMPARE(drawnPlaces(*doc).size(), 1);
+    }
+
+    // A hole stays a hole, and a result of several parts stays one shape of several parts, on the page and through a .docx and an .odt saved and opened by the window.
+    void mergeShapesKeepsHolesAndSeveralPartsThroughSaveAndOpen()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        auto checkBoth = [&](Win &win, const std::function<void(write::WriteDoc &, const char *)> &check) {
+            check(*win.w.document(), "page");
+            for (const QString &name : {QStringLiteral("a.docx"), QStringLiteral("a.odt")}) {
+                const QString path = dir.filePath(name);
+                win.w.setSavePathChooser([&](const QString &, const QString &) { return path; });
+                QVERIFY(win.w.saveAs());
+                WriteWindow v;
+                QVERIFY(v.openFile(path));
+                check(*v.document(), qPrintable(name));
+            }
+        };
+        {
+            // Subtract: a small shape inside a large one leaves a ring.
+            Win win(mergeBody({mergePart(1, "rect", 100, 200, 200, 120), mergePart(2, "rect", 170, 240, 60, 40, kMergeBlue)}));
+            win.w.view()->refresh();
+            win.w.view()->selectObjects({0, 1});
+            win.w.refreshNow();
+            win.w.act("shape.subtract")->trigger();
+            QCOMPARE(drawnPlaces(*win.w.document()).size(), 1);
+            checkBoth(win, [](write::WriteDoc &d, const char *what) {
+                QCOMPARE(drawnPlaces(d).size(), 1);
+                double scale = 1;
+                const QImage page = renderFirstPage(d, &scale);
+                QVERIFY2(redAt(page, scale, 110, 210), what);
+                QVERIFY2(redAt(page, scale, 290, 310), what);
+                QVERIFY2(!redAt(page, scale, 200, 260), what);   // the hole
+            });
+        }
+        {
+            // Union of two shapes that do not touch: one object with two parts.
+            Win win(mergeBody({mergePart(1, "rect", 100, 200, 60, 60), mergePart(2, "ellipse", 300, 200, 60, 60)}));
+            win.w.view()->refresh();
+            win.w.view()->selectObjects({0, 1});
+            win.w.refreshNow();
+            win.w.act("shape.union")->trigger();
+            QCOMPARE(drawnPlaces(*win.w.document()).size(), 1);
+            checkBoth(win, [](write::WriteDoc &d, const char *what) {
+                QCOMPARE(drawnPlaces(d).size(), 1);
+                double scale = 1;
+                const QImage page = renderFirstPage(d, &scale);
+                QVERIFY2(redAt(page, scale, 130, 230), what);
+                QVERIFY2(redAt(page, scale, 330, 230), what);
+                QVERIFY2(!redAt(page, scale, 230, 230), what);   // between them
+            });
+        }
+    }
+
+    // A turned first shape and a flipped second shape are merged where the page draws them; turn and flip marks are not carried into the result when the first shape has no words.
+    void mergeShapesUsesTheShapesAsTheyAreOnThePageTurnedAndFlipped()
+    {
+        // A: 100 by 40 at (100, 200) turned a quarter: on the page it is 40 wide and 100 tall, x 130 to 170 and y 170 to 270. B: a triangle 100 by 60 at (150, 230), flipped top to bottom: its point is down.
+        Win win(mergeBody({mergePart(1, "rect", 100, 200, 100, 40, kMergeRed, " rot=\"5400000\""), mergePart(2, "triangle", 150, 230, 100, 60, kMergeRed, " flipV=\"1\"")}));
+        write::WriteDoc *doc = win.w.document();
+        win.w.view()->refresh();
+        win.w.view()->selectObjects({0, 1});
+        win.w.refreshNow();
+        win.w.act("shape.union")->trigger();
+        QCOMPARE(drawnPlaces(*doc).size(), 1);
+        QCOMPARE(pictureAt(*doc, doc->story(), drawnPlaces(*doc).first()).rotation, 0.0);
+        QVERIFY(!pictureAt(*doc, doc->story(), drawnPlaces(*doc).first()).flipV);
+        double scale = 1;
+        const QImage page = renderFirstPage(*doc, &scale);
+        QVERIFY(redAt(page, scale, 150, 180));    // the turned shape's upper end (unturned, it would not be there)
+        QVERIFY(!redAt(page, scale, 110, 220));   // where the shape would be unturned
+        QVERIFY(redAt(page, scale, 240, 235));    // the flipped triangle's wide top (not flipped, its point would be up there)
+        QVERIFY(!redAt(page, scale, 155, 285));   // its bottom left, empty with the point down
+        QVERIFY(redAt(page, scale, 200, 285));    // its point
+    }
+
+    // A first shape with words keeps its words and its turn: the merged shape is put in its turned frame, and looks the same on the page as the shapes did.
+    void mergeShapesKeepsTheWordsAndTurnOfAFirstShapeThatHasWords()
+    {
+        Win win(mergeBody({mergePart(1, "rect", 100, 200, 100, 40, kMergeRed, " rot=\"5400000\"", "Keep"), mergePart(2, "rect", 150, 230, 100, 60, kMergeRed)}));
+        write::WriteDoc *doc = win.w.document();
+        win.w.view()->refresh();
+        win.w.view()->selectObjects({0, 1});
+        win.w.refreshNow();
+        double scale = 1;
+        const QImage before = renderFirstPage(*doc, &scale);
+        QVERIFY(redAt(before, scale, 150, 180));
+        win.w.act("shape.union")->trigger();
+        QCOMPARE(drawnPlaces(*doc).size(), 1);
+        const int at = drawnPlaces(*doc).first();
+        QCOMPARE(pictureAt(*doc, doc->story(), at).rotation, 90.0);
+        QCOMPARE(textBoxText(*doc, at).value_or(QStringList()).join(QLatin1Char('|')), QStringLiteral("Keep"));
+        const QImage page = renderFirstPage(*doc, &scale);
+        QVERIFY(redAt(page, scale, 150, 180));
+        QVERIFY(redAt(page, scale, 240, 280));
+        QVERIFY(!redAt(page, scale, 110, 220));
+        QVERIFY(!redAt(page, scale, 240, 210));
+        QVERIFY(documentXml(doc->toDocx()).contains("Keep"));
+    }
+
+    // The words of the shapes taken out are lost, so the window asks first (Cancel changes nothing) and says so afterward; a first shape's words need no question.
+    void mergeShapesAsksBeforeTheWordsOfTheOtherShapesGoAndNeverLosesThemSilently()
+    {
+        Win win(mergeBody({mergePart(1, "rect", 100, 200, 100, 60, kMergeRed, QByteArray(), "Keep"), mergePart(2, "rect", 150, 240, 100, 60, kMergeRed, QByteArray(), "Lose")}));
+        write::WriteDoc *doc = win.w.document();
+        win.w.view()->refresh();
+        win.w.view()->selectObjects({0, 1});
+        win.w.refreshNow();
+        const QByteArray before = documentXml(doc->toDocx());
+        // Cancel: nothing is done.
+        bool asked = false;
+        withDialog([&] { win.w.act("shape.union")->trigger(); }, QStringLiteral("mergeTextBox"), [&](QDialog *) { asked = true; }, false);
+        QVERIFY(asked);
+        QCOMPARE(drawnPlaces(*doc).size(), 2);
+        QCOMPARE(documentXml(doc->toDocx()), before);
+        // Merge: the first one's words stay, the other's go, and the status bar says so.
+        withDialog([&] { win.w.act("shape.union")->trigger(); }, QStringLiteral("mergeTextBox"), [&](QDialog *d) {
+            for (QPushButton *b : d->findChildren<QPushButton *>())
+                if (b->text() == QCoreApplication::translate("jp::ShapeTools", "Merge")) b->click();
+        });
+        QCOMPARE(drawnPlaces(*doc).size(), 1);
+        const QByteArray xml = documentXml(doc->toDocx());
+        QVERIFY(xml.contains("Keep") && !xml.contains("Lose"));
+        QVERIFY(win.w.statusBar()->currentMessage().contains(QStringLiteral("removed")));
+        QVERIFY(doc->undo());
+        QVERIFY(documentXml(doc->toDocx()).contains("Lose"));
+        // Only the first shape has words: no question.
+        Win again(mergeBody({mergePart(1, "rect", 100, 200, 100, 60, kMergeRed, QByteArray(), "Keep"), mergePart(2, "rect", 150, 240, 100, 60, kMergeRed)}));
+        again.w.view()->refresh();
+        again.w.view()->selectObjects({0, 1});
+        again.w.refreshNow();
+        again.w.act("shape.union")->trigger();
+        QCOMPARE(drawnPlaces(*again.w.document()).size(), 1);
+        QVERIFY(documentXml(again.w.document()->toDocx()).contains("Keep"));
+        QVERIFY(!QApplication::activeModalWidget());
+    }
+
+    // Fragment makes one shape for each piece: the first shape's look, words only on the first piece, each piece with an id of its own, in one step.
+    void mergeShapesFragmentMakesAShapeForEachPieceInOneStep()
+    {
+        Win win(mergeBody({mergePart(1, "rect", 100, 200, 100, 60, kMergeRed, QByteArray(), "Keep"), mergePart(2, "rect", 150, 240, 100, 60, kMergeBlue), mergePart(3, "rect", 110, 205, 20, 20, QByteArray("<a:solidFill><a:srgbClr val=\"00FF00\"/></a:solidFill><a:ln><a:noFill/></a:ln>"))}));
+        write::WriteDoc *doc = win.w.document();
+        win.w.view()->refresh();
+        win.w.view()->selectObjects({0, 1});
+        win.w.refreshNow();
+        const QByteArray before = documentXml(doc->toDocx());
+        win.w.act("shape.fragment")->trigger();
+        const QVector<int> places = drawnPlaces(*doc);
+        QCOMPARE(places.size(), 4);   // (the first only, the overlap, the second only, and the shape that was not selected)
+        QCOMPARE(win.w.view()->selectedObjects().size(), 3);
+        const QByteArray xml = documentXml(doc->toDocx());
+        QCOMPARE(xml.count("<a:custGeom"), 3);
+        QCOMPARE(xml.count("Keep"), 1);
+        QSet<QByteArray> ids;
+        for (qsizetype i = xml.indexOf("<wp:docPr id=\""); i >= 0; i = xml.indexOf("<wp:docPr id=\"", i + 1)) ids.insert(xml.mid(i + 14, xml.indexOf('"', i + 14) - i - 14));
+        QCOMPARE(ids.size(), 4);
+        // The shape in front of the first stays in front of the pieces.
+        double scale = 1;
+        const QImage page = renderFirstPage(*doc, &scale);
+        QVERIFY(hasColorAt(page, scale, 120, 215, QColor(0, 255, 0)));
+        QVERIFY(redAt(page, scale, 190, 250));
+        QVERIFY(doc->undo());
+        QCOMPARE(documentXml(doc->toDocx()), before);
+    }
+
+    // The commands are on only where the merge can be made: two or more shapes or text boxes set at a place on one page; never a picture, a group, a shape in line with the text, a single shape, or more than 64.
+    void mergeShapesIsOffWhereItCouldOnlyBeRefused()
+    {
+        auto enabled = [](Win &w) {
+            w.w.refreshNow();
+            bool all = true, none = true;
+            for (const char *id : {"shape.union", "shape.combine", "shape.subtract", "shape.intersect", "shape.fragment"}) {
+                all = all && w.w.act(id)->isEnabled();
+                none = none && !w.w.act(id)->isEnabled();
+            }
+            if (!all && !none) return -1;
+            return all ? 1 : 0;
+        };
+        {
+            Win win(mergeBody({mergePart(1, "rect", 100, 200, 100, 60), mergePart(2, "rect", 150, 240, 100, 60)}));
+            win.w.view()->refresh();
+            win.w.view()->selectObjects({0});
+            QCOMPARE(enabled(win), 0);   // one shape
+            win.w.view()->selectObjects({0, 1});
+            QCOMPARE(enabled(win), 1);
+            // The same shapes with the second in line with the text.
+            QVERIFY(setPictureWrap(*win.w.document(), 1, PictureWrap::Inline));
+            win.w.view()->refresh();
+            win.w.view()->selectObjects({0, 1});
+            QCOMPARE(enabled(win), 0);
+            QString why;
+            QVERIFY(!win.w.view()->mergeSelectedShapes(pathops::Op::Union, &why));
+            QVERIFY(!why.isEmpty());
+            QCOMPARE(drawnPlaces(*win.w.document()).size(), 2);
+        }
+        {
+            // A picture, and a group.
+            Win win(mergeBody({mergePart(1, "rect", 100, 200, 100, 60), mergePart(2, "rect", 150, 240, 100, 60), mergePart(3, "rect", 300, 240, 100, 60)}));
+            write::WriteDoc *doc = win.w.document();
+            QTextCursor c(doc->story());
+            c.setPosition(doc->story()->characterCount() - 1);
+            QCOMPARE(insertPicture(*doc, c, pngOf(40, 40)), PictureResult::Ok);
+            const QVector<int> places = drawnPlaces(*doc);
+            QCOMPARE(places.size(), 4);
+            QVERIFY(setPictureWrap(*doc, places.last(), PictureWrap::InFrontOfText));
+            win.w.view()->refresh();
+            win.w.view()->selectObjects({places[0], places.last()});
+            QCOMPARE(enabled(win), 0);
+            win.w.view()->selectObjects({places[0], places[1]});
+            QCOMPARE(enabled(win), 1);
+            QVERIFY(groupObjects(*doc, {places[1], places[2]}, {QRectF(150, 240, 100, 60), QRectF(300, 240, 100, 60)}));
+            win.w.view()->refresh();
+            win.w.view()->selectObjects({0, 1});
+            QCOMPARE(enabled(win), 0);   // a shape and a group
+        }
+        {
+            // Shapes on different pages.
+            QStringList lines;
+            for (int i = 0; i < 150; ++i) lines << QStringLiteral("line");
+            QByteArray body;
+            for (int i = 0; i < 150; ++i) {
+                body += "<w:p>";
+                if (i == 0) body += mergePart(1, "rect", 100, 200, 100, 60);
+                if (i == 140) body += mergePart(2, "rect", 100, 200, 100, 60);
+                body += "<w:r><w:t>line</w:t></w:r></w:p>";
+            }
+            Win win(body);
+            win.w.view()->refresh();
+            const QVector<int> places = drawnPlaces(*win.w.document());
+            QCOMPARE(places.size(), 2);
+            win.w.view()->selectObjects(places);
+            QCOMPARE(enabled(win), 0);
+            QString why;
+            QVERIFY(!win.w.view()->mergeSelectedShapes(pathops::Op::Union, &why));
+            QVERIFY(!why.isEmpty());
+            QCOMPARE(drawnPlaces(*win.w.document()).size(), 2);
+        }
+    }
+
+    // At most 64 shapes are merged at once: 65 are refused (the commands are off), 64 are merged.
+    void mergeShapesTakesNoMoreThan64Shapes()
+    {
+        QVector<QByteArray> parts;
+        for (int i = 0; i < 65; ++i) parts << mergePart(i + 1, "rect", 20 + (i % 13) * 40, 100 + (i / 13) * 50, 30, 30);
+        Win win(mergeBody(parts));
+        write::WriteDoc *doc = win.w.document();
+        win.w.view()->refresh();
+        QVector<int> places = drawnPlaces(*doc);
+        QCOMPARE(places.size(), 65);
+        win.w.view()->selectObjects(places);
+        win.w.refreshNow();
+        QVERIFY(!win.w.act("shape.union")->isEnabled());
+        QString why;
+        QVERIFY(!win.w.view()->mergeSelectedShapes(pathops::Op::Union, &why));
+        QVERIFY(why.contains(QStringLiteral("64")));
+        QCOMPARE(drawnPlaces(*doc).size(), 65);
+        places.removeLast();
+        win.w.view()->selectObjects(places);
+        win.w.refreshNow();
+        QVERIFY(win.w.act("shape.union")->isEnabled());
+        QVERIFY2(win.w.view()->mergeSelectedShapes(pathops::Op::Union, &why), qPrintable(why));
+        QCOMPARE(drawnPlaces(*doc).size(), 2);   // (the merged one, and the one left out)
+    }
+
+    // A shape of more than the most points is refused with a sentence, and nothing changes (the limits of the shared merge hold here too).
+    void mergeShapesRefusesAShapeWithTooManyPointsAndChangesNothing()
+    {
+        QByteArray path = "<a:moveTo><a:pt x=\"0\" y=\"0\"/></a:moveTo>";
+        for (int i = 1; i < pathops::kMostElements + 200; ++i) path += "<a:lnTo><a:pt x=\"" + QByteArray::number(i % 1000) + "\" y=\"" + QByteArray::number((i * 7) % 1000) + "\"/></a:lnTo>";
+        const QByteArray heavy = "<wps:wsp><wps:cNvSpPr/><wps:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"1270000\" cy=\"1270000\"/></a:xfrm><a:custGeom><a:avLst/><a:gdLst/><a:ahLst/><a:cxnLst/>"
+                                 "<a:rect l=\"0\" t=\"0\" r=\"r\" b=\"b\"/><a:pathLst><a:path w=\"1000\" h=\"1000\">" + path + "<a:close/></a:path></a:pathLst></a:custGeom>" + kMergeRed + "</wps:spPr><wps:bodyPr/></wps:wsp>";
+        Win win(mergeBody({anchoredGraphic(1, kShapeUri, heavy, 100, 200, 100, 100), mergePart(2, "rect", 150, 240, 100, 60)}));
+        write::WriteDoc *doc = win.w.document();
+        win.w.view()->refresh();
+        win.w.view()->selectObjects({0, 1});
+        win.w.refreshNow();
+        const QByteArray before = documentXml(doc->toDocx());
+        const int steps = doc->story()->availableUndoSteps();
+        QString why;
+        QVERIFY(!win.w.view()->mergeSelectedShapes(pathops::Op::Union, &why));
+        QVERIFY(why.contains(QStringLiteral("too complex")));
+        QCOMPARE(documentXml(doc->toDocx()), before);
+        QCOMPARE(doc->story()->availableUndoSteps(), steps);
+    }
+
+    // A merge that takes long runs on a thread of its own with a box to cancel it, counted by the steps it makes: it is done in one step of Undo, or cancelled from its own step, and then nothing changes.
+    void aLongMergeRunsOffTheWindowThreadWithABoxAndCancelStopsItWithNothingChanged()
+    {
+        Win win(mergeBody({scribbleShape(1, 7, 100, 200), scribbleShape(2, 8, 100, 200), scribbleShape(3, 9, 100, 200)}));
+        write::WriteDoc *doc = win.w.document();
+        win.w.view()->refresh();
+        win.w.view()->selectObjects({0, 1, 2});
+        win.w.refreshNow();
+        QVERIFY(win.w.act("shape.union")->isEnabled());
+        QThread *main = QThread::currentThread();
+        std::atomic<int> steps{0};
+        std::atomic<bool> offMain{true};
+        win.w.view()->mergeStepHook = [&](int, std::atomic<bool> &) {
+            ++steps;
+            if (QThread::currentThread() == main) offMain = false;
+        };
+        bool boxShown = false;
+        int started = 0, ended = 0;
+        auto c1 = connect(win.w.view(), &write::PageView::mergeBusy, &win.w, [&](const QString &, std::atomic<bool> *) {
+            ++started;
+            auto *box = win.w.findChild<QDialog *>(QStringLiteral("busyBox"));
+            boxShown = box && box->isVisible() && box->findChild<QDialogButtonBox *>();
+        });
+        auto c2 = connect(win.w.view(), &write::PageView::mergeBusyEnded, &win.w, [&] { ++ended; });
+        const QByteArray before = documentXml(doc->toDocx());
+        const int undoSteps = doc->story()->availableUndoSteps();
+        QString why;
+        QVERIFY2(win.w.view()->mergeSelectedShapes(pathops::Op::Union, &why), qPrintable(why));
+        QCOMPARE(drawnPlaces(*doc).size(), 1);
+        QVERIFY(boxShown);
+        QCOMPARE(started, 1);
+        QCOMPARE(ended, 1);
+        QVERIFY(steps > 0);
+        QVERIFY(offMain.load());
+        QTRY_VERIFY(!win.w.findChild<QDialog *>(QStringLiteral("busyBox")));
+        QVERIFY(doc->undo());
+        QCOMPARE(documentXml(doc->toDocx()), before);
+        QCOMPARE(doc->story()->availableUndoSteps(), undoSteps);
+        // Cancelled from the worker's own second step: it stops at the next, and nothing is changed.
+        win.w.view()->refresh();
+        win.w.view()->selectObjects({0, 1, 2});
+        steps = 0;
+        win.w.view()->mergeStepHook = [&](int step, std::atomic<bool> &cancel) {
+            ++steps;
+            if (step == 2) cancel = true;
+        };
+        QVERIFY(!win.w.view()->mergeSelectedShapes(pathops::Op::Union, &why));
+        QVERIFY(why.contains(QStringLiteral("Cancelled")));
+        QCOMPARE(steps.load(), 3);
+        QCOMPARE(drawnPlaces(*doc).size(), 3);
+        QCOMPARE(documentXml(doc->toDocx()), before);
+        QCOMPARE(doc->story()->availableUndoSteps(), undoSteps);
+        QObject::disconnect(c1);
+        QObject::disconnect(c2);
+        win.w.view()->mergeStepHook = nullptr;
+    }
+
+    // With tracked changes on, a merge is made as the other shape commands are (group, flip: drawing changes are not tracked), still in one step.
+    void mergeShapesWithTrackedChangesOnIsOneStepLikeTheOtherShapeCommands()
+    {
+        Win win(mergeBody({mergePart(1, "rect", 100, 200, 100, 60), mergePart(2, "rect", 150, 240, 100, 60)}));
+        write::WriteDoc *doc = win.w.document();
+        doc->setTrackChanges(true);
+        win.w.view()->refresh();
+        win.w.view()->selectObjects({0, 1});
+        win.w.refreshNow();
+        const QByteArray before = documentXml(doc->toDocx());
+        win.w.act("shape.union")->trigger();
+        QCOMPARE(drawnPlaces(*doc).size(), 1);
+        QVERIFY(doc->undo());
+        QCOMPARE(documentXml(doc->toDocx()), before);
+    }
+
+    // The Shape Format tab has Merge Shapes after Edit Points, with the five commands in its menu in the order the other programs list them.
+    void mergeShapesIsOnTheShapeFormatTabAfterEditPointsWithTheOtherProgramsNames()
+    {
+        Win win(mergeBody({mergePart(1, "rect", 100, 200, 100, 60), mergePart(2, "rect", 150, 240, 100, 60)}));
+        win.w.view()->refresh();
+        win.w.view()->selectObjects({0, 1});
+        win.w.refreshNow();
+        win.w.ribbon()->buildAllTabs();
+        RibbonTab *tab = win.w.ribbon()->tab(QStringLiteral("Shape Format"));
+        QVERIFY(tab);
+        win.w.ribbon()->showTab(tab);
+        int edit = -1, merge = -1, n = 0;
+        for (QAbstractButton *b : tab->findChildren<QAbstractButton *>()) {
+            if (b->text() == QStringLiteral("Edit Points")) edit = n;
+            if (b->text() == QStringLiteral("Merge Shapes")) merge = n;
+            ++n;
+        }
+        QVERIFY(edit >= 0);
+        QVERIFY(merge > edit);
+        const char *ids[] = {"shape.union", "shape.combine", "shape.subtract", "shape.intersect", "shape.fragment"};
+        const char *names[] = {"Union", "Combine", "Subtract", "Intersect", "Fragment"};
+        for (int i = 0; i < 5; ++i) QCOMPARE(win.w.act(ids[i])->text(), QCoreApplication::translate("jp::ShapeTools", names[i]));
+    }
+
+    // Pictures of the new command for a person to look at (JO_SHOT_DIR names the folder; nothing is made without it).
+    void mergeShapesCanBePhotographed()
+    {
+        const QString dir = qEnvironmentVariable("JO_SHOT_DIR");
+        if (dir.isEmpty()) QSKIP("JO_SHOT_DIR is not set");
+        jp::applyUiTheme(1);
+        Win win(mergeBody({mergePart(1, "rect", 100, 200, 100, 60, kMergeRed, QByteArray(), "Keep"), mergePart(2, "ellipse", 150, 240, 100, 60, kMergeBlue, " rot=\"1800000\""), mergePart(3, "rect", 120, 215, 40, 25, kMergeBlue)}));
+        win.w.resize(1300, 900);
+        win.w.view()->refresh();
+        win.w.view()->selectObjects({0, 1});
+        win.w.refreshNow();
+        win.w.ribbon()->buildAllTabs();
+        win.w.ribbon()->showTab(win.w.ribbon()->tab(QStringLiteral("Shape Format")));
+        QVERIFY(win.w.grab().save(dir + QStringLiteral("/write-merge-before.png")));
+        double scale = 1;
+        QVERIFY(renderFirstPage(*win.w.document(), &scale).save(dir + QStringLiteral("/write-merge-page-before.png")));
+        win.w.view()->selectObjects({1, 0});
+        win.w.refreshNow();
+        withDialog([&] { win.w.act("shape.union")->trigger(); }, QStringLiteral("mergeTextBox"), [&](QDialog *d) { QVERIFY(d->grab().save(dir + QStringLiteral("/write-merge-ask.png"))); }, false);
+        win.w.view()->selectObjects({0, 1});
+        win.w.refreshNow();
+        win.w.act("shape.fragment")->trigger();
+        QVERIFY(win.w.grab().save(dir + QStringLiteral("/write-merge-after.png")));
+        QVERIFY(renderFirstPage(*win.w.document(), &scale).save(dir + QStringLiteral("/write-merge-page-after.png")));
     }
 
     void aCurvedShapeKeepsItsCurvesWhenAPointMoves()
