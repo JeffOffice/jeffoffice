@@ -6684,8 +6684,8 @@
          "text": "d25b6a2fad2a09de56d6151e3344397e69341278be4b12a074c407585f067cb2"
         },
         {
-         "status": "todo",
-         "text": "d4b2238ee1c3d1b174dca35aa3f7ffe2e60a875943ddc734e85f4ab4509d7b2f"
+         "status": "partly",
+         "text": "d74404f4d25cae07d59c291445f27b37b3702b9e6f17be4c0a64edebff3b4f46"
         }
        ]
       }
@@ -23454,18 +23454,6 @@
     "fr": ""
    }
   },
-  "d4b2238ee1c3d1b174dca35aa3f7ffe2e60a875943ddc734e85f4ab4509d7b2f": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Gridlines, snap to the grid, alignment guides, and grid settings",
-    "es": "Cuadrícula, ajustar a la cuadrícula, guías de alineación y configuración de la cuadrícula",
-    "fr": "Quadrillage, alignement sur la grille, repères d’alignement et paramètres de la grille"
-   }
-  },
   "d4b8fca32f156236b471800fa9a21d0936f36545a5f48a83d7243ba61be322b8": {
    "drop": false,
    "en": "Volatile functions (`NOW`, `TODAY`, `RAND`, `RANDBETWEEN`, `OFFSET`, `INDIRECT`, `CELL`, and `INFO`) are recalculated at every change, along with anything that depends on them.",
@@ -23596,6 +23584,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "d74404f4d25cae07d59c291445f27b37b3702b9e6f17be4c0a64edebff3b4f46": {
+   "drop": false,
+   "en": "Show a drawing grid, snap pictures, shapes, and text boxes to the grid, use alignment guides, and adjust the grid spacing. Dragged or resized objects snap to the grid, to the edges and centers of other objects, to the page edges and center, and to the margins, with a red line shown while they snap. Hold `Alt` to drag freely.",
+   "es": "Muestre una cuadrícula de dibujo, ajuste imágenes, formas y cuadros de texto a la cuadrícula, use guías de alineación y cambie el espaciado de la cuadrícula. Los objetos que usted arrastra o cambia de tamaño se ajustan a la cuadrícula, a los bordes y centros de otros objetos, a los bordes y el centro de la página y a los márgenes, con una línea roja mientras se ajustan. Mantenga pulsada la tecla `Alt` para arrastrar libremente.",
+   "fr": "Affichez une grille de dessin, alignez les images, les formes et les zones de texte sur la grille, utilisez les repères d’alignement et réglez l’espacement de la grille. Les objets que vous déplacez ou redimensionnez s’alignent sur la grille, sur les bords et les centres des autres objets, sur les bords et le centre de la page et sur les marges, avec une ligne rouge pendant l’alignement. Maintenez `Alt` enfoncée pour déplacer librement.",
+   "soon": {
+    "drop": false,
+    "en": "Grid choices saved in the document, arrow keys moving objects by a grid step, ruler guides, and snapping for objects in headers and footers",
+    "es": "Opciones de cuadrícula guardadas en el documento, teclas de flecha que mueven objetos según un paso de la cuadrícula, guías de regla y ajuste de objetos en encabezados y pies de página",
+    "fr": "Choix de grille enregistrés dans le document, touches fléchées déplaçant les objets d’un pas de grille, repères de règle et alignement des objets dans les en-têtes et pieds de page"
    }
   },
   "d74eff852a078b352e0c03f813faddefefd4ba5626faf7779a380fee8e6c8347": {
