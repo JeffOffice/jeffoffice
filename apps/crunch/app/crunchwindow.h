@@ -835,6 +835,7 @@ private:
     void updateBars();
     void showBlank();
     void dropWorkbook();
+    void removeRepairFile(bool stopRead);
     bool sheetHasTab(int sheetIndex) const;
     QString hiddenSheetText();
     static QString nextUntitledName();

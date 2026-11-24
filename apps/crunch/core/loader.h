@@ -127,6 +127,12 @@ public:
     // Stops the read and the calculation; the signals of one that was stopped are not sent. It does not wait for the worker (which sees it within a few thousand cells, or in the
     // step of a formula it is taking); a worker that is still going when the program ends is waited for then.
     void cancel();
+    // The same, and then waits for the worker to end (at most `maxPolls` waits of 50 ms; true if it ended): for what must not go while the worker may still have a file open
+    // (Windows will not delete a file that is open, and the read of a file is opened for a moment on the worker).
+    bool cancelAndWait(int maxPolls = 100);
+    // For tests: a function the worker calls when it starts, before it opens the file (it can hold the worker there), and how many times cancelAndWait has waited since a test set it.
+    static void setStartHookForTest(std::function<void()> hook);
+    static int waitPollsForTest();
     // Begins reading a new, empty workbook (blankWorkbookBytes) the way a file is read: the same signals, the same calculation and worker; its path is empty.
     void startBlank(const BlankDefaults &defaults = BlankDefaults());
     bool isRunning() const;

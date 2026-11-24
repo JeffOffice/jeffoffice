@@ -102,6 +102,9 @@ bool WorkbookLoader::isRunning() const { return m_thread && m_thread->isRunning(
 
 namespace {
 std::atomic<int> g_workers{0};
+std::atomic<int> g_waitPolls{0};
+std::mutex g_hookMutex;
+std::function<void()> g_startHook;
 }
 
 int WorkbookLoader::workersRunning() { return g_workers.load(); }
@@ -119,6 +122,28 @@ void WorkbookLoader::cancel()
     if (m_state) stopAll(*m_state);
     m_thread.reset();   // (the janitor keeps it until it is over)
 }
+
+bool WorkbookLoader::cancelAndWait(int maxPolls)
+{
+    if (m_state) stopAll(*m_state);
+    const std::shared_ptr<QThread> thread = std::move(m_thread);
+    m_thread.reset();
+    if (!thread) return true;
+    for (int i = 0; i < maxPolls; ++i) {
+        if (thread->wait(50)) return true;
+        ++g_waitPolls;
+    }
+    return thread->isFinished();   // (a worker that is still going is left to the janitor)
+}
+
+void WorkbookLoader::setStartHookForTest(std::function<void()> hook)
+{
+    std::lock_guard<std::mutex> lock(g_hookMutex);
+    g_startHook = std::move(hook);
+    g_waitPolls = 0;
+}
+
+int WorkbookLoader::waitPollsForTest() { return g_waitPolls.load(); }
 
 void WorkbookLoader::stopCalculation()
 {
@@ -628,6 +653,12 @@ void WorkbookLoader::run(const QString &path, const std::shared_ptr<const jp::of
         }, Qt::QueuedConnection);
     };
     auto cancelled = [state] { return state->cancel.load(); };
+    std::function<void()> startHook;
+    {
+        std::lock_guard<std::mutex> lock(g_hookMutex);
+        startHook = g_startHook;
+    }
+    if (startHook) startHook();
     struct Done {
         std::shared_ptr<LoadedBook> book;
         ~Done() { book->workerEnded = true; }

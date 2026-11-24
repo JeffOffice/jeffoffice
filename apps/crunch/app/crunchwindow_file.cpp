@@ -32,6 +32,7 @@
 #include <QFile>
 #include <QFileDialog>
 #include <QTemporaryFile>
+#include <QThread>
 #include <QFileInfo>
 #include <QStatusBar>
 #include <QStandardPaths>
@@ -60,6 +61,20 @@ void CrunchWindow::showBlank()
     if (m_formulaBar) m_formulaBar->setReadOnly(false);
     if (m_nameBox) m_nameBox->setEnabled(true);
     if (!m_actions.isEmpty()) updateEditActions();
+}
+
+// The repaired copy's file goes. While a read of it is still going the worker may have it open for a moment, and a file that is open cannot be deleted on Windows (a computer that is
+// slow or busy makes that moment long enough to be met): the read is stopped and waited for (a counted number of waits), then the file is deleted again a counted number of times.
+void CrunchWindow::removeRepairFile(bool stopRead)
+{
+    if (!m_repairTemp) return;
+    if (stopRead) m_loader.cancelAndWait();
+    const QString name = m_repairTemp->fileName();
+    m_repairTemp.reset();
+    for (int tries = 0; tries < 50 && QFileInfo::exists(name); ++tries) {
+        if (QFile::remove(name)) break;
+        QThread::msleep(20);
+    }
 }
 
 // The window holds no workbook: the grid is empty and nothing of the one before is left.
@@ -225,6 +240,7 @@ bool CrunchWindow::openFile(const QString &path, OpenHow how)
         }
         temp->close();
         loadPath = temp->fileName();
+        removeRepairFile(true);   // (another repair began: the one before goes, and is not being read)
         m_repairTemp = std::move(temp);
         m_lastRepairFile = loadPath;
         m_repairFile = loadPath;
@@ -334,7 +350,7 @@ void CrunchWindow::onFinished(bool ok, const QString &message)
         const QString name = m_repairName.isEmpty() ? QFileInfo(m_path).fileName() : m_repairName;
         m_openAsCopy = false;
         m_recoveredCopy.reset();
-        m_repairTemp.reset();
+        removeRepairFile(true);
         m_repairFile.clear();
         m_repairName.clear();
         m_repairNote.clear();
@@ -373,7 +389,7 @@ void CrunchWindow::onFinished(bool ok, const QString &message)
     // (a repaired workbook is not the file it was repaired from, and its package was only kept for the reader: Save asks for a name)
     QString repairNote, repairedName;
     if (!m_repairFile.isEmpty()) {
-        m_repairTemp.reset();
+        removeRepairFile(false);   // (the read has ended)
         m_repairFile.clear();
         repairedName = std::exchange(m_repairName, QString());
         repairNote = std::exchange(m_repairNote, QString());

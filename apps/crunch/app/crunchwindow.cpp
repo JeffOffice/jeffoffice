@@ -317,6 +317,7 @@ CrunchWindow::~CrunchWindow()
     }
     m_sortCancel = true;
     if (m_sortThread) m_sortThread->wait();   // (the order a thread is working out is given up)
+    removeRepairFile(true);   // (before the read is let go: the file of a repair is not deleted while the worker may have it open)
     m_loader.cancel();
     if (m_saveThread) m_saveThread->wait();   // (a save that is going on is finished: it ends with the file whole)
 }

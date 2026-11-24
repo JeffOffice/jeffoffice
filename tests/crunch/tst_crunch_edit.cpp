@@ -4,6 +4,8 @@
 #include "app/settings.h"
 #include "core/collation.h"
 #include <QComboBox>
+#include <atomic>
+#include <memory>
 #include <QScopeGuard>
 #include <QScrollBar>
 #include <QToolButton>
@@ -1755,6 +1757,45 @@ void CrunchEditTests::theRepairFileGoesWithTheWindowOnEveryPath()
                 delete c;
             }
     }
+}
+
+// A computer that is slow or busy: the worker of a read may be at the file (open for a moment) when its window closes, and Windows will not delete a file that is open. The window waits for
+// the worker (a counted number of waits) before it deletes the file: here the worker is held as it starts until the window has waited three times, so the window that does not wait leaves the
+// worker going and the file still to be deleted.
+void CrunchEditTests::theRepairFileIsDeletedOnlyWhenTheReadHasLetGoOfIt()
+{
+    EditWindow e;
+    QMap<QString, QByteArray> parts;
+    QVERIFY(jp::readZip(editBook(), parts));
+    const QString sheet = QStringLiteral("xl/worksheets/sheet1.xml");
+    parts[sheet].truncate(parts[sheet].indexOf("<row r=\"3\"") + 20);
+    jp::ZipWriter z;
+    z.add(QStringLiteral("[Content_Types].xml"), parts.take(QStringLiteral("[Content_Types].xml")), true);
+    for (auto it = parts.cbegin(); it != parts.cend(); ++it) z.add(it.key(), it.value(), true);
+    const QString path = e.folder.write(QStringLiteral("cut.xlsx"), z.finish());
+    struct Held {
+        std::atomic<bool> started{false}, ended{false}, used{false};
+    };
+    const auto held = std::make_shared<Held>();
+    const auto reset = qScopeGuard([] { crunch::WorkbookLoader::setStartHookForTest(nullptr); });
+    crunch::WorkbookLoader::setStartHookForTest([held] {
+        if (held->used.exchange(true)) return;
+        held->started = true;
+        for (int i = 0; i < 4000 && crunch::WorkbookLoader::waitPollsForTest() < 3; ++i) QThread::usleep(500);   // (counted: ends by itself if nobody waits)
+        held->ended = true;
+    });
+    QString file;
+    {
+        CrunchWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        QVERIFY(w.openFile(path, OpenHow::Repair));
+        file = w.lastRepairFileForTest();
+        QVERIFY(QFileInfo::exists(file));
+        QTRY_VERIFY_WITH_TIMEOUT(held->started.load(), 20000);
+    }
+    QVERIFY2(held->ended.load(), "the window deleted the file while the read could still have it open");
+    QVERIFY(crunch::WorkbookLoader::waitPollsForTest() >= 3);
+    QVERIFY(!QFileInfo::exists(file));
 }
 
 

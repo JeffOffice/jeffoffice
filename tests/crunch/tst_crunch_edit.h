@@ -106,6 +106,7 @@ private Q_SLOTS:
     void aWorkbookOpenedReadOnlyCannotBeChanged();
     void aReadOnlyWorkbookIsNotChangedByReplace();
     void theRepairFileGoesWithTheWindowOnEveryPath();
+    void theRepairFileIsDeletedOnlyWhenTheReadHasLetGoOfIt();
     void aRepairOfAFileLargerThanTheMostIsRefused();
     void aTemplateMadeFromAMacroWorkbookHasNoMacros();
     void aBackupThatFailsAsksBeforeTheWorkbookIsSaved();
