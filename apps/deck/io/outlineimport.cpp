@@ -19,6 +19,8 @@
 #include <QTextDocument>
 
 #include <algorithm>
+#include <cctype>
+#include <map>
 
 namespace jp::deck {
 
@@ -26,13 +28,17 @@ namespace wml = jp::office::wml;
 
 namespace {
 
-QString tr(const char *text, int n = -1) { return QCoreApplication::translate("OutlineImport", text, nullptr, n); }
-
 // What the readers count as they go, said at the end as the outline's notes.
 struct Counts {
     int slidesLeft = 0, linesCut = 0, deepLines = 0, picturesLeft = 0, codeLeft = 0, tables = 0, odd = 0, objects = 0;
     bool slidesCapped = false;
+    qint64 steps = 0;   // characters looked at while matching marks
 };
+
+// How far a scan for the other end of a mark goes (a mark whose other end is farther is plain text), so that the work for a line is a few hundred times its length at most.
+constexpr int kScanSpan = 512;                 // a link's text, and the other end of bold or italic
+constexpr int kScanLong = 2100;                // a link's address (allowedHref takes 2,000), a web address in angle brackets, and a span of code
+constexpr int kMaxAddressDepth = 8;            // parentheses nested inside a link's address
 
 bool allowedHref(const QString &h)
 {
@@ -60,6 +66,8 @@ class Sink {
 public:
     explicit Sink(Outline *o) : m_o(o) {}
     Counts counts;
+    const std::atomic<bool> *cancel = nullptr;
+    bool cancelled() const { return cancel && cancel->load(); }
     OutlineSlide *current() const { return m_cur; }
     void startSlide(const QVector<OutlineRun> &title)
     {
@@ -112,10 +120,12 @@ public:
     }
     int pictureCount() const { return m_pictures; }
     qint64 pictureBytes() const { return m_pictureBytes; }
-    void picturesRead(qint64 bytes)
+    qint64 picturePixels() const { return m_picturePixels; }
+    void picturesRead(qint64 bytes, qint64 pixels)
     {
         ++m_pictures;
         m_pictureBytes += bytes;
+        m_picturePixels += pixels;
     }
     int picturesOnSlide() { return ensureSlide() ? int(m_cur->pictures.size()) : 0; }
 
@@ -141,7 +151,7 @@ private:
     Outline *m_o;
     OutlineSlide *m_cur = nullptr;
     int m_bodyLines = 0, m_lines = 0, m_pictures = 0;
-    qint64 m_pictureBytes = 0;
+    qint64 m_pictureBytes = 0, m_picturePixels = 0;
 };
 
 // ---- Markdown's own marks inside a line
@@ -154,6 +164,67 @@ struct InlineState {
 struct Image {
     QString alt, path;
 };
+
+// Where the next `what` is in `s`, from a position on. It remembers the last answer, so the positions asked for as a line is read from its start to its end
+// make it look at each character of the line once in all (a line of marks with no other end is not searched again and again).
+class NextFinder {
+public:
+    NextFinder(const QString &s, const QString &what) : m_s(s), m_what(what) {}
+    int find(int from, qint64 &steps)
+    {
+        if (m_scanned && from >= m_from && (m_at < 0 || from <= m_at)) {
+            ++steps;
+            return m_at;
+        }
+        m_scanned = true;
+        m_from = from;
+        m_at = int(QStringView(m_s).indexOf(m_what, from));
+        steps += (m_at < 0 ? int(m_s.size()) : m_at) - from + 1;
+        return m_at;
+    }
+
+private:
+    const QString &m_s;
+    QString m_what;
+    bool m_scanned = false;
+    int m_from = 0, m_at = -1;
+};
+
+// Where `what` is in `s` from `from`, looking at no more than `span` characters (-1 when it is not there), counted in `steps`.
+template <typename T>
+int scanFor(const QString &s, const T &what, int from, int span, qint64 &steps)
+{
+    const QStringView window = QStringView(s).mid(from, span);
+    const int at = int(window.indexOf(what));
+    steps += at < 0 ? window.size() : at + 1;
+    return at < 0 ? -1 : from + at;
+}
+
+// The closing parenthesis of a link's address that starts at `from`, or -1. Parentheses inside it are read in pairs (nested to kMaxAddressDepth), and an address in angle
+// brackets ends at the bracket; the search is no longer than kScanLong.
+int addressEnd(const QString &s, int from, qint64 &steps)
+{
+    const int n = int(s.size());
+    int k = from;
+    while (k < n && s[k] == QLatin1Char(' ') && k < from + kScanSpan) ++k, ++steps;
+    if (k < n && s[k] == QLatin1Char('<')) {
+        const int close = scanFor(s, QLatin1Char('>'), k + 1, kScanLong, steps);
+        if (close > 0) {
+            int m = close + 1;
+            while (m < n && s[m] == QLatin1Char(' ') && m < close + kScanSpan) ++m, ++steps;
+            if (m < n && s[m] == QLatin1Char(')')) return m;
+        }
+    }
+    int depth = 1;
+    for (k = from; k < n && k < from + kScanLong; ++k) {
+        ++steps;
+        const QChar c = s[k];
+        if (c == QLatin1Char('\\')) ++k;
+        else if (c == QLatin1Char('(') && ++depth > kMaxAddressDepth) return -1;
+        else if (c == QLatin1Char(')') && --depth == 0) return k;
+    }
+    return -1;
+}
 
 void inlineRuns(const QString &s, InlineState st, QVector<OutlineRun> &out, QVector<Image> *images, Counts &counts, int depth)
 {
@@ -168,13 +239,15 @@ void inlineRuns(const QString &s, InlineState st, QVector<OutlineRun> &out, QVec
         buf.clear();
     };
     const int n = int(s.size());
+    NextFinder ticks(s, QStringLiteral("`")), angles(s, QStringLiteral(">"));
+    std::map<QString, NextFinder> marksFound;
     for (int i = 0; i < n;) {
         const QChar c = s[i];
-        if (c == QLatin1Char('\\') && i + 1 < n && s[i + 1].isPunct()) {
+        if (c == QLatin1Char('\\') && i + 1 < n && s[i + 1].unicode() < 128 && std::ispunct(s[i + 1].unicode())) {   // (any ASCII punctuation mark can be escaped)
             buf += s[i + 1];
             i += 2;
         } else if (c == QLatin1Char('`')) {
-            const int j = int(s.indexOf(QLatin1Char('`'), i + 1));
+            const int j = ticks.find(i + 1, counts.steps);
             if (j > i + 1) {
                 flush();
                 OutlineRun r;
@@ -193,7 +266,8 @@ void inlineRuns(const QString &s, InlineState st, QVector<OutlineRun> &out, QVec
             const bool image = c == QLatin1Char('!');
             const int open = i + (image ? 1 : 0);
             int level = 0, close = -1;
-            for (int k = open; k < n; ++k) {
+            for (int k = open; k < n && k < open + kScanSpan; ++k) {
+                ++counts.steps;
                 if (s[k] == QLatin1Char('\\')) ++k;
                 else if (s[k] == QLatin1Char('[')) ++level;
                 else if (s[k] == QLatin1Char(']') && --level == 0) {
@@ -204,12 +278,17 @@ void inlineRuns(const QString &s, InlineState st, QVector<OutlineRun> &out, QVec
             int end = -1;
             QString dest;
             if (close > 0 && close + 1 < n && s[close + 1] == QLatin1Char('(')) {
-                end = int(s.indexOf(QLatin1Char(')'), close + 2));
+                end = addressEnd(s, close + 2, counts.steps);
                 if (end > 0) {
                     dest = s.mid(close + 2, end - close - 2).trimmed();
-                    const int sp = int(dest.indexOf(QLatin1Char(' ')));
-                    if (sp > 0) dest.truncate(sp);   // (a title after the address is not kept)
-                    if (dest.startsWith(QLatin1Char('<')) && dest.endsWith(QLatin1Char('>'))) dest = dest.mid(1, dest.size() - 2);
+                    if (dest.startsWith(QLatin1Char('<')) && dest.indexOf(QLatin1Char('>')) > 0) {
+                        dest = dest.mid(1, dest.indexOf(QLatin1Char('>')) - 1);   // (an address in angle brackets may hold spaces and parentheses)
+                    } else {
+                        const int sp = int(dest.indexOf(QLatin1Char(' ')));
+                        if (sp > 0) dest.truncate(sp);   // (a title after the address is not kept)
+                    }
+                } else {
+                    ++counts.odd;   // (an address that does not close, or is nested too deep, stays as it was written)
                 }
             }
             if (end < 0) {
@@ -230,8 +309,8 @@ void inlineRuns(const QString &s, InlineState st, QVector<OutlineRun> &out, QVec
             }
             i = end + 1;
         } else if (c == QLatin1Char('<') && (s.mid(i + 1, 4) == QLatin1String("http") || s.mid(i + 1, 7) == QLatin1String("mailto:"))) {
-            const int j = int(s.indexOf(QLatin1Char('>'), i + 1));
-            const QString url = j > 0 ? s.mid(i + 1, j - i - 1) : QString();
+            const int j = angles.find(i + 1, counts.steps);
+            const QString url = j > 0 && j - i <= kScanLong ? s.mid(i + 1, j - i - 1) : QString();
             if (!url.isEmpty() && !url.contains(QLatin1Char(' ')) && allowedHref(url)) {
                 flush();
                 InlineState inner = st;
@@ -260,7 +339,7 @@ void inlineRuns(const QString &s, InlineState st, QVector<OutlineRun> &out, QVec
             const bool closing = (wantBold ? st.bold : true) && (wantItalic ? st.italic : true);
             const QString mark = s.mid(i, take);
             bool done = false;
-            if (opening && !after.isSpace() && !(under && before.isLetterOrNumber()) && s.indexOf(mark, i + take) > 0) {
+            if (opening && !after.isSpace() && !(under && before.isLetterOrNumber()) && marksFound.try_emplace(mark, s, mark).first->second.find(i + take, counts.steps) > 0) {
                 flush();
                 if (wantBold) st.bold = true;
                 if (wantItalic) st.italic = true;
@@ -303,6 +382,13 @@ QVector<OutlineRun> plainRuns(const QString &text)
 
 // ---- pictures named by Markdown, only from the outline's own folder
 
+// Whether the bytes begin as a PNG, JPEG, GIF, BMP, WebP, or TIFF picture does.
+bool isRasterPicture(const QByteArray &b)
+{
+    return b.startsWith("\x89PNG\r\n\x1a\n") || b.startsWith("\xFF\xD8\xFF") || b.startsWith("GIF87a") || b.startsWith("GIF89a") || b.startsWith("BM") ||
+           (b.size() >= 12 && b.startsWith("RIFF") && b.mid(8, 4) == "WEBP") || b.startsWith(QByteArray("II*\0", 4)) || b.startsWith(QByteArray("MM\0*", 4));
+}
+
 void takePicture(Sink &sink, const QString &folder, const Image &img)
 {
     auto leave = [&] { ++sink.counts.picturesLeft; };
@@ -321,18 +407,30 @@ void takePicture(Sink &sink, const QString &folder, const Image &img)
     if (fi.size() > kMaxOutlinePictureBytes || sink.pictureBytes() + fi.size() > kMaxOutlinePictureTotal) return leave();
     OutlinePicture p;
     QSize pixels;
+    // (only a raster picture, by its first bytes whatever its name says: a PDF or a metafile under a picture's name is not decoded)
+    QFile file(canon);
+    if (!file.open(QIODevice::ReadOnly)) return leave();
+    p.bytes = file.read(fi.size() + 1);
+    file.close();
+    if (p.bytes.size() != fi.size() || !isRasterPicture(p.bytes)) return leave();
     if (!readPictureFile(canon, 0, &p.bytes, &p.format, &pixels)) return leave();
+    if (!kinds.contains(p.format) || pixels.width() <= 0 || pixels.height() <= 0) return leave();
+    const qint64 count = qint64(pixels.width()) * pixels.height();
+    if (count > kMaxOutlinePicturePixels || sink.picturePixels() + count > kMaxOutlinePictureTotalPixels) return leave();
     p.path = canon;
     p.alt = img.alt;
     p.pixels = pixels;
-    sink.picturesRead(p.bytes.size());
+    sink.picturesRead(p.bytes.size(), count);
     sink.addPicture(p);
 }
 
 // ---- lines of text, and the levels their indenting makes
 
+// Each line is cut before anything reads it: to kMaxOutlineLineChars after the blanks that start it and a few marks (a list marker, a quote mark, a heading's #s), so that
+// the text of a line that is cut has the limit's length. `f` gets the line and whether it was cut. The loop ends when `cancel` is set.
+constexpr int kLinePrefixRoom = 16;
 template <typename F>
-void forEachLine(const QString &text, F &&f)
+void forEachLine(const QString &text, F &&f, const std::atomic<bool> *cancel = nullptr)
 {
     const qsizetype n = text.size();
     qsizetype start = 0;
@@ -340,7 +438,13 @@ void forEachLine(const QString &text, F &&f)
         const bool end = i == n;
         const QChar c = end ? QChar() : text[i];
         if (end || c == QLatin1Char('\n') || c == QLatin1Char('\r')) {
-            if (!end || start < n) f(QStringView(text).mid(start, i - start));
+            if (cancel && cancel->load()) return;
+            if (!end || start < n) {
+                qsizetype blanks = 0;
+                while (blanks < kMaxOutlineLineChars && start + blanks < i && (text[start + blanks] == QLatin1Char(' ') || text[start + blanks] == QLatin1Char('\t'))) ++blanks;
+                const qsizetype keep = std::min<qsizetype>(i - start, blanks + kMaxOutlineLineChars + kLinePrefixRoom);
+                f(QStringView(text).mid(start, keep), keep < i - start);
+            }
             if (!end && c == QLatin1Char('\r') && i + 1 < n && text[i + 1] == QLatin1Char('\n')) ++i;
             start = i + 1;
         }
@@ -434,22 +538,25 @@ void readText(const QString &text, bool markdown, const QString &folder, Sink &s
     if (markdown) {
         bool fenced = false;
         QString mark;
-        forEachLine(text, [&](QStringView line) {
-            QString m, t;
-            if (isFence(line, &m)) {
-                if (!fenced) mark = m;
-                if (!fenced || m == mark) fenced = !fenced;
-                return;
-            }
-            if (fenced) return;
-            if (const int h = headingOf(line, &t); h && (!titleLevel || h < titleLevel)) titleLevel = h;
-        });
+        forEachLine(
+            text,
+            [&](QStringView line, bool) {
+                QString m, t;
+                if (isFence(line, &m)) {
+                    if (!fenced) mark = m;
+                    if (!fenced || m == mark) fenced = !fenced;
+                    return;
+                }
+                if (fenced) return;
+                if (const int h = headingOf(line, &t); h && (!titleLevel || h < titleLevel)) titleLevel = h;
+            },
+            sink.cancel);
     }
     const bool headed = titleLevel > 0;
     Indents indents;
     bool fenced = false, brokeSlide = false, paragraph = false;
     QString fenceMark;
-    forEachLine(text, [&](QStringView raw) {
+    auto readLine = [&](QStringView raw) {
         QString m, headText;
         if (markdown && isFence(raw, &m)) {
             if (!fenced) {
@@ -529,17 +636,38 @@ void readText(const QString &text, bool markdown, const QString &folder, Sink &s
         // A line of a paragraph goes on the line before it (Markdown's lines wrap).
         if (markdown && headed && !listed && paragraph && sink.current() && !sink.current()->body.isEmpty() && !runs.isEmpty()) {
             OutlineLine &last = sink.current()->body.last();
-            OutlineRun space;
-            space.text = QStringLiteral(" ");
-            addRun(last.runs, space);
-            for (const OutlineRun &r : runs) addRun(last.runs, r);
+            // (the joined line is held to the limit too: what does not fit is cut, and counted once for each line of the paragraph that was cut)
+            int room = kMaxOutlineLineChars;
+            for (const OutlineRun &r : std::as_const(last.runs)) room -= int(r.text.size());
+            QVector<OutlineRun> more = runs;
+            if (!more.isEmpty()) more.first().text.prepend(QLatin1Char(' '));
+            int taken = 0;
+            for (const OutlineRun &r : std::as_const(more)) {
+                if (room <= 0) break;
+                OutlineRun add = r;
+                if (add.text.size() > room) add.text.truncate(room);
+                room -= int(add.text.size());
+                taken += int(add.text.size());
+                addRun(last.runs, add);
+            }
+            int offered = 0;
+            for (const OutlineRun &r : std::as_const(more)) offered += int(r.text.size());
+            if (taken < offered) ++sink.counts.linesCut;
             takeImages();
             return;
         }
         paragraph = markdown && !listed;
         if (!runs.isEmpty()) sink.addLine(level, runs, deep ? kMaxOutlineLevel + 1 : 0);
         takeImages();
-    });
+    };
+    forEachLine(
+        text,
+        [&](QStringView raw, bool wasCut) {
+            const int cutBefore = sink.counts.linesCut;
+            readLine(raw);
+            if (wasCut && sink.counts.linesCut == cutBefore) ++sink.counts.linesCut;   // (counted once: the limit counts a line of text that is still too long)
+        },
+        sink.cancel);
 }
 
 // ---- rich text and .docx
@@ -570,6 +698,7 @@ void readDocument(const wml::Document &doc, Sink &sink)
     int titleLevel = 0;
     QString href;
     for (const wml::Block &b : doc.body) {
+        if (sink.cancelled()) return;
         if (b.table) ++sink.counts.tables;
         if (b.isRaw) continue;
         Para para;
@@ -612,6 +741,7 @@ void readDocument(const wml::Document &doc, Sink &sink)
     if (!titleLevel) return;
     int under = 0;   // the levels the heading above puts its paragraphs in
     for (Para &p : paras) {
+        if (sink.cancelled()) return;
         if (p.runs.size() == 1) p.runs[0].text = p.runs[0].text.trimmed();
         if (p.heading == titleLevel) {
             sink.startSlide(p.runs);
@@ -630,14 +760,14 @@ void readDocument(const wml::Document &doc, Sink &sink)
 QStringList notesOf(const Counts &c, const Outline &o)
 {
     QStringList n;
-    if (c.slidesCapped) n << tr("Only the first %1 slides were made. The rest of the file was left out.").arg(kMaxOutlineSlides);
-    if (c.linesCut) n << tr("%n line(s) of text were cut or left out, because a line, a slide, or the file had more than it can hold.", c.linesCut);
-    if (c.deepLines) n << tr("%n line(s) were indented deeper than a slide's text goes, and were put at its deepest level.", c.deepLines);
-    if (c.picturesLeft) n << tr("%n picture(s) were left out. A picture has to be a PNG, JPEG, GIF, BMP, WebP, or TIFF file in the outline's own folder, or a folder in it.", c.picturesLeft);
-    if (c.objects) n << tr("%n picture(s) or other object(s) in the file were left out.", c.objects);
-    if (c.codeLeft) n << tr("%n line(s) of code past the limit for a slide were left out.", c.codeLeft);
-    if (c.tables) n << tr("The text of tables in the file became lines of text.");
-    if (c.odd) n << tr("%n link(s) to other kinds of address were kept as plain text.", c.odd);
+    if (c.slidesCapped) n << QCoreApplication::translate("OutlineImport", "Only the first %1 slides were made. The rest of the file was left out.").arg(kMaxOutlineSlides);
+    if (c.linesCut) n << QCoreApplication::translate("OutlineImport", "%n line(s) of text were cut or left out, because a line, a slide, or the file had more than it can hold.", nullptr, c.linesCut);
+    if (c.deepLines) n << QCoreApplication::translate("OutlineImport", "%n line(s) were indented deeper than a slide's text goes, and were put at its deepest level.", nullptr, c.deepLines);
+    if (c.picturesLeft) n << QCoreApplication::translate("OutlineImport", "%n picture(s) were left out. A picture has to be a PNG, JPEG, GIF, BMP, WebP, or TIFF file in the outline's own folder, or a folder in it.", nullptr, c.picturesLeft);
+    if (c.objects) n << QCoreApplication::translate("OutlineImport", "%n picture(s) or other object(s) in the file were left out.", nullptr, c.objects);
+    if (c.codeLeft) n << QCoreApplication::translate("OutlineImport", "%n line(s) of code past the limit for a slide were left out.", nullptr, c.codeLeft);
+    if (c.tables) n << QCoreApplication::translate("OutlineImport", "The text of tables in the file became lines of text.");
+    if (c.odd) n << QCoreApplication::translate("OutlineImport", "%n link(s) to other kinds of address were kept as plain text.", nullptr, c.odd);
     Q_UNUSED(o);
     return n;
 }
@@ -656,7 +786,7 @@ bool decodeOutlineText(const QByteArray &bytes, QString *text, QString *error)
         if (error) *error = why;
         return false;
     };
-    if (bytes.size() > kMaxOutlineTextBytes) return refuse(tr("The file is larger than 10 MB, the most an outline can be."));
+    if (bytes.size() > kMaxOutlineTextBytes) return refuse(QCoreApplication::translate("OutlineImport", "The file is larger than 10 MB, the most an outline can be."));
     QStringDecoder decode(QStringDecoder::Utf8, QStringDecoder::Flag::Stateless);
     QByteArray body = bytes;
     if (bytes.startsWith("\xEF\xBB\xBF")) {
@@ -668,15 +798,15 @@ bool decodeOutlineText(const QByteArray &bytes, QString *text, QString *error)
         decode = QStringDecoder(QStringDecoder::Utf16BE, QStringDecoder::Flag::Stateless);
         body = bytes.mid(2);
     } else if (bytes.contains('\0')) {
-        return refuse(tr("The file is not text."));
+        return refuse(QCoreApplication::translate("OutlineImport", "The file is not text."));
     }
     const QString s = decode.decode(body);
-    if (decode.hasError() || s.contains(QChar(0))) return refuse(tr("The file is not text in UTF-8 or UTF-16."));
+    if (decode.hasError() || s.contains(QChar(0))) return refuse(QCoreApplication::translate("OutlineImport", "The file is not text in UTF-8 or UTF-16."));
     *text = s;
     return true;
 }
 
-bool readOutline(const QByteArray &bytes, const QString &name, const QString &folder, Outline *out, QString *error)
+bool readOutline(const QByteArray &bytes, const QString &name, const QString &folder, Outline *out, QString *error, const std::atomic<bool> *cancel)
 {
     *out = Outline();
     auto refuse = [&](const QString &why) {
@@ -684,45 +814,52 @@ bool readOutline(const QByteArray &bytes, const QString &name, const QString &fo
         return false;
     };
     Sink sink(out);
+    sink.cancel = cancel;
     const QString ending = QFileInfo(name).suffix().toLower();
     if (office::rtf::looksLikeRtf(bytes)) {
         wml::Document doc;
         QString why;
-        if (!office::rtf::readRtf(bytes, &doc, &why)) return refuse(why.isEmpty() ? tr("The file can't be read as rich text.") : why);
+        if (!office::rtf::readRtf(bytes, &doc, &why)) return refuse(why.isEmpty() ? QCoreApplication::translate("OutlineImport", "The file can't be read as rich text.") : why);
         readDocument(doc, sink);
-        if (out->slides.isEmpty()) return refuse(tr("The file has no headings to make slides from. Give the slides' titles a heading style."));
+        if (out->slides.isEmpty()) return refuse(QCoreApplication::translate("OutlineImport", "The file has no headings to make slides from. Give the slides' titles a heading style."));
     } else if (bytes.startsWith("PK")) {
         wml::Document doc;
         QString why;
-        if (!wml::readDocx(bytes, &doc, &why)) return refuse(why.isEmpty() ? tr("The file can't be read as a document.") : why);
+        if (!wml::readDocx(bytes, &doc, &why)) return refuse(why.isEmpty() ? QCoreApplication::translate("OutlineImport", "The file can't be read as a document.") : why);
         readDocument(doc, sink);
-        if (out->slides.isEmpty()) return refuse(tr("The file has no headings to make slides from. Give the slides' titles a heading style."));
+        if (out->slides.isEmpty()) return refuse(QCoreApplication::translate("OutlineImport", "The file has no headings to make slides from. Give the slides' titles a heading style."));
     } else {
-        if (ending == QLatin1String("rtf") || ending == QLatin1String("docx")) return refuse(tr("The file is not a valid %1 file.").arg(ending));
+        if (ending == QLatin1String("rtf") || ending == QLatin1String("docx")) return refuse(QCoreApplication::translate("OutlineImport", "The file is not a valid %1 file.").arg(ending));
         QString text;
         QString why;
         if (!decodeOutlineText(bytes, &text, &why)) return refuse(why);
         readText(text, ending == QLatin1String("md") || ending == QLatin1String("markdown"), folder, sink);
-        if (out->slides.isEmpty()) return refuse(tr("The file has no text to make slides from."));
+        if (out->slides.isEmpty()) return refuse(QCoreApplication::translate("OutlineImport", "The file has no text to make slides from."));
+    }
+    out->scanSteps = sink.counts.steps;
+    if (sink.cancelled()) {
+        *out = Outline();
+        out->scanSteps = sink.counts.steps;   // (the tests count that a stopped read looked at nothing more)
+        return refuse(QString());
     }
     out->notes = notesOf(sink.counts, *out);
     return true;
 }
 
-bool readOutlineFile(const QString &path, Outline *out, QString *error)
+bool readOutlineFile(const QString &path, Outline *out, QString *error, const std::atomic<bool> *cancel)
 {
     QFile f(path);
     if (!f.open(QIODevice::ReadOnly)) {
-        if (error) *error = tr("The file can't be opened.");
+        if (error) *error = QCoreApplication::translate("OutlineImport", "The file can't be opened.");
         return false;
     }
     // (one byte more than the most: a file past it is told so, and no more of it is read)
     const QByteArray bytes = f.read(qint64(96) << 20);
     if (!f.atEnd()) {
-        if (error) *error = tr("The file is too large to be an outline.");
+        if (error) *error = QCoreApplication::translate("OutlineImport", "The file is too large to be an outline.");
         return false;
     }
-    return readOutline(bytes, path, QFileInfo(path).absolutePath(), out, error);
+    return readOutline(bytes, path, QFileInfo(path).absolutePath(), out, error, cancel);
 }
 
 // ---- the slides
@@ -901,6 +1038,32 @@ QString escaped(const QString &s)
     return out;
 }
 
+// What a heading's closing marks would take off the end of a title (a run of # after a space), written so that it stays.
+QString escapedTitleEnd(QString s)
+{
+    int k = int(s.size());
+    while (k > 0 && s[k - 1] == QLatin1Char('#')) --k;
+    for (int i = int(s.size()) - 1; i >= k; --i) s.insert(i, QLatin1Char('\\'));
+    return s;
+}
+
+// A link's address as the reader takes it back whole: as it is, unless it holds a space, an angle bracket, or parentheses that are not in pairs.
+QString addressText(const QString &href)
+{
+    int depth = 0;
+    bool plain = href.size() < 1000;
+    for (const QChar c : href) {
+        if (c == QLatin1Char('(')) plain = plain && ++depth <= kMaxAddressDepth;
+        else if (c == QLatin1Char(')')) plain = plain && --depth >= 0;
+        else if (c == QLatin1Char(' ') || c == QLatin1Char('<') || c == QLatin1Char('>') || c == QLatin1Char('\\') || c.isSpace()) plain = false;
+    }
+    if (plain && depth == 0) return href;
+    QString inner = href;
+    inner.replace(QLatin1Char('<'), QStringLiteral("%3C"));
+    inner.replace(QLatin1Char('>'), QStringLiteral("%3E"));
+    return QLatin1Char('<') + inner + QLatin1Char('>');
+}
+
 QString markedText(const QTextBlock &b, bool marks)
 {
     QString out;
@@ -924,7 +1087,7 @@ QString markedText(const QTextBlock &b, bool marks)
             core = lt;
         }
         QString piece = escaped(core);
-        if (link) piece = QStringLiteral("[") + piece + QStringLiteral("](") + cf.anchorHref() + QStringLiteral(")");
+        if (link) piece = QStringLiteral("[") + piece + QStringLiteral("](") + addressText(cf.anchorHref()) + QStringLiteral(")");
         if (italic) piece = QStringLiteral("*") + piece + QStringLiteral("*");
         if (bold) piece = QStringLiteral("**") + piece + QStringLiteral("**");
         out += before + piece + after;
@@ -965,7 +1128,7 @@ QString outlineMarkdown(const Document &d, QStringList *leftOut)
             if (const QTextDocument *sd = d.storyDoc(title->storyId)) {
                 QStringList lines;
                 for (QTextBlock b = sd->begin(); b.isValid(); b = b.next()) lines << markedText(b, false);
-                heading = lines.join(QLatin1Char(' ')).trimmed();
+                heading = escapedTitleEnd(lines.join(QLatin1Char(' ')).trimmed());
             }
         if (!out.isEmpty()) out += QLatin1Char('\n');
         out += QStringLiteral("#") + (heading.isEmpty() ? QString() : QLatin1Char(' ') + heading) + QLatin1Char('\n');
@@ -979,10 +1142,10 @@ QString outlineMarkdown(const Document &d, QStringList *leftOut)
     }
     if (leftOut) {
         leftOut->clear();
-        if (objects) *leftOut << tr("pictures, shapes, tables, charts, and other objects on the slides");
-        if (other) *leftOut << tr("the text of text boxes other than the title and the first body place");
-        if (notes) *leftOut << tr("speaker notes");
-        *leftOut << tr("the look of the slides (layouts, themes, colors, fonts, and backgrounds), animations, and transitions");
+        if (objects) *leftOut << QCoreApplication::translate("OutlineImport", "pictures, shapes, tables, charts, and other objects on the slides");
+        if (other) *leftOut << QCoreApplication::translate("OutlineImport", "the text of text boxes other than the title and the first body place");
+        if (notes) *leftOut << QCoreApplication::translate("OutlineImport", "speaker notes");
+        *leftOut << QCoreApplication::translate("OutlineImport", "the look of the slides (layouts, themes, colors, fonts, and backgrounds), animations, and transitions");
     }
     return out;
 }

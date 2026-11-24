@@ -7,6 +7,9 @@
 #include <QDir>
 #include <QFile>
 #include <QImage>
+#include <QPointer>
+#include <QSemaphore>
+#include <QThread>
 #include <QSaveFile>
 #include <QTemporaryDir>
 #include <QTextBlock>
@@ -77,6 +80,23 @@ const TextItem *placeholderOf(const Document &d, int slide, const QString &type)
     return nullptr;
 }
 
+// A one-page PDF built in memory (its cross-reference table with the true offsets).
+QByteArray tinyPdf()
+{
+    QByteArray pdf = "%PDF-1.4\n";
+    QList<int> at;
+    const QByteArray objects[] = {"<< /Type /Catalog /Pages 2 0 R >>", "<< /Type /Pages /Kids [3 0 R] /Count 1 >>", "<< /Type /Page /Parent 2 0 R /MediaBox [0 0 200 100] >>"};
+    for (int i = 0; i < 3; ++i) {
+        at << int(pdf.size());
+        pdf += QByteArray::number(i + 1) + " 0 obj\n" + objects[i] + "\nendobj\n";
+    }
+    const int xref = int(pdf.size());
+    pdf += "xref\n0 4\n0000000000 65535 f \n";
+    for (int o : at) pdf += QByteArray::number(o).rightJustified(10, '0') + " 00000 n \n";
+    pdf += "trailer\n<< /Size 4 /Root 1 0 R >>\nstartxref\n" + QByteArray::number(xref) + "\n%%EOF\n";
+    return pdf;
+}
+
 struct Quiet {
     explicit Quiet(DeckWindow &w) { w.setNotifier([this](const QString &, const QString &text) { said << text; }); }
     QStringList said;
@@ -116,8 +136,14 @@ private Q_SLOTS:
             QCOMPARE(linesOf(o.slides[1]), (QStringList{"0:b"}));
         }
         const QString accents = QStringLiteral("Café 中文\n  naïve");
-        QCOMPARE(titleOf(read("\xEF\xBB\xBF" + accents.toUtf8()).slides[0]), QStringLiteral("Café 中文"));
-        QCOMPARE(titleOf(read(accents.toUtf8()).slides[0]), QStringLiteral("Café 中文"));
+        // (a read that gives no slide fails the test here, with its words, and is not looked into)
+        auto firstTitle = [&](const QByteArray &bytes) {
+            QString why;
+            const deck::Outline o = read(bytes, QStringLiteral("a.txt"), QString(), &why);
+            return o.slides.isEmpty() ? QStringLiteral("(no slide: %1)").arg(why) : titleOf(o.slides[0]);
+        };
+        QCOMPARE(firstTitle("\xEF\xBB\xBF" + accents.toUtf8()), QStringLiteral("Café 中文"));
+        QCOMPARE(firstTitle(accents.toUtf8()), QStringLiteral("Café 中文"));
         QByteArray le("\xFF\xFE"), be("\xFE\xFF");
         for (const QChar c : accents) {
             le += char(c.unicode() & 0xFF);
@@ -125,8 +151,8 @@ private Q_SLOTS:
             be += char(c.unicode() >> 8);
             be += char(c.unicode() & 0xFF);
         }
-        QCOMPARE(titleOf(read(le).slides[0]), QStringLiteral("Café 中文"));
-        QCOMPARE(titleOf(read(be).slides[0]), QStringLiteral("Café 中文"));
+        QCOMPARE(firstTitle(le), QStringLiteral("Café 中文"));
+        QCOMPARE(firstTitle(be), QStringLiteral("Café 中文"));
     }
 
     void aFileThatIsNotTextIsRefusedPlainly()
@@ -255,6 +281,182 @@ private Q_SLOTS:
         QCOMPARE(read(code, "a.md").slides[0].code.size(), deck::kMaxOutlineCodeLines);
     }
 
+    // A line is cut at its limit before anything reads it, and every scan for a closing mark is bounded: the work is counted (scanSteps), not timed.
+    void aHugeLineIsCutBeforeItIsReadAndScansAreBounded()
+    {
+        struct Case {
+            const char *unit;
+            qint64 stepsPerChar;   // the most the bounded scans come to for each character of the cut line
+        };
+        for (const Case &c : {Case{"[", 700}, Case{"<http", 150}, Case{"![", 700}, Case{"[a](", 700}, Case{"*a", 700}, Case{"_ _", 700}, Case{"`", 700}, Case{"[[", 700}}) {
+            QByteArray line;
+            while (line.size() < 200000) line += c.unit;
+            const deck::Outline o = read("# T\n" + line + "\n- " + line + "\n", "a.md");
+            QVERIFY2(!o.slides.isEmpty(), c.unit);
+            QVERIFY2(o.scanSteps > 0 || QByteArray(c.unit) == "_ _" || QByteArray(c.unit) == "`", c.unit);
+            // two lines, each cut to the limit before it is read
+            QVERIFY2(o.scanSteps <= 2 * qint64(deck::kMaxOutlineLineChars) * c.stepsPerChar, qPrintable(QStringLiteral("%1: %2 steps").arg(QString::fromLatin1(c.unit)).arg(o.scanSteps)));
+            QVERIFY2(!o.notes.isEmpty(), c.unit);   // what was cut is said
+            for (const auto &l : o.slides[0].body) QVERIFY(lineText(l).size() <= deck::kMaxOutlineLineChars);
+        }
+        // a code line and a plain line are cut too
+        const deck::Outline p = read("T\n  " + QByteArray(200000, 'x') + "\n", "a.txt");
+        QCOMPARE(lineText(p.slides[0].body[0]).size(), deck::kMaxOutlineLineChars);
+        QVERIFY(!p.notes.isEmpty());
+    }
+
+    // The lines of one Markdown paragraph are joined, and the joined line is held to the limit too (a 10 MB paragraph was one line of ten million characters).
+    void aMergedParagraphIsHeldToTheLineLimit()
+    {
+        QByteArray md = "# T\n";
+        for (int i = 0; i < 10; ++i) md += QByteArray(3000, char('a' + i)) + "\n";
+        const deck::Outline o = read(md, "a.md");
+        QCOMPARE(o.slides[0].body.size(), 1);
+        QCOMPARE(lineText(o.slides[0].body[0]).size(), deck::kMaxOutlineLineChars);
+        QVERIFY(!o.notes.isEmpty());
+        // many short lines
+        QByteArray many = "# T\n";
+        for (int i = 0; i < 30000; ++i) many += "word word\n";
+        const deck::Outline m = read(many, "a.md");
+        QCOMPARE(m.slides[0].body.size(), 1);
+        QVERIFY(lineText(m.slides[0].body[0]).size() <= deck::kMaxOutlineLineChars);
+        QVERIFY(!m.notes.isEmpty());
+        // a paragraph under the limit is not touched
+        const deck::Outline small = read("# T\none\ntwo\n", "a.md");
+        QCOMPARE(lineText(small.slides[0].body[0]), QStringLiteral("one two"));
+        QVERIFY(small.notes.isEmpty());
+    }
+
+    // A reading that is told to stop gives nothing, and gives it between lines.
+    void aCancelledReadStops()
+    {
+        QByteArray lines;
+        for (int i = 0; i < 5000; ++i) lines += "# S\n- [a](https://example.com)\n";
+        std::atomic<bool> stop{true};
+        deck::Outline o;
+        QString why;
+        QVERIFY(!deck::readOutline(lines, "a.md", QString(), &o, &why, &stop));
+        QVERIFY(o.slides.isEmpty());
+        QCOMPARE(o.scanSteps, qint64(0));
+        stop = false;
+        QVERIFY(deck::readOutline(lines, "a.md", QString(), &o, &why, &stop));
+        QCOMPARE(o.slides.size(), 5000);
+    }
+
+    // A link's address is read to its own closing parenthesis (balanced ones inside are part of it); one that does not close is plain text, and said.
+    void aLinkAddressMayHoldBalancedParentheses()
+    {
+        const deck::Outline o = read("# T\n- [wiki](https://en.example.org/wiki/Foo_(bar)) then (this) text\n- [x](https://example.com/a(b(c))d)e\n- [y](<https://example.com/a b)c>) end\n", "a.md");
+        const auto &body = o.slides[0].body;
+        QCOMPARE(body.size(), 3);
+        QCOMPARE(body[0].runs[0].href, QStringLiteral("https://en.example.org/wiki/Foo_(bar)"));
+        QCOMPARE(lineText(body[0]), QStringLiteral("wiki then (this) text"));
+        QCOMPARE(body[1].runs[0].href, QStringLiteral("https://example.com/a(b(c))d"));
+        QCOMPARE(lineText(body[1]), QStringLiteral("xe"));
+        QCOMPARE(body[2].runs[0].href, QStringLiteral("https://example.com/a b)c"));
+        QCOMPARE(lineText(body[2]), QStringLiteral("y end"));
+        QVERIFY(o.notes.isEmpty());
+        // an address that does not close, or is nested past the limit, stays as it was written, as plain text
+        const deck::Outline bad = read("# T\n- [a](https://example.com/(b) tail\n- [c](https://example.com/" + QByteArray(50, '(') + QByteArray(50, ')') + ") tail\n", "a.md");
+        QCOMPARE(lineText(bad.slides[0].body[0]), QStringLiteral("[a](https://example.com/(b) tail"));
+        QCOMPARE(bad.slides[0].body[0].runs.size(), 1);
+        QVERIFY(bad.slides[0].body[0].runs[0].href.isEmpty());
+        QVERIFY(lineText(bad.slides[0].body[1]).startsWith(QLatin1String("[c](https://example.com/((")));
+        QVERIFY(bad.slides[0].body[1].runs[0].href.isEmpty());
+        QVERIFY(!bad.notes.isEmpty());
+        // Save a Copy writes such an address so that it reads back whole
+        deck::Outline made;
+        deck::OutlineSlide slide;
+        deck::OutlineRun title;
+        title.text = QStringLiteral("T");
+        slide.title << title;
+        for (const QString &href : {QStringLiteral("https://example.com/Foo_(bar)"), QStringLiteral("https://example.com/a)b"), QStringLiteral("https://example.com/a(b"), QStringLiteral("https://example.com/a b")}) {
+            deck::OutlineLine line;
+            deck::OutlineRun r;
+            r.text = QStringLiteral("link");
+            r.href = href;
+            line.runs << r;
+            slide.body << line;
+        }
+        made.slides << slide;
+        const auto doc = deck::presentationFromOutline(made);
+        const QString text = deck::outlineMarkdown(*doc);
+        const deck::Outline back = read(text.toUtf8(), "a.md");
+        QCOMPARE(back.slides[0].body.size(), 4);
+        for (int i = 0; i < 4; ++i) {
+            QVERIFY2(!back.slides[0].body[i].runs.isEmpty(), qPrintable(text));
+            QCOMPARE(back.slides[0].body[i].runs[0].href, slide.body[i].runs[0].href);
+            QCOMPARE(lineText(back.slides[0].body[i]), QStringLiteral("link"));
+        }
+    }
+
+    // What the importer would strip or read as marks is written so that it reads back as the same words.
+    void saveACopyKeepsTitlesAndLinesThatLookLikeMarkup()
+    {
+        const QStringList words = {QStringLiteral("Plan #"),        QStringLiteral("Plan ##"),       QStringLiteral("# Plan"),       QStringLiteral("#hashtag"),
+                                   QStringLiteral("C#"),            QStringLiteral("---"),           QStringLiteral("- item"),       QStringLiteral("+ item"),
+                                   QStringLiteral("1. item"),       QStringLiteral("2) item"),       QStringLiteral("`code`"),       QStringLiteral("``"),
+                                   QStringLiteral("[a](b)"),        QStringLiteral("![x](y.png)"),   QStringLiteral("> quote"),     QStringLiteral("```"),
+                                   QStringLiteral("~~~"),           QStringLiteral("*"),             QStringLiteral("**bold**"),     QStringLiteral("snake_case_name"),
+                                   QStringLiteral("<https://example.com>"), QStringLiteral("back\\slash \\#"), QStringLiteral("a # b #"),  QStringLiteral("ends with a backslash \\"),
+                                   QStringLiteral("=== and ___"),   QStringLiteral("\\"),           QStringLiteral("# #")};
+        deck::Outline made;
+        for (const QString &w : words) {
+            deck::OutlineSlide slide;
+            deck::OutlineRun t;
+            t.text = w;
+            slide.title << t;
+            for (int level = 0; level < 2; ++level) {
+                deck::OutlineLine line;
+                line.level = level;
+                line.runs << t;
+                slide.body << line;
+            }
+            made.slides << slide;
+        }
+        const auto doc = deck::presentationFromOutline(made);
+        const QString text = deck::outlineMarkdown(*doc);
+        const deck::Outline back = read(text.toUtf8(), "a.md");
+        QCOMPARE(back.slides.size(), made.slides.size());
+        for (int i = 0; i < words.size(); ++i) {
+            const QString want = words[i].simplified();
+            QCOMPARE(titleOf(back.slides[i]), want);
+            QCOMPARE(back.slides[i].body.size(), 2);
+            QCOMPARE(lineText(back.slides[i].body[0]), want);
+            QCOMPARE(lineText(back.slides[i].body[1]), want);
+            QCOMPARE(back.slides[i].body[1].level, 1);
+        }
+    }
+
+    // A picture has to be a raster picture whatever its name says, and its pixels, and all the pictures' pixels, are held to limits.
+    void picturesAreCheckedByTheirBytesAndPixels()
+    {
+        QTemporaryDir dir;
+        QVERIFY(writeFile(dir.filePath("good.png"), png()));
+        // a PDF, and bytes that are nothing, under a picture's name
+        QVERIFY(writeFile(dir.filePath("doc.png"), tinyPdf()));
+        QVERIFY(writeFile(dir.filePath("junk.jpg"), "not a picture at all, just words"));
+        const deck::Outline o = read("# P\n![g](good.png)\n![d](doc.png)\n![j](junk.jpg)\n", "a.md", dir.path());
+        QCOMPARE(o.slides[0].pictures.size(), 1);
+        QCOMPARE(o.slides[0].pictures[0].alt, QStringLiteral("g"));
+        QVERIFY(!o.notes.isEmpty());
+        // one picture past the pixel limit
+        QVERIFY(writeFile(dir.filePath("big.png"), png(4100, 4100)));   // 16.8 million pixels
+        const deck::Outline big = read("# P\n![b](big.png)\n![g](good.png)\n", "a.md", dir.path());
+        QCOMPARE(big.slides[0].pictures.size(), 1);
+        QCOMPARE(big.slides[0].pictures[0].alt, QStringLiteral("g"));
+        QVERIFY(!big.notes.isEmpty());
+        // all the pictures together: 9 million pixels each, seven fit in 64 million
+        QVERIFY(writeFile(dir.filePath("nine.png"), png(3000, 3000)));
+        QString md;
+        for (int i = 0; i < 9; ++i) md += QStringLiteral("# S%1\n![n](nine.png)\n").arg(i);
+        const deck::Outline total = read(md.toUtf8(), "a.md", dir.path());
+        int kept = 0;
+        for (const auto &s : total.slides) kept += int(s.pictures.size());
+        QCOMPARE(kept, 7);
+        QVERIFY(!total.notes.isEmpty());
+    }
+
     void richTextAndDocxHeadingsMakeSlides()
     {
         // .docx, built in memory: Heading 1 is the title, Heading 2 a line, the other paragraphs lines under the heading above.
@@ -374,8 +576,8 @@ private Q_SLOTS:
             return f.readAll();
         }();
         const int steps = w.editor()->undoStack()->count();
-        QVERIFY(w.insertOutlineFile(md));
-        QCOMPARE(int(w.editor()->doc()->pages.size()), 4);
+        QVERIFY(w.insertOutlineFile(md));   // (the file is read on a thread of its own: the slides come in when that ends)
+        QTRY_COMPARE(int(w.editor()->doc()->pages.size()), 4);
         QCOMPARE(w.editor()->undoStack()->count(), steps + 1);
         QCOMPARE(w.editor()->currentPage(), 1);
         QCOMPARE(storyText(*w.editor()->doc(), *placeholderOf(*w.editor()->doc(), 2, QStringLiteral("title"))), QStringLiteral("B"));
@@ -392,18 +594,83 @@ private Q_SLOTS:
         QVERIFY(writeFile(dir.filePath("empty.txt"), "\n\n"));
         quiet.said.clear();
         const int stepsNow = w.editor()->undoStack()->count();
-        QVERIFY(!w.insertOutlineFile(dir.filePath("empty.txt")));
+        QVERIFY(w.insertOutlineFile(dir.filePath("empty.txt")));
+        QTRY_COMPARE(quiet.said.size(), 1);
         QCOMPARE(w.editor()->undoStack()->count(), stepsNow);
-        QCOMPARE(quiet.said.size(), 1);
         // File > Open: a new, unsaved presentation of the slides
         DeckWindow o;
         Quiet quietOpen(o);
         QVERIFY(o.openFile(md));
-        QCOMPARE(int(o.editor()->doc()->pages.size()), 3);
+        QTRY_COMPARE(int(o.editor()->doc()->pages.size()), 3);
         QVERIFY(o.editor()->filePath().isEmpty());
         QVERIFY(o.editor()->isModified());
         QCOMPARE(o.editor()->displayName(), QStringLiteral("talk"));
         QVERIFY(QFileInfo::exists(md));
+    }
+
+    // The file is read on a thread of its own with no event loop of the window's own: closing the window (or deleting it) during the read stops the read, waits for
+    // it, and nothing is touched afterward.
+    void closingTheWindowDuringAReadStopsItAndIsSafe()
+    {
+        QTemporaryDir dir;
+        const QString md = dir.filePath("talk.md");
+        QVERIFY(writeFile(md, "# A\n- a1\n# B\n"));
+        constexpr int kSpins = 200000000;   // (the most the held read waits; it ends at once when the close stops it)
+        for (int how = 0; how < 4; ++how) {   // 0: Slides from Outline, closed; 1: the same, deleted; 2: File > Open, closed; 3: File > Open, deleted
+            QSemaphore entered;
+            std::atomic<int> stopped{0}, ended{0};
+            auto *w = new DeckWindow;
+            QPointer<DeckWindow> guard(w);
+            QStringList said;
+            w->setNotifier([&said](const QString &, const QString &text) { said << text; });
+            w->editor()->setDocument(deck::newPresentation());
+            const int pages = int(w->editor()->doc()->pages.size());
+            w->setOutlineReadHold([&](const std::atomic<bool> &cancel) {
+                entered.release();
+                for (int i = 0; i < kSpins && !cancel.load(); ++i) QThread::yieldCurrentThread();
+                if (cancel.load()) ++stopped;
+                ++ended;
+            });
+            QVERIFY(how < 2 ? w->insertOutlineFile(md) : w->openFile(md));
+            // it came back at once: the read was not waited for with a loop of this window's
+            QCOMPARE(ended.load(), 0);
+            QCOMPARE(int(w->editor()->doc()->pages.size()), pages);
+            QTRY_COMPARE(entered.available(), 1);
+            if (how % 2 == 0) {
+                w->setAttribute(Qt::WA_DeleteOnClose);
+                QVERIFY(w->close());
+            } else {
+                delete w;
+            }
+            // the read was stopped and has ended before the close or the delete came back
+            QCOMPARE(stopped.load(), 1);
+            QCOMPARE(ended.load(), 1);
+            QCoreApplication::sendPostedEvents(nullptr, QEvent::DeferredDelete);
+            QCoreApplication::processEvents();
+            QVERIFY(guard.isNull());
+            QVERIFY(said.isEmpty());   // (nothing was shown for a read nobody waited for)
+        }
+    }
+
+    // A read that is not stopped ends in the window with the hold only delaying it.
+    void aHeldReadFinishesInTheWindowWhenNothingStopsIt()
+    {
+        QTemporaryDir dir;
+        const QString md = dir.filePath("talk.md");
+        QVERIFY(writeFile(md, "# A\n- a1\n# B\n"));
+        DeckWindow w;
+        QSemaphore entered, go;
+        w.setOutlineReadHold([&](const std::atomic<bool> &cancel) {
+            entered.release();
+            for (int i = 0; i < 200000000 && !cancel.load() && !go.tryAcquire(); ++i) QThread::yieldCurrentThread();
+        });
+        w.editor()->setDocument(deck::newPresentation());
+        QVERIFY(w.insertOutlineFile(md));
+        QTRY_COMPARE(entered.available(), 1);
+        QCOMPARE(int(w.editor()->doc()->pages.size()), 1);
+        go.release();
+        QTRY_COMPARE(int(w.editor()->doc()->pages.size()), 3);
+        w.setOutlineReadHold(nullptr);
     }
 
     // Save a Copy as an outline, and what it leaves out is said.

@@ -20,6 +20,7 @@
 #include <QString>
 #include <QStringList>
 #include <QVector>
+#include <atomic>
 #include <memory>
 
 namespace jp::deck {
@@ -36,6 +37,8 @@ constexpr int kMaxOutlinePicturesPerSlide = 4;
 constexpr int kMaxOutlinePictures = 100;             // pictures of one outline
 constexpr qint64 kMaxOutlinePictureBytes = qint64(32) << 20;   // one picture file
 constexpr qint64 kMaxOutlinePictureTotal = qint64(64) << 20;   // all the pictures' files together
+constexpr qint64 kMaxOutlinePicturePixels = 16000000;          // one picture's pixels (the largest picture in the reference presentations has 9 million)
+constexpr qint64 kMaxOutlinePictureTotalPixels = 64000000;     // all the pictures' pixels together (what drawing them holds in memory at four bytes each)
 
 // A stretch of a line of text with one look.
 struct OutlineRun {
@@ -61,6 +64,7 @@ struct OutlineSlide {
 struct Outline {
     QVector<OutlineSlide> slides;
     QStringList notes;   // what was left out, in words for a person
+    qint64 scanSteps = 0;   // the characters the Markdown reader looked at while matching marks (the tests count it: the work is linear in the line)
 };
 
 // The kinds of file Slides from Outline and File > Open take, by their endings: .txt, .text, .md, .markdown, .rtf, and .docx.
@@ -68,9 +72,10 @@ bool isOutlineFileName(const QString &path);
 
 // Reads the bytes of such a file (`name` gives the ending; `folder` is where a Markdown picture's relative path starts, empty for none: no pictures).
 // False, with the reason in `error`, for a file that is not text (nor rich text nor a .docx), or is past the limits, or has no slide in it.
-bool readOutline(const QByteArray &bytes, const QString &name, const QString &folder, Outline *out, QString *error);
+// `cancel`, when given, is looked at between lines: once it is true the read stops and gives false.
+bool readOutline(const QByteArray &bytes, const QString &name, const QString &folder, Outline *out, QString *error, const std::atomic<bool> *cancel = nullptr);
 // The same for a file on disk (its folder is the folder of the pictures).
-bool readOutlineFile(const QString &path, Outline *out, QString *error);
+bool readOutlineFile(const QString &path, Outline *out, QString *error, const std::atomic<bool> *cancel = nullptr);
 
 // The text as lines: LF, CRLF, and CR end a line; UTF-8 (with or without a byte order mark) and UTF-16 with one are read. False, with the reason, for
 // anything else (and for bytes with a zero in them, which are not text).
