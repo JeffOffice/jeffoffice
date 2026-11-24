@@ -13,6 +13,7 @@
 
 #include <algorithm>
 #include <cmath>
+#include <vector>
 
 namespace jp::office::sheet {
 
@@ -870,23 +871,53 @@ namespace {
 bool nameStart(QChar c) { return c.isLetter() || c == QLatin1Char('_') || c == QLatin1Char('\\'); }
 bool namePart(QChar c) { return c.isLetterOrNumber() || c == QLatin1Char('_') || c == QLatin1Char('.') || c == QLatin1Char('\\'); }
 
-// The error values at `i` (a "#"): the one of the language, or the English one, and its length; the other form of it.
+// The error values at `i` (a "#"): every name the language reads (the first, shown one and the others after "|") or the English one, the longest first, and its length; the other
+// form of it. A name ends where a name cannot go on, so "#N/D" is not the start of "#N/DISP".
 bool errorAt(const QString &f, int i, const QString &language, bool toLocal, int *length, QString *other)
 {
     static const QStringList errors = {QStringLiteral("#NULL!"), QStringLiteral("#DIV/0!"), QStringLiteral("#VALUE!"), QStringLiteral("#REF!"), QStringLiteral("#NAME?"), QStringLiteral("#NUM!"), QStringLiteral("#N/A")};
+    struct Candidate {
+        QString name;
+        QString english;
+    };
+    std::vector<Candidate> candidates;
     for (const QString &english : errors) {
+        if (toLocal) {
+            candidates.push_back({english, localFormulaName(english, language)});
+            continue;
+        }
+        candidates.push_back({english, english});
         const QString local = localFormulaName(english, language);
-        const QString &mine = toLocal ? english : local;
-        if (f.size() - i >= mine.size() && f.mid(i, mine.size()).compare(mine, Qt::CaseInsensitive) == 0) {
-            *length = int(mine.size());
-            *other = toLocal ? local : english;
-            return true;
+        if (local != english) candidates.push_back({local, english});
+        for (const QString &also : formulaNameAlternatives(english, language)) candidates.push_back({also, english});
+    }
+    int best = -1;
+    for (int k = 0; k < int(candidates.size()); ++k) {
+        const QString &name = candidates[size_t(k)].name;
+        if (f.size() - i < name.size() || f.mid(i, name.size()).compare(name, Qt::CaseInsensitive) != 0) continue;
+        if (i + name.size() < f.size()) {
+            const QChar next = f[i + int(name.size())];
+            if (next.isLetterOrNumber() || next == QLatin1Char('_') || next == QLatin1Char('.')) continue;   // (not "\\": that is the row separator of an array)
         }
-        if (!toLocal && f.size() - i >= english.size() && f.mid(i, english.size()).compare(english, Qt::CaseInsensitive) == 0) {
-            *length = int(english.size());
-            *other = english;
-            return true;
+        if (best < 0 || name.size() > candidates[size_t(best)].name.size()) best = k;
+    }
+    if (best < 0) return false;
+    *length = int(candidates[size_t(best)].name.size());
+    *other = candidates[size_t(best)].english;
+    return true;
+}
+
+// Whether the constants of an array hold the character outside its texts.
+bool arrayHas(const QString &inner, QChar what)
+{
+    const int n = int(inner.size());
+    for (int i = 0; i < n;) {
+        if (inner[i] == QLatin1Char('"')) {
+            i = verbatimEnd(inner, i);
+            continue;
         }
+        if (inner[i] == what) return true;
+        ++i;
     }
     return false;
 }
@@ -967,7 +998,11 @@ QString formulaNames(const QString &f, const EntryLocale &locale, bool toLocal)
         if (c == QLatin1Char('{')) {
             const int end = verbatimEnd(f, i);
             const bool closed = end - i >= 2 && f[end - 1] == QLatin1Char('}');
-            out += QLatin1Char('{') + arrayNames(f.mid(i + 1, end - i - (closed ? 2 : 1)), locale, toLocal, comma) + (closed ? QString(QLatin1Char('}')) : QString());
+            const QString inner = f.mid(i + 1, end - i - (closed ? 2 : 1));
+            // The local form (columns by ";", rows by "\\", a decimal comma) is told from the file's form (columns by ",", rows by ";") only by the row separator: a local array is read
+            // so when it holds a backslash (the file's form never does), and shown so when it has more than one row. Any other array is ambiguous ("{1,2;3,4}" is two rows in the
+            // file's form and one row of 1.2 and 3.4 in the local one), so it is read and shown as a file writes it, as it was before names had languages.
+            out += QLatin1Char('{') + arrayNames(inner, locale, toLocal, comma && arrayHas(inner, QLatin1Char(toLocal ? ';' : '\\'))) + (closed ? QString(QLatin1Char('}')) : QString());
             i = end;
             continue;
         }
