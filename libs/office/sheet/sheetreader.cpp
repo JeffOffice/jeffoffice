@@ -1797,8 +1797,8 @@ SheetReader::Scan SheetReader::scanRows(XmlSource &src, qint64 *nextReport)
         }
         for (size_t ci = 0; ci < row.nCells; ++ci) {
             const RawCell &cell = row.cells[ci];
-            char16_t buffer[3][48];
-            QString spill[3];
+            char16_t buffer[4][48];
+            QString spill[4];
             bool present = false;
             QStringView at, style, type;
             auto wide = [&](int k, QByteArrayView v) {
@@ -1813,7 +1813,7 @@ SheetReader::Scan SheetReader::scanRows(XmlSource &src, qint64 *nextReport)
             for (int i = 0; i < cell.count; ++i) {
                 const RawAttr &a = cell.attrs[i];
                 if (a.name.size() == 2 && a.name[0] == 'c' && a.name[1] == 'm') {
-                    m_metaNext = wide(0, a.value).toInt();
+                    m_metaNext = wide(3, a.value).toInt();
                     continue;
                 }
                 if (a.name.size() != 1) continue;
