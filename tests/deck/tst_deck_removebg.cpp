@@ -349,6 +349,7 @@ private Q_SLOTS:
         w.show();
         PictureItem *pic = addDiscPicture(w);
         pic->imageId = w.editor()->doc()->addImage(bigDiscPng(), QStringLiteral("png"));
+        const QString imageId = pic->imageId;
         Editor *ed = w.editor();
         const int steps = ed->undoStack()->count();
         // A small picture has no box.
@@ -365,7 +366,7 @@ private Q_SLOTS:
         QVERIFY(!firstPicture(w)->removal.isValid());
         QVERIFY(!firstPicture(w)->removalTint.isValid());
         QCOMPARE(ed->undoStack()->count(), steps);
-        QCOMPARE(firstPicture(w)->imageId, pic->imageId);
+        QCOMPARE(firstPicture(w)->imageId, imageId);
         // The same with a stroke: the removal the picture had stays, and the stroke is not added.
         w.act(QStringLiteral("pic.removeBackground"))->trigger();
         QTRY_VERIFY(!ed->removeBackgroundBusy());
