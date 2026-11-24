@@ -6483,6 +6483,11 @@
          "text": "2f87e460df8099a6b9232175f02bae1bf0084e5ca0ddfd83a4f506c0a45ef2cc"
         },
         {
+         "hide_soon": true,
+         "status": "done",
+         "text": "119a78443515f681b25eec427fc09706a4adabf42462f50adfc83ee556e17345"
+        },
+        {
          "status": "partly",
          "text": "4310f176870837d9bede601afc8c63c027acd101256c46dc5327473287692874"
         },
@@ -9088,6 +9093,18 @@
    "en": "Check what a `.pub` file can't hold, such as hidden objects, a password, or the final mark, before saving. Saving as `.pub` shows the same list with the choice to save anyway, save as `.jpub`, or cancel.",
    "es": "Compruebe lo que un archivo `.pub` no puede contener, como objetos ocultos, una contraseña o la marca de final, antes de guardar. Al guardar como `.pub` se muestra la misma lista, con la opción de guardar de todos modos, guardar como `.jpub` o cancelar.",
    "fr": "Vérifiez ce qu’un fichier `.pub` ne peut pas contenir, comme des objets masqués, un mot de passe ou la marque finale, avant d’enregistrer. L’enregistrement en `.pub` affiche la même liste, avec le choix d’enregistrer quand même, d’enregistrer en `.jpub` ou d’annuler.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "119a78443515f681b25eec427fc09706a4adabf42462f50adfc83ee556e17345": {
+   "drop": false,
+   "en": "Merge selected shapes and text boxes with union, combine, subtract, intersect, and fragment. The merged result is saved as a freeform shape in `.docx` and `.odt` files.",
+   "es": "Combine las formas y los cuadros de texto seleccionados con unión, combinación, resta, intersección y fragmentación. El resultado se guarda como una forma libre en archivos `.docx` y `.odt`.",
+   "fr": "Fusionnez les formes et les zones de texte sélectionnées par union, combinaison, soustraction, intersection et fragmentation. Le résultat est enregistré comme forme libre dans les fichiers `.docx` et `.odt`.",
    "soon": {
     "drop": true,
     "en": "",
