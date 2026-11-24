@@ -1077,7 +1077,12 @@ private:
         QString mime;
         ta->fill = fillFromStyle(&bitmap, &mime);
         noteInks(ta->fill);
-        if (ta->fill.type == Fill::Picture || ta->fill.type == Fill::Texture) ta->fill = Fill::solid(ColorRef::rgb(Qt::black));
+        // A pattern or picture fill (the letters' fill is the shape's): the
+        // picture, tiled or stretched over the frame; black when it can't be read.
+        if (ta->fill.type == Fill::Picture || ta->fill.type == Fill::Texture) {
+            ta->fill.imageId = bitmap.isEmpty() ? QString() : m_doc.addImage(bitmap, formatForMime(mime));
+            if (ta->fill.imageId.isEmpty() || m_doc.image(ta->fill.imageId).isNull()) ta->fill = Fill::solid(ColorRef::rgb(Qt::black));
+        }
         ta->stroke = strokeFromStyle();
         ta->wrap.mode = Wrap::None;
         add(ta);

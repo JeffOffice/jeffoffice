@@ -3093,6 +3093,16 @@ std::shared_ptr<Fill> MSPUBParser::getNewFill(const std::map<unsigned short, uns
         ret->addColor(secondColor, 0, ptr_fillBackOpacity ? (double)(*ptr_fillBackOpacity) / 0xFFFF : 1);
         ret->addColor(firstColor, 100, ptr_fillOpacity ? (double)(*ptr_fillOpacity) / 0xFFFF : 1);
       }
+      else if (fillFocus < 0 && angle == 0)
+      {
+        // JeffPub: a negative focus with the angle left at 0 (a page
+        // background of the kind Publisher's color schemes give) shades
+        // from the back color to the fill color and back; with the angle
+        // set it shades the other way round, as below.
+        ret->addColor(secondColor, 0, ptr_fillBackOpacity ? (double)(*ptr_fillBackOpacity) / 0xFFFF : 1);
+        ret->addColor(firstColor, 100 + fillFocus, ptr_fillOpacity ? (double)(*ptr_fillOpacity) / 0xFFFF : 1);
+        ret->addColor(secondColor, 100, ptr_fillBackOpacity ? (double)(*ptr_fillBackOpacity) / 0xFFFF : 1);
+      }
       else if (fillFocus > 0)
       {
         ret->addColor(secondColor, 0, ptr_fillBackOpacity ? (double)(*ptr_fillBackOpacity) / 0xFFFF : 1);

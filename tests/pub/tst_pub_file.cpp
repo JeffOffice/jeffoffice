@@ -1833,6 +1833,86 @@ void PubFileTests::pubWriterTextArt()
     }
 
 
+// Text Art filled with a tiled picture (a pattern of two colors) keeps the
+// fill; it used to come back black.
+void PubFileTests::pubTextArtPatternFill()
+{
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        QImage tile(8, 8, QImage::Format_RGB32);
+        for (int y = 0; y < 8; ++y)
+            for (int x = 0; x < 8; ++x) tile.setPixelColor(x, y, (x + y) % 2 ? QColor(255, 255, 0) : QColor(128, 128, 128));
+        QByteArray png;
+        QBuffer buf(&png);
+        QVERIFY(buf.open(QIODevice::WriteOnly));
+        QVERIFY(tile.save(&buf, "PNG"));
+        auto ta = std::make_shared<jp::TextArtItem>();
+        ta->text = QStringLiteral("Patterned");
+        ta->font = QStringLiteral("Arimo");
+        ta->rect = QRectF(60, 60, 300, 80);
+        ta->fill.type = jp::Fill::Texture;
+        ta->fill.imageId = doc->addImage(png, QStringLiteral("png"));
+        ta->stroke = jp::Stroke::none();
+        doc->pages[0]->items.push_back(ta);
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("textart-pattern.pub"));
+        QString err;
+        QVERIFY2(jp::exportPublisher(*doc, path, &err), qPrintable(err));
+        auto back = jp::importPublisherFile(path, &err);
+        QVERIFY2(back, qPrintable(err));
+        const jp::TextArtItem *got = nullptr;
+        jp::walkItems(back->pages[0]->items, [&](const jp::ItemPtr &it) {
+            if (it->type() == jp::ItemType::TextArt) got = static_cast<const jp::TextArtItem *>(it.get());
+        });
+        QVERIFY(got);
+        QVERIFY2(got->fill.type == jp::Fill::Texture || got->fill.type == jp::Fill::Picture, qPrintable(QString::number(int(got->fill.type))));
+        QVERIFY(!back->image(got->fill.imageId).isNull());
+}
+
+
+// A gradient stored with a focus of -50 and no angle runs from the back
+// color to the fill color and back (the file is made by the writer, then the
+// focus property, which the writer sets to 100, is changed in its bytes).
+void PubFileTests::pubNegativeFocusShadesBackFirst()
+{
+        auto doc = jp::Document::blank(QSizeF(612, 792));
+        auto sh = std::make_shared<jp::ShapeItem>();
+        sh->shape = QStringLiteral("rect");
+        sh->rect = QRectF(72, 72, 300, 200);
+        sh->fill = jp::Fill::gradient(jp::ColorRef::rgb(QColor(255, 0, 0)), jp::ColorRef::rgb(QColor(0, 0, 255)));
+        sh->fill.gradType = jp::Fill::Radial;
+        sh->stroke = jp::Stroke::none();
+        doc->pages[0]->items.push_back(sh);
+        QTemporaryDir dir;
+        const QString path = dir.filePath(QStringLiteral("focus.pub"));
+        QString err;
+        QVERIFY2(jp::exportPublisher(*doc, path, &err), qPrintable(err));
+        QByteArray bytes;
+        {
+            QFile f(path);
+            QVERIFY(f.open(QIODevice::ReadOnly));
+            bytes = f.readAll();
+        }
+        const QByteArray was("\x8c\x01\x64\x00\x00\x00", 6);
+        int found = 0;
+        for (int at = bytes.indexOf(was); at >= 0; at = bytes.indexOf(was, at + 6)) {
+            bytes.replace(at + 2, 4, QByteArray("\xce\xff\xff\xff", 4));
+            ++found;
+        }
+        QCOMPARE(found, 1);
+        auto back = jp::importPublisher(bytes, &err);
+        QVERIFY2(back, qPrintable(err));
+        const jp::ShapeItem *got = nullptr;
+        jp::walkItems(back->pages[0]->items, [&](const jp::ItemPtr &it) {
+            if (!got && it->type() == jp::ItemType::Shape) got = static_cast<const jp::ShapeItem *>(it.get());
+        });
+        QVERIFY(got);
+        QCOMPARE(int(got->fill.type), int(jp::Fill::Gradient));
+        QCOMPARE(got->fill.stops.size(), 3);
+        QCOMPARE(got->fill.stops.first().color.resolve(back->colors), QColor(0, 0, 255));
+        QCOMPARE(got->fill.stops.at(1).color.resolve(back->colors), QColor(255, 0, 0));
+}
+
+
 // Shapes holding text keep their text, placed where JeffPub puts it.
 void PubFileTests::pubWriterShapeText()
 {

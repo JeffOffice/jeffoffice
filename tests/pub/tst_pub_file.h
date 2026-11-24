@@ -113,6 +113,8 @@ private Q_SLOTS:
     void pubAutofitSetting();
     void pubWriterRoundTrip();
     void pubWriterTextArt();
+    void pubTextArtPatternFill();
+    void pubNegativeFocusShadesBackFirst();
     void pubWriterShapeText();
     void pubWriterShapes();
     void pubWriterFills();
