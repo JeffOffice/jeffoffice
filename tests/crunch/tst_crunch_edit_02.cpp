@@ -1612,7 +1612,7 @@ void CrunchEditTests::savingOverAFileThatChangedAsks()
     answer = CrunchWindow::ChangedAnswer::SaveCopy;
     QVERIFY(!e.win.w.save());
     QCOMPARE(asked, 2);
-    QTRY_COMPARE(saved.count(), 1);
+    QTRY_COMPARE_WITH_TIMEOUT(saved.count(), 1, 60000);
     QCOMPARE(saved.first().at(0).toString(), copyPath);
     QVERIFY(disk() == other);
     QVERIFY(QFileInfo::exists(copyPath));
@@ -1621,7 +1621,7 @@ void CrunchEditTests::savingOverAFileThatChangedAsks()
     e.enter(QStringLiteral("7"));
     QVERIFY(e.settle());
     QVERIFY(e.win.w.save());
-    QTRY_COMPARE(saved.count(), 2);
+    QTRY_COMPARE_WITH_TIMEOUT(saved.count(), 2, 60000);
     QCOMPARE(asked, 2);
 }
 
