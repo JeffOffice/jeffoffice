@@ -20,6 +20,8 @@ class Editor;
 
 // The bundled icons' names with their search words, in name order.
 const QVector<QPair<QString, QStringList>> &iconCatalog();
+// The same read from the text of the file (icon-tags.txt): a name, a tab, and its words with commas between.
+QVector<QPair<QString, QStringList>> parseIconCatalog(const QByteArray &text);
 // A searchable grid of the icons: the names chosen, or none when canceled.
 QStringList pickIcons(QWidget *parent);
 // An icon as an editable shape `size` points square centered at `center`,

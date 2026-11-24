@@ -1,4 +1,5 @@
 #include "core/fonts.h"
+#include "core/fonttables.h"
 #include "core/workthread.h"
 #include "core/syslocale.h"
 
@@ -1224,17 +1225,9 @@ const QHash<char16_t, double> *originalLetterWidths(const QString &family, bool 
         if (!QFile::exists(QStringLiteral(":/fontwidths.txt"))) initCoreResources();
         QFile f(QStringLiteral(":/fontwidths.txt"));
         if (!f.open(QIODevice::ReadOnly)) return t;
-        const QList<QByteArray> lines = f.readAll().split('\n');
-        for (const QByteArray &line : lines) {
-            if (line.isEmpty() || line.startsWith('#')) continue;
-            const QList<QByteArray> p = line.split('\t');
-            if (t->chars.isEmpty()) {
-                for (const QByteArray &c : line.split(',')) t->chars << char16_t(c.toUInt());
-                continue;
-            }
-            if (p.size() < 3) continue;
-            t->widths.insert(QString::fromUtf8(p[0]).toLower() + QLatin1Char('|') + QString::fromLatin1(p[1]), p[2]);
-        }
+        const FontWidthText text = parseFontWidthText(f.readAll());
+        t->chars = text.chars;
+        t->widths = text.widths;
         return t;
     }();
     const QString fam = family.toLower() + QLatin1Char('|');
@@ -1325,18 +1318,7 @@ const QHash<quint32, double> *originalKerning(const QString &family, bool bold, 
         if (!QFile::exists(QStringLiteral(":/fontkerning.txt"))) initCoreResources();
         QFile f(QStringLiteral(":/fontkerning.txt"));
         if (!f.open(QIODevice::ReadOnly)) return t;
-        const QByteArray all = f.readAll();
-        qsizetype at = 0;
-        while (at < all.size()) {
-            qsizetype end = all.indexOf('\n', at);
-            if (end < 0) end = all.size();
-            const QByteArray line = all.mid(at, end - at);
-            at = end + 1;
-            if (line.isEmpty() || line.startsWith('#')) continue;
-            const QList<QByteArray> p = line.split('\t');
-            if (p.size() < 3) continue;
-            t->pairs.insert(QString::fromUtf8(p[0]).toLower() + QLatin1Char('|') + QString::fromLatin1(p[1]), p[2]);
-        }
+        t->pairs = parseFontKerningText(f.readAll());
         return t;
     }();
     const QString fam = family.toLower() + QLatin1Char('|');
@@ -1381,12 +1363,7 @@ bool originalBoldByHand(const QString &family, bool boldSet)
         if (!QFile::exists(QStringLiteral(":/fontwidths.txt"))) initCoreResources();
         QFile file(QStringLiteral(":/fontwidths.txt"));
         if (!file.open(QIODevice::ReadOnly)) return t;
-        for (const QByteArray &line : file.readAll().split('\n')) {
-            const QList<QByteArray> p = line.split('\t');
-            if (line.startsWith('#') || p.size() < 3) continue;
-            bool &bold = t[QString::fromUtf8(p[0]).toLower()];
-            bold |= (p[1].toInt() & 1) != 0;
-        }
+        t = parseFontFaceStyles(file.readAll());
         return t;
     }();
     const auto it = faces.constFind(f);

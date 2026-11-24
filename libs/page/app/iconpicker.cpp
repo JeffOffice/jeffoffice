@@ -4,6 +4,7 @@
 #include "app/icons.h"
 #include "core/document.h"
 #include "core/svg.h"
+#include "core/textlines.h"
 
 #include <QCoreApplication>
 #include <QDialog>
@@ -22,22 +23,27 @@
 
 namespace jp {
 
+QVector<QPair<QString, QStringList>> parseIconCatalog(const QByteArray &text)
+{
+    QVector<QPair<QString, QStringList>> c;
+    for (const QByteArray &line : textResourceLines(text, true)) {
+        if (line.isEmpty() || line.startsWith('#')) continue;
+        const QList<QByteArray> parts = line.split('\t');
+        QStringList tags;
+        if (parts.size() > 1)
+            for (const QByteArray &t : parts[1].split(','))
+                if (!t.isEmpty()) tags << QString::fromUtf8(t).toLower();
+        c << qMakePair(QString::fromUtf8(parts[0]), tags);
+    }
+    return c;
+}
+
 const QVector<QPair<QString, QStringList>> &iconCatalog()
 {
     static const QVector<QPair<QString, QStringList>> catalog = [] {
-        QVector<QPair<QString, QStringList>> c;
         QFile f(QStringLiteral(":/icon-tags.txt"));
-        if (!f.open(QIODevice::ReadOnly)) return c;
-        for (const QByteArray &line : f.readAll().split('\n')) {
-            if (line.isEmpty() || line.startsWith('#')) continue;
-            const QList<QByteArray> parts = line.split('\t');
-            QStringList tags;
-            if (parts.size() > 1)
-                for (const QByteArray &t : parts[1].split(','))
-                    if (!t.isEmpty()) tags << QString::fromUtf8(t).toLower();
-            c << qMakePair(QString::fromUtf8(parts[0]), tags);
-        }
-        return c;
+        if (!f.open(QIODevice::ReadOnly)) return QVector<QPair<QString, QStringList>>();
+        return parseIconCatalog(f.readAll());
     }();
     return catalog;
 }

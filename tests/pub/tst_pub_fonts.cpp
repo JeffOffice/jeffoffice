@@ -1,10 +1,40 @@
 // JeffPub's tests of stand-in fonts, letter widths, and bold drawn by hand.
 #include "pubhelpers.h"
+#include "core/fonttables.h"
+#include "core/textlines.h"
 #include "core/workthread.h"
+#include "app/iconpicker.h"
 
 #include <QElapsedTimer>
 #include <QScopeGuard>
 #include <map>
+
+// A checkout may end a table's lines with CRLF or CR, an editor may put a byte order mark first or spaces at the ends, and a file may lack its last line ending:
+// each of these forms of `lf` (a table with LF endings) is read as `lf` is.
+static QList<QPair<QString, QByteArray>> tableForms(const QByteArray &lf)
+{
+    QByteArray crlf = lf, cr = lf, spaces = lf, noEnd = lf, all = lf;
+    crlf.replace("\n", "\r\n");
+    cr.replace("\n", "\r");
+    spaces.replace("\n", "  \n");
+    while (noEnd.endsWith('\n')) noEnd.chop(1);
+    all.replace("\n", "  \r\n");
+    all.chop(4);
+    return {{QStringLiteral("CRLF"), crlf}, {QStringLiteral("CR"), cr}, {QStringLiteral("byte order mark"), "\xEF\xBB\xBF" + lf},
+            {QStringLiteral("trailing spaces"), spaces}, {QStringLiteral("no last line ending"), noEnd},
+            {QStringLiteral("all of them"), "\xEF\xBB\xBF" + all}};
+}
+
+static QByteArray shippedLf(const char *resource)
+{
+    QFile f(QString::fromLatin1(resource));
+    if (!f.open(QIODevice::ReadOnly)) return QByteArray();
+    QByteArray all = f.readAll();
+    all.replace("\r\n", "\n");
+    return all;
+}
+
+static bool sameWidthText(const jp::FontWidthText &a, const jp::FontWidthText &b) { return a.chars == b.chars && a.widths == b.widths; }
 
 template <class Key, class Parse, class Get>
 static void checkLazyTable(const char *resource, int fieldsBefore, Parse parse, Get get)
@@ -202,6 +232,74 @@ private Q_SLOTS:
     // From 14 pt up, a missing stock font's letters kern by the original's
     // pairs: Gill Sans MT Bold's "Yo" closes up by 0.14 em, as in a banner
     // of Publisher's. Smaller, they don't kern.
+    // The tables of widths, kerning, and icons read the same from any form of the file (see tableForms).
+    void textResourceLinesTellLinesApart()
+    {
+        using jp::textResourceLines;
+        QCOMPARE(textResourceLines(QByteArray()), QList<QByteArray>());
+        QCOMPARE(textResourceLines("a\nb\n"), (QList<QByteArray>{"a", "b"}));
+        QCOMPARE(textResourceLines("a\r\n\r\nb"), (QList<QByteArray>{"a", "", "b"}));
+        QCOMPARE(textResourceLines("a\rb\r\rc\r"), (QList<QByteArray>{"a", "b", "", "c"}));
+        QCOMPARE(textResourceLines("\xEF\xBB\xBF# x\nb"), (QList<QByteArray>{"# x", "b"}));
+        QCOMPARE(textResourceLines("a \t \nb\t\n"), (QList<QByteArray>{"a", "b"}));
+        QCOMPARE(textResourceLines("a\t \nb\t\n", true), (QList<QByteArray>{"a\t", "b\t"}));
+    }
+
+    void fontWidthTableReadsAnyLineEnding()
+    {
+        const QByteArray lf = "# widths\n65,66,67\nArial\t0\t100,200,300\nArial\t1\t110,210,310\nVerdana\t1\t\n";
+        const jp::FontWidthText want = jp::parseFontWidthText(lf);
+        QVERIFY(want.chars == (QVector<char16_t>{65, 66, 67}));
+        QCOMPARE(want.widths.size(), 3);
+        QCOMPARE(want.widths.value(QStringLiteral("arial|1")), QByteArray("110,210,310"));
+        QVERIFY(want.widths.contains(QStringLiteral("verdana|1")));
+        for (const auto &form : tableForms(lf)) QVERIFY2(sameWidthText(jp::parseFontWidthText(form.second), want), qPrintable(form.first));
+        const QByteArray shipped = shippedLf(":/fontwidths.txt");
+        const jp::FontWidthText all = jp::parseFontWidthText(shipped);
+        QVERIFY(all.widths.size() > 100 && all.chars.size() > 100);
+        for (const auto &form : tableForms(shipped)) QVERIFY2(sameWidthText(jp::parseFontWidthText(form.second), all), qPrintable(form.first));
+    }
+
+    void fontKerningTableReadsAnyLineEnding()
+    {
+        const QByteArray lf = "# kerning\nArial\t0\t65:84:-76,32:65:-37\nVerdana\t1\t\nTimes New Roman\t3\t1:2:3\n";
+        const QHash<QString, QByteArray> want = jp::parseFontKerningText(lf);
+        QCOMPARE(want.size(), 3);
+        QCOMPARE(want.value(QStringLiteral("arial|0")), QByteArray("65:84:-76,32:65:-37"));
+        QVERIFY(want.contains(QStringLiteral("verdana|1")) && want.value(QStringLiteral("verdana|1")).isEmpty());
+        for (const auto &form : tableForms(lf)) QVERIFY2(jp::parseFontKerningText(form.second) == want, qPrintable(form.first));
+        const QByteArray shipped = shippedLf(":/fontkerning.txt");
+        const QHash<QString, QByteArray> all = jp::parseFontKerningText(shipped);
+        QVERIFY(all.size() > 100);
+        for (const auto &form : tableForms(shipped)) QVERIFY2(jp::parseFontKerningText(form.second) == all, qPrintable(form.first));
+    }
+
+    void fontFaceStylesReadAnyLineEnding()
+    {
+        const QByteArray lf = "# widths\n65,66,67\nArial\t0\t100,200,300\nArial\t1\t110,210,310\nGeorgia\t0\t1,2,3\nGeorgia\t2\t1,2,3\n";
+        const QHash<QString, bool> want = jp::parseFontFaceStyles(lf);
+        QVERIFY(want == (QHash<QString, bool>{{QStringLiteral("arial"), true}, {QStringLiteral("georgia"), false}}));
+        for (const auto &form : tableForms(lf)) QVERIFY2(jp::parseFontFaceStyles(form.second) == want, qPrintable(form.first));
+        const QByteArray shipped = shippedLf(":/fontwidths.txt");
+        const QHash<QString, bool> all = jp::parseFontFaceStyles(shipped);
+        QVERIFY(all.size() > 100);
+        for (const auto &form : tableForms(shipped)) QVERIFY2(jp::parseFontFaceStyles(form.second) == all, qPrintable(form.first));
+    }
+
+    void iconCatalogReadsAnyLineEnding()
+    {
+        const QByteArray lf = "# icons\nheart\tlove,Like\nstar\t\nplus\tadd,more\n";
+        const auto want = jp::parseIconCatalog(lf);
+        QCOMPARE(want.size(), 3);
+        QCOMPARE(want[0].second, (QStringList{QStringLiteral("love"), QStringLiteral("like")}));
+        QCOMPARE(want[2].second, (QStringList{QStringLiteral("add"), QStringLiteral("more")}));
+        for (const auto &form : tableForms(lf)) QVERIFY2(jp::parseIconCatalog(form.second) == want, qPrintable(form.first));
+        const QByteArray shipped = shippedLf(":/icon-tags.txt");
+        const auto all = jp::parseIconCatalog(shipped);
+        QVERIFY(all.size() > 1500);
+        for (const auto &form : tableForms(shipped)) QVERIFY2(jp::parseIconCatalog(form.second) == all, qPrintable(form.first));
+    }
+
     void missingFontsKernAsTheOriginal()
     {
         const QString fam = QStringLiteral("Gill Sans MT");
