@@ -19,6 +19,8 @@
 #include "core/removebg.h"
 #include "app/theme.h"
 #include <QMessageBox>
+#include <QThread>
+#include <atomic>
 #include <QRandomGenerator>
 
 class PubPictureTests : public QObject {
@@ -403,6 +405,181 @@ private Q_SLOTS:
         w.act(QStringLiteral("pic.reset"))->trigger();
         QVERIFY(!thePicture(ed)->removal.isValid());
     }
+    // ---- the fixes of the review (Nov 24), as in JeffDeck ----
+    static jp::PictureItem *addDisc(jp::MainWindow &w)
+    {
+        jp::Editor *ed = w.editor();
+        auto p = std::make_shared<jp::PictureItem>();
+        p->imageId = ed->doc()->addImage(discPng(), "png");
+        p->rect = QRectF(100, 100, 240, 200);
+        p->imgRect = QRectF(QPointF(0, 0), p->rect.size());
+        ed->addItem(p);
+        ed->select(p->id);
+        return thePicture(ed);
+    }
+    static int pinkOf(const QImage &im)
+    {
+        int n = 0;
+        for (int y = 0; y < im.height(); ++y)
+            for (int x = 0; x < im.width(); ++x) {
+                const QColor c = im.pixelColor(x, y);
+                n += c.red() > 200 && c.green() < 150 && c.blue() > 150 && c.blue() > c.green() + 40;
+            }
+        return n;
+    }
+    static void realStroke(jp::MainWindow &w, const QPointF &from, const QPointF &to)
+    {
+        QWidget *view = w.canvas()->viewport();
+        const QPoint a = w.canvas()->pageToView(from).toPoint(), b = w.canvas()->pageToView(to).toPoint();
+        QTest::mousePress(view, Qt::LeftButton, Qt::NoModifier, a);
+        for (int s = 1; s <= 4; ++s) {
+            const QPoint cur = a + (b - a) * s / 4;
+            QMouseEvent move(QEvent::MouseMove, QPointF(cur), view->mapToGlobal(QPointF(cur)), Qt::NoButton, Qt::LeftButton, Qt::NoModifier);
+            QApplication::sendEvent(view, &move);
+        }
+        QTest::mouseRelease(view, Qt::LeftButton, Qt::NoModifier, b);
+    }
+    void removeBackgroundStrokesKeysAndClicksEndTheModeCleanlyInPub()
+    {
+        jp::MainWindow w;
+        w.resize(1400, 900);
+        w.show();
+        jp::Editor *ed = w.editor();
+        addDisc(w);
+        const int steps = ed->undoStack()->index();
+        w.act(QStringLiteral("pic.removeBackground"))->trigger();
+        QTRY_VERIFY(!ed->removeBackgroundBusy());
+        w.act(QStringLiteral("pic.markKeep"))->trigger();
+        realStroke(w, QPointF(200, 200), QPointF(230, 200));
+        QTRY_VERIFY(!ed->removeBackgroundBusy());
+        w.act(QStringLiteral("pic.markRemove"))->trigger();
+        realStroke(w, QPointF(110, 110), QPointF(135, 110));
+        QTRY_VERIFY(!ed->removeBackgroundBusy());
+        QCOMPARE(thePicture(ed)->removal.marks.size(), 2);
+        QVERIFY(thePicture(ed)->removal.marks[0].keep);
+        QVERIFY(!thePicture(ed)->removal.marks[1].keep);
+        QCOMPARE(QGuiApplication::mouseButtons(), Qt::NoButton);
+        // Change Picture is dimmed while the mode is open.
+        QTRY_VERIFY(!w.act(QStringLiteral("pic.change"))->isEnabled());
+        QTest::keyClick(w.canvas(), Qt::Key_Escape);
+        QVERIFY(ed->removeBgItem.isEmpty());
+        QVERIFY(!thePicture(ed)->removal.isValid());
+        QCOMPARE(ed->undoStack()->index(), steps);
+        ed->select(thePicture(ed)->id);
+        w.act(QStringLiteral("pic.removeBackground"))->trigger();
+        QTRY_VERIFY(!ed->removeBackgroundBusy());
+        realStroke(w, QPointF(200, 200), QPointF(230, 200));
+        QTRY_VERIFY(!ed->removeBackgroundBusy());
+        QTest::keyClick(w.canvas(), Qt::Key_Return);
+        QVERIFY(ed->removeBgItem.isEmpty());
+        QVERIFY(thePicture(ed)->removal.isValid());
+        QCOMPARE(ed->undoStack()->index(), steps + 1);
+        // A click outside keeps it too.
+        ed->undo();
+        ed->select(thePicture(ed)->id);
+        w.act(QStringLiteral("pic.removeBackground"))->trigger();
+        QTRY_VERIFY(!ed->removeBackgroundBusy());
+        realStroke(w, QPointF(200, 200), QPointF(230, 200));
+        QTRY_VERIFY(!ed->removeBackgroundBusy());
+        QTest::mouseClick(w.canvas()->viewport(), Qt::LeftButton, Qt::NoModifier, w.canvas()->pageToView(QPointF(450, 600)).toPoint());
+        QVERIFY(ed->removeBgItem.isEmpty());
+        QVERIFY(thePicture(ed)->removal.isValid());
+        QCOMPARE(QGuiApplication::mouseButtons(), Qt::NoButton);
+    }
+    void removeBackgroundEndsWhenThePageChangesThePictureIsDeletedOrTheFileIsSavedInPub()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        jp::MainWindow w;
+        w.resize(1400, 900);
+        w.show();
+        jp::Editor *ed = w.editor();
+        addDisc(w);
+        ed->insertPages(0, 1, false, false);
+        ed->setCurrentPage(0);
+        ed->select(thePicture(ed)->id);
+        int steps = ed->undoStack()->index();
+        w.act(QStringLiteral("pic.removeBackground"))->trigger();
+        QTRY_VERIFY(!ed->removeBackgroundBusy());
+        ed->setCurrentPage(1);
+        QVERIFY(ed->removeBgItem.isEmpty());
+        QCOMPARE(ed->undoStack()->index(), steps + 1);
+        ed->setCurrentPage(0);
+        QVERIFY(thePicture(ed)->removal.isValid());
+        // A delete is a step of its own.
+        const QString id = thePicture(ed)->id;
+        ed->undo();
+        ed->select(id);
+        steps = ed->undoStack()->index();
+        w.act(QStringLiteral("pic.removeBackground"))->trigger();
+        QTRY_VERIFY(!ed->removeBackgroundBusy());
+        ed->deleteItems({id});
+        QVERIFY(ed->removeBgItem.isEmpty());
+        QCOMPARE(ed->undoStack()->index(), steps + 2);
+        ed->undo();
+        QVERIFY(ed->doc()->item(id));
+        QVERIFY(thePicture(ed)->removal.isValid());
+        // A save ends the mode, and nothing it writes or draws has the tint.
+        ed->select(id);
+        w.act(QStringLiteral("pic.removeBackground"))->trigger();
+        QTRY_VERIFY(!ed->removeBackgroundBusy());
+        QCoreApplication::processEvents();
+        QVERIFY(pinkOf(w.canvas()->viewport()->grab().toImage()) > 500);   // (the window shows it)
+        jp::PaintContext ctx;
+        ctx.doc = ed->doc();
+        ctx.cache = &ed->cache();
+        ctx.opt = ed->renderOptions();
+        QCOMPARE(pinkOf(jp::Renderer::renderToImage(ctx, 0, 1.0)), 0);
+        ctx.opt.output = true;
+        QCOMPARE(pinkOf(jp::Renderer::renderToImage(ctx, 0, 1.0)), 0);
+        QVERIFY(w.saveTo(dir.filePath(QStringLiteral("a.jpub"))));
+        QVERIFY(ed->removeBgItem.isEmpty());
+        QVERIFY(thePicture(ed)->removal.isValid());
+        jp::MainWindow v;
+        QVERIFY(v.openFile(dir.filePath(QStringLiteral("a.jpub"))));
+        QVERIFY(thePicture(v.editor())->removal.isValid());
+        QVERIFY(v.editor()->removeBgItem.isEmpty());
+    }
+    void removeBackgroundWorkIsDroppedWhenThePictureIsChangedOrResetInPub()
+    {
+        struct Hold {
+            std::atomic<int> held{0}, byCancel{0}, byBound{0};
+        } hold;
+        jp::Editor::removeBgWorkerHook = [&hold](const std::atomic<bool> &cancel) {
+            ++hold.held;
+            for (int i = 0; i < 20'000'000; ++i) {
+                if (cancel) { ++hold.byCancel; return; }
+                QThread::yieldCurrentThread();
+            }
+            ++hold.byBound;
+        };
+        const auto clear = qScopeGuard([] { jp::Editor::removeBgWorkerHook = nullptr; });
+        jp::MainWindow w;
+        w.resize(1400, 900);
+        w.show();
+        jp::Editor *ed = w.editor();
+        addDisc(w);
+        w.act(QStringLiteral("pic.removeBackground"))->trigger();
+        QTRY_COMPARE(hold.held.load(), 1);
+        QVERIFY(ed->removeBackgroundBusy());
+        w.act(QStringLiteral("pic.reset"))->trigger();
+        QVERIFY(ed->removeBgItem.isEmpty());
+        QCOMPARE(hold.byCancel.load(), 1);
+        QCOMPARE(hold.byBound.load(), 0);
+        QVERIFY(!thePicture(ed)->removal.isValid());
+        // Change Picture, through its library function.
+        hold.held = 0;
+        hold.byCancel = 0;
+        ed->select(thePicture(ed)->id);
+        const QString other = ed->doc()->addImage(discPng() + QByteArray(1, '\0'), "png");
+        w.act(QStringLiteral("pic.removeBackground"))->trigger();
+        QTRY_COMPARE(hold.held.load(), 1);
+        QVERIFY(jp::changePictureTo(ed, thePicture(ed)->id, other));
+        QCOMPARE(hold.byCancel.load(), 1);
+        QVERIFY(ed->removeBgItem.isEmpty());
+        QVERIFY(!thePicture(ed)->removal.isValid());
+    }
+
     void removeBackgroundIsKeptInOurFileAndTheOtherFormatsKeepTheResult()
     {
         QTemporaryDir dir;
