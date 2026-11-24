@@ -326,7 +326,7 @@ bool writeKeptBlipExtension(QXmlStreamWriter &w, DrawingWriteContext &ctx, const
             do {
                 name = QStringLiteral("/ppt/media/image%1.%2").arg(n++).arg(extension);
             } while (taken.contains(name));
-            ctx.package->addDefault(extension, part.contentType);
+            // (an Override for this one part when its extension means another type for other parts: never a default others would be read by)
             ctx.package->addPart(name, part.bytes, part.contentType);
             ctx.mediaParts->insert(key, name);
         }

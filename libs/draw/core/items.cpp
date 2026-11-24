@@ -449,7 +449,7 @@ QJsonObject PictureItem::toJson() const
         for (const KeptBlipExtension &k : keptBlip) {
             QJsonArray parts;
             for (const KeptBlipExtension::Part &part : k.parts)
-                parts.append(QJsonObject{{"data", QString::fromLatin1(part.bytes.toBase64())}, {"type", part.contentType}, {"rel", part.relationType}});
+                parts.append(QJsonObject{{"data", QString::fromLatin1(part.bytes.toBase64())}, {"type", part.contentType}, {"rel", part.relationType}, {"ext", part.extension}});
             kept.append(QJsonObject{{"xml", k.xml}, {"parts", parts}});
         }
         o["keptBlip"] = kept;
@@ -506,7 +506,7 @@ void PictureItem::fromJson(const QJsonObject &o)
                 const QJsonObject po = parts.at(j).toObject();
                 const QString coded = po["data"].toString();
                 if (qint64(coded.size()) / 4 * 3 > room) { ok = false; break; }
-                KeptBlipExtension::Part part{QByteArray::fromBase64(coded.toLatin1()), po["type"].toString(), po["rel"].toString()};
+                KeptBlipExtension::Part part{QByteArray::fromBase64(coded.toLatin1()), po["type"].toString(), po["rel"].toString(), po["ext"].toString().left(16)};
                 room -= part.bytes.size();
                 ok = !part.bytes.isEmpty() && !part.contentType.isEmpty() && !part.relationType.isEmpty();
                 k.parts.append(part);
