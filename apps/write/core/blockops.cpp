@@ -1,7 +1,11 @@
 #include "core/blockops.h"
 
 #include "core/editops.h"
+#include "core/commentops.h"
 #include "core/fieldops.h"
+#include "core/reviewops.h"
+#include "core/tableops.h"
+#include "core/writeprops.h"
 #include "core/styleops.h"
 #include "text/textprops.h"
 
@@ -33,9 +37,23 @@ QStringList stylesBetween(QTextDocument *d, int from, int to)
     return out;
 }
 
+// Whether the text from `from` to `to` has a table in it, and whether it has the reference of a footnote or an endnote.
+void whatIsIn(QTextDocument *d, int from, int to, bool *table, bool *note)
+{
+    for (QTextBlock b = d->findBlock(from); b.isValid() && b.position() < to; b = b.next()) {
+        if (inTable(b)) *table = true;
+        for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+            const QTextCharFormat cf = it.fragment().charFormat();
+            if (!cf.hasProperty(prop::Atom)) continue;
+            const QByteArray bytes = storedBytes(cf, prop::Atom);
+            if (bytes.contains("footnoteReference") || bytes.contains("endnoteReference")) *note = true;
+        }
+    }
+}
+
 } // namespace
 
-QByteArray blockFromSelection(const WriteDoc &doc, const QTextCursor &selection, QString *problem)
+QByteArray blockFromSelection(const WriteDoc &doc, const QTextCursor &selection, QString *problem, QStringList *leftOut)
 {
     auto fail = [&](const QString &why) {
         if (problem) *problem = why;
@@ -49,6 +67,16 @@ QByteArray blockFromSelection(const WriteDoc &doc, const QTextCursor &selection,
     importStyles(*blank, doc, stylesBetween(selection.document(), selection.selectionStart(), selection.selectionEnd()), false);
     QTextCursor into(blank->story());
     pasteClip(*blank, into, clip);
+    // What a block does not carry is taken out, so that nothing in it points at what it lacks (a comment's words, another person's tracked words, a note): comments are left out, changes are
+    // accepted (inserted words stay, deleted words go), and the person is told before the block is saved.
+    if (leftOut) {
+        bool table = false, note = false;
+        whatIsIn(selection.document(), selection.selectionStart(), selection.selectionEnd(), &table, &note);
+        if (table) leftOut->push_back(QCoreApplication::translate("jp::write::Blocks", "A table is saved as its words, one paragraph for each cell, and not as a table."));
+        if (note) leftOut->push_back(QCoreApplication::translate("jp::write::Blocks", "Footnotes and endnotes are left out."));
+    }
+    if (deleteAllComments(*blank) > 0 && leftOut) leftOut->push_back(QCoreApplication::translate("jp::write::Blocks", "Comments are left out."));
+    if (acceptAll(*blank) > 0 && leftOut) leftOut->push_back(QCoreApplication::translate("jp::write::Blocks", "Tracked changes are accepted: the words that were inserted are kept, and the words that were deleted are not."));
     if (blank->story()->characterCount() <= 1) return fail(QCoreApplication::translate("jp::write::Blocks", "There is nothing in the selection that can be saved as a block."));
     QString err;
     const QByteArray bytes = blank->toDocx(&err);

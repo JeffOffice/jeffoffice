@@ -483,3 +483,74 @@ void WriteTests::thePicturesOfTheSavedBlocksWindows()
     delete t2;
     jp::BlockLibrary::setSharedPath(QString());
 }
+
+// A document with a table, a footnote, a comment, and tracked changes, as a source for what a block does not carry.
+static std::unique_ptr<WriteDoc> richSource()
+{
+    const QByteArray body =
+        "<w:p><w:r><w:t>Intro</w:t></w:r></w:p>"
+        "<w:p><w:r><w:t>Second item</w:t></w:r></w:p>"
+        "<w:p><w:r><w:t>Marked</w:t></w:r>"
+        "<w:ins w:id=\"1\" w:author=\"Pat\" w:date=\"2026-01-01T00:00:00Z\"><w:r><w:t xml:space=\"preserve\"> inserted</w:t></w:r></w:ins>"
+        "<w:del w:id=\"2\" w:author=\"Pat\" w:date=\"2026-01-01T00:00:00Z\"><w:r><w:delText xml:space=\"preserve\"> deleted</w:delText></w:r></w:del></w:p>"
+        "<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"2000\"/><w:gridCol w:w=\"2000\"/></w:tblGrid>"
+        "<w:tr><w:tc><w:p><w:r><w:t>Cell A</w:t></w:r></w:p></w:tc><w:tc><w:p><w:r><w:t>Cell B</w:t></w:r></w:p></w:tc></w:tr></w:tbl>"
+        "<w:p><w:r><w:t>Tail words</w:t></w:r></w:p>";
+    auto src = open(makeDocx(body, kStyles));
+    if (!src) return src;
+    QTextCursor c(src->story());
+    c.setPosition(positionAfter(*src, QStringLiteral("Intro")) - 3);
+    c.setPosition(positionAfter(*src, QStringLiteral("Intro")), QTextCursor::KeepAnchor);
+    jp::write::addComment(*src, c, QStringLiteral("Look here"));
+    QTextCursor f(src->story());
+    f.setPosition(positionAfter(*src, QStringLiteral("Second item")));
+    jp::write::insertFootnote(*src, f, QString());
+    return src;
+}
+
+void WriteTests::aBlockHasNoCommentsAndItsWordsAsTheyReadWithChangesAccepted()
+{
+    auto src = richSource();
+    QVERIFY(src);
+    QTextCursor all(src->story());
+    all.select(QTextCursor::Document);
+    QString problem;
+    const QByteArray block = jp::write::blockFromSelection(*src, all, &problem);
+    QVERIFY2(!block.isEmpty(), qPrintable(problem));
+    QMap<QString, QByteArray> parts;
+    QVERIFY(jp::readZip(block, parts));
+    const QString document = QString::fromUtf8(parts.value(QStringLiteral("word/document.xml")));
+    QVERIFY(document.contains(QStringLiteral("Intro")) && document.contains(QStringLiteral("inserted")));
+    QVERIFY(!document.contains(QStringLiteral("deleted")));
+    QVERIFY2(!document.contains(QStringLiteral("<w:ins ")) && !document.contains(QStringLiteral("<w:del ")), qPrintable(document));
+    QVERIFY2(!document.contains(QStringLiteral("commentRange")) && !document.contains(QStringLiteral("commentReference")), qPrintable(document));
+    QVERIFY(!QString::fromUtf8(parts.value(QStringLiteral("word/comments.xml"))).contains(QStringLiteral("Look here")));
+    // Put in a document: no comment and no tracked change comes with it.
+    auto target = open(makeDocx("<w:p><w:r><w:t>Top</w:t></w:r></w:p>", kPlainStyles));
+    QTextCursor c(target->story());
+    c.setPosition(3);
+    QVERIFY2(jp::write::insertBlock(*target, c, block, jp::BlockInsert::Paragraph, &problem), qPrintable(problem));
+    QMap<QString, QByteArray> out;
+    QVERIFY(jp::readZip(target->toDocx(), out));
+    const QString saved = QString::fromUtf8(out.value(QStringLiteral("word/document.xml")));
+    QVERIFY(saved.contains(QStringLiteral("inserted")));
+    QVERIFY(!saved.contains(QStringLiteral("commentReference")) && !saved.contains(QStringLiteral("<w:ins ")) && !saved.contains(QStringLiteral("<w:del ")));
+}
+
+void WriteTests::theSaveBoxIsToldWhatABlockLeavesOut()
+{
+    auto src = richSource();
+    QVERIFY(src);
+    QTextCursor all(src->story());
+    all.select(QTextCursor::Document);
+    QStringList said;
+    QVERIFY(!jp::write::blockFromSelection(*src, all, nullptr, &said).isEmpty());
+    const QString joined = said.join(QLatin1Char('|'));
+    QCOMPARE(said.size(), 4);
+    QVERIFY2(joined.contains(QStringLiteral("table")) && joined.contains(QStringLiteral("Footnotes")) && joined.contains(QStringLiteral("Comments")) && joined.contains(QStringLiteral("Tracked")), qPrintable(joined));
+    // A plain selection leaves nothing out, so nothing is said.
+    auto plain = sourceDoc();
+    QStringList none;
+    QVERIFY(!jp::write::blockFromSelection(*plain, selecting(*plain, 0, positionAfter(*plain, QStringLiteral("Last line"))), nullptr, &none).isEmpty());
+    QVERIFY2(none.isEmpty(), qPrintable(none.join(QLatin1Char('|'))));
+}

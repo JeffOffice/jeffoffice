@@ -1913,6 +1913,8 @@ private Q_SLOTS:
     void aTextShortcutBecomesItsBlockWhereTheNameWasTyped();
     void aBlockThatIsNoDocumentIsRefusedAndNothingChanges();
     void aGlossaryPartOfAFileIsKeptByteForByte();
+    void aBlockHasNoCommentsAndItsWordsAsTheyReadWithChangesAccepted();
+    void theSaveBoxIsToldWhatABlockLeavesOut();
     void theGalleryDrawsOnlyWhatIsInViewAndAPickGoesInAsOneStep();
     void thePicturesOfTheSavedBlocksWindows();
 

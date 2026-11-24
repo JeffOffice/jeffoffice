@@ -7,13 +7,16 @@
 
 #include <QByteArray>
 #include <QString>
+#include <QStringList>
 #include <QTextCursor>
 
 namespace jp::write {
 
 // The bytes of a small document that holds the selection with its formatting: its paragraphs with the styles they use (the style sheet entries come along), tables, pictures, shapes, and
 // fields. Empty, with `problem`, for no selection, for a selection that holds nothing a block can keep, or for one too large to keep (BlockLibrary::kMostEntryBytes).
-QByteArray blockFromSelection(const WriteDoc &doc, const QTextCursor &selection, QString *problem = nullptr);
+// What a block does not carry as it is, in sentences for the person (`leftOut`, when given): a table is its words (one paragraph for each cell), footnotes and endnotes and comments are left out,
+// tracked changes are accepted (the words as they read with every change taken), and section breaks are not kept.
+QByteArray blockFromSelection(const WriteDoc &doc, const QTextCursor &selection, QString *problem = nullptr, QStringList *leftOut = nullptr);
 
 // The first words of the selection, for the name box of the box that saves it.
 QString suggestedBlockName(const QTextCursor &selection);

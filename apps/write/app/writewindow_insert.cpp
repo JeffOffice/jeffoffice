@@ -83,11 +83,13 @@ void WriteWindow::saveSelectionAsBlock()
     if (!m_doc) return;
     const QTextCursor sel = m_view->cursor();
     QString why;
-    const QByteArray bytes = write::blockFromSelection(*m_doc, sel, &why);
+    QStringList leftOut;
+    const QByteArray bytes = write::blockFromSelection(*m_doc, sel, &why, &leftOut);
     if (bytes.isEmpty()) {
         statusBar()->showMessage(why, 6000);
         return;
     }
+    if (!leftOut.isEmpty() && plainQuestion(this, tr("Save as a Block"), leftOut.join(QLatin1Char(' ')) + QStringLiteral("\n\n") + tr("Save the block anyway?")) != QMessageBox::Yes) return;
     jp::BlockInfo info;
     info.name = write::suggestedBlockName(sel);
     info.gallery = jp::kBlocksGallery;
