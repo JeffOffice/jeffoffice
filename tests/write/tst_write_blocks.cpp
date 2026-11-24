@@ -827,8 +827,8 @@ void WriteTests::theSaveBoxIsToldWhatABlockLeavesOut()
     QStringList said;
     QVERIFY(!jp::write::blockFromSelection(*src, all, nullptr, &said).isEmpty());
     const QString joined = said.join(QLatin1Char('|'));
-    QCOMPARE(said.size(), 4);
-    QVERIFY2(joined.contains(QStringLiteral("table")) && joined.contains(QStringLiteral("Footnotes")) && joined.contains(QStringLiteral("Comments")) && joined.contains(QStringLiteral("Tracked")), qPrintable(joined));
+    QCOMPARE(said.size(), 3);   // (the whole table is kept as a table: nothing is said of it)
+    QVERIFY2(!joined.contains(QStringLiteral("table")) && joined.contains(QStringLiteral("Footnotes")) && joined.contains(QStringLiteral("Comments")) && joined.contains(QStringLiteral("Tracked")), qPrintable(joined));
     // A plain selection leaves nothing out, so nothing is said.
     auto plain = sourceDoc();
     QStringList none;
