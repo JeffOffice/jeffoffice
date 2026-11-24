@@ -90,47 +90,47 @@
     <message>
         <location line="+28"/>
         <source>A slide can have effects that wait for a click on up to %1 objects.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Um diapositivo pode ter efeitos que aguardam um clique em até %1 objetos.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>An object can start up to %1 effects when it is clicked.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Um objeto pode iniciar até %1 efeitos quando for clicado.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A slide can have up to %1 effects that wait for a click on an object.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Um diapositivo pode ter até %1 efeitos que aguardam um clique num objeto.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The effects that wait for a click on this object can&apos;t be changed here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Os efeitos que aguardam um clique neste objeto não podem ser alterados aqui.</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>Start When Clicked</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Iniciar ao Clicar</translation>
     </message>
     <message>
         <location line="+61"/>
         <source>There is no object on this slide to click.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Não há nenhum objeto neste diapositivo para clicar.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>When an Object Is Clicked</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Quando um Objeto é Clicado</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The effects start when this object is clicked during the slide show.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Os efeitos são iniciados quando este objeto é clicado durante a apresentação de diapositivos.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>An object that an effect makes appear is not listed for that effect, because it can&apos;t be clicked before it appears.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Um objeto que um efeito faz aparecer não é listado para esse efeito, porque não pode ser clicado antes de aparecer.</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -2690,398 +2690,398 @@ Artigo da contracapa	4</translation>
     <message>
         <location filename="../apps/deck/core/decktemplates.cpp" line="+40"/>
         <source>One Picture</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Uma Imagem</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Two Pictures</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Duas Imagens</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Three Pictures</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Três Imagens</translation>
     </message>
     <message>
         <location line="+148"/>
         <source>[Company name]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Nome da empresa]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[One sentence that says what you do and for whom]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Uma frase que diga o que faz e para quem]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The problem</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O problema</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Who has the problem, and what it costs them]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Quem tem o problema e quanto lhe custa]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[How they cope today]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Como lidam com ele atualmente]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[Why now is the time to fix it]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Porque é que agora é o momento de o resolver]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Our solution</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">A nossa solução</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[What you built, in one line]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[O que criou, numa linha]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[How it works, in three steps]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Como funciona, em três passos]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[What makes it better than the options]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[O que a torna melhor do que as opções]</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+8"/>
         <source>Where we are</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Onde estamos</translation>
     </message>
     <message>
         <location line="-7"/>
         <source>[Customers or users]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Clientes ou utilizadores]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[Revenue or growth]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Receitas ou crescimento]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Team: who you are]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Equipa: quem somos]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[Milestones so far]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Marcos alcançados até agora]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The ask</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O pedido</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[What you need, how much, and what it will do]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[O que precisa, quanto e para quê]</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>[Project name] status update</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Atualização de estado: [Nome do projeto]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Date]  |  [Your name]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Data]  |  [O seu nome]</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Status: [on track, at risk, or late]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Estado: [em dia, em risco ou atrasado]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[One sentence on how the work is going]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Uma frase sobre o andamento do trabalho]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[The date the work will be done]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[A data em que o trabalho estará concluído]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Done and next</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Concluído e próximo</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+0"/>
         <location line="+0"/>
         <source>Done: [finished item]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Concluído: [item terminado]</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+0"/>
         <location line="+0"/>
         <source>Next: [planned item]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Próximo: [item planeado]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Risks and help needed</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Riscos e ajuda necessária</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[A risk, and what you are doing about it]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Um risco e o que está a fazer para o resolver]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[A decision you need, and from whom]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Uma decisão de que precisa e de quem]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[Help you are asking for]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Ajuda que está a pedir]</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>[Lesson title]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Título da lição]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Course or grade]  |  [Teacher]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Disciplina ou ano]  |  [Professor]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Today&apos;s goals</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objetivos de hoje</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[What students will be able to do by the end]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[O que os alunos serão capazes de fazer no final]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[A second goal]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Um segundo objetivo]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[A third goal]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Um terceiro objetivo]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Key ideas</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ideias principais</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[First idea]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Primeira ideia]</translation>
     </message>
     <message>
         <location line="+0"/>
         <location line="+1"/>
         <source>[An example that shows it]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Um exemplo que a demonstre]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[Second idea]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Segunda ideia]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Try it</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Experimente</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Describe the activity, and how long students have]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Descreva a atividade e quanto tempo os alunos têm]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Check your understanding</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Verifique a sua compreensão</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[A question for students to answer]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Uma pergunta para os alunos responderem]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[A second question]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Uma segunda pergunta]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[A question that asks them to explain why]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Uma pergunta que peça que expliquem porquê]</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>[Album title]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Título do álbum]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Place or occasion]  |  [Dates]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Local ou ocasião]  |  [Datas]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Caption for this photo]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Legenda para esta fotografia]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Caption for these photos]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Legenda para estas fotografias]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Caption for this moment]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Legenda para este momento]</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>[Presentation title]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Título da apresentação]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Your name]  |  [Date]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[O seu nome]  |  [Data]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[A heading that says the point]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Um título que resuma o ponto]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[A first point, in a short line]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Um primeiro ponto, numa linha curta]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[A second point]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Um segundo ponto]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[A third point]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Um terceiro ponto]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Two things side by side]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Duas coisas lado a lado]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Left: a point]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Esquerda: um ponto]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[Left: another point]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Esquerda: outro ponto]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Right: a point]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Direita: um ponto]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[Right: another point]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Direita: outro ponto]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Thank you]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Obrigado]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Email address or website]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Endereço de correio eletrónico ou site]</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>Pitch</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Apresentação</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Five slides that tell investors or partners what you do and what you need.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cinco diapositivos que indicam aos investidores ou parceiros o que faz e do que precisa.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Status Update</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Atualização de Estado</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A short report on where a project stands, what is next, and what could go wrong.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Um relatório breve sobre o ponto em que se encontra um projeto, os próximos passos e o que poderá correr mal.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Lesson</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Lição</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Goals, key ideas, an activity, and questions for a class.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Objetivos, ideias-chave, uma atividade e perguntas para uma turma.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Photo Album</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Álbum de Fotografias</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Pages with room for one, two, or three pictures, and a caption for each.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Páginas com espaço para uma, duas ou três imagens, e uma legenda para cada uma.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Minimal Light</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Minimalista Claro</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A plain white design with lots of room for your words.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Um design branco simples com muito espaço para as suas palavras.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Minimal Dark</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Minimalista Escuro</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A plain dark design that is easy on the eyes in a dim room.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Um design escuro simples, agradável para os olhos numa sala com pouca luz.</translation>
     </message>
 </context>
 <context>
@@ -6404,7 +6404,7 @@ Artigo da contracapa	4</translation>
         <location line="+13"/>
         <location line="+1"/>
         <source>Style area width in Draft and Outline views</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Largura da área de estilos nas vistas Rascunho e Vista de destaques</translation>
     </message>
     <message>
         <location line="+25"/>
@@ -7100,7 +7100,7 @@ Artigo da contracapa	4</translation>
     <message>
         <location line="+1"/>
         <source>text highlight colors couldn&apos;t be saved to .pub</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">as cores de realce de texto não puderam ser guardadas em .pub</translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
@@ -8372,17 +8372,17 @@ Guardar sem cópia de segurança?</translation>
     <message>
         <location line="-33"/>
         <source>Show the drawing grid on the page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mostrar a grelha de desenho na página</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Show alignment guides and snap objects to them</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mostrar guias de alinhamento e ajustar objetos a elas</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Hold Alt while dragging to leave snapping off.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mantenha Alt premido ao arrastar para desativar o ajuste.</translation>
     </message>
     <message>
         <location line="+30"/>
@@ -8551,42 +8551,42 @@ Guardar sem cópia de segurança?</translation>
     <message>
         <location line="+1"/>
         <source>Dark Blue</source>
-        <translation type="unfinished">Azul Escuro</translation>
+        <translation type="unfinished">Azul-escuro</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Dark Cyan</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ciano-escuro</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Dark Green</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Verde-escuro</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Dark Magenta</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Magenta-escuro</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Dark Red</source>
-        <translation type="unfinished">Vermelho Escuro</translation>
+        <translation type="unfinished">Vermelho-escuro</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Dark Yellow</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Amarelo-escuro</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Dark Gray</source>
-        <translation type="unfinished">Cinzento Escuro</translation>
+        <translation type="unfinished">Cinzento-escuro</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Light Gray</source>
-        <translation type="unfinished">Cinzento Claro</translation>
+        <translation type="unfinished">Cinzento-claro</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -9592,7 +9592,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
     <message>
         <location filename="../apps/deck/io/odpexport_motion.cpp" line="+601"/>
         <source>Effects that start when an object is clicked were left out where the object is not on the slide.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Os efeitos que se iniciam ao clicar num objeto foram omitidos quando o objeto não está no diapositivo.</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -9785,8 +9785,8 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
         <location line="+60"/>
         <source>The animations of %n slide(s) were left out.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>As animações de %n diapositivo foram omitidas.</numerusform>
+            <numerusform>As animações de %n diapositivos foram omitidas.</numerusform>
         </translation>
     </message>
     <message>
@@ -11136,7 +11136,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
     <message>
         <location line="+34"/>
         <source>%1: parts of the %2 that name shapes that are gone were left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1: partes de %2 que referem formas que já não existem foram omitidas.</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -12108,7 +12108,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
     <message>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="+1211"/>
         <source>Some of the shapes have text. Merging removes the text of every shape but the first one you selected. Merge anyway?</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Algumas das formas contêm texto. Unir remove o texto de todas as formas, exceto da primeira que selecionou. Unir mesmo assim?</translation>
     </message>
 </context>
 <context>
@@ -15034,7 +15034,7 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
     <message>
         <location line="+2"/>
         <source>Grid</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Grelha</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -15524,17 +15524,17 @@ Pretende transferi-lo de %2 agora? (%3, uma única vez.)</translation>
     <message>
         <location line="+20"/>
         <source>Data Bars</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Barras de Dados</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Color Scales</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Escalas de Cores</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Icon Sets</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Conjuntos de Ícones</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -16300,7 +16300,7 @@ Abra-o no seu programa de correio eletrónico, adicione os destinatários e envi
     <message>
         <location line="+3"/>
         <source>data bars, color scales, and icon sets</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">barras de dados, escalas de cores e conjuntos de ícones</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -19587,135 +19587,135 @@ Paginação eletrónica</translation>
         <location line="+14"/>
         <location line="+36"/>
         <source>[Your Name]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[O Seu Nome]</translation>
     </message>
     <message>
         <location line="-145"/>
         <source>[Street Address, City, State ZIP]  |  [Phone number]  |  [Email address]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Morada, Cidade, Código Postal]  |  [Número de telefone]  |  [Endereço de correio eletrónico]</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+59"/>
         <source>Profile</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Perfil</translation>
     </message>
     <message>
         <location line="-58"/>
         <location line="+59"/>
         <source>[Two or three sentences: who you are, what you do best, and the kind of work you want next.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Duas ou três frases: quem é, o que faz melhor e o tipo de trabalho que procura a seguir.]</translation>
     </message>
     <message>
         <location line="-56"/>
         <location line="+59"/>
         <source>[Job Title], [Company]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Cargo], [Empresa]</translation>
     </message>
     <message>
         <location line="-59"/>
         <location line="+59"/>
         <source>[Start year] - [End year]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Ano de início] - [Ano de fim]</translation>
     </message>
     <message>
         <location line="-58"/>
         <location line="+6"/>
         <location line="+53"/>
         <source>[City, State]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Cidade, Distrito]</translation>
     </message>
     <message>
         <location line="-58"/>
         <location line="+59"/>
         <source>[Start with a verb and say what you did and what came of it. Use a number where you can.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Comece com um verbo e diga o que fez e o resultado. Use um número sempre que possível.]</translation>
     </message>
     <message>
         <location line="-58"/>
         <location line="+59"/>
         <source>[Name a project you led, a problem you solved, or a goal you met.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Indique um projeto que liderou, um problema que resolveu ou um objetivo que atingiu.]</translation>
     </message>
     <message>
         <location line="-56"/>
         <source>[Degree], [School]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Grau], [Escola]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[Year]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Ano]</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>[Skill], [Skill], [Skill], [Skill], [Skill]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Competência], [Competência], [Competência], [Competência], [Competência]</translation>
     </message>
     <message>
         <location line="+31"/>
         <source>Contact</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Contacto</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+91"/>
         <location line="+44"/>
         <source>[Street Address]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Morada]</translation>
     </message>
     <message>
         <location line="-134"/>
         <location line="+91"/>
         <location line="+44"/>
         <source>[City, State ZIP]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Cidade, Código Postal]</translation>
     </message>
     <message>
         <location line="-134"/>
         <source>[Phone number]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Número de telefone]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Email address]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Endereço de correio eletrónico]</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>[Skill]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Competência]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Languages</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Idiomas</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+1"/>
         <source>[Language and level]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Idioma e nível]</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>[Degree]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Grau]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[School, year]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Escola, ano]</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>[The job title you want, or the one you have]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[O cargo que pretende, ou o que tem atualmente]</translation>
     </message>
     <message>
         <location line="+37"/>
         <source>[Phone number]  |  [Email address]  |  [City, State]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Número de telefone]  |  [Endereço de correio eletrónico]  |  [Cidade, Distrito]</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -19726,120 +19726,120 @@ Paginação eletrónica</translation>
         <location line="+59"/>
         <location line="+29"/>
         <source>[Date]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Data]</translation>
     </message>
     <message>
         <location line="-228"/>
         <source>[Hiring Manager&apos;s Name]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Nome do Responsável pela Contratação]</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+36"/>
         <source>[Title]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Título]</translation>
     </message>
     <message>
         <location line="-35"/>
         <location line="+36"/>
         <source>[Company or Organization]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Empresa ou Organização]</translation>
     </message>
     <message>
         <location line="-35"/>
         <location line="+91"/>
         <source>[Street Address, City, State ZIP]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Morada, Cidade, Código-postal]</translation>
     </message>
     <message>
         <location line="-90"/>
         <source>Re: [The job you are applying for]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ref.: [A vaga a que se candidata]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Dear [Hiring Manager&apos;s Name],</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Caro(a) [Nome do Responsável pela Contratação],</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Open with the job you want and one reason you are a strong fit. Say how you heard about it.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Comece com a vaga que pretende e com uma razão pela qual é um bom perfil. Indique como teve conhecimento da vaga.]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Say what you bring: two or three things you have done that match what the job asks for. Give a number or a result for each.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Indique o que traz: duas ou três realizações que correspondam ao que a vaga exige. Apresente um número ou um resultado para cada uma.]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Say why this company. Show that you know what it does and why the work matters to you.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Explique porque escolheu esta empresa. Mostre que conhece a sua atividade e porque é que o trabalho lhe interessa.]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Close by asking for a conversation, and thank the reader for the time.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Termine pedindo uma conversa e agradeça ao leitor o tempo dispensado.]</translation>
     </message>
     <message>
         <location line="+27"/>
         <source>[Recipient Name]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Nome do Destinatário]</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Re: [What the letter is about]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ref.: [Assunto da carta]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Dear [Recipient Name]:</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Caro(a) [Nome do Destinatário]:</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[State your purpose in the first sentence. A business reader wants to know at once why you are writing.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Indique o objetivo na primeira frase. Um leitor profissional quer saber de imediato porque está a escrever.]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Give the details: what you are offering or asking, the dates and amounts that matter, and anything the reader must do.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Apresente os detalhes: o que oferece ou pede, as datas e os montantes relevantes e qualquer ação que o leitor tenha de realizar.]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Close with the next step, who will take it, and how to reach you.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Termine com o próximo passo, quem o vai dar e como pode ser contactado.]</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>[Your Title]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[O Seu Cargo]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Enclosure: [what is enclosed]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Anexo: [o que está anexado]</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>[Company Name]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Nome da Empresa]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Street Address]  |  [City, State ZIP]  |  [Phone number]  |  [Website]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Morada]  |  [Cidade, Código-postal]  |  [Número de telefone]  |  [Sítio Web]</translation>
     </message>
     <message>
         <location line="+30"/>
         <source>[Your Company Name]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Nome da Sua Empresa]</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>[Phone number]  |  [Email address]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Número de telefone]  |  [Endereço de correio eletrónico]</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -19849,100 +19849,100 @@ Paginação eletrónica</translation>
     <message>
         <location line="+4"/>
         <source>[Client Name]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Nome do Cliente]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Invoice number</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Número da fatura</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[0001]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[0001]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Client Company]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Empresa Cliente]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Invoice date</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Data da fatura</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Due date</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Data de vencimento</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>[Describe the item or service]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Descreva o artigo ou serviço]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[1]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[1]</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+0"/>
         <source>[0.00]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[0,00]</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Subtotal	[0.00]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Subtotal	[0,00]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Tax	[0.00]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Imposto	[0,00]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Total due	[0.00]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Total a pagar	[0,00]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Payment terms</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Condições de pagamento</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Say when payment is due and how to pay: a bank transfer, a check address, or a payment link.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Indique quando o pagamento vence e como pagar: por transferência bancária, morada para envio de cheque ou ligação de pagamento.]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Thank you for your business.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Obrigado pela sua preferência.</translation>
     </message>
     <message>
         <location line="+23"/>
         <location line="+173"/>
         <source>Meeting Agenda</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ordem de Trabalhos da Reunião</translation>
     </message>
     <message>
         <location line="-172"/>
         <location line="+44"/>
         <source>[Meeting name or topic]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Nome ou tema da reunião]</translation>
     </message>
     <message>
         <location line="-40"/>
         <source>Location</source>
-        <translation type="unfinished">Localização</translation>
+        <translation type="unfinished">Local</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[Room, address, or meeting link]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Sala, morada ou ligação para a reunião]</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -19953,191 +19953,191 @@ Paginação eletrónica</translation>
     <message>
         <location line="-6"/>
         <source>[Start time] to [End time]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Hora de início] às [Hora de fim]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Facilitator</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Moderador</translation>
     </message>
     <message>
         <location line="+0"/>
         <location line="+10"/>
         <location line="+48"/>
         <source>[Name]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Nome]</translation>
     </message>
     <message>
         <location line="-57"/>
         <source>Attendees</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Participantes</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Names of the people who are invited]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Nomes das pessoas convocadas]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Agenda</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ordem de Trabalhos</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Topic</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tema</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Led by</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dirigido por</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>[5 min]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[5 min]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[What will be covered, and what you need from the group]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[O que será abordado e o que se espera do grupo]</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Before the meeting</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Antes da reunião</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[A document to read, or something to prepare]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Um documento para ler ou algo para preparar]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Something to bring]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Algo para trazer]</translation>
     </message>
     <message>
         <location line="+23"/>
         <location line="+130"/>
         <source>Meeting Notes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Notas da Reunião</translation>
     </message>
     <message>
         <location line="-128"/>
         <source>Date:	[Date], [Start time] to [End time]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Data:	[Data], [Hora de início] às [Hora de fim]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Location:	[Room, address, or meeting link]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Local:	[Sala, morada ou ligação para a reunião]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Present:	[Names of the people who came]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Presentes:	[Nomes das pessoas que compareceram]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Absent:	[Names of the people who did not]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ausentes:	[Nomes das pessoas que não compareceram]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Notes by:	[Name]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Notas de:	[Nome]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Discussion</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Discussão</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[First topic]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Primeiro tema]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[What was said, in a few lines. Write down reasons and numbers, not every word.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[O que foi dito, em poucas linhas. Registe razões e números, não cada palavra.]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Second topic]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Segundo tema]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[What was said, in a few lines.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[O que foi dito, em poucas linhas.]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Decisions</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Decisões</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+1"/>
         <source>[What was decided, and why]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[O que foi decidido e porquê]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Action items</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ações a tomar</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Action</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ação</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Owner</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Responsável</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Due</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Prazo</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>[What needs to be done]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[O que precisa de ser feito]</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Next meeting</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Próxima reunião</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Date, time, and place, and what the group will cover]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Data, hora e local, e o que o grupo vai abordar]</translation>
     </message>
     <message>
         <location line="+21"/>
         <source>[Report Title]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Título do Relatório]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[A line about what the report covers]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Uma linha sobre o que o relatório abrange]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Prepared by [Your Name]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Preparado por [O Seu Nome]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Team or Organization]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Equipa ou Organização]</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -20147,102 +20147,102 @@ Paginação eletrónica</translation>
     <message>
         <location line="+4"/>
         <source>[Give the main points in a few sentences. A reader who stops here should know what you found and what you suggest.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Apresente os pontos principais em algumas frases. Um leitor que pare aqui deve saber o que descobriu e o que sugere.]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Introduction</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Introdução</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Say why the report was written, who it is for, and what the reader needs to know first.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Explique porque foi escrito o relatório, para quem se destina e o que o leitor precisa de saber primeiro.]</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>[First finding]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Primeira conclusão]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Describe what you found. Add numbers, a table, or a picture where they help.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Descreva o que encontrou. Acrescente números, uma tabela ou uma imagem, quando ajudarem.]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Second finding]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Segunda conclusão]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Describe the next point in the same way.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Descreva o ponto seguinte da mesma forma.]</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>[List what should be done, who should do it, and by when.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Indique o que deve ser feito, quem deve fazê-lo e até quando.]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Appendix</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Anexo</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Put long tables, sources, and other detail here.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Coloque aqui tabelas extensas, fontes e outros detalhes.]</translation>
     </message>
     <message>
         <location line="+31"/>
         <source>[Event or Offer Name]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Nome do Evento ou da Oferta]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[One line that says what it is]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Uma linha que diga o que é]</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>[A short, bold line that gives people a reason to come]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Uma linha curta e em negrito que dê às pessoas um motivo para vir]</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>When</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Quando</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Cost</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Custo</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Day, date, and time]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Dia, data e hora]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[Place and address]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Local e morada]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[Price, or Free]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Preço, ou Grátis]</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>[Two or three sentences about what people will see, learn, or get. Keep it short: a flyer is read in seconds.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Duas ou três frases sobre o que as pessoas vão ver, aprender ou obter. Seja breve: um folheto é lido em segundos.]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Phone number]   |   [Email address]   |   [Website]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Número de telefone]   |   [Endereço de correio eletrónico]   |   [Website]</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -20259,27 +20259,27 @@ Paginação eletrónica</translation>
     <message>
         <location line="-2"/>
         <source>A personal letter with your address at the top.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Uma carta pessoal com a sua morada no topo.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Cover Letter</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Carta de Apresentação</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A letter that goes with a resume when you apply for a job.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Uma carta que acompanha o currículo quando se candidata a um emprego.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Business Letter</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Carta Comercial</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A formal letter with your company name at the top and its address at the bottom.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Uma carta formal com o nome da sua empresa no topo e a respetiva morada no fundo.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -20296,22 +20296,22 @@ Paginação eletrónica</translation>
     <message>
         <location line="-2"/>
         <source>A short report with a title and numbered pages.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Um relatório curto com título e páginas numeradas.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Report with Cover Page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Relatório com Capa</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A longer report with a cover page and a table of contents that fills in from your headings.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Um relatório mais longo com capa e um índice que se preenche a partir dos seus títulos.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A one-page brief with To, From, Date, and Subject lines.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Uma nota de uma página com as linhas Para, De, Data e Assunto.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -20323,69 +20323,69 @@ Paginação eletrónica</translation>
         <location line="+1"/>
         <location line="+1"/>
         <source>Writing and publications</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Escrita e publicações</translation>
     </message>
     <message>
         <location line="-2"/>
         <source>Double-spaced pages for a story or a book.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Páginas com espaçamento duplo para uma história ou um livro.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A masthead and two columns of stories.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cabeçalho e duas colunas de artigos.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Flyer</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Folheto</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A one-page flyer for an event, a sale, or a service.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Um folheto de uma página para um evento, uma promoção ou um serviço.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Resume</source>
-        <translation type="unfinished">Retomar</translation>
+        <translation type="unfinished">Currículo</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A classic one-page resume.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Um currículo clássico de uma página.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Resume with Side Column</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Currículo com Coluna Lateral</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A resume with your contact details and skills in a column at the side.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Um currículo com os seus contactos e competências numa coluna lateral.</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+1"/>
         <location line="+1"/>
         <source>Business</source>
-        <translation type="unfinished">Negócios</translation>
+        <translation type="unfinished">Comercial</translation>
     </message>
     <message>
         <location line="-2"/>
         <source>A bill for your work, with a table for the items and the total.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Uma fatura pelo seu trabalho, com uma tabela para os artigos e o total.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The time, place, and topics of a meeting, with who leads each one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">A hora, o local e os temas de uma reunião, com quem conduz cada um.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A place to write down what was said, what was decided, and who does what next.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Um espaço para registar o que foi dito, o que foi decidido e quem faz o quê a seguir.</translation>
     </message>
     <message>
         <location line="-6"/>
@@ -21530,17 +21530,17 @@ Paginação eletrónica</translation>
     <message>
         <location line="+195"/>
         <source>When %1 is clicked</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Quando %1 for clicado</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>When the pointer is over %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Quando o ponteiro estiver sobre %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Effects that start from %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Efeitos que começam em %1</translation>
     </message>
 </context>
 <context>
@@ -21548,7 +21548,7 @@ Paginação eletrónica</translation>
     <message>
         <location filename="../libs/shell/app/appliedformatpane.cpp" line="+47"/>
         <source>Plus: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mais: %1</translation>
     </message>
 </context>
 <context>
@@ -24281,17 +24281,17 @@ Origem: %3</translation>
     <message>
         <location filename="../apps/crunch/app/condlook.cpp" line="+131"/>
         <source>Keep the current look</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Manter o aspeto atual</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Custom Format</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Formato Personalizado</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Custom Format...</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Formato Personalizado...</translation>
     </message>
 </context>
 <context>
@@ -24300,7 +24300,7 @@ Origem: %3</translation>
         <location line="+73"/>
         <location line="+10"/>
         <source>AaBbCcYyZz</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">AaBbCcYyZz</translation>
     </message>
 </context>
 <context>
@@ -24308,22 +24308,22 @@ Origem: %3</translation>
     <message>
         <location filename="../apps/crunch/app/condrulesdialog.cpp" line="+393"/>
         <source>Manage Rules</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gerir Regras</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>New Rule…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nova Regra…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Edit Rule…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Editar Regra…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Delete Rule</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Eliminar Regra</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -24338,7 +24338,7 @@ Origem: %3</translation>
     <message>
         <location line="+4"/>
         <source>Rule</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Regra</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -24348,17 +24348,17 @@ Origem: %3</translation>
     <message>
         <location line="+0"/>
         <source>Applies to</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Aplica-se a</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Stop if true</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Parar se for verdadeiro</translation>
     </message>
     <message>
         <location line="+51"/>
         <source>AaBbCcYyZz</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">AaBbCcYyZz</translation>
     </message>
 </context>
 <context>
@@ -24367,122 +24367,122 @@ Origem: %3</translation>
         <location line="-598"/>
         <location line="+175"/>
         <source>Cell value</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Valor da célula</translation>
     </message>
     <message>
         <location line="-174"/>
         <source>Text that contains</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Texto que contém</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Text that does not contain</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Texto que não contém</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Text that begins with</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Texto que começa por</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Text that ends with</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Texto que termina em</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A date occurring</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Uma data que ocorre</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Blank cells</source>
-        <translation type="unfinished">Células em branco</translation>
+        <translation type="unfinished">Células vazias</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Cells that are not blank</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Células que não estão vazias</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Cells with errors</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Células com erros</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Cells without errors</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Células sem erros</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Top items</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Itens superiores</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Bottom items</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Itens inferiores</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Top percent</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Percentagem superior</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Bottom percent</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Percentagem inferior</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Above average</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Acima da média</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Below average</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Abaixo da média</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Duplicate values</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Valores duplicados</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Unique values</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Valores exclusivos</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A formula</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Uma fórmula</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Color scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Escala de cores</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Data bar</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Barra de dados</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Icon set</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Conjunto de ícones</translation>
     </message>
     <message>
         <location line="+28"/>
         <source>greater than</source>
-        <translation type="unfinished">maior do que</translation>
+        <translation type="unfinished">maior que</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>less than</source>
-        <translation type="unfinished">menor do que</translation>
+        <translation type="unfinished">menor que</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -24537,7 +24537,7 @@ Origem: %3</translation>
     <message>
         <location line="+1"/>
         <source>Percentile</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Percentil</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -24554,22 +24554,22 @@ Origem: %3</translation>
     <message>
         <location line="-223"/>
         <source>Edit Rule</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Editar Regra</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>New Rule</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nova Regra</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>Format cells with</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Formatar células com</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>The cells that meet this are formatted.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">As células que cumprem esta condição são formatadas.</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -24589,17 +24589,17 @@ Origem: %3</translation>
     <message>
         <location line="+5"/>
         <source>Dates</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Datas</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>How many</source>
-        <translation type="unfinished">Quantos</translation>
+        <translation type="unfinished">Quantas</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Formula that is true for the cells to format</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Fórmula que é verdadeira para as células a formatar</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -24609,37 +24609,37 @@ Origem: %3</translation>
     <message>
         <location line="+1"/>
         <source>Stop if true</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Parar se for verdadeiro</translation>
     </message>
     <message>
         <location line="+59"/>
         <source>Use three colors</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Utilizar três cores</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Lowest</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mínimo</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Midpoint</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ponto médio</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Highest</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Máximo</translation>
     </message>
     <message>
         <location line="+61"/>
         <source>Shortest bar</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Barra mais curta</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Longest bar</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Barra mais longa</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -24659,7 +24659,7 @@ Origem: %3</translation>
     <message>
         <location line="+3"/>
         <source>Bar color</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cor da barra</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -24669,22 +24669,22 @@ Origem: %3</translation>
     <message>
         <location line="+12"/>
         <source>Same color as positive bars</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mesma cor das barras positivas</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Negative bar color</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cor da barra negativa</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Middle of the cell</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">No meio da célula</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>No axis</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sem eixo</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -24704,32 +24704,32 @@ Origem: %3</translation>
     <message>
         <location line="+2"/>
         <source>Bar direction</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Direção da barra</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Show bar only</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mostrar apenas a barra</translation>
     </message>
     <message>
         <location line="+18"/>
         <source>Icon style</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Estilo do ícone</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Reverse icon order</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Inverter ordem dos ícones</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Show icon only</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mostrar apenas o ícone</translation>
     </message>
     <message>
         <location line="+41"/>
         <source>When value is</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Quando o valor for</translation>
     </message>
 </context>
 <context>
@@ -25747,12 +25747,12 @@ Origem: %3</translation>
     <message>
         <location line="+19"/>
         <source>Use English function names</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Utilizar nomes de funções em inglês</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Type and read formulas with English names such as SUM and IF, not the names of the display language. Workbooks are saved the same either way.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Escreva e leia as fórmulas com nomes em inglês, como SUM e IF, e não com os nomes do idioma de apresentação. As folhas de cálculo são guardadas da mesma forma em qualquer dos casos.</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -31877,7 +31877,7 @@ Não é possível ler o ficheiro.</translation>
     <message>
         <location line="+1"/>
         <source>A Date Occurring…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Uma Data que Ocorre…</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -31892,22 +31892,22 @@ Não é possível ler o ficheiro.</translation>
     <message>
         <location line="+11"/>
         <source>Gradient Fill, %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Preenchimento com Gradação, %1</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Solid Fill, %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Preenchimento Sólido, %1</translation>
     </message>
     <message>
         <location line="+24"/>
         <source>New Rule…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nova Regra…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Manage Rules…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gerir Regras…</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -31922,12 +31922,12 @@ Não é possível ler o ficheiro.</translation>
     <message>
         <location line="+10"/>
         <source>Gradient Fill</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Preenchimento com Gradação</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Solid Fill</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Preenchimento Sólido</translation>
     </message>
     <message>
         <location line="+23"/>
@@ -33467,67 +33467,67 @@ Não é possível ler o ficheiro.</translation>
     <message>
         <location filename="../apps/crunch/app/condpresets.cpp" line="+7"/>
         <source>Green - Yellow - Red Color Scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Escala de Cores Verde - Amarelo - Vermelho</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Red - Yellow - Green Color Scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Escala de Cores Vermelho - Amarelo - Verde</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Green - White - Red Color Scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Escala de Cores Verde - Branco - Vermelho</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Red - White - Green Color Scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Escala de Cores Vermelho - Branco - Verde</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Blue - White - Red Color Scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Escala de Cores Azul - Branco - Vermelho</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Red - White - Blue Color Scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Escala de Cores Vermelho - Branco - Azul</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>White - Red Color Scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Escala de Cores Branco - Vermelho</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Red - White Color Scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Escala de Cores Vermelho - Branco</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Green - White Color Scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Escala de Cores Verde - Branco</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>White - Green Color Scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Escala de Cores Branco - Verde</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Green - Yellow Color Scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Escala de Cores Verde - Amarelo</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Yellow - Green Color Scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Escala de Cores Amarelo - Verde</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Directional</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Direcionais</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -33537,112 +33537,112 @@ Não é possível ler o ficheiro.</translation>
     <message>
         <location line="+1"/>
         <source>Indicators</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Indicadores</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Ratings</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Classificações</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>3 Arrows (Colored)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">3 Setas (Coloridas)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>3 Arrows (Gray)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">3 Setas (Cinzentas)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>3 Triangles</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">3 Triângulos</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>4 Arrows (Colored)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">4 Setas (Coloridas)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>4 Arrows (Gray)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">4 Setas (Cinzentas)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>5 Arrows (Colored)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">5 Setas (Coloridas)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>5 Arrows (Gray)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">5 Setas (Cinzentas)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>3 Traffic Lights (No Border)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">3 Semáforos (Sem Contorno)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>3 Traffic Lights (with Border)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">3 Semáforos (com Contorno)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>3 Signs</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">3 Sinais</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>4 Traffic Lights</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">4 Semáforos</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Red to Black</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Vermelho para Preto</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>3 Symbols (in Circles)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">3 Símbolos (em Círculos)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>3 Symbols (Plain)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">3 Símbolos (Simples)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>3 Flags</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">3 Bandeiras</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>3 Stars</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">3 Estrelas</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>4 Ratings</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">4 Classificações</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>5 Ratings</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">5 Classificações</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>5 Quarters</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">5 Quartos</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>5 Boxes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">5 Caixas</translation>
     </message>
     <message>
         <location line="+49"/>
@@ -33662,37 +33662,37 @@ Não é possível ler o ficheiro.</translation>
     <message>
         <location line="+0"/>
         <source>In the last 7 days</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nos últimos 7 dias</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Last week</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Semana passada</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>This week</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Esta semana</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Next week</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Próxima semana</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Last month</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mês passado</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This month</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Este mês</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Next month</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Próximo mês</translation>
     </message>
     <message>
         <location line="+16"/>
@@ -33707,128 +33707,128 @@ Não é possível ler o ficheiro.</translation>
     <message>
         <location line="+6"/>
         <source>Cell value %1 %2 and %3</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Valor da célula %1 %2 e %3</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Cell value %1 %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Valor da célula %1 %2</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Formula: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Fórmula: %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Three-color scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Escala de três cores</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Two-color scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Escala de duas cores</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Data bar (gradient fill)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Barra de dados (preenchimento com gradação)</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Data bar (solid fill)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Barra de dados (preenchimento sólido)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Icon set: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Conjunto de ícones: %1</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Bottom %1 percent</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Últimos %1 por cento</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Top %1 percent</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Primeiros %1 por cento</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Bottom items: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Últimos itens: %1</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Top items: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Primeiros itens: %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Unique values</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Valores únicos</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Duplicate values</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Valores duplicados</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Text contains &quot;%1&quot;</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O texto contém &quot;%1&quot;</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Text does not contain &quot;%1&quot;</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O texto não contém &quot;%1&quot;</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Text begins with &quot;%1&quot;</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O texto começa por &quot;%1&quot;</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Text ends with &quot;%1&quot;</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O texto termina em &quot;%1&quot;</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Cells that are not blank</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Células que não estão vazias</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Cells with errors</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Células com erros</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Cells without errors</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Células sem erros</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Dates: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Datas: %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <location filename="../apps/crunch/app/crunchwindow_cond.cpp" line="-43"/>
         <source>Dates</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Datas</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Above average</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Acima da média</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Below average</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Abaixo da média</translation>
     </message>
     <message>
         <location line="+57"/>
@@ -35932,7 +35932,7 @@ Não é possível ler o ficheiro.</translation>
     <message>
         <location line="+7"/>
         <source>Templates</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Modelos</translation>
     </message>
     <message>
         <location line="+24"/>
@@ -36558,7 +36558,7 @@ Não é possível ler o ficheiro.</translation>
     <message>
         <location line="+12"/>
         <source>Reading View is for reading. Press Esc, or choose another view, to make changes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">A Vista de Leitura serve para ler. Prima Esc ou escolha outra vista para fazer alterações.</translation>
     </message>
     <message>
         <location line="+27"/>
@@ -39668,7 +39668,7 @@ Não é possível ler o ficheiro.</translation>
         <location line="+1"/>
         <location line="+314"/>
         <source>When an Object Is Clicked</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Quando um Objeto É Clicado</translation>
     </message>
     <message>
         <location line="-313"/>
@@ -39678,7 +39678,7 @@ Não é possível ler o ficheiro.</translation>
     <message>
         <location line="+171"/>
         <source>Effects that waited for a click on the deleted object now play in the main sequence.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Os efeitos que aguardavam um clique no objeto eliminado são agora reproduzidos na sequência principal.</translation>
     </message>
     <message>
         <location line="+34"/>
@@ -39904,7 +39904,7 @@ Não é possível ler o ficheiro.</translation>
     <message>
         <location line="+2"/>
         <source>Reading View</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Vista de Leitura</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -39924,27 +39924,27 @@ Não é possível ler o ficheiro.</translation>
     <message>
         <location line="+174"/>
         <source>Go back one step or slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Recuar um passo ou diapositivo</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Go forward one step or slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Avançar um passo ou diapositivo</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Show Menu</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Mostrar Menu</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Open the menu for going to a slide, the pointer, the screen, and ending the show</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Abrir o menu para ir para um diapositivo, o ponteiro, o ecrã e terminar a apresentação</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>End of the show</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Fim da apresentação</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_help.cpp" line="+28"/>
@@ -44333,7 +44333,7 @@ Não é possível ler o ficheiro.</translation>
     <message>
         <location line="-776"/>
         <source>Custom Format</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Formato Personalizado</translation>
     </message>
     <message>
         <location line="+122"/>
@@ -57261,7 +57261,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
     <message>
         <location line="+2"/>
         <source>Drag a point to reshape. Ctrl+click a point to delete it, or an edge to add one. Shift+click puts a glue point for connectors on the shape, or takes it away. Press Esc when done.</source>
-        <translation type="unfinished">Arraste um ponto para remodelar. Ctrl+clique num ponto para o eliminar, ou numa aresta para adicionar um. Shift+clique coloca um ponto de conexão para conexões na forma, ou remove-o. Prima Esc quando terminar.</translation>
+        <translation type="unfinished">Arraste um ponto para remodelar. Ctrl+clique num ponto para o eliminar ou numa aresta para adicionar um. Shift+clique coloca ou retira um ponto de colagem para conexões na forma. Prima Esc quando terminar.</translation>
     </message>
     <message>
         <location line="-93"/>
@@ -57308,7 +57308,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
     <message>
         <location line="+5"/>
         <source>More than one of the shapes has text. Merging removes the text of all of them. Merge anyway?</source>
-        <translation type="unfinished">Mais do que uma das formas tem texto. Ao unir, o texto de todas é removido. Unir mesmo assim?</translation>
+        <translation type="unfinished">Mais de uma das formas tem texto. Unir remove o texto de todas. Pretende unir mesmo assim?</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -57544,52 +57544,52 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
     <message>
         <location line="+13"/>
         <source>Next slide or step: Right, Down, Space, Enter, Page Down, N, or a click.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Diapositivo ou passo seguinte: Direita, Baixo, Espaço, Enter, Page Down, N ou um clique.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Previous slide or step: Left, Up, Backspace, Page Up, or P.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Diapositivo ou passo anterior: Esquerda, Cima, Backspace, Page Up ou P.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>First or last slide: Home or End.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Primeiro ou último diapositivo: Home ou End.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A slide by number: type the number, then press Enter.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Um diapositivo pelo número: escreva o número e prima Enter.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Black or white screen: B or W (or the period and comma keys).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ecrã preto ou branco: B ou W (ou as teclas de ponto final e de vírgula).</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Pen, highlighter, laser pointer, or arrow: %1, %2, %3, or %4.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Caneta, marcador, apontador laser ou seta: %1, %2, %3 ou %4.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Eraser, to remove ink as you drag: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Borracha, para remover tinta ao arrastar: %1.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Erase all ink on the slide at once: E, without Ctrl.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Apagar toda a tinta do diapositivo de uma só vez: E, sem Ctrl.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The menu: a right click, the Menu key, or Shift+F10.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O menu: clique com o botão direito, a tecla Menu ou Shift+F10.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Esc: put the pointer back to an arrow; press again to end the show.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Esc: repõe o ponteiro em seta; prima de novo para terminar a apresentação.</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -57614,7 +57614,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
     <message>
         <location line="+15"/>
         <source>Custom Show</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Apresentação Personalizada</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -57639,7 +57639,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
     <message>
         <location line="+2"/>
         <source>Slide Show Help</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ajuda da Apresentação de Diapositivos</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -58232,7 +58232,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
     <message>
         <location line="+7"/>
         <source>Style Inspector</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Inspetor de Estilos</translation>
     </message>
     <message>
         <location line="+126"/>
@@ -62621,7 +62621,7 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
     <message>
         <location line="+102"/>
         <source>The text of the other shapes was removed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O texto das outras formas foi removido.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_objects.cpp" line="+25"/>
@@ -65417,7 +65417,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <location line="+1"/>
         <location line="+78"/>
         <source>Style Inspector</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Inspetor de Estilos</translation>
     </message>
     <message>
         <location line="-77"/>
@@ -65492,32 +65492,32 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     <message>
         <location line="+0"/>
         <source>Text formatting</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Formatação de texto</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Clear Paragraph Formatting</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Limpar Formatação de Parágrafo</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Clear Character Style</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Limpar Estilo de Carácter</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Clear Character Formatting</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Limpar Formatação de Carácter</translation>
     </message>
     <message>
         <location line="+32"/>
         <source>Several styles in the selection</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Vários estilos na seleção</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Table style: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Estilo de tabela: %1</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -65527,12 +65527,12 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     <message>
         <location line="+1"/>
         <source>Several looks in the selection</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Vários estilos na seleção</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>(nothing of its own)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">(nada próprio)</translation>
     </message>
     <message>
         <location line="+35"/>
@@ -67069,17 +67069,17 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     <message>
         <location filename="../apps/write/app/writewindow_grid.cpp" line="+62"/>
         <source>Drawing Grid</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Grelha de Desenho</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The drawing grid is shown on the page.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">A grelha de desenho é apresentada na página.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>The drawing grid is hidden.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">A grelha de desenho está oculta.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -67089,7 +67089,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     <message>
         <location line="+2"/>
         <source>Snap to Grid is on: pictures, shapes, and text boxes go to the grid as you drag them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ajustar à Grelha está ativo: imagens, formas e caixas de texto ajustam-se à grelha ao arrastá-las.</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -67099,17 +67099,17 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     <message>
         <location line="+1"/>
         <source>Alignment Guides</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Guias de Alinhamento</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Alignment Guides are on: lines show when an object lines up with another object, the page, or the margins, and it snaps to them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">As Guias de Alinhamento estão ativas: surgem linhas quando um objeto se alinha com outro objeto, com a página ou com as margens, e ajusta-se a elas.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Alignment Guides are off.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">As Guias de Alinhamento estão desativadas.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -81341,12 +81341,12 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     <message>
         <location filename="../apps/write/core/styleinspect.cpp" line="+1"/>
         <source>Indents</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Avanços</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Spacing before or after</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Espaçamento antes ou depois</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -81356,12 +81356,12 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     <message>
         <location line="+1"/>
         <source>Tab stops</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Posições de tabulação</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Borders and shading</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Limites e sombreado</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -81381,17 +81381,17 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     <message>
         <location line="+1"/>
         <source>Outline level</source>
-        <translation type="unfinished">Nível de contorno</translation>
+        <translation type="unfinished">Nível do contorno</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Widow and orphan control</source>
-        <translation type="unfinished">Controlo de linhas isoladas e órfãs</translation>
+        <translation type="unfinished">Controlo de linhas órfãs e viúvas</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>No space between paragraphs of the same style</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sem espaço entre parágrafos do mesmo estilo</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -81401,7 +81401,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     <message>
         <location line="+1"/>
         <source>Numbering or bullets</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Numeração ou marcas</translation>
     </message>
     <message>
         <location line="+24"/>
@@ -81426,22 +81426,22 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     <message>
         <location line="+2"/>
         <source>Highlight</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Realce</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Capitals</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Maiúsculas</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Superscript or subscript</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Superior ou inferior à linha</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Raised or lowered</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Elevado ou abaixado</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -81451,7 +81451,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     <message>
         <location line="+1"/>
         <source>Character width</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Largura do carácter</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -81461,17 +81461,17 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     <message>
         <location line="+1"/>
         <source>Border around the text</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Limite em redor do texto</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Shadow or outline</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sombra ou contorno</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Emboss or engrave</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Relevo ou gravado</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -82733,7 +82733,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     <message>
         <location line="+28"/>
         <source>There is no group to put back. Regroup works after Ungroup, while its objects are still there.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Não há nenhum grupo para repor. Reagrupar funciona depois de Desagrupar, enquanto os seus objetos ainda existirem.</translation>
     </message>
     <message>
         <location line="+1025"/>
@@ -83434,12 +83434,12 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     <message>
         <location filename="../apps/write/app/stylearea.cpp" line="+59"/>
         <source>Style area</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Área de estilos</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The style of each paragraph, beside its first line.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">O estilo de cada parágrafo, ao lado da primeira linha.</translation>
     </message>
 </context>
 <context>
@@ -84300,7 +84300,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     <message>
         <location line="+1"/>
         <source>table styles (the tables are saved without their style)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">estilos de tabela (as tabelas são guardadas sem o respetivo estilo)</translation>
     </message>
 </context>
 <context>
@@ -84319,12 +84319,12 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     <message>
         <location filename="../apps/write/core/writedoc_export.cpp" line="+157"/>
         <source>table styles (the tables are saved without their style)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">estilos de tabela (as tabelas são guardadas sem o respetivo estilo)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>list styles (the lists are saved without their style)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">estilos de lista (as listas são guardadas sem o respetivo estilo)</translation>
     </message>
 </context>
 </TS>

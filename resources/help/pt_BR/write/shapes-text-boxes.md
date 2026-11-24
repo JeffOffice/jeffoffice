@@ -1,36 +1,36 @@
 # Formas e caixas de texto
-<!-- keywords: painel de seleção, ocultar objeto, renomear objeto, nome do objeto, forma, formas, caixa de texto, caixa de texto, retângulo, seta, estrela, texto explicativo, linha, desenhar, inserir forma, formato da forma, preenchimento, contorno, espessura, traços, girar, direção do texto, texto vertical, desenhar caixa de texto, alterar forma, editar texto, barra lateral, citação em destaque, faixa, estilos de forma, gradiente, alinhar, preenchimento com gradiente, agrupar, desagrupar, selecionar vários, preenchimento com imagem, texto artístico, distorção, tela de desenho, conector, conectar formas, colar, vincular caixas de texto, criar vínculo, quebrar vínculo, caixas de texto vinculadas, corrente, diagrama, diagramas, caixa de texto vinculada, forma livre, formas vinculadas -->
+<!-- keywords: grade de desenho, ajustar à grade, guias de alinhamento, guias, alinhar objetos, alinhar objetos, espaçamento da grade, painel de seleção, ocultar objeto, renomear objeto, nome do objeto, forma, formas, caixa de texto, caixa de texto, retângulo, seta, estrela, texto explicativo, linha, desenhar, inserir forma, formatar forma, preenchimento, contorno, espessura, traços, girar, direção do texto, texto vertical, desenhar caixa de texto, alterar forma, editar texto, barra lateral, citação em destaque, faixa, estilos de forma, gradiente, alinhar, preenchimento com gradiente, agrupar, desagrupar, selecionar várias, preenchimento com imagem, texto artístico, distorção, tela de desenho, conector, conectar formas, colar, vincular caixas de texto, criar vínculo, quebrar vínculo, caixas de texto vinculadas, corrente, diagrama, diagramas -->
 
-Uma **forma** é uma figura desenhada, como um retângulo, uma seta, uma estrela ou um balão de fala. Uma **caixa de texto** é uma forma que contém palavras. As duas flutuam sobre a página, e as palavras do documento contornam essas figuras. Este tópico mostra como inseri-las e alterá-las.
+Uma **forma** é uma figura desenhada, como um retângulo, uma seta, uma estrela ou um balão de fala. Uma **caixa de texto** é uma forma que contém palavras. Ambas flutuam sobre a página, e as palavras do documento contornam essas figuras. Este tópico mostra como inseri-las e alterá-las.
 
 ## Inserir uma forma
 
-1. Coloque o cursor onde a forma deve ficar ancorada. (A forma fica presa a esse parágrafo e se move com ele.)
-2. Clique em **Inserir > Formas** e escolha uma forma na lista. As formas são agrupadas: linhas, retângulos, formas básicas, setas de bloco, formas de equação, formas de fluxograma, estrelas e faixas, e textos explicativos.
+1. Posicione o cursor onde a forma deve ficar ancorada. (A forma fica presa a esse parágrafo e se move com ele.)
+2. Clique em **Inserir > Formas** e escolha uma forma na lista. As formas são organizadas em grupos: linhas, retângulos, formas básicas, setas de bloco, formas de equação, formas de fluxograma, estrelas e faixas, e textos explicativos.
 
-A forma aparece com suas alças, e a guia **Formato da Forma** é aberta. Ela é azul, com uma linha azul mais escura ao redor. As palavras contornam a forma, em quebra quadrada.
+A forma aparece com suas alças, e a guia **Formato da Forma** é aberta. Ela fica em azul, com uma linha azul mais escura ao redor. As palavras contornam a forma, em quebra de texto quadrada.
 
-Uma **linha** tem o comprimento de uma forma própria e não tem preenchimento. A **Seta** é uma linha com uma ponta na extremidade. **Seta em Cotovelo** dobra uma vez em ângulo reto, e **Seta Curva** dobra em uma curva suave. Ambas têm uma ponta na extremidade. Para unir duas formas com uma linha que permaneça unida, veja "Unir formas com um conector" mais adiante.
+Uma **linha** tem o comprimento de uma forma própria e não tem preenchimento. A **Seta** é uma linha com ponta na extremidade. **Seta Conectora em Cotovelo** faz uma curva única em ângulo reto, e **Seta Curva** faz uma curva suave. Ambas têm ponta na extremidade. Para unir duas formas com uma linha que permaneça unida, veja "Unir formas com um conector" mais adiante.
 
 ## Inserir uma caixa de texto
 
-Para desenhar uma, clique em **Inserir > Caixa de Texto > Desenhar Caixa de Texto** e arraste na página, de um canto até o canto oposto. Ao soltar, a caixa aparece na frente do texto, selecionada, com a aparência da Caixa de Texto Simples, e o cursor fica dentro dela para que você possa digitar imediatamente. Clique sem arrastar para inserir uma caixa de tamanho usual no ponto do clique. Mantenha Shift pressionado enquanto arrasta para deixar a caixa quadrada. Pressione Esc para parar sem desenhar. Desenhar uma caixa é uma única etapa para desfazer.
+Para desenhar uma, clique em **Inserir > Caixa de Texto > Desenhar Caixa de Texto** e arraste na página de um canto até o canto oposto. Ao soltar, a caixa aparece na frente do texto, selecionada, com a aparência da Caixa de Texto Simples, e o cursor fica dentro dela para que você possa digitar imediatamente. Clique sem arrastar para inserir uma caixa do tamanho usual no ponto do clique. Mantenha Shift pressionado ao arrastar para manter a caixa quadrada. Pressione Esc para parar sem desenhar. Desenhar uma caixa é uma única etapa para desfazer.
 
 Ou clique em **Inserir > Caixa de Texto** e escolha um modelo.
 
 - **Caixa de Texto Simples** tem uma linha fina ao redor. **Caixa de Texto Básica** não tem linha nem cor.
-- **Barra Lateral** é uma caixa alta e clara, para uma observação ao lado do texto.
+- **Barra Lateral** é uma caixa alta e clara, para uma nota ao lado do texto.
 - **Citação em Destaque** é um texto grande em itálico, sem moldura, para uma frase que você quer que as pessoas notem.
 - **Faixa** é uma barra escura atravessando a página, com palavras claras.
-- **Nota** é uma caixa amarelo-claro.
+- **Nota** é uma caixa amarelo-clara.
 
-Para girar as palavras, selecione a caixa de texto e clique em **Formato da Forma > Direção do Texto**. **Horizontal** é o modo usual. **Girar todo o texto 90°** põe as palavras na vertical, de cima para baixo, e **Girar todo o texto 270°** as põe de baixo para cima. A caixa mantém o seu tamanho, as palavras são recompostas, e a alteração é uma única etapa para desfazer. Uma caixa vinculada a outra mantém o seu vínculo. Um documento salvo como arquivo .odt também mantém a direção.
+Para girar as palavras, selecione a caixa de texto e clique em **Formato da Forma > Direção do Texto**. **Horizontal** é o modo usual. **Girar todo o texto 90°** faz as palavras descerem pela caixa, e **Girar todo o texto 270°** as faz subir. A caixa mantém seu tamanho, as palavras são recompostas, e a alteração é uma única etapa para desfazer. Uma caixa vinculada a outra mantém o vínculo. Um documento salvo como arquivo .odt também mantém a direção.
 
-Para alterar as palavras, selecione a caixa de texto e clique em **Formato da Forma > Editar Texto**. Digite as palavras. Cada linha digitada é um parágrafo. A janela pode editar uma caixa de texto que contenha apenas palavras. Se a caixa contiver uma tabela, uma imagem ou uma lista, o comando fica desativado e a caixa é mantida exatamente como estava.
+Para alterar as palavras, selecione a caixa de texto e clique em **Formato da Forma > Editar Texto**. Digite as palavras. Cada linha digitada é um parágrafo. A janela pode editar uma caixa de texto que contenha apenas palavras. Se a caixa contiver uma tabela, uma imagem ou uma lista, o comando fica desativado, e a caixa é mantida exatamente como estava.
 
 ## Alterar uma forma
 
-Clique na forma para selecioná-la. Arraste uma alça para mudar o tamanho, ou arraste a forma para movê-la. Em seguida, use a guia **Formato da Forma**.
+Clique na forma para selecioná-la. Arraste uma alça para alterar o tamanho, ou arraste a forma para movê-la. Depois use a guia **Formato da Forma**.
 
 - **Estilos de Forma** escolhe um preenchimento e uma linha ao mesmo tempo.
 - **Preenchimento da Forma** define a cor interna da forma. Escolha **Sem Preenchimento** para vê-la transparente.
@@ -40,22 +40,36 @@ Clique na forma para selecioná-la. Arraste uma alça para mudar o tamanho, ou a
 - **Preenchimento com Imagem** estica uma imagem de um arquivo sobre o interior da forma ou da caixa de texto. Para voltar a uma cor, use **Preenchimento da Forma**.
 - **Alinhar** alinha a forma às margens ou à página. Veja [Adicionar e alterar imagens](pictures).
 - **Alterar Forma** coloca outra forma no mesmo lugar, com o mesmo tamanho e as mesmas cores.
-- **Girar** gira a forma em um quarto de volta para a direita ou para a esquerda, ou a devolve sem giro.
+- **Girar** gira a forma em um quarto de volta para a direita ou para a esquerda, ou a devolve à posição sem rotação. Seu menu também tem **Inverter Verticalmente** e **Inverter Horizontalmente**, que espelham a forma (ou uma imagem, uma caixa de texto ou um grupo) de cima para baixo ou da esquerda para a direita. Escolha a mesma inversão novamente para desfazê-la. As palavras de uma forma ou caixa de texto nunca são espelhadas: elas continuam legíveis, e apenas o contorno, o preenchimento e a posição são invertidos. Um grupo que foi girado não pode ser invertido.
 - **Quebra de Texto** define como as palavras contornam a forma. Veja [Adicionar e alterar imagens](pictures) para o que cada opção significa.
 - **Texto Alternativo** descreve a forma para pessoas que não a veem. **Marcar como Decorativo** indica aos leitores de tela que devem ignorá-la.
 - **Altura** e **Largura** definem o tamanho em números.
 
 Cada alteração é uma única etapa para desfazer.
 
+## Mesclar formas
+
+Selecione duas ou mais formas ou caixas de texto que estejam posicionadas em um mesmo local da mesma página (clique na primeira e, em seguida, mantenha **Ctrl** pressionado e clique nas demais) e clique em **Formato da Forma > Inserir Formas > Mesclar Formas**. A nova forma tem o preenchimento, a linha, os efeitos, as palavras, a quebra de texto e o texto alternativo da forma que você selecionou primeiro, e fica onde estavam as antigas. As outras formas são removidas. Mesclar Formas fica desativado quando algo na seleção é uma imagem, um gráfico, um grupo, uma linha ou um Texto Artístico, está alinhado com o texto ou está em outra página.
+
+- **União** cria uma única forma com tudo o que as formas cobrem.
+- **Combinar** mantém o que apenas uma das formas cobre e recorta os pontos onde elas se sobrepõem.
+- **Subtrair** remove das outras formas a área da forma que você selecionou primeiro.
+- **Interseção** mantém apenas o que todas as formas cobrem.
+- **Fragmentar** corta as formas em todos os pedaços que elas formam. Cada pedaço é uma forma própria, com a aparência da primeira forma e sem palavras.
+
+Uma forma girada ou invertida é mesclada onde está na página. Os vazios continuam vazios. Você pode mesclar até 64 formas de uma vez, e um fragmento pode gerar até 256 partes. Uma mesclagem demorada mostra uma caixa com **Cancelar**, e as formas permanecem como estavam se você cancelar.
+
+As palavras da primeira forma permanecem com ela. Se alguma das outras formas tiver palavras, você será perguntado uma única vez antes que elas sejam removidas, e a barra de status informa isso depois. Cada mesclagem é uma etapa de Desfazer, e as novas formas ficam selecionadas. A nova forma é uma forma livre: **Editar Pontos** funciona sobre ela. Ela é salva em um arquivo .docx ou .odt como qualquer outra forma livre.
+
 ## Texto Artístico
 
-**Texto Artístico** são algumas palavras desenhadas em letras grandes e em negrito, que se curvam para formar uma figura, como uma onda ou um arco.
+**Texto Artístico** são algumas palavras desenhadas em letras grandes e em negrito que se curvam em uma forma, como uma onda ou um arco.
 
 1. Clique em **Inserir > Texto Artístico** e escolha um estilo. As palavras "Seu Texto Aqui" aparecem no cursor.
-2. Clique em **Formato da Forma > Editar Texto** e digite as suas palavras. Cada linha digitada é uma linha da arte.
-3. Clique em **Estilos de Texto Artístico** para experimentar outro visual, e em **Distorção de Texto** para escolher a forma em que as palavras se curvam. "Simples" as mantém retas.
+2. Clique em **Formato do Texto Artístico > Editar Texto** e digite suas próprias palavras. Cada linha digitada é uma linha da arte.
+3. Clique em **Estilos de Texto Artístico** para experimentar outra aparência, e em **Distorção de Texto** para escolher a forma em que as palavras se curvam. "Simples" as mantém retas.
 
-A arte se estica para preencher a sua moldura, então arraste uma alça para torná-la mais alta, mais larga ou menor. Cada alteração é uma única etapa para desfazer.
+A arte se estica para preencher a moldura, então arraste uma alça para torná-la mais alta, mais larga ou menor. Cada alteração é uma única etapa para desfazer.
 
 ## Tela de desenho
 
@@ -63,69 +77,84 @@ Uma **tela de desenho** é uma moldura para formas que pertencem juntas.
 
 1. Clique em **Inserir > Tela de Desenho**. Aparece uma moldura com uma linha tracejada clara.
 2. Coloque sobre ela as formas que desejar.
-3. Clique na tela, mantenha **Ctrl** pressionado e clique em cada forma, e então clique em **Agrupar**.
+3. Clique na tela, mantenha **Ctrl** pressionado e clique em cada forma, e clique em **Agrupar**.
 
-A tela e as suas formas passam a se mover e a mudar de tamanho como uma peça única.
+A tela e suas formas passam a se mover e a mudar de tamanho como uma única peça.
+
+## Alinhar objetos com a grade e as guias de alinhamento
+
+Duas opções na guia **Exibir**, no grupo **Grade**, ajudam a posicionar imagens, formas e caixas de texto exatamente onde você quer. Elas se aplicam a objetos posicionados em um ponto da página, e não a objetos que acompanham o texto. São escolhas suas, não parte do documento: permanecem as mesmas em todos os documentos e em todas as janelas, nunca são salvas em um arquivo e nunca são impressas.
+
+- **Grade de Desenho** mostra um padrão de pequenos pontos sobre cada página. Não é o mesmo que **Exibir Linhas de Grade**, que mostra as bordas das células de tabela.
+- **Ajustar à Grade** puxa um objeto em direção aos pontos enquanto você o arrasta ou redimensiona: suas bordas se encaixam nas linhas de pontos mais próximas.
+- **Guias de Alinhamento** desenha uma linha vermelha fina sempre que uma borda ou o centro do objeto que você arrasta fica alinhado com uma borda ou com o centro de outro objeto da mesma página, com a borda ou o centro da página, ou com uma margem. O objeto se ajusta à linha quando chega a poucos pixels dela.
+- **Grade e Guias** abre uma caixa em que você define o espaçamento entre os pontos, nas unidades escolhidas em Arquivo > Opções, e ativa ou desativa cada uma dessas opções.
+
+Mantenha **Alt** pressionado enquanto arrasta para desativar o encaixe apenas nesse arrastar. Um objeto girado se alinha pela menor caixa que contém tudo o que ele abrange. Nada se encaixa quando as duas opções estão desativadas.
+
+Se você também usa o JeffDeck, observe as diferenças. No JeffDeck, as guias de alinhamento ficam ativadas desde o início, a grade é guardada na apresentação, e uma linha-guia atravessa o slide inteiro. No JeffWrite, as três opções começam desativadas, são suas neste computador, e uma linha-guia permanece na página em que você está arrastando.
 
 ## Unir formas com um conector
 
-Um **conector** é uma linha ou uma seta que permanece unida a duas formas. Quando você move uma das formas ou altera o seu tamanho, o conector move a sua extremidade para acompanhá-la.
+Um **conector** é uma linha ou seta que permanece unida a duas formas. Quando você move uma das formas ou altera seu tamanho, o conector move sua extremidade para acompanhar.
 
 1. Clique na primeira forma. Mantenha **Ctrl** pressionado e clique na segunda forma.
 2. Clique em **Conectar** no grupo **Organizar** da guia e escolha **Conector Reto**, **Conector em Cotovelo** ou **Conector Curvo**.
 
 O conector vai entre os dois pontos de conexão mais próximos das formas. Um retângulo tem quatro pontos de conexão (o meio de cada lado), e uma elipse tem oito. O conector tem uma ponta de seta na segunda forma.
 
-Se você arrastar o próprio conector, ou alterar o seu tamanho, ele solta as formas e se torna uma linha comum. As formas precisam flutuar sobre a página. Outros programas mantêm o conector unido ao abrir o arquivo.
+Se você arrastar o próprio conector, ou alterar seu tamanho, ele solta as formas e se torna uma linha comum. As formas devem flutuar sobre a página. Outros programas mantêm o conector unido quando abrem o arquivo.
 
 ## Agrupar formas
 
-Um **grupo** reúne várias formas, caixas de texto, linhas e imagens em um único objeto. O grupo se move e muda de tamanho como uma peça única.
+Um **grupo** reúne várias formas, caixas de texto, linhas e imagens em um único objeto. O grupo se move e muda de tamanho como uma única peça.
 
-1. Clique no primeiro objeto. Mantenha **Ctrl** pressionado e clique em cada outro objeto que quiser acrescentar. Cada um recebe uma linha ao redor. (Mantenha **Ctrl** pressionado e clique de novo em um objeto para removê-lo.)
+1. Clique no primeiro objeto. Mantenha **Ctrl** pressionado e clique em cada outro objeto que queira incluir. Cada um recebe uma linha ao redor. (Mantenha **Ctrl** pressionado e clique novamente em um objeto para removê-lo.)
 2. Clique em **Agrupar** no grupo **Organizar** da guia (ou pressione Ctrl+Alt+G).
 
-Todo objeto precisa flutuar sobre a página. Um objeto alinhado com o texto não pode entrar em um grupo: altere antes a sua **Quebra de Texto**. Um gráfico não pode entrar em um grupo. Um grupo nunca contém outro grupo: se você selecionar também um grupo, as suas partes entram no novo grupo.
+Todo objeto deve flutuar sobre a página. Um objeto alinhado com o texto não pode entrar em um grupo: altere antes a sua **Quebra de Texto**. Um gráfico não pode entrar em um grupo. Um grupo nunca contém outro grupo: se você selecionar um grupo também, suas partes entram no novo grupo.
 
-Quando vários objetos estão selecionados ao mesmo tempo, você pode arrastar um deles, e todos se movem.
+Quando vários objetos estão selecionados juntos, você pode arrastar um deles, e todos se movem.
 
-Para desfazer um grupo, selecione-o e clique em **Desagrupar**. Cada parte volta ao seu lugar na página e continua selecionada. Um grupo girado não pode ser desfeito.
+Para desfazer um grupo, selecione-o e clique em **Desagrupar**. Cada parte volta à sua posição própria na página e permanece selecionada. Um grupo que foi girado não pode ser desfeito.
 
-Você pode mover um grupo, alterar o seu tamanho, mudar a sua camada (**Trazer para a Frente**, **Enviar para Trás**) e dar-lhe texto alternativo. Para alterar o preenchimento ou as palavras de uma das partes, desfaça o grupo primeiro. Tudo isso é uma única etapa para desfazer.
+Para reunir novamente o último grupo que você desfez, clique em **Reagrupar**. Isso funciona enquanto todas as suas partes ainda estiverem no documento, mesmo que você tenha movido algumas delas, e as reúne onde estão agora, com a quebra de texto, o nome e o texto alternativo que o grupo tinha.
 
-## Painel de Seleção
+Você pode mover um grupo, alterar seu tamanho, alterar sua camada (**Trazer para a Frente**, **Enviar para Trás**) e dar-lhe um texto alternativo. Para alterar o preenchimento ou as palavras de uma das partes, desfaça o grupo antes. Tudo isso é uma única etapa para desfazer.
 
-**Exibir > Painel de Seleção**, ou **Organizar > Painel de Seleção** nas guias Formato da Imagem e Formato da Forma, lista pelo nome os objetos flutuantes do documento, o que está na frente primeiro. Objetos alinhados com o texto não aparecem na lista, porque não têm camada.
+## O Painel de Seleção
+
+**Exibir > Painel de Seleção**, ou **Organizar > Painel de Seleção** nas guias Formato da Imagem e Formato da Forma, lista os objetos flutuantes do documento pelo nome, o que está na frente aparece primeiro. Objetos alinhados com o texto não aparecem na lista, porque não têm camada.
 
 - Clique em um nome para selecionar esse objeto.
 - Clique duas vezes em um nome, ou pressione **F2**, para digitar um novo nome para o objeto.
-- Desmarque a caixa ao lado de um nome para ocultar o objeto. Um objeto oculto não é desenhado, e o texto não abre espaço para ele. Ele continua no documento, e outros programas que abrem o arquivo também o mantêm oculto. Marque a caixa para exibi-lo de novo. **Mostrar Tudo** e **Ocultar Tudo** definem todas as caixas.
-- Selecione um nome e clique em **Trazer para a Frente** ou **Enviar para Trás** para mover o objeto uma posição, ou arraste o nome. Um objeto pode passar da frente do texto para trás dele.
+- Desmarque a caixa ao lado de um nome para ocultar o objeto. Um objeto oculto não é desenhado, e o texto não abre espaço para ele. Ele continua no documento, e outros programas que abrem o arquivo também o mantêm oculto. Marque a caixa para exibi-lo novamente. **Mostrar Tudo** e **Ocultar Tudo** definem todas as caixas.
+- Selecione um nome e clique em **Trazer para a Frente** ou **Enviar para Trás** para mover o objeto uma posição, ou arraste o nome. Um objeto pode passar de à frente do texto para atrás dele.
 
 Cada uma dessas ações é uma única etapa para desfazer.
 
 ## Formas em outros documentos
 
-O JeffWrite desenha as formas e caixas de texto que um documento contém, com o seu preenchimento, a sua linha e o seu giro. Ele pode alterar as que o documento guarda como uma forma ou caixa de texto simples. Um grupo em um documento é desenhado com todas as suas partes e é mantido como estava.
+O JeffWrite desenha as formas e caixas de texto que um documento contém, com seu preenchimento, sua linha e sua rotação. Ele pode alterar as que o documento armazena como forma ou caixa de texto simples. Um grupo em um documento é desenhado com todas as suas partes e é mantido como estava.
 
 ## Vincular caixas de texto
 
 Quando as palavras de uma caixa de texto não cabem, você pode fazê-las continuar em uma segunda caixa de texto. As duas caixas ficam então **vinculadas**: as palavras preenchem a primeira caixa, e o que não cabe aparece na seguinte. Você pode vincular uma terceira caixa depois da segunda, e assim por diante.
 
-1. Insira duas caixas de texto. Certifique-se de que a segunda não tenha palavras.
+1. Insira duas caixas de texto. Verifique se a segunda não tem palavras.
 2. Clique na primeira caixa de texto. Na guia **Formato da Forma**, clique em **Criar Vínculo**. O ponteiro se transforma em uma mão.
-3. Clique na segunda caixa de texto. (Pressione **Esc** se mudar de ideia.)
+3. Clique na segunda caixa de texto. (Pressione Esc se mudar de ideia.)
 
-Agora as palavras da primeira caixa continuam na segunda. Se você alterar o tamanho de uma caixa, ou digitar mais palavras, as palavras passam de uma caixa para a outra sozinhas. Só uma caixa sem palavras e que ainda não esteja vinculada pode ser a próxima. As caixas podem estar em páginas diferentes, de modo que uma matéria pode continuar na página 5. Se houver palavras demais para a última caixa, uma pequena caixa vermelha com um sinal de mais aparece no canto inferior direito dela na tela, para você saber que algumas palavras não estão sendo mostradas. Aumente a caixa ou vincule mais uma. Uma corrente comporta até 64 caixas.
+Agora as palavras da primeira caixa continuam na segunda. Se você alterar o tamanho de uma caixa ou digitar mais palavras, as palavras passam sozinhas de uma caixa para outra. Só pode ser a próxima uma caixa sem palavras e que ainda não esteja vinculada. As caixas podem estar em páginas diferentes, de modo que uma matéria pode continuar na página 5. Se houver palavras demais para a última caixa, um pequeno quadrado vermelho com um sinal de mais aparece no canto inferior direito dela na tela, para indicar que algumas palavras não estão sendo mostradas. Aumente a caixa ou vincule mais uma caixa. Uma corrente comporta até 64 caixas.
 
-Para cortar uma corrente, clique em uma caixa que tenha outra depois dela e clique em **Quebrar Vínculo**. As caixas seguintes se tornam caixas comuns, sem palavras. As palavras permanecem na primeira caixa. **Criar Vínculo** e **Quebrar Vínculo** são, cada um, uma etapa que você pode desfazer.
+Para cortar uma corrente, clique em uma caixa que tenha outra depois dela e clique em **Quebrar Vínculo**. As caixas seguintes se tornam caixas comuns, sem palavras. As palavras permanecem na primeira caixa. Criar Vínculo e Quebrar Vínculo são, cada uma, uma etapa que você pode desfazer.
 
 As palavras de uma corrente vinculada ficam guardadas na primeira caixa. Para alterá-las, selecione a primeira caixa e clique em **Editar Texto**.
 
 ## Diagramas em outros documentos
 
-Um **diagrama** é uma figura de caixas e setas, como um processo ou uma árvore genealógica, criada por outro programa. O JeffWrite mostra um diagrama a partir da imagem dele que o documento guarda ao lado. O diagrama é um único objeto: clique nele para selecioná-lo, arraste-o para movê-lo e arraste uma alça para alterar o tamanho. Ele é impresso e salvo em PDF com linhas nítidas em qualquer tamanho.
+Um **diagrama** é uma imagem de caixas e setas, como um processo ou uma árvore genealógica, feita por outro programa. O JeffWrite mostra um diagrama a partir da imagem dele que o documento guarda ao lado. O diagrama é um único objeto: clique nele para selecioná-lo, arraste-o para movê-lo, e arraste uma alça para alterar o tamanho. Ele é impresso e salvo em PDF com linhas nítidas em qualquer tamanho.
 
-O JeffWrite ainda não pode alterar o conteúdo de um diagrama. Ao salvar, o diagrama é gravado exatamente como estava, para que o programa que o criou ainda possa alterá-lo. Se um documento não tiver uma imagem de um diagrama, o JeffWrite mostra a pequena imagem que veio com ele, ou uma caixa cinza simples dizendo que se trata de um diagrama.
+O JeffWrite ainda não pode alterar o conteúdo de um diagrama. Ao salvar, o diagrama é gravado de volta exatamente como estava, para que o programa que o criou possa continuar alterando-o. Se um documento não tiver a imagem de um diagrama, o JeffWrite mostra a pequena imagem que veio com ele, ou uma caixa cinza simples que informa tratar-se de um diagrama.
 
-Se você aumentar ou reduzir um diagrama no JeffWrite, a imagem é esticada para o novo tamanho, da mesma forma que uma imagem. O novo tamanho é salvo, e a imagem preenche esse espaço quando você abre o documento novamente.
+Se você aumentar ou diminuir um diagrama no JeffWrite, a imagem é esticada para o novo tamanho, da mesma forma que uma imagem. O novo tamanho é salvo, e a imagem preenche esse espaço quando você abre o documento novamente.

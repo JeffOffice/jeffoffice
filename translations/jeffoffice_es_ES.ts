@@ -1529,6 +1529,10 @@ No se puede leer el fichero.</translation>
 <context>
     <name>jp::DeckWindow</name>
     <message>
+        <source>Reading View is for reading. Press Esc, or choose another view, to make changes.</source>
+        <translation type="unfinished">La vista de lectura sirve para leer. Pulse Esc o elija otra vista para hacer cambios.</translation>
+    </message>
+    <message>
         <source>All Files (*)</source>
         <translation type="unfinished">Todos los ficheros (*)</translation>
     </message>
@@ -2138,7 +2142,7 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
     <name>jp::ShapeTools</name>
     <message>
         <source>Drag a point to reshape. Ctrl+click a point to delete it, or an edge to add one. Shift+click puts a glue point for connectors on the shape, or takes it away. Press Esc when done.</source>
-        <translation type="unfinished">Arrastre un punto para dar nueva forma. Ctrl+clic en un punto para eliminarlo, o en un borde para agregar uno. Mayús+clic coloca un punto de unión para conectores en la forma, o lo quita. Pulse Esc al terminar.</translation>
+        <translation type="unfinished">Arrastre un punto para cambiar la forma. Ctrl+clic en un punto para eliminarlo, o en un borde para agregar uno. Mayús+clic coloca o quita un punto de conexión para conectores en la forma. Pulse Esc al terminar.</translation>
     </message>
 </context>
 <context>
@@ -2150,6 +2154,14 @@ No se encontraron los ficheros de la Ayuda junto al programa. Volver a instalar 
     <message>
         <source>This link goes to a file on another computer. Open it?</source>
         <translation type="unfinished">Este vínculo lleva a un fichero de otro equipo. ¿Abrirlo?</translation>
+    </message>
+    <message>
+        <source>A slide by number: type the number, then press Enter.</source>
+        <translation type="unfinished">Una diapositiva por número: escriba el número y, a continuación, pulse Intro.</translation>
+    </message>
+    <message>
+        <source>Esc: put the pointer back to an arrow; press again to end the show.</source>
+        <translation type="unfinished">Esc: devuelve el puntero a una flecha; pulse de nuevo para terminar la presentación.</translation>
     </message>
 </context>
 <context>

@@ -90,47 +90,47 @@
     <message>
         <location line="+28"/>
         <source>A slide can have effects that wait for a click on up to %1 objects.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Слайд може мати ефекти, які очікують клацання на %1 об&apos;єктах.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>An object can start up to %1 effects when it is clicked.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Об&apos;єкт може запускати до %1 ефектів після клацання на ньому.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A slide can have up to %1 effects that wait for a click on an object.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Слайд може мати до %1 ефектів, які очікують клацання на об&apos;єкті.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The effects that wait for a click on this object can&apos;t be changed here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ефекти, які очікують клацання на цьому об&apos;єкті, тут не можна змінити.</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>Start When Clicked</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Запуск після клацання</translation>
     </message>
     <message>
         <location line="+61"/>
         <source>There is no object on this slide to click.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">На цьому слайді немає об&apos;єкта, на який можна клацнути.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>When an Object Is Clicked</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Після клацання на об&apos;єкті</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The effects start when this object is clicked during the slide show.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ефекти запускаються, коли під час показу слайдів клацнути на цей об&apos;єкт.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>An object that an effect makes appear is not listed for that effect, because it can&apos;t be clicked before it appears.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Об&apos;єкт, який з&apos;являється внаслідок ефекту, не вказано для цього ефекту, оскільки на нього не можна клацнути до його появи.</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -2691,398 +2691,398 @@ Back page story	4</source>
     <message>
         <location filename="../apps/deck/core/decktemplates.cpp" line="+40"/>
         <source>One Picture</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Один малюнок</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Two Pictures</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Два малюнки</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Three Pictures</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Три малюнки</translation>
     </message>
     <message>
         <location line="+148"/>
         <source>[Company name]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Назва компанії]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[One sentence that says what you do and for whom]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Одне речення про те, що ви робите і для кого]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The problem</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Проблема</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Who has the problem, and what it costs them]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Хто має проблему і скільки це їм коштує]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[How they cope today]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Як вони справляються з цим сьогодні]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[Why now is the time to fix it]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Чому саме зараз час це виправити]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Our solution</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Наше рішення</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[What you built, in one line]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Що ви створили, в одному рядку]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[How it works, in three steps]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Як це працює, у три кроки]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[What makes it better than the options]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Чим це краще за альтернативи]</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+8"/>
         <source>Where we are</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Де ми зараз</translation>
     </message>
     <message>
         <location line="-7"/>
         <source>[Customers or users]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Клієнти або користувачі]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[Revenue or growth]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Дохід або зростання]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Team: who you are]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Команда: хто ви]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[Milestones so far]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Досягнуті етапи]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The ask</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Запит</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[What you need, how much, and what it will do]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Що вам потрібно, скільки і на що це піде]</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>[Project name] status update</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Назва проєкту]: статус</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Date]  |  [Your name]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Дата]  |  [Ваше ім&apos;я]</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Status: [on track, at risk, or late]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Статус: [за графіком, під загрозою або із затримкою]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[One sentence on how the work is going]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Одне речення про те, як просувається робота]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[The date the work will be done]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Дата завершення роботи]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Done and next</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Виконано і далі</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+0"/>
         <location line="+0"/>
         <source>Done: [finished item]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Виконано: [завершений пункт]</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+0"/>
         <location line="+0"/>
         <source>Next: [planned item]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Далі: [запланований пункт]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Risks and help needed</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ризики і потрібна допомога</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[A risk, and what you are doing about it]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Ризик і те, що ви з ним робите]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[A decision you need, and from whom]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Рішення, яке потрібно ухвалити, і хто його ухвалює]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[Help you are asking for]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Допомога, яку ви просите]</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>[Lesson title]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Назва уроку]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Course or grade]  |  [Teacher]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Курс або клас]  |  [Викладач]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Today&apos;s goals</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цілі на сьогодні</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[What students will be able to do by the end]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Що учні зможуть зробити наприкінці]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[A second goal]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Друга ціль]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[A third goal]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Третя ціль]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Key ideas</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ключові ідеї</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[First idea]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Перша ідея]</translation>
     </message>
     <message>
         <location line="+0"/>
         <location line="+1"/>
         <source>[An example that shows it]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Приклад, що її ілюструє]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[Second idea]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Друга ідея]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Try it</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Спробуйте</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Describe the activity, and how long students have]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Опишіть вправу і скільки часу є в учнів]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Check your understanding</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Перевірте себе</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[A question for students to answer]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Запитання, на яке учні мають відповісти]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[A second question]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Друге запитання]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[A question that asks them to explain why]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Запитання, яке просить пояснити причину]</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>[Album title]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Назва альбому]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Place or occasion]  |  [Dates]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Місце або нагода]  |  [Дати]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Caption for this photo]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Підпис до цього фото]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Caption for these photos]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Підпис до цих фото]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Caption for this moment]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Підпис до цього моменту]</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>[Presentation title]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Назва презентації]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Your name]  |  [Date]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Ваше ім&apos;я]  |  [Дата]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[A heading that says the point]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Заголовок, що передає головну думку]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[A first point, in a short line]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Перший пункт, коротким рядком]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[A second point]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Другий пункт]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[A third point]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Третій пункт]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Two things side by side]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Дві речі поруч]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Left: a point]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[ліворуч: пункт]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[Left: another point]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[ліворуч: інший пункт]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Right: a point]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[праворуч: пункт]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[Right: another point]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[праворуч: інший пункт]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Thank you]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Дякую]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Email address or website]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Адреса електронної пошти або веб-сайт]</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>Pitch</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Презентація для інвесторів</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Five slides that tell investors or partners what you do and what you need.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">П&apos;ять слайдів, які розповідають інвесторам або партнерам, чим ви займаєтеся і що вам потрібно.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Status Update</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Звіт про стан справ</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A short report on where a project stands, what is next, and what could go wrong.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Короткий звіт про стан проєкту, наступні кроки та можливі ризики.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Lesson</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Урок</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Goals, key ideas, an activity, and questions for a class.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цілі, основні ідеї, завдання та запитання для класу.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Photo Album</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Фотоальбом</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Pages with room for one, two, or three pictures, and a caption for each.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сторінки з місцем для одного, двох або трьох малюнків і підписом до кожного.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Minimal Light</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Мінімалізм, світлий</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A plain white design with lots of room for your words.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Простий білий дизайн з великим простором для ваших слів.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Minimal Dark</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Мінімалізм, темний</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A plain dark design that is easy on the eyes in a dim room.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Простий темний дизайн, приємний для очей у слабко освітленій кімнаті.</translation>
     </message>
 </context>
 <context>
@@ -6406,7 +6406,7 @@ Back page story	4</source>
         <location line="+13"/>
         <location line="+1"/>
         <source>Style area width in Draft and Outline views</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ширина області стилів у режимах Чернетка і Режим структури</translation>
     </message>
     <message>
         <location line="+25"/>
@@ -7103,7 +7103,7 @@ Back page story	4</source>
     <message>
         <location line="+1"/>
         <source>text highlight colors couldn&apos;t be saved to .pub</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">кольори виділення тексту не вдалося зберегти у файлі .pub</translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
@@ -8378,17 +8378,17 @@ Save without a backup?</source>
     <message>
         <location line="-33"/>
         <source>Show the drawing grid on the page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Показувати сітку малювання на сторінці</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Show alignment guides and snap objects to them</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Показувати направляючі вирівнювання і прив&apos;язувати об&apos;єкти до них</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Hold Alt while dragging to leave snapping off.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Утримуйте Alt під час перетягування, щоб вимкнути прив&apos;язку.</translation>
     </message>
     <message>
         <location line="+30"/>
@@ -8562,17 +8562,17 @@ Save without a backup?</source>
     <message>
         <location line="+1"/>
         <source>Dark Cyan</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Темно-блакитний</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Dark Green</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Темно-зелений</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Dark Magenta</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Темно-пурпуровий</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -8582,7 +8582,7 @@ Save without a backup?</source>
     <message>
         <location line="+1"/>
         <source>Dark Yellow</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Темно-жовтий</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -9594,7 +9594,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location filename="../apps/deck/io/odpexport_motion.cpp" line="+601"/>
         <source>Effects that start when an object is clicked were left out where the object is not on the slide.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ефекти, які запускаються клацанням об&apos;єкта, не було збережено там, де об&apos;єкт не знаходиться на слайді.</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -9792,9 +9792,9 @@ Download it from %2 now? (%3, once.)</source>
         <location line="+60"/>
         <source>The animations of %n slide(s) were left out.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>Анімації %n слайд було пропущено.</numerusform>
+            <numerusform>Анімації %n слайди було пропущено.</numerusform>
+            <numerusform>Анімації %n слайдів було пропущено.</numerusform>
         </translation>
     </message>
     <message>
@@ -11144,7 +11144,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+34"/>
         <source>%1: parts of the %2 that name shapes that are gone were left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1: частини %2, що посилаються на фігури, яких більше немає, було пропущено.</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -12118,7 +12118,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="+1211"/>
         <source>Some of the shapes have text. Merging removes the text of every shape but the first one you selected. Merge anyway?</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Деякі фігури містять текст. Об&apos;єднання видалить текст з усіх фігур, окрім першої вибраної. Все одно об&apos;єднати?</translation>
     </message>
 </context>
 <context>
@@ -15083,7 +15083,7 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+2"/>
         <source>Grid</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сітка</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -15341,17 +15341,17 @@ Download it from %2 now? (%3, once.)</source>
     <message>
         <location line="+1"/>
         <source>Data Bars</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Гістограми</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Color Scales</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Колірні шкали</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Icon Sets</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Набори значків</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -16159,7 +16159,7 @@ Open it in your email program, add recipients and send.</source>
     <message>
         <location line="+3"/>
         <source>data bars, color scales, and icon sets</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">гістограми, колірні шкали та набори значків</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -19605,135 +19605,135 @@ Desktop publishing</source>
         <location line="+14"/>
         <location line="+36"/>
         <source>[Your Name]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Ваше ім&apos;я]</translation>
     </message>
     <message>
         <location line="-145"/>
         <source>[Street Address, City, State ZIP]  |  [Phone number]  |  [Email address]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Адреса, місто, область, індекс]  |  [Телефон]  |  [Адреса електронної пошти]</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+59"/>
         <source>Profile</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Профіль</translation>
     </message>
     <message>
         <location line="-58"/>
         <location line="+59"/>
         <source>[Two or three sentences: who you are, what you do best, and the kind of work you want next.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Два-три речення: хто ви, у чому ви найсильніші та яку роботу хочете отримати далі.]</translation>
     </message>
     <message>
         <location line="-56"/>
         <location line="+59"/>
         <source>[Job Title], [Company]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Посада], [Компанія]</translation>
     </message>
     <message>
         <location line="-59"/>
         <location line="+59"/>
         <source>[Start year] - [End year]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Рік початку] - [Рік завершення]</translation>
     </message>
     <message>
         <location line="-58"/>
         <location line="+6"/>
         <location line="+53"/>
         <source>[City, State]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Місто, область]</translation>
     </message>
     <message>
         <location line="-58"/>
         <location line="+59"/>
         <source>[Start with a verb and say what you did and what came of it. Use a number where you can.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Почніть з дієслова і розкажіть, що ви зробили і який був результат. Де можливо, використовуйте число.]</translation>
     </message>
     <message>
         <location line="-58"/>
         <location line="+59"/>
         <source>[Name a project you led, a problem you solved, or a goal you met.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Назвіть проєкт, яким керували, проблему, яку вирішили, або мету, якої досягли.]</translation>
     </message>
     <message>
         <location line="-56"/>
         <source>[Degree], [School]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Ступінь], [Навчальний заклад]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[Year]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Рік]</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>[Skill], [Skill], [Skill], [Skill], [Skill]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Навичка], [Навичка], [Навичка], [Навичка], [Навичка]</translation>
     </message>
     <message>
         <location line="+31"/>
         <source>Contact</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Контакти</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+91"/>
         <location line="+44"/>
         <source>[Street Address]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Адреса]</translation>
     </message>
     <message>
         <location line="-134"/>
         <location line="+91"/>
         <location line="+44"/>
         <source>[City, State ZIP]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Місто, область, індекс]</translation>
     </message>
     <message>
         <location line="-134"/>
         <source>[Phone number]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Телефон]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Email address]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Адреса електронної пошти]</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>[Skill]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Навичка]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Languages</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Мови</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+1"/>
         <source>[Language and level]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Мова і рівень]</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>[Degree]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Ступінь]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[School, year]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Навчальний заклад, рік]</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>[The job title you want, or the one you have]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Посада, на яку ви претендуєте, або ваша поточна посада]</translation>
     </message>
     <message>
         <location line="+37"/>
         <source>[Phone number]  |  [Email address]  |  [City, State]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Телефон]  |  [Адреса електронної пошти]  |  [Місто, область]</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -19744,120 +19744,120 @@ Desktop publishing</source>
         <location line="+59"/>
         <location line="+29"/>
         <source>[Date]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Дата]</translation>
     </message>
     <message>
         <location line="-228"/>
         <source>[Hiring Manager&apos;s Name]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Ім&apos;я керівника з підбору персоналу]</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+36"/>
         <source>[Title]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Звернення]</translation>
     </message>
     <message>
         <location line="-35"/>
         <location line="+36"/>
         <source>[Company or Organization]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Компанія або організація]</translation>
     </message>
     <message>
         <location line="-35"/>
         <location line="+91"/>
         <source>[Street Address, City, State ZIP]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Вулиця, місто, область, індекс]</translation>
     </message>
     <message>
         <location line="-90"/>
         <source>Re: [The job you are applying for]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Стосовно: [Вакансія, на яку ви подаєте заявку]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Dear [Hiring Manager&apos;s Name],</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Шановний(а) [ім&apos;я керівника найму],</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Open with the job you want and one reason you are a strong fit. Say how you heard about it.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Почніть із вакансії, яка вас цікавить, і однієї причини, чому ви добре підходите. Вкажіть, звідки ви дізналися про вакансію.]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Say what you bring: two or three things you have done that match what the job asks for. Give a number or a result for each.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Розкажіть, що ви можете принести: два-три ваші досягнення, які відповідають вимогам вакансії. Для кожного наведіть цифру або результат.]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Say why this company. Show that you know what it does and why the work matters to you.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Поясніть, чому саме ця компанія. Покажіть, що ви знаєте, чим вона займається і чому ця робота важлива для вас.]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Close by asking for a conversation, and thank the reader for the time.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Завершіть проханням про розмову та подякуйте за увагу.]</translation>
     </message>
     <message>
         <location line="+27"/>
         <source>[Recipient Name]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Ім&apos;я отримувача]</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Re: [What the letter is about]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Стосовно: [Тема листа]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Dear [Recipient Name]:</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Шановний(а) [ім&apos;я отримувача]:</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[State your purpose in the first sentence. A business reader wants to know at once why you are writing.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Викладіть мету листа в першому реченні. Ділову людину цікавить, навіщо ви пишете, одразу.]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Give the details: what you are offering or asking, the dates and amounts that matter, and anything the reader must do.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Наведіть подробиці: що ви пропонуєте чи просите, важливі дати і суми, а також те, що адресат має зробити.]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Close with the next step, who will take it, and how to reach you.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Завершіть вказівкою наступного кроку, хто його виконає і як з вами зв&apos;язатися.]</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>[Your Title]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Ваша посада]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Enclosure: [what is enclosed]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Додатки: [що додано]</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>[Company Name]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Назва компанії]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Street Address]  |  [City, State ZIP]  |  [Phone number]  |  [Website]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Вулиця, місто, область, індекс]  |  [Телефон]  |  [Веб-сайт]</translation>
     </message>
     <message>
         <location line="+30"/>
         <source>[Your Company Name]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Назва вашої компанії]</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>[Phone number]  |  [Email address]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Телефон]  |  [Адреса електронної пошти]</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -19867,100 +19867,100 @@ Desktop publishing</source>
     <message>
         <location line="+4"/>
         <source>[Client Name]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Ім&apos;я клієнта]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Invoice number</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Номер рахунку</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[0001]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[0001]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Client Company]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Компанія клієнта]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Invoice date</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Дата рахунку</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Due date</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Термін оплати</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>[Describe the item or service]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Опишіть товар або послугу]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[1]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[1]</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+0"/>
         <source>[0.00]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[0,00]</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Subtotal	[0.00]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Проміжна сума	[0,00]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Tax	[0.00]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Податок	[0,00]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Total due	[0.00]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Усього до сплати	[0,00]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Payment terms</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Умови оплати</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Say when payment is due and how to pay: a bank transfer, a check address, or a payment link.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Вкажіть, коли потрібно сплатити і як: банківський переказ, адресу для чека або посилання на оплату.]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Thank you for your business.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Дякуємо за співпрацю.</translation>
     </message>
     <message>
         <location line="+23"/>
         <location line="+173"/>
         <source>Meeting Agenda</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Порядок денний наради</translation>
     </message>
     <message>
         <location line="-172"/>
         <location line="+44"/>
         <source>[Meeting name or topic]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Назва або тема наради]</translation>
     </message>
     <message>
         <location line="-40"/>
         <source>Location</source>
-        <translation type="unfinished">Розташування</translation>
+        <translation type="unfinished">Місце</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[Room, address, or meeting link]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Кімната, адреса або посилання на нараду]</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -19971,191 +19971,191 @@ Desktop publishing</source>
     <message>
         <location line="-6"/>
         <source>[Start time] to [End time]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Час початку] – [час завершення]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Facilitator</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ведучий</translation>
     </message>
     <message>
         <location line="+0"/>
         <location line="+10"/>
         <location line="+48"/>
         <source>[Name]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Ім&apos;я]</translation>
     </message>
     <message>
         <location line="-57"/>
         <source>Attendees</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Учасники</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Names of the people who are invited]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Імена запрошених осіб]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Agenda</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Порядок денний</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Topic</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Тема</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Led by</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Веде</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>[5 min]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[5 хв]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[What will be covered, and what you need from the group]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Що буде розглянуто і що потрібно від групи]</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Before the meeting</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Перед нарадою</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[A document to read, or something to prepare]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Документ для ознайомлення або що потрібно підготувати]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Something to bring]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Що принести]</translation>
     </message>
     <message>
         <location line="+23"/>
         <location line="+130"/>
         <source>Meeting Notes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Протокол наради</translation>
     </message>
     <message>
         <location line="-128"/>
         <source>Date:	[Date], [Start time] to [End time]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Дата:	[Дата], [час початку] – [час завершення]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Location:	[Room, address, or meeting link]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Місце:	[Кімната, адреса або посилання на нараду]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Present:	[Names of the people who came]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Присутні:	[Імена присутніх]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Absent:	[Names of the people who did not]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Відсутні:	[Імена відсутніх]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Notes by:	[Name]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Записав:	[Ім&apos;я]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Discussion</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Обговорення</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[First topic]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Перша тема]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[What was said, in a few lines. Write down reasons and numbers, not every word.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Що було сказано, у кількох рядках. Записуйте причини і цифри, а не кожне слово.]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Second topic]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Друга тема]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[What was said, in a few lines.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Що було сказано, у кількох рядках.]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Decisions</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Рішення</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+1"/>
         <source>[What was decided, and why]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Що вирішено і чому]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Action items</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Завдання</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Action</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Дія</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Owner</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Відповідальний</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Due</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Термін</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>[What needs to be done]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Що потрібно зробити]</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Next meeting</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Наступна зустріч</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Date, time, and place, and what the group will cover]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Дата, час і місце, а також те, що буде розглянуто]</translation>
     </message>
     <message>
         <location line="+21"/>
         <source>[Report Title]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Назва звіту]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[A line about what the report covers]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Короткий опис того, що охоплює звіт]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Prepared by [Your Name]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Підготував(ла) [Ваше ім&apos;я]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Team or Organization]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Команда або організація]</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -20165,102 +20165,102 @@ Desktop publishing</source>
     <message>
         <location line="+4"/>
         <source>[Give the main points in a few sentences. A reader who stops here should know what you found and what you suggest.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Викладіть основні висновки кількома реченнями. Читач, який на цьому зупиниться, має зрозуміти, що ви виявили і що пропонуєте.]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Introduction</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Вступ</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Say why the report was written, who it is for, and what the reader needs to know first.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Поясніть, навіщо написано звіт, для кого він призначений і що читачеві спершу потрібно знати.]</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>[First finding]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Перший висновок]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Describe what you found. Add numbers, a table, or a picture where they help.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Опишіть, що ви виявили. Додайте числа, таблицю або малюнок там, де це допоможе.]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Second finding]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Другий висновок]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Describe the next point in the same way.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Опишіть наступний пункт так само.]</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>[List what should be done, who should do it, and by when.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Перелічіть, що слід зробити, хто має це виконати і до якого терміну.]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Appendix</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Додаток</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Put long tables, sources, and other detail here.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Розмістіть тут великі таблиці, джерела та іншу детальну інформацію.]</translation>
     </message>
     <message>
         <location line="+31"/>
         <source>[Event or Offer Name]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Назва заходу або пропозиції]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[One line that says what it is]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Один рядок про те, що це таке]</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>[A short, bold line that gives people a reason to come]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Короткий жирний рядок, який дає людям привід прийти]</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>When</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Коли</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Cost</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Вартість</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Day, date, and time]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[День, дата і час]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[Place and address]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Місце і адреса]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[Price, or Free]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Ціна або Безкоштовно]</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>[Two or three sentences about what people will see, learn, or get. Keep it short: a flyer is read in seconds.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Два-три речення про те, що люди побачать, дізнаються або отримають. Пишіть коротко: листівку читають за кілька секунд.]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Phone number]   |   [Email address]   |   [Website]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Номер телефону]   |   [Адреса електронної пошти]   |   [Веб-сайт]</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -20277,27 +20277,27 @@ Desktop publishing</source>
     <message>
         <location line="-2"/>
         <source>A personal letter with your address at the top.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Особистий лист із вашою адресою у верхній частині.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Cover Letter</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Супровідний лист</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A letter that goes with a resume when you apply for a job.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Лист, який додається до резюме, коли ви подаєте заявку на роботу.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Business Letter</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Діловий лист</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A formal letter with your company name at the top and its address at the bottom.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Офіційний лист із назвою вашої компанії у верхній частині та її адресою внизу.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -20314,22 +20314,22 @@ Desktop publishing</source>
     <message>
         <location line="-2"/>
         <source>A short report with a title and numbered pages.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Короткий звіт із назвою та пронумерованими сторінками.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Report with Cover Page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Звіт із титульною сторінкою</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A longer report with a cover page and a table of contents that fills in from your headings.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Довший звіт із титульною сторінкою та змістом, який заповнюється за вашими заголовками.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A one-page brief with To, From, Date, and Subject lines.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Короткий односторінковий меморандум із рядками «Кому», «Від кого», «Дата» і «Тема».</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -20341,69 +20341,69 @@ Desktop publishing</source>
         <location line="+1"/>
         <location line="+1"/>
         <source>Writing and publications</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Письмо та публікації</translation>
     </message>
     <message>
         <location line="-2"/>
         <source>Double-spaced pages for a story or a book.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сторінки з подвійним міжрядковим інтервалом для оповідання або книги.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A masthead and two columns of stories.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Заголовок газети і дві колонки статей.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Flyer</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Листівка</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A one-page flyer for an event, a sale, or a service.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Одностороння листівка для заходу, розпродажу або послуги.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Resume</source>
-        <translation type="unfinished">Продовжити</translation>
+        <translation type="unfinished">Резюме</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A classic one-page resume.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Класичне односторінкове резюме.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Resume with Side Column</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Резюме з бічною колонкою</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A resume with your contact details and skills in a column at the side.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Резюме з вашими контактними даними та навичками в колонці збоку.</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+1"/>
         <location line="+1"/>
         <source>Business</source>
-        <translation type="unfinished">Бізнес</translation>
+        <translation type="unfinished">Ділові документи</translation>
     </message>
     <message>
         <location line="-2"/>
         <source>A bill for your work, with a table for the items and the total.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Рахунок за вашу роботу з таблицею позицій і загальною сумою.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The time, place, and topics of a meeting, with who leads each one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Час, місце і теми зустрічі, а також те, хто веде кожну з них.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A place to write down what was said, what was decided, and who does what next.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Місце для запису того, що було сказано, що вирішено і хто що робить далі.</translation>
     </message>
     <message>
         <location line="-6"/>
@@ -21552,17 +21552,17 @@ Desktop publishing</source>
     <message>
         <location line="+195"/>
         <source>When %1 is clicked</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Коли натиснуто %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>When the pointer is over %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Коли вказівник над %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Effects that start from %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ефекти, що починаються з %1</translation>
     </message>
 </context>
 <context>
@@ -21570,7 +21570,7 @@ Desktop publishing</source>
     <message>
         <location filename="../libs/shell/app/appliedformatpane.cpp" line="+47"/>
         <source>Plus: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Додатково: %1</translation>
     </message>
 </context>
 <context>
@@ -24304,17 +24304,17 @@ Source: %3</source>
     <message>
         <location filename="../apps/crunch/app/condlook.cpp" line="+131"/>
         <source>Keep the current look</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Зберегти поточний вигляд</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Custom Format</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Власний формат</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Custom Format...</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Власний формат...</translation>
     </message>
 </context>
 <context>
@@ -24323,7 +24323,7 @@ Source: %3</source>
         <location line="+73"/>
         <location line="+10"/>
         <source>AaBbCcYyZz</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">AaBbCcYyZz</translation>
     </message>
 </context>
 <context>
@@ -24331,22 +24331,22 @@ Source: %3</source>
     <message>
         <location filename="../apps/crunch/app/condrulesdialog.cpp" line="+393"/>
         <source>Manage Rules</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Керування правилами</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>New Rule…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Нове правило…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Edit Rule…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Редагувати правило…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Delete Rule</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Видалити правило</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -24361,7 +24361,7 @@ Source: %3</source>
     <message>
         <location line="+4"/>
         <source>Rule</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Правило</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -24371,17 +24371,17 @@ Source: %3</source>
     <message>
         <location line="+0"/>
         <source>Applies to</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Застосовується до</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Stop if true</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Зупинити, якщо істинно</translation>
     </message>
     <message>
         <location line="+51"/>
         <source>AaBbCcYyZz</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">AaBbCcYyZz</translation>
     </message>
 </context>
 <context>
@@ -24390,32 +24390,32 @@ Source: %3</source>
         <location line="-598"/>
         <location line="+175"/>
         <source>Cell value</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Значення комірки</translation>
     </message>
     <message>
         <location line="-174"/>
         <source>Text that contains</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Текст, що містить</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Text that does not contain</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Текст, що не містить</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Text that begins with</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Текст, що починається з</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Text that ends with</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Текст, що закінчується на</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A date occurring</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Дата, що трапляється</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -24425,77 +24425,77 @@ Source: %3</source>
     <message>
         <location line="+1"/>
         <source>Cells that are not blank</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Комірки, що не порожні</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Cells with errors</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Комірки з помилками</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Cells without errors</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Комірки без помилок</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Top items</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Найвищі значення</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Bottom items</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Найнижчі значення</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Top percent</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Найвищі відсотки</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Bottom percent</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Найнижчі відсотки</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Above average</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Вище середнього</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Below average</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Нижче середнього</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Duplicate values</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Повторювані значення</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Unique values</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Унікальні значення</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A formula</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Формула</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Color scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Колірна шкала</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Data bar</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Гістограма</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Icon set</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Набір піктограм</translation>
     </message>
     <message>
         <location line="+28"/>
@@ -24560,7 +24560,7 @@ Source: %3</source>
     <message>
         <location line="+1"/>
         <source>Percentile</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Процентиль</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -24577,22 +24577,22 @@ Source: %3</source>
     <message>
         <location line="-223"/>
         <source>Edit Rule</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Редагування правила</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>New Rule</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Нове правило</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>Format cells with</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Форматувати комірки з</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>The cells that meet this are formatted.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Комірки, що відповідають цій умові, будуть відформатовані.</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -24612,7 +24612,7 @@ Source: %3</source>
     <message>
         <location line="+5"/>
         <source>Dates</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Дати</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -24622,47 +24622,47 @@ Source: %3</source>
     <message>
         <location line="+4"/>
         <source>Formula that is true for the cells to format</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Формула, яка є істинною для комірок, що форматуються</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>Cells look like this</source>
-        <translation type="unfinished">Комірки виглядатимуть так</translation>
+        <translation type="unfinished">Комірки виглядають так</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Stop if true</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Зупинитися, якщо істина</translation>
     </message>
     <message>
         <location line="+59"/>
         <source>Use three colors</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Використати три кольори</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Lowest</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Найнижче</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Midpoint</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Середнє</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Highest</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Найвище</translation>
     </message>
     <message>
         <location line="+61"/>
         <source>Shortest bar</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Найкоротша смуга</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Longest bar</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Найдовша смуга</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -24682,7 +24682,7 @@ Source: %3</source>
     <message>
         <location line="+3"/>
         <source>Bar color</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Колір смуги</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -24692,22 +24692,22 @@ Source: %3</source>
     <message>
         <location line="+12"/>
         <source>Same color as positive bars</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Такий самий колір, як у додатних смуг</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Negative bar color</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Колір від’ємних смуг</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Middle of the cell</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Посередині комірки</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>No axis</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Без осі</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -24727,32 +24727,32 @@ Source: %3</source>
     <message>
         <location line="+2"/>
         <source>Bar direction</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Напрямок смуги</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Show bar only</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Показувати лише смугу</translation>
     </message>
     <message>
         <location line="+18"/>
         <source>Icon style</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Стиль піктограми</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Reverse icon order</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Обернути порядок піктограм</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Show icon only</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Показувати лише піктограму</translation>
     </message>
     <message>
         <location line="+41"/>
         <source>When value is</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Коли значення є</translation>
     </message>
 </context>
 <context>
@@ -25724,12 +25724,12 @@ Source: %3</source>
     <message>
         <location line="+32"/>
         <source>Use English function names</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Використовувати англійські назви функцій</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Type and read formulas with English names such as SUM and IF, not the names of the display language. Workbooks are saved the same either way.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Вводьте й читайте формули з англійськими назвами, наприклад SUM і IF, а не назвами мови інтерфейсу. Книги зберігаються однаково в будь-якому випадку.</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -27839,67 +27839,67 @@ Source: %3</source>
     <message>
         <location filename="../apps/crunch/app/condpresets.cpp" line="+41"/>
         <source>Green - Yellow - Red Color Scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Колірна шкала зелений – жовтий – червоний</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Red - Yellow - Green Color Scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Колірна шкала червоний – жовтий – зелений</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Green - White - Red Color Scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Колірна шкала зелений – білий – червоний</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Red - White - Green Color Scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Червоний — білий — зелений, колірна шкала</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Blue - White - Red Color Scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Синій — білий — червоний, колірна шкала</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Red - White - Blue Color Scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Червоний — білий — синій, колірна шкала</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>White - Red Color Scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Білий — червоний, колірна шкала</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Red - White Color Scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Червоний — білий, колірна шкала</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Green - White Color Scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Зелений — білий, колірна шкала</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>White - Green Color Scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Білий — зелений, колірна шкала</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Green - Yellow Color Scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Зелений — жовтий, колірна шкала</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Yellow - Green Color Scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Жовтий — зелений, колірна шкала</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Directional</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Спрямовані</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -27909,117 +27909,117 @@ Source: %3</source>
     <message>
         <location line="+1"/>
         <source>Indicators</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Індикатори</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Ratings</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Рейтинги</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>3 Arrows (Colored)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">3 стрілки (кольорові)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>3 Arrows (Gray)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">3 стрілки (сірі)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>3 Triangles</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">3 трикутники</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>4 Arrows (Colored)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">4 стрілки (кольорові)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>4 Arrows (Gray)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">4 стрілки (сірі)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>5 Arrows (Colored)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">5 стрілок (кольорових)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>5 Arrows (Gray)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">5 стрілок (сірих)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>3 Traffic Lights (No Border)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">3 світлофори (без рамки)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>3 Traffic Lights (with Border)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">3 світлофори (з рамкою)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>3 Signs</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">3 знаки</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>4 Traffic Lights</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">4 світлофори</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Red to Black</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Від червоного до чорного</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>3 Symbols (in Circles)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">3 символи (у колах)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>3 Symbols (Plain)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">3 символи (без обрамлення)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>3 Flags</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">3 прапорці</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>3 Stars</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">3 зірки</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>4 Ratings</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">4 рейтинги</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>5 Ratings</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">5 рейтингів</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>5 Quarters</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">5 чвертей</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>5 Boxes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">5 прямокутників</translation>
     </message>
     <message>
         <location line="+49"/>
         <source>Yesterday</source>
-        <translation type="unfinished">Вчора</translation>
+        <translation type="unfinished">Учора</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -28034,37 +28034,37 @@ Source: %3</source>
     <message>
         <location line="+0"/>
         <source>In the last 7 days</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">За останні 7 днів</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Last week</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Минулого тижня</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>This week</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цього тижня</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Next week</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Наступного тижня</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Last month</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Минулого місяця</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This month</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Цього місяця</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Next month</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Наступного місяця</translation>
     </message>
     <message>
         <location line="+16"/>
@@ -28079,128 +28079,128 @@ Source: %3</source>
     <message>
         <location line="+6"/>
         <source>Cell value %1 %2 and %3</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Значення комірки %1 %2 і %3</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Cell value %1 %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Значення комірки %1 %2</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Formula: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Формула: %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Three-color scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Триколірна шкала</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Two-color scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Двоколірна шкала</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Data bar (gradient fill)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Гістограма (градієнтна заливка)</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Data bar (solid fill)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Гістограма (суцільна заливка)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Icon set: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Набір піктограм: %1</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Bottom %1 percent</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Нижні %1 відсотків</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Top %1 percent</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Верхні %1 відсотків</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Bottom items: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Нижні елементи: %1</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Top items: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Верхні елементи: %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Unique values</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Унікальні значення</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Duplicate values</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Повторювані значення</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Text contains &quot;%1&quot;</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Текст містить «%1»</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Text does not contain &quot;%1&quot;</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Текст не містить «%1»</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Text begins with &quot;%1&quot;</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Текст починається з «%1»</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Text ends with &quot;%1&quot;</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Текст закінчується на «%1»</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Cells that are not blank</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Комірки, що не порожні</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Cells with errors</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Комірки з помилками</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Cells without errors</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Комірки без помилок</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Dates: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Дати: %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <location filename="../apps/crunch/app/crunchwindow_cond.cpp" line="+13"/>
         <source>Dates</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Дати</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Above average</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Вище середнього</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Below average</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Нижче середнього</translation>
     </message>
     <message>
         <location line="+57"/>
@@ -28298,7 +28298,7 @@ Source: %3</source>
     <message>
         <location line="+1"/>
         <source>A Date Occurring…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Дата, що виникає…</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -28313,22 +28313,22 @@ Source: %3</source>
     <message>
         <location line="+11"/>
         <source>Gradient Fill, %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Градієнтна заливка, %1</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Solid Fill, %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Суцільна заливка, %1</translation>
     </message>
     <message>
         <location line="+24"/>
         <source>New Rule…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Нове правило…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Manage Rules…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Керувати правилами…</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -28343,12 +28343,12 @@ Source: %3</source>
     <message>
         <location line="+10"/>
         <source>Gradient Fill</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Градієнтна заливка</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Solid Fill</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Суцільна заливка</translation>
     </message>
     <message>
         <location line="+23"/>
@@ -35976,7 +35976,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+7"/>
         <source>Templates</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Шаблони</translation>
     </message>
     <message>
         <location line="+24"/>
@@ -36602,7 +36602,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+12"/>
         <source>Reading View is for reading. Press Esc, or choose another view, to make changes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Режим читання призначений для читання. Натисніть Esc або виберіть інший режим, щоб вносити зміни.</translation>
     </message>
     <message>
         <location line="+27"/>
@@ -36878,12 +36878,12 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+5"/>
         <source>Stop Highlighting</source>
-        <translation type="unfinished">Припинити виділення</translation>
+        <translation type="unfinished">Зупинити виділення</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>Highlighting: select the text to highlight. Choose Stop Highlighting or press Esc to stop.</source>
-        <translation type="unfinished">Виділення маркером: виділіть текст для виділення. Оберіть «Припинити виділення» або натисніть Esc, щоб припинити.</translation>
+        <translation type="unfinished">Виділення: виділіть текст для підсвічування. Виберіть «Зупинити виділення» або натисніть Esc, щоб зупинити.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -37508,7 +37508,7 @@ The file can&apos;t be read.</source>
         <location line="+1"/>
         <location line="+314"/>
         <source>When an Object Is Clicked</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Коли клацнуто об&apos;єкт</translation>
     </message>
     <message>
         <location line="-313"/>
@@ -37518,7 +37518,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+171"/>
         <source>Effects that waited for a click on the deleted object now play in the main sequence.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ефекти, що очікували клацання на видаленому об&apos;єкті, тепер відтворюються в основній послідовності.</translation>
     </message>
     <message>
         <location line="+34"/>
@@ -41068,7 +41068,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+2"/>
         <source>Reading View</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Режим читання</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -41088,27 +41088,27 @@ The file can&apos;t be read.</source>
     <message>
         <location line="+174"/>
         <source>Go back one step or slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Повернутися на один крок або слайд назад</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Go forward one step or slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Перейти на один крок або слайд уперед</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Show Menu</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Показати меню</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Open the menu for going to a slide, the pointer, the screen, and ending the show</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Відкрити меню переходу до слайда, вказівника, екрана та завершення показу</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>End of the show</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Кінець показу</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_notesmaster.cpp" line="-27"/>
@@ -44384,7 +44384,7 @@ The file can&apos;t be read.</source>
     <message>
         <location line="-776"/>
         <source>Custom Format</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Користувацький формат</translation>
     </message>
     <message>
         <location line="+122"/>
@@ -49164,12 +49164,12 @@ Source: %3</source>
     <message>
         <location line="+5"/>
         <source>Stop Highlighting</source>
-        <translation type="unfinished">Припинити виділення</translation>
+        <translation type="unfinished">Зупинити виділення</translation>
     </message>
     <message>
         <location line="+10"/>
         <source>Highlighting: select the text to highlight. Choose Stop Highlighting or press Esc to stop.</source>
-        <translation type="unfinished">Виділення маркером: виділіть текст для виділення. Оберіть «Припинити виділення» або натисніть Esc, щоб припинити.</translation>
+        <translation type="unfinished">Виділення: виділіть текст для підсвічування. Виберіть «Зупинити виділення» або натисніть Esc, щоб зупинити.</translation>
     </message>
     <message>
         <location line="+58"/>
@@ -57320,14 +57320,14 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+2"/>
         <source>Drag a point to reshape. Ctrl+click a point to delete it, or an edge to add one. Shift+click puts a glue point for connectors on the shape, or takes it away. Press Esc when done.</source>
-        <translation type="unfinished">Перетягніть точку, щоб змінити форму. Ctrl+клацання по точці видаляє її, а по краю додає нову. Shift+клацання ставить або знімає точку з&apos;єднання для з&apos;єднувачів на фігурі. Натисніть Esc, коли закінчите.</translation>
+        <translation type="unfinished">Перетягніть вузол, щоб змінити форму. Ctrl+клацання на вузлі видаляє його, а на краї додає новий. Shift+клацання ставить або знімає точку прив&apos;язки для з&apos;єднувачів на фігурі. Натисніть Esc після завершення.</translation>
     </message>
     <message>
         <location line="-93"/>
         <location line="+105"/>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="-1"/>
         <source>Merge Shapes</source>
-        <translation type="unfinished">Об&apos;єднати фігури</translation>
+        <translation type="unfinished">Об&apos;єднання фігур</translation>
     </message>
     <message>
         <location line="-93"/>
@@ -57350,7 +57350,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+0"/>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="+0"/>
         <source>Subtract</source>
-        <translation type="unfinished">Відняти</translation>
+        <translation type="unfinished">Віднімання</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -57367,7 +57367,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+5"/>
         <source>More than one of the shapes has text. Merging removes the text of all of them. Merge anyway?</source>
-        <translation type="unfinished">Текст мають кілька фігур. Об&apos;єднання видалить текст з усіх них. Об&apos;єднати все одно?</translation>
+        <translation type="unfinished">Принаймні в одній із фігур є текст. Об&apos;єднання видалить текст у всіх них. Продовжити?</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -57388,7 +57388,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+1"/>
         <source>The text in the merged shapes was removed.</source>
-        <translation type="unfinished">Текст в об&apos;єднаних фігурах видалено.</translation>
+        <translation type="unfinished">Текст в об&apos;єднаних фігурах було видалено.</translation>
     </message>
 </context>
 <context>
@@ -57604,52 +57604,52 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+13"/>
         <source>Next slide or step: Right, Down, Space, Enter, Page Down, N, or a click.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Наступний слайд або крок: праворуч, униз, пробіл, Enter, Page Down, N або клацання.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Previous slide or step: Left, Up, Backspace, Page Up, or P.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Попередній слайд або крок: ліворуч, угору, Backspace, Page Up або P.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>First or last slide: Home or End.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Перший або останній слайд: Home або End.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A slide by number: type the number, then press Enter.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Слайд за номером: введіть номер, а потім натисніть Enter.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Black or white screen: B or W (or the period and comma keys).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Чорний або білий екран: B або W (або клавіші крапки та коми).</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Pen, highlighter, laser pointer, or arrow: %1, %2, %3, or %4.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Перо, маркер, лазерна указка або стрілка: %1, %2, %3 або %4.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Eraser, to remove ink as you drag: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Гумка, щоб стирати чорнило під час перетягування: %1.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Erase all ink on the slide at once: E, without Ctrl.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Стерти все чорнило на слайді одразу: E без Ctrl.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The menu: a right click, the Menu key, or Shift+F10.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Меню: клацання правою кнопкою, клавіша меню або Shift+F10.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Esc: put the pointer back to an arrow; press again to end the show.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Esc: повернути вказівник до стрілки; натисніть ще раз, щоб завершити показ.</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -57674,7 +57674,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+15"/>
         <source>Custom Show</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Настроюваний показ</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -57699,7 +57699,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+2"/>
         <source>Slide Show Help</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Довідка щодо показу слайдів</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -58292,7 +58292,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
     <message>
         <location line="+7"/>
         <source>Style Inspector</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Інспектор стилів</translation>
     </message>
     <message>
         <location line="+126"/>
@@ -65913,7 +65913,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+230"/>
         <source>The text of the other shapes was removed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Текст інших фігур було видалено.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_graphics.cpp" line="-124"/>
@@ -66144,7 +66144,7 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+1"/>
         <location line="+78"/>
         <source>Style Inspector</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Інспектор стилів</translation>
     </message>
     <message>
         <location line="-77"/>
@@ -66219,32 +66219,32 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+0"/>
         <source>Text formatting</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Форматування тексту</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Clear Paragraph Formatting</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Очистити форматування абзацу</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Clear Character Style</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Очистити стиль символу</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Clear Character Formatting</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Очистити форматування символів</translation>
     </message>
     <message>
         <location line="+32"/>
         <source>Several styles in the selection</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">У виділенні кілька стилів</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Table style: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Стиль таблиці: %1</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -66254,12 +66254,12 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+1"/>
         <source>Several looks in the selection</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">У виділенні кілька варіантів</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>(nothing of its own)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">(нічого власного)</translation>
     </message>
     <message>
         <location line="+35"/>
@@ -67142,17 +67142,17 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../apps/write/app/writewindow_grid.cpp" line="+62"/>
         <source>Drawing Grid</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сітка малювання</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The drawing grid is shown on the page.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сітка малювання відображається на сторінці.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>The drawing grid is hidden.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Сітку малювання приховано.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -67162,32 +67162,32 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+2"/>
         <source>Snap to Grid is on: pictures, shapes, and text boxes go to the grid as you drag them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Прив&apos;язка до сітки увімкнена: малюнки, фігури й текстові поля прив&apos;язуються до сітки під час перетягування.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Snap to Grid is off.</source>
-        <translation type="unfinished">Прив&apos;язку до сітки вимкнено.</translation>
+        <translation type="unfinished">Прив&apos;язка до сітки вимкнена.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Alignment Guides</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Направляючі вирівнювання</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Alignment Guides are on: lines show when an object lines up with another object, the page, or the margins, and it snaps to them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Направляючі вирівнювання увімкнено: під час переміщення об&apos;єкта з&apos;являються лінії, коли він вирівнюється з іншим об&apos;єктом, сторінкою або полями, і він прилипає до них.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Alignment Guides are off.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Вирівнювання за направляючими вимкнено.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Grid and Guides…</source>
-        <translation type="unfinished">Сітка і направляючі…</translation>
+        <translation type="unfinished">Сітка та направляючі…</translation>
     </message>
 </context>
 <context>
@@ -81438,12 +81438,12 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../apps/write/core/styleinspect.cpp" line="+1"/>
         <source>Indents</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Відступи</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Spacing before or after</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Інтервал перед або після</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -81453,12 +81453,12 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+1"/>
         <source>Tab stops</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Позиції табуляції</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Borders and shading</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Рамки й заливка</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -81483,12 +81483,12 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+1"/>
         <source>Widow and orphan control</source>
-        <translation type="unfinished">Контроль вдів і сирот</translation>
+        <translation type="unfinished">Контроль вдовиць і сирітських рядків</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>No space between paragraphs of the same style</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Без інтервалу між абзацами одного стилю</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -81498,7 +81498,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+1"/>
         <source>Numbering or bullets</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Нумерація або маркери</translation>
     </message>
     <message>
         <location line="+24"/>
@@ -81523,22 +81523,22 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+2"/>
         <source>Highlight</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Виділення</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Capitals</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Великі літери</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Superscript or subscript</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Надрядковий або підрядковий</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Raised or lowered</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Піднятий або опущений</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -81548,7 +81548,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+1"/>
         <source>Character width</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Ширина символів</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -81558,17 +81558,17 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+1"/>
         <source>Border around the text</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Рамка навколо тексту</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Shadow or outline</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Тінь або контур</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Emboss or engrave</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Рельєф або витравлювання</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -82830,7 +82830,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+28"/>
         <source>There is no group to put back. Regroup works after Ungroup, while its objects are still there.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Немає групи для відновлення. Повторне групування працює після розгрупування, поки його об&apos;єкти ще на місці.</translation>
     </message>
     <message>
         <location line="+1025"/>
@@ -83533,12 +83533,12 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../apps/write/app/stylearea.cpp" line="+59"/>
         <source>Style area</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Область стилів</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The style of each paragraph, beside its first line.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Стиль кожного абзацу, поруч із його першим рядком.</translation>
     </message>
 </context>
 <context>
@@ -84399,7 +84399,7 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location line="+1"/>
         <source>table styles (the tables are saved without their style)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">стилі таблиць (таблиці зберігаються без свого стилю)</translation>
     </message>
 </context>
 <context>
@@ -84418,12 +84418,12 @@ The password couldn&apos;t be put on the file.</source>
     <message>
         <location filename="../apps/write/core/writedoc_export.cpp" line="+157"/>
         <source>table styles (the tables are saved without their style)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">стилі таблиць (таблиці зберігаються без свого стилю)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>list styles (the lists are saved without their style)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">стилі списків (списки зберігаються без свого стилю)</translation>
     </message>
 </context>
 </TS>

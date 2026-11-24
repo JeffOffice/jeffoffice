@@ -90,47 +90,47 @@
     <message>
         <location line="+28"/>
         <source>A slide can have effects that wait for a click on up to %1 objects.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een dia kan effecten hebben die wachten op een klik op maximaal %1 objecten.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>An object can start up to %1 effects when it is clicked.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een object kan maximaal %1 effecten starten wanneer erop wordt geklikt.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A slide can have up to %1 effects that wait for a click on an object.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een dia kan maximaal %1 effecten hebben die wachten op een klik op een object.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The effects that wait for a click on this object can&apos;t be changed here.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De effecten die wachten op een klik op dit object, kunnen hier niet worden gewijzigd.</translation>
     </message>
     <message>
         <location line="+13"/>
         <source>Start When Clicked</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Starten bij klikken</translation>
     </message>
     <message>
         <location line="+61"/>
         <source>There is no object on this slide to click.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Er is geen object op deze dia om op te klikken.</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>When an Object Is Clicked</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Wanneer op een object wordt geklikt</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The effects start when this object is clicked during the slide show.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De effecten starten wanneer op dit object wordt geklikt tijdens de diavoorstelling.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>An object that an effect makes appear is not listed for that effect, because it can&apos;t be clicked before it appears.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een object dat een effect laat verschijnen, wordt niet vermeld bij dat effect, omdat er niet op kan worden geklikt voordat het verschijnt.</translation>
     </message>
     <message>
         <location line="+6"/>
@@ -2690,398 +2690,398 @@ Artikel achterpagina	4</translation>
     <message>
         <location filename="../apps/deck/core/decktemplates.cpp" line="+40"/>
         <source>One Picture</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Eén afbeelding</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Two Pictures</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Twee afbeeldingen</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Three Pictures</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Drie afbeeldingen</translation>
     </message>
     <message>
         <location line="+148"/>
         <source>[Company name]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Bedrijfsnaam]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[One sentence that says what you do and for whom]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Eén zin die beschrijft wat u doet en voor wie]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The problem</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het probleem</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Who has the problem, and what it costs them]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Wie het probleem heeft en wat het hen kost]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[How they cope today]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Hoe zij er nu mee omgaan]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[Why now is the time to fix it]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Waarom nu het moment is om het op te lossen]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Our solution</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Onze oplossing</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[What you built, in one line]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Wat u heeft gebouwd, in één regel]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[How it works, in three steps]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Hoe het werkt, in drie stappen]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[What makes it better than the options]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Wat het beter maakt dan de alternatieven]</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+8"/>
         <source>Where we are</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Waar we staan</translation>
     </message>
     <message>
         <location line="-7"/>
         <source>[Customers or users]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Klanten of gebruikers]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[Revenue or growth]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Omzet of groei]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Team: who you are]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Team: wie u bent]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[Milestones so far]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Mijlpalen tot nu toe]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The ask</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De vraag</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[What you need, how much, and what it will do]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Wat u nodig heeft, hoeveel, en wat het zal doen]</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>[Project name] status update</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Statusupdate [Projectnaam]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Date]  |  [Your name]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Datum]  |  [Uw naam]</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Status: [on track, at risk, or late]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Status: [op schema, in gevaar, of achterstand]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[One sentence on how the work is going]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Eén zin over hoe het werk verloopt]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[The date the work will be done]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[De datum waarop het werk klaar is]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Done and next</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gedaan en volgende</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+0"/>
         <location line="+0"/>
         <source>Done: [finished item]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gedaan: [afgerond punt]</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+0"/>
         <location line="+0"/>
         <source>Next: [planned item]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Volgende: [gepland punt]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Risks and help needed</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Risico&apos;s en benodigde hulp</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[A risk, and what you are doing about it]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Een risico, en wat u eraan doet]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[A decision you need, and from whom]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Een beslissing die u nodig heeft, en van wie]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[Help you are asking for]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Hulp waar u om vraagt]</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>[Lesson title]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Titel van de les]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Course or grade]  |  [Teacher]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Cursus of klas]  |  [Docent]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Today&apos;s goals</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Doelen van vandaag</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[What students will be able to do by the end]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Wat leerlingen aan het eind kunnen doen]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[A second goal]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Een tweede doel]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[A third goal]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Een derde doel]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Key ideas</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kernideeën</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[First idea]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Eerste idee]</translation>
     </message>
     <message>
         <location line="+0"/>
         <location line="+1"/>
         <source>[An example that shows it]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Een voorbeeld dat het laat zien]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[Second idea]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Tweede idee]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Try it</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Probeer het</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Describe the activity, and how long students have]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Beschrijf de activiteit en hoeveel tijd leerlingen hebben]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Check your understanding</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Controleer uw begrip</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[A question for students to answer]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Een vraag die leerlingen moeten beantwoorden]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[A second question]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Een tweede vraag]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[A question that asks them to explain why]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Een vraag die vraagt om uit te leggen waarom]</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>[Album title]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Titel van het album]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Place or occasion]  |  [Dates]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Plaats of gelegenheid]  |  [Data]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Caption for this photo]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Bijschrift bij deze foto]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Caption for these photos]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Bijschrift bij deze foto&apos;s]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Caption for this moment]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Bijschrift bij dit moment]</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>[Presentation title]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Titel van de presentatie]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Your name]  |  [Date]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Uw naam]  |  [Datum]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[A heading that says the point]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Een kop die het standpunt verwoordt]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[A first point, in a short line]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Een eerste punt, in een korte regel]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[A second point]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Een tweede punt]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[A third point]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Een derde punt]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Two things side by side]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Twee dingen naast elkaar]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Left: a point]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Links: een punt]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[Left: another point]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Links: een ander punt]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Right: a point]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Rechts: een punt]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[Right: another point]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Rechts: een ander punt]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Thank you]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Dank u wel]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Email address or website]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[E-mailadres of website]</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>Pitch</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pitch</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Five slides that tell investors or partners what you do and what you need.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Vijf dia&apos;s die beleggers of partners vertellen wat u doet en wat u nodig heeft.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Status Update</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Statusupdate</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A short report on where a project stands, what is next, and what could go wrong.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een kort rapport over de stand van zaken van een project, wat er daarna komt en wat er mis kan gaan.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Lesson</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Les</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Goals, key ideas, an activity, and questions for a class.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Doelen, kernideeën, een activiteit en vragen voor een klas.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Photo Album</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Fotoalbum</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Pages with room for one, two, or three pictures, and a caption for each.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pagina&apos;s met ruimte voor één, twee of drie afbeeldingen, en een bijschrift bij elke afbeelding.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Minimal Light</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Minimaal licht</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A plain white design with lots of room for your words.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een eenvoudig wit ontwerp met veel ruimte voor uw tekst.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Minimal Dark</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Minimaal donker</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A plain dark design that is easy on the eyes in a dim room.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een eenvoudig donker ontwerp dat prettig is voor de ogen in een schemerige ruimte.</translation>
     </message>
 </context>
 <context>
@@ -6404,7 +6404,7 @@ Artikel achterpagina	4</translation>
         <location line="+13"/>
         <location line="+1"/>
         <source>Style area width in Draft and Outline views</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Breedte van stijlgebied in concept- en overzichtsweergave</translation>
     </message>
     <message>
         <location line="+25"/>
@@ -7100,7 +7100,7 @@ Artikel achterpagina	4</translation>
     <message>
         <location line="+1"/>
         <source>text highlight colors couldn&apos;t be saved to .pub</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tekstmarkeringskleuren konden niet worden opgeslagen in .pub</translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
@@ -8372,17 +8372,17 @@ Opslaan zonder reservekopie?</translation>
     <message>
         <location line="-33"/>
         <source>Show the drawing grid on the page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het tekenraster op de pagina weergeven</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Show alignment guides and snap objects to them</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Uitlijnhulplijnen weergeven en objecten erop laten uitlijnen</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Hold Alt while dragging to leave snapping off.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Houd Alt ingedrukt tijdens het slepen om uitlijnen uit te schakelen.</translation>
     </message>
     <message>
         <location line="+30"/>
@@ -8556,17 +8556,17 @@ Opslaan zonder reservekopie?</translation>
     <message>
         <location line="+1"/>
         <source>Dark Cyan</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Donkercyaan</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Dark Green</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Donkergroen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Dark Magenta</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Donkermagenta</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -8576,7 +8576,7 @@ Opslaan zonder reservekopie?</translation>
     <message>
         <location line="+1"/>
         <source>Dark Yellow</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Donkergeel</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -9592,7 +9592,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location filename="../apps/deck/io/odpexport_motion.cpp" line="+601"/>
         <source>Effects that start when an object is clicked were left out where the object is not on the slide.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Effecten die starten wanneer op een object wordt geklikt, zijn weggelaten waar het object niet op de dia staat.</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -9785,8 +9785,8 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
         <location line="+60"/>
         <source>The animations of %n slide(s) were left out.</source>
         <translation type="unfinished">
-            <numerusform></numerusform>
-            <numerusform></numerusform>
+            <numerusform>De animaties van %n dia zijn weggelaten.</numerusform>
+            <numerusform>De animaties van %n dia&apos;s zijn weggelaten.</numerusform>
         </translation>
     </message>
     <message>
@@ -11136,7 +11136,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location line="+34"/>
         <source>%1: parts of the %2 that name shapes that are gone were left out.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">%1: onderdelen van de %2 die vormen benoemen die niet meer bestaan, zijn weggelaten.</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -12108,7 +12108,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="+1211"/>
         <source>Some of the shapes have text. Merging removes the text of every shape but the first one you selected. Merge anyway?</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sommige vormen bevatten tekst. Samenvoegen verwijdert de tekst van alle vormen behalve de eerste die u hebt geselecteerd. Toch samenvoegen?</translation>
     </message>
 </context>
 <context>
@@ -15034,7 +15034,7 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location line="+2"/>
         <source>Grid</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Raster</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -15524,17 +15524,17 @@ Nu downloaden van %2? (%3, eenmalig.)</translation>
     <message>
         <location line="+20"/>
         <source>Data Bars</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gegevensbalken</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Color Scales</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kleurenschalen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Icon Sets</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pictogrammenseries</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -16300,7 +16300,7 @@ Open het bestand in uw e-mailprogramma, voeg geadresseerden toe en verzend het.<
     <message>
         <location line="+3"/>
         <source>data bars, color scales, and icon sets</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">gegevensbalken, kleurenschalen en pictogrammenseries</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -19587,135 +19587,135 @@ Desktop publishing</translation>
         <location line="+14"/>
         <location line="+36"/>
         <source>[Your Name]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Uw naam]</translation>
     </message>
     <message>
         <location line="-145"/>
         <source>[Street Address, City, State ZIP]  |  [Phone number]  |  [Email address]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Straatadres, plaats, postcode]  |  [Telefoonnummer]  |  [E-mailadres]</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+59"/>
         <source>Profile</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Profiel</translation>
     </message>
     <message>
         <location line="-58"/>
         <location line="+59"/>
         <source>[Two or three sentences: who you are, what you do best, and the kind of work you want next.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Twee of drie zinnen: wie u bent, waar u het best in bent en welk soort werk u hierna wilt.]</translation>
     </message>
     <message>
         <location line="-56"/>
         <location line="+59"/>
         <source>[Job Title], [Company]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Functietitel], [Bedrijf]</translation>
     </message>
     <message>
         <location line="-59"/>
         <location line="+59"/>
         <source>[Start year] - [End year]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Startjaar] - [Eindjaar]</translation>
     </message>
     <message>
         <location line="-58"/>
         <location line="+6"/>
         <location line="+53"/>
         <source>[City, State]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Plaats, provincie]</translation>
     </message>
     <message>
         <location line="-58"/>
         <location line="+59"/>
         <source>[Start with a verb and say what you did and what came of it. Use a number where you can.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Begin met een werkwoord en zeg wat u deed en wat daar het resultaat van was. Gebruik waar mogelijk een getal.]</translation>
     </message>
     <message>
         <location line="-58"/>
         <location line="+59"/>
         <source>[Name a project you led, a problem you solved, or a goal you met.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Noem een project dat u leidde, een probleem dat u oploste of een doel dat u haalde.]</translation>
     </message>
     <message>
         <location line="-56"/>
         <source>[Degree], [School]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Diploma], [School]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[Year]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Jaar]</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>[Skill], [Skill], [Skill], [Skill], [Skill]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Vaardigheid], [Vaardigheid], [Vaardigheid], [Vaardigheid], [Vaardigheid]</translation>
     </message>
     <message>
         <location line="+31"/>
         <source>Contact</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Contact</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+91"/>
         <location line="+44"/>
         <source>[Street Address]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Straatadres]</translation>
     </message>
     <message>
         <location line="-134"/>
         <location line="+91"/>
         <location line="+44"/>
         <source>[City, State ZIP]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Plaats, postcode]</translation>
     </message>
     <message>
         <location line="-134"/>
         <source>[Phone number]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Telefoonnummer]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Email address]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[E-mailadres]</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>[Skill]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Vaardigheid]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Languages</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Talen</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+1"/>
         <source>[Language and level]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Taal en niveau]</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>[Degree]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Diploma]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[School, year]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[School, jaar]</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>[The job title you want, or the one you have]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[De functietitel die u wilt, of die u nu heeft]</translation>
     </message>
     <message>
         <location line="+37"/>
         <source>[Phone number]  |  [Email address]  |  [City, State]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Telefoonnummer]  |  [E-mailadres]  |  [Plaats, provincie]</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -19726,120 +19726,120 @@ Desktop publishing</translation>
         <location line="+59"/>
         <location line="+29"/>
         <source>[Date]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Datum]</translation>
     </message>
     <message>
         <location line="-228"/>
         <source>[Hiring Manager&apos;s Name]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Naam van de personeelsverantwoordelijke]</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+36"/>
         <source>[Title]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Titel]</translation>
     </message>
     <message>
         <location line="-35"/>
         <location line="+36"/>
         <source>[Company or Organization]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Bedrijf of organisatie]</translation>
     </message>
     <message>
         <location line="-35"/>
         <location line="+91"/>
         <source>[Street Address, City, State ZIP]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Straatadres, plaats, postcode]</translation>
     </message>
     <message>
         <location line="-90"/>
         <source>Re: [The job you are applying for]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Betreft: [De functie waarop u solliciteert]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Dear [Hiring Manager&apos;s Name],</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Geachte [naam van de sollicitatiemanager],</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Open with the job you want and one reason you are a strong fit. Say how you heard about it.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Open met de functie die u wilt en één reden waarom u goed past. Vermeld hoe u van de vacature hebt gehoord.]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Say what you bring: two or three things you have done that match what the job asks for. Give a number or a result for each.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Beschrijf wat u meebrengt: twee of drie dingen die u hebt gedaan en die aansluiten bij wat de functie vraagt. Geef per punt een getal of resultaat.]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Say why this company. Show that you know what it does and why the work matters to you.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Leg uit waarom dit bedrijf. Laat zien dat u weet wat het doet en waarom het werk u aanspreekt.]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Close by asking for a conversation, and thank the reader for the time.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Sluit af met het verzoek om een gesprek en bedank de lezer voor zijn of haar tijd.]</translation>
     </message>
     <message>
         <location line="+27"/>
         <source>[Recipient Name]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Naam ontvanger]</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Re: [What the letter is about]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Betreft: [Onderwerp van de brief]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Dear [Recipient Name]:</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Geachte [naam ontvanger]:</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[State your purpose in the first sentence. A business reader wants to know at once why you are writing.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Vermeld het doel in de eerste zin. Een zakelijke lezer wil meteen weten waarom u schrijft.]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Give the details: what you are offering or asking, the dates and amounts that matter, and anything the reader must do.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Geef de details: wat u aanbiedt of vraagt, de data en bedragen die belangrijk zijn, en wat de lezer moet doen.]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Close with the next step, who will take it, and how to reach you.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Sluit af met de volgende stap, wie die oppakt en hoe u bereikbaar bent.]</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>[Your Title]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Uw functie]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Enclosure: [what is enclosed]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bijlage: [wat is bijgevoegd]</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>[Company Name]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Bedrijfsnaam]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Street Address]  |  [City, State ZIP]  |  [Phone number]  |  [Website]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Straatadres]  |  [Plaats, postcode]  |  [Telefoonnummer]  |  [Website]</translation>
     </message>
     <message>
         <location line="+30"/>
         <source>[Your Company Name]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Uw bedrijfsnaam]</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>[Phone number]  |  [Email address]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Telefoonnummer]  |  [E-mailadres]</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -19849,90 +19849,90 @@ Desktop publishing</translation>
     <message>
         <location line="+4"/>
         <source>[Client Name]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Naam klant]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Invoice number</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Factuurnummer</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[0001]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[0001]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Client Company]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Klantbedrijf]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Invoice date</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Factuurdatum</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Due date</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Vervaldatum</translation>
     </message>
     <message>
         <location line="+8"/>
         <source>[Describe the item or service]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Beschrijf het product of de dienst]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[1]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[1]</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+0"/>
         <source>[0.00]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[0,00]</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Subtotal	[0.00]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Subtotaal	[0,00]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Tax	[0.00]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">BTW	[0,00]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Total due	[0.00]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Totaal te betalen	[0,00]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Payment terms</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Betalingsvoorwaarden</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Say when payment is due and how to pay: a bank transfer, a check address, or a payment link.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Vermeld wanneer betaling verschuldigd is en hoe u betaalt: via overboeking, een postadres voor cheques, of een betaallink.]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Thank you for your business.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dank u voor uw opdracht.</translation>
     </message>
     <message>
         <location line="+23"/>
         <location line="+173"/>
         <source>Meeting Agenda</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Vergaderagenda</translation>
     </message>
     <message>
         <location line="-172"/>
         <location line="+44"/>
         <source>[Meeting name or topic]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Naam of onderwerp van de vergadering]</translation>
     </message>
     <message>
         <location line="-40"/>
@@ -19942,7 +19942,7 @@ Desktop publishing</translation>
     <message>
         <location line="+0"/>
         <source>[Room, address, or meeting link]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Ruimte, adres of vergaderlink]</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -19953,191 +19953,191 @@ Desktop publishing</translation>
     <message>
         <location line="-6"/>
         <source>[Start time] to [End time]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Begintijd] tot [eindtijd]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Facilitator</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gespreksleider</translation>
     </message>
     <message>
         <location line="+0"/>
         <location line="+10"/>
         <location line="+48"/>
         <source>[Name]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Naam]</translation>
     </message>
     <message>
         <location line="-57"/>
         <source>Attendees</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deelnemers</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Names of the people who are invited]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Namen van de genodigden]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Agenda</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Agenda</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Topic</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Onderwerp</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Led by</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Geleid door</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>[5 min]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[5 min]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[What will be covered, and what you need from the group]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Wat aan bod komt en wat u van de groep nodig hebt]</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Before the meeting</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Voorafgaand aan de vergadering</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[A document to read, or something to prepare]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Een document om te lezen, of iets om voor te bereiden]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Something to bring]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Iets om mee te nemen]</translation>
     </message>
     <message>
         <location line="+23"/>
         <location line="+130"/>
         <source>Meeting Notes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Vergadernotulen</translation>
     </message>
     <message>
         <location line="-128"/>
         <source>Date:	[Date], [Start time] to [End time]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Datum:	[Datum], [begintijd] tot [eindtijd]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Location:	[Room, address, or meeting link]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Locatie:	[Ruimte, adres of vergaderlink]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Present:	[Names of the people who came]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Aanwezig:	[Namen van de aanwezigen]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Absent:	[Names of the people who did not]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Afwezig:	[Namen van de afwezigen]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Notes by:	[Name]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Notulen door:	[Naam]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Discussion</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bespreking</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[First topic]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Eerste onderwerp]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[What was said, in a few lines. Write down reasons and numbers, not every word.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Wat er is gezegd, in een paar regels. Schrijf redenen en getallen op, niet elk woord.]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Second topic]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Tweede onderwerp]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[What was said, in a few lines.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Wat er is gezegd, in een paar regels.]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Decisions</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Besluiten</translation>
     </message>
     <message>
         <location line="+1"/>
         <location line="+1"/>
         <source>[What was decided, and why]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Wat is besloten, en waarom]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Action items</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Actiepunten</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Action</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Actie</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Owner</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Eigenaar</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Due</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deadline</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>[What needs to be done]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Wat moet er gebeuren]</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Next meeting</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Volgende vergadering</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Date, time, and place, and what the group will cover]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Datum, tijd en plaats, en wat de groep zal behandelen]</translation>
     </message>
     <message>
         <location line="+21"/>
         <source>[Report Title]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Titel van het rapport]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[A line about what the report covers]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Een regel over wat het rapport behandelt]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Prepared by [Your Name]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Opgesteld door [Uw naam]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Team or Organization]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Team of organisatie]</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -20147,102 +20147,102 @@ Desktop publishing</translation>
     <message>
         <location line="+4"/>
         <source>[Give the main points in a few sentences. A reader who stops here should know what you found and what you suggest.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Geef de belangrijkste punten in enkele zinnen. Een lezer die hier stopt, moet weten wat u hebt gevonden en wat u voorstelt.]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Introduction</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Inleiding</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Say why the report was written, who it is for, and what the reader needs to know first.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Leg uit waarom het rapport is geschreven, voor wie het is en wat de lezer eerst moet weten.]</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>[First finding]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Eerste bevinding]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Describe what you found. Add numbers, a table, or a picture where they help.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Beschrijf wat u hebt gevonden. Voeg cijfers, een tabel of een afbeelding toe waar dat helpt.]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Second finding]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Tweede bevinding]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Describe the next point in the same way.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Beschrijf het volgende punt op dezelfde manier.]</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>[List what should be done, who should do it, and by when.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Noem wat er moet gebeuren, wie dat moet doen en tot wanneer.]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Appendix</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bijlage</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Put long tables, sources, and other detail here.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Zet lange tabellen, bronnen en andere details hier.]</translation>
     </message>
     <message>
         <location line="+31"/>
         <source>[Event or Offer Name]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Naam van evenement of aanbieding]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[One line that says what it is]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Eén regel die zegt wat het is]</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>[A short, bold line that gives people a reason to come]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Een korte, vetgedrukte regel die mensen een reden geeft om te komen]</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>When</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Wanneer</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Cost</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kosten</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Day, date, and time]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Dag, datum en tijd]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[Place and address]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Plaats en adres]</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>[Price, or Free]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Prijs, of Gratis]</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>[Two or three sentences about what people will see, learn, or get. Keep it short: a flyer is read in seconds.]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Twee of drie zinnen over wat mensen zullen zien, leren of krijgen. Houd het kort: een flyer wordt in enkele seconden gelezen.]</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>[Phone number]   |   [Email address]   |   [Website]</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">[Telefoonnummer]   |   [E-mailadres]   |   [Website]</translation>
     </message>
     <message>
         <location line="+11"/>
@@ -20259,27 +20259,27 @@ Desktop publishing</translation>
     <message>
         <location line="-2"/>
         <source>A personal letter with your address at the top.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een persoonlijke brief met uw adres bovenaan.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Cover Letter</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sollicitatiebrief</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A letter that goes with a resume when you apply for a job.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een brief die u bij uw cv stuurt wanneer u solliciteert.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Business Letter</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Zakelijke brief</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A formal letter with your company name at the top and its address at the bottom.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een formele brief met uw bedrijfsnaam bovenaan en het adres onderaan.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -20296,22 +20296,22 @@ Desktop publishing</translation>
     <message>
         <location line="-2"/>
         <source>A short report with a title and numbered pages.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een kort rapport met een titel en genummerde pagina&apos;s.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Report with Cover Page</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rapport met omslagpagina</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A longer report with a cover page and a table of contents that fills in from your headings.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een uitgebreider rapport met een omslagpagina en een inhoudsopgave die zich vult op basis van uw koppen.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A one-page brief with To, From, Date, and Subject lines.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een briefing van één pagina met regels Aan, Van, Datum en Onderwerp.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -20323,47 +20323,47 @@ Desktop publishing</translation>
         <location line="+1"/>
         <location line="+1"/>
         <source>Writing and publications</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Schrijven en publicaties</translation>
     </message>
     <message>
         <location line="-2"/>
         <source>Double-spaced pages for a story or a book.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dubbelspatieerde pagina&apos;s voor een verhaal of boek.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A masthead and two columns of stories.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een colofon en twee kolommen met artikelen.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Flyer</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Flyer</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A one-page flyer for an event, a sale, or a service.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een flyer van één pagina voor een evenement, een actie of een dienst.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Resume</source>
-        <translation type="unfinished">Hervatten</translation>
+        <translation type="unfinished">CV</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A classic one-page resume.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een klassiek cv van één pagina.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Resume with Side Column</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">CV met zijkolom</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>A resume with your contact details and skills in a column at the side.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een cv met uw contactgegevens en vaardigheden in een kolom aan de zijkant.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -20375,17 +20375,17 @@ Desktop publishing</translation>
     <message>
         <location line="-2"/>
         <source>A bill for your work, with a table for the items and the total.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een factuur voor uw werk, met een tabel voor de posten en het totaal.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The time, place, and topics of a meeting, with who leads each one.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het tijdstip, de plaats en de onderwerpen van een vergadering, met wie elk onderwerp leidt.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A place to write down what was said, what was decided, and who does what next.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een plek om op te schrijven wat er is gezegd, wat er is besloten en wie wat daarna doet.</translation>
     </message>
     <message>
         <location line="-6"/>
@@ -21530,17 +21530,17 @@ Desktop publishing</translation>
     <message>
         <location line="+195"/>
         <source>When %1 is clicked</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Wanneer er op %1 wordt geklikt</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>When the pointer is over %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Wanneer de aanwijzer boven %1 staat</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Effects that start from %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Effecten die starten vanaf %1</translation>
     </message>
 </context>
 <context>
@@ -21548,7 +21548,7 @@ Desktop publishing</translation>
     <message>
         <location filename="../libs/shell/app/appliedformatpane.cpp" line="+47"/>
         <source>Plus: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Plus: %1</translation>
     </message>
 </context>
 <context>
@@ -24281,17 +24281,17 @@ Bron: %3</translation>
     <message>
         <location filename="../apps/crunch/app/condlook.cpp" line="+131"/>
         <source>Keep the current look</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Huidige stijl behouden</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Custom Format</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Aangepaste opmaak</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Custom Format...</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Aangepaste opmaak...</translation>
     </message>
 </context>
 <context>
@@ -24300,7 +24300,7 @@ Bron: %3</translation>
         <location line="+73"/>
         <location line="+10"/>
         <source>AaBbCcYyZz</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">AaBbCcYyZz</translation>
     </message>
 </context>
 <context>
@@ -24308,22 +24308,22 @@ Bron: %3</translation>
     <message>
         <location filename="../apps/crunch/app/condrulesdialog.cpp" line="+393"/>
         <source>Manage Rules</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Regels beheren</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>New Rule…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nieuwe regel…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Edit Rule…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Regel bewerken…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Delete Rule</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Regel verwijderen</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -24338,7 +24338,7 @@ Bron: %3</translation>
     <message>
         <location line="+4"/>
         <source>Rule</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Regel</translation>
     </message>
     <message>
         <location line="+0"/>
@@ -24348,17 +24348,17 @@ Bron: %3</translation>
     <message>
         <location line="+0"/>
         <source>Applies to</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Van toepassing op</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Stop if true</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Stoppen als waar</translation>
     </message>
     <message>
         <location line="+51"/>
         <source>AaBbCcYyZz</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">AaBbCcYyZz</translation>
     </message>
 </context>
 <context>
@@ -24367,32 +24367,32 @@ Bron: %3</translation>
         <location line="-598"/>
         <location line="+175"/>
         <source>Cell value</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Celwaarde</translation>
     </message>
     <message>
         <location line="-174"/>
         <source>Text that contains</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tekst die bevat</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Text that does not contain</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tekst die niet bevat</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Text that begins with</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tekst die begint met</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Text that ends with</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tekst die eindigt op</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A date occurring</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een datum die voorkomt</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -24402,77 +24402,77 @@ Bron: %3</translation>
     <message>
         <location line="+1"/>
         <source>Cells that are not blank</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cellen die niet leeg zijn</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Cells with errors</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cellen met fouten</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Cells without errors</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cellen zonder fouten</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Top items</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bovenste waarden</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Bottom items</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Onderste waarden</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Top percent</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bovenste procent</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Bottom percent</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Onderste procent</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Above average</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Boven gemiddelde</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Below average</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Onder gemiddelde</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Duplicate values</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dubbele waarden</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Unique values</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Unieke waarden</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A formula</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een formule</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Color scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kleurenschaal</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Data bar</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gegevensbalk</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Icon set</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pictogramserie</translation>
     </message>
     <message>
         <location line="+28"/>
@@ -24537,7 +24537,7 @@ Bron: %3</translation>
     <message>
         <location line="+1"/>
         <source>Percentile</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Percentiel</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -24554,22 +24554,22 @@ Bron: %3</translation>
     <message>
         <location line="-223"/>
         <source>Edit Rule</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Regel bewerken</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>New Rule</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nieuwe regel</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>Format cells with</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cellen opmaken met</translation>
     </message>
     <message>
         <location line="+14"/>
         <source>The cells that meet this are formatted.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De cellen die aan deze voorwaarde voldoen, worden opgemaakt.</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -24589,7 +24589,7 @@ Bron: %3</translation>
     <message>
         <location line="+5"/>
         <source>Dates</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Datums</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -24599,7 +24599,7 @@ Bron: %3</translation>
     <message>
         <location line="+4"/>
         <source>Formula that is true for the cells to format</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Formule die waar is voor de op te maken cellen</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -24609,37 +24609,37 @@ Bron: %3</translation>
     <message>
         <location line="+1"/>
         <source>Stop if true</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Stoppen als waar</translation>
     </message>
     <message>
         <location line="+59"/>
         <source>Use three colors</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Drie kleuren gebruiken</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Lowest</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Laagste</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Midpoint</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Middelpunt</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Highest</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hoogste</translation>
     </message>
     <message>
         <location line="+61"/>
         <source>Shortest bar</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kortste balk</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Longest bar</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Langste balk</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -24659,7 +24659,7 @@ Bron: %3</translation>
     <message>
         <location line="+3"/>
         <source>Bar color</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Balkkleur</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -24669,22 +24669,22 @@ Bron: %3</translation>
     <message>
         <location line="+12"/>
         <source>Same color as positive bars</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dezelfde kleur als positieve balken</translation>
     </message>
     <message>
         <location line="+6"/>
         <source>Negative bar color</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kleur negatieve balk</translation>
     </message>
     <message>
         <location line="+4"/>
         <source>Middle of the cell</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Midden van de cel</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>No axis</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Geen as</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -24694,42 +24694,42 @@ Bron: %3</translation>
     <message>
         <location line="+3"/>
         <source>Left to right</source>
-        <translation type="unfinished">Van links naar rechts</translation>
+        <translation type="unfinished">Links naar rechts</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Right to left</source>
-        <translation type="unfinished">Van rechts naar links</translation>
+        <translation type="unfinished">Rechts naar links</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Bar direction</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Balkrichting</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Show bar only</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Alleen balk weergeven</translation>
     </message>
     <message>
         <location line="+18"/>
         <source>Icon style</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pictogramstijl</translation>
     </message>
     <message>
         <location line="+5"/>
         <source>Reverse icon order</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pictogramvolgorde omkeren</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Show icon only</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Alleen pictogram weergeven</translation>
     </message>
     <message>
         <location line="+41"/>
         <source>When value is</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Wanneer waarde is</translation>
     </message>
 </context>
 <context>
@@ -25747,12 +25747,12 @@ Bron: %3</translation>
     <message>
         <location line="+19"/>
         <source>Use English function names</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Engelse functienamen gebruiken</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Type and read formulas with English names such as SUM and IF, not the names of the display language. Workbooks are saved the same either way.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Typ en lees formules met Engelse namen zoals SUM en IF, niet met de namen van de weergavetaal. Werkmappen worden hetzelfde opgeslagen, ongeacht de keuze.</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -31877,7 +31877,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+1"/>
         <source>A Date Occurring…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een datum die voorkomt…</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -31892,22 +31892,22 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+11"/>
         <source>Gradient Fill, %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Opvulling met kleurovergang, %1</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Solid Fill, %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Effen opvulling, %1</translation>
     </message>
     <message>
         <location line="+24"/>
         <source>New Rule…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nieuwe regel…</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Manage Rules…</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Regels beheren…</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -31922,12 +31922,12 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+10"/>
         <source>Gradient Fill</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kleurovergang-opvulling</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Solid Fill</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Effen opvulling</translation>
     </message>
     <message>
         <location line="+23"/>
@@ -33467,67 +33467,67 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location filename="../apps/crunch/app/condpresets.cpp" line="+7"/>
         <source>Green - Yellow - Red Color Scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Groen - geel - rood kleurenschaal</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Red - Yellow - Green Color Scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rood - geel - groen kleurenschaal</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Green - White - Red Color Scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Groen - wit - rood kleurenschaal</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Red - White - Green Color Scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rood - wit - groen kleurenschaal</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Blue - White - Red Color Scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Blauw - wit - rood kleurenschaal</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Red - White - Blue Color Scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rood - wit - blauw kleurenschaal</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>White - Red Color Scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Wit - rood kleurenschaal</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Red - White Color Scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rood - wit kleurenschaal</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Green - White Color Scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Groen - wit kleurenschaal</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>White - Green Color Scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Wit - groen kleurenschaal</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Green - Yellow Color Scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Groen - geel kleurenschaal</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Yellow - Green Color Scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Geel - groen kleurenschaal</translation>
     </message>
     <message>
         <location line="+7"/>
         <source>Directional</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Richting</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -33537,112 +33537,112 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+1"/>
         <source>Indicators</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Indicatoren</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Ratings</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Beoordelingen</translation>
     </message>
     <message>
         <location line="+9"/>
         <source>3 Arrows (Colored)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">3 pijlen (gekleurd)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>3 Arrows (Gray)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">3 pijlen (grijs)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>3 Triangles</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">3 driehoeken</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>4 Arrows (Colored)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">4 pijlen (gekleurd)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>4 Arrows (Gray)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">4 pijlen (grijs)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>5 Arrows (Colored)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">5 pijlen (gekleurd)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>5 Arrows (Gray)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">5 pijlen (grijs)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>3 Traffic Lights (No Border)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">3 verkeerslichten (zonder rand)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>3 Traffic Lights (with Border)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">3 verkeerslichten (met rand)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>3 Signs</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">3 borden</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>4 Traffic Lights</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">4 verkeerslichten</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Red to Black</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rood naar zwart</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>3 Symbols (in Circles)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">3 symbolen (in cirkels)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>3 Symbols (Plain)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">3 symbolen (eenvoudig)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>3 Flags</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">3 vlaggen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>3 Stars</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">3 sterren</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>4 Ratings</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">4 beoordelingen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>5 Ratings</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">5 beoordelingen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>5 Quarters</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">5 kwartalen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>5 Boxes</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">5 vakjes</translation>
     </message>
     <message>
         <location line="+49"/>
@@ -33662,37 +33662,37 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+0"/>
         <source>In the last 7 days</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">In de afgelopen 7 dagen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Last week</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Vorige week</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>This week</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze week</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Next week</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Volgende week</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Last month</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Vorige maand</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>This month</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Deze maand</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Next month</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Volgende maand</translation>
     </message>
     <message>
         <location line="+16"/>
@@ -33707,128 +33707,128 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+6"/>
         <source>Cell value %1 %2 and %3</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Celwaarde %1 %2 en %3</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Cell value %1 %2</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Celwaarde %1 %2</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Formula: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Formule: %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Three-color scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kleurenschaal met drie kleuren</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Two-color scale</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Kleurenschaal met twee kleuren</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Data bar (gradient fill)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gegevensbalk (kleurovergang)</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Data bar (solid fill)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gegevensbalk (effen opvulling)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Icon set: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pictogrammenset: %1</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Bottom %1 percent</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Onderste %1 procent</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Top %1 percent</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bovenste %1 procent</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Bottom items: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Onderste items: %1</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Top items: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Bovenste items: %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Unique values</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Unieke waarden</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Duplicate values</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Dubbele waarden</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Text contains &quot;%1&quot;</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tekst bevat &quot;%1&quot;</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Text does not contain &quot;%1&quot;</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tekst bevat niet &quot;%1&quot;</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Text begins with &quot;%1&quot;</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tekst begint met &quot;%1&quot;</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Text ends with &quot;%1&quot;</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tekst eindigt op &quot;%1&quot;</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Cells that are not blank</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cellen die niet leeg zijn</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Cells with errors</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cellen met fouten</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Cells without errors</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Cellen zonder fouten</translation>
     </message>
     <message>
         <location line="+3"/>
         <source>Dates: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Datums: %1</translation>
     </message>
     <message>
         <location line="+1"/>
         <location filename="../apps/crunch/app/crunchwindow_cond.cpp" line="-43"/>
         <source>Dates</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Datums</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Above average</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Boven gemiddelde</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Below average</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Onder gemiddelde</translation>
     </message>
     <message>
         <location line="+57"/>
@@ -35932,7 +35932,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+7"/>
         <source>Templates</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Sjablonen</translation>
     </message>
     <message>
         <location line="+24"/>
@@ -36558,7 +36558,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+12"/>
         <source>Reading View is for reading. Press Esc, or choose another view, to make changes.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Leesweergave is bedoeld om te lezen. Druk op Esc of kies een andere weergave om wijzigingen aan te brengen.</translation>
     </message>
     <message>
         <location line="+27"/>
@@ -36841,7 +36841,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+2"/>
         <source>Text Highlight Color</source>
-        <translation type="unfinished">Markeringskleur voor tekst</translation>
+        <translation type="unfinished">Tekstmarkeringskleur</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -36851,7 +36851,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+10"/>
         <source>Highlighting: select the text to highlight. Choose Stop Highlighting or press Esc to stop.</source>
-        <translation type="unfinished">Markeren: selecteer de tekst om te markeren. Kies Markeren stoppen of druk op Esc om te stoppen.</translation>
+        <translation type="unfinished">Markeren: selecteer de tekst die u wilt markeren. Kies Markeren stoppen of druk op Esc om te stoppen.</translation>
     </message>
     <message>
         <location line="+4"/>
@@ -39668,7 +39668,7 @@ Het bestand kan niet worden gelezen.</translation>
         <location line="+1"/>
         <location line="+314"/>
         <source>When an Object Is Clicked</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Wanneer een object wordt aangeklikt</translation>
     </message>
     <message>
         <location line="-313"/>
@@ -39678,7 +39678,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+171"/>
         <source>Effects that waited for a click on the deleted object now play in the main sequence.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Effecten die wachtten op een klik op het verwijderde object, worden nu in de hoofdreeks afgespeeld.</translation>
     </message>
     <message>
         <location line="+34"/>
@@ -39904,7 +39904,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+2"/>
         <source>Reading View</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Leesweergave</translation>
     </message>
     <message>
         <location line="+3"/>
@@ -39924,27 +39924,27 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+174"/>
         <source>Go back one step or slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Eén stap of dia terug</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Go forward one step or slide</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Eén stap of dia vooruit</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Show Menu</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Menu weergeven</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Open the menu for going to a slide, the pointer, the screen, and ending the show</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Open het menu om naar een dia te gaan, de aanwijzer en het scherm te wijzigen en de presentatie te beëindigen</translation>
     </message>
     <message>
         <location line="+11"/>
         <source>End of the show</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Einde van de presentatie</translation>
     </message>
     <message>
         <location filename="../apps/deck/app/deckwindow_help.cpp" line="+28"/>
@@ -42200,7 +42200,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="+10"/>
         <source>Text Highlight Color</source>
-        <translation type="unfinished">Markeringskleur voor tekst</translation>
+        <translation type="unfinished">Tekstmarkeringskleur</translation>
     </message>
     <message>
         <location line="+73"/>
@@ -44333,7 +44333,7 @@ Het bestand kan niet worden gelezen.</translation>
     <message>
         <location line="-776"/>
         <source>Custom Format</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Aangepaste notatie</translation>
     </message>
     <message>
         <location line="+122"/>
@@ -49908,7 +49908,7 @@ Bron: %3</translation>
     <message>
         <location line="+13"/>
         <source>Text Highlight Color</source>
-        <translation type="unfinished">Markeringskleur voor tekst</translation>
+        <translation type="unfinished">Tekstmarkeringskleur</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -49918,7 +49918,7 @@ Bron: %3</translation>
     <message>
         <location line="+10"/>
         <source>Highlighting: select the text to highlight. Choose Stop Highlighting or press Esc to stop.</source>
-        <translation type="unfinished">Markeren: selecteer de tekst om te markeren. Kies Markeren stoppen of druk op Esc om te stoppen.</translation>
+        <translation type="unfinished">Markeren: selecteer de tekst die u wilt markeren. Kies Markeren stoppen of druk op Esc om te stoppen.</translation>
     </message>
     <message>
         <location line="+137"/>
@@ -57261,7 +57261,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+2"/>
         <source>Drag a point to reshape. Ctrl+click a point to delete it, or an edge to add one. Shift+click puts a glue point for connectors on the shape, or takes it away. Press Esc when done.</source>
-        <translation type="unfinished">Sleep een punt om de vorm aan te passen. Ctrl+klik op een punt om het te verwijderen, of op een rand om er een toe te voegen. Shift+klik plaatst een verbindingspunt voor verbindingslijnen op de vorm, of verwijdert het. Druk op Esc als u klaar bent.</translation>
+        <translation type="unfinished">Sleep een punt om de vorm aan te passen. Ctrl+klik op een punt om het te verwijderen, of op een rand om een punt toe te voegen. Shift+klik plaatst een verbindingspunt voor verbindingslijnen op de vorm of verwijdert het. Druk op Esc als u klaar bent.</translation>
     </message>
     <message>
         <location line="-93"/>
@@ -57273,7 +57273,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="-93"/>
         <source>Cancelling…</source>
-        <translation type="unfinished">Bezig met annuleren…</translation>
+        <translation type="unfinished">Annuleren…</translation>
     </message>
     <message>
         <location line="+88"/>
@@ -57303,7 +57303,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
         <location line="+0"/>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="+0"/>
         <source>Fragment</source>
-        <translation type="unfinished">Fragmenteren</translation>
+        <translation type="unfinished">Fragment</translation>
     </message>
     <message>
         <location line="+5"/>
@@ -57544,52 +57544,52 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+13"/>
         <source>Next slide or step: Right, Down, Space, Enter, Page Down, N, or a click.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Volgende dia of stap: Rechts, Omlaag, Spatie, Enter, Pg Omlaag, N of een klik.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Previous slide or step: Left, Up, Backspace, Page Up, or P.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Vorige dia of stap: Links, Omhoog, Backspace, Pg Omhoog of P.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>First or last slide: Home or End.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Eerste of laatste dia: Pos1 of Einde.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>A slide by number: type the number, then press Enter.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Een dia op nummer: typ het nummer en druk op Enter.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Black or white screen: B or W (or the period and comma keys).</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Zwart of wit scherm: B of W (of de punt- en komma-toets).</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Pen, highlighter, laser pointer, or arrow: %1, %2, %3, or %4.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Pen, markeerstift, laseraanwijzer of pijl: %1, %2, %3 of %4.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Eraser, to remove ink as you drag: %1.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Gum, om inkt te verwijderen terwijl u sleept: %1.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Erase all ink on the slide at once: E, without Ctrl.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Alle inkt op de dia in één keer wissen: E, zonder Ctrl.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The menu: a right click, the Menu key, or Shift+F10.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het menu: klik met de rechtermuisknop, gebruik de Menutoets of Shift+F10.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Esc: put the pointer back to an arrow; press again to end the show.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Esc: zet de aanwijzer terug naar een pijl; druk nogmaals om de presentatie te beëindigen.</translation>
     </message>
     <message>
         <location line="+8"/>
@@ -57614,7 +57614,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+15"/>
         <source>Custom Show</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Aangepaste presentatie</translation>
     </message>
     <message>
         <location line="+10"/>
@@ -57639,7 +57639,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+2"/>
         <source>Slide Show Help</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Help bij diavoorstelling</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -58232,7 +58232,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+7"/>
         <source>Style Inspector</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Stijlinspecteur</translation>
     </message>
     <message>
         <location line="+126"/>
@@ -62621,7 +62621,7 @@ Uw webbrowser opent LibreTranslate, een gratis opensource-vertaaldienst, met dez
     <message>
         <location line="+102"/>
         <source>The text of the other shapes was removed.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De tekst van de andere vormen is verwijderd.</translation>
     </message>
     <message>
         <location filename="../apps/write/app/writewindow_objects.cpp" line="+25"/>
@@ -65417,7 +65417,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
         <location line="+1"/>
         <location line="+78"/>
         <source>Style Inspector</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Stijlinspecteur</translation>
     </message>
     <message>
         <location line="-77"/>
@@ -65492,32 +65492,32 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+0"/>
         <source>Text formatting</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tekstopmaak</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Clear Paragraph Formatting</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Alineaopmaak wissen</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Clear Character Style</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tekenstijl wissen</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Clear Character Formatting</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tekenopmaak wissen</translation>
     </message>
     <message>
         <location line="+32"/>
         <source>Several styles in the selection</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Meerdere stijlen in de selectie</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Table style: %1</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tabelstijl: %1</translation>
     </message>
     <message>
         <location line="+2"/>
@@ -65527,12 +65527,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+1"/>
         <source>Several looks in the selection</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Meerdere stijlen in de selectie</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>(nothing of its own)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">(niets eigens)</translation>
     </message>
     <message>
         <location line="+35"/>
@@ -67069,17 +67069,17 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location filename="../apps/write/app/writewindow_grid.cpp" line="+62"/>
         <source>Drawing Grid</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tekenraster</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The drawing grid is shown on the page.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het tekenraster wordt op de pagina weergegeven.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>The drawing grid is hidden.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Het tekenraster is verborgen.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -67089,27 +67089,27 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+2"/>
         <source>Snap to Grid is on: pictures, shapes, and text boxes go to the grid as you drag them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Uitlijnen op raster is aan: afbeeldingen, vormen en tekstvakken worden tijdens het slepen naar het raster uitgelijnd.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Snap to Grid is off.</source>
-        <translation type="unfinished">Uitlijnen op raster is uitgeschakeld.</translation>
+        <translation type="unfinished">Uitlijnen op raster is uit.</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Alignment Guides</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Uitlijnhulplijnen</translation>
     </message>
     <message>
         <location line="+2"/>
         <source>Alignment Guides are on: lines show when an object lines up with another object, the page, or the margins, and it snaps to them.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Uitlijnhulplijnen zijn aan: er verschijnen lijnen wanneer een object uitlijnt met een ander object, de pagina of de marges, en het object wordt eraan uitgelijnd.</translation>
     </message>
     <message>
         <location line="+0"/>
         <source>Alignment Guides are off.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Uitlijnhulplijnen zijn uit.</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -81341,12 +81341,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location filename="../apps/write/core/styleinspect.cpp" line="+1"/>
         <source>Indents</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Inspringingen</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Spacing before or after</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Afstand voor of na</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -81356,12 +81356,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+1"/>
         <source>Tab stops</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tabstops</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Borders and shading</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Randen en arcering</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -81376,7 +81376,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+1"/>
         <source>Page break before</source>
-        <translation type="unfinished">Paginaeinde voor</translation>
+        <translation type="unfinished">Pagina-einde voor</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -81386,12 +81386,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+1"/>
         <source>Widow and orphan control</source>
-        <translation type="unfinished">Weeskinder- en schoolkinderregeling</translation>
+        <translation type="unfinished">Weduwe- en weesregelbeheer</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>No space between paragraphs of the same style</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Geen afstand tussen alinea&apos;s met dezelfde stijl</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -81401,7 +81401,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+1"/>
         <source>Numbering or bullets</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Nummering of opsommingstekens</translation>
     </message>
     <message>
         <location line="+24"/>
@@ -81416,7 +81416,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+1"/>
         <source>Underline</source>
-        <translation type="unfinished">Onderstrepen</translation>
+        <translation type="unfinished">Onderstreept</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -81426,22 +81426,22 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+2"/>
         <source>Highlight</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Markeren</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Capitals</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Hoofdletters</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Superscript or subscript</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Superscript of subscript</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Raised or lowered</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Verhoogd of verlaagd</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -81451,7 +81451,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+1"/>
         <source>Character width</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Tekenbreedte</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -81461,17 +81461,17 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+1"/>
         <source>Border around the text</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Rand om de tekst</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Shadow or outline</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Schaduw of omtrek</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>Emboss or engrave</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Reliëf of inlegging</translation>
     </message>
     <message>
         <location line="+1"/>
@@ -82733,7 +82733,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+28"/>
         <source>There is no group to put back. Regroup works after Ungroup, while its objects are still there.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Er is geen groep om terug te zetten. Opnieuw groeperen werkt na Groep opheffen, zolang de objecten er nog zijn.</translation>
     </message>
     <message>
         <location line="+1025"/>
@@ -83434,12 +83434,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location filename="../apps/write/app/stylearea.cpp" line="+59"/>
         <source>Style area</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">Stijlgebied</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>The style of each paragraph, beside its first line.</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">De stijl van elke alinea, naast de eerste regel.</translation>
     </message>
 </context>
 <context>
@@ -84300,7 +84300,7 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location line="+1"/>
         <source>table styles (the tables are saved without their style)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">tabelstijlen (de tabellen worden opgeslagen zonder hun stijl)</translation>
     </message>
 </context>
 <context>
@@ -84319,12 +84319,12 @@ Het wachtwoord kon niet aan het bestand worden toegevoegd.</translation>
     <message>
         <location filename="../apps/write/core/writedoc_export.cpp" line="+157"/>
         <source>table styles (the tables are saved without their style)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">tabelstijlen (de tabellen worden opgeslagen zonder hun stijl)</translation>
     </message>
     <message>
         <location line="+1"/>
         <source>list styles (the lists are saved without their style)</source>
-        <translation type="unfinished"></translation>
+        <translation type="unfinished">lijststijlen (de lijsten worden opgeslagen zonder hun stijl)</translation>
     </message>
 </context>
 </TS>
