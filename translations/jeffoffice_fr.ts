@@ -4425,7 +4425,12 @@ Article de dernière page	4</translation>
         <translation>Zone de coupure</translation>
     </message>
     <message>
-        <location line="-1195"/>
+        <location line="+96"/>
+        <source>Text Files (*.txt *.rtf *.html *.htm *.docx *.doc *.odt *.md)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-1291"/>
         <source>Text Box</source>
         <translation type="unfinished">Zone de texte</translation>
     </message>
@@ -6192,17 +6197,13 @@ Article de dernière page	4</translation>
         <translation type="unfinished">Insérer du texte</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Text Files (*.txt *.rtf *.html *.htm *.docx *.md)</source>
-        <translation type="unfinished">Fichiers texte (*.txt *.rtf *.html *.htm *.docx *.md)</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location line="+2"/>
         <source>All Files (*)</source>
         <translation type="unfinished">Tous les fichiers (*)</translation>
     </message>
     <message>
         <location line="+10"/>
+        <location line="+14"/>
         <source>Insert File</source>
         <translation type="unfinished">Insérer un fichier</translation>
     </message>
@@ -6290,7 +6291,7 @@ Article de dernière page	4</translation>
         <translation type="unfinished">CSV (*.csv)</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/dialogs.cpp" line="+28"/>
+        <location filename="../apps/pub/app/dialogs.cpp" line="+18"/>
         <source>Recipients</source>
         <translation type="unfinished">Destinataires</translation>
     </message>
@@ -6432,7 +6433,7 @@ Article de dernière page	4</translation>
         <translation type="unfinished">Comportement du collage selon la source du contenu</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/dialogs.cpp" line="-564"/>
+        <location filename="../apps/pub/app/dialogs.cpp" line="-568"/>
         <location filename="../apps/write/app/writewindow_options.cpp" line="-8"/>
         <source>Use the Insert key to turn overtype mode on and off</source>
         <translation type="unfinished">Utiliser la touche Inser pour activer ou désactiver le mode Refrappe</translation>
@@ -8686,7 +8687,7 @@ Enregistrer sans sauvegarde ?</translation>
         <translation type="unfinished">Le fichier ne contient aucune ligne.</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/importers.cpp" line="+478"/>
+        <location filename="../apps/pub/io/importers.cpp" line="+542"/>
         <source>%1 (merged)</source>
         <translation type="unfinished">%1 (fusionné)</translation>
     </message>
@@ -8836,21 +8837,40 @@ Ouvrez-les avec votre programme de messagerie pour les envoyer.</translation>
 <context>
     <name>Importers</name>
     <message>
-        <location filename="../apps/pub/io/importers.cpp" line="-614"/>
+        <location filename="../apps/pub/io/importers.cpp" line="-650"/>
         <source>&quot;%1&quot; is larger than the %2 MB of text JeffPub puts in at once, so none of it was inserted.</source>
         <translation type="unfinished">« %1 » dépasse les %2 Mo de texte que JeffPub insère en une fois, donc rien n&apos;a été inséré.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location line="+23"/>
         <source>&quot;%1&quot; couldn&apos;t be read, so nothing was inserted.
 %2</source>
         <translation type="unfinished">« %1 » n&apos;a pas pu être lu, donc rien n&apos;a été inséré.
 %2</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+9"/>
+        <source>No text was found in &quot;%1&quot;, so nothing was inserted.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
         <source>&quot;%1&quot; isn&apos;t a document JeffPub can read, so nothing was inserted.</source>
         <translation type="unfinished">« %1 » n&apos;est pas un document que JeffPub peut lire, donc rien n&apos;a été inséré.</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+24"/>
+        <source>%n picture, table, list, comment, or note in &quot;%1&quot; was left out or came in as plain text.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Some parts of &quot;%1&quot; could not be read and were left out.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -20770,7 +20790,7 @@ Publication assistée par ordinateur</translation>
         <translation type="unfinished">(Suite de la page %1)</translation>
     </message>
     <message>
-        <location line="+6902"/>
+        <location line="+6903"/>
         <source>Notes</source>
         <translation>Notes</translation>
     </message>
@@ -49486,12 +49506,12 @@ Source : %3</translation>
         <translation type="unfinished">Modifier le lien</translation>
     </message>
     <message>
-        <location line="+72"/>
+        <location line="+74"/>
         <source>%1 pictures are on the scratch area beside the page. Drag them onto the page, or onto a picture to swap.</source>
         <translation type="unfinished">%1 images se trouvent dans la zone de travail à côté de la page. Faites-les glisser sur la page, ou sur une image pour la remplacer.</translation>
     </message>
     <message>
-        <location line="+27"/>
+        <location line="+30"/>
         <source>Insert Equation</source>
         <translation type="unfinished">Insérer une équation</translation>
     </message>
@@ -49549,7 +49569,7 @@ Source : %3</translation>
         <translation type="unfinished">Nouvelle composition vierge</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="-1681"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="-1686"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+199"/>
         <source>Publications (*.jpub *.pub)</source>
         <translation type="unfinished">Compositions (*.jpub *.pub)</translation>
@@ -50051,8 +50071,10 @@ Source : %3</translation>
         <translation type="unfinished">Modifier les informations professionnelles…</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="+1558"/>
-        <location line="+6"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="+1560"/>
+        <location line="+1"/>
+        <location line="+7"/>
+        <location line="+1"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+1"/>
         <source>Insert File</source>
         <translation type="unfinished">Insérer un fichier</translation>
@@ -52457,7 +52479,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
         <translation type="unfinished">Automatique</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="-1937"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="-1942"/>
         <location filename="../apps/pub/app/mainwindow_ribbon.cpp" line="+2"/>
         <source>Tints…</source>
         <translation type="unfinished">Nuances…</translation>
@@ -85095,13 +85117,13 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <location line="+83"/>
         <location line="+7"/>
         <location line="+368"/>
-        <location line="+216"/>
+        <location line="+217"/>
         <location line="+17"/>
         <source>drawing shapes</source>
         <translation type="unfinished">formes de dessin</translation>
     </message>
     <message>
-        <location line="-495"/>
+        <location line="-496"/>
         <source>objects such as formulas and charts</source>
         <translation type="unfinished">objets tels que formules et graphiques</translation>
     </message>
@@ -85112,13 +85134,13 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">contenu trop profondément imbriqué</translation>
     </message>
     <message>
-        <location line="+342"/>
+        <location line="+344"/>
         <location filename="../libs/office/odt/odtwritebody.cpp" line="+2189"/>
         <source>tables nested too deeply</source>
         <translation type="unfinished">tableaux trop profondément imbriqués</translation>
     </message>
     <message>
-        <location line="+225"/>
+        <location line="+226"/>
         <source>a table with more repeated cells than are kept</source>
         <translation type="unfinished">tableau contenant plus de cellules répétées que le nombre conservé</translation>
     </message>
@@ -85128,7 +85150,12 @@ Le mot de passe n&apos;a pas pu être appliqué au fichier.</translation>
         <translation type="unfinished">tableau contenant plus de lignes répétées que le nombre conservé</translation>
     </message>
     <message>
-        <location filename="../libs/office/odt/odtread.cpp" line="+91"/>
+        <location filename="../libs/office/odt/odtread.cpp" line="+82"/>
+        <source>The document is longer than this program can open: the end of it was left out.</source>
+        <translation>Le document est plus long que ce que ce programme peut ouvrir : sa fin a été omise.</translation>
+    </message>
+    <message>
+        <location line="+18"/>
         <source>This is not an OpenDocument file.</source>
         <translation type="unfinished">Ce fichier n&apos;est pas un fichier OpenDocument.</translation>
     </message>

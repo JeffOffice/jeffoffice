@@ -5601,7 +5601,12 @@ Back page story	4</source>
         <translation>Зона переносу</translation>
     </message>
     <message>
-        <location line="-1195"/>
+        <location line="+96"/>
+        <source>Text Files (*.txt *.rtf *.html *.htm *.docx *.doc *.odt *.md)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-1291"/>
         <source>Text Box</source>
         <translation type="unfinished">Текстове поле</translation>
     </message>
@@ -6292,22 +6297,18 @@ Back page story	4</source>
         <translation type="unfinished">Вставити текст</translation>
     </message>
     <message>
-        <location line="+1"/>
-        <source>Text Files (*.txt *.rtf *.html *.htm *.docx *.md)</source>
-        <translation type="unfinished">Текстові файли (*.txt *.rtf *.html *.htm *.docx *.md)</translation>
-    </message>
-    <message>
-        <location line="+1"/>
+        <location line="+2"/>
         <source>All Files (*)</source>
         <translation type="unfinished">Усі файли (*)</translation>
     </message>
     <message>
         <location line="+10"/>
+        <location line="+14"/>
         <source>Insert File</source>
         <translation type="unfinished">Вставити файл</translation>
     </message>
     <message>
-        <location line="+28"/>
+        <location line="+18"/>
         <source>Recipients</source>
         <translation type="unfinished">Отримувачі</translation>
     </message>
@@ -6434,7 +6435,7 @@ Back page story	4</source>
         <translation type="unfinished">Як діє вставлення залежно від джерела вмісту</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/dialogs.cpp" line="-564"/>
+        <location filename="../apps/pub/app/dialogs.cpp" line="-568"/>
         <location filename="../apps/write/app/writewindow_options.cpp" line="-8"/>
         <source>Use the Insert key to turn overtype mode on and off</source>
         <translation type="unfinished">Використовуйте клавішу Insert, щоб увімкнути або вимкнути режим заміни</translation>
@@ -8722,7 +8723,7 @@ Save without a backup?</source>
         <translation type="unfinished">У файлі немає рядків.</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/importers.cpp" line="+478"/>
+        <location filename="../apps/pub/io/importers.cpp" line="+542"/>
         <source>%1 (merged)</source>
         <translation type="unfinished">%1 (злито)</translation>
     </message>
@@ -8843,21 +8844,41 @@ Open them with your email program to send.</source>
 <context>
     <name>Importers</name>
     <message>
-        <location filename="../apps/pub/io/importers.cpp" line="-614"/>
+        <location filename="../apps/pub/io/importers.cpp" line="-650"/>
         <source>&quot;%1&quot; is larger than the %2 MB of text JeffPub puts in at once, so none of it was inserted.</source>
         <translation type="unfinished">«%1» перевищує %2 МБ тексту, які JeffPub вставляє за раз, тому нічого не було вставлено.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <location line="+23"/>
         <source>&quot;%1&quot; couldn&apos;t be read, so nothing was inserted.
 %2</source>
         <translation type="unfinished">Не вдалося прочитати «%1», тому нічого не було вставлено.
 %2</translation>
     </message>
     <message>
-        <location line="+13"/>
+        <location line="+9"/>
+        <source>No text was found in &quot;%1&quot;, so nothing was inserted.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
         <source>&quot;%1&quot; isn&apos;t a document JeffPub can read, so nothing was inserted.</source>
         <translation type="unfinished">«%1» не є документом, який може прочитати JeffPub, тому нічого не було вставлено.</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+24"/>
+        <source>%n picture, table, list, comment, or note in &quot;%1&quot; was left out or came in as plain text.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>Some parts of &quot;%1&quot; could not be read and were left out.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -20794,7 +20815,7 @@ Desktop publishing</source>
         <translation type="unfinished">(Продовження з сторінки %1)</translation>
     </message>
     <message>
-        <location line="+6902"/>
+        <location line="+6903"/>
         <source>Notes</source>
         <translation>Примітки</translation>
     </message>
@@ -49568,12 +49589,12 @@ Source: %3</source>
         <translation type="unfinished">Змінити посилання</translation>
     </message>
     <message>
-        <location line="+72"/>
+        <location line="+74"/>
         <source>%1 pictures are on the scratch area beside the page. Drag them onto the page, or onto a picture to swap.</source>
         <translation type="unfinished">Малюнків на робочій області збоку від сторінки: %1. Перетягніть їх на сторінку або на малюнок, щоб замінити його.</translation>
     </message>
     <message>
-        <location line="+27"/>
+        <location line="+30"/>
         <source>Insert Equation</source>
         <translation type="unfinished">Вставити формулу</translation>
     </message>
@@ -50184,8 +50205,10 @@ Source: %3</source>
         <translation type="unfinished">Редагувати інформацію про компанію…</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="-123"/>
-        <location line="+6"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="-126"/>
+        <location line="+1"/>
+        <location line="+7"/>
+        <location line="+1"/>
         <location filename="../apps/pub/app/mainwindow_actions.cpp" line="+1"/>
         <source>Insert File</source>
         <translation type="unfinished">Вставити файл</translation>
@@ -52549,7 +52572,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Властивості</translation>
     </message>
     <message>
-        <location filename="../apps/pub/app/mainwindow.cpp" line="-1014"/>
+        <location filename="../apps/pub/app/mainwindow.cpp" line="-1019"/>
         <location filename="../apps/pub/app/mainwindow_info.cpp" line="+35"/>
         <source>Pages</source>
         <translation>Сторінки</translation>
@@ -85203,13 +85226,13 @@ The password couldn&apos;t be put on the file.</source>
         <location line="+83"/>
         <location line="+7"/>
         <location line="+368"/>
-        <location line="+216"/>
+        <location line="+217"/>
         <location line="+17"/>
         <source>drawing shapes</source>
         <translation type="unfinished">малювані фігури</translation>
     </message>
     <message>
-        <location line="-495"/>
+        <location line="-496"/>
         <source>objects such as formulas and charts</source>
         <translation type="unfinished">об&apos;єкти, такі як формули та діаграми</translation>
     </message>
@@ -85220,13 +85243,13 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">вкладений вміст занадто глибокий</translation>
     </message>
     <message>
-        <location line="+342"/>
+        <location line="+344"/>
         <location filename="../libs/office/odt/odtwritebody.cpp" line="+2189"/>
         <source>tables nested too deeply</source>
         <translation type="unfinished">таблиці занадто глибоко вкладені</translation>
     </message>
     <message>
-        <location line="+225"/>
+        <location line="+226"/>
         <source>a table with more repeated cells than are kept</source>
         <translation type="unfinished">таблиця з більшою кількістю повторюваних комірок, ніж зберігається</translation>
     </message>
@@ -85236,7 +85259,12 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">таблиця з більшою кількістю повторюваних рядків, ніж зберігається</translation>
     </message>
     <message>
-        <location filename="../libs/office/odt/odtread.cpp" line="+91"/>
+        <location filename="../libs/office/odt/odtread.cpp" line="+82"/>
+        <source>The document is longer than this program can open: the end of it was left out.</source>
+        <translation>Документ довший, ніж може відкрити ця програма: кінець його пропущено.</translation>
+    </message>
+    <message>
+        <location line="+18"/>
         <source>This is not an OpenDocument file.</source>
         <translation type="unfinished">Це не файл OpenDocument.</translation>
     </message>

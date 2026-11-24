@@ -61,11 +61,22 @@
 <context>
     <name>Import</name>
     <message numerus="yes">
-        <location filename="../apps/pub/io/importers.cpp" line="+536"/>
+        <location filename="../apps/pub/io/importers.cpp" line="+600"/>
         <source>Created %n email file(s) in %1.</source>
         <translation>
             <numerusform>Created %n email file in %1.</numerusform>
             <numerusform>Created %n email files in %1.</numerusform>
+        </translation>
+    </message>
+</context>
+<context>
+    <name>Importers</name>
+    <message numerus="yes">
+        <location line="-189"/>
+        <source>%n picture, table, list, comment, or note in &quot;%1&quot; was left out or came in as plain text.</source>
+        <translation>
+            <numerusform>%n picture, table, list, comment, or note in &quot;%1&quot; was left out or came in as plain text.</numerusform>
+            <numerusform>%n pictures, tables, lists, comments, and notes in &quot;%1&quot; were left out or came in as plain text.</numerusform>
         </translation>
     </message>
 </context>

@@ -46,10 +46,6 @@
         <translation type="unfinished">Sobreimpresión del negro en ficheros para imprenta (PDF/X)</translation>
     </message>
     <message>
-        <source>Text Files (*.txt *.rtf *.html *.htm *.docx *.md)</source>
-        <translation type="unfinished">Ficheros de texto (*.txt *.rtf *.html *.htm *.docx *.md)</translation>
-    </message>
-    <message>
         <source>All Files (*)</source>
         <translation type="unfinished">Todos los ficheros (*)</translation>
     </message>
