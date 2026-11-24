@@ -3144,6 +3144,12 @@ quint32 Workbook::fontPlace(const FontSpec &font)
         m_formatLimitHit = true;
         return 0;
     }
+    // (a list with nothing in it is read as the plain item at 0: the first made must not take that place from every cell format that names it)
+    if (m_styles.fonts.isEmpty()) {
+        m_styles.fonts.append(FontSpec());
+        m_fontsAdded.append(FontSpec());
+        m_fontIndex.emplace(hashOf(FontSpec()), 0u);
+    }
     m_styles.fonts.append(font);
     m_fontsAdded.append(font);
     m_fontIndex.emplace(hashOf(font), quint32(m_styles.fonts.size() - 1));
@@ -3533,6 +3539,11 @@ quint32 Workbook::fillPlace(const FillSpec &fill)
         m_formatLimitHit = true;
         return 0;
     }
+    if (m_styles.fills.isEmpty()) {
+        m_styles.fills.append(FillSpec());
+        m_fillsAdded.append(FillSpec());
+        m_fillIndex.emplace(hashOf(FillSpec()), 0u);
+    }
     m_styles.fills.append(fill);
     m_fillsAdded.append(fill);
     m_fillIndex.emplace(hashOf(fill), quint32(m_styles.fills.size() - 1));
@@ -3546,6 +3557,11 @@ quint32 Workbook::borderPlace(const BorderSpec &border)
     if (m_styles.borders.size() >= kMaxBordersMade) {
         m_formatLimitHit = true;
         return 0;
+    }
+    if (m_styles.borders.isEmpty()) {
+        m_styles.borders.append(BorderSpec());
+        m_bordersAdded.append(BorderSpec());
+        m_borderIndex.emplace(hashOf(BorderSpec()), 0u);
     }
     m_styles.borders.append(border);
     m_bordersAdded.append(border);

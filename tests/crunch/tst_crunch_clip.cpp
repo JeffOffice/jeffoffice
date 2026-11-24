@@ -708,6 +708,24 @@ private Q_SLOTS:
         QVERIFY2(html.contains(QStringLiteral("<td>plain</td>")), qPrintable(html));
     }
 
+    // A workbook whose file lists no fonts or borders still has a plain first of each: the first underline or border made for one cell does not become every plain cell's look.
+    void aFirstFontOrBorderMadeLeavesThePlainCellsPlain()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=Hello", "C1=plain"})));
+        e.select(QStringLiteral("A1"));
+        for (const char *id : {"fmt.underline", "fmt.border.outside"}) {
+            QAction *a = e.win.w.act(QString::fromLatin1(id));
+            QVERIFY2(a && a->isEnabled(), id);
+            a->trigger();
+        }
+        const_cast<jp::grid::LookTable &>(e.view()->sheet().looks()).reset();   // (what a screen made after the edit draws from: no look is held from before it)
+        copyRange(e, QStringLiteral("A1:C1"));
+        const QString html = QApplication::clipboard()->mimeData()->html();
+        QVERIFY2(html.contains(QStringLiteral("<td>plain</td>")), qPrintable(html));
+        QVERIFY2(html.contains(QStringLiteral("text-decoration:underline;")), qPrintable(html));
+    }
+
     // Copy as Printed Picture draws the cells as the paper would have them: the sheet's print setup decides the gridlines (none by default), not the window's.
     void copyAsPrintedPictureLeavesOutTheScreensGridlines()
     {
