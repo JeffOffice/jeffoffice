@@ -431,6 +431,11 @@
         {
          "status": "partly",
          "text": "081326f11e8060a36d8abd8d6b2075ee93e2f59898bd4dc36998e942eff58e5c"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
+         "text": "7c8cf8ff495fe5e1d8f777236b5b4f4b835cc3a5e0e453cf1996e9f92e37ba6c"
         }
        ]
       },
@@ -2775,6 +2780,11 @@
          "hide_soon": true,
          "status": "done",
          "text": "7ec19ece0dffafaeadbcfd1132151b990d851a38bc6574e7e83cd40df82bfec7"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
+         "text": "883ae5630204f5d5c71facab79dba42991842321c9ce37c1379c2318dcba6810"
         }
        ]
       },
@@ -4808,6 +4818,11 @@
       {
        "hide_soon": true,
        "status": "done",
+       "text": "61212af8f253eef626e6b44a0d45d620b57174de91641c0e9e9fa6bc1c8eb6cf"
+      },
+      {
+       "hide_soon": true,
+       "status": "done",
        "text": "681503eea6266c84d44bac0530d3d04df8ed2c847de4f1c7e22381c174d68b3e"
       },
       {
@@ -6265,6 +6280,11 @@
          "hide_soon": true,
          "status": "done",
          "text": "f4c56799a9bcc590c39d557a37752f9ba4667ff9482d8e2b7806cdac78266a39"
+        },
+        {
+         "hide_soon": true,
+         "status": "done",
+         "text": "5e13a7a9c3c7530e4f039612215c58b28510d5ac1dc0090047e925381687cba3"
         }
        ]
       },
@@ -15285,6 +15305,18 @@
     "fr": ""
    }
   },
+  "5e13a7a9c3c7530e4f039612215c58b28510d5ac1dc0090047e925381687cba3": {
+   "drop": false,
+   "en": "Open a Clipboard pane that lists the last 24 items copied or cut, newest first, with a preview of each, and click any item to paste it. Paste All, Delete, and Clear All are available.",
+   "es": "Abra un panel del Portapapeles que enumera los últimos 24 elementos copiados o cortados, del más reciente al más antiguo, con una vista previa de cada uno, y haga clic en cualquiera para pegarlo. Están disponibles Paste All, Delete y Clear All.",
+   "fr": "Ouvrez un volet Presse-papiers qui liste les 24 derniers éléments copiés ou coupés, du plus récent au plus ancien, avec un aperçu de chacun, et cliquez sur l’un d’eux pour le coller. Les commandes Paste All, Delete et Clear All sont disponibles.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "5e40a1f6da624b7ef37ed962daea459f5a1e99adde25d169425339478ef42b56": {
    "drop": false,
    "en": "AutoCorrect Options window with the replacement list, the exceptions lists, and the capital-letter switches; text boxes follow them.",
@@ -15530,6 +15562,18 @@
    "en": "Attach connectors to shapes: an end snaps to the nearest connection site on a shape and follows it. The site is kept in `.pptx` and `.odp` files.",
    "es": "Una los conectores a las formas: un extremo se ajusta al punto de conexión más cercano de una forma y la sigue. El punto de conexión se conserva en los archivos `.pptx` y `.odp`.",
    "fr": "Attachez des connecteurs aux formes : une extrémité s’accroche au point de connexion le plus proche d’une forme et la suit. Le point de connexion est conservé dans les fichiers `.pptx` et `.odp`.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "61212af8f253eef626e6b44a0d45d620b57174de91641c0e9e9fa6bc1c8eb6cf": {
+   "drop": false,
+   "en": "Open a Clipboard pane that lists the last 24 items copied or cut, newest first, and click any item to paste it. Items are kept only while the app is open and nothing is written to a file.",
+   "es": "Abra un panel del Portapapeles que enumera los últimos 24 elementos copiados o cortados, del más reciente al más antiguo, y haga clic en cualquiera para pegarlo. Los elementos se conservan solo mientras la aplicación está abierta y no se escribe nada en ningún archivo.",
+   "fr": "Ouvrez un volet Presse-papiers qui liste les 24 derniers éléments copiés ou coupés, du plus récent au plus ancien, et cliquez sur l’un d’eux pour le coller. Les éléments ne sont conservés que tant que l’application est ouverte et rien n’est écrit dans un fichier.",
    "soon": {
     "drop": true,
     "en": "",
@@ -17649,6 +17693,18 @@
     "fr": ""
    }
   },
+  "7c8cf8ff495fe5e1d8f777236b5b4f4b835cc3a5e0e453cf1996e9f92e37ba6c": {
+   "drop": false,
+   "en": "Open a Clipboard pane that lists the last 24 items copied or cut, newest first, with a preview of each, and click any item to paste it. Paste All, Delete, and Clear All are available.",
+   "es": "Abra un panel del Portapapeles que enumera los últimos 24 elementos copiados o cortados, del más reciente al más antiguo, con una vista previa de cada uno, y haga clic en cualquiera para pegarlo. Están disponibles Paste All, Delete y Clear All.",
+   "fr": "Ouvrez un volet Presse-papiers qui liste les 24 derniers éléments copiés ou coupés, du plus récent au plus ancien, avec un aperçu de chacun, et cliquez sur l’un d’eux pour le coller. Les commandes Paste All, Delete et Clear All sont disponibles.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "7cd24f147c2a163a1eace73e96f61e7e02cbc1a1db39938df871ab6dabbeb156": {
    "drop": false,
    "en": "Set the font face (scheme fonts first) and size, grow or shrink the font, clear all formatting, and apply bold, italic, underline styles, strikethrough, subscript, superscript, case changes, character spacing, and font color (scheme colors, tints, more colors, eyedropper). The Font dialog is also available.",
@@ -18314,6 +18370,18 @@
    "en": "Inspect the presentation before sharing to find and remove comments, notes, personal information, hidden slides, content off the slide, headers and footers, and custom XML. Each removal can be undone.",
    "es": "Inspeccione la presentación antes de compartirla para encontrar y quitar comentarios, notas, información personal, diapositivas ocultas, contenido fuera de la diapositiva, encabezados y pies de página, y XML personalizado. Cada eliminación se puede deshacer.",
    "fr": "Inspectez la présentation avant de la partager pour trouver et supprimer les commentaires, les notes, les informations personnelles, les diapositives masquées, le contenu hors de la diapositive, les en-têtes et pieds de page, et le XML personnalisé. Chaque suppression peut être annulée.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
+  "883ae5630204f5d5c71facab79dba42991842321c9ce37c1379c2318dcba6810": {
+   "drop": false,
+   "en": "Open a Clipboard pane that lists the last 24 items copied or cut, newest first, with a preview of each, and click any item to paste it. Paste All, Delete, and Clear All are available.",
+   "es": "Abra un panel del Portapapeles que enumera los últimos 24 elementos copiados o cortados, del más reciente al más antiguo, con una vista previa de cada uno, y haga clic en cualquiera para pegarlo. Están disponibles Paste All, Delete y Clear All.",
+   "fr": "Ouvrez un volet Presse-papiers qui liste les 24 derniers éléments copiés ou coupés, du plus récent au plus ancien, avec un aperçu de chacun, et cliquez sur l’un d’eux pour le coller. Les commandes Paste All, Delete et Clear All sont disponibles.",
    "soon": {
     "drop": true,
     "en": "",
