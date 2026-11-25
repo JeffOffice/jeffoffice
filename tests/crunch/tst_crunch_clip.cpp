@@ -12,6 +12,7 @@
 #include "crunchbooks.h"
 #include "crunchwindowhelpers.h"
 #include "editwindow.h"
+#include "../clipboardpanechecks.h"
 #include "grid/gridview.h"
 #include "app/pastedefaults.h"
 #include "app/pasteoffer.h"
@@ -1441,6 +1442,14 @@ private Q_SLOTS:
         QCOMPARE(e.win.w.undoStack()->count(), 1);
         e.win.w.act(QStringLiteral("edit.undo"))->trigger();
         QCOMPARE(e.view()->sheet().layout().cols.size(2), was);
+    }
+
+    // The Clipboard pane: the Clipboard group's launcher opens it, the key tip is the suite's, a copy of cells is kept as Cells, and a click on the item runs the window's own Paste once.
+    void theClipboardPaneIsWiredIn()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=2"})));
+        jp::clipcheck::paneWiring(&e.win.w, [&] { copyRange(e, QStringLiteral("A1:A2")); }, jp::ClipboardHistory::Kind::Cells);
     }
 };
 

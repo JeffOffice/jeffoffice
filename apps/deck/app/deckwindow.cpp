@@ -18,6 +18,7 @@
 #include "app/ribbon.h"
 #include "app/ribbonbuilder.h"
 #include "app/settings.h"
+#include "app/clipboardpane.h"
 #include "app/slideclipboard.h"
 #include "app/slideshow.h"
 #include "app/slidesorter.h"
@@ -317,6 +318,10 @@ void DeckWindow::createActions()
     mk("edit.cut", tr("Cut"), "scissors", QKeySequence::Cut, [this, ed] { if (slideListFocused()) cutSlides(); else ed->cut(); });
     mk("edit.copy", tr("Copy"), "copy", QKeySequence::Copy, [this, ed] { if (slideListFocused()) copySlides(); else ed->copy(); });
     mk("edit.paste", tr("Paste"), "clipboard-paste", QKeySequence::Paste, [this, ed] { if (slideListFocused()) pasteSlides(true); else pasteAndOffer(); });
+    mk("edit.clipboardPane", tr("Clipboard"), "clipboard-list", QKeySequence(), [this] {
+        // (a copied slide goes in the slides pane, whatever has the keyboard; the rest is the ordinary Paste)
+        showClipboardPane(this, ClipboardPaneHost{[this] { if (deck::slidesOnClipboard()) pasteSlides(true); else act("edit.paste")->trigger(); }, [this] { m_canvas->setFocus(); }});
+    });
     mk("edit.pasteKeep", tr("Keep Source Formatting"), "clipboard-paste", QKeySequence(), [ed] { ed->paste(false); });
     mk("edit.pasteText", tr("Keep Text Only"), "clipboard-type", QKeySequence(), [ed] { ed->paste(true); });
     mk("edit.pasteCells", tr("Spreadsheet Cells as Table"), "table", QKeySequence(), [ed] { ed->pasteCells(QApplication::clipboard()->mimeData()); });

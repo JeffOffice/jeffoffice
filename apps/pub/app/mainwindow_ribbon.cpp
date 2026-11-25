@@ -125,6 +125,7 @@ void MainWindow::buildRibbon()
     parts.launchers[QStringLiteral("pageSetup")] = [this] { pageSetupDialog(this, m_ed); };
     parts.launchers[QStringLiteral("formatShape")] = [this] { formatObjectDialog(this, m_ed, 0); };
     parts.launchers[QStringLiteral("sizePosition")] = [this] { formatObjectDialog(this, m_ed, 1); };
+    parts.launchers[QStringLiteral("clipboard")] = [this] { act("edit.clipboardPane")->trigger(); };
     parts.launchers[QStringLiteral("formatTable")] = [this] { formatObjectDialog(this, m_ed, 6); };   // opens on Cell Properties
     parts.triggers[QStringLiteral("ribbon.catalogPages")] = [this] { showTaskPane("catalog"); };
     parts.colors[QStringLiteral("masterPage")] = QColor(0x7A, 0x5C, 0xA8);

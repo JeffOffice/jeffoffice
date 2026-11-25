@@ -1,4 +1,5 @@
 #include "../cmdsearchcheck.h"
+#include "../clipboardpanechecks.h"
 #include "../shell/shapetexttest.h"
 #include "io/jpubfile.h"
 #include "core/datafolder.h"
@@ -3462,6 +3463,22 @@ private Q_SLOTS:
         return minitest::Rig<jp::MainWindow>(w, box->id, box->storyId, 1);
         }();
         minitest::goesWithAnotherPage(rig);
+    }
+
+    // The Clipboard pane: the Clipboard group's launcher opens it, the key tip is the suite's, a copy of an object is kept as Shapes, and a click on the item runs the window's own Paste once.
+    void theClipboardPaneIsWiredIn()
+    {
+        jp::MainWindow w;
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        jp::Editor *ed = w.editor();
+        jp::clipcheck::paneWiring(&w, [&] {
+            ed->addItem(ed->newTextBox(QRectF(72, 72, 300, 100), QStringLiteral("Hello")));
+            QVERIFY(ed->single());
+            w.refreshUi();
+            QVERIFY(w.act(QStringLiteral("edit.copy"))->isEnabled());
+            w.act(QStringLiteral("edit.copy"))->trigger();
+        }, jp::ClipboardHistory::Kind::Shapes);
     }
 };
 

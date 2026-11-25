@@ -1,6 +1,7 @@
 // JeffDeck's tests of the Format pane: what each page changes, that every change undoes as one step, and that it comes back from a .pptx and
 // from an .odp. The pane itself is libs/page's (the pieces it is made of are tested with JeffPub's, in tst_pub_formatpane.cpp).
 #include "deckhelpers.h"
+#include "../clipboardpanechecks.h"
 #include "app/pastedefaults.h"
 #include "app/pasteoffer.h"
 #include "../pasteofferchecks.h"
@@ -2575,6 +2576,54 @@ private Q_SLOTS:
         runchecks::check(ed, box->id, box->storyId, runchecks::cases()[which], paragraphs, runs);
     }
 
+
+    // The Clipboard pane: the launcher of the Clipboard group opens it with the suite's key tip; an item clicked is pasted as an ordinary paste, as one step of Undo, and the Paste Options button comes as usual.
+    void theClipboardPanePastesAnItemAsOneStep()
+    {
+        PaneGuard guard;
+        DeckWindow w;
+        w.show();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        Editor *ed = w.editor();
+        ed->surfaceItems().clear();
+        QMimeData *was = new QMimeData;
+        if (const QMimeData *now = QApplication::clipboard()->mimeData())
+            for (const QString &f : now->formats()) was->setData(f, now->data(f));
+        delete ClipboardHistory::instance();
+        ClipboardHistory *h = ClipboardHistory::instance();
+        h->setOwnerCheckForTest([] { return true; });
+        QToolButton *launcher = jp::clipcheck::clipboardLauncher(&w);
+        QVERIFY(launcher);
+        QCOMPARE(keytip(launcher), clipboardLauncherKeytip());
+        launcher->click();
+        QDockWidget *dock = w.findChild<QDockWidget *>(QStringLiteral("clipboardDock"));
+        QVERIFY(dock && dock->isVisible());
+        auto *mime = new QMimeData;
+        mime->setText(QStringLiteral("Some words"));
+        mime->setHtml(QStringLiteral("<p><b>Some</b> words</p>"));
+        QApplication::clipboard()->setMimeData(mime);
+        auto *other = new QMimeData;
+        other->setText(QStringLiteral("Other text"));
+        QApplication::clipboard()->setMimeData(other);
+        QTRY_COMPARE(h->items().size(), 2);
+        auto *list = dock->findChild<QListWidget *>(QStringLiteral("clipboardList"));
+        QVERIFY(list);
+        const int before = ed->undoStack()->count();
+        const QRect r = list->visualItemRect(list->item(1));   // the older one
+        const QPoint inside(r.left() + r.width() / 3, r.center().y());
+        QTest::mouseMove(list->viewport(), inside);
+        QTest::mouseClick(list->viewport(), Qt::LeftButton, Qt::NoModifier, inside);
+        QCOMPARE(ed->surfaceItems().size(), size_t(1));
+        const auto *t = dynamic_cast<TextItem *>(ed->surfaceItems().front().get());
+        QTextDocument *story = t ? ed->doc()->storyDoc(t->storyId) : nullptr;
+        QVERIFY(story);
+        QCOMPARE(story->toPlainText(), QStringLiteral("Some words"));
+        QCOMPARE(ed->undoStack()->count(), before + 1);
+        QVERIFY(w.canvas()->viewport()->findChild<QToolButton *>(QStringLiteral("pasteOptionsButton")));
+        dock->close();
+        delete h;
+        QApplication::clipboard()->setMimeData(was);
+    }
 };
 
 JP_TEST_CLASS(DeckFormatTests)

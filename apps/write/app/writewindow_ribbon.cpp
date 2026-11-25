@@ -82,6 +82,7 @@ void WriteWindow::buildRibbon()
     QByteArray json;
     if (f.open(QIODevice::ReadOnly)) json = f.readAll();
     parts.launchers[QStringLiteral("font")] = [this] { act("fmt.fontDialog")->trigger(); };
+    parts.launchers[QStringLiteral("clipboard")] = [this] { act("edit.clipboardPane")->trigger(); };
     parts.launchers[QStringLiteral("paragraph")] = [this] { act("para.dialog")->trigger(); };
     parts.launchers[QStringLiteral("styles")] = [this] { act("style.pane")->trigger(); };
     parts.launchers[QStringLiteral("pageSetup")] = [this] { act("layout.pageSetup")->trigger(); };

@@ -54,6 +54,7 @@ void DeckWindow::buildRibbon()
     addMasterParts(parts);
     addNotesMasterParts(parts);
     parts.launchers[QStringLiteral("font")] = [this] { act("fmt.fontDialog")->trigger(); };
+    parts.launchers[QStringLiteral("clipboard")] = [this] { act("edit.clipboardPane")->trigger(); };
     parts.launchers[QStringLiteral("paragraph")] = [this] { act("para.dialog")->trigger(); };
     // Review > Compare: the button is on the ribbon, and the command is the compare window's to make (before this runs, as every command is). Until it is made, a hidden command stands
     // in, so that the button has none to show (a ribbon item that names no command is left off, and the build says so).

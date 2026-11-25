@@ -1205,6 +1205,7 @@ void CrunchWindow::formatRibbonParts(RibbonParts &parts)
     parts.menus[QStringLiteral("undoHistory")] = [this](QWidget *owner) { return buildHistoryMenu(owner, false); };
     parts.menus[QStringLiteral("redoHistory")] = [this](QWidget *owner) { return buildHistoryMenu(owner, true); };
     parts.launchers[QStringLiteral("font")] = [this] { formatCellsDialog(2); };
+    parts.launchers[QStringLiteral("clipboard")] = [this] { act("edit.clipboardPane")->trigger(); };
     parts.launchers[QStringLiteral("alignment")] = [this] { formatCellsDialog(1); };
     parts.launchers[QStringLiteral("number")] = [this] { formatCellsDialog(0); };
 }

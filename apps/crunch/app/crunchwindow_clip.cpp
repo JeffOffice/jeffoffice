@@ -1,5 +1,6 @@
 // Cut, Copy, and Paste: the cells go on the clipboard as text, as an HTML table, and whole (see core/clipdata.h), and come back from it, from this program and from others. A cut and
 // paste moves the cells; Paste Special asks what to paste and what to do with it.
+#include "app/clipboardpane.h"
 #include "app/crunchwindow.h"
 #include "app/objects.h"
 #include "app/plaintext.h"
@@ -47,6 +48,9 @@ void CrunchWindow::createClipboardActions()
         Options o;
         o.useDefault = true;
         pasteClipboard(o);
+    });
+    mk("edit.clipboardPane", tr("Clipboard"), "clipboard-list", QKeySequence(), [this] {
+        showClipboardPane(this, ClipboardPaneHost{[this] { act("edit.paste")->trigger(); }, [this] { m_view->setFocus(Qt::OtherFocusReason); }});
     });
     mk("paste.values", tr("Values"), "", QKeySequence(), [this] {
         Options o;

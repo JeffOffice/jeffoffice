@@ -80,6 +80,9 @@
         {
           "name": "Clipboard",
           "keytip": "ZC",
+          "launcher": "clipboard",
+          "launcherTip": "Clipboard",
+          "launcherKeytip": "FO",
           "items": [
             {
               "large": "edit.paste",

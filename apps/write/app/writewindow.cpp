@@ -1,4 +1,5 @@
 #include "app/uistyle.h"
+#include "app/clipboardpane.h"
 #include "app/commandsearch.h"
 #include "app/shapetextedit.h"
 #include "app/keymap.h"
@@ -406,6 +407,9 @@ void WriteWindow::createFormatActions()
     mk("edit.cut", tr("Cut"), "scissors", QKeySequence::Cut, [v] { v->cut(); });
     mk("edit.copy", tr("Copy"), "copy", QKeySequence::Copy, [v] { v->copy(); });
     mk("edit.paste", tr("Paste"), "clipboard-paste", QKeySequence::Paste, [v] { v->pasteDefault(); });
+    mk("edit.clipboardPane", tr("Clipboard"), "clipboard-list", QKeySequence(), [this, v] {
+        showClipboardPane(this, ClipboardPaneHost{[this] { act("edit.paste")->trigger(); }, [v] { v->setFocus(); }});
+    });
     mk("edit.selectAll", tr("Select All"), "", QKeySequence::SelectAll, [v] { v->selectAll(); });
 
     mk("fmt.bold", tr("Bold"), "bold", QKeySequence::Bold, [edit, v] { if (auto *typing = v->shapeEditor()) typing->toggleBold(); else edit([](write::WriteDoc &d, QTextCursor &c) { write::toggleBold(d, c); }); }, true);

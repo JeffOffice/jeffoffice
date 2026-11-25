@@ -17,3 +17,16 @@ The **Home** tab is always on the ribbon. It holds the tools you use most while 
 - [Make and edit tables](tables)
 - [Add and adjust pictures](pictures)
 - [Draw shapes and lines](shapes)
+
+## The Clipboard pane
+
+The Clipboard pane remembers the last 24 things you copied or cut in this window's program, so you can paste an older one without copying it again. Click the small arrow in the corner of the **Clipboard** group on the **Home** tab (or press **Alt**, then **H**, then **FO**) to open it. A panel appears beside the page.
+
+Each item shows a small preview and what kind of thing it is: text, formatted text, cells, a picture, shapes, or slides. The newest one is at the top. Click an item to paste it where the cursor or the selection is. It pastes like any other paste: one step of **Undo** takes it back, and the Paste Options button appears as usual.
+
+- **Paste All** pastes every item, the oldest first, so they read in the order you copied them.
+- **Delete** removes the item you picked. **Clear All** removes all of them.
+- The pane collects only while it is open. To keep collecting after you close it, tick **Keep collecting when this pane is closed**.
+- To also collect what you copy in other programs, tick **Also collect what is copied in other programs**. Only plain text and pictures are kept, and it starts off again each time you open the program.
+
+The items are kept in the program's memory only. Nothing is saved to a file, and the list is emptied when you close the last window. An item bigger than 8 MB is not kept, and the pane tells you when that happens; all the items together are held to 64 MB, and the oldest go first. Anything a password manager marks as secret is never kept.

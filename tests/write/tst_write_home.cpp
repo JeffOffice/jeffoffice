@@ -2,6 +2,7 @@
 // Each document is built here from a few lines of XML.
 
 #include "../cmdsearchcheck.h"
+#include "../clipboardpanechecks.h"
 #include "core/syslocale.h"
 #include "core/workthread.h"
 #include "../isolatesettings.h"
@@ -6405,6 +6406,20 @@ private Q_SLOTS:
             for (const QString &q : queries) jp::cmdsearch::find(all, q);
         const double perKeystroke = double(clock.nsecsElapsed()) / 1e6 / (20.0 * queries.size());
         qInfo("search timing: %d entries (%d gallery items), index %lld ms, %.3f ms per keystroke", int(all.size()), gallery, indexMs, perKeystroke);
+    }
+
+    // The Clipboard pane: the Clipboard group's launcher opens it, the key tip is the suite's, a copy of words is kept as formatted text, and a click on the item runs the window's own Paste once.
+    void theClipboardPaneIsWiredIn()
+    {
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.resize(1000, 700);
+        w.show();
+        w.setDocument(open(makeDocx(para(run("Two words")))), QString());
+        jp::clipcheck::paneWiring(&w, [&] {
+            w.act(QStringLiteral("edit.selectAll"))->trigger();
+            w.act(QStringLiteral("edit.copy"))->trigger();
+        }, jp::ClipboardHistory::Kind::FormattedText);
     }
 };
 

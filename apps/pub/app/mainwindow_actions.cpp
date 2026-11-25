@@ -7,6 +7,7 @@
 
 #include "io/importers.h"
 #include "app/appfuncs.h"
+#include "app/clipboardpane.h"
 #include "app/pagegoto.h"
 #include "app/pagenumbers.h"
 #include "translate/translator.h"
@@ -149,6 +150,9 @@ void MainWindow::createActions()
     mk("edit.cut", tr("Cut"), "scissors", QKeySequence::Cut, [ed] { ed->cut(); });
     mk("edit.copy", tr("Copy"), "copy", QKeySequence::Copy, [ed] { ed->copy(); });
     mk("edit.paste", tr("Paste"), "clipboard-paste", QKeySequence::Paste, [ed] { ed->paste(); });
+    mk("edit.clipboardPane", tr("Clipboard"), "clipboard-list", QKeySequence(), [this] {
+        showClipboardPane(this, ClipboardPaneHost{[this] { act("edit.paste")->trigger(); }, [this] { m_canvas->setFocus(); }});
+    });
     mk("edit.pasteText", tr("Keep Text Only"), "clipboard-type", QKeySequence(), [ed] { ed->paste(true); });
     mk("edit.pasteCells", tr("Spreadsheet Cells as Table"), "table", QKeySequence(), [ed] { ed->pasteCells(QApplication::clipboard()->mimeData()); });
     mk("edit.pasteSpecial", tr("Paste Special…"), "clipboard-list", QKeySequence(Qt::CTRL | Qt::ALT | Qt::Key_V), [this] { pasteSpecialDialog(this, m_ed); });
