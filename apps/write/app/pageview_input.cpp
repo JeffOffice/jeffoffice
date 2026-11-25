@@ -1,5 +1,6 @@
 // The keyboard, the mouse, the input method, and the clipboard in the page view.
 
+#include "app/clipboardhistory.h"
 #include "app/pageview.h"
 #include "app/pasteoffer.h"
 #include "flow/borderpaint.h"
@@ -242,6 +243,45 @@ void PageView::pasteSpike()
     // (The Spike is emptied when what it held is in the text: a paste that was refused keeps it.)
     if (landed) spike().clear();
     caretMoved();
+}
+
+namespace {
+struct OwnCopyState {
+    Clip clip;
+    QString text;
+    bool whole = true;
+};
+}
+
+void PageView::beginPasteGroup()
+{
+    if (!m_doc || m_pasteGroup) return;
+    m_pasteGroup = std::make_unique<QTextCursor>(m_cursor.document());
+    m_pasteGroup->beginEditBlock();
+}
+
+void PageView::endPasteGroup()
+{
+    if (!m_pasteGroup) return;
+    m_pasteGroup->endEditBlock();
+    m_pasteGroup.reset();
+}
+
+void PageView::keepOwnCopiesInClipboardHistory()
+{
+    jp::ClipboardHistory::setOwnStateHooks(
+        [](const QMimeData *mime) -> std::any {
+            // (only a copy made by this file's copy(): its text is what the statics hold)
+            if (!mime || !mime->hasFormat(QStringLiteral("application/x-jeffwrite-fragment")) || QString::fromUtf8(mime->data(QStringLiteral("application/x-jeffwrite-fragment"))) != s_copiedText || s_copied.isEmpty()) return {};
+            return OwnCopyState{s_copied, s_copiedText, s_copiedWhole};
+        },
+        [](const std::any &state) {
+            if (const auto *own = std::any_cast<OwnCopyState>(&state)) {
+                s_copied = own->clip;
+                s_copiedText = own->text;
+                s_copiedWhole = own->whole;
+            }
+        });
 }
 
 static const QString &fragmentFormat()

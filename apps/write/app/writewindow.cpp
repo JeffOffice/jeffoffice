@@ -407,8 +407,10 @@ void WriteWindow::createFormatActions()
     mk("edit.cut", tr("Cut"), "scissors", QKeySequence::Cut, [v] { v->cut(); });
     mk("edit.copy", tr("Copy"), "copy", QKeySequence::Copy, [v] { v->copy(); });
     mk("edit.paste", tr("Paste"), "clipboard-paste", QKeySequence::Paste, [v] { v->pasteDefault(); });
+    ClipboardHistory::startIfAsked();   // (collecting from the first copy when the person asked to keep collecting with the pane closed)
+    write::PageView::keepOwnCopiesInClipboardHistory();
     mk("edit.clipboardPane", tr("Clipboard"), "clipboard-list", QKeySequence(), [this, v] {
-        showClipboardPane(this, ClipboardPaneHost{[this] { act("edit.paste")->trigger(); }, [v] { v->setFocus(); }});
+        showClipboardPane(this, ClipboardPaneHost{[this] { act("edit.paste")->trigger(); }, [v] { v->setFocus(); }, [v] { v->beginPasteGroup(); }, [v] { v->endPasteGroup(); }});
     });
     mk("edit.selectAll", tr("Select All"), "", QKeySequence::SelectAll, [v] { v->selectAll(); });
 

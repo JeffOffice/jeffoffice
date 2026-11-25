@@ -231,6 +231,11 @@ public:
     void pasteSpike();
     static int spikeCount();
     static void emptySpike();
+    // The Clipboard pane's history keeps what the last copy left in this file's statics with each item, and gives it back when the item is put back, so that an older item pastes as it did when it was the newest.
+    static void keepOwnCopiesInClipboardHistory();
+    // Everything done between these two is one step of Undo (the Clipboard pane's Paste All).
+    void beginPasteGroup();
+    void endPasteGroup();
     static void setSpikeByteLimit(qint64 bytes);   // (the tests make it small)
     // Paste with a choice: keep the source's formatting (as Paste), merge with the formatting around (the emphasis stays), text only, a picture, or the clipboard's HTML. Which of them the
     // clipboard can give now.
@@ -804,6 +809,7 @@ private:
         bool ok = false;
     } m_mergeCheck;   // the last answer of canMergeSelectedShapes, kept while the document and the selection stay as they were
     QTextCursor m_cursor;
+    std::unique_ptr<QTextCursor> m_pasteGroup;   // holds the document's edit block open while Paste All goes on
     double m_zoom = 1.0;
     ZoomMode m_mode = ZoomMode::Percent;
     int m_across = 1, m_down = 1;

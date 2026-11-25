@@ -3480,6 +3480,93 @@ private Q_SLOTS:
             w.act(QStringLiteral("edit.copy"))->trigger();
         }, jp::ClipboardHistory::Kind::Shapes);
     }
+
+    // A text box copied and then another one: the older item put back from the pane pastes as it did when it was the newest. (Paste All is one step of Undo.)
+    void anOlderClipboardItemPastesAsItDidWhenItWasNewest()
+    {
+        jp::clipcheck::Rig rig;
+        jp::MainWindow w;
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        jp::Editor *ed = w.editor();
+        auto copyBox = [&](const QString &words, const QRectF &where) {
+            ed->surfaceItems().clear();
+            ed->addItem(ed->newTextBox(where, words));
+            QVERIFY(ed->single());
+            w.refreshUi();
+            QVERIFY(w.act(QStringLiteral("edit.copy"))->isEnabled());
+            w.act(QStringLiteral("edit.copy"))->trigger();
+        };
+        copyBox(QStringLiteral("First words"), QRectF(100, 120, 260, 90));
+        QTRY_COMPARE(rig.h->items().size(), 1);
+        ed->surfaceItems().clear();
+        w.act(QStringLiteral("edit.paste"))->trigger();
+        QCOMPARE(ed->surfaceItems().size(), size_t(1));
+        const QRectF newestRect = ed->surfaceItems().front()->rect;
+        const auto *newestText = dynamic_cast<jp::TextItem *>(ed->surfaceItems().front().get());
+        QVERIFY(newestText);
+        const QString newestWords = ed->doc()->storyDoc(newestText->storyId)->toPlainText();
+        copyBox(QStringLiteral("Second words"), QRectF(300, 300, 100, 50));
+        QTRY_COMPARE(rig.h->items().size(), 2);
+        ed->surfaceItems().clear();
+        jp::ClipboardPane *pane = jp::clipcheck::paneOf(&w);
+        QVERIFY(pane);
+        pane->pasteItem(rig.h->items().last().id);
+        QCOMPARE(ed->surfaceItems().size(), size_t(1));
+        QCOMPARE(ed->surfaceItems().front()->rect, newestRect);
+        const auto *olderText = dynamic_cast<jp::TextItem *>(ed->surfaceItems().front().get());
+        QVERIFY(olderText);
+        QCOMPARE(ed->doc()->storyDoc(olderText->storyId)->toPlainText(), newestWords);
+    }
+
+    void thePaneCannotPasteIntoAReadOnlyPublication()
+    {
+        jp::clipcheck::Rig rig;
+        jp::MainWindow w;
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        jp::Editor *ed = w.editor();
+        ed->addItem(ed->newTextBox(QRectF(100, 100, 200, 30), QStringLiteral("Words")));
+        QVERIFY(ed->single());
+        w.refreshUi();
+        QVERIFY(w.act(QStringLiteral("edit.copy"))->isEnabled());
+        w.act(QStringLiteral("edit.copy"))->trigger();
+        QTRY_COMPARE(rig.h->items().size(), 1);
+        ed->surfaceItems().clear();
+        jp::ClipboardPane *pane = jp::clipcheck::paneOf(&w);
+        QVERIFY(pane);
+        w.setReadOnly(true);
+        const int before = ed->undoStack()->count();
+        pane->pasteItem(rig.h->items().first().id);
+        QCOMPARE(ed->surfaceItems().size(), size_t(0));
+        QCOMPARE(ed->undoStack()->count(), before);
+        w.setReadOnly(false);
+    }
+
+    void pasteAllFromThePaneIsOneStepOfUndo()
+    {
+        jp::clipcheck::Rig rig;
+        jp::MainWindow w;
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        jp::Editor *ed = w.editor();
+        for (int i = 0; i < 3; ++i) {
+            ed->surfaceItems().clear();
+            ed->addItem(ed->newTextBox(QRectF(100, 100 + 40 * i, 200, 30), QStringLiteral("Words %1").arg(i)));
+            QVERIFY(ed->single());
+            w.refreshUi();
+            QVERIFY(w.act(QStringLiteral("edit.copy"))->isEnabled());
+            w.act(QStringLiteral("edit.copy"))->trigger();
+            QTRY_COMPARE(rig.h->items().size(), i + 1);
+        }
+        ed->surfaceItems().clear();
+        jp::ClipboardPane *pane = jp::clipcheck::paneOf(&w);
+        QVERIFY(pane);
+        const int before = ed->undoStack()->count();
+        pane->pasteAll();
+        QCOMPARE(ed->surfaceItems().size(), size_t(3));
+        QCOMPARE(ed->undoStack()->count(), before + 1);
+    }
 };
 
 JP_TEST_CLASS(PubWindowTests)

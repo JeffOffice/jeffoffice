@@ -26,6 +26,36 @@ inline QToolButton *clipboardLauncher(AppWindow *w)
     return nullptr;
 }
 
+// The rig of the tests of what a paste from the pane does: a history of its own that collects, and the clipboard as it was found put back at the end (declare it first in a test: it ends last).
+struct Rig {
+    QMimeData *was = new QMimeData;
+    ClipboardHistory *h = nullptr;
+    Rig()
+    {
+        if (const QMimeData *now = QApplication::clipboard()->mimeData())
+            for (const QString &f : now->formats()) was->setData(f, now->data(f));
+        delete ClipboardHistory::instance();
+        h = ClipboardHistory::instance();
+        h->addOpenPane(1);
+        h->setOwnerCheckForTest([] { return true; });
+    }
+    ~Rig()
+    {
+        delete h;
+        QApplication::clipboard()->setMimeData(was);
+    }
+};
+
+// The window's own Clipboard pane, opened from its launcher.
+inline ClipboardPane *paneOf(AppWindow *w)
+{
+    QToolButton *launcher = clipboardLauncher(w);
+    if (!launcher) return nullptr;
+    launcher->click();
+    QDockWidget *dock = w->findChild<QDockWidget *>(QStringLiteral("clipboardDock"));
+    return dock ? dock->findChild<ClipboardPane *>() : nullptr;
+}
+
 // `copySomething` selects something in the window and copies it with the app's own Copy; `kind` is what it should be kept as.
 inline void paneWiring(AppWindow *w, const std::function<void()> &copySomething, ClipboardHistory::Kind kind)
 {

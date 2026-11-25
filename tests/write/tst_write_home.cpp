@@ -6422,6 +6422,99 @@ private Q_SLOTS:
             w.act(QStringLiteral("edit.copy"))->trigger();
         }, jp::ClipboardHistory::Kind::FormattedText);
     }
+
+    static void copyAllOf(WriteWindow &w)
+    {
+        w.act(QStringLiteral("edit.selectAll"))->trigger();
+        QTRY_VERIFY(w.act(QStringLiteral("edit.copy"))->isEnabled());
+        w.act(QStringLiteral("edit.copy"))->trigger();
+    }
+
+    // A table copied, then other words: putting the older item back from the pane pastes the table as it did when it was the newest copy.
+    void anOlderClipboardItemPastesAsTheCopyDid()
+    {
+        jp::clipcheck::Rig rig;
+        WriteWindow src;   // (open while the others are pasted: what a copy refers to goes with the last document)
+        tableWindow(src, 2, 3);
+        copyAllOf(src);
+        QTRY_COMPARE(rig.h->items().size(), 1);
+        QByteArray newest;
+        {
+            WriteWindow d;
+            d.setNotifier([](const QString &, const QString &) {});
+            d.show();
+            d.setDocument(open(makeDocx(para(run("x")))), QString());
+            d.act(QStringLiteral("edit.paste"))->trigger();
+            QVERIFY(count(d, "<w:tbl>") >= 1);
+            newest = bodyXml(d.document()->toDocx());
+        }
+        WriteWindow other;
+        other.setNotifier([](const QString &, const QString &) {});
+        other.show();
+        other.setDocument(open(makeDocx(para(run("Some other words")))), QString());
+        copyAllOf(other);
+        QTRY_COMPARE(rig.h->items().size(), 2);
+        WriteWindow d;
+        d.setNotifier([](const QString &, const QString &) {});
+        d.show();
+        d.setDocument(open(makeDocx(para(run("x")))), QString());
+        jp::ClipboardPane *pane = jp::clipcheck::paneOf(&d);
+        QVERIFY(pane);
+        pane->pasteItem(rig.h->items().last().id);
+        QCOMPARE(bodyXml(d.document()->toDocx()), newest);
+    }
+
+    // A paste from the pane is refused in a document protected from editing, as an ordinary paste is.
+    void thePaneCannotPasteIntoAProtectedDocument()
+    {
+        jp::clipcheck::Rig rig;
+        {
+            WriteWindow src;
+            src.setNotifier([](const QString &, const QString &) {});
+            src.show();
+            src.setDocument(open(makeDocx(para(run("Words to move")))), QString());
+            copyAllOf(src);
+            QTRY_COMPARE(rig.h->items().size(), 1);
+        }
+        WriteWindow d;
+        d.setNotifier([](const QString &, const QString &) {});
+        d.show();
+        d.setDocument(open(makeDocx(para(run("hello")))), QString());
+        jp::ClipboardPane *pane = jp::clipcheck::paneOf(&d);
+        QVERIFY(pane);
+        d.setDocument(open(protectedDocx(QStringLiteral("readOnly"), QStringLiteral("pw"))), QString());
+        QVERIFY(d.isReadOnly());
+        const QString before = d.document()->story()->toPlainText();
+        pane->pasteItem(rig.h->items().first().id);
+        QCOMPARE(d.document()->story()->toPlainText(), before);
+    }
+
+    // Paste All is one step of Undo.
+    void pasteAllFromThePaneIsOneStepOfUndo()
+    {
+        jp::clipcheck::Rig rig;
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocx(para(run("start")))), QString());
+        for (const char *words : {"alpha", "beta", "gamma"}) {
+            auto *md = new QMimeData;
+            md->setText(QLatin1String(words));
+            QApplication::clipboard()->setMimeData(md);
+        }
+        QTRY_COMPARE(rig.h->items().size(), 3);
+        QTextCursor end(w.document()->story());
+        end.movePosition(QTextCursor::End);
+        w.view()->setCursor(end);
+        jp::ClipboardPane *pane = jp::clipcheck::paneOf(&w);
+        QVERIFY(pane);
+        const QString before = w.document()->story()->toPlainText();
+        pane->pasteAll();
+        const QString after = w.document()->story()->toPlainText();
+        QVERIFY(after.contains(QStringLiteral("alpha")) && after.contains(QStringLiteral("beta")) && after.contains(QStringLiteral("gamma")));
+        QVERIFY(w.document()->undo());
+        QCOMPARE(w.document()->story()->toPlainText(), before);
+    }
 };
 
 QTEST_MAIN(HomeTests)

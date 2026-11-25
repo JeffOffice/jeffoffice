@@ -1451,6 +1451,67 @@ private Q_SLOTS:
         QVERIFY(e.open(sheetOf({"A1=1", "A2=2"})));
         jp::clipcheck::paneWiring(&e.win.w, [&] { copyRange(e, QStringLiteral("A1:A2")); }, jp::ClipboardHistory::Kind::Cells);
     }
+
+    // Cells with a formula and a format, copied and then followed by another copy: the older item put back from the pane pastes as it did when it was the newest.
+    void anOlderClipboardItemPastesAsItDidWhenItWasNewest()
+    {
+        jp::clipcheck::Rig rig;
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=%0.25", "A2==A1*2", "A3==A2+1", "C1=other"})));
+        copyRange(e, QStringLiteral("A1:A3"));
+        QTRY_COMPARE(rig.h->items().size(), 1);
+        paste(e, QStringLiteral("E1"));
+        const QString newest = shown(e, QStringLiteral("E1:E3"));
+        QVERIFY2(newest.contains(QStringLiteral("25%")), qPrintable(newest));
+        e.win.w.act(QStringLiteral("edit.undo"))->trigger();
+        QVERIFY(e.settle());
+        copyRange(e, QStringLiteral("C1:C1"));
+        QTRY_COMPARE(rig.h->items().size(), 2);
+        jp::ClipboardPane *pane = jp::clipcheck::paneOf(&e.win.w);
+        QVERIFY(pane);
+        e.select(QStringLiteral("E1"));
+        pane->pasteItem(rig.h->items().last().id);
+        QVERIFY(e.settle());
+        QCOMPARE(shown(e, QStringLiteral("E1:E3")), newest);
+    }
+
+    // An item pasted from the pane into a protected sheet is refused, as an ordinary paste is.
+    void thePaneCannotPasteIntoAProtectedSheet()
+    {
+        jp::clipcheck::Rig rig;
+        EditWindow e;
+        const QByteArray styles = stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\"/>"));
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>7</v></c></row>");
+        QVERIFY(e.open(buildXlsx({worksheet(rows, QStringLiteral("<sheetProtection sheet=\"1\"/>"))}, QByteArray(), QString(), QString(), styles)));
+        copyRange(e, QStringLiteral("A1:A1"));
+        QTRY_COMPARE(rig.h->items().size(), 1);
+        jp::ClipboardPane *pane = jp::clipcheck::paneOf(&e.win.w);
+        QVERIFY(pane);
+        e.select(QStringLiteral("C3"));
+        const int before = e.win.w.undoStack()->count();
+        e.win.w.setNotifier([](const QString &, const QString &) {});
+        pane->pasteItem(rig.h->items().first().id);
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("C3")), QStringLiteral("-"));
+        QCOMPARE(e.win.w.undoStack()->count(), before);
+    }
+
+    // Paste All from the pane is one step of Undo, however many items it pastes.
+    void pasteAllFromThePaneIsOneStepOfUndo()
+    {
+        jp::clipcheck::Rig rig;
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "A3=3"})));
+        for (const char *cell : {"A1:A1", "A2:A2", "A3:A3"}) copyRange(e, QLatin1String(cell));
+        QTRY_COMPARE(rig.h->items().size(), 3);
+        jp::ClipboardPane *pane = jp::clipcheck::paneOf(&e.win.w);
+        QVERIFY(pane);
+        e.select(QStringLiteral("C1"));
+        const int before = e.win.w.undoStack()->count();
+        pane->pasteAll();
+        QVERIFY(e.settle());
+        QCOMPARE(e.win.w.undoStack()->count(), before + 1);
+    }
 };
 
 JP_TEST_CLASS(CrunchClipTests)
