@@ -5,6 +5,7 @@
 #include "app/mailpreview.h"
 #include "app/mergefiles.h"
 #include "app/pageview.h"
+#include "app/theme.h"
 #include "app/writeinfo.h"
 #include "app/writewindow.h"
 #include "app/ribbon.h"
@@ -25,6 +26,12 @@
 
 #include <QComboBox>
 #include <QDialog>
+#include <QJsonArray>
+#include <QJsonDocument>
+#include <QLabel>
+#include <QLineEdit>
+#include <QMessageBox>
+#include <QTimer>
 #include <QDir>
 #include <QElapsedTimer>
 #include <QDockWidget>
@@ -1182,6 +1189,26 @@ private Q_SLOTS:
         QVERIFY(!refused.error.isEmpty());
         QCOMPARE(refused.written, 0);
         QCOMPARE(calls, 0);
+    }
+
+    void mergeExtrasScreenshots()
+    {
+        const QString shots = qEnvironmentVariable("JO_SHOT_DIR");
+        if (shots.isEmpty()) QSKIP("JO_SHOT_DIR is not set");
+        jp::applyUiTheme(1);
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        write::WriteDoc *doc = w.document();
+        mail::State &state = mail::stateOf(*doc);
+        state.settings.type = mail::kindValue(mail::Kind::Letters);
+        state.data = people();
+        state.data.keyColumn = QStringLiteral("Last Name");
+        state.data.include[1] = false;
+        state.loaded = true;
+        for (const char *id : {"mail.finish.files", "mail.editList"}) w.act(QString::fromLatin1(id))->setEnabled(true);
+        withDialog([&] { w.act(QStringLiteral("mail.editList"))->trigger(); }, QStringLiteral("mergeRecipientsDialog"), [&](QDialog *d) { shotOf(d, QStringLiteral("merge-recipients-key")); }, false);
+        withDialog([&] { w.act(QStringLiteral("mail.finish.files"))->trigger(); }, QStringLiteral("mergeFilesDialog"), [&](QDialog *d) { shotOf(d, QStringLiteral("merge-save-each")); }, false);
     }
 
     void saveEachAsAFileMakesOneDocumentForEachRecipientThroughTheWindow()

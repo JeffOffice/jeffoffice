@@ -24,6 +24,7 @@ bool mergeFilesDialog(QWidget *p, const MergeSource &m, const QVector<int> &rows
     QDialog d(p);
     d.setObjectName(QStringLiteral("mergeFilesDialog"));
     d.setWindowTitle(QCoreApplication::translate("MergeFiles", "Save Each as a File"));
+    d.setMinimumWidth(560);
     auto *v = new QVBoxLayout(&d);
     auto *form = new QFormLayout();
     auto *folderRow = new QHBoxLayout();

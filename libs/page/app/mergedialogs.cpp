@@ -69,6 +69,7 @@ bool editRecipientList(QWidget *p, MergeSource &m, bool typeNew)
         return false;
     }
     Dlg dlg(p, typeNew ? QCoreApplication::translate("Dialogs", "New Address List") : QCoreApplication::translate("Dialogs", "Mail Merge Recipients"));
+    dlg.d.setObjectName(QStringLiteral("mergeRecipientsDialog"));
     dlg.d.resize(900, 520);
     auto *search = new QLineEdit(&dlg.d);
     search->setPlaceholderText(QCoreApplication::translate("Dialogs", "Filter recipients"));
