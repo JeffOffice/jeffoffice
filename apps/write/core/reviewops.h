@@ -65,6 +65,8 @@ QStringList revisionAuthors(const QTextDocument *story);
 int resolveRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision> &which, bool accept, int *kept = nullptr, int *partners = nullptr);
 // The changes that touch [from, to] of the body of the text (the whole story with `to` below 0).
 int resolveRevisionsIn(WriteDoc &doc, QTextDocument *story, int from, int to, bool accept, int *kept = nullptr, int *partners = nullptr);
+// How many changes of the text are in a content control the contents of which can't be edited (Accept and Reject leave them).
+int lockedRevisionCount(WriteDoc &doc);
 int acceptAll(WriteDoc &doc, int *kept = nullptr, int *partners = nullptr);
 int rejectAll(WriteDoc &doc, int *kept = nullptr, int *partners = nullptr);
 // The change at the cursor (or the selection: every change it touches), then the one after it. `c` is put where the next change is when there is one, which may be in another

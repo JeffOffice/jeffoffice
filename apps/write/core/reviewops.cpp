@@ -1263,6 +1263,23 @@ QVector<std::pair<int, int>> tablePlacesOf(const QTextDocument *story, const QVe
 
 } // namespace
 
+// Whether a change is one of text, a mark, or formatting that lies in (or against the edge of) a content control the contents of which can't be edited.
+static bool touchesLockedContent(const QVector<std::pair<int, int>> &locked, const Revision &r)
+{
+    const bool text = r.kind == Revision::Insertion || r.kind == Revision::Deletion || r.kind == Revision::MovedFrom || r.kind == Revision::MovedTo || r.kind == Revision::MarkInserted || r.kind == Revision::MarkDeleted || r.kind == Revision::Format;
+    return text && overlapsRanges(locked, r.from, r.to);
+}
+
+int lockedRevisionCount(WriteDoc &doc)
+{
+    const QVector<std::pair<int, int>> locked = lockedContentRanges(doc.story(), true);
+    int n = 0;
+    if (!locked.isEmpty())
+        for (const Revision &r : revisionsIn(doc.story()))
+            n += touchesLockedContent(locked, r);
+    return n;
+}
+
 // The changes the tables record at `places` (found before anything else was done, as taking text out has moved them), resolved together.
 static int resolveTableRevisions(WriteDoc &doc, QTextDocument *story, const QVector<std::pair<int, int>> &places, bool accept, int *kept)
 {
@@ -1283,10 +1300,7 @@ int resolveRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision
         // A change inside a content control whose contents can't be edited is left as it is (it stays to be resolved once the lock is off).
         const QVector<std::pair<int, int>> locked = lockedContentRanges(story, true);
         if (!locked.isEmpty()) {
-            const auto touches = [&](const Revision &r) {
-                const bool text = r.kind == Revision::Insertion || r.kind == Revision::Deletion || r.kind == Revision::MovedFrom || r.kind == Revision::MovedTo || r.kind == Revision::MarkInserted || r.kind == Revision::MarkDeleted || r.kind == Revision::Format;
-                return text && overlapsRanges(locked, r.from, r.to);
-            };
+            const auto touches = [&](const Revision &r) { return touchesLockedContent(locked, r); };
             const qsizetype before = which.size();
             which.erase(std::remove_if(which.begin(), which.end(), touches), which.end());
             if (kept) *kept += int(before - which.size());

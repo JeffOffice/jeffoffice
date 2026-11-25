@@ -99,7 +99,7 @@ void WriteWindow::createReviewActions()
         leaveSideStories(m_view);
         int kept = 0, partners = 0;
         const int n = write::acceptAll(*m_doc, &kept, &partners) - partners;
-        m_doc->setTrackChanges(false);
+        if (kept == 0 && write::documentRevisionCount(*m_doc) == 0) m_doc->setTrackChanges(false);   // (tracking goes on while a change is left to settle)
         statusBar()->showMessage(resolvedMessage(true, n, kept, true), 5000);
         m_view->setFocus(Qt::OtherFocusReason);
         refreshReviewUi();
@@ -414,9 +414,13 @@ void WriteWindow::newComment()
 // that would break, a list or a section whose old state can't be put back, a text box that can't be written back).
 QString WriteWindow::resolvedMessage(bool accept, int n, int kept, bool stopTracking) const
 {
+    const bool off = stopTracking && kept == 0 && write::documentRevisionCount(*m_doc) == 0;
     QString text = accept ? (n == 1 ? tr("1 change accepted.") : tr("%1 changes accepted.").arg(n)) : (n == 1 ? tr("1 change rejected.") : tr("%1 changes rejected.").arg(n));
-    if (stopTracking) text = n == 1 ? tr("1 change accepted. Track Changes is off.") : tr("%1 changes accepted. Track Changes is off.").arg(n);
-    if (kept > 0) text += QLatin1Char(' ') + tr("%n change(s) were kept as written because settling them would damage the document.", "", kept);
+    if (off) text = n == 1 ? tr("1 change accepted. Track Changes is off.") : tr("%1 changes accepted. Track Changes is off.").arg(n);
+    const int locked = std::min(kept, write::lockedRevisionCount(*m_doc));
+    if (locked > 0) text += QLatin1Char(' ') + tr("%n change is inside a content control that can't be edited.", "", locked);
+    if (kept > locked) text += QLatin1Char(' ') + tr("%n change(s) were kept as written because settling them would damage the document.", "", kept - locked);
+    if (stopTracking && !off) text += QLatin1Char(' ') + tr("Track Changes stays on until they are settled.");
     return text;
 }
 

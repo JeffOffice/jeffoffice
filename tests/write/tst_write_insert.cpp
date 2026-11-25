@@ -3810,6 +3810,37 @@ private Q_SLOTS:
         }
     }
 
+    void changesLeftInALockedControlAreNamedAsSuchAndKeepTrackingOn()
+    {
+        const QByteArray tracked = "<w:ins w:id=\"1\" w:author=\"Al\" w:date=\"2026-01-01T00:00:00Z\"><w:r><w:t>aa</w:t></w:r></w:ins>";
+        const QByteArray body = "<w:p><w:r><w:t>before</w:t></w:r></w:p><w:sdt><w:sdtPr><w:id w:val=\"9\"/><w:lock w:val=\"contentLocked\"/><w:richText/></w:sdtPr><w:sdtContent><w:p>" + tracked +
+                                "</w:p></w:sdtContent></w:sdt><w:p><w:ins w:id=\"2\" w:author=\"Al\" w:date=\"2026-01-01T00:00:00Z\"><w:r><w:t>after</w:t></w:r></w:ins></w:p>";
+        for (const char *id : {"review.acceptAll", "review.rejectAll", "review.acceptAllStop"}) {
+            WriteWindow w;
+            w.resize(1100, 800);
+            w.show();
+            w.setDocument(open(makeDocx(body)), QString());
+            w.document()->setTrackChanges(true);
+            w.act(QString::fromLatin1(id))->trigger();
+            const QString said = w.statusBar()->currentMessage();
+            QVERIFY2(said.contains(QLatin1String("content control that can't be edited")), qPrintable(said));
+            QVERIFY2(!said.contains(QLatin1String("damage")), qPrintable(said));
+            QCOMPARE(documentRevisionCount(*w.document()), 1);
+            // Tracking stays on while a change is left, and the message says so; the ones that settle everything turn it off.
+            QVERIFY2(w.document()->trackChanges(), id);
+            QCOMPARE(said.contains(QLatin1String("Track Changes is off")), false);
+            QCOMPARE(said.contains(QLatin1String("stays on")), QByteArray(id) == "review.acceptAllStop");
+        }
+        WriteWindow v;
+        v.resize(1100, 800);
+        v.show();
+        v.setDocument(open(makeDocx("<w:p>" + tracked + "</w:p>")), QString());
+        v.document()->setTrackChanges(true);
+        v.act(QStringLiteral("review.acceptAllStop"))->trigger();
+        QVERIFY(!v.document()->trackChanges());
+        QVERIFY2(v.statusBar()->currentMessage().contains(QLatin1String("Track Changes is off")), qPrintable(v.statusBar()->currentMessage()));
+    }
+
     void theFormatsThatHaveNoSuchControlNameTheKindsTheyLose()
     {
         const QByteArray inlineCombo = "<w:p><w:sdt><w:sdtPr><w:id w:val=\"1\"/><w:comboBox><w:listItem w:displayText=\"A\" w:value=\"a\"/></w:comboBox></w:sdtPr><w:sdtContent><w:r><w:t>A</w:t></w:r></w:sdtContent></w:sdt></w:p>";
