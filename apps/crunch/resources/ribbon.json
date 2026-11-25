@@ -432,6 +432,7 @@
             {"column": true},
             {"small": "outline.showDetail", "keytip": "SD"},
             {"small": "outline.hideDetail", "keytip": "HD"},
+            {"column": true},
             {"small": "outline.auto", "keytip": "AO"},
             {"small": "outline.clear", "keytip": "CO"},
             {"small": "outline.settings", "keytip": "OS"},

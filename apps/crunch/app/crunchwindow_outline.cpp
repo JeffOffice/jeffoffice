@@ -224,6 +224,8 @@ void CrunchWindow::outlineSettings()
         dialog.setObjectName(QStringLiteral("outlineSettingsDialog"));
         dialog.setWindowTitle(tr("Outline Settings"));
         auto *layout = new QVBoxLayout(&dialog);
+        layout->setContentsMargins(20, 20, 20, 20);
+        layout->setSpacing(8);
         auto *rows = new QCheckBox(tr("Summary rows below detail"), &dialog);
         rows->setObjectName(QStringLiteral("outlineSummaryBelow"));
         rows->setChecked(below);
@@ -232,6 +234,7 @@ void CrunchWindow::outlineSettings()
         columns->setChecked(right);
         layout->addWidget(rows);
         layout->addWidget(columns);
+        layout->addSpacing(8);
         auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
         layout->addWidget(buttons);
         connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
