@@ -1301,6 +1301,7 @@ int resolveRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision
     EditScope scope(doc, story);
     const UntrackedEdit untracked;   // (accepting and rejecting are not themselves tracked)
     const int blocksBefore = story->blockCount();
+    const QSet<QByteArray> emptyBefore = emptyControlStarts(story);
     int done = 0;
     {
         // The sections first, while the text is as the changes were listed: a section is found by the paragraph that ends it, and the changes that follow (a section break taken out, one put back)
@@ -1436,7 +1437,7 @@ int resolveRevisions(WriteDoc &doc, QTextDocument *story, const QVector<Revision
     edit.endEditBlock();
     if (!tablePlaces.isEmpty()) done += resolveTableRevisions(doc, story, tablePlaces, accept, kept);
     for (const QTextCursor &at : std::as_const(marksBeforeTables)) removeMark(doc, story, at.blockNumber());
-    if (story->blockCount() < blocksBefore) dropEmptyControls(story);   // (a control the paragraphs of which a change took out)
+    if (story->blockCount() < blocksBefore) dropEmptyControls(story, emptyBefore);   // (a control the paragraphs of which a change took out)
     return done;
 }
 

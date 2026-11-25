@@ -8,6 +8,7 @@
 
 #include <QByteArray>
 #include <QDate>
+#include <QSet>
 #include <QString>
 #include <QVector>
 
@@ -153,8 +154,10 @@ void endJoinAtEdge(const EdgeJoin &join);
 // paragraph before it; put after that paragraph's own by appendKeptAfter.
 QVector<office::wml::Block> controlPiecesOf(const QTextBlock &b, bool *only);
 void appendKeptAfter(const QTextBlock &b, const QVector<office::wml::Block> &pieces);
-// A control round paragraphs that no paragraph is left in (its start straight before its end, once the paragraphs a change took out are gone) goes. How many went.
-int dropEmptyControls(QTextDocument *story);
+// A control round paragraphs that no paragraph is left in (its start straight before its end, once the paragraphs a change took out are gone) goes, unless it was empty before (`wasEmpty`,
+// found by emptyControlStarts before the change: a control a form leaves empty is not the change's to take). How many went.
+QSet<QByteArray> emptyControlStarts(QTextDocument *story);
+int dropEmptyControls(QTextDocument *story, const QSet<QByteArray> &wasEmpty);
 // Whether what a person types at the caret takes the place of a placeholder (the caret is in a control that shows one, or the selection is it).
 bool typingReplacesPlaceholder(WriteDoc &doc, const QTextCursor &c);
 // Then the placeholder is selected, and the control no longer says it is showing one (call it inside the step that types).

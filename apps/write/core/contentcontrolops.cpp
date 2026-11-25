@@ -1263,7 +1263,9 @@ void appendKeptAfter(const QTextBlock &b, const QVector<Block> &pieces)
     setKept(b, prop::RawAfter, keptOf(b, prop::RawAfter) + pieces);
 }
 
-int dropEmptyControls(QTextDocument *story)
+// What a gap between two paragraphs keeps, with each control that nothing is between the start and the end of taken out (and the ones that holds the same way, once those are gone).
+// `keep` holds the starts of the controls that were empty before: those stay. `found`, when given, gets the starts of the ones that are empty.
+static int emptyControlsIn(QTextDocument *story, const QSet<QByteArray> *keep, QSet<QByteArray> *found, bool change)
 {
     struct Piece {
         Block k;
@@ -1277,6 +1279,11 @@ int dropEmptyControls(QTextDocument *story)
         auto add = [&](const QVector<Block> &list, bool fromBefore) {
             for (const Block &k : list) {
                 if (!kept.isEmpty() && k.tag == QLatin1String("sdt") && k.role == Inline::Close && kept.last().k.tag == QLatin1String("sdt") && kept.last().k.role == Inline::Open) {
+                    if (found) found->insert(kept.last().k.raw);
+                    if (keep && keep->contains(kept.last().k.raw)) {
+                        kept.push_back({k, fromBefore});
+                        continue;
+                    }
                     kept.removeLast();
                     gone += 2;
                 } else {
@@ -1286,7 +1293,7 @@ int dropEmptyControls(QTextDocument *story)
         };
         add(after, false);
         add(before, true);
-        if (!gone) return;
+        if (!gone || !change) return;
         QVector<Block> a, b;
         for (const Piece &p : std::as_const(kept)) (p.fromBefore ? b : a).push_back(p.k);
         if (z.isValid()) setKept(z, prop::RawAfter, a);
@@ -1300,6 +1307,15 @@ int dropEmptyControls(QTextDocument *story)
     }
     return dropped;
 }
+
+QSet<QByteArray> emptyControlStarts(QTextDocument *story)
+{
+    QSet<QByteArray> found;
+    emptyControlsIn(story, nullptr, &found, false);
+    return found;
+}
+
+int dropEmptyControls(QTextDocument *story, const QSet<QByteArray> &wasEmpty) { return emptyControlsIn(story, &wasEmpty, nullptr, true); }
 
 // The control whose placeholder what is typed at the caret takes the place of (not valid where there is none).
 static ContentControl placeholderControlFor(WriteDoc &doc, const QTextCursor &c)
@@ -1823,8 +1839,9 @@ bool removeRepeatingItem(WriteDoc &doc, int position, QString *problem)
         const WriteDoc::StepGroup group(doc);
         EditScope scope(doc, story);
         const int blocks = story->blockCount();
+        const QSet<QByteArray> emptyBefore = emptyControlStarts(story);
         trackRangeDeleted(doc, story, a.position(), z.next().position());
-        if (story->blockCount() < blocks) dropEmptyControls(story);   // (what the reviewer inserted themselves goes for good)
+        if (story->blockCount() < blocks) dropEmptyControls(story, emptyBefore);   // (what the reviewer inserted themselves goes for good)
         return true;
     }
     const QVector<Block> aBefore = keptOf(a, prop::RawBefore), gap = gapAfter(z);

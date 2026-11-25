@@ -3758,6 +3758,33 @@ private Q_SLOTS:
         }
     }
 
+    void anEmptyControlThatWasThereBeforeIsKeptWhenAChangeNextToItIsResolved()
+    {
+        const QByteArray stamp = " w:author=\"Al\" w:date=\"2026-01-01T00:00:00Z\"";
+        const QByteArray keep = "<w:p><w:r><w:t>keep</w:t></w:r></w:p>";
+        const QByteArray empty = "<w:sdt><w:sdtPr><w:id w:val=\"50\"/><w:richText/></w:sdtPr><w:sdtContent/></w:sdt>";
+        for (const bool inserted : {false, true}) {
+            const QByteArray changed = inserted ? "<w:p><w:pPr><w:rPr><w:ins w:id=\"1\"" + stamp + "/></w:rPr></w:pPr><w:ins w:id=\"2\"" + stamp + "><w:r><w:t>new</w:t></w:r></w:ins></w:p>"
+                                                : "<w:p><w:pPr><w:rPr><w:del w:id=\"1\"" + stamp + "/></w:rPr></w:pPr><w:del w:id=\"2\"" + stamp + "><w:r><w:delText>old</w:delText></w:r></w:del></w:p>";
+            const QByteArray bodies[] = {keep + changed + keep + empty, keep + empty + changed + keep, keep + changed + empty + keep, keep + changed + empty + changed + keep, empty + keep + changed + keep};
+            int which = 0;
+            for (const QByteArray &body : bodies) {
+                for (const bool accept : {true, false}) {
+                    auto doc = open(makeDocx(body));
+                    QVERIFY(doc);
+                    const QByteArray label = QByteArray::number(inserted) + QByteArray::number(which) + QByteArray::number(accept);
+                    QVERIFY2(documentRevisionCount(*doc) > 0, label.constData());
+                    QVERIFY2(documentXml(doc->toDocx()).count(empty) == 1, label.constData());
+                    if (accept) acceptAll(*doc);
+                    else rejectAll(*doc);
+                    QCOMPARE(documentRevisionCount(*doc), 0);
+                    QVERIFY2(documentXml(doc->toDocx()).count(empty) == 1, label.constData());
+                }
+                ++which;
+            }
+        }
+    }
+
     void theFormatsThatHaveNoSuchControlNameTheKindsTheyLose()
     {
         const QByteArray inlineCombo = "<w:p><w:sdt><w:sdtPr><w:id w:val=\"1\"/><w:comboBox><w:listItem w:displayText=\"A\" w:value=\"a\"/></w:comboBox></w:sdtPr><w:sdtContent><w:r><w:t>A</w:t></w:r></w:sdtContent></w:sdt></w:p>";
