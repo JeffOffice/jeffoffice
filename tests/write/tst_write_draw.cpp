@@ -753,6 +753,142 @@ QByteArray withPartReplaced(const QByteArray &docx, const QString &part, const s
 }
 
 
+// A document that holds pictures with effects (each with its original kept) and cropped pictures in every place a picture can be: the body, a table cell, a text box, a group, the headers of the
+// first page and of the others, a footnote, and an endnote. Every picture is its own (its tiles are made from a counter), and `originals` holds the bytes of each original and each cropped
+// whole picture, which the file must no longer hold when Inspect has taken them out. `filtered` and `cropped` are how many of each there are.
+struct EverywhereFile {
+    QByteArray docx;
+    QVector<QByteArray> originals;
+    int filtered = 0, cropped = 0;
+};
+
+EverywhereFile everywhereFile(int seed)
+{
+    EverywhereFile out;
+    const QString rel = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/");
+    office::PackageWriter w;
+    int made = 0;
+    auto pngOf = [&]() {
+        QImage tiles(48, 48, QImage::Format_RGB32);
+        const int s = seed * 100 + (++made);
+        for (int y = 0; y < tiles.height(); ++y)
+            for (int x = 0; x < tiles.width(); ++x) tiles.setPixel(x, y, ((x / 6 + y / 6) % 2) ? qRgb(240 - s % 200, 230, 100 + s % 90) : qRgb(20 + s % 200, 40 + s % 60, 60 + s % 150));
+        QByteArray bytes;
+        QBuffer buffer(&bytes);
+        buffer.open(QIODevice::WriteOnly);
+        tiles.save(&buffer, "PNG");
+        return std::pair<QImage, QByteArray>(tiles, bytes);
+    };
+    // One picture in the rules of `part` (the main part or a part of its own): the drawing's text. A picture with an effect shows its finished file and keeps its original; a cropped one is whole in the file.
+    auto pictureIn = [&](const QString &part, bool effect, int id) {
+        const auto [image, bytes] = pngOf();
+        out.originals << bytes;
+        const QString file = QStringLiteral("/word/media/p%1_%2.png").arg(seed).arg(made);
+        w.addPart(file, bytes, QStringLiteral("image/png"));
+        const QString target = QStringLiteral("media/") + file.mid(file.lastIndexOf(QLatin1Char('/')) + 1);
+        const QString originalRid = w.addRelationship(part, rel + QStringLiteral("image"), target);
+        QString shownRid = originalRid;
+        QByteArray blip = "<a:blip r:embed=\"" + originalRid.toUtf8() + "\"/>";
+        QByteArray extras;
+        if (effect) {
+            ++out.filtered;
+            const QVector<BlipEffect> filters = blurOf(0.35);
+            const QByteArray finished = office::pictureFxFinishedPng(image, filters, office::pictureFxKeyFor(bytes, image.size()));
+            const QString finishedFile = QStringLiteral("/word/media/f%1_%2.png").arg(seed).arg(made);
+            w.addPart(finishedFile, finished, QStringLiteral("image/png"));
+            shownRid = w.addRelationship(part, rel + QStringLiteral("image"), QStringLiteral("media/") + finishedFile.mid(finishedFile.lastIndexOf(QLatin1Char('/')) + 1));
+            blip = office::withPictureFxBlip(blip, shownRid, originalRid, filters);
+        } else {
+            ++out.cropped;
+            extras = "<a:srcRect l=\"25000\" t=\"25000\" r=\"25000\" b=\"25000\"/>";
+        }
+        return QByteArray("<w:drawing><wp:inline distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\"><wp:extent cx=\"1270000\" cy=\"1270000\"/><wp:docPr id=\"") + QByteArray::number(id) + "\" name=\"Picture " + QByteArray::number(id)
+               + "\"/><wp:cNvGraphicFramePr/><a:graphic><a:graphicData uri=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"><pic:pic><pic:nvPicPr><pic:cNvPr id=\"0\" name=\"p.png\"/><pic:cNvPicPr/></pic:nvPicPr><pic:blipFill>"
+               + blip + extras + "<a:stretch><a:fillRect/></a:stretch></pic:blipFill><pic:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"1270000\" cy=\"1270000\"/></a:xfrm><a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></pic:spPr></pic:pic></a:graphicData></a:graphic></wp:inline></w:drawing>";
+    };
+    auto inBox = [](const QByteArray &inner, int id) {
+        return QByteArray("<w:drawing><wp:inline distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\"><wp:extent cx=\"2540000\" cy=\"1500000\"/><wp:docPr id=\"") + QByteArray::number(id) + "\" name=\"Text Box " + QByteArray::number(id)
+               + "\"/><wp:cNvGraphicFramePr/><a:graphic><a:graphicData uri=\"http://schemas.microsoft.com/office/word/2010/wordprocessingShape\"><wps:wsp><wps:cNvSpPr txBox=\"1\"/><wps:spPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"2540000\" cy=\"1500000\"/></a:xfrm>"
+                 "<a:prstGeom prst=\"rect\"><a:avLst/></a:prstGeom></wps:spPr><wps:txbx><w:txbxContent><w:p><w:r>" + inner + "</w:r></w:p></w:txbxContent></wps:txbx><wps:bodyPr/></wps:wsp></a:graphicData></a:graphic></wp:inline></w:drawing>";
+    };
+    auto inGroup = [](const QByteArray &child, int id) {
+        // (the child is a picture's drawing: its picture element is the group's member)
+        const qsizetype from = child.indexOf("<pic:pic>"), to = child.indexOf("</pic:pic>") + 10;
+        return QByteArray("<w:drawing><wp:inline distT=\"0\" distB=\"0\" distL=\"0\" distR=\"0\"><wp:extent cx=\"1270000\" cy=\"1270000\"/><wp:docPr id=\"") + QByteArray::number(id) + "\" name=\"Group " + QByteArray::number(id)
+               + "\"/><wp:cNvGraphicFramePr/><a:graphic><a:graphicData uri=\"http://schemas.microsoft.com/office/word/2010/wordprocessingGroup\"><wpg:wgp><wpg:cNvGrpSpPr/><wpg:grpSpPr><a:xfrm><a:off x=\"0\" y=\"0\"/><a:ext cx=\"1270000\" cy=\"1270000\"/>"
+                 "<a:chOff x=\"0\" y=\"0\"/><a:chExt cx=\"1270000\" cy=\"1270000\"/></a:xfrm></wpg:grpSpPr>" + child.mid(from, to - from) + "</wpg:wgp></a:graphicData></a:graphic></wp:inline></w:drawing>";
+    };
+    auto runs = [](const QList<QByteArray> &drawings) {
+        QByteArray x;
+        for (const QByteArray &d : drawings) x += "<w:p><w:r>" + d + "</w:r></w:p>";
+        return x;
+    };
+    const QByteArray head = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\r\n";
+    const QByteArray ns = QByteArray(kNs) + " xmlns:pic=\"http://schemas.openxmlformats.org/drawingml/2006/picture\"";
+    const QString main = QStringLiteral("/word/document.xml");
+    int id = 10;
+    // The headers, and the notes, each with the pictures of its own part.
+    auto sideParts = [&](const QString &name, const QByteArray &type, const QString &relType, const QString &contentType, QList<QByteArray> drawings, const QByteArray &wrapOpen, const QByteArray &wrapClose) {
+        Q_UNUSED(type);
+        w.addPart(name, head + wrapOpen + runs(drawings) + wrapClose, contentType);
+        return w.addRelationship(main, rel + relType, name.mid(name.lastIndexOf(QLatin1Char('/')) + 1));
+    };
+    const QString header1 = QStringLiteral("/word/header1.xml"), header2 = QStringLiteral("/word/header2.xml"), notes = QStringLiteral("/word/footnotes.xml"), ends = QStringLiteral("/word/endnotes.xml");
+    const QByteArray p1 = pictureIn(header1, true, ++id), p2 = pictureIn(header1, false, ++id);
+    const QByteArray p3 = pictureIn(header1, true, ++id), p4 = pictureIn(header1, false, ++id), p5 = pictureIn(header1, true, ++id), p6 = pictureIn(header1, false, ++id);
+    const QString h1 = sideParts(header1, {}, QStringLiteral("header"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"),
+                                 {p1, p2, inBox(p3 + QByteArray(), ++id), inBox(p4, ++id), inGroup(p5, ++id), inGroup(p6, ++id)}, "<w:hdr " + ns + ">", "</w:hdr>");
+    const QByteArray f1 = pictureIn(header2, true, ++id), f2 = pictureIn(header2, false, ++id);
+    const QString h2 = sideParts(header2, {}, QStringLiteral("header"), QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"), {f1, f2}, "<w:hdr " + ns + ">", "</w:hdr>");
+    const QByteArray n1 = pictureIn(notes, true, ++id), n2 = pictureIn(notes, false, ++id);
+    w.addPart(notes, head + "<w:footnotes " + ns + "><w:footnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:footnote><w:footnote w:type=\"continuationSeparator\" w:id=\"0\"><w:p><w:r><w:continuationSeparator/></w:r></w:p></w:footnote>"
+                         "<w:footnote w:id=\"1\"><w:p><w:r><w:footnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> note </w:t></w:r><w:r>" + n1 + "</w:r><w:r>" + n2 + "</w:r></w:p></w:footnote></w:footnotes>",
+              QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.footnotes+xml"));
+    w.addRelationship(main, rel + QStringLiteral("footnotes"), QStringLiteral("footnotes.xml"));
+    const QByteArray e1 = pictureIn(ends, true, ++id), e2 = pictureIn(ends, false, ++id);
+    w.addPart(ends, head + "<w:endnotes " + ns + "><w:endnote w:type=\"separator\" w:id=\"-1\"><w:p><w:r><w:separator/></w:r></w:p></w:endnote><w:endnote w:type=\"continuationSeparator\" w:id=\"0\"><w:p><w:r><w:continuationSeparator/></w:r></w:p></w:endnote>"
+                        "<w:endnote w:id=\"1\"><w:p><w:r><w:endnoteRef/></w:r><w:r><w:t xml:space=\"preserve\"> end </w:t></w:r><w:r>" + e1 + "</w:r><w:r>" + e2 + "</w:r></w:p></w:endnote></w:endnotes>",
+              QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.endnotes+xml"));
+    w.addRelationship(main, rel + QStringLiteral("endnotes"), QStringLiteral("endnotes.xml"));
+    // The body: a picture with an effect and a cropped one, the same in a table cell, a text box, and a group; then a second page.
+    const QByteArray b1 = pictureIn(main, true, ++id), b2 = pictureIn(main, false, ++id), c1 = pictureIn(main, true, ++id), c2 = pictureIn(main, false, ++id);
+    const QByteArray t1 = pictureIn(main, true, ++id), t2 = pictureIn(main, false, ++id), g1 = pictureIn(main, true, ++id), g2 = pictureIn(main, false, ++id);
+    const QByteArray body = "<w:p><w:r><w:t xml:space=\"preserve\">Top </w:t></w:r><w:r>" + b1 + "</w:r><w:r>" + b2 + "</w:r><w:r><w:footnoteReference w:id=\"1\"/></w:r><w:r><w:endnoteReference w:id=\"1\"/></w:r></w:p>"
+                            "<w:tbl><w:tblPr><w:tblW w:w=\"0\" w:type=\"auto\"/></w:tblPr><w:tblGrid><w:gridCol w:w=\"4000\"/></w:tblGrid><w:tr><w:tc><w:p><w:r>" + c1 + "</w:r><w:r>" + c2 + "</w:r></w:p></w:tc></w:tr></w:tbl>"
+                            + runs({inBox(t1, ++id), inBox(t2, ++id), inGroup(g1, ++id), inGroup(g2, ++id)})
+                            + "<w:p><w:r><w:br w:type=\"page\"/></w:r><w:r><w:t>Second page</w:t></w:r></w:p>";
+    const QByteArray sect = "<w:sectPr><w:headerReference w:type=\"first\" r:id=\"" + h1.toUtf8() + "\"/><w:headerReference w:type=\"default\" r:id=\"" + h2.toUtf8()
+                            + "\"/><w:pgSz w:w=\"12240\" w:h=\"15840\"/><w:pgMar w:top=\"1440\" w:right=\"1440\" w:bottom=\"1440\" w:left=\"1440\" w:header=\"720\" w:footer=\"720\" w:gutter=\"0\"/><w:titlePg/></w:sectPr>";
+    w.addPart(main, head + "<w:document " + ns + "><w:body>" + body + sect + "</w:body></w:document>", QStringLiteral("application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"));
+    w.addRelationship(QStringLiteral("/"), rel + QStringLiteral("officeDocument"), main);
+    out.docx = w.finish();
+    return out;
+}
+
+// The two first pages of the document as the output draws them, at one and at three times the width of a page.
+QVector<QImage> pagesAt(write::WriteDoc &doc, int times)
+{
+    PageView view;
+    view.resize(1000, 700);
+    view.setDocument(&doc);
+    view.show();
+    QVector<QImage> pages;
+    for (int i = 0; i < 2; ++i) pages << view.pageImage(i, 816 * times);
+    return pages;
+}
+
+// How many of the picture files of the saved document are these bytes.
+int filesHolding(const QByteArray &zip, const QVector<QByteArray> &which)
+{
+    office::Package p;
+    p.read(zip);
+    int n = 0;
+    for (const QString &name : p.partNames())
+        for (const QByteArray &bytes : which)
+            if (p.part(name) == bytes) ++n;
+    return n;
+}
+
 // A document with a chart another program could have saved: its series read the cells A1:C4 of a workbook that is kept beside the chart part (c:externalData); the chart is at position 7.
 QByteArray workbookChartDocx()
 {
@@ -7380,6 +7516,65 @@ private Q_SLOTS:
         QCOMPARE(left, 1);
         QCOMPARE(removeKeptPictureParts(*doc, jp::PictureKept::CroppedAreas), 0);
         QCOMPARE(mediaOf(doc->toDocx()).values().first(), original);
+    }
+
+    // The rows look everywhere a picture can be (the body, a table cell, a text box, a group, the headers of both kinds, a footnote, and an endnote): the originals under effects go from the file, the
+    // cropped-away parts are cleared, every page looks the same, and one Undo brings it all back.
+    void theOriginalsRowTakesTheOriginalsOfEveryPlace()
+    {
+        const EverywhereFile file = everywhereFile(1);
+        auto doc = open(file.docx);
+        QVERIFY(doc);
+        QCOMPARE(file.filtered, 10);
+        QCOMPARE(keptPictureParts(*doc, jp::PictureKept::FilterOriginals), file.filtered);
+        const QVector<QImage> before1 = pagesAt(*doc, 1), before3 = pagesAt(*doc, 3);
+        QCOMPARE(filesHolding(doc->toDocx(), file.originals), file.filtered + file.cropped);
+        for (int i = 0; i < 2; ++i) QVERIFY2(differingPixels(pagesAt(*doc, 1)[i], before1[i]) == 0, qPrintable(QString::number(i)));
+        QCOMPARE(removeKeptPictureParts(*doc, jp::PictureKept::FilterOriginals), file.filtered);
+        QCOMPARE(keptPictureParts(*doc, jp::PictureKept::FilterOriginals), 0);
+        for (int i = 0; i < 2; ++i) {
+            const QImage now = pagesAt(*doc, 1)[i];
+            QRect box;
+            for (int y = 0; y < now.height() && now.size() == before1[i].size(); ++y)
+                for (int x = 0; x < now.width(); ++x)
+                    if (now.pixel(x, y) != before1[i].pixel(x, y)) box = box.isNull() ? QRect(x, y, 1, 1) : box.united(QRect(x, y, 1, 1));
+            QVERIFY2(differingPixels(now, before1[i]) == 0, qPrintable(QStringLiteral("page %1: %2 in %3,%4 %5x%6 of %7x%8").arg(i).arg(differingPixels(now, before1[i])).arg(box.x()).arg(box.y()).arg(box.width()).arg(box.height()).arg(now.width()).arg(now.height())));
+            QCOMPARE(differingPixels(pagesAt(*doc, 3)[i], before3[i]), 0);
+        }
+        // Only the cropped pictures' whole files are left in the saved file: no original under an effect, in any place.
+        QCOMPARE(filesHolding(doc->toDocx(), file.originals), file.cropped);
+        QVERIFY(!doc->toDocx().isEmpty());
+        // One step: Undo brings all of them back.
+        QVERIFY(doc->undo());
+        QCOMPARE(keptPictureParts(*doc, jp::PictureKept::FilterOriginals), file.filtered);
+        QCOMPARE(filesHolding(doc->toDocx(), file.originals), file.filtered + file.cropped);
+        // The saved file read again: the pictures are still there, and the row finds none under an effect.
+        QVERIFY(removeKeptPictureParts(*doc, jp::PictureKept::FilterOriginals) == file.filtered);
+        auto back = open(doc->toDocx());
+        QVERIFY(back);
+        QCOMPARE(keptPictureParts(*back, jp::PictureKept::FilterOriginals), 0);
+        QCOMPARE(differingPixels(pagesAt(*back, 1)[0], before1[0]), 0);
+    }
+
+    void theCroppedPartsRowClearsTheCroppedPicturesOfEveryPlace()
+    {
+        const EverywhereFile file = everywhereFile(2);
+        auto doc = open(file.docx);
+        QVERIFY(doc);
+        QCOMPARE(file.cropped, 10);
+        QCOMPARE(keptPictureParts(*doc, jp::PictureKept::CroppedAreas), file.cropped);
+        const QVector<QImage> before1 = pagesAt(*doc, 1), before3 = pagesAt(*doc, 3);
+        QCOMPARE(removeKeptPictureParts(*doc, jp::PictureKept::CroppedAreas), file.cropped);
+        QCOMPARE(keptPictureParts(*doc, jp::PictureKept::CroppedAreas), 0);
+        for (int i = 0; i < 2; ++i) {
+            QCOMPARE(differingPixels(pagesAt(*doc, 1)[i], before1[i]), 0);
+            QCOMPARE(differingPixels(pagesAt(*doc, 3)[i], before3[i]), 0);
+        }
+        // No whole picture of a cropped one is left in the saved file, in any place (the pictures under effects are not touched by this row).
+        QCOMPARE(filesHolding(doc->toDocx(), file.originals), file.filtered);
+        QVERIFY(doc->undo());
+        QCOMPARE(keptPictureParts(*doc, jp::PictureKept::CroppedAreas), file.cropped);
+        QCOMPARE(filesHolding(doc->toDocx(), file.originals), file.filtered + file.cropped);
     }
 
     // The rows are in Inspect, in the words the other programs have (one source for them), and they count and remove what the functions do.

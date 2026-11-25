@@ -1533,8 +1533,9 @@ namespace {
 constexpr int kMostObjectRecords = 100000;   // the forms the program made of pictures that the text and the history hold, all together
 }
 
-bool WriteDoc::makeDrawnFormat(const Inline &atom, QTextCharFormat *format)
+bool WriteDoc::makeDrawnFormat(const Inline &atom, QTextCharFormat *format, const QString &part)
 {
+    const QByteArray drawingKey = part.isEmpty() ? atom.raw : part.toUtf8() + '\0' + atom.raw;
     flow::FlowDocument &f = *m_flow;
     auto touch = [&](int head) {
         for (int id = head, steps = 0; id > 0 && id <= f.objects.size() && steps < 64; id = f.objects[id - 1].next, ++steps) {
@@ -1543,7 +1544,7 @@ bool WriteDoc::makeDrawnFormat(const Inline &atom, QTextCharFormat *format)
         }
     };
     // The same drawing again is the form made for it before, while that is held.
-    if (const auto found = m_objectsByDrawing.constFind(atom.raw); found != m_objectsByDrawing.constEnd()) {
+    if (const auto found = m_objectsByDrawing.constFind(drawingKey); found != m_objectsByDrawing.constEnd()) {
         const int head = found.value();
         if (head > 0 && head <= f.objects.size() && f.objects[head - 1].item && m_objectHeld.contains(head)) {
             format->setProperty(flow::fp::AnchorId, head);
@@ -1556,10 +1557,10 @@ bool WriteDoc::makeDrawnFormat(const Inline &atom, QTextCharFormat *format)
         collectObjectRecords();
         if (m_objectHeld.size() >= kMostObjectRecords) return false;
     }
-    if (!drawnObjects(atom, QString(), format)) return false;
+    if (!drawnObjects(atom, part, format)) return false;
     if (const int head = format->intProperty(flow::fp::AnchorId); head > 0) {
         touch(head);
-        m_objectsByDrawing.insert(atom.raw, head);
+        m_objectsByDrawing.insert(drawingKey, head);
     }
     return true;
 }

@@ -672,6 +672,103 @@ void WriteDoc::letGoOfMediaIfUnused(const QString &id)
         if (r.id == id && !r.external && r.type.endsWith(QLatin1String("/image"))) m_madeMedia.insert(id, r.target);
 }
 
+namespace {
+
+QVector<Relationship> *relsOfPartNamed(QMap<QString, QVector<Relationship>> &all, const QString &part)
+{
+    for (auto it = all.begin(); it != all.end(); ++it)
+        if (it.key().compare(part, Qt::CaseInsensitive) == 0) return &it.value();
+    return nullptr;
+}
+
+} // namespace
+
+QByteArray WriteDoc::partMediaData(const QString &part, const QString &id) const
+{
+    if (part.isEmpty()) return relatedPartData(id);
+    for (auto it = m_wml.partRelationships.cbegin(); it != m_wml.partRelationships.cend(); ++it)
+        if (it.key().compare(part, Qt::CaseInsensitive) == 0)
+            for (const Relationship &r : it.value())
+                if (r.id == id && !r.external) return partData(r.target);
+    return {};
+}
+
+QString WriteDoc::addPartMedia(const QString &part, const QByteArray &bytes, const QString &extension, const QString &contentType, bool *added)
+{
+    if (part.isEmpty()) return addMedia(bytes, extension, contentType, added);
+    if (added) *added = false;
+    QVector<Relationship> *found = relsOfPartNamed(m_wml.partRelationships, part);
+    QVector<Relationship> &rels = found ? *found : m_wml.partRelationships[part];
+    for (const KeptPart &p : m_wml.parts) {
+        if (p.data.size() != bytes.size() || p.data != bytes) continue;
+        for (const Relationship &r : rels)
+            if (!r.external && r.type.endsWith(QLatin1String("/image")) && p.name.compare(r.target, Qt::CaseInsensitive) == 0) return r.id;
+    }
+    if (added) *added = true;
+    QSet<QString> taken;
+    for (const KeptPart &p : m_wml.parts) taken.insert(p.name.toLower());
+    taken.insert(m_wml.mainName.toLower());
+    QString name;
+    for (int n = 1;; ++n) {
+        name = QStringLiteral("/word/media/image%1.%2").arg(n).arg(extension);
+        if (!taken.contains(name.toLower())) break;
+    }
+    KeptPart kept;
+    kept.name = name;
+    kept.contentType = contentType;
+    kept.data = bytes;
+    m_wml.parts.push_back(kept);
+    Relationship r;
+    r.id = nextRelationshipId(rels);
+    r.type = QStringLiteral("http://schemas.openxmlformats.org/officeDocument/2006/relationships/image");
+    r.target = name;
+    rels.push_back(r);
+    m_madePartMedia.insert({part, r.id});
+    return r.id;
+}
+
+void WriteDoc::removePartMedia(const QString &part, const QString &id)
+{
+    if (part.isEmpty()) return removeMedia(id);
+    m_madePartMedia.remove({part, id});
+    QVector<Relationship> *rels = relsOfPartNamed(m_wml.partRelationships, part);
+    if (!rels) return;
+    QString target;
+    for (qsizetype i = 0; i < rels->size(); ++i)
+        if ((*rels)[i].id == id && !(*rels)[i].external) {
+            target = (*rels)[i].target;
+            rels->removeAt(i);
+            break;
+        }
+    if (target.isEmpty()) return;
+    auto names = [&target](const QVector<Relationship> &links) {
+        for (const Relationship &r : links)
+            if (!r.external && r.target.compare(target, Qt::CaseInsensitive) == 0) return true;
+        return false;
+    };
+    bool held = names(m_wml.mainRelationships);
+    for (auto it = m_wml.partRelationships.cbegin(); !held && it != m_wml.partRelationships.cend(); ++it) held = names(it.value());
+    if (held) return;
+    for (qsizetype i = 0; i < m_wml.parts.size(); ++i)
+        if (m_wml.parts[i].name.compare(target, Qt::CaseInsensitive) == 0) {
+            m_wml.parts.removeAt(i);
+            return;
+        }
+}
+
+void WriteDoc::letGoOfPartMediaIfUnused(const QString &part, const QString &id)
+{
+    if (part.isEmpty()) return letGoOfMediaIfUnused(id);
+    m_madePartMedia.insert({part, id});
+}
+
+QString WriteDoc::partOfPictureAt(const QTextDocument *story, int position) const
+{
+    if (story != this->story()) return storyPartName(story);
+    const QTextBlock block = story->findBlock(position);
+    return block.isValid() && endnoteIdOf(block) ? QStringLiteral("/word/endnotes.xml") : QString();
+}
+
 QVector<Relationship> WriteDoc::relationshipsOfPart(const QString &part) const { return m_wml.partRelationships.value(part); }
 
 QString WriteDoc::addOwnedPart(const QString &folder, const QString &base, const QString &extension, const QByteArray &data, const QString &contentType)

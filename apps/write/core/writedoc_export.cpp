@@ -255,7 +255,7 @@ void WriteDoc::exportInto(BlockSink &sink, QTextDocument *whose, QTextBlock firs
 // the history that can bring a picture back, and only the file leaves them out.
 void WriteDoc::pruneUnusedMedia(office::wml::Document *out) const
 {
-    if (m_madeMedia.isEmpty() && m_madeLinks.isEmpty() && m_madePartLinks.isEmpty() && m_ownedParts.isEmpty()) return;
+    if (m_madeMedia.isEmpty() && m_madePartMedia.isEmpty() && m_madeLinks.isEmpty() && m_madePartLinks.isEmpty() && m_ownedParts.isEmpty()) return;
     QSet<QString> named;
     // (Every quoted value is a candidate, in either quote character, each closed by the same one: a relationship's Id is whatever the file chose, "rId7" or 'img1', and the attribute that
     // names it is the format's, not ours to list.)
@@ -285,7 +285,8 @@ void WriteDoc::pruneUnusedMedia(office::wml::Document *out) const
     }
     for (const office::wml::KeptPart &part : std::as_const(out->parts))
         // (A chart's Ids are those of its own relationships, a workbook's and a drawing's: they name nothing of the main part's.)
-        if (part.contentType.contains(QLatin1String("xml")) && !part.contentType.contains(QLatin1String("drawingml.chart+xml"))) collect(part.data);
+        // (A part with relationships of its own, a header's, a footer's, or the notes', names those and not the main part's: its Ids are its own, and a picture of the body must not be kept for a header's "rId5".)
+        if (part.contentType.contains(QLatin1String("xml")) && !part.contentType.contains(QLatin1String("drawingml.chart+xml")) && out->partRelationships.value(part.name).isEmpty()) collect(part.data);
     // (An address a link was made to and then taken back, or never used, is no relationship of the file.)
     for (const QString &id : std::as_const(m_madeLinks)) {
         if (named.contains(id)) continue;
@@ -316,6 +317,47 @@ void WriteDoc::pruneUnusedMedia(office::wml::Document *out) const
             for (qsizetype i = rel.value().size() - 1; i >= 0; --i)
                 if (rel.value()[i].id == id && rel.value()[i].external) rel.value().removeAt(i);
         }
+    }
+    // (the pictures of a header, a footer, or the notes: the Ids are the part's own, so each is looked for in its own story, and its picture's part goes when no relationship of any part names it)
+    for (const auto &[part, id] : std::as_const(m_madePartMedia)) {
+        bool stillNamed = false;
+        const QByteArray quoted = "\"" + id.toUtf8() + "\"";
+        auto namesIt = [&](const QTextDocument *story, bool onlyEndnotes) {
+            for (QTextBlock b = story->begin(); b.isValid() && !stillNamed; b = b.next()) {
+                if (onlyEndnotes && !endnoteIdOf(b)) continue;
+                for (QTextBlock::iterator it = b.begin(); !it.atEnd() && !stillNamed; ++it) {
+                    const QTextCharFormat cf = it.fragment().charFormat();
+                    if (cf.hasProperty(prop::Atom) && storedBytes(cf, prop::Atom).contains(quoted)) stillNamed = true;
+                }
+            }
+        };
+        for (const QTextDocument *side : sideStories())
+            if (storyPartName(side).compare(part, Qt::CaseInsensitive) == 0) namesIt(side, false);
+        if (part.compare(QStringLiteral("/word/endnotes.xml"), Qt::CaseInsensitive) == 0) namesIt(this->story(), true);
+        if (stillNamed) continue;
+        QString target;
+        for (auto rel = out->partRelationships.begin(); rel != out->partRelationships.end(); ++rel) {
+            if (rel.key().compare(part, Qt::CaseInsensitive) != 0) continue;
+            for (qsizetype i = rel.value().size() - 1; i >= 0; --i)
+                if (rel.value()[i].id == id && !rel.value()[i].external && rel.value()[i].type.endsWith(QLatin1String("/image"))) {
+                    target = rel.value()[i].target;
+                    rel.value().removeAt(i);
+                }
+        }
+        if (target.isEmpty()) continue;
+        auto targets = [&target](const QVector<office::Relationship> &rels) {
+            for (const office::Relationship &r : rels)
+                if (!r.external && r.target.compare(target, Qt::CaseInsensitive) == 0) return true;
+            return false;
+        };
+        bool held = targets(out->mainRelationships) || targets(out->packageRelationships);
+        for (auto r = out->partRelationships.cbegin(); !held && r != out->partRelationships.cend(); ++r) held = targets(r.value());
+        if (held) continue;
+        for (qsizetype i = 0; i < out->parts.size(); ++i)
+            if (out->parts[i].name.compare(target, Qt::CaseInsensitive) == 0) {
+                out->parts.removeAt(i);
+                break;
+            }
     }
     for (auto it = m_madeMedia.cbegin(); it != m_madeMedia.cend(); ++it) {
         if (named.contains(it.key())) continue;

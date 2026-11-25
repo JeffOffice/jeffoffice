@@ -738,11 +738,11 @@ bool isShapeGraphic(const QByteArray &graphic)
 }
 
 // Gives the character after `position` the picture `change` makes of its model: the element written again and the form the pages show, as one change of its format.
-bool changePicture(WriteDoc &doc, int position, const std::function<bool(Model &)> &change, bool groupsToo = false)
+bool changePicture(WriteDoc &doc, int position, const std::function<bool(Model &)> &change, bool groupsToo = false, QTextDocument *where = nullptr, bool evenLocked = false)
 {
-    QTextDocument *story = doc.story();
+    QTextDocument *story = where ? where : doc.story();
     if (position < 0 || position + 1 > story->characterCount() - 1) return false;
-    if (isLocked(story->findBlock(position))) return false;
+    if (!evenLocked && isLocked(story->findBlock(position))) return false;
     QTextCharFormat cf = formatAfter(story, position);
     Inline atom;
     if (!drawingAtomOf(cf, &atom)) return false;
@@ -757,7 +757,7 @@ bool changePicture(WriteDoc &doc, int position, const std::function<bool(Model &
     cf.clearProperty(flow::fp::AnchorId);
     cf.clearProperty(tp::InlineObject);
     setStored(cf, prop::Atom, packAtom(atom));
-    if (!doc.makeDrawnFormat(atom, &cf)) {
+    if (!doc.makeDrawnFormat(atom, &cf, doc.partOfPictureAt(story, position))) {
         doc.pictureNotice = QCoreApplication::translate("jp::write::Pictures", "This document holds as many pictures and drawn objects as JeffWrite can show. Save it, and open it again, to change more.");
         return false;
     }
@@ -5115,9 +5115,55 @@ qint64 compressPictures(WriteDoc &doc, double ppi, const QVector<int> &positions
 
 namespace {
 
-// A picture of the text that Inspect looks at: what its blip shows, the original its filters were made from, and the part of the shown picture it shows.
+// The most pictures looked at inside one drawing (a group, a text box, or a fill): a file can hold more than anyone reads, and the rest are left as they are.
+constexpr int kMostBlipsInDrawing = 1000;
+
+struct BlipSpan {
+    qsizetype start = 0, end = 0;   // [start, end) the blip's text, its end tag too
+};
+
+QVector<BlipSpan> blipSpans(const QString &xml)
+{
+    static const QRegularExpression open(QStringLiteral("<a:blip(?=[\\s/>])[^>]*>"));
+    QVector<BlipSpan> out;
+    qsizetype from = 0;
+    while (out.size() < kMostBlipsInDrawing) {
+        const QRegularExpressionMatch m = open.match(xml, from);
+        if (!m.hasMatch()) break;
+        BlipSpan s;
+        s.start = m.capturedStart();
+        s.end = m.capturedEnd();
+        if (xml.at(s.end - 2) != QLatin1Char('/')) {
+            const qsizetype close = xml.indexOf(QStringLiteral("</a:blip>"), s.end);
+            if (close < 0) break;
+            s.end = close + 9;
+        }
+        out.push_back(s);
+        from = s.end;
+    }
+    return out;
+}
+
+// The graphic with its `n`th blip (counting every a:blip, in the text box, group, or fill it is in) made again by `again`.
+bool withNestedBlip(QByteArray *graphic, int n, const std::function<QByteArray(const QByteArray &)> &again)
+{
+    QString text = QString::fromUtf8(*graphic);
+    const QVector<BlipSpan> spans = blipSpans(text);
+    if (n < 0 || n >= spans.size()) return false;
+    const QByteArray made = again(text.mid(spans[n].start, spans[n].end - spans[n].start).toUtf8());
+    text.replace(spans[n].start, spans[n].end - spans[n].start, QString::fromUtf8(made));
+    *graphic = text.toUtf8();
+    return true;
+}
+
+// A picture of the document that Inspect looks at, wherever it is (the body, a header, a footer, a note, a table cell, a text box, a group, or a shape's fill): what its blip shows, the original its
+// filters were made from, and the part of the shown picture it shows.
 struct KeptPicture {
+    QTextDocument *story = nullptr;
     int position = 0;
+    QString part;      // the part the story is of (empty for the body's): the Ids of its pictures are that part's own
+    int nested = -1;   // -1: the drawing is the picture; else which blip of the drawing it is (a text box, a group, or a fill holds pictures)
+    QString key;       // the part and the shown picture: what pictures that share one are told by
     QString shown, original;
     bool filtered = false;
     bool changeable = false;   // a picture of pixels in the file (a vector picture, a linked one, and one too large to look through are told, and left as they are)
@@ -5126,46 +5172,138 @@ struct KeptPicture {
     QSize size;
 };
 
-QVector<KeptPicture> keptPictures(const WriteDoc &doc)
+// Every story that holds pictures: the body, and the headers, footers (of every section and kind), and notes.
+QVector<QTextDocument *> pictureStories(WriteDoc &doc)
+{
+    QVector<QTextDocument *> stories = {doc.story()};
+    for (QTextDocument *s : doc.storiesWithChanges(true))
+        if (s && !stories.contains(s)) stories.push_back(s);
+    return stories;
+}
+
+// The cut of the picture whose blip ends at `at` in `text` (its a:srcRect, a share of the whole picture), and the size its frame gives it (points; a size that is nowhere told is a
+// hundred by a hundred, for the share is all that matters).
+void nestedCutAndSize(const QString &text, qsizetype at, double cut[4], QSizeF *size)
+{
+    cut[0] = cut[1] = cut[2] = cut[3] = 0;
+    qsizetype stop = text.indexOf(QStringLiteral("BlipFill>"), at);
+    if (stop < 0) stop = text.size();
+    static const QRegularExpression rect(QStringLiteral("<a:srcRect\\b([^>]*)/?>"));
+    const QRegularExpressionMatch found = rect.match(text.left(stop), at);
+    if (found.hasMatch()) {
+        static const char *names[4] = {"l", "t", "r", "b"};
+        for (int i = 0; i < 4; ++i) {
+            const QRegularExpressionMatch v = QRegularExpression(QStringLiteral("\\b%1=\"(-?[0-9]+)\"").arg(QLatin1String(names[i]))).match(found.captured(1));
+            if (v.hasMatch()) cut[i] = std::clamp(v.captured(1).toDouble() / 100000.0, -1.0, 1.0);
+        }
+    }
+    static const QRegularExpression ext(QStringLiteral("<a:ext\\s+cx=\"([0-9]+)\"\\s+cy=\"([0-9]+)\""));
+    QRegularExpressionMatch e = ext.match(text, at);
+    if (!e.hasMatch()) {
+        qsizetype last = text.lastIndexOf(QStringLiteral("<a:ext "), at);
+        if (last >= 0) e = ext.match(text, last);
+    }
+    *size = e.hasMatch() && e.captured(1).toDouble() > 0 && e.captured(2).toDouble() > 0 ? QSizeF(e.captured(1).toDouble() / kEmuPerPoint, e.captured(2).toDouble() / kEmuPerPoint) : QSizeF(100, 100);
+}
+
+QVector<KeptPicture> keptPictures(WriteDoc &doc)
 {
     QVector<KeptPicture> out;
-    const QTextDocument *story = doc.story();
-    for (const int position : picturePositions(doc)) {
-        Inline atom;
-        Model m;
-        if (!story || !drawingAtomOf(formatAfter(story, position), &atom) || !parseDrawing(atom.raw, &m)) continue;
-        const QVector<Shape> shapes = readShapes(atom.raw);
-        if (shapes.isEmpty()) continue;
-        const Shape &s = shapes.first();
-        KeptPicture k;
-        k.position = position;
-        office::PictureFxBlip blip;
-        if (office::readPictureFxBlip(m.graphic, &blip) && isBlipPicture(m.graphic) && !blip.shownRid.isEmpty()) {
-            k.shown = blip.shownRid;
-            k.original = blip.originalRid;
-            k.filtered = blip.present;
-        }
-        const bool anyCrop = s.cropL != 0 || s.cropT != 0 || s.cropR != 0 || s.cropB != 0;
-        if (!k.shown.isEmpty() && blipRefsOf(m.graphic).svg.isEmpty() && !m.graphic.contains("r:link")) {
-            const QByteArray bytes = doc.relatedPartData(k.shown);
-            QImageReader reader;
-            QBuffer buffer;
-            buffer.setData(bytes);
-            buffer.open(QIODevice::ReadOnly);
-            reader.setDevice(&buffer);
-            const QSize px = bytes.isEmpty() || svg::startsLikeSvg(bytes) ? QSize() : reader.size();
-            if (px.isValid() && qint64(px.width()) * px.height() <= kMostCompressPixels && (!k.filtered || !doc.relatedPartData(k.original).isEmpty())) {
-                k.changeable = true;
-                k.size = px;
-                // (the frame and the crop make the picture the page draws; the shared rule says which pixels of the file's picture it shows)
-                PictureItem pic;
-                pic.rect = QRectF(0, 0, s.width, s.height);
-                dressPicture(pic, s, doc.theme(), false);
-                k.shows = pictureShownPixels(pic, px);
-                k.cropped = !k.shows.isEmpty() && k.shows != QRect(QPoint(0, 0), px);
+    for (QTextDocument *story : pictureStories(doc)) {
+        for (QTextBlock b = story->begin(); b.isValid(); b = b.next())
+            for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+                const QTextFragment f = it.fragment();
+                if (!f.charFormat().hasProperty(prop::Atom)) continue;
+                for (int i = 0; i < f.length(); ++i) {
+                    const int position = f.position() + i;
+                    Inline atom;
+                    Model m;
+                    if (!drawingAtomOf(formatAfter(story, position), &atom) || !parseDrawing(atom.raw, &m)) continue;
+                    const QString part = doc.partOfPictureAt(story, position);
+                    // (what a picture is: the pixels of the shown picture it shows, by the one rule the other programs use)
+                    auto measure = [&](KeptPicture &k, const std::function<PictureItem()> &dressed) {
+                        const QByteArray bytes = doc.partMediaData(part, k.shown);
+                        QImageReader reader;
+                        QBuffer buffer;
+                        buffer.setData(bytes);
+                        buffer.open(QIODevice::ReadOnly);
+                        reader.setDevice(&buffer);
+                        const QSize px = bytes.isEmpty() || svg::startsLikeSvg(bytes) ? QSize() : reader.size();
+                        if (!px.isValid() || qint64(px.width()) * px.height() > kMostCompressPixels || (k.filtered && doc.partMediaData(part, k.original).isEmpty())) return;
+                        k.changeable = true;
+                        k.size = px;
+                        k.shows = pictureShownPixels(dressed(), px);
+                        k.cropped = !k.shows.isEmpty() && k.shows != QRect(QPoint(0, 0), px);
+                    };
+                    if (isPictureAt(story, position)) {
+                        const QVector<Shape> shapes = readShapes(atom.raw);
+                        if (shapes.isEmpty()) continue;
+                        const Shape &s = shapes.first();
+                        KeptPicture k;
+                        k.story = story;
+                        k.position = position;
+                        k.part = part;
+                        office::PictureFxBlip blip;
+                        if (office::readPictureFxBlip(m.graphic, &blip) && isBlipPicture(m.graphic) && !blip.shownRid.isEmpty()) {
+                            k.shown = blip.shownRid;
+                            k.original = blip.originalRid;
+                            k.filtered = blip.present;
+                        }
+                        k.key = part + QLatin1Char('|') + k.shown;
+                        const bool anyCrop = s.cropL != 0 || s.cropT != 0 || s.cropR != 0 || s.cropB != 0;
+                        if (!k.shown.isEmpty() && blipRefsOf(m.graphic).svg.isEmpty() && !m.graphic.contains("r:link")) {
+                            // (the frame and the crop make the picture the page draws)
+                            measure(k, [&] {
+                                PictureItem pic;
+                                pic.rect = QRectF(0, 0, s.width, s.height);
+                                dressPicture(pic, s, doc.theme(), false);
+                                return pic;
+                            });
+                        }
+                        if (k.changeable || anyCrop) out.push_back(k);
+                        continue;
+                    }
+                    if (!m.graphic.contains("<a:blip")) continue;
+                    // A text box, a group, or a shape with a picture fill: every picture in it is a picture of the document.
+                    const QString text = QString::fromUtf8(m.graphic);
+                    const QVector<BlipSpan> spans = blipSpans(text);
+                    for (int n = 0; n < spans.size(); ++n) {
+                        const QString sub = text.mid(spans[n].start, spans[n].end - spans[n].start);
+                        office::PictureFxBlip blip;
+                        KeptPicture k;
+                        k.story = story;
+                        k.position = position;
+                        k.part = part;
+                        k.nested = n;
+                        double cut[4];
+                        QSizeF size;
+                        nestedCutAndSize(text, spans[n].end, cut, &size);
+                        const bool anyCrop = cut[0] != 0 || cut[1] != 0 || cut[2] != 0 || cut[3] != 0;
+                        const bool read = office::readPictureFxBlip(sub.toUtf8(), &blip) && !blip.shownRid.isEmpty();
+                        if (read) {
+                            k.shown = blip.shownRid;
+                            k.original = blip.originalRid;
+                            k.filtered = blip.present;
+                        }
+                        k.key = part + QLatin1Char('|') + k.shown;
+                        if (read && blipRefsOf(sub.toUtf8()).svg.isEmpty() && !sub.contains("r:link")) {
+                            measure(k, [&] {
+                                PictureItem pic;
+                                const double w = size.width(), h = size.height();
+                                const double keepW = 1 - cut[0] - cut[2], keepH = 1 - cut[1] - cut[3];
+                                pic.rect = QRectF(0, 0, w, h);
+                                pic.imgRect = QRectF(0, 0, w, h);
+                                if (anyCrop && keepW >= 0.02 && keepH >= 0.02) {
+                                    const double wholeW = w / keepW, wholeH = h / keepH;
+                                    pic.imgRect = QRectF(-cut[0] * wholeW, -cut[1] * wholeH, wholeW, wholeH);
+                                }
+                                return pic;
+                            });
+                        }
+                        if (k.changeable || anyCrop) out.push_back(k);
+                    }
+                }
             }
-        }
-        if (k.changeable || anyCrop) out.push_back(k);
     }
     return out;
 }
@@ -5177,7 +5315,7 @@ struct KeptCuts {
     int notChanged = 0, left = 0;
 };
 
-KeptCuts keptCuts(const WriteDoc &doc)
+KeptCuts keptCuts(WriteDoc &doc)
 {
     KeptCuts out;
     const QVector<KeptPicture> all = keptPictures(doc);
@@ -5188,28 +5326,42 @@ KeptCuts keptCuts(const WriteDoc &doc)
             ++out.notChanged;
             continue;
         }
-        if (k.shows.isEmpty()) blocked.insert(k.shown);
-        else united[k.shown] = united.contains(k.shown) ? united[k.shown].united(k.shows) : k.shows;
+        if (k.shows.isEmpty()) blocked.insert(k.key);
+        else united[k.key] = united.contains(k.key) ? united[k.key].united(k.shows) : k.shows;
     }
     QHash<QString, bool> content;
     for (const KeptPicture &k : all) {
         if (!k.changeable || !k.cropped) continue;
-        const QRect box = united.value(k.shown);
-        if (blocked.contains(k.shown) || box == QRect(QPoint(0, 0), k.size)) {
+        const QRect box = united.value(k.key);
+        if (blocked.contains(k.key) || box == QRect(QPoint(0, 0), k.size)) {
             ++out.left;
             continue;
         }
-        if (!content.contains(k.shown)) content.insert(k.shown, pictureHasContentOutside(QImage::fromData(doc.relatedPartData(k.shown)), box));
-        if (!content.value(k.shown)) continue;
-        out.keep.insert(k.shown, box);
+        if (!content.contains(k.key)) content.insert(k.key, pictureHasContentOutside(QImage::fromData(doc.partMediaData(k.part, k.shown)), box));
+        if (!content.value(k.key)) continue;
+        out.keep.insert(k.key, box);
         out.pictures.push_back(k);
     }
     return out;
 }
 
+// The picture `k` made to show the picture `rid` of its part, with no filters.
+bool showOnly(WriteDoc &doc, const KeptPicture &k, const QString &rid)
+{
+    // (a note's paragraphs are locked against typing, not against this: Inspect takes what the file keeps out of them too)
+    const bool changed = changePicture(doc, k.position, [&](Model &m) {
+        if (k.nested < 0) {
+            m.graphic = office::withPictureFxBlip(m.graphic, rid, rid, {});
+            return true;
+        }
+        return withNestedBlip(&m.graphic, k.nested, [&](const QByteArray &blip) { return office::withPictureFxBlip(blip, rid, rid, {}); });
+    }, k.nested >= 0, k.story, true);
+    return changed;
+}
+
 } // namespace
 
-int keptPictureParts(const WriteDoc &doc, jp::PictureKept kind, int *notChanged, int *leftAsIs)
+int keptPictureParts(WriteDoc &doc, jp::PictureKept kind, int *notChanged, int *leftAsIs)
 {
     if (notChanged) *notChanged = 0;
     if (leftAsIs) *leftAsIs = 0;
@@ -5233,44 +5385,38 @@ int removeKeptPictureParts(WriteDoc &doc, jp::PictureKept kind)
         const KeptCuts cuts = keptCuts(doc);
         QHash<QString, QString> made;   // the picture cleared, for each picture shown (pictures that share one share the cleared one)
         for (const KeptPicture &k : cuts.pictures) {
-            if (!made.contains(k.shown)) {
-                const QImage cleared = pictureClearedOutside(QImage::fromData(doc.relatedPartData(k.shown)), cuts.keep.value(k.shown));
+            if (!made.contains(k.key)) {
+                const QImage cleared = pictureClearedOutside(QImage::fromData(doc.partMediaData(k.part, k.shown)), cuts.keep.value(k.key));
                 QByteArray png;
                 QBuffer buffer(&png);
                 buffer.open(QIODevice::WriteOnly);
                 QString rid;
                 if (!cleared.isNull() && cleared.save(&buffer, "PNG")) {
                     bool added = false;
-                    rid = doc.addMedia(png, QStringLiteral("png"), QStringLiteral("image/png"), &added);
+                    rid = doc.addPartMedia(k.part, png, QStringLiteral("png"), QStringLiteral("image/png"), &added);
                     if (added && doc.mediaBytes() > doc.mediaLimit) {
-                        doc.removeMedia(rid);
+                        doc.removePartMedia(k.part, rid);
                         rid.clear();
                     }
                 }
-                made.insert(k.shown, rid);
+                made.insert(k.key, rid);
             }
-            const QString rid = made.value(k.shown);
+            const QString rid = made.value(k.key);
             if (rid.isEmpty() || rid == k.shown) continue;
             // (A picture with filters is made into its finished picture first: it is the shown one that is cleared, and the original and the settings go.)
-            if (changePicture(doc, k.position, [&](Model &m) {
-                    m.graphic = office::withPictureFxBlip(m.graphic, rid, rid, {});
-                    return true;
-                })) {
+            if (showOnly(doc, k, rid)) {
                 ++n;
-                doc.letGoOfMediaIfUnused(k.shown);
-                if (k.filtered) doc.letGoOfMediaIfUnused(k.original);
+                doc.letGoOfPartMediaIfUnused(k.part, k.shown);
+                if (k.filtered) doc.letGoOfPartMediaIfUnused(k.part, k.original);
             }
         }
         return n;
     }
     for (const KeptPicture &k : keptPictures(doc)) {
         if (!k.changeable || !k.filtered) continue;
-        if (changePicture(doc, k.position, [&](Model &m) {
-                m.graphic = office::withPictureFxBlip(m.graphic, k.shown, k.shown, {});
-                return true;
-            })) {
+        if (showOnly(doc, k, k.shown)) {
             ++n;
-            doc.letGoOfMediaIfUnused(k.original);
+            doc.letGoOfPartMediaIfUnused(k.part, k.original);
         }
     }
     return n;

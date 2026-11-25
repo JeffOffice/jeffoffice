@@ -742,6 +742,14 @@ public:
     // A picture's part (the relationship `id` of the main part) that a change has put another in the place of: the file leaves it out when nothing names it any more, and the document
     // keeps it for the steps of the history that bring the picture back.
     void letGoOfMediaIfUnused(const QString &id);
+    // The same for the pictures of a header, a footer, or a note: their relationships are the part's own (`part` is the name partOfPictureAt gives, empty for the body's). The bytes a
+    // picture's Id names there, a new picture put in that part's relationships (named like the body's, left out of the file when nothing names it), and the let-go.
+    QByteArray partMediaData(const QString &part, const QString &id) const;
+    QString addPartMedia(const QString &part, const QByteArray &bytes, const QString &extension, const QString &contentType, bool *added = nullptr);
+    void removePartMedia(const QString &part, const QString &id);
+    void letGoOfPartMediaIfUnused(const QString &part, const QString &id);
+    // The part a picture at `position` of a story is of: the body's (empty), a header's, a footer's, or the notes'; the endnotes' paragraphs are in the body's story.
+    QString partOfPictureAt(const QTextDocument *story, int position) const;
 
     // The bytes of the part that a relationship of the main part names (a chart), or none for an Id that names no part. And a new part with a relationship to it of this kind, named
     // folder/base1.ext and on (it has the relationships of `likePart`, a part it takes the place of); the Id of the relationship. Like a picture's, it is left out of the file when nothing names it (a chart taken back by Undo).
@@ -782,7 +790,7 @@ public:
     int nextDrawingId(const QTextDocument *story);
     // After text that may hold drawings of other ids was put in (a paste): the highest is looked for again.
     void forgetDrawingIds();
-    bool makeDrawnFormat(const office::wml::Inline &atom, QTextCharFormat *format);
+    bool makeDrawnFormat(const office::wml::Inline &atom, QTextCharFormat *format, const QString &part = QString());   // `part`: the part of a header or note the drawing is in (its pictures' Ids are its own)
 
     // ---- the file
     QString filePath;
@@ -872,6 +880,7 @@ private:
     QSet<QPair<QString, QString>> m_madePartLinks;   // (the part, the Id) of the links to addresses outside the file in a header, a footer, or the footnotes that Inspect took out
     QSet<QString> m_madeLinks;                     // the Ids of the relationships to addresses outside the file that the program added (a link taken back by Undo leaves its own unused)
     QSet<QString> m_ownedParts;                    // the parts only another part's relationship names (a chart's workbook) that were put in or let go of: left out of the file when no relationship names them
+    QSet<QPair<QString, QString>> m_madePartMedia;   // (the part, the Id) of the pictures of a header, a footer, or the notes that a change let go of
     QHash<QString, QString> m_madeMedia;           // the pictures' parts the program added: the Id of the relationship, and the part
     quint64 m_id = 0;
     bool m_hadMacros = false, m_leftOut = false;
