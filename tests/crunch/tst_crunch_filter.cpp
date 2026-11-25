@@ -1095,6 +1095,34 @@ private Q_SLOTS:
         QVERIFY(s->savedSort(0).valid);
     }
 
+    // The choice "Numbers in text count by value" is kept for the kept sort as long as the window lives: Reapply sorts that way, and a later plain sort takes the note for the file away.
+    void reapplyKeepsTheNaturalChoiceOfTheSortOfAFilter()
+    {
+        EditWindow e;
+        QVERIFY(e.open(bookOfSheets({{"A1=Name", "B1=Qty", "A2=Item 10", "B2=1", "A3=Item 2", "B3=2", "A4=Item 1", "B4=3"}})));
+        CrunchWindow &w = e.win.w;
+        QVERIFY(filterWith(e, range(QStringLiteral("A1:B4"))));
+        auto sortAs = [&](bool natural) {
+            jp::crunch::SortSpec spec = byColumnSpec();
+            spec.hasHeader = true;
+            spec.natural = natural;
+            QSignalSpy sorted(&w, &CrunchWindow::sortFinished);
+            QVERIFY(w.sortRange(rangeOf(QStringLiteral("A1:B4")), spec));
+            QTRY_COMPARE(sorted.count(), 1);
+        };
+        sortAs(true);
+        QCOMPARE(shown(e, QStringLiteral("A2:A4")), QStringLiteral("Item 1|Item 2|Item 10"));
+        QVERIFY(w.keepsNaturalSort());
+        QVERIFY(w.session()->type(0, 1, 0, QStringLiteral("Item 100")).ok);
+        QSignalSpy sorted(&w, &CrunchWindow::sortFinished);
+        w.act(QStringLiteral("filter.reapply"))->trigger();
+        QTRY_COMPARE(sorted.count(), 1);
+        QCOMPARE(shown(e, QStringLiteral("A2:A4")), QStringLiteral("Item 2|Item 10|Item 100"));
+        QVERIFY(w.keepsNaturalSort());   // (Reapply did not lose it)
+        sortAs(false);
+        QVERIFY(!w.keepsNaturalSort());
+    }
+
     // A filter by icon: the session cannot see the icons (the window says them), the drop-down lists them with Keep a Color, and the rows with the icon chosen are what shows.
     void aFilterByIconShowsOnlyTheRowsWithThatIcon()
     {

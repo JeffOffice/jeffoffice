@@ -4,6 +4,7 @@
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
 #include "app/sortdialog.h"
+#include "core/collation.h"
 #include "core/appinfo.h"
 #include "core/fonts.h"
 #include "crunchbooks.h"
@@ -14,6 +15,7 @@
 #include "savedok.h"
 
 #include <QAction>
+#include <QCollator>
 #include <QComboBox>
 #include <QElapsedTimer>
 #include <QPushButton>
@@ -141,6 +143,36 @@ private Q_SLOTS:
         QCOMPARE(shown(e, QStringLiteral("A1:A5")), QStringLiteral("Item 21|Item 10|Item 3b|Item 2|item 1"));
         e.win.w.undoStack()->undo();
         QCOMPARE(shown(e, QStringLiteral("A1:A5")), QStringLiteral("item 1|Item 2|Item 3b|Item 10|Item 21"));   // (one step)
+    }
+
+    // The key of a value is made once, with each run of digits written so that the plain order puts runs by value (a run of any length: the collator's own numeric mode cut it at 254 digits).
+    void theNaturalKeyOrdersRunsOfDigitsByValueWhateverTheirLength()
+    {
+        const QCollator plain = jp::crunch::sortCollator();
+        QVERIFY(!plain.numericMode());
+        auto before = [&](const QString &a, const QString &b) { return plain.compare(jp::crunch::naturalSortKey(a), jp::crunch::naturalSortKey(b)) < 0; };
+        QVERIFY(before(QStringLiteral("Item 2"), QStringLiteral("Item 10")));
+        QVERIFY(!before(QStringLiteral("Item 10"), QStringLiteral("Item 2")));
+        QVERIFY(before(QStringLiteral("a9b"), QStringLiteral("a10")));
+        QVERIFY(before(QStringLiteral("x007"), QStringLiteral("x8")));   // (leading zeros do not count)
+        QVERIFY(!before(QStringLiteral("x007"), QStringLiteral("x7")) && !before(QStringLiteral("x7"), QStringLiteral("x007")));
+        QVERIFY(before(QStringLiteral("1.5"), QStringLiteral("1.10")));
+        QVERIFY(before(QStringLiteral("0"), QStringLiteral("00001")));
+        const QString four = QString(400, QLatin1Char('9')), more = QString(401, QLatin1Char('1'));
+        QVERIFY(before(QStringLiteral("n") + four, QStringLiteral("n") + more));   // (400 digits before 401)
+        QVERIFY(!before(QStringLiteral("n") + more, QStringLiteral("n") + four));
+        QVERIFY(before(QStringLiteral("n") + QString(255, QLatin1Char('9')), QStringLiteral("n1") + QString(255, QLatin1Char('0'))));
+        QVERIFY(before(QStringLiteral("n") + QString(254, QLatin1Char('9')), QStringLiteral("n") + QString(255, QLatin1Char('1'))));
+        // and the sort itself, with those values in a column
+        EditWindow e;
+        QStringList specs;
+        const QStringList values = {QStringLiteral("n") + more, QStringLiteral("n") + four, QStringLiteral("Item 10"), QStringLiteral("Item 2")};
+        for (int i = 0; i < values.size(); ++i) specs << QStringLiteral("A%1=%2").arg(i + 1).arg(values[i]);
+        QVERIFY(e.open(sheetOf(specs)));
+        SortSpec spec = byColumn(0);
+        spec.natural = true;
+        QVERIFY(sortWith(e, QStringLiteral("A1:A4"), spec).ok);
+        QCOMPARE(shown(e, QStringLiteral("A1:A4")), (QStringList{QStringLiteral("Item 2"), QStringLiteral("Item 10"), QStringLiteral("n") + four, QStringLiteral("n") + more}).join(QLatin1Char('|')));
     }
 
     void theSortDialogCarriesTheNaturalChoice()

@@ -1741,6 +1741,41 @@ private Q_SLOTS:
         QCOMPARE(second.w.session()->displayText(0, 3, 0), QStringLiteral("North"));       // (the row the filter hides stays where it is)
     }
 
+    // Reapply on a table sorts by numbers in text by value when the table's sort was made that way in this window.
+    void reapplyOnATableKeepsTheNaturalChoice()
+    {
+        const QString part = QStringLiteral("<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n<table xmlns=\"%1\" id=\"1\" name=\"Sales\" displayName=\"Sales\" ref=\"A1:C4\"><autoFilter ref=\"A1:C4\"/>"
+                                           "<tableColumns count=\"3\"><tableColumn id=\"1\" name=\"Region\"/><tableColumn id=\"2\" name=\"Q1\"/><tableColumn id=\"3\" name=\"Q2\"/></tableColumns>"
+                                           "<tableStyleInfo name=\"TableStyleMedium2\" showRowStripes=\"1\"/></table>")
+                                 .arg(QStringLiteral("http://schemas.openxmlformats.org/spreadsheetml/2006/main"));
+        QString rows = QStringLiteral("<row r=\"1\">%1%2%3</row>").arg(text(QStringLiteral("A1"), QStringLiteral("Region")), text(QStringLiteral("B1"), QStringLiteral("Q1")), text(QStringLiteral("C1"), QStringLiteral("Q2")));
+        const char *names[] = {"Item 10", "Item 2", "Item 1"};
+        for (int i = 0; i < 3; ++i)
+            rows += QStringLiteral("<row r=\"%1\">%2%3</row>").arg(i + 2).arg(text(QStringLiteral("A%1").arg(i + 2), QLatin1String(names[i])), num(QStringLiteral("B%1").arg(i + 2), i + 1));
+        EditWindow e;
+        QVERIFY(e.open(withTables(buildXlsx({worksheet(rows)}), {part})));
+        CrunchWindow &w = e.win.w;
+        QVERIFY(e.settle());
+        e.select(QStringLiteral("A2"));
+        jp::crunch::SortSpec spec;
+        jp::crunch::SortLevel level;
+        spec.levels.append(level);
+        spec.hasHeader = true;
+        spec.natural = true;
+        QSignalSpy sorted(&w, &CrunchWindow::sortFinished);
+        QVERIFY(w.sortRange(rangeOf(QStringLiteral("A1:C4")), spec));
+        QTRY_COMPARE(sorted.count(), 1);
+        QCOMPARE(w.session()->displayText(0, 1, 0), QStringLiteral("Item 1"));
+        QCOMPARE(w.session()->displayText(0, 3, 0), QStringLiteral("Item 10"));
+        QVERIFY(w.keepsNaturalSort());
+        QVERIFY(w.session()->type(0, 1, 0, QStringLiteral("Item 100")).ok);
+        e.select(QStringLiteral("A2"));
+        w.act(QStringLiteral("filter.reapply"))->trigger();
+        QTRY_COMPARE(sorted.count(), 2);
+        QCOMPARE(w.session()->displayText(0, 1, 0), QStringLiteral("Item 2"));
+        QCOMPARE(w.session()->displayText(0, 3, 0), QStringLiteral("Item 100"));
+    }
+
     // The rows a table's filter hid in a file are the filter's (not a person's): Clear shows them, Reapply hides them again, and a row hidden in a table that has no conditions is a person's.
     void rowsHiddenByATablesFilterInAFileAreTheFilters()
     {

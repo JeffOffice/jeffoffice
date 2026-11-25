@@ -282,7 +282,8 @@ bool EditSession::prepareSort(SortPlan &plan, qint64 budget)
                     break;
                 case Value::Kind::Text: {
                     k.cls = 1;
-                    k.text = v.text().left(kMaxKeyChars);
+                    // (natural: made once for each value, so that comparing is the plain comparison; made before the cut, as the count of a long run of digits comes first in it)
+                    k.text = (plan.spec.natural ? naturalSortKey(v.text()) : v.text()).left(kMaxKeyChars);
                     plan.keyChars += k.text.size();
                     break;
                 }
@@ -338,7 +339,7 @@ bool EditSession::orderSort(SortPlan &plan, const std::atomic<bool> *cancel)
     if (plan.keys.empty() && !plan.units.empty()) return false;
     const size_t levels = size_t(plan.spec.levels.size());
     const size_t n = plan.units.size();
-    const QCollator collator = sortCollator(plan.spec.caseSensitive, plan.spec.natural);
+    const QCollator collator = sortCollator(plan.spec.caseSensitive);
     plan.order.resize(n);
     std::iota(plan.order.begin(), plan.order.end(), 0u);
     qint64 compared = 0;
