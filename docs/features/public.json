@@ -3350,7 +3350,7 @@
       },
       {
        "status": "partly",
-       "text": "171a3b00db8451f2c477fefe1b8ec51917ef3b5d4862d335488c4614cd26a344"
+       "text": "c4e8905f2fbf1edcdb6ed8355db82a38127614777c345b2be322c8a9f21e1051"
       }
      ]
     },
@@ -9565,18 +9565,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "171a3b00db8451f2c477fefe1b8ec51917ef3b5d4862d335488c4614cd26a344": {
-   "drop": false,
-   "en": "After Animation can hide an object after the animation or on the next click, in the Effect Options box.",
-   "es": "Después de la animación puede ocultar un objeto tras la animación o al hacer clic siguiente, en el cuadro de opciones de efectos.",
-   "fr": "Après l’animation peut masquer un objet après l’animation ou au clic suivant, dans la boîte d’options d’effet.",
-   "soon": {
-    "drop": false,
-    "en": "Dimming after animation, animating text by word or by letter, and sounds on effects",
-    "es": "Atenuación tras la animación, animación de texto por palabra o por letra y sonidos en los efectos",
-    "fr": "Atténuation après l’animation, animation du texte par mot ou par lettre, et sons sur les effets"
    }
   },
   "171f0848835e19b33e58af9e8850b365d3b6d8b68ae9b7b5deb3a8bfee0b3c71": {
@@ -22321,6 +22309,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "c4e8905f2fbf1edcdb6ed8355db82a38127614777c345b2be322c8a9f21e1051": {
+   "drop": false,
+   "en": "Choose what an effect does after it plays: hide the object after the animation, hide it on the next click, or dim it to a theme or custom color. Animate text all at once, by word, or by letter, with the delay set as a percent of the effect's length.",
+   "es": "Elija qué hace un efecto después de reproducirse: ocultar el objeto tras la animación, ocultarlo al hacer clic siguiente o atenuarlo a un color del tema o personalizado. Anime el texto todo a la vez, por palabra o por letra, con el retraso definido como porcentaje de la duración del efecto.",
+   "fr": "Choisissez ce que fait un effet après sa lecture : masquer l’objet après l’animation, le masquer au clic suivant ou l’estomper vers une couleur du thème ou personnalisée. Animez le texte en une seule fois, mot par mot ou lettre par lettre, avec un délai défini en pourcentage de la durée de l’effet.",
+   "soon": {
+    "drop": false,
+    "en": "Sounds on effects",
+    "es": "Sonidos en los efectos",
+    "fr": "Sons sur les effets"
    }
   },
   "c4ed83aecbaf4fbf92d940936f3b1f6d1372012ce75e29a4867cdcd3f98136ff": {
