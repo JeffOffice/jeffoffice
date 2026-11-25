@@ -3475,7 +3475,7 @@ private Q_SLOTS:
         QVERIFY2(insertContentControl(doc, win.w.view()->cursor(), ControlKind::RepeatingSection, &why), qPrintable(why));
         QCOMPARE(blockControls(doc).size(), 2);
         const QByteArray out = documentXml(doc.toDocx());
-        QVERIFY2(out.contains("<w15:repeatingSection/>") && out.contains("<w15:repeatingSectionItem/>") && out.contains("xmlns:w15="), out.constData());
+        QVERIFY2(out.contains("<w15:repeatingSection/>") && out.contains("<w15:repeatingSectionItem/>") && out.contains("xmlns:w15=") && out.contains("mc:Ignorable=\"w15\""), out.constData());
         QVERIFY(out.indexOf("<w15:repeatingSection/>") < out.indexOf("<w15:repeatingSectionItem/>") && out.indexOf("<w15:repeatingSectionItem/>") < out.indexOf("Row"));
         auto again = open(doc.toDocx());
         QCOMPARE(blockControls(*again).size(), 2);
