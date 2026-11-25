@@ -21374,7 +21374,7 @@ Desktop publishing</source>
 <context>
     <name>WriteFindPane</name>
     <message>
-        <location filename="../apps/write/app/writefindpane.cpp" line="+625"/>
+        <location filename="../apps/write/app/writefindpane.cpp" line="+626"/>
         <source>A match longer than %1 characters was found, which is more than JeffWrite can work with at once. Nothing was changed.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -62296,12 +62296,17 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <translation type="unfinished">Программа JeffWrite завершила поиск по документу. «%1» не найдено.</translation>
     </message>
     <message>
-        <location line="+44"/>
+        <location line="+54"/>
         <source>A section break, a field, or a note mark can be found but not replaced.</source>
         <translation type="unfinished">Разрыв раздела, поле или знак примечания можно найти, но нельзя заменить.</translation>
     </message>
     <message>
-        <location line="+179"/>
+        <location line="+4"/>
+        <source>Text in a content control that can&apos;t be changed can be found but not replaced.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+186"/>
         <source>JeffWrite made no replacements. &quot;%1&quot; was not found.</source>
         <translation type="unfinished">Программа JeffWrite не выполнила ни одной замены. «%1» не найдено.</translation>
     </message>
@@ -62319,6 +62324,15 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
         <location line="+1"/>
         <source>JeffWrite made %1 replacements.</source>
         <translation type="unfinished">Программа JeffWrite выполнила замен: %1.</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n match is in content that can&apos;t be changed.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
@@ -64010,13 +64024,14 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Сохранить только текст</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location filename="../apps/write/app/writewindow_controls.cpp" line="+28"/>
+        <location filename="../apps/write/app/writewindow_home.cpp" line="+1"/>
         <location line="+10"/>
         <source>Picture</source>
         <translation type="unfinished">Рисунок</translation>
     </message>
     <message>
-        <location line="-9"/>
+        <location filename="../apps/write/app/writewindow_home.cpp" line="-9"/>
         <source>Paste Special…</source>
         <translation type="unfinished">Специальная вставка…</translation>
     </message>
@@ -65755,14 +65770,18 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Вставка рисунка</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location filename="../apps/write/app/writewindow_controls.cpp" line="+34"/>
+        <location line="+4"/>
+        <location filename="../apps/write/app/writewindow_pictures.cpp" line="+9"/>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="-50"/>
         <location line="+60"/>
         <source>That picture is too large to put in a document.</source>
         <translation type="unfinished">Этот рисунок слишком большой для вставки в документ.</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="-4"/>
+        <location line="+5"/>
+        <location filename="../apps/write/app/writewindow_pictures.cpp" line="+4"/>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="-60"/>
         <location line="+5"/>
         <location line="+55"/>
@@ -65770,7 +65789,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Не удаётся открыть %1 как рисунок.</translation>
     </message>
     <message>
-        <location line="+29"/>
+        <location filename="../apps/write/app/writewindow_pictures.cpp" line="+29"/>
         <source>This barcode field can&apos;t be edited here.</source>
         <translation type="unfinished">Это поле штрихкода нельзя изменить здесь.</translation>
     </message>
@@ -66101,7 +66120,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Принять все исправления</translation>
     </message>
     <message>
-        <location line="+330"/>
+        <location line="+331"/>
         <source>1 change accepted.</source>
         <translation type="unfinished">Принято одно исправление.</translation>
     </message>
@@ -66111,12 +66130,12 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Принято изменений: %1.</translation>
     </message>
     <message>
-        <location line="-320"/>
+        <location line="-321"/>
         <source>Accept All Changes and Stop Tracking</source>
         <translation type="unfinished">Принять все исправления и остановить отслеживание</translation>
     </message>
     <message>
-        <location line="+321"/>
+        <location line="+322"/>
         <source>1 change accepted. Track Changes is off.</source>
         <translation type="unfinished">Принято одно исправление. Отслеживание исправлений отключено.</translation>
     </message>
@@ -66126,12 +66145,12 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Принято изменений: %1. Отслеживание исправлений выключено.</translation>
     </message>
     <message>
-        <location line="-310"/>
+        <location line="-311"/>
         <source>Reject All Changes</source>
         <translation type="unfinished">Отклонить все исправления</translation>
     </message>
     <message>
-        <location line="+309"/>
+        <location line="+310"/>
         <source>1 change rejected.</source>
         <translation type="unfinished">Отклонено одно исправление.</translation>
     </message>
@@ -66141,7 +66160,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Отклонено изменений: %1.</translation>
     </message>
     <message>
-        <location line="-299"/>
+        <location line="-300"/>
         <source>Next Change</source>
         <translation type="unfinished">Следующее исправление</translation>
     </message>
@@ -66254,7 +66273,16 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Пометить примечание как решённое</translation>
     </message>
     <message numerus="yes">
-        <location line="+223"/>
+        <location line="+225"/>
+        <source>%n change is inside a content control that can&apos;t be edited.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
         <source>%n change(s) were kept as written because settling them would damage the document.</source>
         <translation type="unfinished">
             <numerusform>%n изменение сохранено в том виде, в каком оно было записано, так как его принятие повредило бы документ.</numerusform>
@@ -66263,7 +66291,7 @@ The password couldn&apos;t be put on the file.</source>
         </translation>
     </message>
     <message>
-        <location line="-374"/>
+        <location line="-377"/>
         <location line="+170"/>
         <source>Spelling</source>
         <translation type="unfinished">Правописание</translation>
@@ -66300,7 +66328,12 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Здесь нельзя добавить примечание.</translation>
     </message>
     <message>
-        <location line="+35"/>
+        <location line="+19"/>
+        <source>Track Changes stays on until they are settled.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
         <source>This change is in a part of the document that no page shows.</source>
         <translation type="unfinished">Это изменение находится в части документа, которую ни одна страница не показывает.</translation>
     </message>
@@ -68485,9 +68518,19 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Встроенная</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_controls.cpp" line="+24"/>
+        <location filename="../apps/write/app/writewindow_controls.cpp" line="-41"/>
+        <source>Rich Text</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Plain Text</source>
         <translation type="unfinished">Обычный текст</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Combo Box</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
@@ -68506,6 +68549,47 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+1"/>
+        <source>Repeating Section</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Add Item</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <location line="+7"/>
+        <source>The caret is not in a repeating section.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-3"/>
+        <source>Remove Item</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Clear Picture</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>The caret is not in a picture control that holds a picture.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Choose a Picture</source>
+        <translation type="unfinished">Выбор рисунка</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Pictures (*.png *.jpg *.jpeg *.gif *.bmp *.tif *.tiff *.svg)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
         <source>Properties…</source>
         <translation type="unfinished">Свойства…</translation>
     </message>
@@ -79461,7 +79545,7 @@ The password couldn&apos;t be put on the file.</source>
         </translation>
     </message>
     <message>
-        <location filename="../libs/office/wml/wmlwrite.cpp" line="+1017"/>
+        <location filename="../libs/office/wml/wmlwrite.cpp" line="+1018"/>
         <source>The document could not be packaged.</source>
         <translation type="unfinished">Документ не удалось упаковать.</translation>
     </message>
@@ -80033,12 +80117,13 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::write::ContentControls</name>
     <message>
-        <location filename="../apps/write/core/contentcontrolops.cpp" line="+426"/>
+        <location filename="../apps/write/core/contentcontrolops.cpp" line="+461"/>
+        <location line="+3"/>
         <source>Enter text</source>
         <translation type="unfinished">Введите текст</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-2"/>
         <source>Choose an item</source>
         <translation type="unfinished">Выберите элемент</translation>
     </message>
@@ -80048,40 +80133,117 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Выберите дату</translation>
     </message>
     <message>
-        <location line="+323"/>
+        <location line="+2"/>
+        <source>Choose or type an item</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Add a picture</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+349"/>
+        <location line="+760"/>
         <source>A content control goes in the text, not in a header, a footer, or a note.</source>
         <translation type="unfinished">Элемент управления содержимым размещается в тексте, но не в колонтитуле и не в сноске.</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="-744"/>
         <source>The selection holds only part of another content control.</source>
         <translation type="unfinished">Выделение содержит только часть другого элемента управления содержимым.</translation>
     </message>
     <message>
         <location line="+4"/>
+        <location line="+748"/>
+        <location line="+171"/>
         <source>The document has the most content controls it can hold.</source>
         <translation type="unfinished">В документе уже максимальное количество элементов управления содержимым.</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="-914"/>
+        <location line="+749"/>
         <source>Content controls can hold each other only so deep.</source>
         <translation type="unfinished">Элементы управления содержимым могут быть вложены друг в друга только до определённой глубины.</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="-745"/>
+        <location line="+741"/>
         <source>The content control there can&apos;t be changed.</source>
         <translation type="unfinished">Этот элемент управления содержимым нельзя изменить.</translation>
     </message>
     <message>
-        <location line="+52"/>
+        <location line="-689"/>
+        <location line="+601"/>
         <source>A list holds at most %1 items.</source>
         <translation type="unfinished">Список может содержать не более %1 элементов.</translation>
+    </message>
+    <message>
+        <location line="+85"/>
+        <source>The paragraphs chosen hold only part of a table or of another content control.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+157"/>
+        <source>The contents of this section can&apos;t be edited.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+93"/>
+        <source>Items can&apos;t be added to or removed from this section.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-86"/>
+        <source>A repeating section holds at most %1 items.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>While Track Changes is on, an item can&apos;t be added to a section that ends the document.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>While Track Changes is on, an item that holds a table can&apos;t be added.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+36"/>
+        <source>The item could not be added.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+38"/>
+        <source>A repeating section keeps at least one item.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>The item can&apos;t be deleted.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>The item is already marked as deleted.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>While Track Changes is on, an item can&apos;t be removed from the end of the document.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>While Track Changes is on, an item that holds a table can&apos;t be removed.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
     <name>jp::write::ControlDialogs</name>
     <message>
-        <location filename="../apps/write/app/controldialogs.cpp" line="+49"/>
+        <location filename="../apps/write/app/controldialogs.cpp" line="+56"/>
         <source>Content Control Properties</source>
         <translation type="unfinished">Свойства элемента управления содержимым</translation>
     </message>
@@ -80146,7 +80308,12 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Содержимое нельзя изменить</translation>
     </message>
     <message>
-        <location line="+65"/>
+        <location line="+7"/>
+        <source>Items can&apos;t be added or removed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+66"/>
         <source>The list has no items yet</source>
         <translation type="unfinished">В списке пока нет элементов</translation>
     </message>
@@ -84151,7 +84318,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::write::PageView</name>
     <message>
-        <location filename="../apps/write/app/pagepaint.cpp" line="+243"/>
+        <location filename="../apps/write/app/pagepaint.cpp" line="+251"/>
         <source>Footer</source>
         <translation>Нижний колонтитул</translation>
     </message>
@@ -84335,7 +84502,27 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Поместите таблицу между абзацами, а не внутри таблицы.</translation>
     </message>
     <message>
-        <location line="+262"/>
+        <location line="+236"/>
+        <source>The contents of this picture control can&apos;t be edited.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>That picture is too large to put in a document.</source>
+        <translation type="unfinished">Этот рисунок слишком большой для вставки в документ.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>%1 can&apos;t be opened as a picture.</source>
+        <translation type="unfinished">Не удаётся открыть %1 как рисунок.</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>The file</source>
+        <translation type="unfinished">Файл</translation>
+    </message>
+    <message>
+        <location line="+80"/>
         <source>JeffWrite opens links to web addresses, email addresses, and documents or pictures on this computer only.</source>
         <translation type="unfinished">JeffWrite открывает ссылки только на веб-адреса, адреса электронной почты и документы или рисунки на этом компьютере.</translation>
     </message>
@@ -84400,7 +84587,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Нет группы для восстановления. Повторная группировка работает после разгруппировки, пока её объекты ещё на месте.</translation>
     </message>
     <message>
-        <location line="+1025"/>
+        <location line="+1029"/>
         <source>This text box holds too many paragraphs to be typed in here.</source>
         <translation type="unfinished">Это текстовое поле содержит слишком много абзацев для ввода здесь.</translation>
     </message>
@@ -84480,7 +84667,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::write::Pictures</name>
     <message>
-        <location filename="../apps/write/app/pageview_pictures.cpp" line="-399"/>
+        <location filename="../apps/write/app/pageview_pictures.cpp" line="-403"/>
         <location line="+37"/>
         <source>That is not a picture JeffWrite can read.</source>
         <translation type="unfinished">Это не рисунок, который может открыть JeffWrite.</translation>
@@ -84509,7 +84696,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">В буфере обмена нет рисунка, который может открыть JeffWrite.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="-353"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="-412"/>
         <location filename="../apps/write/app/pageview_pictures.cpp" line="+18"/>
         <location filename="../apps/write/core/pictureops.cpp" line="+2228"/>
         <source>That shape can&apos;t be put here.</source>
@@ -84553,7 +84740,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Не удаётся открыть %1 как рисунок.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/editops.cpp" line="+2239"/>
+        <location filename="../apps/write/core/editops.cpp" line="+2251"/>
         <location filename="../apps/write/core/pictureops.cpp" line="-1548"/>
         <location line="+351"/>
         <location line="+2051"/>
@@ -84709,7 +84896,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::write::ReadyTables</name>
     <message>
-        <location filename="../apps/write/core/tableops.cpp" line="+2229"/>
+        <location filename="../apps/write/core/tableops.cpp" line="+2243"/>
         <source>Column 1</source>
         <translation type="unfinished">Столбец 1</translation>
     </message>
@@ -85294,7 +85481,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::write::Styles</name>
     <message>
-        <location filename="../apps/write/core/styleops.cpp" line="+373"/>
+        <location filename="../apps/write/core/styleops.cpp" line="+374"/>
         <location line="+135"/>
         <source>Type a name for the style.</source>
         <translation type="unfinished">Введите имя стиля.</translation>
@@ -85385,7 +85572,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Здесь нет стиля для обновления.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/editops.cpp" line="+1050"/>
+        <location filename="../apps/write/core/editops.cpp" line="+1061"/>
         <source>The document has too many list styles.</source>
         <translation type="unfinished">В документе слишком много стилей списков.</translation>
     </message>
@@ -85443,7 +85630,7 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>jp::write::Tables</name>
     <message>
-        <location filename="../apps/write/core/tableops.cpp" line="-2004"/>
+        <location filename="../apps/write/core/tableops.cpp" line="-2011"/>
         <source>A table can have at most 20,000 rows.</source>
         <translation type="unfinished">Таблица может содержать не более 20 000 строк.</translation>
     </message>
@@ -85471,7 +85658,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Новые столбцы нельзя вставить туда: объединённые ячейки проходят через место, где они должны быть.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/tableops.cpp" line="+1431"/>
+        <location filename="../apps/write/core/tableops.cpp" line="+1437"/>
         <location line="+68"/>
         <source>A table can only be moved in the main text.</source>
         <translation type="unfinished">Таблицу можно переместить только в основном тексте.</translation>
@@ -85514,7 +85701,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Таблицу нельзя переместить ниже последнего абзаца документа.</translation>
     </message>
     <message>
-        <location line="+513"/>
+        <location line="+514"/>
         <source>A table can&apos;t be nested deeper than 8 tables.</source>
         <translation type="unfinished">Таблицу нельзя вкладывать глубже чем в 8 таблиц.</translation>
     </message>
@@ -85524,7 +85711,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Таблица с таким количеством столбцов слишком широка для ячейки, в которую она должна быть помещена.</translation>
     </message>
     <message>
-        <location line="+318"/>
+        <location line="+320"/>
         <source>A cell is split into at least two cells.</source>
         <translation type="unfinished">Ячейка разделяется как минимум на две ячейки.</translation>
     </message>
@@ -85570,12 +85757,12 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+4"/>
-        <location line="+277"/>
+        <location line="+279"/>
         <source>Type the character that separates the cells.</source>
         <translation type="unfinished">Введите символ, которым разделяются ячейки.</translation>
     </message>
     <message>
-        <location line="-79"/>
+        <location line="-80"/>
         <source>A table pasted from cells can have at most 500 rows and 63 columns.</source>
         <translation type="unfinished">Таблица, вставленная из ячеек, может содержать не более 500 строк и 63 столбцов.</translation>
     </message>
@@ -85590,12 +85777,12 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Часть вставленных ячеек не поместилась в таблицу и не была добавлена.</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+16"/>
         <source>A table that has a table in a cell has to be made into text from the inside out.</source>
         <translation type="unfinished">Таблицу, в ячейке которой есть таблица, нужно преобразовать в текст, начиная с внутренней.</translation>
     </message>
     <message>
-        <location line="+46"/>
+        <location line="+47"/>
         <source>A table can&apos;t be split above its first row.</source>
         <translation type="unfinished">Таблицу нельзя разделить выше её первой строки.</translation>
     </message>
@@ -85605,7 +85792,7 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">Ячейка, объединённая по вертикали, занимает всю строку, поэтому таблицу здесь нельзя разделить.</translation>
     </message>
     <message>
-        <location line="+60"/>
+        <location line="+61"/>
         <source>Rows that have cells joined down can&apos;t be sorted.</source>
         <translation type="unfinished">Строки с ячейками, объединёнными по вертикали, нельзя сортировать.</translation>
     </message>
@@ -85674,7 +85861,7 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+6"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="+860"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="+861"/>
         <source>charts past the %1 a document may have</source>
         <translation type="unfinished">диаграммы сверх допустимого в документе количества: %1</translation>
     </message>
@@ -85729,13 +85916,13 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+433"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="-816"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-817"/>
         <source>content nested too deeply</source>
         <translation type="unfinished">содержимое слишком глубоко вложено</translation>
     </message>
     <message>
         <location line="+344"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="+2189"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="+2191"/>
         <source>tables nested too deeply</source>
         <translation type="unfinished">таблицы слишком глубоко вложены</translation>
     </message>
@@ -85811,7 +85998,22 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">встроенные объекты созданы в другом типе файла (сохранены как рисунки)</translation>
     </message>
     <message>
-        <location filename="../libs/office/odt/odtwrite.cpp" line="+86"/>
+        <location filename="../libs/office/odt/odtwrite.cpp" line="+70"/>
+        <source>repeating sections (the items stay as paragraphs, without the buttons that add and remove them)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>picture controls (the picture stays, but not the control)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>combo boxes (the chosen words stay, but not the list to choose from)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+27"/>
         <source>The document has no main part.</source>
         <translation type="unfinished">В документе нет основной части.</translation>
     </message>
@@ -85897,8 +86099,8 @@ The password couldn&apos;t be put on the file.</source>
         <translation type="unfinished">метки «не проверять орфографию»</translation>
     </message>
     <message>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="-2166"/>
-        <location line="+2107"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-2168"/>
+        <location line="+2108"/>
         <source>content controls (the text in them is kept)</source>
         <translation type="unfinished">элементы управления содержимым (текст в них сохраняется)</translation>
     </message>
@@ -85944,17 +86146,17 @@ The password couldn&apos;t be put on the file.</source>
     </message>
     <message>
         <location line="+18"/>
-        <location line="+139"/>
+        <location line="+140"/>
         <source>tracked changes in headers, footers, and notes (saved as they stand now)</source>
         <translation type="unfinished">отслеживаемые изменения в колонтитулах и сносках (сохранены в текущем виде)</translation>
     </message>
     <message>
-        <location line="-100"/>
+        <location line="-101"/>
         <source>equations that can&apos;t be kept as formulas (kept as plain text)</source>
         <translation type="unfinished">формулы, которые нельзя сохранить как формулы (сохранены как обычный текст)</translation>
     </message>
     <message>
-        <location line="+419"/>
+        <location line="+420"/>
         <source>a table with more cells than are kept</source>
         <translation type="unfinished">таблица с большим количеством ячеек, чем сохраняется</translation>
     </message>
@@ -85977,13 +86179,29 @@ The password couldn&apos;t be put on the file.</source>
 <context>
     <name>rtf</name>
     <message>
-        <location filename="../libs/office/rtf/rtfwrite.cpp" line="+491"/>
+        <location filename="../libs/office/rtf/rtfwrite.cpp" line="+90"/>
+        <source>repeating sections (the items stay as paragraphs, without the buttons that add and remove them)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>picture controls (the picture stays, but not the control)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>combo boxes (the chosen words stay, but not the list to choose from)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+408"/>
         <location line="+18"/>
         <source>bookmarks, and the links that go to them (the words stay)</source>
         <translation type="unfinished">закладки и ссылки, которые на них ведут (слова сохраняются)</translation>
     </message>
     <message>
         <location line="+5"/>
+        <location line="+258"/>
         <source>content controls (the text in them is kept)</source>
         <translation type="unfinished">элементы управления содержимым (текст в них сохраняется)</translation>
     </message>

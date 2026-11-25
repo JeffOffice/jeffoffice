@@ -670,7 +670,15 @@
 <context>
     <name>jp::WriteFindPane</name>
     <message numerus="yes">
-        <location filename="../apps/write/app/writefindpane.cpp" line="+1406"/>
+        <location filename="../apps/write/app/writefindpane.cpp" line="+1428"/>
+        <source>%n match is in content that can&apos;t be changed.</source>
+        <translation>
+            <numerusform>%n match is in content that can&apos;t be changed.</numerusform>
+            <numerusform>%n matches are in content that can&apos;t be changed.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
         <source>%n text box was too large to change.</source>
         <translation>
             <numerusform>%n text box was too large to change.</numerusform>
@@ -729,7 +737,15 @@
         </translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/write/app/writewindow_review.cpp" line="+419"/>
+        <location filename="../apps/write/app/writewindow_review.cpp" line="+421"/>
+        <source>%n change is inside a content control that can&apos;t be edited.</source>
+        <translation>
+            <numerusform>%n change is inside a content control that can&apos;t be edited.</numerusform>
+            <numerusform>%n changes are inside a content control that can&apos;t be edited.</numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
         <source>%n change(s) were kept as written because settling them would damage the document.</source>
         <translation>
             <numerusform>%n change was kept as written because settling it would damage the document.</numerusform>

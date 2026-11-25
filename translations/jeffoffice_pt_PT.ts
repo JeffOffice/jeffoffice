@@ -21345,7 +21345,7 @@ Paginação eletrónica</translation>
 <context>
     <name>WriteFindPane</name>
     <message>
-        <location filename="../apps/write/app/writefindpane.cpp" line="+625"/>
+        <location filename="../apps/write/app/writefindpane.cpp" line="+626"/>
         <source>A match longer than %1 characters was found, which is more than JeffWrite can work with at once. Nothing was changed.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -62224,12 +62224,17 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <translation type="unfinished">O JeffWrite terminou a pesquisa no documento. &quot;%1&quot; não foi encontrado.</translation>
     </message>
     <message>
-        <location line="+44"/>
+        <location line="+54"/>
         <source>A section break, a field, or a note mark can be found but not replaced.</source>
         <translation type="unfinished">Pode encontrar uma quebra de secção, um campo ou uma marca de nota, mas não os pode substituir.</translation>
     </message>
     <message>
-        <location line="+179"/>
+        <location line="+4"/>
+        <source>Text in a content control that can&apos;t be changed can be found but not replaced.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+186"/>
         <source>JeffWrite made no replacements. &quot;%1&quot; was not found.</source>
         <translation type="unfinished">O JeffWrite não efetuou substituições. &quot;%1&quot; não foi encontrado.</translation>
     </message>
@@ -62247,6 +62252,14 @@ O seu browser irá abrir o LibreTranslate, um serviço de tradução gratuito e 
         <location line="+1"/>
         <source>JeffWrite made %1 replacements.</source>
         <translation type="unfinished">O JeffWrite efetuou %1 substituições.</translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
+        <source>%n match is in content that can&apos;t be changed.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
     </message>
     <message numerus="yes">
         <location line="+1"/>
@@ -65763,7 +65776,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">Aceitar Todas as Alterações</translation>
     </message>
     <message>
-        <location line="+330"/>
+        <location line="+331"/>
         <source>1 change accepted.</source>
         <translation type="unfinished">1 alteração aceite.</translation>
     </message>
@@ -65773,12 +65786,12 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">%1 alterações aceites.</translation>
     </message>
     <message>
-        <location line="-320"/>
+        <location line="-321"/>
         <source>Accept All Changes and Stop Tracking</source>
         <translation type="unfinished">Aceitar Todas as Alterações e Parar o Controlo</translation>
     </message>
     <message>
-        <location line="+321"/>
+        <location line="+322"/>
         <source>1 change accepted. Track Changes is off.</source>
         <translation type="unfinished">1 alteração aceite. O controlo de alterações está desativado.</translation>
     </message>
@@ -65788,12 +65801,12 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">%1 alterações aceites. O controlo de alterações está desativado.</translation>
     </message>
     <message>
-        <location line="-310"/>
+        <location line="-311"/>
         <source>Reject All Changes</source>
         <translation type="unfinished">Rejeitar Todas as Alterações</translation>
     </message>
     <message>
-        <location line="+309"/>
+        <location line="+310"/>
         <source>1 change rejected.</source>
         <translation type="unfinished">1 alteração rejeitada.</translation>
     </message>
@@ -65803,7 +65816,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">%1 alterações rejeitadas.</translation>
     </message>
     <message>
-        <location line="-299"/>
+        <location line="-300"/>
         <source>Next Change</source>
         <translation type="unfinished">Alteração Seguinte</translation>
     </message>
@@ -66237,7 +66250,15 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">Resolver Comentário</translation>
     </message>
     <message numerus="yes">
-        <location line="+223"/>
+        <location line="+225"/>
+        <source>%n change is inside a content control that can&apos;t be edited.</source>
+        <translation type="unfinished">
+            <numerusform></numerusform>
+            <numerusform></numerusform>
+        </translation>
+    </message>
+    <message numerus="yes">
+        <location line="+1"/>
         <source>%n change(s) were kept as written because settling them would damage the document.</source>
         <translation type="unfinished">
             <numerusform>%n alteração foi mantida tal como estava, porque resolvê-la danificaria o documento.</numerusform>
@@ -66245,7 +66266,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         </translation>
     </message>
     <message>
-        <location line="-374"/>
+        <location line="-377"/>
         <location line="+170"/>
         <source>Spelling</source>
         <translation type="unfinished">Ortografia</translation>
@@ -66282,7 +66303,12 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">Não é possível adicionar um comentário aqui.</translation>
     </message>
     <message>
-        <location line="+35"/>
+        <location line="+19"/>
+        <source>Track Changes stays on until they are settled.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+20"/>
         <source>This change is in a part of the document that no page shows.</source>
         <translation type="unfinished">Esta alteração está numa parte do documento que nenhuma página mostra.</translation>
     </message>
@@ -66690,14 +66716,18 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">Inserir Imagem</translation>
     </message>
     <message>
-        <location line="+9"/>
+        <location filename="../apps/write/app/writewindow_controls.cpp" line="+62"/>
+        <location line="+4"/>
+        <location filename="../apps/write/app/writewindow_pictures.cpp" line="+9"/>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="-50"/>
         <location line="+60"/>
         <source>That picture is too large to put in a document.</source>
         <translation type="unfinished">Essa imagem é demasiado grande para ser colocada num documento.</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="-4"/>
+        <location line="+5"/>
+        <location filename="../apps/write/app/writewindow_pictures.cpp" line="+4"/>
         <location filename="../apps/write/app/writewindow_shapes.cpp" line="-60"/>
         <location line="+5"/>
         <location line="+55"/>
@@ -66705,7 +66735,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">Não é possível abrir %1 como imagem.</translation>
     </message>
     <message>
-        <location line="+29"/>
+        <location filename="../apps/write/app/writewindow_pictures.cpp" line="+29"/>
         <source>This barcode field can&apos;t be edited here.</source>
         <translation type="unfinished">Este campo de código de barras não pode ser editado aqui.</translation>
     </message>
@@ -67087,13 +67117,14 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">Manter Apenas Texto</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location filename="../apps/write/app/writewindow_controls.cpp" line="-39"/>
+        <location filename="../apps/write/app/writewindow_home.cpp" line="+1"/>
         <location line="+10"/>
         <source>Picture</source>
         <translation type="unfinished">Imagem</translation>
     </message>
     <message>
-        <location line="-9"/>
+        <location filename="../apps/write/app/writewindow_home.cpp" line="-9"/>
         <source>Paste Special…</source>
         <translation type="unfinished">Colar Especial…</translation>
     </message>
@@ -68402,9 +68433,19 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">Incorporado</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/writewindow_controls.cpp" line="+24"/>
+        <location filename="../apps/write/app/writewindow_controls.cpp" line="-2"/>
+        <source>Rich Text</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
         <source>Plain Text</source>
         <translation type="unfinished">Texto Simples</translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Combo Box</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location line="+1"/>
@@ -68423,6 +68464,47 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     </message>
     <message>
         <location line="+1"/>
+        <source>Repeating Section</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Add Item</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <location line="+7"/>
+        <source>The caret is not in a repeating section.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-3"/>
+        <source>Remove Item</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Clear Picture</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>The caret is not in a picture control that holds a picture.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Choose a Picture</source>
+        <translation>Escolher uma Imagem</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Pictures (*.png *.jpg *.jpeg *.gif *.bmp *.tif *.tiff *.svg)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
         <source>Properties…</source>
         <translation type="unfinished">Propriedades…</translation>
     </message>
@@ -79356,7 +79438,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         </translation>
     </message>
     <message>
-        <location filename="../libs/office/wml/wmlwrite.cpp" line="+1017"/>
+        <location filename="../libs/office/wml/wmlwrite.cpp" line="+1018"/>
         <source>The document could not be packaged.</source>
         <translation type="unfinished">Não foi possível empacotar o documento.</translation>
     </message>
@@ -79925,12 +80007,13 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
 <context>
     <name>jp::write::ContentControls</name>
     <message>
-        <location filename="../apps/write/core/contentcontrolops.cpp" line="+426"/>
+        <location filename="../apps/write/core/contentcontrolops.cpp" line="+461"/>
+        <location line="+3"/>
         <source>Enter text</source>
         <translation type="unfinished">Escreva texto</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="-2"/>
         <source>Choose an item</source>
         <translation type="unfinished">Escolha um item</translation>
     </message>
@@ -79940,40 +80023,117 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">Escolha uma data</translation>
     </message>
     <message>
-        <location line="+323"/>
+        <location line="+2"/>
+        <source>Choose or type an item</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Add a picture</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+349"/>
+        <location line="+760"/>
         <source>A content control goes in the text, not in a header, a footer, or a note.</source>
         <translation type="unfinished">Um controlo de conteúdo vai no texto, não num cabeçalho, num rodapé ou numa nota.</translation>
     </message>
     <message>
-        <location line="+16"/>
+        <location line="-744"/>
         <source>The selection holds only part of another content control.</source>
         <translation type="unfinished">A seleção contém apenas parte de outro controlo de conteúdo.</translation>
     </message>
     <message>
         <location line="+4"/>
+        <location line="+748"/>
+        <location line="+171"/>
         <source>The document has the most content controls it can hold.</source>
         <translation type="unfinished">O documento tem o número máximo de controlos de conteúdo que pode conter.</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location line="-914"/>
+        <location line="+749"/>
         <source>Content controls can hold each other only so deep.</source>
         <translation type="unfinished">Os controlos de conteúdo só podem conter-se uns aos outros até certa profundidade.</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="-745"/>
+        <location line="+741"/>
         <source>The content control there can&apos;t be changed.</source>
         <translation type="unfinished">O controlo de conteúdo aí não pode ser alterado.</translation>
     </message>
     <message>
-        <location line="+52"/>
+        <location line="-689"/>
+        <location line="+601"/>
         <source>A list holds at most %1 items.</source>
         <translation type="unfinished">Uma lista contém no máximo %1 itens.</translation>
+    </message>
+    <message>
+        <location line="+85"/>
+        <source>The paragraphs chosen hold only part of a table or of another content control.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+157"/>
+        <source>The contents of this section can&apos;t be edited.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <location line="+93"/>
+        <source>Items can&apos;t be added to or removed from this section.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-86"/>
+        <source>A repeating section holds at most %1 items.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>While Track Changes is on, an item can&apos;t be added to a section that ends the document.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>While Track Changes is on, an item that holds a table can&apos;t be added.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+36"/>
+        <source>The item could not be added.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+38"/>
+        <source>A repeating section keeps at least one item.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>The item can&apos;t be deleted.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>The item is already marked as deleted.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>While Track Changes is on, an item can&apos;t be removed from the end of the document.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>While Track Changes is on, an item that holds a table can&apos;t be removed.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
     <name>jp::write::ControlDialogs</name>
     <message>
-        <location filename="../apps/write/app/controldialogs.cpp" line="+49"/>
+        <location filename="../apps/write/app/controldialogs.cpp" line="+56"/>
         <source>Content Control Properties</source>
         <translation type="unfinished">Propriedades do Controlo de Conteúdo</translation>
     </message>
@@ -80038,7 +80198,12 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">O conteúdo não pode ser editado</translation>
     </message>
     <message>
-        <location line="+65"/>
+        <location line="+7"/>
+        <source>Items can&apos;t be added or removed</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+66"/>
         <source>The list has no items yet</source>
         <translation type="unfinished">A lista ainda não tem itens</translation>
     </message>
@@ -84042,7 +84207,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
 <context>
     <name>jp::write::PageView</name>
     <message>
-        <location filename="../apps/write/app/pagepaint.cpp" line="+243"/>
+        <location filename="../apps/write/app/pagepaint.cpp" line="+251"/>
         <source>Footer</source>
         <translation>Rodapé</translation>
     </message>
@@ -84226,7 +84391,27 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">Largue a tabela entre parágrafos, não dentro de uma tabela.</translation>
     </message>
     <message>
-        <location line="+262"/>
+        <location line="+236"/>
+        <source>The contents of this picture control can&apos;t be edited.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>That picture is too large to put in a document.</source>
+        <translation>Essa imagem é demasiado grande para ser inserida num documento.</translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>%1 can&apos;t be opened as a picture.</source>
+        <translation type="unfinished">Não é possível abrir %1 como imagem.</translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>The file</source>
+        <translation type="unfinished">O ficheiro</translation>
+    </message>
+    <message>
+        <location line="+80"/>
         <source>JeffWrite opens links to web addresses, email addresses, and documents or pictures on this computer only.</source>
         <translation type="unfinished">O JeffWrite abre hiperligações para endereços Web e endereços de correio eletrónico, e apenas documentos ou imagens existentes neste computador.</translation>
     </message>
@@ -84291,7 +84476,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">Não há nenhum grupo para repor. Reagrupar funciona depois de Desagrupar, enquanto os seus objetos ainda existirem.</translation>
     </message>
     <message>
-        <location line="+1025"/>
+        <location line="+1029"/>
         <source>This text box holds too many paragraphs to be typed in here.</source>
         <translation type="unfinished">Esta caixa de texto contém parágrafos demais para serem escritos aqui.</translation>
     </message>
@@ -84371,7 +84556,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
 <context>
     <name>jp::write::Pictures</name>
     <message>
-        <location filename="../apps/write/app/pageview_pictures.cpp" line="-399"/>
+        <location filename="../apps/write/app/pageview_pictures.cpp" line="-403"/>
         <location line="+37"/>
         <source>That is not a picture JeffWrite can read.</source>
         <translation type="unfinished">Essa não é uma imagem que o JeffWrite consiga ler.</translation>
@@ -84400,7 +84585,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">Não existe nenhuma imagem na área de transferência que o JeffWrite consiga ler.</translation>
     </message>
     <message>
-        <location filename="../apps/write/app/pageview_input.cpp" line="-353"/>
+        <location filename="../apps/write/app/pageview_input.cpp" line="-412"/>
         <location filename="../apps/write/app/pageview_pictures.cpp" line="+18"/>
         <location filename="../apps/write/core/pictureops.cpp" line="+2228"/>
         <source>That shape can&apos;t be put here.</source>
@@ -84444,7 +84629,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">Não é possível abrir %1 como imagem.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/editops.cpp" line="+2239"/>
+        <location filename="../apps/write/core/editops.cpp" line="+2251"/>
         <location filename="../apps/write/core/pictureops.cpp" line="-1548"/>
         <location line="+351"/>
         <location line="+2051"/>
@@ -84600,7 +84785,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
 <context>
     <name>jp::write::ReadyTables</name>
     <message>
-        <location filename="../apps/write/core/tableops.cpp" line="+2229"/>
+        <location filename="../apps/write/core/tableops.cpp" line="+2243"/>
         <source>Column 1</source>
         <translation type="unfinished">Coluna 1</translation>
     </message>
@@ -85183,7 +85368,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
 <context>
     <name>jp::write::Styles</name>
     <message>
-        <location filename="../apps/write/core/styleops.cpp" line="+373"/>
+        <location filename="../apps/write/core/styleops.cpp" line="+374"/>
         <location line="+135"/>
         <source>Type a name for the style.</source>
         <translation type="unfinished">Escreva um nome para o estilo.</translation>
@@ -85274,7 +85459,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">Não existe nenhum estilo para atualizar aqui.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/editops.cpp" line="+1050"/>
+        <location filename="../apps/write/core/editops.cpp" line="+1061"/>
         <source>The document has too many list styles.</source>
         <translation type="unfinished">O documento tem demasiados estilos de lista.</translation>
     </message>
@@ -85332,7 +85517,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
 <context>
     <name>jp::write::Tables</name>
     <message>
-        <location filename="../apps/write/core/tableops.cpp" line="-2004"/>
+        <location filename="../apps/write/core/tableops.cpp" line="-2011"/>
         <source>A table can have at most 20,000 rows.</source>
         <translation type="unfinished">Uma tabela pode ter, no máximo, 20 000 linhas.</translation>
     </message>
@@ -85360,7 +85545,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">Não é possível colocar novas colunas ali: células unidas atravessam o local onde ficariam.</translation>
     </message>
     <message>
-        <location filename="../apps/write/core/tableops.cpp" line="+1431"/>
+        <location filename="../apps/write/core/tableops.cpp" line="+1437"/>
         <location line="+68"/>
         <source>A table can only be moved in the main text.</source>
         <translation type="unfinished">Uma tabela só pode ser movida no texto principal.</translation>
@@ -85403,7 +85588,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">Uma tabela não pode ser movida para abaixo do último parágrafo do documento.</translation>
     </message>
     <message>
-        <location line="+513"/>
+        <location line="+514"/>
         <source>A table can&apos;t be nested deeper than 8 tables.</source>
         <translation type="unfinished">Uma tabela não pode ser aninhada em mais de 8 níveis de tabelas.</translation>
     </message>
@@ -85413,7 +85598,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">Uma tabela com tantas colunas é demasiado larga para a célula em que ficaria.</translation>
     </message>
     <message>
-        <location line="+318"/>
+        <location line="+320"/>
         <source>A cell is split into at least two cells.</source>
         <translation type="unfinished">Uma célula é dividida em, pelo menos, duas células.</translation>
     </message>
@@ -85459,12 +85644,12 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     </message>
     <message>
         <location line="+4"/>
-        <location line="+277"/>
+        <location line="+279"/>
         <source>Type the character that separates the cells.</source>
         <translation type="unfinished">Escreva o carácter que separa as células.</translation>
     </message>
     <message>
-        <location line="-79"/>
+        <location line="-80"/>
         <source>A table pasted from cells can have at most 500 rows and 63 columns.</source>
         <translation type="unfinished">Uma tabela colada a partir de células pode ter, no máximo, 500 linhas e 63 colunas.</translation>
     </message>
@@ -85479,12 +85664,12 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">Algumas das células coladas não couberam na tabela e foram omitidas.</translation>
     </message>
     <message>
-        <location line="+15"/>
+        <location line="+16"/>
         <source>A table that has a table in a cell has to be made into text from the inside out.</source>
         <translation type="unfinished">Uma tabela que tem uma tabela numa célula tem de ser convertida em texto, de dentro para fora.</translation>
     </message>
     <message>
-        <location line="+46"/>
+        <location line="+47"/>
         <source>A table can&apos;t be split above its first row.</source>
         <translation type="unfinished">Não é possível dividir uma tabela acima da primeira linha.</translation>
     </message>
@@ -85494,7 +85679,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">Uma célula unida verticalmente ocupa essa linha, por isso a tabela não pode ser dividida aí.</translation>
     </message>
     <message>
-        <location line="+60"/>
+        <location line="+61"/>
         <source>Rows that have cells joined down can&apos;t be sorted.</source>
         <translation type="unfinished">Não é possível ordenar linhas que tenham células unidas verticalmente.</translation>
     </message>
@@ -85563,7 +85748,7 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     </message>
     <message>
         <location line="+6"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="+860"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="+861"/>
         <source>charts past the %1 a document may have</source>
         <translation type="unfinished">gráficos além do %1 que um documento pode ter</translation>
     </message>
@@ -85618,13 +85803,13 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     </message>
     <message>
         <location line="+433"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="-816"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-817"/>
         <source>content nested too deeply</source>
         <translation type="unfinished">conteúdo aninhado a demasiada profundidade</translation>
     </message>
     <message>
         <location line="+344"/>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="+2189"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="+2191"/>
         <source>tables nested too deeply</source>
         <translation type="unfinished">tabelas aninhadas a demasiada profundidade</translation>
     </message>
@@ -85700,7 +85885,22 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">objetos incorporados criados noutro tipo de ficheiro (mantidos como imagens)</translation>
     </message>
     <message>
-        <location filename="../libs/office/odt/odtwrite.cpp" line="+86"/>
+        <location filename="../libs/office/odt/odtwrite.cpp" line="+70"/>
+        <source>repeating sections (the items stay as paragraphs, without the buttons that add and remove them)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>picture controls (the picture stays, but not the control)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>combo boxes (the chosen words stay, but not the list to choose from)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+27"/>
         <source>The document has no main part.</source>
         <translation type="unfinished">O documento não tem parte principal.</translation>
     </message>
@@ -85786,8 +85986,8 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
         <translation type="unfinished">marcas de &quot;não verificar ortografia&quot;</translation>
     </message>
     <message>
-        <location filename="../libs/office/odt/odtwritebody.cpp" line="-2166"/>
-        <location line="+2107"/>
+        <location filename="../libs/office/odt/odtwritebody.cpp" line="-2168"/>
+        <location line="+2108"/>
         <source>content controls (the text in them is kept)</source>
         <translation type="unfinished">controlos de conteúdo (o texto neles contido é mantido)</translation>
     </message>
@@ -85833,17 +86033,17 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
     </message>
     <message>
         <location line="+18"/>
-        <location line="+139"/>
+        <location line="+140"/>
         <source>tracked changes in headers, footers, and notes (saved as they stand now)</source>
         <translation type="unfinished">alterações registadas em cabeçalhos, rodapés e notas (guardadas no estado atual)</translation>
     </message>
     <message>
-        <location line="-100"/>
+        <location line="-101"/>
         <source>equations that can&apos;t be kept as formulas (kept as plain text)</source>
         <translation type="unfinished">equações que não podem ser mantidas como fórmulas (mantidas como texto simples)</translation>
     </message>
     <message>
-        <location line="+419"/>
+        <location line="+420"/>
         <source>a table with more cells than are kept</source>
         <translation type="unfinished">uma tabela com mais células do que as mantidas</translation>
     </message>
@@ -85866,13 +86066,29 @@ Não foi possível aplicar a palavra-passe ao ficheiro.</translation>
 <context>
     <name>rtf</name>
     <message>
-        <location filename="../libs/office/rtf/rtfwrite.cpp" line="+491"/>
+        <location filename="../libs/office/rtf/rtfwrite.cpp" line="+90"/>
+        <source>repeating sections (the items stay as paragraphs, without the buttons that add and remove them)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>picture controls (the picture stays, but not the control)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>combo boxes (the chosen words stay, but not the list to choose from)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+408"/>
         <location line="+18"/>
         <source>bookmarks, and the links that go to them (the words stay)</source>
         <translation type="unfinished">marcadores e as ligações que os referenciam (as palavras mantêm-se)</translation>
     </message>
     <message>
         <location line="+5"/>
+        <location line="+258"/>
         <source>content controls (the text in them is kept)</source>
         <translation type="unfinished">controlos de conteúdo (o texto neles contido é mantido)</translation>
     </message>

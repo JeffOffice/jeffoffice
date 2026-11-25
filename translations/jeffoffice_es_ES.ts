@@ -3407,6 +3407,13 @@ No se pudo aplicar la contraseña al fichero.</translation>
     </message>
 </context>
 <context>
+    <name>jp::write::PageView</name>
+    <message>
+        <source>The file</source>
+        <translation type="unfinished">El fichero</translation>
+    </message>
+</context>
+<context>
     <name>jp::write::Pictures</name>
     <message>
         <source>That SVG picture refers to files outside itself, so JeffWrite does not put it in a document.</source>
