@@ -1580,6 +1580,8 @@ QByteArray PubWriter::write(QStringList *skipped)
         // Corners: Publisher draws mitered ones unless 0x01D6 says 0 bevel or 2 round.
         if (st.join == Qt::RoundJoin) opt << Prop{0x01d6, 2};
         else if (st.join == Qt::BevelJoin) opt << Prop{0x01d6, 0};
+        // A compound line: 1 double, 2 thick-thin, 3 thin-thick, 4 triple (the order of Stroke::Compound).
+        if (st.compound != Stroke::Single) opt << Prop{0x01cd, quint32(st.compound)};
         auto arrow = [](Arrow a) -> quint32 {
             switch (a) {
             case Arrow::Triangle: return 1;

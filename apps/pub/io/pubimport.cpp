@@ -1248,6 +1248,8 @@ private:
             const int j = m_style["jp:line-join"]->getInt();
             st.join = j == 0 ? Qt::BevelJoin : j == 2 ? Qt::RoundJoin : Qt::MiterJoin;
         }
+        // A compound line as stored (1 double, 2 thick-thin, 3 thin-thick, 4 triple).
+        if (m_style["jp:line-compound"]) st.compound = Stroke::Compound(std::clamp(m_style["jp:line-compound"]->getInt(), 0, 4));
         const bool roundEnds = str(m_style["svg:stroke-linecap"]) == "round";
         if (s == "dash") {
             // Publisher's dashing as the reader describes it: a dot has no

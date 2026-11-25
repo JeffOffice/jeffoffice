@@ -152,6 +152,8 @@ private Q_SLOTS:
     void pubContentWithNoObjectIsRefused();
     void pubShadowFromLineColor();
     void pubLineCornersRoundTrip();
+    void pubCompoundLinesRoundTrip();
+    void compoundLinesAreDrawnInBands();
     void pubOutlineKeepsFrame();
     void pubGradientAnglesAsPublisher();
     void pubPictureOpacityFromTertiaryProperty();

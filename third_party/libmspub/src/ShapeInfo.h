@@ -76,6 +76,7 @@ struct ShapeInfo
   boost::optional<double> m_lineOpacity; // JeffPub patch: 0x01C1
   bool m_lineInset = false;              // JeffPub patch: fInsetPen in 0x01FF
   boost::optional<unsigned> m_lineJoin;  // JeffPub patch: lineJoinStyle (0x01D6)
+  boost::optional<unsigned> m_lineCompound;  // JeffPub patch: lineStyle (0x01CD): 1 double, 2 thick-thin, 3 thin-thick, 4 triple
   bool m_fillTurns = false;              // JeffPub patch: fUseShapeAnchor in the tertiary 0x01BF
   boost::optional<librevenge::RVNGString> m_pictureBackColor; // JeffPub patch: a picture shape's own solid fill
   boost::optional<std::vector<double>> m_crop; // JeffPub patch: top, bottom, left, right (0x0100-0x0103)

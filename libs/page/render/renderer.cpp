@@ -173,19 +173,63 @@ void Renderer::strokePath(QPainter *p, const QPainterPath &path, const Stroke &s
         p->strokePath(path, shown);
         return;
     }
+    // The bands of a compound line, as fractions of its weight from the outer edge in: a double line is three equal parts (line, gap, line),
+    // a thick-thin line six parts (thick 4, gap 1, thin 1), a thin-thick one the reverse, a triple line one sixth, one sixth, a third, one sixth, one sixth.
+    struct Band { double from, to; };
+    static const Band kDouble[] = {{0, 1 / 3.0}, {2 / 3.0, 1}};
+    static const Band kThickThin[] = {{0, 2 / 3.0}, {5 / 6.0, 1}};
+    static const Band kThinThick[] = {{0, 1 / 6.0}, {2 / 6.0, 1}};
+    static const Band kTriple[] = {{0, 1 / 6.0}, {2 / 6.0, 4 / 6.0}, {5 / 6.0, 1}};
+    const Band *bands = kDouble;
+    int nBands = 2;
+    switch (s.compound) {
+    case Stroke::ThickThin: bands = kThickThin; break;
+    case Stroke::ThinThick: bands = kThinThick; break;
+    case Stroke::Triple: bands = kTriple; nBands = 3; break;
+    default: break;
+    }
+    const double w = std::max(1.5, s.width);
+    // Where the outer edge lies, from the path: centered on it, or (an inset line) all of it inside.
+    const double outer = s.inset ? 0 : w / 2;
+    const bool closed = path.elementCount() > 2 && QLineF(QPointF(path.elementAt(0)), path.currentPosition()).length() < 0.01;
+    if (path.elementCount() == 2 && path.elementAt(1).type == QPainterPath::LineToElement) {
+        // A straight line: each band is a line of its own, side by side.
+        const QPointF a(path.elementAt(0)), b(path.elementAt(1));
+        const QLineF ln(a, b);
+        if (ln.length() <= 0) return;
+        const QPointF n(ln.dy() / ln.length(), -ln.dx() / ln.length());
+        QPen bp = pen;
+        for (int i = 0; i < nBands; ++i) {
+            const double c = outer - (bands[i].from + bands[i].to) / 2 * w;
+            bp.setWidthF((bands[i].to - bands[i].from) * w);
+            p->setPen(bp);
+            p->drawLine(a + n * c, b + n * c);
+        }
+        return;
+    }
     QPainterPathStroker st;
     st.setJoinStyle(pen.joinStyle());
     st.setCapStyle(pen.capStyle());
     if (pen.style() == Qt::CustomDashLine) st.setDashPattern(pen.dashPattern());
-    auto ring = [&](double w) { st.setWidth(w); return st.createStroke(path); };
-    const double w = std::max(1.5, s.width);
+    auto ring = [&](double half) { st.setWidth(2 * half); return st.createStroke(path); };
     QPainterPath region;
-    switch (s.compound) {
-    case Stroke::Double: region = ring(w).subtracted(ring(w / 3)); break;
-    case Stroke::ThickThin: region = ring(w).subtracted(ring(w * 0.25)).subtracted(ring(w * 0.5).subtracted(ring(w * 0.25)) ); break;
-    case Stroke::ThinThick: region = ring(w).subtracted(ring(w * 0.6)).united(ring(w * 0.3)); break;
-    case Stroke::Triple: region = ring(w).subtracted(ring(w * 0.6)).united(ring(w * 0.2)); break;
-    default: break;
+    if (!closed) {
+        // Any other open outline: the bands lie on both sides of it alike.
+        region = ring(w / 2);
+        QPainterPath gaps;
+        for (int i = 0; i + 1 < nBands; ++i) gaps = gaps.united(ring(w / 2 * (1 - bands[i].to)).subtracted(ring(w / 2 * (1 - bands[i + 1].from))));
+        region = region.subtracted(gaps);
+    } else {
+        QPainterPath inside = path;
+        inside.setFillRule(Qt::WindingFill);
+        // The part of a band outside the outline's edge (u above 0) and inside it (u below 0), u being the distance from the path.
+        auto out = [&](double r) { return r > 0 ? ring(r).subtracted(inside) : QPainterPath(); };
+        auto in = [&](double r) { return r > 0 ? ring(r).intersected(inside) : QPainterPath(); };
+        for (int i = 0; i < nBands; ++i) {
+            const double hi = outer - bands[i].from * w, lo = outer - bands[i].to * w;
+            if (hi > 0) region = region.united(out(hi).subtracted(out(std::max(lo, 0.0))));
+            if (lo < 0) region = region.united(in(-lo).subtracted(in(-std::min(hi, 0.0))));
+        }
     }
     p->fillPath(region, pen.brush());
 }

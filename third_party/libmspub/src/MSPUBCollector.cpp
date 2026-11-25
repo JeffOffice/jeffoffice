@@ -1342,6 +1342,8 @@ std::function<void(void)> MSPUBCollector::paintShape(const ShapeInfo &info, cons
         graphicsProps.insert("jp:line-inset", true);   // JeffPub
       if (bool(info.m_lineJoin))
         graphicsProps.insert("jp:line-join", int(info.m_lineJoin.get()));   // JeffPub
+      if (bool(info.m_lineCompound) && info.m_lineCompound.get() >= 1 && info.m_lineCompound.get() <= 4)
+        graphicsProps.insert("jp:line-compound", int(info.m_lineCompound.get()));   // JeffPub
       // JeffPub patch: pass arrowheads on (style 1-5 as stored, size 0-2).
       if (bool(info.m_beginArrow) && info.m_beginArrow.get().m_style != NO_ARROW)
       {

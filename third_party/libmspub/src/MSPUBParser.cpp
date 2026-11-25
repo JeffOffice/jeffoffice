@@ -2534,6 +2534,9 @@ void MSPUBParser::parseEscherShape(librevenge::RVNGInputStream *input, const Esc
           // corners.
           if (const unsigned *ptr_join = getIfExists(foptValues.m_scalarValues, 0x01D6))
             m_collector->setShapeLineJoin(*shapeSeqNum, *ptr_join);
+          // JeffPub patch: a compound line (lineStyle, 0x01CD: 0 single, 1 double, 2 thick-thin, 3 thin-thick, 4 triple).
+          if (const unsigned *ptr_compound = getIfExists(foptValues.m_scalarValues, 0x01CD))
+            m_collector->setShapeLineCompound(*shapeSeqNum, *ptr_compound);
           // JeffPub: a box can have a border on some sides only (a rule
           // above a caption) while its overall line is off; read those sides.
           if (!useLine && bool(maybe_tertiaryFoptValues))

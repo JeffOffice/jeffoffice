@@ -1459,6 +1459,96 @@ void PubFileTests::pubLineCornersRoundTrip()
 }
 
 
+// A compound line (double, thick-thin, thin-thick, triple) goes through a .pub: Publisher's page frames store one (0x01CD) and JeffPub drew a single heavy line.
+void PubFileTests::pubCompoundLinesRoundTrip()
+{
+    auto doc = Document::blank(QSizeF(612, 792));
+    const Stroke::Compound kinds[] = {Stroke::Single, Stroke::Double, Stroke::ThickThin, Stroke::ThinThick, Stroke::Triple};
+    for (int i = 0; i < 5; ++i) {
+        auto s = std::make_shared<ShapeItem>();
+        s->shape = QStringLiteral("rect");
+        s->rect = QRectF(40 + 100 * i, 100, 80, 100);
+        s->fill = Fill::none();
+        s->stroke.color = ColorRef::rgb(Qt::black);
+        s->stroke.width = 6;
+        s->stroke.compound = kinds[i];
+        doc->pages[0]->items.push_back(s);
+    }
+    QTemporaryDir dir;
+    const QString path = dir.filePath(QStringLiteral("compound.pub"));
+    QString err;
+    QVERIFY2(exportPublisher(*doc, path, &err), qPrintable(err));
+    QFile f(path);
+    QVERIFY(f.open(QIODevice::ReadOnly));
+    auto back = importPublisher(f.readAll(), nullptr);
+    QVERIFY(back);
+    QVector<const Item *> got;
+    for (const auto &it : back->pages[0]->items)
+        if (!it->stroke.isNone()) got << it.get();
+    std::sort(got.begin(), got.end(), [](auto *a, auto *b) { return a->rect.x() < b->rect.x(); });
+    QCOMPARE(got.size(), 5);
+    for (int i = 0; i < 5; ++i) QCOMPARE(got[i]->stroke.compound, kinds[i]);
+    // A file can store any number there: one that is no kind of line is a single line, and nothing else changes.
+    cfb::File file;
+    QVERIFY(f.seek(0));
+    QVERIFY(cfb::read(f.readAll(), &file, &err));
+    QByteArray escher = cfb::readStream(path, QStringLiteral("Escher/EscherStm"));
+    auto prop = [](quint16 id, quint32 value) {
+        QByteArray b(6, 0);
+        qToLittleEndian<quint16>(id, b.data());
+        qToLittleEndian<quint32>(value, b.data() + 2);
+        return b;
+    };
+    QCOMPARE(int(escher.count(prop(0x01cd, 4))), 1);
+    escher.replace(prop(0x01cd, 4), prop(0x01cd, 0xFFFFFFF0u));
+    QVERIFY(file.setStream(QStringLiteral("Escher/EscherStm"), escher));
+    auto hostile = importPublisher(cfb::write(file), nullptr);
+    QVERIFY(hostile);
+    int kindsSeen[5] = {0, 0, 0, 0, 0};
+    for (const auto &it : hostile->pages[0]->items)
+        if (!it->stroke.isNone()) kindsSeen[int(it->stroke.compound)]++;
+    QCOMPARE(kindsSeen[0], 2);   // the single line and the one with the impossible kind
+    QCOMPARE(kindsSeen[1] + kindsSeen[2] + kindsSeen[3], 3);
+    QCOMPARE(kindsSeen[4], 0);
+}
+
+
+// A compound line is drawn in its bands, the outer edge on the outline's edge's outer side: a triple line of 12 points is a thin line, a gap, a line twice as thick, a gap, and a thin line (a sixth, a sixth, a third, a sixth, a sixth); a thick-thin line has its thick band outside.
+void PubFileTests::compoundLinesAreDrawnInBands()
+{
+    jp::initCore();
+    auto draw = [](Stroke::Compound kind) {
+        auto doc = Document::blank(QSizeF(612, 792));
+        auto s = std::make_shared<ShapeItem>();
+        s->shape = QStringLiteral("rect");
+        s->rect = QRectF(100, 100, 200, 100);
+        s->fill = Fill::none();
+        s->stroke.color = ColorRef::rgb(Qt::black);
+        s->stroke.width = 10;
+        s->stroke.compound = kind;
+        doc->pages[0]->items.push_back(s);
+        LayoutCache cache;
+        PaintContext ctx;
+        ctx.doc = doc.get();
+        ctx.cache = &cache;
+        ctx.opt.output = true;
+        return Renderer::renderToImage(ctx, 0, 4.0);
+    };
+    // One row across the left edge, from 5 points outside the edge to 5 points inside, sampled in the middle of each point of it.
+    auto row = [](const QImage &img) {
+        QString r;
+        for (int pt = 0; pt < 10; ++pt) r += QColor(img.pixel(int((95 + pt + 0.5) * 4), 600)).value() < 128 ? 'x' : '.';
+        return r;
+    };
+    QCOMPARE(row(draw(Stroke::Single)), QStringLiteral("xxxxxxxxxx"));
+    QCOMPARE(row(draw(Stroke::Double)), QStringLiteral("xxx....xxx"));
+    QCOMPARE(row(draw(Stroke::ThickThin)), QStringLiteral("xxxxxxx.xx"));
+    QCOMPARE(row(draw(Stroke::ThinThick)), QStringLiteral("xx.xxxxxxx"));
+    QCOMPARE(row(draw(Stroke::Triple)), QStringLiteral("xx.xxxx.xx"));
+}
+
+
+
 // An empty rectangle's outline comes back on its frame: libmspub moved
 // the outline's top edge out by half the line (it applies one edge per
 // side line, and a plain outline is one line), so a sign's 12-pt frame
