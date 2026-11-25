@@ -5942,6 +5942,10 @@
       {
        "status": "partly",
        "text": "f7649e5cdefe408f4134fb80e57748257f6e816ea8a00fb254262effaaaa150e"
+      },
+      {
+       "status": "partly",
+       "text": "6629387dd4be3137956b89411ea47c0f6b845468f56d240348b24ddb1893011f"
       }
      ]
     },
@@ -15932,6 +15936,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "6629387dd4be3137956b89411ea47c0f6b845468f56d240348b24ddb1893011f": {
+   "drop": false,
+   "en": "Search with regular expressions in the Find pane: classes, paragraph anchors, groups, alternation, counted and lazy repeats, word edges, and letters of any language. Reuse groups in the replacement with `$1` or `\\1` to `$9`, and use Find Next, Replace, and Replace All in the text, headers, footers, notes, and text boxes.",
+   "es": "Busque con expresiones regulares en el panel Buscar: clases, anclas de párrafo, grupos, alternancia, repeticiones con contador y perezosas, límites de palabra y letras de cualquier idioma. Reutilice los grupos en el reemplazo con `$1` o de `\\1` a `$9`, y use Buscar siguiente, Reemplazar y Reemplazar todo en el texto, los encabezados, los pies de página, las notas y los cuadros de texto.",
+   "fr": "Recherchez avec des expressions régulières dans le volet Rechercher : classes, ancres de paragraphe, groupes, alternance, répétitions comptées et paresseuses, limites de mot et lettres de toutes les langues. Réutilisez les groupes dans le remplacement avec `$1` ou de `\\1` à `$9`, et utilisez Suivant, Remplacer et Tout remplacer dans le texte, les en-têtes, les pieds de page, les notes et les zones de texte.",
+   "soon": {
+    "drop": false,
+    "en": "Find All: select every match at once",
+    "es": "Buscar todo: seleccionar todas las coincidencias a la vez",
+    "fr": "Tout rechercher : sélectionner toutes les correspondances à la fois"
    }
   },
   "663b74d3930ea49dcfa5c33bb2b554abb7be37fc0caa574084bace51f94a9165": {
