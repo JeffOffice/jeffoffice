@@ -2887,6 +2887,12 @@ void clearFormatting(WriteDoc &doc, QTextCursor &c)
 
 // ---- paragraphs
 
+// Whether a paragraph is where a content control keeps its contents from being changed (the look of its paragraphs is part of them).
+static bool paragraphKept(const QVector<std::pair<int, int>> &locked, const QTextBlock &b)
+{
+    return !locked.isEmpty() && overlapsRanges(locked, b.position(), b.position() + std::max(1, b.length() - 1));
+}
+
 void changeBlockFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(QTextBlockFormat &)> &change)
 {
     if (doc.formattingLimited()) {
@@ -2897,9 +2903,10 @@ void changeBlockFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(Q
     if (!intoBody(c)) return;
     Q_UNUSED(doc);
     bool changedAny = false;
+    const QVector<std::pair<int, int>> kept = lockedContentRanges(c.document(), false);
     c.beginEditBlock();
     for (const QTextBlock &b : selectedBlocks(c)) {
-        if (isLocked(b)) continue;
+        if (isLocked(b) || paragraphKept(kept, b)) continue;
         QTextBlockFormat nf = b.blockFormat();
         const QTextBlockFormat was = nf;
         change(nf);
@@ -2930,9 +2937,10 @@ void changeIndent(WriteDoc &doc, QTextCursor &c, double points)
     const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     NumberGuard numbers(doc, c.document());
+    const QVector<std::pair<int, int>> kept = lockedContentRanges(c.document(), false);
     c.beginEditBlock();
     for (const QTextBlock &b : selectedBlocks(c)) {
-        if (isLocked(b)) continue;
+        if (isLocked(b) || paragraphKept(kept, b)) continue;
         const QTextBlockFormat bf = b.blockFormat();
         if (bf.hasProperty(prop::NumId)) {
             const int level = std::clamp(bf.intProperty(prop::NumLevel) + (points > 0 ? 1 : -1), 0, 8);
@@ -3618,8 +3626,9 @@ void applyParagraphStyle(WriteDoc &doc, QTextCursor &c, const QString &styleId)
         return;
     }
     if (doc.styleSheetRevision() != sheet) doc.markStyleStep();
+    const QVector<std::pair<int, int>> kept = lockedContentRanges(c.document(), false);
     for (const QTextBlock &b : selectedBlocks(c))
-        if (!isLocked(b)) applyStyleToBlock(doc, b, styleId);
+        if (!isLocked(b) && !paragraphKept(kept, b)) applyStyleToBlock(doc, b, styleId);
     // The text typed next in an empty paragraph has the style's look too.
     if (!c.hasSelection() && c.block().length() <= 1) c.setCharFormat(doc.styleCharFormat(styleId));
     c.endEditBlock();

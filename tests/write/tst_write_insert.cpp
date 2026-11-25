@@ -3841,6 +3841,42 @@ private Q_SLOTS:
         QVERIFY2(v.statusBar()->currentMessage().contains(QLatin1String("Track Changes is off")), qPrintable(v.statusBar()->currentMessage()));
     }
 
+    void paragraphFormattingIsRefusedInAControlWhoseContentsCanNotBeEdited()
+    {
+        for (const bool locked : {true, false}) {
+            auto doc = open(makeDocx(edgeFixture(locked ? "contentLocked" : QByteArray())));
+            QVERIFY(doc);
+            const QByteArray was = documentXml(doc->toDocx());
+            const QTextBlock before = doc->story()->findBlockByNumber(0), aa = doc->story()->findBlockByNumber(1), bb = doc->story()->findBlockByNumber(2), after = doc->story()->findBlockByNumber(3);
+            QVERIFY(aa.text() == QLatin1String("aa") && bb.text() == QLatin1String("bb"));
+            QTextCursor c(doc->story());
+            c.setPosition(aa.position());
+            c.setPosition(bb.position() + 2, QTextCursor::KeepAnchor);
+            write::setAlignment(*doc, c, Qt::AlignRight);
+            QCOMPARE(documentXml(doc->toDocx()) != was, !locked);
+            doc->undo();
+            QCOMPARE(documentXml(doc->toDocx()), was);
+            write::changeIndent(*doc, c, 36);
+            QCOMPARE(documentXml(doc->toDocx()) != was, !locked);
+            doc->undo();
+            write::setSpacing(*doc, c, 12, 12);
+            QCOMPARE(documentXml(doc->toDocx()) != was, !locked);
+            doc->undo();
+            write::applyParagraphStyle(*doc, c, QStringLiteral("Heading1"));
+            QCOMPARE(documentXml(doc->toDocx()) != was, !locked);
+            doc->undo();
+            QCOMPARE(documentXml(doc->toDocx()), was);
+            // A selection from outside into the control changes the outside paragraphs only.
+            QTextCursor across(doc->story());
+            across.setPosition(before.position());
+            across.setPosition(bb.position() + 1, QTextCursor::KeepAnchor);
+            write::setAlignment(*doc, across, Qt::AlignRight);
+            const QByteArray out = documentXml(doc->toDocx());
+            QCOMPARE(out.count("<w:jc w:val=\"right\"/>"), locked ? 1 : 3);
+            Q_UNUSED(after);
+        }
+    }
+
     void theFormatsThatHaveNoSuchControlNameTheKindsTheyLose()
     {
         const QByteArray inlineCombo = "<w:p><w:sdt><w:sdtPr><w:id w:val=\"1\"/><w:comboBox><w:listItem w:displayText=\"A\" w:value=\"a\"/></w:comboBox></w:sdtPr><w:sdtContent><w:r><w:t>A</w:t></w:r></w:sdtContent></w:sdt></w:p>";
