@@ -87,6 +87,7 @@
 #include "wml/xmltree.h"
 
 #include <QBuffer>
+#include <QCryptographicHash>
 #include <limits>
 #include <QElapsedTimer>
 #include <QDir>
@@ -7421,6 +7422,31 @@ private Q_SLOTS:
         // (What the box says of the rows when nothing is left.)
         InspectDialog dialog(QStringLiteral("Inspect"), items, nullptr);
         QVERIFY(!dialog.summaries().isEmpty());
+    }
+
+    // A document that never used the picture filters is saved byte for byte as it was before they existed: the expected value is the MD5 of the parts of what the program before them (origin/main of
+    // Nov 25, 2026) saved for the same document, in the three formats (the part names with the MD5 of each part, and of the Rich Text file), for a plain picture and for a cropped and corrected one.
+    void aDocumentThatNeverUsedTheFiltersIsSavedAsItWasBefore()
+    {
+        QByteArray all;
+        for (int variant = 0; variant < 2; ++variant) {
+            auto doc = tilesDoc(41);
+            QVERIFY(doc);
+            if (variant) QVERIFY(setPictureCrop(*doc, 7, 0.25, 0.25, 0.25, 0.25) && setPictureCorrections(*doc, 7, 0.2, -0.1));
+            office::Package p;
+            p.read(doc->toDocx());
+            QStringList names = p.partNames();
+            names.sort();
+            for (const QString &n : names) all += n.toUtf8() + QCryptographicHash::hash(p.part(n), QCryptographicHash::Md5).toHex() + ";";
+            QString err;
+            all += "rtf" + QCryptographicHash::hash(doc->toRtf(&err), QCryptographicHash::Md5).toHex() + ";";
+            office::Package o;
+            o.readOpenDocument(doc->toOdt(&err));
+            QStringList on = o.partNames();
+            on.sort();
+            for (const QString &n : on) all += n.toUtf8() + QCryptographicHash::hash(o.part(n), QCryptographicHash::Md5).toHex() + ";";
+        }
+        QCOMPARE(QString::fromLatin1(QCryptographicHash::hash(all, QCryptographicHash::Md5).toHex()), QStringLiteral("61965033d9ba9ed653025c7ae5ef4b0e"));
     }
 
     // Compress Pictures on a picture with an effect: the original and the finished picture are both made smaller, the effect stays, Reset Picture still brings the (smaller) original back.
