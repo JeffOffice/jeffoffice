@@ -52,7 +52,7 @@ void CrunchWindow::createClipboardActions()
     ClipboardHistory::startIfAsked();   // (collecting from the first copy when the person asked to keep collecting with the pane closed)
     mk("edit.clipboardPane", tr("Clipboard"), "clipboard-list", QKeySequence(), [this] {
         showClipboardPane(this, ClipboardPaneHost{[this] { act("edit.paste")->trigger(); }, [this] { m_view->setFocus(Qt::OtherFocusReason); },
-            [this] { m_session->undoStack()->beginMacro(QCoreApplication::translate("jp::ClipboardPane", "Paste All")); }, [this] { endEditStep(m_session->undoStack()); }});
+            [this] { m_session->undoStack()->beginMacro(QCoreApplication::translate("jp::ClipboardPane", "Paste All")); }, [this] { m_changesNoted = m_loader.changesMade(); endPasteSteps(m_session->undoStack()); }});
     });
     mk("paste.values", tr("Values"), "", QKeySequence(), [this] {
         Options o;

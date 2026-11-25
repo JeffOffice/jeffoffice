@@ -322,7 +322,7 @@ void DeckWindow::createActions()
     mk("edit.clipboardPane", tr("Clipboard"), "clipboard-list", QKeySequence(), [this] {
         // (a copied slide goes in the slides pane, whatever has the keyboard; the rest is the ordinary Paste)
         showClipboardPane(this, ClipboardPaneHost{[this] { if (deck::slidesOnClipboard()) pasteSlides(true); else act("edit.paste")->trigger(); }, [this] { m_canvas->setFocus(); },
-            [this] { m_ed->undoStack()->beginMacro(QCoreApplication::translate("jp::ClipboardPane", "Paste All")); }, [this] { m_ed->undoStack()->endMacro(); }});
+            [this] { m_ed->undoStack()->beginMacro(QCoreApplication::translate("jp::ClipboardPane", "Paste All")); }, [this] { endPasteSteps(m_ed->undoStack()); }});
     });
     mk("edit.pasteKeep", tr("Keep Source Formatting"), "clipboard-paste", QKeySequence(), [ed] { ed->paste(false); });
     mk("edit.pasteText", tr("Keep Text Only"), "clipboard-type", QKeySequence(), [ed] { ed->paste(true); });

@@ -1512,6 +1512,43 @@ private Q_SLOTS:
         QVERIFY(e.settle());
         QCOMPARE(e.win.w.undoStack()->count(), before + 1);
     }
+
+    // Paste All into a workbook that refuses every item adds no step of Undo and does not mark it as changed; with the second of three refused it is one whole step.
+    void pasteAllThatPastesNothingLeavesNoStep()
+    {
+        jp::clipcheck::Rig rig;
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=1", "A2=2", "A3=3"})));
+        for (const char *cell : {"A1:A1", "A2:A2", "A3:A3"}) copyRange(e, QLatin1String(cell));
+        QTRY_COMPARE(rig.h->items().size(), 3);
+        jp::ClipboardPane *pane = jp::clipcheck::paneOf(&e.win.w);
+        QVERIFY(pane);
+        e.select(QStringLiteral("C1"));
+        e.win.w.undoStack()->setClean();
+        QVERIFY(e.settle());
+        const int before = e.win.w.undoStack()->count();
+        e.win.w.setNotifier([](const QString &, const QString &) {});
+        e.win.w.setReadOnly(true);
+        pane->pasteAll();
+        e.win.w.setReadOnly(false);
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("C1")), QStringLiteral("-"));
+        QCOMPARE(e.win.w.undoStack()->count(), before);
+        QVERIFY(!e.win.w.isModified());
+        {
+            jp::clipcheck::RefuseTheSecond refuse(&e.win.w, QStringLiteral("edit.paste"));
+            pane->pasteAll();
+            QCOMPARE(refuse.pastes, 3);
+        }
+        QVERIFY(e.settle());
+        QCOMPARE(e.win.w.undoStack()->count(), before + 1);
+        e.win.w.undoStack()->undo();
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("C1")), QStringLiteral("-"));
+        QCOMPARE(e.valueAt(QStringLiteral("C2")), QStringLiteral("-"));
+        QCOMPARE(e.valueAt(QStringLiteral("C3")), QStringLiteral("-"));
+        QVERIFY(!e.win.w.isModified());
+    }
 };
 
 JP_TEST_CLASS(CrunchClipTests)

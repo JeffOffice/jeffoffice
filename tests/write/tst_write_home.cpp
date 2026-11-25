@@ -6515,6 +6515,74 @@ private Q_SLOTS:
         QVERIFY(w.document()->undo());
         QCOMPARE(w.document()->story()->toPlainText(), before);
     }
+    // Paste All into a document that refuses every item adds no step of Undo and does not mark it as changed; with the second of three refused it is one whole step that Undo takes out.
+    void pasteAllThatPastesNothingLeavesNoStep()
+    {
+        jp::clipcheck::Rig rig;
+        WriteWindow w;
+        w.setNotifier([](const QString &, const QString &) {});
+        w.show();
+        w.setDocument(open(makeDocx(para(run("start")))), QString());
+        for (const char *words : {"alpha", "beta", "gamma"}) {
+            auto *md = new QMimeData;
+            md->setText(QLatin1String(words));
+            QApplication::clipboard()->setMimeData(md);
+        }
+        QTRY_COMPARE(rig.h->items().size(), 3);
+        QTextCursor end(w.document()->story());
+        end.movePosition(QTextCursor::End);
+        w.view()->setCursor(end);
+        jp::ClipboardPane *pane = jp::clipcheck::paneOf(&w);
+        QVERIFY(pane);
+        const QString before = w.document()->story()->toPlainText();
+        const quint64 lastStep = w.document()->lastStepSerial();
+        const bool modified = w.document()->isModified();
+        w.setReadOnly(true);
+        pane->pasteAll();
+        w.setReadOnly(false);
+        QCOMPARE(w.document()->story()->toPlainText(), before);
+        QCOMPARE(w.document()->lastStepSerial(), lastStep);
+        QCOMPARE(w.document()->isModified(), modified);
+        {
+            jp::clipcheck::RefuseTheSecond refuse(&w, QStringLiteral("edit.paste"));
+            pane->pasteAll();
+            QCOMPARE(refuse.pastes, 3);
+        }
+        const QString after = w.document()->story()->toPlainText();
+        QVERIFY(after.contains(QStringLiteral("alpha")) && !after.contains(QStringLiteral("beta")) && after.contains(QStringLiteral("gamma")));
+        QVERIFY(w.document()->undo());
+        QCOMPARE(w.document()->story()->toPlainText(), before);
+        QCOMPARE(w.document()->lastStepSerial(), lastStep);
+    }
+    // A copy keeps its formatting in the history after the document it came from has been closed, while the program stays open in another window.
+    void anItemPastesWithItsFormattingAfterItsDocumentIsClosed()
+    {
+        jp::clipcheck::Rig rig;
+        WriteWindow keep;
+        keep.setNotifier([](const QString &, const QString &) {});
+        keep.show();
+        keep.setDocument(open(makeDocx(para(run("target")))), QString());
+        {
+            WriteWindow from;
+            from.setNotifier([](const QString &, const QString &) {});
+            from.show();
+            from.setDocument(open(makeDocx(para(run("loud words", "<w:b/>")))), QString());
+            from.view()->selectAll();
+            from.view()->copy();
+            QTRY_COMPARE(rig.h->items().size(), 1);
+        }
+        QTextCursor end(keep.document()->story());
+        end.movePosition(QTextCursor::End);
+        keep.view()->setCursor(end);
+        jp::ClipboardPane *pane = jp::clipcheck::paneOf(&keep);
+        QVERIFY(pane);
+        pane->pasteItem(rig.h->items().first().id);
+        QTextCursor at(keep.document()->story());
+        const int where = keep.document()->story()->toPlainText().indexOf(QStringLiteral("loud"));
+        QVERIFY(where >= 0);
+        at.setPosition(where + 1);
+        QCOMPARE(at.charFormat().fontWeight() >= QFont::DemiBold, true);
+    }
 };
 
 QTEST_MAIN(HomeTests)

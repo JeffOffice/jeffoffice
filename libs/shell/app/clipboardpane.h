@@ -16,8 +16,13 @@ class QLabel;
 class QListWidget;
 class QMainWindow;
 class QPushButton;
+class QUndoStack;
 
 namespace jp {
+
+// Ends the step Paste All began (QUndoStack::beginMacro) and, when nothing was pasted into it, takes the empty step out again, so that a group that changed nothing adds no step to Undo and leaves the
+// document as unchanged as it was.
+JO_COMMON_EXPORT void endPasteSteps(QUndoStack *stack);
 
 struct ClipboardPaneHost {
     std::function<void()> paste;       // the app's own Paste, on what the clipboard holds now

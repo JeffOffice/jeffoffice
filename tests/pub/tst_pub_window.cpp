@@ -3567,6 +3567,68 @@ private Q_SLOTS:
         QCOMPARE(ed->surfaceItems().size(), size_t(3));
         QCOMPARE(ed->undoStack()->count(), before + 1);
     }
+
+    // Paste All into a document that refuses every item adds no step of Undo and does not mark the document as changed.
+    void pasteAllThatPastesNothingLeavesNoStep()
+    {
+        jp::clipcheck::Rig rig;
+        jp::MainWindow w;
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        jp::Editor *ed = w.editor();
+        for (int i = 0; i < 2; ++i) {
+            ed->surfaceItems().clear();
+            ed->addItem(ed->newTextBox(QRectF(100, 100 + 40 * i, 200, 30), QStringLiteral("Words %1").arg(i)));
+            QVERIFY(ed->single());
+            w.refreshUi();
+            w.act(QStringLiteral("edit.copy"))->trigger();
+            QTRY_COMPARE(rig.h->items().size(), i + 1);
+        }
+        ed->surfaceItems().clear();
+        jp::ClipboardPane *pane = jp::clipcheck::paneOf(&w);
+        QVERIFY(pane);
+        ed->undoStack()->setClean();
+        w.setReadOnly(true);
+        const int before = ed->undoStack()->count();
+        pane->pasteAll();
+        w.setReadOnly(false);
+        QCOMPARE(ed->surfaceItems().size(), size_t(0));
+        QCOMPARE(ed->undoStack()->count(), before);
+        QVERIFY(!ed->isModified());
+    }
+
+    // The second of three items refused: one step holds the other two, and Undo takes both out.
+    void pasteAllWithTheSecondRefusedIsOneWholeStep()
+    {
+        jp::clipcheck::Rig rig;
+        jp::MainWindow w;
+        w.show();
+        QVERIFY(QTest::qWaitForWindowExposed(&w));
+        jp::Editor *ed = w.editor();
+        for (int i = 0; i < 3; ++i) {
+            ed->surfaceItems().clear();
+            ed->addItem(ed->newTextBox(QRectF(100, 100 + 40 * i, 200, 30), QStringLiteral("Words %1").arg(i)));
+            QVERIFY(ed->single());
+            w.refreshUi();
+            w.act(QStringLiteral("edit.copy"))->trigger();
+            QTRY_COMPARE(rig.h->items().size(), i + 1);
+        }
+        ed->surfaceItems().clear();
+        jp::ClipboardPane *pane = jp::clipcheck::paneOf(&w);
+        QVERIFY(pane);
+        ed->undoStack()->setClean();
+        const int before = ed->undoStack()->count();
+        {
+            jp::clipcheck::RefuseTheSecond refuse(&w, QStringLiteral("edit.paste"));
+            pane->pasteAll();
+            QCOMPARE(refuse.pastes, 3);
+        }
+        QCOMPARE(ed->surfaceItems().size(), size_t(2));
+        QCOMPARE(ed->undoStack()->count(), before + 1);
+        ed->undoStack()->undo();
+        QCOMPARE(ed->surfaceItems().size(), size_t(0));
+        QVERIFY(!ed->isModified());
+    }
 };
 
 JP_TEST_CLASS(PubWindowTests)

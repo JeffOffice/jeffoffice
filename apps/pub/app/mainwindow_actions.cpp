@@ -153,7 +153,7 @@ void MainWindow::createActions()
     ClipboardHistory::startIfAsked();   // (collecting from the first copy when the person asked to keep collecting with the pane closed)
     mk("edit.clipboardPane", tr("Clipboard"), "clipboard-list", QKeySequence(), [this] {
         showClipboardPane(this, ClipboardPaneHost{[this] { act("edit.paste")->trigger(); }, [this] { m_canvas->setFocus(); },
-            [this] { m_ed->undoStack()->beginMacro(QCoreApplication::translate("jp::ClipboardPane", "Paste All")); }, [this] { m_ed->undoStack()->endMacro(); }});
+            [this] { m_ed->undoStack()->beginMacro(QCoreApplication::translate("jp::ClipboardPane", "Paste All")); }, [this] { endPasteSteps(m_ed->undoStack()); }});
     });
     mk("edit.pasteText", tr("Keep Text Only"), "clipboard-type", QKeySequence(), [ed] { ed->paste(true); });
     mk("edit.pasteCells", tr("Spreadsheet Cells as Table"), "table", QKeySequence(), [ed] { ed->pasteCells(QApplication::clipboard()->mimeData()); });

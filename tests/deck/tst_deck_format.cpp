@@ -2708,6 +2708,45 @@ private Q_SLOTS:
         QCOMPARE(ed->surfaceItems().size(), size_t(3));
         QCOMPARE(ed->undoStack()->count(), before + 1);
     }
+
+    // Paste All into a publication that refuses every item adds no step of Undo and does not mark it as changed; with the second of three refused it is one whole step.
+    void pasteAllThatPastesNothingLeavesNoStep()
+    {
+        jp::clipcheck::Rig rig;
+        PaneGuard guard;
+        DeckWindow w;
+        w.show();
+        QVERIFY(QTest::qWaitForWindowActive(&w));
+        Editor *ed = w.editor();
+        for (int i = 0; i < 3; ++i) {
+            ed->surfaceItems().clear();
+            ed->addItem(ed->newTextBox(QRectF(100, 100 + 40 * i, 200, 30), QStringLiteral("Words %1").arg(i)));
+            QVERIFY(ed->single());
+            ed->copy();
+            QTRY_COMPARE(rig.h->items().size(), i + 1);
+        }
+        ed->surfaceItems().clear();
+        jp::ClipboardPane *pane = jp::clipcheck::paneOf(&w);
+        QVERIFY(pane);
+        ed->undoStack()->setClean();
+        w.setReadOnly(true);
+        int before = ed->undoStack()->count();
+        pane->pasteAll();
+        w.setReadOnly(false);
+        QCOMPARE(ed->surfaceItems().size(), size_t(0));
+        QCOMPARE(ed->undoStack()->count(), before);
+        QVERIFY(!ed->isModified());
+        {
+            jp::clipcheck::RefuseTheSecond refuse(&w, QStringLiteral("edit.paste"));
+            pane->pasteAll();
+            QCOMPARE(refuse.pastes, 3);
+        }
+        QCOMPARE(ed->surfaceItems().size(), size_t(2));
+        QCOMPARE(ed->undoStack()->count(), before + 1);
+        ed->undoStack()->undo();
+        QCOMPARE(ed->surfaceItems().size(), size_t(0));
+        QVERIFY(!ed->isModified());
+    }
 };
 
 JP_TEST_CLASS(DeckFormatTests)

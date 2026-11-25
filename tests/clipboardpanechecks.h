@@ -46,6 +46,28 @@ struct Rig {
     }
 };
 
+// Refuses the second paste of a run of three: after the first has been made the window goes read-only (and the Paste action runs on, so a refusal is the app's own), after the second it is writable
+// again. The window is put back. (The pane runs the window's own Paste action; its triggered signal comes after the app's slot has done the paste.)
+struct RefuseTheSecond {
+    AppWindow *w;
+    QString action;
+    int pastes = 0;
+    QMetaObject::Connection c;
+    RefuseTheSecond(AppWindow *window, const QString &pasteAction) : w(window), action(pasteAction)
+    {
+        c = QObject::connect(w->act(pasteAction), &QAction::triggered, w, [this] {
+            ++pastes;
+            w->setReadOnly(pastes == 1);
+            w->act(action)->setEnabled(true);   // (read-only turns Paste off; the item must still reach the app, which refuses it itself)
+        });
+    }
+    ~RefuseTheSecond()
+    {
+        QObject::disconnect(c);
+        w->setReadOnly(false);
+    }
+};
+
 // The window's own Clipboard pane, opened from its launcher.
 inline ClipboardPane *paneOf(AppWindow *w)
 {
