@@ -3365,8 +3365,9 @@
        "text": "0cf53c9dd771df6baca84a788b4378b47d2cca1ff5890e6738d5c306b4ec0418"
       },
       {
-       "status": "partly",
-       "text": "c4e8905f2fbf1edcdb6ed8355db82a38127614777c345b2be322c8a9f21e1051"
+       "hide_soon": true,
+       "status": "done",
+       "text": "2d0a3edc0e2a8564086d48a7432491bb98c796eec8779b23b846157eff53f19a"
       }
      ]
     },
@@ -11607,6 +11608,18 @@
     "en": "Sharpen and soften, saturation and tone, transparent color, and artistic effects",
     "es": "Nitidez y suavizado, saturación y tono, color transparente y efectos artísticos",
     "fr": "Netteté et adoucissement, saturation et teinte, couleur transparente et effets artistiques"
+   }
+  },
+  "2d0a3edc0e2a8564086d48a7432491bb98c796eec8779b23b846157eff53f19a": {
+   "drop": false,
+   "en": "Add sounds to animation effects, choose what happens after an animation (dim to a color, hide, or hide on the next click), and animate text all at once, by word, or by letter.",
+   "es": "Añada sonidos a los efectos de animación, elija qué ocurre después de una animación (atenuar a un color, ocultar u ocultar al hacer clic siguiente) y anime el texto todo a la vez, por palabra o por letra.",
+   "fr": "Ajoutez des sons aux effets d’animation, choisissez ce qui se passe après une animation (atténuer vers une couleur, masquer ou masquer au clic suivant) et animez le texte en une fois, mot par mot ou lettre par lettre.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
    }
   },
   "2d2a76510b66df890c1da6fdba8146aae6315769bb7c2c56664edb23e7af0038": {
@@ -22407,18 +22420,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "c4e8905f2fbf1edcdb6ed8355db82a38127614777c345b2be322c8a9f21e1051": {
-   "drop": false,
-   "en": "Choose what an effect does after it plays: hide the object after the animation, hide it on the next click, or dim it to a theme or custom color. Animate text all at once, by word, or by letter, with the delay set as a percent of the effect's length.",
-   "es": "Elija qué hace un efecto después de reproducirse: ocultar el objeto tras la animación, ocultarlo al hacer clic siguiente o atenuarlo a un color del tema o personalizado. Anime el texto todo a la vez, por palabra o por letra, con el retraso definido como porcentaje de la duración del efecto.",
-   "fr": "Choisissez ce que fait un effet après sa lecture : masquer l’objet après l’animation, le masquer au clic suivant ou l’estomper vers une couleur du thème ou personnalisée. Animez le texte en une seule fois, mot par mot ou lettre par lettre, avec un délai défini en pourcentage de la durée de l’effet.",
-   "soon": {
-    "drop": false,
-    "en": "Sounds on effects",
-    "es": "Sonidos en los efectos",
-    "fr": "Sons sur les effets"
    }
   },
   "c4ed83aecbaf4fbf92d940936f3b1f6d1372012ce75e29a4867cdcd3f98136ff": {
