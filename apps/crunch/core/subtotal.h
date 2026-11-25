@@ -1,5 +1,5 @@
 #pragma once
-// Subtotal: in a list sorted by one column, a row of SUBTOTAL formulas under each run of equal entries in that column, and a grand total under the list; the rows of each run are made a group
+// Subtotal: in a list sorted by one column, a row of SUBTOTAL formulas under (or, if asked, above) each run of equal entries in that column, and a grand total under (or above) the list; the rows of each run are made a group
 // of the sheet's outline. Remove All takes those rows away again. Each is one step of Undo.
 
 #include "core/editsession.h"
@@ -22,6 +22,7 @@ struct SubtotalSpec {
     int function = 9;                  // a number from subtotalFunctions (9 is Sum)
     std::vector<quint32> columns;      // the columns to add a subtotal to (columns of the sheet)
     bool replace = true;               // subtotals already in the list are taken away first
+    bool summaryBelow = true;          // each subtotal row is below its run and the grand total at the bottom; else above, and at the top (the sheet's outline then puts its summary lines above)
     bool pageBreaks = false;           // a page break after each run's subtotal row (Remove All takes them away again)
 };
 

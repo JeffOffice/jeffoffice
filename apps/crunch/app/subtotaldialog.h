@@ -22,13 +22,14 @@ public:
     QList<int> totalColumns() const;
     bool replace() const;
     bool pageBreaks() const;
+    bool summaryBelow() const;
     // The dialog ended with Remove All.
     bool removeAll() const { return m_removeAll; }
 
 private:
     QComboBox *m_at, *m_function;
     QListWidget *m_columns;
-    QCheckBox *m_replace, *m_pageBreaks;
+    QCheckBox *m_replace, *m_pageBreaks, *m_summaryBelow;
     bool m_removeAll = false;
 };
 

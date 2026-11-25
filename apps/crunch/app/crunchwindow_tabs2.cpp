@@ -301,10 +301,10 @@ void CrunchWindow::subtotalDialog()
     }
     std::vector<int> columns;
     for (const int c : dialog.totalColumns()) columns.push_back(c);
-    subtotalIn(dialog.changeColumn(), dialog.function(), columns, dialog.replace(), dialog.pageBreaks());
+    subtotalIn(dialog.changeColumn(), dialog.function(), columns, dialog.replace(), dialog.pageBreaks(), dialog.summaryBelow());
 }
 
-bool CrunchWindow::subtotalIn(int changeColumn, int function, const std::vector<int> &columns, bool replace, bool pageBreaks)
+bool CrunchWindow::subtotalIn(int changeColumn, int function, const std::vector<int> &columns, bool replace, bool pageBreaks, bool summaryBelow)
 {
     if (!m_session || !editingAllowed()) return false;
     const jp::office::sheet::CellRange range = listRegion(tr("Subtotal"));
@@ -314,6 +314,7 @@ bool CrunchWindow::subtotalIn(int changeColumn, int function, const std::vector<
     spec.function = function;
     spec.replace = replace;
     spec.pageBreaks = pageBreaks;
+    spec.summaryBelow = summaryBelow;
     for (const int c : columns) spec.columns.push_back(range.col1 + quint32(std::max(0, c)));
     const qint64 before = m_loader.changesMade();
     int groups = 0;
@@ -323,7 +324,7 @@ bool CrunchWindow::subtotalIn(int changeColumn, int function, const std::vector<
         notice(tr("Subtotal"), o.problem);
         return false;
     }
-    setStatus(tr("Subtotals added under %1 groups of equal entries.").arg(groups));
+    setStatus(summaryBelow ? tr("Subtotals added under %1 groups of equal entries.").arg(groups) : tr("Subtotals added above %1 groups of equal entries.").arg(groups));
     return true;
 }
 

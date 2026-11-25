@@ -309,6 +309,131 @@ private Q_SLOTS:
         QCOMPARE(shown(e, QStringLiteral("A1:C7")), QStringLiteral("Region|Sales|Units|East|10|1|East|20|2|East Total|30||West|5|3|West Total|5||Grand Total|35|"));
     }
 
+    // With the summary above, each total row is above its run, the grand total is at the top, the outline's summary lines are above (so the buttons sit at the totals), and the totals' ranges
+    // hold the rows of data and never their own row. One step of Undo; applied again it replaces the subtotals; Remove All gives the list back; below puts the direction back.
+    void subtotalCanPutEachTotalAboveItsRunWithTheOutlineToMatch()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=Region", "B1=Sales", "C1=Units", "A2=East", "B2=10", "C2=1", "A3=East", "B3=20", "C3=2", "A4=West", "B4=5", "C4=3", "A6=below", "B6=me"})));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        crunch::EditSession *s = w.session();
+        const int steps = w.undoStack()->count();
+        e.select(QStringLiteral("A2"));
+        QVERIFY(w.subtotalIn(0, 9, {1, 2}, true, false, false));
+        QVERIFY(e.settle());
+        QCOMPARE(shown(e, QStringLiteral("A1:C7")), QStringLiteral("Region|Sales|Units|Grand Total|35|6|East Total|30|3|East|10|1|East|20|2|West Total|5|3|West|5|3"));
+        QCOMPARE(shown(e, QStringLiteral("A9:B9")), QStringLiteral("below|me"));
+        QCOMPARE(s->editText(0, 1, 1), QStringLiteral("=SUBTOTAL(9,B3:B7)"));
+        QCOMPARE(s->editText(0, 2, 1), QStringLiteral("=SUBTOTAL(9,B4:B5)"));
+        QCOMPARE(s->editText(0, 5, 1), QStringLiteral("=SUBTOTAL(9,B7:B7)"));
+        QVERIFY(!s->sheetFormat(0).summaryBelow);
+        const crunch::Outline rows = s->outlineOf(0, false);
+        QCOMPARE(int(rows.levelOf(1)), 0);
+        QCOMPARE(int(rows.levelOf(2)), 0);
+        QCOMPARE(int(rows.levelOf(3)), 1);
+        QCOMPARE(int(rows.levelOf(4)), 1);
+        QCOMPARE(int(rows.levelOf(5)), 0);
+        QCOMPARE(int(rows.levelOf(6)), 1);
+        const auto groups = rows.groups(0, 100);
+        QCOMPARE(groups.size(), size_t(2));
+        QCOMPARE(qint64(groups[0].summary), qint64(2));   // (the button sits at the East total, which is above its rows)
+        QCOMPARE(qint64(groups[1].summary), qint64(5));
+        QCOMPARE(w.undoStack()->count(), steps + 1);
+        // collapsing a group hides its rows of data and keeps the total row
+        QVERIFY(s->changeOutline(0, false, rows.collapse(groups[0]), QStringLiteral("Collapse")).ok);
+        QVERIFY(s->outlineOf(0, false).hiddenOf(3) && s->outlineOf(0, false).hiddenOf(4) && !s->outlineOf(0, false).hiddenOf(2));
+        pressUndo(&w);
+        // applied again, the subtotals are replaced, not doubled
+        e.select(QStringLiteral("A2"));
+        QVERIFY(w.subtotalIn(0, 9, {1}, true, false, false));
+        QVERIFY(e.settle());
+        QCOMPARE(shown(e, QStringLiteral("A1:C7")), QStringLiteral("Region|Sales|Units|Grand Total|35||East Total|30||East|10|1|East|20|2|West Total|5||West|5|3"));
+        // Remove All gives the list back
+        e.select(QStringLiteral("A4"));
+        QVERIFY(w.removeSubtotalsIn());
+        QVERIFY(e.settle());
+        QCOMPARE(shown(e, QStringLiteral("A1:C4")), QStringLiteral("Region|Sales|Units|East|10|1|East|20|2|West|5|3"));
+        QCOMPARE(shown(e, QStringLiteral("A6:B6")), QStringLiteral("below|me"));
+        QCOMPARE(int(s->outlineOf(0, false).levelOf(1)), 0);
+        // below again puts the outline's direction back
+        e.select(QStringLiteral("A2"));
+        QVERIFY(w.subtotalIn(0, 9, {1}));
+        QVERIFY(e.settle());
+        QVERIFY(s->sheetFormat(0).summaryBelow);
+        QCOMPARE(shown(e, QStringLiteral("A1:B7")), QStringLiteral("Region|Sales|East|10|East|20|East Total|30|West|5|West Total|5|Grand Total|35"));
+        // and one step of Undo takes the whole of a subtotal with its direction away
+        e.select(QStringLiteral("A2"));
+        QVERIFY(w.subtotalIn(0, 9, {1}, true, false, false));
+        QVERIFY(!s->sheetFormat(0).summaryBelow);
+        pressUndo(&w);
+        QVERIFY(e.settle());
+        QVERIFY(s->sheetFormat(0).summaryBelow);
+        QCOMPARE(shown(e, QStringLiteral("A1:B7")), QStringLiteral("Region|Sales|East|10|East|20|East Total|30|West|5|West Total|5|Grand Total|35"));
+    }
+
+    // The page break between groups goes before each total row when the totals are above (not before the first, which follows the grand total), and Remove All takes them away again.
+    void subtotalAbovePutsAPageBreakBeforeEachTotalAfterTheFirst()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=Region", "B1=Sales", "A2=East", "B2=10", "A3=West", "B3=5", "A4=West", "B4=6"})));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        auto breaks = [&w] {
+            QVector<quint32> out;
+            for (const auto &b : w.session()->pages().sheet(0).rowBreaks) out.append(b.before);
+            return out;
+        };
+        e.select(QStringLiteral("A2"));
+        QVERIFY(w.subtotalIn(0, 9, {1}, true, true, false));
+        QVERIFY(e.settle());
+        QCOMPARE(shown(e, QStringLiteral("A1:B7")), QStringLiteral("Region|Sales|Grand Total|21|East Total|10|East|10|West Total|11|West|5|West|6"));
+        QCOMPARE(breaks(), (QVector<quint32>{4}));
+        e.select(QStringLiteral("A4"));
+        QVERIFY(w.removeSubtotalsIn());
+        QVERIFY(e.settle());
+        QVERIFY2(breaks().isEmpty(), "the break stayed after the rows went");
+    }
+
+    // Outline Settings changes where an existing outline puts its summary lines (rows and columns apart), as one step of Undo; the same answer is no step.
+    void outlineSettingsChangesTheDirectionOfAnOutlineInOneStep()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=a", "A2=b", "A3=c", "A4=sum"})));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        crunch::EditSession *s = w.session();
+        QVERIFY(s->changeOutline(0, false, s->outlineOf(0, false).group(0, 2), QStringLiteral("Group Rows")).ok);
+        QCOMPARE(qint64(s->outlineOf(0, false).groups(0, 100)[0].summary), qint64(3));
+        bool asked = false;
+        w.setOutlineSettingsAsker([&asked](bool *below, bool *right) {
+            asked = true;
+            if (!*below && !*right) return false;
+            *below = false;
+            return true;
+        });
+        const int steps = w.undoStack()->count();
+        w.act(QStringLiteral("outline.settings"))->trigger();
+        QVERIFY(asked);
+        QCOMPARE(w.undoStack()->count(), steps + 1);
+        QVERIFY(!s->sheetFormat(0).summaryBelow && s->sheetFormat(0).summaryRight);
+        QCOMPARE(qint64(s->outlineOf(0, false).groups(0, 100)[0].summary), qint64(-1));   // (above the first row there is no line to sum up the group)
+        QCOMPARE(w.undoStack()->undoText(), QStringLiteral("Outline Settings"));
+        // the box is told the places as they are now; an answer that leaves them is no step
+        w.act(QStringLiteral("outline.settings"))->trigger();
+        QCOMPARE(w.undoStack()->count(), steps + 1);
+        pressUndo(&w);
+        QVERIFY(s->sheetFormat(0).summaryBelow);
+        QCOMPARE(qint64(s->outlineOf(0, false).groups(0, 100)[0].summary), qint64(3));
+        // columns apart from rows; no change is no step
+        QVERIFY(s->setOutlineDirection(0, true, false, QStringLiteral("Outline Settings")).ok);
+        QVERIFY(s->sheetFormat(0).summaryBelow && !s->sheetFormat(0).summaryRight);
+        const int now = w.undoStack()->count();
+        QVERIFY(s->setOutlineDirection(0, true, false, QStringLiteral("Outline Settings")).ok);
+        QCOMPARE(w.undoStack()->count(), now);
+        w.setOutlineSettingsAsker(nullptr);
+    }
+
     void subtotalRefusesWhatItCannotDo()
     {
         EditWindow e;

@@ -481,6 +481,7 @@ void EditSession::cleanChanged(bool clean)
     m_mergesChanged.clear();
     m_filtersChanged.clear();
     m_formatsChanged.clear();
+    m_summaryOnDisk.clear();
     m_sheetsListed = false;
     m_statesChanged.clear();
     m_tabColorsChanged.clear();
@@ -1511,7 +1512,15 @@ bool EditSession::apply(Step *step, bool forward)
         m_mergesChanged.insert(m.sheet);
     }
     for (const FormatEdit &f : step->formats) {
-        calc->setSheetFormat(f.sheet, forward ? f.after : f.before);
+        SheetFormat now = forward ? f.after : f.before;
+        if (f.before.summaryBelow != f.after.summaryBelow || f.before.summaryRight != f.after.summaryRight) {
+            // (what the file has: the places the sheet had before the first step since it was read or saved, done or undone; the save writes them again only if they are not those)
+            const SheetFormat &left = forward ? f.before : f.after;
+            m_summaryOnDisk.emplace(f.sheet, std::make_pair(left.summaryBelow, left.summaryRight));
+            now.summaryEdited = true;
+            ++m_outlineRevision;
+        }
+        calc->setSheetFormat(f.sheet, now);
         m_formatsChanged.insert(f.sheet);
     }
     for (const FilterEdit &f : step->filters) {
@@ -2041,6 +2050,8 @@ bool EditSession::takeSnapshot(Snapshot *out, QString *why, bool pivotParts, con
         SheetChanges &sc = changes.sheets[sheet];
         sc.replaceFormat = true;
         sc.format = calc->sheetFormatOf(sheet);
+        const auto onDisk = m_summaryOnDisk.find(sheet);
+        sc.format.summaryEdited = onDisk != m_summaryOnDisk.end() && onDisk->second != std::make_pair(sc.format.summaryBelow, sc.format.summaryRight);
         // (how deep the outline of the rows and of the columns goes: the buttons in the margins show that many levels)
         sc.formatOutline = true;
         sc.format.outlineLevelRow = 0;
@@ -2354,6 +2365,7 @@ void EditSession::saved(const Snapshot &snapshot, const Package &package)
     m_mergesChanged.clear();
     m_filtersChanged.clear();
     m_formatsChanged.clear();
+    m_summaryOnDisk.clear();
     m_sheetsListed = false;
     m_statesChanged.clear();
     m_tabColorsChanged.clear();

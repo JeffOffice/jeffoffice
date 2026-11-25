@@ -458,6 +458,133 @@ private Q_SLOTS:
         QVERIFY(breaks().isEmpty());
     }
 
+    // Where an outline puts its summary lines is saved once in the .xlsx (the element the file had is changed, or one is made), a workbook that never changed it is saved as it was, undo
+    // saves what was, and a copy of a sheet does not say it twice; the older binary form keeps it, and the OpenDocument form lists it as lost.
+    void theDirectionOfAnOutlineIsSavedOnceAndOnlyWhenChanged()
+    {
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>1</v></c></row><row r=\"2\"><c r=\"A2\"><v>2</v></c></row>");
+        auto count = [](const QByteArray &xml, const char *what) { return int(xml.count(what)); };
+        auto save = [](EditWindow &e) {
+            QSignalSpy saved(&e.win.w, &CrunchWindow::saved);
+            const bool started = e.win.w.save();
+            return started && savedOk(saved);
+        };
+        auto head = [](const QByteArray &xml) { return xml.left(xml.indexOf("<sheetData")); };
+        const QString below0 = QStringLiteral("<sheetPr><tabColor rgb=\"FFC00000\"/><outlinePr summaryBelow=\"0\" applyStyles=\"1\"/><pageSetUpPr fitToPage=\"1\"/></sheetPr>");
+        // a workbook that never changed it: the head is as it was, with and without the element
+        for (const QString &sheetPr : {below0, QString(), QStringLiteral("<sheetPr><tabColor rgb=\"FFC00000\"/></sheetPr>")}) {
+            EditWindow e;
+            QVERIFY(e.open(buildXlsx({worksheet(rows, QString(), sheetPr)})));
+            QVERIFY(e.settle());
+            QVERIFY(e.win.w.session()->type(0, 5, 5, QStringLiteral("7"), false).ok);
+            QVERIFY(e.settle());
+            QVERIFY2(save(e), "the save failed");
+            const QByteArray xml = head(savedPart(e.path, QStringLiteral("xl/worksheets/sheet1.xml")));
+            QCOMPARE(count(xml, "outlinePr"), sheetPr == below0 ? 1 : 0);
+            QVERIFY2(sheetPr.isEmpty() ? !xml.contains("<sheetPr") : xml.contains(sheetPr.toUtf8()), xml.constData());
+        }
+        // changed: the element says it once, whatever the file had, and the file opens again as set
+        struct Case {
+            QString sheetPr;
+            bool below, right;
+            const char *want;
+        };
+        const Case cases[] = {
+            {QString(), false, true, "<outlinePr summaryBelow=\"0\" summaryRight=\"1\"/>"},
+            {QStringLiteral("<sheetPr><tabColor rgb=\"FFC00000\"/></sheetPr>"), true, false, "<tabColor rgb=\"FFC00000\"/><outlinePr summaryBelow=\"1\" summaryRight=\"0\"/>"},
+            {QStringLiteral("<sheetPr><pageSetUpPr fitToPage=\"1\"/></sheetPr>"), false, false, "<outlinePr summaryBelow=\"0\" summaryRight=\"0\"/><pageSetUpPr"},
+            {below0, true, true, "<outlinePr summaryBelow=\"1\" applyStyles=\"1\" summaryRight=\"1\"/>"},
+        };
+        for (const Case &c : cases) {
+            EditWindow e;
+            QVERIFY(e.open(buildXlsx({worksheet(rows, QString(), c.sheetPr)})));
+            QVERIFY(e.settle());
+            QVERIFY(e.win.w.session()->setOutlineDirection(0, c.below, c.right, QStringLiteral("Outline Settings")).ok);
+            QVERIFY2(save(e), "the save failed");
+            const QByteArray xml = head(savedPart(e.path, QStringLiteral("xl/worksheets/sheet1.xml")));
+            QCOMPARE(count(xml, "outlinePr"), 1);
+            QVERIFY2(xml.contains(c.want), xml.constData());
+            EditWindow again;
+            {
+                QFile written(e.path);
+                QVERIFY(written.open(QIODevice::ReadOnly));
+                QVERIFY(again.open(written.readAll()));
+            }
+            QCOMPARE(again.win.w.session()->sheetFormat(0).summaryBelow, c.below);
+            QCOMPARE(again.win.w.session()->sheetFormat(0).summaryRight, c.right);
+        }
+        // a change and its Undo save what a save without them does
+        QByteArray plain, undone;
+        for (const bool change : {false, true}) {
+            EditWindow e;
+            QVERIFY(e.open(buildXlsx({worksheet(rows, QString(), below0)})));
+            QVERIFY(e.settle());
+            if (change) {
+                QVERIFY(e.win.w.session()->setOutlineDirection(0, true, false, QStringLiteral("Outline Settings")).ok);
+                pressUndo(&e.win.w);
+            }
+            QVERIFY(e.win.w.session()->type(0, 5, 5, QStringLiteral("7"), false).ok);
+            QVERIFY(e.settle());
+            QVERIFY2(save(e), "the save failed");
+            (change ? undone : plain) = savedPart(e.path, QStringLiteral("xl/worksheets/sheet1.xml"));
+        }
+        QVERIFY(!plain.isEmpty());
+        QCOMPARE(undone, plain);
+        // a change that is saved, and then undone, is saved as undone
+        {
+            EditWindow e;
+            QVERIFY(e.open(buildXlsx({worksheet(rows, QString(), below0)})));
+            QVERIFY(e.settle());
+            QVERIFY(e.win.w.session()->setOutlineDirection(0, true, true, QStringLiteral("Outline Settings")).ok);
+            QVERIFY2(save(e), "the save failed");
+            QVERIFY(e.win.w.session()->sheetFormat(0).summaryBelow);
+            pressUndo(&e.win.w);
+            QVERIFY(e.settle());
+            QVERIFY2(save(e), "the save failed");
+            QVERIFY2(savedPart(e.path, QStringLiteral("xl/worksheets/sheet1.xml")).contains("summaryBelow=\"0\""), "undo after a save was not saved");
+        }
+        // a copy of a sheet whose file says one thing, set to the other, says it once
+        {
+            EditWindow e;
+            QVERIFY(e.open(buildXlsx({worksheet(rows, QString(), below0)})));
+            QVERIFY(e.settle());
+            int made = -1;
+            QVERIFY(e.win.w.session()->copySheet(0, -1, QStringLiteral("Copy"), &made).ok);
+            QVERIFY(made >= 0);
+            QVERIFY(!e.win.w.session()->sheetFormat(made).summaryBelow);
+            QVERIFY(e.win.w.session()->setOutlineDirection(made, true, true, QStringLiteral("Outline Settings")).ok);
+            QVERIFY2(save(e), "the save failed");
+            const QByteArray copy = head(savedPart(e.path, QStringLiteral("xl/worksheets/sheet2.xml")));
+            QCOMPARE(count(copy, "outlinePr"), 1);
+            QVERIFY2(copy.contains("summaryBelow=\"1\""), copy.constData());
+            const QByteArray first = head(savedPart(e.path, QStringLiteral("xl/worksheets/sheet1.xml")));
+            QVERIFY2(first.contains("summaryBelow=\"0\""), first.constData());
+        }
+        // the older binary form keeps it; the OpenDocument form cannot, and says so
+        {
+            EditWindow e;
+            QVERIFY(e.open(buildXlsx({worksheet(rows, QString(), below0)})));
+            QVERIFY(e.settle());
+            QVERIFY(e.win.w.session()->setOutlineDirection(0, false, true, QStringLiteral("Outline Settings")).ok);
+            for (const QString &kind : {QStringLiteral("xls"), QStringLiteral("ods")}) {
+                e.win.told.clear();
+                const QString copy = e.folder.dir.filePath(QStringLiteral("copy.") + kind);
+                QSignalSpy exported(&e.win.w, &CrunchWindow::copyExported);
+                QVERIFY(e.win.w.saveAs(copy, true));
+                QVERIFY(exported.count() > 0 || exported.wait(20000));
+                QVERIFY2(exported.first().at(1).toBool(), qPrintable(e.win.told.join(QLatin1Char('|'))));
+                const bool said = e.win.told.join(QLatin1Char('|')).contains(QLatin1String("summary lines"));
+                QCOMPARE(said, kind == QLatin1String("ods"));
+                if (kind == QLatin1String("xls")) {
+                    Window again;
+                    QVERIFY(again.open(copy));
+                    QVERIFY(!again.w.session()->sheetFormat(0).summaryBelow);
+                    QVERIFY(again.w.session()->sheetFormat(0).summaryRight);
+                }
+            }
+        }
+    }
+
     // A scenario set to prevent changes is kept as it is while the sheet is protected; once the sheet is unprotected it can be changed again.
     void aLockedScenarioIsKeptWhileTheSheetIsProtected()
     {

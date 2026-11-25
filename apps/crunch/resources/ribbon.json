@@ -434,6 +434,7 @@
             {"small": "outline.hideDetail", "keytip": "HD"},
             {"small": "outline.auto", "keytip": "AO"},
             {"small": "outline.clear", "keytip": "CO"},
+            {"small": "outline.settings", "keytip": "OS"},
             {"column": true},
             {"small": "data.subtotal", "keytip": "ST"}
           ]

@@ -18,7 +18,7 @@ SubtotalDialog::SubtotalDialog(const QStringList &names, QWidget *parent) : QDia
     setObjectName(QStringLiteral("subtotalDialog"));
     setWindowTitle(tr("Subtotal"));
     auto *layout = new QVBoxLayout(this);
-    auto *about = new QLabel(tr("Adds a row of totals under each run of equal entries in a column. Sort the list by that column first."), this);
+    auto *about = new QLabel(tr("Adds a row of totals under (or above) each run of equal entries in a column. Sort the list by that column first."), this);
     about->setWordWrap(true);
     layout->addWidget(about);
     auto *form = new QFormLayout;
@@ -50,6 +50,10 @@ SubtotalDialog::SubtotalDialog(const QStringList &names, QWidget *parent) : QDia
     m_pageBreaks = new QCheckBox(tr("Page break between groups"), this);
     m_pageBreaks->setObjectName(QStringLiteral("subtotalPageBreaks"));
     layout->addWidget(m_pageBreaks);
+    m_summaryBelow = new QCheckBox(tr("Summary below data"), this);
+    m_summaryBelow->setObjectName(QStringLiteral("subtotalSummaryBelow"));
+    m_summaryBelow->setChecked(true);
+    layout->addWidget(m_summaryBelow);
     auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel, this);
     auto *remove = buttons->addButton(tr("Remove All"), QDialogButtonBox::ResetRole);
     remove->setObjectName(QStringLiteral("subtotalRemoveAll"));
@@ -66,6 +70,7 @@ int SubtotalDialog::changeColumn() const { return m_at->currentIndex(); }
 int SubtotalDialog::function() const { return m_function->currentData().toInt(); }
 bool SubtotalDialog::replace() const { return m_replace->isChecked(); }
 bool SubtotalDialog::pageBreaks() const { return m_pageBreaks->isChecked(); }
+bool SubtotalDialog::summaryBelow() const { return m_summaryBelow->isChecked(); }
 
 QList<int> SubtotalDialog::totalColumns() const
 {

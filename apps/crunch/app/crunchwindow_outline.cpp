@@ -11,9 +11,13 @@
 #include "grid/pagelayoutview.h"
 
 #include <QAction>
+#include <QCheckBox>
+#include <QDialog>
+#include <QDialogButtonBox>
 #include <QGridLayout>
 #include <QMessageBox>
 #include <QPushButton>
+#include <QVBoxLayout>
 #include <QUndoStack>
 
 #include <algorithm>
@@ -30,8 +34,9 @@ void CrunchWindow::createOutlineActions()
     mk("outline.hideDetail", tr("Hide Detail"), "list-x", QKeySequence(), [this] { showHideDetail(false); }, false, false);
     mk("outline.auto", tr("Auto Outline"), "list-tree", QKeySequence(), [this] { autoOutlineSheet(true); }, false, false);
     mk("outline.clear", tr("Clear Outline"), "list-x", QKeySequence(), [this] { autoOutlineSheet(false); }, false, false);
+    mk("outline.settings", tr("Outline Settings…"), "list-tree", QKeySequence(), [this] { outlineSettings(); }, false, false);
     mk("view.outline", tr("Outline Symbols"), "list-tree", QKeySequence(), [this] { refreshOutline(true); }, true)->setChecked(true);
-    for (const char *id : {"outline.groupRows", "outline.ungroupRows", "outline.groupColumns", "outline.ungroupColumns", "outline.showDetail", "outline.hideDetail", "outline.auto", "outline.clear"}) m_opsActions << QString::fromLatin1(id);
+    for (const char *id : {"outline.groupRows", "outline.ungroupRows", "outline.groupColumns", "outline.ungroupColumns", "outline.showDetail", "outline.hideDetail", "outline.auto", "outline.clear", "outline.settings"}) m_opsActions << QString::fromLatin1(id);
 }
 
 // The widgets beside the rows and above the columns, with the grid in the middle of them.
@@ -203,6 +208,41 @@ void CrunchWindow::autoOutlineSheet(bool make)
     if (report.tooDeep) said += QLatin1Char(' ') + tr("Some groups were left out because an outline has at most %1 levels.").arg(crunch::kMaxOutlineLevel);
     if (report.tooLong > 0) said += QLatin1Char(' ') + tr("Groups of more than %1 rows were left out.").arg(QLocale().toString(crunch::EditSession::kMaxAutoOutlineLines));
     setStatus(said);
+}
+
+// Outline Settings: whether the lines that sum up a group are below its rows and right of its columns, or above and left. The outline's groups stay where they are, and one step of Undo.
+void CrunchWindow::outlineSettings()
+{
+    if (m_edit.active) commitEdit(CellEditor::Way::Stay);
+    if (m_edit.active || !editingAllowed()) return;
+    const jp::office::sheet::SheetFormat now = m_session->sheetFormat(m_sheet);
+    bool below = now.summaryBelow, right = now.summaryRight;
+    if (m_outlineSettingsAsker) {
+        if (!m_outlineSettingsAsker(&below, &right)) return;
+    } else {
+        QDialog dialog(this);
+        dialog.setObjectName(QStringLiteral("outlineSettingsDialog"));
+        dialog.setWindowTitle(tr("Outline Settings"));
+        auto *layout = new QVBoxLayout(&dialog);
+        auto *rows = new QCheckBox(tr("Summary rows below detail"), &dialog);
+        rows->setObjectName(QStringLiteral("outlineSummaryBelow"));
+        rows->setChecked(below);
+        auto *columns = new QCheckBox(tr("Summary columns to the right of detail"), &dialog);
+        columns->setObjectName(QStringLiteral("outlineSummaryRight"));
+        columns->setChecked(right);
+        layout->addWidget(rows);
+        layout->addWidget(columns);
+        auto *buttons = new jp::ButtonBox(QDialogButtonBox::Ok | QDialogButtonBox::Cancel);
+        layout->addWidget(buttons);
+        connect(buttons, &QDialogButtonBox::accepted, &dialog, &QDialog::accept);
+        connect(buttons, &QDialogButtonBox::rejected, &dialog, &QDialog::reject);
+        if (dialog.exec() != QDialog::Accepted) return;
+        below = rows->isChecked();
+        right = columns->isChecked();
+    }
+    if (below == now.summaryBelow && right == now.summaryRight) return;
+    const crunch::EditSession::Outcome o = m_session->setOutlineDirection(m_sheet, below, right, tr("Outline Settings"));
+    if (!o.ok) notice(tr("Outline"), o.problem);
 }
 
 bool CrunchWindow::askReplaceOutline()

@@ -414,6 +414,30 @@ EditSession::Outcome EditSession::setDefaultSizes(int sheet, std::optional<doubl
     return out;
 }
 
+SheetFormat EditSession::sheetFormat(int sheet) const { return m_book->calc->sheetFormatOf(sheet); }
+
+EditSession::Outcome EditSession::setOutlineDirection(int sheet, bool summaryBelow, bool summaryRight, const QString &text)
+{
+    Outcome out;
+    QString why;
+    if (!canEdit(&why) || !canEditSheet(sheet, &why) || !allows(sheet, Allow::FormatRows, &why) || !allows(sheet, Allow::FormatColumns, &why)) {
+        out.ok = false;
+        out.problem = why;
+        return out;
+    }
+    FormatEdit e;
+    e.sheet = sheet;
+    e.before = m_book->calc->sheetFormatOf(sheet);
+    e.after = e.before;
+    e.after.summaryBelow = summaryBelow;
+    e.after.summaryRight = summaryRight;
+    if (e.after.summaryBelow == e.before.summaryBelow && e.after.summaryRight == e.before.summaryRight) return out;   // (nothing to change)
+    Step step;
+    step.formats.push_back(e);
+    pushStep(std::move(step), text);
+    return out;
+}
+
 EditSession::Outcome EditSession::fitColumns(int sheet, const std::vector<std::pair<quint32, double>> &widths)
 {
     Outcome out;

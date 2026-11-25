@@ -179,6 +179,11 @@
    "remove groups",
    "ungroup all"
   ],
+  "outline.settings": [
+   "summary rows above",
+   "summary below detail",
+   "outline direction"
+  ],
   "data.form": [
    "data entry",
    "record",

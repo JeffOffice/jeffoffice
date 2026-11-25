@@ -979,6 +979,8 @@ public:
     static constexpr qint64 kMaxAutoOutlineLines = 100000;
     // The outline the rows (or the columns) of a sheet have now.
     Outline outlineOf(int sheet, bool columns) const;
+    // The sheet's default sizes and where its outline puts the summary lines (summaryBelow, summaryRight).
+    jp::office::sheet::SheetFormat sheetFormat(int sheet) const;
     // How many outlines have been made so far (counted, for tests), and a number that changes whenever the rows' or columns' sizes, hiding, or outline, or their places, may have (a step
     // done, undone, or redone): an outline made at one number is the outline until the number changes.
     qint64 outlinesBuilt() const { return m_outlinesBuilt; }
@@ -996,6 +998,9 @@ public:
     // The default width of the columns of a sheet and the default height of its rows (those that have no size of their own): one step. The width is as a SizeChange has it (characters
     // of the widest digit, with the padding), the height in points; one that is not given is left as it is.
     Outcome setDefaultSizes(int sheet, std::optional<double> columnWidth, std::optional<double> rowHeight, const QString &text);
+    // Where the outline of a sheet puts its summary lines: below the rows it sums up or above them, and right of the columns or left of them. One step of Undo (called `text`); nothing is
+    // done when they are there already.
+    Outcome setOutlineDirection(int sheet, bool summaryBelow, bool summaryRight, const QString &text);
     // ---- the sheets (one step each, undone, redone, and saved: the formulas that name a sheet follow it when it is renamed, and have #REF! for it when it is deleted)
     // The places of the sheets in the order of the tabs (those deleted are not among them, and hidden ones are).
     QVector<int> sheetOrder() const;
@@ -1612,6 +1617,7 @@ private:
     qint64 m_token;
     mutable qint64 m_outlinesBuilt = 0;
     qint64 m_outlineRevision = 0;
+    std::map<int, std::pair<bool, bool>> m_summaryOnDisk;   // by sheet: where the file puts the outline's summary lines (below the rows, right of the columns), for a sheet whose step changed them since it was read or saved
     std::set<int> m_formatsChanged;  // the sheets whose default sizes a step changed since the file was read or saved
     bool m_sheetsListed = false;                          // a step changed the list of sheets since the file was read or saved
     std::set<int> m_sheetsRestyled;                       // the sheets a step gave the format of very many cells (drawn again whole)

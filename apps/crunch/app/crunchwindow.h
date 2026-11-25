@@ -560,6 +560,8 @@ public:
     };
     bool readyToQuit() override;
     void setOutlineReplaceAsker(const std::function<bool()> &asker) { m_outlineReplaceAsker = asker; }
+    // Outline Settings: a test answers here (the places now, which the answer changes; false: cancelled).
+    void setOutlineSettingsAsker(const std::function<bool(bool *summaryBelow, bool *summaryRight)> &asker) { m_outlineSettingsAsker = asker; }
     // Merge Styles with styles of the same name that look different: whether to replace them (a test answers here; `count` is how many).
     void setStyleMergeAsker(const std::function<bool(int count)> &asker) { m_styleMergeAsker = asker; }
     void setWindowPicker(const std::function<int(const QStringList &)> &picker) { m_windowPicker = picker; }
@@ -902,6 +904,7 @@ private:
     void outlineLevelClicked(bool columns, int level);
     void groupSelected(bool columns, bool group);
     void autoOutlineSheet(bool make);
+    void outlineSettings();
     void showHideDetail(bool show);
     void chooseFindFormat(bool fromCell);
     bool askReplaceOutline();
@@ -933,6 +936,7 @@ private:
     std::function<bool(SizeRequest *)> m_sizeAsker;
     std::function<bool(const QString &, const QString &, int)> m_ruleAsker;
     std::function<bool(const QString &)> m_bigStepAsker;
+    std::function<bool(bool *, bool *)> m_outlineSettingsAsker;
     std::function<bool()> m_outlineReplaceAsker;   // test hook: Auto Outline on a sheet that has an outline (true: replace it)
     // Does an edit that moves cells with the window saying it is working (the wait cursor, and the status), and, if the step is too big for Undo to hold, asks first.
     crunch::EditSession::Outcome doStructural(const std::function<crunch::EditSession::Outcome()> &edit);
@@ -1269,7 +1273,7 @@ public:
     bool scenarioSummary(const QString &resultCells);
     // Subtotal without the question: the list is the selection (or the block around the cell with the cursor); columns are places in the list, 0 is its first column. `function` is the number
     // SUBTOTAL is called with (9 is Sum). One step of Undo. removeSubtotalsIn is Remove All.
-    bool subtotalIn(int changeColumn, int function, const std::vector<int> &columns, bool replace = true, bool pageBreaks = false);
+    bool subtotalIn(int changeColumn, int function, const std::vector<int> &columns, bool replace = true, bool pageBreaks = false, bool summaryBelow = true);
     bool removeSubtotalsIn();
     // Advanced Filter without the question: the list and the conditions as ranges ("A1:C20"), where to copy the rows to (a cell name; empty to hide the other rows in the list), and whether rows
     // that repeat an earlier one are left out. One step of Undo.

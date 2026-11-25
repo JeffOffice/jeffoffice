@@ -100,7 +100,7 @@ EditSession::Outcome removeSubtotals(EditSession &session, int sheet, CellRange 
         PageSetup setup = session.pages().sheet(sheet);
         const auto before = setup.rowBreaks.size();
         setup.rowBreaks.erase(std::remove_if(setup.rowBreaks.begin(), setup.rowBreaks.end(),
-                                             [&](const PageBreak &b) { return b.bySubtotal && b.before > 0 && std::binary_search(rows.begin(), rows.end(), b.before - 1); }),
+                                             [&](const PageBreak &b) { return b.bySubtotal && b.before > 0 && (std::binary_search(rows.begin(), rows.end(), b.before - 1) || std::binary_search(rows.begin(), rows.end(), b.before)); }),
                               setup.rowBreaks.end());
         if (setup.rowBreaks.size() != before) out = session.setPageSetup(sheet, setup, QCoreApplication::translate("jp::crunch::Subtotal", "Remove All Subtotals"));
     }
@@ -166,38 +166,58 @@ EditSession::Outcome applySubtotals(EditSession &session, int sheet, CellRange r
     }
     // the rows go in from the bottom up (the grand total first), so that the runs above keep their places
     const quint32 lastData = region.row2;
-    if (out.ok) out = session.insertRows(sheet, lastData + 1, 1);
-    for (size_t i = runs.size(); i > 0 && out.ok; --i) out = session.insertRows(sheet, runs[i - 1].last + 1, 1);
+    const bool below = spec.summaryBelow;
+    // (the outline says where its summary lines are before the groups are made)
+    if (out.ok) {
+        const SheetFormat now = session.sheetFormat(sheet);
+        out = session.setOutlineDirection(sheet, below, now.summaryRight, QCoreApplication::translate("jp::crunch::Subtotal", "Subtotal"));
+    }
+    if (out.ok && below) out = session.insertRows(sheet, lastData + 1, 1);
+    for (size_t i = runs.size(); i > 0 && out.ok; --i) out = session.insertRows(sheet, below ? runs[i - 1].last + 1 : runs[i - 1].first, 1);
+    if (out.ok && !below) out = session.insertRows(sheet, region.row1 + 1, 1);   // (the grand total, last, above the first run's total)
     const QChar separator = argumentSeparator(session.locale());
     auto formula = [&](quint32 col, quint32 first, quint32 last) {
         return QStringLiteral("=SUBTOTAL(%1%2%3%4:%5%6)").arg(spec.function).arg(separator, columnName(col)).arg(first + 1).arg(columnName(col)).arg(last + 1);
     };
-    // (the rows are now where the runs were, each moved down by the subtotal rows above it)
+    // (the rows are now where the runs were, each moved down by the subtotal rows above it, and by the grand total if that is above)
+    // `at` is a run's subtotal row, `first` and `last` its rows of data
+    auto place = [&](size_t i, quint32 *first, quint32 *last, quint32 *at) {
+        const quint32 shift = below ? quint32(i) : quint32(i) + 1;
+        *first = runs[i].first + shift + (below ? 0 : 1);
+        *last = runs[i].last + shift + (below ? 0 : 1);
+        *at = below ? *last + 1 : *first - 1;
+    };
     for (size_t i = 0; i < runs.size() && out.ok; ++i) {
-        const quint32 shift = quint32(i);
-        const quint32 first = runs[i].first + shift, last = runs[i].last + shift, at = last + 1;
+        quint32 first = 0, last = 0, at = 0;
+        place(i, &first, &last, &at);
         const QString label = labelOf(session, sheet, first, spec.column);
         out = session.type(sheet, at, spec.column, QCoreApplication::translate("jp::crunch::Subtotal", "%1 Total").arg(label), false);
         for (size_t c = 0; c < spec.columns.size() && out.ok; ++c)
             if (spec.columns[c] != spec.column) out = session.type(sheet, at, spec.columns[c], formula(spec.columns[c], first, last), false);
     }
     if (out.ok) {
-        const quint32 at = lastData + quint32(runs.size()) + 1, first = region.row1 + 1;
+        // (the grand total's rows of data run past the subtotal rows, which SUBTOTAL leaves out, and never include the grand total's own row)
+        const quint32 at = below ? lastData + quint32(runs.size()) + 1 : region.row1 + 1;
+        const quint32 first = below ? region.row1 + 1 : at + 1, last = below ? at - 1 : lastData + quint32(runs.size()) + 1;
         out = session.type(sheet, at, spec.column, QCoreApplication::translate("jp::crunch::Subtotal", "Grand Total"), false);
         for (size_t c = 0; c < spec.columns.size() && out.ok; ++c)
-            if (spec.columns[c] != spec.column) out = session.type(sheet, at, spec.columns[c], formula(spec.columns[c], first, at - 1), false);
+            if (spec.columns[c] != spec.column) out = session.type(sheet, at, spec.columns[c], formula(spec.columns[c], first, last), false);
     }
-    // each run is a group of the outline, its subtotal the summary below
+    // each run is a group of the outline, its subtotal row the summary line
     for (size_t i = 0; i < runs.size() && out.ok; ++i) {
-        const quint32 shift = quint32(i);
+        quint32 first = 0, last = 0, at = 0;
+        place(i, &first, &last, &at);
         const Outline outline = session.outlineOf(sheet, false);
-        const auto changes = outline.group(runs[i].first + shift, runs[i].last + shift);
+        const auto changes = outline.group(first, last);
         if (!changes.empty()) out = session.changeOutline(sheet, false, changes, QCoreApplication::translate("jp::crunch::Subtotal", "Subtotal"));
     }
     if (out.ok && spec.pageBreaks && !runs.empty()) {
         PageSetup setup = session.pages().sheet(sheet);
         for (size_t i = 0; i < runs.size(); ++i) {
-            const quint32 at = runs[i].last + quint32(i) + 2;   // (the row after the run's subtotal row)
+            if (!below && i == 0) continue;   // (above, the break comes before a run's subtotal row, and the first run follows the grand total)
+            quint32 first = 0, last = 0, summary = 0;
+            place(i, &first, &last, &summary);
+            const quint32 at = below ? summary + 1 : summary;   // (the row after the run's subtotal row, or the subtotal row itself)
             bool have = false;
             for (const PageBreak &b : setup.rowBreaks) have = have || b.before == at;   // (a break that is there is the person's, and stays theirs)
             if (have || setup.rowBreaks.size() >= kMaxPageBreaks) continue;
