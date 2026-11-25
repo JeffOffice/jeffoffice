@@ -26,7 +26,7 @@ Each item shows a small preview and what kind of thing it is: text, formatted te
 
 - **Paste All** pastes every item, the oldest first, so they read in the order you copied them.
 - **Delete** removes the item you picked. **Clear All** removes all of them.
-- The pane collects only while it is open. To keep collecting after you close it, tick **Keep collecting when this pane is closed**.
+- The pane collects only while it is open. To keep collecting after you close it, tick **Keep collecting when this pane is closed**. The choice is remembered, and collecting starts when the program starts, before you open the pane.
 - To also collect what you copy in other programs, tick **Also collect what is copied in other programs**. Only plain text and pictures are kept, and it starts off again each time you open the program.
 
-The items are kept in the program's memory only. Nothing is saved to a file, and the list is emptied when you close the last window. An item bigger than 8 MB is not kept, and the pane tells you when that happens; all the items together are held to 64 MB, and the oldest go first. Anything a password manager marks as secret is never kept.
+The items are kept in the program's memory only. Nothing is saved to a file, and the list is emptied when you close the last window of the program. An item stays in the list after the document it came from is closed. An item bigger than 8 MB is not kept, and the pane tells you when that happens; a picture counts 4 bytes for each dot (pixel), so a picture of more than about 2 million pixels is too big. All the items together are held to 64 MB, and the oldest go first. Anything a password manager marks as secret is never kept.
