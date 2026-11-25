@@ -592,7 +592,6 @@ private Q_SLOTS:
             {QStringLiteral("fmt.border.drawGrid"), QStringLiteral("it picks up the pen for a grid: the pointer and a line in the status bar change, and the borders are made by a mouse drag over the grid")},
             {QStringLiteral("fmt.border.erase"), QStringLiteral("it picks up the eraser: the pointer and a line in the status bar change, and the borders are taken off by a mouse drag over the grid")},
             {QStringLiteral("design.themes.save@file"), QStringLiteral("it tells in a message that a workbook from a file has no theme to save (the samples here have no theme part), and asks for a file only when it has one, which the check closes unanswered; the theme tests write the file")},
-            {QStringLiteral("formulas.errorChecking"), QStringLiteral("it tells in a message that no cell is wrong (the workbooks here have none), and shows its dialog only when one is")},
             {QStringLiteral("formulas.evaluate"), QStringLiteral("it tells in a message to select a cell with a formula (none is selected here), and shows its dialog only for one")},
             {QStringLiteral("data.circleInvalid"), QStringLiteral("it tells in a message that every cell follows its rule (no rule is set here), and draws ovals only when one does not")},
             {QStringLiteral("view.syncScroll"), QStringLiteral("it matters only while two windows are side by side, and changes whether their scrolling goes together; the window tests scroll two windows with it on and off")},
