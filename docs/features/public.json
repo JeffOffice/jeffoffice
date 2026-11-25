@@ -1042,8 +1042,8 @@
          "text": "bea7657e37bcebfaf5305cd8db6cd49e2f176b9a1df203e4665dbe8d3c568fc3"
         },
         {
-         "status": "todo",
-         "text": "0c9b64d4aaf707310f6c330357769249d9910feff9450922f011d3b2726250bf"
+         "status": "partly",
+         "text": "94fdd19bf7fc8ef560ca4c024125ab603a4d51cbfad2d0c8ba98fcea9bf1f87d"
         },
         {
          "status": "todo",
@@ -8896,18 +8896,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "0c9b64d4aaf707310f6c330357769249d9910feff9450922f011d3b2726250bf": {
-   "drop": true,
-   "en": "",
-   "es": "",
-   "fr": "",
-   "soon": {
-    "drop": false,
-    "en": "Get data from a table or range, web page, workbook, XML, JSON, folder, and PDF, as editable, refreshable steps",
-    "es": "Obtener datos de una tabla o rango, página web, libro, XML, JSON, carpeta y PDF, como pasos editables y actualizables",
-    "fr": "Récupération de données depuis un tableau ou une plage, une page web, un classeur, XML, JSON, un dossier et un PDF, en étapes modifiables et actualisables"
    }
   },
   "0cf53c9dd771df6baca84a788b4378b47d2cca1ff5890e6738d5c306b4ec0418": {
@@ -19252,6 +19240,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "94fdd19bf7fc8ef560ca4c024125ab603a4d51cbfad2d0c8ba98fcea9bf1f87d": {
+   "drop": false,
+   "en": "Load a JSON file, an XML file, or a sheet, table, or named range of another workbook as a table, with a preview of the first rows. The app detects the type of each column (number, date, true or false, text), or you can load everything as text. Undo reverses the load in one step, and the app asks before replacing cells that hold data. Refresh and Refresh All read the file again. The link is saved in the table in an `.xlsx` file, and Inspect lists and removes it.",
+   "es": "Cargue un archivo JSON, un archivo XML o una hoja, tabla o rango con nombre de otro libro como una tabla, con una vista previa de las primeras filas. La aplicación detecta el tipo de cada columna (número, fecha, verdadero o falso, texto), o usted puede cargar todo como texto. Deshacer revierte la carga en un solo paso, y la aplicación pregunta antes de reemplazar celdas que contienen datos. Actualizar y Actualizar todo vuelven a leer el archivo. El vínculo se guarda en la tabla dentro de un archivo `.xlsx`, y Inspeccionar lo enumera y lo elimina.",
+   "fr": "Chargez un fichier JSON, un fichier XML ou une feuille, un tableau ou une plage nommée d’un autre classeur sous forme de tableau, avec un aperçu des premières lignes. L’application détecte le type de chaque colonne (nombre, date, vrai ou faux, texte), ou vous pouvez tout charger comme texte. Annuler inverse le chargement en une seule étape, et l’application demande confirmation avant de remplacer des cellules contenant des données. Actualiser et Tout actualiser relisent le fichier. Le lien est enregistré dans le tableau d’un fichier `.xlsx`, et Inspecter le répertorie et le supprime.",
+   "soon": {
+    "drop": false,
+    "en": "Data import from Table/Range, Web, Folder, and PDF; steps editor; background refresh; refresh when the file opens",
+    "es": "Importación de datos desde tabla o rango, web, carpeta y PDF; editor de pasos; actualización en segundo plano; actualización al abrir el archivo",
+    "fr": "Importation de données depuis un tableau ou une plage, le web, un dossier et un PDF ; éditeur d’étapes ; actualisation en arrière-plan ; actualisation à l’ouverture du fichier"
    }
   },
   "950a6846c91f230376b1339ff5bcca102f27a74366be5eebe6ad1031bb319164": {
