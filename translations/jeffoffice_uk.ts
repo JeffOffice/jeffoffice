@@ -8816,7 +8816,7 @@ Open them with your email program to send.</source>
         <translation type="unfinished">Вміст публікації пошкоджено: %1</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubimport.cpp" line="+1301"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+1303"/>
         <source>A %1 picture could not be displayed.</source>
         <translation type="unfinished">Не вдалося показати малюнок у форматі %1.</translation>
     </message>
@@ -8844,6 +8844,11 @@ Open them with your email program to send.</source>
         <location line="+7"/>
         <source>JeffPub could not read this .pub file. It may be damaged or use features that aren&apos;t supported yet.</source>
         <translation type="unfinished">JeffPub не зміг прочитати цей файл .pub. Можливо, його пошкоджено або він використовує функції, які ще не підтримуються.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>This publication has content that JeffPub can&apos;t place on its pages yet, so it was not opened. The file has not been changed.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>

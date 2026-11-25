@@ -8772,7 +8772,7 @@ Buka dengan program email Anda untuk mengirimnya.</translation>
         <translation type="unfinished">Konten publikasi rusak: %1</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubimport.cpp" line="+1301"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+1303"/>
         <source>A %1 picture could not be displayed.</source>
         <translation type="unfinished">Gambar %1 tidak dapat ditampilkan.</translation>
     </message>
@@ -8800,6 +8800,11 @@ Buka dengan program email Anda untuk mengirimnya.</translation>
         <location line="+7"/>
         <source>JeffPub could not read this .pub file. It may be damaged or use features that aren&apos;t supported yet.</source>
         <translation type="unfinished">JeffPub tidak dapat membaca berkas .pub ini. Berkas mungkin rusak atau menggunakan fitur yang belum didukung.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>This publication has content that JeffPub can&apos;t place on its pages yet, so it was not opened. The file has not been changed.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../libs/base/io/zip.cpp" line="+383"/>

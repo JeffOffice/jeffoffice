@@ -8779,7 +8779,7 @@ Abra-os com o seu programa de correio eletrónico para os enviar.</translation>
         <translation type="unfinished">O conteúdo da publicação está danificado: %1</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubimport.cpp" line="+1301"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+1303"/>
         <source>A %1 picture could not be displayed.</source>
         <translation type="unfinished">Não foi possível apresentar uma imagem %1.</translation>
     </message>
@@ -8807,6 +8807,11 @@ Abra-os com o seu programa de correio eletrónico para os enviar.</translation>
         <location line="+7"/>
         <source>JeffPub could not read this .pub file. It may be damaged or use features that aren&apos;t supported yet.</source>
         <translation type="unfinished">O JeffPub não conseguiu ler este ficheiro .pub. Pode estar danificado ou utilizar funcionalidades ainda não suportadas.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>This publication has content that JeffPub can&apos;t place on its pages yet, so it was not opened. The file has not been changed.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../libs/base/io/zip.cpp" line="+383"/>

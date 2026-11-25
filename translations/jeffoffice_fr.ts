@@ -8779,7 +8779,7 @@ Ouvrez-les avec votre programme de messagerie pour les envoyer.</translation>
         <translation type="unfinished">Le contenu de la composition est endommagé : %1</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubimport.cpp" line="+1301"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+1303"/>
         <source>A %1 picture could not be displayed.</source>
         <translation type="unfinished">Une image %1 n&apos;a pas pu être affichée.</translation>
     </message>
@@ -8807,6 +8807,11 @@ Ouvrez-les avec votre programme de messagerie pour les envoyer.</translation>
         <location line="+7"/>
         <source>JeffPub could not read this .pub file. It may be damaged or use features that aren&apos;t supported yet.</source>
         <translation type="unfinished">JeffPub n&apos;a pas pu lire ce fichier .pub. Il est peut-être endommagé ou utilise des fonctionnalités qui ne sont pas encore prises en charge.</translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>This publication has content that JeffPub can&apos;t place on its pages yet, so it was not opened. The file has not been changed.</source>
+        <translation type="unfinished"></translation>
     </message>
     <message>
         <location filename="../libs/base/io/zip.cpp" line="+383"/>
