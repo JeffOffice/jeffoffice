@@ -2509,6 +2509,35 @@ private Q_SLOTS:
         QVERIFY2(roomy.y() < 1 && std::abs(roomy.x() - (140 + 18)) < 0.01 && roomy.width() > 40, qPrintable(what(roomy)));
     }
 
+    // A word too long for the room beside an object, and not for the line, is not broken to fit it: the line goes down to where the word fits whole
+    // (a word processor's text is broken there, as before).
+    void aWordTooLongForTheRoomBesideAnObjectGoesBelowIt()
+    {
+        const auto first = [](bool wordProcessor) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat cf;
+            cf.setFontFamilies(QStringList{QStringLiteral("Arial")});
+            cf.setFontPointSize(10);
+            c.insertText(QStringLiteral("Internationalization of everything"), cf);
+            jp::FrameSpec fs;
+            fs.size = QSizeF(300, 300);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            fs.hyphenate = false;
+            fs.obstacles << QPolygonF(QRectF(-50, -50, 50 + 270, 70));   // the top 20 points, leaving 30 points on the right
+            jp::LayoutEnv env;
+            env.wordLines = wordProcessor;
+            jp::StoryLayout l;
+            l.build(&doc, {fs}, env);
+            return l.lineInfo(0).first();
+        };
+        const auto what = [](const jp::StoryLayout::LineInfo &li) { return QStringLiteral("line at y %1, %2 wide: %3").arg(li.rect.y()).arg(li.rect.width()).arg(li.text); };
+        const auto page = first(false);
+        QVERIFY2(page.rect.y() > 19.9 && page.text.startsWith(QStringLiteral("Internationalization")), qPrintable(what(page)));
+        const auto word = first(true);
+        QVERIFY2(word.rect.y() < 1 && !word.text.startsWith(QStringLiteral("Internationalization")), qPrintable(what(word)));
+    }
+
     // A bullet drawn as a glyph fitted to Publisher's box (a missing symbol
     // font's stand-in) has its outline built once, not for each bullet each
     // time it is painted: 400 arrows took 23 ms a paint.

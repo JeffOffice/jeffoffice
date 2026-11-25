@@ -5073,10 +5073,17 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         const int e0 = line.textStart(), n0 = line.textLength();
                         hyphenRun = n0 > 0 && B->disp[e0 + n0 - 1] == QChar(0x00AD) ? hyphenRun + 1 : 0;
                     }
-                    // In a polygon a word too long for the place left isn't broken to fit it: the line moves down to where it does.
-                    if (frames[f].fitToShape && iv.x1 - iv.x0 < col.width() - indL - indR - 0.5) {
+                    // In a polygon, and beside an object that a page layout's text goes round, a word too long for the place left isn't broken to fit it: the line moves down to where it does.
+                    if ((frames[f].fitToShape || (!frames[f].obstacles.isEmpty() && !env.wordLines && !env.slideLines)) && iv.x1 - iv.x0 < col.width() - indL - indR - 0.5) {
                         const int e = line.textStart() + line.textLength();
-                        if (e > 0 && e < B->disp.size() && !B->disp[e - 1].isSpace() && B->disp[e - 1] != QChar(0x00AD) && B->disp[e - 1] != QLatin1Char('-') && !B->disp[e].isSpace()) {
+                        bool inWord = e > 0 && e < B->disp.size() && !B->disp[e - 1].isSpace() && B->disp[e - 1] != QChar(0x00AD) && B->disp[e - 1] != QLatin1Char('-') && !B->disp[e].isSpace();
+                        if (inWord && !frames[f].fitToShape) {
+                            // (Beside an object, where a line may break is the text's own, not only after a space or a dash: after a long dash, a slash.)
+                            if (!lineBreaks) lineBreaks = std::make_unique<QTextBoundaryFinder>(QTextBoundaryFinder::Line, B->disp);
+                            lineBreaks->setPosition(e);
+                            inWord = !lineBreaks->isAtBoundary();
+                        }
+                        if (inWord) {
                             y += 2;
                             rowActive = false;
                             if (y + estH > col.height() - reserve.value(rkey(f, c)) + fitTol) advance();
