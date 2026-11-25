@@ -5548,7 +5548,7 @@
       {
        "hide_soon": true,
        "status": "done",
-       "text": "5da3e3f446b1c58f34a7ec2aec5a86af00d0381bd601bd7f4a74ebdf4817942d"
+       "text": "261c2200697e8be83212ab72b229773297e8df49b904953b8af3259a47fcd58f"
       },
       {
        "hide_soon": true,
@@ -10946,6 +10946,18 @@
     "fr": ""
    }
   },
+  "261c2200697e8be83212ab72b229773297e8df49b904953b8af3259a47fcd58f": {
+   "drop": false,
+   "en": "Link text frames across pages, set columns inside frames, and wrap text around objects. A word too long for the room beside an object is not broken; the line moves below the object, where the word fits. Vertical alignment and text fitting to the frame are also available.",
+   "es": "Enlace marcos de texto entre páginas, defina columnas dentro de los marcos y ajuste el texto alrededor de los objetos. Una palabra demasiado larga para el espacio junto a un objeto no se corta; la línea pasa debajo del objeto, donde la palabra cabe. También dispone de alineación vertical y de ajuste del texto al marco.",
+   "fr": "Liez des cadres de texte entre les pages, définissez des colonnes dans les cadres et habillez les objets avec le texte. Un mot trop long pour l’espace à côté d’un objet n’est pas coupé : la ligne passe sous l’objet, là où le mot tient. L’alignement vertical et l’adaptation du texte au cadre sont également disponibles.",
+   "soon": {
+    "drop": true,
+    "en": "",
+    "es": "",
+    "fr": ""
+   }
+  },
   "2674d689a62bf540ee5325ff78106b0fc5b384d87086ec0924b7ca0e5c5defb0": {
    "drop": false,
    "en": "A file that is not entirely readable opens with the rest and lists what it left out. A file that can't be read at all says why.",
@@ -15199,18 +15211,6 @@
    "en": "Align paragraphs left, center, right, or justified, and set indents in the Paragraph dialog and with the ruler's markers.",
    "es": "Alinee párrafos a la izquierda, al centro, a la derecha o justificados, y defina sangrías en el cuadro Párrafo y con los marcadores de la regla.",
    "fr": "Alignez les paragraphes à gauche, au centre, à droite ou en justifié, et réglez les retraits dans la boîte Paragraphe et avec les repères de la règle.",
-   "soon": {
-    "drop": true,
-    "en": "",
-    "es": "",
-    "fr": ""
-   }
-  },
-  "5da3e3f446b1c58f34a7ec2aec5a86af00d0381bd601bd7f4a74ebdf4817942d": {
-   "drop": false,
-   "en": "Link text frames across pages, set columns inside frames, wrap text around objects, and align text vertically. Text can also be sized to fit its frame.",
-   "es": "Enlace marcos de texto entre páginas, defina columnas dentro de los marcos, ajuste el texto alrededor de los objetos y alinee el texto verticalmente. El texto también puede ajustarse al tamaño de su marco.",
-   "fr": "Chaînez des cadres de texte entre les pages, définissez des colonnes dans les cadres, habillez les objets avec du texte et alignez le texte verticalement. Le texte peut aussi être adapté à la taille de son cadre.",
    "soon": {
     "drop": true,
     "en": "",
