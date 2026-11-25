@@ -41,7 +41,8 @@ void CrunchWindow::createFilterActions()
         const int table = selectedTable();
         if (table < 0 && !currentFilter().valid()) return;
         // the filter is applied again, and then the sort that its range or its table keeps (rows that came in or went out are sorted with the rest)
-        const crunch::EditSession::SavedSort sort = m_session->savedSort(m_sheet, table);
+        crunch::EditSession::SavedSort sort = m_session->savedSort(m_sheet, table);
+        sort.spec.natural = m_naturalKept.count({m_sheet, table}) > 0;   // (the file's sort state has no place for it: this window remembers)
         QMetaObject::Connection after;
         if (sort.valid)
             after = connect(

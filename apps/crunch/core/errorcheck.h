@@ -28,13 +28,16 @@ constexpr quint32 kDefaultErrorRules = kAllErrorRules & ~errorRuleBit(FormulaPro
 
 // The most formulas of a sheet looked at, for the two rules that read what a formula refers to.
 constexpr qint64 kMaxReferenceChecks = 200000;
+// And the most references (and ranges looked through for one) read in one pass over a sheet: past it, the cells still to come get no finding from those two rules in that pass, and the next
+// pass (after a change) starts again from the top, so a sheet of very long formulas goes quiet for them instead of freezing the window.
+constexpr qint64 kMaxReferenceWork = 300000;
 
 // The most cells a sheet holds for the rule of inconsistent formulas to be run on it.
 constexpr qint64 kMaxPatternCells = 2000000;
 
 // The problems of one sheet in order of row and then column; at most kMaxFormulaProblems (`truncated` says more were left out). `patterns` includes the rule that looks at neighboring formulas, which
 // takes longer: a window that asks after every change leaves it out and runs an InconsistentScan in slices.
-std::vector<FormulaProblem> findFormulaProblems(const EditSession &session, int sheet, bool *truncated = nullptr, bool patterns = true, quint32 rules = kDefaultErrorRules);
+std::vector<FormulaProblem> findFormulaProblems(const EditSession &session, int sheet, bool *truncated = nullptr, bool patterns = true, quint32 rules = kDefaultErrorRules, qint64 *referenceWork = nullptr);
 
 // The rule of inconsistent formulas, a few cells at a time: `step` looks at the next `cells` formulas and says whether it is through them all. `found` is what it has found so far.
 class InconsistentScan {

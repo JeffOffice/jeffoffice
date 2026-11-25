@@ -544,13 +544,13 @@ std::vector<crunch::FormulaProblem> CrunchWindow::formulaProblems(bool patterns)
     return out;
 }
 
-void CrunchWindow::ignoreFormulaProblem(quint32 row, quint32 col)
+void CrunchWindow::ignoreFormulaProblem(quint32 row, quint32 col, int kind)
 {
     if (!m_session || !editingAllowed()) return;
     QVector<jp::office::sheet::IgnoredError> list = m_session->ignoredErrorsOf(m_sheet);
     bool added = false;
     for (const crunch::FormulaProblem &p : formulaProblems()) {
-        if (p.row != row || p.col != col) continue;
+        if (p.row != row || p.col != col || (kind >= 0 && int(p.kind) != kind)) continue;
         jp::office::sheet::IgnoredError e;
         e.kinds = ignoreBitOf(p.kind);
         jp::office::sheet::CellRange r;
@@ -575,6 +575,7 @@ void CrunchWindow::setErrorRules(quint32 rules)
     Settings::get().setValue(QStringLiteral("crunch/errorRules"), int(rules));
     startPatternScan();
     refreshCellFlags();
+    shareErrorRules(rules);
 }
 
 void CrunchWindow::fixFormulaProblem(quint32 row, quint32 col)
@@ -616,7 +617,7 @@ void CrunchWindow::errorCheckingDialog()
     });
     connect(&dialog, &ErrorCheckDialog::ignored, this, [this, list](int i) {
         if (i < 0 || i >= int(list->size())) return;
-        ignoreFormulaProblem((*list)[size_t(i)].row, (*list)[size_t(i)].col);
+        ignoreFormulaProblem((*list)[size_t(i)].row, (*list)[size_t(i)].col, int((*list)[size_t(i)].kind));
         list->erase(list->begin() + i);
     });
     connect(&dialog, &ErrorCheckDialog::fixed, this, [this, list](int i) {

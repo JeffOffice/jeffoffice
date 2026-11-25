@@ -80,7 +80,7 @@ SortDialog::SortDialog(const Provider &provider, const SortSpec &initial, QWidge
     m_case->setObjectName(QStringLiteral("sortCase"));
     m_natural = new QCheckBox(tr("Numbers in text count by value"));
     m_natural->setObjectName(QStringLiteral("sortNatural"));
-    m_natural->setToolTip(tr("Puts \"Item 2\" before \"Item 10\"."));
+    m_natural->setToolTip(tr("Puts \"Item 2\" before \"Item 10\". The choice is for this sort, and this window remembers it for the next one."));
     m_leftToRight = new QCheckBox(tr("Sort columns, not rows"));
     m_leftToRight->setObjectName(QStringLiteral("sortLeftToRight"));
     options->addWidget(m_header);

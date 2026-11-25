@@ -133,7 +133,7 @@ void CrunchWindow::findCopyLosses(bool xls, const CompatDone &done)
     auto cancel = std::make_shared<std::atomic<bool>>(false);
     m_compatCancel = cancel;
     ++m_compatStarted;
-    const bool naturalSortUsed = m_naturalSortUsed;
+    const bool naturalSortUsed = !m_naturalKept.empty();
     auto work = [self, book, snapshot, xls, done, cancel, naturalSortUsed] {
         const std::function<bool()> stopped = [cancel] { return cancel->load(); };
         struct Alive {

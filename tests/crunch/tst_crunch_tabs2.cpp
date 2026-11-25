@@ -503,6 +503,95 @@ private Q_SLOTS:
         QVERIFY(w.formulaProblems().empty());
     }
 
+    // The omitted-cells rule reads each reference once and asks about the neighbors in a sorted list: the work it counts grows with the references, not with their square, and it stops at a budget.
+    void theOmittedCellsRuleDoesWorkInProportionToTheReferencesAndStopsAtABudget()
+    {
+        auto bookOf = [](int formulas, int ranges) {
+            QStringList specs;
+            for (int f = 0; f < formulas; ++f) {
+                QString text;
+                for (int r = 0; r < ranges; ++r) text += (r ? QStringLiteral(",") : QString()) + QStringLiteral("D%1:D%2").arg(2 * r + 1).arg(2 * r + 2);
+                specs << QStringLiteral("F%1==SUM(%2)").arg(f + 1).arg(text);
+            }
+            return sheetOf(specs);
+        };
+        qint64 workFor150 = 0, workFor300 = 0;
+        {
+            EditWindow e;
+            QVERIFY(e.open(bookOf(150, 800)));
+            QVERIFY(e.settle());
+            QVERIFY(crunch::findFormulaProblems(*e.win.w.session(), 0, nullptr, false, crunch::kDefaultErrorRules, &workFor150).empty());
+        }
+        {
+            EditWindow e;
+            QVERIFY(e.open(bookOf(300, 800)));
+            QVERIFY(e.settle());
+            QVERIFY(crunch::findFormulaProblems(*e.win.w.session(), 0, nullptr, false, crunch::kDefaultErrorRules, &workFor300).empty());
+        }
+        QVERIFY(workFor150 >= 150 * 800);
+        QVERIFY(workFor300 <= crunch::kMaxReferenceWork);   // (this much fits in the budget)
+        QCOMPARE(workFor300, 2 * workFor150);               // (twice the formulas, twice the work)
+        EditWindow e;
+        QVERIFY(e.open(bookOf(400, 800)));   // (more than the budget holds)
+        QVERIFY(e.settle());
+        qint64 work = 0;
+        crunch::findFormulaProblems(*e.win.w.session(), 0, nullptr, false, crunch::kDefaultErrorRules, &work);
+        QVERIFY(work >= crunch::kMaxReferenceWork);
+        QVERIFY(work < crunch::kMaxReferenceWork + 3000);   // (the formulas after that get no finding in this pass)
+    }
+
+    void theOmittedCellsRuleAppliesOnlyToFunctionsThatSummarizeAPlainRange()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"E1=5", "E2=1", "E3=2", "E4=3", "G1==INDEX(E2:E4,2)", "G2==MATCH(2,E2:E4,0)", "G3==VLOOKUP(2,E2:E4,1,FALSE)", "G4==SUM(E2:E4)", "G5==INDEX(OFFSET(E2:E4,0,0),1)",
+                                "G6==SUM(E2:E4*2)", "G7==SUM(1,(E2:E4))", "G8==AVERAGE(E2:E4)", "G9==MAX( E2:E4 )"})));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        QStringList flagged;
+        for (const crunch::FormulaProblem &p : w.formulaProblems())
+            if (p.kind == crunch::FormulaProblem::Kind::OmittedCells) flagged << QStringLiteral("G%1").arg(p.row + 1);
+        QCOMPARE(flagged.join(QLatin1Char(' ')), QStringLiteral("G4 G8 G9"));
+    }
+
+    // A reversed range keeps its two ends: the end that moves is the one next to the cell that was left out, and dollar signs stay.
+    void includingTheCellMovesTheRightEndOfAReversedRange()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"K1=9", "K2=1", "K3=2", "K4=3", "P1=1", "P2=2", "P3=3", "P4=8", "R20=1", "S20=2", "T20=3", "Q20=9", "R21=1", "S21=2", "T21=3", "U21=8", "M1==SUM(K4:K2)",
+                                "M2==SUM($K$4:$K$2)", "M3==SUM(P3:P1)", "M4==SUM(T20:R20)", "M5==SUM(T21:R21)", "M6==SUM($K$4:K$2)", "M7==SUM(K2:K4)"})));
+        QVERIFY(e.settle());
+        QMap<int, QString> fixes;
+        for (const crunch::FormulaProblem &p : e.win.w.formulaProblems())
+            if (p.kind == crunch::FormulaProblem::Kind::OmittedCells) fixes[int(p.row) + 1] = p.fixedFormula;
+        QCOMPARE(fixes.value(1), QStringLiteral("=SUM(K4:K1)"));
+        QCOMPARE(fixes.value(2), QStringLiteral("=SUM($K$4:$K$1)"));
+        QCOMPARE(fixes.value(3), QStringLiteral("=SUM(P4:P1)"));
+        QCOMPARE(fixes.value(4), QStringLiteral("=SUM(T20:Q20)"));
+        QCOMPARE(fixes.value(5), QStringLiteral("=SUM(U21:R21)"));
+        QCOMPARE(fixes.value(6), QStringLiteral("=SUM($K$4:K$1)"));
+        QCOMPARE(fixes.value(7), QStringLiteral("=SUM(K1:K4)"));   // (the usual direction, as before)
+    }
+
+    // The rules are the program's: a change in one window reaches every open window, and the Ignore Error of one rule leaves the cell's other findings.
+    void aChangeOfTheErrorRulesReachesEveryOpenWindow()
+    {
+        EditWindow one, two;
+        QVERIFY(one.open(sheetOf({"A1=1"})));
+        QVERIFY(two.open(sheetOf({"A1=1"})));
+        struct Restore {
+            CrunchWindow &a, &b;
+            ~Restore() {
+                a.setErrorRules(crunch::kDefaultErrorRules);
+                b.setErrorRules(crunch::kDefaultErrorRules);
+            }
+        } restore{one.win.w, two.win.w};
+        QCOMPARE(two.win.w.errorRules(), crunch::kDefaultErrorRules);
+        one.win.w.setErrorRules(crunch::kAllErrorRules);
+        QCOMPARE(two.win.w.errorRules(), crunch::kAllErrorRules);
+        one.win.w.setErrorRules(crunch::kDefaultErrorRules);
+        QCOMPARE(two.win.w.errorRules(), crunch::kDefaultErrorRules);
+    }
+
     void errorCheckingFindsAFormulaThatUsesAnEmptyCellOnlyWhenThatRuleIsOn()
     {
         EditWindow e;

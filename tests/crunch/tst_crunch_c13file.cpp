@@ -541,6 +541,26 @@ private Q_SLOTS:
         QVERIFY(w.session()->ignoredErrorsOf(0)[0].kinds & jp::office::sheet::IgnoredError::UnlockedFormula);
     }
 
+    // A cell can have more than one finding: the cell that is not locked is also looked at by the rules that read references, and Ignore Error of one leaves the other.
+    void aFormulaInAnUnlockedCellIsAlsoCheckedByTheRulesThatReadReferences()
+    {
+        const QByteArray styles = stylesXml(QString(), QStringLiteral("<xf numFmtId=\"0\"/><xf numFmtId=\"0\" applyProtection=\"1\"><protection locked=\"0\"/></xf>"));
+        const QString rows = QStringLiteral("<row r=\"1\"><c r=\"A1\"><v>5</v></c><c r=\"B1\" s=\"1\"><f>SUM(A2:A4)</f><v>6</v></c></row><row r=\"2\"><c r=\"A2\"><v>1</v></c></row>"
+                                            "<row r=\"3\"><c r=\"A3\"><v>2</v></c></row><row r=\"4\"><c r=\"A4\"><v>3</v></c></row>");
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(rows)}, QByteArray(), QString(), QString(), styles)));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        auto kinds = [&] {
+            QList<int> out;
+            for (const crunch::FormulaProblem &p : w.formulaProblems()) out << int(p.kind);
+            return out;
+        };
+        QCOMPARE(kinds(), (QList<int>{int(crunch::FormulaProblem::Kind::UnlockedFormula), int(crunch::FormulaProblem::Kind::OmittedCells)}));
+        w.ignoreFormulaProblem(0, 1, int(crunch::FormulaProblem::Kind::OmittedCells));
+        QCOMPARE(kinds(), (QList<int>{int(crunch::FormulaProblem::Kind::UnlockedFormula)}));
+    }
+
     void aSheetRenamedOrDeletedIsFollowedInTheViews()
     {
         EditWindow e;

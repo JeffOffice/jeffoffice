@@ -1265,11 +1265,12 @@ public:
     std::vector<crunch::FormulaProblem> formulaProblems(bool patterns = true) const;
     // Which rules of Error Checking are on (Options > Formulas; a bit for each problem kind, jp::crunch::errorRuleBit): kept in the person's settings.
     quint32 errorRules() const { return m_errorRules; }
+    bool keepsNaturalSort() const { return !m_naturalKept.empty(); }   // a sort kept by a filter or a table was made with numbers in text by value (the file cannot say so)
     void setErrorRules(quint32 rules);
     // The cell's formula made as the problem's fix says (one step of Undo), for the problem at the cell.
     void fixFormulaProblem(quint32 row, quint32 col);
     // Ignores the problem of that cell (kept in the file, one step of Undo).
-    void ignoreFormulaProblem(quint32 row, quint32 col);
+    void ignoreFormulaProblem(quint32 row, quint32 col, int kind = -1);   // (`kind`: only the problem of that FormulaProblem::Kind; -1 for every problem of the cell)
     // The cells the Watch Window lists (kept while the workbook is open), and adding one; false if it is watched already or too many are.
     int watchCount() const { return int(m_watches.size()); }
     bool addWatch(int sheet, quint32 row, quint32 col);
@@ -1349,8 +1350,10 @@ private:
     std::atomic<bool> m_sortCancel{false};
     bool m_sortOrderedOk = false;
     quint32 m_errorRules = jp::crunch::kDefaultErrorRules;
-    bool m_sortNaturalAsked = false, m_sortNatural = false, m_naturalSortUsed = false;   // the sort being made asks for numbers in text by value; the last sort made did; one was made in this window's life
+    bool m_sortNaturalAsked = false, m_sortNatural = false;   // the sort being made asks for numbers in text by value; the last sort made did; the last sort made did
     bool m_sortOrdering = false;
+    std::set<std::pair<int, int>> m_naturalKept;   // the (sheet, table or -1) whose kept sort was made with numbers in text by value: the file's sort state cannot say so, so Reapply asks this
+    void shareErrorRules(quint32 rules);   // the rules of Error Checking are the program's: every open window takes them
     std::function<bool(const jp::office::sheet::CellRange &, jp::crunch::SortSpec *)> m_sortAsker;
     std::function<bool()> m_expandAsker;
     std::function<bool(QString *)> m_goToAsker;

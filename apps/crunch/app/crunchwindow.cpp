@@ -105,6 +105,16 @@ CrunchWindow *CrunchWindow::windowWith(const QString &path)
     return nullptr;
 }
 
+void CrunchWindow::shareErrorRules(quint32 rules)
+{
+    for (CrunchWindow *w : openWindows()) {
+        if (w == this || w->m_errorRules == rules) continue;
+        w->m_errorRules = rules;
+        w->startPatternScan();
+        w->refreshCellFlags();
+    }
+}
+
 QList<CrunchWindow *> CrunchWindow::crunchWindows()
 {
     QList<CrunchWindow *> out;
@@ -931,7 +941,10 @@ void CrunchWindow::createActions()
     connect(this, &CrunchWindow::sortFinished, this, [this](bool made) {
         if (!made) return;
         m_sortNatural = m_sortNaturalAsked;
-        if (m_sortNatural) m_naturalSortUsed = true;
+        // (only a sort the filter or the table keeps matters to the file: a later plain sort of it takes the note away)
+        const std::pair<int, int> key{m_sheet, selectedTable()};
+        if (m_sortNatural && m_session && m_session->savedSort(m_sheet, key.second).valid) m_naturalKept.insert(key);
+        else m_naturalKept.erase(key);
     });
     m_design = new ChartDesign(this, this);
     createChartActions();
