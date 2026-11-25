@@ -4571,7 +4571,7 @@
         },
         {
          "status": "partly",
-         "text": "c7ee25dd565843b5f302d1a7a78c45cad5cfad6361265969b6df04a11148dd73"
+         "text": "bdfbc699e498e0925b35e64f8b169ab8b6c6c84cd7866cad8b12a16a7032b64f"
         },
         {
          "hide_soon": true,
@@ -21782,6 +21782,18 @@
     "fr": ""
    }
   },
+  "bdfbc699e498e0925b35e64f8b169ab8b6c6c84cd7866cad8b12a16a7032b64f": {
+   "drop": false,
+   "en": "Opens `.pub` files from 1998 on, including linked text boxes, tables, pictures, and master pages.",
+   "es": "Abre archivos `.pub` desde 1998 en adelante, incluidos cuadros de texto vinculados, tablas, imágenes y páginas maestras.",
+   "fr": "Ouvre les fichiers `.pub` à partir de 1998, y compris les zones de texte liées, les tableaux, les images et les pages maîtresses.",
+   "soon": {
+    "drop": false,
+    "en": "Fonts stored inside `.pub` files, and page numbering of sections after the first",
+    "es": "Fuentes almacenadas dentro de los archivos `.pub` y numeración de páginas de las secciones posteriores a la primera",
+    "fr": "Polices stockées dans les fichiers `.pub` et numérotation des pages des sections après la première"
+   }
+  },
   "be121da03303adc8a052cda13953abb822b4dad709806354f90ea8edc0a4f708": {
    "drop": false,
    "en": "Open the folder that holds a workbook and copy its path.",
@@ -22488,18 +22500,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "c7ee25dd565843b5f302d1a7a78c45cad5cfad6361265969b6df04a11148dd73": {
-   "drop": false,
-   "en": "Opens `.pub` files from 1998 on, including linked text boxes, tables, pictures, and master pages.",
-   "es": "Abre archivos `.pub` desde 1998, incluidos cuadros de texto vinculados, tablas, imágenes y páginas maestras.",
-   "fr": "Ouvre les fichiers `.pub` depuis 1998, y compris les zones de texte liées, les tableaux, les images et les pages maîtresses.",
-   "soon": {
-    "drop": false,
-    "en": "Fonts stored inside `.pub` files, and page numbering of sections after the first",
-    "es": "Fuentes almacenadas dentro de archivos `.pub` y numeración de páginas de las secciones posteriores a la primera",
-    "fr": "Polices stockées dans les fichiers `.pub` et numérotation des pages des sections après la première"
    }
   },
   "c7effcf66af8bf7a353d41feefdd18c211371eb52bf5164fce5978a6a09ec9f3": {
