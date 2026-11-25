@@ -1842,6 +1842,12 @@ void FlowTests::hyphenationLimitedToSomeLanguagesLeavesTheOthersWhole()
     QVERIFY(jp::automaticHyphenationIn(QStringLiteral("it-IT")) && !jp::automaticHyphenationIn(QStringLiteral("it-CH")));
     QCOMPARE(linesOf(QStringLiteral("it-IT"), it), itAll);
     QCOMPARE(hyphenated(linesOf(QStringLiteral("en-US"), en)), 0);
+    QStringList many;   // (a hostile list is cut where it is read: 64 entries of 16 characters are kept)
+    for (int i = 0; i < 100000; ++i) many << QStringLiteral("x%1").arg(i);
+    many[64] = QStringLiteral("ru");
+    many[0] = QString(5000, QLatin1Char('q')) + QStringLiteral("ru");
+    jp::limitAutomaticHyphenationTo(many);
+    QVERIFY(jp::automaticHyphenationIn(QStringLiteral("x5")) && !jp::automaticHyphenationIn(QStringLiteral("ru-RU")));
     jp::limitAutomaticHyphenationTo({});
     QCOMPARE(linesOf(QStringLiteral("ru-RU"), ru), ruAll);   // (nothing changes unless given)
     QCOMPARE(linesOf(QStringLiteral("it-IT"), it), itAll);
