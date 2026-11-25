@@ -1713,6 +1713,16 @@ int closesFrom(const QVector<Block> &gap, int from)
     while (n < gap.size() && gap[n].role == Inline::Close) ++n;
     return n;
 }
+
+// Whether a paragraph from `a` to `z` is in a table (a table in a cell of another is in one too).
+bool holdsTable(const QTextBlock &a, const QTextBlock &z)
+{
+    for (QTextBlock b = a; b.isValid(); b = b.next()) {
+        if (inTable(b)) return true;
+        if (b == z) break;
+    }
+    return false;
+}
 } // namespace
 
 bool addRepeatingItem(WriteDoc &doc, int position, QString *problem)
@@ -1745,6 +1755,11 @@ bool addRepeatingItem(WriteDoc &doc, int position, QString *problem)
     if (record && !z.next().isValid()) {
         // (The paragraph that ends the story can't be taken away again by Reject All, which the new item must be able to be.)
         if (problem) *problem = QCoreApplication::translate("jp::write::ContentControls", "While Track Changes is on, an item can't be added to a section that ends the document.");
+        return false;
+    }
+    if (record && holdsTable(a, z)) {
+        // (The rows of its table would have to be recorded as inserted ones too.)
+        if (problem) *problem = QCoreApplication::translate("jp::write::ContentControls", "While Track Changes is on, an item that holds a table can't be added.");
         return false;
     }
     QVector<QVector<Block>> was[2];   // (the pieces each paragraph of the item keeps, before and after)
@@ -1834,6 +1849,10 @@ bool removeRepeatingItem(WriteDoc &doc, int position, QString *problem)
         }
         if (!z.next().isValid() || a.position() == 0) {
             if (problem) *problem = QCoreApplication::translate("jp::write::ContentControls", "While Track Changes is on, an item can't be removed from the end of the document.");
+            return false;
+        }
+        if (holdsTable(a, z)) {
+            if (problem) *problem = QCoreApplication::translate("jp::write::ContentControls", "While Track Changes is on, an item that holds a table can't be removed.");
             return false;
         }
         const WriteDoc::StepGroup group(doc);

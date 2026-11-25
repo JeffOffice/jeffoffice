@@ -3945,6 +3945,31 @@ private Q_SLOTS:
         QVERIFY2(removeRepeatingItem(*doc, doc->story()->findBlockByNumber(1).position() + 1, &why), qPrintable(why));
     }
 
+    void withTrackChangesAnItemThatHoldsATableIsRefusedWithAMessage()
+    {
+        const QByteArray nested = "<w:tbl><w:tblPr/><w:tblGrid><w:gridCol w:w=\"3000\"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:w=\"3000\" w:type=\"dxa\"/></w:tcPr>" + tableXml() + "<w:p/></w:tc></w:tr></w:tbl>";
+        for (const QByteArray &table : {tableXml(), nested}) {
+            const QByteArray inner = "<w:p><w:r><w:t>Task</w:t></w:r></w:p>" + table + "<w:p><w:r><w:t>Notes</w:t></w:r></w:p>";
+            auto doc = open(makeDocx("<w:p><w:r><w:t>Before</w:t></w:r></w:p>" + sectionXml(2, inner) + "<w:p><w:r><w:t>After</w:t></w:r></w:p>"));
+            QVERIFY(doc);
+            const QByteArray saved = documentXml(doc->toDocx());
+            doc->setTrackChanges(true);
+            const int at = doc->story()->findBlockByNumber(1).position() + 1;
+            QString why;
+            QVERIFY(!addRepeatingItem(*doc, at, &why));
+            QVERIFY(why.contains(QLatin1String("table")));
+            why.clear();
+            QVERIFY(!removeRepeatingItem(*doc, at, &why));
+            QVERIFY(why.contains(QLatin1String("table")));
+            QCOMPARE(documentXml(doc->toDocx()), saved);
+            QCOMPARE(documentRevisionCount(*doc), 0);
+            // With tracking off the item is added and removed as before.
+            doc->setTrackChanges(false);
+            QVERIFY2(addRepeatingItem(*doc, at, &why), qPrintable(why));
+            QVERIFY2(removeRepeatingItem(*doc, at, &why), qPrintable(why));
+        }
+    }
+
     void aRepeatingSectionIsMadeRoundTheParagraphAtTheCaretAndAHugeOneIsBounded()
     {
         Win win({"Row"});
