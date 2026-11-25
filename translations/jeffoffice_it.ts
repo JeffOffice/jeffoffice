@@ -12369,6 +12369,7 @@ Scaricarlo ora da %2? (%3, una sola volta.)</translation>
 <context>
     <name>QObject</name>
     <message>
+        <location filename="../apps/crunch/app/getdata.cpp" line="+108"/>
         <location filename="../apps/crunch/app/linkprogress.cpp" line="+25"/>
         <source>Cancel</source>
         <translation type="unfinished">Annulla</translation>
@@ -16639,7 +16640,12 @@ Aprilo nel programma di posta elettronica, aggiungi i destinatari e invialo.</tr
         <translation type="unfinished">formattazione all&apos;interno delle parole di una nota</translation>
     </message>
     <message>
-        <location line="-57"/>
+        <location line="+22"/>
+        <source>the links from tables to the files their rows were loaded from (Refresh needs them)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-79"/>
         <location line="+52"/>
         <location filename="../libs/office/sheet/xls.cpp" line="-1"/>
         <source>charts</source>
@@ -31430,7 +31436,7 @@ Il file esistente non è stato modificato.</translation>
         <translation type="unfinished">Da testo/CSV</translation>
     </message>
     <message>
-        <location line="+1"/>
+        <location line="+2"/>
         <location line="+109"/>
         <location line="+23"/>
         <location line="+7"/>
@@ -32359,20 +32365,108 @@ Impossibile leggere il file.</translation>
         <translation type="unfinished">Un&apos;altra tabella pivot si chiama &quot;%1&quot;. Scegli un altro nome.</translation>
     </message>
     <message>
-        <location line="+23"/>
+        <location filename="../apps/crunch/app/crunchwindow_getdata.cpp" line="+25"/>
+        <source>From File…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location line="+85"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+23"/>
         <location line="+3"/>
         <location line="+5"/>
         <source>Refresh</source>
         <translation type="unfinished">Aggiorna</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="-84"/>
+        <location line="+84"/>
+        <location line="+49"/>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+2"/>
         <location line="+3"/>
         <source>Refresh All</source>
         <translation type="unfinished">Aggiorna tutto</translation>
     </message>
     <message>
-        <location line="+2"/>
+        <location line="-108"/>
+        <source>Get Data</source>
+        <translation type="unfinished">Recupera dati</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>That is not a cell. Write it as B2.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>That file is not JSON, XML, or a workbook.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Reading the file…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <location line="+75"/>
+        <source>The read was stopped. Nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-71"/>
+        <location line="+24"/>
+        <source>Nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-8"/>
+        <source>The table would go over cells that hold something (%1 cells in all). Replace them?</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+29"/>
+        <source>Click a cell in a table that was made by Get Data first.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>%1: the link to the file can&apos;t be read, so nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Reading %1…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>The read was stopped. The tables after %1 were not read.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>%1: %2 Nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <location line="+10"/>
+        <source>%1: %2</source>
+        <translation type="unfinished">%1: %2</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <source>The data was read again from its files.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Nothing needed to be read again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/app/crunchwindow_pivot.cpp" line="+2"/>
         <source>Change Data Source…</source>
         <translation type="unfinished">Cambia origine dati…</translation>
     </message>
@@ -33569,7 +33663,22 @@ Impossibile leggere il file.</translation>
         <translation type="unfinished">Rimuovi collegamenti esterni</translation>
     </message>
     <message>
-        <location line="+10"/>
+        <location line="+9"/>
+        <source>Links to data files</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>Tables made by Get Data remember the file they were loaded from, with its path on this computer. Removing the links keeps the tables and their cells, and Refresh no longer reads the files.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Remove Links to Data Files</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+8"/>
         <source>Data that other programs added to the file, which you can&apos;t see on a sheet. It is left out when you save.</source>
         <translation type="unfinished">Dati che altri programmi hanno aggiunto al file e che non puoi vedere in un foglio. Vengono esclusi al salvataggio.</translation>
     </message>
@@ -46765,6 +46874,164 @@ Impossibile leggere il file.</translation>
         <location line="+222"/>
         <source>Opens a gallery to choose from: the arrow keys move in it, and Enter chooses.</source>
         <translation type="unfinished">Apre una raccolta in cui scegliere: i tasti di direzione consentono di spostarsi e Invio seleziona.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::GetDataDialog</name>
+    <message>
+        <location filename="../apps/crunch/app/getdata.cpp" line="-74"/>
+        <source>number</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>true or false</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>date</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>text</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+39"/>
+        <location line="+190"/>
+        <source>The read was stopped.</source>
+        <translation type="unfinished">La lettura è stata interrotta.</translation>
+    </message>
+    <message>
+        <location line="-174"/>
+        <source>That kind of file can&apos;t be loaded.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+39"/>
+        <location line="+59"/>
+        <source>Get Data from a File</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-57"/>
+        <source>Loads the rows of a JSON file, an XML file, or a workbook as a table. The table remembers the file, so Refresh can read it again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <location line="+4"/>
+        <source>File</source>
+        <translation type="unfinished">File</translation>
+    </message>
+    <message>
+        <location line="-3"/>
+        <source>The file on this computer</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Browse…</source>
+        <translation type="unfinished">Sfoglia…</translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <location line="+6"/>
+        <source>List to load</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-3"/>
+        <source>Lists of values</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Join lists of values into one cell</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Spread lists of values over columns</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
+        <source>Load every column as text</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Preview of the first rows</source>
+        <translation type="unfinished">Anteprima delle prime righe</translation>
+    </message>
+    <message>
+        <location line="+10"/>
+        <location line="+1"/>
+        <source>Put the table at</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Load</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+7"/>
+        <source>Data files (*.json *.xml *.xlsx *.xlsm *.xls *.ods)</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>All Files (*)</source>
+        <translation type="unfinished">Tutti i file (*)</translation>
+    </message>
+    <message>
+        <location line="+63"/>
+        <source>Only a file on this computer can be loaded, not a web address or a file on another computer.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>That file is not JSON, XML, or a workbook.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>The file is not there.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+6"/>
+        <source>Reading the file…</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+13"/>
+        <source>Sheet %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Table %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Named range %1</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+14"/>
+        <source>The first 20 rows are shown, and the type beside each name is judged from them. The whole file is checked when it is loaded, so a column may end up as text.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+0"/>
+        <source>All the rows are shown.</source>
+        <translation type="unfinished"></translation>
     </message>
 </context>
 <context>
@@ -70411,13 +70678,14 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Inserisci foglio grafico</translation>
     </message>
     <message>
-        <location line="+49"/>
+        <location filename="../apps/crunch/core/editdata.cpp" line="+84"/>
+        <location filename="../apps/crunch/core/editsheets.cpp" line="+49"/>
         <location filename="../apps/crunch/core/edittables.cpp" line="-320"/>
         <source>The workbook has as many tables as JeffCrunch works with.</source>
         <translation type="unfinished">La cartella di lavoro contiene già il numero massimo di tabelle gestite da JeffCrunch.</translation>
     </message>
     <message>
-        <location line="+108"/>
+        <location filename="../apps/crunch/core/editsheets.cpp" line="+108"/>
         <source>More formulas than JeffCrunch changes at once (%1) use this sheet&apos;s tables.</source>
         <translation type="unfinished">Le tabelle di questo foglio sono usate da più formule di quante JeffCrunch ne possa modificare contemporaneamente (%1).</translation>
     </message>
@@ -71061,19 +71329,131 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">Una tabella richiede una riga di dati sotto i nomi delle colonne.</translation>
     </message>
     <message>
-        <location line="+5"/>
+        <location filename="../apps/crunch/core/editdata.cpp" line="-2"/>
+        <source>There are no rows to load.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This sheet is protected, so a table can&apos;t be put on it.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>There is no room for the table there: it needs %1 rows and %2 columns from the chosen cell.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <location filename="../apps/crunch/core/edittables.cpp" line="+5"/>
         <location line="+514"/>
         <source>Merged cells can&apos;t be in a table. Unmerge them first.</source>
         <translation type="unfinished">Una tabella non può contenere celle unite. Separarle prima.</translation>
     </message>
     <message>
-        <location line="-505"/>
+        <location line="+9"/>
+        <location filename="../apps/crunch/core/edittables.cpp" line="-505"/>
         <location line="+26"/>
         <source>An array formula or a data table is in those cells, so they can&apos;t be a table.</source>
         <translation type="unfinished">Le celle contengono una formula di matrice o una tabella dati, quindi non possono diventare una tabella.</translation>
     </message>
     <message>
-        <location line="+25"/>
+        <location line="+1"/>
+        <source>Those cells are not empty.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+31"/>
+        <source>Getting data</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>That table is not there.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>This sheet is protected, so the table can&apos;t be changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>This table was not made by Get Data, so it has no file to read again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The table has a row of totals or no row of names. Take the row of totals off first, and refresh again.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+21"/>
+        <source>The columns in the file have changed, so nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The file no longer has: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The file now also has: %1.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Make the table again with Get Data, or put the columns back in the file.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>The table no longer has the column &quot;%1&quot; that came from the file, so nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>The columns in the file are not the table&apos;s (the file has %1 and the table has %2), so nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>The columns in the file are not the table&apos;s, so nothing was changed. The first one that differs is &quot;%1&quot;.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+4"/>
+        <source>The file now has no rows, so nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>The rows would go past the end of the sheet, so nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>There is no room under the table for the new rows, so nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>Merged cells are under the table, so nothing was changed.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+34"/>
+        <source>Refreshing data</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+27"/>
+        <source>Removing links to files</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location filename="../apps/crunch/core/edittables.cpp" line="+25"/>
         <source>Making a table</source>
         <translation type="unfinished">Creazione di una tabella</translation>
     </message>
@@ -78398,6 +78778,197 @@ Impossibile applicare la password al file.</translation>
     </message>
 </context>
 <context>
+    <name>jp::office::sheet::DataSource</name>
+    <message>
+        <location filename="../libs/office/sheet/datasource.cpp" line="+25"/>
+        <location filename="../libs/office/sheet/datasourcebook.cpp" line="+32"/>
+        <source>The file is larger than %1 MB, which is more than this program reads as data.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+81"/>
+        <location filename="../libs/office/sheet/datasourcebook.cpp" line="+194"/>
+        <source>Only the first %1 columns are loaded; the rest are left out.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Text longer than %1 characters is cut.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Items inside items more than %1 levels deep are kept as text.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A list of values with more than 10,000 items is cut after the first 10,000.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>A list of values with more than %1 items fills only the first %1 columns; the rest are left out.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Some columns got a new name, because another column had the same name.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+341"/>
+        <location line="+210"/>
+        <location line="+51"/>
+        <location line="+47"/>
+        <source>The file has items inside items more deeply than any real file has.</source>
+        <translation>Il file contiene elementi annidati più in profondità di qualsiasi file reale.</translation>
+    </message>
+    <message>
+        <location line="-307"/>
+        <source>The file has more values than this program reads as data.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The file is not valid JSON (near byte %1).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+132"/>
+        <source>The file is not valid XML (line %1).</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>The file has a document type or entities, which this program does not read.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+16"/>
+        <source>The file holds no list of items with named values to load.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>That list is not in the file.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+17"/>
+        <source>The file repeats a name inside an item; the last value is kept.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Some numbers are too large or too small for a cell, so they are kept as text, as written.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <source>Some characters in the file could not be read and are shown as a replacement mark.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <location line="+148"/>
+        <location filename="../libs/office/sheet/datasourcebook.cpp" line="+1"/>
+        <source>Only the first %1 rows are loaded; the rest are left out.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-146"/>
+        <source>The list has no values to load.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+36"/>
+        <source>The file has more kinds of items than any real file has.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+15"/>
+        <source>The file holds no item that repeats, so there are no rows to load.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+97"/>
+        <source>That item is not in the file, or holds no values to load.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+88"/>
+        <location filename="../libs/office/sheet/datasourcebook.cpp" line="-199"/>
+        <source>Only a file on this computer can be loaded, not a web address or a file on another computer.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <location filename="../libs/office/sheet/datasourcebook.cpp" line="+2"/>
+        <source>The file is not there.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+1"/>
+        <location filename="../libs/office/sheet/datasourcebook.cpp" line="+1"/>
+        <source>That is not a file.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <source>The file can&apos;t be opened.</source>
+        <translation>Il file non può essere aperto.</translation>
+    </message>
+    <message>
+        <location line="+3"/>
+        <location filename="../libs/office/sheet/datasourcebook.cpp" line="+70"/>
+        <location line="+67"/>
+        <source>The read was stopped.</source>
+        <translation type="unfinished">La lettura è stata interrotta.</translation>
+    </message>
+    <message>
+        <location filename="../libs/office/sheet/datasourcebook.cpp" line="-134"/>
+        <source>The workbook can&apos;t be opened.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+83"/>
+        <source>The workbook has no sheet, table, or named range with cells to load.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+19"/>
+        <location line="+26"/>
+        <source>That sheet is not in the workbook.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="-13"/>
+        <source>That table is not in the workbook.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+9"/>
+        <source>That named range is not in the workbook, or is not a block of cells.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+2"/>
+        <source>That is not a sheet, table, or named range.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+11"/>
+        <source>The sheet is empty.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+57"/>
+        <source>That holds no rows under its names.</source>
+        <translation type="unfinished"></translation>
+    </message>
+</context>
+<context>
     <name>jp::office::sheet::Entry</name>
     <message>
         <location filename="../libs/office/sheet/entry.cpp" line="+1161"/>
@@ -79421,7 +79992,7 @@ Impossibile applicare la password al file.</translation>
         <translation type="unfinished">L&apos;operazione rimuoverebbe tutte le colonne di una tabella. Selezionane solo alcune oppure modifica le celle esterne alla tabella.</translation>
     </message>
     <message>
-        <location filename="../libs/office/sheet/tablepart.cpp" line="+559"/>
+        <location filename="../libs/office/sheet/tablepart.cpp" line="+602"/>
         <source>A table needs a name. Type one.</source>
         <translation type="unfinished">La tabella deve avere un nome. Digitane uno.</translation>
     </message>

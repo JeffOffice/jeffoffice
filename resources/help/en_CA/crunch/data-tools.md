@@ -7,6 +7,22 @@ The **Data** tab has the tools that work on a list of values: getting text from 
 
 **From Text/CSV** opens a text file (.csv, .tsv, or .txt). It is the same as **Open Text File** on the File tab. JeffCrunch asks how the file is split into columns and what kind of text it holds, then shows it as a new workbook.
 
+## From File
+
+**From File** in the **Get Data** group loads the rows of a JSON file, an XML file, or another workbook as a table. Only a file on this computer can be loaded. A web address or a file on another computer is refused.
+
+1. Click **From File**, then **Browse** and pick the file. The first rows show at once, with the kind JeffCrunch found for each column from those first rows: number, date, true or false, or text. The whole file is checked when it loads, so a column can end up as text. Nothing on the sheet changes until you click **Load**.
+2. When the file holds more than one list, pick the one to load. In a JSON file it is a list of items with named values, such as `$.items`. In an XML file it is an item that repeats, such as `/feed/entry`. In a workbook it is a sheet, a table, or a named range.
+3. A JSON item inside an item becomes a column named `outer.inner`, down to four levels. A list of plain values is joined into one cell (the first 10,000 values), or spread over columns (the first 16), as you choose. In XML, the attributes and the child items become columns. Two different values never share a column: when two would get the same name, the second gets a number added or, in XML, its prefix, and a note says so. A name repeated inside one JSON item keeps its last value, and a note says so. A number too large or too small for a cell is kept as text, as written, and a character that can't be read is shown as a replacement mark; both are noted.
+4. Tick **Load every column as text** to keep every value as it is written. A column of numbers with a leading zero, such as 007, is always kept as text.
+5. Type the cell where the table goes, then click **Load**. If the table would cover cells that hold something, JeffCrunch asks before it replaces them. If there is no room, or the sheet is protected, you are told and nothing changes.
+
+The table is one step of **Undo**. It remembers the file and your choices. To read the file again, click a cell in the table and click **Refresh** on the Data tab. **Refresh All** is the large button beside it: it reads every table made by Get Data, then refreshes every pivot table, all as one step of Undo. The table grows or shrinks to the rows of the file. Columns you added beside the table stay: a formula you filled down is filled into new rows, and the rows that are gone from the file go from them too. If the file is gone or can't be read, you are told and nothing changes. If the file's own columns changed, you are told which ones are missing or new, and nothing changes. Make the table again with Get Data, or put the columns back in the file.
+
+The link to the file is kept in the table in a saved `.xlsx` workbook, in a part that other programs ignore. The link holds the file's full path on this computer, so anyone who gets the workbook can read that path. To take it out before you share the workbook, use **Inspect**, then **Links to data files**, then **Remove**. A copy saved as another kind of file does not keep it, and **Check Compatibility** says so. **Inspect** lists the links under **Links to data files** and can remove them. The tables and their cells stay.
+
+Files are read with limits: a file up to 64 MB, 200,000 rows, 256 columns, and 32,767 characters in a cell. XML with a document type or entities is refused. Anything cut by a limit is said.
+
 ## Edit Links
 
 If a workbook has formulas that read another workbook (such as ='[Prices.xlsx]Sheet1'!A1), **Edit Links** in the **Get Data** group lists those other workbooks, which are called sources. Each row shows where the source is, and its status. Until the workbook is opened again with its sources, it shows the numbers its file stored from them.

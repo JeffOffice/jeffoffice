@@ -1812,6 +1812,13 @@ No se puede leer el fichero.</translation>
     </message>
 </context>
 <context>
+    <name>jp::GetDataDialog</name>
+    <message>
+        <source>All Files (*)</source>
+        <translation type="unfinished">Todos los ficheros (*)</translation>
+    </message>
+</context>
+<context>
     <name>jp::GraphicsPane</name>
     <message>
         <source>The file is outside the publication's folder, so JeffPub has not looked at it. The page shows what the publication stored. Click Update Link to use the file.
@@ -2896,6 +2903,17 @@ No se pudo aplicar la contraseña al fichero.</translation>
     <message>
         <source>This file has more rows than a sheet holds, which is 1,048,576. The rows after that were not read.</source>
         <translation type="unfinished">Este fichero tiene más filas de las que admite una hoja, que son 1.048.576. Las filas posteriores no se leyeron.</translation>
+    </message>
+</context>
+<context>
+    <name>jp::office::sheet::DataSource</name>
+    <message>
+        <source>The file has items inside items more deeply than any real file has.</source>
+        <translation type="unfinished">El fichero tiene elementos anidados a más profundidad que cualquier fichero real.</translation>
+    </message>
+    <message>
+        <source>The file can't be opened.</source>
+        <translation type="unfinished">No se puede abrir el fichero.</translation>
     </message>
 </context>
 <context>
