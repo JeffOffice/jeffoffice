@@ -407,6 +407,8 @@ void Exporter::writeAnimations(X &x, const Page &page)
                 continue;
             }
             if (e.iterate > 0) ++iterated;
+            // A dim to a color at the next click has no match here: the effect is kept and told of.
+            if (!e.dimOnNextClick.isEmpty()) ++dimmed;
             X ex;
             bool aimed = false, usable = true;
             QString firstTarget;
@@ -550,9 +552,7 @@ void Exporter::writeAnimations(X &x, const Page &page)
                         break;
                     }
                     case Behavior::Kind::Color:
-                        // A dim to a color after the effect has no match here: the effect is kept and told of.
-                        if (b.attribute == QLatin1String("dim") && b.afterwards) ++dimmed;
-                        else usable = false;
+                        usable = false;
                         break;
                     case Behavior::Kind::Command:
                         usable = false;
