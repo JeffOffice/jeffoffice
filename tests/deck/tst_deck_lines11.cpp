@@ -1225,7 +1225,8 @@ private Q_SLOTS:
             w.show();
             PictureItem *added = addPicture(w, QStringLiteral("Later"));
             const QString id = added->id;
-            added->imageId = w.editor()->doc()->addImage(pureColorPng(400, 300), QStringLiteral("png"));
+            // (A picture of its own size for each look: the finished pictures are kept by the file's bytes, so another test's picture of the same bytes would be found, not asked for.)
+            added->imageId = w.editor()->doc()->addImage(pureColorPng(391 + style, 300), QStringLiteral("png"));
             auto pic = [&] { return static_cast<PictureItem *>(w.editor()->doc()->item(id)); };
             pic()->rect = QRectF(100, 100, 400, 300);
             pic()->imgRect = QRectF(0, 0, 400, 300);
