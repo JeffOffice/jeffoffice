@@ -7095,7 +7095,7 @@
       },
       {
        "status": "partly",
-       "text": "03197e7ca9b265ea7028325618f3f85cf0a2859d8444b788ae9c2faae8450118"
+       "text": "0ecc0ef48dd3ee9ac41d1215ccbcf39da77fcb4e3e730c8a08c7129330503b46"
       },
       {
        "status": "partly",
@@ -8023,18 +8023,6 @@
     "en": "",
     "es": "",
     "fr": ""
-   }
-  },
-  "03197e7ca9b265ea7028325618f3f85cf0a2859d8444b788ae9c2faae8450118": {
-   "drop": false,
-   "en": "Insert plain text, drop-down list, date picker, and check box content controls, with a title, a tag, and locks against deleting or editing. Drop-down list items can be added, renamed, removed, and moved, and the date format can be set.",
-   "es": "Inserte controles de contenido de texto sin formato, lista desplegable, selector de fecha y casilla de verificación, con título, etiqueta y bloqueos contra eliminación o edición. Los elementos de la lista desplegable se pueden agregar, renombrar, quitar y mover, y se puede definir el formato de fecha.",
-   "fr": "Insérez des contrôles de contenu de texte brut, de liste déroulante, de sélecteur de date et de case à cocher, avec un titre, une balise et des verrous contre la suppression ou la modification. Les éléments de la liste déroulante peuvent être ajoutés, renommés, supprimés et déplacés, et le format de date peut être défini.",
-   "soon": {
-    "drop": false,
-    "en": "Content controls: rich text, picture, combo box, building-block gallery, repeating section, Design Mode, Group and Ungroup",
-    "es": "Controles de contenido: texto enriquecido, imagen, cuadro combinado, galería de bloques de creación, sección repetida, modo Diseño, Agrupar y Desagrupar",
-    "fr": "Contrôles de contenu : texte enrichi, image, zone de liste modifiable, galerie de blocs de construction, section répétée, mode Création, Grouper et Dissocier"
    }
   },
   "033237efbaa4c9a35b5b953128e30e7c9d5db2030a52f196f98bc877a82e1bd3": {
@@ -9031,6 +9019,18 @@
     "en": "",
     "es": "",
     "fr": ""
+   }
+  },
+  "0ecc0ef48dd3ee9ac41d1215ccbcf39da77fcb4e3e730c8a08c7129330503b46": {
+   "drop": false,
+   "en": "Insert content controls at the cursor: rich text, plain text, picture, combo box, drop-down list, date picker, check box, and repeating section. Set a title, a tag, and locks against deleting a control or editing its contents.",
+   "es": "Inserte controles de contenido en el cursor: texto enriquecido, texto sin formato, imagen, cuadro combinado, lista desplegable, selector de fecha, casilla de verificación y sección repetible. Defina un título, una etiqueta y bloqueos contra la eliminación de un control o la edición de su contenido.",
+   "fr": "Insérez des contrôles de contenu à l’emplacement du curseur : texte enrichi, texte brut, image, zone de liste déroulante modifiable, liste déroulante, sélecteur de date, case à cocher et section répétée. Définissez un titre, une balise et des verrous contre la suppression d’un contrôle ou la modification de son contenu.",
+   "soon": {
+    "drop": false,
+    "en": "Content controls: building-block gallery, Design Mode, Group and Ungroup",
+    "es": "Controles de contenido: galería de bloques de creación, modo de diseño, agrupar y desagrupar",
+    "fr": "Contrôles de contenu : galerie de blocs de construction, mode Création, grouper et dissocier"
    }
   },
   "0f03a60b8bab28f933c465b6a2b75f89a657b31b2b88940709eda6018af0decb": {
