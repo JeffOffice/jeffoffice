@@ -12,9 +12,9 @@
 #include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QHash>
+#include <QMultiHash>
 #include <QJsonArray>
 #include <QJsonDocument>
-#include <QRegularExpression>
 #include <QSet>
 #include <QTextBlock>
 #include <QTextCursor>
@@ -354,23 +354,42 @@ void restyle(QTextDocument *sd, const QTextCharFormat &base)
     }
 }
 
+int *g_soundCompares = nullptr;
+
 // The sounds the effects of a slide play are kept among its presentation's media and named in its timing: each is brought to `to` (one that is there already,
-// by what it holds, is used), the timing names the new ids, and a sound that can't come (it is not there, is larger than a sound of an effect may be, or the
-// presentation has no room for it) is taken out of its effect alone. Returns how many were taken out.
+// by what it holds, is used), the timing names the new ids, and a sound that can't come (it is not there, is larger than a sound of an effect may be, the
+// presentation has no room for it, or the slide names more than kMostBroughtSounds) is taken out of its effect alone. Returns how many were taken out.
 int carrySounds(Document &to, const Document &from, QJsonObject *props)
 {
     const QString timing = props->value(QStringLiteral("timingXml")).toString();
     if (!timing.contains(QLatin1String("embed=\"media:"))) return 0;
-    static const QRegularExpression named(QStringLiteral("\\b[\\w.-]+:embed=\"media:([^\"]*)\""));
+    // What is stored, by size once: only sounds of one size are compared, and what is used is counted once.
+    QMultiHash<qint64, QString> bySize;
+    qint64 used = 0;
+    for (auto it = to.media.cbegin(); it != to.media.cend(); ++it) {
+        bySize.insert(it->bytes.size(), it.key());
+        used += it->bytes.size();
+    }
+    for (const ImageData &image : std::as_const(to.images)) used += image.bytes.size();
+    const QStringList named = timingSoundIds(timing);
     QHash<QString, QString> ids;
     int left = 0;
-    for (auto it = named.globalMatch(timing); it.hasNext();) {
-        const QString id = it.next().captured(1);
-        if (ids.contains(id)) continue;
-        const auto data = from.media.constFind(id);
+    for (int n = 0; n < named.size(); ++n) {
+        const QString &id = named[n];
         QString made;
-        if (data != from.media.cend() && !data->bytes.isEmpty() && data->bytes.size() <= kMaxEffectSoundBytes && mediaWouldFit(to, data->bytes))
-            made = to.addMedia(data->bytes, data->contentType, data->extension);
+        const auto data = from.media.constFind(id);
+        if (n < kMostBroughtSounds && data != from.media.cend() && !data->bytes.isEmpty() && data->bytes.size() <= kMaxEffectSoundBytes) {
+            const qint64 size = data->bytes.size();
+            for (auto same = bySize.constFind(size); same != bySize.cend() && same.key() == size && made.isEmpty(); ++same) {
+                if (g_soundCompares) ++*g_soundCompares;
+                if (to.media.value(same.value()).bytes == data->bytes) made = same.value();
+            }
+            if (made.isEmpty() && used + size <= mediaByteLimit()) {
+                made = to.addMedia(data->bytes, data->contentType, data->extension);
+                bySize.insert(size, made);
+                used += size;
+            }
+        }
         if (made.isEmpty()) ++left;
         ids.insert(id, made);
     }
@@ -392,6 +411,8 @@ void takeLayoutLook(Document &to, Page &slide, const MasterPage &layout)
 }
 
 } // namespace
+
+void setSoundCompareCounter(int *counter) { g_soundCompares = counter; }
 
 int insertSlideFrom(Document &to, int at, const Document &from, int slide, bool keepFormatting, QStringList *notes)
 {

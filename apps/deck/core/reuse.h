@@ -31,6 +31,11 @@ namespace jp::deck {
 // for a sound of an effect, or for the room this presentation has) is left out of its effect alone, and `notes` (when given) says so.
 int insertSlideFrom(Document &to, int at, const Document &from, int slide, bool keepFormatting, QStringList *notes = nullptr);
 
+// The most distinct sounds one slide brought in may carry (the rest are left out, with the same note).
+constexpr int kMostBroughtSounds = 64;
+// A test's count of the byte-for-byte compares the lookup of a stored sound makes (null: not counted).
+void setSoundCompareCounter(int *counter);
+
 // A slide's title for a list: the first line of its title placeholder, else
 // the title the page has; empty for none.
 QString slideTitle(const Document &d, int slide);

@@ -84,6 +84,8 @@ QString timingWithoutShapes(const QString &timingXml, const QSet<qint64> &shapes
 // The sounds effects play (the "media:<id>" an effect's sound names), named by other ids: `ids` maps each id to its new one, or to an empty id for a sound that
 // goes, which takes only that sound out of its effect. An id not in `ids` stays. The same string when nothing is named or the timing can't be read.
 QString timingWithSoundIds(const QString &timingXml, const QHash<QString, QString> &ids);
+// The ids of those sounds, each once, in the order the timing names them (found by the walk timingWithSoundIds remaps by).
+QStringList timingSoundIds(const QString &timingXml);
 
 // What the slide's timing says to do with a movie or sound, as the show plays
 // it. A cue is a call at a moment: ms after its step starts.

@@ -773,6 +773,32 @@ std::pair<QString, QString> *soundEmbed(Node &audio)
 
 } // namespace
 
+QStringList timingSoundIds(const QString &timingXml)
+{
+    QStringList found;
+    QSet<QString> seen;
+    Node root;
+    if (!timingXml.contains(QLatin1String("embed=\"media:")) || !readTree(timingXml, &root)) return found;
+    std::vector<Node *> pending{&root};
+    while (!pending.empty()) {
+        Node *n = pending.back();
+        pending.pop_back();
+        if (n->local() == QLatin1String("subTnLst"))
+            for (Node &k : n->kids) {
+                if (k.local() != QLatin1String("audio")) continue;
+                if (auto *embed = soundEmbed(k)) {
+                    const QString id = embed->second.mid(6);
+                    if (!seen.contains(id)) {
+                        seen.insert(id);
+                        found << id;
+                    }
+                }
+            }
+        for (Node &k : n->kids) pending.push_back(&k);
+    }
+    return found;
+}
+
 QString timingWithSoundIds(const QString &timingXml, const QHash<QString, QString> &ids)
 {
     Node root;
