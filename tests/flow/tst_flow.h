@@ -1410,6 +1410,7 @@ private Q_SLOTS:
     void wordLinesOfMoreMeasuredFaces();
     void wordLinesOfMissingFamiliesAreTheStandIns();
     void symbolFontCharactersAreTheirPicturesAtTheirOwnWidths();
+    void aPublicationsNumbersInSymbolCirclesAreDrawnAsTheirPictures();
     void courierNewIsDrawnInAThinFaceAndSetAsItself();
     void theCourierStrokeLeavesTheLettersWhereTheyAre();
     void theCourierStrokeIsWorkedOutOncePerLetterAndRun();

@@ -875,8 +875,9 @@ static QString symbolTextCharacter(const QString &family, uint code)
         if (code == 0x8B) return QString(QChar(char16_t(0x24FF)));
         if (code >= 0x8C && code <= 0x95) return QString(QChar(char16_t(0x2776 + (code - 0x8C))));
     } else if (f == QLatin1String("wingdings 2")) {
-        // The numbers 1 to 3 in dark circles (the rest of the row is read from reference pictures when a file shows it).
-        if (code >= 0x75 && code <= 0x77) return QString(QChar(char16_t(0x2776 + (code - 0x75))));
+        // The numbers 1 to 10 outlined (6A to 73), and in dark circles (75 to 7E): read from reference pictures of files that count with them.
+        if (code >= 0x6A && code <= 0x73) return QString(QChar(char16_t(0x2460 + (code - 0x6A))));
+        if (code >= 0x75 && code <= 0x7E) return QString(QChar(char16_t(0x2776 + (code - 0x75))));
     }
     return symbolToUnicode(family, code);
 }

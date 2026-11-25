@@ -1558,6 +1558,33 @@ void FlowTests::symbolFontCharactersAreTheirPicturesAtTheirOwnWidths()
     if (checked == 0) QSKIP("Symbol, Wingdings, and Webdings are all installed here: their characters are drawn by the fonts");
 }
 
+// A publication's text (no word processor's lines, no slide's) in the second set of Wingdings, where this machine lacks it: the codes 6A to 73 are the numbers 1 to
+// 10 in outlined circles, and 75 to 7E the same in dark circles. A slide's text keeps its own path (its file reader changes them), and the stored text is not changed.
+void FlowTests::aPublicationsNumbersInSymbolCirclesAreDrawnAsTheirPictures()
+{
+    if (QFontDatabase::hasFamily(QStringLiteral("Wingdings 2"))) QSKIP("Wingdings 2 is installed here: its characters are drawn by the font");
+    auto build = [](bool slide, QString *stored) {
+        auto doc = std::make_unique<QTextDocument>();
+        QTextCursor c(doc.get());
+        QTextCharFormat cf;
+        cf.setFontFamilies({QStringLiteral("Wingdings 2")});
+        cf.setFontPointSize(10);
+        c.setCharFormat(cf);
+        c.insertText(QString::fromLatin1("jsu~"), cf);
+        *stored = doc->toPlainText();
+        LayoutEnv env;
+        env.slideLines = slide;
+        StoryLayout lay;
+        lay.build(doc.get(), {plainFrame(300, 700)}, env);
+        const auto lines = lay.lineInfo(0);
+        return lines.isEmpty() ? QString() : lines[0].text;
+    };
+    QString stored;
+    QCOMPARE(build(false, &stored), QStringLiteral("\u2460\u2469\u2776\u277F"));
+    QCOMPARE(stored, QStringLiteral("jsu~"));
+    QCOMPARE(build(true, &stored), QStringLiteral("jsu~"));
+}
+
 
 // Courier New, where the machine lacks it, is drawn in TeX Gyre Cursor, a face of Courier's widths (600 units in 1000, Courier New's 1229 in 2048 to a ten-thousandth of an
 // em) whose strokes are as thin as any bundled (its stand-in for a publisher's text, Cousine, is heavy), fully opaque in the text's own color, and its line stays Courier

@@ -4157,8 +4157,9 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                     rf.setFontCapitalization(QFont::MixedCase);
                 }
                 // The characters of a symbol font that this machine lacks are shown as the pictures they stand for (the font's own widths are given
-                // them in applyLetterWidths): a degree sign from Symbol, an arrow from Wingdings, a banner's block from Webdings.
-                if (env.wordLines) {
+                // them in applyLetterWidths): a degree sign from Symbol, an arrow from Wingdings, a banner's block from Webdings. (Not a slide's text, whose file
+                // reader changes them as it reads.)
+                if (env.wordLines || !env.slideLines) {
                     const QString family = rf.fontFamilies().toStringList().value(0);
                     if (const SymbolPictures *pictures = hasFamilyCached(family) ? nullptr : symbolPicturesOf(family))
                         for (QChar &ch : shown)
