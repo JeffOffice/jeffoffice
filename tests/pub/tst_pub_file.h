@@ -145,6 +145,9 @@ private Q_SLOTS:
     void pubPictureTurnsAndFill();
     void pubFormulaChainIsFast();
     void pubHugeCoordinateSpace();
+    void pubOldLayoutPagesWithoutSize();
+    void pubFirstPageMarkedSpecialIsKept();
+    void pubContentWithNoObjectIsRefused();
     void pubShadowFromLineColor();
     void pubLineCornersRoundTrip();
     void pubOutlineKeepsFrame();

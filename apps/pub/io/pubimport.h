@@ -17,6 +17,7 @@ struct PubImportReport {
     int linkedChains = 0;
     int attachedEnds = 0;   // connector ends attached to objects
     int inlineObjects = 0;  // objects set in text
+    int fileStories = 0, fileRecords = 0;   // stories with text and top-level shape records the file holds, whether or not any reached a page
     QStringList fontsUsed;
     QStringList warnings;
     // The fonts the file carries (EmbeddedFonts::use makes them the publication's own while it is open); none unless the import succeeded.

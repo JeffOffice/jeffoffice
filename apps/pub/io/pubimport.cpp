@@ -174,6 +174,8 @@ public:
     void startDocument(const RVNGPropertyList &p) override
     {
         // The publication's default tab stop, within the 1 to 1,584 points Publisher takes.
+        if (p["jp:stories"]) m_rep.fileStories = p["jp:stories"]->getInt();
+        if (p["jp:records"]) m_rep.fileRecords = p["jp:records"]->getInt();
         if (p["jp:default-tab-stop"]) m_doc.defaultTabStop = std::clamp(toPt(p["jp:default-tab-stop"]), 1.0, 1584.0);
     }
     void endDocument() override {}
@@ -1679,6 +1681,11 @@ std::unique_ptr<Document> importPublisher(const QByteArray &data, QString *error
     doc->pubFonts = rep.fontsUsed;
     if (!ok) {
         if (error) *error = QCoreApplication::translate("Import", "JeffPub could not read this .pub file. It may be damaged or use features that aren't supported yet.");
+        return nullptr;
+    }
+    // A file that holds stories or shapes but yields no object on any page is not shown as blank pages, which a person might save over the file.
+    if (rep.textBoxes + rep.pictures + rep.shapes + rep.tables == 0 && (rep.fileStories > 0 || rep.fileRecords > 0)) {
+        if (error) *error = QCoreApplication::translate("Import", "This publication has content that JeffPub can't place on its pages yet, so it was not opened. The file has not been changed.");
         return nullptr;
     }
     // A .pub style holds all its settings; the ones its base gives the same follow it, and the text's own look is told from its style's.

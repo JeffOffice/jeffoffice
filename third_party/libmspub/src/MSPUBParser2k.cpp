@@ -355,6 +355,7 @@ bool MSPUBParser2k::parseContents(librevenge::RVNGInputStream *input)
   input->seek(trailerOffset, librevenge::RVNG_SEEK_SET);
   unsigned numBlocks = readU16(input);
   unsigned chunkOffset = 0;
+  bool anyPageSized = false;
   for (unsigned i = 0; i < numBlocks; ++i)
   {
     input->seek(input->tell() + 2, librevenge::RVNG_SEEK_SET);
@@ -382,6 +383,8 @@ bool MSPUBParser2k::parseContents(librevenge::RVNGInputStream *input)
         input->seek(back, librevenge::RVNG_SEEK_SET);
         if (w == 0 && h == 0)
           m_scratchPageIds.insert(id);
+        else
+          anyPageSized = true;
       }
       m_contentChunks.push_back(ContentChunkReference(PAGE, chunkOffset, 0, id, parent));
       m_pageChunkIndices.push_back(unsigned(m_contentChunks.size() - 1));
@@ -439,6 +442,14 @@ bool MSPUBParser2k::parseContents(librevenge::RVNGInputStream *input)
   if (m_contentChunks.size() > 0)
   {
     m_contentChunks.back().end = chunkOffset;
+  }
+  // JeffPub patch: the oldest layout stores no canvas size in any page chunk;
+  // then only the first page chunk is the scratch area, the others are pages.
+  if (!anyPageSized)
+  {
+    m_scratchPageIds.clear();
+    if (m_pageChunkIndices.size() > 1)
+      m_scratchPageIds.insert(m_contentChunks.at(m_pageChunkIndices.front()).seqNum);
   }
 
   if (!parseDocument(input))

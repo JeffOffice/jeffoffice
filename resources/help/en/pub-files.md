@@ -12,7 +12,7 @@ You can also drag the file onto the page. Text, pictures, shapes, and tables com
 
 If a font in the file is not on your computer, JeffPub uses a similar open font instead. Fonts stored inside the .pub file are not brought in. If JeffPub has something to tell you after opening, a note appears in the status bar at the bottom of the window.
 
-If the file will not open, JeffPub says it may be damaged or use features it can't read yet.
+If the file will not open, JeffPub says it may be damaged or use features it can't read yet. The same goes for a file that holds text or shapes but has none that JeffPub can place on a page: it is not opened as blank pages, so you can't save over it by mistake, and the file is left as it was.
 
 ## Check the result
 

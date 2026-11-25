@@ -2540,6 +2540,23 @@ bool MSPUBCollector::go()
   librevenge::RVNGPropertyList docProps;
   if (m_defaultTabStopEmu)
     docProps.insert("jp:default-tab-stop", double(m_defaultTabStopEmu) / EMUS_IN_INCH);   // JeffPub
+  // JeffPub: what the file holds, so a file that holds some and yields no object can be told from an empty one.
+  {
+    int stories = 0;
+    for (const auto &st : m_textStringsById)
+    {
+      bool hasText = false;
+      for (const auto &para : st.second)
+        for (const auto &span : para.spans)
+          for (unsigned char ch : span.chars)
+            if (ch > 0x20)
+              hasText = true;
+      if (hasText)
+        ++stories;
+    }
+    docProps.insert("jp:stories", stories);
+    docProps.insert("jp:records", int(m_topLevelShapes.size()));
+  }
   m_painter->startDocument(docProps);
   m_painter->setDocumentMetaData(m_metaData);
 
@@ -2617,9 +2634,29 @@ bool MSPUBCollector::go()
   // In a booklet or folded card every page after the first is marked 0
   // (Publisher 2021, Oct 7); elsewhere a page marked 0 is a special one.
   const bool spreads = m_publicationLayout == 1 || m_publicationLayout == 3;
+  std::vector<unsigned> toWrite;
   for (unsigned seq : listed)
     if (m_pagesBySeqNum.find(seq) != m_pagesBySeqNum.end() && !special.count(seq) && (kindOf(seq) != 0 || spreads))
-      writePage(seq);
+      toWrite.push_back(seq);
+  // A publication always has a page: when every page listed is marked as a special one (a file can list four special pages after a single
+  // page that is marked 0), the first page with objects is the page, or else the first page listed.
+  if (toWrite.empty())
+  {
+    unsigned pick = 0;
+    bool found = false;
+    for (unsigned seq : listed)
+    {
+      if (m_pagesBySeqNum.find(seq) == m_pagesBySeqNum.end())
+        continue;
+      if (!found || (blank(pick) && !blank(seq)))
+        pick = seq;
+      found = true;
+    }
+    if (found)
+      toWrite.push_back(pick);
+  }
+  for (unsigned seq : toWrite)
+    writePage(seq);
   m_painter->endDocument();
   return true;
 }

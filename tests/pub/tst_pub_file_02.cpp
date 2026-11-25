@@ -1112,6 +1112,169 @@ void PubFileTests::pubHugeCoordinateSpace()
 // Publisher's default text box shadow is stored as "the line color,
 // lightened halfway" (0x107F02F2): gray for a black line. libmspub
 // lightened the reference's own bytes into pink.
+namespace {
+// A publication in the oldest layout, made here: a document chunk, page chunks (sizes in EMU, 0 = none stored), and one rectangle on each page whose
+// parent is given. No text and no Quill streams, as the oldest files have.
+QByteArray oldLayoutPub(const QVector<QPair<quint16, quint32>> &pages, const QVector<QPair<quint16, quint16>> &shapes)
+{
+    QByteArray c(0x100, '\0');
+    auto put32 = [](QByteArray &b, int at, quint32 v) { for (int i = 0; i < 4; ++i) b[at + i] = char((v >> (8 * i)) & 0xff); };
+    auto put16 = [](QByteArray &b, int at, quint32 v) { b[at] = char(v & 0xff); b[at + 1] = char((v >> 8) & 0xff); };
+    c[0] = char(0xe8);
+    c[1] = char(0xac);
+    c[2] = 0x22;
+    put32(c, 0x12, 0x40);   // where the (empty) text part is
+    struct Chunk { quint16 id, parent; quint32 at; };
+    QVector<Chunk> chunks;
+    auto add = [&](quint16 id, quint16 parent, quint16 type, int size) {
+        chunks.push_back({id, parent, quint32(c.size())});
+        QByteArray b(size, '\0');
+        put16(b, 0, type);
+        c.append(b);
+        return int(chunks.back().at);
+    };
+    const int doc = add(1, 0, 0x15, 0x40);
+    put32(c, doc + 0x14, 8 * 914400);
+    put32(c, doc + 0x18, 10 * 914400);
+    for (const auto &p : pages) {
+        const int at = add(p.first, 1, 0x14, 0x40);
+        put32(c, at + 12, p.second);
+        put32(c, at + 16, p.second);
+    }
+    for (const auto &s : shapes) {
+        const int at = add(s.first, s.second, 0x05, 0x100);
+        c[at + 0x20] = 2;   // a solid fill, so the rectangle shows
+        const quint32 origin = 25 * 914400;   // the oldest layout counts from 25 inches before the page
+        put32(c, at + 6, origin + 914400);
+        put32(c, at + 10, origin + 914400);
+        put32(c, at + 14, origin + 3 * 914400);
+        put32(c, at + 18, origin + 3 * 914400);
+    }
+    c.resize(c.size() + 0x10);
+    const quint32 trailer = quint32(c.size());
+    put32(c, 0x16, trailer);
+    QByteArray t(2, '\0');
+    put16(t, 0, quint32(chunks.size()));
+    for (const Chunk &k : chunks) {
+        QByteArray e(10, '\0');
+        put16(e, 2, k.id);
+        put16(e, 4, k.parent);
+        put32(e, 6, k.at);
+        t.append(e);
+    }
+    c.append(t);
+    jp::cfb::File f;
+    jp::cfb::Entry root;
+    root.type = jp::cfb::Entry::Root;
+    root.name = QStringLiteral("Root Entry");
+    root.children << 1;
+    jp::cfb::Entry st;
+    st.name = QStringLiteral("Contents");
+    st.data = c;
+    f.entries << root << st;
+    return jp::cfb::write(f);
+}
+} // namespace
+
+// The oldest layout stores no canvas size in any page chunk: the first page chunk is the scratch area and the others are pages (the shape on the
+// second page is read). When some page chunks do store a size, a page without one is still the scratch area.
+void PubFileTests::pubOldLayoutPagesWithoutSize()
+{
+    PubImportReport rep;
+    QString err;
+    auto doc = importPublisher(oldLayoutPub({{10, 0}, {11, 0}}, {{20, 11}}), &err, &rep);
+    QVERIFY2(doc, qPrintable(err));
+    QCOMPARE(rep.shapes, 1);
+    QCOMPARE(doc->pages.size(), 1);
+    PubImportReport sized;
+    auto other = importPublisher(oldLayoutPub({{10, 0}, {11, 5 * 914400}}, {{20, 10}, {21, 11}}), &err, &sized);
+    QVERIFY2(other, qPrintable(err));
+    QCOMPARE(sized.shapes, 1);
+}
+
+// A page marked 0 is a special one, but the first page listed is a real page: a file can list four special pages after a single page marked 0.
+void PubFileTests::pubFirstPageMarkedSpecialIsKept()
+{
+    auto doc = Document::blank(QSizeF(612, 792));
+    auto s = std::make_shared<ShapeItem>();
+    s->shape = QStringLiteral("rect");
+    s->rect = QRectF(100, 100, 200, 150);
+    s->fill = Fill::solid(ColorRef::rgb(Qt::red));
+    doc->pages[0]->items.push_back(s);
+    QTemporaryDir dir;
+    const QString name = dir.filePath(QStringLiteral("marked.pub"));
+    QString err;
+    QVERIFY2(exportPublisher(*doc, name, &err), qPrintable(err));
+    QFile f(name);
+    QVERIFY(f.open(QIODevice::ReadOnly));
+    cfb::File file;
+    QVERIFY(cfb::read(f.readAll(), &file, &err));
+    f.close();
+    QByteArray contents = file.stream(QStringLiteral("Contents"));
+    // (the page's mark: block 6, 8 bytes, 2 = a normal page, then its index, 0)
+    const QByteArray mark = QByteArray("\x06\x28\x02\0\0\0\0\0\0\0", 10);
+    const int at = contents.indexOf(mark);
+    QVERIFY(at >= 0);
+    QCOMPARE(contents.indexOf(mark, at + 1), -1);
+    contents[at + 2] = 0;
+    QVERIFY(file.setStream(QStringLiteral("Contents"), contents));
+    PubImportReport rep;
+    auto back = importPublisher(cfb::write(file), &err, &rep);
+    QVERIFY2(back, qPrintable(err));
+    QCOMPARE(rep.shapes, 1);
+}
+
+// A file that holds a story and a shape but puts none on a page is refused with a plain message, not opened as blank pages that could be saved over it
+// (a file with nothing in it opens as it always did), and the window that is asked to open it says so and keeps the file as it was.
+void PubFileTests::pubContentWithNoObjectIsRefused()
+{
+    auto doc = Document::blank(QSizeF(612, 792));
+    auto t = std::make_shared<TextItem>();
+    t->rect = QRectF(100, 100, 200, 100);
+    t->storyId = doc->createStory(QStringLiteral("Some words on the page"));
+    doc->pages[0]->items.push_back(t);
+    QTemporaryDir dir;
+    const QString name = dir.filePath(QStringLiteral("unplaced.pub"));
+    QString err;
+    QVERIFY2(exportPublisher(*doc, name, &err), qPrintable(err));
+    QFile f(name);
+    QVERIFY(f.open(QIODevice::ReadOnly));
+    cfb::File file;
+    QVERIFY(cfb::read(f.readAll(), &file, &err));
+    f.close();
+    QByteArray contents = file.stream(QStringLiteral("Contents"));
+    // (the page's list of its shapes: a count of 1, the list, and its one reference: made to name a shape that is not there)
+    const QByteArray list = QByteArray("\x01\x20\x01\0\0\0\x02\xa0", 8);
+    const int at = contents.indexOf(list);
+    QVERIFY(at >= 0);
+    QCOMPARE(contents.mid(at + 12, 2), QByteArray("\x00\x70", 2));
+    contents[at + 14] = char(0xfe);
+    contents[at + 15] = char(0xff);
+    QVERIFY(file.setStream(QStringLiteral("Contents"), contents));
+    const QByteArray bytes = cfb::write(file);
+    PubImportReport rep;
+    auto back = importPublisher(bytes, &err, &rep);
+    QVERIFY(!back);
+    QVERIFY2(err.contains(QStringLiteral("can't place")), qPrintable(err));
+    QVERIFY(rep.fileStories > 0 || rep.fileRecords > 0);
+    // (a file with no story and no shape is not refused)
+    QVERIFY(importPublisher(oldLayoutPub({{10, 0}, {11, 0}}, {}), &err));
+    const QString path = dir.filePath(QStringLiteral("unplaced2.pub"));
+    QFile w(path);
+    QVERIFY(w.open(QIODevice::WriteOnly));
+    w.write(bytes);
+    w.close();
+    jp::MainWindow win;
+    QStringList told;
+    win.setNotifier([&](const QString &, const QString &text) { told << text; });
+    QVERIFY(!win.openFile(path));
+    QVERIFY2(told.join(QLatin1Char('|')).contains(QStringLiteral("can't place")), qPrintable(told.join(QLatin1Char('|'))));
+    QFile r(path);
+    QVERIFY(r.open(QIODevice::ReadOnly));
+    QCOMPARE(r.readAll(), bytes);
+}
+
+
 void PubFileTests::pubShadowFromLineColor()
 {
     auto doc = Document::blank(QSizeF(612, 792));
