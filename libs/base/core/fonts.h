@@ -74,6 +74,11 @@ qint64 fontDatabaseAskedOffMainForTest();
 // find through an alias is not found), and says no before initCore() has listed them (counted by the next function).
 bool familyInstalled(const QString &family);
 qint64 installedFamiliesMissedForTest();
+// For tests: answer for a family as installed (1) or missing (0) whatever the font database says, or as it says (-1), so that a test of what is drawn
+// where a font is missing runs on a computer that has it, and the other way round. Changes the font generation, so what was remembered is asked again.
+void overrideFamilyForTest(const QString &family, int installed);
+// The answer set for a family, or -1.
+int familyOverrideForTest(const QString &family);
 // Every family the table of stand-ins names, sorted, for the same test.
 QStringList standInFamiliesForTest();
 // The name to write in files other programs read: a bundled font that is

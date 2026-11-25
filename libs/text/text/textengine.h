@@ -177,6 +177,9 @@ struct LayoutEnv {
     //    a 1.2 em line), not a share of it. An exact spacing isn't reduced.
     //  - What is stored (fontScale, lnSpcReduction) is drawn as it is on opening: the program doesn't fit it again until the text is edited.
     bool slideLines = false;
+    // The characters of a symbol font that this machine lacks are shown as the pictures they stand for, in a publication's or a spreadsheet's text (a word
+    // processor's lines always do, a slide's text never: its file reader changes them as it reads). Off, they are set as they stand.
+    bool symbolPictures = false;
     // Lines as a word processor sets them (JeffWrite): a single line is the font's Windows ascent and descent plus the leading its tables
     // ask for (a font's line, as the word processor measured it on Times New Roman, Arial, Calibri, and the fonts of its reference
     // documents); a line of several times single spacing has the extra below its text, and an exact or at-least height is as asked. Space

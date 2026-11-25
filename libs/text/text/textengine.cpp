@@ -66,7 +66,8 @@ bool hasFamilyCached(const QString &family)
     }
     const auto it = known.constFind(family);
     if (it != known.constEnd()) return it.value();
-    const bool has = QFontDatabase::hasFamily(family);
+    const int set = jp::familyOverrideForTest(family);
+    const bool has = set >= 0 ? set == 1 : QFontDatabase::hasFamily(family);
     if (known.size() < 4096) known.insert(family, has);
     return has;
 }
@@ -543,7 +544,7 @@ QString FieldContext::key(bool withClock) const
 
 QString LayoutEnv::key() const
 {
-    QString k = fonts.heading + '|' + fonts.body + '|' + QString::number(fontScale, 'f', 4) + (showFieldShading ? "|s" : "") + (revisionView ? QStringLiteral("|v%1").arg(revisionView) : QString()) + (revisionView & tp::kRevisionMark ? QStringLiteral("|m%1").arg(tp::revisionMarkup().generation) : QString()) + (collapseEpoch ? QStringLiteral("|e%1").arg(collapseEpoch) : QString()) + (keepInks() ? "|k" : "") + (slideLines ? "|l" : "") + (wordLines ? "|w" : "") + (wordNoHang ? "|n" : "") + (wordSpaceSums ? "|a" : "") + (wordNoHangStop ? "|h" : "") + (wordNoNumberIndentStop ? "|i" : "") + (wordWholePointLines ? "|u" : "") + (wordNoLeading ? "|z" : "") + (wordWrapTrailSpaces ? "|t" : "") + (wordSpaceShrink > 0 ? QStringLiteral("|p%1").arg(wordSpaceShrink) : QString()) + (noLigatures ? "|g" : "") + (lineCut > 0 ? QStringLiteral("|c%1").arg(lineCut) : QString());
+    QString k = fonts.heading + '|' + fonts.body + '|' + QString::number(fontScale, 'f', 4) + (showFieldShading ? "|s" : "") + (revisionView ? QStringLiteral("|v%1").arg(revisionView) : QString()) + (revisionView & tp::kRevisionMark ? QStringLiteral("|m%1").arg(tp::revisionMarkup().generation) : QString()) + (collapseEpoch ? QStringLiteral("|e%1").arg(collapseEpoch) : QString()) + (keepInks() ? "|k" : "") + (slideLines ? "|l" : "") + (symbolPictures ? "|y" : "") + (wordLines ? "|w" : "") + (wordNoHang ? "|n" : "") + (wordSpaceSums ? "|a" : "") + (wordNoHangStop ? "|h" : "") + (wordNoNumberIndentStop ? "|i" : "") + (wordWholePointLines ? "|u" : "") + (wordNoLeading ? "|z" : "") + (wordWrapTrailSpaces ? "|t" : "") + (wordSpaceShrink > 0 ? QStringLiteral("|p%1").arg(wordSpaceShrink) : QString()) + (noLigatures ? "|g" : "") + (lineCut > 0 ? QStringLiteral("|c%1").arg(lineCut) : QString());
     if (defaultTab != 36) k += QStringLiteral("|t%1").arg(defaultTab);
     for (auto it = familyAliases.cbegin(); it != familyAliases.cend(); ++it) k += QStringLiteral("|a") + it.key() + QLatin1Char('=') + it.value();
     for (auto it = standIns.cbegin(); it != standIns.cend(); ++it) k += QStringLiteral("|i") + it.key() + QLatin1Char('=') + it.value();
@@ -4158,8 +4159,8 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 }
                 // The characters of a symbol font that this machine lacks are shown as the pictures they stand for (the font's own widths are given
                 // them in applyLetterWidths): a degree sign from Symbol, an arrow from Wingdings, a banner's block from Webdings. (Not a slide's text, whose file
-                // reader changes them as it reads.)
-                if (env.wordLines || !env.slideLines) {
+                // reader changes them as it reads: LayoutEnv::symbolPictures.)
+                if (env.wordLines || env.symbolPictures) {
                     const QString family = rf.fontFamilies().toStringList().value(0);
                     if (const SymbolPictures *pictures = hasFamilyCached(family) ? nullptr : symbolPicturesOf(family))
                         for (QChar &ch : shown)

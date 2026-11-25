@@ -19,6 +19,9 @@
 #include "render/diagramdrawing.h"
 #include "office/xml.h"
 
+#include "render/renderer.h"
+#include "text/textengine.h"
+#include <QScopeGuard>
 #include <QDir>
 #include <QImage>
 #include <QPainter>
@@ -1424,6 +1427,34 @@ private Q_SLOTS:
     }
 
     // The Draw Text Box tool belongs to the sheet it was picked on: showing another sheet puts it down, and a chart sheet has no place for a text box, which the status bar says.
+    // The text boxes of a sheet are laid out in the document its objects keep (made as a plain one): in the second set of Wingdings they are the numbers in circles
+    // where the machine lacks the font, and the font's own characters where it has it.
+    void aSheetsTextBoxShowsSymbolCirclesAsPicturesWhereTheFontIsMissing()
+    {
+        auto lineOf = [](const jp::LayoutEnv &env) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat cf;
+            cf.setFontFamilies({QStringLiteral("Wingdings 2")});
+            cf.setFontPointSize(10);
+            c.insertText(QStringLiteral("jx"), cf);
+            jp::FrameSpec spec;
+            spec.size = QSizeF(300, 700);
+            jp::StoryLayout lay;
+            lay.build(&doc, {spec}, env);
+            const auto lines = lay.lineInfo(0);
+            return lines.isEmpty() ? QString() : lines[0].text;
+        };
+        const auto kept = std::make_unique<jp::Document>();
+        const jp::LayoutEnv env = jp::Renderer::layoutEnv(*kept);
+        QVERIFY(env.symbolPictures);
+        const auto reset = qScopeGuard([] { jp::overrideFamilyForTest(QStringLiteral("Wingdings 2"), -1); });
+        jp::overrideFamilyForTest(QStringLiteral("Wingdings 2"), 0);
+        QCOMPARE(lineOf(env), QStringLiteral("\u2460\u2779"));
+        jp::overrideFamilyForTest(QStringLiteral("Wingdings 2"), 1);
+        QCOMPARE(lineOf(env), QStringLiteral("jx"));
+    }
+
     void aDrawnTextBoxToolIsPutDownWhenAnotherSheetIsShown()
     {
         EditWindow e;

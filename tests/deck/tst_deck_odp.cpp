@@ -1,4 +1,6 @@
 // JeffDeck's tests of open document presentations: reading, writing, and saving from the window.
+#include <QScopeGuard>
+#include "core/fonts.h"
 #include "deckhelpers.h"
 #include "../office/odfvalidate.h"
 #include "office/packageprops.h"
@@ -2449,6 +2451,26 @@ private:
     }
 
 private Q_SLOTS:
+    // The rows of a table are fitted to the text in their cells as the file has it: text in the second set of Wingdings, which a slide's reader leaves as it stands, is measured as the
+    // letters it is, whether or not the machine has the font (it is not turned into pictures there, which are far wider than these letters and would make the rows taller).
+    void odpTableRowsAreFittedToTheTextAsItStandsWhateverTheMachineHas()
+    {
+        const auto reset = qScopeGuard([] { jp::overrideFamilyForTest(QStringLiteral("Wingdings 2"), -1); });
+        const QString styles = odptest::sampleAutomaticStyles() + QStringLiteral("<style:style style:name=\"W2\" style:family=\"paragraph\"><style:text-properties style:font-name=\"Wingdings 2\" fo:font-size=\"12pt\"/></style:style>");
+        const QString table = QStringLiteral("<table:table-column table:style-name=\"co1\"/><table:table-row table:style-name=\"ro1\"><table:table-cell><text:p text:style-name=\"W2\">%1</text:p></table:table-cell></table:table-row>")
+                                  .arg(QString(80, QLatin1Char('j')));
+        auto rowHeight = [&](int installed) {
+            jp::overrideFamilyForTest(QStringLiteral("Wingdings 2"), installed);
+            QString err;
+            auto d = deck::importOdp(odptest::odpZip(odptest::odpContent(styles, odpTablePage(table))), &err);
+            const TableItem *t = d ? odpFirstTable(*d) : nullptr;
+            return t && !t->rowH.isEmpty() ? t->rowH[0] : -1.0;
+        };
+        const double missing = rowHeight(0), present = rowHeight(1);
+        QVERIFY(present > 0);
+        QCOMPARE(missing, present);
+    }
+
     // A table that repeats one cell down and across (a file of 1.6 KB: a hundred rows of a hundred cells of two thousand characters, in cells
     // a fifth of a centimeter wide) is made of one copy of the cell: it took seven minutes, parsing and laying out each of its 10,000
     // cells. Its text is kept to a budget, and the rows are fitted only to as much of it as can be laid out in seconds.

@@ -1,3 +1,5 @@
+#include <QScopeGuard>
+#include "core/fonts.h"
 #include "tst_flow.h"
 #include "../testrunner.h"
 
@@ -1562,7 +1564,8 @@ void FlowTests::symbolFontCharactersAreTheirPicturesAtTheirOwnWidths()
 // 10 in outlined circles, and 75 to 7E the same in dark circles. A slide's text keeps its own path (its file reader changes them), and the stored text is not changed.
 void FlowTests::aPublicationsNumbersInSymbolCirclesAreDrawnAsTheirPictures()
 {
-    if (QFontDatabase::hasFamily(QStringLiteral("Wingdings 2"))) QSKIP("Wingdings 2 is installed here: its characters are drawn by the font");
+    const auto reset = qScopeGuard([] { jp::overrideFamilyForTest(QStringLiteral("Wingdings 2"), -1); });
+    jp::overrideFamilyForTest(QStringLiteral("Wingdings 2"), 0);
     auto build = [](bool slide, QString *stored) {
         auto doc = std::make_unique<QTextDocument>();
         QTextCursor c(doc.get());
@@ -1574,6 +1577,7 @@ void FlowTests::aPublicationsNumbersInSymbolCirclesAreDrawnAsTheirPictures()
         *stored = doc->toPlainText();
         LayoutEnv env;
         env.slideLines = slide;
+        env.symbolPictures = !slide;
         StoryLayout lay;
         lay.build(doc.get(), {plainFrame(300, 700)}, env);
         const auto lines = lay.lineInfo(0);

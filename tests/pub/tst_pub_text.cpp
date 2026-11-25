@@ -2578,6 +2578,34 @@ private Q_SLOTS:
         QVERIFY2(built == 1, qPrintable(QStringLiteral("%1 outlines built for 800 bullets").arg(built)));
     }
 
+    // A publication's text in the second set of Wingdings is drawn as the numbers in circles they stand for where this machine lacks the font, and as the font's own
+    // characters where it has it (the seam answers for the family, so this holds on every machine).
+    void aPublicationsSymbolCirclesAreDrawnAsPicturesWhereTheFontIsMissing()
+    {
+        auto lineOf = [](const LayoutEnv &env) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat cf;
+            cf.setFontFamilies({QStringLiteral("Wingdings 2")});
+            cf.setFontPointSize(10);
+            c.insertText(QStringLiteral("jx"), cf);
+            FrameSpec spec;
+            spec.size = QSizeF(300, 700);
+            StoryLayout lay;
+            lay.build(&doc, {spec}, env);
+            const auto lines = lay.lineInfo(0);
+            return lines.isEmpty() ? QString() : lines[0].text;
+        };
+        const auto blank = Document::blank(QSizeF(612, 792));
+        const LayoutEnv env = Renderer::layoutEnv(*blank);
+        QVERIFY(env.symbolPictures);
+        const auto reset = qScopeGuard([] { jp::overrideFamilyForTest(QStringLiteral("Wingdings 2"), -1); });
+        jp::overrideFamilyForTest(QStringLiteral("Wingdings 2"), 0);
+        QCOMPARE(lineOf(env), QStringLiteral("\u2460\u2779"));
+        jp::overrideFamilyForTest(QStringLiteral("Wingdings 2"), 1);
+        QCOMPARE(lineOf(env), QStringLiteral("jx"));
+    }
+
     // A bullet drawn in the list's own font (as .pub lists name it: Symbol,
     // Wingdings) keeps that font's regular weight whatever the item's first
     // run is. Publisher's asterisk bullets stand thin beside bold items (its

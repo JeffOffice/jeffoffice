@@ -1239,6 +1239,7 @@ private Q_SLOTS:
     void aPasteFromAnotherDocumentLeavesNoDanglingNoteOrObject();
     void aSymbolOfAMissingFontIsSavedAsItWas();
     void aSymbolOfASymbolFontIsSetInThatFont();
+    void aSymbolOfTheSecondWingdingsShowsItsPictureWhereTheFontIsMissing();
     void aSymbolOfASymbolFontIsDrawnWithRoomOfItsOwn();
     void aSymbolTakesItsAdvanceFromItsFont();
     void aFieldResultOfBlanksTakesNoPartInTheLineHeight();

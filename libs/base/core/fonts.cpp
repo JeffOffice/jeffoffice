@@ -529,10 +529,35 @@ qint64 fontDatabaseAskedOffMainForTest() { return g_databaseAskedOffMain.load();
 
 static bool onFontThread() { return !g_fontThread.load() || QThread::currentThread() == g_fontThread.load(); }
 
+namespace {
+std::mutex g_overrideLock;
+QHash<QString, int> g_override;   // (lowercase names; tests only)
+std::atomic<bool> g_anyOverride{false};
+}   // namespace
+
+void overrideFamilyForTest(const QString &family, int installed)
+{
+    {
+        std::lock_guard<std::mutex> lock(g_overrideLock);
+        if (installed < 0) g_override.remove(family.toLower());
+        else g_override.insert(family.toLower(), installed ? 1 : 0);
+        g_anyOverride = !g_override.isEmpty();
+    }
+    fontsChanged();
+}
+
+int familyOverrideForTest(const QString &family)
+{
+    if (!g_anyOverride.load()) return -1;
+    std::lock_guard<std::mutex> lock(g_overrideLock);
+    return g_override.value(family.toLower(), -1);
+}
+
 static bool askDatabase(const QString &family)
 {
     ++g_databaseAsked;
     if (!onFontThread()) ++g_databaseAskedOffMain;
+    if (const int set = familyOverrideForTest(family); set >= 0) return set == 1;
     return QFontDatabase::hasFamily(family);
 }
 
@@ -567,6 +592,7 @@ static void refreshInstalledFamilies()
 bool familyInstalled(const QString &family)
 {
     if (onFontThread()) return askDatabase(family);
+    if (const int set = familyOverrideForTest(family); set >= 0) return set == 1;
     std::lock_guard<std::mutex> lock(g_installedLock);
     if (!g_haveInstalled) {
         ++g_installedMisses;
@@ -875,7 +901,8 @@ static QString symbolTextCharacter(const QString &family, uint code)
         if (code == 0x8B) return QString(QChar(char16_t(0x24FF)));
         if (code >= 0x8C && code <= 0x95) return QString(QChar(char16_t(0x2776 + (code - 0x8C))));
     } else if (f == QLatin1String("wingdings 2")) {
-        // The numbers 1 to 10 outlined (6A to 73), and in dark circles (75 to 7E): read from reference pictures of files that count with them.
+        // The numbers 1 to 10 outlined (6A to 73), and in dark circles (75 to 7E): in the font's own order, read from reference pictures of files that count with them
+        // (the outlined 1 to 4, and the dark ones).
         if (code >= 0x6A && code <= 0x73) return QString(QChar(char16_t(0x2460 + (code - 0x6A))));
         if (code >= 0x75 && code <= 0x7E) return QString(QChar(char16_t(0x2776 + (code - 0x75))));
     }

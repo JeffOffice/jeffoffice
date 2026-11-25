@@ -1,4 +1,5 @@
 #include "tst_write.h"
+#include <QScopeGuard>
 
 
 // A run of paragraphs with deleted marks is cut into paragraphs of 32 of them (counted by the paragraphs' numbers in the story), whatever the run's length: the longest one made is 32.
@@ -498,6 +499,30 @@ void WriteTests::aSymbolOfASymbolFontIsSetInThatFont()
     QVERIFY2(saved.contains(QLatin1String("w:sym")) && !saved.contains(QLatin1String("DisplayFamily")), qPrintable(saved));
     QCOMPARE(family("Symbol"), QStringLiteral("Symbol"));
     QCOMPARE(family("Webdings"), QStringLiteral("Webdings"));
+}
+
+
+// A symbol (w:sym) of the second set of Wingdings, where this machine lacks the font, shows the number in a circle it stands for (and a box before): the text is the picture
+// where the font is missing and the file's own character where it is installed, and a save keeps the symbol as the file has it.
+void WriteTests::aSymbolOfTheSecondWingdingsShowsItsPictureWhereTheFontIsMissing()
+{
+    const auto reset = qScopeGuard([] { jp::overrideFamilyForTest(QStringLiteral("Wingdings 2"), -1); });
+    auto shown = [&](int installed, QString *saved) {
+        jp::overrideFamilyForTest(QStringLiteral("Wingdings 2"), installed);
+        const QByteArray body = "<w:p><w:r><w:sym w:font=\"Wingdings 2\" w:char=\"F06A\"/></w:r><w:r><w:sym w:font=\"Wingdings 2\" w:char=\"F07E\"/></w:r></w:p>";
+        auto doc = open(makeDocx(body, kStyles));
+        if (!doc) return QString::fromLatin1("no document");
+        *saved = QString::fromUtf8(documentXml(doc->toDocx()));
+        QString text;
+        for (QTextBlock::iterator it = doc->story()->begin().begin(); !it.atEnd(); ++it)
+            if (const QString field = it.fragment().charFormat().stringProperty(tp::Field); field.startsWith(QLatin1String("raw:"))) text += field.mid(4);
+        return text;
+    };
+    QString saved;
+    QCOMPARE(shown(0, &saved), QString(QChar(0x2460)) + QChar(0x277F));
+    QVERIFY2(saved.contains(QLatin1String("w:char=\"F06A\"")) && saved.contains(QLatin1String("w:char=\"F07E\"")), qPrintable(saved));
+    QCOMPARE(shown(1, &saved), QString(QChar(0xF06A)) + QChar(0xF07E));
+    QVERIFY2(saved.contains(QLatin1String("w:char=\"F06A\"")) && saved.contains(QLatin1String("w:char=\"F07E\"")), qPrintable(saved));
 }
 
 

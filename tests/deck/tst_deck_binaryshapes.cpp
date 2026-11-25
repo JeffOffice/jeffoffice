@@ -1301,6 +1301,27 @@ private Q_SLOTS:
         QCOMPARE(families.value(QChar('b')), QStringList{QStringLiteral("Alpha Sans")});
     }
 
+    // The numbers in circles of the second set of Wingdings follow the rest of the font's characters on reading (a presentation reader changes them as it reads): 6A is the number 1 outlined,
+    // 78 the number 4 in a dark circle, and 7E the number 10 in one. The text is the Unicode characters that look like them, in the text's own font.
+    void importBinarySymbolCirclesOfTheSecondWingdingsBecomeTheirPictures()
+    {
+        const QString text = QString(QChar(0xF06A)) + QChar(0xF078) + QChar(0xF07E) + QStringLiteral("b");
+        const quint32 sym = 0x800000, own = 0x10000;
+        const QByteArray styles = pfRun(int(text.size()) + 1, 0, 0) + cfRun(3, sym, le(3, 2)) + cfRun(2, own, le(0, 2));
+        QString err;
+        auto d = deck::importBinaryPresentation(buildPpt(false, false, false, false, pptText(1, text, styles, true)), &err);
+        QVERIFY2(d, qPrintable(err));
+        const QTextDocument *body = placeholderStory(*d, *d->pages[0], QStringLiteral("ph:body:1"));
+        QVERIFY(body);
+        QString shown;
+        for (QTextBlock b = body->begin(); b.isValid(); b = b.next())
+            for (QTextBlock::iterator it = b.begin(); !it.atEnd(); ++it) {
+                shown += it.fragment().text();
+                if (!it.fragment().text().startsWith(QLatin1Char('b'))) QVERIFY(!it.fragment().charFormat().fontFamilies().toStringList().contains(QStringLiteral("Wingdings 2")));
+            }
+        QCOMPARE(shown, QString(QChar(0x2460)) + QChar(0x2779) + QChar(0x277F) + QStringLiteral("b"));
+    }
+
     // The split of text in a symbol font adds at most 256 pieces to a paragraph: a run of 50,000 characters that alternate between a
     // letter the font has a look-alike for and one it hasn't would be 50,000 pieces, each laid out by itself, and takes far longer than
     // the same text in a font of letters. The rest of the run after them is one piece, as it was before the split.

@@ -2107,6 +2107,21 @@ private Q_SLOTS:
         QVERIFY2(d.contains(QLatin1String("Pictographic Sans")), qPrintable(d));
     }
 
+    // The second set of Wingdings: its numbers in circles are written as the pictures they stand for (outlined 6A to 73, dark 75 to 7E), and the span names the symbol, so the
+    // file reads back as the same code in the same font.
+    void aNumberInASymbolCircleIsWrittenAsItsPictureAndKeepsItsCode()
+    {
+        const QChar outlined = jp::symbolPictureOf(QStringLiteral("Wingdings 2"), 0xF06A), dark = jp::symbolPictureOf(QStringLiteral("Wingdings 2"), 0xF078);
+        QCOMPARE(outlined, QChar(0x2460));
+        QCOMPARE(dark, QChar(0x2779));
+        const QString c = odtContentOf("<w:p><w:r><w:sym w:font=\"Wingdings 2\" w:char=\"F06A\"/></w:r><w:r><w:sym w:font=\"Wingdings 2\" w:char=\"F078\"/></w:r></w:p>");
+        QVERIFY2(c.contains(outlined) && c.contains(dark), qPrintable(c));
+        QVERIFY2(c.contains(QLatin1String("jo:sym=\"F06A\"")) && c.contains(QLatin1String("jo:sym=\"F078\"")), qPrintable(c));
+        QVERIFY2(c.count(QLatin1String("jo:sym-font=\"Wingdings 2\"")) == 2, qPrintable(c));
+        const QString back = roundTripBody("<w:p><w:r><w:sym w:font=\"Wingdings 2\" w:char=\"F06A\"/></w:r><w:r><w:sym w:font=\"Wingdings 2\" w:char=\"F078\"/></w:r></w:p>");
+        QVERIFY2(back.contains(QLatin1String("w:char=\"F06A\"")) && back.contains(QLatin1String("w:char=\"F078\"")), qPrintable(back));
+    }
+
     void trackedFormatAndParagraphChangesAreKept()
     {
         QStringList notes;
