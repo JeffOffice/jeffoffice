@@ -20800,7 +20800,7 @@ Desktop-Publishing</translation>
         <translation type="unfinished">(Fortsetzung von Seite %1)</translation>
     </message>
     <message>
-        <location line="+6903"/>
+        <location line="+6910"/>
         <source>Notes</source>
         <translation>Notizen</translation>
     </message>

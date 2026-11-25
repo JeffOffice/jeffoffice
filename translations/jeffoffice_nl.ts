@@ -20800,7 +20800,7 @@ Desktop publishing</translation>
         <translation type="unfinished">(Vervolg van pagina %1)</translation>
     </message>
     <message>
-        <location line="+6903"/>
+        <location line="+6910"/>
         <source>Notes</source>
         <translation>Notities</translation>
     </message>
