@@ -29,6 +29,10 @@ class MSPUBParser2k : public MSPUBParser
   std::map<unsigned, std::vector<unsigned> > m_chunkChildIndicesById;
   std::set<unsigned> m_scratchPageIds; // JeffPub patch: page chunks holding the scratch area
   std::deque<unsigned> m_chunksBeingRead;
+  unsigned short m_layoutMarker; // JeffPub patch: header word at 0x0c of the Contents stream (older layouts: 0x02cd, 0x0268, ...)
+  std::vector<unsigned> m_chunkStarts; // JeffPub patch: sorted chunk offsets, then the block table's offset
+  unsigned recordEnd(unsigned offset) const;
+  bool recordHolds(unsigned chunkOffset, unsigned fieldOffset, unsigned length) const;
 
 protected:
   // helper functions

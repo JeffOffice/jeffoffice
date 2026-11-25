@@ -1115,7 +1115,10 @@ void PubFileTests::pubHugeCoordinateSpace()
 namespace {
 // A publication in the oldest layout, made here: a document chunk, page chunks (sizes in EMU, 0 = none stored), and one rectangle on each page whose
 // parent is given. No text and no Quill streams, as the oldest files have.
-QByteArray oldLayoutPub(const QVector<QPair<quint16, quint32>> &pages, const QVector<QPair<quint16, quint16>> &shapes)
+// With a marker, a record, and quill set, the file is the one with the Quill part (the 2k reader): the header word at 0x0c is the marker, and each
+// shape is a record of recSize bytes that starts with the bytes in rec (from offset 6) instead of the solid-fill byte at 0x20.
+QByteArray oldLayoutPub(const QVector<QPair<quint16, quint32>> &pages, const QVector<QPair<quint16, quint16>> &shapes, quint16 marker = 0,
+                        const QByteArray &rec = QByteArray(), int recSize = 0x100, bool quill = false, quint16 groupType = 0)
 {
     QByteArray c(0x100, '\0');
     auto put32 = [](QByteArray &b, int at, quint32 v) { for (int i = 0; i < 4; ++i) b[at + i] = char((v >> (8 * i)) & 0xff); };
@@ -1123,6 +1126,7 @@ QByteArray oldLayoutPub(const QVector<QPair<quint16, quint32>> &pages, const QVe
     c[0] = char(0xe8);
     c[1] = char(0xac);
     c[2] = 0x22;
+    put16(c, 0x0c, marker);
     put32(c, 0x12, 0x40);   // where the (empty) text part is
     struct Chunk { quint16 id, parent; quint32 at; };
     QVector<Chunk> chunks;
@@ -1141,14 +1145,23 @@ QByteArray oldLayoutPub(const QVector<QPair<quint16, quint32>> &pages, const QVe
         put32(c, at + 12, p.second);
         put32(c, at + 16, p.second);
     }
+    if (groupType)   // a group chunk with id 30 on the last page
+        add(30, pages.last().first, groupType, 0x40);
     for (const auto &s : shapes) {
-        const int at = add(s.first, s.second, 0x05, 0x100);
-        c[at + 0x20] = 2;   // a solid fill, so the rectangle shows
+        const int at = add(s.first, s.second, 0x05, recSize);
+        if (rec.isEmpty())
+            c[at + 0x20] = 2;   // a solid fill, so the rectangle shows
+        else
+            for (int i = 0; i < rec.size() && 6 + i < recSize; ++i)
+                c[at + 6 + i] = rec[i];
         const quint32 origin = 25 * 914400;   // the oldest layout counts from 25 inches before the page
         put32(c, at + 6, origin + 914400);
         put32(c, at + 10, origin + 914400);
         put32(c, at + 14, origin + 3 * 914400);
         put32(c, at + 18, origin + 3 * 914400);
+        for (int i = 0; i < rec.size() && 6 + i < recSize; ++i)
+            if (6 + i >= 0x16)
+                c[at + 6 + i] = rec[i];
     }
     c.resize(c.size() + 0x10);
     const quint32 trailer = quint32(c.size());
@@ -1172,7 +1185,33 @@ QByteArray oldLayoutPub(const QVector<QPair<quint16, quint32>> &pages, const QVe
     st.name = QStringLiteral("Contents");
     st.data = c;
     f.entries << root << st;
+    if (quill) {
+        // (a Quill part with no chunks: the first chunk list, at 0x18, holds none and ends)
+        QByteArray q(0x20, '\0');
+        put32(q, 0x1a + 2, 0xffffffffu);
+        jp::cfb::Entry a, b, d;
+        a.type = jp::cfb::Entry::Storage;
+        a.name = QStringLiteral("Quill");
+        b.type = jp::cfb::Entry::Storage;
+        b.name = QStringLiteral("QuillSub");
+        d.name = QStringLiteral("CONTENTS");
+        d.data = q;
+        f.entries[0].children << 2;
+        f.entries << a << b << d;
+        f.entries[2].children << 3;
+        f.entries[3].children << 4;
+    }
     return jp::cfb::write(f);
+}
+
+// The rectangles an imported older-layout file holds, wherever they sit (the importer may put them in a group).
+void collectItems(const ItemList &list, QVector<const Item *> &out)
+{
+    for (const auto &it : list) {
+        out << it.get();
+        if (auto g = dynamic_cast<const GroupItem *>(it.get()))
+            collectItems(g->children, out);
+    }
 }
 } // namespace
 
@@ -1190,6 +1229,76 @@ void PubFileTests::pubOldLayoutPagesWithoutSize()
     auto other = importPublisher(oldLayoutPub({{10, 0}, {11, 5 * 914400}}, {{20, 10}, {21, 11}}), &err, &sized);
     QVERIFY2(other, qPrintable(err));
     QCOMPARE(sized.shapes, 1);
+}
+
+// The older layouts keep a shape's fill, line, and padding at offsets that depend on the header word at 0x0c: 0x0268 puts the two fill colors at
+// 0x20 and 0x24, the fill kind at 0x28, and the first line's width and color at 0x2A, where 0x02cd has them two bytes later. Made records: a solid fill
+// with a known color and a 3-point line; a record too short to hold a field is read without that field.
+void PubFileTests::pubOldLayoutFillOffsetsByMarker()
+{
+    auto record = [](int fillAt, int kindAt, int lineAt) {
+        QByteArray r(0x41 - 6, '\0');
+        auto put = [&](int at, quint32 v) { for (int i = 0; i < 4; ++i) r[at - 6 + i] = char((v >> (8 * i)) & 0xff); };
+        put(fillAt, 0x20336699);   // an explicit color: red 0x99, green 0x66, blue 0x33
+        r[kindAt - 6] = 2;
+        r[lineAt - 6] = 3;   // a 3-point line
+        put(lineAt + 1, 0x20ff0000);   // blue
+        for (int at : {0x35, 0x3b, 0x41})   // the top, right, and bottom lines, the same in both
+            if (at + 5 <= 0x46) {
+                r.resize(qMax(r.size(), at - 6 + 5));
+                r[at - 6] = 3;
+                for (int i = 0; i < 4; ++i)
+                    r[at - 5 + i] = char((0x20ff0000 >> (8 * i)) & 0xff);
+            }
+        return r;
+    };
+    QString err;
+    auto first = [&](const QByteArray &bytes) -> std::shared_ptr<Document> {
+        auto d = importPublisher(bytes, &err);
+        return d;
+    };
+    const QColor want(0x99, 0x66, 0x33);
+    for (quint16 marker : {quint16(0x0268), quint16(0x02cd)}) {
+        const bool early = marker == 0x0268;
+        auto doc = first(oldLayoutPub({{10, 0}, {11, 5 * 914400}}, {{20, 11}}, marker, record(early ? 0x20 : 0x22, early ? 0x28 : 0x2A, early ? 0x2A : 0x2C), 0x46, true));
+        QVERIFY2(doc, qPrintable(err));
+        QCOMPARE(doc->pages.size(), 1);
+        QVector<const Item *> all;
+        collectItems(doc->pages[0]->items, all);
+        const Item *got = nullptr;
+        for (const Item *it : all)
+            if (!it->fill.isNone()) got = it;
+        QVERIFY2(got, qPrintable(QStringLiteral("no filled shape, marker %1").arg(marker)));
+        QCOMPARE(got->fill.color.rgbValue(), want);
+        QVERIFY(!got->stroke.isNone());
+        QVERIFY2(std::abs(got->stroke.width - 3) < 0.5, qPrintable(QString::number(got->stroke.width)));
+    }
+    // (a record that ends before the fill kind has no fill and no line: nothing to show, so the file is not opened as a page with it)
+    auto cut = first(oldLayoutPub({{10, 0}, {11, 5 * 914400}}, {{20, 11}}, 0x0268, record(0x20, 0x28, 0x2A), 0x24, true));
+    QVERIFY(!cut);
+    QVector<const Item *> shortItems;
+    // (a record that ends right after the fill kind: the color is there, the line is not)
+    auto shortLine = first(oldLayoutPub({{10, 0}, {11, 5 * 914400}}, {{20, 11}}, 0x0268, record(0x20, 0x28, 0x2A), 0x2A, true));
+    QVERIFY2(shortLine, qPrintable(err));
+    collectItems(shortLine->pages[0]->items, shortItems);
+    QVERIFY(!shortItems.isEmpty());
+    for (const Item *it : shortItems)
+        QVERIFY(it->stroke.isNone());
+}
+
+
+// A chunk of type 0x0e holds shapes, like a group (0x0f) does: the shape inside it is read; a chunk of another unknown type holds nothing.
+void PubFileTests::pubOldLayoutGroupMarker0e()
+{
+    QString err;
+    for (quint16 type : {quint16(0x0e), quint16(0x0f), quint16(0x0d)}) {
+        PubImportReport rep;
+        QByteArray rec(0x41 - 6, '\0');
+        rec[0x28 - 6] = 2;
+        auto doc = importPublisher(oldLayoutPub({{10, 0}, {11, 5 * 914400}}, {{31, 30}}, 0x0268, rec, 0x46, true, type), &err, &rep);
+        QVERIFY2(doc, qPrintable(err));
+        QCOMPARE(rep.shapes, type == 0x0d ? 0 : 1);
+    }
 }
 
 // A page marked 0 is a special one, but the first page listed is a real page: a file can list four special pages after a single page marked 0.

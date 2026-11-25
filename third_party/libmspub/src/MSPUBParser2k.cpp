@@ -56,7 +56,9 @@ MSPUBParser2k::MSPUBParser2k(librevenge::RVNGInputStream *input, MSPUBCollector 
     m_imageDataChunkIndices(),
     m_quillColorEntries(),
     m_chunkChildIndicesById(),
-    m_chunksBeingRead()
+    m_chunksBeingRead(),
+    m_layoutMarker(0),
+    m_chunkStarts()
 {
 }
 
@@ -354,6 +356,9 @@ bool MSPUBParser2k::parseContents(librevenge::RVNGInputStream *input)
   unsigned trailerOffset = readU32(input);
   input->seek(trailerOffset, librevenge::RVNG_SEEK_SET);
   unsigned numBlocks = readU16(input);
+  input->seek(0x0c, librevenge::RVNG_SEEK_SET);
+  m_layoutMarker = readU16(input);
+  input->seek(trailerOffset + 2, librevenge::RVNG_SEEK_SET);
   unsigned chunkOffset = 0;
   bool anyPageSized = false;
   for (unsigned i = 0; i < numBlocks; ++i)
@@ -362,6 +367,7 @@ bool MSPUBParser2k::parseContents(librevenge::RVNGInputStream *input)
     unsigned short id = readU16(input);
     unsigned short parent = readU16(input);
     chunkOffset = readU32(input);
+    m_chunkStarts.push_back(chunkOffset);
     if (m_contentChunks.size() > 0)
     {
       m_contentChunks.back().end = chunkOffset;
@@ -425,6 +431,7 @@ bool MSPUBParser2k::parseContents(librevenge::RVNGInputStream *input)
       m_paletteChunkIndices.push_back(unsigned(m_contentChunks.size() - 1));
       m_chunkChildIndicesById[parent].push_back(unsigned(m_contentChunks.size() - 1));
       break;
+    case 0x000E: // JeffPub patch: a group of shapes in the older layouts, like 0x000F
     case 0x000F:
       MSPUB_DEBUG_MSG(("Found group chunk of id 0x%x and parent 0x%x\n", id, parent));
       m_contentChunks.push_back(ContentChunkReference(GROUP, chunkOffset, 0, id, parent));
@@ -443,6 +450,8 @@ bool MSPUBParser2k::parseContents(librevenge::RVNGInputStream *input)
   {
     m_contentChunks.back().end = chunkOffset;
   }
+  m_chunkStarts.push_back(trailerOffset);
+  std::sort(m_chunkStarts.begin(), m_chunkStarts.end());
   // JeffPub patch: the oldest layout stores no canvas size in any page chunk;
   // then only the first page chunk is the scratch area, the others are pages.
   if (!anyPageSized)
@@ -595,21 +604,39 @@ bool MSPUBParser2k::parse2kShapeChunk(const ContentChunkReference &chunk, librev
   return true;
 }
 
+// JeffPub patch: the layout with header word 0x0268 stores the fill and first line fields
+// two bytes earlier than the others (the two padding bytes follow the first line instead of
+// leading the fill); see MSPUBParser2k::recordHolds for the bounds.
 unsigned MSPUBParser2k::getShapeFillTypeOffset() const
 {
-  return 0x2A;
+  return m_layoutMarker == 0x0268 ? 0x28 : 0x2A;
 }
 
 unsigned MSPUBParser2k::getShapeFillColorOffset() const
 {
-  return 0x22;
+  return m_layoutMarker == 0x0268 ? 0x20 : 0x22;
+}
+
+// The end of the record that starts at offset: the next chunk's start, or the block table.
+unsigned MSPUBParser2k::recordEnd(unsigned offset) const
+{
+  const auto next = std::upper_bound(m_chunkStarts.begin(), m_chunkStarts.end(), offset);
+  return next == m_chunkStarts.end() ? offset : *next;
+}
+
+bool MSPUBParser2k::recordHolds(unsigned chunkOffset, unsigned fieldOffset, unsigned length) const
+{
+  const unsigned long end = recordEnd(chunkOffset);
+  return end > chunkOffset && (unsigned long)chunkOffset + fieldOffset + length <= end;
 }
 
 void MSPUBParser2k::parseShapeFill(librevenge::RVNGInputStream *input, unsigned seqNum, unsigned chunkOffset)
 {
+  if (!recordHolds(chunkOffset, getShapeFillTypeOffset(), 1))
+    return;
   input->seek(chunkOffset + getShapeFillTypeOffset(), librevenge::RVNG_SEEK_SET);
   unsigned char fillType = readU8(input);
-  if (fillType == 2) // other types are gradients and patterns which are not implemented yet. 0 is no fill.
+  if (fillType == 2 && recordHolds(chunkOffset, getShapeFillColorOffset(), 4)) // other types are gradients and patterns which are not implemented yet. 0 is no fill.
   {
     input->seek(chunkOffset + getShapeFillColorOffset(), librevenge::RVNG_SEEK_SET);
     unsigned fillColorReference = readU32(input);
@@ -693,7 +720,7 @@ void MSPUBParser2k::parseShapeType(librevenge::RVNGInputStream *input,
 {
   input->seek(chunkOffset, librevenge::RVNG_SEEK_SET);
   unsigned short typeMarker = readU16(input);
-  if (typeMarker == 0x000f)
+  if (typeMarker == 0x000f || typeMarker == 0x000e)
   {
     isGroup = true;
   }
@@ -750,7 +777,7 @@ unsigned short MSPUBParser2k::getTextMarker() const
 
 unsigned MSPUBParser2k::getFirstLineOffset() const
 {
-  return 0x2C;
+  return m_layoutMarker == 0x0268 ? 0x2A : 0x2C;
 }
 
 unsigned MSPUBParser2k::getSecondLineOffset() const
@@ -761,6 +788,9 @@ unsigned MSPUBParser2k::getSecondLineOffset() const
 void MSPUBParser2k::parseShapeLine(librevenge::RVNGInputStream *input, bool isRectangle, unsigned offset,
                                    unsigned seqNum)
 {
+  // JeffPub patch: a record too short to hold its lines has none (the reads would run into the next chunk).
+  if (!recordHolds(offset, getFirstLineOffset(), 5) || (isRectangle && !recordHolds(offset, getSecondLineOffset(), 0x11)))
+    return;
   input->seek(offset + getFirstLineOffset(), librevenge::RVNG_SEEK_SET);
   unsigned short leftLineWidth = readU8(input);
   bool leftLineExists = leftLineWidth != 0;

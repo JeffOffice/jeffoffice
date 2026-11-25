@@ -146,6 +146,8 @@ private Q_SLOTS:
     void pubFormulaChainIsFast();
     void pubHugeCoordinateSpace();
     void pubOldLayoutPagesWithoutSize();
+    void pubOldLayoutFillOffsetsByMarker();
+    void pubOldLayoutGroupMarker0e();
     void pubFirstPageMarkedSpecialIsKept();
     void pubContentWithNoObjectIsRefused();
     void pubShadowFromLineColor();
