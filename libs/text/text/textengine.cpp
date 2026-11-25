@@ -4194,12 +4194,16 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                         }
                     for (QChar &ch : shown)
                         if (ch.isLower()) ch = ch.toUpper();
-                } else if (fr.format.fontLetterSpacing() != 0 && shown.contains(QChar(0x2060))) {
-                    // (A word joiner takes no letter spacing: it is no letter, and would be a gap where it stands.)
+                } else if (fr.format.fontLetterSpacing() != 0 && (shown.contains(QChar(0x2060)) || shown.contains(QChar(0x00AD)))) {
+                    // (A word joiner or a soft hyphen takes no letter spacing: it is no letter, and would be a gap where it stands.)
                     QTextCharFormat none = fr.format;
                     none.setFontLetterSpacing(0);
+                    auto noSpacing = [&](qsizetype from) {
+                        const qsizetype a = shown.indexOf(QChar(0x2060), from), b = shown.indexOf(QChar(0x00AD), from);
+                        return a < 0 ? b : b < 0 ? a : std::min(a, b);
+                    };
                     int from = 0;
-                    for (int at = int(shown.indexOf(QChar(0x2060))); at >= 0; at = int(shown.indexOf(QChar(0x2060), at + 1))) {
+                    for (int at = int(noSpacing(0)); at >= 0; at = int(noSpacing(at + 1))) {
                         if (at > from) ranges << QTextLayout::FormatRange{fr.start + from, at - from, fr.format};
                         ranges << QTextLayout::FormatRange{fr.start + at, 1, none};
                         from = at + 1;

@@ -2595,8 +2595,6 @@ private Q_SLOTS:
             QTextCharFormat cf;
             cf.setFontFamilies(QStringList{QStringLiteral("Arial")});
             cf.setFontPointSize(24);
-            cf.setFontWeight(bold ? QFont::Bold : QFont::Normal);
-            cf.setFontItalic(italic);
             c.insertText(QStringLiteral("Item"), cf);
             QTextListFormat lf;
             lf.setStyle(QTextListFormat::ListDisc);
@@ -4245,6 +4243,48 @@ private Q_SLOTS:
             }
         QVERIFY2(checked > 20, qPrintable(QString::number(checked)));
         qInfo() << "bundled font styles checked:" << checked << "without U+2011:" << lacking;
+    }
+
+    // Letter spacing does not widen a word at its optional hyphens (the places automatic hyphenation may break it): the mark is shown only where a line breaks.
+    void anOptionalHyphenTakesNoLetterSpacing()
+    {
+        // (the run's text is laid out whole, and again with hyphenation points in it: the two must be as wide, in every face the program ships)
+        auto inkRight = [](const QString &family, bool hyphenate) {
+            QTextDocument doc;
+            QTextCursor c(&doc);
+            QTextCharFormat cf;
+            cf.setFontFamilies(QStringList{family});
+            cf.setFontPointSize(20);
+            cf.setProperty(jp::tp::Tracking, 250.0);
+            cf.setTextOutline(QPen(Qt::black, 1));   // (the title that showed it was outlined)
+            cf.setProperty(jp::tp::Language, QStringLiteral("fr"));
+            c.insertText(QStringLiteral("calendrier"), cf);
+            jp::FrameSpec fs;
+            fs.size = QSizeF(600, 80);
+            fs.insets = QMarginsF(0, 0, 0, 0);
+            fs.hyphenate = hyphenate;
+            jp::StoryLayout l;
+            l.build(&doc, {fs}, jp::LayoutEnv());
+            QImage img(600, 80, QImage::Format_RGB32);
+            img.fill(Qt::white);
+            QPainter p(&img);
+            l.paint(&p, 0, jp::PaintOptions());
+            p.end();
+            int right = 0;
+            for (int y = 0; y < img.height(); ++y)
+                for (int x = img.width() - 1; x > right; --x)
+                    if (qGray(img.pixel(x, y)) < 160) { right = x; break; }
+            return right;
+        };
+        // (a shipped face, and two families that no machine has, drawn in a stand-in)
+        for (const QString &family : {QStringLiteral("Arimo"), QStringLiteral("Lets Coffee"), QStringLiteral("Nonexistent Script Face")}) {
+            {
+                const int whole = inkRight(family, false);
+                QVERIFY2(whole > 100, qPrintable(family));
+                const int broken = inkRight(family, true);
+                QVERIFY2(std::abs(broken - whole) <= 3, qPrintable(QStringLiteral("%1: %2 and %3").arg(family).arg(whole).arg(broken)));   // (a letter's width rounds apart by a pixel; a gap is a letter space, 25 or more)
+            }
+        }
     }
 
     // The optional hyphen, nonbreaking hyphen, and nonbreaking space keep their places through a .pub file.
