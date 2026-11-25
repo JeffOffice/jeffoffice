@@ -3540,6 +3540,31 @@ private Q_SLOTS:
         }
     }
 
+    void replaceAllSaysHowManyMatchesAreInContentThatCanNotBeChanged()
+    {
+        WriteWindow w;
+        w.resize(1100, 800);
+        w.show();
+        w.setDocument(open(makeDocx(edgeFixture("contentLocked"))), QString());
+        w.showFindPane(true);
+        WriteFindPane *pane = w.findPane();
+        pane->findBox()->setText(QStringLiteral("aa"));
+        pane->replaceBox()->setText(QStringLiteral("ZZ"));
+        pane->replaceAll();
+        QVERIFY2(!pane->status().contains(QLatin1String("was not found")), qPrintable(pane->status()));
+        QVERIFY2(pane->status().contains(QLatin1String("1 match")) && pane->status().contains(QLatin1String("can't be changed")), qPrintable(pane->status()));
+        // What is not in a control is still swapped, and the count of the others is told after it.
+        pane->findBox()->setText(QStringLiteral("e"));
+        pane->replaceBox()->setText(QStringLiteral("E"));
+        pane->replaceAll();
+        QVERIFY2(pane->status().contains(QLatin1String("made")) && !pane->status().contains(QLatin1String("no replacements")), qPrintable(pane->status()));
+        QVERIFY2(!pane->status().contains(QLatin1String("can't be changed")), qPrintable(pane->status()));
+        // Nothing is found: that is still said.
+        pane->findBox()->setText(QStringLiteral("zzzz"));
+        pane->replaceAll();
+        QVERIFY2(pane->status().contains(QLatin1String("was not found")), qPrintable(pane->status()));
+    }
+
     void aJoinAcrossTheEdgeOfAnUnlockedControlKeepsItWholeOnTheCaretsSide()
     {
         // The paragraph made by the join is on the side of the caret: Backspace at the start of "after" and Delete at the end of "before" leave the control (and its other paragraphs) where it

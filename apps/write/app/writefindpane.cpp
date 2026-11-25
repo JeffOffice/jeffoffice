@@ -1286,7 +1286,11 @@ bool WriteFindPane::planStory(QTextDocument *story, QString *problem, StoryWords
         const QTextCursor m = matchIn(text, at, problem);
         if (m.isNull()) break;
         at = nextPlace(m, at);
-        if (!(plan->w.skip && plan->w.skip(m)) && !holdsMark(plan->plain, m) && !controlKeeps(m_win->document(), story, text, m.selectionStart(), m.selectionEnd())) {   // (a section break, a field's start, or a note's mark is found, not swapped: it would lose what it stands for)
+        if (!(plan->w.skip && plan->w.skip(m)) && !holdsMark(plan->plain, m)) {   // (a section break, a field's start, or a note's mark is found, not swapped: it would lose what it stands for)
+            if (controlKeeps(m_win->document(), story, text, m.selectionStart(), m.selectionEnd())) {
+                ++plan->kept;
+                continue;
+            }
             plan->found.push_back(m);
             if (regex) plan->groups.push_back(m_lastGroups);
         }
@@ -1406,8 +1410,11 @@ void WriteFindPane::replaceAll()
     }
     // The text, then the headers, footers, and notes; the swaps in all of them are one step that undoes.
     const write::WriteDoc::StepGroup group(*m_win->document());
-    int n = 0;
-    for (const Plan &plan : plans) n += plan.story ? applyPlan(plan) : 0;
+    int n = 0, locked = 0;
+    for (const Plan &plan : plans) {
+        n += plan.story ? applyPlan(plan) : 0;
+        locked += plan.kept;
+    }
     int tooLarge = 0;
     m_boxesStopped = false;
     n += replaceInTextBoxes(&problem, &tooLarge);
@@ -1415,9 +1422,10 @@ void WriteFindPane::replaceAll()
         m_status->setText(problem);
         return;
     }
-    QString text = n == 0   ? (tooLarge > 0 ? tr("JeffWrite made no replacements.") : tr("JeffWrite made no replacements. \"%1\" was not found.").arg(findTextForMessage(q)))
+    QString text = n == 0   ? (tooLarge > 0 || locked > 0 ? tr("JeffWrite made no replacements.") : tr("JeffWrite made no replacements. \"%1\" was not found.").arg(findTextForMessage(q)))
                    : n == 1 ? tr("JeffWrite made 1 replacement.")
                             : tr("JeffWrite made %1 replacements.").arg(n);
+    if (locked > 0) text += QLatin1Char(' ') + tr("%n match is in content that can't be changed.", nullptr, locked);
     if (tooLarge > 0) text += QLatin1Char(' ') + tr("%n text box was too large to change.", nullptr, tooLarge);
     if (m_boxesStopped) text += QLatin1Char(' ') + tr("Only the first %1 text boxes were changed; use Replace All again for the rest.").arg(kMostBoxesChanged);
     m_status->setText(text);

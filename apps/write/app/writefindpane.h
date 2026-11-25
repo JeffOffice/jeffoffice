@@ -142,6 +142,7 @@ private:
         write::FindPattern pattern;
         QVector<QTextCursor> found;
         QVector<QStringList> groups;
+        int kept = 0;   // matches left as they are because they are in content that can't be edited
     };
     bool planStory(QTextDocument *story, QString *problem, StoryWords *given, Plan *plan);
     int applyPlan(const Plan &plan);
