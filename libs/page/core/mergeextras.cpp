@@ -30,8 +30,6 @@ int keyColumnOf(const MergeSource &m)
     return -1;
 }
 
-QString tr(const char *text, int n = -1) { return QCoreApplication::translate("MergeExclusions", text, nullptr, n); }
-
 } // namespace
 
 QString mergeKeyFingerprint(const QString &value, const QString &salt)
@@ -115,7 +113,7 @@ ExclusionResult applyExclusions(MergeSource &m, const MergeExclusions &saved)
     if (!saved.keys.isEmpty()) {
         const int key = keyColumnOf(m);
         if (key < 0) {
-            res.problem = tr("The list has no column named \"%1\" now, so the recipients you left out before could not be found. All recipients are included.").arg(saved.keyColumn);
+            res.problem = QCoreApplication::translate("MergeExclusions", "The list has no column named \"%1\" now, so the recipients you left out before could not be found. All recipients are included.").arg(saved.keyColumn);
             return res;
         }
         QHash<QString, int> needed;
@@ -133,13 +131,13 @@ ExclusionResult applyExclusions(MergeSource &m, const MergeExclusions &saved)
             else for (int r : rows) { m.include[r] = false; ++res.applied; }
         }
         QStringList said;
-        if (gone > 0) said << tr("%n recipient you left out before is no longer in the list.", gone);
-        if (repeated > 0) said << tr("%n recipient you left out before could not be matched, because other recipients have the same %1. That recipient is included.", repeated).arg(saved.keyColumn);
+        if (gone > 0) said << QCoreApplication::translate("MergeExclusions", "%n recipient you left out before is no longer in the list.", nullptr, gone);
+        if (repeated > 0) said << QCoreApplication::translate("MergeExclusions", "%n recipient you left out before could not be matched, because other recipients have the same %1. That recipient is included.", nullptr, repeated).arg(saved.keyColumn);
         res.problem = said.join(QLatin1Char(' '));
         return res;
     }
     if (saved.rows != m.rows.size()) {
-        res.problem = tr("The list has %n recipient now. It had %1 when you chose which recipients to leave out, so all recipients are included.", int(m.rows.size())).arg(saved.rows);
+        res.problem = QCoreApplication::translate("MergeExclusions", "The list has %n recipient now. It had %1 when you chose which recipients to leave out, so all recipients are included.", nullptr, int(m.rows.size())).arg(saved.rows);
         return res;
     }
     for (int p : saved.places)
