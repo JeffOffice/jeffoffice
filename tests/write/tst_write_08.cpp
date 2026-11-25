@@ -1825,6 +1825,24 @@ void WriteTests::everyTableCommandRunsOnHostileTables()
 }
 
 
+// Counted, not timed: aligning the cells of a table asks where the content controls keep paragraphs from being changed once, not once for each cell.
+void WriteTests::aTableWideAlignmentLooksAtTheContentLocksOnce()
+{
+    auto doc = open(tableDocx(300, 1));
+    QVERIFY(doc);
+    QTextBlock first = doc->story()->begin();
+    while (first.isValid() && !cellKeyOf(first)) first = first.next();
+    QTextBlock last = doc->story()->lastBlock();
+    while (last.isValid() && !cellKeyOf(last)) last = last.previous();
+    QTextCursor c(doc->story());
+    c.setPosition(first.position());
+    c.setPosition(last.position(), QTextCursor::KeepAnchor);
+    const int before = lockedRangeScansForTest();
+    setCellAlignment(*doc, c, Qt::AlignHCenter, flow::CellAlign::Bottom);
+    QVERIFY2(lockedRangeScansForTest() - before <= 2, qPrintable(QString::number(lockedRangeScansForTest() - before)));
+    QCOMPARE(doc->story()->blockCount() > 300, true);
+}
+
 // What the commands and the controls cost on a long table is counted, not timed: the caret moving about a table looks at the story's tables once, a join of two cells looks at the
 // cells next to them and not at all of them, and fitting columns to their cells makes a font's measures once.
 void WriteTests::theCaretMovingAboutALongTableLooksAtItsTablesOnce()

@@ -241,8 +241,9 @@ void setCharBorder(WriteDoc &doc, QTextCursor &c, bool on);                  // 
 void clearFormatting(WriteDoc &doc, QTextCursor &c);
 
 // ---- paragraphs
-void changeBlockFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(QTextBlockFormat &)> &change);
-void setAlignment(WriteDoc &doc, QTextCursor &c, Qt::Alignment alignment);
+// `locked`: the places content controls keep from being changed (lockedContentRanges, false), when the caller has them for many calls in a row; else they are worked out here.
+void changeBlockFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(QTextBlockFormat &)> &change, const QVector<std::pair<int, int>> *locked = nullptr);
+void setAlignment(WriteDoc &doc, QTextCursor &c, Qt::Alignment alignment, const QVector<std::pair<int, int>> *locked = nullptr);
 void changeIndent(WriteDoc &doc, QTextCursor &c, double points);             // by a step; in a list, the level
 void setIndents(WriteDoc &doc, QTextCursor &c, double left, double right, double firstLine);
 void setSpacing(WriteDoc &doc, QTextCursor &c, double before, double after);

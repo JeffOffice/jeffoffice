@@ -1168,8 +1168,12 @@ bool contentControlsAllowIn(QTextDocument *story, int from, int to, bool typing)
     return true;
 }
 
+static int s_lockedScans = 0;
+int lockedRangeScansForTest() { return s_lockedScans; }
+
 QVector<std::pair<int, int>> lockedContentRanges(QTextDocument *story, bool withEdges)
 {
+    ++s_lockedScans;
     QVector<std::pair<int, int>> out;
     if (!story) return out;
     int budget = kMostControls;

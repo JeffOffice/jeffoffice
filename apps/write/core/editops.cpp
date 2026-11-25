@@ -2893,7 +2893,7 @@ static bool paragraphKept(const QVector<std::pair<int, int>> &locked, const QTex
     return !locked.isEmpty() && overlapsRanges(locked, b.position(), b.position() + std::max(1, b.length() - 1));
 }
 
-void changeBlockFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(QTextBlockFormat &)> &change)
+void changeBlockFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(QTextBlockFormat &)> &change, const QVector<std::pair<int, int>> *locked)
 {
     if (doc.formattingLimited()) {
         doc.noteFormattingRefused();
@@ -2903,7 +2903,8 @@ void changeBlockFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(Q
     if (!intoBody(c)) return;
     Q_UNUSED(doc);
     bool changedAny = false;
-    const QVector<std::pair<int, int>> kept = lockedContentRanges(c.document(), false);
+    const QVector<std::pair<int, int>> own = locked ? QVector<std::pair<int, int>>() : lockedContentRanges(c.document(), false);
+    const QVector<std::pair<int, int>> &kept = locked ? *locked : own;
     c.beginEditBlock();
     for (const QTextBlock &b : selectedBlocks(c)) {
         if (isLocked(b) || paragraphKept(kept, b)) continue;
@@ -2920,14 +2921,14 @@ void changeBlockFormat(WriteDoc &doc, QTextCursor &c, const std::function<void(Q
     c.endEditBlock();
 }
 
-void setAlignment(WriteDoc &doc, QTextCursor &c, Qt::Alignment alignment)
+void setAlignment(WriteDoc &doc, QTextCursor &c, Qt::Alignment alignment, const QVector<std::pair<int, int>> *locked)
 {
     const NoteScopeGuard scopeGuard(doc, c);
     if (!intoBody(c)) return;
     changeBlockFormat(doc, c, [alignment](QTextBlockFormat &bf) {
         bf.setAlignment(alignment);
         bf.clearProperty(prop::JcRaw);   // (a chosen alignment is the plain kind)
-    });
+    }, locked);
 }
 
 static void setBlockList(WriteDoc &doc, QTextBlock block, int numId, int level, QTextList *join);

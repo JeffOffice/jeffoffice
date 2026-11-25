@@ -139,6 +139,8 @@ bool contentControlsAllowIn(QTextDocument *story, int from, int to, bool typing)
 // `withEdges` the paragraph breaks at the edges of a control round paragraphs are in them. The places of a change (a format, an accepted or rejected change) are checked against them.
 QVector<std::pair<int, int>> lockedContentRanges(QTextDocument *story, bool withEdges);
 bool overlapsRanges(const QVector<std::pair<int, int>> &ranges, int from, int to);
+// For tests: how many times the places have been worked out, since the program began.
+int lockedRangeScansForTest();
 // Whether the characters from `from` to `to` may be given another look (not where the contents can't be edited).
 bool contentControlsAllowFormat(QTextDocument *story, int from, int to);
 // A paragraph `a` joined to the one after it by Backspace or Delete, where the break is the edge of a control round paragraphs: endJoinAtEdge, after the join, puts the paragraph made on the side of the

@@ -1854,11 +1854,12 @@ void setCellAlignment(WriteDoc &doc, QTextCursor &c, Qt::Alignment across, flow:
         forCells(x, w, a, [&](XCell &cell, const flow::TableLayout::Cell &) { cell.open = patchPr(cell.open, kCell, {{"vAlign", "<w:vAlign w:val=\"" + value + "\"/>"}}); });
         return true;
     });
+    const QVector<std::pair<int, int>> locked = lockedContentRanges(tableStory(doc), false);   // (once, not for each cell)
     for (const auto &range : std::as_const(ranges)) {
         QTextCursor cc(tableStory(doc));
         cc.setPosition(range.first);
         cc.setPosition(std::max(range.first, range.second - 1), QTextCursor::KeepAnchor);
-        setAlignment(doc, cc, across);
+        setAlignment(doc, cc, across, &locked);
     }
     c.endEditBlock();
 }

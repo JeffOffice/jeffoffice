@@ -1458,6 +1458,7 @@ private Q_SLOTS:
     void mergingKeepsThePiecesKeptBetweenCells();
     void aBookmarkBetweenRowsStaysWhenATableIsChanged();
     void everyTableCommandRunsOnHostileTables();
+    void aTableWideAlignmentLooksAtTheContentLocksOnce();
     void theCaretMovingAboutALongTableLooksAtItsTablesOnce();
     void aJoinOfTwoCellsLooksAtTheCellsNextToThem();
     void fittingColumnsToTheirCellsMeasuresAFontOnce();
