@@ -7449,6 +7449,50 @@ private Q_SLOTS:
         QCOMPARE(QString::fromLatin1(QCryptographicHash::hash(all, QCryptographicHash::Md5).toHex()), QStringLiteral("61965033d9ba9ed653025c7ae5ef4b0e"));
     }
 
+    // Pictures of the Artistic Effects gallery and the window with a picture of the file selected (only with JW_SHOT_DIR: a folder); the look is set for the picture and put back as it was.
+    void grabTheArtisticEffectsGallery()
+    {
+        const QString dir = qEnvironmentVariable("JW_SHOT_DIR");
+        if (dir.isEmpty()) QSKIP("JW_SHOT_DIR names no folder");
+        const int theme = Settings::get().value(QStringLiteral("ui/theme"), 0).toInt();
+        const QString sheet = qApp->styleSheet();
+        const QPalette palette = qApp->palette();
+        jp::applyUiTheme(1);
+        QDir().mkpath(dir);
+        {
+            WriteWindow w;
+            w.setNotifier([](const QString &, const QString &) {});
+            w.resize(1200, 800);
+            w.show();
+            QByteArray file;
+            auto doc = tilesDoc(5, &file);
+            QVERIFY(doc);
+            w.setDocument(std::move(doc), QString());
+            QVERIFY(QTest::qWaitForWindowExposed(&w));
+            w.view()->selectPicture(7);
+            auto *button = w.findChild<GalleryButton *>(QStringLiteral("artisticEffectsButton"));
+            QTRY_VERIFY((button = w.findChild<GalleryButton *>(QStringLiteral("artisticEffectsButton"))) != nullptr);
+            const QVector<GalleryItem> items = button->items();
+            QVERIFY(!items.isEmpty());
+            QFrame *popup = galleryPopup(items, QSize(48, 36), 5, {}, [](const QString &) {}, &w);
+            popup->setAttribute(Qt::WA_DeleteOnClose, false);
+            popup->show();
+            QVERIFY(popup->grab().save(dir + QStringLiteral("/write-artistic-gallery.png")));
+            popup->hide();
+            delete popup;
+            w.ribbon()->showTab(w.ribbon()->tab(QStringLiteral("Picture Format")));
+            for (int turn = 0; turn < 10; ++turn) QCoreApplication::processEvents();
+            QVERIFY(w.grab().save(dir + QStringLiteral("/write-picture-format.png")));
+        }
+        if (sheet.isEmpty()) {
+            qApp->setStyleSheet(QString());
+            QGuiApplication::setPalette(palette);
+        } else {
+            jp::applyUiTheme(theme);
+        }
+        QCOMPARE(qApp->styleSheet(), sheet);
+    }
+
     // Compress Pictures on a picture with an effect: the original and the finished picture are both made smaller, the effect stays, Reset Picture still brings the (smaller) original back.
     void compressPicturesMakesAFilteredPicturesOriginalAndFinishedPictureSmaller()
     {
