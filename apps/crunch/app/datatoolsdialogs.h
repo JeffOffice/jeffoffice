@@ -5,12 +5,15 @@
 
 #include <QDialog>
 
+#include <vector>
+
 class QCheckBox;
 class QComboBox;
 class QLabel;
 class QLineEdit;
 class QListWidget;
 class QRadioButton;
+class QSpinBox;
 
 namespace jp {
 
@@ -28,7 +31,9 @@ private:
     QRadioButton *m_delimited, *m_fixed;
     QCheckBox *m_tab, *m_semicolon, *m_comma, *m_space, *m_other, *m_consecutive;
     QLineEdit *m_otherText, *m_breaks, *m_destination;
-    QComboBox *m_qualifier, *m_format;
+    QComboBox *m_qualifier, *m_format, *m_pieceKind;
+    QSpinBox *m_piece;
+    std::vector<int> m_pieceTypes;   // for each piece: -1 as "Each piece is" says, else the kind SplitSpec::types has
     QLabel *m_preview;
 };
 

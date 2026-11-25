@@ -15,6 +15,9 @@
 #include "app/ribbon.h"
 
 #include <QAction>
+#include <QComboBox>
+#include <QLabel>
+#include <QSpinBox>
 #include <QToolButton>
 #include <QElapsedTimer>
 #include <QTest>
@@ -238,6 +241,51 @@ private Q_SLOTS:
         pressUndo(&e.win.w);
         QVERIFY(e.settle());
         QCOMPARE(shown(e, QStringLiteral("B1:D3")), QStringLiteral("||old||||||"));
+    }
+
+    void aPieceCanBeReadAsADateInTheOrderTheColumnIsWritten()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=03/05/24", "A2=31/12/2024", "A3=junk"})));
+        QVERIFY(e.settle());
+        EditSession::SplitSpec spec;
+        spec.delimiters = QStringLiteral(";");
+        spec.types = {4};   // day, month, year
+        QVERIFY(e.win.w.session()->textToColumns(0, rangeOf(QStringLiteral("A1:A3")), spec, 0, 1).ok);
+        QVERIFY(e.settle());
+        QVERIFY(e.valueAt(QStringLiteral("B1")).startsWith(QLatin1String("n:")));
+        QCOMPARE(e.valueAt(QStringLiteral("B1")), QStringLiteral("n:45415"));   // (3 May 2024)
+        QCOMPARE(e.valueAt(QStringLiteral("B2")), QStringLiteral("n:45657"));   // (31 December 2024)
+        QCOMPARE(shown(e, QStringLiteral("B3")), QStringLiteral("junk"));   // (not a date: as it was)
+        QCOMPARE(e.win.w.undoStack()->count(), 1);
+        pressUndo(&e.win.w);
+        QVERIFY(e.settle());
+        spec.types = {3};   // month, day, year
+        QVERIFY(e.win.w.session()->textToColumns(0, rangeOf(QStringLiteral("A1:A2")), spec, 0, 1).ok);
+        QVERIFY(e.settle());
+        QCOMPARE(e.valueAt(QStringLiteral("B1")), QStringLiteral("n:45356"));   // (5 March 2024)
+        QCOMPARE(shown(e, QStringLiteral("B2")), QStringLiteral("31/12/2024"));   // (there is no month 31: left as typed)
+    }
+
+    void theTextToColumnsDialogSetsTheKindOfEachPiece()
+    {
+        TextToColumnsDialog d(QStringList{QStringLiteral("a,b,c")}, QStringLiteral("B1"), nullptr);
+        auto *piece = d.findChild<QSpinBox *>(QStringLiteral("splitPiece"));
+        auto *kind = d.findChild<QComboBox *>(QStringLiteral("splitPieceKind"));
+        QVERIFY(piece && kind);
+        QCOMPARE(d.spec().types.at(0), 0);
+        piece->setValue(1);
+        kind->setCurrentIndex(kind->findData(5));
+        piece->setValue(3);
+        kind->setCurrentIndex(kind->findData(2));
+        piece->setValue(1);
+        QCOMPARE(kind->currentData().toInt(), 5);   // (each piece keeps its own)
+        const EditSession::SplitSpec spec = d.spec();
+        QCOMPARE(spec.types.at(0), 5);
+        QCOMPARE(spec.types.at(1), 0);
+        QCOMPARE(spec.types.at(2), 2);
+        QVERIFY(d.findChild<QLabel *>(QStringLiteral("splitPreview"))->text().contains(QLatin1String("a | b")));
+        QVERIFY(!d.findChild<QLabel *>(QStringLiteral("splitPreview"))->text().contains(QLatin1String("c")));
     }
 
     void piecesOfTextAreKeptAsTextAndColumnsCanBeLeftOut()

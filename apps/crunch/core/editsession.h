@@ -839,7 +839,7 @@ public:
         bool consecutiveAsOne = false;       // delimiters in a row cut once
         QChar qualifier = QLatin1Char('"');  // text between two of these is not cut (a null character for none)
         std::vector<int> breaks;             // fixed width: the places (counted in characters, from 1) at which a new column begins
-        std::vector<int> types;              // for each column that comes of it: 0 General (read as typed), 1 Text (kept as text), 2 not imported; General for the ones not told
+        std::vector<int> types;              // for each column that comes of it: 0 General (read as typed), 1 Text (kept as text), 2 not imported, 3 Date as month-day-year, 4 as day-month-year, 5 as year-month-day (text that is not a date in that order stays as it is); General for the ones not told
     };
     // The pieces of each line.
     static QVector<QStringList> splitText(const QStringList &lines, const SplitSpec &spec);

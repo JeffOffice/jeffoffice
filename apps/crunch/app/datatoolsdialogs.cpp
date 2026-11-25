@@ -12,6 +12,7 @@
 #include <QPushButton>
 #include <QRegularExpression>
 #include <QRadioButton>
+#include <QSpinBox>
 #include <QVBoxLayout>
 
 namespace jp {
@@ -70,6 +71,33 @@ TextToColumnsDialog::TextToColumnsDialog(const QStringList &lines, const QString
     m_format->addItem(tr("General (numbers and dates are read)"));
     m_format->addItem(tr("Text (kept as it is)"));
     form->addRow(tr("Each piece is"), m_format);
+    // one piece at a time: how it is read (the kinds SplitSpec::types has), or left out
+    m_pieceTypes.assign(64, -1);
+    auto *pieceRow = new QHBoxLayout;
+    m_piece = new QSpinBox(this);
+    m_piece->setObjectName(QStringLiteral("splitPiece"));
+    m_piece->setAccessibleName(tr("Piece number"));
+    m_piece->setRange(1, int(m_pieceTypes.size()));
+    m_pieceKind = new QComboBox(this);
+    m_pieceKind->setObjectName(QStringLiteral("splitPieceKind"));
+    m_pieceKind->setAccessibleName(tr("How this piece is read"));
+    m_pieceKind->addItem(tr("Same as above"), -1);
+    m_pieceKind->addItem(tr("As typed"), 0);
+    m_pieceKind->addItem(tr("Text"), 1);
+    m_pieceKind->addItem(tr("Date: month, day, year"), 3);
+    m_pieceKind->addItem(tr("Date: day, month, year"), 4);
+    m_pieceKind->addItem(tr("Date: year, month, day"), 5);
+    m_pieceKind->addItem(tr("Leave out"), 2);
+    pieceRow->addWidget(m_piece);
+    pieceRow->addWidget(m_pieceKind, 1);
+    form->addRow(tr("Piece"), pieceRow);
+    connect(m_piece, &QSpinBox::valueChanged, this, [this](int n) {
+        m_pieceKind->setCurrentIndex(std::max(0, m_pieceKind->findData(m_pieceTypes[size_t(n - 1)])));
+    });
+    connect(m_pieceKind, &QComboBox::currentIndexChanged, this, [this] {
+        m_pieceTypes[size_t(m_piece->value() - 1)] = m_pieceKind->currentData().toInt();
+        updatePreview();
+    });
     m_destination = new QLineEdit(destination, this);
     m_destination->setObjectName(QStringLiteral("splitDestination"));
     m_destination->setAccessibleName(tr("First cell for the pieces"));
@@ -110,8 +138,10 @@ crunch::EditSession::SplitSpec TextToColumnsDialog::spec() const
         const int at = part.toInt(&ok);
         if (ok && at > 1) s.breaks.push_back(at);
     }
-    // (every piece gets the one kind: a long enough run of the same entry)
-    s.types.assign(64, m_format->currentIndex() == 1 ? 1 : 0);
+    // (the kind of "Each piece is" for the pieces that were not told otherwise: a long enough run of the same entry)
+    s.types.assign(m_pieceTypes.size(), m_format->currentIndex() == 1 ? 1 : 0);
+    for (size_t i = 0; i < m_pieceTypes.size(); ++i)
+        if (m_pieceTypes[i] >= 0) s.types[i] = m_pieceTypes[i];
     return s;
 }
 
@@ -123,9 +153,15 @@ void TextToColumnsDialog::updatePreview()
     const bool delimited = m_delimited->isChecked();
     for (QWidget *w : std::initializer_list<QWidget *>{m_tab, m_semicolon, m_comma, m_space, m_other, m_consecutive, m_qualifier}) w->setEnabled(delimited);
     m_breaks->setEnabled(!delimited);
-    const QVector<QStringList> table = crunch::EditSession::splitText(m_lines.mid(0, 4), spec());
+    const crunch::EditSession::SplitSpec chosen = spec();
+    const QVector<QStringList> table = crunch::EditSession::splitText(m_lines.mid(0, 4), chosen);
     QStringList rows;
-    for (const QStringList &row : table) rows << row.join(QStringLiteral(" | "));
+    for (const QStringList &row : table) {
+        QStringList kept;   // (the pieces that are left out are not shown)
+        for (int i = 0; i < row.size(); ++i)
+            if (!(i < int(chosen.types.size()) && chosen.types[size_t(i)] == 2)) kept << row[i];
+        rows << kept.join(QStringLiteral(" | "));
+    }
     m_preview->setText(rows.join(QLatin1Char('\n')));
 }
 

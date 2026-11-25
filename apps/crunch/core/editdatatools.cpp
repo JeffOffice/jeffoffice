@@ -4,6 +4,8 @@
 #include "calc/value.h"
 
 #include <QCoreApplication>
+#include <QDate>
+#include <QRegularExpression>
 #include <QHash>
 #include <QSet>
 #include <QUndoStack>
@@ -63,6 +65,27 @@ QVector<QStringList> EditSession::splitText(const QStringList &lines, const Spli
     return table;
 }
 
+namespace {
+
+// The text of a date written in the order `order` (3 month, day, year; 4 day, month, year; 5 year, month, day) as the year, month, and day with dashes, which a cell reads as that date; text
+// that is not a date in that order is returned as it is. A year of two digits is of this century up to 29, else of the last.
+QString dateInOrder(const QString &text, int order)
+{
+    const QStringList parts = text.trimmed().split(QRegularExpression(QStringLiteral("[-/.\\s]+")));
+    if (parts.size() != 3) return text;
+    bool ok[3] = {false, false, false};
+    const int a = parts[0].toInt(&ok[0]), b = parts[1].toInt(&ok[1]), c = parts[2].toInt(&ok[2]);
+    if (!ok[0] || !ok[1] || !ok[2]) return text;
+    int y = c, m = a, d = b;
+    if (order == 4) { d = a; m = b; y = c; }
+    else if (order == 5) { y = a; m = b; d = c; }
+    if (y < 100) y += y < 30 ? 2000 : 1900;
+    const QDate date(y, m, d);
+    return date.isValid() ? date.toString(Qt::ISODate) : text;
+}
+
+} // namespace
+
 EditSession::Outcome EditSession::textToColumns(int sheet, const CellRange &source, const SplitSpec &spec, quint32 destRow, quint32 destCol, CellRange *covered)
 {
     Outcome out;
@@ -107,6 +130,7 @@ EditSession::Outcome EditSession::textToColumns(int sheet, const CellRange &sour
             if (type == 2) continue;
             QString text = c < p.size() ? p[c] : QString();
             if (type == 1 && !text.isEmpty()) text.prepend(QLatin1Char('\''));
+            else if (type >= 3 && type <= 5 && !text.isEmpty()) text = dateInOrder(text, type);
             row << text;
         }
         table.append(row);
