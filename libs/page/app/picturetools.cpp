@@ -453,26 +453,38 @@ bool hasNoTransparency(const QImage &img)
     return true;
 }
 
-// Whether any pixel of `img` outside `keep` is something: not clear, and (in a picture with no transparency) not all one color, as a picture already cleared is.
+// The color a picture with no transparency is cleared to: the average of the edge (one pixel deep) of `keep`.
+QRgb edgeAverage(const QImage &img, const QRect &keep)
+{
+    const QRect k = keep.intersected(img.rect());
+    qint64 r = 0, g = 0, b = 0, n = 0;
+    for (int y = k.top(); y <= k.bottom(); ++y)
+        for (int x = k.left(); x <= k.right(); ++x) {
+            if (y != k.top() && y != k.bottom() && x != k.left() && x != k.right()) {
+                x = k.right() - 1;
+                continue;
+            }
+            const QRgb c = img.pixel(x, y);
+            r += qRed(c);
+            g += qGreen(c);
+            b += qBlue(c);
+            ++n;
+        }
+    return n ? qRgb(int(r / n), int(g / n), int(b / n)) : qRgb(128, 128, 128);
+}
+
+// Whether any pixel of `img` outside `keep` is something: not clear, and (in a picture with no transparency) not the color it is cleared to, as a picture already cleared is.
 bool hasContentOutside(const QImage &img, const QRect &keep)
 {
     const QImage a = img.format() == QImage::Format_ARGB32 ? img : img.convertToFormat(QImage::Format_ARGB32);
     const bool opaque = hasNoTransparency(a);
-    bool first = true;
-    QRgb flat = 0;
+    const QRgb flat = opaque ? edgeAverage(a, keep) : 0;
     for (int y = 0; y < a.height(); ++y) {
         const QRgb *row = reinterpret_cast<const QRgb *>(a.constScanLine(y));
         const bool inside = y >= keep.top() && y <= keep.bottom();
         for (int x = 0; x < a.width(); ++x) {
             if (inside && x >= keep.left() && x <= keep.right()) continue;
-            if (!opaque) {
-                if (qAlpha(row[x]) != 0) return true;
-            } else if (first) {
-                flat = row[x];
-                first = false;
-            } else if (row[x] != flat) {
-                return true;
-            }
+            if (opaque ? row[x] != flat : qAlpha(row[x]) != 0) return true;
         }
     }
     return false;
@@ -591,33 +603,17 @@ bool cutPicture(Document &doc, PictureItem &p, const CutPlan &plan, QHash<QStrin
 {
     auto cleared = [&plan](const QImage &in) {
         QImage img = in.convertToFormat(QImage::Format_ARGB32);
-        // A picture with no transparency stays one: its outside is the average color of the edge of what is kept, opaque, and it is stored with no alpha channel.
+        // A picture with no transparency stays one: its outside is the average color of the edge of what is kept, opaque, and it is stored with no alpha channel when it had none (one that
+        // had a channel that is all opaque keeps it, as it is drawn the way its kind is).
         const bool opaque = hasNoTransparency(img);
-        QRgb outside = 0;
-        if (opaque) {
-            const QRect k = plan.keep.intersected(img.rect());
-            qint64 r = 0, g = 0, b = 0, n = 0;
-            for (int y = k.top(); y <= k.bottom(); ++y)
-                for (int x = k.left(); x <= k.right(); ++x) {
-                    if (y != k.top() && y != k.bottom() && x != k.left() && x != k.right()) {
-                        x = k.right() - 1;
-                        continue;
-                    }
-                    const QRgb c = img.pixel(x, y);
-                    r += qRed(c);
-                    g += qGreen(c);
-                    b += qBlue(c);
-                    ++n;
-                }
-            outside = n ? qRgb(int(r / n), int(g / n), int(b / n)) : qRgb(128, 128, 128);
-        }
+        const QRgb outside = opaque ? edgeAverage(img, plan.keep) : 0;
         for (int y = 0; y < img.height(); ++y) {
             QRgb *row = reinterpret_cast<QRgb *>(img.scanLine(y));
             const bool inside = y >= plan.keep.top() && y <= plan.keep.bottom();
             for (int x = 0; x < img.width(); ++x)
                 if (!(inside && x >= plan.keep.left() && x <= plan.keep.right())) row[x] = outside;
         }
-        return opaque ? img.convertToFormat(QImage::Format_RGB32) : img;
+        return opaque && !in.hasAlphaChannel() ? img.convertToFormat(QImage::Format_RGB32) : img;
     };
     if (plan.finish) {
         const QImage img = finishedPicture(doc, p, p.removal.isValid() && p.removal.source == doc.imageSize(p.imageId), true);

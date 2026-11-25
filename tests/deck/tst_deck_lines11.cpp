@@ -1367,7 +1367,7 @@ private Q_SLOTS:
             pic = static_cast<PictureItem *>(w.editor()->doc()->item(pic->id));
             const QImage after = w.editor()->doc()->image(pic->imageId);
             QCOMPARE(after.size(), before.size());   // (the picture keeps its size and place: that is what keeps every pixel of the page)
-            QVERIFY2(pic->imageId != original && qAlpha(after.pixel(2, 45)) == 0 && qAlpha(after.pixel(117, 45)) == 0, c.what);   // (what was cropped away is gone)
+            QVERIFY2(pic->imageId != original && after.pixel(2, 45) != before.pixel(2, 45) && after.pixel(2, 45) == after.pixel(117, 45), c.what);   // (what was cropped away is gone)
             QCOMPARE(jp::picturesKeeping(*w.editor()->doc(), jp::PictureKept::CroppedAreas), 0);
         }
     }
@@ -1413,7 +1413,7 @@ private Q_SLOTS:
         QCOMPARE(a->imageId, b->imageId);   // (still one picture)
         QVERIFY(a->imageId != imageId);
         const QImage after = w.editor()->doc()->image(a->imageId);
-        QCOMPARE(qAlpha(after.pixel(1, 1)), 0);   // (what neither shows is gone)
+        QVERIFY(after.pixel(1, 1) != qRgb(235, 235, 235) && after.pixel(1, 1) == after.pixel(2, 2));   // (what neither shows is gone: one flat color)
         QCOMPARE(qAlpha(after.pixel(60, 45)), 255);
         // (a third object that shows the whole picture keeps it whole: nothing is cut, and nothing changes)
         PictureItem *whole = croppedSubject(w, [](PictureItem &p) { p.rect = QRectF(0, 0, 160, 120); p.imgRect = QRectF(0, 0, 160, 120); }, QStringLiteral("Whole"));
@@ -1454,7 +1454,7 @@ private Q_SLOTS:
             const QString path = dir.filePath(QStringLiteral("order%1.pptx").arg(++run));
             QVERIFY(w.saveTo(path));
             // The file holds no picture of the size it began with.
-            for (const QImage &m : mediaOf(path)) QVERIFY2(m.size() != QSize(120, 90) || qAlpha(m.pixel(2, 45)) == 0, qPrintable(what));
+            for (const QImage &m : mediaOf(path)) QVERIFY2(m.size() != QSize(120, 90) || m.pixel(2, 45) != qRgb(235, 235, 235), qPrintable(what));
             DeckWindow back;
             back.resize(1200, 800);
             QVERIFY(back.openFile(path));
@@ -1595,7 +1595,7 @@ private Q_SLOTS:
         QCOMPARE(jp::removeKeptPictureParts(w.editor(), jp::PictureKept::CroppedAreas), 1);
         QCOMPARE(differingPixels(one, pageAt(w, 1)) + differingPixels(two, pageAt(w, 2)) + differingPixels(three, pageAt(w, 3)), qint64(0));
         pic = static_cast<PictureItem *>(w.editor()->doc()->item(id));
-        QCOMPARE(qAlpha(w.editor()->doc()->image(pic->imageId).pixel(8, 180)), 0);
+        QVERIFY(w.editor()->doc()->image(pic->imageId).pixel(8, 180) != qRgb(235, 235, 235));
         QCOMPARE(jp::picturesKeeping(*w.editor()->doc(), jp::PictureKept::CroppedAreas), 0);
     }
 
