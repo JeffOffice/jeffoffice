@@ -7088,7 +7088,7 @@ Back page story	4</source>
         <translation type="unfinished"></translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/pub/io/pubexport.cpp" line="+2427"/>
+        <location filename="../apps/pub/io/pubexport.cpp" line="+2429"/>
         <source>%n object(s) couldn&apos;t be saved to .pub</source>
         <translation type="unfinished">
             <numerusform></numerusform>
@@ -8761,7 +8761,7 @@ Open them with your email program to send.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubimport.cpp" line="+1303"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+1305"/>
         <source>A %1 picture could not be displayed.</source>
         <translation type="unfinished"></translation>
     </message>
@@ -35732,12 +35732,12 @@ The file can&apos;t be read.</source>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+53"/>
+        <location line="+57"/>
         <source>Browse for Themes</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-51"/>
+        <location line="-55"/>
         <source>Themes, Workbooks, Documents, and Presentations (*.thmx *.xlsx *.xltx *.docx *.dotx *.pptx *.potx)</source>
         <translation type="unfinished"></translation>
     </message>
@@ -35747,13 +35747,19 @@ The file can&apos;t be read.</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+3"/>
+        <location line="+5"/>
         <location line="+53"/>
         <source>Save Current Theme</source>
         <translation type="unfinished"></translation>
     </message>
     <message>
-        <location line="-53"/>
+        <location line="-58"/>
+        <source>This workbook has no theme part, so there is no theme to save.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <location line="+19"/>
         <location line="+6"/>
         <location line="+5"/>
@@ -56664,7 +56670,7 @@ Your web browser will open LibreTranslate, a free, open-source translation servi
 <context>
     <name>jp::PubExport</name>
     <message>
-        <location filename="../apps/pub/io/pubexport.cpp" line="+785"/>
+        <location filename="../apps/pub/io/pubexport.cpp" line="+787"/>
         <source>the levels of list items (every item comes out on one level)</source>
         <translation type="unfinished"></translation>
     </message>

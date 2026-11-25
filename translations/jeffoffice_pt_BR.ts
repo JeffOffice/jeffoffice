@@ -7096,7 +7096,7 @@ Matéria da última página	4</translation>
         <translation type="unfinished">não é um PDF gerado por este programa</translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/pub/io/pubexport.cpp" line="+2427"/>
+        <location filename="../apps/pub/io/pubexport.cpp" line="+2429"/>
         <source>%n object(s) couldn&apos;t be saved to .pub</source>
         <translation type="unfinished">
             <numerusform>%n objeto não pôde ser salvo em .pub</numerusform>
@@ -8784,7 +8784,7 @@ Abra-os no seu programa de email para enviar.</translation>
         <translation type="unfinished">O conteúdo da publicação está danificado: %1</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubimport.cpp" line="+1303"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+1305"/>
         <source>A %1 picture could not be displayed.</source>
         <translation type="unfinished">Não foi possível exibir uma imagem %1.</translation>
     </message>
@@ -35861,12 +35861,12 @@ Não é possível ler o arquivo.</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+53"/>
+        <location line="+57"/>
         <source>Browse for Themes</source>
         <translation>Procurar Temas</translation>
     </message>
     <message>
-        <location line="-51"/>
+        <location line="-55"/>
         <source>Themes, Workbooks, Documents, and Presentations (*.thmx *.xlsx *.xltx *.docx *.dotx *.pptx *.potx)</source>
         <translation type="unfinished">Temas, Pastas de Trabalho, Documentos e Apresentações (*.thmx *.xlsx *.xltx *.docx *.dotx *.pptx *.potx)</translation>
     </message>
@@ -35876,13 +35876,19 @@ Não é possível ler o arquivo.</translation>
         <translation type="unfinished">Salvar Tema Atual…</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+3"/>
+        <location line="+5"/>
         <location line="+53"/>
         <source>Save Current Theme</source>
         <translation type="unfinished">Salvar Tema Atual</translation>
     </message>
     <message>
-        <location line="-53"/>
+        <location line="-58"/>
+        <source>This workbook has no theme part, so there is no theme to save.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <location line="+19"/>
         <location line="+6"/>
         <location line="+5"/>
@@ -56859,7 +56865,7 @@ Seu navegador da Web abrirá o LibreTranslate, um serviço de tradução gratuit
 <context>
     <name>jp::PubExport</name>
     <message>
-        <location filename="../apps/pub/io/pubexport.cpp" line="+785"/>
+        <location filename="../apps/pub/io/pubexport.cpp" line="+787"/>
         <source>the levels of list items (every item comes out on one level)</source>
         <translation type="unfinished">os níveis de itens de lista (todos os itens saem em um único nível)</translation>
     </message>

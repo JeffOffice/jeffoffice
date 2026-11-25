@@ -7094,7 +7094,7 @@ Berita halaman belakang	4</translation>
         <translation type="unfinished">bukan PDF yang ditulis program ini</translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/pub/io/pubexport.cpp" line="+2427"/>
+        <location filename="../apps/pub/io/pubexport.cpp" line="+2429"/>
         <source>%n object(s) couldn&apos;t be saved to .pub</source>
         <translation type="unfinished">
             <numerusform>%n objek tidak dapat disimpan ke .pub</numerusform>
@@ -8777,7 +8777,7 @@ Buka dengan program email Anda untuk mengirimnya.</translation>
         <translation type="unfinished">Konten publikasi rusak: %1</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubimport.cpp" line="+1303"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+1305"/>
         <source>A %1 picture could not be displayed.</source>
         <translation type="unfinished">Gambar %1 tidak dapat ditampilkan.</translation>
     </message>
@@ -35808,12 +35808,12 @@ Berkas tidak dapat dibaca.</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+53"/>
+        <location line="+57"/>
         <source>Browse for Themes</source>
         <translation type="unfinished">Telusuri Tema</translation>
     </message>
     <message>
-        <location line="-51"/>
+        <location line="-55"/>
         <source>Themes, Workbooks, Documents, and Presentations (*.thmx *.xlsx *.xltx *.docx *.dotx *.pptx *.potx)</source>
         <translation type="unfinished">Tema, Buku Kerja, Dokumen, dan Presentasi (*.thmx *.xlsx *.xltx *.docx *.dotx *.pptx *.potx)</translation>
     </message>
@@ -35823,13 +35823,19 @@ Berkas tidak dapat dibaca.</translation>
         <translation type="unfinished">Simpan Tema Saat Ini…</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+3"/>
+        <location line="+5"/>
         <location line="+53"/>
         <source>Save Current Theme</source>
         <translation type="unfinished">Simpan Tema Saat Ini</translation>
     </message>
     <message>
-        <location line="-53"/>
+        <location line="-58"/>
+        <source>This workbook has no theme part, so there is no theme to save.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <location line="+19"/>
         <location line="+6"/>
         <location line="+5"/>
@@ -56789,7 +56795,7 @@ Peramban web Anda akan membuka LibreTranslate, layanan terjemahan gratis dan ope
 <context>
     <name>jp::PubExport</name>
     <message>
-        <location filename="../apps/pub/io/pubexport.cpp" line="+785"/>
+        <location filename="../apps/pub/io/pubexport.cpp" line="+787"/>
         <source>the levels of list items (every item comes out on one level)</source>
         <translation type="unfinished">tingkat item daftar (setiap item keluar pada satu tingkat)</translation>
     </message>

@@ -7096,7 +7096,7 @@ Article de dernière page	4</translation>
         <translation type="unfinished">ce PDF n&apos;a pas été créé par ce programme</translation>
     </message>
     <message numerus="yes">
-        <location filename="../apps/pub/io/pubexport.cpp" line="+2427"/>
+        <location filename="../apps/pub/io/pubexport.cpp" line="+2429"/>
         <source>%n object(s) couldn&apos;t be saved to .pub</source>
         <translation type="unfinished">
             <numerusform>%n objet n&apos;a pas pu être enregistré au format .pub</numerusform>
@@ -8784,7 +8784,7 @@ Ouvrez-les avec votre programme de messagerie pour les envoyer.</translation>
         <translation type="unfinished">Le contenu de la composition est endommagé : %1</translation>
     </message>
     <message>
-        <location filename="../apps/pub/io/pubimport.cpp" line="+1303"/>
+        <location filename="../apps/pub/io/pubimport.cpp" line="+1305"/>
         <source>A %1 picture could not be displayed.</source>
         <translation type="unfinished">Une image %1 n&apos;a pas pu être affichée.</translation>
     </message>
@@ -35861,12 +35861,12 @@ Le fichier est illisible.</translation>
     </message>
     <message>
         <location line="+2"/>
-        <location line="+53"/>
+        <location line="+57"/>
         <source>Browse for Themes</source>
         <translation>Rechercher des thèmes</translation>
     </message>
     <message>
-        <location line="-51"/>
+        <location line="-55"/>
         <source>Themes, Workbooks, Documents, and Presentations (*.thmx *.xlsx *.xltx *.docx *.dotx *.pptx *.potx)</source>
         <translation type="unfinished">Thèmes, classeurs, documents et présentations (*.thmx *.xlsx *.xltx *.docx *.dotx *.pptx *.potx)</translation>
     </message>
@@ -35876,13 +35876,19 @@ Le fichier est illisible.</translation>
         <translation type="unfinished">Enregistrer le thème actuel…</translation>
     </message>
     <message>
-        <location line="+4"/>
+        <location line="+3"/>
+        <location line="+5"/>
         <location line="+53"/>
         <source>Save Current Theme</source>
         <translation type="unfinished">Enregistrer le thème actuel</translation>
     </message>
     <message>
-        <location line="-53"/>
+        <location line="-58"/>
+        <source>This workbook has no theme part, so there is no theme to save.</source>
+        <translation type="unfinished"></translation>
+    </message>
+    <message>
+        <location line="+5"/>
         <location line="+19"/>
         <location line="+6"/>
         <location line="+5"/>
@@ -56859,7 +56865,7 @@ Votre navigateur web ouvrira LibreTranslate, un service de traduction gratuit et
 <context>
     <name>jp::PubExport</name>
     <message>
-        <location filename="../apps/pub/io/pubexport.cpp" line="+785"/>
+        <location filename="../apps/pub/io/pubexport.cpp" line="+787"/>
         <source>the levels of list items (every item comes out on one level)</source>
         <translation type="unfinished">les niveaux des éléments de liste (chaque élément sort sur un seul niveau)</translation>
     </message>
