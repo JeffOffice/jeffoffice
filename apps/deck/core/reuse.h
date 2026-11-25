@@ -21,13 +21,15 @@
 #include "core/document.h"
 
 #include <QString>
+#include <QStringList>
 
 namespace jp::deck {
 
 // Puts a copy of slide `slide` of `from` in `to` as slide `at` (past the last
 // slide: the last place), in the section of the slide before it. Returns its
-// index in `to`, or -1 when `from` has no such slide.
-int insertSlideFrom(Document &to, int at, const Document &from, int slide, bool keepFormatting);
+// index in `to`, or -1 when `from` has no such slide. The sounds its effects play come with it (one `to` has already is used); a sound that can't (too large
+// for a sound of an effect, or for the room this presentation has) is left out of its effect alone, and `notes` (when given) says so.
+int insertSlideFrom(Document &to, int at, const Document &from, int slide, bool keepFormatting, QStringList *notes = nullptr);
 
 // A slide's title for a list: the first line of its title placeholder, else
 // the title the page has; empty for none.

@@ -68,6 +68,7 @@ void DeckWindow::createSectionActions()
     connect(m_slides, &SlidesPane::removeSectionWanted, this, [this](int section) { removeSection(section); });
     connect(m_slides, &SlidesPane::removeSectionAndSlidesWanted, this, [this](int section) { removeSectionAndSlides(section); });
     connect(m_slides, &SlidesPane::moveSectionWanted, this, [this](int section, int by) { moveSection(section, by); });
+    connect(m_sorter, &SlideSorter::pasteLeftOut, this, [this](const QString &text) { notice(tr("Paste Slides"), text); });
     connect(m_sorter, &SlideSorter::addSectionWanted, this, [this](int slide) { addSection(slide); });
     connect(m_sorter, &SlideSorter::renameSectionWanted, this, [this](int section) { renameSection(section); });
     connect(m_sorter, &SlideSorter::removeSectionWanted, this, [this](int section) { removeSection(section); });

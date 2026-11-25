@@ -635,8 +635,10 @@ void DeckWindow::pasteSlides(bool keepFormatting)
     m_ed->endTextEdit();
     m_ed->beginChange(tr("Paste Slides"));
     const int at = m_ed->currentPage() + 1;
-    const int made = deck::pasteSlidesFromClipboard(*m_ed->doc(), at, keepFormatting);
+    QStringList told;
+    const int made = deck::pasteSlidesFromClipboard(*m_ed->doc(), at, keepFormatting, &told);
     m_ed->endChange();
+    if (!told.isEmpty()) notice(tr("Paste Slides"), told.join(QLatin1Char('\n')));
     if (made > 0) m_ed->setCurrentPage(at + made - 1);
 }
 

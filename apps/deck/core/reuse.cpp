@@ -1,16 +1,20 @@
 #include "core/reuse.h"
 #include "core/items.h"
 
+#include "core/animation.h"
 #include "core/deck.h"
+#include "core/media.h"
 #include "core/sections.h"
 #include "office/theme.h"
 #include "text/storyio.h"
 #include "text/textprops.h"
 
+#include <QCoreApplication>
 #include <QCryptographicHash>
 #include <QHash>
 #include <QJsonArray>
 #include <QJsonDocument>
+#include <QRegularExpression>
 #include <QSet>
 #include <QTextBlock>
 #include <QTextCursor>
@@ -350,6 +354,30 @@ void restyle(QTextDocument *sd, const QTextCharFormat &base)
     }
 }
 
+// The sounds the effects of a slide play are kept among its presentation's media and named in its timing: each is brought to `to` (one that is there already,
+// by what it holds, is used), the timing names the new ids, and a sound that can't come (it is not there, is larger than a sound of an effect may be, or the
+// presentation has no room for it) is taken out of its effect alone. Returns how many were taken out.
+int carrySounds(Document &to, const Document &from, QJsonObject *props)
+{
+    const QString timing = props->value(QStringLiteral("timingXml")).toString();
+    if (!timing.contains(QLatin1String("embed=\"media:"))) return 0;
+    static const QRegularExpression named(QStringLiteral("\\b[\\w.-]+:embed=\"media:([^\"]*)\""));
+    QHash<QString, QString> ids;
+    int left = 0;
+    for (auto it = named.globalMatch(timing); it.hasNext();) {
+        const QString id = it.next().captured(1);
+        if (ids.contains(id)) continue;
+        const auto data = from.media.constFind(id);
+        QString made;
+        if (data != from.media.cend() && !data->bytes.isEmpty() && data->bytes.size() <= kMaxEffectSoundBytes && mediaWouldFit(to, data->bytes))
+            made = to.addMedia(data->bytes, data->contentType, data->extension);
+        if (made.isEmpty()) ++left;
+        ids.insert(id, made);
+    }
+    props->insert(QStringLiteral("timingXml"), timingWithSoundIds(timing, ids));
+    return left;
+}
+
 // Gives the slide the look of the layout it stands on: the text of each placeholder in that layout's place in its look.
 void takeLayoutLook(Document &to, Page &slide, const MasterPage &layout)
 {
@@ -365,7 +393,7 @@ void takeLayoutLook(Document &to, Page &slide, const MasterPage &layout)
 
 } // namespace
 
-int insertSlideFrom(Document &to, int at, const Document &from, int slide, bool keepFormatting)
+int insertSlideFrom(Document &to, int at, const Document &from, int slide, bool keepFormatting, QStringList *notes)
 {
     if (slide < 0 || slide >= from.pages.size()) return -1;
     const Page &src = *from.pages[slide];
@@ -388,6 +416,8 @@ int insertSlideFrom(Document &to, int at, const Document &from, int slide, bool 
     page->showMasterItems = src.showMasterItems;
     page->guides = src.guides;
     page->props = src.props;
+    if (carrySounds(to, from, &page->props) > 0 && notes)
+        *notes << QCoreApplication::translate("Reuse", "Sounds of animation effects that don't fit in this presentation were left out.");
     if (keepFormatting) {
         page->background = src.background;
         carry.fill(page->background);

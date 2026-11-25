@@ -1071,7 +1071,8 @@ void SlideSorter::pasteSlides(bool keepFormatting)
     m_ed->endTextEdit();
     m_ed->clearSelection();
     m_ed->beginChange(tr("Paste Slides"));
-    const int made = deck::pasteSlidesFromClipboard(*d, at, keepFormatting);
+    QStringList told;
+    const int made = deck::pasteSlidesFromClipboard(*d, at, keepFormatting, &told);
     if (made > 0) {
         m_sel.clear();
         for (int k = 0; k < made; ++k) m_sel << at + k;
@@ -1080,6 +1081,7 @@ void SlideSorter::pasteSlides(bool keepFormatting)
         setCurrent(at + made - 1);
     }
     m_ed->endChange();
+    if (!told.isEmpty()) Q_EMIT pasteLeftOut(told.join(QLatin1Char('\n')));
     if (made <= 0) return;
     updateAccessibleText();
     ensureVisible(at + made - 1);

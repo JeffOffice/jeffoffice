@@ -8,6 +8,7 @@
 #include "core/document.h"
 
 #include <QList>
+#include <QStringList>
 
 namespace jp::deck {
 
@@ -17,6 +18,7 @@ bool slidesOnClipboard();
 // Puts the slides on the clipboard in `d` as slides `at` on (past the last
 // slide: the end), in their order, and returns how many. Without
 // `keepFormatting` they take `d`'s layouts and theme.
-int pasteSlidesFromClipboard(Document &d, int at, bool keepFormatting);
+// `notes` (when given) says what could not come with them (insertSlideFrom in core/reuse.h).
+int pasteSlidesFromClipboard(Document &d, int at, bool keepFormatting, QStringList *notes = nullptr);
 
 } // namespace jp::deck

@@ -1,12 +1,20 @@
 // JeffDeck's tests of animations: reading, painting, editing, and writing them.
 #include "deckhelpers.h"
 #include "app/effectsounds.h"
+#include "app/mediaplayer.h"
+#include "app/slideclipboard.h"
+#include "app/slidesorter.h"
+#include "core/media.h"
+#include "core/reuse.h"
+#include "core/sections.h"
 #include "app/theme.h"
 #include "io/zip.h"
 #include "core/effectmask.h"
 #include "core/chartobject.h"
 #include "sheet/chartedit.h"
 
+#include <QClipboard>
+#include <QGuiApplication>
 #include <QInputDialog>
 #include <QMessageBox>
 #include <QListView>
@@ -3114,6 +3122,396 @@ private Q_SLOTS:
         const deck::AnimSequence seq = deck::readAnimations(*doc->pages[0], doc);
         QCOMPARE(int(seq.effects.size()), 1);
         QCOMPARE(seq.effects[0].sound, deck::SoundKind::None);
+    }
+
+    // ---- sounds of effects: brought with a slide, capped per step, dropped when they fail (Nov 25 2026) ----
+
+    // A presentation file of one slide with three effects (boxes 10, 11, and 12, a click step each): the first two play `wav`, the third has no sound.
+    static bool writeSoundFile(const QString &path, const QByteArray &wav)
+    {
+        DeckWindow w;
+        w.resize(1200, 800);
+        w.show();
+        Editor *ed = w.editor();
+        triggerSlide(ed, animTiming(animSteps({animFadeIn(10, 500), animFadeIn(11, 500), animFadeIn(12, 500)})));
+        Page &page = *ed->doc()->pages[0];
+        const QString id = ed->doc()->addMedia(wav, QStringLiteral("audio/wav"), QStringLiteral("wav"));
+        deck::AnimSequence seq = deck::readAnimations(page, ed->doc());
+        if (seq.effects.size() != 3) return false;
+        for (int i : {0, 1}) {
+            seq.effects[i].sound = deck::SoundKind::File;
+            seq.effects[i].soundMedia = id;
+            seq.effects[i].soundName = QStringLiteral("tone.wav");
+        }
+        deck::setAnimations(*ed->doc(), page, seq);
+        w.setNotifier([](const QString &, const QString &) {});
+        return w.saveTo(path);
+    }
+    // What the effects of slide `n` play: each one's sound file (empty for none), in the order of the effects.
+    static QList<QByteArray> soundsOfSlide(Document &d, int n)
+    {
+        QList<QByteArray> out;
+        if (n < 0 || n >= d.pages.size()) return out;
+        const deck::AnimSequence seq = deck::readAnimations(*d.pages[n], &d);
+        for (const deck::Anim &a : seq.effects) out << (a.sound == deck::SoundKind::File ? d.media.value(a.soundMedia).bytes : QByteArray());
+        return out;
+    }
+    // How many times the show of slide `n` asks its output to play `wav` when its three click steps are played through.
+    static int playsOfSlide(Document *d, int n, const QByteArray &wav)
+    {
+        LayoutCache cache;
+        SlideShow show(d, &cache, n);
+        show.resize(640, 360);
+        int plays = 0;
+        show.effectSounds()->setOutput([&plays, &wav](const EffectSounds::Request &r) { plays += r.kind == EffectSounds::Request::Kind::Play && r.bytes == wav ? 1 : 0; });
+        for (int k = 0; k < 3; ++k) {
+            show.next();
+            show.playStepTo(10000);
+        }
+        return plays;
+    }
+    static int copiesOf(const Document &d, const QByteArray &wav)
+    {
+        int n = 0;
+        for (const MediaData &m : d.media) n += m.bytes == wav ? 1 : 0;
+        return n;
+    }
+    // The saved file's parts that hold exactly `wav`, and the saved slide's names for them.
+    static int soundPartsIn(const QString &path, const QByteArray &wav)
+    {
+        QFile file(path);
+        if (!file.open(QIODevice::ReadOnly)) return -1;
+        QMap<QString, QByteArray> zip;
+        QString err;
+        if (!readZip(file.readAll(), zip, &err)) return -1;
+        int n = 0;
+        for (auto it = zip.cbegin(); it != zip.cend(); ++it) n += it.value() == wav ? 1 : 0;
+        return n;
+    }
+
+    // A slide brought from another presentation with Reuse Slides brings the sounds of its effects: the effects play them in the show, they are stored once, the
+    // same slide brought twice stores them once, one undo takes slide and sounds away, and after Save and Open the effects (all three) still have them.
+    // Fails when off: yes (with the sounds not brought, the saved file loses the slide's whole animation).
+    void reuseBringsTheSoundsOfEffects()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QByteArray wav = soundWav();
+        const QString source = dir.filePath(QStringLiteral("source.pptx"));
+        QVERIFY(writeSoundFile(source, wav));
+        for (const bool keep : {false, true}) {
+            DeckWindow w;
+            w.resize(1200, 800);
+            w.show();
+            w.setNotifier([](const QString &, const QString &) {});
+            Editor *ed = w.editor();
+            Document *doc = ed->doc();
+            ed->undoStack()->clear();
+            w.showReusePane();
+            QVERIFY(w.reusePane()->open(source));
+            QCOMPARE(copiesOf(*doc, wav), 0);
+            w.reuseSlide(0, keep);
+            QCOMPARE(int(doc->pages.size()), 2);
+            QCOMPARE(soundsOfSlide(*doc, 1), QList<QByteArray>({wav, wav, QByteArray()}));
+            QCOMPARE(copiesOf(*doc, wav), 1);
+            QCOMPARE(playsOfSlide(doc, 1, wav), 2);
+            // The same slide again: the sound is stored once, and both slides play it.
+            w.reuseSlide(0, keep);
+            QCOMPARE(int(doc->pages.size()), 3);
+            QCOMPARE(copiesOf(*doc, wav), 1);
+            QCOMPARE(soundsOfSlide(*doc, 2), QList<QByteArray>({wav, wav, QByteArray()}));
+            // Saved and opened through the window: nothing is lost.
+            const QString saved = dir.filePath(QStringLiteral("reused.pptx"));
+            QVERIFY(w.saveTo(saved));
+            QCOMPARE(soundPartsIn(saved, wav), 1);
+            {
+                DeckWindow second;
+                QVERIFY(second.openFile(saved));
+                Document *opened = second.editor()->doc();
+                QCOMPARE(int(opened->pages.size()), 3);
+                for (int n : {1, 2}) {
+                    QCOMPARE(soundsOfSlide(*opened, n), QList<QByteArray>({wav, wav, QByteArray()}));
+                    QCOMPARE(playsOfSlide(opened, n, wav), 2);
+                }
+            }
+            // One undo takes the last slide away; the other still has its sound. Another takes that one and the sound with it.
+            ed->undo();
+            QCOMPARE(int(doc->pages.size()), 2);
+            QCOMPARE(copiesOf(*doc, wav), 1);
+            ed->undo();
+            QCOMPARE(int(doc->pages.size()), 1);
+            // (a presentation holds on to its media while it is open, as for pictures: what undo takes away is what the saved file keeps)
+            const QString undone = dir.filePath(QStringLiteral("undone.pptx"));
+            QVERIFY(w.saveTo(undone));
+            QCOMPARE(soundPartsIn(undone, wav), 0);
+            ed->redo();
+            QCOMPARE(copiesOf(*doc, wav), 1);
+            QCOMPARE(soundsOfSlide(*doc, 1), QList<QByteArray>({wav, wav, QByteArray()}));
+        }
+    }
+
+    // Slides copied and pasted from one presentation to another (the slide list's own copy and paste) bring their sounds the same way: pasted twice, one stored copy;
+    // saved and opened, the effects play. Fails when off: yes (with the sounds not brought, the pasted slide has no sound and the saved file no animation).
+    void pasteBringsTheSoundsOfEffects()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QByteArray wav = soundWav();
+        const QString source = dir.filePath(QStringLiteral("source.pptx"));
+        QVERIFY(writeSoundFile(source, wav));
+        DeckWindow from;
+        from.resize(1200, 800);
+        from.show();
+        QVERIFY(from.openFile(source));
+        QGuiApplication::clipboard()->clear();
+        from.slideSorter()->select({0}, 0);
+        from.slideSorter()->copySelected();
+        QVERIFY(deck::slidesOnClipboard());
+        DeckWindow w;
+        w.resize(1200, 800);
+        w.show();
+        w.setNotifier([](const QString &, const QString &) {});
+        Editor *ed = w.editor();
+        Document *doc = ed->doc();
+        ed->undoStack()->clear();
+        QCOMPARE(copiesOf(*doc, wav), 0);
+        w.slideSorter()->pasteSlides(true);
+        w.slideSorter()->pasteSlides(true);
+        QCOMPARE(int(doc->pages.size()), 3);
+        QCOMPARE(copiesOf(*doc, wav), 1);
+        for (int n : {1, 2}) QCOMPARE(soundsOfSlide(*doc, n), QList<QByteArray>({wav, wav, QByteArray()}));
+        const QString saved = dir.filePath(QStringLiteral("pasted.pptx"));
+        QVERIFY(w.saveTo(saved));
+        QCOMPARE(soundPartsIn(saved, wav), 1);
+        DeckWindow second;
+        QVERIFY(second.openFile(saved));
+        for (int n : {1, 2}) {
+            QCOMPARE(soundsOfSlide(*second.editor()->doc(), n), QList<QByteArray>({wav, wav, QByteArray()}));
+            QCOMPARE(playsOfSlide(second.editor()->doc(), n, wav), 2);
+        }
+        ed->undo();
+        ed->undo();
+        QCOMPARE(int(doc->pages.size()), 1);
+        const QString undone = dir.filePath(QStringLiteral("undone.pptx"));
+        QVERIFY(w.saveTo(undone));
+        QCOMPARE(soundPartsIn(undone, wav), 0);
+        QGuiApplication::clipboard()->clear();
+    }
+
+    // A sound that can't come with a slide (the presentation has no room, or it is larger than the sound of an effect may be) is taken out of its effect alone: the
+    // effects stay (the saved file keeps all three), and the person is told. Fails when off: yes (with the sound left named, the saved file drops the animation).
+    void reuseLeavesOutASoundThatCannotCome()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QByteArray wav = soundWav();
+        const QString source = dir.filePath(QStringLiteral("source.pptx"));
+        QVERIFY(writeSoundFile(source, wav));
+        struct Limit {
+            explicit Limit(qint64 n) { deck::setMediaByteLimit(n); }
+            ~Limit() { deck::setMediaByteLimit(0); }
+        };
+        {
+            // No room: the presentation may keep only a few bytes of media.
+            Limit limit(10);
+            DeckWindow w;
+            w.resize(1200, 800);
+            w.show();
+            QStringList told;
+            w.setNotifier([&told](const QString &, const QString &text) { told << text; });
+            w.showReusePane();
+            QVERIFY(w.reusePane()->open(source));
+            w.reuseSlide(0, false);
+            QCOMPARE(int(w.editor()->doc()->pages.size()), 2);
+            QCOMPARE(copiesOf(*w.editor()->doc(), wav), 0);
+            QCOMPARE(told, QStringList({QStringLiteral("Sounds of animation effects that don't fit in this presentation were left out.")}));
+            QCOMPARE(soundsOfSlide(*w.editor()->doc(), 1), QList<QByteArray>({QByteArray(), QByteArray(), QByteArray()}));
+            const QString saved = dir.filePath(QStringLiteral("noroom.pptx"));
+            QVERIFY(w.saveTo(saved));
+            DeckWindow second;
+            QVERIFY(second.openFile(saved));
+            QCOMPARE(int(deck::readAnimations(*second.editor()->doc()->pages[1], second.editor()->doc()).effects.size()), 3);
+        }
+        {
+            // Larger than a sound of an effect may be (the source holds it as a sound of a movie, say): the slide's other effects, and another sound, stay.
+            auto src = showDeck(1);
+            Page &slide = *src->pages[0];
+            numberShowShapes(slide);
+            QByteArray big = wav;
+            big.resize(int(deck::kMaxEffectSoundBytes) + 1);
+            const QString bigId = src->addMedia(big, QStringLiteral("audio/wav"), QStringLiteral("wav"));
+            const QString smallId = src->addMedia(wav, QStringLiteral("audio/wav"), QStringLiteral("wav"));
+            slide.props[QStringLiteral("timingXml")] = namespacesForSounds(animTiming(animSteps({withSub(animFadeIn(2, 500), soundNode(bigId)), withSub(animFadeIn(3, 500), soundNode(smallId))})));
+            auto dest = showDeck(1);
+            QStringList notes;
+            QCOMPARE(deck::insertSlideFrom(*dest, 1, *src, 0, false, &notes), 1);
+            QCOMPARE(int(notes.size()), 1);
+            QCOMPARE(copiesOf(*dest, big), 0);
+            QCOMPARE(copiesOf(*dest, wav), 1);
+            deck::AnimSequence seq = deck::readAnimations(*dest->pages[1], dest.get());
+            QCOMPARE(int(seq.effects.size()), 2);
+            QCOMPARE(seq.effects[0].sound, deck::SoundKind::None);
+            QCOMPARE(seq.effects[1].sound, deck::SoundKind::File);
+            QCOMPARE(dest->media.value(seq.effects[1].soundMedia).bytes, wav);
+            // A sound the timing names that the slide's presentation does not hold at all goes the same way.
+            slide.props[QStringLiteral("timingXml")] = namespacesForSounds(animTiming(animSteps({withSub(animFadeIn(2, 500), soundNode(QStringLiteral("nothere")))})));
+            notes.clear();
+            QCOMPARE(deck::insertSlideFrom(*dest, 2, *src, 0, false, &notes), 2);
+            QCOMPARE(int(notes.size()), 1);
+            QCOMPARE(int(deck::readAnimations(*dest->pages[2], dest.get()).effects.size()), 1);
+        }
+    }
+
+    // A slide duplicated inside one presentation, and the slides after a reorder, keep the sounds of their effects (the same sound, stored once); saved and opened,
+    // they play. Fails when off: no (a guard: the copies name sounds that are in the same presentation).
+    void duplicateKeepsTheSoundsOfEffects()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        const QByteArray wav = soundWav();
+        const QString source = dir.filePath(QStringLiteral("source.pptx"));
+        QVERIFY(writeSoundFile(source, wav));
+        DeckWindow w;
+        w.resize(1200, 800);
+        w.show();
+        QVERIFY(w.openFile(source));
+        w.setNotifier([](const QString &, const QString &) {});
+        Document *doc = w.editor()->doc();
+        w.duplicateSlide();
+        QCOMPARE(int(doc->pages.size()), 2);
+        QCOMPARE(copiesOf(*doc, wav), 1);
+        // The slides trade places (as moving one to another section does: the same presentation, so the same sounds).
+        QList<int> order{1, 0};
+        std::swap(doc->pages[0], doc->pages[1]);
+        deck::slidesReordered(*doc, order, {1});
+        const QString saved = dir.filePath(QStringLiteral("duplicated.pptx"));
+        QVERIFY(w.saveTo(saved));
+        QCOMPARE(soundPartsIn(saved, wav), 1);
+        DeckWindow second;
+        QVERIFY(second.openFile(saved));
+        for (int n : {0, 1}) {
+            QCOMPARE(soundsOfSlide(*second.editor()->doc(), n), QList<QByteArray>({wav, wav, QByteArray()}));
+            QCOMPARE(playsOfSlide(second.editor()->doc(), n, wav), 2);
+        }
+    }
+
+    // A step starts at most EffectSounds::kMostTogether sounds, however many its effects name: 2,000 cues at one moment make 8 requests to the output, the rest are
+    // skipped and counted (never kept for later), and the next step starts 8 more. Fails when off: yes (with no limit 2,000 sounds are asked for).
+    void stepStartsAtMostEightSounds()
+    {
+        auto d = showDeck(1);
+        Page &slide = *d->pages[0];
+        numberShowShapes(slide);
+        const QString one = d->addMedia(soundWav(), QStringLiteral("audio/wav"), QStringLiteral("wav"));
+        QStringList effects;
+        for (int i = 0; i < 2000; ++i) effects << withSub(animFadeIn(2, 100, "withEffect"), soundNode(one));
+        slide.props[QStringLiteral("timingXml")] = namespacesForSounds(animTiming(animStep({animGroup(0, effects)})));
+        const deck::Timeline tl = deck::playableTimeline(slide);
+        int cues = 0;
+        for (const deck::SoundCue &c : deck::soundCuesBetween(tl.steps[0], -1, 0)) cues += c.kind == deck::SoundKind::File ? 1 : 0;
+        QVERIFY(cues > 1000);   // (what a slide may hold is capped where it is read; the count here is what the step really has)
+        LayoutCache cache;
+        SlideShow show(d.get(), &cache, 0);
+        show.resize(640, 360);
+        int plays = 0;
+        show.effectSounds()->setOutput([&plays](const EffectSounds::Request &r) { plays += r.kind == EffectSounds::Request::Kind::Play ? 1 : 0; });
+        show.next();
+        show.playStepTo(10000);
+        QCOMPARE(plays, int(EffectSounds::kMostTogether));
+        QCOMPARE(show.effectSounds()->skipped(), cues - int(EffectSounds::kMostTogether));
+        QCOMPARE(show.effectSounds()->playing(), 0);   // (the seam made no players)
+        // A cue the step skipped is not kept for later; the next step counts from nothing.
+        EffectSounds sounds(d.get());
+        int asked = 0;
+        sounds.setOutput([&asked](const EffectSounds::Request &r) { asked += r.kind == EffectSounds::Request::Kind::Play ? 1 : 0; });
+        const deck::SoundCue cue{deck::SoundKind::File, one, 0};
+        for (int i = 0; i < 2000; ++i) sounds.cue(cue);
+        QCOMPARE(asked, 8);
+        QCOMPARE(sounds.skipped(), 1992);
+        sounds.beginStep();
+        sounds.cue(cue);
+        QCOMPARE(asked, 9);
+    }
+
+    // A sound that can't be played does not stay: its player is dropped, and none is left playing (counted: no decoder was started for it). Fails when off: yes (the
+    // player stays in the list of what plays).
+    void aSoundThatFailsIsDropped()
+    {
+        auto d = showDeck(1);
+        const QString bad = d->addMedia("these words are no sound at all", QStringLiteral("audio/wav"), QStringLiteral("wav"));
+        EffectSounds sounds(d.get());
+        const int decoders = MediaPlayback::decoders();
+        sounds.cue({deck::SoundKind::File, bad, 0});
+        QCOMPARE(sounds.playing(), 0);
+        QCOMPARE(sounds.failedPlayers(), 1);
+        QCOMPARE(MediaPlayback::decoders(), decoders);
+        sounds.cue({deck::SoundKind::File, bad, 0});
+        QCOMPARE(sounds.failedPlayers(), 2);
+        QCOMPARE(sounds.playing(), 0);
+        sounds.stopAll();
+    }
+
+    // Setting a sound on an effect and removing it are each one step of Undo: undone, the saved file is the same bytes as before the step (the parts of the
+    // package compared). Fails when off: no (a guard on the undo of the sound).
+    void undoOfASoundRestoresTheSavedParts()
+    {
+        QTemporaryDir dir;
+        QVERIFY(dir.isValid());
+        DeckWindow w;
+        w.resize(1200, 800);
+        w.show();
+        w.setNotifier([](const QString &, const QString &) {});
+        Editor *ed = w.editor();
+        triggerSlide(ed, animTiming(animSteps({animFadeIn(10, 500), animFadeIn(11, 500)})));
+        const QByteArray wav = soundWav();
+        auto partsAfterSave = [&](const QString &name) {
+            QMap<QString, QByteArray> zip;
+            const QString path = dir.filePath(name);
+            QFile file(path);
+            QString err;
+            if (!w.saveTo(path) || !file.open(QIODevice::ReadOnly) || !readZip(file.readAll(), zip, &err)) return QMap<QString, QByteArray>();
+            for (const char *volatilePart : {"docProps/core.xml", "docProps/app.xml"}) zip.remove(QLatin1String(volatilePart));   // (times and counts)
+            return zip;
+        };
+        const QMap<QString, QByteArray> plain = partsAfterSave(QStringLiteral("plain.pptx"));
+        QVERIFY(!plain.isEmpty());
+        ed->undoStack()->clear();
+        // Set the sound as the window does: its file is chosen and kept, and the effect is edited in one step.
+        ed->beginChange(QStringLiteral("Effect Options"));
+        deck::Anim chosen;
+        const QString path = dir.filePath(QStringLiteral("tone.wav"));
+        QFile f(path);
+        QVERIFY(f.open(QIODevice::WriteOnly));
+        f.write(wav);
+        f.close();
+        QVERIFY(w.chooseEffectSound(&chosen, path));
+        deck::AnimSequence seq = deck::readAnimations(*ed->doc()->pages[0], ed->doc());
+        seq.effects[0].sound = chosen.sound;
+        seq.effects[0].soundMedia = chosen.soundMedia;
+        seq.effects[0].soundName = chosen.soundName;
+        deck::setAnimations(*ed->doc(), *ed->doc()->pages[0], seq);
+        ed->endChange();
+        const QMap<QString, QByteArray> withSound = partsAfterSave(QStringLiteral("with.pptx"));
+        QVERIFY(withSound != plain);
+        QCOMPARE(copiesOf(*ed->doc(), wav), 1);
+        // Remove it, in a step of its own.
+        ed->beginChange(QStringLiteral("Effect Options"));
+        seq = deck::readAnimations(*ed->doc()->pages[0], ed->doc());
+        seq.effects[0].sound = deck::SoundKind::None;
+        seq.effects[0].soundMedia.clear();
+        seq.effects[0].soundName.clear();
+        deck::setAnimations(*ed->doc(), *ed->doc()->pages[0], seq);
+        ed->endChange();
+        const QMap<QString, QByteArray> removed = partsAfterSave(QStringLiteral("removed.pptx"));
+        QCOMPARE(soundPartsIn(dir.filePath(QStringLiteral("removed.pptx")), wav), 0);
+        ed->undo();   // the removal: the sound is back, the same parts as before it
+        QCOMPARE(partsAfterSave(QStringLiteral("again.pptx")), withSound);
+        ed->undo();   // the setting: the same parts as before it
+        QCOMPARE(partsAfterSave(QStringLiteral("back.pptx")), plain);
+        ed->redo();
+        QCOMPARE(partsAfterSave(QStringLiteral("redone.pptx")), withSound);
+        ed->redo();
+        QCOMPARE(partsAfterSave(QStringLiteral("redone2.pptx")), removed);
     }
 
     // A timing a file makes hostile is read within limits and never rewritten: one with more effects than a slide could have, and

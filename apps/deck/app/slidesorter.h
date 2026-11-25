@@ -86,6 +86,8 @@ Q_SIGNALS:
     void removeSectionAndSlidesWanted(int section);
     void moveSectionWanted(int section, int by);
     void collapsedChanged();
+    // What a paste could not bring, in words.
+    void pasteLeftOut(const QString &text);
 
 protected:
     bool event(QEvent *e) override;

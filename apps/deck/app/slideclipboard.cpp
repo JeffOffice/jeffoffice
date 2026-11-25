@@ -36,7 +36,7 @@ bool slidesOnClipboard()
     return mime && mime->hasFormat(QLatin1String(kSlidesType));
 }
 
-int pasteSlidesFromClipboard(Document &d, int at, bool keepFormatting)
+int pasteSlidesFromClipboard(Document &d, int at, bool keepFormatting, QStringList *notes)
 {
     const QMimeData *mime = QGuiApplication::clipboard()->mimeData();
     if (!mime || !mime->hasFormat(QLatin1String(kSlidesType))) return 0;
@@ -44,7 +44,7 @@ int pasteSlidesFromClipboard(Document &d, int at, bool keepFormatting)
     if (!from) return 0;
     int made = 0;
     for (int k = 0; k < from->pages.size(); ++k)
-        if (insertSlideFrom(d, at + made, *from, k, keepFormatting) >= 0) ++made;
+        if (insertSlideFrom(d, at + made, *from, k, keepFormatting, notes) >= 0) ++made;
     return made;
 }
 

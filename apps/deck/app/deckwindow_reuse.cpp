@@ -43,9 +43,11 @@ void DeckWindow::reuseSlide(int slide, bool keepFormatting)
     if (m_outline) m_outline->commit();
     m_ed->endTextEdit();
     m_ed->beginChange(tr("Reuse Slide"));
-    const int index = deck::insertSlideFrom(*m_ed->doc(), m_ed->currentPage() + 1, *from, slide, keepFormatting);
+    QStringList told;
+    const int index = deck::insertSlideFrom(*m_ed->doc(), m_ed->currentPage() + 1, *from, slide, keepFormatting, &told);
     if (index >= 0) m_ed->setCurrentPage(index);
     m_ed->endChange();
+    if (!told.isEmpty()) notice(tr("Reuse Slide"), told.join(QLatin1Char('\n')));
 }
 
 } // namespace jp

@@ -751,6 +751,66 @@ QString timingWithoutShapes(const QString &timingXml, const QSet<qint64> &shapes
     return timingIsEmpty(t) ? QString() : treeXml(t.root);
 }
 
+namespace {
+
+// The r:embed an effect's sound names ("media:<id>"), in the p:sndTgt inside a p:audio; null for another kind of audio node.
+std::pair<QString, QString> *soundEmbed(Node &audio)
+{
+    std::vector<Node *> pending{&audio};
+    int looked = 0;
+    while (!pending.empty() && ++looked <= 16) {
+        Node *n = pending.back();
+        pending.pop_back();
+        if (n->local() == QLatin1String("sndTgt")) {
+            for (auto &a : n->attrs)
+                if (a.first.endsWith(QLatin1String(":embed")) && a.second.startsWith(QLatin1String("media:"))) return &a;
+            return nullptr;
+        }
+        for (Node &k : n->kids) pending.push_back(&k);
+    }
+    return nullptr;
+}
+
+} // namespace
+
+QString timingWithSoundIds(const QString &timingXml, const QHash<QString, QString> &ids)
+{
+    Node root;
+    if (ids.isEmpty() || !timingXml.contains(QLatin1String("embed=\"media:")) || !readTree(timingXml, &root)) return timingXml;
+    bool changed = false;
+    QSet<const Node *> emptied;   // the lists that had only sounds that went
+    std::vector<Node *> pending{&root};
+    while (!pending.empty()) {
+        Node *n = pending.back();
+        pending.pop_back();
+        if (n->local() == QLatin1String("subTnLst")) {
+            const size_t had = n->kids.size();
+            for (Node &k : n->kids) {
+                if (k.local() != QLatin1String("audio")) continue;
+                auto *embed = soundEmbed(k);
+                if (!embed) continue;
+                const auto to = ids.constFind(embed->second.mid(6));
+                if (to == ids.cend() || *to == embed->second.mid(6)) continue;
+                changed = true;
+                if (!to->isEmpty()) embed->second = QStringLiteral("media:") + *to;
+                else k.name.clear();   // (taken out below)
+            }
+            n->kids.erase(std::remove_if(n->kids.begin(), n->kids.end(), [](const Node &k) { return k.name.isEmpty(); }), n->kids.end());
+            if (had > 0 && n->kids.empty()) emptied.insert(n);
+        }
+        for (Node &k : n->kids) pending.push_back(&k);
+    }
+    if (!changed) return timingXml;
+    std::vector<Node *> lists{&root};
+    while (!lists.empty()) {
+        Node *n = lists.back();
+        lists.pop_back();
+        n->kids.erase(std::remove_if(n->kids.begin(), n->kids.end(), [&](const Node &k) { return emptied.contains(&k); }), n->kids.end());
+        for (Node &k : n->kids) lists.push_back(&k);
+    }
+    return treeXml(root);
+}
+
 QString mediaTimingForShapes(const QString &timingXml, const QSet<qint64> &shapes)
 {
     TimingTree t;
