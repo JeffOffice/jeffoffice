@@ -2271,6 +2271,33 @@ private Q_SLOTS:
         QCOMPARE(valueOf(e, QStringLiteral("C3")), QStringLiteral("s:Zed"));
     }
 
+    // Values that begin with =, +, -, or @ arrive as text, when the table is made and again at every Refresh.
+    void valuesThatLookLikeFormulasStayTextOnRefresh()
+    {
+        EditWindow e;
+        QVERIFY(e.open(buildXlsx({worksheet(row(9, text(QStringLiteral("A9"), QStringLiteral("keep"))))})));
+        QVERIFY(e.settle());
+        const QString file = e.folder.write(QStringLiteral("odd.json"), "[{\"v\":\"=\"},{\"v\":\"+A1\"},{\"v\":\"-A1\"},{\"v\":\"@x\"}]");
+        e.win.w.setGetDataAsker([&](jp::GetDataRequest *r) {
+            r->conn.kind = QStringLiteral("json");
+            r->conn.path = file;
+            r->place = QStringLiteral("A1");
+            return true;
+        });
+        e.win.w.act(QStringLiteral("data.fromFile"))->trigger();
+        QVERIFY(e.settle());
+        const QStringList first{QStringLiteral("s:="), QStringLiteral("s:+A1"), QStringLiteral("s:-A1"), QStringLiteral("s:@x")};
+        for (int i = 0; i < 4; ++i) QCOMPARE(valueOf(e, QStringLiteral("A%1").arg(i + 2)), first[i]);
+        e.folder.write(QStringLiteral("odd.json"), "[{\"v\":\"@y\"},{\"v\":\"=\"},{\"v\":\"+B1\"},{\"v\":\"-B1\"},{\"v\":\"=SUM(1)\"}]");
+        e.select(QStringLiteral("A2"));
+        e.win.w.act(QStringLiteral("data.refresh"))->trigger();
+        QVERIFY(e.settle());
+        const QStringList second{QStringLiteral("s:@y"), QStringLiteral("s:="), QStringLiteral("s:+B1"), QStringLiteral("s:-B1"), QStringLiteral("s:=SUM(1)")};
+        for (int i = 0; i < 5; ++i) QCOMPARE(valueOf(e, QStringLiteral("A%1").arg(i + 2)), second[i]);
+        QCOMPARE(e.win.told.size(), 0);
+    }
+
+
     // The cells under the table are asked about before they are replaced; a no leaves everything; a protected sheet, another table's cells, and a web address are refused plainly.
     void getDataAsksBeforeReplacingAndRefusesWhatCannotBe()
     {

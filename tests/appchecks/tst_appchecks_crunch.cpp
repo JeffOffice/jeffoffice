@@ -7,6 +7,7 @@
 #include "app/crunchinfo.h"
 #include "app/crunchwindow.h"
 #include "app/filescreen.h"
+#include "app/getdata.h"
 #include "app/ribbon.h"
 #include "app/settings.h"
 #include "core/appinfo.h"
@@ -25,9 +26,11 @@
 #include "testrunner.h"
 
 #include <QClipboard>
+#include <QFile>
 #include <QFileInfo>
 #include <QFrame>
 #include <QGuiApplication>
+#include <QTemporaryDir>
 #include <QTimer>
 #include <QLabel>
 #include <QToolButton>
@@ -511,6 +514,27 @@ private Q_SLOTS:
                 waitFor([&] { return quiet(w); });
                 w->view()->selectCell(3, 4);
             }),
+            // (a table read from a file, and the file then has another row: Refresh and Refresh All have something to read again)
+            in(QStringLiteral("the cursor in a table made by Get Data"), [](CrunchWindow *w) {
+                static QTemporaryDir folder;
+                const QString file = folder.filePath(QStringLiteral("rows.json"));
+                auto write = [&](const QByteArray &bytes) {
+                    QFile f(file);
+                    if (f.open(QIODevice::WriteOnly | QIODevice::Truncate)) f.write(bytes);
+                };
+                write("[{\"name\":\"Ann\",\"n\":1},{\"name\":\"Bob\",\"n\":2}]");
+                w->setGetDataAsker([file](jp::GetDataRequest *r) {
+                    r->conn.kind = QStringLiteral("json");
+                    r->conn.path = file;
+                    r->place = QStringLiteral("H20");
+                    return true;
+                });
+                waitFor([&] { return quiet(w) && w->act(QStringLiteral("data.fromFile"))->isEnabled(); });
+                w->act(QStringLiteral("data.fromFile"))->trigger();
+                waitFor([&] { return quiet(w) && !w->session()->workbook()->tables().isEmpty(); }, 3000);
+                write("[{\"name\":\"Ann\",\"n\":1},{\"name\":\"Bob\",\"n\":2},{\"name\":\"Cy\",\"n\":3}]");
+                w->view()->selectCell(20, 8);
+            }),
             in(QStringLiteral("the cursor in a pivot table that has a filter"), [](CrunchWindow *w) {
                 for (quint32 r = 0; r < 5; ++r) {
                     enter(w, r, 0, r == 0 ? QStringLiteral("Region") : (r % 2 ? QStringLiteral("East") : QStringLiteral("West")));
@@ -544,6 +568,7 @@ private Q_SLOTS:
         // (where a command is best tried first: the others come after, so the hints only make the run quicker)
         m_app.hints = {
             {QStringLiteral("pivot."), {QStringLiteral("the cursor in a pivot table")}},
+            {QStringLiteral("data.refresh"), {QStringLiteral("the cursor in a table made by Get Data")}},
             {QStringLiteral("fill.flash"), {QStringLiteral("two examples typed beside a column of data")}},
             {QStringLiteral("pivot.reportPages"), {QStringLiteral("the cursor in a pivot table that has a filter")}},
             {QStringLiteral("hf."), {QStringLiteral("the header of a page being typed in")}},
