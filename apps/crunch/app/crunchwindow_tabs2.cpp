@@ -294,6 +294,7 @@ void CrunchWindow::subtotalDialog()
         names << (top.isText() && !top.text().isEmpty() ? top.text() : tr("Column %1").arg(jp::office::sheet::columnName(col)));
     }
     SubtotalDialog dialog(names, this);
+    dialog.setSummaryBelow(m_session->sheetFormat(m_sheet).summaryBelow);
     if (dialog.exec() != QDialog::Accepted) return;
     if (dialog.removeAll()) {
         removeSubtotalsIn();
@@ -317,6 +318,8 @@ bool CrunchWindow::subtotalIn(int changeColumn, int function, const std::vector<
     spec.summaryBelow = summaryBelow;
     for (const int c : columns) spec.columns.push_back(range.col1 + quint32(std::max(0, c)));
     const qint64 before = m_loader.changesMade();
+    // (the person's own groups have their summary lines on the other side when the places change)
+    const bool movesOwnGroups = summaryBelow != m_session->sheetFormat(m_sheet).summaryBelow && crunch::hasOwnRowGroups(*m_session, m_sheet, range);
     int groups = 0;
     const crunch::EditSession::Outcome o = crunch::applySubtotals(*m_session, m_sheet, range, spec, &groups, [this] { m_changesNoted = m_loader.changesMade(); });
     if (m_loader.changesMade() != before) m_calculating = true;
@@ -324,7 +327,9 @@ bool CrunchWindow::subtotalIn(int changeColumn, int function, const std::vector<
         notice(tr("Subtotal"), o.problem);
         return false;
     }
-    setStatus(summaryBelow ? tr("Subtotals added under %1 groups of equal entries.").arg(groups) : tr("Subtotals added above %1 groups of equal entries.").arg(groups));
+    QString said = summaryBelow ? tr("Subtotals added under %1 groups of equal entries.").arg(groups) : tr("Subtotals added above %1 groups of equal entries.").arg(groups);
+    if (movesOwnGroups) said += QLatin1Char(' ') + (summaryBelow ? tr("The summary rows of your own groups are now below their rows.") : tr("The summary rows of your own groups are now above their rows."));
+    setStatus(said);
     return true;
 }
 
@@ -335,7 +340,7 @@ bool CrunchWindow::removeSubtotalsIn()
     if (!range.valid) return false;
     const qint64 before = m_loader.changesMade();
     int removed = 0;
-    const crunch::EditSession::Outcome o = crunch::removeSubtotals(*m_session, m_sheet, range, &removed, [this] { m_changesNoted = m_loader.changesMade(); });
+    const crunch::EditSession::Outcome o = crunch::removeSubtotals(*m_session, m_sheet, range, &removed, [this] { m_changesNoted = m_loader.changesMade(); }, true);
     if (m_loader.changesMade() != before) m_calculating = true;
     if (!o.ok) {
         notice(tr("Subtotal"), o.problem);

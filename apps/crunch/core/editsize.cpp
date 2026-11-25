@@ -416,7 +416,37 @@ EditSession::Outcome EditSession::setDefaultSizes(int sheet, std::optional<doubl
 
 SheetFormat EditSession::sheetFormat(int sheet) const { return m_book->calc->sheetFormatOf(sheet); }
 
-EditSession::Outcome EditSession::setOutlineDirection(int sheet, bool summaryBelow, bool summaryRight, const QString &text)
+std::optional<bool> EditSession::subtotalDirectionBefore(int sheet) const
+{
+    const auto it = m_subtotalDirection.find(sheet);
+    if (it == m_subtotalDirection.end() || m_book->calc->sheetFormatOf(sheet).summaryBelow != it->second.second) return std::nullopt;
+    return it->second.first;
+}
+
+namespace {
+
+// The marks that say a group is collapsed sit on its summary line: they move to the line the new place gives it (`after`: below the rows, right of the columns).
+std::vector<OutlineChange> collapsedMarksMoved(const Outline &now, bool after, quint32 count)
+{
+    std::vector<OutlineChange> clear, put;
+    for (const Outline::Group &g : now.groups(0, 0xFFFFFFFFu)) {
+        if (!g.collapsed) continue;
+        clear.push_back({quint32(g.summary), -1, -1, 0});
+        const qint64 next = after ? qint64(g.last) + 1 : qint64(g.first) - 1;
+        if (next >= 0 && next < qint64(count)) put.push_back({quint32(next), -1, -1, 1});
+    }
+    // (a line that one group leaves and another is marked on stays marked)
+    std::map<quint32, OutlineChange> by;
+    for (const OutlineChange &c : clear) by[c.index] = c;
+    for (const OutlineChange &c : put) by[c.index] = c;
+    std::vector<OutlineChange> out;
+    for (const auto &kv : by) out.push_back(kv.second);
+    return out;
+}
+
+} // namespace
+
+EditSession::Outcome EditSession::setOutlineDirection(int sheet, bool summaryBelow, bool summaryRight, const QString &text, bool bySubtotal)
 {
     Outcome out;
     QString why;
@@ -425,6 +455,7 @@ EditSession::Outcome EditSession::setOutlineDirection(int sheet, bool summaryBel
         out.problem = why;
         return out;
     }
+    if (!bySubtotal) m_subtotalDirection.erase(sheet);
     FormatEdit e;
     e.sheet = sheet;
     e.before = m_book->calc->sheetFormatOf(sheet);
@@ -432,9 +463,28 @@ EditSession::Outcome EditSession::setOutlineDirection(int sheet, bool summaryBel
     e.after.summaryBelow = summaryBelow;
     e.after.summaryRight = summaryRight;
     if (e.after.summaryBelow == e.before.summaryBelow && e.after.summaryRight == e.before.summaryRight) return out;   // (nothing to change)
+    // (a group that is collapsed stays so: its mark goes to its new summary line)
+    std::vector<OutlineChange> rows, columns;
+    if (summaryBelow != e.before.summaryBelow) rows = collapsedMarksMoved(outlineOf(sheet, false), summaryBelow, quint32(kMaxRows));
+    if (summaryRight != e.before.summaryRight) columns = collapsedMarksMoved(outlineOf(sheet, true), summaryRight, quint32(kMaxColumns));
     Step step;
     step.formats.push_back(e);
+    if (rows.empty() && columns.empty()) {
+        pushStep(std::move(step), text);
+        return out;
+    }
+    m_undo.beginMacro(text);
     pushStep(std::move(step), text);
+    // (in runs, so that no one change is wider than a change of the outline may be)
+    for (size_t at = 0; at < rows.size() && out.ok;) {
+        size_t end = at;
+        while (end < rows.size() && qint64(rows[end].index) - rows[at].index < kMaxRowsPerResize) ++end;
+        out = changeOutline(sheet, false, std::vector<OutlineChange>(rows.begin() + at, rows.begin() + end), text);
+        at = end;
+    }
+    if (out.ok && !columns.empty()) out = changeOutline(sheet, true, columns, text);
+    m_undo.endMacro();
+    if (!out.ok) m_undo.undo();
     return out;
 }
 

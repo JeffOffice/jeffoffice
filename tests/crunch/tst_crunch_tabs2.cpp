@@ -17,6 +17,8 @@
 #include "core/goalseek.h"
 #include "core/validationedit.h"
 #include "core/outline.h"
+#include "core/subtotal.h"
+#include "../withdialog.h"
 #include "sheet/calculation.h"
 #include "app/functionargumentsdialog.h"
 #include "crunchbooks.h"
@@ -432,6 +434,209 @@ private Q_SLOTS:
         QVERIFY(s->setOutlineDirection(0, true, false, QStringLiteral("Outline Settings")).ok);
         QCOMPARE(w.undoStack()->count(), now);
         w.setOutlineSettingsAsker(nullptr);
+    }
+
+    // A second Subtotal that keeps the first one's rows and puts its totals on the other side would sum over the first one's rows: it is refused in words, in either order, and changes
+    // nothing (not the cells, the places, or the steps of Undo and Redo). With Replace on it is fine.
+    void subtotalRefusesToMixTheTwoPlacesForTotals()
+    {
+        for (const bool firstBelow : {true, false}) {
+            EditWindow e;
+            QVERIFY(e.open(sheetOf({"A1=Region", "B1=Sales", "A2=East", "B2=10", "A3=East", "B3=20", "A4=West", "B4=5"})));
+            QVERIFY(e.settle());
+            CrunchWindow &w = e.win.w;
+            e.select(QStringLiteral("A2"));
+            QVERIFY(w.subtotalIn(0, 9, {1}, true, false, firstBelow));
+            QVERIFY(e.settle());
+            const QString list = shown(e, QStringLiteral("A1:B8"));
+            const int steps = w.undoStack()->count();
+            e.win.told.clear();
+            QVERIFY(!w.subtotalIn(0, 9, {1}, false, false, !firstBelow));
+            QVERIFY(e.settle());
+            QCOMPARE(shown(e, QStringLiteral("A1:B8")), list);
+            QCOMPARE(w.undoStack()->count(), steps);
+            QVERIFY(!w.undoStack()->canRedo());
+            QCOMPARE(w.session()->sheetFormat(0).summaryBelow, firstBelow);
+            const QString told = e.win.told.join(QLatin1Char('|'));
+            QVERIFY2(told.contains(firstBelow ? QStringLiteral("totals below the data") : QStringLiteral("totals above the data")), qPrintable(told));
+            QVERIFY2(told.contains(QStringLiteral("Replace current subtotals")), qPrintable(told));
+            // with Replace on, the other place is fine
+            QVERIFY(w.subtotalIn(0, 9, {1}, true, false, !firstBelow));
+            QVERIFY(e.settle());
+            QCOMPARE(w.session()->sheetFormat(0).summaryBelow, !firstBelow);
+        }
+    }
+
+    // The box starts from the places the sheet's outline has, so that a plain Subtotal does not move a sheet that came with its totals above; and when the choice does move the summary lines
+    // of groups the person made, the status line says so.
+    void theSubtotalBoxStartsFromTheSheetsPlacesAndTellsWhenItMovesYourGroups()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=Region", "B1=Sales", "A2=East", "B2=10", "A3=West", "B3=5", "A5=a", "A6=b", "A7=sum"})));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        crunch::EditSession *s = w.session();
+        auto ticked = [&] {
+            bool on = false;
+            e.select(QStringLiteral("A2"));
+            withDialog([&] { w.act(QStringLiteral("data.subtotal"))->trigger(); }, QStringLiteral("subtotalDialog"),
+                       [&](QDialog *d) { on = d->findChild<QCheckBox *>(QStringLiteral("subtotalSummaryBelow"))->isChecked(); }, false);
+            return on;
+        };
+        QVERIFY(ticked());
+        QVERIFY(s->setOutlineDirection(0, false, true, QStringLiteral("Outline Settings")).ok);
+        QVERIFY(!ticked());
+        QVERIFY(s->setOutlineDirection(0, true, true, QStringLiteral("Outline Settings")).ok);
+        QVERIFY(ticked());
+        // a sheet without groups of the person's own says only what was done
+        e.select(QStringLiteral("A2"));
+        QVERIFY(w.subtotalIn(0, 9, {1}, true, false, false));
+        QVERIFY(!w.statusText().contains(QStringLiteral("your own groups")));
+        w.undoStack()->undo();
+        // groups of the person's own: the sentence follows a choice that moves them, and only that
+        QVERIFY(s->changeOutline(0, false, s->outlineOf(0, false).group(4, 5), QStringLiteral("Group Rows")).ok);
+        e.select(QStringLiteral("A2"));
+        QVERIFY(w.subtotalIn(0, 9, {1}, true, false, true));
+        QVERIFY(!w.statusText().contains(QStringLiteral("your own groups")));
+        QVERIFY(w.subtotalIn(0, 9, {1}, true, false, false));
+        QVERIFY2(w.statusText().contains(QStringLiteral("The summary rows of your own groups are now above their rows.")), qPrintable(w.statusText()));
+        QVERIFY(w.subtotalIn(0, 9, {1}, true, false, true));
+        QVERIFY2(w.statusText().contains(QStringLiteral("The summary rows of your own groups are now below their rows.")), qPrintable(w.statusText()));
+    }
+
+    // Remove All puts the places back to what they were before the first Subtotal, but only if Subtotal moved them and nothing has since.
+    void removeAllGivesBackThePlacesSubtotalMoved()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=Region", "B1=Sales", "A2=East", "B2=10", "A3=West", "B3=5"})));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        crunch::EditSession *s = w.session();
+        // moved by Subtotal: given back, and one step of Undo takes the places and the rows away together
+        e.select(QStringLiteral("A2"));
+        QVERIFY(w.subtotalIn(0, 9, {1}, true, false, false));
+        QVERIFY(!s->sheetFormat(0).summaryBelow);
+        e.select(QStringLiteral("A4"));
+        QVERIFY(w.removeSubtotalsIn());
+        QVERIFY(s->sheetFormat(0).summaryBelow);
+        pressUndo(&w);
+        QVERIFY(!s->sheetFormat(0).summaryBelow);
+        e.select(QStringLiteral("A4"));
+        QVERIFY(w.removeSubtotalsIn());
+        QVERIFY(s->sheetFormat(0).summaryBelow);
+        // a second Subtotal that moves them back, then Remove All: they stay where they were before the first
+        e.select(QStringLiteral("A2"));
+        QVERIFY(w.subtotalIn(0, 9, {1}, true, false, false));
+        QVERIFY(w.subtotalIn(0, 9, {1}, true, false, true));
+        QVERIFY(s->sheetFormat(0).summaryBelow);
+        e.select(QStringLiteral("A2"));
+        QVERIFY(w.removeSubtotalsIn());
+        QVERIFY(s->sheetFormat(0).summaryBelow);
+        // moved by Outline Settings since: left alone
+        e.select(QStringLiteral("A2"));
+        QVERIFY(w.subtotalIn(0, 9, {1}, true, false, false));
+        QVERIFY(s->setOutlineDirection(0, true, true, QStringLiteral("Outline Settings")).ok);
+        QVERIFY(s->setOutlineDirection(0, false, true, QStringLiteral("Outline Settings")).ok);
+        e.select(QStringLiteral("A4"));
+        QVERIFY(w.removeSubtotalsIn());
+        QVERIFY(!s->sheetFormat(0).summaryBelow);
+        // a sheet that had them above already: Subtotal moved nothing, so Remove All moves nothing
+        e.select(QStringLiteral("A2"));
+        QVERIFY(w.subtotalIn(0, 9, {1}, true, false, false));
+        e.select(QStringLiteral("A4"));
+        QVERIFY(w.removeSubtotalsIn());
+        QVERIFY(!s->sheetFormat(0).summaryBelow);
+    }
+
+    // A Subtotal that is refused (here there is no room for its rows at the end of the sheet) leaves nothing to undo or redo, whichever side its totals were to be on, and the places stay.
+    void aRefusedSubtotalLeavesNothingOnTheStack()
+    {
+        for (const bool below : {true, false}) {
+            EditWindow e;
+            QVERIFY(e.open(sheetOf({"A1=Region", "B1=Sales", "A2=East", "B2=10", "A1048576=West", "B1048576=5"})));
+            QVERIFY(e.settle());
+            CrunchWindow &w = e.win.w;
+            crunch::EditSession *s = w.session();
+            const int steps = w.undoStack()->count();
+            crunch::SubtotalSpec spec;
+            spec.column = 0;
+            spec.columns = {1};
+            spec.summaryBelow = below;
+            const crunch::EditSession::Outcome o = crunch::applySubtotals(*s, 0, jp::office::sheet::CellRange{0, 0, 1048575, 1, true}, spec);
+            QVERIFY(!o.ok);
+            QVERIFY(!o.problem.isEmpty());
+            QVERIFY(e.settle());
+            QCOMPARE(w.undoStack()->count(), steps);
+            QCOMPARE(w.undoStack()->index(), steps);
+            QVERIFY(!w.undoStack()->canRedo());
+            QVERIFY(s->sheetFormat(0).summaryBelow);
+            QCOMPARE(shown(e, QStringLiteral("A1:B2")), QStringLiteral("Region|Sales|East|10"));
+        }
+    }
+
+    // Outline Settings keeps a collapsed group collapsed: its rows stay hidden, its collapsed mark goes to its new summary line (rows and columns apart), and Undo puts all back in one step.
+    void outlineSettingsKeepsACollapsedGroupCollapsed()
+    {
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=a", "A2=b", "A3=c", "A4=sum", "A5=z", "B1=1", "C1=2", "D1=3", "E1=4"})));
+        QVERIFY(e.settle());
+        CrunchWindow &w = e.win.w;
+        crunch::EditSession *s = w.session();
+        QVERIFY(s->changeOutline(0, false, s->outlineOf(0, false).group(1, 2), QStringLiteral("Group Rows")).ok);
+        QVERIFY(s->changeOutline(0, true, s->outlineOf(0, true).group(1, 2), QStringLiteral("Group Columns")).ok);
+        {
+            const crunch::Outline rows = s->outlineOf(0, false);
+            const crunch::Outline columns = s->outlineOf(0, true);
+            QVERIFY(s->changeOutline(0, false, rows.collapse(rows.groups(0, 100)[0]), QStringLiteral("Collapse")).ok);
+            QVERIFY(s->changeOutline(0, true, columns.collapse(columns.groups(0, 100)[0]), QStringLiteral("Collapse")).ok);
+        }
+        auto check = [&](bool below, bool right) {
+            const crunch::Outline rows = s->outlineOf(0, false);
+            const crunch::Outline columns = s->outlineOf(0, true);
+            const auto rg = rows.groups(0, 100);
+            const auto cg = columns.groups(0, 100);
+            QCOMPARE(rg.size(), size_t(1));
+            QCOMPARE(cg.size(), size_t(1));
+            QVERIFY(rg[0].collapsed && cg[0].collapsed);
+            QCOMPARE(qint64(rg[0].summary), below ? qint64(3) : qint64(0));
+            QCOMPARE(qint64(cg[0].summary), right ? qint64(3) : qint64(0));
+            QVERIFY(rows.hiddenOf(1) && rows.hiddenOf(2) && columns.hiddenOf(1) && columns.hiddenOf(2));
+            QVERIFY(!rows.hiddenOf(0) && !rows.hiddenOf(3) && !columns.hiddenOf(0) && !columns.hiddenOf(3));
+            // (no other line says it is collapsed)
+            for (quint32 i = 0; i < 6; ++i) {
+                QCOMPARE(rows.collapsedOf(i), qint64(i) == rg[0].summary);
+                QCOMPARE(columns.collapsedOf(i), qint64(i) == cg[0].summary);
+            }
+        };
+        check(true, true);
+        const int steps = w.undoStack()->index();
+        QVERIFY(s->setOutlineDirection(0, false, false, QStringLiteral("Outline Settings")).ok);
+        QCOMPARE(w.undoStack()->index(), steps + 1);
+        check(false, false);
+        pressUndo(&w);
+        QCOMPARE(w.undoStack()->index(), steps);
+        check(true, true);
+    }
+
+    // Pictures of Outline Settings and of the Data tab's Outline group, for a person to look at (JO_SHOT_DIR names the folder; nothing is made without it).
+    void screenshotsOfOutlineSettingsAndTheOutlineGroup()
+    {
+        const QString dir = qEnvironmentVariable("JO_SHOT_DIR");
+        if (dir.isEmpty()) QSKIP("JO_SHOT_DIR is not set");
+        jp::applyUiTheme(1);
+        EditWindow e;
+        QVERIFY(e.open(sheetOf({"A1=Region", "B1=Sales", "A2=East", "B2=10", "A3=West", "B3=5"})));
+        QVERIFY(e.settle());
+        e.win.w.resize(2600, 900);
+        e.win.w.show();
+        Ribbon *ribbon = e.win.w.ribbon();
+        for (int i = 0; i < ribbon->tabCount(); ++i)
+            if (ribbon->tabName(i) == QLatin1String("Data")) ribbon->showTab(ribbon->tabPage(i));
+        for (int i = 0; i < 20; ++i) QCoreApplication::processEvents();
+        QVERIFY(e.win.w.grab().save(dir + QStringLiteral("/crunch-outline-ribbon.png")));
+        withDialog([&] { e.win.w.act(QStringLiteral("outline.settings"))->trigger(); }, QStringLiteral("outlineSettingsDialog"), [&](QDialog *d) { shotOf(d, QStringLiteral("crunch-outline-settings")); }, false);
+        e.select(QStringLiteral("A2"));
+        withDialog([&] { e.win.w.act(QStringLiteral("data.subtotal"))->trigger(); }, QStringLiteral("subtotalDialog"), [&](QDialog *d) { shotOf(d, QStringLiteral("crunch-subtotal")); }, false);
     }
 
     void subtotalRefusesWhatItCannotDo()

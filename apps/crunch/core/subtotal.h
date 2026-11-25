@@ -31,6 +31,9 @@ struct SubtotalSpec {
 // empty, has no header row to be below, or has too many runs.
 EditSession::Outcome applySubtotals(EditSession &session, int sheet, jp::office::sheet::CellRange region, const SubtotalSpec &spec, int *groups = nullptr, const std::function<void()> &beforeEnd = nullptr);
 // Takes away the rows that hold only text and SUBTOTAL formulas (one at least) inside `region`, and the outline of the rows left; `removed` is how many rows went.
-EditSession::Outcome removeSubtotals(EditSession &session, int sheet, jp::office::sheet::CellRange region, int *removed = nullptr, const std::function<void()> &beforeEnd = nullptr);
+// With `restoreDirection` (Remove All), the outline's summary places go back to what they were before the first Subtotal, if Subtotal changed them and nothing has since.
+EditSession::Outcome removeSubtotals(EditSession &session, int sheet, jp::office::sheet::CellRange region, int *removed = nullptr, const std::function<void()> &beforeEnd = nullptr, bool restoreDirection = false);
+// Whether the rows' outline has a group that Subtotal did not make (its summary line is not a row of totals), for the list `region`.
+bool hasOwnRowGroups(const EditSession &session, int sheet, jp::office::sheet::CellRange region);
 
 } // namespace jp::crunch

@@ -71,6 +71,7 @@ int SubtotalDialog::function() const { return m_function->currentData().toInt();
 bool SubtotalDialog::replace() const { return m_replace->isChecked(); }
 bool SubtotalDialog::pageBreaks() const { return m_pageBreaks->isChecked(); }
 bool SubtotalDialog::summaryBelow() const { return m_summaryBelow->isChecked(); }
+void SubtotalDialog::setSummaryBelow(bool below) { m_summaryBelow->setChecked(below); }
 
 QList<int> SubtotalDialog::totalColumns() const
 {

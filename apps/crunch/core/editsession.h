@@ -1000,7 +1000,11 @@ public:
     Outcome setDefaultSizes(int sheet, std::optional<double> columnWidth, std::optional<double> rowHeight, const QString &text);
     // Where the outline of a sheet puts its summary lines: below the rows it sums up or above them, and right of the columns or left of them. One step of Undo (called `text`); nothing is
     // done when they are there already.
-    Outcome setOutlineDirection(int sheet, bool summaryBelow, bool summaryRight, const QString &text);
+    Outcome setOutlineDirection(int sheet, bool summaryBelow, bool summaryRight, const QString &text, bool bySubtotal = false);
+    // What Subtotal remembers of the rows' summary places, for Remove All: they were `was` before the first Subtotal that changed them to `now`. Any change of the places that is not Subtotal's or Remove All's (`bySubtotal`)
+    // forgets it; it is given back only while the sheet still has `now`.
+    void noteSubtotalDirection(int sheet, bool was, bool now) { m_subtotalDirection[sheet] = std::make_pair(was, now); }
+    std::optional<bool> subtotalDirectionBefore(int sheet) const;
     // ---- the sheets (one step each, undone, redone, and saved: the formulas that name a sheet follow it when it is renamed, and have #REF! for it when it is deleted)
     // The places of the sheets in the order of the tabs (those deleted are not among them, and hidden ones are).
     QVector<int> sheetOrder() const;
@@ -1617,6 +1621,7 @@ private:
     qint64 m_token;
     mutable qint64 m_outlinesBuilt = 0;
     qint64 m_outlineRevision = 0;
+    std::map<int, std::pair<bool, bool>> m_subtotalDirection;   // by sheet: the rows' summary place before Subtotal changed it, and the place Subtotal gave
     std::map<int, std::pair<bool, bool>> m_summaryOnDisk;   // by sheet: where the file puts the outline's summary lines (below the rows, right of the columns), for a sheet whose step changed them since it was read or saved
     std::set<int> m_formatsChanged;  // the sheets whose default sizes a step changed since the file was read or saved
     bool m_sheetsListed = false;                          // a step changed the list of sheets since the file was read or saved

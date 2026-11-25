@@ -7,9 +7,11 @@
 #include "sheet/pagesetup.h"
 
 #include <QCoreApplication>
+#include <QRegularExpression>
 #include <QUndoStack>
 
 #include <algorithm>
+#include <optional>
 
 namespace jp::crunch {
 
@@ -62,6 +64,27 @@ bool isSubtotalRow(const EditSession &s, int sheet, quint32 row, const CellRange
     return formula;
 }
 
+// Where a subtotal row has its totals: 1 below the rows it sums up, 2 above them, 0 when its formulas say neither.
+int subtotalSide(const EditSession &s, int sheet, quint32 row, const CellRange &region)
+{
+    static const QRegularExpression sums(QStringLiteral("^=SUBTOTAL\\(\\s*\\d+\\s*[,;]\\s*\\$?[A-Za-z]{1,3}\\$?(\\d+):\\$?[A-Za-z]{1,3}\\$?(\\d+)\\s*\\)"), QRegularExpression::CaseInsensitiveOption);
+    const quint32 own = row + 1;
+    for (quint32 col = region.col1; col <= region.col2; ++col) {
+        const QRegularExpressionMatch m = sums.match(s.editText(sheet, row, col));
+        if (!m.hasMatch()) continue;
+        const quint32 first = m.captured(1).toUInt(), last = m.captured(2).toUInt();
+        if (last < own) return 1;
+        if (first > own) return 2;
+    }
+    return 0;
+}
+
+// A step that changes nothing, and is not kept: pushed after a step was undone, it takes what could be redone off the stack.
+class Forget : public QUndoCommand {
+public:
+    Forget() { setObsolete(true); }
+};
+
 } // namespace
 
 const std::vector<SubtotalFunction> &subtotalFunctions()
@@ -82,7 +105,7 @@ const std::vector<SubtotalFunction> &subtotalFunctions()
     return all;
 }
 
-EditSession::Outcome removeSubtotals(EditSession &session, int sheet, CellRange region, int *removed, const std::function<void()> &beforeEnd)
+EditSession::Outcome removeSubtotals(EditSession &session, int sheet, CellRange region, int *removed, const std::function<void()> &beforeEnd, bool restoreDirection)
 {
     if (removed) *removed = 0;
     if (!region.valid) return refuse(QCoreApplication::translate("jp::crunch::Subtotal", "Select a cell in the list first."));
@@ -120,6 +143,10 @@ EditSession::Outcome removeSubtotals(EditSession &session, int sheet, CellRange 
             if (outline.levelOf(row) > 0) changes.push_back({row, 0, 0, 0});
         if (!changes.empty()) out = session.changeOutline(sheet, false, changes, QCoreApplication::translate("jp::crunch::Subtotal", "Remove All Subtotals"));
     }
+    if (out.ok && restoreDirection) {
+        const std::optional<bool> was = session.subtotalDirectionBefore(sheet);
+        if (was) out = session.setOutlineDirection(sheet, *was, session.sheetFormat(sheet).summaryRight, QCoreApplication::translate("jp::crunch::Subtotal", "Remove All Subtotals"), true);
+    }
     if (beforeEnd) beforeEnd();
     stack->endMacro();
     if (!out.ok) {
@@ -128,6 +155,14 @@ EditSession::Outcome removeSubtotals(EditSession &session, int sheet, CellRange 
     }
     if (removed) *removed = int(rows.size());
     return EditSession::Outcome();
+}
+
+bool hasOwnRowGroups(const EditSession &session, int sheet, CellRange region)
+{
+    if (!region.valid) return false;
+    for (const Outline::Group &g : session.outlineOf(sheet, false).groups(0, 0xFFFFFFFFu))
+        if (g.summary < 0 || !isSubtotalRow(session, sheet, quint32(g.summary), region)) return true;
+    return false;
 }
 
 EditSession::Outcome applySubtotals(EditSession &session, int sheet, CellRange region, const SubtotalSpec &spec, int *groups, const std::function<void()> &beforeEnd)
@@ -141,7 +176,17 @@ EditSession::Outcome applySubtotals(EditSession &session, int sheet, CellRange r
     bool known = false;
     for (const SubtotalFunction &f : subtotalFunctions()) known = known || f.code == spec.function;
     if (!known) return refuse(QCoreApplication::translate("jp::crunch::Subtotal", "Choose a function to use."));
+    if (!spec.replace) {
+        // (subtotals the list has already, with their totals on the other side, would be sums over each other's rows)
+        int sides = 0;
+        for (quint32 row = region.row1 + 1; row <= region.row2; ++row)
+            if (isSubtotalRow(session, sheet, row, region)) sides |= subtotalSide(session, sheet, row, region);
+        if (sides & (spec.summaryBelow ? 2 : 1))
+            return refuse(spec.summaryBelow ? QCoreApplication::translate("jp::crunch::Subtotal", "These subtotals have their totals above the data. Turn on Replace current subtotals, or keep the same place for the totals.")
+                                            : QCoreApplication::translate("jp::crunch::Subtotal", "These subtotals have their totals below the data. Turn on Replace current subtotals, or keep the same place for the totals."));
+    }
     QUndoStack *stack = session.undoStack();
+    const int stackBefore = stack->index();
     stack->beginMacro(QCoreApplication::translate("jp::crunch::Subtotal", "Subtotal"));
     EditSession::Outcome out;
     if (spec.replace) {
@@ -170,7 +215,10 @@ EditSession::Outcome applySubtotals(EditSession &session, int sheet, CellRange r
     // (the outline says where its summary lines are before the groups are made)
     if (out.ok) {
         const SheetFormat now = session.sheetFormat(sheet);
-        out = session.setOutlineDirection(sheet, below, now.summaryRight, QCoreApplication::translate("jp::crunch::Subtotal", "Subtotal"));
+        const std::optional<bool> was = session.subtotalDirectionBefore(sheet);
+        out = session.setOutlineDirection(sheet, below, now.summaryRight, QCoreApplication::translate("jp::crunch::Subtotal", "Subtotal"), true);
+        // (what Remove All puts back: the places before the first Subtotal that changed them)
+        if (out.ok && (was || now.summaryBelow != below)) session.noteSubtotalDirection(sheet, was ? *was : now.summaryBelow, below);
     }
     if (out.ok && below) out = session.insertRows(sheet, lastData + 1, 1);
     for (size_t i = runs.size(); i > 0 && out.ok; --i) out = session.insertRows(sheet, below ? runs[i - 1].last + 1 : runs[i - 1].first, 1);
@@ -233,7 +281,9 @@ EditSession::Outcome applySubtotals(EditSession &session, int sheet, CellRange r
     if (beforeEnd) beforeEnd();
     stack->endMacro();
     if (!out.ok) {
-        stack->undo();
+        // (a subtotal that is refused leaves nothing to undo or redo)
+        if (stack->index() > stackBefore) stack->undo();
+        stack->push(new Forget);
         return out;
     }
     if (groups) *groups = int(runs.size());

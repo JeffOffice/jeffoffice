@@ -23,6 +23,8 @@ public:
     bool replace() const;
     bool pageBreaks() const;
     bool summaryBelow() const;
+    // The box starts with the places the sheet's outline has now.
+    void setSummaryBelow(bool below);
     // The dialog ended with Remove All.
     bool removeAll() const { return m_removeAll; }
 
