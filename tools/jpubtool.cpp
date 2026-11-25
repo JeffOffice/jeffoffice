@@ -17,6 +17,7 @@
 #include "render/pdfpage.h"
 #include "render/renderer.h"
 #include "templates/templates.h"
+#include "text/hyphenation.h"
 #include "text/textengine.h"
 #include "text/textprops.h"
 #include "io/pubshapes.h"
@@ -47,10 +48,17 @@ int main(int argc, char **argv)
     ::jp::ShutdownGuard programEnd;   // (the background services end, and the settings are written, however main is left: app/shutdown.h)
     setAppInfo(pubAppInfo());
     initCore();
-    const QStringList args = app.arguments();
+    QStringList args = app.arguments();
+    // --hyphenate-only en,es,fr: automatic hyphenation only in those languages (for scoring against pages made without the other languages' dictionaries; off unless given).
+    for (int i = 1; i + 1 < args.size(); ++i)
+        if (args[i] == QLatin1String("--hyphenate-only")) {
+            limitAutomaticHyphenationTo(args[i + 1].split(QLatin1Char(','), Qt::SkipEmptyParts));
+            args.remove(i, 2);
+            break;
+        }
     QTextStream out(stdout);
     if (args.size() < 4) {
-        out << "usage: jpubtool render <file> <outdir> [dpi [pages]] | convert <in> <out.jpub> | repack <in.pub> <out.pub> | topub <in> <out.pub> | layout <file> x\n";
+        out << "usage: jpubtool [--hyphenate-only en,es,...] render <file> <outdir> [dpi [pages]] | convert <in> <out.jpub> | repack <in.pub> <out.pub> | topub <in> <out.pub> | layout <file> x\n";
         return 2;
     }
     const QString cmd = args[1], in = args[2];

@@ -1801,6 +1801,54 @@ void FlowTests::wordLettersKeepTheOriginalsPlaceAtASoftHyphenAndAHyphenationPoin
 }
 
 
+// The scoring tool can limit automatic hyphenation to some languages (jpubtool --hyphenate-only; the programs never call it): the other languages' words stay whole, the listed ones
+// are laid out as without the limit, and ending the limit gives every language back.
+void FlowTests::hyphenationLimitedToSomeLanguagesLeavesTheOthersWhole()
+{
+    struct Reset { ~Reset() { jp::limitAutomaticHyphenationTo({}); } } reset;
+    const auto linesOf = [](const QString &language, const QString &text) {
+        QTextDocument doc;
+        QTextCursor c(&doc);
+        QTextCharFormat cf;
+        cf.setFontFamilies({QStringLiteral("Arimo")});
+        cf.setFontPointSize(11);
+        if (!language.isEmpty()) cf.setProperty(tp::Language, language);
+        c.insertText(text, cf);
+        StoryLayout lay;
+        FrameSpec frame = plainFrame(90, 2000);
+        frame.hyphenate = true;
+        lay.build(&doc, {frame}, LayoutEnv());
+        QStringList lines;
+        for (const auto &li : lay.lineInfo(0)) lines << li.text;
+        return lines;
+    };
+    const auto hyphenated = [](const QStringList &lines) {
+        int n = 0;
+        for (const QString &l : lines) n += l.endsWith(QChar(0x00AD));
+        return n;
+    };
+    const QString ru = QString::fromUtf8("переименование электрификация международный производственный ").repeated(4);
+    const QString en = QStringLiteral("hyphenation international organization understanding responsibilities ").repeated(4);
+    const QString it = QString::fromUtf8("generalmente rappresentazione organizzazione straordinario ").repeated(4);
+    const QStringList ruAll = linesOf(QStringLiteral("ru-RU"), ru), enAll = linesOf(QStringLiteral("en-US"), en), itAll = linesOf(QStringLiteral("it-IT"), it), plainAll = linesOf(QString(), en);
+    QVERIFY(hyphenated(ruAll) >= 4 && hyphenated(enAll) >= 4 && hyphenated(itAll) >= 4 && hyphenated(plainAll) >= 4);   // (the premise: each hyphenates without the limit)
+    jp::limitAutomaticHyphenationTo({QStringLiteral("en"), QStringLiteral("es"), QStringLiteral("fr")});
+    QVERIFY(jp::automaticHyphenationIn(QStringLiteral("en-GB")) && jp::automaticHyphenationIn(QString()) && !jp::automaticHyphenationIn(QStringLiteral("ru-RU")));
+    QCOMPARE(hyphenated(linesOf(QStringLiteral("ru-RU"), ru)), 0);
+    QCOMPARE(hyphenated(linesOf(QStringLiteral("it-IT"), it)), 0);
+    QCOMPARE(linesOf(QStringLiteral("en-US"), en), enAll);   // (a listed language, or none, is laid out as without the limit)
+    QCOMPARE(linesOf(QString(), en), plainAll);
+    jp::limitAutomaticHyphenationTo({QStringLiteral("IT-it")});   // (a full tag, in any case)
+    QVERIFY(jp::automaticHyphenationIn(QStringLiteral("it-IT")) && !jp::automaticHyphenationIn(QStringLiteral("it-CH")));
+    QCOMPARE(linesOf(QStringLiteral("it-IT"), it), itAll);
+    QCOMPARE(hyphenated(linesOf(QStringLiteral("en-US"), en)), 0);
+    jp::limitAutomaticHyphenationTo({});
+    QCOMPARE(linesOf(QStringLiteral("ru-RU"), ru), ruAll);   // (nothing changes unless given)
+    QCOMPARE(linesOf(QStringLiteral("it-IT"), it), itAll);
+    QCOMPARE(linesOf(QStringLiteral("en-US"), en), enAll);
+}
+
+
 // A line of Chinese text in a stand-in run (each character a piece of its own, no word between spaces) is set as the publication's text is, as it was before words were shared
 // out: its Latin letters keep what they had.
 void FlowTests::aLineOfChineseTextIsSetAsItWas()

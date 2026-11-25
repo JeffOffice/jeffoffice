@@ -232,4 +232,39 @@ bool hyphenationKnows(const QString &word, const QString &language)
     return known;
 }
 
+namespace {
+
+QMutex &limitMutex()
+{
+    static QMutex m;
+    return m;
+}
+
+bool g_limited = false;
+QStringList g_limit;
+
+} // namespace
+
+void limitAutomaticHyphenationTo(const QStringList &languages)
+{
+    QStringList kept;
+    for (const QString &l : languages) {
+        if (kept.size() >= 64) break;
+        const QString tag = l.trimmed().left(16).toLower();
+        if (!tag.isEmpty()) kept << tag;
+    }
+    QMutexLocker lock(&limitMutex());
+    g_limit = kept;
+    g_limited = !kept.isEmpty();
+}
+
+bool automaticHyphenationIn(const QString &language)
+{
+    QMutexLocker lock(&limitMutex());
+    if (!g_limited) return true;
+    const QString tag = language.isEmpty() ? QStringLiteral("en-us") : language.toLower().replace(QLatin1Char('_'), QLatin1Char('-'));
+    const QString primary = tag.section(QLatin1Char('-'), 0, 0);
+    return g_limit.contains(tag) || g_limit.contains(primary);
+}
+
 } // namespace jp

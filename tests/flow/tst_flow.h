@@ -1424,6 +1424,7 @@ private Q_SLOTS:
     void underlinesCostInProportionToTheirRunsAndLines();
     void wordLettersKeepTheOriginalsPlaceAtEveryBreakInsideTheWord();
     void wordLettersKeepTheOriginalsPlaceAtASoftHyphenAndAHyphenationPoint();
+    void hyphenationLimitedToSomeLanguagesLeavesTheOthersWhole();
     void aLineOfChineseTextIsSetAsItWas();
     void aWordEndingInACharacterNoPieceCanCarryStillEndsWhereTheOriginalsDoes();
     void wordLettersShareTheirWidthsAcrossRuns();

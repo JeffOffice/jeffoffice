@@ -4042,7 +4042,7 @@ QVector<double> StoryLayout::buildOnce(const QTextDocument *doc, const QVector<F
                 // Places a line may break that Qt's own rules leave out, each
                 // with the character that marks it in the displayed text.
                 QVector<QPair<int, QChar>> cuts;
-                if (hyphenate) {
+                if (hyphenate && automaticHyphenationIn(cf.stringProperty(tp::Language))) {
                     // Automatic hyphenation: soft hyphens (shown only where a line
                     // breaks) at the allowed points of words of five letters or more.
                     static const QRegularExpression wordRe(QStringLiteral("\\p{L}{5,}"));
